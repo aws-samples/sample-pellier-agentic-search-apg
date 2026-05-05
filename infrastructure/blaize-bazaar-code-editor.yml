@@ -26,6 +26,27 @@ Parameters:
     Type: String
     Default: https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git
 
+  RepoBranch:
+    Type: String
+    Default: main
+    Description: >
+      Git branch to check out. Keep at 'main' for public deployments;
+      override for testing a pre-release branch during dry-runs.
+
+  LabFormat:
+    Type: String
+    AllowedValues:
+      - workshop
+      - builders
+    Default: workshop
+    Description: >
+      Which lab format this instance serves. Drives the conditional
+      `cp` in UserData: the Builder's Session (60 min) pre-applies
+      the three Stock Keeper support tools + the Experience Guide
+      agent so participants only build Stock Keeper's system prompt
+      + floor_check. The Workshop (120 min) leaves all stubs in place
+      so participants build everything themselves.
+
   InstanceType:
     Type: String
     Default: c6g.2xlarge
@@ -214,7 +235,24 @@ Resources:
           # --- Clone repo ---
           cd ${HomeFolder}
           if [ ! -d blaize-bazaar ]; then
-            sudo -u ${CodeEditorUser} git clone ${RepoUrl} blaize-bazaar
+            sudo -u ${CodeEditorUser} git clone --branch ${RepoBranch} ${RepoUrl} blaize-bazaar
+          fi
+
+          # --- LabFormat-conditional pre-apply ---
+          #
+          # Builder's Session (60 min): pre-apply the Experience Guide
+          # agent + a variant of agent_tools.py that wires restock_shelf
+          # and running_low but leaves floor_check stubbed. Participants
+          # build Stock Keeper's system prompt + floor_check, period.
+          #
+          # Workshop (120 min): keep all stubs in place; participants
+          # author everything themselves over 90 minutes of hands-on.
+          if [ "${LabFormat}" = "builders" ]; then
+            cd ${HomeFolder}/blaize-bazaar
+            sudo -u ${CodeEditorUser} cp solutions/module2/agents/customer_support_agent.py \
+               blaize-bazaar/backend/agents/customer_support_agent.py
+            sudo -u ${CodeEditorUser} cp solutions/module2/services/agent_tools__builders_preapply.py \
+               blaize-bazaar/backend/services/agent_tools.py
           fi
 
           # --- Export env vars so bootstrap scripts can read them ---

@@ -1,0 +1,74 @@
+# Blaize Bazaar — Workshop Studio content spec (120-minute re:Invent workshop).
+#
+# Instructor notes:
+#   - The narrative spine is Marco's arc. Participants click pills; presenter
+#     narrates. See lab-content/shared/marco-arc-overview.en.md for the spec.
+#   - Marco's Turn 4 pill (warehouse stock) is clicked twice in the session:
+#     once during the opening demo (Stock Keeper stubbed → graceful non-answer),
+#     once during the midpoint checkpoint (Stock Keeper wired → real warehouse).
+#   - Per-agent model mix is an architectural decision, not a knob. Do NOT
+#     normalize. lab-content/shared/model-mix-sidebar.en.md explains why.
+#   - If the room is slow: drop C4 (running_low) and C5 (Experience Guide).
+#     Do NOT trim C1-C3 — they're the narrative spine (Stock Keeper closes
+#     Marco's gap).
+defaultLocaleCode: en-US
+localeCodes:
+  - en-US
+version: 3.0
+
+awsAccountConfig:
+  accountSources:
+    - WorkshopStudio
+  serviceLinkedRoles:
+    - rds.amazonaws.com
+    - bedrock.amazonaws.com
+  regionConfiguration:
+    minAccessibleRegions: 1
+    maxAccessibleRegions: 2
+    accessibleRegions:
+      recommended:
+        - us-west-2
+      required:
+        - us-west-2
+
+infrastructure:
+  cloudformationTemplates:
+    - templateLocation: static/blaize-bazaar-workshop.yml
+      label: Blaize Bazaar Workshop (120 min — re:Invent)
+      parameters:
+        - templateParameter: WorkshopId
+          defaultValue: "{{.ParticipantId}}"
+        - templateParameter: LabFormat
+          defaultValue: "workshop"
+        - templateParameter: RepoURL
+          defaultValue: "https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git"
+        - templateParameter: RepoBranch
+          defaultValue: "main"
+        - templateParameter: AuroraEngineVersion
+          defaultValue: "17.7"
+
+participantRole:
+  managedPolicies: []
+  iamPolicies:
+    - static/iam_policy.json
+
+workshopTimeline:
+  duration: 120
+  checkpoints:
+    - "00:00 — Opening talk + Boutique demo (Marco clicks 4 pills)"
+    - "00:10 — Module 1 · Observe (tour + model-mix sidebar + swap-a-model)"
+    - "00:30 — Module 2 · Understand (Stock Keeper + Experience Guide)"
+    - "00:55 — Mid-point checkpoint (Marco's Turn 4 works)"
+    - "01:40 — Module 3 · Evaluate (Performance + Evaluations + capstone)"
+    - "01:55 — Wrap-up + Q&A"
+
+prerequisites:
+  knowledge:
+    - "Python 3.13 fluency, including async/await"
+    - "Comfort reading 200-line modules and finding insertion points"
+    - "Familiarity with LLM concepts: temperature, tool calling, system prompts"
+    - "Basic AWS + Bedrock awareness"
+  technical:
+    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.6, Cohere Embed v4"
+    - "Amazon Transcribe streaming access (voice search is optional demo)"
+    - "Cognito-supported AWS region (us-west-2 recommended)"

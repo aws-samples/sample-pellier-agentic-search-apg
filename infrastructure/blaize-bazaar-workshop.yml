@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Blaize Bazaar — 120-minute Workshop (re:Invent 2026).
+  Thin wrapper around blaize-bazaar-labs.yml with LabFormat=workshop.
+  Participants build Stock Keeper (system prompt + 3 tools) +
+  Experience Guide (system prompt + chaining pattern) over 90 min
+  of hands-on.
+
+Parameters:
+  WorkshopId:
+    Type: String
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,40}$
+    ConstraintDescription: 3-41 chars, lowercase/digits/hyphens.
+
+  WorkshopDomain:
+    Type: String
+    AllowedPattern: ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+
+  AuroraEngineVersion:
+    Type: String
+    Default: "17.7"
+
+  NumberOfTestUsers:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 50
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git
+
+  RepoBranch:
+    Type: String
+    Default: main
+
+  GoogleOAuthSecretArn:
+    Type: String
+    Default: ""
+
+  EnableGoogleSignIn:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+
+  AppleOAuthSecretArn:
+    Type: String
+    Default: ""
+
+  EnableAppleSignIn:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+  TemplatesBaseUrl:
+    Type: String
+    Description: S3 or raw-GitHub URL base where the nested stacks live.
+
+Resources:
+  # Delegate the entire stack composition to the shared labs.yml.
+  # LabFormat=workshop tells the Code Editor UserData to leave all
+  # challenge stubs in place — participants build everything.
+  LabsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplatesBaseUrl}/blaize-bazaar-labs.yml
+      Parameters:
+        WorkshopId: !Ref WorkshopId
+        WorkshopDomain: !Ref WorkshopDomain
+        AuroraEngineVersion: !Ref AuroraEngineVersion
+        NumberOfTestUsers: !Ref NumberOfTestUsers
+        LabFormat: workshop
+        RepoUrl: !Ref RepoUrl
+        RepoBranch: !Ref RepoBranch
+        GoogleOAuthSecretArn: !Ref GoogleOAuthSecretArn
+        EnableGoogleSignIn: !Ref EnableGoogleSignIn
+        AppleOAuthSecretArn: !Ref AppleOAuthSecretArn
+        EnableAppleSignIn: !Ref EnableAppleSignIn
+        TemplatesBaseUrl: !Ref TemplatesBaseUrl
+      Tags:
+        - Key: Project
+          Value: blaize-bazaar
+        - Key: LabFormat
+          Value: workshop
+        - Key: Event
+          Value: re-invent-2026
+
+Outputs:
+  CodeEditorUrl:
+    Value: !GetAtt LabsStack.Outputs.CodeEditorUrl
+    Description: Workshop Studio participant entry point.
+  AuroraClusterEndpoint:
+    Value: !GetAtt LabsStack.Outputs.AuroraClusterEndpoint
+  UserPoolId:
+    Value: !GetAtt LabsStack.Outputs.UserPoolId
+  HostedUiUrl:
+    Value: !GetAtt LabsStack.Outputs.HostedUiUrl
+  TestUserCredentialsSecretArn:
+    Value: !GetAtt LabsStack.Outputs.TestUserCredentialsSecretArn

@@ -75,7 +75,9 @@ tmp/
 archive/
 
 # Embedded git repos (separate content repos)
-lab-content/
+# lab-content/ previously tracked in a separate repo; now authored here
+# for the DC Summit Builder's Session + re:Invent Workshop (see
+# /Users/shayons/.claude/plans/cheeky-dreaming-sloth.md).
 reference/
 
 # Playwright artifacts

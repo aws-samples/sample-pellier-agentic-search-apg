@@ -85,6 +85,30 @@ Parameters:
     MinValue: 1
     MaxValue: 50
 
+  LabFormat:
+    Type: String
+    AllowedValues:
+      - workshop
+      - builders
+    Default: workshop
+    Description: >
+      Which lab format this deployment serves.
+      - workshop (120 min, re:Invent): all stubs stay in place; participants
+        build Stock Keeper + Experience Guide + 5 tools over 90 min of
+        hands-on.
+      - builders (60 min, DC Summit): Experience Guide + restock_shelf +
+        running_low are pre-applied; participants build Stock Keeper's
+        system prompt + floor_check only.
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git
+
+  RepoBranch:
+    Type: String
+    Default: main
+    Description: Git branch to check out on the Code Editor instance.
+
   TemplatesBaseUrl:
     Type: String
     Description: >
@@ -178,6 +202,9 @@ Resources:
         UserPoolDomain: !GetAtt CognitoStack.Outputs.UserPoolDomain
         HostedUiUrl: !GetAtt CognitoStack.Outputs.HostedUiUrl
         TestUserCredentialsSecretArn: !GetAtt CognitoStack.Outputs.TestUserCredentialsSecretArn
+        LabFormat: !Ref LabFormat
+        RepoUrl: !Ref RepoUrl
+        RepoBranch: !Ref RepoBranch
       Tags:
         - Key: Project
           Value: blaize-bazaar

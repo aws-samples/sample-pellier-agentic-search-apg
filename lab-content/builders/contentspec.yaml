@@ -1,0 +1,76 @@
+# Blaize Bazaar — Workshop Studio content spec (60-minute DC Summit Builder's Session).
+#
+# Instructor notes:
+#   - Time is the enemy. The narrative spine is Marco's arc. Two artifacts of
+#     participant-authored code: Stock Keeper system prompt + floor_check tool.
+#     restock_shelf + running_low + Experience Guide are PRE-APPLIED via the
+#     CloudFormation UserData (LabFormat=builders branch) — do NOT have
+#     participants build them in 60 minutes.
+#   - Per-agent model mix is an architectural decision. Do NOT normalize.
+#     See lab-content/shared/model-mix-sidebar.en.md.
+#   - Marco's Turn 4 pill is clicked twice in the session — once during the
+#     opening demo (Stock Keeper stubbed → non-answer), once during the
+#     midpoint checkpoint (Stock Keeper wired → real warehouse data).
+#   - Participants who want more depth should be pointed at
+#     lab-content/workshop/ — same Marco arc, 2-hour framing, all 5 tools +
+#     both specialists built by hand.
+defaultLocaleCode: en-US
+localeCodes:
+  - en-US
+version: 3.0
+
+awsAccountConfig:
+  accountSources:
+    - WorkshopStudio
+  serviceLinkedRoles:
+    - rds.amazonaws.com
+    - bedrock.amazonaws.com
+  regionConfiguration:
+    minAccessibleRegions: 1
+    maxAccessibleRegions: 2
+    accessibleRegions:
+      recommended:
+        - us-west-2
+      required:
+        - us-west-2
+
+infrastructure:
+  cloudformationTemplates:
+    - templateLocation: static/blaize-bazaar-builders.yml
+      label: Blaize Bazaar Builder's Session (60 min — DC Summit)
+      parameters:
+        - templateParameter: WorkshopId
+          defaultValue: "{{.ParticipantId}}"
+        - templateParameter: LabFormat
+          defaultValue: "builders"
+        - templateParameter: RepoURL
+          defaultValue: "https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git"
+        - templateParameter: RepoBranch
+          defaultValue: "main"
+        - templateParameter: AuroraEngineVersion
+          defaultValue: "17.7"
+
+participantRole:
+  managedPolicies: []
+  iamPolicies:
+    - static/iam_policy.json
+
+workshopTimeline:
+  duration: 60
+  checkpoints:
+    - "00:00 — Opening talk + Boutique demo (Marco clicks 4 pills)"
+    - "00:10 — Module 1 · Observe (model-mix sidebar + Atelier tour)"
+    - "00:15 — Module 2 · Understand (Stock Keeper + floor_check)"
+    - "00:40 — Mid-point checkpoint (Marco's Turn 4 lands)"
+    - "00:40 — Module 3 · Evaluate (Performance + Experience Guide walk-through)"
+    - "00:50 — Capstone (Marco's 5-turn full journey)"
+    - "00:55 — Q&A"
+
+prerequisites:
+  knowledge:
+    - "Python fluency (async/await, imports, light typing)"
+    - "LLM comfort (temperature, system prompts, tool use)"
+    - "Basic AWS + Bedrock awareness"
+  technical:
+    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Cohere Embed v4"
+    - "Cognito-supported AWS region (us-west-2 recommended)"
