@@ -64,40 +64,17 @@ def _run_async(coro):
 
 @tool
 def floor_check() -> str:
-    """Get current inventory health statistics including stock levels and alerts. Use for warehouse, stock status, or inventory overview questions.
-
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py blaize-bazaar/backend/services/agent_tools.py
-    """
-    # === CHALLENGE · Stock Keeper · floor_check: START ===
-    # WORKSHOP_EXERCISE_STUB
-    #
-    # Wire this tool to BusinessLogic.floor_check() so Stock Keeper
-    # can answer Marco's Turn 4: "Is the Pellier shirt at the
-    # Brooklyn warehouse?"
-    #
-    # Steps:
-    #   1. Guard on _db_service being initialized (return a JSON error
-    #      if not).
-    #   2. Import BusinessLogic from services.business_logic.
-    #   3. Call logic.floor_check() via _run_async() — it's an async
-    #      method.
-    #   4. Return the result as a JSON string (use json.dumps with
-    #      indent=2).
-    #   5. Catch exceptions and return a JSON error envelope.
-    #
-    # Verify locally:
-    #   cd blaize-bazaar/backend
-    #   pytest tests/test_agent_tools.py::test_floor_check -v
-    #
-    # Verify live:
-    #   Click Marco Turn 4 pill in the Boutique — Stock Keeper answers
-    #   with the Brooklyn warehouse breakdown.
-    return json.dumps({
-        "error": "floor_check is in stub state",
-        "hint": "This is the workshop build. Implement the tool body or run the cp command above.",
-    })
-    # === CHALLENGE · Stock Keeper · floor_check: END ===
+    """Get current inventory health statistics including stock levels and alerts. Use for warehouse, stock status, or inventory overview questions."""
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.floor_check())
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 @tool
 def whats_trending(limit: int = 5, category: str = None) -> str:
@@ -145,24 +122,19 @@ def restock_shelf(product_id: int, quantity: int) -> str:
     """Restock a specific product by adding inventory quantity. Use when an inventory manager needs to replenish stock for a product ID.
 
     Args:
-        product_id: Integer productId (1-40 in the boutique catalog).
+        product_id: Integer productId (1-92 in the boutique catalog).
         quantity: Units to add to current stock.
-
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py blaize-bazaar/backend/services/agent_tools.py
     """
-    # === CHALLENGE · Stock Keeper · restock_shelf: START ===
-    # WORKSHOP_EXERCISE_STUB (Workshop format only — Builder's session
-    # pre-applies this via CloudFormation UserData.)
-    #
-    # Wire this tool to BusinessLogic.restock_shelf(product_id, quantity).
-    # Cedar policy enforces the 500-unit ceiling — you don't need to
-    # enforce it here; the BeforeToolCallEvent hook handles it.
-    return json.dumps({
-        "error": "restock_shelf is in stub state",
-        "hint": "Workshop build — implement or run the cp command above.",
-    })
-    # === CHALLENGE · Stock Keeper · restock_shelf: END ===
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.restock_shelf(product_id, quantity))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 _CATEGORY_MAP = {
     # Boutique catalog categories (92 products, 9 categories)
@@ -330,21 +302,17 @@ def running_low(limit: int = 5) -> str:
 
     Args:
         limit: Number of results (default: 5)
-
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py blaize-bazaar/backend/services/agent_tools.py
     """
-    # === CHALLENGE · Stock Keeper · running_low: START ===
-    # WORKSHOP_EXERCISE_STUB (Workshop format only — Builder's session
-    # pre-applies this via CloudFormation UserData.)
-    #
-    # Wire this tool to BusinessLogic.running_low(limit). Returns
-    # products with quantity <= 5 ranked by rating.
-    return json.dumps({
-        "error": "running_low is in stub state",
-        "hint": "Workshop build — implement or run the cp command above.",
-    })
-    # === CHALLENGE · Stock Keeper · running_low: END ===
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.running_low(limit))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 
 # === WIRE IT LIVE (Lab 2) ===

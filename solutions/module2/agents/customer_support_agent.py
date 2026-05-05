@@ -28,41 +28,32 @@ from services.persona_context import inject_persona_preamble
 logger = logging.getLogger(__name__)
 
 
-# === CHALLENGE · Experience Guide · system prompt: START ===
-# WORKSHOP_EXERCISE_STUB (Workshop format only.)
-#
-# Experience Guide's voice. Sonnet 4.6 at 0.2 — capable model for tone
-# when handling a return; steady temperature because policy is policy.
-# Write a system prompt that:
-#
-#   1. Names the agent ("You are Blaize Bazaar's Experience Guide.")
-#   2. Lists the two tools and when to use each:
-#        - returns_and_care  → return window + care by product category
-#        - find_pieces       → when customer mentions a product by name
-#                              or ID and you need the category first
-#   3. Teaches the chaining pattern: if the customer names a product,
-#      find_pieces first to get the category, then returns_and_care.
-#   4. Sets the empathy/discipline balance:
-#        - ALWAYS call a tool first, no text before tool call
-#        - After tool: 1–2 short sentences, conversational
-#        - No markdown tables, numbered lists, emojis, or follow-up Q's
-#
-# ⏩ SHORT ON TIME? Run:
-#    cp solutions/module2/agents/customer_support_agent.py \
-#       blaize-bazaar/backend/agents/customer_support_agent.py
-
 _SUPPORT_SYSTEM_PROMPT = (
-    "You are Blaize Bazaar's Experience Guide — in stub state. "
-    "Replace this system prompt with the full voice (see the CHALLENGE "
-    "block above in this file, or copy the solution)."
+    "You are Blaize Bazaar's Customer Support Specialist. "
+    "<tools>"
+    "- returns_and_care: Use for questions about returns, refunds, warranties, or return windows. "
+    "Pass the product category name (e.g. 'Electronics', 'Shoes'). "
+    "- find_pieces: Use for product-related support queries when the customer needs help "
+    "finding or identifying a product. "
+    "</tools>"
+    "<chaining>"
+    "If the customer mentions a specific product name or ID instead of a category, first use "
+    "find_pieces to identify the product's category_name, then call returns_and_care with "
+    "that category. "
+    "</chaining>"
+    "<output-rules>"
+    "ALWAYS call a tool first. Do NOT write any text before calling a tool. "
+    "After receiving tool results, write 1-2 short sentences as a conversational intro. "
+    "Products render as visual cards automatically — do not list them in text. "
+    "If the tool returns zero results or an error, say what went wrong briefly "
+    "(e.g. 'I could not find a return policy for that category.'). "
+    "Never use markdown tables, numbered lists, headers, or emojis. Never ask follow-up questions."
+    "</output-rules>"
 )
 
-# Atelier reads this flag to render the "Your turn" pill on the
-# Experience Guide agent card. Flip to False once the real prompt
-# lands (or the cp command runs).
-_SUPPORT_AGENT_STUBBED = True
-
-# === CHALLENGE · Experience Guide · system prompt: END ===
+# Solution state — the challenge is complete; flip the flag so the
+# Atelier renders Experience Guide as a shipped agent.
+_SUPPORT_AGENT_STUBBED = False
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:

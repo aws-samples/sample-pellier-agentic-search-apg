@@ -19,49 +19,27 @@ from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
 
-# === CHALLENGE · Stock Keeper · system prompt: START ===
-# WORKSHOP_EXERCISE_STUB
-#
-# Stock Keeper's voice. Haiku 4.5 at 0.0 — the model doesn't need
-# ornament, it needs direction. Write a system prompt that:
-#
-#   1. Names the agent ("You are Blaize Bazaar's Stock Keeper.")
-#   2. Lists the three tools and when to use each:
-#        - floor_check     → overall stock + warehouse health
-#        - running_low     → items needing restock, ranked by rating
-#        - restock_shelf   → only when user provides product_id + quantity
-#   3. Sets output discipline (Haiku at 0.0 respects it):
-#        - ALWAYS call a tool first, never write text before tool call
-#        - After tool results: 1–2 short sentences, no markdown tables,
-#          no numbered lists, no emojis
-#        - Products render as cards — don't list them in text
-#        - If a tool returns zero/error, say what went wrong briefly
-#
-# ⏩ SHORT ON TIME? Run:
-#    cp solutions/module2/agents/inventory_agent.py blaize-bazaar/backend/agents/inventory_agent.py
-#
-# Verify locally:
-#    cd blaize-bazaar/backend
-#    pytest tests/test_inventory_agent.py -v
-#
-# Verify live:
-#    Click Marco's Turn 4 pill. Stock Keeper answers with the
-#    warehouse breakdown (assuming floor_check is also wired).
-
 _INVENTORY_SYSTEM_PROMPT = (
-    "You are Blaize Bazaar's Stock Keeper — in stub state. "
-    "Replace this system prompt with the full voice (see the CHALLENGE "
-    "block above in this file, or copy the solution)."
+    "You are Blaize Bazaar's Inventory Specialist. "
+    "<tools>"
+    "- floor_check: Use for overall stock statistics and warehouse health overview. "
+    "- running_low: Use to find items that need restocking, prioritized by demand. "
+    "- restock_shelf: Use when the user provides a specific product ID and quantity to restock. "
+    "If the user mentions a product by name instead of ID, inform them you need the product ID. "
+    "</tools>"
+    "<output-rules>"
+    "ALWAYS call a tool first. Do NOT write any text before calling a tool. "
+    "After receiving tool results, write 1-2 short sentences summarizing stock status. "
+    "Products render as visual cards automatically — do not list them in text. "
+    "If the tool returns zero products or an error, say what went wrong briefly "
+    "(e.g. 'Could not retrieve inventory data right now.'). "
+    "Never use markdown tables, numbered lists, headers, or emojis. Never ask follow-up questions."
+    "</output-rules>"
 )
 
-# Atelier reads this flag to render the "Your turn" pill on the
-# Stock Keeper agent card and the dashed-border state on the three
-# inventory tools. Flip to False once the system prompt is authored
-# (or, equivalently, once the cp solution command has been run and
-# the real prompt replaces the stub above).
-_INVENTORY_AGENT_STUBBED = True
-
-# === CHALLENGE · Stock Keeper · system prompt: END ===
+# Solution state — the challenge is complete; flip the flag so the
+# Atelier renders Stock Keeper as a shipped agent.
+_INVENTORY_AGENT_STUBBED = False
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:

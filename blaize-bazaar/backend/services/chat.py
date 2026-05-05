@@ -1824,6 +1824,70 @@ CURRENT REQUEST: {message}"""
             from agents.search_agent import build_search_agent
             from agents.recommendation_agent import build_recommendation_agent
             from agents.pricing_agent import build_pricing_agent
+            from agents import inventory_agent as inventory_agent_module
+            from agents import customer_support_agent as support_agent_module
+
+            # --- Workshop stub detection ---
+            #
+            # When participants haven't yet wired Stock Keeper (or
+            # Experience Guide, in the Workshop format), the Dispatcher
+            # intercepts and returns a voice-matched non-answer INSTEAD
+            # of invoking the stub agent. This is the graceful gap
+            # Marco's Turn 4 lands in during the opening demo; wiring
+            # the agent flips the flag and the same turn returns real
+            # warehouse data.
+            #
+            # We yield the non-answer as streaming SSE events so the
+            # frontend renders it identically to a normal assistant
+            # response (no error UI, no exception).
+            _STUB_FALLBACK_MESSAGES = {
+                "inventory": (
+                    "I can help with style and recommendations, but I don't have "
+                    "real-time stock visibility for individual warehouses yet. "
+                    "I can tell you the product is in the catalog and marked "
+                    "in-stock system-wide — but which warehouse holds it, and "
+                    "how many are on the floor, sits outside what I can answer "
+                    "right now."
+                ),
+                "support": (
+                    "I can help with style and recommendations, but return "
+                    "handling and post-purchase support sits outside what I "
+                    "can answer right now. When the Experience Guide is wired "
+                    "it will own returns, care instructions, and warranty flow "
+                    "end-to-end."
+                ),
+            }
+
+            _stub_flag = None
+            if intent_hint == "inventory":
+                _stub_flag = getattr(
+                    inventory_agent_module, "_INVENTORY_AGENT_STUBBED", False
+                )
+            elif intent_hint == "support":
+                _stub_flag = getattr(
+                    support_agent_module, "_SUPPORT_AGENT_STUBBED", False
+                )
+
+            if _stub_flag:
+                fallback_text = _STUB_FALLBACK_MESSAGES[intent_hint]
+                logger.info(
+                    "🎯 Dispatcher | specialist=%s is STUBBED — returning "
+                    "voice-matched non-answer (workshop build pending)",
+                    intent_hint,
+                )
+                # Stream the non-answer as if a normal agent produced it.
+                yield {"type": "text", "content": fallback_text}
+                yield {
+                    "type": "meta",
+                    "meta": {
+                        "agent": None,
+                        "model": None,
+                        "note": f"{intent_hint}-intent matched; agent is the workshop build",
+                        "fallthrough": True,
+                    },
+                }
+                return
+
             from agents.inventory_agent import build_inventory_agent
             from agents.customer_support_agent import build_support_agent
 
