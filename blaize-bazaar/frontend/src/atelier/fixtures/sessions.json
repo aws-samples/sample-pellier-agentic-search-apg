@@ -1,42 +1,79 @@
 [
   {
-    "id": "7F5A",
+    "id": "marco-opening-demo",
     "personaId": "marco",
-    "openingQuery": "A linen shirt for warm evenings out",
-    "elapsedMs": 4230,
+    "openingQuery": "What linen do you have for 10 days in Goa?",
+    "elapsedMs": 14820,
     "agentCount": 3,
     "routingPattern": "Dispatcher",
     "timestamp": "2025-01-15T19:42:00Z",
-    "status": "complete"
+    "status": "complete",
+    "tagline": "Linen for summer in Goa"
   },
   {
-    "id": "A3C1",
+    "id": "marco-midpoint-checkpoint",
     "personaId": "marco",
-    "openingQuery": "What goes well with the camp shirt?",
-    "elapsedMs": 3180,
+    "openingQuery": "Is the Pellier shirt at the Brooklyn warehouse?",
+    "elapsedMs": 1840,
+    "agentCount": 1,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2025-01-15T20:18:00Z",
+    "status": "complete",
+    "tagline": "Stock check — after the build"
+  },
+  {
+    "id": "marco-capstone",
+    "personaId": "marco",
+    "openingQuery": "What pairs with the Ecru overshirt?",
+    "elapsedMs": 22340,
+    "agentCount": 5,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2025-01-15T21:05:00Z",
+    "status": "complete",
+    "tagline": "Full journey — all five agents"
+  },
+  {
+    "id": "anna-birthday-gift",
+    "personaId": "anna",
+    "openingQuery": "Birthday gift for my sister — no idea where to start",
+    "elapsedMs": 5640,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-15T14:18:00Z",
-    "status": "complete"
-  },
-  {
-    "id": "D9E2",
-    "personaId": "anna",
-    "openingQuery": "A thoughtful gift for someone who loves morning rituals",
-    "elapsedMs": 5640,
-    "agentCount": 4,
-    "routingPattern": "Dispatcher",
     "timestamp": "2025-01-14T21:05:00Z",
-    "status": "complete"
+    "status": "complete",
+    "tagline": "Birthday gift, sister, no idea where to start"
   },
   {
-    "id": "B4F8",
+    "id": "anna-housewarming",
+    "personaId": "anna",
+    "openingQuery": "Something considered under $100 for a new homeowner",
+    "elapsedMs": 4220,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2025-01-13T18:22:00Z",
+    "status": "complete",
+    "tagline": "Housewarming, considered, under $100"
+  },
+  {
+    "id": "theo-pour-over",
     "personaId": "theo",
     "openingQuery": "Hand-thrown ceramics for a slower morning routine",
     "elapsedMs": 6120,
-    "agentCount": 3,
+    "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2025-01-14T10:33:00Z",
-    "status": "complete"
+    "status": "complete",
+    "tagline": "Slow-craft ceramics, mornings"
+  },
+  {
+    "id": "theo-ceramics-return",
+    "personaId": "theo",
+    "openingQuery": "These ceramics arrived chipped. What now?",
+    "elapsedMs": 2140,
+    "agentCount": 1,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2025-01-13T09:15:00Z",
+    "status": "complete",
+    "tagline": "These ceramics arrived chipped. What now?"
   }
 ]

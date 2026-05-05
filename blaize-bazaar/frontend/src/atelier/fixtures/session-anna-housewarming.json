@@ -1,0 +1,67 @@
+{
+  "id": "anna-housewarming",
+  "personaId": "anna",
+  "openingQuery": "Something considered under $100 for a new homeowner",
+  "elapsedMs": 4220,
+  "agentCount": 2,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2025-01-13T18:22:00Z",
+  "status": "complete",
+  "chat": [
+    {
+      "role": "user",
+      "content": "Something considered under $100 for a new homeowner",
+      "timestamp": "2025-01-13T18:22:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Housewarming pieces worth the envelope: the Fig Candle ($58) and the Ceramic Ring Dish ($35) — both arrive gift-wrapped and read as 'I thought about this.' Pair the candle with the bud vase ($42) and you're at $100 with a set that looks planned.",
+      "timestamp": "2025-01-13T18:22:04Z",
+      "plan": { "flowSummary": "Dispatcher → Value Analyst → price_intelligence → Curator handoff", "traceLink": "#telemetry-1" },
+      "toolCalls": [
+        {
+          "toolName": "price_intelligence",
+          "description": "Filter home goods under $100",
+          "durationMs": 72,
+          "resultSummary": "7 pieces under $100 in home category"
+        },
+        {
+          "toolName": "find_pieces",
+          "description": "Considered gift pieces under $100",
+          "durationMs": 276,
+          "resultSummary": "3 housewarming-ready pieces"
+        }
+      ],
+      "products": [
+        { "name": "Fig Candle", "brand": "Blaize Editions", "price": 58, "imageUrl": "/products/anna-fig-candle.png" },
+        { "name": "Ceramic Ring Dish", "brand": "Blaize Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
+        { "name": "Ceramic Bud Vase", "brand": "Blaize Editions", "price": 42, "imageUrl": "/products/anna-ceramic-bud-vase.png" }
+      ],
+      "meta": { "agent": "Curator", "model": "Sonnet 4.6 · 0.4", "skill": "the-gift-table", "latencyMs": 1384 }
+    }
+  ],
+  "telemetry": [
+    { "index": 1, "category": "managed", "title": "Intent → Curator", "description": "'housewarming' + 'under $100' routed through price filter first", "status": "complete", "durationMs": 58, "agent": "Dispatcher" },
+    { "index": 2, "category": "both", "title": "price_intelligence", "description": "Haiku-style filter inside Curator flow", "status": "complete", "durationMs": 72, "agent": "Value Analyst" },
+    { "index": 3, "category": "both", "title": "find_pieces", "description": "Sonnet 4.6 · 0.4 editorial pairing", "status": "complete", "durationMs": 276, "agent": "Curator" }
+  ],
+  "brief": {
+    "folioNumber": 30,
+    "headline": "Under $100, over-considered",
+    "filedTime": "2025-01-13T18:23:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The arc",
+        "paragraphs": [
+          "Anna's constraint was budget. The Curator used price as a filter, not a center, and returned three small pieces that compose into a planned-looking set."
+        ]
+      }
+    ],
+    "products": [
+      { "name": "Fig Candle", "brand": "Blaize Editions", "price": 58, "imageUrl": "/products/anna-fig-candle.png" },
+      { "name": "Ceramic Bud Vase", "brand": "Blaize Editions", "price": 42, "imageUrl": "/products/anna-ceramic-bud-vase.png" }
+    ],
+    "confidence": { "percentage": 87, "stats": [{ "label": "Skill", "value": "the-gift-table" }, { "label": "Under budget", "value": "yes" }] }
+  }
+}

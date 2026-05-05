@@ -32,7 +32,20 @@ export interface UseAtelierDataResult<T> {
  */
 const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
   sessions: () => import('../fixtures/sessions.json'),
+  // Legacy session detail fixture — kept while older test code still
+  // references session-7f5a. New fixtures live under the canonical
+  // session IDs from sessions.json.
   'session-7f5a': () => import('../fixtures/session-7f5a.json'),
+  // Marco's canonical workshop arc — three session-detail fixtures.
+  // See lab-content/shared/marco-arc-overview.en.md.
+  'session-marco-opening-demo': () => import('../fixtures/session-marco-opening-demo.json'),
+  'session-marco-midpoint-checkpoint': () => import('../fixtures/session-marco-midpoint-checkpoint.json'),
+  'session-marco-capstone': () => import('../fixtures/session-marco-capstone.json'),
+  // Supporting personas — evidence of range, no instructional checkpoints.
+  'session-anna-birthday-gift': () => import('../fixtures/session-anna-birthday-gift.json'),
+  'session-anna-housewarming': () => import('../fixtures/session-anna-housewarming.json'),
+  'session-theo-pour-over': () => import('../fixtures/session-theo-pour-over.json'),
+  'session-theo-ceramics-return': () => import('../fixtures/session-theo-ceramics-return.json'),
   agents: () => import('../fixtures/agents.json'),
   tools: () => import('../fixtures/tools.json'),
   routing: () => import('../fixtures/routing.json'),
