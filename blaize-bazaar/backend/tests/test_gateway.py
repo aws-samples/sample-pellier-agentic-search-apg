@@ -49,6 +49,7 @@ EXPECTED_TOOL_NAMES = {
     "restock_shelf",
     "side_by_side",
     "returns_and_care",
+    "style_match",
 }
 
 
@@ -173,8 +174,8 @@ def test_build_mcp_server_returns_fastmcp_with_streamable_http_app() -> None:
     assert callable(app)  # Starlette apps are ASGI callables
 
 
-def test_discovery_returns_exactly_the_nine_tools_by_exact_name() -> None:
-    """Discovery SHALL return the 9 tools with names from workshop-content.md."""
+def test_discovery_returns_exactly_the_ten_tools_by_exact_name() -> None:
+    """Discovery SHALL return the 10 tools the Atelier Tools surface ships."""
     server = gateway.build_mcp_server()
 
     tools = _run(server.list_tools())
@@ -185,8 +186,9 @@ def test_discovery_returns_exactly_the_nine_tools_by_exact_name() -> None:
         f"Missing: {EXPECTED_TOOL_NAMES - names}. "
         f"Unexpected: {names - EXPECTED_TOOL_NAMES}."
     )
-    # Exactly 9 — no more, no less (Req 2.2.3 / task 2.7 "Done when").
-    assert len(tools) == 9
+    # Exactly 10 — four Style Advisor, one Curator, one Value Analyst,
+    # three Stock Keeper, one Experience Guide.
+    assert len(tools) == 10
 
 
 def test_each_discovered_tool_exposes_an_input_schema() -> None:
@@ -323,4 +325,4 @@ def test_mcp_invocation_through_call_tool_returns_valid_json_envelope(
 
 def test_gateway_tool_names_constant_matches_expected() -> None:
     assert set(gateway.GATEWAY_TOOL_NAMES) == EXPECTED_TOOL_NAMES
-    assert len(gateway.GATEWAY_TOOL_NAMES) == 9
+    assert len(gateway.GATEWAY_TOOL_NAMES) == 10

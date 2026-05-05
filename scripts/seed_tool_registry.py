@@ -58,29 +58,36 @@ EMBEDDING_DIMENSION = 1024
 
 
 # Tools that require approval before execution. Mirrors the approvals
-# workflow the workshop will surface in Week 6 (Card 10). Kept narrow
-# and deliberate — ``restock_product`` writes inventory state; the
-# other 8 are read-only.
-SENSITIVE_TOOLS = {"restock_product"}
+# workflow the workshop surfaces via the Cedar policy hook. Kept narrow
+# and deliberate — ``restock_shelf`` writes inventory state; the other
+# 9 are read-only.
+SENSITIVE_TOOLS = {"restock_shelf"}
 
-# Which "specialist" owns each tool. Matches the orchestrator's routing
-# story in the Week 4 lesson (shopper / inventory / support). Used by
-# Card 7 to show the provenance of each row ("owned by shopper-agent").
+# Which "specialist" owns each tool. Names match the five
+# boutique-branded specialists (Style Advisor, Curator, Value Analyst,
+# Stock Keeper, Experience Guide). Used by Card 7 to show provenance
+# per tool row in the Atelier.
 TOOL_OWNER: Dict[str, str] = {
-    "search_products": "shopper",
-    "trending_products": "shopper",
-    "browse_category": "shopper",
-    "price_analysis": "shopper",
-    "compare_products": "shopper",
-    "inventory_health": "inventory",
-    "low_stock": "inventory",
-    "restock_product": "inventory",
-    "return_policy": "support",
+    # Style Advisor — editorial search + discovery
+    "find_pieces":       "style_advisor",
+    "explore_collection": "style_advisor",
+    "side_by_side":      "style_advisor",
+    "style_match":       "style_advisor",
+    # Curator — recommendations + trending
+    "whats_trending":    "curator",
+    # Value Analyst — pricing intelligence
+    "price_intelligence": "value_analyst",
+    # Stock Keeper — inventory reads + writes
+    "floor_check":       "stock_keeper",
+    "running_low":       "stock_keeper",
+    "restock_shelf":     "stock_keeper",
+    # Experience Guide — returns + care
+    "returns_and_care":  "experience_guide",
 }
 
 
 def _load_tool_specs() -> List[Dict[str, Any]]:
-    """Import the 9 @tool functions and collect (name, description) pairs.
+    """Import the 10 @tool functions and collect (name, description) pairs.
 
     We import from ``services.agentcore_gateway`` to keep the tool name
     list authoritative — if a tool is added/removed there, rerunning

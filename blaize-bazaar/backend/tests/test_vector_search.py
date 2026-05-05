@@ -1,10 +1,8 @@
-"""Tests for `HybridSearchService._vector_search` (Module 1 — Challenge 1).
+"""Tests for `VectorSearch.vector_search` (Module 1 reference implementation).
 
-Covers Requirement 2.3.1 through 2.3.6 and the observability rules in
-5.3.3 / 5.4.2 from `.kiro/specs/blaize-bazaar-storefront/requirements.md`.
-
-psycopg is mocked so these tests run offline without a live Aurora
-instance. The assertions check the SQL shape, the `SET LOCAL`
+The Boutique's semantic-search path. psycopg is mocked so these tests
+run offline without a live Aurora instance. The assertions check the
+SQL shape (pgvector CTE + cosine similarity), the `SET LOCAL`
 parameterization, the `iterative_scan` branch, and that
 `sql_query_logger` is called with parameterized args only.
 
@@ -22,7 +20,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import pytest
 
-from services.hybrid_search import HybridSearchService
+from services.vector_search import VectorSearch
 from services.sql_query_logger import SQLQueryLogger
 import services.sql_query_logger as sql_query_logger_module
 
@@ -113,14 +111,14 @@ def isolated_query_logger(monkeypatch: pytest.MonkeyPatch) -> SQLQueryLogger:
 
 
 def _call(embedding: List[float], **kwargs: Any) -> tuple[FakeDB, List[Dict[str, Any]]]:
-    """Helper: build a FakeDB, run _vector_search, return (db, results)."""
+    """Helper: build a FakeDB, run vector_search, return (db, results)."""
     rows = kwargs.pop("rows", None) or [_make_row(1, 0.9)]
     db = FakeDB(rows)
-    svc = HybridSearchService(db)  # type: ignore[arg-type]
+    svc = VectorSearch(db)  # type: ignore[arg-type]
 
     defaults = {"limit": 5, "ef_search": 40}
     defaults.update(kwargs)
-    results = _run(svc._vector_search(embedding, **defaults))
+    results = _run(svc.vector_search(embedding, **defaults))
     return db, results
 
 

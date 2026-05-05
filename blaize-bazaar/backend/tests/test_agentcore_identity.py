@@ -8,7 +8,7 @@ with and without ``request.state.user`` and assert the returned
 
 Covered assertions (from tasks.md Task 3.2 "Test verification"):
 
-  * authenticated request yields ``user:{user_id}:session:{session_id}``
+  * authenticated request yields ``user:{user_id}-session-{session_id}``
     namespace
   * unauthenticated request yields ``anon:{session_id}`` namespace
   * ``user_id`` in ``UserContext`` equals ``request.state.user.user_id``
@@ -144,7 +144,7 @@ def identity_service_with_cookie_user() -> AgentCoreIdentityService:
 def test_authenticated_request_yields_user_namespace(
     identity_service_anon: AgentCoreIdentityService,
 ) -> None:
-    """``request.state.user`` set → ``user:{uid}:session:{sid}`` namespace."""
+    """``request.state.user`` set → ``user:{uid}-session-{sid}`` namespace."""
     user = _verified_user(user_id="verified-abc")
     req = _make_request(
         headers={SESSION_ID_HEADER: "session-xyz"},
@@ -155,7 +155,7 @@ def test_authenticated_request_yields_user_namespace(
 
     assert ctx.user_id == "verified-abc"
     assert ctx.session_id == "session-xyz"
-    assert ctx.namespace == "user:verified-abc:session:session-xyz"
+    assert ctx.namespace == "user-verified-abc-session-session-xyz"
 
 
 def test_user_id_equals_request_state_user_user_id(
@@ -193,7 +193,7 @@ def test_authenticated_request_prefers_state_user_over_extract(
     ctx = _run(identity_service_with_cookie_user.get_verified_user_context(req))
 
     assert ctx.user_id == "state-user"
-    assert ctx.namespace == "user:state-user:session:s1"
+    assert ctx.namespace == "user-state-user-session-s1"
 
 
 def test_cookie_token_falls_through_on_unprotected_route(
@@ -209,7 +209,7 @@ def test_cookie_token_falls_through_on_unprotected_route(
     ctx = _run(identity_service_with_cookie_user.get_verified_user_context(req))
 
     assert ctx.user_id == "cookie-auth-user"
-    assert ctx.namespace == "user:cookie-auth-user:session:sess-pub"
+    assert ctx.namespace == "user-cookie-auth-user-session-sess-pub"
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ def test_unauthenticated_request_yields_anon_namespace(
 
     assert ctx.user_id is None
     assert ctx.session_id == "anon-sess-1"
-    assert ctx.namespace == "anon:anon-sess-1"
+    assert ctx.namespace == "anon-anon-sess-1"
 
 
 def test_unauthenticated_request_generates_session_id_when_absent(
@@ -241,7 +241,7 @@ def test_unauthenticated_request_generates_session_id_when_absent(
     assert ctx.user_id is None
     assert ctx.session_id
     assert len(ctx.session_id) == 32  # uuid4().hex
-    assert ctx.namespace == f"anon:{ctx.session_id}"
+    assert ctx.namespace == f"anon-{ctx.session_id}"
 
 
 def test_unauthenticated_request_reuses_session_cookie(
@@ -254,7 +254,7 @@ def test_unauthenticated_request_reuses_session_cookie(
 
     assert ctx.user_id is None
     assert ctx.session_id == "anon-cookie-sess"
-    assert ctx.namespace == "anon:anon-cookie-sess"
+    assert ctx.namespace == "anon-anon-cookie-sess"
 
 
 def test_header_session_id_wins_over_cookie(
@@ -284,17 +284,17 @@ def test_build_namespace_matches_agentcore_memory_scheme() -> None:
     """
     assert (
         AgentCoreIdentityService.build_namespace("u1", "s1")
-        == "user:u1:session:s1"
+        == "user-u1-session-s1"
     )
-    assert AgentCoreIdentityService.build_namespace(None, "s1") == "anon:s1"
-    assert AgentCoreIdentityService.build_namespace("", "s1") == "anon:s1"
+    assert AgentCoreIdentityService.build_namespace(None, "s1") == "anon-s1"
+    assert AgentCoreIdentityService.build_namespace("", "s1") == "anon-s1"
 
 
 def test_user_context_is_immutable() -> None:
     """Frozen dataclass — prevents downstream handlers from mutating
     the scoping tuple and accidentally reading from a different
     namespace than they wrote to."""
-    ctx = UserContext(user_id="u", session_id="s", namespace="user:u:session:s")
+    ctx = UserContext(user_id="u", session_id="s", namespace="user-u-session-s")
     with pytest.raises(Exception):  # dataclasses.FrozenInstanceError
         ctx.user_id = "other"  # type: ignore[misc]
 
@@ -318,4 +318,4 @@ def test_missing_state_user_triggers_extract(
     ctx = _run(identity_service_with_cookie_user.get_verified_user_context(req))
 
     assert ctx.user_id == "cookie-auth-user"
-    assert ctx.namespace == "user:cookie-auth-user:session:sess-fallthrough"
+    assert ctx.namespace == "user-cookie-auth-user-session-sess-fallthrough"

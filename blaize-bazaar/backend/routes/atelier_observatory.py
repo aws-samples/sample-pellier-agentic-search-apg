@@ -164,7 +164,7 @@ async def list_sessions(
         return data
     except Exception as exc:
         logger.error("Failed to load sessions: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load sessions")
+        raise HTTPException(status_code=500, detail="Failed to load sessions")  # copy-allow: atelier-error-detail
 
 
 @router.get("/sessions/{session_id}")
@@ -187,12 +187,12 @@ async def get_session(session_id: str):
                 if s.get("id", "").upper() == session_id.upper():
                     return s
 
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session not found")  # copy-allow: atelier-error-detail
     except HTTPException:
         raise
     except Exception as exc:
         logger.error("Failed to load session %s: %s", session_id, exc)
-        raise HTTPException(status_code=500, detail="Failed to load session")
+        raise HTTPException(status_code=500, detail="Failed to load session")  # copy-allow: atelier-error-detail
 
 
 @router.get("/agents")
@@ -208,7 +208,7 @@ async def list_agents():
         return data
     except Exception as exc:
         logger.error("Failed to load agents: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load agents")
+        raise HTTPException(status_code=500, detail="Failed to load agents")  # copy-allow: atelier-error-detail
 
 
 @router.get("/tools/list")
@@ -226,7 +226,7 @@ async def list_tools():
         return data
     except Exception as exc:
         logger.error("Failed to load tools: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load tools")
+        raise HTTPException(status_code=500, detail="Failed to load tools")  # copy-allow: atelier-error-detail
 
 
 @router.post("/tools/discover", response_model=AtelierToolDiscoverResponse)
@@ -343,7 +343,7 @@ async def list_routing():
         return data
     except Exception as exc:
         logger.error("Failed to load routing patterns: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load routing patterns")
+        raise HTTPException(status_code=500, detail="Failed to load routing patterns")  # copy-allow: atelier-error-detail
 
 
 @router.get("/memory/{persona}")
@@ -375,7 +375,7 @@ async def get_memory(persona: str):
         }
     except Exception as exc:
         logger.error("Failed to load memory for %s: %s", persona, exc)
-        raise HTTPException(status_code=500, detail="Failed to load memory state")
+        raise HTTPException(status_code=500, detail="Failed to load memory state")  # copy-allow: atelier-error-detail
 
 
 @router.get("/performance")
@@ -399,7 +399,7 @@ async def get_performance():
         return data
     except Exception as exc:
         logger.error("Failed to load performance data: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load performance data")
+        raise HTTPException(status_code=500, detail="Failed to load performance data")  # copy-allow: atelier-error-detail
 
 
 @router.get("/evaluations")
@@ -415,7 +415,7 @@ async def get_evaluations():
         return data
     except Exception as exc:
         logger.error("Failed to load evaluations: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load evaluations")
+        raise HTTPException(status_code=500, detail="Failed to load evaluations")  # copy-allow: atelier-error-detail
 
 
 @router.get("/observatory")
@@ -439,4 +439,4 @@ async def get_observatory():
         return data
     except Exception as exc:
         logger.error("Failed to load observatory data: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to load observatory data")
+        raise HTTPException(status_code=500, detail="Failed to load observatory data")  # copy-allow: atelier-error-detail

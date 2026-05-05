@@ -21,7 +21,7 @@ Additional coverage keeps the route contract honest:
     (Req 3.4.3)
   * authenticated requests route the orchestrator under the verified
     ``user_id`` and memory writes land in
-    ``user:{user_id}:session:{session_id}`` (Req 3.4.2)
+    ``user:{user_id}-session-{session_id}`` (Req 3.4.2)
   * ``GET /api/agent/session/{id}`` returns the turn history the
     stream just wrote (Req 3.4.4)
   * a foreign user cannot read another user's session history through
@@ -313,7 +313,7 @@ def test_chat_emits_session_then_chunk_then_done_events(
     auto_session_id = session_event["data"]["session_id"]
     assert isinstance(auto_session_id, str) and len(auto_session_id) > 0
     assert session_event["data"]["namespace"] == (
-        f"user:user-one:session:{auto_session_id}"
+        f"user-user-one-session-{auto_session_id}"
     )
 
     assert "stubbed response" in events[1]["data"]["content"]
@@ -349,7 +349,7 @@ def test_chat_anonymous_request_uses_anon_namespace(
     assert session_event["data"]["authenticated"] is False
 
     session_id = session_event["data"]["session_id"]
-    assert session_event["data"]["namespace"] == f"anon:{session_id}"
+    assert session_event["data"]["namespace"] == f"anon-{session_id}"
 
     # Orchestrator was called with ``user_id=None`` so ``run_agent_on_runtime``
     # can fall back to the "anonymous" tag itself (C5 contract).
@@ -359,7 +359,7 @@ def test_chat_anonymous_request_uses_anon_namespace(
     # ``user:`` namespace.
     import asyncio
 
-    history = asyncio.run(memory.get_session_history(f"anon:{session_id}"))
+    history = asyncio.run(memory.get_session_history(f"anon-{session_id}"))
     assert len(history) == 2
     assert history[0]["role"] == "user"
     assert history[1]["role"] == "assistant"
@@ -397,7 +397,7 @@ def test_chat_session_continuity_across_turns(
     session_event_2 = next(e for e in events2 if e["event"] == "session")
     assert session_event_2["data"]["session_id"] == session_id
     assert session_event_2["data"]["namespace"] == (
-        f"user:user-cont:session:{session_id}"
+        f"user-user-cont-session-{session_id}"
     )
 
     # The orchestrator saw both messages on the same session.
@@ -428,7 +428,7 @@ def test_chat_session_id_via_header_is_honoured(
     session_event = events[0]
     assert session_event["data"]["session_id"] == "header-session-abc"
     assert session_event["data"]["namespace"] == (
-        "user:user-hdr:session:header-session-abc"
+        "user-user-hdr-session-header-session-abc"
     )
     assert agent_calls[0]["session_id"] == "header-session-abc"
 
@@ -536,7 +536,7 @@ def test_get_session_returns_turns_after_chat_writes_them(
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["session_id"] == session_id
-    assert payload["namespace"] == f"user:user-hist:session:{session_id}"
+    assert payload["namespace"] == f"user-user-hist-session-{session_id}"
     assert payload["authenticated"] is True
 
     turns = payload["turns"]
@@ -553,7 +553,7 @@ def test_get_session_scoped_per_user(
     when both callers hit the endpoint with the same ``session_id``.
 
     The namespace is keyed per-user, so B's GET sees an empty list —
-    the ``user:B:session:{sid}`` key has no entries.
+    the ``user:B-session-{sid}`` key has no entries.
     """
     alice_token = signer.sign(_access_claims(sub="alice"))
     bob_token = signer.sign(_access_claims(sub="bob"))
@@ -581,7 +581,7 @@ def test_get_session_scoped_per_user(
         cookies={ACCESS_TOKEN_COOKIE: bob_token},
     )
     assert bob_resp.status_code == 200
-    assert bob_resp.json()["namespace"] == "user:bob:session:shared-sid"
+    assert bob_resp.json()["namespace"] == "user-bob-session-shared-sid"
     assert bob_resp.json()["turns"] == []
 
 
@@ -603,6 +603,6 @@ def test_get_session_anonymous_reads_anon_namespace(
     resp = client.get("/api/agent/session/anon-sid")
     assert resp.status_code == 200
     payload = resp.json()
-    assert payload["namespace"] == "anon:anon-sid"
+    assert payload["namespace"] == "anon-anon-sid"
     assert payload["authenticated"] is False
     assert len(payload["turns"]) == 2

@@ -32,12 +32,12 @@ def seeder_module():
 
 
 def test_tool_specs_match_gateway_name_list(seeder_module) -> None:
-    """Seeder MUST load exactly the 9 Gateway tool names, in the same order."""
+    """Seeder MUST load exactly the 10 Gateway tool names, in the same order."""
     from services.agentcore_gateway import GATEWAY_TOOL_NAMES
 
     specs = seeder_module._load_tool_specs()
     assert [s["tool_id"] for s in specs] == list(GATEWAY_TOOL_NAMES)
-    assert len(specs) == 9
+    assert len(specs) == 10
 
 
 def test_every_tool_has_nonempty_description(seeder_module) -> None:
@@ -60,10 +60,21 @@ def test_restock_shelf_is_the_only_sensitive_tool(seeder_module) -> None:
 
 
 def test_owner_agent_assigned_for_every_tool(seeder_module) -> None:
-    """Card 7 shows provenance per tool; 'unknown' owner means the map fell
-    out of sync with Gateway's name list."""
+    """Atelier Tools surface shows provenance per tool; 'unknown' owner
+    means the map fell out of sync with Gateway's name list.
+
+    Owners are the 5 boutique-branded specialists. Mirrors the
+    agents/*.py factories.
+    """
     specs = seeder_module._load_tool_specs()
+    valid_owners = {
+        "style_advisor",
+        "curator",
+        "value_analyst",
+        "stock_keeper",
+        "experience_guide",
+    }
     for s in specs:
-        assert s["owner_agent"] in {"shopper", "inventory", "support"}, (
+        assert s["owner_agent"] in valid_owners, (
             f"{s['tool_id']} → {s['owner_agent']}"
         )

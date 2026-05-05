@@ -32,7 +32,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import services.hybrid_search as hybrid_search_module
+import services.vector_search as vector_search_module
 from routes.search import (
     get_db_service,
     get_embedding_service,
@@ -218,8 +218,8 @@ def patch_vector_search(
         return synthetic_rows[:limit]
 
     monkeypatch.setattr(
-        hybrid_search_module.HybridSearchService,
-        "_vector_search",
+        vector_search_module.VectorSearch,
+        "vector_search",
         fake_vector_search,
     )
     return captured
@@ -383,8 +383,8 @@ def test_zero_result_search_returns_empty_products_list(
         return []
 
     monkeypatch.setattr(
-        hybrid_search_module.HybridSearchService,
-        "_vector_search",
+        vector_search_module.VectorSearch,
+        "vector_search",
         empty_vector_search,
     )
 
