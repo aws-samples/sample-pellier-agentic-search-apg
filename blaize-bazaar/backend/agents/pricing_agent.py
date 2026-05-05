@@ -70,11 +70,14 @@ def build_pricing_agent() -> Agent:
     atelier output (both injections are no-ops when their
     ContextVars are empty).
     """
+    # Value Analyst — Haiku 4.5 at 0.1. Reports numbers and ranges.
+    # Fast + deterministic. The only thing worse than a slow price
+    # check is a wrong one.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_CHAT_MODEL,
-            max_tokens=4096,
-            temperature=0.2,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=2048,
+            temperature=0.1,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(_PRICING_SYSTEM_PROMPT)

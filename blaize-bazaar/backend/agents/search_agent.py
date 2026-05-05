@@ -71,11 +71,14 @@ def build_search_agent() -> Agent:
     Reads persona preamble + loaded skills from ContextVars at
     construction time. Callers set those ContextVars before invoking.
     """
+    # Style Advisor — Sonnet 4.6 at 0.4. Editorial voice + fit/fabric
+    # description. Model choice is an architectural decision; see
+    # lab-content/shared/model-mix-sidebar.en.md.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_CHAT_MODEL,
+            model_id=settings.BEDROCK_SONNET_MODEL,
             max_tokens=4096,
-            temperature=0.2,
+            temperature=0.4,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(_SEARCH_SYSTEM_PROMPT)

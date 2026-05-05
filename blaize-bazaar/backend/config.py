@@ -50,7 +50,27 @@ class Settings(BaseSettings):
     # Rerank model for hybrid search (Cohere Rerank v3.5)
     BEDROCK_RERANK_MODEL: str = "cohere.rerank-v3-5:0"
 
-    # Chat model for conversational features
+    # --- Agent model config ---
+    #
+    # Per-agent model selection is an architectural decision, not a knob.
+    # Read `lab-content/shared/model-mix-sidebar.en.md` for the reasoning:
+    #
+    #   Sonnet 4.6  — editorial specialists (Style Advisor, Curator,
+    #                 Experience Guide). Needs voice + personality.
+    #   Haiku 4.5   — reporting specialists (Value Analyst, Stock Keeper)
+    #                 and routing (Orchestrator, SkillRouter). Needs
+    #                 speed + determinism.
+    #   Opus 4.6    — stretch-lab model. Workshop participants can
+    #                 temporarily swap Style Advisor to Opus in the
+    #                 Module 3 optional exercise to compare quality /
+    #                 cost / latency tradeoffs.
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6-v1"
+    BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+
+    # Legacy alias — kept for tests + scripts that still reference it.
+    # New code should use BEDROCK_SONNET_MODEL / BEDROCK_HAIKU_MODEL /
+    # BEDROCK_OPUS_MODEL directly so the per-agent choice is readable.
     BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
     
     # ========================================

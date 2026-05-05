@@ -303,11 +303,17 @@ export function editorialForPersona(
 // Turn 2/3 follow-ups so the demo flows as one coherent journey.
 export const PERSONA_HERO_PILLS: Record<string, string[]> = {
   marco: [
-    'a linen shirt for warm evenings out',           // Turn 1
-    'what goes well with the camp shirt?',            // Turn 2
-    'compare the camp shirt and the overshirt',       // Turn 3
-    'lightweight layers that pack flat',
-    'what would you wear in coastal Goa?',
+    // Marco's canonical 4-turn workshop demo sequence (+ capstone Turn 5).
+    // See lab-content/shared/marco-arc-overview.en.md — these pill
+    // strings must match the demo-conversation fixtures exactly.
+    // Turn 4 clicks twice per session: once during the opening demo
+    // (Stock Keeper stubbed → graceful non-answer), once during the
+    // midpoint checkpoint (Stock Keeper wired → real warehouse data).
+    'What linen do you have for 10 days in Goa?',            // Turn 1 → Style Advisor · find_pieces
+    'What would go with the Pellier shirt?',                 // Turn 2 → Curator + the-packing-list · style_match
+    "What's the price range for linen shirts?",              // Turn 3 → Value Analyst · price_intelligence
+    'Is the Pellier shirt at the Brooklyn warehouse?',       // Turn 4 → Stock Keeper (stub/wired)
+    'What pairs with the Ecru overshirt?',                   // Turn 5 (capstone) → Curator · style_match
   ],
   anna: [
     'a thoughtful gift for someone who loves morning rituals',  // Turn 1

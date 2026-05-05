@@ -82,9 +82,12 @@ def build_support_agent() -> Agent:
     actual order history; both injections are no-ops for anonymous
     sessions.
     """
+    # Experience Guide — Sonnet 4.6 at 0.2. Empathy + concrete policy.
+    # Sonnet for tone when handling a return; steady temperature because
+    # policy is policy.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_CHAT_MODEL,
+            model_id=settings.BEDROCK_SONNET_MODEL,
             max_tokens=4096,
             temperature=0.2,
         ),

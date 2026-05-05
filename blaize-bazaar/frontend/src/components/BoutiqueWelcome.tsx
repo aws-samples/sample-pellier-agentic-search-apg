@@ -191,19 +191,21 @@ const MARCO_COPY: PersonaCopy = {
     <>
       I remember you love natural fabrics and pieces that travel well.
       The{' '}
-      <span className="sf-context-product">Italian Linen Camp Shirt</span>{' '}
-      in indigo just landed — it picks up where your last saved piece
+      <span className="sf-context-product">Pellier Linen Shirt</span>{' '}
+      just landed in ecru — it picks up where your last saved piece
       left off. Want to build a packing list?
     </>
   ),
   picks: [
-    { label: 'A linen shirt for warm evenings out', primary: true },           // Turn 1
-    { label: 'What goes well with the camp shirt?', primary: false },           // Turn 2
-    { label: 'Compare the camp shirt and the overshirt', primary: false },      // Turn 3
+    // Must match the first 3 entries in PERSONA_HERO_PILLS.marco exactly —
+    // these are Marco's canonical workshop Turn 1/2/3 queries.
+    { label: 'What linen do you have for 10 days in Goa?', primary: true },    // Turn 1
+    { label: 'What would go with the Pellier shirt?', primary: false },         // Turn 2
+    { label: "What's the price range for linen shirts?", primary: false },      // Turn 3
   ],
   ps: [
-    'lightweight layers that pack flat',
-    'what would you wear in coastal Goa?',
+    'is the Pellier shirt at the Brooklyn warehouse?',
+    'what pairs with the Ecru overshirt?',
     'neutral accessories for the road',
   ],
 }

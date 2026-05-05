@@ -67,11 +67,13 @@ def build_recommendation_agent() -> Agent:
     agent as before in those scenarios.
     === CHALLENGE 3: END ===
     """
+    # Curator — Sonnet 4.6 at 0.4. Recommendations carry "taste";
+    # skills shape voice. Warm model, warm temperature.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_CHAT_MODEL,
+            model_id=settings.BEDROCK_SONNET_MODEL,
             max_tokens=4096,
-            temperature=0.2,
+            temperature=0.4,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(RECOMMENDATION_SYSTEM_PROMPT)

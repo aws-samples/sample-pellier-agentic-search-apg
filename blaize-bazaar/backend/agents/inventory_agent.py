@@ -68,11 +68,13 @@ def build_inventory_agent() -> Agent:
     unchanged by consolidating the five factories onto the same
     substrate.
     """
+    # Stock Keeper — Haiku 4.5 at 0.0. Pure factual lookups (warehouse,
+    # count, ETA). Zero variance. Fastest config in the system.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_CHAT_MODEL,
-            max_tokens=4096,
-            temperature=0.2,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=2048,
+            temperature=0.0,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(_INVENTORY_SYSTEM_PROMPT)
