@@ -62,10 +62,14 @@ PRICING_KEYWORDS = {"deal", "deals", "cheap", "cheapest", "price", "pricing",
                     "best price", "on sale", "bargain", "compare price"}
 INVENTORY_KEYWORDS = {"restock", "inventory", "stock", "out of stock",
                       "low stock", "available", "availability", "in stock",
-                      "running low", "sold out", "back in stock"}
+                      "running low", "sold out", "back in stock",
+                      "warehouse", "at the brooklyn", "at the austin",
+                      "at the portland", "on the floor"}
 SUPPORT_KEYWORDS = {"return", "refund", "policy", "help", "support", "troubleshoot",
-                    "issue", "problem", "warranty", "broken", "defective"}
-SEARCH_KEYWORDS = {"search for", "looking for", "where can I", "compare", "browse"}
+                    "issue", "problem", "warranty", "broken", "defective",
+                    "chipped", "damaged", "arrived", "what now"}
+SEARCH_KEYWORDS = {"search for", "looking for", "where can I", "compare", "browse",
+                   "what do you have", "do you have", "show me", "find me"}
 
 # Past-purchase / history queries — these reference the shopper's own
 # order history and must route to the recommendation specialist with the
