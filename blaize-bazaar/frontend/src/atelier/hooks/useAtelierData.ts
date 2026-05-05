@@ -48,6 +48,7 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
   'session-theo-ceramics-return': () => import('../fixtures/session-theo-ceramics-return.json'),
   agents: () => import('../fixtures/agents.json'),
   tools: () => import('../fixtures/tools.json'),
+  skills: () => import('../fixtures/skills.json'),
   routing: () => import('../fixtures/routing.json'),
   'memory-marco': () => import('../fixtures/memory-marco.json'),
   performance: () => import('../fixtures/performance.json'),

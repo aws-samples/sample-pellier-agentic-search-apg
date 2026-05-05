@@ -64,6 +64,12 @@ const Sidebar: React.FC = () => {
     },
     {
       eyebrow: 'UNDERSTAND',
+      // Order maps to the learning arc:
+      //   Architecture (the map) → Agents (the characters) →
+      //   Tools (what they reach for) → Skills (persona-specific knowledge
+      //   they load) → Routing (how requests find them) → Memory (what the
+      //   system remembers between turns).
+      // See /Users/shayons/.claude/plans/cheeky-dreaming-sloth.md.
       items: [
         { label: 'Architecture', path: 'architecture', badge: '8' },
         {
@@ -73,22 +79,25 @@ const Sidebar: React.FC = () => {
             ? `${buildState.agentShipped}/${buildState.agentTotal}`
             : '3/5',
         },
-        { label: 'Routing', path: 'routing', badge: '3' },
-        { label: 'Memory', path: 'memory' },
         {
           label: 'Tools',
           path: 'tools',
           badge: buildState.toolTotal > 0
             ? `${buildState.toolShipped}/${buildState.toolTotal}`
-            : '6/9',
+            : '6/10',
         },
+        { label: 'Skills', path: 'skills', badge: '3' },
+        { label: 'Routing', path: 'routing', badge: '3' },
+        { label: 'Memory', path: 'memory' },
       ],
     },
     {
-      eyebrow: 'MEASURE',
+      // Renamed from MEASURE — evaluations + performance are both
+      // evaluation work, not just measurement.
+      eyebrow: 'EVALUATE',
       items: [
-        { label: 'Evaluations', path: 'evaluations' },
         { label: 'Performance', path: 'performance' },
+        { label: 'Evaluations', path: 'evaluations' },
       ],
     },
   ];

@@ -38,3 +38,5 @@ export type { EvaluationScorecard } from './evaluations';
 export type { ObservatorySummary } from './observatory';
 
 export type { ArchitectureConcept } from './architecture';
+
+export type { Skill } from './skill';

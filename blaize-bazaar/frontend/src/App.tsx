@@ -45,6 +45,7 @@ import ArchitectureIndex from './atelier/surfaces/understand/ArchitectureIndex'
 import ArchitectureDetail from './atelier/surfaces/understand/ArchitectureDetail'
 import Agents from './atelier/surfaces/understand/Agents'
 import Tools from './atelier/surfaces/understand/Tools'
+import Skills from './atelier/surfaces/understand/Skills'
 import Routing from './atelier/surfaces/understand/Routing'
 import MemoryDashboard from './atelier/surfaces/understand/MemoryDashboard'
 import Performance from './atelier/surfaces/measure/Performance'
@@ -214,6 +215,7 @@ function App() {
                   <Route path="architecture/:concept" element={<ArchitectureDetail />} />
                   <Route path="agents" element={<Agents />} />
                   <Route path="tools" element={<Tools />} />
+                  <Route path="skills" element={<Skills />} />
                   <Route path="routing" element={<Routing />} />
                   <Route path="memory" element={<MemoryDashboard />} />
                   <Route path="performance" element={<Performance />} />
