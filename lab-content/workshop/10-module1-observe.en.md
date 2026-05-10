@@ -51,13 +51,14 @@ There's **no `DEFAULT_MODEL`**. Every agent picks its own.
 
 ## Part 3 · Tour the Atelier (8 minutes, solo)
 
-In the Atelier's left sidebar, work top to bottom:
-
-### `/atelier/sessions`
-The replay store. Seven sessions shipped: 3 Marco (opening / midpoint / capstone), 2 Anna (birthday / housewarming), 2 Theo (pour-over / return). You just watched `marco-opening-demo`. Keep it bookmarked.
+In the Atelier's left sidebar, work top to bottom. The arc is
+*zoom out → zoom in → understand → measure*.
 
 ### `/atelier/observatory`
-Wide-angle dashboard. Look at the **Agent Status** card — five rows, model tags per row, live/idle indicators. Then the **Performance headlines** at the bottom. Note the P50 numbers for Sonnet vs Haiku agents.
+Wide-angle dashboard — your starting point. Look at the **Agent Status** card — five rows, model tags per row, live/idle indicators. Then the **Performance headlines** at the bottom. Note the P50 numbers for Sonnet vs Haiku agents. *This is the system at a glance; everything below explains a piece of what's on this screen.*
+
+### `/atelier/sessions`
+The replay store. Seven sessions shipped: 3 Marco (opening / midpoint / capstone), 2 Anna (birthday / housewarming), 2 Theo (pour-over / return). You just watched `marco-opening-demo`. Keep it bookmarked — every later module references specific session turns.
 
 ### `/atelier/agents` (under UNDERSTAND)
 Five specialist cards. **Stock Keeper has a "Your turn" pill** — that's the build. Note every card's model + temperature badge. No row is normalized.

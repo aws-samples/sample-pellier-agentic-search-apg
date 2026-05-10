@@ -61,10 +61,15 @@ const Sidebar: React.FC = () => {
   // Build dynamic nav sections with live shipped/total badges from build state
   const navSections: NavSection[] = [
     {
+      // Order: zoom out → zoom in.
+      // Observatory is the wide-angle dashboard ("here is the whole
+      // system at a glance"); Sessions drills into one specific
+      // conversation. Putting Observatory first matches the canonical
+      // "you-are-here map → specific run" pedagogy.
       eyebrow: 'OBSERVE',
       items: [
-        { label: 'Sessions', path: 'sessions', badge: '—' },
         { label: 'Observatory', path: 'observatory', liveDot: true },
+        { label: 'Sessions', path: 'sessions', badge: '—' },
       ],
     },
     {
