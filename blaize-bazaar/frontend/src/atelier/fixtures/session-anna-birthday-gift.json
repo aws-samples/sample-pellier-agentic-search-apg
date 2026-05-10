@@ -2,11 +2,12 @@
   "id": "anna-birthday-gift",
   "personaId": "anna",
   "openingQuery": "Birthday gift for my sister — no idea where to start",
-  "elapsedMs": 5640,
+  "elapsedMs": 6231,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
   "timestamp": "2025-01-14T21:05:00Z",
   "status": "complete",
+  "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
@@ -17,13 +18,19 @@
       "role": "assistant",
       "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) — wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
       "timestamp": "2025-01-14T21:05:05Z",
-      "plan": { "flowSummary": "Dispatcher → Curator + the-gift-table → find_pieces", "traceLink": "#telemetry-1" },
+      "plan": { "flowSummary": "Dispatcher → Curator + the-gift-table → find_pieces_hybrid (vector + BM25 → RRF → Cohere Rerank v3.5)", "traceLink": "#telemetry-1" },
       "toolCalls": [
         {
-          "toolName": "find_pieces",
-          "description": "Semantic search: considered gifts, across price bands",
-          "durationMs": 298,
-          "resultSummary": "3 gift-ready pieces, $35–$128 range"
+          "toolName": "find_pieces_hybrid",
+          "description": "Hybrid pgvector + BM25 + Cohere Rerank v3.5 over the gift-band catalog",
+          "durationMs": 706,
+          "resultSummary": "30-candidate pool reranked to 3 gift-ready pieces, $35–$128 range",
+          "subSteps": [
+            { "label": "vector branch (pgvector cosine)", "durationMs": 305 },
+            { "label": "BM25 branch (tsvector ts_rank_cd)", "durationMs": 78 },
+            { "label": "RRF merge (k=60)", "durationMs": 3 },
+            { "label": "Cohere Rerank v3.5", "durationMs": 281 }
+          ]
         }
       ],
       "products": [
@@ -31,13 +38,17 @@
         { "name": "Ceramic Ring Dish", "brand": "Blaize Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
         { "name": "Botanical Silk Scarf", "brand": "Blaize Editions", "price": 128, "imageUrl": "/products/anna-botanical-silk-scarf.png" }
       ],
-      "meta": { "agent": "Curator", "model": "Sonnet 4.6 · 0.4", "skill": "the-gift-table", "latencyMs": 1492 }
+      "meta": { "agent": "Curator", "model": "Sonnet 4.6 · 0.4", "skill": "the-gift-table", "searchMethod": "hybrid+rerank", "latencyMs": 1492 }
     }
   ],
   "telemetry": [
     { "index": 1, "category": "managed", "title": "Intent → Curator", "description": "'gift' matched the-gift-table skill path", "status": "complete", "durationMs": 62, "agent": "Dispatcher" },
     { "index": 2, "category": "owned", "title": "Skill loaded", "description": "the-gift-table bound for persona: anna", "status": "complete", "durationMs": 40, "agent": "SkillRouter" },
-    { "index": 3, "category": "both", "title": "find_pieces", "description": "Sonnet 4.6 · 0.4 — gift-band search", "status": "complete", "durationMs": 298, "agent": "Curator" }
+    { "index": 3, "category": "both", "title": "vector branch", "description": "pgvector cosine over product_catalog (k=20)", "status": "complete", "durationMs": 305, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 4, "category": "both", "title": "BM25 branch", "description": "ts_rank_cd over description_tsv with GIN index (k=20)", "status": "complete", "durationMs": 78, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 5, "category": "managed", "title": "RRF merge", "description": "Reciprocal Rank Fusion (k=60) → 30-candidate pool", "status": "complete", "durationMs": 3, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 6, "category": "both", "title": "Cohere Rerank v3.5", "description": "Bedrock cohere.rerank-v3-5:0 reranks 30 candidates", "status": "complete", "durationMs": 281, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 7, "category": "both", "title": "editorial composition", "description": "Sonnet 4.6 · 0.4 — gift-band framing across three price tiers", "status": "complete", "durationMs": 1244, "agent": "Curator" }
   ],
   "brief": {
     "folioNumber": 31,
@@ -50,6 +61,13 @@
         "paragraphs": [
           "Anna arrived with a real gift-shopper's opening line: 'no idea where to start.' The Curator, with the-gift-table skill loaded, pulled three pieces across price bands so she could read her way into a choice rather than be handed one."
         ]
+      },
+      {
+        "numeral": "ii.",
+        "title": "Why hybrid retrieval matters here",
+        "paragraphs": [
+          "'No idea where to start' has zero literal product tokens — pure cosine handled this beautifully. But 'birthday gift for my sister' carries gendered + occasion-specific tokens that BM25 caught and used to demote pieces the embedding ranked high but that read as 'office gift' rather than 'sister gift'. RRF merged the two signals; Cohere Rerank then put the Beeswax Taper Candles (which the BM25 branch ranked rank-3 and the vector branch ranked rank-7) at the top because Cohere read 'wrap-ready' and 'no fussy preamble' as the right register for an unsure giver."
+        ]
       }
     ],
     "products": [
@@ -57,6 +75,6 @@
       { "name": "Ceramic Ring Dish", "brand": "Blaize Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
       { "name": "Botanical Silk Scarf", "brand": "Blaize Editions", "price": 128, "imageUrl": "/products/anna-botanical-silk-scarf.png" }
     ],
-    "confidence": { "percentage": 89, "stats": [{ "label": "Skill", "value": "the-gift-table" }, { "label": "Price bands", "value": "3" }] }
+    "confidence": { "percentage": 93, "stats": [{ "label": "Skill", "value": "the-gift-table" }, { "label": "Price bands", "value": "3" }, { "label": "Search method", "value": "hybrid+rerank" }] }
   }
 }
