@@ -21,71 +21,81 @@ import re
 from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import returns_and_care, find_pieces
+from services.agent_tools import returns_and_care, find_pieces, process_return
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
 logger = logging.getLogger(__name__)
 
 
-# === CHALLENGE · Experience Guide · system prompt: START ===
-# WORKSHOP_EXERCISE_STUB (Workshop format only.)
-#
-# Experience Guide's voice. Sonnet 4.6 at 0.2 — capable model for tone
-# when handling a return; steady temperature because policy is policy.
-# Write a system prompt that:
-#
-#   1. Names the agent ("You are Pellier's Experience Guide.")
-#   2. Lists the three tools and when to use each:
-#        - returns_and_care → return window + care by product category
-#        - find_pieces      → resolve product mentions to productId + category
-#        - process_return   → write the return row (Cedar-gated on reason,
-#                             SQL-gated on ownership, transactional adjust
-#                             of product_catalog.quantity if reason='damaged')
-#   3. Teaches the chaining pattern: customer mentions a product →
-#      find_pieces first → returns_and_care or process_return next.
-#   4. Sets the empathy/discipline balance:
-#        - ALWAYS call a tool first, no text before tool call
-#        - After tool: 1–2 short sentences, conversational
-#        - No markdown tables, numbered lists, emojis, or follow-up Q's
-#        - When process_return succeeds, name the action concretely
-#          ("I've filed the return for the Wabi-Sabi Bowl")
-#
-# Then add ``process_return`` to the tools list in build_support_agent.
-#
-# ⏩ SHORT ON TIME? Run:
-#    cp solutions/module2/agents/customer_support_agent.py \
-#       pellier/backend/agents/customer_support_agent.py
-
 _SUPPORT_SYSTEM_PROMPT = (
-    "You are Pellier's Experience Guide — in stub state. "
-    "Replace this system prompt with the full voice (see the CHALLENGE "
-    "block above in this file, or copy the solution)."
+    "You are Pellier's Experience Guide. You handle post-purchase "
+    "questions: return policies, care instructions, and processing actual "
+    "returns when a customer's piece arrived damaged or wasn't right.\n"
+    "\n"
+    "Tools, in order of typical use:\n"
+    "  - find_pieces: when the customer names a product, call this first "
+    "to get the integer productId and category. Returns are keyed on "
+    "productId and care guidance is keyed on category, so you need both "
+    "before the next tool.\n"
+    "  - returns_and_care: return window + care guidance by category. "
+    "Use for 'how long do I have to return X' or 'how do I take care of Y'.\n"
+    "  - process_return: actually write the return. Required args: "
+    "customer_id, product_id (integer), reason (one of 'damaged', "
+    "'wrong_size', 'not_as_described', 'changed_mind', 'other'). The "
+    "Cedar policy enforces that exact set; SQL enforces that the customer "
+    "must have ordered the product. If reason='damaged', the catalog "
+    "quantity decrements by 1 in the same transaction.\n"
+    "\n"
+    "Output discipline:\n"
+    "  - ALWAYS call a tool before writing prose. No greeting, no preamble.\n"
+    "  - After the tool returns, write 1–2 sentences. Conversational, not "
+    "transactional. Empathy first when a piece arrived damaged; clarity "
+    "when a customer is asking what's possible.\n"
+    "  - No markdown tables, no numbered lists, no emojis, no follow-up "
+    "questions to the customer.\n"
+    "  - When process_return succeeds, name the action concretely "
+    "('I've filed the return for the Wabi-Sabi Bowl') so the customer "
+    "knows the write actually happened.\n"
 )
 
-# Atelier reads this flag to render the "Your turn" pill on the
-# Experience Guide agent card. Flip to False once the real prompt
-# lands (or the cp command runs).
-_SUPPORT_AGENT_STUBBED = True
-
-# === CHALLENGE · Experience Guide · system prompt: END ===
+# Solution state — the challenge is complete; flip the flag so the
+# Atelier renders Experience Guide as a shipped agent.
+_SUPPORT_AGENT_STUBBED = False
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:
-    """If the LLM output lacks a JSON products block, extract from tool results and append."""
+    """If the LLM output lacks a JSON products block, extract from tool results and append.
+
+    Suppression rule: if any tool result has the shape of a successful
+    ``process_return`` (status == "success" with a "return_id" field),
+    do NOT attach product cards. Experience Guide chains
+    ``find_pieces`` upstream of ``process_return`` solely to resolve
+    "Wabi-Sabi Bowl" → integer product_id; the products it finds are
+    plumbing for the write, not recommendations the customer wants
+    rendered as cards alongside a damage-return confirmation.
+    """
     if re.search(r'```json\s*\[', text):
         return text
 
     all_products = []
+    return_completed = False
     for result_str in tool_results:
         try:
             data = json.loads(result_str)
-            if isinstance(data, dict) and "products" in data:
-                all_products.extend(data["products"])
-            elif isinstance(data, list):
-                all_products.extend(data)
         except (json.JSONDecodeError, TypeError):
-            pass
+            continue
+        if isinstance(data, dict):
+            if data.get("status") == "success" and "return_id" in data:
+                return_completed = True
+                continue
+            if "products" in data:
+                all_products.extend(data["products"])
+        elif isinstance(data, list):
+            all_products.extend(data)
+
+    if return_completed:
+        return text
 
     if all_products:
         text += f"\n\n```json\n{json.dumps(all_products)}\n```"
@@ -113,7 +123,7 @@ def build_support_agent() -> Agent:
         system_prompt=inject_persona_preamble(
             inject_skills(_SUPPORT_SYSTEM_PROMPT)
         ),
-        tools=[returns_and_care, find_pieces],
+        tools=[returns_and_care, find_pieces, process_return],
     )
 
 

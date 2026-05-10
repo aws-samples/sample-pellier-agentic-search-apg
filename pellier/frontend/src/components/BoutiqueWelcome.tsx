@@ -252,8 +252,8 @@ const THEO_COPY: PersonaCopy = {
     { label: 'Linen pieces that soften over seasons', primary: false },              // Turn 3
   ],
   ps: [
+    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",
     'something for the home, not the wardrobe',
-    'artisanal objects worth keeping',
     'pieces with real patina',
   ],
 }

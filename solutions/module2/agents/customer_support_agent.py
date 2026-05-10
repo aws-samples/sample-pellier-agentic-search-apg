@@ -65,20 +65,37 @@ _SUPPORT_AGENT_STUBBED = False
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:
-    """If the LLM output lacks a JSON products block, extract from tool results and append."""
+    """If the LLM output lacks a JSON products block, extract from tool results and append.
+
+    Suppression rule: if any tool result has the shape of a successful
+    ``process_return`` (status == "success" with a "return_id" field),
+    do NOT attach product cards. Experience Guide chains
+    ``find_pieces`` upstream of ``process_return`` solely to resolve
+    "Wabi-Sabi Bowl" → integer product_id; the products it finds are
+    plumbing for the write, not recommendations the customer wants
+    rendered as cards alongside a damage-return confirmation.
+    """
     if re.search(r'```json\s*\[', text):
         return text
 
     all_products = []
+    return_completed = False
     for result_str in tool_results:
         try:
             data = json.loads(result_str)
-            if isinstance(data, dict) and "products" in data:
-                all_products.extend(data["products"])
-            elif isinstance(data, list):
-                all_products.extend(data)
         except (json.JSONDecodeError, TypeError):
-            pass
+            continue
+        if isinstance(data, dict):
+            if data.get("status") == "success" and "return_id" in data:
+                return_completed = True
+                continue
+            if "products" in data:
+                all_products.extend(data["products"])
+        elif isinstance(data, list):
+            all_products.extend(data)
+
+    if return_completed:
+        return text
 
     if all_products:
         text += f"\n\n```json\n{json.dumps(all_products)}\n```"

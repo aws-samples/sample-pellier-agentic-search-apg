@@ -130,6 +130,7 @@ const FOLLOWUPS_BY_PERSONA: Record<string, string[]> = {
     'what goes well with the pour-over set?',             // Turn 2
     'linen pieces that soften over seasons',              // Turn 3
     'something for the home, not the wardrobe',
+    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
   ],
   fresh: [
     'a cozy layer for cooler nights',

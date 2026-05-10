@@ -1973,6 +1973,13 @@ CURRENT REQUEST: {message}"""
         products_buffered = []  # Hold products until text streams first
         current_tool = None
         price_limit = self._extract_price_limit(message)
+        # Drop the products buffer when a write tool succeeded — the
+        # customer just filed a return / restocked a shelf and any
+        # products that came back from upstream resolution tools (e.g.
+        # find_pieces called by Experience Guide to map a product name
+        # to an integer id) are plumbing, not recommendations the user
+        # wants rendered as cards.
+        write_tool_succeeded = False
 
         while True:
             try:
@@ -2005,6 +2012,21 @@ CURRENT REQUEST: {message}"""
                 tool_name = event.get("_tool_done", "")
                 result_str = event.get("_result", "")
                 result_count = 0
+                # Detect successful write tools so we can suppress the
+                # products buffer at emit time. process_return returns
+                # status=success with return_id; restock_shelf returns
+                # status=success with new_quantity.
+                if result_str and tool_name in {"process_return", "restock_shelf"}:
+                    try:
+                        _data = json.loads(result_str)
+                        if (
+                            isinstance(_data, dict)
+                            and _data.get("status") == "success"
+                            and ("return_id" in _data or "new_quantity" in _data)
+                        ):
+                            write_tool_succeeded = True
+                    except (json.JSONDecodeError, TypeError):
+                        pass
                 if result_str:
                     raw_products = ProductExtractor.extract(result_str)
                     if raw_products:
@@ -2144,6 +2166,17 @@ CURRENT REQUEST: {message}"""
         has_streamed_deltas = bool(ttft_mark)
         if parsed["text"] and not has_streamed_deltas:
             yield {"type": "content", "content": parsed["text"]}
+
+        # Suppress all product cards when the turn included a successful
+        # write tool (process_return, restock_shelf). Any products that
+        # came back from upstream resolution tools (find_pieces called
+        # to map "Wabi-Sabi Bowl" → product_id=31) are plumbing, not
+        # recommendations the customer wants alongside their return
+        # confirmation. Keep parsed["text"] / streaming intact.
+        if write_tool_succeeded:
+            products_buffered = []
+            parsed["products"] = []
+            logger.info("🔇 Products suppressed — successful write tool in turn")
 
         # Now send buffered products (collected from tool hooks during execution)
         if products_buffered:
