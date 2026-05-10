@@ -1,9 +1,14 @@
 /**
  * Sidebar — Espresso-colored left navigation for the Atelier Observatory.
  *
- * Three sections (OBSERVE, UNDERSTAND, MEASURE), a Settings divider,
+ * Three sections (OBSERVE, UNDERSTAND, EVALUATE), a Settings divider,
  * and a persona footer. Uses React Router `<NavLink>` for active state
  * highlighting (espresso-2 bg, 2px burgundy accent bar, full-opacity icon).
+ *
+ * UNDERSTAND items follow the learning arc:
+ *   Architecture (the map) → Agents (the characters) →
+ *   Tools (what they reach for) → Skills (persona-specific knowledge) →
+ *   Routing (how requests find them) → Memory (what persists between turns).
  *
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.13
  */
