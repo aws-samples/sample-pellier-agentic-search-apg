@@ -41,6 +41,7 @@ import ChatTab from './atelier/surfaces/observe/ChatTab'
 import TelemetryTab from './atelier/surfaces/observe/TelemetryTab'
 import BriefTab from './atelier/surfaces/observe/BriefTab'
 import Observatory from './atelier/surfaces/observe/Observatory'
+import PersonaJourneys from './atelier/surfaces/observe/PersonaJourneys'
 import ArchitectureIndex from './atelier/surfaces/understand/ArchitectureIndex'
 import ArchitectureDetail from './atelier/surfaces/understand/ArchitectureDetail'
 import Agents from './atelier/surfaces/understand/Agents'
@@ -223,6 +224,7 @@ function App() {
                   <Route path="performance" element={<Performance />} />
                   <Route path="evaluations" element={<Evaluations />} />
                   <Route path="observatory" element={<Observatory />} />
+                  <Route path="persona-journeys" element={<PersonaJourneys />} />
                   <Route path="settings" element={<AtelierSettings />} />
                 </Route>
                 {/* Legacy WorkshopPage route removed — Atelier is now
