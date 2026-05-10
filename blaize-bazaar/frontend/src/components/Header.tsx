@@ -385,9 +385,20 @@ export default function Header({
         className="relative h-[64px]"
         style={{ padding: '0 clamp(16px, 4vw, 48px)' }}
       >
-        <div className="h-full max-w-[1440px] mx-auto flex items-center justify-between gap-4">
+        {/*
+         * Three-column grid:
+         *   1fr  | auto | 1fr
+         *   left | mark | right
+         *
+         * The center column hugs the wordmark's intrinsic width; the
+         * 1fr left/right columns split remaining space evenly so the
+         * wordmark stays visually centered without overlapping either
+         * cluster (the previous absolute-positioned approach collided
+         * with "About" + the persona pill at narrower desktop widths).
+         */}
+        <div className="h-full max-w-[1440px] mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-6">
           {/* Left: four text nav items */}
-          <div className="flex items-center gap-6 flex-shrink-0">
+          <div className="flex items-center gap-6 min-w-0">
             {NAV_ITEMS.map(({ item, label }) => (
               <NavLink
                 key={item}
@@ -399,16 +410,13 @@ export default function Header({
             ))}
           </div>
 
-          {/* Center: wordmark, absolutely positioned */}
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
-            data-testid="wordmark-wrapper"
-          >
+          {/* Center: wordmark — its own grid track, no absolute positioning */}
+          <div data-testid="wordmark-wrapper" className="flex items-center">
             <Wordmark />
           </div>
 
           {/* Right: search, persona dropdown, wishlist, bag, surface toggle */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 justify-end min-w-0">
             <IconButton
               icon={<Search className="w-5 h-5" />}
               ariaLabel="Search — ask Blaize"

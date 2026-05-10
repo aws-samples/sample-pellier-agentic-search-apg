@@ -32,7 +32,16 @@ export default defineConfig({
     host: true,  // Allow all hosts (required for CloudFront)
     port: 5173,
     strictPort: true,
-    
+
+    // Allow Vite to serve files from outside the project root so a
+    // worktree (under .claude/worktrees/) that symlinks node_modules
+    // back to the main repo can still resolve dependency files. The
+    // default `fs.allow` only includes the project root + Vite's own
+    // client; without this, woff2 / .css from @fontsource* etc. 403.
+    fs: {
+      allow: ['..', '../..', '../../..', '../../../..'],
+    },
+
     // API proxy
     proxy: {
       '/api': {
