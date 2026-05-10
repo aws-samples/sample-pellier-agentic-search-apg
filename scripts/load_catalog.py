@@ -706,6 +706,7 @@ def load_catalog(
     csv_path: Path = DEFAULT_CSV,
     dry_run: bool = False,
     skip_preflight: bool = False,
+    force: bool = False,
 ) -> LoadResult:
     """Run the full catalog load. Returns a LoadResult on success; raises on failure."""
     import psycopg
@@ -735,6 +736,45 @@ def load_catalog(
         with conn:  # rollback on exception, close on exit
             if not skip_preflight:
                 _preflight_database(conn)
+
+            # Populated-DB safeguard. This script DROPs pellier.product_catalog
+            # and reloads from CSV. If the target cluster already holds a
+            # different number of rows than the CSV is about to load, that's a
+            # sign someone (seed_boutique_catalog.py? a hand-curated boutique
+            # catalog?) populated the cluster outside this pipeline. Bailing
+            # here prevents accidentally wiping the live 40-row Pellier
+            # boutique catalog when bootstrap-labs.sh runs against a populated
+            # cluster.
+            #
+            # --force overrides. Dry-run is exempt (no writes happen anyway).
+            if not dry_run:
+                with conn.cursor() as _check_cur:
+                    _check_cur.execute("""
+                        SELECT COUNT(*) FROM information_schema.tables
+                         WHERE table_schema = 'pellier'
+                           AND table_name = 'product_catalog'
+                    """)
+                    table_exists = (_check_cur.fetchone() or [0])[0] > 0
+                    existing_rows = 0
+                    if table_exists:
+                        _check_cur.execute('SELECT COUNT(*) FROM pellier.product_catalog')
+                        existing_rows = (_check_cur.fetchone() or [0])[0]
+                if existing_rows and existing_rows != len(rows):
+                    if force:
+                        logger.warning(
+                            "--force set: overriding populated-DB safeguard. "
+                            "Target has %d existing rows; CSV has %d. The "
+                            "existing rows are about to be replaced.",
+                            existing_rows, len(rows),
+                        )
+                    else:
+                        raise PreflightError(
+                            f"Target has {existing_rows} rows in pellier.product_catalog "
+                            f"but the CSV has {len(rows)} rows. Refusing to wipe "
+                            f"the existing catalog. Pass --force to override "
+                            f"(this is destructive — pellier.product_catalog will be "
+                            f"DROPped + reloaded from {csv_path.name})."
+                        )
             fks = _detect_foreign_keys(conn)
             for fk in fks:
                 key = (fk["table_schema"], fk["table_name"], fk["column_name"])
@@ -834,6 +874,11 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="DEV ONLY; skip CSV + DB pre-flight checks.")
     p.add_argument("--yes", action="store_true",
                    help="Skip interactive confirmation.")
+    p.add_argument("--force", action="store_true",
+                   help="Override the populated-DB safeguard. Required when the "
+                        "target Aurora cluster already has rows that don't match "
+                        "the CSV's row count, to prevent accidentally wiping a "
+                        "hand-curated catalog.")
     p.add_argument("--json", action="store_true", dest="json_output")
     p.add_argument("--quiet", action="store_true")
     return p.parse_args(argv)
@@ -872,6 +917,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             csv_path=args.csv_path,
             dry_run=args.dry_run,
             skip_preflight=args.skip_preflight,
+            force=args.force,
         )
 
         if args.dry_run:
