@@ -45,7 +45,8 @@ INSERT INTO public.schema_migrations (version, name, applied_at) VALUES
     ('013', 'chat_session_tables', now()),
     ('014', 'add_product_catalog_fks', now()),
     ('015', 'schema_migrations_tracking', now()),
-    ('016', 'catalog_invariants_check', now())
+    ('016', 'catalog_invariants_check', now()),
+    ('017', 'cleanup_legacy_customers', now())
 ON CONFLICT (version) DO NOTHING;
 
 DO $$
