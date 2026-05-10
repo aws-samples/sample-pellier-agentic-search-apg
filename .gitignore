@@ -52,6 +52,10 @@ dist/
 lab2/frontend/dist/
 *.log
 
+# Vite — local dev-server pre-bundle cache, regenerated on every
+# `npm run dev`. Always project-local, never useful in the repo.
+.vite/
+
 # Database
 *.db
 *.sqlite
