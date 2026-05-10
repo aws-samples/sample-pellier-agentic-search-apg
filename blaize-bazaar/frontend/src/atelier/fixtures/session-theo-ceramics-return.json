@@ -2,11 +2,12 @@
   "id": "theo-ceramics-return",
   "personaId": "theo",
   "openingQuery": "These ceramics arrived chipped. What now?",
-  "elapsedMs": 2140,
+  "elapsedMs": 5840,
   "agentCount": 1,
   "routingPattern": "Dispatcher",
   "timestamp": "2025-01-13T09:15:00Z",
   "status": "complete",
+  "writePath": true,
   "chat": [
     {
       "role": "user",
@@ -15,38 +16,84 @@
     },
     {
       "role": "assistant",
-      "content": "I'm sorry — that shouldn't have happened. I can help with style and recommendations, but return handling for ceramics sits outside what I can answer right now. In the workshop format you're about to build Experience Guide, which will own this flow end-to-end.",
-      "timestamp": "2025-01-13T09:15:02Z",
-      "plan": { "flowSummary": "Dispatcher → support intent matched → Experience Guide stubbed → voice-matched non-answer", "traceLink": "#telemetry-1" },
-      "toolCalls": [],
-      "products": [],
-      "meta": {
-        "agent": null,
-        "model": null,
-        "note": "Workshop format only — Experience Guide is the second build. In the builder's session format, Experience Guide ships pre-applied and this session resolves cleanly.",
-        "latencyMs": 78
-      }
+      "content": "I'm sorry — that shouldn't have happened. I've filed the return for the Wabi-Sabi Bowl under reason 'damaged'. Aurora dropped its on-floor count by one and tagged your return as pending; you'll see a refund confirmation once the warehouse logs the package. The bowl has a 30-day return window for this category, so you're well inside it.",
+      "timestamp": "2025-01-13T09:15:05Z",
+      "plan": { "flowSummary": "Dispatcher → support intent → Experience Guide → find_pieces (resolve productId) → returns_and_care (window/care) → process_return (Cedar-gated write + audit)", "traceLink": "#telemetry-1" },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces",
+          "description": "Resolve 'ceramics' → Wabi-Sabi Bowl, productId 7, category 'Home Decor'",
+          "durationMs": 312,
+          "resultSummary": "1 product matched: Wabi-Sabi Bowl ($65, Home Decor)"
+        },
+        {
+          "toolName": "returns_and_care",
+          "description": "Lookup return window + care for Home Decor category",
+          "durationMs": 48,
+          "resultSummary": "30-day window; ceramics: hand-wash, no dishwasher"
+        },
+        {
+          "toolName": "process_return",
+          "description": "Write the return row (Cedar-gated on reason='damaged') + decrement quantity",
+          "durationMs": 184,
+          "resultSummary": "return_id=42 inserted; Wabi-Sabi Bowl quantity 9 → 8",
+          "writes": [
+            { "table": "returns", "operation": "INSERT", "rowId": 42 },
+            { "table": "blaize_bazaar.product_catalog", "operation": "UPDATE", "rowId": 7, "field": "quantity", "before": 9, "after": 8 },
+            { "table": "tool_audit", "operation": "INSERT", "rowId": 158, "via": "BeforeToolCallEvent ALLOW + AfterToolCallEvent latency capture" }
+          ]
+        }
+      ],
+      "products": [
+        { "name": "Wabi-Sabi Bowl", "brand": "Blaize Editions", "price": 65, "imageUrl": "/products/theo-wabi-sabi-bowl.png" }
+      ],
+      "meta": { "agent": "Experience Guide", "model": "Sonnet 4.6 · 0.2", "skill": "the-makers-shelf", "latencyMs": 1796 }
     }
   ],
   "telemetry": [
     { "index": 1, "category": "managed", "title": "Intent classification", "description": "'chipped' + 'what now' matched support intent", "status": "complete", "durationMs": 64, "agent": "Dispatcher" },
-    { "index": 2, "category": "teaching", "title": "Routing fall-through — Experience Guide stubbed", "description": "Workshop format: Experience Guide is the second build after Stock Keeper. Builder's session format: this agent is pre-applied and the session resolves.", "status": "complete", "durationMs": 6, "agent": null }
+    { "index": 2, "category": "owned", "title": "Skill loaded", "description": "the-makers-shelf bound for persona: theo", "status": "complete", "durationMs": 38, "agent": "SkillRouter" },
+    { "index": 3, "category": "both", "title": "find_pieces", "description": "Resolve 'ceramics' to Wabi-Sabi Bowl + category", "status": "complete", "durationMs": 312, "agent": "Experience Guide" },
+    { "index": 4, "category": "both", "title": "returns_and_care", "description": "30-day return window for Home Decor", "status": "complete", "durationMs": 48, "agent": "Experience Guide" },
+    { "index": 5, "category": "managed", "title": "Cedar policy: process-return-allowed-reasons", "description": "reason='damaged' is in {damaged, wrong_size, not_as_described, changed_mind, other} → ALLOW", "status": "complete", "durationMs": 4, "agent": "policy_hook" },
+    { "index": 6, "category": "managed", "title": "Audit row INSERTed (placeholder)", "description": "BeforeToolCallEvent → tool_audit row 158 with result=NULL, latency=NULL", "status": "complete", "durationMs": 7, "agent": "tool_audit_writer" },
+    { "index": 7, "category": "both", "title": "process_return", "description": "Atomic transaction: ownership SELECT → INSERT into returns → UPDATE product_catalog.quantity", "status": "complete", "durationMs": 184, "agent": "Experience Guide" },
+    { "index": 8, "category": "managed", "title": "Audit row UPDATEd (result + latency)", "description": "AfterToolCallEvent → tool_audit row 158 with result JSONB + latency_ms=184", "status": "complete", "durationMs": 6, "agent": "tool_audit_writer" },
+    { "index": 9, "category": "both", "title": "Response composition", "description": "Sonnet 4.6 · 0.2 — empathy + concrete write confirmation", "status": "complete", "durationMs": 1177, "agent": "Experience Guide" }
   ],
   "brief": {
     "folioNumber": 27,
-    "headline": "A return, unresolved",
+    "headline": "A return, written through",
     "filedTime": "2025-01-13T09:16:00Z",
     "sections": [
       {
         "numeral": "i.",
-        "title": "Honest gap",
+        "title": "What happened",
         "paragraphs": [
-          "Theo's ceramics arrived chipped and he asked the obvious question. The Dispatcher matched support intent correctly, but Experience Guide is in stub state in the workshop format — so the system returned a voice-matched non-answer rather than walk him through a return.",
-          "In the builder's session, Experience Guide ships pre-applied and this session resolves with a full return-window explanation and a prepaid label. Two format behaviors, one teaching surface."
+          "Theo's bowl arrived chipped and the Experience Guide moved through the call in three concrete steps: find_pieces resolved the catalog id, returns_and_care confirmed the 30-day window, and process_return wrote the return row to Aurora.",
+          "The voice stayed empathetic and specific. The action — 'I've filed the return for the Wabi-Sabi Bowl' — names the table the agent wrote to, in customer-readable terms."
+        ]
+      },
+      {
+        "numeral": "ii.",
+        "title": "Two enforcement layers, one transaction",
+        "paragraphs": [
+          "Cedar gated the call before SQL ran. The reason field — 'damaged' — was checked against the canonical set {damaged, wrong_size, not_as_described, changed_mind, other}. A free-form reason would have been DENIED with a synthetic tool result, and the Atelier Policy panel would show the violation.",
+          "SQL then gated ownership inside the transaction: the customer must have ordered the product. Cedar can't enforce this because it requires a JOIN against live order data — a static policy doesn't know what Theo bought. Two layers, two roles: Cedar guards what the agent can do; SQL guards whose state the agent can mutate."
+        ]
+      },
+      {
+        "numeral": "iii.",
+        "title": "Aurora as the system of record",
+        "paragraphs": [
+          "Three tables changed in one transaction. The returns row gives Theo's customer support flow a queryable history. The product_catalog quantity decrement reflects an honest fact about inventory — that bowl is no longer on the floor. The tool_audit row records the agent's action with timing, args, and result, so a later operator can replay the turn from a single SELECT.",
+          "This is the workshop's pivot: Marco read from Aurora, Anna read harder, Theo wrote. The same database is the index, the search target, and the system of record. One source of truth, three teaching surfaces."
         ]
       }
     ],
-    "products": [],
-    "confidence": { "percentage": 0, "stats": [{ "label": "Agent state", "value": "stub (workshop)" }, { "label": "Fall-through", "value": "Dispatcher" }] }
+    "products": [
+      { "name": "Wabi-Sabi Bowl", "brand": "Blaize Editions", "price": 65, "imageUrl": "/products/theo-wabi-sabi-bowl.png" }
+    ],
+    "confidence": { "percentage": 96, "stats": [{ "label": "Cedar decisions", "value": "1 ALLOW (process-return-allowed-reasons)" }, { "label": "Aurora writes", "value": "3 (returns + quantity + audit)" }, { "label": "Skill", "value": "the-makers-shelf" }] }
   }
 }

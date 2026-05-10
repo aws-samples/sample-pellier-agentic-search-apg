@@ -135,3 +135,128 @@ def test_get_decisions_returns_newest_first_and_respects_limit():
     # Newest entry was the last inserted; its query contained "ok-4".
     assert top2[0]["parameters"]["query"] == "ok-4"
     assert top2[1]["parameters"]["query"] == "ok-3"
+
+
+# ---------------------------------------------------------------------------
+# process_return — Theo's anchor write tool
+# ---------------------------------------------------------------------------
+
+
+def test_process_return_with_canonical_reason_allows_and_records_audit():
+    """ALLOW path for process_return + canonical reason — must record
+    a decision AND call tool_audit_writer.record_allow (mutating tool)."""
+    from services.policy_hook import PolicyEnforcementHook, get_decisions
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-theo")
+    event = _event_for(
+        "process_return",
+        customer_id="c-theo", product_id=21, reason="damaged",
+    )
+
+    with patch.object(tool_audit_writer, "record_allow") as record_allow_mock:
+        hook._on_before_tool(event)
+
+    assert event.cancel_tool is False
+    decisions = get_decisions("s-theo")
+    assert decisions[0]["decision"] == "ALLOW"
+    assert decisions[0]["tool_name"] == "process_return"
+    # Audit writer was called for this mutating-tool ALLOW.
+    assert record_allow_mock.call_count == 1
+    kwargs = record_allow_mock.call_args.kwargs
+    assert kwargs["tool_name"] == "process_return"
+    assert kwargs["session_id"] == "s-theo"
+    assert kwargs["args"]["reason"] == "damaged"
+
+
+def test_process_return_with_unknown_reason_denies():
+    """DENY path: a non-canonical reason value must cancel the tool
+    with a Cedar-shaped explanation. Audit must NOT be called (we
+    only audit allowed mutations)."""
+    from services.policy_hook import PolicyEnforcementHook, get_decisions
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-theo")
+    event = _event_for(
+        "process_return",
+        customer_id="c-theo", product_id=21, reason="vibes_off",
+    )
+
+    with patch.object(tool_audit_writer, "record_allow") as record_allow_mock:
+        hook._on_before_tool(event)
+
+    assert isinstance(event.cancel_tool, str)
+    assert "Policy denied" in event.cancel_tool
+    assert "vibes_off" in event.cancel_tool or "allowed set" in event.cancel_tool
+    decisions = get_decisions("s-theo")
+    assert decisions[0]["decision"] == "DENY"
+    record_allow_mock.assert_not_called()
+
+
+def test_after_tool_event_writes_audit_update_for_mutating_tool():
+    """ALLOW + AfterToolCallEvent → tool_audit_writer.record_after fires
+    with the latency captured between the Before and After events."""
+    import time
+    from services.policy_hook import PolicyEnforcementHook
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-theo")
+    before = _event_for(
+        "process_return",
+        customer_id="c-theo", product_id=21, reason="damaged",
+    )
+
+    with patch.object(tool_audit_writer, "record_allow"):
+        hook._on_before_tool(before)
+
+    # Simulate the tool finishing 50ms later.
+    # The After event shape varies across Strands versions; we mimic
+    # the common case where it carries the same tool_use dict + a
+    # .result attribute.
+    after = SimpleNamespace(
+        tool_use={"name": "process_return", "toolUseId": "tid-test"},
+        result={"status": "success", "return_id": 42},
+    )
+    # Tweak the captured start time to make the latency assertion
+    # deterministic — the hook stores start in self._allow_starts.
+    hook._allow_starts["tid-test"] = time.time() - 0.05  # 50ms ago
+    with patch.object(tool_audit_writer, "record_after") as record_after_mock:
+        hook._on_after_tool(after)
+
+    assert record_after_mock.call_count == 1
+    kwargs = record_after_mock.call_args.kwargs
+    assert kwargs["tool_use_id"] == "tid-test"
+    assert kwargs["result"]["return_id"] == 42
+    assert 30 <= kwargs["latency_ms"] <= 200  # ~50ms with margin
+
+
+def test_after_tool_event_no_op_when_no_pending_start():
+    """If the Before event didn't capture a start (e.g. the tool wasn't
+    in _MUTATING_TOOLS), the After event must not call record_after."""
+    from services.policy_hook import PolicyEnforcementHook
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-x")
+    after = SimpleNamespace(
+        tool_use={"name": "find_pieces", "toolUseId": "tid-readonly"},
+        result={"products": []},
+    )
+    with patch.object(tool_audit_writer, "record_after") as record_after_mock:
+        hook._on_after_tool(after)
+    record_after_mock.assert_not_called()
+
+
+def test_read_only_allow_does_not_audit():
+    """ALLOW on a non-mutating tool (find_pieces) must NOT call
+    record_allow — audit is reserved for mutations."""
+    from services.policy_hook import PolicyEnforcementHook
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-read")
+    event = _event_for("find_pieces", query="leather sneakers")
+
+    with patch.object(tool_audit_writer, "record_allow") as record_allow_mock:
+        hook._on_before_tool(event)
+
+    assert event.cancel_tool is False
+    record_allow_mock.assert_not_called()
