@@ -36,8 +36,9 @@ CREATE TABLE IF NOT EXISTS returns (
     customer_id   TEXT NOT NULL
                   REFERENCES customers(id) ON DELETE CASCADE,
     -- product_catalog."productId" is INTEGER per the live DDL (see
-    -- scripts/load_catalog.py L398). Earlier orders DDL claimed CHAR(10)
-    -- but the live table uses INTEGER; we match the live shape.
+    -- scripts/seed_boutique_catalog.py and audit_full_schema.sql output).
+    -- Earlier orders DDL claimed CHAR(10) but the live table uses
+    -- INTEGER; we match the live shape.
     product_id    INTEGER NOT NULL
                   REFERENCES pellier.product_catalog("productId")
                   ON DELETE CASCADE,

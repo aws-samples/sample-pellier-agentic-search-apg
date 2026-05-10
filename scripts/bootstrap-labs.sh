@@ -253,16 +253,16 @@ setup_frontend() {
 }
 
 setup_database() {
-    if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/scripts/load_catalog.py" ]; then
+    if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/scripts/seed_boutique_catalog.py" ]; then
         cd "$REPO_PATH"
         export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD AWS_REGION
         export ASSETS_BUCKET_NAME ASSETS_BUCKET_PREFIX
         export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
-        # Boutique catalog loader (92 products with pre-computed Cohere
-        # Embed v4 embeddings). Replaces the legacy seed-database.sh path,
-        # which loaded the 444-product product-catalog-cohere-v4.csv.
-        python3 scripts/load_catalog.py --yes --quiet --json \
-            2>&1 | tee /var/log/database-setup.log
+        # Boutique catalog seeder — 40 hand-curated products across the
+        # four personas (Marco / Anna / Theo / Fresh), with Cohere Embed
+        # v4 embeddings generated at seed time. Authoritative source for
+        # the workshop's pellier.product_catalog table.
+        python3 scripts/seed_boutique_catalog.py 2>&1 | tee /var/log/database-setup.log
         return ${PIPESTATUS[0]}
     fi
     return 1
@@ -272,9 +272,9 @@ setup_frontend & PID_FE=$!
 setup_database & PID_DB=$!
 wait $PID_FE && log "✅ Frontend dependencies installed" || warn "Frontend install issues"
 if wait $PID_DB; then
-    log "✅ Database setup complete (92 boutique products, HNSW index, iterative_scan configured)"
+    log "✅ Database setup complete (40 boutique products, HNSW index, iterative_scan configured)"
 else
-    warn "Database setup had issues - check /var/log/database-setup.log and logs/load_catalog_audit.log"
+    warn "Database setup had issues - check /var/log/database-setup.log"
 fi
 
 # ============================================================================

@@ -2,9 +2,9 @@
 --
 -- The Pellier boutique catalog is a hand-curated 40-row dataset that
 -- lives in pellier.product_catalog. It can be wiped or corrupted by:
---   * scripts/load_catalog.py running unintentionally (loads 92 rows
---     from data/pellier_catalog.csv — different SKU set)
---   * scripts/seed_boutique_catalog.py rerunning (DELETE + INSERT)
+--   * scripts/seed_boutique_catalog.py rerunning (DELETE + INSERT;
+--     this is the authoritative seeder, but a stale invocation could
+--     overwrite hand-edits made directly in Aurora)
 --   * an operator hand-truncating the table
 --
 -- This migration is a SELECT-only assertion battery. It RAISES an

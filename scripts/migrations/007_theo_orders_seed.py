@@ -39,7 +39,8 @@ dsn = (
 # Four persona-coherent orders. The placed_at offsets give Theo a
 # realistic "slow craft" history — recent Wabi-Sabi Bowl, older
 # Brass Incense Holder. Names are matched against the live catalog
-# (product_id is INTEGER per scripts/load_catalog.py L398).
+# (product_id is INTEGER — see scripts/seed_boutique_catalog.py and the
+# audit_full_schema.sql output for the live column shape).
 SQL = """
 -- Idempotent: customer row.
 INSERT INTO customers (id, name, preferences_summary)
