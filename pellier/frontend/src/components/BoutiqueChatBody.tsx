@@ -282,7 +282,7 @@ function AgentMessage({
     <div className="ec-msg-agent">
       {/* Eyebrow */}
       <div className="ec-msg-agent-eyebrow">
-        <span className="ec-b-mini">B</span>
+        <span className="ec-b-mini">P</span>
         Pellier
       </div>
 

@@ -209,7 +209,10 @@ export const CATEGORY_CHIPS = [
 
 // Refinement panel (Requirement 1.8.1)
 export const REFINEMENT = {
-  B_MARK_PREFIX: "B",
+  // Single-letter mark inside the brand circle. "P" matches the
+  // header wordmark — the refinement chip and the header speak with
+  // the same brand voice.
+  B_MARK_PREFIX: "P",
   PROMPT: "Pellier here, want me to narrow this down?",
   CHIPS: [
     "Under $100",
