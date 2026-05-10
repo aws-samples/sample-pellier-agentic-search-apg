@@ -1880,7 +1880,11 @@ CURRENT REQUEST: {message}"""
                     intent_hint,
                 )
                 # Stream the non-answer as if a normal agent produced it.
-                yield {"type": "text", "content": fallback_text}
+                # The frontend's streaming handler (services/chat.ts) treats
+                # `content` as the canonical text-update event — using
+                # `text` here silently drops the message and the user sees
+                # the hardcoded "Response completed" default.
+                yield {"type": "content", "content": fallback_text}
                 yield {
                     "type": "meta",
                     "meta": {
@@ -1888,6 +1892,31 @@ CURRENT REQUEST: {message}"""
                         "model": None,
                         "note": f"{intent_hint}-intent matched; agent is the workshop build",
                         "fallthrough": True,
+                    },
+                }
+                # Emit a `complete` event so the frontend populates
+                # `finalResponse.response` and `agent_execution` instead
+                # of falling back to the hardcoded default. `agent_execution`
+                # mirrors the shape live agents produce so the Atelier
+                # Sessions Brief tab and the inline pill in the chat
+                # surface the fall-through honestly (no agent, no model).
+                yield {
+                    "type": "complete",
+                    "response": {
+                        "response": fallback_text,
+                        "products": [],
+                        "suggestions": [],
+                        "agent_execution": {
+                            "agent": None,
+                            "model": None,
+                            "fallthrough": True,
+                            "intent": intent_hint,
+                            "note": (
+                                f"{intent_hint}-intent matched; "
+                                "agent is the workshop build"
+                            ),
+                        },
+                        "success": True,
                     },
                 }
                 return
