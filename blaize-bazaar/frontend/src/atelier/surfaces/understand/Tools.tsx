@@ -443,7 +443,12 @@ const ToolRow: React.FC<ToolRowProps> = ({ tool }) => {
           </span>
         </div>
 
-        {/* Status: dot + pill */}
+        {/* Status: dot + pill + (optional) WRITE badge.
+            The burgundy WRITE pill marks tools that mutate Aurora
+            state — restock_shelf and process_return today. Read tools
+            render no badge (the absence is the badge). Pattern matches
+            the Shipped pill on Performance.tsx exactly: same Eyebrow
+            shape, uppercase letterspacing, but var(--at-red-1) bg. */}
         <div
           style={{
             display: 'flex',
@@ -454,6 +459,24 @@ const ToolRow: React.FC<ToolRowProps> = ({ tool }) => {
         >
           <StatusDot status={isExercise ? 'empty' : 'idle'} />
           <StatusPill status={tool.status} />
+          {tool.mutationType === 'write' && (
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '10px',
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: 'var(--at-cream-1)',
+                backgroundColor: 'var(--at-red-1)',
+                padding: '2px 7px',
+                borderRadius: '4px',
+                fontWeight: 600,
+              }}
+              title="This tool mutates Aurora state. Cedar-gated; audited on every ALLOW."
+            >
+              Write
+            </span>
+          )}
         </div>
       </div>
 

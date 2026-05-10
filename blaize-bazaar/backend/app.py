@@ -1021,6 +1021,136 @@ async def list_skills():
     }
 
 
+@app.get("/api/atelier/search-strategies/compare")
+async def compare_search_strategies(query: str):
+    """Run the same query through three retrieval strategies, return
+    per-strategy timing + top-5 product names.
+
+    Surfaces Anna's anchor-capability comparison live to the
+    Atelier Performance page so workshop participants can see the
+    delta between vector-only / hybrid / hybrid+rerank against the
+    real catalog rather than reading a static fixture.
+
+    Strategies:
+      1. **vector only** — pgvector cosine over product_catalog.
+         Marco's foundation path.
+      2. **hybrid (RRF)** — vector + BM25 in parallel, RRF-merged.
+         No reranker pass.
+      3. **hybrid + rerank** — same as #2 plus Cohere Rerank v3.5.
+         Anna's shipped path.
+
+    Returns:
+      {
+        "query": str,
+        "strategies": [
+          {"strategy", "p50Ms", "costPerThousandUsd", "products": [{name, productId}]}
+        ]
+      }
+
+    Cost numbers are static (workshop-known fixtures: vector + hybrid
+    are effectively free per query, rerank adds ~$1 per 1000 queries).
+    The latency numbers come from real wall-clock measurement of each
+    branch against the live Aurora pool.
+    """
+    import time
+    from services.embeddings import EmbeddingService
+    from services.vector_search import VectorSearch
+    from services.hybrid_search import HybridSearch
+    from services.rerank import get_rerank_service
+
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="query parameter required")
+    q = query.strip()
+
+    embed = EmbeddingService()
+    query_embedding = embed.embed_query(q)
+
+    if db_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="DB not initialized — wait for backend startup to complete",
+        )
+    db = db_service
+
+    # Strategy 1: pure pgvector cosine. Marco's path.
+    t0 = time.time()
+    vec = VectorSearch(db)
+    vec_rows = await vec.vector_search(query_embedding, 5, ef_search=40)
+    vec_ms = int((time.time() - t0) * 1000)
+    vec_products = [
+        {"name": r.get("name", ""), "productId": r.get("product_id")}
+        for r in vec_rows[:5]
+    ]
+
+    # Strategy 2: hybrid (RRF), no rerank. Cap top_n at 5 here so we
+    # see the union ranking pre-rerank.
+    t0 = time.time()
+    hybrid = HybridSearch(db)
+    hybrid_rows = await hybrid.search(
+        query=q,
+        query_embedding=query_embedding,
+        top_n=5,
+    )
+    hybrid_ms = int((time.time() - t0) * 1000)
+    hybrid_products = [
+        {"name": r.get("name", ""), "productId": r.get("product_id")}
+        for r in hybrid_rows[:5]
+    ]
+
+    # Strategy 3: hybrid (top 30) + Cohere Rerank to top 5. Anna's path.
+    t0 = time.time()
+    rerank_pool = await hybrid.search(
+        query=q,
+        query_embedding=query_embedding,
+        top_n=30,
+    )
+    documents = [
+        f"{r.get('name','')} — {(r.get('description','') or '')[:200]} ({r.get('category','')})"
+        for r in rerank_pool
+    ]
+    rerank_service = get_rerank_service()
+    rerank_results = rerank_service.rerank(query=q, documents=documents, top_n=5)
+    rerank_ms = int((time.time() - t0) * 1000)
+    if rerank_results:
+        rerank_products = [
+            {
+                "name": rerank_pool[r["index"]].get("name", ""),
+                "productId": rerank_pool[r["index"]].get("product_id"),
+            }
+            for r in rerank_results
+        ]
+    else:
+        # Bedrock failure — same fallback the find_pieces_hybrid tool uses.
+        rerank_products = [
+            {"name": r.get("name", ""), "productId": r.get("product_id")}
+            for r in rerank_pool[:5]
+        ]
+
+    return {
+        "query": q,
+        "strategies": [
+            {
+                "strategy": "vector only",
+                "p50Ms": vec_ms,
+                "costPerThousandUsd": 0.18,  # embedding cost only
+                "products": vec_products,
+            },
+            {
+                "strategy": "hybrid (RRF)",
+                "p50Ms": hybrid_ms,
+                "costPerThousandUsd": 0.18,
+                "products": hybrid_products,
+            },
+            {
+                "strategy": "hybrid + rerank",
+                "p50Ms": rerank_ms,
+                "costPerThousandUsd": 1.18,  # +$1 for Cohere Rerank
+                "products": rerank_products,
+            },
+        ],
+    }
+
+
 @app.get("/api/atelier/catalog")
 async def atelier_catalog():
     """

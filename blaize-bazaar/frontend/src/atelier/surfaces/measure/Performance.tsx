@@ -436,6 +436,352 @@ const PgvectorComparison: React.FC<PgvectorComparisonProps> = ({ strategies }) =
 };
 
 /* -----------------------------------------------------------------------
+ * Search Strategy Comparison — Anna's anchor capability surfaced honestly
+ *
+ * Three rows: vector only / hybrid (RRF) / hybrid + rerank. The card has
+ * two states:
+ *   1. Default — fixture numbers from performance.json. Card always
+ *      renders with sensible defaults so the page never has a hole.
+ *   2. Live — when the user types a query and clicks "Run on Aurora",
+ *      we hit /api/atelier/search-strategies/compare which executes all
+ *      three strategies against the catalog and returns measured numbers
+ *      + the actual top-5 product names per strategy. The recall@5
+ *      column stays the static fixture value (we'd need labeled data
+ *      to compute it live) but the p50Ms + products refresh.
+ *
+ * The teaching beat: workshop participants can see the rerank lift in
+ * dollars (6× cost increase per 1k queries) AND in latency (roughly 2×)
+ * AND in product mix differences (literal-token matches like "Gift
+ * Wrapping Kit" climb under hybrid+rerank that vector-only misses).
+ * ----------------------------------------------------------------------- */
+
+interface SearchStrategyComparisonProps {
+  strategies: PerformanceData['searchStrategies'];
+}
+
+const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
+  strategies,
+}) => {
+  const [query, setQuery] = useState('');
+  const [liveStrategies, setLiveStrategies] =
+    useState<PerformanceData['searchStrategies'] | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const rendered = liveStrategies ?? strategies;
+
+  const handleRun = async () => {
+    const q = query.trim();
+    if (!q) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const r = await fetch(
+        `/api/atelier/search-strategies/compare?query=${encodeURIComponent(q)}`,
+      );
+      if (!r.ok) {
+        throw new Error(`API error: ${r.status}`);
+      }
+      const j = await r.json();
+      // Backend returns { strategies: [...] } where each strategy has
+      // p50Ms + costPerThousandUsd + products. We merge those onto the
+      // fixture's recallAt5 + isShipped so the card stays whole.
+      const merged: PerformanceData['searchStrategies'] = strategies.map((s) => {
+        const live = (j.strategies || []).find(
+          (l: { strategy: string }) => l.strategy === s.strategy,
+        );
+        if (!live) return s;
+        return {
+          ...s,
+          p50Ms: live.p50Ms ?? s.p50Ms,
+          costPerThousandUsd: live.costPerThousandUsd ?? s.costPerThousandUsd,
+          products: live.products,
+        };
+      });
+      setLiveStrategies(merged);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const headerStyle: React.CSSProperties = {
+    fontFamily: 'var(--at-mono)',
+    fontSize: '11px',
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    color: 'var(--at-ink-2)',
+    fontWeight: 500,
+    padding: '8px 12px',
+    textAlign: 'left',
+    borderBottom: '1px solid var(--at-card-border)',
+  };
+
+  const cellStyle: React.CSSProperties = {
+    fontFamily: 'var(--at-mono)',
+    fontSize: '14px',
+    color: 'var(--at-ink-2)',
+    padding: '10px 12px',
+    letterSpacing: '0.02em',
+  };
+
+  return (
+    <ExpCard>
+      <Eyebrow label="Search strategy comparison · Anna's anchor capability" />
+      <p
+        style={{
+          fontFamily: 'var(--at-serif)',
+          fontStyle: 'italic',
+          fontSize: '15px',
+          lineHeight: 1.5,
+          color: 'var(--at-ink-2)',
+          marginTop: '12px',
+          maxWidth: '640px',
+        }}
+      >
+        Vector finds meaning. BM25 finds literals. Cohere Rerank reads the
+        union and picks. Each row is a real choice — recall vs latency vs
+        cost — and the workshop teaches that the answer depends on the
+        query class, not the database.
+      </p>
+
+      {/* Live-fetch query input — runs all three strategies through the
+          backend's /api/atelier/search-strategies/compare endpoint. */}
+      <div
+        style={{
+          marginTop: '16px',
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'stretch',
+        }}
+      >
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !running) handleRun();
+          }}
+          placeholder="wrap-ready gifts with no extra effort"
+          aria-label="Query to run against all three search strategies"
+          style={{
+            flex: 1,
+            fontFamily: 'var(--at-mono)',
+            fontSize: '13px',
+            padding: '10px 12px',
+            border: '1px solid var(--at-card-border)',
+            borderRadius: '4px',
+            backgroundColor: 'var(--at-cream-1)',
+            color: 'var(--at-ink-1)',
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleRun}
+          disabled={running || !query.trim()}
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '11px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            padding: '0 18px',
+            border: '1px solid var(--at-ink-1)',
+            borderRadius: '4px',
+            backgroundColor: 'var(--at-ink-1)',
+            color: 'var(--at-cream-1)',
+            cursor: running || !query.trim() ? 'not-allowed' : 'pointer',
+            opacity: running || !query.trim() ? 0.4 : 1,
+          }}
+        >
+          {running ? 'Running…' : 'Run on Aurora'}
+        </button>
+      </div>
+
+      {error && (
+        <p
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '12px',
+            color: 'var(--at-red-1)',
+            marginTop: '10px',
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      {liveStrategies && !error && (
+        <p
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '11px',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--at-green-1)',
+            marginTop: '10px',
+          }}
+        >
+          Live · Aurora measurement for "{query}"
+        </p>
+      )}
+
+      <div style={{ marginTop: '16px', overflowX: 'auto' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            borderSpacing: 0,
+          }}
+        >
+          <thead>
+            <tr>
+              <th style={headerStyle}>Strategy</th>
+              <th style={{ ...headerStyle, textAlign: 'right' }}>Recall@5</th>
+              <th style={{ ...headerStyle, textAlign: 'right' }}>p50</th>
+              <th style={{ ...headerStyle, textAlign: 'right' }}>$/1k queries</th>
+              <th style={{ ...headerStyle, textAlign: 'center' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rendered.map((s) => {
+              const isShipped = s.isShipped;
+              const rowBg = isShipped
+                ? 'color-mix(in srgb, var(--at-green-1) 6%, transparent)'
+                : 'transparent';
+              return (
+                <React.Fragment key={s.strategy}>
+                  <tr style={{ backgroundColor: rowBg }}>
+                    <td
+                      style={{
+                        ...cellStyle,
+                        fontWeight: isShipped ? 600 : 400,
+                        color: isShipped ? 'var(--at-ink-1)' : cellStyle.color,
+                      }}
+                    >
+                      {s.strategy}
+                      {isShipped && (
+                        <span
+                          style={{
+                            marginLeft: '8px',
+                            fontFamily: 'var(--at-mono)',
+                            fontSize: '11px',
+                            letterSpacing: '0.18em',
+                            textTransform: 'uppercase',
+                            color: 'var(--at-green-1)',
+                            backgroundColor:
+                              'color-mix(in srgb, var(--at-green-1) 14%, transparent)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Anna's path
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ ...cellStyle, textAlign: 'right' }}>
+                      {(s.recallAt5 * 100).toFixed(0)}%
+                    </td>
+                    <td style={{ ...cellStyle, textAlign: 'right' }}>
+                      {formatMs(s.p50Ms)}
+                    </td>
+                    <td style={{ ...cellStyle, textAlign: 'right' }}>
+                      ${s.costPerThousandUsd.toFixed(2)}
+                    </td>
+                    <td style={{ ...cellStyle, textAlign: 'center' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: isShipped
+                            ? 'var(--at-green-1)'
+                            : 'var(--at-ink-5)',
+                        }}
+                      />
+                    </td>
+                  </tr>
+                  {/* When live results are available, render the top-5
+                      product names under each strategy as a secondary
+                      row so the difference between strategies is
+                      visible, not just claimed. */}
+                  {s.products && s.products.length > 0 && (
+                    <tr style={{ backgroundColor: rowBg }}>
+                      <td colSpan={5} style={{ padding: '0 12px 12px' }}>
+                        <div
+                          style={{
+                            fontFamily: 'var(--at-mono)',
+                            fontSize: '12px',
+                            color: 'var(--at-ink-2)',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <span
+                            style={{
+                              letterSpacing: '0.18em',
+                              textTransform: 'uppercase',
+                              fontSize: '10px',
+                              color: 'var(--at-ink-3)',
+                            }}
+                          >
+                            Top 5 ·
+                          </span>{' '}
+                          {s.products.map((p) => p.name).join(' · ')}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Postgres FTS gotcha teaching note — surfaces a real lesson from
+          the implementation. Anna's BM25 branch returned zero rows in
+          early testing because plainto_tsquery AND-joins all stems;
+          the fix is OR-joining via the _build_or_tsquery helper. */}
+      <div
+        style={{
+          marginTop: '20px',
+          padding: '14px 16px',
+          backgroundColor: 'var(--at-cream-2)',
+          borderLeft: '3px solid var(--at-red-1)',
+          borderRadius: '4px',
+        }}
+      >
+        <Eyebrow label="Postgres FTS gotcha" variant="muted" />
+        <p
+          style={{
+            fontFamily: 'var(--at-serif)',
+            fontStyle: 'italic',
+            fontSize: '14px',
+            lineHeight: 1.55,
+            color: 'var(--at-ink-1)',
+            marginTop: '8px',
+          }}
+        >
+          Both <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>plainto_tsquery</code> and{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>websearch_to_tsquery</code>{' '}
+          AND-join every stem for plain-text input. A 6-stem query
+          (<em>"thoughtful gift for someone who loves morning rituals"</em>)
+          matches zero products if no description contains all six stems.
+          The fix is OR-joining content tokens manually before passing to{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>to_tsquery</code> — that's
+          what <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>HybridSearch._build_or_tsquery</code>{' '}
+          does in <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>services/hybrid_search.py</code>.
+          One of those Postgres footguns whose obvious primitive doesn't do
+          what its name suggests.
+        </p>
+      </div>
+    </ExpCard>
+  );
+};
+
+/* -----------------------------------------------------------------------
  * Storage Usage Bars
  * ----------------------------------------------------------------------- */
 
@@ -835,6 +1181,14 @@ const Performance: React.FC = () => {
 
           {/* pgvector comparison table */}
           <PgvectorComparison strategies={data.pgvectorComparison} />
+
+          {/* Search strategy comparison — Anna's anchor capability.
+              Renders even when the fixture defaults are static; the
+              "Run on Aurora" textbox lets workshop participants drive
+              the live numbers. */}
+          {data.searchStrategies && data.searchStrategies.length > 0 && (
+            <SearchStrategyComparison strategies={data.searchStrategies} />
+          )}
 
           {/* Storage usage bars */}
           <StorageUsageBars usage={data.storageUsage} />

@@ -249,11 +249,22 @@ def test_cognito_pool_id_resolved_falls_back_to_legacy_name(
 
 
 def test_bedrock_model_ids_have_spec_defaults(
-    monkeypatch: pytest.MonkeyPatch, _db_env: None
+    monkeypatch: pytest.MonkeyPatch, _db_env: None, tmp_path
 ) -> None:
-    """Task 6.1 keeps the existing Bedrock model IDs. Defaults SHALL
-    match ``tech.md``: Cohere Embed v4, Cohere Rerank v3.5, Claude
-    Opus 4.6."""
+    """The IN-CODE Bedrock model defaults SHALL match the spec:
+
+      - Cohere Embed v4 (us.cohere.embed-v4:0)
+      - Cohere Rerank v3.5 (cohere.rerank-v3-5:0)
+      - Claude Opus 4.7 (global.anthropic.claude-opus-4-7) for the
+        legacy BEDROCK_CHAT_MODEL alias
+
+    Settings normally loads ``.env`` via SettingsConfigDict, which would
+    override these defaults with whatever the deploy environment set
+    (e.g. an older value the workshop CFN UserData wrote). We point the
+    Settings at a non-existent env_file so this test exercises the
+    in-code defaults specifically — the .env-overridden behavior is
+    covered by smoke tests against the live backend.
+    """
     from config import Settings
 
     _clear_env(
@@ -263,11 +274,19 @@ def test_bedrock_model_ids_have_spec_defaults(
         "BEDROCK_CHAT_MODEL",
     )
 
-    s = Settings()
+    # Point env_file at a path that doesn't exist so pydantic-settings
+    # falls back to in-code defaults. tmp_path is per-test, so this
+    # doesn't affect other tests.
+    nonexistent_env = str(tmp_path / "no-such-file.env")
+    s = Settings(_env_file=nonexistent_env)
 
     assert s.BEDROCK_EMBEDDING_MODEL == "us.cohere.embed-v4:0"
     assert s.BEDROCK_RERANK_MODEL == "cohere.rerank-v3-5:0"
     assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-7"
+    # Per-agent model mix should also default cleanly.
+    assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-4-6"
+    assert s.BEDROCK_HAIKU_MODEL == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+    assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-4-7"
 
 
 # ---------------------------------------------------------------------------

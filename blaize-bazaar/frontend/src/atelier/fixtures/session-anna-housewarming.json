@@ -26,10 +26,10 @@
           "durationMs": 712,
           "resultSummary": "30-candidate pool reranked to 3 housewarming-ready pieces",
           "subSteps": [
-            { "label": "vector branch (pgvector cosine)", "durationMs": 312 },
-            { "label": "BM25 branch (tsvector ts_rank_cd)", "durationMs": 84 },
-            { "label": "RRF merge (k=60)", "durationMs": 3 },
-            { "label": "Cohere Rerank v3.5", "durationMs": 287 }
+            { "label": "vector branch (pgvector cosine, k=20)", "durationMs": 984 },
+            { "label": "BM25 branch (to_tsquery OR-of-stems via _build_or_tsquery, k=20)", "durationMs": 1049 },
+            { "label": "RRF merge (k=60) → 25-candidate pool", "durationMs": 3 },
+            { "label": "Cohere Rerank v3.5 → top 5", "durationMs": 287 }
           ]
         }
       ],

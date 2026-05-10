@@ -158,11 +158,21 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 # ---------------------------------------------------------------------------
 
 
-def test_agent_is_constructed_with_temperature_0_2_and_four_tools(
+def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
     stubbed_specialist,
 ) -> None:
-    """Building the specialist SHALL pass temperature=0.2 and the exact
-    four-tool list from Req 2.4.3."""
+    """Building the Curator SHALL match the per-agent model mix from
+    ``lab-content/shared/model-mix-sidebar.en.md``:
+
+      - Sonnet 4.6 (BEDROCK_SONNET_MODEL)
+      - temperature 0.4 (warm — recommendations carry "taste")
+      - exactly four tools: find_pieces_hybrid + whats_trending +
+        side_by_side + explore_collection.
+
+    ``find_pieces_hybrid`` is the Curator's anchor capability (Anna's
+    pgvector + BM25 + Cohere Rerank pipeline). Other specialists keep
+    plain ``find_pieces``.
+    """
     _StubAgent.canned_reply = "A canned response - ignored by this test."
 
     stubbed_specialist(query="anything")
@@ -170,7 +180,7 @@ def test_agent_is_constructed_with_temperature_0_2_and_four_tools(
     kwargs = _StubAgent.last_kwargs
     assert "model" in kwargs, "Agent SHALL be constructed with a model= kwarg"
     assert isinstance(kwargs["model"], _StubBedrockModel)
-    assert kwargs["model"].kwargs.get("temperature") == 0.2
+    assert kwargs["model"].kwargs.get("temperature") == 0.4
 
     tool_names = [getattr(t, "__name__", repr(t)) for t in kwargs.get("tools", [])]
     # Strands @tool produces a DecoratedFunctionTool; unwrap to expose the
@@ -181,11 +191,11 @@ def test_agent_is_constructed_with_temperature_0_2_and_four_tools(
         unwrapped.append(getattr(inner, "__name__", repr(inner)))
 
     assert set(unwrapped) == {
-        "find_pieces",
+        "find_pieces_hybrid",
         "whats_trending",
         "side_by_side",
         "explore_collection",
-    }, f"expected the four Req 2.4.3 tools, got {unwrapped!r} / {tool_names!r}"
+    }, f"expected the four Curator tools, got {unwrapped!r} / {tool_names!r}"
 
 
 def test_agent_system_prompt_references_recommendation_voice(

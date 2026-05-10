@@ -21,7 +21,7 @@ import re
 from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import returns_and_care, find_pieces, process_return
+from services.agent_tools import returns_and_care, find_pieces
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
@@ -29,55 +29,44 @@ logger = logging.getLogger(__name__)
 
 
 # === CHALLENGE · Experience Guide · system prompt: START ===
-# Workshop format ships with this block as a stub (the original empty
-# prompt + _SUPPORT_AGENT_STUBBED = True). Builder's Session format
-# and the shipped solution path land the wired prompt below.
+# WORKSHOP_EXERCISE_STUB (Workshop format only.)
 #
-# Sonnet 4.6 at 0.2 — capable model for tone when handling a return;
-# steady temperature because policy is policy.
+# Experience Guide's voice. Sonnet 4.6 at 0.2 — capable model for tone
+# when handling a return; steady temperature because policy is policy.
+# Write a system prompt that:
 #
-# Tools chain pattern:
-#   - find_pieces       → resolve product mention → integer productId + category
-#   - returns_and_care  → return window + care for that category
-#   - process_return    → write the return row (Cedar-gated on reason,
-#                         SQL-gated on ownership, transactional adjust
-#                         of product_catalog.quantity if reason='damaged')
+#   1. Names the agent ("You are Blaize Bazaar's Experience Guide.")
+#   2. Lists the three tools and when to use each:
+#        - returns_and_care → return window + care by product category
+#        - find_pieces      → resolve product mentions to productId + category
+#        - process_return   → write the return row (Cedar-gated on reason,
+#                             SQL-gated on ownership, transactional adjust
+#                             of product_catalog.quantity if reason='damaged')
+#   3. Teaches the chaining pattern: customer mentions a product →
+#      find_pieces first → returns_and_care or process_return next.
+#   4. Sets the empathy/discipline balance:
+#        - ALWAYS call a tool first, no text before tool call
+#        - After tool: 1–2 short sentences, conversational
+#        - No markdown tables, numbered lists, emojis, or follow-up Q's
+#        - When process_return succeeds, name the action concretely
+#          ("I've filed the return for the Wabi-Sabi Bowl")
+#
+# Then add ``process_return`` to the tools list in build_support_agent.
+#
+# ⏩ SHORT ON TIME? Run:
+#    cp solutions/module2/agents/customer_support_agent.py \
+#       blaize-bazaar/backend/agents/customer_support_agent.py
 
 _SUPPORT_SYSTEM_PROMPT = (
-    "You are Blaize Bazaar's Experience Guide. You handle post-purchase "
-    "questions: return policies, care instructions, and processing actual "
-    "returns when a customer's piece arrived damaged or wasn't right.\n"
-    "\n"
-    "Tools, in order of typical use:\n"
-    "  - find_pieces: when the customer names a product, call this first to "
-    "get the integer productId and category. Returns are keyed on productId "
-    "and care guidance is keyed on category, so you need both before the "
-    "next tool.\n"
-    "  - returns_and_care: return window + care guidance by category. Use "
-    "for 'how long do I have to return X' or 'how do I take care of Y'.\n"
-    "  - process_return: actually write the return. Required args: "
-    "customer_id, product_id (integer), reason (one of 'damaged', "
-    "'wrong_size', 'not_as_described', 'changed_mind', 'other'). The Cedar "
-    "policy enforces that exact set; SQL enforces that the customer must "
-    "have ordered the product. If reason='damaged', the catalog quantity "
-    "decrements by 1 in the same transaction.\n"
-    "\n"
-    "Output discipline:\n"
-    "  - ALWAYS call a tool before writing prose. No greeting, no preamble.\n"
-    "  - After the tool returns, write 1–2 sentences. Conversational, not "
-    "transactional. Empathy first when a piece arrived damaged; clarity "
-    "when a customer is asking what's possible.\n"
-    "  - No markdown tables, no numbered lists, no emojis, no follow-up "
-    "questions to the customer.\n"
-    "  - When process_return succeeds, name the action concretely "
-    "('I've filed the return for the Wabi-Sabi Bowl') so the customer "
-    "knows the write actually happened.\n"
+    "You are Blaize Bazaar's Experience Guide — in stub state. "
+    "Replace this system prompt with the full voice (see the CHALLENGE "
+    "block above in this file, or copy the solution)."
 )
 
 # Atelier reads this flag to render the "Your turn" pill on the
-# Experience Guide agent card. Now wired — Theo's ceramics-return
-# session resolves end-to-end.
-_SUPPORT_AGENT_STUBBED = False
+# Experience Guide agent card. Flip to False once the real prompt
+# lands (or the cp command runs).
+_SUPPORT_AGENT_STUBBED = True
 
 # === CHALLENGE · Experience Guide · system prompt: END ===
 
@@ -124,7 +113,7 @@ def build_support_agent() -> Agent:
         system_prompt=inject_persona_preamble(
             inject_skills(_SUPPORT_SYSTEM_PROMPT)
         ),
-        tools=[returns_and_care, find_pieces, process_return],
+        tools=[returns_and_care, find_pieces],
     )
 
 

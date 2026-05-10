@@ -48,6 +48,29 @@
       "isShipped": false
     }
   ],
+  "searchStrategies": [
+    {
+      "strategy": "vector only",
+      "recallAt5": 0.74,
+      "p50Ms": 340,
+      "costPerThousandUsd": 0.18,
+      "isShipped": false
+    },
+    {
+      "strategy": "hybrid (RRF)",
+      "recallAt5": 0.86,
+      "p50Ms": 425,
+      "costPerThousandUsd": 0.18,
+      "isShipped": false
+    },
+    {
+      "strategy": "hybrid + rerank",
+      "recallAt5": 0.94,
+      "p50Ms": 720,
+      "costPerThousandUsd": 1.18,
+      "isShipped": true
+    }
+  ],
   "storageUsage": [
     { "label": "Catalog embeddings", "sizeBytes": 67108864, "percentage": 62 },
     { "label": "Tool registry", "sizeBytes": 8388608, "percentage": 8 },
