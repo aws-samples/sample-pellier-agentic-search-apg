@@ -1,7 +1,7 @@
 /**
  * Header — Boutique sticky header (Phase 2 rebuild).
  *
- * Centered "Pellier" wordmark with circular B logo, four left nav
+ * Centered "Pellier" wordmark with circular P logo, four left nav
  * items (Shop, Stories, Ask Pellier, About), and right cluster: search
  * IconButton, persona Avatar dropdown, wishlist heart IconButton, bag
  * IconButton with count badge, and the Boutique ↔ Atelier surface toggle.
@@ -82,7 +82,7 @@ function Wordmark() {
           fontFamily: 'var(--serif)',
         }}
       >
-        B
+        P
       </span>
       <span
         className="text-espresso"

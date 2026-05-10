@@ -5,7 +5,7 @@
  *
  * Design goals:
  *  - renders four nav items (Shop, Stories, Ask Pellier, About)
- *  - centered "Pellier" wordmark with circular B logo
+ *  - centered "Pellier" wordmark with circular P logo
  *  - persona Avatar dropdown replaces PersonaPill + PersonaModal
  *  - bag icon with live count badge
  *  - sticky with backdrop-filter blur
