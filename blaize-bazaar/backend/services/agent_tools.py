@@ -233,7 +233,16 @@ def find_pieces(
         from services.vector_search import VectorSearch
         from services.embeddings import EmbeddingService
 
-        # Auto-detect category from query if not provided
+        # Track whether the category was explicitly passed by the
+        # agent vs. auto-detected from a keyword map. Auto-detected
+        # categories (e.g. "linen" → "Linen") are speculative — the
+        # boutique catalog uses higher-level taxonomy ("Apparel",
+        # "Home Decor", "Accessories"), so a strict substring filter
+        # on an auto-detected category drops every vector-search hit.
+        # The query embedding already encodes the user's intent; we
+        # use the detected category only for pool sizing, not as a
+        # hard post-filter.
+        category_was_explicit = bool(category)
         if not category:
             category = _detect_category(query)
 
@@ -278,7 +287,15 @@ def find_pieces(
                 continue
             if min_rating and product["rating"] < min_rating:
                 continue
-            if category and category.lower() not in product["category"].lower():
+            # Only apply category as a hard filter when the agent
+            # explicitly passed one. Auto-detected categories filter
+            # too aggressively against the boutique's higher-level
+            # category taxonomy.
+            if (
+                category_was_explicit
+                and category
+                and category.lower() not in product["category"].lower()
+            ):
                 continue
             normalized.append(product)
 
