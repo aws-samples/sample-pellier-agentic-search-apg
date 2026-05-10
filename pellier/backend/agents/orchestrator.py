@@ -1,5 +1,26 @@
 """
-Orchestrator Agent - Routes queries to specialized agents with interleaved thinking
+Orchestrator — Pellier's Pattern I (Agents-as-Tools) routing agent.
+
+This is **not** the Dispatcher. The codebase has two routing patterns:
+
+  * **Dispatcher (Pattern III)** — the Boutique's production path.
+    Implemented inline in ``services/chat.py`` as a deterministic
+    intent-keyword classifier that picks one specialist directly.
+    One LLM call per turn (the specialist's). No separate Agent
+    object — the Dispatcher *is* the routing function.
+
+  * **Orchestrator (Pattern I)** — the Atelier's "Agents as Tools"
+    teaching surface (this file). A Haiku 4.5 Agent that sees each
+    specialist as a ``@tool`` (search, recommendation, pricing,
+    inventory, support) and picks one to call. Two LLM calls per turn
+    (router + specialist). Useful for teaching the AaT pattern;
+    intentionally NOT the Boutique's path because the second LLM call
+    adds latency and a paraphrase cycle the production storefront
+    doesn't want.
+
+If you're looking for the Boutique's routing logic, see
+``services/chat.py``'s ``_run_dispatcher_pattern`` branch and the
+intent classifier at ``classify_intent``.
 """
 from strands import Agent
 from strands.models import BedrockModel
