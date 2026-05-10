@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AtelierWelcome, EditorialTitle, ExpCard, Eyebrow } from '../../components';
+import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { Session } from '../../types';
 
@@ -318,10 +318,9 @@ const SessionsList: React.FC = () => {
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '960px' }}>
-      {/* Welcome band — dismissible editorial intro to the Atelier.
-          Shows once per browser session; dismiss sticks via sessionStorage. */}
-      <AtelierWelcome />
-
+      {/* Atelier-wide welcome band lives on Observatory now (the
+          default landing surface). Sessions is zoom-in, no need
+          to repeat the intro here. */}
       <EditorialTitle
         eyebrow="Observe · Sessions"
         title="Sessions"

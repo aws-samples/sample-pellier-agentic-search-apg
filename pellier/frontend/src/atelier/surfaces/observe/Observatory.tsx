@@ -12,6 +12,7 @@
 
 import React from 'react';
 import {
+  AtelierWelcome,
   EditorialTitle,
   ExpCard,
   Eyebrow,
@@ -426,6 +427,12 @@ const Observatory: React.FC = () => {
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
+      {/* Welcome band — dismissible editorial intro to the Atelier.
+          Lives on Observatory because Observatory is the default
+          landing for /atelier (the 'you-are-here' view). Shows once
+          per browser session; dismiss sticks via sessionStorage. */}
+      <AtelierWelcome />
+
       {/* Title block with live pulsing indicator */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
         <div style={{ flex: 1 }}>
