@@ -267,7 +267,7 @@ def test_bedrock_model_ids_have_spec_defaults(
 
     assert s.BEDROCK_EMBEDDING_MODEL == "us.cohere.embed-v4:0"
     assert s.BEDROCK_RERANK_MODEL == "cohere.rerank-v3-5:0"
-    assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-6-v1"
+    assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-7"
 
 
 # ---------------------------------------------------------------------------

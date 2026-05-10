@@ -60,18 +60,22 @@ class Settings(BaseSettings):
     #   Haiku 4.5   — reporting specialists (Value Analyst, Stock Keeper)
     #                 and routing (Orchestrator, SkillRouter). Needs
     #                 speed + determinism.
-    #   Opus 4.6    — stretch-lab model. Workshop participants can
+    #   Opus 4.7    — stretch-lab model. Workshop participants can
     #                 temporarily swap Style Advisor to Opus in the
     #                 Module 3 optional exercise to compare quality /
     #                 cost / latency tradeoffs.
-    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6-v1"
+    #
+    # Model IDs follow Bedrock's cross-region inference profile naming.
+    # Sonnet + Opus use bare alias IDs (no date stamp); Haiku 4.5 still
+    # uses the date-stamped form because it's how the profile is exposed.
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
     BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-7"
 
     # Legacy alias — kept for tests + scripts that still reference it.
     # New code should use BEDROCK_SONNET_MODEL / BEDROCK_HAIKU_MODEL /
     # BEDROCK_OPUS_MODEL directly so the per-agent choice is readable.
-    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-7"
     
     # ========================================
     # Application Configuration

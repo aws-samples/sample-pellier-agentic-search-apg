@@ -24,7 +24,7 @@ try:
     app = BedrockAgentCoreApp()
 
     GATEWAY_URL = os.environ.get("MCP_GATEWAY_URL", "")
-    MODEL_ID = os.environ.get("AGENT_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
+    MODEL_ID = os.environ.get("AGENT_MODEL_ID", "global.anthropic.claude-opus-4-7")
 
     ORCHESTRATOR_PROMPT = """You are the Blaize Bazaar shopping assistant deployed on AgentCore.
 

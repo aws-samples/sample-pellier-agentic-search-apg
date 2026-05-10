@@ -40,9 +40,9 @@ Read it through once. Come back.
 Back? Now open `blaize-bazaar/backend/config.py` and find the three constants:
 
 ```python
-BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6-v1"
+BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
 BEDROCK_HAIKU_MODEL:  str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-BEDROCK_OPUS_MODEL:   str = "global.anthropic.claude-opus-4-6-v1"
+BEDROCK_OPUS_MODEL:   str = "global.anthropic.claude-opus-4-7"
 ```
 
 There's **no `DEFAULT_MODEL`**. Every agent picks its own.

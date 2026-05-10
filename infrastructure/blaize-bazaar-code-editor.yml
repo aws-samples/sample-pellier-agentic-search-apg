@@ -125,7 +125,8 @@ Resources:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
                 Resource:
-                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-opus-4-6-v1
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-opus-4-7
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-sonnet-4-6
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/us.cohere.embed-v4:0
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
