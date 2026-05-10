@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -185,24 +186,96 @@ class HybridSearch:
     # -----------------------------------------------------------------
     # Internal — BM25 branch
     # -----------------------------------------------------------------
+    @staticmethod
+    def _build_or_tsquery(query: str) -> str:
+        """Compile a user query into a Postgres ``to_tsquery``-compatible
+        OR-of-tokens string.
+
+        Both ``plainto_tsquery`` and ``websearch_to_tsquery`` default to
+        AND-of-all-stems for plain-text input, which is the wrong default
+        for conversational queries. Anna's T1 'a thoughtful gift for
+        someone who loves morning rituals' compiles under plainto to
+        ``'thought' & 'gift' & 'someon' & 'love' & 'morn' & 'ritual'``
+        — no product description in a real catalog contains all six
+        stems, so BM25 contributes nothing.
+
+        The fix is to OR-join the meaningful tokens manually before
+        handing the result to ``to_tsquery``. ``ts_rank_cd`` then
+        rewards documents that match the most tokens AND have the
+        matched tokens close together — which is the BM25-shaped
+        ranking we actually want.
+
+        Steps:
+          1. Lowercase + strip non-alphanumeric (Postgres' lexer would
+             do most of this anyway, but we do it eagerly so the
+             stop-word filter below sees clean tokens).
+          2. Drop English stop-words and very short tokens (≤2 chars).
+             This is conservative — Postgres' english config will also
+             drop them — but it cuts the query string size and keeps
+             the OR-tree shallow.
+          3. OR-join with `` | `` and let ``to_tsquery`` lex + stem.
+
+        Returns an empty string if no usable tokens remain (caller
+        should treat empty query as a zero-match shortcut).
+        """
+        if not query:
+            return ""
+        # Strip non-alphanumeric, lowercase, split on whitespace.
+        cleaned = re.sub(r"[^\w\s-]", " ", query.lower())
+        tokens = [t.strip("-") for t in cleaned.split() if len(t) > 2]
+        # Conservative stop-word list. Postgres' english config will drop
+        # the same set, but pre-filtering keeps the OR-tree small.
+        STOP_WORDS = {
+            "the", "and", "for", "with", "that", "this", "have", "has",
+            "are", "was", "were", "from", "into", "out", "but", "not",
+            "any", "all", "some", "one", "two", "three", "what", "where",
+            "when", "how", "who", "why", "you", "your", "yours", "our",
+            "their", "they", "them", "his", "her", "him", "she", "him",
+            "let", "lets", "just", "really", "also", "more", "most",
+            "much", "many", "very",
+            # Conversational filler that never adds retrieval signal.
+            "something", "someone", "somebody", "anything", "anyone",
+            "thing", "things", "stuff", "kind", "sort", "type",
+            "good", "great", "nice", "really", "would", "could", "should",
+            "want", "need", "like", "love", "loves", "loving",
+            # Generic shopping verbs.
+            "find", "show", "give", "get", "browse", "recommend",
+            "suggest", "help", "tell", "look", "looking",
+        }
+        tokens = [t for t in tokens if t not in STOP_WORDS]
+        # Deduplicate while preserving order.
+        seen: set = set()
+        unique: List[str] = []
+        for t in tokens:
+            if t not in seen:
+                seen.add(t)
+                unique.append(t)
+        return " | ".join(unique)
+
     async def _bm25_search(
         self, query: str, k: int,
     ) -> List[Dict[str, Any]]:
         """Postgres full-text BM25-ish search via ts_rank_cd.
 
-        ``plainto_tsquery`` is intentional over ``websearch_to_tsquery``
-        — the workshop's queries are short conversational phrases, not
-        Google-style queries with quotes/operators. ``plainto`` gives
-        us implicit AND across stems, which is what we want.
-
-        The ``description_tsv @@ ts_query`` predicate is index-scanned
-        via the GIN index on ``description_tsv`` (migration 005).
+        Note on query shape: we use ``to_tsquery`` with an OR-joined
+        token string (built by ``_build_or_tsquery``) rather than
+        ``plainto_tsquery`` or ``websearch_to_tsquery``. Both convenience
+        wrappers default to AND-of-all-stems for plain text input,
+        which over-filters conversational queries to zero results.
 
         ``ts_rank_cd`` is the cover-density variant of ts_rank — it
         rewards documents where the matched terms are close together,
         which approximates BM25's term-frequency saturation reasonably
         well without Postgres needing a real BM25 extension.
+
+        The ``description_tsv @@ ts_query`` predicate is index-scanned
+        via the GIN index on ``description_tsv`` (migration 005).
         """
+        or_query = self._build_or_tsquery(query)
+        if not or_query:
+            # Pure stop-word query (rare). Return empty so RRF falls
+            # back to vector-only ranking.
+            return []
         sql = """
             SELECT
                 "productId" AS product_id,
@@ -217,14 +290,14 @@ class HybridSearch:
                 reviews,
                 badge,
                 tags,
-                ts_rank_cd(description_tsv, plainto_tsquery('english', %s)) AS bm25_score
+                ts_rank_cd(description_tsv, to_tsquery('english', %s)) AS bm25_score
             FROM blaize_bazaar.product_catalog
             WHERE "imgUrl" IS NOT NULL
-              AND description_tsv @@ plainto_tsquery('english', %s)
+              AND description_tsv @@ to_tsquery('english', %s)
             ORDER BY bm25_score DESC
             LIMIT %s
         """
-        params: List[Any] = [query, query, k]
+        params: List[Any] = [or_query, or_query, k]
         start = time.time()
         async with self.db.get_connection() as conn:
             async with conn.cursor() as cur:

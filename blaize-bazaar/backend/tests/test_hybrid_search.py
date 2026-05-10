@@ -27,6 +27,67 @@ def _run(coro: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# _build_or_tsquery — the OR-joining query compiler that fixes the
+# AND-of-all-stems over-filtering both plainto and websearch default to
+# ---------------------------------------------------------------------------
+
+
+class TestBuildOrTsquery:
+    """The compiler that turns conversational queries into OR-joined to_tsquery input."""
+
+    def test_drops_stop_words_and_keeps_content_tokens(self) -> None:
+        out = HybridSearch._build_or_tsquery(
+            "a thoughtful gift for someone who loves morning rituals"
+        )
+        # 'a', 'for', 'who' are stop-words; 'someone', 'loves' are in our
+        # extra stop-word list (conversational filler / generic verbs).
+        assert "thoughtful" in out
+        assert "gift" in out
+        assert "morning" in out
+        assert "rituals" in out
+        # Stop-words removed:
+        for w in ["someone", "loves", "for", "who", "the"]:
+            assert w not in out
+
+    def test_or_joins_remaining_tokens(self) -> None:
+        out = HybridSearch._build_or_tsquery("beeswax candle for the dining table")
+        # 'for' and 'the' drop; 'beeswax', 'candle', 'dining', 'table' keep.
+        # Order preserved so the OR-tree matches user intent for ts_rank_cd.
+        parts = out.split(" | ")
+        assert "beeswax" in parts
+        assert "candle" in parts
+        assert "dining" in parts
+        assert "table" in parts
+        assert "for" not in parts
+        assert "the" not in parts
+
+    def test_dedupes_repeated_tokens(self) -> None:
+        out = HybridSearch._build_or_tsquery("candle candle CANDLE")
+        # All three normalize to 'candle' after lowercase; only one survives.
+        assert out == "candle"
+
+    def test_strips_punctuation(self) -> None:
+        out = HybridSearch._build_or_tsquery("wrap-ready, gift-table, hand-thrown!")
+        # Punctuation removed; tokens preserved (with internal hyphens stripped
+        # by the per-token .strip("-") call).
+        for word in ["wrap", "ready", "gift", "table", "hand", "thrown"]:
+            assert word in out
+
+    def test_drops_short_tokens(self) -> None:
+        out = HybridSearch._build_or_tsquery("a is or by candle")
+        # All ≤2 chars except 'candle'.
+        assert out == "candle"
+
+    def test_pure_stop_word_query_returns_empty(self) -> None:
+        out = HybridSearch._build_or_tsquery("the and for what who")
+        assert out == ""
+
+    def test_empty_input_returns_empty(self) -> None:
+        assert HybridSearch._build_or_tsquery("") == ""
+        assert HybridSearch._build_or_tsquery("   ") == ""
+
+
+# ---------------------------------------------------------------------------
 # Fake psycopg machinery — same pattern as test_vector_search.py but the
 # fake cursor returns different result sets on consecutive `execute` calls
 # (vector branch first, BM25 branch second). asyncio.gather schedules both
@@ -56,7 +117,12 @@ class FakeCursor:
         # The vector branch SQL uses '<=>' (cosine distance); BM25 uses
         # 'plainto_tsquery'. This is the cleanest way to give each branch
         # the right rows without coupling to call order.
-        if "plainto_tsquery" in sql:
+        # Matches both plainto_tsquery and websearch_to_tsquery so the test
+        # is robust to which Postgres FTS query function the implementation
+        # uses (plainto = AND-of-stems, websearch = OR-default — the live
+        # path uses websearch because plainto over-filters conversational
+        # queries).
+        if "to_tsquery" in sql:
             self._last_rows = self._bm25_rows
         elif "<=>" in sql:
             self._last_rows = self._vector_rows
@@ -236,9 +302,31 @@ class TestHybridSearchEndToEnd:
         b_rows = [_make_row(2)]
         db = FakeDB(v_rows, b_rows)
         svc = HybridSearch(db)  # type: ignore[arg-type]
-        _run(svc.search("q", embedding, top_n=30))
+        # Use a query with real content tokens so _build_or_tsquery
+        # produces a non-empty OR-query and the BM25 branch actually
+        # executes its SQL (bare "q" would short-circuit to []).
+        _run(svc.search("linen shirt", embedding, top_n=30))
         types = [q.query_type for q in isolated_query_logger.queries]
         # vector branch + bm25 branch + outer hybrid_search summary
         assert "hybrid_vector_branch" in types
         assert "hybrid_bm25_branch" in types
         assert "hybrid_search" in types
+
+    def test_pure_stop_word_query_skips_bm25_branch(
+        self, embedding: List[float],
+        isolated_query_logger: SQLQueryLogger,
+    ) -> None:
+        """When the user query is all stop-words, _bm25_search short-
+        circuits to [] without executing SQL. Vector branch still runs.
+        """
+        v_rows = [_make_row(1)]
+        b_rows: List[Dict[str, Any]] = []
+        db = FakeDB(v_rows, b_rows)
+        svc = HybridSearch(db)  # type: ignore[arg-type]
+        results = _run(svc.search("the and for what who", embedding, top_n=30))
+        # Vector branch produced results; BM25 contributed nothing.
+        assert len(results) == 1
+        types = [q.query_type for q in isolated_query_logger.queries]
+        assert "hybrid_vector_branch" in types
+        # No bm25 SQL executed.
+        assert "hybrid_bm25_branch" not in types
