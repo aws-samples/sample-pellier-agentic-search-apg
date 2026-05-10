@@ -107,10 +107,11 @@ CREATE TABLE IF NOT EXISTS customers (
 
 -- -- orders -------------------------------------------------------------
 -- Demo order log. product_id is CHAR(10) to match
--- pellier.product_catalog."productId" (CHAR(10) PK). INT would
--- have been the first instinct but the live catalog key space uses
--- category-prefixed 10-char ids like 'PSPRT0044' — CHAR(10) is the
--- source of truth per catalog-legacy-backup-20260419.sql:28.
+-- pellier.product_catalog."productId" — see live schema (audit_full_schema.sql).
+-- Note: a previous version of this comment claimed CHAR(10) PK with
+-- category-prefixed ids (PSPRT0044). The live boutique catalog actually
+-- uses INTEGER ids 1..40. Migration 014 adds the FK; the column types
+-- match (INTEGER on both sides).
 --
 -- ON DELETE CASCADE keeps the demo set self-consistent when a customer
 -- is re-seeded (dev workflow: rewind + re-run the seed script).
