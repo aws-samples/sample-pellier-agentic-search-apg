@@ -127,7 +127,7 @@ export const INTENTS: Intent[] = [
     query: "something to wear for warm evenings out",
     matchedOn: ["evening", "warm", "dresses"],
     latency: "298 ms",
-    productRef: { name: "Pellier Linen Shirt" },
+    productRef: { name: "Hadley Linen Shirt" },
   },
   {
     id: 4,
@@ -148,7 +148,7 @@ export const INTENTS: Intent[] = [
     query: "a linen piece that earns its golden hour",
     matchedOn: ["linen", "evening", "warm"],
     latency: "288 ms",
-    productRef: { name: "Pellier Linen Shirt" },
+    productRef: { name: "Hadley Linen Shirt" },
   },
   {
     id: 7,

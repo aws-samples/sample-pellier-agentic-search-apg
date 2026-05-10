@@ -200,11 +200,11 @@ const MARCO_COPY: PersonaCopy = {
     // Must match the first 3 entries in PERSONA_HERO_PILLS.marco exactly —
     // these are Marco's canonical workshop Turn 1/2/3 queries.
     { label: 'What linen do you have for 10 days in Goa?', primary: true },    // Turn 1
-    { label: 'What would go with the Pellier shirt?', primary: false },         // Turn 2
+    { label: 'What would go with the Hadley shirt?', primary: false },          // Turn 2
     { label: "What's the price range for linen shirts?", primary: false },      // Turn 3
   ],
   ps: [
-    'is the Pellier shirt at the Brooklyn warehouse?',
+    'is the Hadley shirt at the Brooklyn warehouse?',
     'what pairs with the Ecru overshirt?',
     'neutral accessories for the road',
   ],

@@ -147,7 +147,7 @@ FRESH_PRODUCTS: List[Product] = [
             "Sculptural ceramic vase with olive branch motif. Hand-thrown stoneware with a matte ivory glaze.",
             CAT_HOME, ["ceramic", "sculptural", "minimal", "warm", "neutral", "home"],
             4.9, 127, "fresh-olive-branch-vessel.png", persona="fresh"),
-    Product(2, "Hadley Linen Shirt", "Pellier Editions", "Ivory", 248,
+    Product(2, "Hadley Linen Shirt", "Hadley", "Ivory", 248,
             "Airy, textured, and endlessly versatile. Cut from pure European linen with a relaxed silhouette and mother of pearl buttons.",
             CAT_APPAREL, ["linen", "minimal", "resort", "warm", "neutral", "everyday"],
             4.8, 312, "fresh-hadley-linen-shirt.png", persona="fresh", badge="EDITORS_PICK"),

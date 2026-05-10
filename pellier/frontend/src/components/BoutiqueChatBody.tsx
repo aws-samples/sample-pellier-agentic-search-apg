@@ -117,9 +117,9 @@ function formatAttribution(loadedSkills: string[]): string {
 // This keeps the Boutique ↔ Atelier demo narrative coherent.
 const FOLLOWUPS_BY_PERSONA: Record<string, string[]> = {
   marco: [
-    'What would go with the Pellier shirt?',                // Turn 2
+    'What would go with the Hadley shirt?',                 // Turn 2
     "What's the price range for linen shirts?",             // Turn 3
-    'Is the Pellier shirt at the Brooklyn warehouse?',      // Turn 4 (Stock Keeper payoff)
+    'Is the Hadley shirt at the Brooklyn warehouse?',       // Turn 4 (Stock Keeper payoff)
   ],
   anna: [
     'something beautiful under $100',                    // Turn 2
