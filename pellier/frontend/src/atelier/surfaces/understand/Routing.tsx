@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
   ExpCard,
@@ -612,6 +613,26 @@ const Routing: React.FC = () => {
           <DispatcherIntentCard />
         </div>
       )}
+
+      {/* Cross-link to the Architecture concept brief on State Management
+          (where routing patterns live in the broader architecture). */}
+      <div
+        style={{
+          marginTop: '32px',
+          paddingTop: '20px',
+          borderTop: '1px solid var(--at-card-border)',
+          fontFamily: 'var(--at-mono)',
+          fontSize: '13px',
+          color: 'var(--at-ink-2)',
+        }}
+      >
+        <Link
+          to="/atelier/architecture/state-management"
+          style={{ color: 'var(--at-burgundy)', textDecoration: 'none' }}
+        >
+          → Read the architecture brief on State Management
+        </Link>
+      </div>
     </div>
   );
 };

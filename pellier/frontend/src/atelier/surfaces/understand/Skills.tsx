@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { Skill } from '../../types';
@@ -264,6 +265,28 @@ const Skills: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Cross-link to the Architecture concept brief for Skills.
+          Helps participants jump from "what is this in production?" to
+          "how does it fit in the broader architecture?" without going
+          back to the sidebar. */}
+      <div
+        style={{
+          marginTop: '32px',
+          paddingTop: '20px',
+          borderTop: '1px solid var(--at-card-border)',
+          fontFamily: 'var(--at-mono)',
+          fontSize: '13px',
+          color: 'var(--at-ink-2)',
+        }}
+      >
+        <Link
+          to="/atelier/architecture/skills"
+          style={{ color: 'var(--at-burgundy)', textDecoration: 'none' }}
+        >
+          → Read the architecture brief on Skills
+        </Link>
+      </div>
     </div>
   );
 };

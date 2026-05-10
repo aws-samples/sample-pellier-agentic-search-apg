@@ -11,6 +11,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
   ExpCard,
@@ -908,6 +909,25 @@ const MemoryDashboard: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Cross-link to the Architecture concept brief on Memory. */}
+      <div
+        style={{
+          marginTop: '32px',
+          paddingTop: '20px',
+          borderTop: '1px solid var(--at-card-border)',
+          fontFamily: 'var(--at-mono)',
+          fontSize: '13px',
+          color: 'var(--at-ink-2)',
+        }}
+      >
+        <Link
+          to="/atelier/architecture/memory"
+          style={{ color: 'var(--at-burgundy)', textDecoration: 'none' }}
+        >
+          → Read the architecture brief on Memory
+        </Link>
+      </div>
     </div>
   );
 };
