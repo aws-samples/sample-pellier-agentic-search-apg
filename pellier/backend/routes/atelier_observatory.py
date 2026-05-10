@@ -349,33 +349,103 @@ async def list_routing():
         raise HTTPException(status_code=500, detail="Failed to load routing patterns")  # copy-allow: atelier-error-detail
 
 
+_PERSONA_TO_CUSTOMER_ID = {
+    "marco": "CUST-MARCO",
+    "anna": "CUST-ANNA",
+    "theo": "CUST-THEO",
+    "fresh": "CUST-FRESH",
+}
+
+
+async def _load_live_ltm_facts(persona: str) -> Optional[list]:
+    """Read the persona's actual episodic memory rows from Aurora.
+
+    Returns a list of LTM item dicts shaped to match the fixture
+    schema, or None when the database is unavailable / no rows exist.
+    Used by /memory/{persona} to overlay live state on the fixture.
+    """
+    customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
+    if not customer_id:
+        return None
+    try:
+        from app import db_service
+        if db_service is None:
+            return None
+        rows = await db_service.fetch_all(
+            """
+            SELECT id, summary_text, ts_offset_days
+              FROM public.customer_episodic_seed
+             WHERE customer_id = %s
+             ORDER BY ts_offset_days DESC NULLS LAST, id ASC
+             LIMIT 20
+            """,
+            customer_id,
+        )
+        if not rows:
+            return None
+        items = []
+        for r in rows:
+            d = dict(r)
+            items.append({
+                "id": f"ltm-live-{d.get('id')}",
+                "content": d.get("summary_text", ""),
+                "tier": "ltm",
+                "tsOffsetDays": d.get("ts_offset_days"),
+            })
+        return items
+    except Exception as exc:
+        logger.warning("Live LTM read failed for %s: %s", persona, exc)
+        return None
+
+
 @router.get("/memory/{persona}")
 async def get_memory(persona: str):
     """Return STM + LTM state for a persona.
 
-    Tries to load a persona-specific fixture (e.g., memory-marco.json).
-    Returns empty memory state if no data exists for the persona.
+    Hybrid: starts from a per-persona fixture (memory-marco.json etc.),
+    then overlays the persona's actual customer_episodic_seed rows from
+    Aurora when the database is available. The overlay replaces the
+    fixture's LTM items list so workshop participants see real LTM
+    facts (the ones the chat pipeline actually reads on every turn)
+    rather than a static snapshot.
+
+    Falls back to fixture-only when:
+      * The persona isn't one of the four canonical IDs (marco/anna/theo/fresh)
+      * The DB is unavailable
+      * No rows exist for the persona's customer_id
+
+    Read-only.
     """
     try:
         data = _load_fixture(f"memory-{persona.lower()}")
-        if data is not None:
-            return data
+        if data is None:
+            data = {
+                "persona": persona,
+                "stm": {
+                    "turnCount": 0,
+                    "recentIntents": [],
+                    "items": [],
+                },
+                "ltm": {
+                    "preferences": [],
+                    "priorOrders": [],
+                    "behavioralPatterns": [],
+                    "items": [],
+                },
+            }
 
-        # Return empty memory state — absence of data is valid
-        return {
-            "persona": persona,
-            "stm": {
-                "turnCount": 0,
-                "recentIntents": [],
-                "items": [],
-            },
-            "ltm": {
-                "preferences": [],
-                "priorOrders": [],
-                "behavioralPatterns": [],
-                "items": [],
-            },
-        }
+        # Live LTM overlay — replace fixture items with real episodic
+        # memory rows when available. STM stays fixture-only because
+        # it's per-conversation state (not persisted to Aurora).
+        live_items = await _load_live_ltm_facts(persona)
+        if live_items is not None:
+            data.setdefault("ltm", {})
+            data["ltm"]["items"] = live_items
+            data["ltm"]["live"] = True
+        else:
+            data.setdefault("ltm", {})
+            data["ltm"]["live"] = False
+        return data
     except Exception as exc:
         logger.error("Failed to load memory for %s: %s", persona, exc)
         raise HTTPException(status_code=500, detail="Failed to load memory state")  # copy-allow: atelier-error-detail

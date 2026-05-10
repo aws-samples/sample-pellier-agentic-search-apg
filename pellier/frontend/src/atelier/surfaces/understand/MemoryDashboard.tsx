@@ -438,6 +438,7 @@ interface LtmCardProps {
   priorOrders: string[];
   behavioralPatterns: string[];
   items: MemoryItem[];
+  live?: boolean;
 }
 
 const LtmCard: React.FC<LtmCardProps> = ({
@@ -445,6 +446,7 @@ const LtmCard: React.FC<LtmCardProps> = ({
   priorOrders,
   behavioralPatterns,
   items,
+  live,
 }) => (
   <ExpCard>
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
@@ -471,6 +473,28 @@ const LtmCard: React.FC<LtmCardProps> = ({
       >
         Long-Term Memory
       </span>
+      {live && (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            background: 'var(--at-status-shipped-bg)',
+            color: 'var(--at-status-shipped-text)',
+            fontFamily: 'var(--at-mono)',
+            fontSize: '10px',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const,
+            fontWeight: 600,
+            marginLeft: 'auto',
+          }}
+          title="LTM items below are read live from public.customer_episodic_seed in Aurora — the same rows the chat pipeline reads on every turn."
+        >
+          ● Live · Aurora
+        </span>
+      )}
     </div>
 
     <h3
@@ -905,6 +929,7 @@ const MemoryDashboard: React.FC = () => {
               priorOrders={data.ltm.priorOrders}
               behavioralPatterns={data.ltm.behavioralPatterns}
               items={data.ltm.items}
+              live={data.ltm.live}
             />
           </div>
         </>
