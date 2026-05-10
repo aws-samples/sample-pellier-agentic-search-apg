@@ -65,9 +65,15 @@ INVENTORY_KEYWORDS = {"restock", "inventory", "stock", "out of stock",
                       "running low", "sold out", "back in stock",
                       "warehouse", "at the brooklyn", "at the austin",
                       "at the portland", "on the floor"}
-SUPPORT_KEYWORDS = {"return", "refund", "policy", "help", "support", "troubleshoot",
+SUPPORT_KEYWORDS = {"return", "refund", "policy", "troubleshoot",
                     "issue", "problem", "warranty", "broken", "defective",
                     "chipped", "damaged", "arrived", "what now"}
+# "help" used to live in SUPPORT_KEYWORDS but it's too generic — Anna's
+# canonical T3 ("help me pair a candle with something else") is a
+# recommendation request, not post-purchase support. Same logic for
+# "support" alone (which was redundant with "policy"/"warranty"/etc.).
+# Real support queries always carry one of the unambiguous tokens
+# above (return/refund/warranty/chipped/damaged/etc.).
 SEARCH_KEYWORDS = {"search for", "looking for", "where can I", "compare", "browse",
                    "what do you have", "do you have", "show me", "find me"}
 
@@ -117,9 +123,13 @@ _GREETING_PREFIXES = (
 _THANKS_PREFIXES = ("thanks", "thank you", "thx", "ty", "appreciate")
 _META_PHRASES = (
     "what can you do", "what do you do", "who are you", "what are you",
-    "how do you work", "what are your capabilities", "help",
+    "how do you work", "what are your capabilities",
     "how can you help", "what can i ask",
 )
+# "help" on its own is meta — but "help me X" is a real request. Match
+# it as a whole-query word, not as a substring (which mis-classified
+# Anna's "help me pair a candle with something else" turn).
+_META_EXACT_WORDS = ("help",)
 
 
 def classify_triage(query: str) -> Optional[str]:
@@ -154,6 +164,12 @@ def classify_triage(query: str) -> Optional[str]:
             return "thanks"
     for phrase in _META_PHRASES:
         if q == phrase or phrase in q:
+            return "meta"
+    # Exact-word meta triggers — only fire when the query IS the word
+    # (after stripping punctuation), never as a substring. Prevents
+    # "help me pair X with Y" from being classified as a meta question.
+    for word in _META_EXACT_WORDS:
+        if q == word:
             return "meta"
     return None
 
