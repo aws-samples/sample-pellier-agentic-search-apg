@@ -52,3 +52,14 @@ Every turn in the arc is captured as an Atelier Session fixture:
 - `/atelier/sessions/marco-capstone` — the full 5-turn journey
 
 Anna and Theo each have 2 supporting sessions in the same list. Theo's `theo-ceramics-return` session models the Experience Guide stub gap for the Workshop format.
+
+---
+
+## Where to next
+
+Marco anchored the workshop's first Aurora capability — pgvector semantic search. The next two personas build on top:
+
+- **Anna** anchors capability 2: hybrid retrieval (vector + Postgres BM25 → RRF → Cohere Rerank v3.5). Her queries blend soft intent with literal constraints; pure cosine wears thin where hybrid earns its keep. → [anna-arc-overview.en.md](./anna-arc-overview.en.md)
+- **Theo** anchors capability 3: Aurora as agent system-of-record. His chipped Wabi-Sabi Bowl produces three writes in one transaction (`returns` row, `product_catalog` quantity decrement, `tool_audit` row) gated by Cedar + SQL. → [theo-arc-overview.en.md](./theo-arc-overview.en.md)
+
+The full ladder + why-each-persona explanation is in [aurora-capabilities-arc.en.md](./aurora-capabilities-arc.en.md).

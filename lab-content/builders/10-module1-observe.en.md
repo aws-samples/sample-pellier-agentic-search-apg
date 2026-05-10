@@ -32,6 +32,14 @@ You'll build `floor_check` in Module 2. The other two are pre-applied for the Bu
 ### `/atelier/performance`
 Per-agent latency bars. Sonnet agents at ~1200 ms. Haiku agents at ~150 ms. **Order of magnitude apart.** Stock Keeper's row shows "—" with a "pending" tag.
 
+Scroll down to the **Search strategy comparison** card. This is Anna's anchor capability — vector + BM25 + Cohere Rerank. Type *"wrap-ready gifts"* in the input, click **Run on Aurora**, watch all three pipelines fire against the live catalog. The top-5 product mix differs per strategy — that's the rerank lift made visible.
+
+The card includes a "Postgres FTS gotcha" callout: **`plainto_tsquery` AND-joins every stem** for plain-text input, so a 6-stem query matches zero products. The fix is OR-joining content tokens manually — see `HybridSearch._build_or_tsquery` in `services/hybrid_search.py`. One of those Postgres footguns worth knowing about.
+
+Marco's `find_pieces` stays on plain pgvector — his queries are clean and the rerank cost ($1/1k) doesn't earn its keep. The architectural lesson: **pick the right tool for the query class.**
+
 ## Ready to build
 
 Next: [Module 2 · Understand](20-module2-understand.en.md)
+
+*Cross-links: [Anna's full arc](../shared/anna-arc-overview.en.md) · [Theo's write-path arc](../shared/theo-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*

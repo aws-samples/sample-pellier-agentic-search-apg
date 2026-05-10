@@ -25,6 +25,12 @@ Open `/atelier/performance`.
 
 **Sonnet ~10× slower than Haiku.** If Value Analyst ran on Sonnet, every price question would feel slow for no added quality. If Style Advisor ran on Haiku, the voice would flatten. Different trades per agent.
 
+### Bonus 90 seconds — Search Strategy comparison
+
+Scroll down to **Search strategy comparison · Anna's anchor capability**. Type *"wrap-ready gifts with no extra effort"* in the input, click **Run on Aurora**. The card runs all three pipelines (vector / hybrid / hybrid+rerank) against the live catalog and shows the top-5 product names per row. **Watch the ranking shift between rows** — that's the rerank lift made visible.
+
+The columns name the trade: **+20 points recall@5, ~2× p50, 6× cost.** No universally right answer; pick per query class.
+
 ---
 
 ## Part 2 · Walk through Experience Guide (5 min, instructor-led, no typing)

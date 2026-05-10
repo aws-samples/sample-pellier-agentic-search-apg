@@ -230,4 +230,83 @@ Experience Guide answers with the 30-day return window, prepaid label, refund ti
 
 You've shipped two full specialists. Stock Keeper answers warehouse questions (Marco's gap, closed). Experience Guide handles returns (Theo's gap, closed). Five tools wired. No one normalized a model. You felt the cost of the wrong model choice in Module 1 and felt the benefit of the right one here.
 
+---
+
+## Theo's write-path tour (5 minutes, whole class)
+
+Now that Experience Guide is wired, the workshop's **third Aurora capability** — Aurora as agent system-of-record — is alive. Take 5 minutes to trace what happens when Theo files a return.
+
+### Trigger the write
+
+Switch to **Theo** in the persona dropdown. Send:
+
+> *My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.*
+
+Read the response. *"I've filed the damaged return for the Wabi-Sabi Bowl..."*. Now flip to the Atelier session for that turn (Atelier sidebar → Sessions → `theo-ceramics-return` → Brief tab). The brief enumerates **three Aurora writes in one transaction**:
+
+1. `INSERT INTO returns (customer_id, product_id, reason)` → returns the new `id`
+2. `UPDATE blaize_bazaar.product_catalog SET quantity = GREATEST(quantity - 1, 0)` (only when reason='damaged')
+3. `INSERT INTO tool_audit (...)` + `UPDATE tool_audit SET result, latency_ms` from the policy hook
+
+### The two enforcement layers
+
+Open `services/agentcore_policy.py`. Find the `process-return-allowed-reasons` Cedar policy (around line 65). The policy says:
+
+```cedar
+forbid (
+  principal,
+  action == Action::"process_return",
+  resource
+)
+when {
+  !(resource.reason in ["damaged","wrong_size","not_as_described","changed_mind","other"])
+};
+```
+
+This runs in `BeforeToolCallEvent`. A bad reason returns DENY → the tool is canceled with a synthetic result → no SQL fires.
+
+Now open `services/business_logic.py`. Find `process_return()` (around line 187). The first SQL statement:
+
+```sql
+SELECT 1 FROM orders
+ WHERE customer_id = %s AND product_id = %s
+ LIMIT 1;
+```
+
+That's the **ownership gate**. Cedar can't enforce it because it requires a JOIN against live data. **Cedar guards what; SQL guards whose.** Two layers, two roles.
+
+### The audit row
+
+Open `services/policy_hook.py`. Find `_MUTATING_TOOLS` (around line 60). It's a set:
+
+```python
+_MUTATING_TOOLS = {"restock_shelf", "process_return"}
+```
+
+Read tools skip the audit because the Atelier already shows their tool calls in the spans. Mutating tools fire `tool_audit_writer.record_allow()` in `BeforeToolCallEvent` (placeholder INSERT) and `record_after()` in `AfterToolCallEvent` (UPDATE with result + latency).
+
+Now run from psql:
+
+```sql
+SELECT audit_id, tool, args, result, latency_ms
+  FROM tool_audit
+ WHERE tool = 'process_return'
+ ORDER BY audit_id DESC
+ LIMIT 1;
+```
+
+You'll see your turn's args, result, and measured latency in one row. **The whole turn is replayable from a single SELECT.** That's the third capability landing.
+
+### See the WRITE badges
+
+Flip to `/atelier/tools`. Two tools carry burgundy **WRITE** badges: `restock_shelf` and `process_return`. Read tools render no badge (the absence is the badge). The split is visible at a glance, which is the point — workshop-time and production-time, you want to know which tools change state vs just query it.
+
+---
+
+## Where you go next
+
+You've built Marco's gap closure (Stock Keeper + 3 tools), Anna's hybrid path is wired and reranking against the live catalog, and Theo's write path lands three writes in one transaction with two enforcement layers. **Three personas, three Aurora capabilities, all alive at once.**
+
 Next: [Module 3 · Evaluate](30-module3-evaluate.en.md)
+
+*Cross-links: [Theo's full write-path arc](../shared/theo-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*

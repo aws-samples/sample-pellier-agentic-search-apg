@@ -8,9 +8,16 @@
 #     once during the midpoint checkpoint (Stock Keeper wired → real warehouse).
 #   - Per-agent model mix is an architectural decision, not a knob. Do NOT
 #     normalize. lab-content/shared/model-mix-sidebar.en.md explains why.
+#   - The workshop teaches three Aurora capabilities in a ladder. See
+#     lab-content/shared/aurora-capabilities-arc.en.md for the framing:
+#       * Marco — pgvector semantic search (foundation, Module 1)
+#       * Anna  — hybrid (vector + BM25) + Cohere Rerank (Module 1, Part 5)
+#       * Theo  — Aurora as system-of-record · Cedar-gated writes · audit
+#                 trail (Module 2, after C5 Experience Guide is wired)
 #   - If the room is slow: drop C4 (running_low) and C5 (Experience Guide).
 #     Do NOT trim C1-C3 — they're the narrative spine (Stock Keeper closes
-#     Marco's gap).
+#     Marco's gap). If you drop C5, also skip the Theo write-path tour at
+#     the end of Module 2.
 defaultLocaleCode: en-US
 localeCodes:
   - en-US
@@ -56,10 +63,10 @@ workshopTimeline:
   duration: 120
   checkpoints:
     - "00:00 — Opening talk + Boutique demo (Marco clicks 4 pills)"
-    - "00:10 — Module 1 · Observe (tour + model-mix sidebar + swap-a-model)"
-    - "00:30 — Module 2 · Understand (Stock Keeper + Experience Guide)"
+    - "00:10 — Module 1 · Observe (tour + model-mix sidebar + swap-a-model + Anna's hybrid pipeline)"
+    - "00:30 — Module 2 · Understand (Stock Keeper + Experience Guide + Theo's write-path tour)"
     - "00:55 — Mid-point checkpoint (Marco's Turn 4 works)"
-    - "01:40 — Module 3 · Evaluate (Performance + Evaluations + capstone)"
+    - "01:40 — Module 3 · Evaluate (Performance + Search Strategy comparison + Evaluations + capstone)"
     - "01:55 — Wrap-up + Q&A"
 
 prerequisites:
@@ -69,6 +76,6 @@ prerequisites:
     - "Familiarity with LLM concepts: temperature, tool calling, system prompts"
     - "Basic AWS + Bedrock awareness"
   technical:
-    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.6, Cohere Embed v4"
+    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.7, Cohere Embed v4, Cohere Rerank v3.5"
     - "Amazon Transcribe streaming access (voice search is optional demo)"
     - "Cognito-supported AWS region (us-west-2 recommended)"

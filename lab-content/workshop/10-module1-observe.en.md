@@ -103,8 +103,45 @@ Open the Atelier Performance page. Value Analyst's latency bar just jumped from 
 
 ---
 
+## Part 5 · Anna's hybrid pipeline (5 minutes, solo)
+
+Marco's Style Advisor runs on **plain pgvector cosine** — meaning-based search, top 5. That's the workshop's first Aurora capability. The next persona, **Anna**, anchors a different one: **hybrid retrieval with reranking**.
+
+Why? Because Anna's queries aren't clean. She doesn't say "find me a candle"; she says *"something thoughtful that arrives ready to give"* or *"wrap-ready gifts with no extra effort"*. The embedding catches "thoughtful" as a vibe; it doesn't catch "wrap-ready" as a literal lookup against the catalog's product descriptions. **Postgres' BM25 over a tsvector does.**
+
+Anna's Curator runs on `find_pieces_hybrid`:
+
+1. **Vector branch** — pgvector cosine, k=20.
+2. **BM25 branch** — `to_tsquery` against a `tsvector` column generated from `name + brand + category + color + tags + description` with weighted contributions. Query is OR-joined from content tokens (see `_build_or_tsquery` in `services/hybrid_search.py`).
+3. **RRF merge** — Reciprocal Rank Fusion with k=60 produces a 30-candidate union pool.
+4. **Cohere Rerank v3.5** — Bedrock invokes `cohere.rerank-v3-5:0` with the query + 30 documents, returns top 5.
+
+### See it run live
+
+Switch to **Anna** in the persona dropdown. Click her hero pill *"wrap-ready gifts with no extra effort"*. Read the response — Gift Wrapping Kit will be at rank 1, then a tight gift-band of 4 more pieces.
+
+Now flip to `/atelier/performance`. Scroll to the **Search strategy comparison** card. Type the same query in the input and click **Run on Aurora**. The card runs all three strategies — vector only, hybrid (RRF), hybrid + rerank — against the live catalog and shows you the top-5 mix per row. Watch the ranking shift between rows: vector-only puts certain pieces first; hybrid+rerank reorders meaningfully (Cohere reads "no extra effort" and pulls in pieces neither retrieval branch ranked highly).
+
+That's the second-capability teaching moment: **vector finds meaning, BM25 finds literals, Cohere reads intent shape, RRF merges them honestly**.
+
+### The Postgres FTS gotcha
+
+Worth flagging: **Postgres' obvious primitives don't do what their names suggest.** Both `plainto_tsquery` and `websearch_to_tsquery` AND-join every stem for plain-text input. A 6-stem query like *"thoughtful gift for someone who loves morning rituals"* compiles to `'thought' & 'gift' & 'someon' & 'love' & 'morn' & 'ritual'` — and matches **zero** products in a real catalog. The fix is OR-joining content tokens manually before passing to `to_tsquery`. That's what `HybridSearch._build_or_tsquery` does. The Atelier card surfaces this as a teaching callout — one of those gotchas worth knowing about before your first Postgres-FTS production app.
+
+### Why Marco still uses plain `find_pieces`
+
+The workshop deliberately **doesn't** swap Marco onto hybrid. Why?
+
+- Marco's queries are clean — clear product mentions, clear product context. Vector wins them all.
+- The 6× cost increase + ~120ms extra latency from rerank doesn't earn its keep on every query.
+- The pipeline tradeoff is the architectural lesson: **pick the right tool for the query class**.
+
+---
+
 ## What's next
 
-You've observed the whole system. You've felt the model-mix lesson in your hands. Time to close Marco's gap.
+You've observed the whole system. You've felt the model-mix lesson in your hands. You've watched the hybrid pipeline rerank a query in real time. Time to close Marco's gap.
 
 Next: [Module 2 · Understand](20-module2-understand.en.md)
+
+*Cross-links: [Anna's full arc](../shared/anna-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*

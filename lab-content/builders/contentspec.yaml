@@ -14,6 +14,13 @@
 #   - Participants who want more depth should be pointed at
 #     lab-content/workshop/ — same Marco arc, 2-hour framing, all 5 tools +
 #     both specialists built by hand.
+#   - The session also surfaces (briefly) Anna's hybrid retrieval pipeline
+#     and Theo's write-path teaching — see lab-content/shared/
+#     aurora-capabilities-arc.en.md for the framing. Anna's pipeline is
+#     observed via the /atelier/performance "Search strategy comparison"
+#     card (Module 1, 60 seconds). Theo's write path lands automatically
+#     because Experience Guide ships pre-applied — show /atelier/tools
+#     for the WRITE badges and run a return for live psql confirmation.
 defaultLocaleCode: en-US
 localeCodes:
   - en-US
@@ -59,10 +66,10 @@ workshopTimeline:
   duration: 60
   checkpoints:
     - "00:00 — Opening talk + Boutique demo (Marco clicks 4 pills)"
-    - "00:10 — Module 1 · Observe (model-mix sidebar + Atelier tour)"
-    - "00:15 — Module 2 · Understand (Stock Keeper + floor_check)"
+    - "00:10 — Module 1 · Observe (model-mix sidebar + Atelier tour + Anna's hybrid card)"
+    - "00:15 — Module 2 · Understand (Stock Keeper + floor_check + Theo write-path tour)"
     - "00:40 — Mid-point checkpoint (Marco's Turn 4 lands)"
-    - "00:40 — Module 3 · Evaluate (Performance + Experience Guide walk-through)"
+    - "00:40 — Module 3 · Evaluate (Performance + Search Strategy compare + Experience Guide walk)"
     - "00:50 — Capstone (Marco's 5-turn full journey)"
     - "00:55 — Q&A"
 
@@ -72,5 +79,5 @@ prerequisites:
     - "LLM comfort (temperature, system prompts, tool use)"
     - "Basic AWS + Bedrock awareness"
   technical:
-    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Cohere Embed v4"
+    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Cohere Embed v4, Cohere Rerank v3.5"
     - "Cognito-supported AWS region (us-west-2 recommended)"

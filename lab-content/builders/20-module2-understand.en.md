@@ -108,4 +108,36 @@ In the Builder's Session format, `restock_shelf` + `running_low` were pre-applie
 
 Experience Guide (the returns/care specialist) is also pre-applied for the same reason. Theo's ceramics-return session works out of the box in this format.
 
+---
+
+## Theo's write-path tour (3 minutes, whole class)
+
+Before you go, a quick look at the **third Aurora capability** — Aurora as agent system-of-record.
+
+Switch to **Theo** in the persona dropdown. Type:
+
+> *My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.*
+
+Watch the response: *"I've filed the damaged return for the Wabi-Sabi Bowl..."*. The Experience Guide chained three tools:
+
+1. `find_pieces` — resolved "Wabi-Sabi Bowl" to integer `productId=37`
+2. `returns_and_care` — confirmed the 30-day window for Home Decor
+3. **`process_return`** — wrote the return to Aurora
+
+That third call ran a single-transaction sequence:
+- Cedar policy `process-return-allowed-reasons` checked `reason ∈ {damaged, wrong_size, ...}` → **ALLOW**
+- SQL ownership gate: `SELECT 1 FROM orders WHERE customer_id='theo' AND product_id=37` → matched
+- `INSERT INTO returns (...)` → returned new `id=2`
+- `UPDATE blaize_bazaar.product_catalog SET quantity = GREATEST(quantity-1, 0) WHERE "productId"=37` (because reason='damaged')
+
+Plus — fired by the policy hook, not the tool itself:
+- `INSERT INTO tool_audit (...)` in `BeforeToolCallEvent` (placeholder row)
+- `UPDATE tool_audit SET result=..., latency_ms=...` in `AfterToolCallEvent`
+
+Three tables changed in one customer-visible action. Open `/atelier/tools` — `process_return` carries a burgundy **WRITE** badge. Open the same session in `/atelier/sessions/theo-ceramics-return` — the brief tab walks the full mutation graph. Run `SELECT * FROM tool_audit WHERE tool='process_return' ORDER BY audit_id DESC LIMIT 1;` from psql and the entire turn replays from one row.
+
+That's the third capability: **Cedar gates what; SQL gates whose; tool_audit makes every mutation reconstructible.**
+
 Next: [Module 3 · Evaluate](30-module3-evaluate.en.md)
+
+*Cross-links: [Theo's full write-path arc](../shared/theo-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*

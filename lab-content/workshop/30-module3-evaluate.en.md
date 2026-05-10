@@ -31,6 +31,37 @@ Notice the Dispatcher is **fastest** — it's pure pattern matching, no model ca
 
 Sonnet costs more per token and runs ~10× slower than Haiku. If Value Analyst ran on Sonnet, every price question would feel slow and rack up cost for no added quality (the answer is a number). If Style Advisor ran on Haiku, the editorial voice would flatten. The system makes a different trade for each agent based on what that agent's job actually is.
 
+### The Search Strategy comparison card
+
+Scroll down on `/atelier/performance`. Below the pgvector index card you'll find **Search strategy comparison · Anna's anchor capability**. This card runs Anna's three retrieval pipelines — vector only, hybrid (RRF), hybrid + rerank — against the live catalog.
+
+Type a query in the input. Try Anna's pill 4 — *"wrap-ready gifts with no extra effort"*. Click **Run on Aurora**. The card refreshes with measured latency per pipeline + the actual top-5 product names per row.
+
+Read the recall vs latency vs cost columns:
+
+- **vector only**: ~74% recall@5, ~340 ms, $0.18/1k queries
+- **hybrid (RRF)**: ~86% recall@5, ~425 ms, $0.18/1k queries
+- **hybrid + rerank**: ~94% recall@5, ~720 ms, $1.18/1k queries
+
+**Recall@5 jumps 20 points; p50 doubles; cost goes 6×.** The card lets you decide. There's no universally right answer — pick per query class. Anna's editorial-with-constraints queries earn the rerank cost; Marco's clean product-mention queries don't.
+
+The "Postgres FTS gotcha" callout under the table flags the lesson behind `_build_or_tsquery`: **`plainto_tsquery` AND-joins all stems**, so a 6-stem conversational query matches zero products. Worth committing to memory before your first Postgres-FTS production app.
+
+### Theo's write-path numbers
+
+Switch to **Theo** in the persona dropdown. Send the chipped-ceramics turn (or re-send if you ran it in Module 2). Then run from psql:
+
+```sql
+SELECT audit_id, tool, latency_ms,
+       jsonb_pretty(args) AS args
+  FROM tool_audit
+ WHERE tool = 'process_return'
+ ORDER BY audit_id DESC
+ LIMIT 1;
+```
+
+The `latency_ms` column is the wall-clock measured between `BeforeToolCallEvent` (placeholder INSERT) and `AfterToolCallEvent` (UPDATE with result). Ours typically lands at ~180–250 ms — Sonnet 4.6 at 0.2 plus a single 3-statement transaction. **The same psql query replays Theo's whole turn from one row.** That's the third capability surfacing as a measurement, not just a claim.
+
 ---
 
 ## Part 2 · Evaluations (6 minutes, solo)
