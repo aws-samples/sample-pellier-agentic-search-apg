@@ -326,7 +326,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'hand-thrown ceramics for a slower morning routine',  // Turn 1
     'what goes well with the pour-over set?',              // Turn 2
     'linen pieces that soften over seasons',               // Turn 3
-    'something for the home, not the wardrobe',
+    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
     'artisanal objects worth keeping',
   ],
   fresh: [
