@@ -20,6 +20,7 @@ Endpoints:
     GET  /performance          — metrics and benchmarks
     GET  /evaluations          — agent scorecards
     GET  /observatory          — dashboard summary
+    POST /skills/route         — Live skill router demo (Haiku 4.5 @ 0.0)
     GET  /policies             — Cedar policies for the Write-path surface
     GET  /tool-audit/recent    — Recent rows from public.tool_audit
 """
@@ -442,6 +443,44 @@ async def get_observatory():
     except Exception as exc:
         logger.error("Failed to load observatory data: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to load observatory data")  # copy-allow: atelier-error-detail
+
+
+class AtelierSkillRouteRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/skills/route")
+async def route_skills_endpoint(payload: AtelierSkillRouteRequest):
+    """Live skill-router demo for the Atelier Skills surface.
+
+    Calls services/skills.SkillRouter.route() against the user query
+    and returns the same RouterDecision shape the chat pipeline emits
+    as an SSE skill_routing event:
+        {loaded_skills, considered, elapsed_ms, user_message}
+
+    Read-only; never raises. Returns an empty decision on any failure
+    (matches the chat pipeline's behavior — skills stay dormant if the
+    router can't decide).
+    """
+    try:
+        from skills import SkillRouter, get_registry
+        skill_router = SkillRouter(get_registry())
+        decision = skill_router.route(payload.query)
+        return {
+            "loaded_skills": list(decision.loaded_skills or []),
+            "considered": list(decision.considered or []),
+            "elapsed_ms": int(decision.elapsed_ms or 0),
+            "user_message": payload.query[:500],
+        }
+    except Exception as exc:
+        logger.warning("Atelier skill route failed: %s", exc)
+        return {
+            "loaded_skills": [],
+            "considered": [],
+            "elapsed_ms": 0,
+            "user_message": payload.query[:500],
+            "error": str(exc),
+        }
 
 
 @router.get("/policies")

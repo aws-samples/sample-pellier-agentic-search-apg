@@ -13,11 +13,274 @@
  * SKILL.md file directly, not a database row.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { Skill } from '../../types';
+
+/* -----------------------------------------------------------------------
+ * Skill Router Demo Card
+ *
+ * Live demonstration of the SkillRouter (Haiku 4.5 at temperature 0.0).
+ * Mirrors the Tools page's DiscoveryDemoCard pattern: type a query,
+ * see what the router would decide for that turn (which skills to
+ * load + which it considered and why it rejected them).
+ *
+ * The same call shape is used by the chat pipeline — when a user
+ * submits a query in the Boutique, this exact decision is emitted as
+ * an SSE skill_routing event before any text streams.
+ * ----------------------------------------------------------------------- */
+
+interface RouterConsidered {
+  name: string;
+  reason: string;
+}
+
+interface RouterResult {
+  loaded_skills: string[];
+  considered: RouterConsidered[];
+  elapsed_ms: number;
+  user_message: string;
+  error?: string;
+}
+
+const EXAMPLES: { label: string; query: string }[] = [
+  { label: "Marco's Turn 2", query: 'What would go with the Hadley shirt?' },
+  { label: "Anna's gift query", query: 'wrap-ready gifts with no extra effort' },
+  { label: "Theo's pairing query", query: 'what goes well with the pour-over set?' },
+];
+
+const SkillRouterDemoCard: React.FC = () => {
+  const [query, setQuery] = useState('');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<RouterResult | null>(null);
+
+  const run = async (q: string) => {
+    if (!q.trim()) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const r = await fetch('/api/atelier/skills/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+      });
+      if (r.ok) {
+        const data = (await r.json()) as RouterResult;
+        setResult(data);
+      } else {
+        setResult({
+          loaded_skills: [],
+          considered: [],
+          elapsed_ms: 0,
+          user_message: q,
+          error: `HTTP ${r.status}`,
+        });
+      }
+    } catch (e) {
+      setResult({
+        loaded_skills: [],
+        considered: [],
+        elapsed_ms: 0,
+        user_message: q,
+        error: String(e),
+      });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <ExpCard>
+      <Eyebrow label="Live skill router · Haiku 4.5 @ 0.0" />
+      <h3
+        style={{
+          fontFamily: 'var(--at-serif)',
+          fontSize: '24px',
+          fontWeight: 400,
+          margin: '6px 0 14px',
+          color: 'var(--at-ink-1)',
+        }}
+      >
+        Type a query — see which skill the router would load.
+      </h3>
+      <p
+        style={{
+          fontFamily: 'var(--at-sans)',
+          fontSize: '14px',
+          lineHeight: 1.6,
+          color: 'var(--at-ink-2)',
+          marginBottom: '16px',
+        }}
+      >
+        The same call shape that fires before every chat turn. Haiku at
+        temperature 0.0 is deterministic — try the same query twice and
+        get the same routing.
+      </p>
+
+      {/* Example pills */}
+      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '8px', marginBottom: '14px' }}>
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex.label}
+            onClick={() => {
+              setQuery(ex.query);
+              run(ex.query);
+            }}
+            disabled={running}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '4px 10px',
+              borderRadius: '999px',
+              border: '1px solid var(--at-card-border)',
+              background: 'var(--at-cream-2)',
+              color: 'var(--at-ink-2)',
+              cursor: running ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {ex.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Input + run */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !running) run(query);
+          }}
+          placeholder="Try: hand-thrown ceramics for a slower morning"
+          style={{
+            flex: 1,
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            padding: '10px 14px',
+            border: '1px solid var(--at-card-border)',
+            borderRadius: '6px',
+            background: 'var(--at-cream-1)',
+            color: 'var(--at-ink-1)',
+          }}
+        />
+        <button
+          onClick={() => run(query)}
+          disabled={running || !query.trim()}
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '13px',
+            padding: '10px 18px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'var(--at-burgundy)',
+            color: 'var(--at-cream-1)',
+            cursor: running || !query.trim() ? 'not-allowed' : 'pointer',
+            opacity: running || !query.trim() ? 0.5 : 1,
+          }}
+        >
+          {running ? 'Routing…' : 'Run router'}
+        </button>
+      </div>
+
+      {/* Result */}
+      {result && result.error && (
+        <div style={{ fontFamily: 'var(--at-mono)', fontSize: '13px', color: 'var(--at-red-1)' }}>
+          {result.error}
+        </div>
+      )}
+      {result && !result.error && (
+        <div
+          style={{
+            border: '1px solid var(--at-card-border)',
+            borderRadius: '6px',
+            padding: '14px',
+            background: 'var(--at-cream-1)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              marginBottom: '12px',
+            }}
+          >
+            <Eyebrow
+              label={
+                result.loaded_skills.length > 0
+                  ? `Loaded · ${result.loaded_skills.join(', ')}`
+                  : 'Loaded · none (base prompt only)'
+              }
+            />
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '12px',
+                color: 'var(--at-ink-3)',
+              }}
+            >
+              {result.elapsed_ms} ms
+            </span>
+          </div>
+
+          {result.considered.length > 0 && (
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--at-mono)',
+                  fontSize: '11px',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase' as const,
+                  color: 'var(--at-ink-3)',
+                  marginBottom: '8px',
+                }}
+              >
+                Considered
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {result.considered.map((c) => {
+                  const isLoaded = result.loaded_skills.includes(c.name);
+                  return (
+                    <div
+                      key={c.name}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '160px 1fr',
+                        gap: '14px',
+                        fontFamily: 'var(--at-sans)',
+                        fontSize: '13px',
+                        color: 'var(--at-ink-2)',
+                      }}
+                    >
+                      <code
+                        style={{
+                          fontFamily: 'var(--at-mono)',
+                          fontSize: '12px',
+                          color: isLoaded
+                            ? 'var(--at-status-shipped-text)'
+                            : 'var(--at-ink-3)',
+                          fontWeight: isLoaded ? 600 : 400,
+                        }}
+                      >
+                        {isLoaded ? '✓ ' : '○ '}
+                        {c.name}
+                      </code>
+                      <span style={{ lineHeight: 1.5 }}>{c.reason}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </ExpCard>
+  );
+};
+
 
 /* -----------------------------------------------------------------------
  * Persona chip — small pill with persona's first name
@@ -263,6 +526,8 @@ const Skills: React.FC = () => {
           {skills.map((skill, idx) => (
             <SkillCard key={skill.name} skill={skill} numeral={ROMAN[idx] ?? `${idx + 1}.`} />
           ))}
+          {/* Live skill router — type a query, see what loads. */}
+          <SkillRouterDemoCard />
         </div>
       )}
 
