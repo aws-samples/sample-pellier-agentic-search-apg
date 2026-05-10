@@ -267,14 +267,26 @@ export default function BoutiqueHero() {
               Try asking
             </div>
 
-            {/* Suggestion chips — 5 in a row, text wraps to 2 lines
-                inside each chip. Matches the reference's compact grid. */}
+            {/* Suggestion chips — 5 in a row at desktop, wrap to 3+2
+                or 2+2+1 at narrower widths. Text wraps to 2 lines
+                inside each chip. Matches the reference's compact grid.
+                `flex-wrap` (instead of `flex-nowrap`) prevents the row
+                from spilling past the hero section's overflow:hidden
+                bounds — at <1024px the first / last pill were getting
+                clipped to "ft for runs" / "a cozy".
+
+                The pill row breaks out of the form's max-w-4xl wrapper
+                (896px) because 5 pills + gaps = 965px. We use clamp()
+                so the row caps at 965px on desktop and shrinks with
+                the viewport on smaller screens. */}
             <div
               data-testid="boutique-hero-pills"
-              className="mt-4 flex justify-center gap-2.5 flex-nowrap"
+              className="mt-4 flex flex-wrap justify-center gap-2.5"
               role="listbox"
               aria-label="Suggested queries"
-              style={{ maxWidth: '900px' }}
+              style={{
+                width: 'min(965px, calc(100vw - 32px))',
+              }}
             >
               {suggestions.map((query) => (
                 <button
