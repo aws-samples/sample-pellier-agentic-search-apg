@@ -1,9 +1,16 @@
 """
 Strands SDK Tools for Agents
 Provides @tool decorated functions for agent use with live database access.
-Uses pgvector semantic search (Module 1 teaching surface) — the hybrid +
-Cohere Rerank pipeline was removed when the concierge switched to pure
-semantic retrieval.
+
+Two retrieval entry points:
+
+  - ``find_pieces`` — Marco's foundation. Pure pgvector cosine
+    similarity over the product catalog. Module 1 teaching surface.
+
+  - ``find_pieces_hybrid`` — Anna's anchor capability. Hybrid
+    pgvector + Postgres BM25 with RRF merge, then Cohere Rerank v3.5
+    on the top 30. Module 1 hybrid teaching surface; granted only to
+    the Curator agent (recommendation_agent.py).
 """
 from strands import tool
 import contextvars
@@ -312,6 +319,156 @@ def find_pieces(
         }, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+
+@tool
+def find_pieces_hybrid(
+    query: str,
+    max_price: float = None,
+    min_rating: float = 0.0,
+    category: str = None,
+    limit: int = 5,
+) -> str:
+    """Hybrid pgvector + Postgres BM25 + Cohere Rerank v3.5. Anna's Curator uses this.
+
+    Three-stage retrieval:
+      1. Vector branch (pgvector cosine) and BM25 branch (tsvector
+         ts_rank_cd) run in parallel against blaize_bazaar.product_catalog.
+      2. Reciprocal Rank Fusion merges the two ranked lists into a
+         single candidate pool of ~30 products.
+      3. Cohere Rerank v3.5 reorders the pool by relevance to the
+         original query and returns the top ``limit``.
+
+    Each stage adds a different kind of signal:
+      - Vector catches *meaning*: "something beautiful" → editorial pieces
+      - BM25 catches *literals*: "candle" → only candle-shaped products
+      - Rerank catches *coherence*: "for a slow Sunday morning" → the
+        ceramic mug pulls ahead of the lounge set when the candidate
+        pool included both
+
+    Args:
+        query: Natural language search query
+        max_price: Maximum price filter (optional, applied post-rerank)
+        min_rating: Minimum star rating (default: 0.0, applied post-rerank)
+        category: Category filter (optional — only applied as a hard
+            filter when the agent passes it explicitly, mirroring
+            find_pieces' behavior)
+        limit: Number of final results (default: 5)
+    """
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+
+    try:
+        from services.embeddings import EmbeddingService
+        from services.hybrid_search import HybridSearch
+        from services.rerank import get_rerank_service
+
+        # Same explicit-vs-auto category guard as find_pieces. Anna's
+        # auto-detected categories ("linen" → "Linen") still don't match
+        # the boutique's higher-level taxonomy ("Apparel"); only filter
+        # when the agent supplies an explicit category.
+        category_was_explicit = bool(category)
+
+        embedding_service = EmbeddingService()
+        query_embedding = embedding_service.embed_query(query)
+
+        hybrid = HybridSearch(_db_service)
+        # Pool size 30 — enough material for the reranker to reorder
+        # meaningfully; Cohere bills per call, not per candidate.
+        candidates = _run_async(
+            hybrid.search(
+                query=query,
+                query_embedding=query_embedding,
+                k_vector=20,
+                k_bm25=20,
+                top_n=30,
+            )
+        )
+
+        # Build the per-document text the reranker reads. Three fields
+        # in priority order: name (carries brand identity), description
+        # (carries style + use case), category (coarse semantic anchor).
+        # Truncate descriptions at 240 chars to stay well below Cohere's
+        # per-document token limit.
+        def _doc_for_rerank(p: dict) -> str:
+            name = (p.get("name") or "").strip()
+            desc = (p.get("description") or "").strip()
+            cat = (p.get("category") or "").strip()
+            if len(desc) > 240:
+                desc = desc[:237] + "…"
+            return f"{name} — {desc} ({cat})"
+
+        documents = [_doc_for_rerank(p) for p in candidates]
+        rerank_service = get_rerank_service()
+        rerank_results = rerank_service.rerank(
+            query=query,
+            documents=documents,
+            top_n=min(limit * 3, len(documents)),  # over-rerank then filter
+        )
+
+        # Project candidates by reranked indices. If rerank failed
+        # (returned []), fall back to RRF order — the Atelier will show
+        # this as a missing rerank stage in telemetry.
+        if rerank_results:
+            ordered = [
+                {**candidates[r["index"]],
+                 "rerank_score": float(r["relevance_score"])}
+                for r in rerank_results
+            ]
+            search_method = "hybrid+rerank"
+        else:
+            ordered = [{**c, "rerank_score": None} for c in candidates]
+            search_method = "hybrid (rerank fallback to RRF order)"
+
+        # Normalize field shapes to match find_pieces output.
+        normalized = []
+        for p in ordered:
+            reviews_raw = p.get("reviews")
+            try:
+                reviews_int = int(reviews_raw) if reviews_raw is not None else 0
+            except (TypeError, ValueError):
+                reviews_int = 0
+            product = {
+                "productId": p.get("product_id"),
+                "name": p.get("name", ""),
+                "brand": p.get("brand", ""),
+                "color": p.get("color", ""),
+                "description": p.get("description", ""),
+                "price": float(p["price"]) if hasattr(p.get("price"), '__float__') else p.get("price", 0),
+                "rating": float(p["rating"]) if hasattr(p.get("rating"), '__float__') else p.get("rating", 0),
+                "reviews": reviews_int,
+                "category": p.get("category", ""),
+                "imgUrl": p.get("img_url", ""),
+                "badge": p.get("badge"),
+                "tags": list(p.get("tags") or []),
+                "rrf_score": p.get("rrf_score"),
+                "rerank_score": p.get("rerank_score"),
+            }
+            if max_price and product["price"] > max_price:
+                continue
+            if min_rating and product["rating"] < min_rating:
+                continue
+            if (
+                category_was_explicit
+                and category
+                and category.lower() not in product["category"].lower()
+            ):
+                continue
+            normalized.append(product)
+
+        normalized = normalized[:limit]
+
+        return json.dumps({
+            "status": "success",
+            "query": query,
+            "count": len(normalized),
+            "products": normalized,
+            "search_method": search_method,
+            "pool_size": len(candidates),
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
 
 @tool
 def explore_collection(

@@ -21,7 +21,7 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
 from services.agent_tools import (
-    find_pieces,
+    find_pieces_hybrid,
     whats_trending,
     side_by_side,
     explore_collection,
@@ -69,6 +69,17 @@ def build_recommendation_agent() -> Agent:
     """
     # Curator — Sonnet 4.6 at 0.4. Recommendations carry "taste";
     # skills shape voice. Warm model, warm temperature.
+    #
+    # Tool-grant note: the Curator gets ``find_pieces_hybrid`` (Anna's
+    # anchor capability — pgvector + BM25 + Cohere Rerank). Other
+    # specialists (Style Advisor, Value Analyst, Experience Guide)
+    # stay on plain ``find_pieces``: they need the simpler tool for
+    # fall-through on price / availability / support queries where
+    # BM25 + rerank don't earn their cost. The Curator is uniquely
+    # the right home for the hybrid pipeline because recommendation
+    # queries blend soft semantic intent ("something beautiful") with
+    # literal constraints ("under $100", "for a home office") — the
+    # exact regime where vector-alone wears thin.
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_SONNET_MODEL,
@@ -79,7 +90,7 @@ def build_recommendation_agent() -> Agent:
             inject_skills(RECOMMENDATION_SYSTEM_PROMPT)
         ),
         tools=[
-            find_pieces,
+            find_pieces_hybrid,
             whats_trending,
             side_by_side,
             explore_collection,
