@@ -85,7 +85,20 @@ const SKILL_DISPLAY_NAMES: Record<string, string> = {
 }
 
 function skillDisplayName(canonicalName: string): string {
-  return SKILL_DISPLAY_NAMES[canonicalName] ?? canonicalName.replace(/-/g, ' ')
+  // Mapped names win — they encode the editorial intent exactly
+  // ('the-packing-list' → 'Packing List', not 'The Packing List').
+  if (SKILL_DISPLAY_NAMES[canonicalName]) {
+    return SKILL_DISPLAY_NAMES[canonicalName]
+  }
+  // Fallback: strip a leading 'the-' before un-kebabing so a new skill
+  // shipping with a 'the-' prefix doesn't render as 'the the X' once
+  // the attribution prepends 'Drawing from the '. Then title-case so
+  // 'the-foo-bar' becomes 'Foo Bar' (matching the manual map style).
+  const stripped = canonicalName.replace(/^the-/i, '')
+  return stripped
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 function formatAttribution(loadedSkills: string[]): string {
