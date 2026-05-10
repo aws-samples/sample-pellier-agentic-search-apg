@@ -352,6 +352,217 @@ const EmptyState: React.FC = () => (
 );
 
 /* -----------------------------------------------------------------------
+ * Dispatcher Intent Map
+ *
+ * Active routing pattern (Pattern III · Dispatcher) is keyword-based,
+ * deterministic, no LLM call. This card shows the literal keyword sets
+ * from services/chat.py — "what do I type to land on which specialist?".
+ * Workshop participants reading the dispatcher's intent classifier in
+ * code will see the same shape here.
+ * ----------------------------------------------------------------------- */
+
+interface IntentMapping {
+  intent: string;
+  specialist: string;
+  fileTokens: string[];
+  examples: string[];
+}
+
+const INTENT_MAPPINGS: IntentMapping[] = [
+  {
+    intent: 'pricing',
+    specialist: 'Value Analyst',
+    fileTokens: [
+      'deal', 'cheap', 'price', 'pricing', 'discount', 'affordable',
+      'budget', 'value', 'cost', 'save', 'best price', 'on sale',
+      'bargain', 'compare price',
+    ],
+    examples: ["What's the price range for linen shirts?"],
+  },
+  {
+    intent: 'inventory',
+    specialist: 'Stock Keeper',
+    fileTokens: [
+      'restock', 'inventory', 'stock', 'out of stock', 'low stock',
+      'available', 'availability', 'in stock', 'running low',
+      'sold out', 'back in stock', 'warehouse',
+      'at the brooklyn', 'at the austin', 'at the portland',
+      'on the floor',
+    ],
+    examples: ['Is the Hadley shirt at the Brooklyn warehouse?'],
+  },
+  {
+    intent: 'customer_support',
+    specialist: 'Experience Guide',
+    fileTokens: [
+      'return', 'refund', 'policy', 'troubleshoot', 'issue', 'problem',
+      'warranty', 'broken', 'defective', 'chipped', 'damaged',
+      'arrived', 'what now',
+    ],
+    examples: ['My Wabi-Sabi Bowl arrived chipped.'],
+  },
+  {
+    intent: 'search',
+    specialist: 'Style Advisor',
+    fileTokens: [
+      'search for', 'looking for', 'where can I', 'compare', 'browse',
+      'what do you have', 'do you have', 'show me', 'find me',
+    ],
+    examples: ['What linen do you have for 10 days in Goa?'],
+  },
+  {
+    intent: 'recommendation (default)',
+    specialist: 'Curator',
+    fileTokens: [
+      "(any query that doesn't match the above falls through here)",
+    ],
+    examples: ['What would go with the Hadley shirt?'],
+  },
+];
+
+const DispatcherIntentCard: React.FC = () => (
+  <ExpCard>
+    <Eyebrow label="Active dispatcher · intent → specialist" />
+    <h3
+      style={{
+        fontFamily: 'var(--at-serif)',
+        fontSize: '24px',
+        fontWeight: 400,
+        margin: '6px 0 14px',
+        color: 'var(--at-ink-1)',
+      }}
+    >
+      What you type maps to one specialist.
+    </h3>
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '14px',
+        lineHeight: 1.6,
+        color: 'var(--at-ink-2)',
+        marginBottom: '20px',
+      }}
+    >
+      The dispatcher is a keyword classifier in{' '}
+      <code style={{ fontFamily: 'var(--at-mono)' }}>
+        services/chat.py
+      </code>{' '}
+      (look for{' '}
+      <code style={{ fontFamily: 'var(--at-mono)' }}>classify_intent</code>).
+      It checks the customer's query against five sets of token phrases
+      and dispatches to one specialist. No LLM call. Order of evaluation
+      is intentional — pricing wins over inventory for ambiguous
+      product-mention queries.
+    </p>
+
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontFamily: 'var(--at-sans)',
+        fontSize: '13px',
+      }}
+    >
+      <thead>
+        <tr style={{ textAlign: 'left' as const, color: 'var(--at-ink-3)' }}>
+          <th style={{ padding: '8px 10px', borderBottom: '1px solid var(--at-card-border)' }}>
+            intent
+          </th>
+          <th style={{ padding: '8px 10px', borderBottom: '1px solid var(--at-card-border)' }}>
+            specialist
+          </th>
+          <th style={{ padding: '8px 10px', borderBottom: '1px solid var(--at-card-border)' }}>
+            example tokens
+          </th>
+          <th style={{ padding: '8px 10px', borderBottom: '1px solid var(--at-card-border)' }}>
+            example query
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {INTENT_MAPPINGS.map((m) => (
+          <tr key={m.intent}>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                fontFamily: 'var(--at-mono)',
+                color: 'var(--at-ink-1)',
+                whiteSpace: 'nowrap' as const,
+              }}
+            >
+              {m.intent}
+            </td>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                fontFamily: 'var(--at-serif)',
+                color: 'var(--at-ink-1)',
+                whiteSpace: 'nowrap' as const,
+              }}
+            >
+              {m.specialist}
+            </td>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap' as const,
+                  gap: '4px',
+                }}
+              >
+                {m.fileTokens.slice(0, 6).map((t) => (
+                  <code
+                    key={t}
+                    style={{
+                      fontFamily: 'var(--at-mono)',
+                      fontSize: '12px',
+                      background: 'var(--at-cream-2)',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      color: 'var(--at-ink-2)',
+                    }}
+                  >
+                    {t}
+                  </code>
+                ))}
+                {m.fileTokens.length > 6 && (
+                  <span
+                    style={{
+                      fontFamily: 'var(--at-mono)',
+                      fontSize: '12px',
+                      color: 'var(--at-ink-3)',
+                    }}
+                  >
+                    +{m.fileTokens.length - 6} more
+                  </span>
+                )}
+              </div>
+            </td>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                fontStyle: 'italic' as const,
+                color: 'var(--at-ink-2)',
+              }}
+            >
+              {m.examples[0]}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </ExpCard>
+);
+
+/* -----------------------------------------------------------------------
  * Main component
  * ----------------------------------------------------------------------- */
 
@@ -396,6 +607,9 @@ const Routing: React.FC = () => {
               numeral={ROMAN_NUMERALS[idx] ?? String(idx + 1)}
             />
           ))}
+          {/* Dispatcher (Pattern III) is the active path; the intent
+              table makes the keyword-to-specialist mapping concrete. */}
+          <DispatcherIntentCard />
         </div>
       )}
     </div>
