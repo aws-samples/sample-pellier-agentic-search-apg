@@ -92,7 +92,12 @@ def build_doc_text(row: dict) -> str:
 
 
 def embed_one(client, text: str) -> list[float]:
-    """Single Cohere v4 embed call."""
+    """Single Cohere v4 embed call.
+
+    Cohere v4 response shape: {"embeddings": {"float": [[...1024 floats...]]}}.
+    Earlier Cohere models returned the flat {"embeddings": [[...]]} shape;
+    don't confuse the two.
+    """
     body = {
         "texts": [text],
         "input_type": "search_document",
@@ -105,10 +110,14 @@ def embed_one(client, text: str) -> list[float]:
         accept="application/json",
     )
     payload = json.loads(response["body"].read())
-    embeddings = payload.get("embeddings") or []
-    if not embeddings or len(embeddings[0]) != EMBED_DIM:
-        raise RuntimeError(f"unexpected embedding shape from Cohere: {len(embeddings[0]) if embeddings else 0} dims")
-    return embeddings[0]
+    embeddings_data = payload.get("embeddings", {}) or {}
+    float_embeddings = embeddings_data.get("float", []) if isinstance(embeddings_data, dict) else embeddings_data
+    if not float_embeddings:
+        raise RuntimeError(f"empty embeddings in Cohere response: {payload}")
+    embedding = float_embeddings[0]
+    if len(embedding) != EMBED_DIM:
+        raise RuntimeError(f"unexpected embedding length from Cohere: {len(embedding)} (expected {EMBED_DIM})")
+    return embedding
 
 
 def main() -> int:
