@@ -86,8 +86,24 @@ class BusinessLogic:
             },
         }
 
-    async def floor_check(self) -> Dict[str, Any]:
-        """Overall inventory health — stock counts, low-stock alerts, health score."""
+    async def floor_check(self, product_query: Optional[str] = None) -> Dict[str, Any]:
+        """Inventory check.
+
+        Two modes:
+          * ``product_query=None`` (default) — overall inventory health:
+            stock counts, low-stock alerts, health score. Used for
+            "what's running low" / "give me a stock overview" questions.
+          * ``product_query="Pellier shirt"`` — per-warehouse breakdown
+            for a single product. Resolves the query against
+            ``product_catalog.name`` (ILIKE) and joins
+            ``warehouse_inventory`` so Stock Keeper can answer "is the
+            Pellier shirt at the Brooklyn warehouse?" with concrete
+            counts. Returns ambiguity error when more than one product
+            matches; not_found when zero match.
+        """
+        if product_query:
+            return await self._floor_check_by_product(product_query)
+
         stats = await self.db.fetch_one("""
             SELECT
                 COUNT(*)                                  AS total_products,
@@ -125,6 +141,108 @@ class BusinessLogic:
             "statistics": stats,
             "critical_items": critical_items,
             "alerts": alerts,
+        }
+
+    async def _floor_check_by_product(self, product_query: str) -> Dict[str, Any]:
+        """Per-warehouse breakdown for a named product.
+
+        Implementation note: takes up to 5 ILIKE matches; if exactly one,
+        returns the breakdown. If more than one, returns an ambiguity
+        envelope with candidate names so the agent can ask the customer
+        to disambiguate. If zero, returns not_found.
+        """
+        # Per-token ILIKE match: "Pellier shirt" → name ILIKE '%Pellier%'
+        # AND name ILIKE '%shirt%'. Substring-with-wildcards-at-ends
+        # would miss "Pellier Linen Shirt" because the customer typed
+        # the brand and product noun without the modifier between them.
+        # Tokenization is naive on whitespace which is fine for catalog
+        # names (none contain commas / punctuation that matters here).
+        tokens = [t for t in product_query.strip().split() if t]
+        if not tokens:
+            return {
+                "status": "not_found",
+                "query": product_query,
+                "message": "Empty product query.",
+            }
+
+        # Build "name ILIKE %s AND name ILIKE %s ..." with one param per token.
+        clause = " AND ".join(["name ILIKE %s"] * len(tokens))
+        params = tuple(f"%{t}%" for t in tokens)
+
+        rows = await self.db.fetch_all(
+            f"""
+            SELECT "productId", name, brand, color, price
+              FROM blaize_bazaar.product_catalog
+             WHERE {clause}
+             ORDER BY rating DESC NULLS LAST
+             LIMIT 5
+            """,
+            *params,
+        )
+        candidates = [convert_decimals(dict(r)) for r in rows]
+
+        if not candidates:
+            return {
+                "status": "not_found",
+                "query": product_query,
+                "message": (
+                    f"No product matched '{product_query}'. "
+                    "Stock Keeper can only break down inventory for products in the catalog."
+                ),
+            }
+
+        if len(candidates) > 1:
+            return {
+                "status": "ambiguous",
+                "query": product_query,
+                "candidates": [
+                    {
+                        "productId": c["productId"],
+                        "name": c["name"],
+                        "brand": c.get("brand"),
+                        "color": c.get("color"),
+                    }
+                    for c in candidates
+                ],
+                "message": (
+                    f"Multiple products match '{product_query}'. "
+                    "Ask the customer which one they mean before reporting stock."
+                ),
+            }
+
+        product = candidates[0]
+        product_id = product["productId"]
+
+        # Per-warehouse breakdown
+        wh_rows = await self.db.fetch_all(
+            """
+            SELECT w.id              AS warehouse_id,
+                   w.display_name    AS warehouse_name,
+                   w.city,
+                   w.ship_window_min,
+                   w.ship_window_max,
+                   wi.quantity
+              FROM warehouse_inventory wi
+              JOIN warehouses w ON w.id = wi.warehouse_id
+             WHERE wi."productId" = %s
+             ORDER BY wi.quantity DESC, w.id ASC
+            """,
+            product_id,
+        )
+        warehouses = [convert_decimals(dict(r)) for r in wh_rows]
+        total_units = sum(w.get("quantity", 0) or 0 for w in warehouses)
+
+        return {
+            "status": "success",
+            "product": {
+                "productId": product_id,
+                "name": product["name"],
+                "brand": product.get("brand"),
+                "color": product.get("color"),
+                "price": product.get("price"),
+            },
+            "total_units": total_units,
+            "warehouses": warehouses,
         }
 
     async def price_intelligence(self, category: str = None) -> Dict[str, Any]:

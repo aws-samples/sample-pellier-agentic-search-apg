@@ -70,11 +70,24 @@ def _run_async(coro):
             loop.close()
 
 @tool
-def floor_check() -> str:
-    """Get current inventory health statistics including stock levels and alerts. Use for warehouse, stock status, or inventory overview questions.
+def floor_check(product_query: str = "") -> str:
+    """Inventory check across the catalog and three warehouses (BK-01 Brooklyn, ATX-02 Austin, PDX-01 Portland).
 
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py pellier/backend/services/agent_tools.py
+    PASS product_query whenever the customer mentions a specific product
+    by name (e.g. "Pellier shirt", "Wabi-Sabi Bowl", "linen overshirt").
+    The tool fuzzy-matches the name and returns per-warehouse stock
+    counts plus ship windows. Examples:
+
+      floor_check(product_query="Pellier shirt")
+        → {status: success, product: {...}, warehouses: [{warehouse_id: BK-01, quantity: 8, ship_window_min: 1, ...}, ...]}
+
+    Call WITHOUT arguments only when the customer asks for an overall
+    inventory overview — "what's running low", "stock summary",
+    "warehouse health". That returns aggregate stats across the catalog.
+
+    Args:
+        product_query: Product name (or partial name) to check stock
+            for. Empty string falls back to the aggregate summary mode.
     """
     # === CHALLENGE · Stock Keeper · floor_check: START ===
     # WORKSHOP_EXERCISE_STUB
@@ -100,10 +113,25 @@ def floor_check() -> str:
     # Verify live:
     #   Click Marco Turn 4 pill in the Boutique — Stock Keeper answers
     #   with the Brooklyn warehouse breakdown.
-    return json.dumps({
-        "error": "floor_check is in stub state",
-        "hint": "This is the workshop build. Implement the tool body or run the cp command above.",
-    })
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    try:
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        # Treat empty/whitespace-only as "no query" so the bare call
+        # falls back to aggregate health.
+        query = (product_query or "").strip() or None
+        _log.info(
+            "🔧 floor_check called | product_query=%r | mode=%s",
+            product_query,
+            "per-product" if query else "aggregate",
+        )
+        result = _run_async(logic.floor_check(product_query=query))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
     # === CHALLENGE · Stock Keeper · floor_check: END ===
 
 @tool
