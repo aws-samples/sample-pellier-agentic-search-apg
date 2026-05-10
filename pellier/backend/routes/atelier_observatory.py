@@ -10,16 +10,18 @@ owns ``/query``, ``/resume``, ``/tool-registry``; this router owns the
 observatory surface endpoints listed below.
 
 Endpoints:
-    GET  /sessions           — session list for persona
-    GET  /sessions/{id}      — full session detail or 404
-    GET  /agents             — 5 agents with status, tools, model config
-    GET  /tools              — 9 tools with signatures, status, metadata
-    POST /tools/discover     — pgvector semantic search
-    GET  /routing            — 3 routing patterns with active indicator
-    GET  /memory/{persona}   — STM + LTM state for persona
-    GET  /performance        — metrics and benchmarks
-    GET  /evaluations        — agent scorecards
-    GET  /observatory        — dashboard summary
+    GET  /sessions             — session list for persona
+    GET  /sessions/{id}        — full session detail or 404
+    GET  /agents               — 5 agents with status, tools, model config
+    GET  /tools                — 9 tools with signatures, status, metadata
+    POST /tools/discover       — pgvector semantic search
+    GET  /routing              — 3 routing patterns with active indicator
+    GET  /memory/{persona}     — STM + LTM state for persona
+    GET  /performance          — metrics and benchmarks
+    GET  /evaluations          — agent scorecards
+    GET  /observatory          — dashboard summary
+    GET  /policies             — Cedar policies for the Write-path surface
+    GET  /tool-audit/recent    — Recent rows from public.tool_audit
 """
 
 from __future__ import annotations
@@ -440,3 +442,76 @@ async def get_observatory():
     except Exception as exc:
         logger.error("Failed to load observatory data: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to load observatory data")  # copy-allow: atelier-error-detail
+
+
+@router.get("/policies")
+async def get_cedar_policies():
+    """Return the registered Cedar policies powering the BeforeToolCallEvent
+    enforcement layer. Used by the Atelier's Write-path surface to show
+    "policy is code, code is enforcement".
+    """
+    try:
+        from services.agentcore_policy import get_policy_service
+        ps = get_policy_service()
+        policies = ps.list_policies()
+        return {
+            "count": len(policies),
+            "policies": [
+                {
+                    "id": p.get("id"),
+                    "name": p.get("name"),
+                    "description": p.get("description"),
+                    "applies_to": p.get("applies_to"),
+                    "cedar": p.get("cedar"),
+                }
+                for p in policies
+            ],
+        }
+    except Exception as exc:
+        logger.error("Failed to load policies: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to load policies")  # copy-allow: atelier-error-detail
+
+
+@router.get("/tool-audit/recent")
+async def get_recent_tool_audit(limit: int = Query(default=10, ge=1, le=50)):
+    """Return the most recent rows from public.tool_audit, in reverse
+    chronological order. Used by the Write-path surface to demonstrate
+    that every mutating tool call is reconstructible from a single row
+    (args + result + latency_ms).
+
+    Read-only. Aggregate against the live DB; falls back to empty list
+    when the database is unavailable.
+    """
+    try:
+        from app import db_service
+        if db_service is None:
+            return {"count": 0, "rows": []}
+
+        rows = await db_service.fetch_all(
+            """
+            SELECT audit_id,
+                   session_id,
+                   tool,
+                   caller,
+                   args,
+                   result,
+                   latency_ms,
+                   created_at
+              FROM public.tool_audit
+             ORDER BY audit_id DESC
+             LIMIT %s
+            """,
+            limit,
+        )
+        normalized = []
+        for r in rows:
+            d = dict(r)
+            # JSON columns come back as Python dicts already, but normalize
+            # created_at to an ISO string for the JSON response.
+            if d.get("created_at") is not None:
+                d["created_at"] = d["created_at"].isoformat()
+            normalized.append(d)
+        return {"count": len(normalized), "rows": normalized}
+    except Exception as exc:
+        logger.error("Failed to load tool_audit: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to load tool audit")  # copy-allow: atelier-error-detail

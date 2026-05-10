@@ -78,8 +78,8 @@ const Sidebar: React.FC = () => {
       //   Architecture (the map) → Agents (the characters) →
       //   Tools (what they reach for) → Skills (persona-specific knowledge
       //   they load) → Routing (how requests find them) → Memory (what the
-      //   system remembers between turns).
-      // See /Users/shayons/.claude/plans/cheeky-dreaming-sloth.md.
+      //   system remembers between turns) → Write-path (how mutations are
+      //   gated and audited; Theo's third Aurora capability).
       items: [
         { label: 'Architecture', path: 'architecture', badge: '8' },
         {
@@ -99,6 +99,7 @@ const Sidebar: React.FC = () => {
         { label: 'Skills', path: 'skills', badge: '3' },
         { label: 'Routing', path: 'routing', badge: '3' },
         { label: 'Memory', path: 'memory' },
+        { label: 'Write-path', path: 'write-path' },
       ],
     },
     {

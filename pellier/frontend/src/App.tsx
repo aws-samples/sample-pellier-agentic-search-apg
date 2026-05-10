@@ -48,6 +48,7 @@ import Tools from './atelier/surfaces/understand/Tools'
 import Skills from './atelier/surfaces/understand/Skills'
 import Routing from './atelier/surfaces/understand/Routing'
 import MemoryDashboard from './atelier/surfaces/understand/MemoryDashboard'
+import WritePath from './atelier/surfaces/understand/WritePath'
 import Performance from './atelier/surfaces/measure/Performance'
 import Evaluations from './atelier/surfaces/measure/Evaluations'
 import AtelierSettings from './atelier/surfaces/Settings'
@@ -218,6 +219,7 @@ function App() {
                   <Route path="skills" element={<Skills />} />
                   <Route path="routing" element={<Routing />} />
                   <Route path="memory" element={<MemoryDashboard />} />
+                  <Route path="write-path" element={<WritePath />} />
                   <Route path="performance" element={<Performance />} />
                   <Route path="evaluations" element={<Evaluations />} />
                   <Route path="observatory" element={<Observatory />} />
