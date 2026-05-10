@@ -35,9 +35,10 @@ from collections import deque
 from typing import Any, Deque, Dict, List, Optional
 
 from strands.hooks import HookProvider, HookRegistry
-from strands.hooks.events import BeforeToolCallEvent
+from strands.hooks.events import AfterToolCallEvent, BeforeToolCallEvent
 
 from services.agentcore_policy import get_policy_service
+from services import tool_audit_writer
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,26 @@ _TOOL_TO_POLICY_ACTION: Dict[str, str] = {
     "restock_shelf": "restock_shelf",
     # Search gates on restricted categories/keywords.
     "find_pieces": "find_pieces",
+    "find_pieces_hybrid": "find_pieces",
     "explore_collection": "find_pieces",
     # Pricing-changing tools gate on ceiling. (The current tool set
     # doesn't have a direct ``set_price`` tool — the mapping exists
     # so a future pricing-write tool inherits enforcement automatically.)
     "set_price": "set_price",
+    # Process Return gates on the reason value (Theo's anchor write).
+    # The reason field drives the workflow branch in
+    # BusinessLogic.process_return — only 'damaged' decrements
+    # quantity — so a free-form reason would silently skip the
+    # inventory adjustment. Cedar enforces the canonical set.
+    "process_return": "process_return",
 }
+
+# Tools that mutate Aurora state. Audited unconditionally on ALLOW so
+# Theo's "agents that write state with a paper trail" story has a
+# real paper trail. Read-only tools skip the audit because the
+# Atelier already shows their tool calls via the spans surface; no
+# need to double-write.
+_MUTATING_TOOLS = {"restock_shelf", "process_return"}
 
 
 # Bounded in-memory buffer of recent enforcement decisions, keyed by
@@ -116,10 +131,19 @@ class PolicyEnforcementHook(HookProvider):
     def __init__(self, session_id: Optional[str] = None) -> None:
         self.session_id = session_id
         self._policy = get_policy_service()
+        # tool_use_id → wall-clock start time, used to compute latency
+        # in the After event. Bounded by the same eviction the audit
+        # writer uses so a runaway agent can't grow this map forever.
+        self._allow_starts: Dict[str, float] = {}
 
     def register_hooks(self, registry: HookRegistry, **_: Any) -> None:
-        """Strands HookProvider contract — register our callback."""
+        """Strands HookProvider contract — register our callbacks.
+
+        BeforeToolCallEvent  — Cedar enforcement + audit INSERT on ALLOW
+        AfterToolCallEvent   — audit UPDATE with result + latency
+        """
         registry.add_callback(BeforeToolCallEvent, self._on_before_tool)
+        registry.add_callback(AfterToolCallEvent, self._on_after_tool)
 
     def _on_before_tool(self, event: BeforeToolCallEvent) -> None:
         """Evaluate the pending tool call against PolicyService and
@@ -162,6 +186,24 @@ class PolicyEnforcementHook(HookProvider):
         }
         record_decision(self.session_id, decision_record)
 
+        if result.get("decision") == "ALLOW" and tool_name in _MUTATING_TOOLS:
+            # ALLOW + mutating tool → audit it. We INSERT a placeholder
+            # row now (latency_ms NULL, result NULL); the AfterToolCallEvent
+            # below will UPDATE it once the tool returns. If the tool
+            # raises, the placeholder row remains — itself a real signal
+            # ("started but didn't finish").
+            tool_use_id = tool_use.get("toolUseId")
+            if tool_use_id:
+                self._allow_starts[tool_use_id] = time.time()
+                tool_audit_writer.record_allow(
+                    tool_use_id=tool_use_id,
+                    tool_name=tool_name,
+                    caller="agent",  # Strands doesn't expose the agent
+                                       # name on the event; we tag generically.
+                    args=params,
+                    session_id=self.session_id,
+                )
+
         if result.get("decision") == "DENY":
             violations = result.get("violations", [])
             # Compose a user-facing reason. If multiple violations,
@@ -181,3 +223,38 @@ class PolicyEnforcementHook(HookProvider):
                 "🚫 policy_deny | tool=%s | %s",
                 tool_name, reason_text[:80],
             )
+
+    def _on_after_tool(self, event: AfterToolCallEvent) -> None:
+        """UPDATE the audit row with the tool's result + latency.
+
+        Only fires for mutating tools whose ALLOW path INSERTed a
+        placeholder row in ``_on_before_tool``. For everything else
+        this is a no-op (no _allow_starts entry).
+
+        Strands' AfterToolCallEvent attribute names vary across versions
+        (``result``, ``output``, ``tool_result``); we duck-type so we
+        survive the upgrade path without coupling to a single shape.
+        """
+        tool_use = getattr(event, "tool_use", None)
+        if not isinstance(tool_use, dict):
+            return
+        tool_use_id = tool_use.get("toolUseId")
+        if not tool_use_id:
+            return
+        start = self._allow_starts.pop(tool_use_id, None)
+        if start is None:
+            return
+        latency_ms = int((time.time() - start) * 1000)
+        # Try the most common attribute names in order. If none expose
+        # the result, we still UPDATE latency + leave result NULL.
+        result_payload: Any = None
+        for attr in ("result", "output", "tool_result"):
+            r = getattr(event, attr, None)
+            if r is not None:
+                result_payload = r
+                break
+        tool_audit_writer.record_after(
+            tool_use_id=tool_use_id,
+            result=result_payload,
+            latency_ms=latency_ms,
+        )

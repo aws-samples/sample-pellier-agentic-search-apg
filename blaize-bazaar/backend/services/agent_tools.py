@@ -159,17 +159,69 @@ def restock_shelf(product_id: int, quantity: int) -> str:
        cp solutions/module2/services/agent_tools__inventory.py blaize-bazaar/backend/services/agent_tools.py
     """
     # === CHALLENGE · Stock Keeper · restock_shelf: START ===
-    # WORKSHOP_EXERCISE_STUB (Workshop format only — Builder's session
-    # pre-applies this via CloudFormation UserData.)
+    # Workshop format ships with this block as a stub (see the original
+    # `return json.dumps({"error": "...stub state"})` body below in the
+    # commented-out reference). Builder's Session format and the
+    # shipped solution path call BusinessLogic.restock_shelf live.
     #
-    # Wire this tool to BusinessLogic.restock_shelf(product_id, quantity).
-    # Cedar policy enforces the 500-unit ceiling — you don't need to
-    # enforce it here; the BeforeToolCallEvent hook handles it.
-    return json.dumps({
-        "error": "restock_shelf is in stub state",
-        "hint": "Workshop build — implement or run the cp command above.",
-    })
+    # Cedar policy `max-restock-quantity` enforces the 500-unit ceiling
+    # via BeforeToolCallEvent — we don't need to enforce it here.
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.restock_shelf(product_id, quantity))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+    # Workshop stub reference (kept as a teaching artifact — participants
+    # see this exact block in the workshop format and replace it with
+    # the live wiring above):
+    #
+    # return json.dumps({
+    #     "error": "restock_shelf is in stub state",
+    #     "hint": "Workshop build — implement or run the cp command above.",
+    # })
     # === CHALLENGE · Stock Keeper · restock_shelf: END ===
+
+
+@tool
+def process_return(customer_id: str, product_id: int, reason: str) -> str:
+    """Process a customer return. Theo's Experience Guide uses this.
+
+    Two enforcement layers:
+      - Cedar policy ``process-return-allowed-reasons`` gates the
+        reason value before this tool is invoked (BeforeToolCallEvent).
+        Free-form reasons are rejected without ever reaching SQL.
+      - SQL gates ownership inside the transaction. The customer must
+        have an order row for this product. Cedar can't enforce
+        ownership because it requires a JOIN against live data.
+
+    If reason='damaged', the call also decrements
+    blaize_bazaar.product_catalog.quantity by 1 (defloored at 0). All
+    three operations — ownership check, INSERT, conditional UPDATE —
+    run in a single transaction.
+
+    Args:
+        customer_id: Salesforce-style customer ID (must exist in customers
+            and must have an order for this product_id).
+        product_id: INTEGER productId (1-40 in the boutique catalog).
+        reason: One of 'damaged', 'wrong_size', 'not_as_described',
+            'changed_mind', 'other'. Cedar enforces this set before
+            the tool runs.
+    """
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.process_return(customer_id, product_id, reason))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
 
 _CATEGORY_MAP = {
     # Boutique catalog categories (92 products, 9 categories)

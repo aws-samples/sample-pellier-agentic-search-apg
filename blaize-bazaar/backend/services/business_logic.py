@@ -13,7 +13,7 @@ with realistic stock numbers seeded by tier + rating. Stock-level
 functions (floor_check, running_low, restock_shelf) now issue
 real SQL against this column.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from decimal import Decimal
 
 
@@ -182,6 +182,114 @@ class BusinessLogic:
             "overall": overall_dict,
             "by_category": categories,
             "filter": category if category else "all",
+        }
+
+    async def process_return(
+        self,
+        customer_id: str,
+        product_id: int,
+        reason: str,
+    ) -> Dict[str, Any]:
+        """Theo's anchor write. Atomic: ownership check → INSERT into
+        ``returns`` → (if reason='damaged') decrement product_catalog.quantity.
+
+        Cedar policy ``process-return-allowed-reasons`` (in
+        agentcore_policy.py) gates the *reason value* before this method
+        is ever called. We still validate inside the SQL CHECK and as
+        a defense-in-depth guard here so a misbehaving agent that
+        bypasses Cedar can't write garbage.
+
+        Ownership is gated *here*, not in Cedar — the principal/resource
+        relationship is a SQL JOIN (``orders ⋈ customer + product``),
+        not a static policy. Cedar gates *what* the agent can do; SQL
+        gates *whose* state the agent is allowed to mutate. Two
+        separate enforcement layers, two separate teaching surfaces.
+
+        Returns one of:
+          {"status": "success",
+           "return_id": int, "product_id": int, "name": str,
+           "reason": str, "new_quantity": int | None}
+          {"status": "error", "message": str}
+          {"status": "policy_blocked", "message": str}  (defense-in-depth)
+        """
+        ALLOWED = {"damaged", "wrong_size", "not_as_described",
+                   "changed_mind", "other"}
+        if reason not in ALLOWED:
+            return {
+                "status": "policy_blocked",
+                "message": (
+                    f"Reason '{reason}' is not an allowed return reason. "
+                    f"Allowed: {sorted(ALLOWED)}."
+                ),
+            }
+
+        # Single transaction so the ownership check, INSERT, and
+        # conditional quantity decrement either all succeed or all fail.
+        # If any step raises, psycopg's context manager rolls back.
+        async with self.db.get_connection() as conn:
+            async with conn.cursor() as cur:
+                # 1. Ownership: customer must have ordered this product.
+                #    LIMIT 1 because we only need existence, not count.
+                await cur.execute(
+                    "SELECT 1 FROM orders "
+                    "WHERE customer_id = %s AND product_id = %s "
+                    "LIMIT 1",
+                    [customer_id, product_id],
+                )
+                owns = await cur.fetchone()
+                if not owns:
+                    return {
+                        "status": "error",
+                        "message": (
+                            f"Customer {customer_id} did not order product "
+                            f"{product_id}; cannot process return."
+                        ),
+                    }
+
+                # 2. INSERT the return row, capture the id.
+                await cur.execute(
+                    "INSERT INTO returns (customer_id, product_id, reason) "
+                    "VALUES (%s, %s, %s) "
+                    "RETURNING id",
+                    [customer_id, product_id, reason],
+                )
+                ins = await cur.fetchone()
+                return_id = ins["id"] if ins else None
+
+                # 3. If damaged, decrement product_catalog.quantity by 1
+                #    (defloor at 0 — never go negative).
+                new_quantity: Optional[int] = None
+                product_name: Optional[str] = None
+                if reason == "damaged":
+                    await cur.execute(
+                        'UPDATE blaize_bazaar.product_catalog '
+                        'SET quantity = GREATEST(quantity - 1, 0), '
+                        '    updated_at = NOW() '
+                        'WHERE "productId" = %s '
+                        'RETURNING "productId", name, quantity',
+                        [product_id],
+                    )
+                    upd = await cur.fetchone()
+                    if upd:
+                        new_quantity = int(upd["quantity"])
+                        product_name = upd["name"]
+                else:
+                    # Still fetch the product name for the success payload.
+                    await cur.execute(
+                        'SELECT "productId", name FROM blaize_bazaar.product_catalog '
+                        'WHERE "productId" = %s',
+                        [product_id],
+                    )
+                    sel = await cur.fetchone()
+                    product_name = sel["name"] if sel else None
+
+        return {
+            "status": "success",
+            "return_id": return_id,
+            "product_id": product_id,
+            "name": product_name,
+            "reason": reason,
+            "new_quantity": new_quantity,
         }
 
     async def restock_shelf(self, product_id: int, quantity: int) -> Dict[str, Any]:

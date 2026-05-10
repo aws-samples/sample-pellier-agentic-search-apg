@@ -61,7 +61,40 @@ DEFAULT_POLICIES = [
         ),
         "applies_to": "set_price",
     },
+    {
+        "id": "process-return-allowed-reasons",
+        "name": "Process Return — Allowed Reasons",
+        "description": (
+            "Reject return reasons not in the canonical set. The reason "
+            "field drives both Cedar enforcement here and the workflow "
+            "branch in BusinessLogic.process_return (only 'damaged' "
+            "decrements quantity), so a free-form reason would silently "
+            "skip the inventory adjustment. Cedar gates it before the "
+            "tool runs; the SQL CHECK constraint is defense-in-depth."
+        ),
+        "cedar": (
+            'forbid (\n'
+            '  principal,\n'
+            '  action == Action::"process_return",\n'
+            '  resource\n'
+            ')\n'
+            'when {\n'
+            '  !(resource.reason in '
+            '["damaged","wrong_size","not_as_described","changed_mind","other"])\n'
+            '};'
+        ),
+        "applies_to": "process_return",
+    },
 ]
+
+# Canonical set of return reasons. Mirrored in:
+#   - the Cedar policy `process-return-allowed-reasons` above
+#   - the SQL CHECK constraint in scripts/migrations/006_theo_returns.sql
+#   - the defense-in-depth guard in BusinessLogic.process_return
+# Three layers, one truth.
+RETURN_REASONS = {
+    "damaged", "wrong_size", "not_as_described", "changed_mind", "other",
+}
 
 RESTRICTED_WORDS = {"weapon", "weapons", "gun", "guns", "ammunition", "tobacco", "alcohol"}
 
@@ -180,6 +213,23 @@ class PolicyService:
                     "policy_name": policy["name"],
                     "reason": f"Price ${price:,.2f} exceeds ceiling of $10,000",
                     "cedar_condition": "resource.price > 10000",
+                }
+
+        elif pid == "process-return-allowed-reasons":
+            reason = str(params.get("reason", "")).strip().lower()
+            if reason not in RETURN_REASONS:
+                return {
+                    "policy_id": pid,
+                    "policy_name": policy["name"],
+                    "reason": (
+                        f"Return reason '{reason}' is not in the allowed set "
+                        f"({', '.join(sorted(RETURN_REASONS))})."
+                    ),
+                    "cedar_condition": (
+                        'resource.reason in '
+                        '["damaged","wrong_size","not_as_described",'
+                        '"changed_mind","other"]'
+                    ),
                 }
 
         return None

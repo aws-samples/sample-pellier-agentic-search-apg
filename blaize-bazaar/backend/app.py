@@ -203,6 +203,15 @@ async def lifespan(app: FastAPI):
         set_main_loop(asyncio.get_event_loop())
         logger.info("✅ Agent tools initialized with pgvector semantic search")
 
+        # Wire the tool_audit writer the same way. Theo's anchor
+        # capability persists every mutation to Aurora's tool_audit
+        # table; the writer is fire-and-forget but needs the same
+        # DB pool + main event loop reference to bridge sync→async.
+        from services import tool_audit_writer
+        tool_audit_writer.set_db_service(db_service)
+        tool_audit_writer.set_main_loop(asyncio.get_event_loop())
+        logger.info("✅ tool_audit writer initialized for ALLOW-path mutation logging")
+
         # Load the skill registry once at boot. Per-request cost is zero —
         # skills are served from memory. See backend/skills/ for the
         # registry, models, and (Phase 2) the one-call router.
