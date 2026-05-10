@@ -182,7 +182,7 @@ def test_support_agent_has_no_exa_references() -> None:
     """
     import ast
 
-    from agents import customer_support_agent as mod
+    from agents import experience_guide as mod
 
     src = inspect.getsource(mod)
     tree = ast.parse(src)

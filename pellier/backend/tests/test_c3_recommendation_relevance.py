@@ -16,7 +16,7 @@ Validates Requirement 2.4.3-2.4.5 from
          or Cashmere-Blend Cardigan pass; Signature Straw Tote fails.
 
 Bedrock is stubbed - no live model call. The test swaps the `Agent` symbol
-imported into `agents.recommendation_agent` for a stub that returns a
+imported into `agents.curator` for a stub that returns a
 canned answer mentioning `Sundress in Washed Linen`. The test then parses
 that response, looks up the product's tags from the 9-showcase-product
 table captured from `.kiro/steering/storefront.md`, and asserts the
@@ -138,7 +138,7 @@ def _reset_stub_state() -> Iterable[None]:
 def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
     """Return the `recommendation` agent's underlying callable with
     Strands `Agent` + `BedrockModel` swapped for the stubs above."""
-    import agents.recommendation_agent as rec
+    import agents.curator as rec
 
     monkeypatch.setattr(rec, "Agent", _StubAgent)
     monkeypatch.setattr(rec, "BedrockModel", _StubBedrockModel)

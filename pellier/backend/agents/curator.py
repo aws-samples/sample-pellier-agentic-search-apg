@@ -115,7 +115,7 @@ def recommendation(query: str) -> str:
         Agent response with product recommendations
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/agents/recommendation_agent.py pellier/backend/agents/recommendation_agent.py
+       cp solutions/module2/agents/curator.py pellier/backend/agents/curator.py
     """
     try:
         tool_results = []

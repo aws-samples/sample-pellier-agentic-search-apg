@@ -75,14 +75,14 @@ _SOLUTIONS = _REPO_ROOT / "solutions"
 _PAIRS = [
     (
         "stock-keeper-agent",
-        _BACKEND / "agents" / "inventory_agent.py",
-        _SOLUTIONS / "module2" / "agents" / "inventory_agent.py",
+        _BACKEND / "agents" / "stock_keeper.py",
+        _SOLUTIONS / "module2" / "agents" / "stock_keeper.py",
         "_INVENTORY_AGENT_STUBBED",
     ),
     (
         "experience-guide-agent",
-        _BACKEND / "agents" / "customer_support_agent.py",
-        _SOLUTIONS / "module2" / "agents" / "customer_support_agent.py",
+        _BACKEND / "agents" / "experience_guide.py",
+        _SOLUTIONS / "module2" / "agents" / "experience_guide.py",
         "_SUPPORT_AGENT_STUBBED",
     ),
     (

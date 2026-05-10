@@ -1844,8 +1844,8 @@ CURRENT REQUEST: {message}"""
             from agents.style_advisor import build_search_agent
             from agents.curator import build_recommendation_agent
             from agents.value_analyst import build_pricing_agent
-            from agents import inventory_agent as inventory_agent_module
-            from agents import customer_support_agent as support_agent_module
+            from agents import stock_keeper as inventory_agent_module
+            from agents import experience_guide as support_agent_module
 
             # --- Workshop stub detection ---
             #

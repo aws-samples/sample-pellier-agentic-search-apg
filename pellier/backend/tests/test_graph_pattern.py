@@ -79,11 +79,11 @@ def _patched_adapter():
     # Stub the five factory imports that __init__ pulls in. Keep them
     # scoped to this call so parallel tests stay isolated.
     with patch.object(graph_pattern, "_build_router_agent", return_value=router), \
-         patch("agents.search_agent.build_search_agent", return_value=specialists["search"]), \
-         patch("agents.recommendation_agent.build_recommendation_agent", return_value=specialists["recommendation"]), \
-         patch("agents.pricing_agent.build_pricing_agent", return_value=specialists["pricing"]), \
-         patch("agents.inventory_agent.build_inventory_agent", return_value=specialists["inventory"]), \
-         patch("agents.customer_support_agent.build_support_agent", return_value=specialists["support"]):
+         patch("agents.style_advisor.build_search_agent", return_value=specialists["search"]), \
+         patch("agents.curator.build_recommendation_agent", return_value=specialists["recommendation"]), \
+         patch("agents.value_analyst.build_pricing_agent", return_value=specialists["pricing"]), \
+         patch("agents.stock_keeper.build_inventory_agent", return_value=specialists["inventory"]), \
+         patch("agents.experience_guide.build_support_agent", return_value=specialists["support"]):
         # Also stub GraphBuilder so its internal validation (which
         # rejects MagicMocks) doesn't kick in.
         fake_graph = MagicMock(name="graph")
