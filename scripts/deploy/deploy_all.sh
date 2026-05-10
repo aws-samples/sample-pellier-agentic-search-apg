@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =============================================================================
-# Blaize Bazaar — Deploy All to AgentCore
+# Pellier — Deploy All to AgentCore
 #
 # Deploys 3 Lambda MCP servers, creates AgentCore Gateway, configures and
 # launches the orchestrator agent on AgentCore Runtime.
@@ -19,7 +19,7 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 echo ""
 echo "=============================================="
-echo "  Blaize Bazaar — Deploy to AgentCore"
+echo "  Pellier — Deploy to AgentCore"
 echo "=============================================="
 echo ""
 
@@ -28,16 +28,16 @@ echo ""
 # ------------------------------------------------------------------
 echo "=== [1/7] Deploying Search Lambda ==="
 uv run "$SCRIPT_DIR/../05/deploy_lambda.py" \
-  --server-name blaize-search-server \
+  --server-name pellier-search-server \
   --db-cluster-arn "$PGHOSTARN" \
   --secret-arn "$PGSECRET" \
   --database "$PGDATABASE" \
-  --mcp-server-path "$SCRIPT_DIR/blaize_search_server.py" \
-  --handler blaize_search_server.lambda_handler \
+  --mcp-server-path "$SCRIPT_DIR/pellier_search_server.py" \
+  --handler pellier_search_server.lambda_handler \
   --region "$AWS_REGION"
 
 export SEARCH_LAMBDA_ARN=$(aws lambda get-function \
-  --function-name blaize-search-server-function \
+  --function-name pellier-search-server-function \
   --region "$AWS_REGION" \
   --query 'Configuration.FunctionArn' --output text)
 echo "  SEARCH_LAMBDA_ARN=$SEARCH_LAMBDA_ARN"
@@ -48,16 +48,16 @@ echo "  SEARCH_LAMBDA_ARN=$SEARCH_LAMBDA_ARN"
 echo ""
 echo "=== [2/7] Deploying Pricing Lambda ==="
 uv run "$SCRIPT_DIR/../05/deploy_lambda.py" \
-  --server-name blaize-pricing-server \
+  --server-name pellier-pricing-server \
   --db-cluster-arn "$PGHOSTARN" \
   --secret-arn "$PGSECRET" \
   --database "$PGDATABASE" \
-  --mcp-server-path "$SCRIPT_DIR/blaize_pricing_server.py" \
-  --handler blaize_pricing_server.lambda_handler \
+  --mcp-server-path "$SCRIPT_DIR/pellier_pricing_server.py" \
+  --handler pellier_pricing_server.lambda_handler \
   --region "$AWS_REGION"
 
 export PRICING_LAMBDA_ARN=$(aws lambda get-function \
-  --function-name blaize-pricing-server-function \
+  --function-name pellier-pricing-server-function \
   --region "$AWS_REGION" \
   --query 'Configuration.FunctionArn' --output text)
 echo "  PRICING_LAMBDA_ARN=$PRICING_LAMBDA_ARN"
@@ -68,16 +68,16 @@ echo "  PRICING_LAMBDA_ARN=$PRICING_LAMBDA_ARN"
 echo ""
 echo "=== [3/7] Deploying Recommendation Lambda ==="
 uv run "$SCRIPT_DIR/../05/deploy_lambda.py" \
-  --server-name blaize-recommend-server \
+  --server-name pellier-recommend-server \
   --db-cluster-arn "$PGHOSTARN" \
   --secret-arn "$PGSECRET" \
   --database "$PGDATABASE" \
-  --mcp-server-path "$SCRIPT_DIR/blaize_recommend_server.py" \
-  --handler blaize_recommend_server.lambda_handler \
+  --mcp-server-path "$SCRIPT_DIR/pellier_recommend_server.py" \
+  --handler pellier_recommend_server.lambda_handler \
   --region "$AWS_REGION"
 
 export RECOMMENDATION_LAMBDA_ARN=$(aws lambda get-function \
-  --function-name blaize-recommend-server-function \
+  --function-name pellier-recommend-server-function \
   --region "$AWS_REGION" \
   --query 'Configuration.FunctionArn' --output text)
 echo "  RECOMMENDATION_LAMBDA_ARN=$RECOMMENDATION_LAMBDA_ARN"
@@ -88,7 +88,7 @@ echo "  RECOMMENDATION_LAMBDA_ARN=$RECOMMENDATION_LAMBDA_ARN"
 echo ""
 echo "=== [4/7] Deploying AgentCore Gateway ==="
 uv run "$SCRIPT_DIR/deploy_gateway.py" \
-  --gateway-name blaize-gateway \
+  --gateway-name pellier-gateway \
   --search-lambda-arn "$SEARCH_LAMBDA_ARN" \
   --pricing-lambda-arn "$PRICING_LAMBDA_ARN" \
   --recommendation-lambda-arn "$RECOMMENDATION_LAMBDA_ARN" \
@@ -98,7 +98,7 @@ uv run "$SCRIPT_DIR/deploy_gateway.py" \
 
 export MCP_GATEWAY_URL=$(aws bedrock-agentcore-control list-gateways \
   --region "$AWS_REGION" \
-  --query "items[?name=='blaize-gateway'].gatewayId | [0]" --output text \
+  --query "items[?name=='pellier-gateway'].gatewayId | [0]" --output text \
   | xargs -I {} aws bedrock-agentcore-control get-gateway \
     --gateway-identifier {} --region "$AWS_REGION" \
     --query 'gatewayUrl' --output text)
@@ -114,7 +114,7 @@ echo "=== [5/7] Configuring AgentCore Runtime ==="
 export OAUTH_ISSUER_URL="https://cognito-idp.${AWS_REGION}.amazonaws.com/${COGNITO_POOL}"
 
 uv run agentcore configure \
-  --name blaize_orchestrator \
+  --name pellier_orchestrator \
   --protocol HTTP \
   --entrypoint "$SCRIPT_DIR/agentcore_runtime_adapter.py" \
   --requirements-file "$SCRIPT_DIR/requirements.txt" \
@@ -129,7 +129,7 @@ uv run agentcore configure \
 echo ""
 echo "=== [6/7] Launching AgentCore Runtime (this takes ~5 minutes) ==="
 uv run agentcore launch \
-  --agent blaize_orchestrator \
+  --agent pellier_orchestrator \
   --env MCP_GATEWAY_URL="$MCP_GATEWAY_URL" \
   --env AGENT_MODEL_ID="global.anthropic.claude-opus-4-6-v1"
 
@@ -162,7 +162,7 @@ export TOKEN=$(aws cognito-idp initiate-auth \
 
 export AGENT_RUNTIME_ID=$(aws bedrock-agentcore-control list-agent-runtimes \
   --region "$AWS_REGION" \
-  --query "agentRuntimes[?agentRuntimeName=='blaize_orchestrator'].agentRuntimeId | [0]" --output text)
+  --query "agentRuntimes[?agentRuntimeName=='pellier_orchestrator'].agentRuntimeId | [0]" --output text)
 
 echo ""
 echo "  Test 1: Product search"
@@ -185,7 +185,7 @@ uv run "$SCRIPT_DIR/test_runtime.py" \
 
 echo ""
 echo "=============================================="
-echo "  ✅ Blaize Bazaar deployed to AgentCore!"
+echo "  ✅ Pellier deployed to AgentCore!"
 echo ""
 echo "  Gateway:  $MCP_GATEWAY_URL"
 echo "  Runtime:  $AGENT_RUNTIME_ID"

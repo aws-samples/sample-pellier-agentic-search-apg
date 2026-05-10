@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Atelier is an editorial-luxury AI observatory surface layered into the existing Blaize Bazaar e-commerce application. It provides a read-only observability interface for workshop participants (DAT406, AWS re:Invent) and engineers building agentic systems on Aurora PostgreSQL. A surface-toggle in the top bar switches between Boutique (existing storefront) and Atelier (new observability surface). The Atelier visualizes the inner workings of 5 peer specialist agents, 2 skills, 3 routing patterns, 9 tools, and the memory/evaluation subsystems — all rendered in a flat editorial aesthetic with a cream/sand/espresso design system using Fraunces, Inter, and JetBrains Mono typography.
+The Atelier is an editorial-luxury AI observatory surface layered into the existing Pellier e-commerce application. It provides a read-only observability interface for workshop participants (DAT406, AWS re:Invent) and engineers building agentic systems on Aurora PostgreSQL. A surface-toggle in the top bar switches between Boutique (existing storefront) and Atelier (new observability surface). The Atelier visualizes the inner workings of 5 peer specialist agents, 2 skills, 3 routing patterns, 9 tools, and the memory/evaluation subsystems — all rendered in a flat editorial aesthetic with a cream/sand/espresso design system using Fraunces, Inter, and JetBrains Mono typography.
 
 ## Glossary
 
@@ -49,7 +49,7 @@ The Atelier is an editorial-luxury AI observatory surface layered into the exist
 10. THE Surface_Toggle SHALL render as a pill-shaped segmented control with "Boutique" and "Atelier" options, where the active option has an ink-1 background with cream text.
 11. WHEN the user clicks "Boutique" in the Surface_Toggle, THE Atelier SHALL navigate to the storefront route (`/`).
 12. WHEN the user clicks "Atelier" in the Surface_Toggle while on the storefront, THE Atelier SHALL navigate to the Atelier route (`/atelier`).
-13. THE Sidebar brand row SHALL display a circular cream "B" mark and "Blaize Bazaar" in Fraunces at the top.
+13. THE Sidebar brand row SHALL display a circular cream "B" mark and "Pellier" in Fraunces at the top.
 
 ### Requirement 2: Sessions List Surface
 
@@ -329,6 +329,6 @@ The Atelier is an editorial-luxury AI observatory surface layered into the exist
 
 #### Acceptance Criteria
 
-1. THE Atelier frontend code SHALL reside under `blaize-bazaar/frontend/src/atelier/` with subdirectories: `shell/` (sidebar, top bar, layout), `surfaces/` (one file per surface), `components/` (shared UI primitives), `fixtures/` (mock data), and `types/` (TypeScript interfaces).
+1. THE Atelier frontend code SHALL reside under `pellier/frontend/src/atelier/` with subdirectories: `shell/` (sidebar, top bar, layout), `surfaces/` (one file per surface), `components/` (shared UI primitives), `fixtures/` (mock data), and `types/` (TypeScript interfaces).
 2. THE Atelier SHALL NOT modify any existing Boutique storefront components or pages.
 3. THE Atelier shared components SHALL include reusable primitives for: Eyebrow, ExpCard, StatusPill, StatusDot, WorkshopProgressStrip, CheatSheetStrip, DetailPageShell, TabNav, and BreadcrumbTrail.

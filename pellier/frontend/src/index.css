@@ -1,0 +1,1075 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* ========================================================================
+   * Boutique palette (storefront.md). Mirrored here for keyframes and
+   * non-Tailwind consumers; Tailwind tokens of the same name live in
+   * tailwind.config.js.
+   * ======================================================================== */
+  :root {
+    --cream: #fbf4e8;
+    --cream-warm: #f5e8d3;
+    --ink: #2d1810;
+    --ink-soft: #6b4a35;
+    --ink-quiet: #a68668;
+    --accent: #c44536;
+    --dusk: #3d2518;
+
+    /* Editorial chat palette (pellier-chat-synthesis / experience) */
+    --cream-1: #faf3e8;
+    --cream-2: #f4ead6;
+    --cream-3: #ede0c4;
+    --cream-elev: #fffaf0;
+    --ink-1: #1f1410;
+    --ink-3: rgba(31, 20, 16, 0.66);
+    --ink-4: rgba(31, 20, 16, 0.42);
+    --ink-5: rgba(31, 20, 16, 0.22);
+    --rule-1: rgba(31, 20, 16, 0.10);
+    --rule-2: rgba(31, 20, 16, 0.18);
+    --rule-3: rgba(31, 20, 16, 0.28);
+    --red-1: #a8423a;
+    --red-soft: rgba(168, 66, 58, 0.12);
+    --green-1: #6b8c5e;
+    --green-soft: rgba(107, 140, 94, 0.12);
+    /* Amber — introduced for Evaluations (telemetry corner).
+       Scoped to that surface for now; add usage notes here if
+       other pages adopt. */
+    --amber-1: #b88a3a;
+    --amber-soft: rgba(184, 138, 58, 0.12);
+    /* Persona avatar shades — espresso-family, intentionally darker
+       than --ink-1. Scoped to persona surfaces only. */
+    --persona-marco: #5a3528;
+    --persona-anna: #6b3d2a;
+
+    /* Type stacks */
+    --serif: 'Fraunces Variable', 'Fraunces', 'Times New Roman', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* ========================================================================
+   * Apple.com Design Tokens
+   * Dark:  pure black bg, #f5f5f7 text, #2997ff links
+   * Light: pure white bg, #1d1d1f text, #0071e3 links
+   * ======================================================================== */
+
+  :root.dark {
+    --bg-primary: #000000;
+    --bg-secondary: #1d1d1f;
+    --text-primary: #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --card-bg: rgba(28, 28, 30, 0.6);
+    --glass-bg: rgba(28, 28, 30, 0.85);
+    --input-bg: rgba(255, 255, 255, 0.06);
+    --input-border: rgba(255, 255, 255, 0.12);
+    --header-bg: rgba(0, 0, 0, 0.92);
+    --text-tertiary: #636366;
+    --link-color: #2997ff;
+    --link-hover: #6cb6ff;
+    --section-alt-bg: #1d1d1f;
+  }
+
+  :root.light {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f7;
+    --text-primary: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --border-color: rgba(0, 0, 0, 0.08);
+    --card-bg: rgba(245, 245, 247, 0.8);
+    --glass-bg: rgba(255, 255, 255, 0.88);
+    --input-bg: rgba(0, 0, 0, 0.04);
+    --input-border: rgba(0, 0, 0, 0.1);
+    --header-bg: rgba(255, 255, 255, 0.92);
+    --text-tertiary: #aeaeb2;
+    --link-color: #0071e3;
+    --link-hover: #0077ed;
+    --section-alt-bg: #f5f5f7;
+  }
+
+  body {
+    @apply antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* No ambient body gradients — Apple uses pure flat backgrounds */
+
+  /* ProductCard name: Fraunces italic, bumps 20→22px on ≥1024px for
+     editorial weight at desktop width. Inline `color` still wins. */
+  .product-name {
+    font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  /* Monospace defaults — every ``.font-mono`` utility and every raw
+     <code> / <pre> / <kbd> picks up JetBrains Mono with programming
+     ligatures enabled. That's what turns the pgvector ``<=>`` into the
+     double-arrow glyph you see in the Coffee Roastery reference
+     screenshots; without ``font-feature-settings: 'calt'`` it stays as
+     three separate characters. */
+  code,
+  kbd,
+  pre,
+  samp,
+  .font-mono {
+    font-family:
+      'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      'Liberation Mono', 'Courier New', monospace;
+    font-feature-settings: 'calt' 1, 'liga' 1;
+    font-variant-ligatures: contextual common-ligatures;
+  }
+
+  /* /workshop ("Atelier") font stack — scoped to the telemetry route
+     so the storefront's Fraunces + Inter pairing stays unchanged.
+     Applied on WorkshopPage's root via className.
+
+     Display serif is Iowan Old Style (ships with every macOS install,
+     also rendered by iOS's "Charter" when Iowan is missing) with
+     Georgia as the universal fallback on Windows/Linux. This reads
+     more "magazine" — slightly more condensed, higher contrast —
+     than Instrument Serif and requires no web-font load. Italic is
+     applied at the usage site so we can do both roman small-caps
+     kickers and italic display titles with the same stack. */
+  .workshop-surface {
+    font-family:
+      'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', sans-serif;
+  }
+  .workshop-surface h1,
+  .workshop-surface h2,
+  .workshop-surface h3,
+  .workshop-surface .workshop-display {
+    font-family: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+  }
+
+  /* Cross-panel citation pulse — ``useScrollAndFlash`` stamps
+     ``data-flash="true"`` on a PanelCard for 800ms. A thicker
+     terracotta border + a soft outer ring makes the target panel
+     obvious without yanking focus or pausing scroll. */
+  .workshop-surface [data-flash='true'] {
+    animation: panel-flash 800ms ease-out;
+  }
+  @keyframes panel-flash {
+    0% {
+      box-shadow: 0 0 0 0 rgba(196, 69, 54, 0);
+      border-color: rgba(45, 24, 16, 0.14);
+    }
+    30% {
+      box-shadow: 0 0 0 6px rgba(196, 69, 54, 0.35);
+      border-color: rgba(196, 69, 54, 0.8);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(196, 69, 54, 0);
+      border-color: rgba(45, 24, 16, 0.14);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .product-name {
+      font-size: 22px;
+    }
+  }
+
+  /* Custom scrollbar - Dark mode */
+  .dark .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+  .dark .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+  /* Custom scrollbar - Light mode */
+  .light .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+  .light .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.03); border-radius: 4px; }
+  .light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
+  .light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
+
+  /* Search overlay scrollbar */
+  .dark .search-scroll::-webkit-scrollbar { width: 4px; }
+  .dark .search-scroll::-webkit-scrollbar-track { background: transparent; }
+  .dark .search-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+  .dark .search-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+  .light .search-scroll::-webkit-scrollbar { width: 4px; }
+  .light .search-scroll::-webkit-scrollbar-track { background: transparent; }
+  .light .search-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 2px; }
+  .light .search-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
+}
+
+@layer components {
+  /* ========================================================================
+   * Header — Apple frosted nav
+   * ======================================================================== */
+  header, nav, .header, .navigation,
+  [class*="header"], [class*="Header"], [class*="nav"] {
+    background: var(--header-bg) !important;
+    backdrop-filter: saturate(180%) blur(20px) !important;
+    -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+
+  /* ========================================================================
+   * Apple-style link buttons — blue text with › arrow
+   * ======================================================================== */
+  .apple-link {
+    color: var(--link-color);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .apple-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+  }
+
+  /* ========================================================================
+   * Buttons — Apple-inspired
+   * ======================================================================== */
+  .btn-primary {
+    @apply px-8 py-3 font-normal rounded-full transition-all duration-300;
+    background: var(--link-color);
+    color: #ffffff;
+    letter-spacing: 0.01em;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary:hover {
+    background: var(--link-hover);
+    transform: scale(1.02);
+  }
+
+  .btn-secondary {
+    @apply px-8 py-3 font-normal rounded-full transition-all duration-300;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--link-color);
+    letter-spacing: 0.01em;
+  }
+  .btn-secondary:hover {
+    background: var(--input-bg);
+  }
+
+  /* ========================================================================
+   * Cards — clean with subtle border
+   * ======================================================================== */
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    @apply rounded-3xl p-8 transition-all duration-500;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  }
+  .card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+  .light .card {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+  .light .card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ========================================================================
+   * Glassmorphism
+   * ======================================================================== */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+  }
+
+  .glass-strong {
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid var(--border-color);
+  }
+  .dark .glass-strong { background: rgba(0, 0, 0, 0.95); }
+  .light .glass-strong { background: rgba(255, 255, 255, 0.95); }
+
+  /* ========================================================================
+   * Input fields
+   * ======================================================================== */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg transition-all duration-300;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-primary);
+  }
+  .input-field:focus {
+    outline: none;
+    border-color: var(--link-color);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+  }
+  .input-field::placeholder {
+    color: var(--text-secondary);
+  }
+
+  /* ========================================================================
+   * Gradient text — adapts to theme
+   * ======================================================================== */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--text-secondary) 0%, var(--text-primary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .gradient-text-chrome {
+    background: linear-gradient(135deg, #aaa 0%, #ccc 20%, #e8e8e8 40%, #fff 50%, #e8e8e8 60%, #ccc 80%, #aaa 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: chrome-shift 8s ease-in-out infinite;
+  }
+  .light .gradient-text-chrome {
+    background: linear-gradient(135deg, #6e6e73 0%, #4a4a4f 20%, #2d2d30 40%, #1d1d1f 50%, #2d2d30 60%, #4a4a4f 80%, #6e6e73 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: chrome-shift 8s ease-in-out infinite;
+  }
+
+  @keyframes chrome-shift {
+    0%, 100% { background-position: 0% 50%; }
+    25% { background-position: 50% 25%; }
+    50% { background-position: 100% 50%; }
+    75% { background-position: 50% 75%; }
+  }
+
+  .gradient-text-subtle {
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .chrome-reflection {
+    font-weight: 200;
+    letter-spacing: 0.05em;
+    color: var(--text-primary);
+    -webkit-text-fill-color: unset;
+  }
+
+  /* ========================================================================
+   * Badges
+   * ======================================================================== */
+  .badge { @apply px-3 py-1 rounded-full text-xs font-semibold; }
+  .badge-purple {
+    background: linear-gradient(135deg, #333 0%, #555 100%);
+    @apply text-white;
+  }
+  .badge-green {
+    background: linear-gradient(135deg, #00ff88 0%, #00c896 100%);
+    @apply text-white;
+  }
+  .similarity-badge {
+    background: linear-gradient(135deg, #333 0%, #555 100%);
+    @apply px-3 py-1 rounded-full text-xs font-semibold text-white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ========================================================================
+   * Animations
+   * ======================================================================== */
+  .pulse-glow { animation: pulse-glow 2s infinite; }
+  @keyframes pulse-glow {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+  }
+
+  /* pulse-dot — terracotta accent dot that breathes next to the product grid
+     eyebrow (and anywhere else a "live" signal is wanted). */
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.4); }
+  }
+  .pulse-dot { animation: pulseDot 2s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-dot { animation: none; }
+  }
+
+  .floating-bubble {
+    position: fixed !important;
+    bottom: 32px !important;
+    right: 32px !important;
+    left: auto !important;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-float { animation: float 3s ease-in-out infinite; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slideUp { animation: slideUp 0.3s ease-out; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slideIn { animation: slideIn 0.3s ease-out; }
+
+  @keyframes pipelineStep {
+    0%, 100% { opacity: 0.4; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  .pipeline-step { animation: pipelineStep 1.5s ease-in-out infinite; }
+
+  /* Slow-zoom Ken Burns for the hero image (Req 1.3.2).
+     14s alternate, scale 1.02 -> 1.08 per storefront.md. */
+  @keyframes slow-zoom {
+    from { transform: scale(1.02); }
+    to   { transform: scale(1.08); }
+  }
+  .hero-stage-image {
+    animation: slow-zoom 14s ease-in-out infinite alternate;
+    transform-origin: center;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-stage-image { animation: none; transform: scale(1.02); }
+  }
+
+  /* fade-slide-up — 0.6s entrance for banner reveals / curated banner
+     (Req 1.4.5, storefront.md animation timings). */
+  @keyframes fade-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-slide-up {
+    animation: fade-slide-up 0.6s ease-out both;
+    will-change: opacity, transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-slide-up { animation: none; }
+  }
+
+  @keyframes dashFlow { to { stroke-dashoffset: -20; } }
+  .animate-dash-flow { animation: dashFlow 1s linear infinite; }
+
+  /* ------------------------------------------------------------------
+   * Boutique keyframes (mock pellier_5.html parity).
+   * Mirrors the names, durations, and easings from the reference mock
+   * so React components can opt in via utility classes.
+   * ------------------------------------------------------------------ */
+
+  /* intentReveal — 0.5s crossfade + gentle rise for hero intent swaps. */
+  @keyframes intentReveal {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .intent-reveal { animation: intentReveal 0.5s ease-out both; }
+
+  /* cascadeIn — per-row stagger inside IntentInfoCard. Consumers set
+     --cascade-delay (e.g. 0.1s, 0.2s, 0.3s) on each row. */
+  @keyframes cascadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .cascade-in {
+    animation: cascadeIn 0.45s ease-out both;
+    animation-delay: var(--cascade-delay, 0s);
+  }
+
+  /* overlayIn — backdrop + modal surface fade-in. */
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .overlay-in { animation: overlayIn 0.25s ease-out both; }
+
+  /* heartScale — wishlist heart tap feedback. */
+  @keyframes heartScale {
+    0%, 100% { transform: scale(1); }
+    40%      { transform: scale(1.25); }
+  }
+  .heart-scale { animation: heartScale 0.35s ease-out; }
+
+  /* modalIn — rise + fade for modal surfaces. */
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal-in { animation: modalIn 0.35s ease-out both; }
+
+  /* caretBlink — terracotta input caret (search pill). */
+  @keyframes caretBlink {
+    0%, 49%  { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+  .caret-blink { animation: caretBlink 1s steps(1) infinite; }
+
+  /* conciergeGlow — pulsing terracotta outer shadow for the command pill. */
+  @keyframes conciergeGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 69, 54, 0.0), 0 8px 24px rgba(45, 24, 16, 0.25); }
+    50%      { box-shadow: 0 0 0 6px rgba(196, 69, 54, 0.18), 0 8px 30px rgba(45, 24, 16, 0.3); }
+  }
+  .concierge-glow { animation: conciergeGlow 3s ease-in-out infinite; }
+
+  /* thinkDot — concierge "thinking" three-dot cascade. */
+  @keyframes thinkDot {
+    0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+    40%           { opacity: 1;    transform: translateY(-3px); }
+  }
+  .think-dot { animation: thinkDot 1.2s ease-in-out infinite; }
+  .think-dot:nth-child(1) { animation-delay: 0s; }
+  .think-dot:nth-child(2) { animation-delay: 0.15s; }
+  .think-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .intent-reveal,
+    .cascade-in,
+    .overlay-in,
+    .heart-scale,
+    .modal-in,
+    .caret-blink,
+    .concierge-glow,
+    .think-dot { animation: none; }
+  }
+
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-10px); }
+  }
+  .typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    display: inline-block;
+    animation: typing 1.4s infinite;
+  }
+  .typing-dot:nth-child(1) { animation-delay: 0s; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  /* Background Gradients */
+  .bg-gradient-radial {
+    background: radial-gradient(ellipse at center top, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+  }
+  .light .bg-gradient-radial {
+    background: radial-gradient(ellipse at center top, rgba(0, 0, 0, 0.02) 0%, transparent 50%);
+  }
+  .bg-gradient-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+  }
+  .light .bg-gradient-card {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.01) 100%);
+  }
+}
+
+@layer utilities {
+  .text-hero {
+    font-size: 56px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.07;
+  }
+
+  .text-subtitle {
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(4); opacity: 0; }
+  }
+  .ripple-effect { position: relative; overflow: hidden; }
+
+  .backdrop-blur-strong {
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+  }
+
+  .border-subtle { border-color: var(--border-color); }
+  .bg-bg-primary { background-color: var(--bg-primary); }
+  .bg-bg-secondary { background-color: var(--bg-secondary); }
+  .text-text-primary { color: var(--text-primary); }
+  .text-text-secondary { color: var(--text-secondary); }
+  .bg-header { background: var(--header-bg) !important; }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-fadeIn { animation: fadeIn 0.5s ease-in; }
+
+  @keyframes floatParticle {
+    0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.3; }
+    25% { transform: translateY(-20px) translateX(10px) scale(1.1); opacity: 0.5; }
+    50% { transform: translateY(-40px) translateX(-10px) scale(0.9); opacity: 0.7; }
+    75% { transform: translateY(-20px) translateX(15px) scale(1.05); opacity: 0.4; }
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: floatParticle 15s ease-in-out infinite;
+  }
+
+  @keyframes shimmerFlow {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, var(--input-bg) 25%, var(--input-border) 50%, var(--input-bg) 75%);
+    background-size: 200% 100%;
+    animation: shimmerFlow 1.5s ease-in-out infinite;
+  }
+
+  .glass-depth-1 {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .glass-depth-2 {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .glass-depth-3 {
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+  }
+
+  /* Orb animations */
+  @keyframes orbFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(80px, -60px) scale(1.1); }
+    50% { transform: translate(-40px, -120px) scale(0.95); }
+    75% { transform: translate(60px, -30px) scale(1.05); }
+  }
+  @keyframes orbFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-100px, 50px) scale(1.15); }
+    66% { transform: translate(70px, 80px) scale(0.9); }
+  }
+  @keyframes orbFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.15; }
+    50% { transform: translate(50px, -80px) scale(1.2); opacity: 0.25; }
+  }
+  .orb-float-1 { animation: orbFloat1 20s ease-in-out infinite; }
+  .orb-float-2 { animation: orbFloat2 25s ease-in-out infinite; }
+  .orb-float-3 { animation: orbFloat3 18s ease-in-out infinite; }
+
+  .category-gaming { --category-accent: #22c55e; }
+  .category-audio { --category-accent: #3b82f6; }
+  .category-cameras { --category-accent: #f59e0b; }
+  .category-laptops { --category-accent: #8b5cf6; }
+  .category-default { --category-accent: #888888; }
+
+  /* ========================================================================
+   * Realistic Wood Panel Material — Dev Tools Panel & Modals
+   * Rich walnut/oak with visible grain, knots, and varnish sheen
+   * ======================================================================== */
+
+  /* Realistic wood grain texture — layered gradients for depth */
+  .wood-panel {
+    background:
+      /* Varnish sheen — top-left highlight */
+      radial-gradient(ellipse 120% 60% at 20% 10%, rgba(220, 180, 120, 0.08) 0%, transparent 60%),
+      /* Knot 1 */
+      radial-gradient(ellipse 18px 35px at 65% 30%, rgba(60, 35, 15, 0.5) 0%, rgba(80, 50, 25, 0.2) 40%, transparent 70%),
+      /* Knot 2 */
+      radial-gradient(ellipse 14px 28px at 30% 70%, rgba(55, 30, 12, 0.4) 0%, rgba(75, 45, 20, 0.15) 45%, transparent 70%),
+      /* Wide grain bands — warm color variation */
+      repeating-linear-gradient(
+        178deg,
+        rgba(140, 95, 50, 0.12) 0px,
+        rgba(120, 78, 38, 0.06) 3px,
+        transparent 6px,
+        transparent 18px,
+        rgba(160, 110, 55, 0.1) 20px,
+        rgba(130, 85, 42, 0.05) 23px,
+        transparent 26px,
+        transparent 35px
+      ),
+      /* Fine grain lines */
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 4px,
+        rgba(100, 65, 30, 0.08) 4px,
+        rgba(100, 65, 30, 0.08) 5px,
+        transparent 5px,
+        transparent 11px,
+        rgba(120, 80, 38, 0.06) 11px,
+        rgba(120, 80, 38, 0.06) 11.5px,
+        transparent 11.5px,
+        transparent 17px
+      ),
+      /* Grain color shift — subtle wave */
+      repeating-linear-gradient(
+        175deg,
+        transparent 0px,
+        transparent 50px,
+        rgba(150, 100, 45, 0.07) 55px,
+        rgba(130, 85, 40, 0.04) 70px,
+        transparent 80px,
+        transparent 120px
+      ),
+      /* Secondary grain — slightly offset angle */
+      repeating-linear-gradient(
+        182deg,
+        transparent 0px,
+        transparent 7px,
+        rgba(90, 58, 28, 0.05) 7px,
+        rgba(90, 58, 28, 0.05) 8px,
+        transparent 8px,
+        transparent 22px
+      ),
+      /* Base wood color — deep dark walnut */
+      linear-gradient(180deg, #221a10 0%, #1d160c 30%, #18120a 60%, #140f08 100%);
+    /* Inset shadow for panel depth / frame */
+    box-shadow:
+      inset 2px 0 8px rgba(0, 0, 0, 0.3),
+      inset -2px 0 8px rgba(0, 0, 0, 0.3),
+      inset 0 2px 4px rgba(180, 130, 70, 0.06);
+  }
+
+  /* Wood-toned scrollbar */
+  .wood-scroll::-webkit-scrollbar { width: 6px; }
+  .wood-scroll::-webkit-scrollbar-track { background: rgba(80, 55, 30, 0.15); border-radius: 3px; }
+  .wood-scroll::-webkit-scrollbar-thumb { background: rgba(140, 100, 55, 0.35); border-radius: 3px; }
+  .wood-scroll::-webkit-scrollbar-thumb:hover { background: rgba(170, 125, 70, 0.5); }
+
+  /* Wood modal container — rich walnut with grain */
+  .wood-modal {
+    background:
+      /* Varnish sheen */
+      radial-gradient(ellipse 80% 40% at 30% 5%, rgba(220, 180, 120, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 30% at 75% 95%, rgba(200, 160, 100, 0.04) 0%, transparent 50%),
+      /* Knots — scattered across panel */
+      radial-gradient(ellipse 25px 50px at 15% 25%, rgba(50, 28, 10, 0.45) 0%, rgba(70, 42, 18, 0.15) 50%, transparent 75%),
+      radial-gradient(ellipse 20px 40px at 80% 60%, rgba(45, 25, 8, 0.4) 0%, rgba(65, 38, 15, 0.12) 50%, transparent 75%),
+      radial-gradient(ellipse 15px 30px at 50% 85%, rgba(55, 30, 12, 0.35) 0%, rgba(75, 45, 20, 0.1) 50%, transparent 75%),
+      /* Wide plank grain bands */
+      repeating-linear-gradient(
+        179deg,
+        rgba(150, 105, 55, 0.1) 0px,
+        rgba(130, 88, 42, 0.05) 4px,
+        transparent 8px,
+        transparent 22px,
+        rgba(160, 115, 60, 0.08) 24px,
+        rgba(140, 95, 48, 0.04) 28px,
+        transparent 32px,
+        transparent 42px
+      ),
+      /* Fine grain detail */
+      repeating-linear-gradient(
+        178deg,
+        transparent 0px,
+        transparent 3px,
+        rgba(110, 72, 35, 0.07) 3px,
+        rgba(110, 72, 35, 0.07) 3.8px,
+        transparent 3.8px,
+        transparent 9px,
+        rgba(95, 62, 28, 0.05) 9px,
+        rgba(95, 62, 28, 0.05) 9.5px,
+        transparent 9.5px,
+        transparent 14px
+      ),
+      /* Grain wave — long period color variation */
+      repeating-linear-gradient(
+        176deg,
+        transparent 0px,
+        transparent 60px,
+        rgba(140, 95, 45, 0.06) 70px,
+        rgba(120, 80, 38, 0.03) 90px,
+        transparent 100px,
+        transparent 150px
+      ),
+      /* Base — deeper walnut */
+      linear-gradient(180deg, #201810 0%, #1b140c 40%, #161009 70%, #120d07 100%);
+    border: 1px solid rgba(140, 100, 55, 0.25);
+    box-shadow:
+      0 25px 60px rgba(0, 0, 0, 0.6),
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(200, 160, 100, 0.1),
+      inset 0 -1px 0 rgba(80, 55, 25, 0.2);
+  }
+
+  /* Wood header bar — lighter plank strip with grain */
+  .wood-header {
+    background:
+      /* Grain lines on header */
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 5px,
+        rgba(140, 95, 50, 0.06) 5px,
+        rgba(140, 95, 50, 0.06) 5.8px,
+        transparent 5.8px,
+        transparent 12px
+      ),
+      linear-gradient(180deg, rgba(160, 120, 70, 0.14) 0%, rgba(140, 100, 55, 0.06) 100%);
+    border-bottom: 1px solid rgba(140, 100, 55, 0.2);
+    box-shadow: inset 0 1px 0 rgba(200, 160, 100, 0.08);
+  }
+
+  /* Wood card — raised plank */
+  .wood-card {
+    background:
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 6px,
+        rgba(130, 90, 45, 0.04) 6px,
+        rgba(130, 90, 45, 0.04) 6.5px,
+        transparent 6.5px,
+        transparent 14px
+      ),
+      rgba(140, 100, 55, 0.06);
+    border: 1px solid rgba(140, 100, 55, 0.12);
+    transition: all 0.2s ease;
+    box-shadow: inset 0 1px 0 rgba(200, 160, 100, 0.04);
+  }
+  .wood-card:hover {
+    background:
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 6px,
+        rgba(130, 90, 45, 0.06) 6px,
+        rgba(130, 90, 45, 0.06) 6.5px,
+        transparent 6.5px,
+        transparent 14px
+      ),
+      rgba(160, 115, 60, 0.1);
+    border-color: rgba(160, 115, 60, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(200, 160, 100, 0.06),
+      0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Wood divider */
+  .wood-divider {
+    border-color: rgba(140, 100, 55, 0.15);
+  }
+
+  /* Wood text colors — warm tones, readable against dark wood */
+  .wood-text-primary { color: #f0e4d0; }
+  .wood-text-secondary { color: rgba(210, 175, 120, 0.75); }
+  .wood-text-accent { color: rgba(225, 185, 125, 0.85); }
+
+  /* Wood footer — darker bottom panel */
+  .wood-footer {
+    background:
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 7px,
+        rgba(100, 65, 30, 0.05) 7px,
+        rgba(100, 65, 30, 0.05) 7.5px,
+        transparent 7.5px,
+        transparent 16px
+      ),
+      rgba(12, 9, 6, 0.7);
+    border-top: 1px solid rgba(140, 100, 55, 0.15);
+  }
+
+  /* Wood info banner */
+  .wood-info {
+    background:
+      repeating-linear-gradient(
+        179deg,
+        transparent 0px,
+        transparent 8px,
+        rgba(120, 80, 40, 0.04) 8px,
+        rgba(120, 80, 40, 0.04) 8.5px,
+        transparent 8.5px,
+        transparent 18px
+      ),
+      rgba(140, 100, 55, 0.08);
+    border: 1px solid rgba(140, 100, 55, 0.16);
+  }
+
+  /* Code block on wood — dark inlay */
+  .wood-code {
+    background: rgba(8, 6, 4, 0.7);
+    border: 1px solid rgba(120, 85, 45, 0.12);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* RAG Demo — markdown formatting */
+.rag-markdown h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.5rem;
+  color: rgba(255, 255, 255, 0.95);
+}
+.rag-markdown h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.35rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+.rag-markdown h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.rag-markdown p {
+  margin: 0.35rem 0;
+  line-height: 1.6;
+}
+.rag-markdown ul,
+.rag-markdown ol {
+  margin: 0.35rem 0 0.35rem 1.25rem;
+}
+.rag-markdown li {
+  margin: 0.2rem 0;
+  line-height: 1.5;
+}
+.rag-markdown strong {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+.rag-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0.75rem 0;
+}
+.rag-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+.rag-markdown th {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+.rag-markdown td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.rag-markdown code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+.rag-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.rag-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+/* ========================================================================
+ * Editorial chat keyframes (pellier-chat-synthesis / experience mockups).
+ * Global scope — consumed by storefront concierge components.
+ * ======================================================================== */
+
+/* Burgundy shimmer sweep across espresso text (thinking block) */
+@keyframes shimmer-sweep {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    rgba(31, 20, 16, 0.55) 0%,
+    rgba(31, 20, 16, 0.55) 30%,
+    rgba(168, 66, 58, 0.95) 50%,
+    rgba(31, 20, 16, 0.55) 70%,
+    rgba(31, 20, 16, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer-sweep 2.4s ease-in-out infinite;
+}
+
+/* Burgundy cursor blink (streaming reply) */
+@keyframes cursor-blink {
+  0%, 50%  { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Status dot pulse ring (concierge header) */
+@keyframes editorial-pulse {
+  0%   { opacity: 0.6; transform: scale(0.7); }
+  100% { opacity: 0;   transform: scale(2.2); }
+}
+
+/* Three-dot typing cascade (composing state) */
+@keyframes editorial-typing-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.85); }
+  30%           { opacity: 1;   transform: scale(1.1); }
+}
+
+/* Product artifact card mount */
+@keyframes artifact-mount {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Tool-call indicator pulse (active state) */
+@keyframes toolcall-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text { animation: none; }
+}

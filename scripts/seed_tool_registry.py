@@ -2,7 +2,7 @@
 """seed_tool_registry.py — Populate the ``tools`` table for /workshop card 7.
 
 Loads the 9 canonical tool names from
-``blaize-bazaar/backend/services/agentcore_gateway.py:GATEWAY_TOOL_NAMES``,
+``pellier/backend/services/agentcore_gateway.py:GATEWAY_TOOL_NAMES``,
 pulls each tool's docstring as the description (single source of truth —
 the Gateway uses the same docstring for its MCP ``description`` field),
 embeds the description via Cohere Embed v4, and UPSERTs into the
@@ -38,7 +38,7 @@ from typing import Any, Dict, List
 # Allow ``from services.agentcore_gateway import GATEWAY_TOOL_NAMES`` to
 # resolve when this script is run from the repo root.
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_SRC = REPO_ROOT / "blaize-bazaar" / "backend"
+BACKEND_SRC = REPO_ROOT / "pellier" / "backend"
 if str(BACKEND_SRC) not in sys.path:
     sys.path.insert(0, str(BACKEND_SRC))
 

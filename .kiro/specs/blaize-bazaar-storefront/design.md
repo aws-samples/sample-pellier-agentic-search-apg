@@ -1,4 +1,4 @@
-# Blaize Bazaar Storefront — Design
+# Pellier Storefront — Design
 
 ## Introduction
 
@@ -11,8 +11,8 @@ Sibling specs own adjacent scope and are referenced, not duplicated:
 
 ### Repo fit
 
-- Backend root: `blaize-bazaar/backend/` with sibling packages `agents/`, `services/`, `models/`. All repo files referenced below already exist unless marked `new`.
-- Frontend root: `blaize-bazaar/frontend/src/` with `components/`, `contexts/`, `hooks/`, `services/`, `utils/`.
+- Backend root: `pellier/backend/` with sibling packages `agents/`, `services/`, `models/`. All repo files referenced below already exist unless marked `new`.
+- Frontend root: `pellier/frontend/src/` with `components/`, `contexts/`, `hooks/`, `services/`, `utils/`.
 - The existing `AuthContext.tsx`, `Header.tsx`, `LoginButton.tsx`, and `SignInPage.tsx` are the starting points that Challenge 9.3/9.4 extend. This design does not introduce a second auth layer.
 - Observability hooks into the existing `services/sql_query_logger.py` (confirmed in repo) and `services/otel_trace_extractor.py`.
 
@@ -43,7 +43,7 @@ graph TB
     CUI[Cognito Hosted UI]
   end
 
-  subgraph Backend["FastAPI (blaize-bazaar/backend)"]
+  subgraph Backend["FastAPI (pellier/backend)"]
     APP[app.py + routes/*]
     MW[cognito_auth middleware]
     ACID[agentcore_identity]
@@ -337,7 +337,7 @@ Defaults match `storefront.md` exactly: `threshold: 0.05`, `rootMargin: '0px 0px
 
 ## Data Models
 
-Defined in `blaize-bazaar/frontend/src/services/types.ts` (extend existing) and mirrored on the backend in `blaize-bazaar/backend/models/`. Product table DDL lives in `catalog-enrichment` — **referenced, not duplicated**.
+Defined in `pellier/frontend/src/services/types.ts` (extend existing) and mirrored on the backend in `pellier/backend/models/`. Product table DDL lives in `catalog-enrichment` — **referenced, not duplicated**.
 
 ```ts
 // TypeScript (frontend/src/services/types.ts)
@@ -685,7 +685,7 @@ Swap-in hook for the Take It Further weighted variant is a single function overr
 
 | Error                                   | Detection                                                | Response                                                                   | User-visible                                                                                         |
 | --------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Bedrock Embed timeout                   | `asyncio.TimeoutError` in `EmbeddingService.embed_query` | 1 retry with 500ms jitter; then `502` JSON envelope                        | Search pill shows "Blaize is thinking..." fallback state                                             |
+| Bedrock Embed timeout                   | `asyncio.TimeoutError` in `EmbeddingService.embed_query` | 1 retry with 500ms jitter; then `502` JSON envelope                        | Search pill shows "Pellier is thinking..." fallback state                                             |
 | Empty vector-search result              | `_vector_search` returns `[]`                            | Return empty list (not an error)                                           | Grid shows editorial "Nothing yet. Try a different wording." card                                    |
 | Agent timeout                           | Orchestrator streaming exceeds 10s                       | SSE `event: error` with `{ code: "agent_timeout" }`                        | Chat bubble shows "Taking a moment. Try again?" + retry button                                       |
 | JWT expired + refresh succeeds          | 401 at middleware, valid `refresh_token` cookie          | rotate cookies, retry request once (Req 4.2.4)                             | Invisible to user                                                                                    |

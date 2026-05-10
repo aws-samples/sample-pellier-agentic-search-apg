@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Atelier Observatory is a read-only editorial-luxury AI observability surface layered into the existing Blaize Bazaar application. It provides workshop participants and engineers with a comprehensive view of the agentic system's inner workings — 5 specialist agents, 2 skills, 3 routing patterns, 9 tools, and the memory/evaluation subsystems — all rendered in a flat editorial aesthetic using the cream/sand/espresso design system with Fraunces, Inter, and JetBrains Mono typography.
+The Atelier Observatory is a read-only editorial-luxury AI observability surface layered into the existing Pellier application. It provides workshop participants and engineers with a comprehensive view of the agentic system's inner workings — 5 specialist agents, 2 skills, 3 routing patterns, 9 tools, and the memory/evaluation subsystems — all rendered in a flat editorial aesthetic using the cream/sand/espresso design system with Fraunces, Inter, and JetBrains Mono typography.
 
 The design extends the existing `/atelier` route and its shell (AtelierPage, AtelierSidebar, AtelierTopBar) into a full multi-surface observatory. The current codebase has 8 atelier-v2 components, 7 architecture detail pages, and 9 shared primitives. This design reorganizes them under a new `/src/atelier/` directory tree while preserving backward compatibility with existing deep links and leaving the Boutique storefront untouched.
 

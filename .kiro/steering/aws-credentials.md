@@ -20,7 +20,7 @@ Once set up, you never see `ExpiredTokenException` again — every AWS SDK call 
    credential_process = /Users/<you>/bin/ada-credentials-json
    ```
 
-3. Set `AWS_PROFILE=dat4` in `blaize-bazaar/backend/.env`.
+3. Set `AWS_PROFILE=dat4` in `pellier/backend/.env`.
 
 4. Restart the backend. That's it — no more manual refresh.
 

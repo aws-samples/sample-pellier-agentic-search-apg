@@ -2,7 +2,7 @@
 inclusion: always
 ---
 
-# Blaize Bazaar — Storefront Conventions
+# Pellier — Storefront Conventions
 
 This file covers design, UX, copy, and auth conventions specific to the customer-facing storefront. Code conventions live in `coding-standards.md`. Project context and module structure live in `project.md`. Tech stack lives in `tech.md`. Database patterns live in `database.md`.
 
@@ -16,13 +16,13 @@ These apply to every user-facing string in the storefront UI. They do **not** ap
 - **No em dashes** — use regular hyphens
 - **No tech jargon** — these words are forbidden in customer-facing text:
   - "AI", "search" (as a noun for the feature), "intelligent", "smart", "agent", "LLM", "vector", "embedding"
-- **Instead use**: "Ask Blaize", "concierge", "the storefront", "curated"
+- **Instead use**: "Ask Pellier", "concierge", "the storefront", "curated"
 - Technical references (embeddings, agents, latency, Aurora, pgvector, AgentCore) appear only in **10px monospace footnotes** that engineers can find if they lean in
 - Warm, editorial, catalog-style voice. Read like Aesop or Toast, not like Best Buy
 
 Examples:
 - ✗ "AI-powered search finds products matching your intent"
-- ✓ "Tell Blaize what you're looking for. Watch the pieces find you."
+- ✓ "Tell Pellier what you're looking for. Watch the pieces find you."
 
 - ✗ "Our smart recommendation engine picked this"
 - ✓ "Picked because you mentioned warm evenings"
@@ -77,8 +77,8 @@ Exactly five items + centered wordmark + right actions. Sticky on scroll.
 - **Shop**
 - **Storyboard** (editorial hub: mood films, vision boards, behind-the-scenes)
 - **Discover** (personalized curation landing)
-- Centered "Blaize Bazaar" wordmark with circular B logo
-- Right: "Ask Blaize" text link (hidden on mobile), Account button, Bag icon with live count badge
+- Centered "Pellier" wordmark with circular B logo
+- Right: "Ask Pellier" text link (hidden on mobile), Account button, Bag icon with live count badge
 
 About content lives in the footer, not the top nav. Old nav items (Shop/Journal/About) from earlier prototypes should not be referenced.
 
@@ -95,7 +95,7 @@ About content lives in the footer, not the top nav. Old nav items (Shop/Journal/
 
 Mutually exclusive band below the hero stage:
 
-- **Sign-in strip** (signed out): warm cream-warm gradient, B mark with pulse dot, "PERSONALIZED VISIONS" eyebrow, italic Fraunces headline "Sign in and watch Blaize tailor the storefront to you.", "Sign in for personalized visions" CTA, "Not now" dismiss (sessionStorage)
+- **Sign-in strip** (signed out): warm cream-warm gradient, B mark with pulse dot, "PERSONALIZED VISIONS" eyebrow, italic Fraunces headline "Sign in and watch Pellier tailor the storefront to you.", "Sign in for personalized visions" CTA, "Not now" dismiss (sessionStorage)
 - **Curated banner** (signed in with saved preferences): terracotta gradient, pulse dot, "CURATED FOR YOU" label, "Tailored to your preferences, [Name]. [pref1] · [pref2] · [pref3]", "Adjust preferences" link
 
 Neither appears if the user is signed in without preferences yet (in that state, the preferences modal is auto-opened instead).
@@ -123,15 +123,15 @@ Every product carries a `tags text[]` column populated from this mapping. Person
 
 | Name | Brand | Color | Price | Tags |
 |---|---|---|---|---|
-| Italian Linen Camp Shirt | Blaize Editions | Sand | $128 | minimal, serene, classic, warm, neutral, everyday, slow, linen |
-| Wide-Leg Linen Trousers | Blaize Editions | Terracotta | $98 | creative, bold, warm, earth, everyday, travel, linen |
-| Signature Straw Tote | Blaize Editions | Natural | $68 | classic, serene, neutral, soft, travel, everyday, accessories |
-| Relaxed Oxford Shirt | Blaize Editions | Warm Ivory | $88 | classic, minimal, neutral, soft, everyday, work, linen |
-| Sundress in Washed Linen | Blaize Editions | Golden Ochre | $148 | creative, bold, warm, earth, evening, dresses, linen |
-| Leather Slide Sandal | Blaize Editions | Chestnut | $112 | minimal, classic, earth, warm, everyday, travel, footwear |
-| Cashmere-Blend Cardigan | Blaize Editions | Driftwood | $158 | minimal, serene, classic, neutral, earth, slow, evening, outerwear |
-| Ceramic Tumbler Set | Blaize Home | 4pc Set | $52 | minimal, serene, creative, neutral, soft, slow, home |
-| Linen Utility Jacket | Blaize Editions | Faded Olive | $178 | adventurous, creative, earth, neutral, outdoor, travel, outerwear |
+| Italian Linen Camp Shirt | Pellier Editions | Sand | $128 | minimal, serene, classic, warm, neutral, everyday, slow, linen |
+| Wide-Leg Linen Trousers | Pellier Editions | Terracotta | $98 | creative, bold, warm, earth, everyday, travel, linen |
+| Signature Straw Tote | Pellier Editions | Natural | $68 | classic, serene, neutral, soft, travel, everyday, accessories |
+| Relaxed Oxford Shirt | Pellier Editions | Warm Ivory | $88 | classic, minimal, neutral, soft, everyday, work, linen |
+| Sundress in Washed Linen | Pellier Editions | Golden Ochre | $148 | creative, bold, warm, earth, evening, dresses, linen |
+| Leather Slide Sandal | Pellier Editions | Chestnut | $112 | minimal, classic, earth, warm, everyday, travel, footwear |
+| Cashmere-Blend Cardigan | Pellier Editions | Driftwood | $158 | minimal, serene, classic, neutral, earth, slow, evening, outerwear |
+| Ceramic Tumbler Set | Pellier Home | 4pc Set | $52 | minimal, serene, creative, neutral, soft, slow, home |
+| Linen Utility Jacket | Pellier Editions | Faded Olive | $178 | adventurous, creative, earth, neutral, outdoor, travel, outerwear |
 
 These 9 products are the hero/featured set surfaced in the storefront grid. The full ~444-product catalog (from the catalog-enrichment spec) also carries tags and powers search.
 
@@ -144,7 +144,7 @@ These 9 products are the hero/featured set surfaced in the storefront grid. The 
 Triggered by sign-in strip CTA, Account button, or `/signin` route.
 
 - Centered cream rounded-3xl card, glass backdrop
-- Header: B mark + "Welcome to Blaize Bazaar" + "Sign in for a storefront built for you"
+- Header: B mark + "Welcome to Pellier" + "Sign in for a storefront built for you"
 - Body headline: "PERSONALIZED VISIONS" eyebrow + italic "Let the storefront find you."
 - Three buttons redirect to Cognito Hosted UI with IdP param:
   1. "Continue with Google" → `?identity_provider=Google`
@@ -158,7 +158,7 @@ Triggered by sign-in strip CTA, Account button, or `/signin` route.
 Auto-opens after first successful auth if `/api/auth/me` returns `preferences === null`.
 
 - Header: B mark + "A quick tune-up" + "Takes about 20 seconds. You can change these anytime."
-- Body headline: italic "What moves you?" + "Pick what resonates. Blaize will take it from here."
+- Body headline: italic "What moves you?" + "Pick what resonates. Pellier will take it from here."
 - Four preference groups, all multi-select chips:
 
 **Group 1 — Your overall vibe** (6 cards with 2-word descriptors):
@@ -198,7 +198,7 @@ Auto-opens after first successful auth if `/api/auth/me` returns `preferences ==
 
 ## Global UI elements
 
-- **⌘K command pill** (bottom-right corner): compact dusk pill, small B mark, "Ask Blaize" label, styled `⌘K` keycap
+- **⌘K command pill** (bottom-right corner): compact dusk pill, small B mark, "Ask Pellier" label, styled `⌘K` keycap
 - ⌘K / Ctrl+K globally opens/closes the concierge modal
 - Escape closes any open modal
 - All modals: centered cream rounded-3xl cards with glass backdrop-blur backgrounds

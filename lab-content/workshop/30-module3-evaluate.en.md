@@ -86,7 +86,7 @@ In a production agent stack, behavior drift is inevitable — model updates, pro
 
 **Only if you're ahead.** This is the decision framework every team makes: *is the most capable model always right?*
 
-Open `blaize-bazaar/backend/agents/search_agent.py`. Swap the model:
+Open `pellier/backend/agents/search_agent.py`. Swap the model:
 
 ```python
 model_id=settings.BEDROCK_OPUS_MODEL,  # was BEDROCK_SONNET_MODEL

@@ -1,5 +1,5 @@
 """
-Business Logic Layer for Blaize Bazaar
+Business Logic Layer for Pellier
 Contains custom business logic for inventory, pricing, and trending analysis
 """
 from typing import Dict, Any, List
@@ -57,7 +57,7 @@ class BusinessLogic:
                 quantity,
                 "productURL" as product_url,
                 (reviews * stars) as trending_score
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE {where_clause}
             ORDER BY trending_score DESC, stars DESC
             LIMIT %s
@@ -93,7 +93,7 @@ class BusinessLogic:
                 COUNT(CASE WHEN quantity >= 10 THEN 1 END) as healthy_stock,
                 AVG(quantity) as avg_quantity,
                 SUM(quantity) as total_quantity
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
         """
         
         stats = await self.db.fetch_one(stats_query)
@@ -107,7 +107,7 @@ class BusinessLogic:
                 stars,
                 reviews,
                 quantity
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE quantity < 10
               AND stars >= 4.0
               AND reviews > 100
@@ -149,7 +149,7 @@ class BusinessLogic:
                     MAX(price) as max_price,
                     AVG(price) as avg_price,
                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
-                FROM blaize_bazaar.product_catalog
+                FROM pellier.product_catalog
                 WHERE category_name ILIKE %s
                   AND quantity > 0
                 GROUP BY category_name
@@ -164,7 +164,7 @@ class BusinessLogic:
                     MAX(price) as max_price,
                     AVG(price) as avg_price,
                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
-                FROM blaize_bazaar.product_catalog
+                FROM pellier.product_catalog
                 WHERE quantity > 0
                 GROUP BY category_name
                 ORDER BY product_count DESC
@@ -182,7 +182,7 @@ class BusinessLogic:
                 MAX(price) as max_price,
                 AVG(price) as avg_price,
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE quantity > 0
         """
         
@@ -210,7 +210,7 @@ class BusinessLogic:
         # Get current product info
         product_query = """
             SELECT "productId", product_description, quantity
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE "productId" = %s
         """
         
@@ -227,7 +227,7 @@ class BusinessLogic:
         
         # Update quantity
         update_query = """
-            UPDATE blaize_bazaar.product_catalog
+            UPDATE pellier.product_catalog
             SET quantity = quantity + %s
             WHERE "productId" = %s
         """
@@ -334,7 +334,7 @@ class BusinessLogic:
                 "imgUrl",
                 "productURL" as product_url,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE {where_clause}
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
@@ -368,7 +368,7 @@ class BusinessLogic:
                 "total_ms": round(embedding_time_ms + db_time_ms, 2)
             },
             "sql_query": search_query.replace("%s", "?"),
-            "note": "⚠️ This is a Blaize Bazaar workshop tool for educational purposes"
+            "note": "⚠️ This is a Pellier workshop tool for educational purposes"
         }
     
     async def get_products_by_category(
@@ -412,7 +412,7 @@ class BusinessLogic:
                 quantity,
                 "imgUrl",
                 "productURL" as product_url
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE {where_clause}
             ORDER BY stars DESC, reviews DESC
             LIMIT %s
@@ -453,7 +453,7 @@ class BusinessLogic:
                 quantity,
                 "imgUrl",
                 "productURL" as product_url
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE quantity < 10
               AND stars >= 3.0
             ORDER BY quantity ASC, reviews DESC, stars DESC

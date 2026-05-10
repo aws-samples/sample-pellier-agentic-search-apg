@@ -1,9 +1,9 @@
-# Blaize Bazaar — Agentic AI-Powered Search with Amazon Aurora & Bedrock AgentCore
+# Pellier — Agentic AI-Powered Search with Amazon Aurora & Bedrock AgentCore
 
 <div align="center">
 
-[![AWS Workshop](https://img.shields.io/badge/AWS-Workshop-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg)
-[![Level 400](https://img.shields.io/badge/Level-400%20Expert-red?style=for-the-badge)](https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg)
+[![AWS Workshop](https://img.shields.io/badge/AWS-Workshop-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://github.com/aws-samples/sample-pellier-agentic-search-apg)
+[![Level 400](https://img.shields.io/badge/Level-400%20Expert-red?style=for-the-badge)](https://github.com/aws-samples/sample-pellier-agentic-search-apg)
 [![License](https://img.shields.io/badge/License-MIT-00b300?style=for-the-badge)](LICENSE)
 
 </div>
@@ -14,7 +14,7 @@
 
 ## What Is This?
 
-**Blaize Bazaar** is a boutique e-commerce storefront powered by a multi-agent AI system. It demonstrates how to build agentic search using **Amazon Aurora PostgreSQL** (pgvector for semantic search), **Amazon Bedrock** (Claude for reasoning), **Bedrock AgentCore** (managed agent infrastructure), and **Amazon Transcribe** (voice-to-text).
+**Pellier** is a boutique e-commerce storefront powered by a multi-agent AI system. It demonstrates how to build agentic search using **Amazon Aurora PostgreSQL** (pgvector for semantic search), **Amazon Bedrock** (Claude for reasoning), **Bedrock AgentCore** (managed agent infrastructure), and **Amazon Transcribe** (voice-to-text).
 
 The application has two surfaces:
 
@@ -68,13 +68,13 @@ Each persona has 10 exclusive products (zero overlap) with real Cohere Embed v4 
 
 ```bash
 # Terminal 1: Backend (auto-reloads on .py changes)
-cd blaize-bazaar/backend
+cd pellier/backend
 cp .env.example .env  # Edit with your Aurora + Bedrock credentials
 pip install amazon-transcribe  # For voice search
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
 
 # Terminal 2: Frontend (HMR on .ts/.tsx changes)
-cd blaize-bazaar/frontend
+cd pellier/frontend
 npm install && npm run dev
 
 # Seed the 40-product catalog with real embeddings
@@ -185,7 +185,7 @@ Boutique Chat Drawer
 ## Repository Structure
 
 ```
-blaize-bazaar/
+pellier/
 ├── backend/
 │   ├── agents/
 │   │   ├── orchestrator.py              Maître d' (Agents-as-Tools pattern)

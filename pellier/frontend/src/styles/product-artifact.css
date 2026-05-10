@@ -1,0 +1,160 @@
+/* ========================================================================
+ * ProductArtifactCard — editorial product card for storefront chat.
+ * Matches docs/pellier-chat-experience.html → .artifact
+ * ======================================================================== */
+
+.pa-card {
+  border: 1px solid var(--rule-1);
+  border-radius: 12px;
+  background: var(--cream-elev);
+  overflow: hidden;
+  animation: artifact-mount 380ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
+  transform-origin: top left;
+}
+
+/* Eyebrow */
+.pa-eyebrow {
+  padding: 8px 14px 0;
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red-1);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pa-eyebrow-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--red-1);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Image area */
+.pa-image {
+  position: relative;
+  height: 160px;
+  margin: 8px 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 200px 120px at 70% 30%, rgba(250, 243, 232, 0.6), transparent 70%),
+    linear-gradient(135deg, #ddc8a0 0%, #c4a880 50%, #8a704e 100%);
+}
+.pa-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  z-index: 1;
+}
+.pa-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: relative;
+  z-index: 2;
+}
+
+/* Body */
+.pa-body {
+  padding: 12px 14px 14px;
+}
+.pa-brand {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.pa-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  color: var(--ink-1);
+  margin-bottom: 8px;
+}
+.pa-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+.pa-price {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink-1);
+}
+.pa-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pa-star {
+  color: var(--red-1);
+  font-size: 12px;
+}
+.pa-reviews {
+  color: var(--ink-4);
+}
+.pa-stock {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-4);
+}
+
+/* Actions */
+.pa-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pa-add {
+  flex: 1;
+  background: var(--ink-1);
+  color: var(--cream-1);
+  border: none;
+  padding: 9px 16px;
+  border-radius: 100px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 180ms;
+}
+.pa-add:hover {
+  background: var(--red-1);
+}
+.pa-heart {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-2);
+  background: transparent;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 180ms;
+}
+.pa-heart:hover {
+  color: var(--red-1);
+  border-color: var(--red-1);
+}

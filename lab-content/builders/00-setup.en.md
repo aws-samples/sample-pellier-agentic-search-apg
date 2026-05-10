@@ -9,7 +9,7 @@ Your lab environment is already running. One URL, one smoke test, one glance at 
 
 ## From Workshop Studio
 
-- **Code Editor URL** — VS Code Server. Tree opens to `blaize-bazaar-workshop/`.
+- **Code Editor URL** — VS Code Server. Tree opens to `pellier-workshop/`.
 - **Boutique URL** — the customer-facing shopper surface.
 - **Atelier** — same host as the Boutique, at `/atelier`.
 
@@ -18,7 +18,7 @@ Your lab environment is already running. One URL, one smoke test, one glance at 
 Terminal in Code Editor:
 
 ```bash
-cd blaize-bazaar-workshop/blaize-bazaar/backend
+cd pellier-workshop/pellier/backend
 curl -s http://localhost:8000/api/products/count
 # Expected: { "count": 40 }
 ```

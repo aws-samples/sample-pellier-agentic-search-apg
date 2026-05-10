@@ -1,6 +1,6 @@
-"""E2E test harness for Blaize Bazaar storefront.
+"""E2E test harness for Pellier storefront.
 
-Lives at the workspace root (not under blaize-bazaar/backend/tests) because
+Lives at the workspace root (not under pellier/backend/tests) because
 E2E spans the full stack: Playwright driving the React frontend, which in
 turn calls the FastAPI backend, which in turn validates JWTs issued by a
 dedicated Cognito dev pool.

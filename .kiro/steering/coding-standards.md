@@ -2,9 +2,9 @@
 inclusion: always
 ---
 
-# Blaize Bazaar Coding Standards
+# Pellier Coding Standards
 
-## Python Backend (blaize-bazaar/backend/)
+## Python Backend (pellier/backend/)
 
 - All agent tools use the `@tool` decorator from `strands` and return `str` (JSON serialized)
 - Tool functions follow `verb_noun` naming: `search_products`, `get_trending_products`, `restock_product`
@@ -16,7 +16,7 @@ inclusion: always
 - Orchestrator uses `global.anthropic.claude-haiku-4-5-20251001-v1:0` with `temperature=0.0`
 - Specialist agents use `temperature=0.2`
 
-## TypeScript Frontend (blaize-bazaar/frontend/)
+## TypeScript Frontend (pellier/frontend/)
 
 - Agent types defined in `src/utils/agentIdentity.ts` — single source of truth
 - `resolveAgentType()` priority: support > search > inventory > pricing > recommendation > orchestrator

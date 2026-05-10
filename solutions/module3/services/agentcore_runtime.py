@@ -65,7 +65,7 @@ async def _run_orchestrator_inprocess(
             "session.id": session_id,
             "user.id": user_id or "anonymous",
             "runtime": "in-process",
-            "workshop": "blaize-bazaar",
+            "workshop": "pellier",
         }
     except Exception:  # pragma: no cover - defensive
         pass
@@ -83,10 +83,10 @@ async def _run_orchestrator_inprocess(
 #
 # The runtime contract is a JSON payload ``{"prompt", "session_id",
 # "user_id"}``; the Runtime container unpacks it in the ``@app.entry
-# point`` handler at ``blaize-bazaar/backend/agentcore_runtime.py``.
+# point`` handler at ``pellier/backend/agentcore_runtime.py``.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_runtime.py blaize-bazaar/backend/services/agentcore_runtime.py
+#    cp solutions/module3/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
 async def run_agent_on_runtime(
     message: str,
     session_id: str,

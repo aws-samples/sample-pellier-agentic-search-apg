@@ -67,7 +67,7 @@ def floor_check() -> str:
     """Get current inventory health statistics including stock levels and alerts. Use for warehouse, stock status, or inventory overview questions.
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py blaize-bazaar/backend/services/agent_tools.py
+       cp solutions/module2/services/agent_tools__inventory.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE · Stock Keeper · floor_check: START ===
     # WORKSHOP_EXERCISE_STUB
@@ -103,7 +103,7 @@ def whats_trending(limit: int = 5, category: str = None) -> str:
         JSON string with trending products
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools.py blaize-bazaar/backend/services/agent_tools.py
+       cp solutions/module2/services/agent_tools.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE 2: START ===
     if not _db_service:
@@ -346,7 +346,7 @@ def side_by_side(product_id_1: int, product_id_2: int) -> str:
         query = """
             SELECT "productId", name, brand, color, description, price,
                    rating, reviews, category, "imgUrl", badge, tags
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE "productId" = %s
         """
         p1 = _run_async(_db_service.fetch_one(query, product_id_1))
@@ -399,7 +399,7 @@ def side_by_side(product_id_1: int, product_id_2: int) -> str:
 # === END WIRE IT LIVE ===
 
 
-# === RETURN POLICY TOOL (backed by blaize_bazaar.return_policies table) ===
+# === RETURN POLICY TOOL (backed by pellier.return_policies table) ===
 
 @tool
 def returns_and_care(category: str = "default") -> str:
@@ -417,7 +417,7 @@ def returns_and_care(category: str = "default") -> str:
     try:
         query = """
             SELECT category_name, return_window_days, conditions, refund_method
-            FROM blaize_bazaar.return_policies
+            FROM pellier.return_policies
             WHERE category_name = %s
         """
         row = _run_async(_db_service.fetch_one(query, category))
@@ -457,7 +457,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
     try:
         source = _run_async(db_service.fetch_one(
             'SELECT "productId", name, brand, price, category_name, embedding '
-            'FROM blaize_bazaar.product_catalog WHERE "productId" = %s',
+            'FROM pellier.product_catalog WHERE "productId" = %s',
             str(product_id).ljust(10),
         ))
         if not source:
@@ -469,7 +469,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
             'SELECT "productId", name, brand, color, price, rating, reviews, '
             'category_name, "imgUrl", '
             '1 - (embedding <=> %s::vector) AS similarity_score '
-            'FROM blaize_bazaar.product_catalog '
+            'FROM pellier.product_catalog '
             'WHERE "productId" != %s '
             'ORDER BY embedding <=> %s::vector '
             'LIMIT %s',

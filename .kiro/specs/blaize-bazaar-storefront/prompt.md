@@ -1,8 +1,8 @@
-# Blaize Bazaar Storefront — Kiro Spec Prompt
+# Pellier Storefront — Kiro Spec Prompt
 
 **For:** AWS re:Invent 2026 workshop **Build Agentic AI-Powered Search with Amazon Aurora PostgreSQL** (2-hour Workshop + 1-hour Builders Session).
 
-**What this produces:** `requirements.md`, `design.md`, and `tasks.md` specifying the full Blaize Bazaar storefront — UI, backend, authentication, personalization, and the nine workshop challenges.
+**What this produces:** `requirements.md`, `design.md`, and `tasks.md` specifying the full Pellier storefront — UI, backend, authentication, personalization, and the nine workshop challenges.
 
 **Prerequisites:**
 Repo-wide conventions are captured in `.kiro/steering/`:
@@ -37,7 +37,7 @@ This spec references but does not duplicate their scope.
 
 # Kiro Spec Request
 
-You are building the **Blaize Bazaar Storefront** feature — the full customer-facing application that participants extend through nine progressive challenges during a 2-hour Workshop or 1-hour Builders Session.
+You are building the **Pellier Storefront** feature — the full customer-facing application that participants extend through nine progressive challenges during a 2-hour Workshop or 1-hour Builders Session.
 
 This spec covers the storefront UI, the FastAPI backend that powers it, the Cognito + AgentCore Identity authentication flow, the personalization engine, and the nine challenge scaffolds. It does NOT cover the data catalog pipeline (see `catalog-enrichment` spec) or the customer support specialist agent (see `customer-support-agent` spec). Reference them where relevant.
 
@@ -49,7 +49,7 @@ Assume everything in steering is authoritative. If any section of this spec appe
 
 ## The product experience (shopper view)
 
-Build a single-page boutique storefront titled **Blaize Bazaar — Summer Edit No. 06**. Golden hour editorial aesthetic. Customer-facing copy follows the rules in `storefront.md` steering.
+Build a single-page boutique storefront titled **Pellier — Summer Edit No. 06**. Golden hour editorial aesthetic. Customer-facing copy follows the rules in `storefront.md` steering.
 
 ### Layout
 
@@ -62,7 +62,7 @@ Top-to-bottom page structure:
 5. **Live status strip** — _"Live inventory · refreshed daily · curated by hand"_ + shipping/returns/secure checkout links
 6. **Category filter chips** — horizontal scroll: All (dusk fill, selected), Linen, Dresses, Accessories, Outerwear, Footwear, Home
 7. **Product grid** (described below)
-8. **Multi-turn refinement panel** — white card, B mark, _"Blaize here, want me to narrow this down?"_ + 4 filter chips (Under $100, Ships by Friday, Gift-wrappable, From smaller makers)
+8. **Multi-turn refinement panel** — white card, B mark, _"Pellier here, want me to narrow this down?"_ + 4 filter chips (Under $100, Ships by Friday, Gift-wrappable, From smaller makers)
 9. **From the Storyboard** — 3-card teaser grid per `storefront.md` steering
 10. **Footer** — 5 columns per `storefront.md` steering
 11. **Floating ⌘K pill** — global concierge shortcut per `storefront.md` steering
@@ -80,9 +80,9 @@ Top-to-bottom page structure:
   - Thin divider, then 10px mono "Matched on: [attributes]" footnote + "340 ms" latency stamp
 - **Floating search pill bottom-center** — glass cream, fully rounded, 560px max width:
   - Small B mark avatar (left)
-  - "Tell Blaize what you're looking for..." placeholder
+  - "Tell Pellier what you're looking for..." placeholder
   - Blinking terracotta caret
-  - "Ask Blaize" primary button (right)
+  - "Ask Pellier" primary button (right)
 - **Corner chips:**
   - Top-left: dark glass "Someone just asked" breadcrumb with white B mark (mobile only)
   - Top-right: cream glass "Curated for you" chip with accent pulse dot
@@ -195,7 +195,7 @@ Tool and agent naming follows `coding-standards.md` and `workshop-content.md` st
 
 ### Module 1 — Smart Search (Workshop 30 min / Builders 15 min)
 
-- **C1:** `_vector_search(self, embedding, limit, ef_search, iterative_scan=True)` on `HybridSearchService` in `blaize-bazaar/backend/services/hybrid_search.py`
+- **C1:** `_vector_search(self, embedding, limit, ef_search, iterative_scan=True)` on `HybridSearchService` in `pellier/backend/services/hybrid_search.py`
   - pgvector cosine distance (`<=>`) with CTE pattern per `database.md` steering
   - HNSW `ef_search` per-query tuning via `SET LOCAL`
   - Iterative scan `'relaxed_order'` when `iterative_scan=True`
@@ -203,17 +203,17 @@ Tool and agent naming follows `coding-standards.md` and `workshop-content.md` st
 
 ### Module 2 — Agentic AI (Workshop 40 min / Builders 20 min)
 
-- **C2:** `get_trending_products()` in `blaize-bazaar/backend/services/agent_tools.py`, `@tool`-decorated per `coding-standards.md`
+- **C2:** `get_trending_products()` in `pellier/backend/services/agent_tools.py`, `@tool`-decorated per `coding-standards.md`
   - Returns JSON-serialized string via `json.dumps()`
   - Handles `_db_service` unavailability and error cases per coding-standards error pattern
   - Uses `_run_async()` helper for async-to-sync bridging
 
-- **C3:** `product_recommendation_agent` in `blaize-bazaar/backend/agents/recommendation_agent.py`
+- **C3:** `product_recommendation_agent` in `pellier/backend/agents/recommendation_agent.py`
   - Strands Agent wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2`
   - Tools: `search_products`, `get_trending_products`, `compare_products`, `get_product_by_category`
   - System prompt emphasizes warm, editorial, catalog-style reasoning — grounded in specific product attributes
 
-- **C4:** Multi-agent orchestrator in `blaize-bazaar/backend/agents/orchestrator.py`
+- **C4:** Multi-agent orchestrator in `pellier/backend/agents/orchestrator.py`
   - Uses Claude Haiku 4.5 via `BedrockModel(model_id='global.anthropic.claude-haiku-4-5-20251001-v1:0')` with `temperature=0.0`
   - Routes via Strands "Agents as Tools" pattern
   - Intent classification priority per `coding-standards.md`: pricing > inventory > support > search > recommendation (default)
@@ -223,15 +223,15 @@ Tool and agent naming follows `coding-standards.md` and `workshop-content.md` st
 
 Infrastructure-out ordering.
 
-- **C5:** AgentCore Runtime deployment in `blaize-bazaar/backend/services/agentcore_runtime.py` — migrate orchestrator from local Strands to AgentCore Runtime
-- **C6:** AgentCore STM Memory in `blaize-bazaar/backend/services/agentcore_memory.py` — multi-turn session memory + user preferences keyed by Cognito user_id (from C9)
-- **C7:** AgentCore MCP Gateway in `blaize-bazaar/backend/services/agentcore_gateway.py` — expose tools via MCP for external agent consumers
-- **C8:** OpenTelemetry in `blaize-bazaar/backend/services/otel_trace_extractor.py` — agent trace extraction for `/inspector` view
+- **C5:** AgentCore Runtime deployment in `pellier/backend/services/agentcore_runtime.py` — migrate orchestrator from local Strands to AgentCore Runtime
+- **C6:** AgentCore STM Memory in `pellier/backend/services/agentcore_memory.py` — multi-turn session memory + user preferences keyed by Cognito user_id (from C9)
+- **C7:** AgentCore MCP Gateway in `pellier/backend/services/agentcore_gateway.py` — expose tools via MCP for external agent consumers
+- **C8:** OpenTelemetry in `pellier/backend/services/otel_trace_extractor.py` — agent trace extraction for `/inspector` view
 - **C9 (THE CAPSTONE):** Agent Identity — Cognito + AgentCore Identity. Four files:
-  1. `blaize-bazaar/backend/services/cognito_auth.py` — JWKS client, JWT validator, FastAPI middleware extracting verified `user_id` into `request.state.user`
-  2. `blaize-bazaar/backend/services/agentcore_identity.py` — AgentCore Identity wrapper; `get_verified_user_context(request)` returns user_id + session_id namespace
-  3. `blaize-bazaar/frontend/src/utils/auth.ts` — Cognito hosted UI redirect helpers, `useAuth()` context, silent token refresh
-  4. `blaize-bazaar/frontend/src/components/AuthModal.tsx` + `blaize-bazaar/frontend/src/components/PreferencesModal.tsx` — auth and preferences UIs per `storefront.md` steering
+  1. `pellier/backend/services/cognito_auth.py` — JWKS client, JWT validator, FastAPI middleware extracting verified `user_id` into `request.state.user`
+  2. `pellier/backend/services/agentcore_identity.py` — AgentCore Identity wrapper; `get_verified_user_context(request)` returns user_id + session_id namespace
+  3. `pellier/frontend/src/utils/auth.ts` — Cognito hosted UI redirect helpers, `useAuth()` context, silent token refresh
+  4. `pellier/frontend/src/components/AuthModal.tsx` + `pellier/frontend/src/components/PreferencesModal.tsx` — auth and preferences UIs per `storefront.md` steering
 
 **Why C9 is the capstone:** participants spent M1 retrieving data, M2 reasoning over it, early M3 deploying it. C9 closes the loop by wiring real identity to the personalization they've seen working the entire workshop.
 

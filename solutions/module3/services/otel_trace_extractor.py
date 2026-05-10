@@ -11,7 +11,7 @@ Each ``Span`` carries ``name``, ``kind`` (``orchestrator`` | ``specialist``
 waterfall can render the orchestrator → specialist → tool hand-off.
 
 See Requirement 2.5.4 and 5.4.1 in
-`.kiro/specs/blaize-bazaar-storefront/requirements.md`.
+`.kiro/specs/pellier-storefront/requirements.md`.
 """
 import logging
 from typing import Any, Dict, Iterable, List, Optional
@@ -65,7 +65,7 @@ _SPECIALIST_TOOL_NAMES = frozenset(
 # per-request trace without any additional wiring.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/otel_trace_extractor.py blaize-bazaar/backend/services/otel_trace_extractor.py
+#    cp solutions/module3/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
 
 
 def init_span_capture() -> None:

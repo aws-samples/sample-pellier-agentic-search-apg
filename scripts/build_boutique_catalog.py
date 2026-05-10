@@ -2,8 +2,8 @@
 """Generate the boutique catalog CSV + Tier 2 review markdown.
 
 Output:
-    data/blaize_catalog_unverified.csv   — 90-100 rows, embedding column empty
-    data/blaize_catalog_review_tier2.md  — Tier 2 image verification checklist
+    data/pellier_catalog_unverified.csv   — 90-100 rows, embedding column empty
+    data/pellier_catalog_review_tier2.md  — Tier 2 image verification checklist
 
 CSV schema:
     productId, name, brand, color, price, description, category, tags,
@@ -31,8 +31,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 
-CSV_OUT = os.path.join(DATA_DIR, "blaize_catalog_unverified.csv")
-REVIEW_OUT = os.path.join(DATA_DIR, "blaize_catalog_review_tier2.md")
+CSV_OUT = os.path.join(DATA_DIR, "pellier_catalog_unverified.csv")
+REVIEW_OUT = os.path.join(DATA_DIR, "pellier_catalog_review_tier2.md")
 
 CSV_FIELDS = [
     "productId", "name", "brand", "color", "price", "description",
@@ -78,7 +78,7 @@ class Product:
 
 TIER_1: List[Product] = [
     Product(
-        productId=1, name="Italian Linen Camp Shirt", brand="Blaize Editions",
+        productId=1, name="Italian Linen Camp Shirt", brand="Pellier Editions",
         color="Indigo", price=128.0,
         description="Breathable Italian linen with an easy camp collar and mother-of-pearl buttons. Softens with every wash.",
         category="Linen",
@@ -91,7 +91,7 @@ TIER_1: List[Product] = [
         badge="EDITORS_PICK",
     ),
     Product(
-        productId=2, name="Wide-Leg Linen Trousers", brand="Blaize Editions",
+        productId=2, name="Wide-Leg Linen Trousers", brand="Pellier Editions",
         color="Oatmeal", price=98.0,
         description="Flowing wide-leg silhouette in garment-washed linen. Cut long with a relaxed waistband that moves with you.",
         category="Linen",
@@ -103,7 +103,7 @@ TIER_1: List[Product] = [
         match_reason="earth, warm, travel",
     ),
     Product(
-        productId=3, name="Signature Straw Tote", brand="Blaize Editions",
+        productId=3, name="Signature Straw Tote", brand="Pellier Editions",
         color="Sand", price=68.0,
         description="Hand-woven seagrass tote with leather handles that darken beautifully with wear. Roomy enough for a weekend.",
         category="Accessories",
@@ -117,7 +117,7 @@ TIER_1: List[Product] = [
         badge="BESTSELLER",
     ),
     Product(
-        productId=4, name="Relaxed Oxford Shirt", brand="Blaize Editions",
+        productId=4, name="Relaxed Oxford Shirt", brand="Pellier Editions",
         color="Chambray", price=88.0,
         description="Japanese oxford cotton with a soft collar roll. Tailored through the shoulder, relaxed through the body.",
         category="Linen",
@@ -129,7 +129,7 @@ TIER_1: List[Product] = [
         match_reason="everyday, work, classic",
     ),
     Product(
-        productId=5, name="Sundress in Washed Linen", brand="Blaize Editions",
+        productId=5, name="Sundress in Washed Linen", brand="Pellier Editions",
         color="Russet", price=148.0,
         description="Midi-length sundress cut from washed linen in warm russet. Bias-cut skirt with a low tie back.",
         category="Dresses",
@@ -142,7 +142,7 @@ TIER_1: List[Product] = [
         badge="JUST_IN",
     ),
     Product(
-        productId=6, name="Leather Slide Sandal", brand="Blaize Editions",
+        productId=6, name="Leather Slide Sandal", brand="Pellier Editions",
         color="Onyx", price=112.0,
         description="Vegetable-tanned Italian leather with a cushioned footbed that molds to your step. Hand-finished edges.",
         category="Footwear",
@@ -154,7 +154,7 @@ TIER_1: List[Product] = [
         match_reason="classic, warm, travel",
     ),
     Product(
-        productId=7, name="Cashmere-Blend Cardigan", brand="Blaize Editions",
+        productId=7, name="Cashmere-Blend Cardigan", brand="Pellier Editions",
         color="Forest", price=158.0,
         description="Long-line cardigan in a cashmere and merino blend. Ribbed cuffs, dropped shoulder, enough weight to drape.",
         category="Outerwear",
@@ -167,7 +167,7 @@ TIER_1: List[Product] = [
         match_reason="slow, evening, outerwear",
     ),
     Product(
-        productId=8, name="Ceramic Tumbler Set", brand="Blaize Home",
+        productId=8, name="Ceramic Tumbler Set", brand="Pellier Home",
         color="Stoneware", price=52.0,
         description="Set of four hand-thrown stoneware tumblers with a pale matte glaze. Each one slightly different, all dishwasher safe.",
         category="Home",
@@ -179,7 +179,7 @@ TIER_1: List[Product] = [
         match_reason="slow, home, minimal",
     ),
     Product(
-        productId=9, name="Linen Utility Jacket", brand="Blaize Editions",
+        productId=9, name="Linen Utility Jacket", brand="Pellier Editions",
         color="Flax", price=178.0,
         description="Workwear-inspired utility jacket in heavyweight linen. Four patch pockets, horn buttons, a collar that stands.",
         category="Outerwear",
@@ -191,7 +191,7 @@ TIER_1: List[Product] = [
         match_reason="outdoor, travel, outerwear",
     ),
     Product(
-        productId=10, name="Featherweight Trail Runner", brand="Blaize Editions",
+        productId=10, name="Featherweight Trail Runner", brand="Pellier Editions",
         color="Ember \u00b7 9.5", price=168.0,
         description="Lightweight trail runner with a breathable knit upper and a grippy rubber outsole. Engineered for warm-weather miles.",
         category="Footwear",

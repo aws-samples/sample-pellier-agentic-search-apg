@@ -35,7 +35,7 @@ def _minimal_row(pid: int, description: str = "A nice linen shirt") -> dict:
     return {
         "productId": pid,
         "name": f"Product {pid}",
-        "brand": "Blaize Editions",
+        "brand": "Pellier Editions",
         "color": "Oatmeal",
         "price": 100.0,
         "description": description,

@@ -1,7 +1,7 @@
 /**
  * E2E: happy-path email/password sign-in against the dedicated Cognito dev pool.
  *
- * Design contract: `.kiro/specs/blaize-bazaar-storefront/design.md` — Testing
+ * Design contract: `.kiro/specs/pellier-storefront/design.md` — Testing
  * Strategy, "E2E (Playwright against a dedicated Cognito dev pool)". The
  * spec covers:
  *

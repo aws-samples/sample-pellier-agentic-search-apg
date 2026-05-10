@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Deploy Blaize Bazaar MCP Servers to Amazon Bedrock AgentCore Gateway.
+Deploy Pellier MCP Servers to Amazon Bedrock AgentCore Gateway.
 
 Creates a gateway with 3 Lambda targets: search, pricing, recommendations.
-Adapted from DAT403 deploy_gateway_simple.py for Blaize Bazaar.
+Adapted from DAT403 deploy_gateway_simple.py for Pellier.
 """
 import boto3
 import json
@@ -19,11 +19,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-# Tool schemas for Blaize Bazaar MCP servers
+# Tool schemas for Pellier MCP servers
 TOOL_SCHEMAS = {
     "search": {
-        "target_name": "blaize-search-server-function",
-        "description": "Blaize Bazaar search and inventory MCP server",
+        "target_name": "pellier-search-server-function",
+        "description": "Pellier search and inventory MCP server",
         "tools": [
             {
                 "name": "semantic_search",
@@ -68,8 +68,8 @@ TOOL_SCHEMAS = {
         ],
     },
     "pricing": {
-        "target_name": "blaize-pricing-server-function",
-        "description": "Blaize Bazaar pricing analysis MCP server",
+        "target_name": "pellier-pricing-server-function",
+        "description": "Pellier pricing analysis MCP server",
         "tools": [
             {
                 "name": "find_deals",
@@ -108,8 +108,8 @@ TOOL_SCHEMAS = {
         ],
     },
     "recommendation": {
-        "target_name": "blaize-recommend-server-function",
-        "description": "Blaize Bazaar product recommendation MCP server",
+        "target_name": "pellier-recommend-server-function",
+        "description": "Pellier product recommendation MCP server",
         "tools": [
             {
                 "name": "get_recommendations",
@@ -151,7 +151,7 @@ class MCPTarget:
 @dataclass
 class GatewayConfig:
     region: str = "us-east-1"
-    gateway_name: str = "blaize-gateway"
+    gateway_name: str = "pellier-gateway"
     targets: List[MCPTarget] = field(default_factory=list)
     cognito_user_pool_id: str = None
     cognito_client_id: str = None
@@ -162,7 +162,7 @@ class GatewayConfig:
 
 
 class BazaarGatewayDeployer:
-    """Deploys Blaize Bazaar MCP servers to AgentCore Gateway."""
+    """Deploys Pellier MCP servers to AgentCore Gateway."""
 
     def __init__(self, config: GatewayConfig):
         self.config = config
@@ -247,7 +247,7 @@ class BazaarGatewayDeployer:
         params = {
             "name": self.config.gateway_name,
             "roleArn": role_arn,
-            "description": "Blaize Bazaar MCP Gateway — search, pricing, recommendations",
+            "description": "Pellier MCP Gateway — search, pricing, recommendations",
             "protocolType": "MCP",
             "protocolConfiguration": {"mcp": {"searchType": "SEMANTIC", "supportedVersions": ["2025-03-26"]}},
         }
@@ -303,9 +303,9 @@ class BazaarGatewayDeployer:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Deploy Blaize Bazaar MCP servers to AgentCore Gateway")
+    parser = argparse.ArgumentParser(description="Deploy Pellier MCP servers to AgentCore Gateway")
     parser.add_argument("--region", default=os.getenv("AWS_REGION", "us-east-1"))
-    parser.add_argument("--gateway-name", default="blaize-gateway")
+    parser.add_argument("--gateway-name", default="pellier-gateway")
     parser.add_argument("--search-lambda-arn", required=True)
     parser.add_argument("--pricing-lambda-arn", required=True)
     parser.add_argument("--recommendation-lambda-arn", required=True)

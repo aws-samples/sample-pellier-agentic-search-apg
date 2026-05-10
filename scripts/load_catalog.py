@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Load the Blaize Bazaar boutique catalog into Aurora PostgreSQL.
+"""Load the Pellier boutique catalog into Aurora PostgreSQL.
 
 *** DESTRUCTIVE OPERATION ***
-This script DROPS AND RECREATES ``blaize_bazaar.product_catalog`` every run.
+This script DROPS AND RECREATES ``pellier.product_catalog`` every run.
 All existing rows, indexes, and any dependent foreign keys (cart_items,
 wishlist, user_preferences_saved) are CASCADED. Run with care.
 
-The catalog CSV at ``data/blaize_catalog.csv`` is the authoritative source:
+The catalog CSV at ``data/pellier_catalog.csv`` is the authoritative source:
 92 rows, 1024-dim Cohere Embed v4 embeddings pre-populated. This script does
 NOT call Bedrock — embeddings are already in the CSV.
 
@@ -62,7 +62,7 @@ from urllib.parse import urlparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DEFAULT_CSV = PROJECT_ROOT / "data" / "blaize_catalog.csv"
+DEFAULT_CSV = PROJECT_ROOT / "data" / "pellier_catalog.csv"
 AUDIT_LOG_DIR = PROJECT_ROOT / "logs"
 AUDIT_LOG_PATH = AUDIT_LOG_DIR / "load_catalog_audit.log"
 
@@ -88,9 +88,9 @@ KNOWN_CASCADED_FKS = {
     ("public", "cart_items", "product_id"),
     ("public", "wishlist", "product_id"),
     ("public", "user_preferences_saved", "product_id"),
-    ("blaize_bazaar", "cart_items", "product_id"),
-    ("blaize_bazaar", "wishlist", "product_id"),
-    ("blaize_bazaar", "user_preferences_saved", "product_id"),
+    ("pellier", "cart_items", "product_id"),
+    ("pellier", "wishlist", "product_id"),
+    ("pellier", "user_preferences_saved", "product_id"),
 }
 
 # Showcase productIds that the grid renders on the home page. Presence
@@ -296,7 +296,7 @@ def _preflight_database(conn) -> None:
         # EXISTS is idempotent, but we prefer to detect a permission issue
         # here (before the main transaction) so the error surface is clear.
         cur.execute(
-            "SELECT has_schema_privilege(current_user, 'blaize_bazaar', 'CREATE') "
+            "SELECT has_schema_privilege(current_user, 'pellier', 'CREATE') "
             "OR has_database_privilege(current_user, current_database(), 'CREATE') "
             "AS can_create"
         )
@@ -306,12 +306,12 @@ def _preflight_database(conn) -> None:
         # same expression. A FALSE result means we must bail.
         if row is None or row[0] is False:
             raise PreflightError(
-                "Current user lacks CREATE privilege for blaize_bazaar schema"
+                "Current user lacks CREATE privilege for pellier schema"
             )
 
 
 def _detect_foreign_keys(conn) -> list[dict]:
-    """Return FK constraints pointing at blaize_bazaar.product_catalog."""
+    """Return FK constraints pointing at pellier.product_catalog."""
     sql = """
         SELECT
             tc.table_schema, tc.table_name, tc.constraint_name,
@@ -326,7 +326,7 @@ def _detect_foreign_keys(conn) -> list[dict]:
         JOIN information_schema.constraint_column_usage ccu
             ON rc.unique_constraint_name = ccu.constraint_name
            AND rc.unique_constraint_schema = ccu.constraint_schema
-        WHERE ccu.table_schema = 'blaize_bazaar'
+        WHERE ccu.table_schema = 'pellier'
           AND ccu.table_name = 'product_catalog'
     """
     with conn.cursor() as cur:
@@ -387,15 +387,15 @@ def _advisory_lock(conn):
 # ---------------------------------------------------------------------------
 
 
-CREATE_SCHEMA_SQL = "CREATE SCHEMA IF NOT EXISTS blaize_bazaar"
+CREATE_SCHEMA_SQL = "CREATE SCHEMA IF NOT EXISTS pellier"
 
-DROP_TABLE_SQL = "DROP TABLE IF EXISTS blaize_bazaar.product_catalog CASCADE"
+DROP_TABLE_SQL = "DROP TABLE IF EXISTS pellier.product_catalog CASCADE"
 
 # DROP ... CASCADE is deliberate: the workshop schema has cart_items,
 # wishlist, and user_preferences_saved FKs that we WANT to drop alongside.
 # The _detect_foreign_keys() call above surfaces exactly what will cascade.
 CREATE_TABLE_SQL = """
-CREATE TABLE blaize_bazaar.product_catalog (
+CREATE TABLE pellier.product_catalog (
     "productId" INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     brand TEXT NOT NULL,
@@ -422,9 +422,9 @@ CREATE TABLE blaize_bazaar.product_catalog (
 """
 
 TABLE_COMMENT_SQL = (
-    "COMMENT ON TABLE blaize_bazaar.product_catalog IS "
-    "'Blaize Bazaar boutique catalog - 92 products. "
-    "Loaded from data/blaize_catalog.csv via scripts/load_catalog.py.'"
+    "COMMENT ON TABLE pellier.product_catalog IS "
+    "'Pellier boutique catalog - 92 products. "
+    "Loaded from data/pellier_catalog.csv via scripts/load_catalog.py.'"
 )
 
 # HNSW parameters stated explicitly so attendees see they are tunable.
@@ -433,16 +433,16 @@ TABLE_COMMENT_SQL = (
 INDEX_SQL = {
     "idx_product_catalog_category":
         "CREATE INDEX idx_product_catalog_category "
-        "ON blaize_bazaar.product_catalog(category)",
+        "ON pellier.product_catalog(category)",
     "idx_product_catalog_tier":
         "CREATE INDEX idx_product_catalog_tier "
-        "ON blaize_bazaar.product_catalog(tier)",
+        "ON pellier.product_catalog(tier)",
     "idx_product_catalog_tags":
         "CREATE INDEX idx_product_catalog_tags "
-        "ON blaize_bazaar.product_catalog USING gin(tags)",
+        "ON pellier.product_catalog USING gin(tags)",
     "idx_product_catalog_embedding":
         "CREATE INDEX idx_product_catalog_embedding "
-        "ON blaize_bazaar.product_catalog "
+        "ON pellier.product_catalog "
         "USING hnsw (embedding vector_cosine_ops) "
         "WITH (m = 16, ef_construction = 64)",
 }
@@ -501,7 +501,7 @@ def _row_to_copy_tuple(row: dict) -> tuple:
 
 
 COPY_SQL = (
-    "COPY blaize_bazaar.product_catalog "
+    "COPY pellier.product_catalog "
     "(\"productId\", name, brand, color, price, description, category, tags, "
     "rating, reviews, \"imgUrl\", reasoning_lead, reasoning_body, "
     "reasoning_urgent, match_reason, badge, tier, image_verified, embedding) "
@@ -530,14 +530,14 @@ def _create_indexes(conn, timings: dict[str, float]) -> None:
 def _verify(conn) -> None:
     logger.info("Verification: running post-load checks")
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM blaize_bazaar.product_catalog")
+        cur.execute("SELECT COUNT(*) FROM pellier.product_catalog")
         count = cur.fetchone()[0]
         if count != EXPECTED_ROW_COUNT:
             raise VerificationError(f"row count {count} != {EXPECTED_ROW_COUNT}")
 
         cur.execute(
             'SELECT MIN("productId"), MAX("productId"), COUNT(DISTINCT "productId") '
-            "FROM blaize_bazaar.product_catalog"
+            "FROM pellier.product_catalog"
         )
         mn, mx, distinct = cur.fetchone()
         if (mn, mx, distinct) != (1, EXPECTED_ROW_COUNT, EXPECTED_ROW_COUNT):
@@ -545,17 +545,17 @@ def _verify(conn) -> None:
                 f"productId integrity: min={mn} max={mx} distinct={distinct}"
             )
 
-        cur.execute("SELECT COUNT(*) FROM blaize_bazaar.product_catalog WHERE embedding IS NULL")
+        cur.execute("SELECT COUNT(*) FROM pellier.product_catalog WHERE embedding IS NULL")
         if cur.fetchone()[0] != 0:
             raise VerificationError("some rows have NULL embedding")
 
-        cur.execute("SELECT DISTINCT vector_dims(embedding) FROM blaize_bazaar.product_catalog")
+        cur.execute("SELECT DISTINCT vector_dims(embedding) FROM pellier.product_catalog")
         dims = [r[0] for r in cur.fetchall()]
         if dims != [EXPECTED_EMBEDDING_DIM]:
             raise VerificationError(f"embedding dims {dims} != [{EXPECTED_EMBEDDING_DIM}]")
 
         cur.execute(
-            "SELECT tier, COUNT(*) FROM blaize_bazaar.product_catalog "
+            "SELECT tier, COUNT(*) FROM pellier.product_catalog "
             "GROUP BY tier ORDER BY tier"
         )
         tier_counts = {int(r[0]): int(r[1]) for r in cur.fetchall()}
@@ -565,7 +565,7 @@ def _verify(conn) -> None:
             )
 
         cur.execute(
-            'SELECT "productId" FROM blaize_bazaar.product_catalog '
+            'SELECT "productId" FROM pellier.product_catalog '
             'WHERE "productId" = ANY(%s) ORDER BY "productId"',
             (list(SHOWCASE_SMOKE_IDS),),
         )
@@ -577,7 +577,7 @@ def _verify(conn) -> None:
 
         cur.execute(
             "SELECT indexname FROM pg_indexes "
-            "WHERE schemaname = 'blaize_bazaar' AND tablename = 'product_catalog' "
+            "WHERE schemaname = 'pellier' AND tablename = 'product_catalog' "
             "ORDER BY indexname"
         )
         idx = {r[0] for r in cur.fetchall()}
@@ -811,7 +811,7 @@ def _configure_iterative_scan_separate_conn(url: str) -> str:
 
 def _confirm_interactive(db_display: str, csv_path: Path, row_count: int) -> bool:
     prompt = (
-        "\nThis will DROP and RECREATE blaize_bazaar.product_catalog (all data lost).\n"
+        "\nThis will DROP and RECREATE pellier.product_catalog (all data lost).\n"
         f"Database: {db_display}\n"
         f"CSV: {csv_path} ({row_count} rows)\n"
         "Continue? [y/N]: "

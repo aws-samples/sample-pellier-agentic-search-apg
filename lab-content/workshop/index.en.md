@@ -1,11 +1,11 @@
 ---
-title: Blaize Bazaar — Agentic Composition Workshop
+title: Pellier — Agentic Composition Workshop
 weight: 0
 ---
 
 **Level 400 · 120 minutes · re:Invent 2026**
 
-Welcome. For the next two hours you'll build inside a working agentic system — not a toy, not a sandbox. Blaize Bazaar is a real boutique with a real catalog, a real agent stack, and a real operator-facing Atelier where every decision the system makes is visible. You'll leave having closed a specific gap in Marco's shopping journey, and you'll see the architectural reasoning behind model selection, skill loading, memory, and guardrails light up in the panels as you work.
+Welcome. For the next two hours you'll build inside a working agentic system — not a toy, not a sandbox. Pellier is a real boutique with a real catalog, a real agent stack, and a real operator-facing Atelier where every decision the system makes is visible. You'll leave having closed a specific gap in Marco's shopping journey, and you'll see the architectural reasoning behind model selection, skill loading, memory, and guardrails light up in the panels as you work.
 
 ## What you'll build
 
@@ -21,7 +21,7 @@ Two agents, five tools, and a capstone where Marco's full shopping journey ends 
 
 See the Marco arc overview at [`../shared/marco-arc-overview.en.md`](../shared/marco-arc-overview.en.md).
 
-Marco shops Blaize Bazaar. Asks four questions. Three land; the fourth — a warehouse-stock question — gets a voice-matched non-answer because Stock Keeper ships in stub state. **That's the build.** After participants wire the agent + tools, Marco's same question returns a real Brooklyn warehouse answer with count and ship ETA. The workshop narrates itself through Marco's pill clicks.
+Marco shops Pellier. Asks four questions. Three land; the fourth — a warehouse-stock question — gets a voice-matched non-answer because Stock Keeper ships in stub state. **That's the build.** After participants wire the agent + tools, Marco's same question returns a real Brooklyn warehouse answer with count and ship ETA. The workshop narrates itself through Marco's pill clicks.
 
 ## The three modules
 
@@ -48,7 +48,7 @@ Every challenge has a ⏩ **Short on time?** block with a one-line `cp` command 
 
 ```bash
 cp solutions/module2/agents/inventory_agent.py \
-   blaize-bazaar/backend/agents/inventory_agent.py
+   pellier/backend/agents/inventory_agent.py
 ```
 
 The solution file is a plain copy of working code. No merge logic, no variant. Run the `cp`, save, move on. The goal is to get everyone to the capstone — not to pass every sub-challenge manually.

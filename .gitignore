@@ -81,5 +81,5 @@ archive/
 reference/
 
 # Playwright artifacts
-blaize-bazaar/frontend/playwright-report/
-blaize-bazaar/frontend/test-results/
+pellier/frontend/playwright-report/
+pellier/frontend/test-results/

@@ -6,7 +6,7 @@
 
 ## Who is Marco?
 
-Marco is the protagonist of the Blaize Bazaar workshop. He's a returning customer — natural fabrics, linen, travel-ready, warm tones. His signals are clear and the system remembers him. Anna and Theo appear in the Sessions list as evidence of range, but they don't drive instructional checkpoints. **Marco is the only protagonist in both delivery formats.**
+Marco is the protagonist of the Pellier workshop. He's a returning customer — natural fabrics, linen, travel-ready, warm tones. His signals are clear and the system remembers him. Anna and Theo appear in the Sessions list as evidence of range, but they don't drive instructional checkpoints. **Marco is the only protagonist in both delivery formats.**
 
 ## The 5-minute opening demo
 

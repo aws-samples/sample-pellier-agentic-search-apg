@@ -10,7 +10,7 @@ log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ERROR:${NC} $1"; exit 1; }
 
-log "==================== Blaize Bazaar Database Setup ===================="
+log "==================== Pellier Database Setup ===================="
 
 # Find project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,7 +19,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Find CSV file
 CSV_FILE=""
 for path in "$PROJECT_ROOT/data/product-catalog-cohere-v4.csv" \
-            "/workshop/sample-blaize-bazaar-agentic-search-apg/data/product-catalog-cohere-v4.csv"; do
+            "/workshop/sample-pellier-agentic-search-apg/data/product-catalog-cohere-v4.csv"; do
     if [ -f "$path" ]; then
         CSV_FILE="$path"
         break
@@ -50,7 +50,7 @@ fi
 log "Using CSV: $CSV_FILE"
 
 # Load environment
-for env_path in "$PROJECT_ROOT/.env" "/workshop/sample-blaize-bazaar-agentic-search-apg/.env"; do
+for env_path in "$PROJECT_ROOT/.env" "/workshop/sample-pellier-agentic-search-apg/.env"; do
     if [ -f "$env_path" ]; then
         source "$env_path"
         break
@@ -70,11 +70,11 @@ PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB
 
 -- Create extension and schema
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE SCHEMA IF NOT EXISTS blaize_bazaar;
-DROP TABLE IF EXISTS blaize_bazaar.product_catalog CASCADE;
+CREATE SCHEMA IF NOT EXISTS pellier;
+DROP TABLE IF EXISTS pellier.product_catalog CASCADE;
 
 -- Create optimized table
-CREATE TABLE blaize_bazaar.product_catalog (
+CREATE TABLE pellier.product_catalog (
     "productId" CHAR(10) PRIMARY KEY,
     product_description VARCHAR(500) NOT NULL,
     "imgUrl" VARCHAR(200),
@@ -112,7 +112,7 @@ CREATE TEMP TABLE temp_products (
 \copy temp_products FROM '$CSV_FILE' WITH (FORMAT csv, HEADER true);
 
 -- Copy from temp to final table with column name mapping
-INSERT INTO blaize_bazaar.product_catalog
+INSERT INTO pellier.product_catalog
     ("productId", product_description, "imgUrl", "productURL", stars, reviews,
      price, category_id, "isBestSeller", "boughtInLastMonth", category_name, quantity, embedding)
 SELECT
@@ -126,35 +126,35 @@ DROP TABLE temp_products;
 
 -- Vector similarity index (HNSW)
 CREATE INDEX idx_product_embedding_hnsw
-ON blaize_bazaar.product_catalog
+ON pellier.product_catalog
 USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 128);
 
 -- Full-text search index
 CREATE INDEX idx_product_fts
-ON blaize_bazaar.product_catalog
+ON pellier.product_catalog
 USING GIN (to_tsvector('english', product_description));
 
 -- Category index
 CREATE INDEX idx_product_category_name
-ON blaize_bazaar.product_catalog(category_name);
+ON pellier.product_catalog(category_name);
 
 -- Price index (partial - only valid prices)
 CREATE INDEX idx_product_price
-ON blaize_bazaar.product_catalog(price) WHERE price > 0;
+ON pellier.product_catalog(price) WHERE price > 0;
 
 -- Stars index (partial - highly rated)
 CREATE INDEX idx_product_stars
-ON blaize_bazaar.product_catalog(stars) WHERE stars >= 4.0;
+ON pellier.product_catalog(stars) WHERE stars >= 4.0;
 
 -- Composite index for common queries
 CREATE INDEX idx_product_category_price
-ON blaize_bazaar.product_catalog(category_name, price)
+ON pellier.product_catalog(category_name, price)
 WHERE price > 0 AND quantity > 0;
 
 -- Bestseller index (partial)
 CREATE INDEX idx_product_bestseller
-ON blaize_bazaar.product_catalog("isBestSeller")
+ON pellier.product_catalog("isBestSeller")
 WHERE "isBestSeller" = TRUE;
 
 -- ======================================================================
@@ -172,7 +172,7 @@ WITH ranked AS (
     SELECT "productId",
         ROW_NUMBER() OVER (ORDER BY md5("productId")) AS rn,
         COUNT(*) OVER () AS total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
             'PLAPT0001', 'PLAPT0016', 'PLAPT0007', 'PLAPT0026', 'PLAPT0033',
             'PLAPT0010', 'PSMRT0001', 'PSMRT0009', 'PSMRT0039', 'PMOBI0002',
@@ -185,7 +185,7 @@ WITH ranked AS (
             'PBEAU0043', 'PKITC0043', 'PSKCA0043'
         )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET stars = CASE
         WHEN r.rn <= r.total * 0.03 THEN ROUND(2.0 + (random() * 0.9)::numeric, 1)
         WHEN r.rn <= r.total * 0.10 THEN ROUND(3.0 + (random() * 0.4)::numeric, 1)
@@ -203,14 +203,14 @@ WITH ranked AS (
     SELECT "productId",
         ROW_NUMBER() OVER (ORDER BY md5("productId" || 'inv')) AS rn,
         COUNT(*) OVER () AS total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
             'PMOBI0043', 'PMOBI0044', 'PMOBI0045', 'PMOBI0046', 'PMOBI0047',
             'PMOBI0048', 'PSPRT0043', 'PSPRT0044', 'PSPRT0045', 'PSPRT0046',
             'PBEAU0043', 'PKITC0043', 'PSKCA0043', 'PSUNG0007'
         )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET quantity = CASE
         WHEN r.rn <= r.total * 0.06 THEN 0
         WHEN r.rn <= r.total * 0.14 THEN 1 + (random() * 4)::int
@@ -222,18 +222,18 @@ FROM ranked r
 WHERE pc."productId" = r."productId";
 
 -- Analyze for query planner (after all adjustments)
-VACUUM ANALYZE blaize_bazaar.product_catalog;
+VACUUM ANALYZE pellier.product_catalog;
 
 \echo 'Creating return policies table...'
 -- Return policies (queried by customer support agent)
-CREATE TABLE IF NOT EXISTS blaize_bazaar.return_policies (
+CREATE TABLE IF NOT EXISTS pellier.return_policies (
     category_name VARCHAR(50) PRIMARY KEY,
     return_window_days INTEGER NOT NULL,
     conditions TEXT NOT NULL,
     refund_method TEXT NOT NULL
 );
 
-INSERT INTO blaize_bazaar.return_policies (category_name, return_window_days, conditions, refund_method) VALUES
+INSERT INTO pellier.return_policies (category_name, return_window_days, conditions, refund_method) VALUES
     ('Beauty',              30, 'Unopened and sealed in original packaging', 'Original payment method or store credit within 5-7 business days'),
     ('Fragrances',          30, 'Unopened and sealed in original packaging', 'Original payment method or store credit within 5-7 business days'),
     ('Furniture',           14, 'Unassembled or in original condition, original packaging required', 'Original payment method within 10-14 business days'),
@@ -261,7 +261,7 @@ INSERT INTO blaize_bazaar.return_policies (category_name, return_window_days, co
     ('default',             30, 'Item must be in original condition with packaging', 'Original payment method or store credit within 5-10 business days')
 ON CONFLICT (category_name) DO NOTHING;
 
-GRANT SELECT ON blaize_bazaar.return_policies TO postgres;
+GRANT SELECT ON pellier.return_policies TO postgres;
 
 -- Session management is handled by AgentCore Memory (STM) — no Aurora session tables needed.
 
@@ -273,9 +273,9 @@ GRANT SELECT ON blaize_bazaar.return_policies TO postgres;
 \echo '=========================================='
 \echo 'Product count and category breakdown'
 \echo '=========================================='
-SELECT COUNT(*) as product_count FROM blaize_bazaar.product_catalog;
+SELECT COUNT(*) as product_count FROM pellier.product_catalog;
 SELECT category_name, COUNT(*) AS product_count
-FROM blaize_bazaar.product_catalog
+FROM pellier.product_catalog
 GROUP BY category_name
 ORDER BY category_name;
 
@@ -301,7 +301,7 @@ SELECT "productId", quantity,
         WHEN "productId" = 'PSKCA0043' AND quantity = 423 THEN 'PASS'
         ELSE 'FAIL'
     END AS status
-FROM blaize_bazaar.product_catalog
+FROM pellier.product_catalog
 WHERE "productId" IN (
         'PSUNG0007', 'PMOBI0043', 'PMOBI0044', 'PMOBI0045', 'PMOBI0046',
         'PMOBI0047', 'PMOBI0048', 'PSPRT0043', 'PSPRT0044', 'PSPRT0045',
@@ -319,7 +319,7 @@ SELECT COUNT(*) AS total_products,
     COUNT(*) FILTER (WHERE stars >= 3.5 AND stars < 4.0) AS "3.5-3.9",
     COUNT(*) FILTER (WHERE stars >= 4.0 AND stars < 4.5) AS "4.0-4.4",
     COUNT(*) FILTER (WHERE stars >= 4.5) AS "4.5-5.0"
-FROM blaize_bazaar.product_catalog;
+FROM pellier.product_catalog;
 
 \echo ''
 \echo '=========================================='
@@ -331,7 +331,7 @@ SELECT COUNT(*) AS total_products,
     COUNT(*) FILTER (WHERE quantity BETWEEN 6 AND 15) AS low,
     COUNT(*) FILTER (WHERE quantity BETWEEN 16 AND 100) AS healthy,
     COUNT(*) FILTER (WHERE quantity > 100) AS well_stocked
-FROM blaize_bazaar.product_catalog;
+FROM pellier.product_catalog;
 
 \echo ''
 \echo 'Validation complete.'

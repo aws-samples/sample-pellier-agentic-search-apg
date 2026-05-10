@@ -1,6 +1,6 @@
 # E2E workflow: Playwright against a dedicated Cognito dev pool.
 #
-# Design contract: .kiro/specs/blaize-bazaar-storefront/design.md — Testing
+# Design contract: .kiro/specs/pellier-storefront/design.md — Testing
 # Strategy, "E2E (Playwright against a dedicated Cognito dev pool)".
 #
 # The dev pool is separate from the workshop infrastructure and is
@@ -75,11 +75,11 @@ jobs:
           node-version: "20"
 
       - name: Install frontend deps
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npx playwright install --with-deps chromium
 
       # Bootstrap BEFORE starting the app so that any AWS error fails fast
@@ -88,7 +88,7 @@ jobs:
         run: python tests/e2e/bootstrap_cognito_dev_pool.py
 
       - name: Start backend
-        working-directory: blaize-bazaar/backend
+        working-directory: pellier/backend
         run: |
           pip install -r requirements.txt
           nohup uvicorn app:app --host 0.0.0.0 --port 8000 >/tmp/backend.log 2>&1 &
@@ -102,7 +102,7 @@ jobs:
           exit 1
 
       - name: Start frontend
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: |
           nohup npm run dev -- --host 0.0.0.0 --port 5173 >/tmp/frontend.log 2>&1 &
           for i in $(seq 1 60); do
@@ -114,7 +114,7 @@ jobs:
           exit 1
 
       - name: Run Playwright
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         # All four E2E specs per Task 7.3. The three specs beyond the
         # happy path are scaffolding - they skip when env vars are not
         # set (e.g. during a local dry-run) and run green against the
@@ -137,5 +137,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: blaize-bazaar/frontend/playwright-report
+          path: pellier/frontend/playwright-report
           if-no-files-found: ignore

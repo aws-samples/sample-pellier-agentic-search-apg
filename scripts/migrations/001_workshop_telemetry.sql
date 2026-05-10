@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS customers (
 
 -- -- orders -------------------------------------------------------------
 -- Demo order log. product_id is CHAR(10) to match
--- blaize_bazaar.product_catalog."productId" (CHAR(10) PK). INT would
+-- pellier.product_catalog."productId" (CHAR(10) PK). INT would
 -- have been the first instinct but the live catalog key space uses
 -- category-prefixed 10-char ids like 'PSPRT0044' — CHAR(10) is the
 -- source of truth per catalog-legacy-backup-20260419.sql:28.
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id           BIGSERIAL PRIMARY KEY,
     customer_id  TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     product_id   CHAR(10) NOT NULL
-                 REFERENCES blaize_bazaar.product_catalog("productId")
+                 REFERENCES pellier.product_catalog("productId")
                  ON DELETE CASCADE,
     quantity     INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
     placed_at    TIMESTAMPTZ NOT NULL DEFAULT now()

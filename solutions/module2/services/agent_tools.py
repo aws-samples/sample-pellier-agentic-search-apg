@@ -77,7 +77,7 @@ def get_trending_products(limit: int = 5, category: str = None) -> str:
         JSON string with trending products
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools.py blaize-bazaar/backend/services/agent_tools.py
+       cp solutions/module2/services/agent_tools.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE 2: START ===
     if not _db_service:
@@ -305,7 +305,7 @@ def compare_products(product_id_1: str, product_id_2: str) -> str:
         query = """
             SELECT "productId", product_description, price, stars, reviews,
                    category_name, quantity, "imgUrl", "productURL"
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE "productId" = %s
         """
         p1 = _run_async(_db_service.fetch_one(query, product_id_1))
@@ -351,7 +351,7 @@ def compare_products(product_id_1: str, product_id_2: str) -> str:
 # === END WIRE IT LIVE ===
 
 
-# === RETURN POLICY TOOL (backed by blaize_bazaar.return_policies table) ===
+# === RETURN POLICY TOOL (backed by pellier.return_policies table) ===
 
 @tool
 def get_return_policy(category: str = "default") -> str:
@@ -369,7 +369,7 @@ def get_return_policy(category: str = "default") -> str:
     try:
         query = """
             SELECT category_name, return_window_days, conditions, refund_method
-            FROM blaize_bazaar.return_policies
+            FROM pellier.return_policies
             WHERE category_name = %s
         """
         row = _run_async(_db_service.fetch_one(query, category))

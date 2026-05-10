@@ -1,12 +1,12 @@
 """
-AgentCore Runtime Adapter — Production entrypoint for Blaize Bazaar orchestrator.
+AgentCore Runtime Adapter — Production entrypoint for Pellier orchestrator.
 
 Runs inside an AgentCore Lambda microVM. Discovers tools via MCP Gateway
 and routes queries through the orchestrator agent.
 
 Deploy with:
-    agentcore configure --name blaize_orchestrator ...
-    agentcore launch --agent blaize_orchestrator ...
+    agentcore configure --name pellier_orchestrator ...
+    agentcore launch --agent pellier_orchestrator ...
 """
 import json
 import logging
@@ -26,7 +26,7 @@ try:
     GATEWAY_URL = os.environ.get("MCP_GATEWAY_URL", "")
     MODEL_ID = os.environ.get("AGENT_MODEL_ID", "global.anthropic.claude-opus-4-7")
 
-    ORCHESTRATOR_PROMPT = """You are the Blaize Bazaar shopping assistant deployed on AgentCore.
+    ORCHESTRATOR_PROMPT = """You are the Pellier shopping assistant deployed on AgentCore.
 
 You have access to tools discovered via MCP Gateway:
 - Search tools: semantic_search, inventory_health, low_stock, restock_product
@@ -64,7 +64,7 @@ RULES:
         agent.trace_attributes = {
             "session.id": session_id,
             "runtime": "agentcore-lambda",
-            "workshop": "blaize-bazaar",
+            "workshop": "pellier",
         }
 
         response = agent(prompt)

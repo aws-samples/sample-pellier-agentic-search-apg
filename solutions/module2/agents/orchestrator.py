@@ -19,7 +19,7 @@ from storefront_copy import ORCHESTRATOR_SYSTEM_PROMPT
 # by the system prompt in storefront_copy.ORCHESTRATOR_SYSTEM_PROMPT.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module2/agents/orchestrator.py blaize-bazaar/backend/agents/orchestrator.py
+#    cp solutions/module2/agents/orchestrator.py pellier/backend/agents/orchestrator.py
 
 ORCHESTRATOR_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT
 

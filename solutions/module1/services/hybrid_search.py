@@ -67,7 +67,7 @@ class HybridSearchService:
             List of product dicts with similarity scores.
 
         ⏩ SHORT ON TIME? Run:
-           cp solutions/module1/services/hybrid_search.py blaize-bazaar/backend/services/hybrid_search.py
+           cp solutions/module1/services/hybrid_search.py pellier/backend/services/hybrid_search.py
         """
         # === CHALLENGE 1: START ===
         sql = """
@@ -88,7 +88,7 @@ class HybridSearchService:
                 badge,
                 tags,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
-            FROM blaize_bazaar.product_catalog
+            FROM pellier.product_catalog
             WHERE "imgUrl" IS NOT NULL
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s

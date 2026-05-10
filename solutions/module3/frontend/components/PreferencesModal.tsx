@@ -2,10 +2,10 @@
  * PreferencesModal - Challenge 9.4b solution drop-in.
  *
  * This file mirrors the code inside the `// === CHALLENGE 9.4: START/END ===`
- * block in `blaize-bazaar/frontend/src/components/PreferencesModal.tsx`
+ * block in `pellier/frontend/src/components/PreferencesModal.tsx`
  * byte-for-byte so a participant can `cp
  * solutions/module3/frontend/components/PreferencesModal.tsx
- * blaize-bazaar/frontend/src/components/PreferencesModal.tsx` and restart the
+ * pellier/frontend/src/components/PreferencesModal.tsx` and restart the
  * frontend to complete the challenge. The surrounding module docblock and
  * imports in the live file are kept here so the file type-checks as a
  * standalone module.

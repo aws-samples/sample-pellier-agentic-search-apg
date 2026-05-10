@@ -21,13 +21,13 @@ Midpoint checkpoint inside this slot.
 Marco asked about the Brooklyn warehouse. The Dispatcher matched stock intent, but Stock Keeper ships in stub state — voice-matched non-answer. You're authoring the agent that closes the gap.
 
 ### Where to look
-- File: `blaize-bazaar/backend/agents/inventory_agent.py`
+- File: `pellier/backend/agents/inventory_agent.py`
 - Challenge block: line ~22 (`# === CHALLENGE · Stock Keeper · system prompt: START ===`)
 
 ### What to implement
 Replace the placeholder `_INVENTORY_SYSTEM_PROMPT` with a real prompt that:
 
-1. Names the agent — **"You are Blaize Bazaar's Stock Keeper."**
+1. Names the agent — **"You are Pellier's Stock Keeper."**
 2. Lists the three tools and when to use each:
    - `floor_check` → overall stock + warehouse health
    - `running_low` → items needing restock, ranked by rating
@@ -42,12 +42,12 @@ Then flip `_INVENTORY_AGENT_STUBBED = False`.
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/agents/inventory_agent.py \
-   blaize-bazaar/backend/agents/inventory_agent.py
+   pellier/backend/agents/inventory_agent.py
 ```
 
 ### Verify locally
 ```bash
-cd blaize-bazaar-workshop/blaize-bazaar/backend
+cd pellier-workshop/pellier/backend
 pytest tests/test_inventory_agent.py -v
 ```
 Green? On to C2.
@@ -60,7 +60,7 @@ Green? On to C2.
 The tool Marco's Turn 4 needs. With it wired, clicking Marco's Turn 4 pill returns a real warehouse breakdown. Midpoint payoff.
 
 ### Where to look
-- File: `blaize-bazaar/backend/services/agent_tools.py`
+- File: `pellier/backend/services/agent_tools.py`
 - Challenge block: `# === CHALLENGE · Stock Keeper · floor_check: START ===` (≈ line 66)
 
 ### What to implement
@@ -76,7 +76,7 @@ Replace the stub body:
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/services/agent_tools__inventory.py \
-   blaize-bazaar/backend/services/agent_tools.py
+   pellier/backend/services/agent_tools.py
 ```
 
 ### Verify locally
@@ -128,7 +128,7 @@ That third call ran a single-transaction sequence:
 - Cedar policy `process-return-allowed-reasons` checked `reason ∈ {damaged, wrong_size, ...}` → **ALLOW**
 - SQL ownership gate: `SELECT 1 FROM orders WHERE customer_id='theo' AND product_id=37` → matched
 - `INSERT INTO returns (...)` → returned new `id=2`
-- `UPDATE blaize_bazaar.product_catalog SET quantity = GREATEST(quantity-1, 0) WHERE "productId"=37` (because reason='damaged')
+- `UPDATE pellier.product_catalog SET quantity = GREATEST(quantity-1, 0) WHERE "productId"=37` (because reason='damaged')
 
 Plus — fired by the policy hook, not the tool itself:
 - `INSERT INTO tool_audit (...)` in `BeforeToolCallEvent` (placeholder row)

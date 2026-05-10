@@ -34,7 +34,7 @@ If this system were yours tomorrow, here's the honest order:
 
 ## Resources
 
-- Source repository: `https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg`
+- Source repository: `https://github.com/aws-samples/sample-pellier-agentic-search-apg`
 - Strands Agents SDK: `https://strandsagents.com/latest/`
 - Bedrock AgentCore: `https://aws.amazon.com/bedrock/agentcore/`
 - pgvector 0.8.0 + Aurora: `https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.VectorDB.html`

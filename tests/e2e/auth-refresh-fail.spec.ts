@@ -2,7 +2,7 @@
  * E2E: refresh failure lands the user on `/signin` with all three
  * providers visible.
  *
- * Design contract: `.kiro/specs/blaize-bazaar-storefront/design.md` -
+ * Design contract: `.kiro/specs/pellier-storefront/design.md` -
  * Testing Strategy, "E2E (Playwright against a dedicated Cognito dev
  * pool)". Exercises Requirement 4.1 / 5.3 and Task 5.1's 401 interceptor
  * fallthrough:

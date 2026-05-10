@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Cohere Embed v4 embeddings for the boutique catalog.
 
-Reads ``data/blaize_catalog.csv``, generates a 1024-dim embedding per row
+Reads ``data/pellier_catalog.csv``, generates a 1024-dim embedding per row
 using ``us.cohere.embed-v4:0`` on Amazon Bedrock (``search_document``
 input type), and writes the same CSV in place with the ``embedding``
 column populated as a JSON array string.
@@ -61,8 +61,8 @@ from typing import List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DEFAULT_CSV = PROJECT_ROOT / "data" / "blaize_catalog.csv"
-CHECKPOINT_PATH = PROJECT_ROOT / "data" / ".blaize_catalog_embeddings.checkpoint"
+DEFAULT_CSV = PROJECT_ROOT / "data" / "pellier_catalog.csv"
+CHECKPOINT_PATH = PROJECT_ROOT / "data" / ".pellier_catalog_embeddings.checkpoint"
 
 SCRIPT_VERSION = "1.0.0"
 DEFAULT_MODEL = "us.cohere.embed-v4:0"

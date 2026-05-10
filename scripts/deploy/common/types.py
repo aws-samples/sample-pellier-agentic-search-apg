@@ -1,5 +1,5 @@
 """
-Shared types for Blaize Bazaar MCP servers.
+Shared types for Pellier MCP servers.
 Minimal version — deploy_lambda.py expects this file to exist.
 """
 from typing import Optional

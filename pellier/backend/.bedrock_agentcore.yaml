@@ -1,0 +1,18 @@
+# AgentCore Runtime deployment configuration (Lab 4e)
+# Used by `agentcore configure` and `agentcore launch`
+runtime:
+  name: pellier-agent
+  description: "Pellier shopping assistant agent"
+  entrypoint: agentcore_runtime.py
+  runtime_type: container
+  container:
+    dockerfile: Dockerfile.agentcore
+    build_context: .
+
+resources:
+  memory_mb: 1024
+  timeout_seconds: 60
+
+environment:
+  AWS_REGION: us-west-2
+  OTEL_SERVICE_NAME: pellier

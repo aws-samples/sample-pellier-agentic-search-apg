@@ -2,7 +2,7 @@
 inclusion: always
 ---
 
-# Blaize Bazaar — Tech Stack
+# Pellier — Tech Stack
 
 ## Backend
 
@@ -37,7 +37,7 @@ inclusion: always
 
 ## Build & Run
 
-- Backend: `cd blaize-bazaar/backend && uvicorn app:app --reload --host 0.0.0.0 --port 8000`
-- Frontend: `cd blaize-bazaar/frontend && npm run dev`
-- Solutions: `cp solutions/moduleN/path/file.py blaize-bazaar/backend/path/file.py`
+- Backend: `cd pellier/backend && uvicorn app:app --reload --host 0.0.0.0 --port 8000`
+- Frontend: `cd pellier/frontend && npm run dev`
+- Solutions: `cp solutions/moduleN/path/file.py pellier/backend/path/file.py`
 - Database seed: `bash scripts/seed-database.sh`

@@ -256,7 +256,7 @@ Build the Atelier Observatory — a read-only editorial-luxury AI observability 
 
 - [x] 13. Backend API endpoints and data wiring
   - [x] 13.1 Create backend atelier observatory router
-    - Create `blaize-bazaar/backend/routes/atelier_observatory.py` with FastAPI router mounted at `/api/atelier/`
+    - Create `pellier/backend/routes/atelier_observatory.py` with FastAPI router mounted at `/api/atelier/`
     - Implement `GET /api/atelier/sessions` — returns session list for persona (fixture data initially, DB query when available)
     - Implement `GET /api/atelier/sessions/{id}` — returns full session detail or 404
     - Implement `GET /api/atelier/agents` — returns 5 agents with status, tools, model config

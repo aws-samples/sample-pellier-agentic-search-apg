@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bootstrap a single E2E test user in a dedicated Cognito dev pool.
 
-Design: ``.kiro/specs/blaize-bazaar-storefront/design.md`` — Testing Strategy,
+Design: ``.kiro/specs/pellier-storefront/design.md`` — Testing Strategy,
 "E2E (Playwright against a dedicated Cognito dev pool)".
 
 This script is CI-only. It uses a CI-scoped admin role (via ambient AWS

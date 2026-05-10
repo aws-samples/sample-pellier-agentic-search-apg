@@ -77,13 +77,13 @@ print(f'Target: {CLUSTER_ARN}')
 # Step 1: Create extension and schema
 print('\n[1/7] Creating extension and schema...')
 run_sql('CREATE EXTENSION IF NOT EXISTS vector')
-run_sql('CREATE SCHEMA IF NOT EXISTS blaize_bazaar')
-run_sql('DROP TABLE IF EXISTS blaize_bazaar.product_catalog CASCADE')
+run_sql('CREATE SCHEMA IF NOT EXISTS pellier')
+run_sql('DROP TABLE IF EXISTS pellier.product_catalog CASCADE')
 
 # Step 2: Create table
 print('[2/7] Creating product_catalog table...')
 run_sql("""
-CREATE TABLE blaize_bazaar.product_catalog (
+CREATE TABLE pellier.product_catalog (
     "productId" CHAR(10) PRIMARY KEY,
     product_description VARCHAR(500) NOT NULL,
     "imgUrl" VARCHAR(200),
@@ -112,7 +112,7 @@ print(f'  Read {len(rows)} rows from CSV')
 # Each row with embedding is large, so use small batches
 BATCH_SIZE = 5
 insert_sql = """
-INSERT INTO blaize_bazaar.product_catalog
+INSERT INTO pellier.product_catalog
     ("productId", product_description, "imgUrl", "productURL", stars, reviews,
      price, category_id, "isBestSeller", "boughtInLastMonth", category_name, quantity, embedding)
 VALUES (:pid, :desc, :img, :url, :stars::numeric, :reviews::integer,
@@ -164,7 +164,7 @@ for i in range(0, len(rows), BATCH_SIZE):
 print('[4/7] Creating indexes...')
 run_sql("""
 CREATE INDEX idx_product_embedding_hnsw
-ON blaize_bazaar.product_catalog
+ON pellier.product_catalog
 USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 128)
 """)
@@ -172,34 +172,34 @@ print('  HNSW index created')
 
 run_sql("""
 CREATE INDEX idx_product_fts
-ON blaize_bazaar.product_catalog
+ON pellier.product_catalog
 USING GIN (to_tsvector('english', product_description))
 """)
 
 run_sql("""
 CREATE INDEX idx_product_category_name
-ON blaize_bazaar.product_catalog(category_name)
+ON pellier.product_catalog(category_name)
 """)
 
 run_sql("""
 CREATE INDEX idx_product_price
-ON blaize_bazaar.product_catalog(price) WHERE price > 0
+ON pellier.product_catalog(price) WHERE price > 0
 """)
 
 run_sql("""
 CREATE INDEX idx_product_stars
-ON blaize_bazaar.product_catalog(stars) WHERE stars >= 4.0
+ON pellier.product_catalog(stars) WHERE stars >= 4.0
 """)
 
 run_sql("""
 CREATE INDEX idx_product_category_price
-ON blaize_bazaar.product_catalog(category_name, price)
+ON pellier.product_catalog(category_name, price)
 WHERE price > 0 AND quantity > 0
 """)
 
 run_sql("""
 CREATE INDEX idx_product_bestseller
-ON blaize_bazaar.product_catalog("isBestSeller")
+ON pellier.product_catalog("isBestSeller")
 WHERE "isBestSeller" = TRUE
 """)
 print('  All indexes created')
@@ -213,7 +213,7 @@ WITH ranked AS (
     SELECT "productId",
         ROW_NUMBER() OVER (ORDER BY md5("productId")) AS rn,
         COUNT(*) OVER () AS total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
         'PLAPT0001','PLAPT0016','PLAPT0007','PLAPT0026','PLAPT0033','PLAPT0010',
         'PSMRT0001','PSMRT0009','PSMRT0039','PMOBI0002','PMOBI0004',
@@ -226,7 +226,7 @@ WITH ranked AS (
         'PBEAU0043','PKITC0043','PSKCA0043'
     )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET stars = CASE
     WHEN r.rn <= r.total * 0.03 THEN ROUND(2.0 + (random() * 0.9)::numeric, 1)
     WHEN r.rn <= r.total * 0.10 THEN ROUND(3.0 + (random() * 0.4)::numeric, 1)
@@ -245,14 +245,14 @@ WITH ranked AS (
     SELECT "productId",
         ROW_NUMBER() OVER (ORDER BY md5("productId" || 'inv')) AS rn,
         COUNT(*) OVER () AS total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
         'PMOBI0043','PMOBI0044','PMOBI0045','PMOBI0046','PMOBI0047','PMOBI0048',
         'PSPRT0043','PSPRT0044','PSPRT0045','PSPRT0046',
         'PBEAU0043','PKITC0043','PSKCA0043','PSUNG0007'
     )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET quantity = CASE
     WHEN r.rn <= r.total * 0.06 THEN 0
     WHEN r.rn <= r.total * 0.14 THEN 1 + (random() * 4)::int
@@ -271,13 +271,13 @@ print('[6/7] Running VACUUM ANALYZE...')
 # (Data API runs each statement in an auto-commit transaction, but VACUUM
 #  may still fail). We'll try it.
 try:
-    run_sql('VACUUM ANALYZE blaize_bazaar.product_catalog')
+    run_sql('VACUUM ANALYZE pellier.product_catalog')
     print('  VACUUM ANALYZE complete')
 except Exception as e:
     print(f'  VACUUM ANALYZE skipped ({e})')
     # Run ANALYZE at least
     try:
-        run_sql('ANALYZE blaize_bazaar.product_catalog')
+        run_sql('ANALYZE pellier.product_catalog')
         print('  ANALYZE complete')
     except Exception:
         pass
@@ -286,7 +286,7 @@ except Exception as e:
 print('[7/7] Session management → AgentCore Memory (no Aurora tables)')
 
 # Verify
-result = run_sql('SELECT COUNT(*) as cnt FROM blaize_bazaar.product_catalog')
+result = run_sql('SELECT COUNT(*) as cnt FROM pellier.product_catalog')
 count = result['records'][0][0]['longValue']
 print(f'\nVerification: {count} products loaded')
 

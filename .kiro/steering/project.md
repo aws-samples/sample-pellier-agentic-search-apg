@@ -2,11 +2,11 @@
 inclusion: always
 ---
 
-# Blaize Bazaar — Project Context
+# Pellier — Project Context
 
 ## What This Is
 
-Blaize Bazaar is a hands-on workshop application that teaches developers how to build agentic AI-powered search using Amazon Aurora PostgreSQL, pgvector, Amazon Bedrock, Strands SDK, and Amazon Bedrock AgentCore. It's a real e-commerce storefront (React + FastAPI) where participants progressively build features by editing the actual application code.
+Pellier is a hands-on workshop application that teaches developers how to build agentic AI-powered search using Amazon Aurora PostgreSQL, pgvector, Amazon Bedrock, Strands SDK, and Amazon Bedrock AgentCore. It's a real e-commerce storefront (React + FastAPI) where participants progressively build features by editing the actual application code.
 
 ## Two Delivery Formats
 
@@ -34,8 +34,8 @@ Three modules, nine challenges total. Infrastructure-out ordering in Module 3.
 
 ## Key Directories
 
-- `blaize-bazaar/backend/` — FastAPI Python backend with Strands SDK agents
-- `blaize-bazaar/frontend/` — React + Vite + Tailwind storefront
+- `pellier/backend/` — FastAPI Python backend with Strands SDK agents
+- `pellier/frontend/` — React + Vite + Tailwind storefront
 - `solutions/` — Drop-in solution files for each module (cp and restart)
   - `solutions/module1/`, `solutions/module2/`, `solutions/module3/` only (no module4/5)
 - `scripts/` — Bootstrap and seed scripts for the workshop environment
@@ -48,7 +48,7 @@ Three modules, nine challenges total. Infrastructure-out ordering in Module 3.
 ## Database
 
 - Amazon Aurora PostgreSQL (latest available at workshop time; currently 17.7) Serverless v2 (0–16 ACU, scale-to-zero)
-- Schema: `blaize_bazaar` (product_catalog, return_policies)
+- Schema: `pellier` (product_catalog, return_policies)
 - pgvector 0.8.0 with HNSW indexes for 1024-dim Cohere Embed v4 vectors
 - ~444 products with pre-generated embeddings
 - Session management: AgentCore Memory (STM) via `agentcore_memory.py`

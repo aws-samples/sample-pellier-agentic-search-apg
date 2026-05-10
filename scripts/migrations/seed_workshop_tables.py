@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS tools_emb_hnsw_idx
     WITH (m = 16, ef_construction = 64);
 
 -- return policies table
-CREATE TABLE IF NOT EXISTS blaize_bazaar.return_policies (
+CREATE TABLE IF NOT EXISTS pellier.return_policies (
     category_name VARCHAR(50) PRIMARY KEY,
     return_window_days INTEGER NOT NULL,
     conditions TEXT,
@@ -233,7 +233,7 @@ def run(conn_string: str) -> None:
             log.info("Seeding %d return policies...", len(RETURN_POLICIES))
             for cat, days, cond, refund in RETURN_POLICIES:
                 cur.execute(
-                    """INSERT INTO blaize_bazaar.return_policies (category_name, return_window_days, conditions, refund_method)
+                    """INSERT INTO pellier.return_policies (category_name, return_window_days, conditions, refund_method)
                        VALUES (%s, %s, %s, %s)
                        ON CONFLICT (category_name) DO UPDATE
                          SET return_window_days = EXCLUDED.return_window_days,
@@ -264,7 +264,7 @@ def run(conn_string: str) -> None:
             log.info("  orders: %d", cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM customer_episodic_seed")
             log.info("  episodic seeds: %d", cur.fetchone()[0])
-            cur.execute("SELECT COUNT(*) FROM blaize_bazaar.return_policies")
+            cur.execute("SELECT COUNT(*) FROM pellier.return_policies")
             log.info("  return policies: %d", cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM tools")
             log.info("  tools: %d", cur.fetchone()[0])

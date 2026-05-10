@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Blaize Bazaar e-commerce demo application requires a comprehensive catalog overhaul to transition from a uniform, over-populated product catalog (1,008 products, 24 categories, 42 each, uniform quality) to a curated, query-backward-designed catalog (~446 products, variable per category, realistic distributions). The enrichment ensures every scripted demo query across 4 workshop modules returns 3–5 meaningful results, while introducing missing product categories (headphones, insulated drinkware, gift sets) and realistic quality/inventory distributions for teaching purposes.
+The Pellier e-commerce demo application requires a comprehensive catalog overhaul to transition from a uniform, over-populated product catalog (1,008 products, 24 categories, 42 each, uniform quality) to a curated, query-backward-designed catalog (~446 products, variable per category, realistic distributions). The enrichment ensures every scripted demo query across 4 workshop modules returns 3–5 meaningful results, while introducing missing product categories (headphones, insulated drinkware, gift sets) and realistic quality/inventory distributions for teaching purposes.
 
 ## Glossary
 

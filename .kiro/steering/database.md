@@ -7,15 +7,15 @@ fileMatchPattern: "**/*.sql,**/seed-database*,**/business_logic*,**/database*,**
 
 ## Connection
 
-- Cluster: `blaize-bazaar-cluster` (Aurora Serverless v2)
-- Secret: `blaize-bazaar-db-secret` in Secrets Manager
-- Schema: `blaize_bazaar` (product_catalog, return_policies)
+- Cluster: `pellier-cluster` (Aurora Serverless v2)
+- Secret: `pellier-db-secret` in Secrets Manager
+- Schema: `pellier` (product_catalog, return_policies)
 - Legacy schema: `bedrock_integration` (used by some existing queries)
 
 ## Tables
 
-- `blaize_bazaar.product_catalog` — ~1000 products with 1024-dim embeddings (Cohere Embed v4)
-- `blaize_bazaar.return_policies` — 21 rows (20 categories + default), seeded by bootstrap
+- `pellier.product_catalog` — ~1000 products with 1024-dim embeddings (Cohere Embed v4)
+- `pellier.return_policies` — 21 rows (20 categories + default), seeded by bootstrap
 
 ## pgvector
 

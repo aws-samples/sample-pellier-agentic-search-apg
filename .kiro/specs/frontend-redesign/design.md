@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design covers the complete frontend rebuild of Blaize Bazaar across five sequential phases. Each phase ships as its own PR with the application remaining fully functional at every checkpoint. The rebuild replaces every visible surface with a cinematic editorial luxury aesthetic while preserving the frozen backend, chat drawer behavior, three-pattern agent model, and persona system.
+This design covers the complete frontend rebuild of Pellier across five sequential phases. Each phase ships as its own PR with the application remaining fully functional at every checkpoint. The rebuild replaces every visible surface with a cinematic editorial luxury aesthetic while preserving the frozen backend, chat drawer behavior, three-pattern agent model, and persona system.
 
 The architecture follows a bottom-up strategy: Phase 1 lays the design token foundation and component primitives, Phases 2-3 rebuild the two primary surfaces (Boutique and Atelier), Phase 4 wires the reasoning timeline to live SSE telemetry, and Phase 5 adds mobile responsiveness.
 
@@ -279,7 +279,7 @@ interface AvatarProps {
 
 ### Boutique Components (Phase 2)
 
-**Rebuilt Header**: Centered "Blaize Bazaar" wordmark, five nav items (Home, Shop, Storyboard, Discover, Account), surface toggle, persona avatar dropdown (replacing PersonaPill + PersonaModal flow), bag icon with count badge. Sticky with `backdrop-filter: blur(12px)` and `-webkit-backdrop-filter` prefix.
+**Rebuilt Header**: Centered "Pellier" wordmark, five nav items (Home, Shop, Storyboard, Discover, Account), surface toggle, persona avatar dropdown (replacing PersonaPill + PersonaModal flow), bag icon with count badge. Sticky with `backdrop-filter: blur(12px)` and `-webkit-backdrop-filter` prefix.
 
 **Persona Avatar Dropdown**: Replaces the current PersonaPill + PersonaModal pattern. Click opens a dropdown (not a modal). Displays persona monogram when signed in, generic user icon when signed out. Calls the same `switchPersona` hook flow. Closes on outside click or Escape.
 

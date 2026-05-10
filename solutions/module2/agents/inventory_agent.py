@@ -20,7 +20,7 @@ from services.persona_context import inject_persona_preamble
 
 
 _INVENTORY_SYSTEM_PROMPT = (
-    "You are Blaize Bazaar's Inventory Specialist. "
+    "You are Pellier's Inventory Specialist. "
     "<tools>"
     "- floor_check: Use for overall stock statistics and warehouse health overview. "
     "- running_low: Use to find items that need restocking, prioritized by demand. "

@@ -27,12 +27,12 @@ for r in cur.fetchall():
 
 print("\n=== ROW COUNTS ===")
 tables = [
-    "blaize_bazaar.product_catalog",
-    "blaize_bazaar.conversations",
-    "blaize_bazaar.messages",
-    "blaize_bazaar.session_metadata",
-    "blaize_bazaar.tool_uses",
-    "blaize_bazaar.return_policies",
+    "pellier.product_catalog",
+    "pellier.conversations",
+    "pellier.messages",
+    "pellier.session_metadata",
+    "pellier.tool_uses",
+    "pellier.return_policies",
     "public.customers",
     "public.orders",
     "public.customer_episodic_seed",
@@ -49,7 +49,7 @@ for t in tables:
 print("\n=== PRODUCT CATALOG SCHEMA ===")
 cur.execute("""SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
-WHERE table_schema='blaize_bazaar' AND table_name='product_catalog'
+WHERE table_schema='pellier' AND table_name='product_catalog'
 ORDER BY ordinal_position""")
 for r in cur.fetchall():
     print(f"  {r[0]:30s} {r[1]:25s} nullable={r[2]}")
@@ -89,7 +89,7 @@ for r in cur.fetchall():
     print(f"  {r[0]} | {r[2]:4d}d | {r[1]}")
 
 print("\n=== RETURN POLICIES ===")
-cur.execute("SELECT category_name, return_window_days FROM blaize_bazaar.return_policies ORDER BY 1")
+cur.execute("SELECT category_name, return_window_days FROM pellier.return_policies ORDER BY 1")
 for r in cur.fetchall():
     print(f"  {r[0]:15s} {r[1]}d")
 

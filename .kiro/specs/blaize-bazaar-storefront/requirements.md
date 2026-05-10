@@ -1,8 +1,8 @@
-# Blaize Bazaar Storefront — Requirements
+# Pellier Storefront — Requirements
 
 ## Introduction
 
-This spec defines the full customer-facing Blaize Bazaar storefront and the workshop scaffolding that AWS re:Invent 2026 participants extend through nine progressive challenges. It covers the storefront UI, the FastAPI backend that powers it, the Cognito + AgentCore Identity authentication flow, the preference-based personalization engine, and the nine challenge scaffolds across three modules.
+This spec defines the full customer-facing Pellier storefront and the workshop scaffolding that AWS re:Invent 2026 participants extend through nine progressive challenges. It covers the storefront UI, the FastAPI backend that powers it, the Cognito + AgentCore Identity authentication flow, the preference-based personalization engine, and the nine challenge scaffolds across three modules.
 
 Repo-wide conventions live in `.kiro/steering/` and are authoritative:
 
@@ -17,7 +17,7 @@ This spec builds on them without restating them. Where conflicts exist between t
 
 ### Conflicts with source prompt (resolved)
 
-1. **Backend path prefix.** The source prompt references paths under `blaize-bazaar/backend/app/services/…` and `blaize-bazaar/backend/app/agents/…`. Steering (`coding-standards.md`, `project.md`) and the repo use `blaize-bazaar/backend/services/…` and `blaize-bazaar/backend/agents/…` with no `app/` layer. **Resolved:** this spec uses the steering/repo paths throughout.
+1. **Backend path prefix.** The source prompt references paths under `pellier/backend/app/services/…` and `pellier/backend/app/agents/…`. Steering (`coding-standards.md`, `project.md`) and the repo use `pellier/backend/services/…` and `pellier/backend/agents/…` with no `app/` layer. **Resolved:** this spec uses the steering/repo paths throughout.
 2. **Aurora version.** Earlier, `tech.md` pinned 17.5 while `project.md` said "currently 17.7". **Resolved:** `tech.md` has been updated to track "latest available at workshop time (currently 17.7)" and this spec does not pin a point release.
 
 No other steering conflicts surfaced.
@@ -52,7 +52,7 @@ Requirements below are grouped by audience where the distinction matters.
 - 1.1.1 WHEN the page loads THEN the browser SHALL display, in order: announcement bar, sticky header, hero stage, sign-in-strip-or-curated-banner, live status strip, category filter chips, product grid, refinement panel, Storyboard 3-card grid, 5-column footer, floating ⌘K pill.
 - 1.1.2 WHEN the announcement bar renders THEN it SHALL display the exact copy `Free shipping on orders over $150 · Returns within 30 days · Summer Edit No. 06 is now live` in 11px with `tracking-[0.12em]` on a dusk background.
 - 1.1.3 WHEN the viewport scrolls THEN the sticky header SHALL remain visible with the nav structure defined in `storefront.md` (Home · Shop · Storyboard · Discover · Account + centered wordmark + right actions).
-- 1.1.4 WHEN the page title is requested THEN the `<title>` SHALL be `Blaize Bazaar — Summer Edit No. 06`.
+- 1.1.4 WHEN the page title is requested THEN the `<title>` SHALL be `Pellier — Summer Edit No. 06`.
 
 ### Requirement 1.2 — Top navigation and Account state
 
@@ -64,11 +64,11 @@ Requirements below are grouped by audience where the distinction matters.
 - 1.2.2 WHEN the user is signed out THEN the Account button SHALL show the generic account icon plus the label `Account`.
 - 1.2.3 WHEN the user is signed in AND `/api/auth/me` returns a verified `given_name` claim THEN the Account button SHALL show the icon plus `Hi, {given_name}` using the Cognito `given_name` claim.
 - 1.2.4 WHEN any previously valid About/Journal/Shop-variant nav item appears in the header THEN the build SHALL fail code review; About content lives in the footer (per `storefront.md`).
-- 1.2.5 WHEN the viewport is narrower than the mobile breakpoint THEN the `Ask Blaize` text link SHALL be hidden and the centered wordmark SHALL remain visible.
+- 1.2.5 WHEN the viewport is narrower than the mobile breakpoint THEN the `Ask Pellier` text link SHALL be hidden and the centered wordmark SHALL remain visible.
 
 ### Requirement 1.3 — Hero stage with rotating intents
 
-**User story:** As a shopper, I want a cinematic hero that shows real customer questions pairing with real products so I understand what Blaize can do in 7 seconds.
+**User story:** As a shopper, I want a cinematic hero that shows real customer questions pairing with real products so I understand what Pellier can do in 7 seconds.
 
 **Acceptance criteria (EARS):**
 
@@ -76,7 +76,7 @@ Requirements below are grouped by audience where the distinction matters.
 - 1.3.2 WHEN each intent becomes active THEN the stage SHALL show the hero image (rounded rectangle, 520px on mobile, 640px on desktop, single premium drop shadow, no double border), with `slow-zoom` Ken Burns (14s alternate, scale 1.02 → 1.08).
 - 1.3.3 WHEN the intent `a thoughtful gift for someone who runs` is active THEN the hero SHALL render the `productOverride` from `storefront.md`: Featherweight Trail Runner, $168, 4.9 rating, athletic running shoe image.
 - 1.3.4 WHEN the active intent changes THEN the floating info card (top-left, max-width ~400px, glass cream, 24px corners, soft shadow) SHALL render: `Someone just asked` breadcrumb with small B mark + pulse dot, intent query in italic Fraunces 22–26px wrapped in curly quotes, product details row (brand · color · name in Fraunces 17–19px · price · star rating · review count), `Add to bag` primary button, circular heart button, thin divider, 10px mono `Matched on:` footnote, and `340 ms` latency stamp.
-- 1.3.5 WHEN the hero stage renders THEN a bottom-center floating search pill (glass cream, fully rounded, 560px max width) SHALL contain the B mark avatar, `Tell Blaize what you're looking for...` placeholder, blinking terracotta caret, and right-side `Ask Blaize` primary button.
+- 1.3.5 WHEN the hero stage renders THEN a bottom-center floating search pill (glass cream, fully rounded, 560px max width) SHALL contain the B mark avatar, `Tell Pellier what you're looking for...` placeholder, blinking terracotta caret, and right-side `Ask Pellier` primary button.
 - 1.3.6 WHEN the user hovers anywhere on the stage THEN intent rotation SHALL pause, the 2px terracotta progress bar SHALL freeze at its current fill, and ticker chips SHALL remain clickable.
 - 1.3.7 WHEN the user's cursor leaves the stage THEN rotation SHALL resume and the progress bar SHALL continue from the paused position (not restart).
 - 1.3.8 WHEN the user clicks a ticker chip below the image THEN the stage SHALL jump to that intent immediately, reset the progress bar to 0%, and restart the 7.5-second timer.
@@ -89,8 +89,8 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 1.4.1 WHEN the user is signed out AND has not dismissed the strip this session THEN the sign-in strip SHALL render per `storefront.md` (cream-warm gradient, B mark + pulse dot, `PERSONALIZED VISIONS` eyebrow, italic Fraunces `Sign in and watch Blaize tailor the storefront to you.`, `Sign in for personalized visions` CTA, `Not now` dismiss).
-- 1.4.2 WHEN the user dismisses the strip THEN `sessionStorage.setItem('blaize.signinStrip.dismissed', 'true')` SHALL be called and the strip SHALL not reappear until a new session.
+- 1.4.1 WHEN the user is signed out AND has not dismissed the strip this session THEN the sign-in strip SHALL render per `storefront.md` (cream-warm gradient, B mark + pulse dot, `PERSONALIZED VISIONS` eyebrow, italic Fraunces `Sign in and watch Pellier tailor the storefront to you.`, `Sign in for personalized visions` CTA, `Not now` dismiss).
+- 1.4.2 WHEN the user dismisses the strip THEN `sessionStorage.setItem('pellier.signinStrip.dismissed', 'true')` SHALL be called and the strip SHALL not reappear until a new session.
 - 1.4.3 WHEN the user is signed in AND `/api/user/preferences` returns a non-null value THEN the curated banner SHALL render per `storefront.md` (terracotta gradient, pulse dot, `CURATED FOR YOU` label, `Tailored to your preferences, {given_name}. {pref1} · {pref2} · {pref3}`, `Adjust preferences` link).
 - 1.4.4 WHEN the user is signed in AND `/api/user/preferences` returns `null` THEN neither band SHALL render; the preferences onboarding modal SHALL auto-open exactly once per fresh sign-in (not on subsequent page reloads while already signed in). The specific signal used to distinguish "fresh sign-in" from "reload while signed in" (e.g., short-lived callback cookie, URL flag, or referrer check) SHALL be resolved in `design.md`.
 - 1.4.5 WHEN preferences are saved THEN the curated banner SHALL appear with the `fade-slide-up` 0.6s animation.
@@ -137,7 +137,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 1.8.1 WHEN the refinement panel renders THEN it SHALL be a white card with B mark and the copy `Blaize here, want me to narrow this down?` plus four chips: `Under $100`, `Ships by Friday`, `Gift-wrappable`, `From smaller makers`.
+- 1.8.1 WHEN the refinement panel renders THEN it SHALL be a white card with B mark and the copy `Pellier here, want me to narrow this down?` plus four chips: `Under $100`, `Ships by Friday`, `Gift-wrappable`, `From smaller makers`.
 - 1.8.2 WHEN any chip is toggled THEN the active filter set SHALL be sent to `/api/products` as a query parameter and the grid SHALL re-render with parallax re-observation.
 - 1.8.3 WHEN multiple chips are active THEN filters SHALL compose with AND semantics.
 
@@ -164,11 +164,11 @@ Requirements below are grouped by audience where the distinction matters.
 
 ### Requirement 1.11 — Global ⌘K concierge pill
 
-**User story:** As a shopper, I want a global shortcut to summon Blaize from anywhere on the page.
+**User story:** As a shopper, I want a global shortcut to summon Pellier from anywhere on the page.
 
 **Acceptance criteria (EARS):**
 
-- 1.11.1 WHEN the page renders THEN a compact dusk pill SHALL be fixed in the bottom-right corner with a small B mark, `Ask Blaize` label, and styled `⌘K` keycap.
+- 1.11.1 WHEN the page renders THEN a compact dusk pill SHALL be fixed in the bottom-right corner with a small B mark, `Ask Pellier` label, and styled `⌘K` keycap.
 - 1.11.2 WHEN the user presses `⌘K` on macOS or `Ctrl+K` elsewhere THEN the concierge modal SHALL toggle open/closed.
 - 1.11.3 WHEN the user presses `Escape` with any modal open THEN that modal SHALL close.
 - 1.11.4 WHEN the concierge modal is open and another modal (Auth, Preferences) is requested THEN the concierge SHALL close first so only one modal is visible at a time.
@@ -183,7 +183,7 @@ Requirements below are grouped by audience where the distinction matters.
 - 1.12.1 WHEN any customer-facing string is authored THEN it SHALL contain zero emojis and zero em dashes per `storefront.md`.
 - 1.12.2 WHEN any customer-facing string is authored THEN it SHALL NOT contain the forbidden words: `AI`, `search` (as feature noun), `intelligent`, `smart`, `agent`, `LLM`, `vector`, `embedding`.
 - 1.12.3 WHEN technical references are needed THEN they SHALL appear only in 10px monospace footnotes.
-- 1.12.4 WHEN centralized copy is authored THEN it SHALL live in `blaize-bazaar/frontend/src/copy.ts` and `blaize-bazaar/backend/storefront_copy.py` so one file review catches any regressions.
+- 1.12.4 WHEN centralized copy is authored THEN it SHALL live in `pellier/frontend/src/copy.ts` and `pellier/backend/storefront_copy.py` so one file review catches any regressions.
 
 ### Requirement 1.13 — Storyboard and Discover routes (minimal index pages)
 
@@ -209,7 +209,7 @@ Requirements below are grouped by audience where the distinction matters.
 - 2.1.1 WHEN a participant opens a challenge file THEN they SHALL find a single `# === CHALLENGE N: START ===` and matching `# === CHALLENGE N: END ===` block per challenge.
 - 2.1.2 WHEN the Workshop format is delivered THEN participants SHALL delete the code between the blocks and reimplement from hints across all 9 challenges within 110 minutes of content time (M1 30 min + M2 40 min + M3 40 min).
 - 2.1.3 WHEN the Builders Session format is delivered THEN participants SHALL build C1 only and read-and-test C2 through C9 within 50 minutes of content time (M1 15 min + M2 20 min + M3 15 min).
-- 2.1.4 WHEN a participant pastes the drop-in solution `cp solutions/moduleN/path/file.py blaize-bazaar/backend/path/file.py` and restarts the backend THEN the challenge SHALL pass its verification without further edits.
+- 2.1.4 WHEN a participant pastes the drop-in solution `cp solutions/moduleN/path/file.py pellier/backend/path/file.py` and restarts the backend THEN the challenge SHALL pass its verification without further edits.
 
 ### Requirement 2.2 — Challenge file structure
 
@@ -228,7 +228,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 2.3.1 WHEN C1 is opened at `blaize-bazaar/backend/services/hybrid_search.py` THEN the challenge block SHALL contain the method signature `async def _vector_search(self, embedding, limit, ef_search, iterative_scan=True)` on `HybridSearchService`.
+- 2.3.1 WHEN C1 is opened at `pellier/backend/services/hybrid_search.py` THEN the challenge block SHALL contain the method signature `async def _vector_search(self, embedding, limit, ef_search, iterative_scan=True)` on `HybridSearchService`.
 - 2.3.2 WHEN C1 is implemented THEN the query SHALL use the CTE pattern `WITH query_embedding AS (SELECT %s::vector as emb)` per `database.md` and `<=>` cosine distance for similarity.
 - 2.3.3 WHEN C1 runs THEN it SHALL call `SET LOCAL hnsw.ef_search = %s` using the passed `ef_search` value.
 - 2.3.4 WHEN `iterative_scan=True` THEN C1 SHALL call `SET LOCAL hnsw.iterative_scan = 'relaxed_order'`.
@@ -241,12 +241,12 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 2.4.1 WHEN C2 is opened at `blaize-bazaar/backend/services/agent_tools.py` THEN the challenge block SHALL implement `get_trending_products()` as `@tool`-decorated, returning a JSON string of the top-trending products; it SHALL check `_db_service` availability, use `_run_async()`, and return `json.dumps({"error": str(e)})` on exception.
+- 2.4.1 WHEN C2 is opened at `pellier/backend/services/agent_tools.py` THEN the challenge block SHALL implement `get_trending_products()` as `@tool`-decorated, returning a JSON string of the top-trending products; it SHALL check `_db_service` availability, use `_run_async()`, and return `json.dumps({"error": str(e)})` on exception.
 - 2.4.2 WHEN C2 is done THEN the verification SHALL be: calling the tool directly in a REPL returns a parseable JSON string with ≥3 products.
-- 2.4.3 WHEN C3 is opened at `blaize-bazaar/backend/agents/recommendation_agent.py` THEN the challenge block SHALL instantiate `product_recommendation_agent` as a Strands `Agent` wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2` and tools `[search_products, get_trending_products, compare_products, get_product_by_category]`.
+- 2.4.3 WHEN C3 is opened at `pellier/backend/agents/recommendation_agent.py` THEN the challenge block SHALL instantiate `product_recommendation_agent` as a Strands `Agent` wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2` and tools `[search_products, get_trending_products, compare_products, get_product_by_category]`.
 - 2.4.4 WHEN C3's system prompt is authored THEN it SHALL emphasize warm, editorial, catalog-style reasoning grounded in specific product attributes.
 - 2.4.5 WHEN C3 is done THEN the verification SHALL be: calling the agent with `something for warm evenings out` returns a response that names at least one specific product (brand + color + price) AND that product's `tags` column SHALL include at least one of `evening`, `warm`, `dresses`, or `outerwear` (so relevance, not just mention, is checked). Expected matches include Sundress in Washed Linen or Cashmere-Blend Cardigan; an irrelevant recommendation such as Signature Straw Tote SHALL fail verification.
-- 2.4.6 WHEN C4 is opened at `blaize-bazaar/backend/agents/orchestrator.py` THEN the challenge block SHALL instantiate the orchestrator with `BedrockModel(model_id='global.anthropic.claude-haiku-4-5-20251001-v1:0')`, `temperature=0.0`, and five specialist tools following the Strands "Agents as Tools" pattern.
+- 2.4.6 WHEN C4 is opened at `pellier/backend/agents/orchestrator.py` THEN the challenge block SHALL instantiate the orchestrator with `BedrockModel(model_id='global.anthropic.claude-haiku-4-5-20251001-v1:0')`, `temperature=0.0`, and five specialist tools following the Strands "Agents as Tools" pattern.
 - 2.4.7 WHEN C4 routes a query THEN intent classification priority SHALL be `pricing > inventory > support > search > recommendation (default)` per `coding-standards.md`.
 - 2.4.8 WHEN C4 is done THEN the verification SHALL be: five representative queries (one per specialist intent) each route to the expected specialist, observable via trace logs.
 
@@ -256,10 +256,10 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 2.5.1 WHEN C5 is opened at `blaize-bazaar/backend/services/agentcore_runtime.py` THEN the challenge block SHALL migrate the orchestrator from local Strands execution to AgentCore Runtime and expose a `run_agent_on_runtime(message, session_id)` entry point.
-- 2.5.2 WHEN C6 is opened at `blaize-bazaar/backend/services/agentcore_memory.py` THEN the challenge block SHALL implement two concerns: (a) short-term memory for multi-turn session history keyed by `session_id`, (b) persistent user preferences keyed by `user:{user_id}:preferences` where `user_id` comes from verified Cognito JWT (delivered by C9).
-- 2.5.3 WHEN C7 is opened at `blaize-bazaar/backend/services/agentcore_gateway.py` THEN the challenge block SHALL expose the agent tools via the MCP streamable HTTP transport so an external agent client can discover and invoke them.
-- 2.5.4 WHEN C8 is opened at `blaize-bazaar/backend/services/otel_trace_extractor.py` THEN the challenge block SHALL extract OpenTelemetry spans produced by the agent run and format them for the `/inspector` view.
+- 2.5.1 WHEN C5 is opened at `pellier/backend/services/agentcore_runtime.py` THEN the challenge block SHALL migrate the orchestrator from local Strands execution to AgentCore Runtime and expose a `run_agent_on_runtime(message, session_id)` entry point.
+- 2.5.2 WHEN C6 is opened at `pellier/backend/services/agentcore_memory.py` THEN the challenge block SHALL implement two concerns: (a) short-term memory for multi-turn session history keyed by `session_id`, (b) persistent user preferences keyed by `user:{user_id}:preferences` where `user_id` comes from verified Cognito JWT (delivered by C9).
+- 2.5.3 WHEN C7 is opened at `pellier/backend/services/agentcore_gateway.py` THEN the challenge block SHALL expose the agent tools via the MCP streamable HTTP transport so an external agent client can discover and invoke them.
+- 2.5.4 WHEN C8 is opened at `pellier/backend/services/otel_trace_extractor.py` THEN the challenge block SHALL extract OpenTelemetry spans produced by the agent run and format them for the `/inspector` view.
 
 ### Requirement 2.6 — Module 3 Capstone: Agent Identity (C9)
 
@@ -268,10 +268,10 @@ Requirements below are grouped by audience where the distinction matters.
 **Acceptance criteria (EARS):**
 
 - 2.6.1 WHEN C9 ships THEN it SHALL span exactly four files, each with its own `# === CHALLENGE 9.N: START/END ===` block:
-  1. `blaize-bazaar/backend/services/cognito_auth.py`
-  2. `blaize-bazaar/backend/services/agentcore_identity.py`
-  3. `blaize-bazaar/frontend/src/utils/auth.ts`
-  4. `blaize-bazaar/frontend/src/components/AuthModal.tsx` + `blaize-bazaar/frontend/src/components/PreferencesModal.tsx` (both gated by block 9.4)
+  1. `pellier/backend/services/cognito_auth.py`
+  2. `pellier/backend/services/agentcore_identity.py`
+  3. `pellier/frontend/src/utils/auth.ts`
+  4. `pellier/frontend/src/components/AuthModal.tsx` + `pellier/frontend/src/components/PreferencesModal.tsx` (both gated by block 9.4)
 - 2.6.2 WHEN C9.1 is done THEN `cognito_auth.py` SHALL provide a JWKS client with 1-hour TTL cache, a JWT validator, and a FastAPI middleware/dependency that extracts the verified `user_id`, `email`, and `given_name` into `request.state.user`.
 - 2.6.3 WHEN C9.1 validates a token THEN it SHALL reject expired tokens, tokens with invalid `iss`, `aud`, or `token_use`, and tokens signed with keys not in the Cognito JWKS.
 - 2.6.4 WHEN C9.2 is done THEN `agentcore_identity.py` SHALL expose `get_verified_user_context(request)` returning `user_id` + a session namespace usable by `agentcore_memory.py`.
@@ -285,7 +285,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 2.7.1 WHEN a participant runs `cp solutions/moduleN/<relative path> blaize-bazaar/backend/<relative path>` THEN the copied file SHALL contain the complete solution code identical to what lives inside the `# === CHALLENGE N: START/END ===` block.
+- 2.7.1 WHEN a participant runs `cp solutions/moduleN/<relative path> pellier/backend/<relative path>` THEN the copied file SHALL contain the complete solution code identical to what lives inside the `# === CHALLENGE N: START/END ===` block.
 - 2.7.2 WHEN the backend is restarted after a drop-in paste THEN the challenge verification step SHALL pass without further edits.
 - 2.7.3 WHEN solutions are organized on disk THEN they SHALL live under `solutions/module1/`, `solutions/module2/`, `solutions/module3/` only (per `project.md`).
 
@@ -415,7 +415,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 5.2.1 WHEN the viewport is mobile (<768px) THEN the grid SHALL be 1 column, hero image height 520px, and the `Ask Blaize` nav text link SHALL be hidden.
+- 5.2.1 WHEN the viewport is mobile (<768px) THEN the grid SHALL be 1 column, hero image height 520px, and the `Ask Pellier` nav text link SHALL be hidden.
 - 5.2.2 WHEN the viewport is tablet (≥768px and <1024px) THEN the grid SHALL be 2 columns.
 - 5.2.3 WHEN the viewport is desktop (≥1024px) THEN the grid SHALL be 3 columns and hero image height 640px.
 
@@ -450,7 +450,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 6.2.1 WHEN session history or user preferences are stored THEN they SHALL use `blaize-bazaar/backend/services/agentcore_memory.py` (implemented by C6) — not the product DB, not Redis, not in-process dicts in production paths.
+- 6.2.1 WHEN session history or user preferences are stored THEN they SHALL use `pellier/backend/services/agentcore_memory.py` (implemented by C6) — not the product DB, not Redis, not in-process dicts in production paths.
 
 ---
 
@@ -467,8 +467,8 @@ Requirements below are grouped by audience where the distinction matters.
 
 **Acceptance criteria (EARS):**
 
-- 7.2.1 WHEN the frontend renders user-facing strings THEN they SHALL be imported from `blaize-bazaar/frontend/src/copy.ts`.
-- 7.2.2 WHEN the backend emits user-facing strings THEN they SHALL be imported from `blaize-bazaar/backend/storefront_copy.py`.
+- 7.2.1 WHEN the frontend renders user-facing strings THEN they SHALL be imported from `pellier/frontend/src/copy.ts`.
+- 7.2.2 WHEN the backend emits user-facing strings THEN they SHALL be imported from `pellier/backend/storefront_copy.py`.
 - 7.2.3 WHEN OAuth redirect URIs are configured THEN they SHALL be environment-variable-driven via `pydantic-settings`.
 
 ---

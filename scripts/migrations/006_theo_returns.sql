@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS returns (
     -- scripts/load_catalog.py L398). Earlier orders DDL claimed CHAR(10)
     -- but the live table uses INTEGER; we match the live shape.
     product_id    INTEGER NOT NULL
-                  REFERENCES blaize_bazaar.product_catalog("productId")
+                  REFERENCES pellier.product_catalog("productId")
                   ON DELETE CASCADE,
     -- Reasons drive both Cedar policy enforcement and the workflow
     -- branch (only 'damaged' decrements quantity). Constrained at the

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design describes the catalog enrichment pipeline for Blaize Bazaar — a set of offline Python scripts and SQL that transform the existing 1,008-product catalog into a curated ~444-product catalog optimized for workshop demos. The pipeline runs once before the workshop, producing a CSV that the existing database load script consumes. Zero changes to the application runtime code.
+This design describes the catalog enrichment pipeline for Pellier — a set of offline Python scripts and SQL that transform the existing 1,008-product catalog into a curated ~444-product catalog optimized for workshop demos. The pipeline runs once before the workshop, producing a CSV that the existing database load script consumes. Zero changes to the application runtime code.
 
 ## Architecture
 
@@ -44,7 +44,7 @@ This design describes the catalog enrichment pipeline for Blaize Bazaar — a se
                              ▼
               ┌──────────────────────────────┐
               │ Aurora PostgreSQL + pgvector  │
-              │ blaize_bazaar schema    │
+              │ pellier schema    │
               └──────────────────────────────┘
 ```
 
@@ -352,7 +352,7 @@ WITH ranked AS (
     SELECT "productId",
            ROW_NUMBER() OVER (ORDER BY md5("productId")) as rn,
            COUNT(*) OVER () as total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
         -- 29 locked products preserved at original ratings
         'PLAPT0001','PLAPT0016','PLAPT0007','PLAPT0026','PLAPT0033','PLAPT0010',
@@ -367,7 +367,7 @@ WITH ranked AS (
         'PBEAU0043','PKITC0043','PSKCA0043'
     )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET stars = CASE
     WHEN r.rn <= r.total * 0.03 THEN 2.0 + (random() * 0.9)::numeric(2,1)   -- 3%: 2.0-2.9
     WHEN r.rn <= r.total * 0.10 THEN 3.0 + (random() * 0.4)::numeric(2,1)   -- 7%: 3.0-3.4
@@ -398,7 +398,7 @@ WITH ranked AS (
     SELECT "productId",
            ROW_NUMBER() OVER (ORDER BY md5("productId" || 'inv')) as rn,
            COUNT(*) OVER () as total
-    FROM blaize_bazaar.product_catalog
+    FROM pellier.product_catalog
     WHERE "productId" NOT IN (
         -- All 13 new products preserved at specified quantities
         'PMOBI0043','PMOBI0044','PMOBI0045','PMOBI0046','PMOBI0047','PMOBI0048',
@@ -408,7 +408,7 @@ WITH ranked AS (
         'PSUNG0007'
     )
 )
-UPDATE blaize_bazaar.product_catalog pc
+UPDATE pellier.product_catalog pc
 SET quantity = CASE
     WHEN r.rn <= r.total * 0.06 THEN 0                                       -- 6%: out of stock
     WHEN r.rn <= r.total * 0.14 THEN 1 + (random() * 4)::int                 -- 8%: critical (1-5)
@@ -459,7 +459,7 @@ Modified version of the existing `scripts/seed-database.sh`. Changes are minimal
 
 Everything else stays identical to `seed-database.sh`:
 
-- Schema creation (`blaize_bazaar`)
+- Schema creation (`pellier`)
 - Table schema (same columns, same types, same constraints)
 - Temp table approach for CSV loading with column name mapping
 - All 7 indexes (HNSW, FTS GIN, category, price, stars, category-price composite, bestseller)
@@ -501,7 +501,7 @@ fi
 
 ## Embedding Model Contract
 
-All scripts use the identical Bedrock invocation pattern established in `scripts/generate_and_store_embeddings.py` and `blaize-bazaar/backend/services/embeddings.py`:
+All scripts use the identical Bedrock invocation pattern established in `scripts/generate_and_store_embeddings.py` and `pellier/backend/services/embeddings.py`:
 
 - Model ID: `us.cohere.embed-v4:0`
 - Input type: `search_document` (for product descriptions being indexed)
@@ -516,7 +516,7 @@ This ensures new/modified embeddings are in the same vector space as existing on
 The enriched catalog preserves the exact schema from `seed-database.sh`:
 
 ```sql
-CREATE TABLE blaize_bazaar.product_catalog (
+CREATE TABLE pellier.product_catalog (
     "productId"        CHAR(10) PRIMARY KEY,
     product_description VARCHAR(500) NOT NULL,
     "imgUrl"           VARCHAR(200),
@@ -681,10 +681,10 @@ After running the full pipeline and loading the database, a validation SQL scrip
 
 ```sql
 -- P2: Category counts
-SELECT category_name, COUNT(*) FROM blaize_bazaar.product_catalog GROUP BY category_name ORDER BY category_name;
+SELECT category_name, COUNT(*) FROM pellier.product_catalog GROUP BY category_name ORDER BY category_name;
 
 -- P5: Locked stock
-SELECT "productId", quantity FROM blaize_bazaar.product_catalog WHERE "productId" IN ('PSUNG0007','PSPRT0044','PMOBI0044','PMOBI0046','PKITC0043');
+SELECT "productId", quantity FROM pellier.product_catalog WHERE "productId" IN ('PSUNG0007','PSPRT0044','PMOBI0044','PMOBI0046','PKITC0043');
 
 -- P6: Star distribution
 SELECT
@@ -693,7 +693,7 @@ SELECT
     COUNT(*) FILTER (WHERE stars >= 3.5 AND stars < 4.0) as range_35_4,
     COUNT(*) FILTER (WHERE stars >= 4.0 AND stars < 4.5) as range_4_45,
     COUNT(*) FILTER (WHERE stars >= 4.5) as range_45_5
-FROM blaize_bazaar.product_catalog;
+FROM pellier.product_catalog;
 
 -- P7: Inventory distribution
 SELECT
@@ -702,10 +702,10 @@ SELECT
     COUNT(*) FILTER (WHERE quantity BETWEEN 6 AND 15) as low,
     COUNT(*) FILTER (WHERE quantity BETWEEN 16 AND 100) as healthy,
     COUNT(*) FILTER (WHERE quantity > 100) as well_stocked
-FROM blaize_bazaar.product_catalog;
+FROM pellier.product_catalog;
 
 -- P9: No duplicates
-SELECT COUNT(*), COUNT(DISTINCT "productId") FROM blaize_bazaar.product_catalog;
+SELECT COUNT(*), COUNT(DISTINCT "productId") FROM pellier.product_catalog;
 ```
 
 ### Query Verification
@@ -729,8 +729,8 @@ Note: `scripts/seed-database.sh` is not modified — it remains as the original 
 
 ## What Does NOT Change
 
-- `blaize-bazaar/backend/` — zero application code changes
-- `blaize-bazaar/frontend/` — zero frontend changes
+- `pellier/backend/` — zero application code changes
+- `pellier/frontend/` — zero frontend changes
 - Database schema — identical table structure
 - Embedding model — same Cohere Embed v4, same 1024 dimensions
 - HNSW index config — same m=16, ef_construction=128

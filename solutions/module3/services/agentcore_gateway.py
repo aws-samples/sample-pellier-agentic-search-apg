@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 #   restock_product, compare_products, get_return_policy
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_gateway.py blaize-bazaar/backend/services/agentcore_gateway.py
+#    cp solutions/module3/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
 # The 9 tool names exposed by the gateway, in stable order. Tests assert
 # discovery returns exactly this set by exact name (workshop-content.md).
@@ -61,7 +61,7 @@ def _unwrap_strands_tool(strands_tool: Any) -> Any:
     return getattr(strands_tool, "__wrapped__", strands_tool)
 
 
-def build_mcp_server(name: str = "blaize-bazaar-gateway") -> Any:
+def build_mcp_server(name: str = "pellier-gateway") -> Any:
     """Build a FastMCP server registering the 9 agent tools.
 
     Each registered MCP tool is a thin wrapper that delegates to the
@@ -90,7 +90,7 @@ def build_mcp_server(name: str = "blaize-bazaar-gateway") -> Any:
     return mcp_server
 
 
-def get_streamable_http_app(name: str = "blaize-bazaar-gateway") -> Any:
+def get_streamable_http_app(name: str = "pellier-gateway") -> Any:
     """Return the Starlette ASGI app that serves the MCP streamable HTTP
     transport. Mount under `/mcp` in FastAPI (or run standalone with uvicorn)
     so external clients can discover tools via POST /mcp and invoke them.
@@ -136,7 +136,7 @@ def create_gateway_orchestrator():
                 temperature=0.0,
             ),
             system_prompt=(
-                "You are the Blaize Bazaar shopping assistant. "
+                "You are the Pellier shopping assistant. "
                 "Use the available tools to help users find products, "
                 "check prices, and get recommendations. "
                 "Always be helpful and concise."
@@ -199,7 +199,7 @@ def create_gateway_orchestrator_with_semantic_search():
                 temperature=0.0,
             ),
             system_prompt=(
-                "You are the Blaize Bazaar shopping assistant. "
+                "You are the Pellier shopping assistant. "
                 "Use the x_amz_bedrock_agentcore_search tool to find "
                 "relevant tools for the user's query, then invoke them. "
                 "For product searches, search for 'product search' tools. "

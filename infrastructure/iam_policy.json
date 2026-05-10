@@ -35,13 +35,13 @@
         "bedrock-agentcore:InvokeGateway",
         "bedrock-agentcore:GetIdentity"
       ],
-      "Resource": "arn:aws:bedrock-agentcore:us-west-2:${AWS::AccountId}:runtime/blaize-bazaar-*"
+      "Resource": "arn:aws:bedrock-agentcore:us-west-2:${AWS::AccountId}:runtime/pellier-*"
     },
     {
       "Sid": "AuroraDataAccess",
       "Effect": "Allow",
       "Action": ["rds-db:connect"],
-      "Resource": "arn:aws:rds-db:us-west-2:${AWS::AccountId}:dbuser:${AuroraClusterResourceId}/blaize_app"
+      "Resource": "arn:aws:rds-db:us-west-2:${AWS::AccountId}:dbuser:${AuroraClusterResourceId}/pellier_app"
     },
     {
       "Sid": "CognitoAdminActionsForBootstrap",
@@ -60,11 +60,11 @@
       "Effect": "Allow",
       "Action": "secretsmanager:GetSecretValue",
       "Resource": [
-        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:blaize-bazaar-db-secret-*",
-        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:blaize-bazaar/google-oauth-*",
-        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:blaize-bazaar/apple-oauth-*",
-        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:blaize-bazaar/cognito-test-users-*",
-        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:blaize-bazaar/cognito-client-secret-*"
+        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:pellier-db-secret-*",
+        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:pellier/google-oauth-*",
+        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:pellier/apple-oauth-*",
+        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:pellier/cognito-test-users-*",
+        "arn:aws:secretsmanager:us-west-2:${AWS::AccountId}:secret:pellier/cognito-client-secret-*"
       ]
     },
     {
@@ -75,7 +75,7 @@
         "logs:CreateLogStream",
         "logs:PutLogEvents"
       ],
-      "Resource": "arn:aws:logs:us-west-2:${AWS::AccountId}:log-group:/aws/blaize-bazaar/*"
+      "Resource": "arn:aws:logs:us-west-2:${AWS::AccountId}:log-group:/aws/pellier/*"
     },
     {
       "Sid": "TranscribeStreamingAccess",

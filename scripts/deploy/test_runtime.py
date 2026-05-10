@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test the deployed Blaize Bazaar AgentCore Runtime.
+Test the deployed Pellier AgentCore Runtime.
 
 Usage:
     uv run test_runtime.py --runtime-id $AGENT_RUNTIME_ID --prompt "Find running shoes under $50" --token "$TOKEN"
@@ -53,7 +53,7 @@ def test_runtime(runtime_id: str, prompt: str, token: str, region: str, stream: 
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test Blaize Bazaar AgentCore Runtime")
+    parser = argparse.ArgumentParser(description="Test Pellier AgentCore Runtime")
     parser.add_argument("--runtime-id", required=True, help="AgentCore Runtime ID")
     parser.add_argument("--prompt", required=True, help="Prompt to send")
     parser.add_argument("--token", required=True, help="Cognito JWT token")

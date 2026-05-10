@@ -46,19 +46,19 @@ jobs:
           node-version: "20"
 
       - name: Install frontend deps
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npm ci
 
       - name: Build frontend (production)
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npm run build
 
       - name: Install backend deps
-        working-directory: blaize-bazaar/backend
+        working-directory: pellier/backend
         run: pip install -r requirements.txt
 
       - name: Install Playwright browsers
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npx playwright install --with-deps chromium
 
       # Launch uvicorn in the background. The OS-specific spawn is a
@@ -67,7 +67,7 @@ jobs:
       # cross-platform pattern, so we split the step.
       - name: Start uvicorn (POSIX)
         if: runner.os != 'Windows'
-        working-directory: blaize-bazaar/backend
+        working-directory: pellier/backend
         run: |
           nohup uvicorn app:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
           for i in $(seq 1 40); do
@@ -78,7 +78,7 @@ jobs:
 
       - name: Start uvicorn (Windows)
         if: runner.os == 'Windows'
-        working-directory: blaize-bazaar/backend
+        working-directory: pellier/backend
         shell: pwsh
         run: |
           Start-Process -NoNewWindow -FilePath "uvicorn" `
@@ -97,7 +97,7 @@ jobs:
           exit 1
 
       - name: Run Playwright smoke specs
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         env:
           E2E_BASE_URL: http://localhost:8000
         run: npx playwright test e2e/workshop-smoke.spec.ts
@@ -107,5 +107,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: workshop-smoke-report-${{ matrix.os }}
-          path: blaize-bazaar/frontend/playwright-report
+          path: pellier/frontend/playwright-report
           if-no-files-found: ignore

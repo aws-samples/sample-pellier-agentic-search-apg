@@ -1,6 +1,6 @@
 # Chromatic workflow: visual regression snapshots on every PR.
 #
-# Design contract: .kiro/specs/blaize-bazaar-storefront/tasks.md — task 7.2
+# Design contract: .kiro/specs/pellier-storefront/tasks.md — task 7.2
 # ("Visual regression"); ties to requirements.md Req 5.2.1–5.2.3 (responsive
 # breakpoints) and Req 1.6.2 (product-card parallax timing fidelity).
 #
@@ -68,10 +68,10 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: blaize-bazaar/frontend/package-lock.json
+          cache-dependency-path: pellier/frontend/package-lock.json
 
       - name: Install frontend deps
-        working-directory: blaize-bazaar/frontend
+        working-directory: pellier/frontend
         run: npm ci
 
       # Build Storybook and upload to Chromatic in one step.
@@ -82,7 +82,7 @@ jobs:
         uses: chromaui/action@v11
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-          workingDir: blaize-bazaar/frontend
+          workingDir: pellier/frontend
           buildScriptName: build-storybook
           exitZeroOnChanges: true
           onlyChanged: true

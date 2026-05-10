@@ -1,0 +1,585 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Pellier - Cognito User Pool with federated auth (optional Google +
+  optional Apple + email/password), self-sign-up disabled, and a custom
+  resource Lambda that seeds N test users with per-workshop random passwords.
+
+Parameters:
+  WorkshopId:
+    Type: String
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,40}$
+    Description: Workshop identifier, used in hosted UI domain and usernames.
+
+  CallbackUrls:
+    Type: CommaDelimitedList
+    Description: OAuth callback URLs (comma-delimited).
+
+  LogoutUrls:
+    Type: CommaDelimitedList
+    Description: OAuth logout URLs (comma-delimited).
+
+  GoogleOAuthSecretArn:
+    Type: String
+    Default: ""
+    Description: >
+      Secrets Manager ARN holding Google OAuth client_id and client_secret
+      as JSON {"client_id": "...", "client_secret": "..."}. Required only
+      when EnableGoogleSignIn is true.
+
+  EnableGoogleSignIn:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Flip to "false" for throwaway deploys that only need email/password
+      auth. Real workshop deploys should leave this at "true" and supply
+      GoogleOAuthSecretArn.
+
+  AppleOAuthSecretArn:
+    Type: String
+    Default: ""
+    Description: >
+      Secrets Manager ARN holding Apple Sign-In credentials. Required only
+      if EnableAppleSignIn is true. JSON shape: {"services_id": "...",
+      "team_id": "...", "key_id": "...", "private_key": "..."}.
+
+  EnableAppleSignIn:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Flip to "true" only after populating AppleOAuthSecretArn.
+
+  NumberOfTestUsers:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 50
+    Description: Number of workshop test users to seed.
+
+Conditions:
+  GoogleEnabled: !Equals [!Ref EnableGoogleSignIn, "true"]
+  AppleEnabled: !Equals [!Ref EnableAppleSignIn, "true"]
+  GoogleAndAppleEnabled: !And
+    - !Condition GoogleEnabled
+    - !Condition AppleEnabled
+  GoogleOnlyEnabled: !And
+    - !Condition GoogleEnabled
+    - !Not [!Condition AppleEnabled]
+  AppleOnlyEnabled: !And
+    - !Not [!Condition GoogleEnabled]
+    - !Condition AppleEnabled
+
+Resources:
+  # --------------------------------------------------------------------------
+  # User Pool
+  # --------------------------------------------------------------------------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub pellier-${WorkshopId}
+      # Self-sign-up disabled: test users are pre-seeded by the custom resource
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          RequireLowercase: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      MfaConfiguration: "OFF"
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        - Name: name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: given_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: family_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: workshop_id
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      UserPoolTags:
+        Project: pellier
+        "re:Invent": "2026"
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub pellier-${WorkshopId}
+      UserPoolId: !Ref UserPool
+
+  # --------------------------------------------------------------------------
+  # Groups
+  # --------------------------------------------------------------------------
+  WorkshopParticipantsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: workshop-participants
+      Description: Default group for workshop test users.
+      UserPoolId: !Ref UserPool
+      Precedence: 10
+
+  InstructorsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: instructors
+      Description: Elevated group for workshop staff.
+      UserPoolId: !Ref UserPool
+      Precedence: 1
+
+  # --------------------------------------------------------------------------
+  # Identity Providers
+  # --------------------------------------------------------------------------
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: GoogleEnabled
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Sub "{{resolve:secretsmanager:${GoogleOAuthSecretArn}:SecretString:client_id}}"
+        client_secret: !Sub "{{resolve:secretsmanager:${GoogleOAuthSecretArn}:SecretString:client_secret}}"
+        authorize_scopes: "openid email profile"
+      AttributeMapping:
+        email: email
+        given_name: given_name
+        family_name: family_name
+        picture: picture
+        name: name
+
+  AppleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: AppleEnabled
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: SignInWithApple
+      ProviderType: SignInWithApple
+      ProviderDetails:
+        client_id: !Sub "{{resolve:secretsmanager:${AppleOAuthSecretArn}:SecretString:services_id}}"
+        team_id: !Sub "{{resolve:secretsmanager:${AppleOAuthSecretArn}:SecretString:team_id}}"
+        key_id: !Sub "{{resolve:secretsmanager:${AppleOAuthSecretArn}:SecretString:key_id}}"
+        private_key: !Sub "{{resolve:secretsmanager:${AppleOAuthSecretArn}:SecretString:private_key}}"
+        authorize_scopes: "email name"
+      AttributeMapping:
+        email: email
+        given_name: firstName
+        family_name: lastName
+
+  # --------------------------------------------------------------------------
+  # App Client
+  # --------------------------------------------------------------------------
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: pellier-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      # !Ref on a UserPoolIdentityProvider returns its ProviderName string AND
+      # creates an implicit dependency, so we drop the explicit DependsOn.
+      SupportedIdentityProviders: !If
+        - GoogleAndAppleEnabled
+        - [COGNITO, !Ref GoogleIdentityProvider, !Ref AppleIdentityProvider]
+        - !If
+          - GoogleOnlyEnabled
+          - [COGNITO, !Ref GoogleIdentityProvider]
+          - !If
+            - AppleOnlyEnabled
+            - [COGNITO, !Ref AppleIdentityProvider]
+            - [COGNITO]
+      CallbackURLs: !Ref CallbackUrls
+      LogoutURLs: !Ref LogoutUrls
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+      ReadAttributes:
+        - email
+        - name
+        - given_name
+        - family_name
+        - picture
+        - custom:workshop_id
+      WriteAttributes:
+        - name
+        - given_name
+        - family_name
+        - picture
+
+  # --------------------------------------------------------------------------
+  # Client secret copied to Secrets Manager so the backend can read it
+  # without requiring cognito-idp:DescribeUserPoolClient at runtime.
+  # --------------------------------------------------------------------------
+  ClientSecretMirrorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: describe-client-and-write-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:DescribeUserPoolClient
+                Resource: !GetAtt UserPool.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:TagResource
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pellier/cognito-client-secret-*
+
+  ClientSecretMirrorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub pellier-${WorkshopId}-client-secret-mirror
+      Runtime: python3.13
+      Handler: index.handler
+      Timeout: 60
+      Role: !GetAtt ClientSecretMirrorRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib.request
+
+          cog = boto3.client("cognito-idp")
+          sm = boto3.client("secretsmanager")
+
+          def respond(event, status, data=None, physical_id=None):
+              body = {
+                  "Status": status,
+                  "Reason": data.get("Reason", "") if data else "",
+                  "PhysicalResourceId": physical_id or event.get("LogicalResourceId", "client-secret-mirror"),
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "Data": data or {},
+              }
+              req = urllib.request.Request(event["ResponseURL"], data=json.dumps(body).encode("utf-8"), method="PUT")
+              req.add_header("content-type", "")
+              urllib.request.urlopen(req, timeout=30).read()
+
+          def handler(event, context):
+              try:
+                  props = event["ResourceProperties"]
+                  secret_name = props["SecretName"]
+
+                  if event["RequestType"] == "Delete":
+                      try:
+                          sm.delete_secret(SecretId=secret_name, ForceDeleteWithoutRecovery=True)
+                      except sm.exceptions.ResourceNotFoundException:
+                          pass
+                      return respond(event, "SUCCESS", {}, secret_name)
+
+                  resp = cog.describe_user_pool_client(
+                      UserPoolId=props["UserPoolId"],
+                      ClientId=props["ClientId"],
+                  )
+                  client_secret = resp["UserPoolClient"]["ClientSecret"]
+
+                  payload = json.dumps({
+                      "client_id": props["ClientId"],
+                      "client_secret": client_secret,
+                  })
+
+                  try:
+                      sm.create_secret(
+                          Name=secret_name,
+                          Description="Cognito app client secret for Pellier",
+                          SecretString=payload,
+                          Tags=[
+                              {"Key": "Project", "Value": "pellier"},
+                              {"Key": "re:Invent", "Value": "2026"},
+                          ],
+                      )
+                  except sm.exceptions.ResourceExistsException:
+                      sm.put_secret_value(SecretId=secret_name, SecretString=payload)
+
+                  secret_arn = sm.describe_secret(SecretId=secret_name)["ARN"]
+                  return respond(event, "SUCCESS", {"SecretArn": secret_arn}, secret_name)
+              except Exception as exc:
+                  return respond(event, "FAILED", {"Reason": str(exc)})
+
+  ClientSecretMirror:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt ClientSecretMirrorFunction.Arn
+      SecretName: !Sub pellier/cognito-client-secret-${WorkshopId}
+      UserPoolId: !Ref UserPool
+      ClientId: !Ref UserPoolClient
+
+  # --------------------------------------------------------------------------
+  # Test user seeder custom resource
+  # --------------------------------------------------------------------------
+  TestUserSeederRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: seed-test-users
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminAddUserToGroup
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                Resource: !GetAtt UserPool.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:TagResource
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pellier/cognito-test-users-*
+
+  TestUserSeederFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub pellier-${WorkshopId}-test-user-seeder
+      Runtime: python3.13
+      Handler: index.handler
+      Timeout: 300
+      Role: !GetAtt TestUserSeederRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import secrets
+          import string
+          import boto3
+          import urllib.request
+
+          cog = boto3.client("cognito-idp")
+          sm = boto3.client("secretsmanager")
+
+          def random_password(length=16):
+              alphabet = string.ascii_letters + string.digits + "!#$%&*+-?@"
+              while True:
+                  pw = "".join(secrets.choice(alphabet) for _ in range(length))
+                  if (any(c.islower() for c in pw)
+                      and any(c.isupper() for c in pw)
+                      and any(c.isdigit() for c in pw)
+                      and any(c in "!#$%&*+-?@" for c in pw)):
+                      return pw
+
+          def respond(event, status, data=None, physical_id=None):
+              body = {
+                  "Status": status,
+                  "Reason": (data or {}).get("Reason", ""),
+                  "PhysicalResourceId": physical_id or "test-user-seeder",
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "Data": data or {},
+              }
+              req = urllib.request.Request(event["ResponseURL"], data=json.dumps(body).encode("utf-8"), method="PUT")
+              req.add_header("content-type", "")
+              urllib.request.urlopen(req, timeout=30).read()
+
+          def delete_users(user_pool_id, workshop_id):
+              paginator = cog.get_paginator("list_users")
+              for page in paginator.paginate(UserPoolId=user_pool_id):
+                  for user in page.get("Users", []):
+                      uname = user["Username"]
+                      if uname.startswith(f"workshop-user-") and uname.endswith(f"-{workshop_id}"):
+                          try:
+                              cog.admin_delete_user(UserPoolId=user_pool_id, Username=uname)
+                          except Exception:
+                              pass
+
+          def handler(event, context):
+              try:
+                  props = event["ResourceProperties"]
+                  user_pool_id = props["UserPoolId"]
+                  workshop_id = props["WorkshopId"]
+                  num_users = int(props.get("NumberOfTestUsers", 10))
+                  secret_name = props["CredentialsSecretName"]
+                  group_name = props.get("GroupName", "workshop-participants")
+                  physical_id = f"test-users-{workshop_id}"
+
+                  if event["RequestType"] == "Delete":
+                      delete_users(user_pool_id, workshop_id)
+                      try:
+                          sm.delete_secret(SecretId=secret_name, ForceDeleteWithoutRecovery=True)
+                      except Exception:
+                          pass
+                      return respond(event, "SUCCESS", {}, physical_id)
+
+                  # UPDATE: wipe existing seeded users first for idempotency
+                  if event["RequestType"] == "Update":
+                      delete_users(user_pool_id, workshop_id)
+
+                  users = []
+                  for n in range(1, num_users + 1):
+                      username = f"workshop-user-{n}-{workshop_id}"
+                      email = f"workshop-user-{n}@{workshop_id}.pellier.invalid"
+                      password = random_password()
+
+                      cog.admin_create_user(
+                          UserPoolId=user_pool_id,
+                          Username=username,
+                          UserAttributes=[
+                              {"Name": "email", "Value": email},
+                              {"Name": "email_verified", "Value": "true"},
+                              {"Name": "given_name", "Value": f"Workshop{n}"},
+                              {"Name": "family_name", "Value": "Participant"},
+                              {"Name": "name", "Value": f"Workshop Participant {n}"},
+                              {"Name": "custom:workshop_id", "Value": workshop_id},
+                          ],
+                          MessageAction="SUPPRESS",
+                      )
+                      cog.admin_set_user_password(
+                          UserPoolId=user_pool_id,
+                          Username=username,
+                          Password=password,
+                          Permanent=True,
+                      )
+                      cog.admin_add_user_to_group(
+                          UserPoolId=user_pool_id,
+                          Username=username,
+                          GroupName=group_name,
+                      )
+                      users.append({"username": username, "email": email, "password": password})
+
+                  payload = json.dumps({"workshop_id": workshop_id, "users": users})
+                  try:
+                      sm.create_secret(
+                          Name=secret_name,
+                          Description=f"Pellier test user credentials for {workshop_id}",
+                          SecretString=payload,
+                          Tags=[
+                              {"Key": "Project", "Value": "pellier"},
+                              {"Key": "re:Invent", "Value": "2026"},
+                          ],
+                      )
+                  except sm.exceptions.ResourceExistsException:
+                      sm.put_secret_value(SecretId=secret_name, SecretString=payload)
+
+                  secret_arn = sm.describe_secret(SecretId=secret_name)["ARN"]
+                  data = {
+                      "SecretArn": secret_arn,
+                      "UserCount": str(len(users)),
+                  }
+                  return respond(event, "SUCCESS", data, physical_id)
+              except Exception as exc:
+                  return respond(event, "FAILED", {"Reason": str(exc)})
+
+  TestUsers:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn:
+      - WorkshopParticipantsGroup
+    Properties:
+      ServiceToken: !GetAtt TestUserSeederFunction.Arn
+      UserPoolId: !Ref UserPool
+      WorkshopId: !Ref WorkshopId
+      NumberOfTestUsers: !Ref NumberOfTestUsers
+      CredentialsSecretName: !Sub pellier/cognito-test-users-${WorkshopId}
+      GroupName: workshop-participants
+
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolId
+  UserPoolArn:
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolArn
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientId
+  UserPoolClientSecretArn:
+    Value: !GetAtt ClientSecretMirror.SecretArn
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientSecretArn
+  UserPoolDomain:
+    Value: !Ref UserPoolDomain
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolDomain
+  HostedUiUrl:
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
+    Export:
+      Name: !Sub ${AWS::StackName}-HostedUiUrl
+  OAuthAuthorizeUrl:
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/authorize
+    Export:
+      Name: !Sub ${AWS::StackName}-OAuthAuthorizeUrl
+  OAuthTokenUrl:
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/token
+    Export:
+      Name: !Sub ${AWS::StackName}-OAuthTokenUrl
+  OAuthLogoutUrl:
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/logout
+    Export:
+      Name: !Sub ${AWS::StackName}-OAuthLogoutUrl
+  JwksUri:
+    Value: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}/.well-known/jwks.json
+    Export:
+      Name: !Sub ${AWS::StackName}-JwksUri
+  TestUserCredentialsSecretArn:
+    Value: !GetAtt TestUsers.SecretArn
+    Export:
+      Name: !Sub ${AWS::StackName}-TestUserCredentialsSecretArn

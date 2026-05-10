@@ -2,9 +2,9 @@
  * utils/auth.ts — Challenge 9.3 solution drop-in.
  *
  * This file mirrors the code inside the `// === CHALLENGE 9.3: START/END ===`
- * block in `blaize-bazaar/frontend/src/utils/auth.ts` byte-for-byte so a
+ * block in `pellier/frontend/src/utils/auth.ts` byte-for-byte so a
  * participant can `cp solutions/module3/frontend/utils/auth.ts
- * blaize-bazaar/frontend/src/utils/auth.ts` and restart the frontend to
+ * pellier/frontend/src/utils/auth.ts` and restart the frontend to
  * complete the challenge. The surrounding module docblock in the live file
  * is documentation, not part of the challenge block.
  */

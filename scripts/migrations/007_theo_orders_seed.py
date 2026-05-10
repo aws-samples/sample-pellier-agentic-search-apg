@@ -62,7 +62,7 @@ WITH theo_products AS (
             WHEN 'Ceramic Tumblers'         THEN 45
             WHEN 'Brass Incense Holder'     THEN 90
         END AS days_ago
-      FROM blaize_bazaar.product_catalog
+      FROM pellier.product_catalog
      WHERE name IN (
          'Wabi-Sabi Bowl',
          'Stoneware Pour-Over Set',
@@ -88,7 +88,7 @@ SELECT
     o.quantity,
     o.placed_at::date
   FROM orders o
-  JOIN blaize_bazaar.product_catalog p ON p."productId" = o.product_id
+  JOIN pellier.product_catalog p ON p."productId" = o.product_id
  WHERE o.customer_id = 'theo'
  ORDER BY o.placed_at DESC;
 """

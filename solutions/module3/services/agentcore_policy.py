@@ -191,8 +191,8 @@ def _get_or_create_policy_engine(client, gateway_id: str) -> str:
                 return engine["policyEngineId"]
 
         response = client.create_policy_engine(
-            name="blaize-bazaar-policy-engine",
-            description="Policy engine for Blaize Bazaar agent actions",
+            name="pellier-policy-engine",
+            description="Policy engine for Pellier agent actions",
             gatewayIdentifier=gateway_id,
         )
         engine_id = response["policyEngineId"]

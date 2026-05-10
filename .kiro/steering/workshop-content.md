@@ -27,6 +27,6 @@ When referencing agents or tools in content, use these exact names:
 
 ## CFN Templates
 
-- Assets folder: `blaize-bazaar-vpc.yml`, `blaize-bazaar-database.yml`, `blaize-bazaar-code-editor.yml`
+- Assets folder: `pellier-vpc.yml`, `pellier-database.yml`, `pellier-code-editor.yml`
 - Main stack: `static/genai-dat-406-labs.yml`
 - Aurora Serverless v2 (0-16 ACU), not provisioned instances

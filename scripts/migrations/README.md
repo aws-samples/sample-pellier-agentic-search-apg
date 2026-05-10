@@ -10,7 +10,7 @@ Numbered in apply order; running a migration twice is a no-op.
    `tool_audit`, `customers`, `orders`, `approvals`) plus a `pg_cron`
    24h TTL job on `agent_trace_spans`. Depends on
    `scripts/seed-database.sh` having run first (the `orders` FK points
-   at `blaize_bazaar.product_catalog`).
+   at `pellier.product_catalog`).
 2. **`002_workshop_seed.sql`** — seeds 8 demo customers + ~32 orders
    with intentional cohort overlap so the `MEMORY · PROCEDURAL`
    showcase panel returns interesting rows. Uses `WHERE EXISTS` guards

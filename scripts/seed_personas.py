@@ -6,7 +6,7 @@ re-INSERT for orders and episodic seed rows. Safe to re-run between
 workshop sessions.
 
 Usage:
-    cd blaize-bazaar/backend
+    cd pellier/backend
     .venv/bin/python ../../scripts/seed_personas.py
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 # Add backend to path so config + services resolve
-BACKEND = Path(__file__).resolve().parent.parent / "blaize-bazaar" / "backend"
+BACKEND = Path(__file__).resolve().parent.parent / "pellier" / "backend"
 sys.path.insert(0, str(BACKEND))
 
 from config import settings  # noqa: E402
@@ -64,7 +64,7 @@ async def seed() -> None:
             for i, pid in enumerate(product_ids):
                 # Only insert if the product exists in the catalog
                 row = await db.fetch_one(
-                    'SELECT 1 FROM blaize_bazaar.product_catalog WHERE "productId" = %s',
+                    'SELECT 1 FROM pellier.product_catalog WHERE "productId" = %s',
                     int(pid),
                 )
                 if row:

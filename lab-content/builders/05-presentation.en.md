@@ -9,7 +9,7 @@ This page is the instructor's outline. Participants follow along from their scre
 
 ## Beats (with approximate timing)
 
-### 0:00–0:02 · What Blaize Bazaar is
+### 0:00–0:02 · What Pellier is
 - A working boutique with a working agent stack behind it.
 - Two surfaces: Boutique (shoppers) and Atelier (operators).
 - The Atelier is the teaching surface; the Boutique is the proof.

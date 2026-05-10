@@ -1,4 +1,4 @@
-# Blaize Bazaar — Workshop Studio content spec (120-minute re:Invent workshop).
+# Pellier — Workshop Studio content spec (120-minute re:Invent workshop).
 #
 # Instructor notes:
 #   - The narrative spine is Marco's arc. Participants click pills; presenter
@@ -40,15 +40,15 @@ awsAccountConfig:
 
 infrastructure:
   cloudformationTemplates:
-    - templateLocation: static/blaize-bazaar-workshop.yml
-      label: Blaize Bazaar Workshop (120 min — re:Invent)
+    - templateLocation: static/pellier-workshop.yml
+      label: Pellier Workshop (120 min — re:Invent)
       parameters:
         - templateParameter: WorkshopId
           defaultValue: "{{.ParticipantId}}"
         - templateParameter: LabFormat
           defaultValue: "workshop"
         - templateParameter: RepoURL
-          defaultValue: "https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git"
+          defaultValue: "https://github.com/aws-samples/sample-pellier-agentic-search-apg.git"
         - templateParameter: RepoBranch
           defaultValue: "main"
         - templateParameter: AuroraEngineVersion

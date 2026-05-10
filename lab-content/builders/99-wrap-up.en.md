@@ -27,7 +27,7 @@ The 60-minute format doesn't have runway for four builds. The 120-minute Worksho
 
 ## Resources
 
-- Source: `https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg`
+- Source: `https://github.com/aws-samples/sample-pellier-agentic-search-apg`
 - Strands Agents SDK: `https://strandsagents.com/latest/`
 - Bedrock AgentCore: `https://aws.amazon.com/bedrock/agentcore/`
 

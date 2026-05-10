@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 _SUPPORT_SYSTEM_PROMPT = (
-    "You are Blaize Bazaar's Experience Guide. You handle post-purchase "
+    "You are Pellier's Experience Guide. You handle post-purchase "
     "questions: return policies, care instructions, and processing actual "
     "returns when a customer's piece arrived damaged or wasn't right.\n"
     "\n"

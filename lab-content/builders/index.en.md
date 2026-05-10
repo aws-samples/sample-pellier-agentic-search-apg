@@ -1,5 +1,5 @@
 ---
-title: Blaize Bazaar — Builder's Session (60 min)
+title: Pellier — Builder's Session (60 min)
 weight: 10
 ---
 
@@ -13,14 +13,14 @@ Not a tutorial. Not a sandbox. A real build.
 
 Two artifacts of participant-authored code:
 
-- **Stock Keeper** — one of Blaize's five specialists. You'll author its system prompt (Haiku 4.5 at 0.0 — tightest config in the system).
+- **Stock Keeper** — one of Pellier's five specialists. You'll author its system prompt (Haiku 4.5 at 0.0 — tightest config in the system).
 - **`floor_check`** — the tool that makes Marco's Turn 4 warehouse question land.
 
 Three more tools (`restock_shelf`, `running_low`) and the second specialist (Experience Guide) come pre-wired — you'll see them running in the Atelier but won't build them. That's the 2-hour Workshop. This is the 60-minute cut.
 
 ## The narrative
 
-Marco shops Blaize Bazaar. Asks four questions. Three land — Style Advisor, Curator, Value Analyst. The fourth — "Is the Pellier shirt at the Brooklyn warehouse?" — gets a graceful non-answer because Stock Keeper ships in stub state.
+Marco shops Pellier. Asks four questions. Three land — Style Advisor, Curator, Value Analyst. The fourth — "Is the Pellier shirt at the Brooklyn warehouse?" — gets a graceful non-answer because Stock Keeper ships in stub state.
 
 **That's the build.** When you wire Stock Keeper + `floor_check`, the same question returns a real warehouse breakdown. Marco's gap closes. You flip to the Atelier and watch the routing arrow turn solid.
 
@@ -49,7 +49,7 @@ Every challenge has a ⏩ **Short on time?** `cp` command that drops a solution 
 
 ```bash
 cp solutions/module2/agents/inventory_agent.py \
-   blaize-bazaar/backend/agents/inventory_agent.py
+   pellier/backend/agents/inventory_agent.py
 ```
 
 Use it. The goal is the midpoint checkpoint — not to type every character manually.

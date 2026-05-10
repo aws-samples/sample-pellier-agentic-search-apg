@@ -2,7 +2,7 @@
 
 ## Summary
 
-The workshop was restructured so participants edit the real Blaize Bazaar application instead of standalone lab scripts. TODOs live directly in the backend files. The app ships in "legacy mode" and progressively gains intelligence as participants complete each module.
+The workshop was restructured so participants edit the real Pellier application instead of standalone lab scripts. TODOs live directly in the backend files. The app ships in "legacy mode" and progressively gains intelligence as participants complete each module.
 
 ---
 
@@ -10,7 +10,7 @@ The workshop was restructured so participants edit the real Blaize Bazaar applic
 
 **Before (2025):** Participants ran standalone Python scripts in `labs/` that reimplemented functionality already in the app. Two parallel codebases, two DB layers (`labs/shared/db.py` vs `services/database.py`), no connection between lab work and the running storefront.
 
-**After (2026):** Participants edit files in `blaize-bazaar/backend/`, restart the server, and watch the storefront evolve. One codebase, one DB layer, immediate visual feedback. The app has graceful fallbacks so it runs at every stage — keyword-only search before Module 2, "orchestrator not ready" message before Module 3b, etc.
+**After (2026):** Participants edit files in `pellier/backend/`, restart the server, and watch the storefront evolve. One codebase, one DB layer, immediate visual feedback. The app has graceful fallbacks so it runs at every stage — keyword-only search before Module 2, "orchestrator not ready" message before Module 3b, etc.
 
 ---
 
@@ -18,7 +18,7 @@ The workshop was restructured so participants edit the real Blaize Bazaar applic
 
 | Directory/File                    | Reason                                                      |
 | --------------------------------- | ----------------------------------------------------------- |
-| `labs/` (entire directory)        | Replaced by in-app TODOs in `blaize-bazaar/backend/`        |
+| `labs/` (entire directory)        | Replaced by in-app TODOs in `pellier/backend/`        |
 | `notebooks/`                      | Old Jupyter notebooks from 2025                             |
 | `docs/`                           | Single technical deep-dive doc                              |
 | `tmp/`                            | One-off data fix scripts                                    |
@@ -26,8 +26,8 @@ The workshop was restructured so participants edit the real Blaize Bazaar applic
 | `AMAZON_Q_PROMPTS.md`             | Old Amazon Q prompts for 2025 structure                     |
 | `MIGRATION_GUIDE.md`              | Superseded by this changelog                                |
 | `KIRO_SESSION_PROMPT.md`          | Old session prompt for migration                            |
-| `blaize-bazaar/LAB2_GUIDE.md`     | Old lab guide from 2025                                     |
-| `blaize-bazaar/backend/test_*.py` | Dev test scripts, not part of workshop                      |
+| `pellier/LAB2_GUIDE.md`     | Old lab guide from 2025                                     |
+| `pellier/backend/test_*.py` | Dev test scripts, not part of workshop                      |
 | `data/amazon-products-sample.csv` | Replaced by `premium-products-with-embeddings.csv`          |
 
 `archive/` is gitignored.
@@ -36,7 +36,7 @@ The workshop was restructured so participants edit the real Blaize Bazaar applic
 
 ## New: `solutions/` Directory
 
-Drop-in replacement files for participants short on time. Each solution is the complete working version of the file being edited. Structure mirrors `blaize-bazaar/backend/`:
+Drop-in replacement files for participants short on time. Each solution is the complete working version of the file being edited. Structure mirrors `pellier/backend/`:
 
 ```
 solutions/
@@ -47,7 +47,7 @@ solutions/
 └── README.md               Copy commands for each module
 ```
 
-Usage: `cp solutions/module2/services/hybrid_search.py blaize-bazaar/backend/services/hybrid_search.py`
+Usage: `cp solutions/module2/services/hybrid_search.py pellier/backend/services/hybrid_search.py`
 
 ---
 
@@ -75,7 +75,7 @@ Null guards added in `chat.py` (sync + streaming), `app.py`, and `agentcore_runt
 ```
 1-Introduction/ → a-Business-challenge/ + b-Workshop-Overview/
 2-Prerequisites/
-3-Blaize-Bazaar-Demo/
+3-Pellier-Bazaar-Demo/
 4-Building-agentic-AI-powered-search/ → Part1/ Part2/ Part3/ Part4/
 5-FAQs/
 6-Troubleshooting/
@@ -106,7 +106,7 @@ Switched from `amazon-products-sample-with-embeddings.csv` (21,704 products, 455
 
 ## Bootstrap Script Updates
 
-- `scripts/bootstrap-environment.sh`: Updated welcome message directory structure, changed auto-open from notebook to `hybrid_search.py`, changed pip install from `notebooks/requirements.txt` to `blaize-bazaar/backend/requirements.txt`
+- `scripts/bootstrap-environment.sh`: Updated welcome message directory structure, changed auto-open from notebook to `hybrid_search.py`, changed pip install from `notebooks/requirements.txt` to `pellier/backend/requirements.txt`
 - `scripts/bootstrap-labs.sh`: Replaced `install_notebooks()` with no-op (notebooks archived), updated product count messages
 - `scripts/load-database-fast.sh`: Updated CSV filename references to premium dataset
 
@@ -122,17 +122,17 @@ Removed from lab-content: `MIGRATION_GUIDE.md`, `LIVESTREAM_RUNDOWN.md`, `KIRO_S
 
 ## Other Cleanup
 
-- Removed empty `blaize-bazaar/config/` directory
+- Removed empty `pellier/config/` directory
 - Added `lab-content/` and `reference/` to `.gitignore` (embedded git repos)
 
 ---
 
 ## Files NOT Changed
 
-- `blaize-bazaar/frontend/` — untouched, pre-built React app
-- `blaize-bazaar/backend/services/database.py` — untouched
-- `blaize-bazaar/backend/services/embeddings.py` — untouched
-- `blaize-bazaar/backend/agents/inventory_agent.py` — untouched (pre-built example)
-- `blaize-bazaar/backend/agents/pricing_agent.py` — untouched (pre-built example)
+- `pellier/frontend/` — untouched, pre-built React app
+- `pellier/backend/services/database.py` — untouched
+- `pellier/backend/services/embeddings.py` — untouched
+- `pellier/backend/agents/inventory_agent.py` — untouched (pre-built example)
+- `pellier/backend/agents/pricing_agent.py` — untouched (pre-built example)
 - `modules/05/` — deployment scripts, untouched
 - `sample-images/` — visual search test images, untouched

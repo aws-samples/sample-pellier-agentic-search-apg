@@ -31,7 +31,7 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
-ALTER TABLE blaize_bazaar.product_catalog
+ALTER TABLE pellier.product_catalog
     ADD COLUMN IF NOT EXISTS description_tsv tsvector
     GENERATED ALWAYS AS (
         setweight(to_tsvector('english', coalesce(name,        '')), 'A')
@@ -44,7 +44,7 @@ ALTER TABLE blaize_bazaar.product_catalog
     ) STORED;
 
 CREATE INDEX IF NOT EXISTS product_catalog_description_tsv_gin_idx
-    ON blaize_bazaar.product_catalog USING GIN (description_tsv);
+    ON pellier.product_catalog USING GIN (description_tsv);
 
 -- Quick summary so the operator can confirm the column is populated.
 DO $$
@@ -52,9 +52,9 @@ DECLARE
     populated INT;
     total INT;
 BEGIN
-    SELECT COUNT(*) INTO total FROM blaize_bazaar.product_catalog;
+    SELECT COUNT(*) INTO total FROM pellier.product_catalog;
     SELECT COUNT(*) INTO populated
-      FROM blaize_bazaar.product_catalog
+      FROM pellier.product_catalog
       WHERE description_tsv IS NOT NULL AND description_tsv != '';
     RAISE NOTICE 'description_tsv populated for %/% products', populated, total;
 END $$;

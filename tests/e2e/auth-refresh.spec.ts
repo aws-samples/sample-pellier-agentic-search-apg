@@ -1,7 +1,7 @@
 /**
  * E2E: silent token refresh on a 401.
  *
- * Design contract: `.kiro/specs/blaize-bazaar-storefront/design.md` —
+ * Design contract: `.kiro/specs/pellier-storefront/design.md` —
  * Testing Strategy, "E2E (Playwright against a dedicated Cognito dev
  * pool)". Exercises Requirement 5.3 (cookie-based auth) and Task 5.1's
  * 401 interceptor contract:

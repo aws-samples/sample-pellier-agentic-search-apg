@@ -25,13 +25,13 @@ After C2 alone Marco's Turn 4 works. C3–C5 add depth.
 Marco asked about the Brooklyn warehouse. The Dispatcher correctly matched stock intent — but Stock Keeper ships in stub state, so a voice-matched non-answer came back. You're authoring the agent that closes the gap.
 
 ### Where to look
-- File: `blaize-bazaar/backend/agents/inventory_agent.py`
+- File: `pellier/backend/agents/inventory_agent.py`
 - Challenge block: line 22 (`# === CHALLENGE · Stock Keeper · system prompt: START ===`)
 
 ### What to implement
 Replace the placeholder `_INVENTORY_SYSTEM_PROMPT` with a real system prompt that:
 
-1. Names the agent — **"You are Blaize Bazaar's Stock Keeper."**
+1. Names the agent — **"You are Pellier's Stock Keeper."**
 2. Lists the three tools and when to use each:
    - `floor_check` → overall stock + warehouse health overview
    - `running_low` → items needing restock, ranked by rating
@@ -47,12 +47,12 @@ Then flip `_INVENTORY_AGENT_STUBBED = False` at the bottom of the block.
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/agents/inventory_agent.py \
-   blaize-bazaar/backend/agents/inventory_agent.py
+   pellier/backend/agents/inventory_agent.py
 ```
 
 ### Verify locally (pytest)
 ```bash
-cd blaize-bazaar-workshop/blaize-bazaar/backend
+cd pellier-workshop/pellier/backend
 pytest tests/test_inventory_agent.py -v
 ```
 
@@ -67,7 +67,7 @@ Not yet — Stock Keeper still needs `floor_check` to have a tool to call. On to
 This is **the** tool Marco's Turn 4 needs. After you wire it and flip the stub flag on the agent, clicking Marco's Turn 4 pill returns a real warehouse breakdown. That's the midpoint payoff.
 
 ### Where to look
-- File: `blaize-bazaar/backend/services/agent_tools.py`
+- File: `pellier/backend/services/agent_tools.py`
 - Challenge block: find `# === CHALLENGE · Stock Keeper · floor_check: START ===` (≈ line 66)
 
 ### What to implement
@@ -83,7 +83,7 @@ Replace the stub body with the real tool:
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/services/agent_tools__inventory.py \
-   blaize-bazaar/backend/services/agent_tools.py
+   pellier/backend/services/agent_tools.py
 ```
 
 ### Verify locally (pytest)
@@ -121,7 +121,7 @@ That's the workshop's core moment: your code changed Marco's answer. The Boutiqu
 Stock Keeper can now report inventory, but can't modify it. `restock_shelf` adds write capability — and teaches the Cedar policy hook, which caps restocks at 500 units.
 
 ### Where to look
-- File: `blaize-bazaar/backend/services/agent_tools.py`
+- File: `pellier/backend/services/agent_tools.py`
 - Block: `# === CHALLENGE · Stock Keeper · restock_shelf ===`
 
 ### What to implement
@@ -130,7 +130,7 @@ Wire to `BusinessLogic.restock_shelf(product_id, quantity)`. Same pattern as `fl
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/services/agent_tools__inventory.py \
-   blaize-bazaar/backend/services/agent_tools.py
+   pellier/backend/services/agent_tools.py
 ```
 (Same file, covers all three inventory tools at once.)
 
@@ -158,7 +158,7 @@ Cedar blocks with an honest error. The Atelier Guardrails panel shows the policy
 The third inventory tool — reports products at ≤5 units, ranked by rating. Short, straightforward, completes Stock Keeper's toolkit.
 
 ### Where to look
-- File: `blaize-bazaar/backend/services/agent_tools.py`
+- File: `pellier/backend/services/agent_tools.py`
 - Block: `# === CHALLENGE · Stock Keeper · running_low ===`
 
 ### What to implement
@@ -167,7 +167,7 @@ Wire to `BusinessLogic.running_low(limit)`. Same pattern.
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/services/agent_tools__inventory.py \
-   blaize-bazaar/backend/services/agent_tools.py
+   pellier/backend/services/agent_tools.py
 ```
 
 ### Verify locally
@@ -186,13 +186,13 @@ Open the Atelier concierge and ask *"What's running low?"* — list of low-stock
 Stock Keeper is done. Now the second full specialist build. Experience Guide handles returns and care — exactly what Theo needs when his ceramics arrived chipped. Different model (Sonnet 4.6 · 0.2), different voice, different pattern: **tool chaining**.
 
 ### Where to look
-- File: `blaize-bazaar/backend/agents/customer_support_agent.py`
+- File: `pellier/backend/agents/customer_support_agent.py`
 - Challenge block: line 31 (`# === CHALLENGE · Experience Guide · system prompt: START ===`)
 
 ### What to implement
 Replace the placeholder `_SUPPORT_SYSTEM_PROMPT` with a full system prompt that:
 
-1. Names the agent — **"You are Blaize Bazaar's Experience Guide."**
+1. Names the agent — **"You are Pellier's Experience Guide."**
 2. Lists the two tools:
    - `returns_and_care` → return window + care by product category
    - `find_pieces` → when the customer names a product and you need its category first
@@ -209,7 +209,7 @@ Then flip `_SUPPORT_AGENT_STUBBED = False` at the end of the block.
 ### ⏩ Short on time?
 ```bash
 cp solutions/module2/agents/customer_support_agent.py \
-   blaize-bazaar/backend/agents/customer_support_agent.py
+   pellier/backend/agents/customer_support_agent.py
 ```
 
 ### Verify locally
@@ -245,7 +245,7 @@ Switch to **Theo** in the persona dropdown. Send:
 Read the response. *"I've filed the damaged return for the Wabi-Sabi Bowl..."*. Now flip to the Atelier session for that turn (Atelier sidebar → Sessions → `theo-ceramics-return` → Brief tab). The brief enumerates **three Aurora writes in one transaction**:
 
 1. `INSERT INTO returns (customer_id, product_id, reason)` → returns the new `id`
-2. `UPDATE blaize_bazaar.product_catalog SET quantity = GREATEST(quantity - 1, 0)` (only when reason='damaged')
+2. `UPDATE pellier.product_catalog SET quantity = GREATEST(quantity - 1, 0)` (only when reason='damaged')
 3. `INSERT INTO tool_audit (...)` + `UPDATE tool_audit SET result, latency_ms` from the policy hook
 
 ### The two enforcement layers

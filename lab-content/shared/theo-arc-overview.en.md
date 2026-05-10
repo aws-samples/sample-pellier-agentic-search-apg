@@ -43,7 +43,7 @@ VALUES ('theo', 37, 'damaged')
 RETURNING id;
 
 -- 2. (only when reason='damaged') Decrement quantity
-UPDATE blaize_bazaar.product_catalog
+UPDATE pellier.product_catalog
    SET quantity = GREATEST(quantity - 1, 0),
        updated_at = NOW()
  WHERE "productId" = 37
@@ -83,7 +83,7 @@ Three rows, three tables, one customer-visible action. The Atelier session brief
 - `/atelier/sessions/theo-pour-over` — read-path baseline. Theo asks about pairings for his stoneware pour-over set.
 - `/atelier/sessions/theo-ceramics-return` — the workshop's canonical write turn. Brief tab walks through the three Aurora writes with the schema for each.
 
-In the **Workshop format**, this session ships pre-loaded as a fixture but Experience Guide itself is stubbed — clicking the same query in the live Boutique produces the Dispatcher fall-through ("I can help with style and recommendations, but return handling sits outside what I can answer right now"). Workshop participants run `cp solutions/module2/agents/customer_support_agent.py blaize-bazaar/backend/agents/` to wire it. After the cp, Theo's chipped-ceramics turn lands end-to-end. **That's the second build moment of the workshop — parallel to wiring Stock Keeper for Marco's Turn 4.**
+In the **Workshop format**, this session ships pre-loaded as a fixture but Experience Guide itself is stubbed — clicking the same query in the live Boutique produces the Dispatcher fall-through ("I can help with style and recommendations, but return handling sits outside what I can answer right now"). Workshop participants run `cp solutions/module2/agents/customer_support_agent.py pellier/backend/agents/` to wire it. After the cp, Theo's chipped-ceramics turn lands end-to-end. **That's the second build moment of the workshop — parallel to wiring Stock Keeper for Marco's Turn 4.**
 
 In the **Builder's Session format**, Experience Guide ships pre-applied via the CloudFormation UserData, so this session resolves cleanly out of the box.
 

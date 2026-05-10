@@ -1,7 +1,7 @@
 # Visual Regression — Scaffolding
 
-This directory documents the visual regression strategy for the Blaize Bazaar
-storefront. Task 7.2 in `.kiro/specs/blaize-bazaar-storefront/tasks.md` owns
+This directory documents the visual regression strategy for the Pellier
+storefront. Task 7.2 in `.kiro/specs/pellier-storefront/tasks.md` owns
 this scope and ties back to Requirements 5.2.1–5.2.3 and 1.6.2 (parallax
 timing fidelity) in `requirements.md`.
 
@@ -16,7 +16,7 @@ unapproved pixel diffs. We picked Chromatic for three reasons:
 
 1. **First-class Storybook integration.** Chromatic was built by the
    Storybook team. `npx chromatic` reads `.storybook/` directly, so the
-   story files in `blaize-bazaar/frontend/src/stories/` double as both
+   story files in `pellier/frontend/src/stories/` double as both
    documentation and the snapshot source. No second "what to snapshot"
    config.
 2. **Viewport coverage via Storybook parameters.** We already need to
@@ -41,7 +41,7 @@ Per task 7.2:
 - **Discover route** — signed-out (sign-in CTA variant) and signed-in
   (personalized grid variant).
 
-The story files in `blaize-bazaar/frontend/src/stories/` enumerate these
+The story files in `pellier/frontend/src/stories/` enumerate these
 variants:
 
 - `HomePage.stories.tsx`
@@ -56,12 +56,12 @@ Each story pins its snapshot viewports via
 
 ```
 .github/workflows/chromatic.yml                       # CI workflow (requires CHROMATIC_PROJECT_TOKEN)
-blaize-bazaar/frontend/.storybook/main.ts             # Storybook config (framework, stories glob)
-blaize-bazaar/frontend/.storybook/preview.tsx         # Global decorators (AuthContext mock, fonts, BG)
-blaize-bazaar/frontend/src/stories/HomePage.stories.tsx
-blaize-bazaar/frontend/src/stories/HeroStage.stories.tsx
-blaize-bazaar/frontend/src/stories/StoryboardPage.stories.tsx
-blaize-bazaar/frontend/src/stories/DiscoverPage.stories.tsx
+pellier/frontend/.storybook/main.ts             # Storybook config (framework, stories glob)
+pellier/frontend/.storybook/preview.tsx         # Global decorators (AuthContext mock, fonts, BG)
+pellier/frontend/src/stories/HomePage.stories.tsx
+pellier/frontend/src/stories/HeroStage.stories.tsx
+pellier/frontend/src/stories/StoryboardPage.stories.tsx
+pellier/frontend/src/stories/DiscoverPage.stories.tsx
 tests/visual-regression/README.md                     # This file
 ```
 
@@ -73,7 +73,7 @@ team is ready to turn this on.
 
 ## Setup (when turning this on)
 
-One-time, run from `blaize-bazaar/frontend/`:
+One-time, run from `pellier/frontend/`:
 
 ```bash
 npx storybook@latest init --builder vite --type react --yes
@@ -87,7 +87,7 @@ Storybook's init script writes its own `.storybook/main.ts` and
 matches `src/stories/**/*.stories.tsx` and so the AuthContext decorator
 applies globally.
 
-Add two scripts to `blaize-bazaar/frontend/package.json`:
+Add two scripts to `pellier/frontend/package.json`:
 
 ```json
 {
@@ -106,7 +106,7 @@ The workflow at `.github/workflows/chromatic.yml` reads this secret.
 Verify locally:
 
 ```bash
-cd blaize-bazaar/frontend
+cd pellier/frontend
 npm run storybook   # open http://localhost:6006 and confirm every story renders
 npm run build-storybook
 npx chromatic --project-token=$CHROMATIC_PROJECT_TOKEN

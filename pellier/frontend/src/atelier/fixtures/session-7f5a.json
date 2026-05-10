@@ -1,0 +1,308 @@
+{
+  "id": "7F5A",
+  "personaId": "marco",
+  "openingQuery": "A linen shirt for warm evenings out",
+  "elapsedMs": 4230,
+  "agentCount": 3,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2025-01-15T19:42:00Z",
+  "status": "complete",
+  "chat": [
+    {
+      "role": "user",
+      "content": "A linen shirt for warm evenings out",
+      "timestamp": "2025-01-15T19:42:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Let me find some linen pieces perfect for warm evenings. I'll search our collection and check what's been trending.",
+      "timestamp": "2025-01-15T19:42:02Z",
+      "plan": {
+        "routingPattern": "Dispatcher",
+        "stepCount": 4,
+        "flowSummary": "Search → Recommendation → Pricing",
+        "traceLink": "#telemetry-1"
+      },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces",
+          "description": "Semantic search for linen evening wear",
+          "durationMs": 340,
+          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1) AS similarity FROM product_catalog WHERE category ILIKE '%linen%' ORDER BY embedding <=> $1 LIMIT 10;",
+          "resultSummary": "Found 6 linen products with similarity > 0.78"
+        },
+        {
+          "toolName": "whats_trending",
+          "description": "Check trending items in linen category",
+          "durationMs": 180,
+          "resultSummary": "3 trending linen items this week"
+        }
+      ],
+      "products": [
+        {
+          "name": "Italian Linen Camp Shirt",
+          "brand": "Pellier Editions",
+          "price": 228,
+          "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
+          "traceRef": "panel-3"
+        },
+        {
+          "name": "Italian Linen Camp Shirt",
+          "brand": "Pellier Editions",
+          "price": 128,
+          "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
+          "traceRef": "panel-4"
+        },
+        {
+          "name": "Linen Drawstring Trousers",
+          "brand": "Pellier Editions",
+          "price": 98,
+          "imageUrl": "/products/marco-linen-drawstring-trousers.png",
+          "traceRef": "panel-5"
+        }
+      ],
+      "confidence": {
+        "percentage": 87,
+        "reasoning": "High confidence based on strong semantic match with user preferences for linen and warm-tone evening wear."
+      },
+      "memoryPills": [
+        { "tier": "stm", "content": "Looking for linen evening wear" },
+        { "tier": "ltm", "content": "Prefers minimal, warm tones, linen" }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "What goes well with the camp shirt?",
+      "timestamp": "2025-01-15T19:42:45Z"
+    },
+    {
+      "role": "assistant",
+      "content": "The Camp Shirt pairs beautifully with a few pieces from the collection. The Linen Drawstring Trousers in oat keep the same tonal register — relaxed, warm, breathable. For cooler evenings, the Washed Cotton Overshirt layers over it without adding bulk. And the Leather Weekender ties the whole travel wardrobe together.",
+      "timestamp": "2025-01-15T19:42:48Z",
+      "toolCalls": [
+        {
+          "toolName": "style_match",
+          "description": "Product-to-product pgvector similarity from Italian Linen Camp Shirt",
+          "durationMs": 210,
+          "resultSummary": "3 complementary pieces found with cosine similarity > 0.60"
+        }
+      ],
+      "confidence": {
+        "percentage": 92,
+        "reasoning": "Complementary pairing query — style_match found high-similarity companions from Marco's travel-linen cluster."
+      },
+      "memoryPills": [
+        { "tier": "stm", "content": "Looking for pieces to pair with the Camp Shirt" }
+      ]
+    }
+  ],
+  "telemetry": [
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent Classification",
+      "description": "Dispatcher classified intent as product search with evening-wear context",
+      "status": "complete",
+      "durationMs": 85,
+      "agent": "Orchestrator"
+    },
+    {
+      "index": 2,
+      "category": "both",
+      "title": "Semantic Search",
+      "description": "pgvector similarity search across product_catalog with linen + evening filters",
+      "status": "complete",
+      "durationMs": 340,
+      "agent": "Search",
+      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1) AS similarity FROM product_catalog WHERE category ILIKE '%linen%' ORDER BY embedding <=> $1 LIMIT 10;"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "Trending Products",
+      "description": "Retrieved trending linen items from the past 7 days",
+      "status": "complete",
+      "durationMs": 180,
+      "agent": "Search"
+    },
+    {
+      "index": 4,
+      "category": "managed",
+      "title": "Recommendation Scoring",
+      "description": "Ranked 6 candidates by preference overlap and occasion fit",
+      "status": "complete",
+      "durationMs": 420,
+      "agent": "Recommendation"
+    },
+    {
+      "index": 5,
+      "category": "both",
+      "title": "Price Analysis",
+      "description": "Verified pricing and value positioning for top 3 recommendations",
+      "status": "complete",
+      "durationMs": 95,
+      "agent": "Pricing"
+    },
+    {
+      "index": 6,
+      "category": "owned",
+      "title": "Memory Write — STM",
+      "description": "Stored current intent and product interest in short-term memory",
+      "status": "complete",
+      "durationMs": 45
+    },
+    {
+      "index": 7,
+      "category": "owned",
+      "title": "Memory Recall — LTM",
+      "description": "Retrieved Marco's stored preferences: minimal, warm tones, linen",
+      "status": "complete",
+      "durationMs": 62,
+      "sql": "SELECT content, 1 - (embedding <=> $1) AS similarity FROM memory_items WHERE persona_id = 'marco' AND tier = 'ltm' ORDER BY embedding <=> $1 LIMIT 5;"
+    },
+    {
+      "index": 8,
+      "category": "managed",
+      "title": "Response Composition",
+      "description": "Assembled editorial response with product cards, confidence, and memory context",
+      "status": "complete",
+      "durationMs": 520,
+      "agent": "Orchestrator"
+    },
+    {
+      "index": 9,
+      "category": "both",
+      "title": "Product Detail Lookup",
+      "description": "Retrieved full details for Italian Linen Camp Shirt including reviews",
+      "status": "complete",
+      "durationMs": 120,
+      "agent": "Search"
+    },
+    {
+      "index": 10,
+      "category": "managed",
+      "title": "Contextual Response",
+      "description": "Generated occasion-specific product description for outdoor dining context",
+      "status": "complete",
+      "durationMs": 380,
+      "agent": "Recommendation"
+    },
+    {
+      "index": 11,
+      "category": "owned",
+      "title": "Memory Write — STM",
+      "description": "Updated short-term memory with sundress interest and outdoor dining occasion",
+      "status": "complete",
+      "durationMs": 38
+    },
+    {
+      "index": 12,
+      "category": "teaching",
+      "title": "Skill Router Check",
+      "description": "Evaluated style-advisor activation — not triggered (no styling question detected)",
+      "status": "complete",
+      "durationMs": 28
+    },
+    {
+      "index": 13,
+      "category": "managed",
+      "title": "Session Summary",
+      "description": "Compiled session metrics: 2 turns, 3 agents active, 87% avg confidence",
+      "status": "complete",
+      "durationMs": 15
+    }
+  ],
+  "brief": {
+    "folioNumber": 42,
+    "headline": "A linen evening, curated in four seconds",
+    "filedTime": "2025-01-15T19:43:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The Request",
+        "paragraphs": [
+          "Marco arrived with a simple ask: something linen for warm evenings out. Behind that six-word query, the system recognized a returning customer with three prior orders and a clear preference profile — minimal aesthetics, warm tones, and a deep affinity for linen.",
+          "The Dispatcher routed the request through three specialists in sequence: Search for semantic discovery, Recommendation for preference-weighted ranking, and Pricing for value verification."
+        ],
+        "tracePills": ["panel-1", "panel-2"]
+      },
+      {
+        "numeral": "ii.",
+        "title": "How We Found the Pieces",
+        "paragraphs": [
+          "The Search agent executed a pgvector similarity query against 444 products, filtering for linen category items. Six candidates emerged with similarity scores above 0.78, led by the Italian Linen Camp Shirt at 0.91.",
+          "Trending data from the past seven days confirmed the sundress and camp shirt as popular choices, reinforcing the semantic results."
+        ],
+        "evidencePanel": {
+          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1) AS similarity FROM product_catalog WHERE category ILIKE '%linen%' ORDER BY embedding <=> $1 LIMIT 10;",
+          "toolRanking": [
+            { "name": "find_pieces", "distance": 0.12 },
+            { "name": "whats_trending", "distance": 0.34 },
+            { "name": "explore_collection", "distance": 0.45 }
+          ]
+        },
+        "tracePills": ["panel-2", "panel-3"]
+      },
+      {
+        "numeral": "iii.",
+        "title": "Memory at Work",
+        "paragraphs": [
+          "Long-term memory recalled Marco's stored preferences — minimal, warm tones, linen — which the Recommendation agent used to weight candidates. Short-term memory tracked the evolving conversation context, noting the shift from general browsing to specific interest in the sundress."
+        ],
+        "memoryRows": [
+          { "tier": "LTM", "content": "Prefers minimal, warm tones, linen (3 prior orders)" },
+          { "tier": "STM", "content": "Looking for linen evening wear → interested in sundress for outdoor dining" }
+        ],
+        "tracePills": ["panel-6", "panel-7"]
+      },
+      {
+        "numeral": "iv.",
+        "title": "The Recommendations",
+        "paragraphs": [
+          "Three pieces emerged from the ranking: the Italian Linen Camp Shirt ($228), the Italian Linen Camp Shirt ($128), and the Linen Drawstring Trousers ($178). Each scored highly on both semantic relevance and preference overlap.",
+          "The Pricing agent confirmed all three sit within Marco's typical spend range, with the sundress representing the strongest value proposition given its versatility."
+        ],
+        "tracePills": ["panel-4", "panel-5"]
+      },
+      {
+        "numeral": "v.",
+        "title": "Confidence and Outcome",
+        "paragraphs": [
+          "The system arrived at 87% confidence for the initial recommendation set, rising to 92% when Marco asked specifically about the sundress for outdoor dinners. The high confidence reflects strong alignment between the query, stored preferences, and product attributes."
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "Italian Linen Camp Shirt",
+        "brand": "Pellier Editions",
+        "price": 228,
+        "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
+        "traceRef": "panel-3"
+      },
+      {
+        "name": "Italian Linen Camp Shirt",
+        "brand": "Pellier Editions",
+        "price": 128,
+        "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
+        "traceRef": "panel-4"
+      },
+      {
+        "name": "Linen Drawstring Trousers",
+        "brand": "Pellier Editions",
+        "price": 98,
+        "imageUrl": "/products/marco-linen-drawstring-trousers.png",
+        "traceRef": "panel-5"
+      }
+    ],
+    "confidence": {
+      "percentage": 87,
+      "stats": [
+        { "label": "Semantic match", "value": "0.91" },
+        { "label": "Preference overlap", "value": "5/8 tags" },
+        { "label": "Agents consulted", "value": "3 of 5" },
+        { "label": "Tools invoked", "value": "4" }
+      ]
+    }
+  }
+}

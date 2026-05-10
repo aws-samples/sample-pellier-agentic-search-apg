@@ -6,7 +6,7 @@ weight: 20
 **Time budget: 20 minutes**
 **Surfaces: Sessions → Observatory**
 
-Module 1 is orientation. Before you change anything, you observe what Blaize already does — which specialists the Dispatcher routes to, which tools each agent reaches for, what the model mix looks like, and where the gap is that you'll be closing.
+Module 1 is orientation. Before you change anything, you observe what Pellier already does — which specialists the Dispatcher routes to, which tools each agent reaches for, what the model mix looks like, and where the gap is that you'll be closing.
 
 ---
 
@@ -37,7 +37,7 @@ The most important 2 minutes of the day. Open:
 
 Read it through once. Come back.
 
-Back? Now open `blaize-bazaar/backend/config.py` and find the three constants:
+Back? Now open `pellier/backend/config.py` and find the three constants:
 
 ```python
 BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
@@ -80,7 +80,7 @@ Per-agent latency bars. Sonnet agents sit at ~1000-1500 ms. Haiku agents sit at 
 
 Before you start the real build, a quick experiment to make the model-mix lesson tactile.
 
-Open `blaize-bazaar/backend/agents/pricing_agent.py`. Find the `build_pricing_agent()` factory:
+Open `pellier/backend/agents/pricing_agent.py`. Find the `build_pricing_agent()` factory:
 
 ```python
 return Agent(

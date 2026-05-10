@@ -24,11 +24,11 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'blaize_bazaar'
+    WHERE table_schema = 'pellier'
       AND table_name   = 'product_catalog'
       AND column_name  = 'quantity'
   ) THEN
-    ALTER TABLE blaize_bazaar.product_catalog
+    ALTER TABLE pellier.product_catalog
       ADD COLUMN quantity SMALLINT NOT NULL DEFAULT 20
       CHECK (quantity >= 0 AND quantity <= 9999);
     RAISE NOTICE 'Added quantity column to product_catalog';
@@ -40,7 +40,7 @@ END $$;
 -- Seed stock using a deterministic formula based on productId, tier, rating.
 -- The formula uses modular arithmetic on the product id to create
 -- variation within each tier band so quantities aren't all identical.
-UPDATE blaize_bazaar.product_catalog
+UPDATE pellier.product_catalog
 SET quantity = CASE
   -- Tier 1: hero pieces, well-stocked (15-45)
   WHEN tier = 1 THEN
@@ -63,9 +63,9 @@ DECLARE
   low INT;
   zero INT;
 BEGIN
-  SELECT COUNT(*) INTO total FROM blaize_bazaar.product_catalog;
-  SELECT COUNT(*) INTO low   FROM blaize_bazaar.product_catalog WHERE quantity <= 5;
-  SELECT COUNT(*) INTO zero  FROM blaize_bazaar.product_catalog WHERE quantity = 0;
+  SELECT COUNT(*) INTO total FROM pellier.product_catalog;
+  SELECT COUNT(*) INTO low   FROM pellier.product_catalog WHERE quantity <= 5;
+  SELECT COUNT(*) INTO zero  FROM pellier.product_catalog WHERE quantity = 0;
   RAISE NOTICE 'Seeded quantity for % products: % low-stock (<=5), % out-of-stock (0)',
     total, low, zero;
 END $$;

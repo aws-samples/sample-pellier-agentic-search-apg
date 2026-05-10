@@ -1,5 +1,5 @@
 #!/bin/bash
-# Blaize Bazaar - Write human-readable test credentials file.
+# Pellier - Write human-readable test credentials file.
 #
 # Pulls the seeded Cognito test users out of Secrets Manager and writes
 # them to /home/<user>/test-credentials.txt for workshop participants.
@@ -47,7 +47,7 @@ HOSTED_UI="${COGNITO_HOSTED_UI_URL:-<hosted-ui-url>}"
 
 {
     echo "============================================================="
-    echo "Blaize Bazaar Workshop Test Credentials"
+    echo "Pellier Workshop Test Credentials"
     echo "============================================================="
     echo "These are throwaway credentials for workshop use only."
     echo "DO NOT use for any production system."

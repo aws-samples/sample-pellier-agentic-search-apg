@@ -11,9 +11,9 @@ Everything you need is already running in your lab environment. This page is a 6
 
 When your Workshop Studio event launched, CloudFormation stood up:
 
-- **Amazon Aurora PostgreSQL Serverless v2** with pgvector 0.8.0, seeded with the 40-product Blaize Bazaar catalog (10 products × 4 persona bands, real Cohere Embed v4 1024-dim embeddings)
+- **Amazon Aurora PostgreSQL Serverless v2** with pgvector 0.8.0, seeded with the 40-product Pellier catalog (10 products × 4 persona bands, real Cohere Embed v4 1024-dim embeddings)
 - **Amazon Cognito User Pool** with three pre-seeded personas (Marco, Anna, Theo)
-- **VS Code Server** on Graviton c6g.2xlarge, fronted by CloudFront, with this repo cloned to `/home/workshop/blaize-bazaar-workshop/`
+- **VS Code Server** on Graviton c6g.2xlarge, fronted by CloudFront, with this repo cloned to `/home/workshop/pellier-workshop/`
 - **FastAPI backend** on port `8000` (uvicorn, hot-reload enabled) via `systemctl`
 - **Vite frontend** on port `5173` via `systemctl`
 
@@ -21,7 +21,7 @@ When your Workshop Studio event launched, CloudFormation stood up:
 
 From your Workshop Studio event page, find:
 
-1. **Code Editor URL** — the VS Code Server where you'll edit files. Tree is open to `blaize-bazaar-workshop/`.
+1. **Code Editor URL** — the VS Code Server where you'll edit files. Tree is open to `pellier-workshop/`.
 2. **Boutique URL** — this is the customer-facing shopper surface. It's what your code affects.
 
 The **Atelier** is served from the same host as the Boutique, at `/atelier`. You'll have both tabs open all day.
@@ -31,7 +31,7 @@ The **Atelier** is served from the same host as the Boutique, at `/atelier`. You
 Open a terminal in Code Editor:
 
 ```bash
-cd blaize-bazaar-workshop/blaize-bazaar/backend
+cd pellier-workshop/pellier/backend
 
 # 1. Aurora is up and seeded
 curl -s http://localhost:8000/api/products/count | head
@@ -58,7 +58,7 @@ If all three pass, you're set. If any fails, flag an instructor — this is much
 1. Visit the Boutique URL
 2. Click the persona pill in the header (top right). Pick **Marco**.
 3. The storefront tunes to Marco's signals — hero photograph, Curated grid, Weekend Edit headline, Because-you-asked editorial cards all reshape.
-4. Scroll to the hero search. Below the Ask Blaize input you'll see Marco's suggestion pills:
+4. Scroll to the hero search. Below the Ask Pellier input you'll see Marco's suggestion pills:
    - "What linen do you have for 10 days in Goa?"
    - "What would go with the Pellier shirt?"
    - "What's the price range for linen shirts?"
@@ -70,7 +70,7 @@ These aren't random — they're Marco's exact 4-turn workshop sequence plus a ca
 ## Open the Atelier, find Stock Keeper
 
 1. In the header, click **Atelier** (toggle next to the bag icon)
-2. You land on `/atelier/sessions` — a list of replay-able Blaize conversations. You'll see Marco's three workshop sessions plus Anna and Theo's supporting sessions.
+2. You land on `/atelier/sessions` — a list of replay-able Pellier conversations. You'll see Marco's three workshop sessions plus Anna and Theo's supporting sessions.
 3. Click **Agents** in the left sidebar (under UNDERSTAND).
 4. Notice the five specialists. **Stock Keeper** carries a burgundy **"Your turn"** pill. That's the build.
 5. Notice every agent row's **model tag**. Five rows, three different model configurations. No normalization. The reasoning lives in the model-mix sidebar, coming next.

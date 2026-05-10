@@ -1,5 +1,5 @@
 #!/bin/bash
-# Blaize Bazaar - Seed sample preferences for test users 1, 2, 3.
+# Pellier - Seed sample preferences for test users 1, 2, 3.
 #
 # Participants who sign in as one of these users immediately see a personalized
 # storefront (reinforces the agentic AI story before they touch the preferences

@@ -37,7 +37,7 @@ def _minimal_row(pid: int, tier: int = 3, emb_dim: int = 1024) -> dict:
     return {
         "productId": pid,
         "name": f"Product {pid}",
-        "brand": "Blaize Editions",
+        "brand": "Pellier Editions",
         "color": "Oatmeal",
         "price": "100.00",
         "description": "A nice linen shirt",
@@ -83,7 +83,7 @@ def module():
 
 @pytest.fixture
 def csv_path(tmp_path):
-    p = tmp_path / "blaize_catalog.csv"
+    p = tmp_path / "pellier_catalog.csv"
     _write_csv(p, row_count=92)
     return p
 
@@ -239,7 +239,7 @@ def _stub_lock(conn, got: bool = True):
 
 def _stub_verification(conn):
     # Order matters — these match the SELECTs in _verify exactly.
-    conn.queue("SELECT COUNT(*) FROM blaize_bazaar.product_catalog", (92,))  # row count
+    conn.queue("SELECT COUNT(*) FROM pellier.product_catalog", (92,))  # row count
     conn.queue('MIN("productId"), MAX("productId")', (1, 92, 92))
     conn.queue("embedding IS NULL", (0,))
     conn.queue("vector_dims", [(1024,)])
@@ -427,7 +427,7 @@ def test_transaction_rolls_back_on_verification_failure(module, fake_conn, csv_p
     _stub_no_fks(main)
     _stub_lock(main, got=True)
     # Corrupt verification: wrong row count.
-    main.queue("SELECT COUNT(*) FROM blaize_bazaar.product_catalog", (77,))
+    main.queue("SELECT COUNT(*) FROM pellier.product_catalog", (77,))
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h:5432/db")
     with pytest.raises(module.VerificationError, match="row count"):

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Complete frontend rebuild of the Blaize Bazaar application, replacing every visible surface with a cinematic editorial luxury aesthetic while preserving the frozen backend, chat drawer behavior, three-pattern agent model, and persona system. The rebuild ships as five sequential phases, each as its own PR, with the application remaining fully functional at every checkpoint.
+Complete frontend rebuild of the Pellier application, replacing every visible surface with a cinematic editorial luxury aesthetic while preserving the frozen backend, chat drawer behavior, three-pattern agent model, and persona system. The rebuild ships as five sequential phases, each as its own PR, with the application remaining fully functional at every checkpoint.
 
 ## Glossary
 
@@ -74,7 +74,7 @@ Complete frontend rebuild of the Blaize Bazaar application, replacing every visi
 
 1. THE Boutique SHALL render a rebuilt Hero_Stage section using new primitives and design tokens while preserving the existing 8-intent rotation cycle, 7.5-second cadence, hover-pause behavior, and ticker chip click-to-jump behavior
 2. THE Boutique SHALL render a rebuilt product grid using the Card Primitive with warm-tinted shadows and gentle scroll-reveal fade-in. Animation timing SHALL respect prefers-reduced-motion
-3. THE Boutique SHALL render a rebuilt header with the centered "Blaize Bazaar" wordmark, five navigation items, surface toggle, persona pill, and bag icon with live count badge
+3. THE Boutique SHALL render a rebuilt header with the centered "Pellier" wordmark, five navigation items, surface toggle, persona pill, and bag icon with live count badge
 4. WHEN the hero search bar receives a query submission, THE Boutique SHALL open the existing Chat_Drawer with the query already streaming, preserving the current `openDrawerWithQuery` behavior
 5. THE Boutique SHALL render a rebuilt footer with brand column, explore links, editorial columns, and bottom copyright strip using new primitives and tokens
 6. THE Boutique SHALL achieve a Lighthouse performance score of 90 or higher
@@ -94,7 +94,7 @@ Complete frontend rebuild of the Blaize Bazaar application, replacing every visi
 
 ### Requirement 6: Chat Drawer Visual Refresh
 
-**User Story:** As a customer, I want the floating "Ask Blaize" pill and the chat drawer to match the new editorial luxury aesthetic, so that the conversational experience feels cohesive with the rebuilt storefront.
+**User Story:** As a customer, I want the floating "Ask Pellier" pill and the chat drawer to match the new editorial luxury aesthetic, so that the conversational experience feels cohesive with the rebuilt storefront.
 
 #### Acceptance Criteria
 

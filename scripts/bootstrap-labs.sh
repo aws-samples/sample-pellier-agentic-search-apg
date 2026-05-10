@@ -1,5 +1,5 @@
 #!/bin/bash
-# Blaize Bazaar Workshop - Stage 2: Labs Bootstrap
+# Pellier Workshop - Stage 2: Labs Bootstrap
 # Optimizations: Parallel pip installs, reduced redundancy, faster execution
 # Duration: ~12-15 minutes
 
@@ -10,7 +10,7 @@ set -uo pipefail  # Removed -e to allow graceful failures
 # ============================================================================
 CODE_EDITOR_USER="${CODE_EDITOR_USER:-participant}"
 HOME_FOLDER="${HOME_FOLDER:-/workshop}"
-REPO_NAME="sample-blaize-bazaar-agentic-search-apg"
+REPO_NAME="sample-pellier-agentic-search-apg"
 REPO_PATH="$HOME_FOLDER/$REPO_NAME"
 AWS_REGION="${AWS_REGION:-us-west-2}"
 
@@ -19,7 +19,7 @@ log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 
 log "=========================================="
-log "Blaize Bazaar Stage 2: Labs Bootstrap (Optimized)"
+log "Pellier Stage 2: Labs Bootstrap (Optimized)"
 log "=========================================="
 
 # ============================================================================
@@ -27,7 +27,7 @@ log "=========================================="
 # ============================================================================
 log "Cloning repository..."
 if [ ! -d "$REPO_PATH" ]; then
-    sudo -u "$CODE_EDITOR_USER" git clone "${REPO_URL:-https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git}" "$REPO_PATH" 2>/dev/null && \
+    sudo -u "$CODE_EDITOR_USER" git clone "${REPO_URL:-https://github.com/aws-samples/sample-pellier-agentic-search-apg.git}" "$REPO_PATH" 2>/dev/null && \
     rm -rf "$REPO_PATH/.git" && log "✅ Repository cloned" || warn "Clone failed"
 else
     log "✅ Repository exists"
@@ -65,7 +65,7 @@ log "Creating environment files..."
 # VITE_BASE_PATH is the asset URL prefix baked into the built bundle
 # so CloudFront's /ports/8000/* reverse proxy matches what code-server
 # forwards. Override to "/" for a pure-local prod-build test.
-[ -d "$REPO_PATH/blaize-bazaar/frontend" ] && cat > "$REPO_PATH/blaize-bazaar/frontend/.env" << EOF
+[ -d "$REPO_PATH/pellier/frontend" ] && cat > "$REPO_PATH/pellier/frontend/.env" << EOF
 VITE_API_URL=
 VITE_BASE_PATH=/ports/8000/
 VITE_AWS_REGION=$AWS_REGION
@@ -74,7 +74,7 @@ EOF
 
 # Backend/Root .env (if DB available)
 if [ -n "$DB_HOST" ]; then
-    DB_CLUSTER_ARN="arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):cluster:blaize-bazaar-cluster"
+    DB_CLUSTER_ARN="arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):cluster:pellier-cluster"
     
     # Single .env template
     cat > "$REPO_PATH/.env" << EOF
@@ -109,7 +109,7 @@ EOF
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
     
     # Symlink for backend (avoid duplication)
-    ln -sf "$REPO_PATH/.env" "$REPO_PATH/blaize-bazaar/backend/.env" 2>/dev/null
+    ln -sf "$REPO_PATH/.env" "$REPO_PATH/pellier/backend/.env" 2>/dev/null
     
     # .pgpass for psql CLI
     echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "/home/$CODE_EDITOR_USER/.pgpass"
@@ -135,10 +135,10 @@ install_notebooks() {
     return 0
 }
 
-install_blaize_bazaar() {
-    if [ -f "$REPO_PATH/blaize-bazaar/backend/requirements.txt" ]; then
-        cd "$REPO_PATH/blaize-bazaar/backend"
-        sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r requirements.txt 2>&1 | tee /var/log/blaize-bazaar-pip-install.log >/dev/null
+install_pellier() {
+    if [ -f "$REPO_PATH/pellier/backend/requirements.txt" ]; then
+        cd "$REPO_PATH/pellier/backend"
+        sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r requirements.txt 2>&1 | tee /var/log/pellier-pip-install.log >/dev/null
         return ${PIPESTATUS[0]}
     fi
     return 1
@@ -146,16 +146,16 @@ install_blaize_bazaar() {
 
 # Run in parallel
 install_notebooks & PID1=$!
-install_blaize_bazaar & PID2=$!
+install_pellier & PID2=$!
 if wait $PID1; then
     log "✅ Notebooks dependencies installed"
 else
     warn "Notebooks install issues - check /var/log/notebooks-pip-install.log"
 fi
 if wait $PID2; then
-    log "✅ Blaize Bazaar Backend dependencies installed"
+    log "✅ Pellier Backend dependencies installed"
 else
-    warn "Blaize Bazaar Backend install issues - check /var/log/blaize-bazaar-pip-install.log"
+    warn "Pellier Backend install issues - check /var/log/pellier-pip-install.log"
 fi
 
 # ============================================================================
@@ -174,12 +174,12 @@ fi
 # STEP 8: MCP CONFIG DIRECTORY & GENERATION
 # ============================================================================
 log "Setting up MCP configuration..."
-mkdir -p "$REPO_PATH/blaize-bazaar/config"
-chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/blaize-bazaar/config"
+mkdir -p "$REPO_PATH/pellier/config"
+chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/config"
 
 # Generate MCP config if database credentials are available
-if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/blaize-bazaar/backend/generate_mcp_config.py" ]; then
-    cd "$REPO_PATH/blaize-bazaar/backend"
+if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/pellier/backend/generate_mcp_config.py" ]; then
+    cd "$REPO_PATH/pellier/backend"
     
     # Source .env file to get all variables
     if [ -f "$REPO_PATH/.env" ]; then
@@ -199,8 +199,8 @@ if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/blaize-bazaar/backend/generate_mcp_conf
             export AWS_REGION='$AWS_REGION' && \
             python3.13 generate_mcp_config.py" 2>&1 | tee /var/log/mcp-config-generation.log
         
-        if [ -f "$REPO_PATH/blaize-bazaar/config/mcp-server-config.json" ]; then
-            log "✅ MCP config generated at blaize-bazaar/config/mcp-server-config.json"
+        if [ -f "$REPO_PATH/pellier/config/mcp-server-config.json" ]; then
+            log "✅ MCP config generated at pellier/config/mcp-server-config.json"
             
             # Deploy MCP config to all Amazon Q locations
             log "Deploying MCP config to Amazon Q..."
@@ -211,7 +211,7 @@ if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/blaize-bazaar/backend/generate_mcp_conf
             mkdir -p "$REPO_PATH/.amazonq"
             
             # Read generated config and add useLegacyMcpJson for global config
-            MCP_CONFIG=$(cat "$REPO_PATH/blaize-bazaar/config/mcp-server-config.json")
+            MCP_CONFIG=$(cat "$REPO_PATH/pellier/config/mcp-server-config.json")
             MCP_CONFIG_WITH_LEGACY=$(echo "$MCP_CONFIG" | jq '. + {"useLegacyMcpJson": true}')
             
             # Deploy to global configs (with useLegacyMcpJson)
@@ -246,8 +246,8 @@ fi
 log "Setting up frontend and database (parallel)..."
 
 setup_frontend() {
-    if [ -d "$REPO_PATH/blaize-bazaar/frontend" ]; then
-        cd "$REPO_PATH/blaize-bazaar/frontend"
+    if [ -d "$REPO_PATH/pellier/frontend" ]; then
+        cd "$REPO_PATH/pellier/frontend"
         sudo -u "$CODE_EDITOR_USER" npm install &>/dev/null
     fi
 }
@@ -298,15 +298,15 @@ try:
     # Check if memory already exists
     existing = client.list_memories(maxResults=10)
     for mem in existing.get(\"memories\", []):
-        if mem.get(\"name\") == \"BlaizeBazaarSTM\":
+        if mem.get(\"name\") == \"PellierSTM\":
             mem_id = mem[\"id\"]
             print(mem_id)
             sys.exit(0)
 
     # Create new STM-only memory (no strategies = short-term only)
     response = client.create_memory(
-        name=\"BlaizeBazaarSTM\",
-        description=\"Short-term memory for Blaize Bazaar workshop — conversation context within sessions\",
+        name=\"PellierSTM\",
+        description=\"Short-term memory for Pellier workshop — conversation context within sessions\",
         eventExpiryDuration=30
     )
     mem_id = response[\"memory\"][\"id\"]
@@ -348,10 +348,10 @@ log "Creating start scripts..."
 # Single-process model: FastAPI on :8000 serves both /api/* and the
 # built SPA. The legacy start-frontend.sh / http-server on 5173 is
 # gone — attendees point their browser at /ports/8000/* only.
-cat > "$REPO_PATH/blaize-bazaar/start-backend.sh" << 'EOF'
+cat > "$REPO_PATH/pellier/start-backend.sh" << 'EOF'
 #!/bin/bash
 # Convenience script for interactive iteration. The workshop's
-# production flow is the blaize-bazaar systemd service (see below).
+# production flow is the pellier systemd service (see below).
 # Use this script when you want --reload during local dev.
 cd "$(dirname "$0")/backend"
 export PATH="$HOME/.local/bin:$PATH"
@@ -362,8 +362,8 @@ echo "   App: http://localhost:8000/ — uvicorn serves the built SPA + /api"
 uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 EOF
 
-chmod +x "$REPO_PATH/blaize-bazaar/start-backend.sh"
-chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/blaize-bazaar/start-backend.sh"
+chmod +x "$REPO_PATH/pellier/start-backend.sh"
+chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/start-backend.sh"
 log "✅ Start scripts created"
 
 # ============================================================================
@@ -374,12 +374,12 @@ log "Configuring bash environment..."
 cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'EOF'
 
 # ============================================================================
-# Blaize Bazaar Workshop Environment
+# Pellier Workshop Environment
 # ============================================================================
 
-if [ -f /workshop/sample-blaize-bazaar-agentic-search-apg/.env ]; then
+if [ -f /workshop/sample-pellier-agentic-search-apg/.env ]; then
     set -a
-    source /workshop/sample-blaize-bazaar-agentic-search-apg/.env
+    source /workshop/sample-pellier-agentic-search-apg/.env
     set +a
     
     # Explicitly export PostgreSQL variables for psql
@@ -391,18 +391,18 @@ if [ -f /workshop/sample-blaize-bazaar-agentic-search-apg/.env ]; then
 fi
 
 # Workshop Navigation Aliases
-alias workshop='cd /workshop/sample-blaize-bazaar-agentic-search-apg'
-alias notebooks='cd /workshop/sample-blaize-bazaar-agentic-search-apg/notebooks'
-alias blaize-bazaar='cd /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar'
-alias backend='cd /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar/backend'
-alias frontend='cd /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar/frontend'
+alias workshop='cd /workshop/sample-pellier-agentic-search-apg'
+alias notebooks='cd /workshop/sample-pellier-agentic-search-apg/notebooks'
+alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
+alias backend='cd /workshop/sample-pellier-agentic-search-apg/pellier/backend'
+alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 
-# Blaize Bazaar Service Shortcuts — single-process model: uvicorn on
+# Pellier Service Shortcuts — single-process model: uvicorn on
 # :8000 serves the built SPA AND /api. Frontend changes require a
-# rebuild (``npm run build`` in blaize-bazaar/frontend/) and are
-# handled automatically by the blaize-bazaar systemd service.
-alias start-backend='/workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar/start-backend.sh'
-alias rebuild-frontend='cd /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar/frontend && npm run build && cd - >/dev/null && systemctl restart blaize-bazaar 2>/dev/null || true'
+# rebuild (``npm run build`` in pellier/frontend/) and are
+# handled automatically by the pellier systemd service.
+alias start-backend='/workshop/sample-pellier-agentic-search-apg/pellier/start-backend.sh'
+alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && npm run build && cd - >/dev/null && systemctl restart pellier 2>/dev/null || true'
 
 # Database Shortcut (psql uses PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE from .env)
 alias psql='psql'
@@ -415,7 +415,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # Auto-navigate to workshop directory on terminal open
 if [ "$PWD" = "$HOME" ] || [ "$PWD" = "/workshop" ]; then
-    cd /workshop/sample-blaize-bazaar-agentic-search-apg 2>/dev/null || true
+    cd /workshop/sample-pellier-agentic-search-apg 2>/dev/null || true
 fi
 EOF
 
@@ -428,7 +428,7 @@ log "Performing final verification..."
 
 # Verify database setup
 if [ -n "$DB_HOST" ]; then
-    PRODUCT_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM blaize_bazaar.product_catalog;" 2>/dev/null | xargs || echo "0")
+    PRODUCT_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.product_catalog;" 2>/dev/null | xargs || echo "0")
     if [ "$PRODUCT_COUNT" -gt 0 ]; then
         log "✅ Database verified ($PRODUCT_COUNT products)"
     else
@@ -438,13 +438,13 @@ fi
 
 # Verify Python packages
 if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import fastapi, uvicorn, strands" 2>/dev/null; then
-    log "✅ Blaize Bazaar Backend dependencies verified"
+    log "✅ Pellier Backend dependencies verified"
 else
-    warn "⚠️  Some Blaize Bazaar Backend dependencies may be missing"
+    warn "⚠️  Some Pellier Backend dependencies may be missing"
 fi
 
 # ============================================================================
-# STEP 14: AUTO-START BLAIZE BAZAAR SERVICE (single-process, port 8000)
+# STEP 14: AUTO-START PELLIER SERVICE (single-process, port 8000)
 # ============================================================================
 # Single systemd service. FastAPI serves:
 #   - the built SPA at /, /atelier, /storyboard, /discover, ...
@@ -453,30 +453,30 @@ fi
 #
 # One port, one process, one unit to troubleshoot. Drop-in migration
 # from the earlier two/three-service layout: after running this
-# bootstrap on a host that had blaize-{backend,frontend,frontend-watcher}
+# bootstrap on a host that had pellier-{backend,frontend,frontend-watcher}
 # services, those are stopped + disabled below so there's no port-5173
 # collision at restart.
-log "Creating blaize-bazaar auto-start service (single process, port 8000)..."
+log "Creating pellier auto-start service (single process, port 8000)..."
 
 # Cleanup of the legacy two/three-service layout. Safe to run
 # unconditionally — absent services return non-zero and we swallow.
-systemctl stop blaize-backend blaize-frontend blaize-frontend-watcher 2>/dev/null || true
-systemctl disable blaize-backend blaize-frontend blaize-frontend-watcher 2>/dev/null || true
-rm -f /etc/systemd/system/blaize-backend.service \
-      /etc/systemd/system/blaize-frontend.service \
-      /etc/systemd/system/blaize-frontend-watcher.service
+systemctl stop pellier-backend pellier-frontend pellier-frontend-watcher 2>/dev/null || true
+systemctl disable pellier-backend pellier-frontend pellier-frontend-watcher 2>/dev/null || true
+rm -f /etc/systemd/system/pellier-backend.service \
+      /etc/systemd/system/pellier-frontend.service \
+      /etc/systemd/system/pellier-frontend-watcher.service
 
-# --- blaize-bazaar.service: build frontend once, then run uvicorn ---
-cat > /etc/systemd/system/blaize-bazaar.service << EOF
+# --- pellier.service: build frontend once, then run uvicorn ---
+cat > /etc/systemd/system/pellier.service << EOF
 [Unit]
-Description=Blaize Bazaar (FastAPI + built SPA on :8000)
+Description=Pellier (FastAPI + built SPA on :8000)
 After=network.target
 
 [Service]
 Type=simple
 User=$CODE_EDITOR_USER
 Group=$CODE_EDITOR_USER
-WorkingDirectory=$REPO_PATH/blaize-bazaar/backend
+WorkingDirectory=$REPO_PATH/pellier/backend
 EnvironmentFile=$REPO_PATH/.env
 Environment=PATH=/home/$CODE_EDITOR_USER/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=HOME=/home/$CODE_EDITOR_USER
@@ -486,33 +486,33 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # ExecStartPre runs every restart: regenerate MCP config (cheap) and
 # rebuild the frontend bundle so the latest /src/ lands in dist/. The
 # build is a one-shot vite run — no watcher, no second process.
-ExecStartPre=/bin/bash -c 'cd $REPO_PATH/blaize-bazaar/backend && python3 generate_mcp_config.py 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'cd $REPO_PATH/blaize-bazaar/frontend && npm run build'
+ExecStartPre=/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3 generate_mcp_config.py 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build'
 ExecStart=/home/$CODE_EDITOR_USER/.local/bin/uvicorn app:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=3
-StandardOutput=append:/tmp/blaize-bazaar/uvicorn.log
-StandardError=append:/tmp/blaize-bazaar/uvicorn.log
+StandardOutput=append:/tmp/pellier/uvicorn.log
+StandardError=append:/tmp/pellier/uvicorn.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 # Create log directory
-mkdir -p /tmp/blaize-bazaar
-chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/blaize-bazaar
+mkdir -p /tmp/pellier
+chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/pellier
 
 # Enable + start the single service
 systemctl daemon-reload
-systemctl enable blaize-bazaar
-systemctl start blaize-bazaar
+systemctl enable pellier
+systemctl start pellier
 
 # Verify it started
 sleep 8
-if systemctl is-active --quiet blaize-bazaar; then
-    log "✅ blaize-bazaar service running (port 8000, serves SPA + /api)"
+if systemctl is-active --quiet pellier; then
+    log "✅ pellier service running (port 8000, serves SPA + /api)"
 else
-    warn "blaize-bazaar service failed to start — check: journalctl -u blaize-bazaar"
+    warn "pellier service failed to start — check: journalctl -u pellier"
 fi
 
 log "✅ Auto-start service configured"
@@ -530,8 +530,8 @@ cat > /tmp/workshop-ready.json << EOF
     "stage": "labs-bootstrap",
     "components": {
         "notebooks_dependencies": "ready",
-        "blaize_bazaar_backend": "ready",
-        "blaize_bazaar_frontend": "ready",
+        "pellier_backend": "ready",
+        "pellier_frontend": "ready",
         "database_config": "ready",
         "jupyter_kernel": "ready"
     }
@@ -557,25 +557,25 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     }
 
     copy_solution "solutions/module2/agents/recommendation_agent.py" \
-                  "blaize-bazaar/backend/agents/recommendation_agent.py" "C3 recommendation_agent.py"
+                  "pellier/backend/agents/recommendation_agent.py" "C3 recommendation_agent.py"
     copy_solution "solutions/module2/agents/orchestrator.py" \
-                  "blaize-bazaar/backend/agents/orchestrator.py" "C4 orchestrator.py"
+                  "pellier/backend/agents/orchestrator.py" "C4 orchestrator.py"
     copy_solution "solutions/module3/services/agentcore_runtime.py" \
-                  "blaize-bazaar/backend/agentcore_runtime.py" "C5 agentcore_runtime.py"
+                  "pellier/backend/agentcore_runtime.py" "C5 agentcore_runtime.py"
     copy_solution "solutions/module3/services/agentcore_memory.py" \
-                  "blaize-bazaar/backend/services/agentcore_memory.py" "C6 agentcore_memory.py"
+                  "pellier/backend/services/agentcore_memory.py" "C6 agentcore_memory.py"
     copy_solution "solutions/module3/services/agentcore_gateway.py" \
-                  "blaize-bazaar/backend/services/agentcore_gateway.py" "C7 agentcore_gateway.py"
+                  "pellier/backend/services/agentcore_gateway.py" "C7 agentcore_gateway.py"
     copy_solution "solutions/module3/services/otel_trace_extractor.py" \
-                  "blaize-bazaar/backend/services/otel_trace_extractor.py" "C8 otel_trace_extractor.py"
+                  "pellier/backend/services/otel_trace_extractor.py" "C8 otel_trace_extractor.py"
     copy_solution "solutions/module3/frontend/agentIdentity.ts" \
-                  "blaize-bazaar/frontend/src/utils/agentIdentity.ts" "C9 agentIdentity.ts"
+                  "pellier/frontend/src/utils/agentIdentity.ts" "C9 agentIdentity.ts"
 
-    chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/blaize-bazaar/"
+    chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
     # Single-service restart — re-runs the ExecStartPre vite build so
     # the frontend bundle picks up any C9 solution drop-in too.
-    systemctl restart blaize-bazaar 2>/dev/null || true
-    log "✅ Builders solutions applied and blaize-bazaar service restarted"
+    systemctl restart pellier 2>/dev/null || true
+    log "✅ Builders solutions applied and pellier service restarted"
 fi
 
 # ============================================================================
@@ -585,7 +585,7 @@ if [ -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ] && [ -x "$REPO_PATH/scripts
     log "Writing test credentials file..."
     export COGNITO_TEST_CREDENTIALS_SECRET_ARN COGNITO_HOSTED_UI_URL AWS_REGION \
            CODE_EDITOR_USER HOME_FOLDER
-    bash "$REPO_PATH/scripts/write-test-credentials.sh" 2>&1 | tee /var/log/blaize-write-credentials.log || \
+    bash "$REPO_PATH/scripts/write-test-credentials.sh" 2>&1 | tee /var/log/pellier-write-credentials.log || \
         warn "write-test-credentials.sh reported issues"
 fi
 
@@ -597,7 +597,7 @@ if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-pr
     export COGNITO_USER_POOL_ID COGNITO_CLIENT_ID COGNITO_CLIENT_SECRET_ARN \
            COGNITO_TEST_CREDENTIALS_SECRET_ARN AWS_REGION
     export BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
-    bash "$REPO_PATH/scripts/seed-sample-preferences.sh" 2>&1 | tee /var/log/blaize-seed-preferences.log || \
+    bash "$REPO_PATH/scripts/seed-sample-preferences.sh" 2>&1 | tee /var/log/pellier-seed-preferences.log || \
         warn "seed-sample-preferences.sh reported issues"
 fi
 
@@ -609,21 +609,21 @@ log "Stage 2: Labs Bootstrap Complete!"
 log "=========================================="
 echo ""
 echo "✅ Notebooks (Jupyter) dependencies installed"
-echo "✅ Blaize Bazaar Backend (FastAPI + Strands) installed"
-echo "✅ Blaize Bazaar Frontend (React) dependencies installed"
+echo "✅ Pellier Backend (FastAPI + Strands) installed"
+echo "✅ Pellier Frontend (React) dependencies installed"
 echo "✅ Database setup complete (~92 products with indexes)"
 echo "✅ MCP server configured for Amazon Q"
 echo "✅ Bash environment configured (psql ready)"
-echo "✅ blaize-bazaar service auto-started (single process on :8000)"
+echo "✅ pellier service auto-started (single process on :8000)"
 echo ""
 echo "🌐 App is live at: https://<cloudfront>/ports/8000/"
 echo "   Frontend + API both served by one uvicorn process."
-echo "   Edits to blaize-bazaar/frontend/src/ require a rebuild:"
+echo "   Edits to pellier/frontend/src/ require a rebuild:"
 echo "     rebuild-frontend    # alias: npm run build + systemctl restart"
 echo ""
 echo "Quick Commands:"
 echo "  psql                             # Connect to database"
-echo "  journalctl -fu blaize-bazaar     # Service logs"
+echo "  journalctl -fu pellier     # Service logs"
 echo "  rebuild-frontend                 # Rebuild SPA + restart service"
 echo ""
 log "=========================================="

@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Pellier — 60-minute Builder's Session (DC Summit).
+  Thin wrapper around pellier-labs.yml with LabFormat=builders.
+  Experience Guide + restock_shelf + running_low are pre-applied via
+  the Code Editor UserData so participants build only Stock Keeper's
+  system prompt + the floor_check tool — two files that close
+  Marco's Turn 4 warehouse-stock gap.
+
+Parameters:
+  WorkshopId:
+    Type: String
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,40}$
+    ConstraintDescription: 3-41 chars, lowercase/digits/hyphens.
+
+  WorkshopDomain:
+    Type: String
+    AllowedPattern: ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+
+  AuroraEngineVersion:
+    Type: String
+    Default: "17.7"
+
+  NumberOfTestUsers:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 50
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-pellier-agentic-search-apg.git
+
+  RepoBranch:
+    Type: String
+    Default: main
+
+  GoogleOAuthSecretArn:
+    Type: String
+    Default: ""
+
+  EnableGoogleSignIn:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Email/password only for the 60-min format. Federated IdPs add
+      setup friction not worth the time budget.
+
+  AppleOAuthSecretArn:
+    Type: String
+    Default: ""
+
+  EnableAppleSignIn:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+  TemplatesBaseUrl:
+    Type: String
+    Description: S3 or raw-GitHub URL base where the nested stacks live.
+
+Resources:
+  # Delegate to the shared labs.yml with LabFormat=builders.
+  # The Code Editor UserData will cp solutions/module2/agents/customer_
+  # support_agent.py and solutions/module2/services/agent_tools__
+  # builders_preapply.py before starting services.
+  LabsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplatesBaseUrl}/pellier-labs.yml
+      Parameters:
+        WorkshopId: !Ref WorkshopId
+        WorkshopDomain: !Ref WorkshopDomain
+        AuroraEngineVersion: !Ref AuroraEngineVersion
+        NumberOfTestUsers: !Ref NumberOfTestUsers
+        LabFormat: builders
+        RepoUrl: !Ref RepoUrl
+        RepoBranch: !Ref RepoBranch
+        GoogleOAuthSecretArn: !Ref GoogleOAuthSecretArn
+        EnableGoogleSignIn: !Ref EnableGoogleSignIn
+        AppleOAuthSecretArn: !Ref AppleOAuthSecretArn
+        EnableAppleSignIn: !Ref EnableAppleSignIn
+        TemplatesBaseUrl: !Ref TemplatesBaseUrl
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: LabFormat
+          Value: builders
+        - Key: Event
+          Value: dc-summit-2026
+
+Outputs:
+  CodeEditorUrl:
+    Value: !GetAtt LabsStack.Outputs.CodeEditorUrl
+    Description: Builder's Session participant entry point.
+  AuroraClusterEndpoint:
+    Value: !GetAtt LabsStack.Outputs.AuroraClusterEndpoint
+  UserPoolId:
+    Value: !GetAtt LabsStack.Outputs.UserPoolId
+  HostedUiUrl:
+    Value: !GetAtt LabsStack.Outputs.HostedUiUrl
+  TestUserCredentialsSecretArn:
+    Value: !GetAtt LabsStack.Outputs.TestUserCredentialsSecretArn

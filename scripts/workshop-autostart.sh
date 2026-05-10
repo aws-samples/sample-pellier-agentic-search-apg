@@ -26,9 +26,9 @@
 set -euo pipefail
 
 WORKSHOP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKEND_DIR="${WORKSHOP_ROOT}/blaize-bazaar/backend"
-FRONTEND_DIR="${WORKSHOP_ROOT}/blaize-bazaar/frontend"
-LOG_DIR="/tmp/blaize-bazaar"
+BACKEND_DIR="${WORKSHOP_ROOT}/pellier/backend"
+FRONTEND_DIR="${WORKSHOP_ROOT}/pellier/frontend"
+LOG_DIR="/tmp/pellier"
 
 mkdir -p "$LOG_DIR"
 
@@ -37,7 +37,7 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${BLUE}🚀 Blaize Bazaar — Starting workshop service...${NC}"
+echo -e "${BLUE}🚀 Pellier — Starting workshop service...${NC}"
 
 # -----------------------------------------------------------------------------
 # Kill any existing processes on 8000 (current) and 5173 (legacy two-process)
@@ -109,7 +109,7 @@ done
 # Summary
 # -----------------------------------------------------------------------------
 echo ""
-echo -e "${GREEN}✅ Blaize Bazaar is running${NC}"
+echo -e "${GREEN}✅ Pellier is running${NC}"
 echo ""
 
 if [ -n "${CLOUDFRONT_URL:-}" ]; then

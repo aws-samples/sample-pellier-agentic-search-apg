@@ -1,0 +1,352 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Pellier - VS Code Server (code-server) on c6g.2xlarge Graviton,
+  fronted by CloudFront. Pre-clones repo to /home/workshop/pellier
+  and runs bootstrap-environment.sh + bootstrap-labs.sh via user data.
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W3037
+
+Parameters:
+  WorkshopId:
+    Type: String
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,40}$
+
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+
+  CodeEditorSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-pellier-agentic-search-apg.git
+
+  RepoBranch:
+    Type: String
+    Default: main
+    Description: >
+      Git branch to check out. Keep at 'main' for public deployments;
+      override for testing a pre-release branch during dry-runs.
+
+  LabFormat:
+    Type: String
+    AllowedValues:
+      - workshop
+      - builders
+    Default: workshop
+    Description: >
+      Which lab format this instance serves. Drives the conditional
+      `cp` in UserData: the Builder's Session (60 min) pre-applies
+      the three Stock Keeper support tools + the Experience Guide
+      agent so participants only build Stock Keeper's system prompt
+      + floor_check. The Workshop (120 min) leaves all stubs in place
+      so participants build everything themselves.
+
+  InstanceType:
+    Type: String
+    Default: c6g.2xlarge
+    AllowedValues:
+      - c6g.xlarge
+      - c6g.2xlarge
+      - c6g.4xlarge
+      - t4g.large
+      - t4g.xlarge
+
+  VolumeSize:
+    Type: Number
+    Default: 100
+    MinValue: 40
+    MaxValue: 500
+
+  DBSecretArn:
+    Type: String
+    Description: Aurora master secret ARN.
+
+  DBClusterEndpoint:
+    Type: String
+
+  UserPoolId:
+    Type: String
+
+  UserPoolClientId:
+    Type: String
+
+  UserPoolClientSecretArn:
+    Type: String
+
+  UserPoolDomain:
+    Type: String
+
+  HostedUiUrl:
+    Type: String
+
+  TestUserCredentialsSecretArn:
+    Type: String
+
+  CodeEditorUser:
+    Type: String
+    Default: workshop
+
+  HomeFolder:
+    Type: String
+    Default: /home/workshop
+
+  # Amazon Linux 2023 (arm64) SSM parameter
+  AmiParameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+
+Resources:
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: pellier-instance-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: BedrockModelAccess
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-opus-4-7
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-sonnet-4-6
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/us.cohere.embed-v4:0
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
+              - Sid: AgentCoreAccess
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:CreateRuntime
+                  - bedrock-agentcore:InvokeRuntime
+                  - bedrock-agentcore:GetSession
+                  - bedrock-agentcore:PutSessionMemory
+                  - bedrock-agentcore:GetSessionMemory
+                  - bedrock-agentcore:InvokeGateway
+                  - bedrock-agentcore:GetIdentity
+                  - bedrock-agentcore-control:CreateMemory
+                  - bedrock-agentcore-control:GetMemory
+                  - bedrock-agentcore-control:ListMemories
+                Resource: "*"
+              - Sid: AuroraDataAccess
+                Effect: Allow
+                Action:
+                  - rds-db:connect
+                Resource: !Sub arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/pellier_app
+              - Sid: CognitoAdminActions
+                Effect: Allow
+                Action:
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminAddUserToGroup
+                  - cognito-idp:AdminInitiateAuth
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+              - Sid: SecretsManagerRead
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource:
+                  - !Ref DBSecretArn
+                  - !Ref UserPoolClientSecretArn
+                  - !Ref TestUserCredentialsSecretArn
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pellier/google-oauth-*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pellier/apple-oauth-*
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/pellier/*
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  WaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  WaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    Properties:
+      Handle: !Ref WaitHandle
+      Timeout: "1800"
+      Count: 1
+
+  CodeEditorInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiParameter
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds:
+        - !Ref CodeEditorSecurityGroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp3
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-editor
+        - Key: Project
+          Value: pellier
+        - Key: "re:Invent"
+          Value: "2026"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -eux
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+          # --- Core packages ---
+          dnf update -y
+          dnf install -y git jq unzip tar gzip python3.13 python3.13-pip nodejs20 npm \
+              postgresql17 aws-cfn-bootstrap || true
+
+          # --- Create workshop user ---
+          if ! id "${CodeEditorUser}" &>/dev/null; then
+            useradd -m -d ${HomeFolder} -s /bin/bash ${CodeEditorUser}
+          fi
+          chown -R ${CodeEditorUser}:${CodeEditorUser} ${HomeFolder}
+
+          # --- Clone repo ---
+          cd ${HomeFolder}
+          if [ ! -d pellier ]; then
+            sudo -u ${CodeEditorUser} git clone --branch ${RepoBranch} ${RepoUrl} pellier
+          fi
+
+          # --- LabFormat-conditional pre-apply ---
+          #
+          # Builder's Session (60 min): pre-apply the Experience Guide
+          # agent + a variant of agent_tools.py that wires restock_shelf
+          # and running_low but leaves floor_check stubbed. Participants
+          # build Stock Keeper's system prompt + floor_check, period.
+          #
+          # Workshop (120 min): keep all stubs in place; participants
+          # author everything themselves over 90 minutes of hands-on.
+          if [ "${LabFormat}" = "builders" ]; then
+            cd ${HomeFolder}/pellier
+            sudo -u ${CodeEditorUser} cp solutions/module2/agents/customer_support_agent.py \
+               pellier/backend/agents/customer_support_agent.py
+            sudo -u ${CodeEditorUser} cp solutions/module2/services/agent_tools__builders_preapply.py \
+               pellier/backend/services/agent_tools.py
+          fi
+
+          # --- Export env vars so bootstrap scripts can read them ---
+          cat > ${HomeFolder}/.pellier-env << EOF
+          export WORKSHOP_ID="${WorkshopId}"
+          export AWS_REGION="${AWS::Region}"
+          export AWS_DEFAULT_REGION="${AWS::Region}"
+          export DB_SECRET_ARN="${DBSecretArn}"
+          export DB_HOST="${DBClusterEndpoint}"
+          export COGNITO_USER_POOL_ID="${UserPoolId}"
+          export COGNITO_CLIENT_ID="${UserPoolClientId}"
+          export COGNITO_CLIENT_SECRET_ARN="${UserPoolClientSecretArn}"
+          export COGNITO_DOMAIN="${UserPoolDomain}"
+          export COGNITO_HOSTED_UI_URL="${HostedUiUrl}"
+          export COGNITO_TEST_CREDENTIALS_SECRET_ARN="${TestUserCredentialsSecretArn}"
+          export CODE_EDITOR_USER="${CodeEditorUser}"
+          export HOME_FOLDER="${HomeFolder}"
+          EOF
+          chown ${CodeEditorUser}:${CodeEditorUser} ${HomeFolder}/.pellier-env
+          chmod 600 ${HomeFolder}/.pellier-env
+
+          # --- Run bootstrap scripts ---
+          cd ${HomeFolder}/pellier
+          set -a; source ${HomeFolder}/.pellier-env; set +a
+
+          bash scripts/bootstrap-environment.sh 2>&1 | tee /var/log/bootstrap-environment.log || true
+          bash scripts/bootstrap-labs.sh 2>&1 | tee /var/log/bootstrap-labs.log || true
+
+          # --- Signal CloudFormation ---
+          /opt/aws/bin/cfn-signal -s true '${WaitHandle}' || true
+
+  # --------------------------------------------------------------------------
+  # CloudFront distribution fronting the Code Editor (port 8080 by default
+  # for code-server). All attendee traffic — both the Kiro/Code-Editor UI
+  # AND the Pellier app on port 8000 — flows through code-server's
+  # built-in ``/ports/<n>/*`` reverse proxy:
+  #
+  #   https://<cf-domain>/              → Code Editor / Kiro
+  #   https://<cf-domain>/ports/8000/   → Pellier (FastAPI serving
+  #                                       the built SPA + /api)
+  #
+  # Two workshop-critical knobs:
+  #
+  #   OriginReadTimeout: 90 — the agentic chat stream can take 60+s on
+  #     an Opus cold start. CloudFront's 30s default would kill the
+  #     stream mid-SSE. 90s gives headroom without hiding real hangs.
+  #
+  #   Compress: false — SSE through a compressed origin ends up buffered
+  #     (gzip has to accumulate bytes before it can emit). The Atelier
+  #     chat depends on tokens streaming visibly, so we turn compression
+  #     off at the CF layer. CachingDisabled is already set, so no CF
+  #     cache is lost by disabling compression.
+  #
+  # AllViewer origin-request policy forwards Authorization + Cookie
+  # headers transparently so Cognito hosted-UI callbacks keep working.
+  # --------------------------------------------------------------------------
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub Pellier Code Editor (${WorkshopId})
+        PriceClass: PriceClass_100
+        DefaultCacheBehavior:
+          TargetOriginId: code-editor-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
+          Compress: false
+        Origins:
+          - Id: code-editor-origin
+            DomainName: !GetAtt CodeEditorInstance.PublicDnsName
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              HTTPPort: 8080
+              OriginReadTimeout: 90
+              OriginKeepaliveTimeout: 60
+
+Outputs:
+  InstanceId:
+    Value: !Ref CodeEditorInstance
+    Export:
+      Name: !Sub ${AWS::StackName}-InstanceId
+  PublicDnsName:
+    Value: !GetAtt CodeEditorInstance.PublicDnsName
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicDnsName
+  CloudFrontUrl:
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontUrl
+  WorkshopReady:
+    Value: !Join ["", [!Ref WaitCondition]]
+    Description: Signals from bootstrap completion

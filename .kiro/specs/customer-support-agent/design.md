@@ -2,9 +2,9 @@
 
 ## Overview
 
-This feature adds two new specialist agents (Customer Support and Search) to the Blaize Bazaar multi-agent e-commerce assistant, refactors the Recommendation Agent, and renames `semantic_product_search` to `search_products` across the codebase. The system grows from 3 to 5 specialist agents routed by the existing Orchestrator.
+This feature adds two new specialist agents (Customer Support and Search) to the Pellier multi-agent e-commerce assistant, refactors the Recommendation Agent, and renames `semantic_product_search` to `search_products` across the codebase. The system grows from 3 to 5 specialist agents routed by the existing Orchestrator.
 
-The Customer Support Agent handles return policy inquiries and general troubleshooting using a new `get_return_policy` tool (backed by the `blaize_bazaar.return_policies` Aurora PostgreSQL table) and the renamed `search_products` tool. The Search Agent promotes the existing frontend-only "Search Agent" identity to a real backend agent backed by `search_products`, `get_product_by_category`, and `compare_products`. The Recommendation Agent is refactored to focus purely on trending/personalized recommendations by removing search tools.
+The Customer Support Agent handles return policy inquiries and general troubleshooting using a new `get_return_policy` tool (backed by the `pellier.return_policies` Aurora PostgreSQL table) and the renamed `search_products` tool. The Search Agent promotes the existing frontend-only "Search Agent" identity to a real backend agent backed by `search_products`, `get_product_by_category`, and `compare_products`. The Recommendation Agent is refactored to focus purely on trending/personalized recommendations by removing search tools.
 
 Supporting changes span intent classification (new `SUPPORT_KEYWORDS` and `SEARCH_KEYWORDS`), FastAPI endpoint routing, `AgentType` enum, `PromptRegistry`, frontend agent identity, graph orchestrator visualization, and AgentCore Gateway integration for dynamic MCP-based tool discovery.
 
@@ -60,7 +60,7 @@ graph TD
 
 ### Key Design Decisions
 
-1. **Aurora-backed return policy table** — Return policies are stored in `blaize_bazaar.return_policies`, seeded by the bootstrap script alongside the product catalog. The `get_return_policy` tool queries this table using the same `_db_service` + `_run_async` pattern as every other tool. This keeps the "everything lives in Aurora" narrative clean.
+1. **Aurora-backed return policy table** — Return policies are stored in `pellier.return_policies`, seeded by the bootstrap script alongside the product catalog. The `get_return_policy` tool queries this table using the same `_db_service` + `_run_async` pattern as every other tool. This keeps the "everything lives in Aurora" narrative clean.
 
 2. **`search_products` rename** — Every other data tool follows `verb_noun` naming (`get_trending_products`, `restock_product`). Renaming `semantic_product_search` to `search_products` aligns with this convention. This is a codebase-wide find-and-replace affecting `agent_tools.py`, all agent modules, `chat.py`, and prompts.
 
@@ -91,12 +91,12 @@ def get_return_policy(category: str = "default") -> str:
     Returns:
         JSON string with return policy details
     """
-    # Queries blaize_bazaar.return_policies WHERE category_name = %s
+    # Queries pellier.return_policies WHERE category_name = %s
     # Falls back to 'default' row if category not found
     # Uses _run_async(_db_service.fetch_one(...)) pattern
 ```
 
-The tool queries the `blaize_bazaar.return_policies` table (seeded by the bootstrap script with 21 rows). If the category isn't found, it falls back to the `'default'` row. Uses the same `_db_service` + `_run_async` pattern as every other DB-backed tool.
+The tool queries the `pellier.return_policies` table (seeded by the bootstrap script with 21 rows). If the category isn't found, it falls back to the `'default'` row. Uses the same `_db_service` + `_run_async` pattern as every other DB-backed tool.
 
 ### 2. Customer Support Agent (`agents/customer_support_agent.py`)
 
@@ -205,7 +205,7 @@ The `create_gateway_orchestrator_with_semantic_search()` system prompt needs upd
 
 ```python
 system_prompt=(
-    "You are the Blaize Bazaar shopping assistant. "
+    "You are the Pellier shopping assistant. "
     "Use the x_amz_bedrock_agentcore_search tool to find "
     "relevant tools for the user's query, then invoke them. "
     "For product searches, search for 'product search' tools. "
@@ -253,7 +253,7 @@ Both orchestration paths work with the expanded tool set:
 ### Return Policy Data Structure
 
 ```python
-# Each row in blaize_bazaar.return_policies table
+# Each row in pellier.return_policies table
 {
     "return_window_days": int,       # Number of days for returns (e.g., 30)
     "conditions": str,               # Human-readable return conditions
@@ -330,7 +330,7 @@ _A property is a characteristic or behavior that should hold true across all val
 
 ### Property 1: Return policy lookup correctness
 
-_For any_ category string, calling `get_return_policy(category)` should return a valid JSON string containing `return_window_days`, `conditions`, and `refund_method` fields. If the category exists in the `blaize_bazaar.return_policies` table, the returned JSON should contain that category's specific policy data. If the category does not exist, the returned JSON should contain the `"default"` row's policy data.
+_For any_ category string, calling `get_return_policy(category)` should return a valid JSON string containing `return_window_days`, `conditions`, and `refund_method` fields. If the category exists in the `pellier.return_policies` table, the returned JSON should contain that category's specific policy data. If the category does not exist, the returned JSON should contain the `"default"` row's policy data.
 
 **Validates: Requirements 1.2, 1.3**
 

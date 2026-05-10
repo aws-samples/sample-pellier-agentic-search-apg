@@ -2,11 +2,11 @@
 AgentCoreIdentityService — verified user context for the orchestrator.
 
 Challenge 9.2 solution drop-in (Requirements 4.3.1–4.3.3). Copy over
-``blaize-bazaar/backend/services/agentcore_identity.py`` and restart the
+``pellier/backend/services/agentcore_identity.py`` and restart the
 backend:
 
     cp solutions/module3/services/agentcore_identity.py \
-       blaize-bazaar/backend/services/agentcore_identity.py
+       pellier/backend/services/agentcore_identity.py
 
 The CHALLENGE 9.2 block below matches the one in the in-tree file
 byte-for-byte (enforced by Task 7.4).
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 #     anon:{session_id}                     anonymous sessions
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_identity.py blaize-bazaar/backend/services/agentcore_identity.py
+#    cp solutions/module3/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
 
 SESSION_ID_HEADER = "X-Session-Id"
 SESSION_ID_COOKIE = "session_id"

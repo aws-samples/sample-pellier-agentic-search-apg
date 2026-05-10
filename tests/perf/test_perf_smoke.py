@@ -1,6 +1,6 @@
-"""Performance smoke tests for Blaize Bazaar storefront (Task 7.1).
+"""Performance smoke tests for Pellier storefront (Task 7.1).
 
-Acceptance: ``.kiro/specs/blaize-bazaar-storefront/requirements.md``
+Acceptance: ``.kiro/specs/pellier-storefront/requirements.md``
 Req 5.1.1-5.1.3.
 
 Runs against a **live** stack seeded with the workshop catalog. The

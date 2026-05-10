@@ -2,7 +2,7 @@
 
 ## Overview
 
-Five-phase frontend rebuild of Blaize Bazaar, replacing every visible surface with a cinematic editorial luxury aesthetic. Each phase ships as its own PR with the application remaining fully functional at every checkpoint. The rebuild preserves the frozen backend, chat drawer behavior, three-pattern agent model, and persona system. Implementation uses React 18, TypeScript, Tailwind CSS 3, and Framer Motion 12.
+Five-phase frontend rebuild of Pellier, replacing every visible surface with a cinematic editorial luxury aesthetic. Each phase ships as its own PR with the application remaining fully functional at every checkpoint. The rebuild preserves the frozen backend, chat drawer behavior, three-pattern agent model, and persona system. Implementation uses React 18, TypeScript, Tailwind CSS 3, and Framer Motion 12.
 
 ## Tasks
 
@@ -163,7 +163,7 @@ Five-phase frontend rebuild of Blaize Bazaar, replacing every visible surface wi
 
 - [x] 3. Phase 2 — Boutique Rebuild
   - [x] 3.1 Rebuild Header component
-    - Centered "Blaize Bazaar" wordmark with circular B logo
+    - Centered "Pellier" wordmark with circular B logo
     - Five nav items: Home, Shop, Storyboard, Discover, Account
     - Surface toggle (Storefront ↔ Atelier)
     - Replace PersonaPill + PersonaModal with persona Avatar dropdown using Avatar primitive

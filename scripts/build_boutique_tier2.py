@@ -6,7 +6,7 @@ Covers the 8 rotating HeroStage intents and the major search patterns:
 
 Image URLs are Unsplash placeholders sourced from editorial "linen",
 "ceramic", "leather sandal" style search results — they must be
-human-verified before the catalog ships (see blaize_catalog_review_tier2.md).
+human-verified before the catalog ships (see pellier_catalog_review_tier2.md).
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def register(bucket: List[Product]) -> None:
     bucket.extend([
         # --- 4 linen pieces (11-14) ---
         Product(
-            productId=11, name="Linen Camp Shirt", brand="Blaize Editions",
+            productId=11, name="Linen Camp Shirt", brand="Pellier Editions",
             color="Sage", price=118.0,
             description="Relaxed camp collar in soft sage linen, tumble-washed for lived-in drape from day one.",
             category="Linen",
@@ -32,7 +32,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="linen, serene, everyday",
         ),
         Product(
-            productId=12, name="Linen Drawstring Shorts", brand="Blaize Editions",
+            productId=12, name="Linen Drawstring Shorts", brand="Pellier Editions",
             color="Bone", price=78.0,
             description="Mid-length shorts in lightweight linen with a hand-knotted drawstring and deep slash pockets.",
             category="Linen",
@@ -44,7 +44,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="neutral, warm, travel",
         ),
         Product(
-            productId=13, name="Linen Midi Skirt", brand="Blaize Editions",
+            productId=13, name="Linen Midi Skirt", brand="Pellier Editions",
             color="Wheat", price=108.0,
             description="Bias-cut midi in washed linen with a low waist tie. Moves quietly, earns its evenings.",
             category="Linen",
@@ -57,7 +57,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="evening, warm, dresses",
         ),
         Product(
-            productId=14, name="Linen Overshirt", brand="Blaize Editions",
+            productId=14, name="Linen Overshirt", brand="Pellier Editions",
             color="Driftwood", price=138.0,
             description="Between shirt and jacket. Heavyweight linen with horn buttons and patch pockets that take real pockets-full.",
             category="Outerwear",
@@ -70,7 +70,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 3 outerwear (15-17) ---
         Product(
-            productId=15, name="Lightweight Chore Jacket", brand="Blaize Editions",
+            productId=15, name="Lightweight Chore Jacket", brand="Pellier Editions",
             color="Slate", price=188.0,
             description="Japanese cotton-linen chore cloth with a stand collar and three patch pockets. Ages into something personal.",
             category="Outerwear",
@@ -83,7 +83,7 @@ def register(bucket: List[Product]) -> None:
             badge="EDITORS_PICK",
         ),
         Product(
-            productId=16, name="Merino Crew Sweater", brand="Blaize Editions",
+            productId=16, name="Merino Crew Sweater", brand="Pellier Editions",
             color="Dove", price=148.0,
             description="Fine-gauge merino with a set-in sleeve and a hand-linked crew. Lightweight enough for late summer.",
             category="Outerwear",
@@ -95,7 +95,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="evening, slow, soft",
         ),
         Product(
-            productId=17, name="Quilted Vest", brand="Blaize Editions",
+            productId=17, name="Quilted Vest", brand="Pellier Editions",
             color="Clay", price=128.0,
             description="Lightly insulated vest in waxed cotton. Cut slim through the body so it layers under a jacket without bulk.",
             category="Outerwear",
@@ -108,7 +108,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 3 dresses (18-20) ---
         Product(
-            productId=18, name="Cotton Slip Dress", brand="Blaize Atelier",
+            productId=18, name="Cotton Slip Dress", brand="Pellier Atelier",
             color="Pearl", price=168.0,
             description="Silk-cotton slip with a bias cut and adjustable straps. Reads formal or easy depending on how you wear it.",
             category="Dresses",
@@ -121,7 +121,7 @@ def register(bucket: List[Product]) -> None:
             badge="JUST_IN",
         ),
         Product(
-            productId=19, name="Poplin Shirt Dress", brand="Blaize Editions",
+            productId=19, name="Poplin Shirt Dress", brand="Pellier Editions",
             color="Chambray", price=138.0,
             description="Crisp cotton poplin with a belted waist and a generous skirt. Quietly structured, endlessly wearable.",
             category="Dresses",
@@ -133,7 +133,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="everyday, work, classic",
         ),
         Product(
-            productId=20, name="Tiered Cotton Maxi", brand="Blaize Editions",
+            productId=20, name="Tiered Cotton Maxi", brand="Pellier Editions",
             color="Amber", price=158.0,
             description="Three-tier cotton voile with a smocked bodice and tie straps. Built for long walks and longer evenings.",
             category="Dresses",
@@ -146,7 +146,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 3 footwear (21-23) ---
         Product(
-            productId=21, name="Woven Leather Sandal", brand="Blaize Editions",
+            productId=21, name="Woven Leather Sandal", brand="Pellier Editions",
             color="Cognac", price=148.0,
             description="Hand-woven vegetable-tanned leather in a closed-toe silhouette. Molds to your step, improves with every mile.",
             category="Footwear",
@@ -158,7 +158,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="travel, classic, footwear",
         ),
         Product(
-            productId=22, name="Canvas Court Sneaker", brand="Blaize Editions",
+            productId=22, name="Canvas Court Sneaker", brand="Pellier Editions",
             color="Bone", price=128.0,
             description="Low-profile canvas court shoe with a gum rubber sole and a soft leather collar. Quietly iconic.",
             category="Footwear",
@@ -171,7 +171,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="everyday, classic, footwear",
         ),
         Product(
-            productId=23, name="Suede Penny Loafer", brand="Blaize Atelier",
+            productId=23, name="Suede Penny Loafer", brand="Pellier Atelier",
             color="Driftwood", price=218.0,
             description="Italian suede on a hand-stitched leather sole. The kind of loafer that goes with denim or with nothing at all.",
             category="Footwear",
@@ -184,7 +184,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 3 bags (24-26) ---
         Product(
-            productId=24, name="Waxed Canvas Weekender", brand="Blaize Editions",
+            productId=24, name="Waxed Canvas Weekender", brand="Pellier Editions",
             color="Olive", price=248.0,
             description="Waxed cotton canvas with full-grain leather handles and a brass zip. Built for two-night trips, ages for twenty years.",
             category="Bags",
@@ -197,7 +197,7 @@ def register(bucket: List[Product]) -> None:
             badge="BESTSELLER",
         ),
         Product(
-            productId=25, name="Leather Crossbody", brand="Blaize Editions",
+            productId=25, name="Leather Crossbody", brand="Pellier Editions",
             color="Cognac", price=178.0,
             description="Compact crossbody in vegetable-tanned leather with a brass clasp and an adjustable shoulder strap.",
             category="Bags",
@@ -209,7 +209,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="everyday, travel, classic",
         ),
         Product(
-            productId=26, name="Canvas Market Tote", brand="Blaize Editions",
+            productId=26, name="Canvas Market Tote", brand="Pellier Editions",
             color="Sand", price=88.0,
             description="Heavy cotton canvas with reinforced handles. The tote that disappears into weekend routines and comes back stronger.",
             category="Bags",
@@ -222,7 +222,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 2 home (27-28) ---
         Product(
-            productId=27, name="Linen Throw Blanket", brand="Blaize Home",
+            productId=27, name="Linen Throw Blanket", brand="Pellier Home",
             color="Flax", price=128.0,
             description="Heavyweight washed linen throw with hand-tied fringe. Warms slow mornings and quiet evenings alike.",
             category="Home",
@@ -234,7 +234,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="slow, home, soft",
         ),
         Product(
-            productId=28, name="Soy Candle in Ceramic", brand="Blaize Home",
+            productId=28, name="Soy Candle in Ceramic", brand="Pellier Home",
             color="Stoneware", price=58.0,
             description="Hand-poured soy wax in a reusable ceramic vessel. Scent of fig leaf, lemon blossom, and clean linen.",
             category="Home",
@@ -247,7 +247,7 @@ def register(bucket: List[Product]) -> None:
         ),
         # --- 2 accessories (29-30) ---
         Product(
-            productId=29, name="Panama Sun Hat", brand="Blaize Editions",
+            productId=29, name="Panama Sun Hat", brand="Pellier Editions",
             color="Bone", price=98.0,
             description="Hand-woven Ecuadorian toquilla straw with a grosgrain ribbon band. Folds for packing, snaps back in place.",
             category="Accessories",
@@ -259,7 +259,7 @@ def register(bucket: List[Product]) -> None:
             match_reason="travel, warm, accessories",
         ),
         Product(
-            productId=30, name="Brass Cuff Bracelet", brand="Blaize Atelier",
+            productId=30, name="Brass Cuff Bracelet", brand="Pellier Atelier",
             color="Amber", price=88.0,
             description="Hand-forged brass cuff with a hammered surface that catches the light. Warms in tone with wear.",
             category="Accessories",

@@ -35,7 +35,7 @@ The columns name the trade: **+20 points recall@5, ~2× p50, 6× cost.** No univ
 
 ## Part 2 · Walk through Experience Guide (5 min, instructor-led, no typing)
 
-In Code Editor, open `blaize-bazaar/backend/agents/customer_support_agent.py`.
+In Code Editor, open `pellier/backend/agents/customer_support_agent.py`.
 
 This is the agent you *would* have built in the 2-hour Workshop. In the Builder's Session it was pre-applied — but it's readable code, and the chaining pattern is worth 5 minutes.
 

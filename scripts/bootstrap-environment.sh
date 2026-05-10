@@ -1,5 +1,5 @@
 #!/bin/bash
-# Blaize Bazaar Workshop - Stage 1: Environment Bootstrap
+# Pellier Workshop - Stage 1: Environment Bootstrap
 # Purpose: Get Code Editor + VS Code ready FAST, then signal CloudFormation
 # Duration: ~8 minutes
 
@@ -11,7 +11,7 @@ set -euo pipefail
 CODE_EDITOR_PASSWORD="${CODE_EDITOR_PASSWORD:-defaultPassword}"
 CODE_EDITOR_USER="${CODE_EDITOR_USER:-participant}"
 HOME_FOLDER="${HOME_FOLDER:-/workshop}"
-REPO_NAME="${REPO_NAME:-sample-blaize-bazaar-agentic-search-apg}"
+REPO_NAME="${REPO_NAME:-sample-pellier-agentic-search-apg}"
 CFN_WAIT_HANDLE="${CFN_WAIT_HANDLE:-}"
 STAGE2_SCRIPT_URL="${STAGE2_SCRIPT_URL:-}"
 ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}"
@@ -28,7 +28,7 @@ warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ERROR:${NC} $1"; exit 1; }
 
 log "=========================================="
-log "Blaize Bazaar Stage 1: Environment Bootstrap"
+log "Pellier Stage 1: Environment Bootstrap"
 log "=========================================="
 log "Assets Bucket: ${ASSETS_BUCKET_NAME:-<not set>}"
 log "Assets Prefix: ${ASSETS_BUCKET_PREFIX:-<not set>}"
@@ -143,7 +143,7 @@ server {
     listen [::]:80;
     server_name _;
     
-    # Blaize Bazaar (single-process): FastAPI on :8000 serves BOTH
+    # Pellier (single-process): FastAPI on :8000 serves BOTH
     # /api/* AND the built SPA (/, /atelier, /storyboard, /discover,
     # /assets/*, /fonts/*). Code-server's /ports/<n>/* reverse proxy
     # (or the standalone /app/ alias below) routes the whole app
@@ -440,7 +440,7 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 clear
 cat << 'EOF'
 ╔═══════════════════════════════════════════════════════════════════╗
-║                 Blaize Bazaar Workshop                             ║
+║                 Pellier Workshop                             ║
 ║     🚀 Build Agentic AI-Powered Search with Aurora PostgreSQL     ║
 ║                    AWS re:Invent 2026                             ║
 ╚═══════════════════════════════════════════════════════════════════╝
@@ -449,18 +449,18 @@ cat << 'EOF'
 
 📚 Quick Commands:
    workshop       - Navigate to workshop root
-   blaize-bazaar  - Navigate to Blaize Bazaar
+   pellier  - Navigate to Pellier
    backend        - Navigate to backend
    frontend       - Navigate to frontend
    psql           - Connect to PostgreSQL database
 
-🌐 Blaize Bazaar is running at: https://<cloudfront>/app/
+🌐 Pellier is running at: https://<cloudfront>/app/
    Backend auto-reloads when you save .py files
    Frontend auto-rebuilds when you save .tsx/.ts files (refresh browser)
 
 📁 Workshop Structure:
-   /workshop/sample-blaize-bazaar-agentic-search-apg/
-   ├── blaize-bazaar/ - The App (edit backend/ files)
+   /workshop/sample-pellier-agentic-search-apg/
+   ├── pellier/ - The App (edit backend/ files)
    │   ├── backend/   - FastAPI + Strands SDK (TODOs here)
    │   └── frontend/  - React + TypeScript (pre-built)
    ├── solutions/     - Drop-in replacements if short on time
@@ -471,7 +471,7 @@ cat << 'EOF'
 EOF
 
 # Auto-open the main backend services file participants will edit first
-code /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar/backend/services/hybrid_search.py 2>/dev/null || true
+code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/hybrid_search.py 2>/dev/null || true
 
 # Exit cleanly so task completes
 exit 0
@@ -539,9 +539,9 @@ log "Upgrading pip and installing workshop dependencies..."
 sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user --upgrade pip -q
 
 # Install backend dependencies from requirements.txt
-if [ -f "$HOME_FOLDER/$REPO_NAME/blaize-bazaar/backend/requirements.txt" ]; then
+if [ -f "$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt" ]; then
     log "Installing backend dependencies from requirements.txt..."
-    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r "$HOME_FOLDER/$REPO_NAME/blaize-bazaar/backend/requirements.txt" -q
+    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r "$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt" -q
 else
     # Fallback to individual packages
     sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user ipywidgets>=8.1.0 -q
@@ -557,8 +557,8 @@ export AWS_DEFAULT_REGION="$AWS_REGION"
 
 # Workshop shortcuts
 alias workshop='cd /workshop'
-alias notebooks='cd /workshop/sample-blaize-bazaar-agentic-search-apg/notebooks'
-alias blaize-bazaar='cd /workshop/sample-blaize-bazaar-agentic-search-apg/blaize-bazaar'
+alias notebooks='cd /workshop/sample-pellier-agentic-search-apg/notebooks'
+alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 
 # Load .env file if it exists
 if [ -f /workshop/.env ]; then
@@ -665,7 +665,7 @@ if [ ! -z "${STAGE2_SCRIPT_URL}" ]; then
     # Run Stage 2 in background with proper environment variables
     sudo bash -c "export CODE_EDITOR_USER='$CODE_EDITOR_USER' && \
         export HOME_FOLDER='$HOME_FOLDER' && \
-        export REPO_URL='${REPO_URL:-https://github.com/aws-samples/sample-blaize-bazaar-agentic-search-apg.git}' && \
+        export REPO_URL='${REPO_URL:-https://github.com/aws-samples/sample-pellier-agentic-search-apg.git}' && \
         export DB_SECRET_ARN='${DB_SECRET_ARN:-}' && \
         export DB_CLUSTER_ENDPOINT='${DB_CLUSTER_ENDPOINT:-}' && \
         export DB_NAME='${DB_NAME:-postgres}' && \
