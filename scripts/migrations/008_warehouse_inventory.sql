@@ -65,7 +65,7 @@ ON CONFLICT (id) DO UPDATE SET
 CREATE TABLE IF NOT EXISTS warehouse_inventory (
     warehouse_id    TEXT NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
     "productId"     INTEGER NOT NULL
-                    REFERENCES blaize_bazaar.product_catalog("productId")
+                    REFERENCES pellier.product_catalog("productId")
                     ON DELETE CASCADE,
     quantity        SMALLINT NOT NULL DEFAULT 0
                     CHECK (quantity >= 0 AND quantity <= 9999),
@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS warehouse_inventory_product_idx
 -- Seed: deterministic 40/30/30 split of product_catalog.quantity
 -- across BK-01 / ATX-02 / PDX-01. Apparel/linen (Marco's world) keeps
 -- the Brooklyn bias at 40% — the lab content frames Brooklyn as the
--- headline warehouse Marco asks about, so the Pellier shirt should
+-- headline warehouse Marco asks about, so the Hadley shirt should
 -- have a substantive count there.
 INSERT INTO warehouse_inventory (warehouse_id, "productId", quantity)
 SELECT
@@ -96,7 +96,7 @@ SELECT
         )::SMALLINT
     )
 FROM warehouses wh
-CROSS JOIN blaize_bazaar.product_catalog pc
+CROSS JOIN pellier.product_catalog pc
 ON CONFLICT (warehouse_id, "productId") DO UPDATE SET
     quantity   = EXCLUDED.quantity,
     updated_at = now();

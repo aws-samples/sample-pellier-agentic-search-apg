@@ -172,7 +172,7 @@ class BusinessLogic:
         rows = await self.db.fetch_all(
             f"""
             SELECT "productId", name, brand, color, price
-              FROM blaize_bazaar.product_catalog
+              FROM pellier.product_catalog
              WHERE {clause}
              ORDER BY rating DESC NULLS LAST
              LIMIT 5
