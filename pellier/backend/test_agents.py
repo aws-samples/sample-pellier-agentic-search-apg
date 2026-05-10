@@ -230,7 +230,7 @@ def create_single_agent():
 
 
 def create_recommendation():
-    from agents.recommendation_agent import recommendation
+    from agents.curator import recommendation
     class _Wrapper:
         def __call__(self, query):
             return recommendation(query)
@@ -238,7 +238,7 @@ def create_recommendation():
 
 
 def create_pricing():
-    from agents.pricing_agent import pricing
+    from agents.value_analyst import pricing
     class _Wrapper:
         def __call__(self, query):
             return pricing(query)
@@ -246,7 +246,7 @@ def create_pricing():
 
 
 def create_inventory():
-    from agents.inventory_agent import inventory
+    from agents.stock_keeper import inventory
     class _Wrapper:
         def __call__(self, query):
             return inventory(query)

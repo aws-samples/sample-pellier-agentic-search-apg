@@ -20,7 +20,7 @@ from services.persona_context import inject_persona_preamble
 
 
 _INVENTORY_SYSTEM_PROMPT = (
-    "You are Pellier's Inventory Specialist. "
+    "You are Pellier's Stock Keeper. "
     "Three warehouses ship the catalog: BK-01 (Brooklyn), ATX-02 (Austin), "
     "PDX-01 (Portland). "
     "<critical-rule>"

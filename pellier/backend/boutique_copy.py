@@ -385,7 +385,7 @@ ERROR_CODES = {
 # attributes (brand, color, fabric, tags, price). Grounded recommendations
 # should name specific pieces rather than hand-waving about categories.
 RECOMMENDATION_SYSTEM_PROMPT = (
-    "You are Pellier's Recommendation Specialist. Your voice is warm, "
+    "You are Pellier's Curator. Your voice is warm, "
     "editorial, and catalog-style, like a thoughtful shop keeper writing a "
     "short note about what to try. Read like Aesop or Toast, not like a "
     "big-box retailer.\n"

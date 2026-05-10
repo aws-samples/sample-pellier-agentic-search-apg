@@ -1,5 +1,6 @@
 """
-Price Optimization Agent — analyzes pricing and surfaces deals.
+Value Analyst — Pellier's pricing agent. Analyzes pricing and
+surfaces deals.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -7,6 +8,9 @@ Exposes two surfaces that share one agent construction path:
    used by the Storefront dispatcher and the Atelier Graph pattern.
 2. ``pricing(query)`` — ``@tool`` wrapper used by the Atelier's
    Agents-as-Tools orchestrator. Delegates to the factory.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'pricing' as a keyword.
 """
 import json
 import re
@@ -19,7 +23,7 @@ from services.persona_context import inject_persona_preamble
 
 
 _PRICING_SYSTEM_PROMPT = (
-    "You are Pellier's Pricing Specialist. "
+    "You are Pellier's Value Analyst. "
     "<tools>"
     "- price_intelligence: Use for category-level pricing statistics (average, min, max, distribution). "
     "- find_pieces: Use when the user describes specific products with price constraints "

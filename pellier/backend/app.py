@@ -1421,7 +1421,7 @@ async def get_workshop_status():
 
     # Module 2 — Agentic AI (tools + agents + orchestrator)
     from services.agent_tools import whats_trending
-    from agents.recommendation_agent import recommendation
+    from agents.curator import recommendation
     from agents.orchestrator import create_orchestrator
     m2_tools = is_stub(whats_trending, "# TODO: Your implementation here")
     m2_rec = is_stub(recommendation, "# TODO: Your implementation here")

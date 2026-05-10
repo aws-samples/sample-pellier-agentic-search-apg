@@ -1,6 +1,6 @@
 """
-Product Search Agent — handles product search, category browsing,
-and side-by-side comparisons.
+Style Advisor — Pellier's product search agent. Handles product
+search, category browsing, and side-by-side comparisons.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -8,6 +8,9 @@ Exposes two surfaces that share one agent construction path:
    used by the Storefront dispatcher and the Atelier Graph pattern.
 2. ``search(query)`` — ``@tool`` wrapper used by the Atelier's
    Agents-as-Tools orchestrator. Delegates to the factory.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'search' as a keyword.
 """
 import json
 import re
@@ -20,7 +23,7 @@ from services.persona_context import inject_persona_preamble
 
 
 _SEARCH_SYSTEM_PROMPT = (
-    "You are Pellier's Product Search Specialist. "
+    "You are Pellier's Style Advisor. "
     "<tools>"
     "- find_pieces: Use for natural language or intent-based product queries "
     "(e.g. 'gift for a cook', 'noise-canceling headphones under $200'). "

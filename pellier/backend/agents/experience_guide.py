@@ -1,6 +1,6 @@
 """
-Customer Support Agent — return policies, troubleshooting, and
-general post-purchase questions.
+Experience Guide — Pellier's customer support agent. Handles return
+policies, troubleshooting, and general post-purchase questions.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -8,6 +8,9 @@ Exposes two surfaces that share one agent construction path:
    used by the Storefront dispatcher and the Atelier Graph pattern.
 2. ``support(query)`` — ``@tool`` wrapper used by the Atelier's
    Agents-as-Tools orchestrator. Delegates to the factory.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'support' as a keyword.
 
 Exa MCP integration was removed in the three-patterns refactor. It
 was unset in every workshop environment (EXA_API_KEY blank in

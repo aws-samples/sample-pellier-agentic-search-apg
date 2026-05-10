@@ -126,11 +126,11 @@ class GraphAgentAdapter:
         # Lazy imports — the specialist factories pull in Strands
         # tools; importing at module load would drag the whole tool
         # registry into any file that touches chat.py.
-        from agents.search_agent import build_search_agent
-        from agents.recommendation_agent import build_recommendation_agent
-        from agents.pricing_agent import build_pricing_agent
-        from agents.inventory_agent import build_inventory_agent
-        from agents.customer_support_agent import build_support_agent
+        from agents.style_advisor import build_search_agent
+        from agents.curator import build_recommendation_agent
+        from agents.value_analyst import build_pricing_agent
+        from agents.stock_keeper import build_inventory_agent
+        from agents.experience_guide import build_support_agent
 
         # Router + specialists. We build the specialists eagerly so
         # GraphBuilder can validate them and so ``callback_handler`` /

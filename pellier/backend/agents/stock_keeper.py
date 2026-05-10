@@ -1,6 +1,7 @@
 """
-Inventory Restock Agent — monitors stock levels and surfaces restock
-recommendations.
+Stock Keeper — Pellier's inventory specialist agent. Monitors stock
+levels, surfaces restock recommendations, and answers warehouse
+questions.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -8,6 +9,14 @@ Exposes two surfaces that share one agent construction path:
    used by the Storefront dispatcher and the Atelier Graph pattern.
 2. ``inventory(query)`` — ``@tool`` wrapper used by the Atelier's
    Agents-as-Tools orchestrator. Delegates to the factory.
+
+Note on naming: this module is the home of the Stock Keeper persona.
+The internal factory name ``build_inventory_agent`` and ``@tool``
+``inventory`` are kept generic because the Storefront dispatcher's
+intent classifier emits 'inventory' as a keyword (see
+services/chat.py classify_intent). Renaming those would couple to
+the dispatcher's intent contract; rename them as a follow-up if /
+when the dispatcher's intent space is reshaped.
 """
 import json
 import re
@@ -20,7 +29,7 @@ from services.persona_context import inject_persona_preamble
 
 
 _INVENTORY_SYSTEM_PROMPT = (
-    "You are Pellier's Inventory Specialist. "
+    "You are Pellier's Stock Keeper. "
     "Three warehouses ship the catalog: BK-01 (Brooklyn), ATX-02 (Austin), "
     "PDX-01 (Portland). "
     "<critical-rule>"

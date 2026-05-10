@@ -3,11 +3,11 @@ Orchestrator Agent - Routes queries to specialized agents with interleaved think
 """
 from strands import Agent
 from strands.models import BedrockModel
-from .inventory_agent import inventory_restock_agent
-from .recommendation_agent import product_recommendation_agent
-from .pricing_agent import price_optimization_agent
-from .customer_support_agent import customer_support_agent
-from .search_agent import search_agent
+from .stock_keeper import inventory_restock_agent
+from .curator import product_recommendation_agent
+from .value_analyst import price_optimization_agent
+from .experience_guide import customer_support_agent
+from .style_advisor import search_agent
 from storefront_copy import ORCHESTRATOR_SYSTEM_PROMPT
 
 

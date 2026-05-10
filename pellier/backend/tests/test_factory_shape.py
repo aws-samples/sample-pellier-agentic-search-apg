@@ -29,11 +29,11 @@ import pytest
 
 from strands import Agent
 
-from agents.customer_support_agent import build_support_agent, support
-from agents.inventory_agent import build_inventory_agent, inventory
-from agents.pricing_agent import build_pricing_agent, pricing
-from agents.recommendation_agent import build_recommendation_agent, recommendation
-from agents.search_agent import build_search_agent, search
+from agents.experience_guide import build_support_agent, support
+from agents.stock_keeper import build_inventory_agent, inventory
+from agents.value_analyst import build_pricing_agent, pricing
+from agents.curator import build_recommendation_agent, recommendation
+from agents.style_advisor import build_search_agent, search
 from services.persona_context import persona_preamble_var, set_persona_preamble
 
 

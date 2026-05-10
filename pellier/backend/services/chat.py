@@ -1841,9 +1841,9 @@ CURRENT REQUEST: {message}"""
         # everything after this point treats ``orchestrator`` as a
         # plain Strands Agent regardless of pattern.
         if pattern == "dispatcher":
-            from agents.search_agent import build_search_agent
-            from agents.recommendation_agent import build_recommendation_agent
-            from agents.pricing_agent import build_pricing_agent
+            from agents.style_advisor import build_search_agent
+            from agents.curator import build_recommendation_agent
+            from agents.value_analyst import build_pricing_agent
             from agents import inventory_agent as inventory_agent_module
             from agents import customer_support_agent as support_agent_module
 
@@ -1937,8 +1937,8 @@ CURRENT REQUEST: {message}"""
                 }
                 return
 
-            from agents.inventory_agent import build_inventory_agent
-            from agents.customer_support_agent import build_support_agent
+            from agents.stock_keeper import build_inventory_agent
+            from agents.experience_guide import build_support_agent
 
             _DISPATCHER_FACTORIES = {
                 "search": build_search_agent,

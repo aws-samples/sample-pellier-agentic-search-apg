@@ -1,6 +1,7 @@
 """
-Product Recommendation Agent — suggests pieces based on the shopper's
-preferences and, when a persona is active, their LTM + past orders.
+Curator — Pellier's recommendation agent. Suggests pieces based on
+the shopper's preferences and, when a persona is active, their LTM +
+past orders.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -13,6 +14,10 @@ Exposes two surfaces that share one agent construction path:
 2. ``recommendation(query)`` — ``@tool``-decorated wrapper used by the
    Atelier's Agents-as-Tools orchestrator (Pattern I). Delegates to
    the factory so both surfaces produce identical agents.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'recommendation' as a
+keyword.
 """
 import json
 import re
