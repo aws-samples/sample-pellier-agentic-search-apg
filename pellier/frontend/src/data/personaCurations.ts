@@ -316,25 +316,25 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'What pairs with the Ecru overshirt?',                   // Turn 5 (capstone) → Curator · style_match
   ],
   anna: [
-    'a thoughtful gift for someone who loves morning rituals',  // Turn 1
-    'something beautiful under $100',                            // Turn 2
-    'help me pair a candle with something else',                 // Turn 3
-    'wrap-ready gifts with no extra effort',
-    'a milestone gift for a new homeowner',
+    'A thoughtful gift for someone who loves morning rituals',  // Turn 1
+    'Something beautiful under $100',                            // Turn 2
+    'Help me pair a candle with something else',                 // Turn 3
+    'Wrap-ready gifts with no extra effort',
+    'A milestone gift for a new homeowner',
   ],
   theo: [
-    'hand-thrown ceramics for a slower morning routine',  // Turn 1
-    'what goes well with the pour-over set?',              // Turn 2
-    'linen pieces that soften over seasons',               // Turn 3
+    'Hand-thrown ceramics for a slower morning routine',  // Turn 1
+    'What goes well with the pour-over set?',              // Turn 2
+    'Linen pieces that soften over seasons',               // Turn 3
     "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
-    'artisanal objects worth keeping',
+    'Artisanal objects worth keeping',
   ],
   fresh: [
-    'a thoughtful gift for someone who runs',
-    'pieces for slow Sunday mornings',
-    'something to wear for warm evenings out',
-    'linen pieces that travel well',
-    'a cozy layer for cooler nights',
+    'A thoughtful gift for someone who runs',
+    'Pieces for slow Sunday mornings',
+    'Something to wear for warm evenings out',
+    'Linen pieces that travel well',
+    'A cozy layer for cooler nights',
   ],
 }
 

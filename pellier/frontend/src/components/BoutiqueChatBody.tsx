@@ -122,20 +122,20 @@ const FOLLOWUPS_BY_PERSONA: Record<string, string[]> = {
     'Is the Hadley shirt at the Brooklyn warehouse?',       // Turn 4 (Stock Keeper payoff)
   ],
   anna: [
-    'something beautiful under $100',                    // Turn 2
-    'help me pair a candle with something else',          // Turn 3
-    'wrap-ready gifts with no extra effort',
+    'Something beautiful under $100',                    // Turn 2
+    'Help me pair a candle with something else',          // Turn 3
+    'Wrap-ready gifts with no extra effort',
   ],
   theo: [
-    'what goes well with the pour-over set?',             // Turn 2
-    'linen pieces that soften over seasons',              // Turn 3
-    'something for the home, not the wardrobe',
+    'What goes well with the pour-over set?',             // Turn 2
+    'Linen pieces that soften over seasons',              // Turn 3
+    'Something for the home, not the wardrobe',
     "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
   ],
   fresh: [
-    'a cozy layer for cooler nights',
-    'pieces for slow Sunday mornings',
-    'something to wear for warm evenings out',
+    'A cozy layer for cooler nights',
+    'Pieces for slow Sunday mornings',
+    'Something to wear for warm evenings out',
   ],
 }
 

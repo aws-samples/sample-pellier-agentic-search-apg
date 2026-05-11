@@ -223,6 +223,7 @@ const ANNA_COPY: PersonaCopy = {
     </>
   ),
   picks: [
+    // Must match the first 3 entries in PERSONA_HERO_PILLS.anna exactly.
     { label: 'A thoughtful gift for someone who loves morning rituals', primary: true },  // Turn 1
     { label: 'Something beautiful under $100', primary: false },                           // Turn 2
     { label: 'Help me pair a candle with something else', primary: false },                // Turn 3
