@@ -2,11 +2,11 @@
 """Migration 011: Refresh stale embeddings in pellier.product_catalog.
 
 The 40 product rows in Aurora were embedded BEFORE the brand rename
-(Blaize → Pellier). The descriptions and brand fields have since been
+(old name → Pellier). The descriptions and brand fields have since been
 rewritten in place, but the embedding column still encodes the old
-"Blaize Editions / Atelier / Home" semantics. Symptom: the Curator
-faithfully reads brand="Pellier Editions" from the row but its prose
-generation pulls "Blaize Editions" from the retrieval-context vibe.
+sub-brand semantics. Symptom: the Curator faithfully reads
+brand="Pellier Editions" from the row but its prose generation pulls
+the old brand name from the retrieval-context vibe.
 
 This script re-embeds every row using the CURRENT description, name,
 brand, color, and category fields, then UPDATEs the embedding column

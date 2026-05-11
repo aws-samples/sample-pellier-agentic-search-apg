@@ -33,17 +33,17 @@ UPDATE pellier.product_catalog
 DO $$
 DECLARE
     pellier_count INTEGER;
-    blaize_count  INTEGER;
+    old_count     INTEGER;
     hadley_count  INTEGER;
 BEGIN
     SELECT COUNT(*) INTO pellier_count
       FROM pellier.product_catalog WHERE brand LIKE 'Pellier %';
-    SELECT COUNT(*) INTO blaize_count
+    SELECT COUNT(*) INTO old_count
       FROM pellier.product_catalog WHERE brand LIKE 'Blaize %';
     SELECT COUNT(*) INTO hadley_count
       FROM pellier.product_catalog WHERE brand = 'Hadley';
     RAISE NOTICE 'Brand distribution: % Pellier-prefixed, % Hadley, % Blaize-prefixed (should be 0)',
-        pellier_count, hadley_count, blaize_count;
+        pellier_count, hadley_count, old_count;
 END $$;
 
 COMMIT;
