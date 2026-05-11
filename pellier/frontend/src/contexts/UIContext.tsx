@@ -117,7 +117,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   // Chat surface preference — route-aware components set this on mount
   // so the global ⌘K handler opens the right surface without needing
   // useLocation() (UIProvider sits above BrowserRouter).
-  // BoutiquePage sets 'drawer'; WorkshopPage sets 'concierge'.
+  // BoutiquePage sets 'drawer' on mount.
   const [chatSurface, setChatSurface] = useState<'concierge' | 'drawer'>('drawer')
 
   const openModal = useCallback((name: ModalName) => {
@@ -180,8 +180,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const handler = (e: KeyboardEvent) => {
       // Cmd+K on macOS, Ctrl+K elsewhere: toggle the active chat surface.
       // ``chatSurface`` is set by route-aware components (BoutiquePage
-      // sets 'drawer', WorkshopPage sets 'concierge') so this handler
-      // doesn't need useLocation().
+      // sets 'drawer' on mount) so this handler doesn't need useLocation().
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         const target = chatSurface

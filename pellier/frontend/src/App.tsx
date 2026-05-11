@@ -3,20 +3,13 @@
  *
  * Composition is intentionally minimal: provider chain, BrowserRouter,
  * root-level modal hosts (AuthModal, PreferencesModal, ConciergeModal,
- * ComparisonHost), and the final route table. The workshop chrome that
- * used to live here moved into `/workshop` (WorkshopPage).
+ * ComparisonHost), and the final route table. The two surfaces are
+ * BoutiquePage (`/`) and AtelierFrame (`/atelier/*`).
  *
- * AuthGate is exported because WorkshopPage wraps its own content in it
- * to preserve the Cognito-configured / not-configured branching.
- *
- * useTheme / ThemeContext remain exported for a small set of orphan
- * components (DemoChatCarousel, RecentlyViewed, ProactiveSuggestions,
- * AgentWorkflowVisualizer). Those components are no longer reachable
- * from any route after AppContent's removal, so no ThemeProvider is
- * mounted. The export exists solely to keep `tsc` green until the
- * orphans are deleted in a follow-up cleanup.
+ * AuthGate is exported so the Atelier surface can be gated when Cognito
+ * is configured.
  */
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CartProvider, useCart } from './contexts/CartContext'
@@ -33,7 +26,6 @@ import ChatDrawer from './components/ChatDrawer'
 import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
 import BoutiquePage from './pages/BoutiquePage'
-// WorkshopPage removed — Atelier is now served by AtelierFrame
 import AtelierFrame from './atelier/shell/AtelierFrame'
 import SessionsList from './atelier/surfaces/observe/SessionsList'
 import SessionView from './atelier/surfaces/observe/SessionView'
@@ -62,28 +54,9 @@ import DesignSystemPreview from './pages/DesignSystemPreview'
 import './styles/premium-heading-styles.css'
 
 // ---------------------------------------------------------------------------
-// ThemeContext — legacy. See header comment. No Provider is mounted; `useTheme`
-// will throw if called, which is intentional: the only remaining callers live
-// in orphan components that no route renders.
-// ---------------------------------------------------------------------------
-type Theme = 'dark' | 'light'
-interface ThemeContextType {
-  theme: Theme
-  toggleTheme: () => void
-}
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext)
-  if (!context) throw new Error('useTheme must be used within ThemeProvider')
-  return context
-}
-
-// ---------------------------------------------------------------------------
-// AuthGate — Cognito-aware auth wrapper. Used by WorkshopPage so the
-// instrumentation surface remains gated when Cognito is configured.
-// When Cognito is not configured (local dev without env vars), children
-// pass through directly.
+// AuthGate — Cognito-aware auth wrapper. Gates the Atelier surface when
+// Cognito is configured. When Cognito is not configured (local dev without
+// env vars), children pass through directly.
 // ---------------------------------------------------------------------------
 export function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -194,7 +167,7 @@ function App() {
               <Routes>
                 {/*
                  *   /           → BoutiquePage (storefront shell)
-                 *   /atelier    → WorkshopPage (instrumentation, gated by AuthGate)
+                 *   /atelier/*  → AtelierFrame (instrumentation, gated by AuthGate)
                  *   /inspector  → InspectorPage (frozen session-scoped trace view)
                  *   /storyboard → StoryboardPage
                  *   /discover   → DiscoverPage
@@ -227,8 +200,6 @@ function App() {
                   <Route path="persona-journeys" element={<PersonaJourneys />} />
                   <Route path="settings" element={<AtelierSettings />} />
                 </Route>
-                {/* Legacy WorkshopPage route removed — Atelier is now
-                    served exclusively by AtelierFrame with nested routes. */}
                 {/* Dev-only: preview gallery for shared atelier/ primitives.
                     Guarded by import.meta.env.DEV so production bundles
                     never include it. */}

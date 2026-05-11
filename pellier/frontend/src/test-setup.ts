@@ -17,8 +17,7 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 }
 
 // matchMedia default — jsdom doesn't ship this either. Tests that care
-// about responsive behavior override this per-test (see
-// WorkshopPage.test.tsx's installMatchMedia helper).
+// about responsive behavior override this per-test.
 if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,

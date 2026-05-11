@@ -1,13 +1,9 @@
 /**
- * AtelierHero — editorial hero above the /workshop split.
+ * AtelierHero — editorial hero for the Atelier surface.
  *
  * Mirrors the storefront's hero register (kicker · display italic ·
  * epigraph) so the two surfaces read as siblings rather than a
  * boutique paired with a developer dashboard.
- *
- * Sits full-width above the chat-left / tabs-right split; the split
- * itself stays inside the main area below. Paired with
- * ``AtmosphereStrip`` and ``MetricsRow`` to make the hero zone.
  */
 import { SURFACE_TOGGLE } from '../copy'
 

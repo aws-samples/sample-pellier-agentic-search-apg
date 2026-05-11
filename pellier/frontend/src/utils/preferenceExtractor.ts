@@ -1,6 +1,6 @@
 /**
  * Preference Extraction — Extracts and aggregates user preferences from queries and conversation history.
- * Used by QueryInsight, ConversationMemoryIndicator, ProactiveSuggestions, PersonalizationRadar.
+ * Used by QueryInsight, ConversationMemoryIndicator, PersonalizationRadar.
  */
 
 export interface QueryPreferences {
