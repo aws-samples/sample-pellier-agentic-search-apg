@@ -68,6 +68,8 @@ Resources:
   # builders_preapply.py before starting services.
   LabsStack:
     Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       TemplateURL: !Sub ${TemplatesBaseUrl}/pellier-labs.yml
       Parameters:
