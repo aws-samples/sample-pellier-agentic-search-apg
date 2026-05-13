@@ -411,3 +411,150 @@ export function weekendEditForPersona(
   if (!personaId) return PERSONA_WEEKEND_EDIT.fresh
   return PERSONA_WEEKEND_EDIT[personaId] ?? PERSONA_WEEKEND_EDIT.fresh
 }
+
+// ---------------------------------------------------------------------
+// "Because" chips — a second row of suggestion pills under the hero
+// search bar that cite memory or live trends instead of canned queries.
+// Each chip carries a `kind` (memory | trend | inventory | weather) and
+// the human-readable copy that follows. The hero renders them as
+// dashed italic chips with the kind label as a tiny eyebrow.
+// ---------------------------------------------------------------------
+
+export type BecauseChipKind = 'memory' | 'trend' | 'inventory' | 'weather'
+
+export interface BecauseChip {
+  kind: BecauseChipKind
+  /** Human-readable reason, leads with a verb-less clause. */
+  text: string
+  /** Optional query to fire when the chip is clicked. */
+  query?: string
+}
+
+export const PERSONA_BECAUSE_CHIPS: Record<string, BecauseChip[]> = {
+  marco: [
+    {
+      kind: 'memory',
+      text: 'you saved the Linen Camp Shirt last visit',
+      query: 'Show me linen pieces like the Camp Shirt',
+    },
+    {
+      kind: 'trend',
+      text: 'terracotta is up 4× this week',
+      query: 'Show me terracotta pieces',
+    },
+  ],
+  anna: [
+    {
+      kind: 'memory',
+      text: 'you were shopping for a milestone gift',
+      query: 'Thoughtful gifts for a new homeowner',
+    },
+    {
+      kind: 'trend',
+      text: 'the Beeswax Tapers restocked an hour ago',
+      query: 'Show me the Beeswax Taper Candles',
+    },
+  ],
+  theo: [
+    {
+      kind: 'memory',
+      text: 'you opened the Pour-Over Set twice last week',
+      query: 'Pieces that pair with the Pour-Over Set',
+    },
+    {
+      kind: 'inventory',
+      text: 'two Wabi-Sabi Bowls just came back in stock',
+      query: 'Show me the Wabi-Sabi Bowl',
+    },
+  ],
+  fresh: [
+    {
+      kind: 'trend',
+      text: 'linen searches up 60% since Thursday',
+      query: 'Show me trending linen pieces',
+    },
+    {
+      kind: 'inventory',
+      text: 'three new arrivals just landed in the Summer Edit',
+      query: 'Show me what just arrived',
+    },
+  ],
+}
+
+export function becauseChipsForPersona(
+  personaId: string | null | undefined,
+): BecauseChip[] {
+  if (!personaId) return PERSONA_BECAUSE_CHIPS.fresh
+  return PERSONA_BECAUSE_CHIPS[personaId] ?? PERSONA_BECAUSE_CHIPS.fresh
+}
+
+// ---------------------------------------------------------------------
+// Memory handoff — what the agent "remembers" about a returning shopper.
+// Surfaced on the homepage between the hero and the Weekend Edit so
+// the most demoable agent capability (durable taste memory) is the
+// first thing a returning persona sees. Fresh visitors get a
+// learn-as-we-go variant so the layout rhythm stays consistent.
+// ---------------------------------------------------------------------
+
+export interface MemoryHandoffItem {
+  /** Tool/source label, rendered in mono ("memory.recall", "cart.holds"). */
+  tool: string
+  /** Plain-language line. */
+  text: string
+}
+
+export interface MemoryHandoffContent {
+  eyebrow: string
+  /** Short italic Fraunces title. */
+  title: string
+  items: MemoryHandoffItem[]
+  /** CTA label (defaults to "Pick up where I left off"). */
+  cta?: string
+}
+
+export const PERSONA_MEMORY_HANDOFF: Record<string, MemoryHandoffContent> = {
+  marco: {
+    eyebrow: 'Last time you were here · 14 hours ago',
+    title: 'You were deciding between two linen pieces. I held them for you.',
+    items: [
+      { tool: 'memory.recall', text: 'Linen Camp Shirt · size 41 · saved' },
+      { tool: 'cart.holds', text: 'Wide-Leg Trouser · in bag, 2 left' },
+      { tool: 'inventory.watch', text: 'Slide Sandal · back in 42' },
+    ],
+  },
+  anna: {
+    eyebrow: 'Last time you were here · 2 days ago',
+    title: 'You were pairing a candle with something to wrap. I kept the shortlist.',
+    items: [
+      { tool: 'memory.recall', text: 'Beeswax Tapers · saved as gift candidate' },
+      { tool: 'pairing.score', text: 'Linen Tea Towel · 0.91 match with the tapers' },
+      { tool: 'inventory.watch', text: 'Fig Candle · back in stock today' },
+    ],
+  },
+  theo: {
+    eyebrow: 'Last time you were here · 5 days ago',
+    title: 'You filed a return on the Wabi-Sabi Bowl. I followed up.',
+    items: [
+      { tool: 'experience.return', text: 'Bowl · return processed, refund 1–2 days' },
+      { tool: 'memory.recall', text: 'Pour-Over Set · opened twice, not yet saved' },
+      { tool: 'inventory.watch', text: 'Stoneware Mug · 2 back in stock' },
+    ],
+  },
+  fresh: {
+    eyebrow: 'New here · I learn as we go',
+    title: "I'll learn your taste as we go. Tell me what you're after.",
+    items: [
+      { tool: 'memory.seed', text: "I'll remember saved items, sizes, and the queries you return to" },
+      { tool: 'inventory.live', text: 'Live stock and restocks, surfaced before you ask' },
+      { tool: 'tool.transparency', text: 'Every recommendation cites the source it came from' },
+    ],
+    cta: 'Try a query',
+  },
+}
+
+export function memoryHandoffForPersona(
+  personaId: string | null | undefined,
+): MemoryHandoffContent {
+  if (!personaId) return PERSONA_MEMORY_HANDOFF.fresh
+  return PERSONA_MEMORY_HANDOFF[personaId] ?? PERSONA_MEMORY_HANDOFF.fresh
+}

@@ -258,10 +258,34 @@ setup_database() {
         export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD AWS_REGION
         export ASSETS_BUCKET_NAME ASSETS_BUCKET_PREFIX
         export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
-        # Boutique catalog seeder — 40 hand-curated products across the
-        # four personas (Marco / Anna / Theo / Fresh), with Cohere Embed
-        # v4 embeddings generated at seed time. Authoritative source for
-        # the workshop's pellier.product_catalog table.
+
+        # ---- 1. Schema bootstrap (CREATE EXTENSION vector + schema +
+        # product_catalog table + HNSW index). pellier-database.yml
+        # provisions an empty Aurora cluster; this migration is what
+        # makes the cluster boutique-ready. Runs first because the
+        # seeder INSERTs into pellier.product_catalog and assumes the
+        # vector(1024) column exists. ----
+        if [ -f "$REPO_PATH/scripts/migrations/000_pellier_schema.sql" ]; then
+            log "Applying schema bootstrap (000_pellier_schema.sql)..."
+            PGPASSWORD="$DB_PASSWORD" psql \
+                -h "$DB_HOST" -p "$DB_PORT" \
+                -U "$DB_USER" -d "$DB_NAME" \
+                -v ON_ERROR_STOP=1 \
+                -f "$REPO_PATH/scripts/migrations/000_pellier_schema.sql" \
+                2>&1 | tee /var/log/database-schema.log
+            local rc=${PIPESTATUS[0]}
+            if [ "$rc" -ne 0 ]; then
+                warn "Schema bootstrap failed (rc=$rc) — see /var/log/database-schema.log"
+                return "$rc"
+            fi
+        else
+            warn "000_pellier_schema.sql not found — seeder will fail without the table"
+        fi
+
+        # ---- 2. Boutique catalog seeder — 40 hand-curated products
+        # across the four personas (Marco / Anna / Theo / Fresh), with
+        # Cohere Embed v4 embeddings generated at seed time.
+        # Authoritative source for pellier.product_catalog. ----
         python3 scripts/seed_boutique_catalog.py 2>&1 | tee /var/log/database-setup.log
         return ${PIPESTATUS[0]}
     fi
@@ -556,20 +580,31 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
         fi
     }
 
-    copy_solution "solutions/module2/agents/recommendation_agent.py" \
-                  "pellier/backend/agents/recommendation_agent.py" "C3 recommendation_agent.py"
-    copy_solution "solutions/module2/agents/orchestrator.py" \
-                  "pellier/backend/agents/orchestrator.py" "C4 orchestrator.py"
-    copy_solution "solutions/module3/services/agentcore_runtime.py" \
-                  "pellier/backend/agentcore_runtime.py" "C5 agentcore_runtime.py"
-    copy_solution "solutions/module3/services/agentcore_memory.py" \
-                  "pellier/backend/services/agentcore_memory.py" "C6 agentcore_memory.py"
-    copy_solution "solutions/module3/services/agentcore_gateway.py" \
-                  "pellier/backend/services/agentcore_gateway.py" "C7 agentcore_gateway.py"
-    copy_solution "solutions/module3/services/otel_trace_extractor.py" \
-                  "pellier/backend/services/otel_trace_extractor.py" "C8 otel_trace_extractor.py"
-    copy_solution "solutions/module3/frontend/agentIdentity.ts" \
-                  "pellier/frontend/src/utils/agentIdentity.ts" "C9 agentIdentity.ts"
+    # Solutions directory layout (post-rename):
+    #   solutions/the-quiet-search/  — Module 01 reference (observe-only)
+    #   solutions/closing-marcos-gap/ — Module 02 (the only edited module)
+    #   solutions/the-paper-trail/    — Module 03 reference (observe-only)
+    #
+    # The Builder's Session pre-applies the Recommendation + Orchestrator
+    # agents (so turns 2-3 work on first paint), the AgentCore runtime /
+    # memory / gateway plumbing, OTEL traces, and the frontend agent
+    # identity hook. Participants only build Stock Keeper + floor_check
+    # (which live in solutions/closing-marcos-gap/ as reference, not
+    # pre-applied — those are what the lab guide asks them to write).
+    copy_solution "solutions/closing-marcos-gap/agents/recommendation_agent.py" \
+                  "pellier/backend/agents/recommendation_agent.py" "Recommendation agent"
+    copy_solution "solutions/closing-marcos-gap/agents/orchestrator.py" \
+                  "pellier/backend/agents/orchestrator.py" "Orchestrator"
+    copy_solution "solutions/the-paper-trail/services/agentcore_runtime.py" \
+                  "pellier/backend/agentcore_runtime.py" "AgentCore runtime"
+    copy_solution "solutions/the-paper-trail/services/agentcore_memory.py" \
+                  "pellier/backend/services/agentcore_memory.py" "AgentCore memory"
+    copy_solution "solutions/the-paper-trail/services/agentcore_gateway.py" \
+                  "pellier/backend/services/agentcore_gateway.py" "AgentCore gateway"
+    copy_solution "solutions/the-paper-trail/services/otel_trace_extractor.py" \
+                  "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
+    copy_solution "solutions/the-paper-trail/frontend/agentIdentity.ts" \
+                  "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
     # Single-service restart — re-runs the ExecStartPre vite build so

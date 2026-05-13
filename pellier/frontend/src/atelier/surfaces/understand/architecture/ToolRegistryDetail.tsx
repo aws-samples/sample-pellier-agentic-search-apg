@@ -27,6 +27,10 @@ const ToolRegistryDetail: React.FC = () => {
       category="both"
       title="Tools, discovered."
       prose="Nine tools registered in Aurora PostgreSQL with pgvector embeddings. The gateway enables semantic discovery — agents find tools by describing what they need, not by knowing function names. HNSW indexing provides sub-millisecond lookup."
+      seeInBoutique={{
+        href: '/?ask=Show+me+linen+pieces+like+the+Camp+Shirt',
+        label: 'See tool discovery fire on the storefront',
+      }}
       cheatSheet={[
         {
           numeral: 'i.',

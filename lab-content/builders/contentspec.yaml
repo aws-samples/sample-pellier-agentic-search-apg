@@ -43,19 +43,35 @@ awsAccountConfig:
 
 infrastructure:
   cloudformationTemplates:
+    # See lab-content/workshop/contentspec.yaml for the full notes on
+    # static/ packaging and the TemplatesBaseUrl convention. The 60-min
+    # Builder's session uses pellier-builders.yml as the parent (it sets
+    # LabFormat=builders so the Code Editor pre-applies the Experience
+    # Guide + restock_shelf + running_low so participants only build
+    # Stock Keeper's system prompt + floor_check).
     - templateLocation: static/pellier-builders.yml
       label: Pellier Builder's Session (60 min — DC Summit)
       parameters:
         - templateParameter: WorkshopId
           defaultValue: "{{.ParticipantId}}"
+        - templateParameter: WorkshopDomain
+          defaultValue: "pellier.workshop.aws"
         - templateParameter: LabFormat
           defaultValue: "builders"
-        - templateParameter: RepoURL
+        - templateParameter: RepoUrl
           defaultValue: "https://github.com/aws-samples/sample-pellier-agentic-search-apg.git"
         - templateParameter: RepoBranch
           defaultValue: "main"
         - templateParameter: AuroraEngineVersion
           defaultValue: "17.7"
+        - templateParameter: EnableGoogleSignIn
+          # Builders session is even more aggressive on time than the
+          # workshop — federated sign-in is off by default.
+          defaultValue: "false"
+        - templateParameter: EnableAppleSignIn
+          defaultValue: "false"
+        - templateParameter: TemplatesBaseUrl
+          defaultValue: "https://{{.AssetsBucketName}}.s3.{{.AwsRegion}}.amazonaws.com/{{.AssetsBucketPrefix}}static"
 
 participantRole:
   managedPolicies: []

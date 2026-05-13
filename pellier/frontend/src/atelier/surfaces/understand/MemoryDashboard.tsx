@@ -301,11 +301,10 @@ const StmCard: React.FC<StmCardProps> = ({ turnCount, recentIntents, items }) =>
     </h3>
     <p
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '16px',
-        color: 'var(--at-ink-1)',
-        lineHeight: 1.5,
+        fontFamily: 'var(--at-sans)',
+        fontSize: '15px',
+        color: 'var(--at-ink-2)',
+        lineHeight: 1.6,
         margin: '0 0 20px 0',
       }}
     >
@@ -512,11 +511,10 @@ const LtmCard: React.FC<LtmCardProps> = ({
     </h3>
     <p
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '16px',
-        color: 'var(--at-ink-1)',
-        lineHeight: 1.5,
+        fontFamily: 'var(--at-sans)',
+        fontSize: '15px',
+        color: 'var(--at-ink-2)',
+        lineHeight: 1.6,
         margin: '0 0 20px 0',
       }}
     >
@@ -891,11 +889,10 @@ const MemoryDashboard: React.FC = () => {
               </div>
               <p
                 style={{
-                  fontFamily: 'var(--at-serif)',
-                  fontStyle: 'italic',
-                  fontSize: '16px',
-                  color: 'var(--at-ink-1)',
-                  lineHeight: 1.5,
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '15px',
+                  color: 'var(--at-ink-2)',
+                  lineHeight: 1.6,
                   margin: '0 0 16px 0',
                   maxWidth: '520px',
                 }}

@@ -16,8 +16,13 @@ import { useCallback, useState } from 'react'
 import { Sparkles, Mic, Send, MicOff } from 'lucide-react'
 import { useUI } from '../contexts/UIContext'
 import { usePersona } from '../contexts/PersonaContext'
-import { heroPillsForPersona } from '../data/personaCurations'
+import {
+  heroPillsForPersona,
+  becauseChipsForPersona,
+  type BecauseChip,
+} from '../data/personaCurations'
 import { useVoiceSearch } from '../hooks/useVoiceSearch'
+import { PresencePill } from '../shared'
 
 // Per-persona hero images (landscape, in public/products/).
 // Falls back to the fresh hero for unknown personas.
@@ -28,18 +33,40 @@ const PERSONA_HERO_IMAGES: Record<string, string> = {
   theo: '/products/hero-theo.png',
 }
 
-const TRUST_ITEMS = [
-  'Curated by hand',
-  'Live inventory',
-  'Free shipping over $150',
-  'Ships in 1\u20132 days',
-  'Easy returns',
+// Trust strip restyled as Agent Capabilities \u2014 bold lead reads as the
+// agent's skill, the trailing fragment keeps the shipping/returns
+// boilerplate on the page without leading with it. The first three
+// items map to the agent surfaces inside /atelier (memory, tools,
+// grounding) so a re:Invent attendee sees the same vocabulary on both
+// sides of the demo.
+interface CapabilityItem {
+  /** Bold lead clause \u2014 agent capability. */
+  lead: string
+  /** Optional trailing clause \u2014 operational reassurance. */
+  trail?: string
+}
+const TRUST_ITEMS: CapabilityItem[] = [
+  { lead: 'Reads live inventory' },
+  { lead: 'Remembers your taste' },
+  { lead: 'Cites every source' },
+  { lead: 'Hands off to a human stylist' },
+  { lead: 'Ships in 1\u20132 days', trail: 'Free over $150' },
 ]
+
+// Visual treatment per because-chip kind. Same dashed-italic shell, just
+// a different eyebrow label color so the categories are scannable.
+const BECAUSE_KIND_LABEL: Record<BecauseChip['kind'], string> = {
+  memory: 'memory',
+  trend: 'trend',
+  inventory: 'inventory',
+  weather: 'weather',
+}
 
 export default function BoutiqueHero() {
   const { openDrawerWithQuery } = useUI()
   const { persona } = usePersona()
   const suggestions = heroPillsForPersona(persona?.id)
+  const becauseChips = becauseChipsForPersona(persona?.id)
   const heroImage = PERSONA_HERO_IMAGES[persona?.id ?? 'fresh'] ?? PERSONA_HERO_IMAGES.fresh
   const [searchValue, setSearchValue] = useState('')
 
@@ -104,6 +131,14 @@ export default function BoutiqueHero() {
             className="w-full max-w-4xl py-12 md:py-0
                        flex flex-col items-center text-center"
           >
+            {/* Presence pill — "Pellier · listening" with a breathing dot.
+                Imported from `shared/` so the same atom appears on the
+                Atelier TopBar — attendees crossing surfaces see the
+                same agent signature on both. */}
+            <div data-testid="boutique-hero-presence" className="mb-5">
+              <PresencePill surface="boutique" personaId={persona?.id} />
+            </div>
+
             {/* Eyebrow — "• SUMMER EDIT • NO. 06 •" — matches
                 WeekendEditorial eyebrow type treatment exactly, with
                 burgundy dot separators. */}
@@ -323,13 +358,108 @@ export default function BoutiqueHero() {
               ))}
             </div>
 
+            {/* "Because" chip row — second line of suggestions that cite
+                memory or live trend instead of canned queries. Reads as
+                the agent's reasoning vocabulary: every chip names *why*
+                it's surfacing, with a small kind label (memory · trend ·
+                inventory) and an italic Fraunces clause. Clicking fires
+                the chip's underlying query, same drawer flow as the
+                suggestion pills above. */}
+            {becauseChips.length > 0 && (
+              <div
+                data-testid="boutique-hero-because"
+                className="mt-5 flex flex-col items-center gap-3"
+                style={{ width: 'min(965px, calc(100vw - 32px))' }}
+              >
+                <div
+                  className="inline-flex items-center gap-2"
+                  style={{
+                    fontFamily: 'var(--sans)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    letterSpacing: '0.22em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(31,20,16,0.55)',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 18,
+                      height: 1,
+                      background: 'rgba(31,20,16,0.25)',
+                    }}
+                  />
+                  Because
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 18,
+                      height: 1,
+                      background: 'rgba(31,20,16,0.25)',
+                    }}
+                  />
+                </div>
+                <div className="flex flex-wrap justify-center gap-2.5">
+                  {becauseChips.map((chip) => (
+                    <button
+                      key={`${chip.kind}-${chip.text}`}
+                      type="button"
+                      data-testid={`hero-because-${chip.kind}`}
+                      onClick={() =>
+                        handlePillClick(chip.query ?? chip.text)
+                      }
+                      className="
+                        cursor-pointer transition-all duration-fade ease-out
+                        hover:border-[rgba(168,66,58,0.45)] hover:bg-[rgba(255,250,240,0.95)]
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(168,66,58,0.25)]
+                      "
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 16px',
+                        borderRadius: 999,
+                        border: '1px dashed rgba(168,66,58,0.35)',
+                        background: 'rgba(255,250,240,0.78)',
+                        fontFamily: "'Fraunces', Georgia, serif",
+                        fontStyle: 'italic',
+                        fontSize: '14.5px',
+                        color: '#3b2f2f',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'var(--sans)',
+                          fontStyle: 'normal',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          letterSpacing: '0.22em',
+                          textTransform: 'uppercase',
+                          color: '#a8423a',
+                        }}
+                      >
+                        {BECAUSE_KIND_LABEL[chip.kind]}
+                      </span>
+                      <span>{chip.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
       </div>
     </section>
 
-    {/* Trust strip — sits on the cream page background directly below
-        the photograph. Single line with burgundy dot separators and
-        small icons matching the reference. */}
+    {/* Capabilities strip — replaces the old shipping/returns trust
+        strip. Bold lead clauses name agent capabilities (reads live
+        inventory · remembers your taste · cites every source · hands
+        off to a human stylist), with the operational shipping line
+        kept as a tail item so the reassurance still appears. Same
+        cream-warm background, same burgundy dot separators, same
+        whitespace — only the copy and emphasis change. */}
     <div
       data-testid="boutique-hero-trust"
       className="w-full border-b border-sand/40"
@@ -340,7 +470,7 @@ export default function BoutiqueHero() {
       >
         {TRUST_ITEMS.map((item, i) => (
           <span
-            key={item}
+            key={item.lead}
             className="inline-flex items-center whitespace-nowrap"
             style={{
               fontFamily: 'var(--sans)',
@@ -364,7 +494,25 @@ export default function BoutiqueHero() {
                 &#9679;
               </span>
             )}
-            {item}
+            <span style={{ color: '#1f1410', fontWeight: 600 }}>
+              {item.lead}
+            </span>
+            {item.trail ? (
+              <>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    margin: '0 8px',
+                    color: 'rgba(31,20,16,0.35)',
+                    fontSize: '6px',
+                    lineHeight: 1,
+                  }}
+                >
+                  &#9679;
+                </span>
+                <span>{item.trail}</span>
+              </>
+            ) : null}
           </span>
         ))}
       </div>

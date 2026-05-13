@@ -305,6 +305,10 @@ const MemoryDetail: React.FC = () => {
       category="both"
       title="Memory, two-tiered."
       prose="Two tiers of memory power every conversation. Short-term memory (STM) holds the current session context — intents, turns, fresh items. Long-term memory (LTM) stores preferences, order history, and behavioral patterns in Aurora pgvector for semantic recall across sessions."
+      seeInBoutique={{
+        href: '/?ask=Pick+up+where+I+left+off',
+        label: 'See memory.recall fire on the storefront',
+      }}
       cheatSheet={[
         {
           numeral: 'i.',

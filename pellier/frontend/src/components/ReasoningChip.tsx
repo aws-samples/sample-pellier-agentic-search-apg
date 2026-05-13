@@ -166,7 +166,11 @@ function ContextChip({ chip }: ReasoningChipProps) {
   )
 }
 
-// --- B mark avatar -------------------------------------------------------
+// --- P mark avatar -------------------------------------------------------
+// Pellier wordmark glyph (was "B" during the Blaize era — renamed when
+// the storefront rebranded to Pellier). Test id kept as
+// `reasoning-chip-bmark` so existing assertions still resolve; visual
+// content is the new "P".
 
 function BMark() {
   return (
@@ -189,7 +193,7 @@ function BMark() {
         flexShrink: 0,
       }}
     >
-      B
+      P
     </span>
   )
 }

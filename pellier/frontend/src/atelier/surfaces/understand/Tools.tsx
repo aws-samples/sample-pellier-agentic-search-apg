@@ -100,25 +100,22 @@ const DiscoveryDemoCard: React.FC = () => {
         </span>
       </div>
 
-      {/* Prose */}
+      {/* Prose — same Inter sans treatment as AtelierWelcome's
+          summary paragraph so explanatory copy reads consistently
+          across every Atelier surface (no stray italics). */}
       <p
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
+          fontFamily: 'var(--at-sans)',
           fontSize: '16px',
-          color: 'var(--at-ink-1)',
-          lineHeight: 1.55,
-          marginBottom: '18px',
-          maxWidth: '640px',
+          lineHeight: 1.6,
+          color: 'var(--at-ink-2)',
+          margin: '0 0 26px',
+          maxWidth: '680px',
         }}
       >
         Type a natural-language query. The registry finds the closest tools
-        using{' '}
-        <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>
-          cosine similarity
-        </em>{' '}
-        over Cohere Embed v4 embeddings — the same primitive that powers product
-        search.
+        using cosine similarity over Cohere Embed v4 embeddings — the same
+        primitive that powers product search.
       </p>
 
       {/* Query input */}
@@ -299,12 +296,12 @@ const DiscoveryDemoCard: React.FC = () => {
       {!loading && !error && results.length === 0 && (
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '15px',
             color: 'var(--at-ink-2)',
             textAlign: 'center' as const,
             padding: '16px 0',
+            lineHeight: 1.55,
           }}
         >
           Press Discover to run a pgvector similarity query against the tool
@@ -430,13 +427,15 @@ const ToolRow: React.FC<ToolRowProps> = ({ tool }) => {
           >
             {tool.functionName}
           </span>
+          {/* Tool description — sans Inter so technical body prose
+              reads as documentation, not editorial. Matches the
+              AtelierWelcome summary treatment. */}
           <span
             style={{
-              fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
-              fontSize: '16px',
-              color: 'var(--at-ink-1)',
-              lineHeight: 1.4,
+              fontFamily: 'var(--at-sans)',
+              fontSize: '15px',
+              color: 'var(--at-ink-2)',
+              lineHeight: 1.55,
             }}
           >
             {tool.description}
@@ -659,25 +658,17 @@ const RelatedCard: React.FC = () => (
         </div>
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '15px',
-            color: 'var(--at-ink-1)',
-            lineHeight: 1.5,
+            color: 'var(--at-ink-2)',
+            lineHeight: 1.6,
             margin: 0,
           }}
         >
           Five specialist agents invoke these tools. Each agent has a curated
-          tool set —{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>
-            Search
-          </em>{' '}
-          uses find_pieces and explore_collection;{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>
-            Recommendation
-          </em>{' '}
-          uses find_pieces and side_by_side. The registry lets agents
-          discover tools they weren't explicitly given.
+          tool set — Search uses find_pieces and explore_collection;
+          Recommendation uses find_pieces and side_by_side. The registry lets
+          agents discover tools they weren't explicitly given.
         </p>
         <Link
           to="/atelier/agents"
@@ -730,18 +721,26 @@ const RelatedCard: React.FC = () => (
         </div>
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '15px',
-            color: 'var(--at-ink-1)',
-            lineHeight: 1.5,
+            color: 'var(--at-ink-2)',
+            lineHeight: 1.6,
             margin: 0,
           }}
         >
           The{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>
+          <code
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '13.5px',
+              color: 'var(--at-ink-1)',
+              background: 'var(--at-cream-2)',
+              padding: '1px 6px',
+              borderRadius: 4,
+            }}
+          >
             tool_registry
-          </em>{' '}
+          </code>{' '}
           table stores each tool's name, description, and a 1024-dim Cohere
           Embed v4 embedding. Discovery is a single pgvector cosine query — the
           same primitive that powers product search, applied to capabilities.

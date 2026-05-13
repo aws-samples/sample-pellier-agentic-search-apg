@@ -24,7 +24,7 @@
       ]
     },
     {
-      "Sid": "AgentCoreAccess",
+      "Sid": "AgentCoreRuntime",
       "Effect": "Allow",
       "Action": [
         "bedrock-agentcore:CreateRuntime",
@@ -36,6 +36,16 @@
         "bedrock-agentcore:GetIdentity"
       ],
       "Resource": "arn:aws:bedrock-agentcore:us-west-2:${AWS::AccountId}:runtime/pellier-*"
+    },
+    {
+      "Sid": "AgentCoreControlMemory",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore-control:CreateMemory",
+        "bedrock-agentcore-control:GetMemory",
+        "bedrock-agentcore-control:ListMemories"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "AuroraDataAccess",

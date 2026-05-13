@@ -131,16 +131,17 @@ const RoutingCard: React.FC<RoutingCardProps> = ({ pattern, numeral }) => {
         )}
       </div>
 
-      {/* Description */}
+      {/* Description — sans Inter for body prose, matches the
+          AtelierWelcome summary treatment. The italic Fraunces
+          pattern title above still carries the editorial voice. */}
       <p
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
-          fontSize: '16px',
-          lineHeight: 1.55,
-          color: 'var(--at-ink-1)',
+          fontFamily: 'var(--at-sans)',
+          fontSize: '15px',
+          lineHeight: 1.6,
+          color: 'var(--at-ink-2)',
           margin: '0 0 18px 0',
-          maxWidth: '640px',
+          maxWidth: '680px',
         }}
       >
         {pattern.description}

@@ -152,7 +152,9 @@ const Sidebar: React.FC = () => {
             flexShrink: 0,
           }}
         >
-          B
+          {/* Pellier wordmark glyph (was "B" during the Blaize era —
+              renamed when the storefront rebranded to Pellier). */}
+          P
         </div>
         <span
           style={{

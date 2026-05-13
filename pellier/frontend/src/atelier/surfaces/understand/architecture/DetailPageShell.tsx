@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Eyebrow, ExpCard, CategoryBadge, StatusDot } from '../../../components';
 import type { CategoryType } from '../../../components/CategoryBadge';
+import { SurfaceCrossLink } from '../../../../shared';
 
 /* -----------------------------------------------------------------------
  * Types
@@ -53,6 +54,19 @@ export interface DetailPageShellProps {
   liveState?: {
     label: string;
     values: LiveStateValue[];
+  };
+  /**
+   * Optional "See this in the Boutique" cross-link. When set, renders
+   * a small italic anchor next to the hero title that drops the
+   * attendee onto the storefront with a query that exercises this
+   * concept. Keeps the Atelier↔Boutique round trip one click away on
+   * every deep-dive page.
+   */
+  seeInBoutique?: {
+    /** Storefront href, optionally with `?ask=...`. */
+    href: string;
+    /** Override the default copy. */
+    label?: string;
   };
 }
 
@@ -225,6 +239,7 @@ const DetailPageShell: React.FC<DetailPageShellProps> = ({
   children,
   cheatSheet,
   liveState,
+  seeInBoutique,
 }) => {
   const navigate = useNavigate();
 
@@ -302,11 +317,27 @@ const DetailPageShell: React.FC<DetailPageShellProps> = ({
           lineHeight: 'var(--at-body-leading)',
           color: 'var(--at-ink-1)',
           maxWidth: '680px',
-          margin: '0 0 40px 0',
+          margin: '0 0 16px 0',
         }}
       >
         {prose}
       </p>
+
+      {/* "See this in the Boutique" cross-link — appears below the
+          hero prose on every architecture detail page that supplies
+          one. Pairs the deep-dive explainer with a one-click drop
+          back onto the storefront so the round trip is always
+          available. */}
+      {seeInBoutique && (
+        <div style={{ margin: '0 0 40px 0' }}>
+          <SurfaceCrossLink
+            direction="to-boutique"
+            href={seeInBoutique.href}
+            label={seeInBoutique.label}
+          />
+        </div>
+      )}
+      {!seeInBoutique && <div style={{ height: 24 }} />}
 
       {/* Concept-specific content */}
       {children}

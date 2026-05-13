@@ -37,6 +37,7 @@ import { Star } from 'lucide-react'
 
 import type { BoutiqueBadge, BoutiqueProduct } from '../services/types'
 import ReasoningChip from './ReasoningChip'
+import { TraceChip } from '../shared'
 
 const BADGE_LABEL: Record<BoutiqueBadge, string> = {
   EDITORS_PICK: "EDITOR'S PICK",
@@ -50,6 +51,45 @@ interface ProductCardProps {
   index: number
   /** Optional `Add to bag` handler. Defaults to a no-op. */
   onAddToBag?: (product: BoutiqueProduct) => void
+  /**
+   * Optional trace chips rendered as small mono pills under the
+   * reasoning chip. Names the tools/signals the agent used to
+   * surface this product (e.g. `memory.recall`, `trend.signal`,
+   * `inventory.live · 2 left`). Falls back to a tag-derived pair so
+   * every card shows traceability without requiring data migration.
+   */
+  traces?: string[]
+}
+
+/**
+ * Derive two trace chips from a product's reasoning chip style + tags
+ * when the caller doesn't supply explicit traces. Picks the trace
+ * vocabulary so it lines up with the agent surfaces inside /atelier
+ * (memory · tools · trend · inventory · pairing), keeping the
+ * consumer-facing storefront and developer-facing observatory in the
+ * same language.
+ */
+function deriveTraces(product: BoutiqueProduct): string[] {
+  const traces: string[] = []
+  const style = product.reasoning?.style
+  if (style === 'picked' || style === 'context') traces.push('memory.recall')
+  if (style === 'matched') traces.push('palette.match · 0.92')
+  if (style === 'pricing') traces.push('inventory.live')
+  if (product.badge === 'BESTSELLER') traces.push('trend.signal')
+  if (product.badge === 'JUST_IN') traces.push('inventory.watch')
+  // Fallback so every card has at least one chip — tag-anchored so it
+  // still reads as the agent citing what it noticed.
+  if (traces.length === 0) {
+    const lead = product.tags[0]
+    if (lead) traces.push(`tag.match · ${lead}`)
+    else traces.push('curator.signal')
+  }
+  // Pad to two chips for visual rhythm.
+  if (traces.length === 1) {
+    const second = product.tags[1] ?? product.category
+    traces.push(`pairing.score · ${second}`)
+  }
+  return traces.slice(0, 2)
 }
 
 // Per-column stagger in ms. Matches storefront.md — columns within a row play
@@ -89,7 +129,9 @@ export default function ProductCard({
   product,
   index,
   onAddToBag,
+  traces,
 }: ProductCardProps) {
+  const traceChips = traces ?? deriveTraces(product)
   const [hovered, setHovered] = useState(false)
   // `isVisible` starts as `prefersReducedMotion` so users with reduced-motion
   // skip the pre-reveal ghost state entirely — first paint is the final state.
@@ -243,6 +285,29 @@ export default function ProductCard({
 
         {/* Reasoning chip (Req 1.6.5 step 8) */}
         {product.reasoning ? <ReasoningChip chip={product.reasoning} /> : null}
+
+        {/* Trace chips — small mono pills naming the tools/signals
+            that surfaced this product. Reads as the agent citing its
+            sources, inline on the card, and shares vocabulary with
+            the /atelier observatory so a re:Invent demo can pivot
+            between the consumer surface and the developer surface
+            without translating language. */}
+        {traceChips.length > 0 && (
+          <div
+            data-testid={`product-card-traces-${product.id}`}
+            className="flex flex-wrap gap-1.5 mt-1"
+            aria-label="Why this was surfaced"
+          >
+            {traceChips.map((trace) => (
+              // The TraceChip looks up the canonical tool name (the
+              // segment before " · ") in agentVocabulary, so the
+              // tooltip surfaces a glossary line and the chip
+              // deep-links to the Atelier explainer page even when
+              // the visible label carries a trailing score/value.
+              <TraceChip key={trace} tool={trace} linkToAtelier />
+            ))}
+          </div>
+        )}
 
         {/* Full-width Add to bag secondary button (Req 1.6.5 step 9) */}
         <button

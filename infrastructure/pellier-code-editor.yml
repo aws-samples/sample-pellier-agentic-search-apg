@@ -130,7 +130,16 @@ Resources:
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/us.cohere.embed-v4:0
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
-              - Sid: AgentCoreAccess
+              # Bedrock AgentCore — runtime + control-plane memory APIs.
+              # We split the two Sids because the control-plane prefix
+              # (bedrock-agentcore-control) is a distinct service in
+              # IAM and Workshop Studio's IAM Access Analyzer flags
+              # mixing them in one statement. Splitting also lets the
+              # data-plane statement scope to runtime/pellier-* while
+              # the control-plane statement stays Resource: "*"
+              # (CreateMemory cannot be ARN-scoped — the memory
+              # resource doesn't exist until the call returns).
+              - Sid: AgentCoreRuntime
                 Effect: Allow
                 Action:
                   - bedrock-agentcore:CreateRuntime
@@ -140,6 +149,10 @@ Resources:
                   - bedrock-agentcore:GetSessionMemory
                   - bedrock-agentcore:InvokeGateway
                   - bedrock-agentcore:GetIdentity
+                Resource: !Sub arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:runtime/pellier-*
+              - Sid: AgentCoreControlMemory
+                Effect: Allow
+                Action:
                   - bedrock-agentcore-control:CreateMemory
                   - bedrock-agentcore-control:GetMemory
                   - bedrock-agentcore-control:ListMemories

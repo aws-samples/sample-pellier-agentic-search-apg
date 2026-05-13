@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SDL Mockup 01 — Editorial Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF7; --paper:#FFFFFF; --paper-2:#F5F4EF; --rule:#E8E5DC; --rule-2:#D6D2C5;
+    --ink:#0F0E0C; --ink-2:#3F3E38; --ink-3:#7A7770;
+    --accent:#232F3E; --hot:#FF9900;
+    --sl1:#1F4E8F; --sl1-bg:#E3ECF7;
+    --sl2:#2A6438; --sl2-bg:#E1EFE3;
+    --sl3:#6A3D8A; --sl3-bg:#EDE1F2;
+    --sl4:#9C4716; --sl4-bg:#F8E5D5;
+    --sev1:#B6533F; --sev2:#C77B2A; --sev3:#8A6E1B; --sev4:#2D8048;
+    --shadow:0 1px 2px rgba(20,18,12,.05),0 8px 28px rgba(20,18,12,.06);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .serif{font-family:"Fraunces",Georgia,serif;letter-spacing:-.01em}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-feature-settings:"tnum","zero"}
+
+  /* Masthead */
+  .mast{padding:28px 56px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+  .mast .brand{display:flex;align-items:baseline;gap:14px}
+  .mast .brand .logo{font-family:"Fraunces";font-weight:600;font-size:28px;letter-spacing:-.02em}
+  .mast .brand .logo em{font-style:italic;color:var(--hot)}
+  .mast .brand .kicker{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-3)}
+  .mast .meta{font-size:12px;color:var(--ink-3);display:flex;gap:18px;align-items:center}
+  .mast .meta .pill{padding:4px 10px;border:1px solid var(--rule-2);border-radius:999px;background:var(--paper)}
+
+  /* Layout */
+  .wrap{max-width:1280px;margin:0 auto;padding:36px 56px 80px;display:grid;grid-template-columns:1fr 320px;gap:48px}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr;padding:24px}}
+
+  /* Ask block */
+  .ask{grid-column:1/-1;background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:22px 26px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:center}
+  .ask .dot{width:10px;height:10px;border-radius:50%;background:var(--hot);box-shadow:0 0 0 4px rgba(255,153,0,.18)}
+  .ask input{flex:1;border:0;outline:0;background:transparent;font-family:"Fraunces";font-size:22px;color:var(--ink);letter-spacing:-.01em}
+  .ask .ctx{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.16em;border-left:1px solid var(--rule);padding-left:14px}
+  .ask .ctx b{color:var(--ink-2);font-weight:600}
+  .ask button{border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-weight:500;cursor:pointer}
+
+  /* Headline */
+  .head{margin-top:6px}
+  .head .kicker{font-size:11px;text-transform:uppercase;letter-spacing:.22em;color:var(--hot);font-weight:600;margin-bottom:14px}
+  .head h1{font-family:"Fraunces";font-weight:500;font-size:56px;line-height:1.04;letter-spacing:-.025em;margin:0 0 14px}
+  .head h1 em{font-style:italic;color:var(--ink-2)}
+  .head .deck{font-family:"Fraunces";font-weight:400;font-size:20px;line-height:1.5;color:var(--ink-2);max-width:62ch;margin:0 0 22px}
+  .head .byline{font-size:12px;color:var(--ink-3);display:flex;gap:18px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:12px 0;margin-bottom:28px}
+  .head .byline span b{color:var(--ink-2);font-weight:600}
+
+  /* Article */
+  .article{font-family:"Fraunces";font-size:18px;line-height:1.65;color:var(--ink)}
+  .article p{margin:0 0 18px;max-width:64ch}
+  .article p .drop{font-family:"Fraunces";font-weight:600;font-size:54px;float:left;line-height:.9;padding:6px 10px 0 0;color:var(--accent)}
+  .article .num{color:var(--accent);font-weight:600;font-feature-settings:"tnum"}
+  .article .down{color:var(--sev1)} .article .up{color:var(--sev4)}
+  .article h2{font-family:"Fraunces";font-weight:500;font-size:26px;letter-spacing:-.015em;margin:34px 0 14px}
+
+  /* Pull quote */
+  .pull{border-left:3px solid var(--hot);padding:8px 0 8px 22px;margin:24px 0;font-family:"Fraunces";font-style:italic;font-size:22px;line-height:1.45;color:var(--ink-2);max-width:60ch}
+
+  /* Inline trace ribbon */
+  .trace{display:flex;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--paper);margin:24px 0;font-family:"Inter"}
+  .trace .step{flex:1;padding:12px 14px;border-right:1px solid var(--rule);position:relative}
+  .trace .step:last-child{border-right:0}
+  .trace .step .lab{font-size:10px;text-transform:uppercase;letter-spacing:.16em;font-weight:600}
+  .trace .step.s1 .lab{color:var(--sl1)} .trace .step.s2 .lab{color:var(--sl2)}
+  .trace .step.s3 .lab{color:var(--sl3)} .trace .step.s4 .lab{color:var(--sl4)}
+  .trace .step .v{font-size:13px;margin-top:4px;color:var(--ink)}
+  .trace .step .h{font-size:11px;color:var(--ink-3);margin-top:2px}
+  .trace .step::after{content:"›";position:absolute;right:-7px;top:50%;transform:translateY(-50%);background:var(--paper);color:var(--ink-3);width:14px;text-align:center;font-size:12px;z-index:1}
+  .trace .step:last-child::after{display:none}
+
+  /* Data inline card */
+  .datacard{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;margin:22px 0;box-shadow:var(--shadow)}
+  .datacard h3{font-family:"Inter";font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3);margin:0 0 12px;font-weight:600}
+  .datacard table{width:100%;border-collapse:collapse;font-family:"Inter";font-size:13px}
+  .datacard th{text-align:left;font-weight:500;color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.1em;padding:6px 10px 8px;border-bottom:1px solid var(--rule)}
+  .datacard td{padding:10px;border-bottom:1px dotted var(--rule)}
+  .datacard td.num{font-family:"JetBrains Mono";text-align:right;font-feature-settings:"tnum"}
+  .datacard tr:last-child td{border-bottom:0;font-weight:600}
+  .delta-down{color:var(--sev1);font-weight:600}
+  .delta-up{color:var(--sev4);font-weight:600}
+
+  /* Sparkbar */
+  .bar{display:inline-block;height:6px;background:var(--rule);border-radius:3px;vertical-align:middle;margin-left:6px;width:80px;position:relative;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+  .bar.neg i{background:var(--sev1)}
+  .bar.pos i{background:var(--sev4)}
+
+  /* Sidebar */
+  aside.rail{position:sticky;top:32px;align-self:start;display:flex;flex-direction:column;gap:18px}
+  .card{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:18px 18px}
+  .card h4{font-family:"Inter";font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-3);font-weight:600;margin:0 0 14px;display:flex;justify-content:space-between}
+  .card h4 b{color:var(--hot)}
+  .qlist{display:flex;flex-direction:column;gap:0}
+  .q{display:flex;gap:12px;padding:11px 4px;border-bottom:1px dotted var(--rule);cursor:pointer}
+  .q:last-child{border-bottom:0}
+  .q .n{font-family:"Fraunces";font-size:16px;color:var(--ink-3);width:22px;flex:0 0 22px;font-weight:500}
+  .q .t{flex:1;font-size:13px;line-height:1.4}
+  .q .t .id{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-3);margin-left:6px}
+  .q.active{background:var(--paper-2);margin:0 -10px;padding:11px 14px;border-radius:8px;border-bottom-color:transparent}
+  .q.active .n{color:var(--hot)}
+
+  .sev{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.08em;padding:2px 6px;border-radius:3px;color:#fff;text-transform:uppercase;margin-left:6px;vertical-align:middle}
+  .sev.s1{background:var(--sev1)} .sev.s2{background:var(--sev2)} .sev.s3{background:var(--sev3)} .sev.s4{background:var(--sev4)}
+
+  /* Lineage */
+  .lin{font-family:"JetBrains Mono";font-size:11px;line-height:1.7;color:var(--ink-2)}
+  .lin .node{display:inline-block;background:var(--paper-2);border:1px solid var(--rule);padding:2px 7px;border-radius:5px;margin:2px 0;color:var(--ink)}
+  .lin .arr{color:var(--ink-3);margin:0 4px}
+
+  /* Inline SL chip */
+  .chip{display:inline-block;font-family:"Inter";font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;letter-spacing:.04em;vertical-align:1px;margin:0 2px}
+  .chip.s1{background:var(--sl1-bg);color:var(--sl1)}
+  .chip.s2{background:var(--sl2-bg);color:var(--sl2)}
+  .chip.s3{background:var(--sl3-bg);color:var(--sl3)}
+  .chip.s4{background:var(--sl4-bg);color:var(--sl4)}
+
+  /* Citation */
+  .cite{font-family:"Inter";font-size:11px;color:var(--ink-3);border-top:1px dotted var(--rule);padding-top:10px;margin-top:6px}
+  .cite a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--rule-2)}
+
+  footer.colophon{max-width:1280px;margin:30px auto 0;padding:20px 56px;border-top:1px solid var(--rule);font-size:11px;color:var(--ink-3);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <div class="brand">
+    <div class="logo">Adaptive<em>·</em>Insight</div>
+    <div class="kicker">A Daylight Brief from the Semantic Data Layer</div>
+  </div>
+  <div class="meta">
+    <span class="pill">Hitachi Vantara · Q1 2024</span>
+    <span class="pill">P&amp;L Version Variance</span>
+    <span>May 11, 2026</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Ask anything -->
+  <div class="ask">
+    <span class="dot"></span>
+    <input value="Why is revenue down and which segment is driving it?" />
+    <span class="ctx">Context · <b>P&amp;L Variance</b> · <b>Actuals vs WB</b> · <b>Q1 2024</b></span>
+    <button>Ask Adaptive</button>
+  </div>
+
+  <!-- Article -->
+  <article class="head" style="grid-column:1">
+    <div class="kicker">Group 1 · Revenue · Question R1</div>
+    <h1 class="serif">Revenue is down <em>6.12%</em> this quarter — and the miss is concentrated.</h1>
+    <p class="deck">Total Revenue lands at <b>$32.80M</b> against a Working Budget of <b>$34.94M</b>. Services and Maintenance are healthy. Product Revenue alone explains the shortfall.</p>
+    <div class="byline">
+      <span>By <b>Adaptive Planning AI</b></span>
+      <span>Resolved deterministically through <b>SL-1 → SL-4</b></span>
+      <span>Confidence <b>0.96</b></span>
+      <span style="margin-left:auto;color:var(--sev2);font-weight:600">Severity 2 · Confidently Wrong (legacy)</span>
+    </div>
+
+    <!-- inline trace -->
+    <div class="trace">
+      <div class="step s1"><div class="lab">SL-1 · Intent</div><div class="v">Variance + Breakdown</div><div class="h">metric: revenue · direction: down · by: segment</div></div>
+      <div class="step s2"><div class="lab">SL-2 · Context</div><div class="v">P&amp;L Version Variance</div><div class="h">V1 Actuals · V2 Working Budget · Q1 2024 · Total Co.</div></div>
+      <div class="step s3"><div class="lab">SL-3 · Concept</div><div class="v">total_revenue</div><div class="h">domain Financial · unit Currency</div></div>
+      <div class="step s4"><div class="lab">SL-4 · Object</div><div class="v">Total Revenue → 4100/4200/4300</div><div class="h">3 children resolved · 1 driver isolated</div></div>
+    </div>
+
+    <div class="article">
+      <p><span class="drop serif">P</span>roduct Revenue carried the entire shortfall this quarter, declining <span class="num down">−13.64%</span> against budget while Services Revenue <span class="num up">grew 12.15%</span> and Maintenance held flat at <span class="num">+0.21%</span>. In dollar terms the company missed top-line by <span class="num">$2.14M</span>, virtually all of which is attributable to the Product line. Two of three segments outperformed plan; one underperformed by enough to drag the whole.</p>
+
+      <p>Read in context, this is a <em>concentrated</em> miss rather than a <em>systemic</em> one — a pattern that typically points to a small number of large deals slipping or a pricing event in a single product family rather than a broad demand softening across the book.</p>
+
+      <div class="datacard">
+        <h3>Revenue children · Q1 2024 · Actuals vs Working Budget</h3>
+        <table>
+          <thead><tr><th>Account</th><th style="text-align:right">Actuals</th><th style="text-align:right">Budget</th><th style="text-align:right">Δ$</th><th style="text-align:right">Δ%</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>4100 · Product Revenue</td><td class="num">14,221,094</td><td class="num">16,469,318</td><td class="num delta-down">−2,248,224</td><td class="num delta-down">−13.64%</td><td><span class="bar neg"><i style="width:78%"></i></span></td></tr>
+            <tr><td>4200 · Services Revenue</td><td class="num">11,218,401</td><td class="num">10,003,710</td><td class="num delta-up">+1,214,691</td><td class="num delta-up">+12.15%</td><td><span class="bar pos"><i style="width:62%"></i></span></td></tr>
+            <tr><td>4300 · Maintenance Revenue</td><td class="num">7,363,768</td><td class="num">7,348,235</td><td class="num">+15,533</td><td class="num">+0.21%</td><td><span class="bar pos"><i style="width:8%"></i></span></td></tr>
+            <tr><td>Total Revenue</td><td class="num">32,803,263</td><td class="num">34,941,302</td><td class="num delta-down">−2,138,039</td><td class="num delta-down">−6.12%</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="cite">Resolved via <span class="chip s4">SL-4</span> rollup from <code>total_revenue</code>. <a href="#">View lineage →</a></div>
+      </div>
+
+      <div class="pull">"Product Revenue at −13.64% drives the entire miss. Services and Maintenance are trending ahead of plan."</div>
+
+      <h2 class="serif">How Adaptive resolved this</h2>
+      <p>The agent did not infer a number. <span class="chip s1">SL-1</span> parsed the variance intent with a directional qualifier; <span class="chip s2">SL-2</span> bound the active P&amp;L Version Variance report rather than guessing a version; <span class="chip s3">SL-3</span> resolved the term <em>"revenue"</em> to the canonical concept <code>total_revenue</code>; <span class="chip s4">SL-4</span> mapped that concept to the tenant's own Total Revenue account and walked its three named children. Same model, same context, same answer — every time.</p>
+
+      <p>This is the same question the previous agent answered with <em>"Revenue is below budget due to lower Sales"</em> — a <span style="background:#FFF6E2;padding:0 4px;border-radius:3px">Sev 3 generic reply</span> with no resolved object behind it. The deterministic spine replaces inference at every link.</p>
+
+      <h2 class="serif">What to ask next</h2>
+      <p style="font-size:15px;line-height:1.6;color:var(--ink-2);font-family:'Inter'">
+        <a href="#" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--rule-2);margin-right:14px">→ Compare this to Forecast instead</a>
+        <a href="#" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--rule-2);margin-right:14px">→ Break down Product Revenue by region</a>
+        <a href="#" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--rule-2)">→ What changed in our top 5 deals?</a>
+      </p>
+    </div>
+  </article>
+
+  <!-- Sidebar -->
+  <aside class="rail">
+
+    <div class="card">
+      <h4>POC Question Set <b>10</b></h4>
+      <div class="qlist">
+        <div class="q active"><div class="n">01</div><div class="t">Why is revenue down? <span class="id">R1</span><span class="sev s2">Sev 2</span></div></div>
+        <div class="q"><div class="n">02</div><div class="t">Compare this to Forecast instead <span class="id">C2</span><span class="sev s2">Sev 2</span></div></div>
+        <div class="q"><div class="n">03</div><div class="t">How much do we spend on marketing? <span class="id">E3</span><span class="sev s2">Sev 2</span></div></div>
+        <div class="q"><div class="n">04</div><div class="t">Show me EBITDA <span class="id">P2</span><span class="sev s2">Sev 2</span></div></div>
+        <div class="q"><div class="n">05</div><div class="t">Why is T&amp;E so high? <span class="id">E2</span><span class="sev s3">Sev 3</span></div></div>
+        <div class="q"><div class="n">06</div><div class="t">Break down revenue by type <span class="id">R3</span><span class="sev s3">Sev 3</span></div></div>
+        <div class="q"><div class="n">07</div><div class="t">What's our headcount? <span class="id">W2</span><span class="sev s4">Sev 4</span></div></div>
+        <div class="q"><div class="n">08</div><div class="t">Show me revenue in headcount <span class="id">F2</span><span class="sev s4">Sev 4</span></div></div>
+        <div class="q"><div class="n">09</div><div class="t">Avg cost per employee <span class="id">W5</span><span class="sev s3">Sev 3</span></div></div>
+        <div class="q"><div class="n">10</div><div class="t">How are we doing? <span class="id">C7</span><span class="sev s1">Sev 1</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Lineage <b>R1</b></h4>
+      <div class="lin">
+        <span class="node">P&amp;L Variance Report</span><br>
+        <span class="arr">└─ binds →</span> <span class="node">Q1 2024 · Total Co.</span><br>
+        <span class="arr">└─ resolves →</span> <span class="node">total_revenue</span><br>
+        <span class="arr">└─ maps →</span> <span class="node">Total Revenue</span><br>
+        &nbsp;&nbsp;<span class="arr">├─</span> <span class="node">4100 Product</span><br>
+        &nbsp;&nbsp;<span class="arr">├─</span> <span class="node">4200 Services</span><br>
+        &nbsp;&nbsp;<span class="arr">└─</span> <span class="node">4300 Maintenance</span>
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--paper-2);border-color:var(--rule-2)">
+      <h4>Issues addressed</h4>
+      <div style="font-size:12px;line-height:1.55;color:var(--ink-2)">
+        <div style="display:flex;gap:8px;margin-bottom:6px"><span class="mono" style="color:var(--sev2);font-weight:600">ISSUE-04</span><span>Wrong numbers returned</span></div>
+        <div style="display:flex;gap:8px"><span class="mono" style="color:var(--sev3);font-weight:600">ISSUE-06</span><span>Cannot answer basic financial questions</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Permission gate</h4>
+      <div style="font-size:12px;color:var(--ink-2);line-height:1.55">
+        4 of 4 resolved objects are within the user's scope. <span style="color:var(--sev4);font-weight:600">✓ Cleared</span> before query execution.
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+<footer class="colophon">
+  <div>Adaptive · Insight — a Daylight Brief · v0.1 mockup</div>
+  <div>Generated deterministically · LLM at the edges, determinism in the core</div>
+</footer>
+
+</body>
+</html>

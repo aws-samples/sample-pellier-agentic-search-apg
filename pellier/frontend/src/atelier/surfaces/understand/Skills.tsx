@@ -404,16 +404,17 @@ const SkillCard: React.FC<SkillCardProps> = ({ skill, numeral }) => (
       </div>
     </div>
 
-    {/* Description */}
+    {/* Description — sans Inter, mirroring the AtelierWelcome
+        summary treatment so explanatory copy reads as documentation
+        not editorial. */}
     <p
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '16px',
-        color: 'var(--at-ink-1)',
-        lineHeight: 1.5,
+        fontFamily: 'var(--at-sans)',
+        fontSize: '15px',
+        color: 'var(--at-ink-2)',
+        lineHeight: 1.6,
         margin: '0 0 18px',
-        maxWidth: '640px',
+        maxWidth: '680px',
       }}
     >
       {skill.description}

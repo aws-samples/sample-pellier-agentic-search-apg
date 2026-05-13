@@ -14,6 +14,7 @@ import SurfaceToggle from '../../components/SurfaceToggle';
 import { BreadcrumbTrail } from '../components/BreadcrumbTrail';
 import { usePersona } from '../../contexts/PersonaContext';
 import { getPersonaPhoto } from '../../data/personaPhotos';
+import { PresencePill } from '../../shared';
 
 /* -----------------------------------------------------------------------
  * Route → breadcrumb mapping
@@ -90,31 +91,15 @@ const TopBar: React.FC = () => {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Live status metadata */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontFamily: 'var(--at-mono)',
-          fontSize: '10px',
-          fontWeight: 500,
-          letterSpacing: '0.08em',
-          color: 'var(--at-ink-4)',
-        }}
-      >
-        <span
-          style={{
-            display: 'inline-block',
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--at-green-1)',
-            flexShrink: 0,
-          }}
-        />
-        CONNECTED
-      </div>
+      {/* Presence pill — same atom that sits on the Boutique hero, so
+          attendees crossing surfaces immediately recognize the agent
+          signature. The session fragment cites the active persona +
+          memory age so the personalization is visible everywhere. */}
+      <PresencePill
+        surface="boutique"
+        personaId={persona?.id}
+        label="Pellier · watching"
+      />
 
       {/* Persona avatar */}
       {(() => {

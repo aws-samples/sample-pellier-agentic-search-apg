@@ -22,6 +22,8 @@ import Header, { type NavItem } from '../components/Header'
 import BoutiqueHero from '../components/BoutiqueHero'
 import BoutiqueWelcomeBand from '../components/BoutiqueWelcomeBand'
 import BecauseYouAsked from '../components/BecauseYouAsked'
+import MemoryHandoffCard from '../components/MemoryHandoffCard'
+import RationaleBand from '../components/RationaleBand'
 import ProductCard from '../components/ProductCard'
 import Footer from '../components/Footer'
 // CommandPill removed — hero search bar is the primary entry point
@@ -160,6 +162,14 @@ export default function BoutiquePage() {
              first-visit shoppers get a one-glance orientation without
              touching the photograph. ── */}
         <BoutiqueWelcomeBand />
+
+        {/* ── Memory handoff card — the most demoable agentic moment on
+             the homepage. For returning personas, surfaces what the
+             agent remembers (saved item, holds in bag, restock watch)
+             with each line tool-tagged. Fresh visitors get a
+             learn-as-we-go variant in the same slot so the layout
+             rhythm stays consistent. ── */}
+        <MemoryHandoffCard />
 
         {/* ── ACT 2: Below the fold ── */}
         <section
@@ -301,6 +311,14 @@ export default function BoutiquePage() {
                 </div>
               )}
             </div>
+
+            {/* Rationale band — italic pull-quote restating the user's
+                ask and the agent's curation strategy. Renders directly
+                above the grid so the products that follow read as the
+                answer to a stated rationale, not a generic merchandise
+                row. Per-product "because" lines on each card carry the
+                reasoning down to the item level. */}
+            <RationaleBand />
 
             <div
               // Re-mount on prefsVersion OR persona change so the grid's

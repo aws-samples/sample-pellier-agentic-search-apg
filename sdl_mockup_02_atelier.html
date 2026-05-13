@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SDL Mockup 02 — The Atelier</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF7; --paper:#FFFFFF; --paper-2:#F5F4EF; --rule:#E8E5DC; --rule-2:#D6D2C5;
+    --ink:#0F0E0C; --ink-2:#3F3E38; --ink-3:#7A7770;
+    --accent:#232F3E; --hot:#FF9900;
+    --sl1:#1F4E8F; --sl1-bg:#E3ECF7; --sl1-br:#B9CCE5;
+    --sl2:#2A6438; --sl2-bg:#E1EFE3; --sl2-br:#B5D2BA;
+    --sl3:#6A3D8A; --sl3-bg:#EDE1F2; --sl3-br:#C9B0D5;
+    --sl4:#9C4716; --sl4-bg:#F8E5D5; --sl4-br:#DEB495;
+    --sev1:#B6533F; --sev2:#C77B2A; --sev3:#8A6E1B; --sev4:#2D8048;
+    --shadow:0 1px 2px rgba(20,18,12,.04),0 6px 28px rgba(20,18,12,.05);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:13.5px;line-height:1.55;-webkit-font-smoothing:antialiased;height:100%;overflow:hidden}
+  .serif{font-family:"Fraunces",Georgia,serif;letter-spacing:-.01em}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-feature-settings:"tnum","zero"}
+
+  /* Shell */
+  .shell{display:grid;grid-template-columns:240px 1fr 380px;grid-template-rows:56px 1fr;height:100vh}
+  .nav{grid-row:1/3;background:var(--paper);border-right:1px solid var(--rule);padding:18px 16px;display:flex;flex-direction:column;gap:6px}
+  .nav .brand{font-family:"Fraunces";font-size:20px;font-weight:600;letter-spacing:-.02em;padding:6px 10px 18px;border-bottom:1px solid var(--rule);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .nav .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--hot)}
+  .nav .lab{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3);padding:14px 10px 6px;font-weight:600}
+  .nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-size:13px}
+  .nav a.active{background:var(--paper-2);color:var(--ink);font-weight:500}
+  .nav a:hover{background:var(--paper-2)}
+  .nav a .ic{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;flex:0 0 14px}
+  .nav .pinned{margin-top:auto;padding:12px;background:var(--paper-2);border-radius:8px;border:1px solid var(--rule);font-size:11px;color:var(--ink-3);line-height:1.5}
+  .nav .pinned b{color:var(--ink-2)}
+
+  .topbar{grid-column:2/4;border-bottom:1px solid var(--rule);background:var(--paper);display:flex;align-items:center;padding:0 22px;gap:14px}
+  .crumb{font-size:12px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+  .crumb b{color:var(--ink}
+  .ctxchip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;font-size:12px;color:var(--ink-2)}
+  .ctxchip .k{color:var(--ink-3);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+  .topbar .right{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--ink-3)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#FF9900,#C77B2A);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
+
+  /* Chat pane */
+  .chat{overflow-y:auto;padding:30px 38px;display:flex;flex-direction:column;gap:22px;background:var(--bg)}
+  .turn{display:flex;flex-direction:column;gap:10px}
+  .user{align-self:flex-end;max-width:520px;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 4px 14px;font-size:14px}
+  .agent{align-self:flex-start;max-width:760px;background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);position:relative}
+  .agent .lede{font-family:"Fraunces";font-size:22px;line-height:1.35;letter-spacing:-.01em;color:var(--ink);margin:0 0 12px}
+  .agent .lede .num{color:var(--accent)} .agent .lede .down{color:var(--sev1);font-weight:500}
+  .agent p{margin:0 0 10px;color:var(--ink-2)}
+  .agent .sources{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dotted var(--rule)}
+  .agent .src{font-family:"JetBrains Mono";font-size:10.5px;color:var(--ink-2);background:var(--paper-2);border:1px solid var(--rule);padding:3px 7px;border-radius:4px}
+
+  /* SDL trace inline */
+  .sdltrace{margin:14px 0 4px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .sdltrace .s{padding:9px 11px;border-radius:6px;border:1px solid;font-size:11px;line-height:1.4}
+  .sdltrace .s1{background:var(--sl1-bg);border-color:var(--sl1-br);color:var(--sl1)}
+  .sdltrace .s2{background:var(--sl2-bg);border-color:var(--sl2-br);color:var(--sl2)}
+  .sdltrace .s3{background:var(--sl3-bg);border-color:var(--sl3-br);color:var(--sl3)}
+  .sdltrace .s4{background:var(--sl4-bg);border-color:var(--sl4-br);color:var(--sl4)}
+  .sdltrace .s b{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:3px;opacity:.85}
+  .sdltrace .s i{font-style:normal;color:var(--ink);font-weight:500}
+
+  /* Mini chart */
+  .chart{display:flex;align-items:flex-end;gap:14px;padding:14px;background:var(--paper-2);border-radius:8px;margin:10px 0;height:160px;position:relative}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+  .col .bars{display:flex;gap:4px;align-items:flex-end;height:100%;width:100%;justify-content:center}
+  .col .b{width:22px;border-radius:3px 3px 0 0;position:relative}
+  .col .b.actual{background:var(--accent)}
+  .col .b.budget{background:var(--rule-2)}
+  .col .lab{font-size:11px;color:var(--ink-2);text-align:center;line-height:1.3}
+  .col .pct{font-family:"JetBrains Mono";font-size:11px;font-weight:600}
+  .pct.down{color:var(--sev1)} .pct.up{color:var(--sev4)} .pct.flat{color:var(--ink-3)}
+  .legend{position:absolute;top:8px;right:10px;display:flex;gap:10px;font-size:10px;color:var(--ink-3)}
+  .legend span{display:inline-flex;align-items:center;gap:4px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px}
+
+  /* Composer */
+  .composer{position:sticky;bottom:0;background:linear-gradient(to top,var(--bg) 80%,transparent);padding:14px 0 6px;margin-top:auto}
+  .composer .box{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
+  .composer .ctxrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--ink-3)}
+  .composer .ctxrow .ck{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:var(--paper-2);border:1px solid var(--rule);border-radius:999px;color:var(--ink-2)}
+  .composer .ctxrow .ck .x{color:var(--ink-3);cursor:pointer}
+  .composer textarea{border:0;outline:0;resize:none;font-family:"Inter";font-size:14.5px;color:var(--ink);background:transparent;min-height:30px}
+  .composer .row2{display:flex;justify-content:space-between;align-items:center}
+  .composer .tools{display:flex;gap:6px;color:var(--ink-3);font-size:12px}
+  .composer .tools button{background:var(--paper-2);border:1px solid var(--rule);border-radius:6px;padding:5px 9px;color:var(--ink-2);font-size:11px;cursor:pointer}
+  .composer .send{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:500;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+
+  /* Right rail — audit */
+  .audit{border-left:1px solid var(--rule);background:var(--paper);overflow-y:auto;padding:18px 18px 30px;display:flex;flex-direction:column;gap:14px}
+  .audit h3{font-family:"Inter";font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-3);margin:0 0 8px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  .audit h3 .qid{font-family:"JetBrains Mono";color:var(--ink-2);text-transform:none;letter-spacing:0;background:var(--paper-2);padding:2px 6px;border-radius:4px;font-size:10px}
+  .audit .card{background:var(--paper-2);border:1px solid var(--rule);border-radius:10px;padding:12px 14px}
+  .audit .card .ttl{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+  .sl-row{display:grid;grid-template-columns:36px 1fr;gap:10px;padding:10px 0;border-bottom:1px dotted var(--rule);align-items:flex-start}
+  .sl-row:last-child{border-bottom:0}
+  .sl-tag{font-family:"Inter";font-weight:700;font-size:10px;letter-spacing:.05em;padding:3px 0;border-radius:5px;text-align:center;color:#fff}
+  .sl-tag.s1{background:var(--sl1)} .sl-tag.s2{background:var(--sl2)} .sl-tag.s3{background:var(--sl3)} .sl-tag.s4{background:var(--sl4)}
+  .sl-row .ttl2{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:3px}
+  .sl-row .val{font-size:12.5px;color:var(--ink);line-height:1.45}
+  .sl-row .val code{font-family:"JetBrains Mono";font-size:11.5px;background:var(--paper);border:1px solid var(--rule);padding:1px 5px;border-radius:3px}
+  .sl-row .conf{font-size:10px;color:var(--ink-3);margin-top:4px;font-family:"JetBrains Mono"}
+  .sl-row .conf b{color:var(--sev4)}
+
+  .gate{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:rgba(45,128,72,.08);border:1px solid rgba(45,128,72,.25);font-size:12px;color:var(--sev4);font-weight:500}
+  .gate .check{width:18px;height:18px;border-radius:50%;background:var(--sev4);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+  .sevpill{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:3px;color:#fff;text-transform:uppercase}
+  .sevpill.s1{background:var(--sev1)} .sevpill.s2{background:var(--sev2)} .sevpill.s3{background:var(--sev3)} .sevpill.s4{background:var(--sev4)}
+
+  .lat{font-family:"JetBrains Mono";font-size:10.5px;color:var(--ink-3);display:flex;justify-content:space-between;padding:6px 0}
+
+  /* Question grid sliver at top of chat */
+  .qstrip{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .qstrip .qb{font-size:11px;background:var(--paper);border:1px solid var(--rule);padding:5px 9px;border-radius:999px;color:var(--ink-2);cursor:pointer}
+  .qstrip .qb.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .qstrip .qb b{color:var(--hot);font-weight:600;margin-right:5px}
+  .qstrip .qb.active b{color:var(--hot)}
+
+  /* Thinking indicator */
+  .thinking{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--ink-3);font-style:italic;padding:8px 0}
+  .thinking .pulse{width:6px;height:6px;border-radius:50%;background:var(--hot);animation:p 1.4s ease-in-out infinite}
+  @keyframes p{0%,100%{opacity:.3}50%{opacity:1}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Left nav -->
+  <nav class="nav">
+    <div class="brand"><span class="dot"></span> Adaptive · AI</div>
+    <div class="lab">Workspace</div>
+    <a class="active"><span class="ic"></span>Ask</a>
+    <a><span class="ic"></span>Reports</a>
+    <a><span class="ic"></span>Sheets</a>
+    <a><span class="ic"></span>Models</a>
+    <a><span class="ic"></span>Variance</a>
+    <div class="lab">SDL</div>
+    <a><span class="ic"></span>Canonical Concepts</a>
+    <a><span class="ic"></span>Mapping Registry</a>
+    <a><span class="ic"></span>Ontology Graph</a>
+    <a><span class="ic"></span>Drift Monitor</a>
+    <div class="pinned">
+      <b>POC · Hitachi Vantara</b><br>
+      10 prioritized questions · SL-1→SL-4<br>
+      <span style="color:var(--sev4)">7 passing</span> · <span style="color:var(--sev2)">2 in review</span> · <span style="color:var(--sev1)">1 blocked</span>
+    </div>
+  </nav>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="crumb">Reports <span style="opacity:.5">/</span> <b style="color:var(--ink)">P&amp;L Version Variance</b></div>
+    <span class="ctxchip"><span class="k">V1</span> Actuals</span>
+    <span class="ctxchip"><span class="k">V2</span> Working Budget</span>
+    <span class="ctxchip"><span class="k">Period</span> Q1 2024</span>
+    <span class="ctxchip"><span class="k">Level</span> Total Company</span>
+    <div class="right">
+      <span>Persona: Finance</span>
+      <div class="avatar">SK</div>
+    </div>
+  </div>
+
+  <!-- Chat pane -->
+  <section class="chat">
+
+    <div class="qstrip">
+      <span class="qb active"><b>R1</b> Why is revenue down?</span>
+      <span class="qb"><b>C2</b> Compare to Forecast</span>
+      <span class="qb"><b>E3</b> Marketing spend</span>
+      <span class="qb"><b>P2</b> EBITDA</span>
+      <span class="qb"><b>E2</b> T&amp;E</span>
+      <span class="qb"><b>R3</b> Break down revenue</span>
+      <span class="qb"><b>W2</b> Headcount</span>
+      <span class="qb"><b>F2</b> Revenue in headcount</span>
+      <span class="qb"><b>W5</b> Cost / employee</span>
+      <span class="qb"><b>C7</b> How are we doing?</span>
+    </div>
+
+    <!-- Turn 1 -->
+    <div class="turn">
+      <div class="user">Why is revenue down?</div>
+      <div class="agent">
+        <div class="lede serif">Total Revenue is <span class="down">−6.12%</span> against Working Budget — <span class="num">$32.80M</span> vs <span class="num">$34.94M</span>. <em>Product Revenue alone drives the miss.</em></div>
+        <p>Three Revenue children resolved. Services and Maintenance are at or above plan; Product is <b>−13.64%</b>, accounting for the entire shortfall.</p>
+
+        <div class="sdltrace">
+          <div class="s s1"><b>SL-1 Intent</b><i>Variance · revenue · ↓</i></div>
+          <div class="s s2"><b>SL-2 Context</b><i>P&amp;L Variance · Q1 24</i></div>
+          <div class="s s3"><b>SL-3 Concept</b><i>total_revenue · Currency</i></div>
+          <div class="s s4"><b>SL-4 Object</b><i>Total Revenue · 3 children</i></div>
+        </div>
+
+        <div class="chart">
+          <div class="legend"><span><i style="background:var(--accent)"></i>Actuals</span><span><i style="background:var(--rule-2)"></i>Budget</span></div>
+          <div class="col">
+            <div class="bars"><div class="b actual" style="height:62%"></div><div class="b budget" style="height:72%"></div></div>
+            <div class="lab">4100<br>Product</div>
+            <div class="pct down">−13.64%</div>
+          </div>
+          <div class="col">
+            <div class="bars"><div class="b actual" style="height:55%"></div><div class="b budget" style="height:48%"></div></div>
+            <div class="lab">4200<br>Services</div>
+            <div class="pct up">+12.15%</div>
+          </div>
+          <div class="col">
+            <div class="bars"><div class="b actual" style="height:36%"></div><div class="b budget" style="height:36%"></div></div>
+            <div class="lab">4300<br>Maintenance</div>
+            <div class="pct flat">+0.21%</div>
+          </div>
+          <div class="col">
+            <div class="bars"><div class="b actual" style="height:78%"></div><div class="b budget" style="height:84%"></div></div>
+            <div class="lab"><b>Total<br>Revenue</b></div>
+            <div class="pct down">−6.12%</div>
+          </div>
+        </div>
+
+        <p style="font-size:12.5px;color:var(--ink-3)">This is a concentrated miss, not systemic — two of three segments outperformed plan. Worth checking whether a small set of Product deals slipped versus a broad demand event.</p>
+
+        <div class="sources">
+          <span class="src">📑 P&amp;L Variance · Q1 2024</span>
+          <span class="src">🔗 total_revenue · Concept Registry</span>
+          <span class="src">🌳 Rollup: 4100/4200/4300</span>
+          <span class="src">📊 Aurora · planning_actuals</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn">
+      <div class="user">Compare this to Forecast instead</div>
+      <div class="agent">
+        <div class="lede serif">Swapped V2 → <em>Forecast</em>. Revenue is <span class="down">−2.4%</span> vs Forecast.</div>
+        <p style="font-size:12.5px"><span style="color:var(--sl2);font-weight:600">SL-2</span> recognized "instead" as a context override and replaced V2 deterministically — no version inferred. Same R1 answer, new comparison axis. Product still leads the miss but the gap to Forecast is materially smaller than to Working Budget.</p>
+        <div class="sdltrace" style="grid-template-columns:repeat(2,1fr)">
+          <div class="s s2"><b>SL-2 · Override</b><i>V2: Working Budget → Forecast</i></div>
+          <div class="s s4"><b>SL-4 · Result</b><i>Δ −2.40% · −$806k</i></div>
+        </div>
+        <div class="sources">
+          <span class="src">⚙ Version override · deterministic</span>
+          <span class="src">⚠ ISSUE-05 fixed (no Version_X3 hallucination)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="thinking"><span class="pulse"></span> Resolving "which segment is driving it?" — SL-1 parsed Breakdown · binding to active context…</div>
+
+    <!-- Composer -->
+    <div class="composer">
+      <div class="box">
+        <div class="ctxrow">
+          <span style="text-transform:uppercase;letter-spacing:.1em;font-size:10px;color:var(--ink-3);margin-right:4px">Bound context</span>
+          <span class="ck">P&amp;L Variance <span class="x">×</span></span>
+          <span class="ck">Q1 2024 <span class="x">×</span></span>
+          <span class="ck">Total Company <span class="x">×</span></span>
+          <span class="ck">+ add filter</span>
+        </div>
+        <textarea placeholder="Ask anything about your plan… try &quot;break it down by segment and region&quot;"></textarea>
+        <div class="row2">
+          <div class="tools">
+            <button>＠ Reference</button>
+            <button>📎 Attach KPI doc</button>
+            <button>⌘ Slash</button>
+          </div>
+          <button class="send">Ask · ⌘ ⏎</button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Audit / Right rail -->
+  <aside class="audit">
+
+    <h3>How this was resolved <span class="qid">R1 · Sev 2</span></h3>
+
+    <div class="card">
+      <div class="ttl"><span>Deterministic spine</span><span class="lat mono" style="padding:0">142ms</span></div>
+
+      <div class="sl-row">
+        <div class="sl-tag s1">SL-1</div>
+        <div>
+          <div class="ttl2">Intent</div>
+          <div class="val"><code>op: Variance, Breakdown</code><br>metric: <code>"revenue"</code> · direction: <code>"down"</code></div>
+          <div class="conf">Opus parsed · <b>0.98</b> confidence</div>
+        </div>
+      </div>
+      <div class="sl-row">
+        <div class="sl-tag s2">SL-2</div>
+        <div>
+          <div class="ttl2">Context binding</div>
+          <div class="val">Active report: <code>P&amp;L Version Variance</code><br>V1 <code>Actuals</code> · V2 <code>Working Budget</code> · <code>Q1 2024</code> · <code>Total Co.</code></div>
+          <div class="conf">Bound from report config · <b>deterministic</b></div>
+        </div>
+      </div>
+      <div class="sl-row">
+        <div class="sl-tag s3">SL-3</div>
+        <div>
+          <div class="ttl2">Concept resolution</div>
+          <div class="val"><code>"revenue"</code> → <code>total_revenue</code><br>Domain: <b>Financial</b> · Unit: <b>Currency</b></div>
+          <div class="conf">Canonical Registry hit · <b>1.00</b></div>
+        </div>
+      </div>
+      <div class="sl-row">
+        <div class="sl-tag s4">SL-4</div>
+        <div>
+          <div class="ttl2">Tenant object mapping</div>
+          <div class="val"><code>Total Revenue</code> + 3 children:<br>
+            • <code>4100 Product Revenue</code> (−13.64%)<br>
+            • <code>4200 Services Revenue</code> (+12.15%)<br>
+            • <code>4300 Maintenance</code> (+0.21%)
+          </div>
+          <div class="conf">Mapping Registry · approved · <b>0.96</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gate">
+      <div class="check">✓</div>
+      <div>Permission gate cleared — 4 / 4 objects within scope. No derived disclosure risk.</div>
+    </div>
+
+    <div class="card">
+      <div class="ttl"><span>Issues addressed</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center;font-size:12px"><span class="sevpill s2">Sev 2</span><span class="mono" style="color:var(--ink-2)">ISSUE-04</span><span style="color:var(--ink-2)">Wrong numbers</span><span style="margin-left:auto;color:var(--sev4);font-size:11px">resolved</span></div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:12px"><span class="sevpill s3">Sev 3</span><span class="mono" style="color:var(--ink-2)">ISSUE-06</span><span style="color:var(--ink-2)">Generic financial replies</span><span style="margin-left:auto;color:var(--sev4);font-size:11px">resolved</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ttl"><span>Latency budget</span><span style="color:var(--sev4)">within target</span></div>
+      <div class="lat"><span>Intent (SL-1)</span><span>34ms</span></div>
+      <div class="lat"><span>Context bind (SL-2)</span><span>11ms</span></div>
+      <div class="lat"><span>Concept resolve (SL-3)</span><span>22ms</span></div>
+      <div class="lat"><span>Object map (SL-4)</span><span>41ms</span></div>
+      <div class="lat"><span>Permission gate</span><span>8ms</span></div>
+      <div class="lat" style="border-top:1px solid var(--rule);margin-top:4px;padding-top:8px;color:var(--ink)"><b>Aurora query + render</b><b>26ms</b></div>
+    </div>
+
+  </aside>
+
+</div>
+
+</body>
+</html>

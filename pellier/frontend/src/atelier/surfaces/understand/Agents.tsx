@@ -25,6 +25,21 @@ import { useBuildState } from '../../hooks/useBuildState';
 import type { Agent } from '../../types';
 
 /* -----------------------------------------------------------------------
+ * Inline code style — used to mark up identifiers inside body prose
+ * (skill names, routing pattern names, table names) without falling
+ * back to Fraunces italic. Mirrors the AtelierWelcome treatment.
+ * ----------------------------------------------------------------------- */
+
+const CODE_INLINE: React.CSSProperties = {
+  fontFamily: 'var(--at-mono)',
+  fontSize: '13.5px',
+  color: 'var(--at-ink-1)',
+  background: 'var(--at-cream-2)',
+  padding: '1px 6px',
+  borderRadius: 4,
+};
+
+/* -----------------------------------------------------------------------
  * Build Segment[] from agent data for WorkshopProgressStrip
  * ----------------------------------------------------------------------- */
 
@@ -123,13 +138,16 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent }) => {
             >
               {agent.name}
             </h3>
+            {/* Agent role description — sans Inter so the body prose
+                reads as documentation, matching AtelierWelcome's
+                summary treatment. The Fraunces italic headline above
+                still carries the editorial voice. */}
             <p
               style={{
-                fontFamily: 'var(--at-serif)',
-                fontStyle: 'italic',
-                fontSize: '16px',
-                color: 'var(--at-ink-1)',
-                lineHeight: 1.4,
+                fontFamily: 'var(--at-sans)',
+                fontSize: '15px',
+                color: 'var(--at-ink-2)',
+                lineHeight: 1.55,
                 margin: 0,
               }}
             >
@@ -339,20 +357,17 @@ const RelatedCard: React.FC = () => (
         </div>
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '15px',
-            color: 'var(--at-ink-1)',
-            lineHeight: 1.5,
+            color: 'var(--at-ink-2)',
+            lineHeight: 1.6,
             margin: 0,
           }}
         >
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>style-advisor</em> and{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>gift-concierge</em>.
-          Loaded per-turn by SkillRouter (Haiku 4.5 · 0.0). Injected into the specialist's
-          system prompt — they change{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>voice and handling</em>,
-          not product selection.
+          <code style={CODE_INLINE}>style-advisor</code> and{' '}
+          <code style={CODE_INLINE}>gift-concierge</code>. Loaded per-turn by
+          SkillRouter (Haiku 4.5 · 0.0). Injected into the specialist's system
+          prompt — they change voice and handling, not product selection.
         </p>
         <Link
           to="/atelier/architecture/skills"
@@ -405,20 +420,18 @@ const RelatedCard: React.FC = () => (
         </div>
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '15px',
-            color: 'var(--at-ink-1)',
-            lineHeight: 1.5,
+            color: 'var(--at-ink-2)',
+            lineHeight: 1.6,
             margin: 0,
           }}
         >
           Three patterns:{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>Dispatcher</em> (active
-          in the boutique),{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>Agents-as-Tools</em>,{' '}
-          <em style={{ color: 'var(--at-ink-1)', fontStyle: 'italic' }}>Graph</em>. The first
-          runs without an orchestrator; the other two use a Haiku 4.5 router. None of the five
+          <code style={CODE_INLINE}>Dispatcher</code> (active in the boutique),{' '}
+          <code style={CODE_INLINE}>Agents-as-Tools</code>,{' '}
+          <code style={CODE_INLINE}>Graph</code>. The first runs without an
+          orchestrator; the other two use a Haiku 4.5 router. None of the five
           specialists is a lead — that's the routing layer's job.
         </p>
         <Link
