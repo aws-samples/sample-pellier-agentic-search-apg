@@ -35,6 +35,9 @@ docs/
 *.swo
 *~
 
+# Mockups and design HTML artifacts
+sdl_*.html
+
 # OS
 .DS_Store
 Thumbs.db
