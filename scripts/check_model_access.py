@@ -37,7 +37,7 @@ MODELS = [
     },
     {
         "name": "Cohere Embed v4",
-        "model_id": "global.cohere.embed-v4:0",
+        "model_id": "cohere.embed-english-v4:0",
         "body": {
             "texts": ["test"],
             "input_type": "search_query",
