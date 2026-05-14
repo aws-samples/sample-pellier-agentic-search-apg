@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Daylight — Component reference</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="daylight.css" />
+</head>
+<body>
+
+<header class="dl-header">
+  <div class="dl-brand"><b>Daylight</b> · Component reference</div>
+  <nav class="dl-nav-tabs">
+    <a class="dl-tab is-active" href="#type">Type</a>
+    <a class="dl-tab" href="#color">Color</a>
+    <a class="dl-tab" href="#components">Components</a>
+  </nav>
+</header>
+
+<main class="dl-container" style="padding-top:48px;padding-bottom:80px">
+
+<section id="type" class="dl-stack-xl">
+  <div>
+    <div class="dl-eyebrow">01 · Typography</div>
+    <h1 class="dl-display">A warm, <em>editorial</em> system.</h1>
+    <p class="dl-lead">Daylight is a typographic system first. The serif does the talking. Sans-serif handles UI metadata, captions, and code labels.</p>
+  </div>
+
+  <div class="dl-grid dl-grid-2">
+    <div class="dl-card">
+      <div class="dl-eyebrow dl-mb-4">Display · 54</div>
+      <div class="dl-display dl-mb-0">A new <em>chapter</em>.</div>
+    </div>
+    <div class="dl-card">
+      <div class="dl-eyebrow dl-mb-4">H1 · 40 / H2 · 28 / H3 · 20</div>
+      <h1 class="dl-h1">Heading one</h1>
+      <h2 class="dl-h2">Heading two</h2>
+      <h3 class="dl-h3">Heading three</h3>
+    </div>
+    <div class="dl-card">
+      <div class="dl-eyebrow dl-mb-4">Lead · 18</div>
+      <p class="dl-lead dl-mb-0">A short, calm paragraph that sets up the page below it. Lead text uses the muted ink and a comfortable measure.</p>
+    </div>
+    <div class="dl-card">
+      <div class="dl-eyebrow dl-mb-4">Body · 15 / Small · 13</div>
+      <p class="dl-prose">Body prose flows in serif. The default measure is generous, the leading is wide, and the color sits at <code class="dl-code">--dl-ink-2</code> rather than full black.</p>
+      <p class="dl-small dl-mb-0">Small text in sans-serif handles captions and footnotes.</p>
+    </div>
+  </div>
+</section>
+
+<hr/>
+
+<section id="color" class="dl-stack-lg">
+  <div>
+    <div class="dl-eyebrow">02 · Color</div>
+    <h2 class="dl-h1">Surfaces, ink, accent.</h2>
+  </div>
+  <div class="dl-grid dl-grid-4">
+    <div class="dl-card" style="background:var(--dl-bg)"><div class="dl-eyebrow">--dl-bg</div><div class="dl-mt-2 dl-mono dl-small">#f7f3ec</div></div>
+    <div class="dl-card"><div class="dl-eyebrow">--dl-paper</div><div class="dl-mt-2 dl-mono dl-small">#fbf8f2</div></div>
+    <div class="dl-card" style="background:var(--dl-paper-2)"><div class="dl-eyebrow">--dl-paper-2</div><div class="dl-mt-2 dl-mono dl-small">#f1ece1</div></div>
+    <div class="dl-card" style="background:var(--dl-ink);color:var(--dl-paper)"><div class="dl-eyebrow" style="color:var(--dl-paper)">--dl-ink</div><div class="dl-mt-2 dl-mono dl-small" style="color:var(--dl-paper)">#1f1d1a</div></div>
+    <div class="dl-card" style="background:var(--dl-accent);color:#fff"><div class="dl-eyebrow" style="color:#fff">--dl-accent</div><div class="dl-mt-2 dl-mono dl-small" style="color:#fff">#9a3412</div></div>
+    <div class="dl-card" style="background:var(--dl-accent-soft)"><div class="dl-eyebrow">--dl-accent-soft</div><div class="dl-mt-2 dl-mono dl-small">#f1e3d6</div></div>
+    <div class="dl-card"><div class="dl-eyebrow" style="color:var(--dl-muted)">--dl-muted</div><div class="dl-mt-2 dl-mono dl-small">#6b665d</div></div>
+    <div class="dl-card"><div class="dl-eyebrow" style="color:var(--dl-line-strong)">--dl-line</div><div class="dl-mt-2 dl-mono dl-small">#e3ddd1</div></div>
+  </div>
+</section>
+
+<hr/>
+
+<section id="components" class="dl-stack-xl">
+  <div>
+    <div class="dl-eyebrow">03 · Components</div>
+    <h2 class="dl-h1">Cards, pills, tables, code.</h2>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Buttons</div>
+    <div class="dl-flex dl-flex-gap-2 dl-wrap">
+      <button class="dl-btn dl-btn-primary">Primary</button>
+      <button class="dl-btn dl-btn-accent">Accent</button>
+      <button class="dl-btn dl-btn-ghost">Ghost</button>
+      <button class="dl-btn dl-btn-primary dl-btn-lg">Primary · large</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Searchbar</div>
+    <div class="dl-searchbar">
+      <span class="dl-chip">Ask</span>
+      <input value="quiet coastal towns in southern Europe" />
+      <button class="dl-btn dl-btn-primary">Find</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Pills &amp; tags</div>
+    <div class="dl-flex dl-flex-gap-2 dl-wrap dl-mb-4">
+      <span class="dl-pill is-on">Quiet</span>
+      <span class="dl-pill">Romantic</span>
+      <span class="dl-pill">Walkable</span>
+      <span class="dl-pill">Off-season</span>
+    </div>
+    <div class="dl-flex dl-flex-gap-2 dl-wrap">
+      <span class="dl-tag">coastal</span>
+      <span class="dl-tag">pasta</span>
+      <span class="dl-tag">bookshops</span>
+      <span class="dl-tag dl-tag-neutral">neutral</span>
+      <span class="dl-badge">New</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Card · with score</div>
+    <div class="dl-card" style="display:grid;grid-template-columns:140px 1fr auto;gap:24px;align-items:center">
+      <div style="aspect-ratio:3/4;border-radius:8px;background:linear-gradient(160deg,#d9c3a4,#a07a4e)"></div>
+      <div>
+        <div class="dl-meta">Liguria · Italy</div>
+        <h3 class="dl-h3" style="font-size:24px;margin:.1em 0">Camogli, the soft Riviera</h3>
+        <p class="dl-prose dl-mb-4">A pastel fishing village. Mornings smell of focaccia and ink.</p>
+        <div class="dl-flex dl-flex-gap-2 dl-wrap">
+          <span class="dl-tag">coastal</span><span class="dl-tag">pasta</span><span class="dl-tag">bookshops</span>
+        </div>
+      </div>
+      <div class="dl-score"><div class="big">0.94</div><small>RRF</small></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Panel · weights</div>
+    <div class="dl-panel">
+      <h3>Signal weights</h3>
+      <div class="dl-flex" style="gap:16px;align-items:center;margin:8px 0"><div style="width:160px">Semantic</div><input class="dl-slider" type="range" value="62"/><div style="width:60px;text-align:right;color:var(--dl-accent);font-weight:600">62%</div></div>
+      <div class="dl-flex" style="gap:16px;align-items:center;margin:8px 0"><div style="width:160px">Lexical</div><input class="dl-slider" type="range" value="28"/><div style="width:60px;text-align:right;color:var(--dl-accent);font-weight:600">28%</div></div>
+      <div class="dl-flex" style="gap:16px;align-items:center;margin:8px 0"><div style="width:160px">Fuzzy</div><input class="dl-slider" type="range" value="10"/><div style="width:60px;text-align:right;color:var(--dl-accent);font-weight:600">10%</div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Table · ranked results</div>
+    <table class="dl-table">
+      <thead><tr><th style="width:40px">#</th><th>Place</th><th class="num">Sem</th><th class="num">Lex</th><th class="num">RRF</th></tr></thead>
+      <tbody>
+        <tr><td class="num">01</td><td><b>Camogli</b><div class="dl-meta">Liguria · IT</div></td><td class="num">0.91</td><td class="num">0.78</td><td class="num">0.94</td></tr>
+        <tr><td class="num">02</td><td><b>Vila Nova de Milfontes</b><div class="dl-meta">Alentejo · PT</div></td><td class="num">0.86</td><td class="num">0.72</td><td class="num">0.88</td></tr>
+        <tr><td class="num">03</td><td><b>Polignano a Mare</b><div class="dl-meta">Puglia · IT</div></td><td class="num">0.83</td><td class="num">0.74</td><td class="num">0.86</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <div class="dl-eyebrow dl-mb-4">Code block</div>
+    <pre class="dl-code-block"><span class="c">-- hybrid retrieval</span>
+<span class="kw">SELECT</span> id, 1 - (embedding <span class="st">&lt;=&gt;</span> :q) <span class="kw">AS</span> score
+<span class="kw">FROM</span> wayfare.places
+<span class="kw">ORDER BY</span> embedding <span class="st">&lt;=&gt;</span> :q <span class="kw">LIMIT</span> 10;</pre>
+  </div>
+</section>
+
+</main>
+
+<footer class="dl-footer">Daylight design system · component reference</footer>
+</body>
+</html>
