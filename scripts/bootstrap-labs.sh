@@ -429,7 +429,7 @@ alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 # :8000 serves the built SPA AND /api. Frontend changes require a
 # rebuild (``npm run build`` in pellier/frontend/) and are
 # handled automatically by the pellier systemd service.
-alias start-backend='/workshop/sample-pellier-agentic-search-apg/pellier/start-backend.sh'
+alias start-backend='sudo systemctl stop pellier 2>/dev/null; cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && source ../../.env && uvicorn app:app --host 0.0.0.0 --port 8000 --reload'
 alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && npm run build && cd - >/dev/null && systemctl restart pellier 2>/dev/null || true'
 
 # Database Shortcut (psql uses PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE from .env)
@@ -530,17 +530,23 @@ EOF
 mkdir -p /tmp/pellier
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/pellier
 
-# Enable + start the single service
+# Enable + start the single service (workshop format only)
+# For builders format, we skip the systemd start here — STEP 16 will
+# launch uvicorn with --reload directly so participants see live restarts.
 systemctl daemon-reload
 systemctl enable pellier
-systemctl start pellier
+if [ "${WORKSHOP_FORMAT:-workshop}" != "builders" ]; then
+    systemctl start pellier
 
-# Verify it started
-sleep 8
-if systemctl is-active --quiet pellier; then
-    log "✅ pellier service running (port 8000, serves SPA + /api)"
+    # Verify it started
+    sleep 8
+    if systemctl is-active --quiet pellier; then
+        log "✅ pellier service running (port 8000, serves SPA + /api)"
+    else
+        warn "pellier service failed to start — check: journalctl -u pellier"
+    fi
 else
-    warn "pellier service failed to start — check: journalctl -u pellier"
+    log "ℹ️  Builders format: skipping systemd start (uvicorn --reload will be launched in STEP 16)"
 fi
 
 log "✅ Auto-start service configured"
@@ -654,10 +660,39 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
-    # Single-service restart — re-runs the ExecStartPre vite build so
-    # the frontend bundle picks up the agentIdentity.ts drop-in.
-    systemctl restart pellier 2>/dev/null || true
-    log "✅ Builders solutions applied and pellier service restarted"
+
+    # Builders format: run uvicorn with --reload instead of the systemd
+    # service. Participants edit .py files → save → uvicorn auto-restarts.
+    # Zero friction, no split terminals, no manual commands.
+    systemctl stop pellier 2>/dev/null || true
+
+    # Build frontend once (same as ExecStartPre in the systemd unit)
+    log "Building frontend SPA for builders format..."
+    cd "$REPO_PATH/pellier/backend" && sudo -u "$CODE_EDITOR_USER" python3 generate_mcp_config.py 2>/dev/null || true
+    cd "$REPO_PATH/pellier/frontend" && sudo -u "$CODE_EDITOR_USER" npm run build
+    cd "$REPO_PATH"
+
+    # Start uvicorn with --reload as the workshop user. This runs in the
+    # background and logs to /tmp/pellier/uvicorn.log. The terminal auto-open
+    # (welcome script) will tail this log so participants see it live.
+    log "Starting uvicorn with --reload (builders mode)..."
+    sudo -u "$CODE_EDITOR_USER" bash -c "
+        cd $REPO_PATH/pellier/backend
+        source $REPO_PATH/.env
+        export PATH=/home/$CODE_EDITOR_USER/.local/bin:\$PATH
+        nohup uvicorn app:app --host 0.0.0.0 --port 8000 --reload \
+            >> /tmp/pellier/uvicorn.log 2>&1 &
+        echo \$! > /tmp/pellier/uvicorn.pid
+    "
+
+    sleep 5
+    if [ -f /tmp/pellier/uvicorn.pid ] && kill -0 "$(cat /tmp/pellier/uvicorn.pid)" 2>/dev/null; then
+        log "✅ Builders: uvicorn running with --reload (PID $(cat /tmp/pellier/uvicorn.pid))"
+    else
+        warn "uvicorn --reload failed to start — check /tmp/pellier/uvicorn.log"
+    fi
+
+    log "✅ Builders solutions applied, uvicorn running with --reload"
 fi
 
 # ============================================================================
