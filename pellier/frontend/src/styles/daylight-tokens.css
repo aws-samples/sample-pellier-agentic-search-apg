@@ -1,0 +1,78 @@
+/* ============================================================
+   Daylight Design System — Tokens
+   Warm, off-white, editorial. Used across Wayfare and Pellier.
+   ============================================================ */
+
+:root {
+  /* ---------- Color · surfaces ---------- */
+  --dl-bg:           #f7f3ec;   /* page background */
+  --dl-paper:        #fbf8f2;   /* cards, panels */
+  --dl-paper-2:      #f1ece1;   /* recessed surfaces */
+  --dl-line:         #e3ddd1;   /* borders, dividers */
+  --dl-line-strong:  #cbc1ad;   /* emphasized borders */
+
+  /* ---------- Color · ink ---------- */
+  --dl-ink:          #1f1d1a;   /* primary text */
+  --dl-ink-2:        #3a3833;   /* body prose */
+  --dl-muted:        #6b665d;   /* secondary text, captions */
+  --dl-faint:        #9a9285;   /* placeholders, disabled */
+
+  /* ---------- Color · accent ---------- */
+  --dl-accent:       #9a3412;   /* terracotta — primary accent */
+  --dl-accent-soft:  #f1e3d6;   /* accent tint background */
+  --dl-accent-ink:   #5a2a0a;   /* accent text on tint */
+
+  /* ---------- Color · semantic ---------- */
+  --dl-ok:           #3f6212;
+  --dl-warn:         #b45309;
+  --dl-err:          #991b1b;
+  --dl-info:         #1e40af;
+
+  /* ---------- Type ---------- */
+  --dl-font-serif:   "Iowan Old Style","Source Serif Pro",Georgia,"Times New Roman",serif;
+  --dl-font-sans:    "Inter","Helvetica Neue",system-ui,-apple-system,sans-serif;
+  --dl-font-mono:    "JetBrains Mono","SF Mono",Menlo,monospace;
+
+  --dl-fs-display:   54px;
+  --dl-fs-h1:        40px;
+  --dl-fs-h2:        28px;
+  --dl-fs-h3:        20px;
+  --dl-fs-lead:      18px;
+  --dl-fs-body:      15px;
+  --dl-fs-small:     13px;
+  --dl-fs-eyebrow:   11px;
+
+  --dl-lh-tight:     1.05;
+  --dl-lh-snug:      1.25;
+  --dl-lh-body:      1.6;
+
+  --dl-track-eyebrow: 0.14em;   /* uppercase eyebrows */
+  --dl-track-tight:   -0.01em;
+
+  /* ---------- Spacing ---------- */
+  --dl-s-1:  4px;
+  --dl-s-2:  8px;
+  --dl-s-3:  12px;
+  --dl-s-4:  16px;
+  --dl-s-5:  24px;
+  --dl-s-6:  32px;
+  --dl-s-7:  48px;
+  --dl-s-8:  64px;
+  --dl-s-9:  96px;
+
+  /* ---------- Radius ---------- */
+  --dl-r-sm: 6px;
+  --dl-r-md: 10px;
+  --dl-r-lg: 14px;
+  --dl-r-xl: 20px;
+  --dl-r-pill: 999px;
+
+  /* ---------- Shadow ---------- */
+  --dl-sh-paper: 0 1px 0 #fff inset, 0 6px 20px rgba(60,40,10,.04);
+  --dl-sh-lift:  0 12px 30px -12px rgba(60,40,10,.18);
+  --dl-sh-deep:  0 30px 60px -30px rgba(60,40,10,.35);
+
+  /* ---------- Layout ---------- */
+  --dl-container: 1200px;
+  --dl-gutter:    48px;
+}

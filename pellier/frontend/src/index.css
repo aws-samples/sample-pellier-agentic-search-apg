@@ -9,8 +9,8 @@
  * public/design-system/daylight/ — see DAYLIGHT_INTEGRATION.md
  * for the import contract and re-import instructions.
  * ============================================================ */
-@import url('/design-system/daylight/tokens.css');
-@import url('/design-system/daylight/daylight.css');
+@import './styles/daylight-tokens.css';
+@import './styles/daylight-components.css';
 @import './styles/daylight-bridge.css';
 
 @tailwind base;
