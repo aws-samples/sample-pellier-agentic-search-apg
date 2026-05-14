@@ -12,6 +12,7 @@
 import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { ContextRail, ExpCard, Eyebrow, StatusDot } from '../../components';
+import { asset } from '../../../utils/assetPath';
 import type { SessionOutletContext } from './SessionView';
 import type {
   ChatTurn,
@@ -260,27 +261,47 @@ const ProductGrid: React.FC<{ products: ProductCard[] }> = ({ products }) => (
           background: 'var(--at-cream-elev)',
         }}
       >
-        {/* Image placeholder */}
+        {/* Product image */}
         <div
           style={{
             height: '100px',
-            background: 'linear-gradient(160deg, #d9c3a4, #a07a4e 60%, #5a3a1a)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            background: 'var(--at-cream-2)',
+            overflow: 'hidden',
           }}
         >
-          <span
-            style={{
-              fontFamily: 'var(--at-mono)',
-              fontSize: '11px',
-              color: 'rgba(255,255,255,0.7)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.14em',
-            }}
-          >
-            {product.brand}
-          </span>
+          {product.imageUrl ? (
+            <img
+              src={asset(product.imageUrl)}
+              alt={product.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--at-mono)',
+                  fontSize: '11px',
+                  color: 'var(--at-ink-4)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.14em',
+                }}
+              >
+                {product.brand}
+              </span>
+            </div>
+          )}
         </div>
         <div style={{ padding: '10px 12px' }}>
           <div
