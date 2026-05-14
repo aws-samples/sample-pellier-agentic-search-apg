@@ -264,7 +264,7 @@ const ProductGrid: React.FC<{ products: ProductCard[] }> = ({ products }) => (
         <div
           style={{
             height: '100px',
-            background: 'linear-gradient(135deg, var(--at-cream-2) 0%, var(--at-cream-1) 100%)',
+            background: 'linear-gradient(160deg, #d9c3a4, #a07a4e 60%, #5a3a1a)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -274,12 +274,12 @@ const ProductGrid: React.FC<{ products: ProductCard[] }> = ({ products }) => (
             style={{
               fontFamily: 'var(--at-mono)',
               fontSize: '11px',
-              color: 'var(--at-ink-2)',
+              color: 'rgba(255,255,255,0.7)',
               textTransform: 'uppercase',
-              letterSpacing: '0.1em',
+              letterSpacing: '0.14em',
             }}
           >
-            Image
+            {product.brand}
           </span>
         </div>
         <div style={{ padding: '10px 12px' }}>

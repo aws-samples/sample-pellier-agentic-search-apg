@@ -116,17 +116,11 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onOpen }) => (
 
       {/* Code snippet */}
       <pre
+        className="dl-code-block"
         style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '14px',
-          lineHeight: 1.7,
-          color: 'var(--at-ink-1)',
-          backgroundColor: 'var(--at-cream-2)',
-          borderRadius: '8px',
-          padding: '16px 20px',
           margin: 0,
-          overflowX: 'auto',
-          whiteSpace: 'pre',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
         }}
       >
         {concept.codeSnippet}

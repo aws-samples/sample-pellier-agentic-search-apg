@@ -148,29 +148,16 @@ const RoutingCard: React.FC<RoutingCardProps> = ({ pattern, numeral }) => {
       </p>
 
       {/* Code snippet */}
-      <div
+      <pre
+        className="dl-code-block"
         style={{
-          background: 'var(--at-cream-2)',
-          borderRadius: '8px',
-          padding: '16px 18px',
           marginBottom: '18px',
-          overflow: 'auto',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
         }}
       >
-        <pre
-          style={{
-            fontFamily: 'var(--at-mono)',
-            fontSize: '13px',
-            lineHeight: 1.6,
-            color: 'var(--at-ink-1)',
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {pattern.codeSnippet}
-        </pre>
-      </div>
+        {pattern.codeSnippet}
+      </pre>
 
       {/* Agent list + meta row */}
       <div
