@@ -17,22 +17,22 @@ DEFAULT_POLICIES = [
         "name": "Maximum Restock Quantity",
         "description": "Prevent restocking more than 500 units at once",
         "cedar": (
-            'forbid (\n  principal,\n  action == Action::"restock_product",\n'
+            'forbid (\n  principal,\n  action == Action::"restock_shelf",\n'
             '  resource\n)\nwhen { resource.quantity > 500 };'
         ),
-        "applies_to": "restock_product",
+        "applies_to": "restock_shelf",
     },
     {
         "id": "restrict-categories",
         "name": "Restricted Categories",
         "description": "Block searches for weapons, tobacco, and alcohol",
         "cedar": (
-            'forbid (\n  principal,\n  action == Action::"search_products",\n'
+            'forbid (\n  principal,\n  action == Action::"find_pieces",\n'
             '  resource\n)\nwhen {\n  resource.query like "*weapon*" ||\n'
             '  resource.query like "*tobacco*" ||\n  resource.query like "*alcohol*" ||\n'
             '  resource.query like "*gun*" ||\n  resource.query like "*ammunition*"\n};'
         ),
-        "applies_to": "search_products",
+        "applies_to": "find_pieces",
     },
     {
         "id": "price-ceiling",

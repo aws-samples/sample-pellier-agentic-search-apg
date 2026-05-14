@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 # agent client (or the AgentCore Gateway) can discover and invoke them with
 # the same signatures and JSON envelopes used by the in-process orchestrator.
 #
-# The 9 tools come from workshop-content.md steering and MUST be registered
-# under these exact names (Req 2.2.3):
-#   search_products, get_trending_products, get_price_analysis,
-#   get_product_by_category, get_inventory_health, get_low_stock_products,
-#   restock_product, compare_products, get_return_policy
+# The 9 tools come from the boutique agent_tools module and MUST be registered
+# under these exact names (matching the @tool function names):
+#   find_pieces, whats_trending, price_intelligence,
+#   explore_collection, floor_check, running_low,
+#   restock_shelf, side_by_side, returns_and_care
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-paper-trail/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
@@ -38,15 +38,15 @@ logger = logging.getLogger(__name__)
 # The 9 tool names exposed by the gateway, in stable order. Tests assert
 # discovery returns exactly this set by exact name (workshop-content.md).
 GATEWAY_TOOL_NAMES: List[str] = [
-    "search_products",
-    "get_trending_products",
-    "get_price_analysis",
-    "get_product_by_category",
-    "get_inventory_health",
-    "get_low_stock_products",
-    "restock_product",
-    "compare_products",
-    "get_return_policy",
+    "find_pieces",
+    "whats_trending",
+    "price_intelligence",
+    "explore_collection",
+    "floor_check",
+    "running_low",
+    "restock_shelf",
+    "side_by_side",
+    "returns_and_care",
 ]
 
 

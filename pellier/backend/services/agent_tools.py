@@ -726,7 +726,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
         including cosine similarity scores.
     """
     try:
-        source = _run_async(db_service.fetch_one(
+        source = _run_async(_db_service.fetch_one(
             'SELECT "productId", name, brand, price, category_name, embedding '
             'FROM pellier.product_catalog WHERE "productId" = %s',
             str(product_id).ljust(10),
@@ -736,7 +736,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
         if not source.get("embedding"):
             return json.dumps({"error": f"Product {product_id} has no embedding"})
 
-        matches = _run_async(db_service.fetch_all(
+        matches = _run_async(_db_service.fetch_all(
             'SELECT "productId", name, brand, color, price, rating, reviews, '
             'category_name, "imgUrl", '
             '1 - (embedding <=> %s::vector) AS similarity_score '
