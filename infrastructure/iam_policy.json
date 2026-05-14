@@ -9,7 +9,7 @@
         "arn:aws:bedrock:us-west-2::foundation-model/global.anthropic.claude-opus-4-7",
         "arn:aws:bedrock:us-west-2::foundation-model/global.anthropic.claude-sonnet-4-6",
         "arn:aws:bedrock:us-west-2::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0",
-        "arn:aws:bedrock:us-west-2::foundation-model/us.cohere.embed-v4:0",
+        "arn:aws:bedrock:us-west-2::foundation-model/cohere.embed-english-v4:0",
         "arn:aws:bedrock:us-west-2::foundation-model/cohere.rerank-v3-5:0"
       ]
     },

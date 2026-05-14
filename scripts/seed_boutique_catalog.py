@@ -339,7 +339,7 @@ def generate_embeddings(products: List[Product], region: str) -> None:
             })
             response = client.invoke_model(
                 body=payload,
-                modelId="us.cohere.embed-v4:0",
+                modelId="cohere.embed-english-v4:0",
                 contentType="application/json",
                 accept="application/json",
             )

@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Bedrock Model Configuration
     # ========================================
     # Embedding model for semantic search (Cohere Embed v4)
-    BEDROCK_EMBEDDING_MODEL: str = "us.cohere.embed-v4:0"
+    BEDROCK_EMBEDDING_MODEL: str = "cohere.embed-english-v4:0"
 
     # Rerank model for hybrid search (Cohere Rerank v3.5)
     BEDROCK_RERANK_MODEL: str = "cohere.rerank-v3-5:0"

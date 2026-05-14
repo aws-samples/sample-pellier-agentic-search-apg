@@ -128,7 +128,7 @@ Resources:
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-opus-4-7
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-sonnet-4-6
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0
-                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/us.cohere.embed-v4:0
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.embed-english-v4:0
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
               # Bedrock AgentCore — runtime + control-plane memory APIs.
               # We split the two Sids because the control-plane prefix
@@ -335,8 +335,8 @@ Resources:
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
           CachedMethods: [GET, HEAD]
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # AllViewer
           Compress: false
         Origins:
           - Id: code-editor-origin

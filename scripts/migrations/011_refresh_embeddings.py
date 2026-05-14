@@ -49,7 +49,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = PROJECT_ROOT / ".env"
-EMBED_MODEL = "us.cohere.embed-v4:0"
+EMBED_MODEL = "cohere.embed-english-v4:0"
 EMBED_DIM = 1024
 
 
