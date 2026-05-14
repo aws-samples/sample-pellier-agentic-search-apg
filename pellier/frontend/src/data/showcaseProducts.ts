@@ -17,6 +17,7 @@ import {
   assignReasoningChipsCyclic,
   findAdjacentDuplicateStyleIndex,
 } from '../components/ReasoningChip'
+import { asset } from '../utils/assetPath'
 
 // 40 reasoning chips — cycles picked→matched→pricing→context (10 full rotations)
 const AUTHORED: ReasoningChip[] = [
@@ -117,6 +118,10 @@ export const SHOWCASE_PRODUCTS: BoutiqueProduct[] = [
   { id: 38, brand: 'Pellier Home', name: 'Beeswax Pillar Candle', color: 'Natural', price: 38, rating: 4.6, reviewCount: 334, category: 'Home Decor', imageUrl: '/products/theo-beeswax-pillar-candle.png', tags: ['candle', 'home', 'slow', 'artisanal', 'warm'], reasoning: CHIPS[34] },
   { id: 39, brand: 'Pellier Home', name: 'Linen Table Runner', color: 'Flax', price: 85, rating: 4.7, reviewCount: 178, category: 'Home Decor', imageUrl: '/products/theo-linen-table-runner.png', badge: 'JUST_IN', tags: ['linen', 'home', 'slow', 'neutral', 'artisanal'], reasoning: CHIPS[35] },
 ]
+
+// Resolve image paths against the Vite base path so they work through
+// CloudFront's /ports/8000/* reverse proxy in Workshop Studio.
+SHOWCASE_PRODUCTS.forEach(p => { p.imageUrl = asset(p.imageUrl) })
 
 // Per-persona subsets — zero overlap between personas
 export const FRESH_PRODUCTS = SHOWCASE_PRODUCTS.filter(p => p.id >= 1 && p.id <= 9)

@@ -97,7 +97,10 @@ if ! id "$CODE_EDITOR_USER" &>/dev/null; then
     adduser -c '' "$CODE_EDITOR_USER"
     echo "$CODE_EDITOR_USER:$CODE_EDITOR_PASSWORD" | chpasswd
     usermod -aG wheel "$CODE_EDITOR_USER"
-    sed -i 's/# %wheel/%wheel/g' /etc/sudoers
+    # Uncomment NOPASSWD wheel line so workshop user can sudo without password.
+    # Amazon Linux /etc/sudoers has two wheel lines; we want only the NOPASSWD one.
+    sed -i 's/^# %wheel\tALL=(ALL)\tNOPASSWD: ALL/%wheel\tALL=(ALL)\tNOPASSWD: ALL/' /etc/sudoers
+    sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
     log "✅ User created"
 else
     log "✅ User already exists"

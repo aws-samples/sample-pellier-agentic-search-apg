@@ -3,7 +3,7 @@ Orchestrator Agent - Routes queries to specialized agents with interleaved think
 """
 from strands import Agent
 from strands.models import BedrockModel
-from .stock_keeper import inventory_restock_agent
+from .stock_keeper import inventory
 from .curator import product_recommendation_agent
 from .value_analyst import price_optimization_agent
 from .experience_guide import customer_support_agent
@@ -37,7 +37,7 @@ def create_orchestrator():
             search_agent,
             product_recommendation_agent,
             price_optimization_agent,
-            inventory_restock_agent,
+            inventory,
             customer_support_agent,
         ],
     )
@@ -70,7 +70,7 @@ def create_guarded_orchestrator():
             search_agent,
             product_recommendation_agent,
             price_optimization_agent,
-            inventory_restock_agent,
+            inventory,
             customer_support_agent,
         ],
     )

@@ -430,7 +430,7 @@ alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 # rebuild (``npm run build`` in pellier/frontend/) and are
 # handled automatically by the pellier systemd service.
 alias start-backend='sudo systemctl stop pellier 2>/dev/null; cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && source ../../.env && uvicorn app:app --host 0.0.0.0 --port 8000 --reload'
-alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && npm run build && cd - >/dev/null && systemctl restart pellier 2>/dev/null || true'
+alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && VITE_BASE_PATH=/ports/8000/ npm run build && cd - >/dev/null && sudo systemctl restart pellier 2>/dev/null || true'
 
 # Database Shortcut (psql uses PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE from .env)
 alias psql='psql'
@@ -669,7 +669,7 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     # Build frontend once (same as ExecStartPre in the systemd unit)
     log "Building frontend SPA for builders format..."
     cd "$REPO_PATH/pellier/backend" && sudo -u "$CODE_EDITOR_USER" python3 generate_mcp_config.py 2>/dev/null || true
-    cd "$REPO_PATH/pellier/frontend" && sudo -u "$CODE_EDITOR_USER" npm run build
+    cd "$REPO_PATH/pellier/frontend" && VITE_BASE_PATH=/ports/8000/ sudo -u "$CODE_EDITOR_USER" npm run build
     cd "$REPO_PATH"
 
     # Start uvicorn with --reload as the workshop user. This runs in the

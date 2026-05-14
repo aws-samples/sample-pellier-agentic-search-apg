@@ -23,7 +23,6 @@ const TEXT = '#1f1410'
 const TEXT_SOFT = '#6b4a35'
 const TEXT_QUIET = '#a68668'
 const BORDER = 'rgba(31, 20, 16, 0.08)'
-const ACCENT = '#a8423a'
 const GREEN = '#2d8a56'
 
 interface CartPanelProps {

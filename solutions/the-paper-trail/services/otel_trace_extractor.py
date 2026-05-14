@@ -50,7 +50,7 @@ _SPECIALIST_TOOL_NAMES = frozenset(
         "search_agent",
         "product_recommendation_agent",
         "price_optimization_agent",
-        "inventory_restock_agent",
+        "inventory",
         "customer_support_agent",
     }
 )

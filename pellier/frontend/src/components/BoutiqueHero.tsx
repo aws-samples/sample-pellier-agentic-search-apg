@@ -23,14 +23,15 @@ import {
 } from '../data/personaCurations'
 import { useVoiceSearch } from '../hooks/useVoiceSearch'
 import { PresencePill } from '../shared'
+import { asset } from '../utils/assetPath'
 
 // Per-persona hero images (landscape, in public/products/).
 // Falls back to the fresh hero for unknown personas.
 const PERSONA_HERO_IMAGES: Record<string, string> = {
-  fresh: '/products/hero-fresh-2.png',
-  marco: '/products/hero-marco.png',
-  anna: '/products/hero-anna.png',
-  theo: '/products/hero-theo.png',
+  fresh: asset('/products/hero-fresh-2.png'),
+  marco: asset('/products/hero-marco.png'),
+  anna: asset('/products/hero-anna.png'),
+  theo: asset('/products/hero-theo.png'),
 }
 
 // Trust strip restyled as Agent Capabilities \u2014 bold lead reads as the
@@ -90,13 +91,6 @@ export default function BoutiqueHero() {
     },
     [searchValue, openDrawerWithQuery],
   )
-
-  const handleMicClick = useCallback(() => {
-    const trimmed = searchValue.trim()
-    if (!trimmed) return
-    openDrawerWithQuery(trimmed)
-    setSearchValue('')
-  }, [searchValue, openDrawerWithQuery])
 
   const handlePillClick = useCallback(
     (query: string) => {
