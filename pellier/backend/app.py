@@ -1292,7 +1292,7 @@ async def atelier_catalog():
 
 import pathlib as _pathlib
 
-_PERSONAS_CONFIG_PATH = _pathlib.Path(__file__).resolve().parent.parent.parent / "docs" / "personas-config.json"
+_PERSONAS_CONFIG_PATH = _pathlib.Path(__file__).resolve().parent / "personas-config.json"
 _personas_cache: Optional[list] = None
 
 
