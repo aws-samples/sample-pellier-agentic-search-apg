@@ -434,31 +434,48 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 clear
 cat << 'EOF'
 ╔═══════════════════════════════════════════════════════════════════╗
-║                 Pellier Workshop                             ║
-║     🚀 Build Agentic AI-Powered Search with Aurora PostgreSQL     ║
-║                    AWS re:Invent 2026                             ║
+║              Pellier Workshop · Quick Start                       ║
+║      Agentic AI-Powered Search with Aurora PostgreSQL             ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
-✅ Welcome! Your environment is ready.
+Your environment is ready. The storefront is running on port 8000.
 
-📚 Quick Commands:
-   workshop       - Navigate to workshop root
-   pellier  - Navigate to Pellier
-   backend        - Navigate to backend
-   frontend       - Navigate to frontend
-   psql           - Connect to PostgreSQL database
+URLS
+  Storefront:  https://<cloudfront>/ports/8000/
+  Atelier:     https://<cloudfront>/ports/8000/atelier
+  (Find your CloudFront domain in Workshop Studio Outputs tab)
 
-🌐 Pellier is running at: https://<cloudfront>/app/
-   Backend auto-reloads when you save .py files
-   Frontend auto-rebuilds when you save .tsx/.ts files (refresh browser)
+COMMANDS
+  start-backend        Start uvicorn with --reload (auto-restarts on .py save)
+  rebuild-frontend     Rebuild the React SPA (only needed for frontend edits)
+  psql                 Connect to Aurora PostgreSQL
+  python3 scripts/check_model_access.py   Verify Bedrock model access
 
-📁 Workshop Structure:
-   /workshop/sample-pellier-agentic-search-apg/
-   ├── pellier/ - The App (edit backend/ files)
-   │   ├── backend/   - FastAPI + Strands SDK (TODOs here)
-   │   └── frontend/  - React + TypeScript (pre-built)
-   ├── solutions/     - Drop-in replacements if short on time
-   └── data/          - Sample product catalog
+NAVIGATION
+  workshop             cd to workshop root
+  backend              cd to pellier/backend
+  frontend             cd to pellier/frontend
+
+PROJECT LAYOUT
+  pellier/backend/agents/       One file per specialist agent (you edit here)
+  pellier/backend/services/     Tools, search, embeddings, AgentCore
+  solutions/                    Drop-in files if short on time
+
+THE FIVE AGENTS
+  Style Advisor    agents/style_advisor.py      Semantic search
+  Curator          agents/curator.py            Recommendations + hybrid
+  Value Analyst    agents/value_analyst.py      Pricing
+  Stock Keeper     agents/stock_keeper.py       Inventory
+  Experience Guide agents/experience_guide.py   Returns + support
+
+WORKFLOW
+  1. Open the target file (look for # === CHALLENGE N: START ===)
+  2. Implement between the markers
+  3. Save - uvicorn restarts automatically
+  4. Test in the storefront
+
+SHORT ON TIME?
+  cp solutions/<module>/path/file.py pellier/backend/path/file.py
 
 ═══════════════════════════════════════════════════════════════════
 

@@ -341,7 +341,10 @@ async def root():
     """Serve the SPA's ``index.html`` if built, else return API status."""
     index_html = FRONTEND_DIST / "index.html"
     if index_html.is_file():
-        return FileResponse(index_html)
+        return FileResponse(
+            index_html,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
     return JSONResponse(
         {
             "message": "Pellier Boutique API",
@@ -1978,7 +1981,10 @@ if FRONTEND_DIST.is_dir():
         if candidate.is_file():
             return FileResponse(candidate)
         # Anything else → SPA entry. React Router handles the rest.
-        return FileResponse(FRONTEND_DIST / "index.html")
+        return FileResponse(
+            FRONTEND_DIST / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 else:
     logger.warning(
         "⚠️  Frontend dist not found at %s — API will run, SPA will 404. "
