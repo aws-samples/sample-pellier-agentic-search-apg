@@ -12,6 +12,7 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Eyebrow, ExpCard } from '../../components';
+import { asset } from '../../../utils/assetPath';
 import type { SessionOutletContext } from './SessionView';
 import type { BriefSection, ProductCard } from '../../types';
 
@@ -282,29 +283,49 @@ const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => (
       overflow: 'hidden',
     }}
   >
-    {/* Image placeholder */}
+    {/* Product image */}
     <div
       style={{
         width: '100%',
         height: '140px',
         backgroundColor: 'var(--at-cream-2)',
         borderBottom: '1px solid var(--at-rule-1)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        overflow: 'hidden',
       }}
     >
-      <span
-        style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '12px',
-          color: 'var(--at-ink-2)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-        }}
-      >
-        Image
-      </span>
+      {product.imageUrl ? (
+        <img
+          src={asset(product.imageUrl)}
+          alt={product.name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              color: 'var(--at-ink-4)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+            }}
+          >
+            {product.brand}
+          </span>
+        </div>
+      )}
     </div>
 
     {/* Card content */}

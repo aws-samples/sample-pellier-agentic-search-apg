@@ -339,34 +339,32 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
  * Context rail — Product recommendation card
  * ======================================================================= */
 
-const ProductRecommendationCard: React.FC = () => (
+const ProductRecommendationCard: React.FC = () => {
+  const imageUrl = `${import.meta.env.BASE_URL ?? '/'}products/marco-linen-camp-shirt-indigo.png`;
+  return (
   <ExpCard>
     <Eyebrow label="Top Pick" />
 
-    {/* Image placeholder */}
+    {/* Product image */}
     <div
       style={{
         height: '160px',
-        background: 'linear-gradient(135deg, var(--at-cream-2) 0%, var(--at-cream-1) 100%)',
         borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        overflow: 'hidden',
         marginTop: '14px',
         marginBottom: '14px',
+        background: 'var(--at-cream-2)',
       }}
     >
-      <span
+      <img
+        src={imageUrl}
+        alt="Italian Linen Camp Shirt"
         style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '11px',
-          color: 'var(--at-ink-2)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
         }}
-      >
-        Image
-      </span>
+      />
     </div>
 
     {/* Brand */}
@@ -532,7 +530,8 @@ const ProductRecommendationCard: React.FC = () => (
       </div>
     </div>
   </ExpCard>
-);
+  );
+};
 
 
 /* =======================================================================
