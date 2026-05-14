@@ -342,13 +342,10 @@ install_extension() {
     return 1
 }
 
-# Install essential extensions
+# Install essential extensions for the 60-min Builder's Session.
+# No Jupyter — there are no notebooks in the lab content.
 install_extension "ms-python.python" "Python"
 install_extension "ms-python.vscode-pylance" "Pylance"
-install_extension "ms-toolsai.jupyter" "Jupyter"
-install_extension "ms-toolsai.vscode-jupyter-cell-tags" "Jupyter Cell Tags"
-install_extension "ms-toolsai.jupyter-keymap" "Jupyter Keymap"
-install_extension "ms-toolsai.jupyter-renderers" "Jupyter Renderers"
 install_extension "dbaeumer.vscode-eslint" "ESLint"
 install_extension "esbenp.prettier-vscode" "Prettier"
 install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
@@ -389,11 +386,6 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "terminal.integrated.defaultProfile.linux": "bash",
     "python.defaultInterpreterPath": "/usr/bin/python3.13",
     "python.testing.pytestEnabled": true,
-    "jupyter.jupyterServerType": "local",
-    "jupyter.kernels.filter": [],
-    "jupyter.notebookFileRoot": "/workshop",
-    "jupyter.askForKernelRestart": false,
-    "notebook.defaultKernel": "python3",
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
     "files.exclude": {
@@ -414,9 +406,7 @@ log "Creating Python environment configuration..."
 mkdir -p "$HOME_FOLDER/.vscode"
 cat > "$HOME_FOLDER/.vscode/settings.json" << 'WORKSPACE_SETTINGS'
 {
-    "python.defaultInterpreterPath": "/usr/bin/python3.13",
-    "jupyter.kernels.filter": [],
-    "notebook.defaultKernel": "python3"
+    "python.defaultInterpreterPath": "/usr/bin/python3.13"
 }
 WORKSPACE_SETTINGS
 
@@ -516,8 +506,6 @@ cat > "$HOME_FOLDER/.vscode/settings.json" << 'WORKSPACE_SETTINGS'
     "editor.fontSize": 13,
     "terminal.integrated.fontSize": 13,
     "python.defaultInterpreterPath": "/usr/bin/python3.13",
-    "jupyter.kernels.filter": [],
-    "notebook.defaultKernel": "python3",
     "task.autoDetect": "on",
     "task.problemMatchers.neverPrompt": true,
     "explorer.autoReveal": true,
@@ -538,13 +526,24 @@ log "Upgrading pip and installing workshop dependencies..."
 # Upgrade pip
 sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user --upgrade pip -q
 
-# Install backend dependencies from requirements.txt
-if [ -f "$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt" ]; then
+# Install backend dependencies from requirements.txt — boto3, FastAPI,
+# Strands SDK, psycopg, etc. The Builder's Session needs all of these
+# at runtime; the pip install must succeed for the pellier service to
+# start.
+REQUIREMENTS="$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt"
+if [ -f "$REQUIREMENTS" ]; then
     log "Installing backend dependencies from requirements.txt..."
-    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r "$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt" -q
+    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r "$REQUIREMENTS" 2>&1 \
+        | tee /var/log/pellier-pip-install.log
+    PIP_EXIT=${PIPESTATUS[0]}
+    if [ "$PIP_EXIT" -ne 0 ]; then
+        warn "pip install failed (exit $PIP_EXIT) — pellier service may not start"
+        warn "  see /var/log/pellier-pip-install.log"
+    else
+        log "✅ Backend dependencies installed"
+    fi
 else
-    # Fallback to individual packages
-    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user ipywidgets>=8.1.0 -q
+    warn "requirements.txt missing at $REQUIREMENTS — backend will not start"
 fi
 
 # Set AWS region and workshop shortcuts for user environment
@@ -557,7 +556,6 @@ export AWS_DEFAULT_REGION="$AWS_REGION"
 
 # Workshop shortcuts
 alias workshop='cd /workshop'
-alias notebooks='cd /workshop/sample-pellier-agentic-search-apg/notebooks'
 alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 
 # Load .env file if it exists

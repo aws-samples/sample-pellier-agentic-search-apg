@@ -75,47 +75,58 @@ EOF
 # Backend/Root .env (if DB available)
 if [ -n "$DB_HOST" ]; then
     DB_CLUSTER_ARN="arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):cluster:pellier-cluster"
-    
-    # Single .env template
+
+    # URL-encode the password for DATABASE_URL. Aurora master secrets
+    # routinely contain @ : / ? % which must be percent-encoded inside
+    # a postgresql:// URL or psycopg will misparse the string.
+    DB_PASSWORD_URLENC=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASSWORD")
+
+    # Write the .env with single-quoted values so a downstream
+    # `set -a; source .env; set +a` reads them as literals. Without
+    # the quotes, any $ in DB_PASSWORD would expand at source time
+    # — a real failure mode where a generated password containing
+    # `$Z…` triggered "unbound variable" errors under `set -u`.
     cat > "$REPO_PATH/.env" << EOF
-DB_SECRET_ARN=${DB_SECRET_ARN:-}
-DB_CLUSTER_ARN=$DB_CLUSTER_ARN
-DB_HOST=$DB_HOST
-DB_PORT=$DB_PORT
-DB_NAME=$DB_NAME
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME
-PGHOST=$DB_HOST
-PGPORT=$DB_PORT
-PGUSER=$DB_USER
-PGPASSWORD=$DB_PASSWORD
-PGDATABASE=$DB_NAME
-AWS_REGION=$AWS_REGION
-AWS_DEFAULT_REGION=$AWS_REGION
-BEDROCK_EMBEDDING_MODEL=${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}
-BEDROCK_CHAT_MODEL=${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}
-COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
-COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
-COGNITO_CLIENT_SECRET_ARN=${COGNITO_CLIENT_SECRET_ARN:-}
-COGNITO_DOMAIN=${COGNITO_DOMAIN:-}
-COGNITO_HOSTED_UI_URL=${COGNITO_HOSTED_UI_URL:-}
-COGNITO_TEST_CREDENTIALS_SECRET_ARN=${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}
-WORKSHOP_ID=${WORKSHOP_ID:-}
-WORKSHOP_FORMAT=${WORKSHOP_FORMAT:-workshop}
+DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+DB_CLUSTER_ARN='${DB_CLUSTER_ARN}'
+DB_HOST='${DB_HOST}'
+DB_PORT='${DB_PORT}'
+DB_NAME='${DB_NAME}'
+DB_USER='${DB_USER}'
+DB_PASSWORD='${DB_PASSWORD}'
+DATABASE_URL='postgresql://${DB_USER}:${DB_PASSWORD_URLENC}@${DB_HOST}:${DB_PORT}/${DB_NAME}'
+PGHOST='${DB_HOST}'
+PGPORT='${DB_PORT}'
+PGUSER='${DB_USER}'
+PGPASSWORD='${DB_PASSWORD}'
+PGDATABASE='${DB_NAME}'
+AWS_REGION='${AWS_REGION}'
+AWS_DEFAULT_REGION='${AWS_REGION}'
+BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
+BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
+WORKSHOP_ID='${WORKSHOP_ID:-}'
+WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-workshop}'
+AUTH_MODE='${AUTH_MODE:-demo}'
 EOF
-    
+
     chmod 600 "$REPO_PATH/.env"
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
-    
+
     # Symlink for backend (avoid duplication)
     ln -sf "$REPO_PATH/.env" "$REPO_PATH/pellier/backend/.env" 2>/dev/null
-    
-    # .pgpass for psql CLI
-    echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "/home/$CODE_EDITOR_USER/.pgpass"
-    chmod 600 "/home/$CODE_EDITOR_USER/.pgpass"
-    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "/home/$CODE_EDITOR_USER/.pgpass"
-    
+
+    # .pgpass for psql CLI. The user's home directory is created by
+    # `adduser` in bootstrap-environment.sh; we ensure it exists here
+    # too in case Stage 2 ran before Stage 1 (defensive).
+    PGPASS_DIR="/home/$CODE_EDITOR_USER"
+    if [ ! -d "$PGPASS_DIR" ]; then
+        mkdir -p "$PGPASS_DIR"
+        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR"
+    fi
+    echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$PGPASS_DIR/.pgpass"
+    chmod 600 "$PGPASS_DIR/.pgpass"
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR/.pgpass"
+
     log "✅ Environment files created (.env, .pgpass)"
 else
     warn "Database credentials not available - skipping DB configuration"
@@ -125,37 +136,31 @@ fi
 chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH"
 
 # ============================================================================
-# STEP 4-6: PARALLEL PYTHON DEPENDENCIES (~3-4 min vs 7 min)
+# STEP 4: VERIFY PYTHON DEPENDENCIES
 # ============================================================================
-log "Installing Python dependencies (parallel)..."
-
-install_notebooks() {
-    # Notebooks archived — skip notebook dependencies
-    log "Notebooks archived — skipping notebook dependencies"
-    return 0
-}
-
-install_pellier() {
+# Stage 1 (bootstrap-environment.sh) already installed everything in
+# pellier/backend/requirements.txt. Re-running the install here would
+# either no-op (best case) or duplicate work without changing the
+# environment. We just verify the critical packages reached
+# /home/$CODE_EDITOR_USER/.local — if Stage 1's pip failed silently,
+# we want to catch it here before the seeder runs and hits
+# ModuleNotFoundError.
+log "Verifying Python dependencies..."
+if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
+    log "✅ Backend dependencies verified"
+else
+    warn "Some backend dependencies are missing — re-running pip install"
     if [ -f "$REPO_PATH/pellier/backend/requirements.txt" ]; then
-        cd "$REPO_PATH/pellier/backend"
-        sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r requirements.txt 2>&1 | tee /var/log/pellier-pip-install.log >/dev/null
-        return ${PIPESTATUS[0]}
+        sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user \
+            -r "$REPO_PATH/pellier/backend/requirements.txt" 2>&1 \
+            | tee -a /var/log/pellier-pip-install.log >/dev/null
+        if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
+            log "✅ Backend dependencies recovered"
+        else
+            warn "Backend dependencies still missing after retry — pellier service will fail to start"
+            warn "  see /var/log/pellier-pip-install.log"
+        fi
     fi
-    return 1
-}
-
-# Run in parallel
-install_notebooks & PID1=$!
-install_pellier & PID2=$!
-if wait $PID1; then
-    log "✅ Notebooks dependencies installed"
-else
-    warn "Notebooks install issues - check /var/log/notebooks-pip-install.log"
-fi
-if wait $PID2; then
-    log "✅ Pellier Backend dependencies installed"
-else
-    warn "Pellier Backend install issues - check /var/log/pellier-pip-install.log"
 fi
 
 # ============================================================================
@@ -416,7 +421,6 @@ fi
 
 # Workshop Navigation Aliases
 alias workshop='cd /workshop/sample-pellier-agentic-search-apg'
-alias notebooks='cd /workshop/sample-pellier-agentic-search-apg/notebooks'
 alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 alias backend='cd /workshop/sample-pellier-agentic-search-apg/pellier/backend'
 alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
@@ -553,11 +557,9 @@ cat > /tmp/workshop-ready.json << EOF
     "timestamp": "$(date -Iseconds)",
     "stage": "labs-bootstrap",
     "components": {
-        "notebooks_dependencies": "ready",
         "pellier_backend": "ready",
         "pellier_frontend": "ready",
-        "database_config": "ready",
-        "jupyter_kernel": "ready"
+        "database_config": "ready"
     }
 }
 EOF
@@ -688,10 +690,9 @@ log "=========================================="
 log "Stage 2: Labs Bootstrap Complete!"
 log "=========================================="
 echo ""
-echo "✅ Notebooks (Jupyter) dependencies installed"
 echo "✅ Pellier Backend (FastAPI + Strands) installed"
 echo "✅ Pellier Frontend (React) dependencies installed"
-echo "✅ Database setup complete (~92 products with indexes)"
+echo "✅ Database setup complete (40 products + warehouse inventory)"
 echo "✅ MCP server configured for Amazon Q"
 echo "✅ Bash environment configured (psql ready)"
 echo "✅ pellier service auto-started (single process on :8000)"
