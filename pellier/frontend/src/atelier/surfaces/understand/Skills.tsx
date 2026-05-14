@@ -444,19 +444,11 @@ const SkillCard: React.FC<SkillCardProps> = ({ skill, numeral }) => (
     <div>
       <Eyebrow label="Skill body (injected into system prompt)" />
       <pre
+        className="dl-code-block"
         style={{
           marginTop: '8px',
-          padding: '16px 20px',
-          backgroundColor: 'var(--at-cream-2)',
-          border: '1px solid var(--at-rule-1)',
-          borderRadius: '8px',
-          fontFamily: 'var(--at-mono)',
-          fontSize: '12.5px',
-          lineHeight: 1.55,
-          color: 'var(--at-ink-1)',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          overflow: 'auto',
           maxHeight: '320px',
         }}
       >
