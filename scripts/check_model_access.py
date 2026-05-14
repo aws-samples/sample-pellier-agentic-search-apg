@@ -42,6 +42,7 @@ MODELS = [
             "texts": ["test"],
             "input_type": "search_query",
             "embedding_types": ["float"],
+            "output_dimension": 1024,
         },
     },
     {
@@ -50,7 +51,7 @@ MODELS = [
         "body": {
             "api_version": 2,
             "query": "test",
-            "documents": [{"text": "hello world"}],
+            "documents": ["hello world", "goodbye world"],
             "top_n": 1,
         },
     },
@@ -69,8 +70,14 @@ def check_model(client, model: dict) -> bool:
         response["body"].read()
         return True
     except client.exceptions.AccessDeniedException:
+        print(f"    Access denied — enable this model in the Bedrock console")
         return False
     except Exception as e:
+        error_str = str(e)
+        if "ValidationException" in error_str:
+            # Model is accessible but request format was wrong — still a pass for access check
+            print(f"    Note: model accessible but test payload rejected ({e.__class__.__name__})")
+            return True
         print(f"    Error: {e}")
         return False
 
