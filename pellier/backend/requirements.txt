@@ -37,4 +37,5 @@ requests>=2.31.0
 bedrock-agentcore>=1.4.3
 
 # Caching — Valkey (ElastiCache)
-valkey>=6.0.0amazon-transcribe>=0.6.0
+valkey>=6.0.0
+amazon-transcribe>=0.6.0

@@ -101,6 +101,7 @@ def embed_one(client, text: str) -> list[float]:
     body = {
         "texts": [text],
         "input_type": "search_document",
+        "embedding_types": ["float"],
         "output_dimension": EMBED_DIM,
     }
     response = client.invoke_model(
