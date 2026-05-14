@@ -65,7 +65,7 @@ _SPECIALIST_TOOL_NAMES = frozenset(
 # per-request trace without any additional wiring.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
+#    cp solutions/the-paper-trail/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
 
 
 def init_span_capture() -> None:

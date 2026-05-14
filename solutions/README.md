@@ -1,28 +1,50 @@
-# Solutions — Drop-in Replacements
+# Solutions — drop-in replacements
 
-Copy a solution file over the challenge file and the backend auto-restarts.
+Copy a solution file over its runtime counterpart and the backend
+auto-restarts. Three editorial-named directories, one per workshop
+module:
 
-## Module 1: Smart Search
-
-```bash
-cp solutions/module1/services/hybrid_search.py pellier/backend/services/hybrid_search.py
-cp solutions/module1/services/business_logic.py pellier/backend/services/business_logic.py
+```
+solutions/
+├── the-quiet-search/   → Module 1 reference (semantic search)
+├── closing-marcos-gap/ → Module 2 (Stock Keeper + agent tools)
+└── the-paper-trail/    → Module 3 (AgentCore production plumbing)
 ```
 
-## Module 2: Agentic AI
+## Module 1 — *The Quiet Search*
 
 ```bash
-cp solutions/module2/services/agent_tools.py pellier/backend/services/agent_tools.py
-cp solutions/module2/agents/recommendation_agent.py pellier/backend/agents/recommendation_agent.py
-cp solutions/module2/agents/orchestrator.py pellier/backend/agents/orchestrator.py
+cp solutions/the-quiet-search/services/hybrid_search.py    pellier/backend/services/hybrid_search.py
+cp solutions/the-quiet-search/services/business_logic.py   pellier/backend/services/business_logic.py
 ```
 
-## Module 3: Production Patterns
+## Module 2 — *Closing Marco's Gap*
 
 ```bash
-cp solutions/module3/services/agentcore_runtime.py pellier/backend/agentcore_runtime.py
-cp solutions/module3/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
-cp solutions/module3/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
-cp solutions/module3/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
-cp solutions/module3/frontend/agentIdentity.ts pellier/frontend/src/utils/agentIdentity.ts
+# The full agent-tools file (every @tool, including a finished floor_check)
+cp solutions/closing-marcos-gap/services/agent_tools.py    pellier/backend/services/agent_tools.py
+
+# The dispatcher + the two specialists turns 2/5 use
+cp solutions/closing-marcos-gap/agents/orchestrator.py     pellier/backend/agents/orchestrator.py
+cp solutions/closing-marcos-gap/agents/curator.py          pellier/backend/agents/curator.py
+cp solutions/closing-marcos-gap/agents/experience_guide.py pellier/backend/agents/experience_guide.py
+cp solutions/closing-marcos-gap/agents/stock_keeper.py     pellier/backend/agents/stock_keeper.py
+```
+
+The 60-min Builder's Session pre-applies everything **except** the
+`floor_check` tool body in `agent_tools.py`. Participants edit only
+that one function. If a table is short on time, copying the full
+`agent_tools.py` (first line above) is the rescue command.
+
+## Module 3 — *The Paper Trail*
+
+```bash
+cp solutions/the-paper-trail/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
+cp solutions/the-paper-trail/services/agentcore_memory.py         pellier/backend/services/agentcore_memory.py
+cp solutions/the-paper-trail/services/agentcore_gateway.py        pellier/backend/services/agentcore_gateway.py
+cp solutions/the-paper-trail/services/agentcore_policy.py         pellier/backend/services/agentcore_policy.py
+cp solutions/the-paper-trail/services/agentcore_identity.py       pellier/backend/services/agentcore_identity.py
+cp solutions/the-paper-trail/services/cognito_auth.py             pellier/backend/services/cognito_auth.py
+cp solutions/the-paper-trail/services/otel_trace_extractor.py     pellier/backend/services/otel_trace_extractor.py
+cp solutions/the-paper-trail/frontend/agentIdentity.ts            pellier/frontend/src/utils/agentIdentity.ts
 ```

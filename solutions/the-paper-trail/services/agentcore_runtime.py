@@ -86,7 +86,7 @@ async def _run_orchestrator_inprocess(
 # point`` handler at ``pellier/backend/agentcore_runtime.py``.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
+#    cp solutions/the-paper-trail/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
 async def run_agent_on_runtime(
     message: str,
     session_id: str,

@@ -1,4 +1,4 @@
--- Migration 008: Per-warehouse inventory for Marco's Turn 4 teaching
+-- Migration 008: Per-warehouse inventory for Stock Keeper (Marco's Turn 4).
 --
 -- The lab content promises Marco gets a real warehouse breakdown when he
 -- asks "Is the Pellier shirt at the Brooklyn warehouse?":
@@ -9,28 +9,36 @@
 --
 -- Migration 004 only added an aggregate `quantity` SMALLINT to
 -- product_catalog — there was no per-warehouse data, so floor_check
--- could only return aggregate health. This migration adds the missing
--- structure so Stock Keeper has something concrete to lean on.
+-- could only return aggregate health. This migration adds the per-
+-- warehouse structure Stock Keeper needs.
+--
+-- Schema placement: every operational table lives under `pellier.*`
+-- (see memory: pellier_schema_decisions). Older revisions of this
+-- migration created `warehouses` / `warehouse_inventory` at the
+-- `public` schema; the renames at the bottom move existing rows in
+-- place when an older deploy is upgraded, then `IF NOT EXISTS` keeps
+-- a fresh deploy idempotent.
 --
 -- Two tables:
---   warehouses          — three locations (BK-01, ATX-02, PDX-01) with
---                         display name, city, ship window in business days.
---   warehouse_inventory — per-warehouse, per-product stock. UNIQUE on
---                         (warehouse_id, productId). Sum across warehouses
---                         is approximately equal to product_catalog.quantity
---                         (deterministic 30/40/30 split with bias).
+--   pellier.warehouses          — three locations (BK-01, ATX-02, PDX-01)
+--                                  with display name, city, ship window.
+--   pellier.warehouse_inventory — per-warehouse, per-product stock.
+--                                  PK on (warehouse_id, product_id).
 --
 -- The split:
---   * Brooklyn (BK-01) gets 40% — biased high for apparel/linen (Marco's
---     world). It's the headline warehouse Marco asks about.
---   * Austin (ATX-02) gets 30%.
---   * Portland (PDX-01) gets 30%.
---   * For products with quantity < 3 the smallest warehouses round to 0.
+--   Brooklyn (BK-01) gets 40% — biased high for apparel/linen
+--   (Marco's world); the lab content frames Brooklyn as the headline
+--   warehouse Marco asks about.
+--   Austin (ATX-02) gets 30%.
+--   Portland (PDX-01) gets 30%.
 --
--- Idempotent: CREATE TABLE IF NOT EXISTS; ON CONFLICT DO UPDATE on the
--- inventory rows so re-running the migration after a quantity refresh
--- recomputes the split.
+-- Note on the product_id type: `pellier.product_catalog."productId"`
+-- is TEXT (the seeder casts integer IDs to strings). This table's
+-- `product_id` column is also TEXT so the foreign key applies cleanly
+-- without a cast — fixing a regression where this migration tried to
+-- declare an INTEGER FK against the TEXT column and failed.
 --
+-- Idempotent: every CREATE/INSERT uses IF NOT EXISTS / ON CONFLICT.
 -- Run with:
 --   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
 --     -U "$DB_USER" -d "$DB_NAME" \
@@ -40,8 +48,43 @@
 
 BEGIN;
 
--- warehouses ---------------------------------------------------------
-CREATE TABLE IF NOT EXISTS warehouses (
+-- ---------------------------------------------------------------------
+-- One-time relocation: move legacy public.* tables into pellier.*
+--
+-- Earlier deploys of this migration created the tables at `public`.
+-- We rename them in place rather than drop + recreate so existing
+-- rows survive. ALTER TABLE ... SET SCHEMA preserves indexes, FKs,
+-- triggers, and data.
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'warehouse_inventory'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'pellier' AND table_name = 'warehouse_inventory'
+    ) THEN
+        ALTER TABLE public.warehouse_inventory SET SCHEMA pellier;
+        RAISE NOTICE 'Moved public.warehouse_inventory → pellier.warehouse_inventory';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'warehouses'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'pellier' AND table_name = 'warehouses'
+    ) THEN
+        ALTER TABLE public.warehouses SET SCHEMA pellier;
+        RAISE NOTICE 'Moved public.warehouses → pellier.warehouses';
+    END IF;
+END $$;
+
+-- ---------------------------------------------------------------------
+-- pellier.warehouses
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pellier.warehouses (
     id              TEXT PRIMARY KEY,        -- code like 'BK-01'
     display_name    TEXT NOT NULL,           -- 'Brooklyn'
     city            TEXT NOT NULL,           -- 'Brooklyn, NY'
@@ -50,7 +93,7 @@ CREATE TABLE IF NOT EXISTS warehouses (
     CHECK (ship_window_min >= 0 AND ship_window_max >= ship_window_min)
 );
 
-INSERT INTO warehouses (id, display_name, city, ship_window_min, ship_window_max)
+INSERT INTO pellier.warehouses (id, display_name, city, ship_window_min, ship_window_max)
 VALUES
     ('BK-01',  'Brooklyn',  'Brooklyn, NY',  1, 2),
     ('ATX-02', 'Austin',    'Austin, TX',    2, 4),
@@ -61,27 +104,32 @@ ON CONFLICT (id) DO UPDATE SET
     ship_window_min = EXCLUDED.ship_window_min,
     ship_window_max = EXCLUDED.ship_window_max;
 
--- warehouse_inventory ------------------------------------------------
-CREATE TABLE IF NOT EXISTS warehouse_inventory (
-    warehouse_id    TEXT NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
-    "productId"     INTEGER NOT NULL
-                    REFERENCES pellier.product_catalog("productId")
-                    ON DELETE CASCADE,
-    quantity        SMALLINT NOT NULL DEFAULT 0
-                    CHECK (quantity >= 0 AND quantity <= 9999),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (warehouse_id, "productId")
+-- ---------------------------------------------------------------------
+-- pellier.warehouse_inventory
+--
+-- product_id is TEXT to match pellier.product_catalog."productId".
+-- Plain snake_case identifiers; no quoting required.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pellier.warehouse_inventory (
+    warehouse_id  TEXT NOT NULL
+                  REFERENCES pellier.warehouses(id) ON DELETE CASCADE,
+    product_id    TEXT NOT NULL
+                  REFERENCES pellier.product_catalog("productId")
+                  ON DELETE CASCADE,
+    quantity      SMALLINT NOT NULL DEFAULT 0
+                  CHECK (quantity >= 0 AND quantity <= 9999),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (warehouse_id, product_id)
 );
 
 CREATE INDEX IF NOT EXISTS warehouse_inventory_product_idx
-    ON warehouse_inventory ("productId");
+    ON pellier.warehouse_inventory (product_id);
 
+-- ---------------------------------------------------------------------
 -- Seed: deterministic 40/30/30 split of product_catalog.quantity
--- across BK-01 / ATX-02 / PDX-01. Apparel/linen (Marco's world) keeps
--- the Brooklyn bias at 40% — the lab content frames Brooklyn as the
--- headline warehouse Marco asks about, so the Hadley shirt should
--- have a substantive count there.
-INSERT INTO warehouse_inventory (warehouse_id, "productId", quantity)
+-- across BK-01 / ATX-02 / PDX-01.
+-- ---------------------------------------------------------------------
+INSERT INTO pellier.warehouse_inventory (warehouse_id, product_id, quantity)
 SELECT
     wh.id,
     pc."productId",
@@ -95,21 +143,23 @@ SELECT
             END
         )::SMALLINT
     )
-FROM warehouses wh
+FROM pellier.warehouses wh
 CROSS JOIN pellier.product_catalog pc
-ON CONFLICT (warehouse_id, "productId") DO UPDATE SET
+ON CONFLICT (warehouse_id, product_id) DO UPDATE SET
     quantity   = EXCLUDED.quantity,
     updated_at = now();
 
--- Quick visibility on what landed.
+-- ---------------------------------------------------------------------
+-- Visibility
+-- ---------------------------------------------------------------------
 DO $$
 DECLARE
     nrows  INTEGER;
     nzero  INTEGER;
 BEGIN
-    SELECT COUNT(*)                             INTO nrows FROM warehouse_inventory;
-    SELECT COUNT(*) FILTER (WHERE quantity = 0) INTO nzero FROM warehouse_inventory;
-    RAISE NOTICE 'warehouse_inventory: % rows total (% with zero stock)', nrows, nzero;
+    SELECT COUNT(*)                             INTO nrows FROM pellier.warehouse_inventory;
+    SELECT COUNT(*) FILTER (WHERE quantity = 0) INTO nzero FROM pellier.warehouse_inventory;
+    RAISE NOTICE 'pellier.warehouse_inventory: % rows total (% with zero stock)', nrows, nzero;
 END $$;
 
 COMMIT;

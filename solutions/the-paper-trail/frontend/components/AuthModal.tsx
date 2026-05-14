@@ -3,7 +3,7 @@
  *
  * This file mirrors the code inside the `// === CHALLENGE 9.4: START/END ===`
  * block in `pellier/frontend/src/components/AuthModal.tsx` byte-for-byte
- * so a participant can `cp solutions/module3/frontend/components/AuthModal.tsx
+ * so a participant can `cp solutions/the-paper-trail/frontend/components/AuthModal.tsx
  * pellier/frontend/src/components/AuthModal.tsx` and restart the frontend
  * to complete the challenge. The surrounding module docblock and imports in
  * the live file are kept here so the file type-checks as a standalone module.

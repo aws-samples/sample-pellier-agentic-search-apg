@@ -5,7 +5,7 @@ Challenge 9.2 solution drop-in (Requirements 4.3.1–4.3.3). Copy over
 ``pellier/backend/services/agentcore_identity.py`` and restart the
 backend:
 
-    cp solutions/module3/services/agentcore_identity.py \
+    cp solutions/the-paper-trail/services/agentcore_identity.py \
        pellier/backend/services/agentcore_identity.py
 
 The CHALLENGE 9.2 block below matches the one in the in-tree file
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 #     anon:{session_id}                     anonymous sessions
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
+#    cp solutions/the-paper-trail/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
 
 SESSION_ID_HEADER = "X-Session-Id"
 SESSION_ID_COOKIE = "session_id"

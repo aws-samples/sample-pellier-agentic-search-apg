@@ -49,7 +49,7 @@ def product_recommendation_agent(query: str) -> str:
         Agent response with product recommendations
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/agents/recommendation_agent.py pellier/backend/agents/recommendation_agent.py
+       cp solutions/closing-marcos-gap/agents/recommendation_agent.py pellier/backend/agents/recommendation_agent.py
     """
     try:
         tool_results = []

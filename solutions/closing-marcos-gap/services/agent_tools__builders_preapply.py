@@ -67,7 +67,7 @@ def floor_check() -> str:
     """Get current inventory health statistics including stock levels and alerts. Use for warehouse, stock status, or inventory overview questions.
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools__inventory.py pellier/backend/services/agent_tools.py
+       cp solutions/closing-marcos-gap/services/agent_tools__inventory.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE · Stock Keeper · floor_check: START ===
     # WORKSHOP_EXERCISE_STUB
@@ -103,7 +103,7 @@ def whats_trending(limit: int = 5, category: str = None) -> str:
         JSON string with trending products
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/services/agent_tools.py pellier/backend/services/agent_tools.py
+       cp solutions/closing-marcos-gap/services/agent_tools.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE 2: START ===
     if not _db_service:

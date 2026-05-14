@@ -3,7 +3,7 @@
  *
  * This file mirrors the code inside the `// === CHALLENGE 9.3: START/END ===`
  * block in `pellier/frontend/src/utils/auth.ts` byte-for-byte so a
- * participant can `cp solutions/module3/frontend/utils/auth.ts
+ * participant can `cp solutions/the-paper-trail/frontend/utils/auth.ts
  * pellier/frontend/src/utils/auth.ts` and restart the frontend to
  * complete the challenge. The surrounding module docblock in the live file
  * is documentation, not part of the challenge block.

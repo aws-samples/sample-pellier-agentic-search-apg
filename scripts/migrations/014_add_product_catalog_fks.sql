@@ -5,7 +5,7 @@
 --
 --   * public.orders.product_id              INTEGER
 --   * public.returns.product_id             INTEGER
---   * public.warehouse_inventory."productId" INTEGER
+--   * pellier.warehouse_inventory.product_id TEXT
 --
 -- All three column types match pellier.product_catalog."productId" (INTEGER).
 -- Adding the FK enforces referential integrity:
@@ -49,12 +49,12 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO orphans
-      FROM public.warehouse_inventory wi
+      FROM pellier.warehouse_inventory wi
      WHERE NOT EXISTS (
-        SELECT 1 FROM pellier.product_catalog pc WHERE pc."productId" = wi."productId"
+        SELECT 1 FROM pellier.product_catalog pc WHERE pc."productId" = wi.product_id
      );
     IF orphans > 0 THEN
-        RAISE EXCEPTION 'public.warehouse_inventory has % rows with productId not in pellier.product_catalog.', orphans;
+        RAISE EXCEPTION 'pellier.warehouse_inventory has % rows with product_id not in pellier.product_catalog.', orphans;
     END IF;
 
     RAISE NOTICE 'Pre-flight clean: no orphan product_ids in orders/returns/warehouse_inventory.';
@@ -96,19 +96,21 @@ BEGIN
     END IF;
 END $$;
 
--- public.warehouse_inventory."productId" → pellier.product_catalog."productId"
+-- pellier.warehouse_inventory.product_id → pellier.product_catalog."productId"
+-- Migration 008 already declares this FK; the duplicate add is guarded
+-- by the conname check below so re-running is safe.
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
          WHERE conname = 'warehouse_inventory_product_fk'
     ) THEN
-        ALTER TABLE public.warehouse_inventory
+        ALTER TABLE pellier.warehouse_inventory
             ADD CONSTRAINT warehouse_inventory_product_fk
-            FOREIGN KEY ("productId")
+            FOREIGN KEY (product_id)
             REFERENCES pellier.product_catalog("productId")
             ON DELETE CASCADE;
-        RAISE NOTICE 'Added FK warehouse_inventory.productId → pellier.product_catalog';
+        RAISE NOTICE 'Added FK pellier.warehouse_inventory.product_id → pellier.product_catalog';
     ELSE
         RAISE NOTICE 'FK warehouse_inventory_product_fk already exists — skipping';
     END IF;

@@ -222,9 +222,9 @@ class BusinessLogic:
                    w.ship_window_min,
                    w.ship_window_max,
                    wi.quantity
-              FROM warehouse_inventory wi
-              JOIN warehouses w ON w.id = wi.warehouse_id
-             WHERE wi."productId" = %s
+              FROM pellier.warehouse_inventory wi
+              JOIN pellier.warehouses w ON w.id = wi.warehouse_id
+             WHERE wi.product_id = %s
              ORDER BY wi.quantity DESC, w.id ASC
             """,
             product_id,

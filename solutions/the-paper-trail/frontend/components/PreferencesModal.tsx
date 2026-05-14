@@ -4,7 +4,7 @@
  * This file mirrors the code inside the `// === CHALLENGE 9.4: START/END ===`
  * block in `pellier/frontend/src/components/PreferencesModal.tsx`
  * byte-for-byte so a participant can `cp
- * solutions/module3/frontend/components/PreferencesModal.tsx
+ * solutions/the-paper-trail/frontend/components/PreferencesModal.tsx
  * pellier/frontend/src/components/PreferencesModal.tsx` and restart the
  * frontend to complete the challenge. The surrounding module docblock and
  * imports in the live file are kept here so the file type-checks as a

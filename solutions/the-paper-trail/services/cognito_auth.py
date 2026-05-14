@@ -5,7 +5,7 @@ Challenge 9.1 solution drop-in (Requirements 4.2.1–4.2.4, 5.3.1–5.3.3).
 Copy over ``pellier/backend/services/cognito_auth.py`` and restart
 the backend:
 
-    cp solutions/module3/services/cognito_auth.py \
+    cp solutions/the-paper-trail/services/cognito_auth.py \
        pellier/backend/services/cognito_auth.py
 
 The CHALLENGE 9.1 block below matches the one in the in-tree file
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # call is required.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/cognito_auth.py pellier/backend/services/cognito_auth.py
+#    cp solutions/the-paper-trail/services/cognito_auth.py pellier/backend/services/cognito_auth.py
 
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
 ACCESS_TOKEN_COOKIE = "access_token"

@@ -565,11 +565,32 @@ chmod 644 /tmp/workshop-ready.json
 log "✅ Status marker created"
 
 # ============================================================================
-# STEP 16: BUILDERS FORMAT - Pre-complete challenges 3-9 with solution files
+# STEP 16: BUILDERS FORMAT — Pre-apply everything participants don't build
 # ============================================================================
+#
+# The 60-min Builder's Session is one coding module: participants
+# author Stock Keeper's system prompt (agents/stock_keeper.py) and the
+# floor_check tool (inside services/agent_tools.py). Everything else
+# in the agentic stack needs to be in place when they sit down so
+# Marco's turns 1-3 + 5 work on first paint and turn 4 falls back
+# gracefully (no Stock Keeper, no floor_check).
+#
+# This block copies finished reference files from solutions/ into
+# their runtime locations under pellier/backend/ and pellier/frontend/.
+# Every src path is verified against the actual repo layout — if
+# you add new pre-applies, double-check both src and dest exist.
+#
+# Solutions directory layout:
+#   solutions/the-quiet-search/   — Module 01 reference (observe-only)
+#   solutions/closing-marcos-gap/ — Module 02 (the only edited module)
+#   solutions/the-paper-trail/    — Module 03 reference (observe-only)
+#
+# Files we explicitly do NOT copy (participants build these):
+#   solutions/closing-marcos-gap/agents/stock_keeper.py
+#   (and inside agent_tools.py, the floor_check tool body)
 if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     log "=========================================="
-    log "Builders Session: pre-completing challenges 3-9"
+    log "Builders Session: pre-applying reference files"
     log "=========================================="
 
     copy_solution() {
@@ -577,38 +598,62 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
         if [ -f "$REPO_PATH/$src" ]; then
             cp "$REPO_PATH/$src" "$REPO_PATH/$dest" && \
                 log "  builders: $label" || warn "  builders: $label copy failed"
+        else
+            warn "  builders: $label — source missing at $src (skipped)"
         fi
     }
 
-    # Solutions directory layout (post-rename):
-    #   solutions/the-quiet-search/  — Module 01 reference (observe-only)
-    #   solutions/closing-marcos-gap/ — Module 02 (the only edited module)
-    #   solutions/the-paper-trail/    — Module 03 reference (observe-only)
-    #
-    # The Builder's Session pre-applies the Recommendation + Orchestrator
-    # agents (so turns 2-3 work on first paint), the AgentCore runtime /
-    # memory / gateway plumbing, OTEL traces, and the frontend agent
-    # identity hook. Participants only build Stock Keeper + floor_check
-    # (which live in solutions/closing-marcos-gap/ as reference, not
-    # pre-applied — those are what the lab guide asks them to write).
-    copy_solution "solutions/closing-marcos-gap/agents/recommendation_agent.py" \
-                  "pellier/backend/agents/recommendation_agent.py" "Recommendation agent"
+    # ---- Specialist agents that aren't Stock Keeper ----
+    # Curator handles turn 2 (pairing.score, palette.match). Experience
+    # Guide handles turn 5 (cart.holds, process_return). Orchestrator
+    # is the dispatcher that routes between them.
+    copy_solution "solutions/closing-marcos-gap/agents/curator.py" \
+                  "pellier/backend/agents/curator.py" "Curator agent"
+    copy_solution "solutions/closing-marcos-gap/agents/experience_guide.py" \
+                  "pellier/backend/agents/experience_guide.py" "Experience Guide agent"
     copy_solution "solutions/closing-marcos-gap/agents/orchestrator.py" \
                   "pellier/backend/agents/orchestrator.py" "Orchestrator"
+
+    # ---- agent_tools.py builders variant ----
+    # Wires restock_shelf + running_low (everything Stock Keeper-adjacent
+    # except floor_check itself). Participants will edit this file in
+    # Module 02 to add the floor_check body — and only that body.
+    copy_solution "solutions/closing-marcos-gap/services/agent_tools__builders_preapply.py" \
+                  "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
+
+    # ---- AgentCore production plumbing ----
+    # Memory + Gateway + Policy + Runtime + Identity all import each
+    # other and are referenced from pellier/backend/routes/*.py. Without
+    # these the FastAPI app won't even start. Note the destination is
+    # services/agentcore_runtime.py (NOT backend/agentcore_runtime.py
+    # — the routes import services.agentcore_runtime).
     copy_solution "solutions/the-paper-trail/services/agentcore_runtime.py" \
-                  "pellier/backend/agentcore_runtime.py" "AgentCore runtime"
+                  "pellier/backend/services/agentcore_runtime.py" "AgentCore runtime"
     copy_solution "solutions/the-paper-trail/services/agentcore_memory.py" \
                   "pellier/backend/services/agentcore_memory.py" "AgentCore memory"
     copy_solution "solutions/the-paper-trail/services/agentcore_gateway.py" \
                   "pellier/backend/services/agentcore_gateway.py" "AgentCore gateway"
+    copy_solution "solutions/the-paper-trail/services/agentcore_policy.py" \
+                  "pellier/backend/services/agentcore_policy.py" "AgentCore policy (Cedar)"
+    copy_solution "solutions/the-paper-trail/services/agentcore_identity.py" \
+                  "pellier/backend/services/agentcore_identity.py" "AgentCore identity"
+    copy_solution "solutions/the-paper-trail/services/cognito_auth.py" \
+                  "pellier/backend/services/cognito_auth.py" "Cognito auth helper"
     copy_solution "solutions/the-paper-trail/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
+
+    # ---- Frontend agent-identity hook ----
+    # The Boutique chat drawer reads this to attach an identity claim
+    # to every agent call. The auth.ts + AuthModal/PreferencesModal
+    # solutions also live in solutions/the-paper-trail/frontend/ but
+    # the 60-min Builder's Session runs in demo mode (AUTH_MODE=demo)
+    # so we skip them.
     copy_solution "solutions/the-paper-trail/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
     # Single-service restart — re-runs the ExecStartPre vite build so
-    # the frontend bundle picks up any C9 solution drop-in too.
+    # the frontend bundle picks up the agentIdentity.ts drop-in.
     systemctl restart pellier 2>/dev/null || true
     log "✅ Builders solutions applied and pellier service restarted"
 fi

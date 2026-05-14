@@ -67,7 +67,7 @@ class HybridSearchService:
             List of product dicts with similarity scores.
 
         ⏩ SHORT ON TIME? Run:
-           cp solutions/module1/services/hybrid_search.py pellier/backend/services/hybrid_search.py
+           cp solutions/the-quiet-search/services/hybrid_search.py pellier/backend/services/hybrid_search.py
         """
         # === CHALLENGE 1: START ===
         sql = """
