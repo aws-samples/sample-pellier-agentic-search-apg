@@ -8,12 +8,12 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
 from services.agent_tools import (
-    search_products,
-    get_trending_products,
-    compare_products,
-    get_product_by_category,
+    find_pieces,
+    whats_trending,
+    side_by_side,
+    explore_collection,
 )
-from storefront_copy import RECOMMENDATION_SYSTEM_PROMPT
+from boutique_copy import RECOMMENDATION_SYSTEM_PROMPT
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:
@@ -38,7 +38,7 @@ def _ensure_products_in_output(text: str, tool_results: list) -> str:
 
 
 @tool
-def product_recommendation_agent(query: str) -> str:
+def recommendation(query: str) -> str:
     """
     Provide personalized product recommendations based on user preferences.
 
@@ -63,10 +63,10 @@ def product_recommendation_agent(query: str) -> str:
             ),
             system_prompt=RECOMMENDATION_SYSTEM_PROMPT,
             tools=[
-                search_products,
-                get_trending_products,
-                compare_products,
-                get_product_by_category,
+                find_pieces,
+                whats_trending,
+                side_by_side,
+                explore_collection,
             ],
         )
         # === CHALLENGE 3: END ===

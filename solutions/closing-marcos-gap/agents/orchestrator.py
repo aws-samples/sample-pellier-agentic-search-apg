@@ -4,11 +4,11 @@ Orchestrator Agent - Routes queries to specialized agents with interleaved think
 from strands import Agent
 from strands.models import BedrockModel
 from .stock_keeper import inventory
-from .curator import product_recommendation_agent
-from .value_analyst import price_optimization_agent
-from .experience_guide import customer_support_agent
-from .style_advisor import search_agent
-from storefront_copy import ORCHESTRATOR_SYSTEM_PROMPT
+from .curator import recommendation
+from .value_analyst import pricing
+from .experience_guide import support
+from .style_advisor import search
+from boutique_copy import ORCHESTRATOR_SYSTEM_PROMPT
 
 
 # === CHALLENGE 4: Multi-Agent Orchestrator — START ===
@@ -16,7 +16,7 @@ from storefront_copy import ORCHESTRATOR_SYSTEM_PROMPT
 # one specialist using the Strands "Agents as Tools" pattern. Uses Haiku
 # 4.5 at temperature 0.0 for deterministic routing. Priority order
 # (pricing > inventory > support > search > recommendation) is enforced
-# by the system prompt in storefront_copy.ORCHESTRATOR_SYSTEM_PROMPT.
+# by the system prompt in boutique_copy.ORCHESTRATOR_SYSTEM_PROMPT.
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/closing-marcos-gap/agents/orchestrator.py pellier/backend/agents/orchestrator.py
@@ -34,11 +34,11 @@ def create_orchestrator():
         ),
         system_prompt=ORCHESTRATOR_PROMPT,
         tools=[
-            search_agent,
-            product_recommendation_agent,
-            price_optimization_agent,
+            search,
+            recommendation,
+            pricing,
             inventory,
-            customer_support_agent,
+            support,
         ],
     )
 # === CHALLENGE 4: Multi-Agent Orchestrator — END ===
@@ -67,11 +67,11 @@ def create_guarded_orchestrator():
         ),
         system_prompt=ORCHESTRATOR_PROMPT + GUARDRAILS_PROMPT_SUFFIX,
         tools=[
-            search_agent,
-            product_recommendation_agent,
-            price_optimization_agent,
+            search,
+            recommendation,
+            pricing,
             inventory,
-            customer_support_agent,
+            support,
         ],
     )
 # === END WIRE IT LIVE ===

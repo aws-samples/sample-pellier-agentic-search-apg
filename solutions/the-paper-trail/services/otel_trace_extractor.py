@@ -47,11 +47,11 @@ _INIT_ORDER_HINT = (
 # spans that surface specialist routing on the inspector waterfall.
 _SPECIALIST_TOOL_NAMES = frozenset(
     {
-        "search_agent",
-        "product_recommendation_agent",
-        "price_optimization_agent",
+        "search",
+        "recommendation",
+        "pricing",
         "inventory",
-        "customer_support_agent",
+        "support",
     }
 )
 
@@ -133,7 +133,7 @@ def _classify_span(name: str, attrs: Dict[str, Any]) -> str:
       - ``invoke_agent {agent_name}`` with attribute ``gen_ai.agent.name``
       - ``execute_tool {tool_name}`` with attribute ``gen_ai.tool.name``
 
-    A specialist (``product_recommendation_agent``, etc.) is itself a
+    A specialist (``recommendation``, etc.) is itself a
     Strands ``@tool`` that internally constructs an inner ``Agent``, so
     it shows up on both sides. Either form classifies as
     ``'specialist'``. Every other ``execute_tool`` span is a leaf
