@@ -59,7 +59,7 @@ dnf install --skip-broken -y -q \
     gcc \
     gcc-c++ \
     make \
-    postgresql16 \
+    postgresql17 \
     nodejs
 
 log "✅ System packages installed"
