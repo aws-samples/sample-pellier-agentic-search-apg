@@ -439,6 +439,27 @@ def returns_and_care(category: str = "default") -> str:
 
 
 @tool
+def process_return(customer_id: str, product_id: int, reason: str) -> str:
+    """Process a customer return. Theo's Experience Guide uses this.
+
+    Args:
+        customer_id: Customer ID (must have an order for this product_id).
+        product_id: INTEGER productId from the catalog.
+        reason: One of 'damaged', 'wrong_size', 'not_as_described',
+            'changed_mind', 'other'.
+    """
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.process_return(customer_id, product_id, reason))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@tool
 def style_match(product_id: int, limit: int = 5) -> str:
     """Find complementary pieces that pair well with a given product.
 
