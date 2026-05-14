@@ -30,11 +30,28 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# Latest trace extracted on the in-process streaming path. The SSE
+# handler (Task 3.5) and the ``/inspector`` view read this after each
+# orchestrator run so the waterfall shows the just-finished request.
+_latest_trace: Dict[str, Any] = {"spans": [], "totalMs": 0, "specialistRoute": ""}
+
+
+def get_latest_trace() -> Dict[str, Any]:
+    """Return the most recent ``{spans, totalMs, specialistRoute}``
+    captured by ``_run_orchestrator_inprocess``.
+
+    The ``/inspector`` view and the SSE trailer event call this after
+    the orchestrator finishes so the frontend can render the waterfall
+    without a second round-trip to the extractor.
+    """
+    return _latest_trace
 
 
 async def _run_orchestrator_inprocess(
@@ -71,6 +88,18 @@ async def _run_orchestrator_inprocess(
         pass
 
     response = await asyncio.to_thread(orchestrator, message)
+
+    # Drain the captured OpenTelemetry spans into the latest-trace slot
+    # so the ``/inspector`` view can render this run's waterfall
+    # immediately.
+    try:
+        from services.otel_trace_extractor import extract_trace
+
+        global _latest_trace
+        _latest_trace = extract_trace()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("trace extraction skipped: %s", exc)
+
     return str(response)
 
 

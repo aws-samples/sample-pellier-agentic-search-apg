@@ -10,14 +10,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Storefront palette (storefront.md - cream/ink/terracotta).
-        'cream': '#fbf4e8',
-        'cream-warm': '#f5e8d3',
-        'ink': '#2d1810',
-        'ink-soft': '#6b4a35',
-        'ink-quiet': '#a68668',
-        'accent': '#c44536',
-        'dusk': '#3d2518',
+        // Storefront palette — every name here resolves to a Daylight
+        // token via styles/daylight-bridge.css. The bridge maps
+        // --cream → --dl-bg, --ink → --dl-ink, --accent → --dl-accent,
+        // etc. Override at scope to re-skin a section without
+        // touching this file. See DAYLIGHT_INTEGRATION.md.
+        'cream': 'var(--cream)',
+        'cream-warm': 'var(--cream-warm)',
+        'ink': 'var(--ink)',
+        'ink-soft': 'var(--ink-soft)',
+        'ink-quiet': 'var(--ink-quiet)',
+        'accent': 'var(--accent)',
+        'dusk': 'var(--dusk)',
 
         // Theme-aware via CSS variables
         'bg-primary': 'var(--bg-primary)',
@@ -34,26 +38,30 @@ export default {
         'success': '#4ade80',
         'warning': '#fbbf24',
 
-        // Warm-tinted hairline (ink-soft at 8% alpha). Used as card border
-        // and hero-ticker top divider for premium warm depth.
+        // Warm-tinted hairline (ink-soft at 8% alpha). Kept as a
+        // hardcoded rgba — Daylight has no equivalent token for the
+        // 8%-alpha hairline use case.
         'warm': 'rgba(107, 74, 53, 0.08)',
 
-        // Redesign tokens (Phase 1) — coexist with existing tokens until Phase 5 retires them
-        'cream-50': '#F7F3EE',
-        'sand': '#E8DFD4',
-        'espresso': '#3B2F2F',
+        // Redesign tokens — also flow through the Daylight bridge.
+        // 'sand' has no direct Daylight counterpart; we map it onto
+        // --dl-paper-2 (recessed surface) which is visually the same
+        // recessed-cream role.
+        'cream-50': 'var(--cream)',
+        'sand': 'var(--cream-2)',
+        'espresso': 'var(--ink)',
         'olive': '#6B705C',
-        'espresso-dark': '#1F1410',
+        'espresso-dark': 'var(--ink-1)',
         'espresso-mid': '#2A1E18',
       },
       borderColor: {
-        'cream': '#fbf4e8',
-        'cream-warm': '#f5e8d3',
-        'ink': '#2d1810',
-        'ink-soft': '#6b4a35',
-        'ink-quiet': '#a68668',
-        'accent': '#c44536',
-        'dusk': '#3d2518',
+        'cream': 'var(--cream)',
+        'cream-warm': 'var(--cream-warm)',
+        'ink': 'var(--ink)',
+        'ink-soft': 'var(--ink-soft)',
+        'ink-quiet': 'var(--ink-quiet)',
+        'accent': 'var(--accent)',
+        'dusk': 'var(--dusk)',
         'warm': 'rgba(107, 74, 53, 0.08)',
       },
       boxShadow: {

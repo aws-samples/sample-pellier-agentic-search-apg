@@ -1,76 +1,50 @@
 /* ========================================================================
  * Atelier Observatory — Design Tokens
  *
- * Single source of truth for the Atelier color palette. These custom
- * properties are consumed by every Atelier surface, shell, and shared
- * component. They mirror and extend the editorial chat palette already
- * declared in index.css :root, scoped here for clarity and portability.
+ * The core --at-* color, surface, type, and spacing tokens are now
+ * aliased onto the Daylight design-system tokens via
+ * src/styles/daylight-bridge.css. The hardcoded values that used to
+ * live here are gone — see DAYLIGHT_INTEGRATION.md for the cascade
+ * order and the bridge contract.
+ *
+ * What remains in this file are the SEMANTIC ALIASES specific to the
+ * Atelier (card patterns, status pills, sidebar, category badges).
+ * They reference --at-* tokens, which the bridge resolves to Daylight
+ * values. Override these at scope to re-skin a surface without
+ * touching the bridge.
  *
  * Naming convention:
- *   --at-<token>   Atelier-scoped token (avoids collision with storefront)
- *
- * Requirements: 15.1 (color tokens), 15.6 (flat aesthetic)
+ *   --at-<token>   Atelier-scoped semantic alias
  * ======================================================================== */
 
 :root {
   /* ------------------------------------------------------------------
-   * Core palette
+   * Card pattern (Exp_Card)
    * ---------------------------------------------------------------- */
-
-  /* Cream family — warm backgrounds */
-  --at-cream-1: #faf3e8;          /* Primary background */
-  --at-cream-2: #f4ead6;          /* Secondary / code block background */
-  --at-cream-elev: #fffaf0;       /* Elevated card background */
-
-  /* Ink family — text hierarchy */
-  --at-ink-1: #1f1410;            /* Primary text, headings */
-  --at-ink-2: rgba(31, 20, 16, 0.82);  /* Strong secondary text */
-  --at-ink-3: rgba(31, 20, 16, 0.66);  /* Body secondary / italic prose */
-  --at-ink-4: rgba(31, 20, 16, 0.42);  /* Muted text, idle dots, metadata */
-  --at-ink-5: rgba(31, 20, 16, 0.22);  /* Faintest text, separators */
-
-  /* Rule family — borders and dividers */
-  --at-rule-1: rgba(31, 20, 16, 0.10); /* Lightest border (cards, frames) */
-  --at-rule-2: rgba(31, 20, 16, 0.18); /* Medium border (dividers, cheat-sheet) */
-  --at-rule-3: rgba(31, 20, 16, 0.28); /* Strong border (active states) */
-
-  /* Accent — burgundy / red */
-  --at-red-1: #a8423a;            /* Primary accent: dots, pills, links */
-  --at-red-soft: rgba(168, 66, 58, 0.12); /* Exercise pill background */
-
-  /* Accent — sage / green */
-  --at-green-1: #6b8c5e;          /* Shipped status, success, confidence */
-  --at-green-soft: rgba(107, 140, 94, 0.12); /* Shipped pill background */
-
-  /* Espresso family — dark surfaces (sidebar, dark bands) */
-  --at-espresso-1: #1f1410;       /* Sidebar background, dark headers */
-  --at-espresso-2: #2a1e18;       /* Active nav item background */
-
-  /* ------------------------------------------------------------------
-   * Semantic aliases
-   * ---------------------------------------------------------------- */
-
-  /* Card pattern (Exp_Card) */
   --at-card-bg: var(--at-cream-elev);
   --at-card-border: var(--at-rule-1);
   --at-card-radius: 14px;
   --at-card-accent-width: 24px;
   --at-card-accent-color: var(--at-red-1);
 
-  /* Status: shipped */
+  /* ------------------------------------------------------------------
+   * Status pills
+   * ---------------------------------------------------------------- */
   --at-status-shipped-bg: var(--at-green-soft);
   --at-status-shipped-text: var(--at-green-1);
-
-  /* Status: exercise */
   --at-status-exercise-bg: var(--at-red-soft);
   --at-status-exercise-text: var(--at-red-1);
 
-  /* Status dots */
+  /* ------------------------------------------------------------------
+   * Status dots
+   * ---------------------------------------------------------------- */
   --at-dot-live: var(--at-red-1);
   --at-dot-idle: var(--at-ink-4);
   --at-dot-empty-border: var(--at-red-1);
 
-  /* Sidebar */
+  /* ------------------------------------------------------------------
+   * Sidebar — dark espresso surface that contrasts the cream page
+   * ---------------------------------------------------------------- */
   --at-sidebar-bg: var(--at-espresso-1);
   --at-sidebar-active-bg: var(--at-espresso-2);
   --at-sidebar-text: rgba(250, 243, 232, 0.75);
@@ -78,7 +52,9 @@
   --at-sidebar-accent: var(--at-red-1);
   --at-sidebar-width: 300px;
 
-  /* Category badges */
+  /* ------------------------------------------------------------------
+   * Category badges (Architecture index)
+   * ---------------------------------------------------------------- */
   --at-cat-both: var(--at-red-1);
   --at-cat-managed: var(--at-green-1);
   --at-cat-owned: #b88a3a;        /* Amber for owned */

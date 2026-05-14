@@ -1,0 +1,95 @@
+/* ============================================================
+ * Daylight Bridge
+ *
+ * Aliases Pellier's existing custom-property names onto the
+ * Daylight design-system tokens (loaded ahead of this file
+ * from public/design-system/daylight/tokens.css). Existing
+ * Boutique + Atelier components reference --cream / --espresso /
+ * --accent / --at-* — pointing those at Daylight values lets the
+ * whole app inherit the warm off-white editorial language without
+ * touching component code.
+ *
+ * If you want to override an individual surface back to a custom
+ * value, do it scoped:
+ *
+ *   .my-special-section {
+ *     --accent: #8a3010;
+ *   }
+ *
+ * Source of truth: dat409 design-system/daylight/. Files live in
+ * public/design-system/daylight/ (tokens.css + daylight.css +
+ * STYLEGUIDE.md + components.html). Re-import from dat409 to
+ * pick up upstream changes; this bridge only renames, doesn't
+ * fork values.
+ * ============================================================ */
+
+:root {
+  /* ---- Boutique storefront aliases ---------------------------- */
+  /* The storefront's old palette mapped roughly onto Daylight as: */
+  /*   cream      ≈ --dl-bg                                        */
+  /*   cream-warm ≈ --dl-paper                                     */
+  /*   ink / dusk ≈ --dl-ink                                       */
+  /*   ink-soft   ≈ --dl-ink-2                                     */
+  /*   ink-quiet  ≈ --dl-muted                                     */
+  /*   accent (terracotta) ≈ --dl-accent                           */
+  --cream:      var(--dl-bg);
+  --cream-warm: var(--dl-paper);
+  --ink:        var(--dl-ink);
+  --ink-soft:   var(--dl-ink-2);
+  --ink-quiet:  var(--dl-muted);
+  --accent:     var(--dl-accent);
+  --dusk:       var(--dl-ink);
+
+  /* ---- Editorial chat palette (storefront chat + Atelier) ----- */
+  --cream-1:    var(--dl-bg);
+  --cream-2:    var(--dl-paper-2);
+  --cream-3:    var(--dl-paper-2);
+  --cream-elev: var(--dl-paper);
+  --ink-1:      var(--dl-ink);
+  --ink-3:      var(--dl-ink-2);
+  --ink-4:      var(--dl-muted);
+  --ink-5:      var(--dl-faint);
+  --rule-1:     var(--dl-line);
+  --rule-2:     var(--dl-line);
+  --rule-3:     var(--dl-line-strong);
+  --red-1:      var(--dl-accent);
+  --red-soft:   var(--dl-accent-soft);
+  --green-1:    var(--dl-ok);
+  --green-soft: rgba(63, 98, 18, 0.12);
+  --amber-1:    var(--dl-warn);
+  --amber-soft: rgba(180, 83, 9, 0.12);
+
+  /* ---- Type stacks --------------------------------------------- */
+  /* Daylight's editorial serif is Iowan Old Style (macOS-bundled)
+   * with Source Serif Pro and Georgia as fallbacks. Fraunces
+   * remains bundled via @fontsource so anywhere code explicitly
+   * names Fraunces still works; the default --serif now resolves
+   * to the Daylight stack everywhere else. */
+  --serif: var(--dl-font-serif);
+  --sans:  var(--dl-font-sans);
+  --mono:  var(--dl-font-mono);
+
+  /* ---- Atelier aliases (--at-* family) ------------------------- */
+  --at-cream-1:    var(--dl-bg);
+  --at-cream-2:    var(--dl-paper-2);
+  --at-cream-elev: var(--dl-paper);
+  --at-ink-1:      var(--dl-ink);
+  --at-ink-2:      var(--dl-ink-2);
+  --at-ink-3:      var(--dl-ink-2);
+  --at-ink-4:      var(--dl-muted);
+  --at-ink-5:      var(--dl-faint);
+  --at-rule-1:     var(--dl-line);
+  --at-rule-2:     var(--dl-line);
+  --at-rule-3:     var(--dl-line-strong);
+  --at-red-1:      var(--dl-accent);
+  --at-red-soft:   var(--dl-accent-soft);
+  --at-green-1:    var(--dl-ok);
+  --at-green-soft: rgba(63, 98, 18, 0.12);
+  --at-espresso-1: var(--dl-ink);
+  --at-espresso-2: #2a2724;
+
+  /* Type aliases for the Atelier */
+  --at-serif: var(--dl-font-serif);
+  --at-sans:  var(--dl-font-sans);
+  --at-mono:  var(--dl-font-mono);
+}

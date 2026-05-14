@@ -1,3 +1,18 @@
+/* ============================================================
+ * Daylight design system — load before Tailwind so every
+ * downstream rule can reference --dl-* tokens, and the bridge
+ * file can re-alias Pellier's existing --cream / --espresso /
+ * --accent / --at-* names onto Daylight values.
+ *
+ * Source: dat409 (sample-dat409-hybrid-search-aurora-mcp/
+ * design-system/daylight/). Files vendored into
+ * public/design-system/daylight/ — see DAYLIGHT_INTEGRATION.md
+ * for the import contract and re-import instructions.
+ * ============================================================ */
+@import url('/design-system/daylight/tokens.css');
+@import url('/design-system/daylight/daylight.css');
+@import './styles/daylight-bridge.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,49 +25,18 @@
   }
 
   /* ========================================================================
-   * Boutique palette (storefront.md). Mirrored here for keyframes and
-   * non-Tailwind consumers; Tailwind tokens of the same name live in
-   * tailwind.config.js.
+   * Boutique + Atelier custom-property names are now ALIASED onto the
+   * Daylight design-system tokens via styles/daylight-bridge.css. The
+   * hardcoded :root block that used to live here was removed when
+   * Daylight was wired in — see DAYLIGHT_INTEGRATION.md for the
+   * cascade order and how to override individual tokens at scope.
+   *
+   * Persona-specific values that don't have a Daylight counterpart
+   * (avatar shades) stay declared here, scoped to the persona surfaces.
    * ======================================================================== */
   :root {
-    --cream: #fbf4e8;
-    --cream-warm: #f5e8d3;
-    --ink: #2d1810;
-    --ink-soft: #6b4a35;
-    --ink-quiet: #a68668;
-    --accent: #c44536;
-    --dusk: #3d2518;
-
-    /* Editorial chat palette (pellier-chat-synthesis / experience) */
-    --cream-1: #faf3e8;
-    --cream-2: #f4ead6;
-    --cream-3: #ede0c4;
-    --cream-elev: #fffaf0;
-    --ink-1: #1f1410;
-    --ink-3: rgba(31, 20, 16, 0.66);
-    --ink-4: rgba(31, 20, 16, 0.42);
-    --ink-5: rgba(31, 20, 16, 0.22);
-    --rule-1: rgba(31, 20, 16, 0.10);
-    --rule-2: rgba(31, 20, 16, 0.18);
-    --rule-3: rgba(31, 20, 16, 0.28);
-    --red-1: #a8423a;
-    --red-soft: rgba(168, 66, 58, 0.12);
-    --green-1: #6b8c5e;
-    --green-soft: rgba(107, 140, 94, 0.12);
-    /* Amber — introduced for Evaluations (telemetry corner).
-       Scoped to that surface for now; add usage notes here if
-       other pages adopt. */
-    --amber-1: #b88a3a;
-    --amber-soft: rgba(184, 138, 58, 0.12);
-    /* Persona avatar shades — espresso-family, intentionally darker
-       than --ink-1. Scoped to persona surfaces only. */
     --persona-marco: #5a3528;
     --persona-anna: #6b3d2a;
-
-    /* Type stacks */
-    --serif: 'Fraunces Variable', 'Fraunces', 'Times New Roman', Georgia, serif;
-    --sans: 'Inter', system-ui, sans-serif;
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
 
   /* ========================================================================
