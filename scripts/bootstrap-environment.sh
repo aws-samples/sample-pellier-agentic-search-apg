@@ -393,7 +393,8 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "**/.github": true,
         "**/.vscode": true,
         "**/scripts": true
-    }
+    },
+    "amazonQ.mcp.trustedServers": ["awslabs.postgres-mcp-server"]
 }
 VSCODE_SETTINGS
 
