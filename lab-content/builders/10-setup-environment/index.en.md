@@ -1,12 +1,12 @@
 ---
-title: "00 · The Doors Are Open"
-weight: 5
+title: "Part I · Setup — The doors are open"
+weight: 10
 ---
 
 :::alert{type="info"}
-*About five minutes — step in, verify the lights are on, and meet the
-shopper whose afternoon you're about to fix. This opens the hands-on
-block (sections 00–04 budget about forty-five minutes together).*
+**Part I of III · Marco's arc · Sublab 10.** About five minutes — step in,
+verify the lights are on, and confirm AgentCore ids in `.env`. Part I
+runs 10 → 11 → 12 (~26 min); Parts II–III follow (~24 min).*
 :::
 
 ## Step in
@@ -36,7 +36,12 @@ everything before you sat down. Let's confirm.
 
 ```bash
 curl -s http://localhost:8000/api/health | python3 -m json.tool
+grep -E 'AGENTCORE_MEMORY_ID|AGENTCORE_RUNTIME_ENDPOINT|USE_AGENTCORE_RUNTIME' \
+  /workshop/sample-pellier-agentic-search-apg/pellier/backend/.env || true
 ```
+
+You should see `AGENTCORE_MEMORY_ID` set. If bootstrap launched Runtime,
+`AGENTCORE_RUNTIME_ENDPOINT` and `USE_AGENTCORE_RUNTIME=true` appear too.
 
 You should see:
 
@@ -110,5 +115,5 @@ and rejoin the rest of the table when you're back.
 :::alert{type="success" header="You're in"}
 Next: meet Marco and watch where the system breaks.
 
-[Continue to *The Boutique, Re:Engineered* →](/01-the-boutique-reengineered/)
+[Part I · Meet Marco →](/11-meet-marco/)
 :::

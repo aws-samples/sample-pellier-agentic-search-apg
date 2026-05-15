@@ -101,7 +101,7 @@ package it for live events:
 
 | Format                          | Duration | Coding modules | What participants build                                       |
 | ------------------------------- | -------- | -------------- | ------------------------------------------------------------- |
-| **Builder's Session** (DC Summit)   | 60 min   | 1 + 1 SQL      | Stock Keeper system prompt + `floor_check` tool, then a live inventory write |
+| **Builder's Session** (DC Summit)   | 60 min (45 hands-on) | 1 exercise | `floor_check` tool + AgentCore STM verify + Runtime invoke (pre-launched) |
 | **Workshop** (re:Invent)        | 120 min  | 9 challenges   | Full stack — semantic search, agents, AgentCore production patterns         |
 
 The 60-min Builder's Session lab guide lives in

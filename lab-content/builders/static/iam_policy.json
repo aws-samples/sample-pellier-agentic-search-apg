@@ -28,11 +28,46 @@
       }
     },
     {
-      "Sid": "AuroraDataAccess",
+      "Sid": "AgentCoreRuntime",
       "Effect": "Allow",
       "Action": [
-        "rds-db:connect"
+        "bedrock-agentcore:CreateRuntime",
+        "bedrock-agentcore:InvokeRuntime",
+        "bedrock-agentcore:GetSession",
+        "bedrock-agentcore:PutSessionMemory",
+        "bedrock-agentcore:GetSessionMemory",
+        "bedrock-agentcore:InvokeGateway",
+        "bedrock-agentcore:GetIdentity"
       ],
+      "Resource": "arn:aws:bedrock-agentcore:us-west-2:${AWS::AccountId}:runtime/pellier-*"
+    },
+    {
+      "Sid": "AgentCoreControlMemory",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore-control:CreateMemory",
+        "bedrock-agentcore-control:GetMemory",
+        "bedrock-agentcore-control:ListMemories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentCoreRuntimeExecutionRoleBootstrap",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:AttachRolePolicy",
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::${AWS::AccountId}:role/pellier-agentcore-runtime-execution"
+      ]
+    },
+    {
+      "Sid": "AuroraDataAccess",
+      "Effect": "Allow",
+      "Action": ["rds-db:connect"],
       "Resource": "*"
     },
     {

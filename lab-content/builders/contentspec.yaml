@@ -1,102 +1,90 @@
-# Pellier — Workshop Studio content spec (60-minute DC Summit Builder's Session).
+# Workshop Studio contentspec — 60-min Builder's Session (DC Summit 2026).
 #
-# Instructor notes:
-#   - Time is the enemy. The narrative spine is Marco's arc. Two artifacts of
-#     participant-authored code: Stock Keeper system prompt + floor_check tool.
-#     restock_shelf + running_low + Experience Guide are PRE-APPLIED via the
-#     CloudFormation UserData (LabFormat=builders branch) — do NOT have
-#     participants build them in 60 minutes.
-#   - Per-agent model mix is an architectural decision. Do NOT normalize.
-#     See lab-content/shared/model-mix-sidebar.en.md.
-#   - Marco's Turn 4 pill is clicked twice in the session — once during the
-#     opening demo (Stock Keeper stubbed → non-answer), once during the
-#     midpoint checkpoint (Stock Keeper wired → real warehouse data).
-#   - Participants who want more depth should be pointed at
-#     lab-content/workshop/ — same Marco arc, 2-hour framing, all 5 tools +
-#     both specialists built by hand.
-#   - The session also surfaces (briefly) Anna's hybrid retrieval pipeline
-#     and Theo's write-path teaching — see lab-content/shared/
-#     aurora-capabilities-arc.en.md for the framing. Anna's pipeline is
-#     observed via the /atelier/performance "Search strategy comparison"
-#     card (Module 1, 60 seconds). Theo's write path lands automatically
-#     because Experience Guide ships pre-applied — show /atelier/tools
-#     for the WRITE badges and run a return for live psql confirmation.
+# Upload package must include:
+#   - All markdown lab pages (10-*, 11-*, …, index.en.md)
+#   - static/pellier-builders.yml (parent stack)
+#   - static/pellier-vpc.yml, pellier-database.yml, pellier-code-editor.yml (nested)
+#   - static/iam_policy.json (participant role inline policy)
+#
+# Lab prose only — no workshopTimeline/prerequisites blocks required by Studio.
+
+version: "2.0"
+
+params:
+  author: "Shayon Sanyal"
+  description: "Build agentic AI-powered search with Amazon Aurora, pgvector, and Amazon Bedrock AgentCore (60-min Builder's Session, DC Summit 2026)"
+  disableAssetsBusting: true
+  disableBreadcrumb: false
+  disableInlineCopyToClipBoard: true
+  disableLanguageSwitchingButton: true
+  disableNextPrev: false
+  disableSearch: false
+  disableShortcutsTitle: true
+  themeVariant: aws
+
 defaultLocaleCode: en-US
 localeCodes:
   - en-US
-version: 3.0
+
+additionalLinks:
+  - title: Aurora PostgreSQL with pgvector
+    link: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.VectorDB.html
+  - title: Amazon Bedrock AgentCore
+    link: https://aws.amazon.com/bedrock/agentcore/
+  - title: Strands Agents SDK
+    link: https://strandsagents.com
+  - title: Pellier source repo
+    link: https://github.com/aws-samples/sample-pellier-agentic-search-apg
 
 awsAccountConfig:
   accountSources:
     - WorkshopStudio
+    - CustomerProvided
+
   serviceLinkedRoles:
     - rds.amazonaws.com
-    - bedrock.amazonaws.com
+
+  participantRole:
+    iamPolicies:
+      - static/iam_policy.json
+    managedPolicies:
+      - "arn:aws:iam::aws:policy/AmazonBedrockFullAccess"
+      - "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
+      - "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+    trustedPrincipals:
+      service:
+        - ec2.amazonaws.com
+        - bedrock.amazonaws.com
+        - bedrock-agentcore.amazonaws.com
+        - rds.amazonaws.com
+
+  ec2KeyPair: false
+
   regionConfiguration:
     minAccessibleRegions: 1
-    maxAccessibleRegions: 2
+    maxAccessibleRegions: 1
     accessibleRegions:
-      recommended:
+      required:
         - us-west-2
+    deployableRegions:
       required:
         - us-west-2
 
 infrastructure:
   cloudformationTemplates:
-    # See lab-content/workshop/contentspec.yaml for the full notes on
-    # static/ packaging and the TemplatesBaseUrl convention. The 60-min
-    # Builder's session uses pellier-builders.yml as the parent (it sets
-    # LabFormat=builders so the Code Editor pre-applies the Experience
-    # Guide + restock_shelf + running_low so participants only build
-    # Stock Keeper's system prompt + floor_check).
     - templateLocation: static/pellier-builders.yml
-      label: Pellier Builder's Session (60 min — DC Summit)
+      label: "PellierBuildersSessionDCSummit"
       parameters:
-        - templateParameter: WorkshopId
-          defaultValue: "{{.ParticipantId}}"
-        - templateParameter: WorkshopDomain
-          defaultValue: "pellier.workshop.aws"
-        - templateParameter: LabFormat
-          defaultValue: "builders"
+        - templateParameter: AssetsBucketName
+          defaultValue: "{{.AssetsBucketName}}"
+        - templateParameter: AssetsBucketPrefix
+          defaultValue: "{{.AssetsBucketPrefix}}"
+        - templateParameter: AuroraEngineVersion
+          defaultValue: "17.7"
         - templateParameter: RepoUrl
           defaultValue: "https://github.com/aws-samples/sample-pellier-agentic-search-apg.git"
         - templateParameter: RepoBranch
           defaultValue: "main"
-        - templateParameter: AuroraEngineVersion
-          defaultValue: "17.7"
-        - templateParameter: EnableGoogleSignIn
-          # Builders session is even more aggressive on time than the
-          # workshop — federated sign-in is off by default.
-          defaultValue: "false"
-        - templateParameter: EnableAppleSignIn
-          defaultValue: "false"
-        - templateParameter: TemplatesBaseUrl
-          defaultValue: "https://{{.AssetsBucketName}}.s3.{{.AwsRegion}}.amazonaws.com/{{.AssetsBucketPrefix}}static"
-
-participantRole:
-  managedPolicies: []
-  iamPolicies:
-    - static/iam_policy.json
-
-workshopTimeline:
-  duration: 60
-  checkpoints:
-    # 10 min presentation + 45 min hands-on + 5 min wrap — labels track lab sections 00–04.
-    - "00:00 — Presentation (10 min): welcome + Marco arc + live Boutique demo (five pills)"
-    - "00:10 — Hands-on · 00 — The doors are open (health checks, two tabs)"
-    - "00:15 — Hands-on · 01 — The Boutique, Re:Engineered (four turns work, one fails)"
-    - "00:22 — Hands-on · 02 — Closing Marco's Gap (Stock Keeper + floor_check — main coding)"
-    - "00:32 — Checkpoint — Marco's turn 4 lands (inventory reads live)"
-    - "00:38 — Hands-on · 03 — The shipment that just arrived (one SQL upsert)"
-    - "00:45 — Hands-on · 04 — Step into the Atelier (memory, tools, agents tour)"
-    - "00:52 — Capstone — replay the five-turn journey with both surfaces"
-    - "00:55 — Q&A and wrap (5 min)"
-
-prerequisites:
-  knowledge:
-    - "Python fluency (async/await, imports, light typing)"
-    - "LLM comfort (temperature, system prompts, tool use)"
-    - "Basic AWS + Bedrock awareness"
-  technical:
-    - "Bedrock model access: Claude Opus 4.6, Claude Haiku 4.5, Cohere Embed v4, Cohere Rerank v3.5"
-    - "Cognito-supported AWS region (us-west-2 recommended)"
+      participantVisibleStackOutputs:
+        - CodeEditorURL
+        - AuroraClusterEndpoint

@@ -1,6 +1,6 @@
 # Marco's arc — the workshop's narrative spine
 
-*Both lab guides reference this file. Same story, two formats — the Builder's Session wires the bare minimum for Marco's gap to close; the Workshop wires it in full plus Experience Guide.*
+*Both lab guides reference this file. Same story, two formats — the Builder's Session wires `floor_check` plus AgentCore STM verify and Runtime invoke (pre-launched); the Workshop wires specialists and production patterns in full.*
 
 ---
 

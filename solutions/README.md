@@ -8,7 +8,8 @@ module:
 solutions/
 ├── the-quiet-search/   → Module 1 reference (semantic search)
 ├── closing-marcos-gap/ → Module 2 (Stock Keeper + agent tools)
-└── the-paper-trail/    → Module 3 (AgentCore production plumbing)
+├── the-paper-trail/    → Module 3 (AgentCore production plumbing)
+└── builders/           → DC Summit copy-paste (floor_check body, README)
 ```
 
 ## Module 1 — *The Quiet Search*

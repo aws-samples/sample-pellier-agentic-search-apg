@@ -1,6 +1,6 @@
 ---
-title: "Quick Start"
-weight: 5
+title: "Quick Start (reference)"
+weight: 98
 ---
 
 # Quick Start

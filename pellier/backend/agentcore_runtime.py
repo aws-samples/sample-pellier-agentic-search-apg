@@ -1,41 +1,63 @@
 """
-AgentCore Runtime — Lambda deployment entrypoint for Lab 4e.
+AgentCore Runtime — deployment entrypoint (Builder's Session + Workshop C5).
 
-Wire It Live: Participants create the @app.entrypoint handler that wraps
-the orchestrator for execution in an AgentCore Runtime Lambda microVM.
+Wraps the pre-applied Strands orchestrator for execution in an AgentCore
+Runtime container. Bootstrap runs ``agentcore configure`` + ``agentcore launch``
+before participants arrive; in-room they read this file and invoke via
+``POST /api/agent/chat`` with ``USE_AGENTCORE_RUNTIME=true``.
 
-Deploy with:
-    agentcore configure
-    agentcore launch
+Deploy (bootstrap / instructor):
+    cd pellier/backend
+    agentcore configure --name pellier-agent ...
+    agentcore launch --agent pellier-agent
 """
+from __future__ import annotations
+
 import logging
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-
-# === CHALLENGE 5: AgentCore Runtime — START ===
-# TODO: Implement AgentCore Runtime entrypoint
-#
-# Steps:
-#   1. Import BedrockAgentCoreApp from bedrock_agentcore.runtime
-#   2. Create app = BedrockAgentCoreApp()
-#   3. Define @app.entrypoint handler that:
-#      - Extracts prompt and session_id from payload
-#      - Creates orchestrator via create_orchestrator()
-#      - Invokes orchestrator with the prompt
-#      - Returns {"response": str(response), "products": []}
-#   4. Handle ImportError (bedrock-agentcore not installed)
-#
-# ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_runtime.py pellier/backend/agentcore_runtime.py
 try:
     from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
     app = BedrockAgentCoreApp()
-    # TODO: Add @app.entrypoint handler here
+
+    @app.entrypoint
+    def invoke(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """AgentCore Runtime entrypoint — orchestrator in a managed microVM."""
+        prompt = (payload or {}).get("prompt", "")
+        session_id = (payload or {}).get("session_id", "runtime-session")
+        user_id = (payload or {}).get("user_id", "anonymous")
+
+        from agents.orchestrator import create_orchestrator
+
+        orchestrator = create_orchestrator()
+        if orchestrator is None:
+            return {
+                "response": (
+                    "The orchestrator isn't wired up yet. Complete the "
+                    "orchestrator challenge or use the solutions copy."
+                ),
+                "products": [],
+            }
+
+        try:
+            orchestrator.trace_attributes = {
+                "session.id": session_id,
+                "user.id": user_id or "anonymous",
+                "runtime": "agentcore-managed",
+                "workshop": "pellier",
+            }
+        except Exception:  # pragma: no cover
+            pass
+
+        response = orchestrator(prompt)
+        return {"response": str(response), "products": []}
+
 except ImportError:
     logger.info("bedrock-agentcore not installed — Runtime entrypoint disabled")
-    app = None
-# === CHALLENGE 5: AgentCore Runtime — END ===
+    app = None  # type: ignore[misc, assignment]
 
 
 if __name__ == "__main__":

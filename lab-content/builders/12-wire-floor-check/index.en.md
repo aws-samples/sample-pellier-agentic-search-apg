@@ -1,11 +1,12 @@
 ---
-title: "02 · Closing Marco's Gap"
-weight: 15
+title: "Part I · Build — Wire `floor_check`"
+weight: 12
 ---
 
 :::alert{type="info"}
-*About eighteen minutes. The only coding module of the session. You'll
-fill in five lines of Python inside one tool, then watch turn 4 land.*
+**Part I of III · Marco's arc · Sublab 12.** About fifteen minutes. The
+**only coding exercise** in the session — five lines of Python in
+`floor_check`, then Marco's Turn 4 lands.*
 :::
 
 ::::expand{header="Out of time? Drop in the solution"}
@@ -15,6 +16,8 @@ cd /workshop/sample-pellier-agentic-search-apg
 cp solutions/closing-marcos-gap/services/agent_tools.py \
    pellier/backend/services/agent_tools.py
 ```
+
+Paste-only the tool body: `solutions/builders/floor_check_tool_body.py`.
 
 Then jump to [Verify in the Atelier](#verify-in-the-atelier).
 
@@ -246,8 +249,9 @@ arguments). The wiring is a five-line connection between a tool's
 intent (its docstring) and its source of truth (Aurora). That's
 where most of an agentic system's code lives.
 
-:::alert{type="success" header="One module to go in code, two in the Atelier"}
-Next: a shipment arrives, the catalog doesn't know, you teach it.
+:::alert{type="success" header="Next — AgentCore STM"}
+Turn 4 lands. Next you verify short-term memory continuity, then
+invoke the Runtime bootstrap already launched for you.
 
-[Module 03 · *The Shipment That Just Arrived* →](/03-the-shipment-that-just-arrived/)
+[Part II · AgentCore Memory (STM) →](/20-agentcore-memory-stm/)
 :::

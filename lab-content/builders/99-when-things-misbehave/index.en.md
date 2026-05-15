@@ -25,7 +25,7 @@ env | grep DB_
 psql -c "SELECT count(*) FROM pellier.product_catalog;"
 # Expected: 40
 
-# Verify the warehouse table exists (for Module 02)
+# Verify the warehouse table exists (for Part I · sublab 12)
 psql -c "SELECT count(*) FROM pellier.warehouse_inventory;"
 # Expected: 6
 

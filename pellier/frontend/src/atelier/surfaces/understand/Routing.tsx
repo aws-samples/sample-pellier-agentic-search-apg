@@ -472,6 +472,79 @@ const INTENT_MAPPINGS: IntentMapping[] = [
   },
 ];
 
+const StorefrontProductionCard: React.FC = () => (
+  <ExpCard>
+    <Eyebrow label="Storefront production · e-commerce concierge" />
+    <h3
+      style={{
+        fontFamily: 'var(--at-serif)',
+        fontSize: '24px',
+        fontWeight: 400,
+        margin: '6px 0 14px',
+        color: 'var(--at-ink-1)',
+      }}
+    >
+      Rules first, one specialist per turn.
+    </h3>
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '14px',
+        lineHeight: 1.65,
+        color: 'var(--at-ink-2)',
+        marginBottom: '14px',
+      }}
+    >
+      High-traffic commerce assistants optimize for predictability, latency, and
+      cost. Pellier&apos;s Boutique keeps{' '}
+      <strong style={{ color: 'var(--at-ink-1)' }}>Dispatcher + specialists</strong>{' '}
+      on the hot path — not an LLM intent resolver at temperature&nbsp;0 (still
+      drifts with model updates).
+    </p>
+    <ul
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '14px',
+        lineHeight: 1.65,
+        color: 'var(--at-ink-2)',
+        margin: '0 0 14px 0',
+        paddingLeft: '20px',
+      }}
+    >
+      <li>
+        <strong style={{ color: 'var(--at-ink-1)' }}>Rules / classifier first</strong>{' '}
+        — triage + keyword intent before any Bedrock call
+      </li>
+      <li>
+        <strong style={{ color: 'var(--at-ink-1)' }}>Single owning agent</strong> per turn
+        — Style Advisor, Stock Keeper, etc.
+      </li>
+      <li>
+        <strong style={{ color: 'var(--at-ink-1)' }}>LLM router elsewhere</strong> —
+        Agents-as-Tools and Graph in the Atelier; AgentCore Runtime on{' '}
+        <code style={{ fontFamily: 'var(--at-mono)' }}>/api/agent/chat</code>
+      </li>
+      <li>
+        <strong style={{ color: 'var(--at-ink-1)' }}>Semantic tool discovery</strong> at
+        scale — Tools panel / Gateway — not the default router for Marco&apos;s five pills
+      </li>
+    </ul>
+    <pre
+      className="dl-code-block"
+      style={{
+        margin: 0,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        fontFamily: 'var(--at-mono)',
+        fontSize: '13px',
+      }}
+    >
+      {`triage (rules) → intent (rules) → low confidence? → classifier / Haiku T=0
+                              → else → one specialist (one LLM call)`}
+    </pre>
+  </ExpCard>
+);
+
 const DispatcherIntentCard: React.FC = () => (
   <ExpCard>
     <Eyebrow label="Active dispatcher · intent → specialist" />
@@ -736,6 +809,7 @@ const Routing: React.FC = () => {
               scenarioHint={focusedSlug === pattern.slug ? scenarioHint : undefined}
             />
           ))}
+          <StorefrontProductionCard />
           {/* Dispatcher (Pattern III) is the active path; the intent
               table makes the keyword-to-specialist mapping concrete. */}
           <DispatcherIntentCard />

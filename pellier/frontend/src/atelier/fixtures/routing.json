@@ -1,1 +1,26 @@
-[{"name": "Dispatcher", "slug": "dispatcher", "description": "The orchestrator classifies intent and dispatches to the best-fit specialist agent. Each agent runs independently and returns results to the orchestrator for final composition. This is the default pattern for storefront sessions.", "isActive": true, "agents": ["Style Advisor", "Curator", "Value Analyst", "Stock Keeper", "Experience Guide"], "codeSnippet": "orchestrator = Agent(\n  model=BedrockModel('claude-haiku-4-5'),\n  tools=[search_agent, recommendation_agent,\n         pricing_agent, inventory_agent,\n         customer_support_agent],\n  system_prompt=DISPATCHER_PROMPT\n)"}, {"name": "Agents-as-Tools", "slug": "agents-as-tools", "description": "Each specialist agent is registered as a callable tool. The orchestrator invokes agents the same way it invokes any other tool, enabling dynamic composition and chaining of agent capabilities within a single turn.", "isActive": false, "agents": ["Style Advisor", "Curator", "Value Analyst", "Stock Keeper", "Experience Guide"], "codeSnippet": "# Each agent wrapped as a @tool\n@tool\ndef search_agent(query: str) -> str:\n    agent = Agent(model=model, tools=[find_pieces])\n    return agent(query)\n\norchestrator = Agent(\n  model=model,\n  tools=[search_agent, recommendation_agent, ...]\n)"}, {"name": "Graph", "slug": "graph", "description": "Agents are nodes in a directed graph with explicit edges defining the flow. The orchestrator traverses the graph based on intent classification, enabling complex multi-step workflows with conditional branching and parallel execution.", "isActive": false, "agents": ["Style Advisor", "Curator", "Value Analyst"], "codeSnippet": "graph = {\n  'classify': ['search', 'recommend', 'price'],\n  'search': ['recommend'],\n  'recommend': ['price'],\n  'price': ['respond']\n}\n\ndef traverse(intent, context):\n    node = graph['classify'][intent]\n    while node != 'respond':\n        result = agents[node](context)\n        node = graph[node][0]"}]
+[
+  {
+    "name": "Dispatcher",
+    "slug": "dispatcher",
+    "description": "Production storefront: classify_triage + classify_intent (keyword rules, no router LLM), then one specialist per turn on /api/chat/stream. ~60–120 ms classification; one Bedrock call.",
+    "isActive": true,
+    "agents": ["Style Advisor", "Curator", "Value Analyst", "Stock Keeper", "Experience Guide"],
+    "codeSnippet": "intent = classify_intent(message)  # rules, not LLM\nspecialist = build_stock_keeper()  # example\nresponse = specialist(message)     # one LLM call"
+  },
+  {
+    "name": "Agents-as-Tools",
+    "slug": "agents-as-tools",
+    "description": "Haiku orchestrator + specialists as @tool. Two LLM calls per turn. Atelier teaching path and in-process /api/agent/chat — not the Boutique hot path.",
+    "isActive": false,
+    "agents": ["Style Advisor", "Curator", "Value Analyst", "Stock Keeper", "Experience Guide"],
+    "codeSnippet": "@tool\ndef stock_keeper(query: str) -> str:\n    return Agent(..., tools=[floor_check])(query)\n\norchestrator = Agent(model=haiku, tools=[stock_keeper, ...])"
+  },
+  {
+    "name": "Graph",
+    "slug": "graph",
+    "description": "Strands GraphBuilder DAG: router node + specialist nodes with conditional edges. Multi-step ops and Atelier telemetry — not default for Marco pills.",
+    "isActive": false,
+    "agents": ["Style Advisor", "Curator", "Value Analyst"],
+    "codeSnippet": "builder.add_router(router_fn)\nbuilder.add_agent(specialist_node)\nbuilder.set_entry_point('router')\ngraph = builder.build()"
+  }
+]

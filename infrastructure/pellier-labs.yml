@@ -96,9 +96,9 @@ Parameters:
       - workshop (120 min, re:Invent): all stubs stay in place; participants
         build Stock Keeper + Experience Guide + 5 tools over 90 min of
         hands-on.
-      - builders (60 min, DC Summit): Experience Guide + restock_shelf +
-        running_low are pre-applied; participants build Stock Keeper's
-        system prompt + floor_check only.
+      - builders (60 min, DC Summit): orchestrator + AgentCore pre-applied;
+        bootstrap pre-launches Runtime; participants wire floor_check only,
+        then verify STM + invoke Runtime (demo).
 
   RepoUrl:
     Type: String

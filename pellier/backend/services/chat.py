@@ -193,6 +193,44 @@ _TRIAGE_REPLIES = {
 }
 
 
+async def _append_boutique_stm_turn(
+    session_id: Optional[str],
+    user_message: str,
+    assistant_message: str,
+    user: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Persist a Boutique dispatcher turn to AgentCore Memory (STM).
+
+    Keeps ``GET /api/agent/session/{id}`` aligned with Marco pills on
+    ``/api/chat/stream`` so the Builder's STM lab sees continuity without
+    routing the storefront through ``/api/agent/chat``.
+    """
+    if not session_id:
+        return
+    try:
+        from config import settings as _settings
+
+        if not _settings.AGENTCORE_MEMORY_ID:
+            return
+        from services.agentcore_memory import AgentCoreMemory
+
+        sub = user.get("sub") if user and isinstance(user, dict) else None
+        namespace = (
+            f"user:{sub}:session:{session_id}"
+            if sub
+            else f"anon:{session_id}"
+        )
+        memory = AgentCoreMemory()
+        await memory.append_session_turn(
+            namespace, {"role": "user", "content": user_message}
+        )
+        await memory.append_session_turn(
+            namespace, {"role": "assistant", "content": assistant_message}
+        )
+    except Exception as exc:
+        logger.debug("STM append skipped: %s", exc)
+
+
 def classify_intent(query: str) -> str:
     """Deterministic intent classification via keyword matching.
     Returns 'pricing', 'inventory', 'customer_support', 'search', or 'recommendation'."""
@@ -2340,6 +2378,12 @@ CURRENT REQUEST: {message}"""
             f"📤 chat_stream done | {total_ms}ms | products={len(products_sent)} "
             f"| tokens={token_count} | {tool_summary}"
         )
+
+        # AgentCore STM — mirror this turn for session continuity labs.
+        if session_id and parsed.get("text"):
+            await _append_boutique_stm_turn(
+                session_id, message, parsed["text"], user=user
+            )
 
         # Complete event with full response payload
         try:

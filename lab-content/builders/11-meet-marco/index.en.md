@@ -1,11 +1,12 @@
 ---
-title: "01 · The Boutique, Re:Engineered"
-weight: 10
+title: "Part I · Observe — Meet Marco"
+weight: 11
 ---
 
 :::alert{type="info"}
-*About eight minutes. Click five pills, watch three land cleanly, see
-turn four miss — then we'll fix it.*
+**Part I of III · Marco's arc · Sublab 11.** About six minutes. Click five
+pills, watch three land cleanly, see Turn 4 miss — then you'll fix it in
+sublab 12.*
 :::
 
 ## Meet Marco
@@ -99,7 +100,7 @@ gets back a graceful `"floor_check is in stub state"` error and
 relays that as the polite non-answer above.
 
 This is the only thing wrong with the system right now. You'll fix
-it in Module 02.
+it in sublab 12.
 
 ::::expand{header="Confirm the agent isn't hiding the warehouse"}
 
@@ -150,7 +151,7 @@ reasoning trace. Click any turn to drill in.
 
 This is the same agent. Different lens.
 
-You'll come back to the Atelier in Module 03 for a proper tour.
+You'll tour the Atelier in Part III (routing patterns).
 
 ---
 
@@ -164,8 +165,8 @@ You'll come back to the Atelier in Module 03 for a proper tour.
 | ✗ Turn 4 | Stock Keeper not wired — agent falls back gracefully |
 | ✓ Turn 5 | `cart.holds` works |
 
-Four of five. One gap. That gap is the next twenty-five minutes.
+Four of five. One gap. That gap is the only code exercise in Part I.
 
-:::alert{type="success" header="On to the seam"}
-[Module 02 · *Closing Marco's Gap* →](/02-closing-marcos-gap/)
+:::alert{type="success" header="Part I · Build next"}
+[Part I · Wire `floor_check` →](/12-wire-floor-check/)
 :::

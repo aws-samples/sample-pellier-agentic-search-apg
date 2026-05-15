@@ -604,12 +604,11 @@ log "✅ Status marker created"
 # STEP 16: BUILDERS FORMAT — Pre-apply everything participants don't build
 # ============================================================================
 #
-# The 60-min Builder's Session is one coding module: participants
-# author Stock Keeper's system prompt (agents/stock_keeper.py) and the
-# floor_check tool (inside services/agent_tools.py). Everything else
-# in the agentic stack needs to be in place when they sit down so
-# Marco's turns 1-3 + 5 work on first paint and turn 4 falls back
-# gracefully (no Stock Keeper, no floor_check).
+# The 60-min Builder's Session has one coding exercise: wire the
+# floor_check tool body in services/agent_tools.py. Stock Keeper's
+# system prompt and orchestrator are already in place. AgentCore STM
+# + Runtime are pre-provisioned; participants verify STM continuity
+# and walk through the Runtime entrypoint + invoke path in-room.
 #
 # This block copies finished reference files from solutions/ into
 # their runtime locations under pellier/backend/ and pellier/frontend/.
@@ -622,8 +621,7 @@ log "✅ Status marker created"
 #   solutions/the-paper-trail/    — Module 03 reference (observe-only)
 #
 # Files we explicitly do NOT copy (participants build these):
-#   solutions/closing-marcos-gap/agents/stock_keeper.py
-#   (and inside agent_tools.py, the floor_check tool body)
+#   inside agent_tools.py — the floor_check tool body only
 if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     log "=========================================="
     log "Builders Session: pre-applying reference files"
@@ -686,6 +684,34 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     # so we skip them.
     copy_solution "solutions/the-paper-trail/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
+
+    # ---- AgentCore Runtime pre-launch (~5 min, best-effort) ----
+    log "Pre-launching AgentCore Runtime (pellier-agent)..."
+    export REPO_PATH="$REPO_PATH"
+    RUNTIME_ARN=""
+    if command -v agentcore &>/dev/null && command -v python3.13 &>/dev/null; then
+        RUNTIME_ARN=$(sudo -u "$CODE_EDITOR_USER" bash -c "
+            export PATH=\"\$HOME/.local/bin:\$PATH\"
+            export AWS_REGION=$AWS_REGION
+            export AWS_DEFAULT_REGION=$AWS_REGION
+            export REPO_PATH=$REPO_PATH
+            python3.13 $REPO_PATH/scripts/provision_agentcore_runtime.py 2>/dev/null
+        " 2>/dev/null || true)
+    fi
+    if [ -n "$RUNTIME_ARN" ]; then
+        log "✅ AgentCore Runtime provisioned: $RUNTIME_ARN"
+        grep -q '^AGENTCORE_RUNTIME_ENDPOINT=' "$REPO_PATH/.env" 2>/dev/null && \
+            sed -i "s|^AGENTCORE_RUNTIME_ENDPOINT=.*|AGENTCORE_RUNTIME_ENDPOINT=$RUNTIME_ARN|" "$REPO_PATH/.env" || \
+            echo "AGENTCORE_RUNTIME_ENDPOINT=$RUNTIME_ARN" >> "$REPO_PATH/.env"
+        grep -q '^USE_AGENTCORE_RUNTIME=' "$REPO_PATH/.env" 2>/dev/null && \
+            sed -i 's|^USE_AGENTCORE_RUNTIME=.*|USE_AGENTCORE_RUNTIME=true|' "$REPO_PATH/.env" || \
+            echo "USE_AGENTCORE_RUNTIME=true" >> "$REPO_PATH/.env"
+        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
+    else
+        warn "AgentCore Runtime pre-launch skipped — Runtime demo uses in-process fallback"
+        grep -q '^USE_AGENTCORE_RUNTIME=' "$REPO_PATH/.env" 2>/dev/null || \
+            echo "USE_AGENTCORE_RUNTIME=false" >> "$REPO_PATH/.env"
+    fi
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
 
