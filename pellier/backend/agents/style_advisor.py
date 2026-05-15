@@ -74,7 +74,7 @@ def build_search_agent() -> Agent:
     Reads persona preamble + loaded skills from ContextVars at
     construction time. Callers set those ContextVars before invoking.
     """
-    # Style Advisor — Sonnet 4.6 at 0.4. Editorial voice + fit/fabric
+    # Style Advisor — Claude Opus 4.6 at 0.4. Editorial voice + fit/fabric
     # description. Model choice is an architectural decision; see
     # lab-content/shared/model-mix-sidebar.en.md.
     return Agent(

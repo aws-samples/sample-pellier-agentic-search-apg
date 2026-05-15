@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { Lightbulb, ShoppingCart } from 'lucide-react'
 import { addRecentlyViewed } from '../utils/recentlyViewed'
 import { type AgentType } from '../utils/agentIdentity'
+import { cssVar as c } from '../design/cssVars'
 
 interface Product {
   id: number
@@ -37,10 +38,6 @@ interface ProductCardConciergeProps {
   recommendationReasons?: string[]
 }
 
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 
 const ProductCardConcierge = ({
   product,
@@ -84,7 +81,7 @@ const ProductCardConcierge = ({
           })
         }
         className="w-[72px] h-[72px] rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center"
-        style={{ background: CREAM }}
+        style={{ background: c.bg }}
       >
         {isImageUrl ? (
           <img
@@ -113,7 +110,7 @@ const ProductCardConcierge = ({
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
         <div
           className="text-[10px] uppercase tracking-[1.4px] font-medium"
-          style={{ color: INK_QUIET }}
+          style={{ color: c.muted }}
         >
           {eyebrow}
         </div>
@@ -125,7 +122,7 @@ const ProductCardConcierge = ({
         >
           <h4
             className="text-[14.5px] leading-tight font-semibold line-clamp-2"
-            style={{ color: INK, fontFamily: "'Fraunces', serif" }}
+            style={{ color: c.ink, fontFamily: "'Fraunces', serif" }}
           >
             {displayName}
           </h4>
@@ -133,7 +130,7 @@ const ProductCardConcierge = ({
         <div className="flex items-center justify-between mt-0.5">
           <span
             className="text-[14px] font-semibold tracking-tight"
-            style={{ color: INK }}
+            style={{ color: c.ink }}
           >
             ${product.price.toFixed(product.price % 1 === 0 ? 0 : 2)}
           </span>
@@ -143,7 +140,7 @@ const ProductCardConcierge = ({
               onClick={onAddToCart}
               aria-label="Add to cart"
               className="p-1.5 rounded-full transition-opacity hover:opacity-80"
-              style={{ color: INK_SOFT }}
+              style={{ color: c.ink2 }}
             >
               <ShoppingCart className="h-3.5 w-3.5" />
             </button>
@@ -158,7 +155,7 @@ const ProductCardConcierge = ({
                 setShowReasons(!showReasons)
               }}
               className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md"
-              style={{ color: INK_SOFT }}
+              style={{ color: c.ink2 }}
             >
               <Lightbulb className="h-3 w-3" />
               Why recommended
@@ -167,14 +164,14 @@ const ProductCardConcierge = ({
               <div
                 className="absolute left-0 top-full mt-1 z-20 p-2.5 rounded-lg text-[11px] space-y-1 min-w-[200px]"
                 style={{
-                  background: CREAM,
+                  background: c.bg,
                   border: '1px solid rgba(45, 24, 16, 0.08)',
-                  color: INK_SOFT,
+                  color: c.ink2,
                 }}
               >
                 {recommendationReasons.map((reason, i) => (
                   <div key={i} className="flex items-start gap-1.5">
-                    <span style={{ color: INK_QUIET }}>•</span>
+                    <span style={{ color: c.muted }}>•</span>
                     {reason}
                   </div>
                 ))}

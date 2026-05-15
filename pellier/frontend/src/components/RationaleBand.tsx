@@ -58,21 +58,21 @@ export default function RationaleBand() {
           fontSize: 'clamp(17px, 1.4vw, 19px)',
           lineHeight: 1.55,
           maxWidth: 780,
-          borderLeft: '2px solid #a8423a',
+          borderLeft: '2px solid color-mix(in srgb, var(--accent) 85%, transparent)',
           padding: '6px 0 6px 18px',
         }}
       >
         <span
-          className="font-sans"
+          className="font-mono"
           style={{
             display: 'block',
             fontStyle: 'normal',
             fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.22em',
+            fontSize: 'var(--dl-fs-eyebrow)',
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: '#a8423a',
-            marginBottom: 6,
+            color: 'var(--accent)',
+            marginBottom: 8,
           }}
         >
           {r.eyebrow}

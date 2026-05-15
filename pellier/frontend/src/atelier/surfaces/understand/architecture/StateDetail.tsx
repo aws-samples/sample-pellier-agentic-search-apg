@@ -161,12 +161,12 @@ const StateFlowDiagram: React.FC = () => (
 
     {/* Nodes */}
     <rect x="10" y="75" width="85" height="50" rx="8" fill="#1f1410" />
-    <text x="52" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#faf3e8">intent</text>
+    <text x="52" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="var(--cream-warm)">intent</text>
 
-    <rect x="160" y="75" width="85" height="50" rx="8" fill="#faf3e8" stroke="#a8423a" strokeWidth="1" />
+    <rect x="160" y="75" width="85" height="50" rx="8" fill="var(--cream-warm)" stroke="var(--accent)" strokeWidth="1" />
     <text x="202" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#a8423a">agents</text>
 
-    <rect x="310" y="75" width="85" height="50" rx="8" fill="#faf3e8" stroke="rgba(31,20,16,0.3)" strokeWidth="1" />
+    <rect x="310" y="75" width="85" height="50" rx="8" fill="var(--cream-warm)" stroke="rgba(31,29,26,0.3)" strokeWidth="1" />
     <text x="352" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#1f1410">tools</text>
 
     <rect x="460" y="75" width="30" height="50" rx="8" fill="var(--at-green-1, #6b8c5e)" opacity="0.15" stroke="var(--at-green-1, #6b8c5e)" strokeWidth="1" />

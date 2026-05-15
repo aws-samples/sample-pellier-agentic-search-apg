@@ -5,7 +5,7 @@
  *
  * Contract:
  *   - Fixed in the bottom-right corner on every page (Req 1.11.1).
- *   - Compact dusk pill with a small B mark, the `Ask Pellier` label,
+ *   - Compact dusk pill with a small brand mark, the `Ask Pellier` label,
  *     and a styled `Cmd K` keycap.
  *   - Clicking the pill toggles the concierge modal via
  *     `useUI().toggleConcierge()` (Req 1.11.5) - the same behavior as
@@ -17,7 +17,7 @@
  */
 import { useEffect, useState } from 'react'
 
-import { COMMAND_PILL } from '../copy'
+import { COMMAND_PILL, REFINEMENT } from '../copy'
 import { useUI } from '../contexts/UIContext'
 
 function detectMac(): boolean {
@@ -71,9 +71,13 @@ export default function CommandPill() {
       <span
         aria-hidden="true"
         data-testid="command-pill-bmark"
-        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-cream-50 text-espresso font-display font-semibold text-xs leading-none"
+        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-cream-50 font-sans font-semibold text-xs leading-none"
+        style={{
+          background: '#2a2724',
+          boxShadow: 'inset 0 0 0 1px rgba(251, 248, 242, 0.12)',
+        }}
       >
-        B
+        {REFINEMENT.B_MARK_PREFIX}
       </span>
       <span
         data-testid="command-pill-label"

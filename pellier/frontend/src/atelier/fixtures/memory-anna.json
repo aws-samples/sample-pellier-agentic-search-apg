@@ -1,0 +1,28 @@
+{
+  "persona": "anna",
+  "stm": {
+    "turnCount": 2,
+    "recentIntents": ["Housewarming gift under $100", "Botanical wrap for a birthday"],
+    "items": [
+      {
+        "id": "stm-anna-1",
+        "content": "Browsing home accents for a new apartment",
+        "tier": "stm",
+        "timestamp": "2025-01-14T18:00:00Z"
+      }
+    ]
+  },
+  "ltm": {
+    "preferences": ["gift-ready", "artisanal", "warm neutrals"],
+    "priorOrders": ["Monogrammed Linen Napkins — White — $72"],
+    "behavioralPatterns": ["Prefers items that ship flat", "Often shops weekday evenings"],
+    "items": [
+      {
+        "id": "ltm-anna-1",
+        "content": "Looks for considered gifts under $100 with strong presentation",
+        "tier": "ltm",
+        "similarity": 0.9
+      }
+    ]
+  }
+}

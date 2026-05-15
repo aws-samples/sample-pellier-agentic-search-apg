@@ -8,7 +8,7 @@
  * Requirements: 13.1, 13.2, 13.3, 13.4
  */
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   EditorialTitle,
   ExpCard,
@@ -17,6 +17,19 @@ import {
 } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { EvaluationScorecard } from '../../types';
+import {
+  EVALUATION_METHODS,
+  PELLIER_EVAL_STACK_NOTE,
+  type EvaluationMethod,
+} from './evalMethods';
+import {
+  EVALUATION_METRICS,
+  EVAL_METRIC_TIER_LABEL,
+  RETRIEVAL_EVAL_PIPELINE_NOTE,
+  filterMetricsByTier,
+  type EvalMetricTier,
+  type EvaluationMetric,
+} from './evalMetrics';
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -183,14 +196,34 @@ const VersionTrend: React.FC<VersionTrendProps> = ({ trend }) => {
 interface ScorecardProps {
   card: EvaluationScorecard;
   index: number;
+  isSelected: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
+  onSelect: () => void;
 }
 
-const Scorecard: React.FC<ScorecardProps> = ({ card, index }) => {
+const Scorecard: React.FC<ScorecardProps> = ({ card, index, isSelected, rowRef, onSelect }) => {
   const active = isActive(card);
   const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v'];
   const numeral = romanNumerals[index] ?? `${index + 1}`;
 
   return (
+    <div
+      ref={rowRef}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      style={{
+        outline: isSelected ? '2px solid var(--at-red-1)' : undefined,
+        borderRadius: 'var(--at-card-radius)',
+        cursor: 'pointer',
+      }}
+    >
     <ExpCard>
       {/* Header: numeral + name + status */}
       <div
@@ -272,8 +305,417 @@ const Scorecard: React.FC<ScorecardProps> = ({ card, index }) => {
         </div>
       )}
     </ExpCard>
+    </div>
   );
 };
+
+const FIT_LABEL: Record<EvaluationMethod['pellierFit'], string> = {
+  strong: 'Strong fit',
+  partial: 'Partial fit',
+  workshop: 'Production path',
+};
+
+const EvaluationMethodsPanel: React.FC<{
+  selectedId: string;
+  onSelect: (id: string) => void;
+}> = ({ selectedId, onSelect }) => {
+  const method = EVALUATION_METHODS.find((m) => m.id === selectedId) ?? EVALUATION_METHODS[0];
+
+  return (
+    <ExpCard>
+      <Eyebrow label="Evaluation methods · what to use when" />
+      <p
+        style={{
+          fontFamily: 'var(--at-sans)',
+          fontSize: '15px',
+          lineHeight: 1.6,
+          color: 'var(--at-ink-2)',
+          margin: '8px 0 16px',
+          maxWidth: '720px',
+        }}
+      >
+        {PELLIER_EVAL_STACK_NOTE}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
+        {EVALUATION_METHODS.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onSelect(m.id)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '6px 12px',
+              borderRadius: '999px',
+              border:
+                selectedId === m.id ? '1px solid var(--at-ink-1)' : '1px solid var(--at-rule-2)',
+              background: selectedId === m.id ? 'var(--at-ink-1)' : 'var(--at-cream-2)',
+              color: selectedId === m.id ? 'var(--at-cream-1)' : 'var(--at-ink-2)',
+              cursor: 'pointer',
+            }}
+          >
+            {m.name}
+          </button>
+        ))}
+      </div>
+      <div
+        style={{
+          padding: '16px 18px',
+          background: 'var(--at-cream-2)',
+          borderRadius: '8px',
+          border: '1px solid var(--at-card-border)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            gap: '12px',
+            marginBottom: '10px',
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: 'var(--at-serif)',
+              fontSize: '22px',
+              fontWeight: 400,
+              margin: 0,
+              color: 'var(--at-ink-1)',
+            }}
+          >
+            {method.name}
+          </h3>
+          <span
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color:
+                method.pellierFit === 'strong'
+                  ? 'var(--at-green-1)'
+                  : method.pellierFit === 'workshop'
+                    ? 'var(--at-red-1)'
+                    : 'var(--at-ink-3)',
+            }}
+          >
+            {FIT_LABEL[method.pellierFit]}
+          </span>
+        </div>
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            color: 'var(--at-ink-2)',
+            margin: '0 0 12px',
+          }}
+        >
+          {method.tagline} · <span style={{ fontStyle: 'italic' }}>{method.vendor}</span>
+        </p>
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            lineHeight: 1.55,
+            color: 'var(--at-ink-1)',
+            margin: '0 0 14px',
+          }}
+        >
+          {method.workshopNote}
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px',
+          }}
+        >
+          <div>
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '11px',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--at-ink-3)',
+              }}
+            >
+              Best for
+            </span>
+            <ul
+              style={{
+                margin: '8px 0 0',
+                paddingLeft: '18px',
+                fontFamily: 'var(--at-sans)',
+                fontSize: '13px',
+                color: 'var(--at-ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              {method.bestFor.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '11px',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--at-ink-3)',
+              }}
+            >
+              Watch outs
+            </span>
+            <ul
+              style={{
+                margin: '8px 0 0',
+                paddingLeft: '18px',
+                fontFamily: 'var(--at-sans)',
+                fontSize: '13px',
+                color: 'var(--at-ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              {method.watchOuts.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </ExpCard>
+  );
+};
+
+const METRIC_TIER_OPTIONS: Array<{ id: EvalMetricTier | 'all'; label: string }> = [
+  { id: 'all', label: 'All layers' },
+  { id: 'retrieval', label: 'Retrieval' },
+  { id: 'generation', label: 'Generation' },
+  { id: 'agent', label: 'Agent' },
+];
+
+const EvaluationMetricsPanel: React.FC<{
+  selectedId: string;
+  onSelect: (id: string) => void;
+  tierFilter: EvalMetricTier | 'all';
+  onTierChange: (tier: EvalMetricTier | 'all') => void;
+}> = ({ selectedId, onSelect, tierFilter, onTierChange }) => {
+  const filtered = filterMetricsByTier(EVALUATION_METRICS, tierFilter);
+  const metric =
+    filtered.find((m) => m.id === selectedId) ??
+    EVALUATION_METRICS.find((m) => m.id === selectedId) ??
+    filtered[0] ??
+    EVALUATION_METRICS[0];
+
+  const tierCounts = {
+    all: EVALUATION_METRICS.length,
+    retrieval: EVALUATION_METRICS.filter((m) => m.tier === 'retrieval').length,
+    generation: EVALUATION_METRICS.filter((m) => m.tier === 'generation').length,
+    agent: EVALUATION_METRICS.filter((m) => m.tier === 'agent').length,
+  };
+
+  return (
+    <ExpCard>
+      <Eyebrow label="Metrics · retrieval → grounding → answer" />
+      <p
+        style={{
+          fontFamily: 'var(--at-sans)',
+          fontSize: '15px',
+          lineHeight: 1.6,
+          color: 'var(--at-ink-2)',
+          margin: '8px 0 12px',
+          maxWidth: '720px',
+        }}
+      >
+        {RETRIEVAL_EVAL_PIPELINE_NOTE}
+      </p>
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '8px',
+          marginBottom: '12px',
+        }}
+      >
+        {METRIC_TIER_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onTierChange(opt.id)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '5px 12px',
+              borderRadius: '999px',
+              border:
+                tierFilter === opt.id ? '1px solid var(--at-ink-1)' : '1px solid var(--at-rule-2)',
+              background: tierFilter === opt.id ? 'var(--at-ink-1)' : 'var(--at-cream-2)',
+              color: tierFilter === opt.id ? 'var(--at-cream-1)' : 'var(--at-ink-2)',
+              cursor: 'pointer',
+            }}
+          >
+            {opt.label} ({tierCounts[opt.id]})
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
+        {filtered.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onSelect(m.id)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '6px 12px',
+              borderRadius: '999px',
+              border:
+                metric.id === m.id ? '1px solid var(--at-red-1)' : '1px solid var(--at-rule-2)',
+              background: metric.id === m.id ? 'var(--at-red-soft)' : 'var(--at-cream-2)',
+              color: metric.id === m.id ? 'var(--at-ink-1)' : 'var(--at-ink-2)',
+              cursor: 'pointer',
+            }}
+          >
+            {m.shorthand}
+          </button>
+        ))}
+      </div>
+
+      <MetricDetailCard metric={metric} />
+    </ExpCard>
+  );
+};
+
+const MetricDetailCard: React.FC<{ metric: EvaluationMetric }> = ({ metric }) => (
+  <div
+    style={{
+      padding: '16px 18px',
+      background: 'var(--at-cream-2)',
+      borderRadius: '8px',
+      border: '1px solid var(--at-card-border)',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: '12px',
+        marginBottom: '8px',
+      }}
+    >
+      <h3
+        style={{
+          fontFamily: 'var(--at-serif)',
+          fontSize: '22px',
+          fontWeight: 400,
+          margin: 0,
+          color: 'var(--at-ink-1)',
+        }}
+      >
+        {metric.name}
+      </h3>
+      <span
+        style={{
+          fontFamily: 'var(--at-mono)',
+          fontSize: '11px',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--at-ink-3)',
+        }}
+      >
+        {EVAL_METRIC_TIER_LABEL[metric.tier]}
+      </span>
+    </div>
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '14px',
+        lineHeight: 1.55,
+        color: 'var(--at-ink-2)',
+        margin: '0 0 14px',
+      }}
+    >
+      {metric.definition}
+    </p>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '14px',
+        marginBottom: '14px',
+      }}
+    >
+      <MetricField label="Formula (plain language)" value={metric.formula} />
+      <MetricField label="What it catches" value={metric.catches} />
+    </div>
+    <MetricField label="Pellier example" value={metric.pellierExample} />
+    <div style={{ marginTop: '12px' }}>
+      <span
+        style={{
+          fontFamily: 'var(--at-mono)',
+          fontSize: '11px',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--at-ink-3)',
+        }}
+      >
+        Often measured via
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+        {metric.measuredVia.map((v) => (
+          <span
+            key={v}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '3px 10px',
+              borderRadius: '999px',
+              background: 'var(--at-cream-1)',
+              border: '1px solid var(--at-rule-2)',
+              color: 'var(--at-ink-2)',
+            }}
+          >
+            {v}
+          </span>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const MetricField: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div>
+    <span
+      style={{
+        fontFamily: 'var(--at-mono)',
+        fontSize: '11px',
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color: 'var(--at-ink-3)',
+      }}
+    >
+      {label}
+    </span>
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '13px',
+        lineHeight: 1.5,
+        color: 'var(--at-ink-1)',
+        margin: '6px 0 0',
+      }}
+    >
+      {value}
+    </p>
+  </div>
+);
 
 /* -----------------------------------------------------------------------
  * Loading state
@@ -414,13 +856,18 @@ const Evaluations: React.FC = () => {
   });
 
   const scorecards = data ?? [];
+  const [selectedMethodId, setSelectedMethodId] = useState(EVALUATION_METHODS[0].id);
+  const [selectedMetricId, setSelectedMetricId] = useState(EVALUATION_METRICS[0].id);
+  const [metricTierFilter, setMetricTierFilter] = useState<EvalMetricTier | 'all'>('retrieval');
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
       <EditorialTitle
         eyebrow="Measure · Evaluations · accuracy · latency · citations"
         title="How good is good enough."
-        summary="Agent evaluation scorecards with accuracy, latency percentiles, and citation rates. Version-over-version quality trends track improvement across evaluation recipes."
+        summary="Scorecards for accuracy, latency, and citations — plus teaching panels on eval methods (LLM-as-judge, RAGAS, AgentCore) and retrieval metrics (Recall@K, MRR, context relevance, faithfulness)."
       />
 
       {loading && <LoadingState />}
@@ -431,6 +878,24 @@ const Evaluations: React.FC = () => {
 
       {!loading && !error && scorecards.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <EvaluationMethodsPanel
+            selectedId={selectedMethodId}
+            onSelect={setSelectedMethodId}
+          />
+
+          <EvaluationMetricsPanel
+            selectedId={selectedMetricId}
+            onSelect={setSelectedMetricId}
+            tierFilter={metricTierFilter}
+            onTierChange={(tier) => {
+              setMetricTierFilter(tier);
+              const next = filterMetricsByTier(EVALUATION_METRICS, tier);
+              if (next.length > 0 && !next.some((m) => m.id === selectedMetricId)) {
+                setSelectedMetricId(next[0].id);
+              }
+            }}
+          />
+
           {/* Summary strip */}
           <ExpCard>
             <div
@@ -539,9 +1004,31 @@ const Evaluations: React.FC = () => {
             </div>
           </ExpCard>
 
-          {/* Individual scorecards */}
+          <p
+            style={{
+              fontFamily: 'var(--at-sans)',
+              fontSize: '13px',
+              color: 'var(--at-ink-4)',
+            }}
+          >
+            Click a scorecard to focus an agent.
+          </p>
+
           {scorecards.map((card, i) => (
-            <Scorecard key={card.agentName} card={card} index={i} />
+            <Scorecard
+              key={card.agentName}
+              card={card}
+              index={i}
+              isSelected={selectedAgent === card.agentName}
+              rowRef={(el) => {
+                rowRefs.current[card.agentName] = el;
+              }}
+              onSelect={() =>
+                setSelectedAgent((prev) =>
+                  prev === card.agentName ? null : card.agentName,
+                )
+              }
+            />
           ))}
         </div>
       )}

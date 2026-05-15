@@ -146,7 +146,7 @@ export default function EditorialBrief() {
                       padding: '4px 10px',
                       borderRadius: '6px',
                       background: 'rgba(31, 20, 16, 0.06)',
-                      color: '#6b4a35',
+                      color: 'var(--ink-soft)',
                     }}
                   >
                     {tech}

@@ -43,14 +43,13 @@ const PlaceholderSurface: React.FC<PlaceholderSurfaceProps> = ({
         Coming soon
       </div>
       <h2
+        className="font-display italic text-espresso"
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
-          fontSize: '36px',
+          fontSize: 'clamp(32px, 3.5vw, 40px)',
           lineHeight: 1.1,
-          color: 'var(--at-ink-1)',
           marginBottom: '16px',
           fontWeight: 400,
+          letterSpacing: '-0.015em',
         }}
       >
         {name}

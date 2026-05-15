@@ -425,12 +425,7 @@ alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 alias backend='cd /workshop/sample-pellier-agentic-search-apg/pellier/backend'
 alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 
-# Pellier Service Shortcuts — single-process model: uvicorn on
-# :8000 serves the built SPA AND /api. Frontend changes require a
-# rebuild (``npm run build`` in pellier/frontend/) and are
-# handled automatically by the pellier systemd service.
-alias start-backend='sudo systemctl stop pellier 2>/dev/null; cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && source ../../.env && uvicorn app:app --host 0.0.0.0 --port 8000 --reload'
-alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && VITE_BASE_PATH=/ports/8000/ npm run build && cd - >/dev/null && sudo systemctl restart pellier 2>/dev/null || true'
+# Pellier service shortcuts — see FORMAT_ALIASES below (workshop vs builders).
 
 # Database Shortcut (psql uses PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE from .env)
 alias psql='psql'
@@ -446,6 +441,21 @@ if [ "$PWD" = "$HOME" ] || [ "$PWD" = "/workshop" ]; then
     cd /workshop/sample-pellier-agentic-search-apg 2>/dev/null || true
 fi
 EOF
+
+# Format-specific aliases (builders: no sudo; workshop: systemctl — passwordless via STEP 14 sudoers)
+if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
+# --- Pellier aliases (Builder's Session: uvicorn via nohup, not systemd) ---
+alias start-backend='bash /workshop/sample-pellier-agentic-search-apg/scripts/start-backend-builders.sh'
+alias rebuild-frontend='bash /workshop/sample-pellier-agentic-search-apg/scripts/rebuild-frontend-builders.sh'
+ALS
+else
+cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
+# --- Pellier aliases (Workshop: systemd unit ``pellier``) ---
+alias start-backend='sudo systemctl stop pellier 2>/dev/null; cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && source ../../.env && export PATH="$HOME/.local/bin:$PATH" && uvicorn app:app --host 0.0.0.0 --port 8000 --reload'
+alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && VITE_BASE_PATH=/ports/8000/ npm run build && cd - >/dev/null && sudo systemctl restart pellier'
+ALS
+fi
 
 log "✅ Bash environment configured (.bashrc updated with psql support)"
 
@@ -525,6 +535,24 @@ StandardError=append:/tmp/pellier/uvicorn.log
 [Install]
 WantedBy=multi-user.target
 EOF
+
+# Let the workshop user restart the pellier unit without an interactive
+# sudo password (rebuild-frontend / start-backend use systemctl).
+SYSTEMCTL_BIN="$(command -v systemctl 2>/dev/null || echo /usr/bin/systemctl)"
+SUDOERS_FILE="/etc/sudoers.d/99-pellier-systemctl-${CODE_EDITOR_USER}"
+if printf '%s\n' \
+    "${CODE_EDITOR_USER} ALL=(ALL) NOPASSWD: ${SYSTEMCTL_BIN} start pellier, ${SYSTEMCTL_BIN} stop pellier, ${SYSTEMCTL_BIN} restart pellier, ${SYSTEMCTL_BIN} is-active pellier, ${SYSTEMCTL_BIN} status pellier" \
+    >"$SUDOERS_FILE" 2>/dev/null; then
+    chmod 440 "$SUDOERS_FILE"
+    if visudo -c -f "$SUDOERS_FILE" >/dev/null 2>&1; then
+        log "✅ Passwordless systemctl for unit pellier (${CODE_EDITOR_USER})"
+    else
+        warn "sudoers drop-in failed visudo check — removing $SUDOERS_FILE"
+        rm -f "$SUDOERS_FILE"
+    fi
+else
+    warn "Could not write sudoers drop-in at $SUDOERS_FILE"
+fi
 
 # Create log directory
 mkdir -p /tmp/pellier
@@ -730,17 +758,29 @@ echo "✅ Pellier Frontend (React) dependencies installed"
 echo "✅ Database setup complete (40 products + warehouse inventory)"
 echo "✅ MCP server configured for Amazon Q"
 echo "✅ Bash environment configured (psql ready)"
-echo "✅ pellier service auto-started (single process on :8000)"
+if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+    echo "✅ Builder's Session: uvicorn --reload on :8000 (systemd unit not used)"
+else
+    echo "✅ pellier systemd service enabled (single process on :8000)"
+fi
 echo ""
 echo "🌐 App is live at: https://<cloudfront>/ports/8000/"
 echo "   Frontend + API both served by one uvicorn process."
 echo "   Edits to pellier/frontend/src/ require a rebuild:"
-echo "     rebuild-frontend    # alias: npm run build + systemctl restart"
+if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+    echo "     rebuild-frontend    # npm run build + restart uvicorn (no sudo)"
+else
+    echo "     rebuild-frontend    # npm run build + sudo systemctl restart pellier (passwordless)"
+fi
 echo ""
 echo "Quick Commands:"
 echo "  psql                             # Connect to database"
-echo "  journalctl -fu pellier     # Service logs"
-echo "  rebuild-frontend                 # Rebuild SPA + restart service"
+if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+    echo "  tail -f /tmp/pellier/uvicorn.log   # Backend log (builders)"
+else
+    echo "  journalctl -fu pellier           # Service logs (workshop)"
+fi
+echo "  rebuild-frontend                 # Rebuild SPA + restart app"
 echo ""
 log "=========================================="
 

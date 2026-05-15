@@ -106,6 +106,6 @@ prerequisites:
     - "Familiarity with LLM concepts: temperature, tool calling, system prompts"
     - "Basic AWS + Bedrock awareness"
   technical:
-    - "Bedrock model access: Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.7, Cohere Embed v4, Cohere Rerank v3.5"
+    - "Bedrock model access: Claude Opus 4.6, Claude Haiku 4.5, Cohere Embed v4, Cohere Rerank v3.5"
     - "Amazon Transcribe streaming access (voice search is optional demo)"
     - "Cognito-supported AWS region (us-west-2 recommended)"

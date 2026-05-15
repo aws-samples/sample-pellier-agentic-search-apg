@@ -51,6 +51,7 @@ import {
   featuredProductIdForPersona,
   weekendEditForPersona,
 } from '../data/personaCurations'
+import { splitHeadlineAtRe } from '../utils/headlineAccent'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -89,6 +90,7 @@ export default function BoutiquePage() {
   )
 
   const weekendEdit = weekendEditForPersona(personaId)
+  const weekendHeadlineParts = splitHeadlineAtRe(weekendEdit.headline)
 
   const rankedGridProducts = useMemo(
     () => rankProductsForPersona(gridProducts, personaId),
@@ -205,7 +207,7 @@ export default function BoutiquePage() {
                   {weekendEdit.eyebrow}
                 </p>
                 <h2
-                  className="font-display italic text-espresso"
+                  className="font-display italic"
                   style={{
                     fontSize: 'clamp(36px, 5vw, 64px)',
                     lineHeight: 1.05,
@@ -214,7 +216,14 @@ export default function BoutiquePage() {
                     whiteSpace: 'pre-line',
                   }}
                 >
-                  {weekendEdit.headline}
+                  {weekendHeadlineParts.tail ? (
+                    <>
+                      <span className="text-espresso">{weekendHeadlineParts.lead}</span>
+                      <span className="text-accent-ink">{weekendHeadlineParts.tail}</span>
+                    </>
+                  ) : (
+                    <span className="text-espresso">{weekendHeadlineParts.lead}</span>
+                  )}
                 </h2>
                 <p
                   className="mt-5 max-w-[440px] font-sans text-ink-soft"
@@ -300,7 +309,7 @@ export default function BoutiquePage() {
                     color: '#1f1410',
                     padding: '6px 12px',
                     borderRadius: 999,
-                    background: '#faf3e8',
+                    background: 'var(--cream-warm)',
                     border: '1px solid rgba(31,20,16,0.12)',
                   }}
                 >

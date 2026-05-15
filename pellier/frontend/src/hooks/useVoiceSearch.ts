@@ -5,6 +5,11 @@
  * backend's /ws/transcribe WebSocket, and relays interim + final
  * transcript events back to the caller.
  *
+ * The WebSocket URL is same-origin under `import.meta.env.BASE_URL` so
+ * Workshop Studio (CloudFront path proxy) can upgrade the connection.
+ * If the mic never starts in an embedded IDE frame, the host page may
+ * need `allow="microphone"` on the iframe (AWS controls that).
+ *
  * Usage:
  *   const { isListening, startListening, stopListening } = useVoiceSearch({
  *     onInterimTranscript: (text) => setSearchValue(text),
@@ -12,6 +17,7 @@
  *   })
  */
 import { useCallback, useRef, useState } from 'react'
+import { getTranscribeWebSocketUrl } from '../utils/transcribeWsUrl'
 
 interface UseVoiceSearchOptions {
   /** Called with interim (partial) transcripts as the user speaks. */
@@ -29,17 +35,40 @@ interface UseVoiceSearchReturn {
   error: string | null
 }
 
-// PCM audio config matching the backend's expectations
-const SAMPLE_RATE = 16000
+// Output PCM config matching the backend (16 kHz mono int16).
+const OUTPUT_SAMPLE_RATE = 16000
 const BUFFER_SIZE = 4096
 
-// WebSocket URL — same host as the page, ws:// or wss://
-function getWsUrl(): string {
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  // In dev, Vite serves on 5173 but backend is on 8000
-  const host = window.location.hostname
-  const port = import.meta.env.DEV ? '8000' : window.location.port
-  return `${proto}://${host}:${port}/ws/transcribe`
+/** Float32 mono → int16 PCM at OUTPUT_SAMPLE_RATE (linear resample if input rate differs). */
+function float32To16kPcmMono(input: Float32Array, inputSampleRate: number): Int16Array {
+  const toInt16 = (sample: number) => {
+    const s = Math.max(-1, Math.min(1, sample))
+    return s < 0 ? s * 0x8000 : s * 0x7fff
+  }
+
+  if (input.length === 0) {
+    return new Int16Array(0)
+  }
+
+  if (Math.abs(inputSampleRate - OUTPUT_SAMPLE_RATE) < 1) {
+    const int16 = new Int16Array(input.length)
+    for (let i = 0; i < input.length; i++) {
+      int16[i] = toInt16(input[i]!)
+    }
+    return int16
+  }
+
+  const outLen = Math.max(1, Math.round((input.length * OUTPUT_SAMPLE_RATE) / inputSampleRate))
+  const int16 = new Int16Array(outLen)
+  for (let i = 0; i < outLen; i++) {
+    const src = ((i + 0.5) * inputSampleRate) / OUTPUT_SAMPLE_RATE - 0.5
+    const i0 = Math.max(0, Math.min(input.length - 1, Math.floor(src)))
+    const i1 = Math.max(0, Math.min(input.length - 1, i0 + 1))
+    const t = src - Math.floor(src)
+    const s = (1 - t) * input[i0]! + t * input[i1]!
+    int16[i] = toInt16(s)
+  }
+  return int16
 }
 
 export function useVoiceSearch(options: UseVoiceSearchOptions = {}): UseVoiceSearchReturn {
@@ -51,14 +80,24 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}): UseVoiceSea
   const streamRef = useRef<MediaStream | null>(null)
   const contextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const gainRef = useRef<GainNode | null>(null)
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Track the latest final transcript to auto-fire on stop
   const lastFinalRef = useRef<string>('')
 
   const stopListening = useCallback(() => {
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current)
+      autoStopRef.current = null
+    }
     // Stop audio capture
     if (processorRef.current) {
       processorRef.current.disconnect()
       processorRef.current = null
+    }
+    if (gainRef.current) {
+      gainRef.current.disconnect()
+      gainRef.current = null
     }
     if (contextRef.current) {
       contextRef.current.close().catch(() => {})
@@ -90,7 +129,7 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}): UseVoiceSea
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: SAMPLE_RATE,
+          sampleRate: OUTPUT_SAMPLE_RATE,
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -104,21 +143,44 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}): UseVoiceSea
     }
     streamRef.current = stream
 
-    // 2. Open WebSocket to backend
+    // 2. AudioContext must be created and resumed while still in the user-gesture
+    //    chain (mic click). If we wait until WebSocket `onopen`, Chrome often leaves
+    //    the context suspended and ScriptProcessor never fires — no audio reaches
+    //    Transcribe, so the search bar stays empty.
+    let audioContext: AudioContext
+    try {
+      audioContext = new AudioContext()
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume()
+      }
+    } catch (err) {
+      const msg = 'Could not start audio capture. Try again after allowing the microphone.'
+      setError(msg)
+      onError?.(msg)
+      stream.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+      return
+    }
+    contextRef.current = audioContext
+
+    // 3. Open WebSocket to backend
     let ws: WebSocket
     try {
-      ws = new WebSocket(getWsUrl())
+      ws = new WebSocket(getTranscribeWebSocketUrl())
       ws.binaryType = 'arraybuffer'
     } catch (err) {
       const msg = 'Could not connect to voice service.'
       setError(msg)
       onError?.(msg)
       stream.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+      await audioContext.close().catch(() => {})
+      contextRef.current = null
       return
     }
     wsRef.current = ws
 
-    // 3. Handle transcript events from backend
+    // 4. Handle transcript events from backend
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
@@ -148,36 +210,41 @@ export function useVoiceSearch(options: UseVoiceSearchOptions = {}): UseVoiceSea
       setIsListening(false)
     }
 
-    // 4. Wait for WebSocket to open, then start audio capture
+    // 5. Wait for WebSocket to open, then wire the graph (context already running).
     ws.onopen = () => {
+      if (wsRef.current !== ws || contextRef.current !== audioContext) {
+        return
+      }
       setIsListening(true)
-
-      // Create AudioContext at the target sample rate
-      const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE })
-      contextRef.current = audioContext
 
       const source = audioContext.createMediaStreamSource(stream)
       const processor = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1)
       processorRef.current = processor
 
+      const inputRate = audioContext.sampleRate
       processor.onaudioprocess = (e) => {
         if (ws.readyState !== WebSocket.OPEN) return
         const float32 = e.inputBuffer.getChannelData(0)
-        // Convert float32 → int16 PCM (what Transcribe expects)
-        const int16 = new Int16Array(float32.length)
-        for (let i = 0; i < float32.length; i++) {
-          const s = Math.max(-1, Math.min(1, float32[i]))
-          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+        const int16 = float32To16kPcmMono(float32, inputRate)
+        if (int16.byteLength > 0) {
+          ws.send(int16.buffer)
         }
-        ws.send(int16.buffer)
       }
 
+      const mute = audioContext.createGain()
+      mute.gain.value = 0
+      gainRef.current = mute
       source.connect(processor)
-      processor.connect(audioContext.destination)
+      processor.connect(mute)
+      mute.connect(audioContext.destination)
     }
 
     // Auto-stop after 15 seconds to prevent runaway sessions
-    setTimeout(() => {
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current)
+    }
+    autoStopRef.current = setTimeout(() => {
+      autoStopRef.current = null
       if (wsRef.current) {
         stopListening()
       }

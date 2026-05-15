@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Bedrock Model Configuration
     # ========================================
     # Embedding model for semantic search (Cohere Embed v4)
-    BEDROCK_EMBEDDING_MODEL: str = "cohere.embed-english-v4:0"
+    BEDROCK_EMBEDDING_MODEL: str = "cohere.embed-v4:0"
 
     # Rerank model for hybrid search (Cohere Rerank v3.5)
     BEDROCK_RERANK_MODEL: str = "cohere.rerank-v3-5:0"
@@ -55,27 +55,23 @@ class Settings(BaseSettings):
     # Per-agent model selection is an architectural decision, not a knob.
     # Read `lab-content/shared/model-mix-sidebar.en.md` for the reasoning:
     #
-    #   Sonnet 4.6  — editorial specialists (Style Advisor, Curator,
+    #   Claude Opus 4.6  — editorial specialists (Style Advisor, Curator,
     #                 Experience Guide). Needs voice + personality.
-    #   Haiku 4.5   — reporting specialists (Value Analyst, Stock Keeper)
+    #   Claude Haiku 4.5 — reporting specialists (Value Analyst, Stock Keeper)
     #                 and routing (Orchestrator, SkillRouter). Needs
     #                 speed + determinism.
-    #   Opus 4.7    — stretch-lab model. Workshop participants can
-    #                 temporarily swap Style Advisor to Opus in the
-    #                 Module 3 optional exercise to compare quality /
-    #                 cost / latency tradeoffs.
     #
-    # Model IDs follow Bedrock's cross-region inference profile naming.
-    # Sonnet + Opus use bare alias IDs (no date stamp); Haiku 4.5 still
-    # uses the date-stamped form because it's how the profile is exposed.
-    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
+    # Model IDs follow Bedrock cross-region inference profile naming.
+    # The `BEDROCK_SONNET_MODEL` constant name is legacy; it now defaults
+    # to the Opus 4.6 profile used for editorial agents in this workshop.
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
     BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-7"
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
 
     # Legacy alias — kept for tests + scripts that still reference it.
     # New code should use BEDROCK_SONNET_MODEL / BEDROCK_HAIKU_MODEL /
     # BEDROCK_OPUS_MODEL directly so the per-agent choice is readable.
-    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-7"
+    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
     
     # ========================================
     # Application Configuration

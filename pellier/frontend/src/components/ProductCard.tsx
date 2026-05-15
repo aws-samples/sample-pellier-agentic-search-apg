@@ -315,9 +315,9 @@ export default function ProductCard({
           data-testid={`product-card-add-${product.id}`}
           onClick={() => onAddToBag?.(product)}
           className="
-            mt-1.5 w-full bg-transparent text-espresso border border-espresso
-            rounded-full py-2.5 px-3.5 text-[13px] tracking-[0.06em] cursor-pointer
-            font-sans transition-colors duration-fade ease-out
+            mt-1.5 w-full rounded-full bg-espresso text-cream-50 border border-espresso
+            py-2.5 px-3.5 text-[13px] tracking-[0.06em] cursor-pointer
+            font-sans font-medium transition-colors duration-fade ease-out
             hover:bg-dusk hover:text-cream-50 hover:border-dusk
             focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
           "

@@ -21,6 +21,7 @@ export default {
         'ink-soft': 'var(--ink-soft)',
         'ink-quiet': 'var(--ink-quiet)',
         'accent': 'var(--accent)',
+        'accent-ink': 'var(--accent-ink)',
         'dusk': 'var(--dusk)',
 
         // Theme-aware via CSS variables
@@ -61,6 +62,7 @@ export default {
         'ink-soft': 'var(--ink-soft)',
         'ink-quiet': 'var(--ink-quiet)',
         'accent': 'var(--accent)',
+        'accent-ink': 'var(--accent-ink)',
         'dusk': 'var(--dusk)',
         'warm': 'rgba(107, 74, 53, 0.08)',
       },
@@ -81,13 +83,9 @@ export default {
           '0 24px 48px rgba(107, 74, 53, 0.14), 0 8px 16px rgba(107, 74, 53, 0.08)',
       },
       fontFamily: {
-        // Default body sans — Inter is loaded globally for the storefront
-        // via ``body { font-family }`` in index.css. ``font-sans`` as a
-        // Tailwind utility mirrors that stack so opt-in calls are safe.
-        // /workshop scopes its own Instrument Sans stack via the
-        // ``.workshop-surface`` class — the storefront pairing is
-        // untouched.
+        // Mirror Daylight / bridge stacks (self-hosted in main.tsx).
         sans: [
+          '"Instrument Sans"',
           'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -96,11 +94,14 @@ export default {
           '"Helvetica Neue"',
           'sans-serif',
         ],
-        // Telemetry SQL + table monospace. Default browser mono (Menlo /
-        // Courier fallback) reads too thin in the /workshop trace panels;
-        // JetBrains Mono is the reference Coffee Roastery feel — crisp,
-        // ligature-friendly on the pgvector ``<=>`` operator, and
-        // legible at small sizes.
+        serif: [
+          '"Instrument Serif"',
+          '"Fraunces Variable"',
+          'Fraunces',
+          'Georgia',
+          'serif',
+        ],
+        // Telemetry SQL + table monospace — ligature-friendly.
         mono: [
           '"JetBrains Mono"',
           'ui-monospace',
@@ -112,8 +113,7 @@ export default {
           '"Courier New"',
           'monospace',
         ],
-        // Storefront display italic face. Used via ``font-display`` or
-        // inline ``fontFamily`` on product titles.
+        // Storefront display italic — editorial product / hero titles.
         display: ['Fraunces Variable', 'Fraunces', 'Georgia', 'serif'],
       },
       fontWeight: {

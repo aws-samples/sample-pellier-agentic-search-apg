@@ -38,6 +38,7 @@
   --ink-soft:   var(--dl-ink-2);
   --ink-quiet:  var(--dl-muted);
   --accent:     var(--dl-accent);
+  --accent-ink: var(--dl-accent-ink);
   --dusk:       var(--dl-ink);
 
   /* ---- Editorial chat palette (storefront chat + Atelier) ----- */
@@ -60,11 +61,7 @@
   --amber-soft: rgba(180, 83, 9, 0.12);
 
   /* ---- Type stacks --------------------------------------------- */
-  /* Daylight's editorial serif is Iowan Old Style (macOS-bundled)
-   * with Source Serif Pro and Georgia as fallbacks. Fraunces
-   * remains bundled via @fontsource so anywhere code explicitly
-   * names Fraunces still works; the default --serif now resolves
-   * to the Daylight stack everywhere else. */
+  /* --dl-font-* stacks are self-hosted (see main.tsx + daylight-tokens). */
   --serif: var(--dl-font-serif);
   --sans:  var(--dl-font-sans);
   --mono:  var(--dl-font-mono);

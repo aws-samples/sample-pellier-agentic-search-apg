@@ -20,6 +20,8 @@ Endpoints:
     GET  /performance          — metrics and benchmarks
     GET  /evaluations          — agent scorecards
     GET  /observatory          — dashboard summary
+    GET  /architecture         — system architecture diagram payload
+    GET  /build-state          — shipped vs exercise maps for agents and tools
     POST /skills/route         — Live skill router demo (Haiku 4.5 @ 0.0)
     GET  /policies             — Cedar policies for the Write-path surface
     GET  /tool-audit/recent    — Recent rows from public.tool_audit
@@ -513,6 +515,46 @@ async def get_observatory():
     except Exception as exc:
         logger.error("Failed to load observatory data: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to load observatory data")  # copy-allow: atelier-error-detail
+
+
+@router.get("/architecture")
+async def get_architecture():
+    """Return the architecture diagram payload for the Atelier Understand surface."""
+    try:
+        data = _load_fixture("architecture")
+        if data is None:
+            return {}
+        return data
+    except Exception as exc:
+        logger.error("Failed to load architecture: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to load architecture")  # copy-allow: atelier-error-detail
+
+
+@router.get("/build-state")
+async def get_build_state():
+    """Return shipped vs exercise status for every agent and tool (fixtures).
+
+    Shape matches ``BuildStateApiResponse`` in the frontend ``useBuildState`` hook.
+    """
+    try:
+        agents = _load_fixture("agents") or []
+        tools = _load_fixture("tools") or []
+        agent_map: dict[str, str] = {}
+        tool_map: dict[str, str] = {}
+        for agent in agents:
+            name = agent.get("name")
+            status = agent.get("status")
+            if isinstance(name, str) and isinstance(status, str):
+                agent_map[name] = status
+        for tool in tools:
+            fn = tool.get("functionName")
+            status = tool.get("status")
+            if isinstance(fn, str) and isinstance(status, str):
+                tool_map[fn] = status
+        return {"agents": agent_map, "tools": tool_map}
+    except Exception as exc:
+        logger.error("Failed to build build-state: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to load build state")  # copy-allow: atelier-error-detail
 
 
 class AtelierSkillRouteRequest(BaseModel):

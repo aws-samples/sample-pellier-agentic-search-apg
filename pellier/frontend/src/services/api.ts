@@ -21,7 +21,8 @@ import {
 } from './types'
 import { openSignInChooser } from '../utils/auth'
 
-const API_URL = import.meta.env.VITE_API_URL || ''
+const API_URL =
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ''
 
 /**
  * Extend Axios config with a retry flag. Set on the request before a

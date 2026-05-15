@@ -1,3 +1,4 @@
+import { cssVar as c } from '../../design/cssVars'
 /**
  * ProductMiniCard — view-only product card rendered inline in the
  * Atelier chat when the recommendation agent returns picks.
@@ -13,9 +14,6 @@
  * below.
  */
 
-const INK = '#2d1810'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
 
 export interface ProductMiniCardProps {
   name: string
@@ -49,14 +47,14 @@ export default function ProductMiniCard({
       <div className="px-[11px] py-[9px]">
         <div
           className="text-[11px] leading-[1.3] font-medium"
-          style={{ color: INK }}
+          style={{ color: c.ink }}
         >
           {name}
         </div>
         {price && (
           <div
             className="font-mono text-[11px] mt-1"
-            style={{ color: ACCENT }}
+            style={{ color: c.accent }}
           >
             {price}
           </div>
@@ -64,7 +62,7 @@ export default function ProductMiniCard({
         {attributes && (
           <div
             className="text-[9px] mt-1.5"
-            style={{ color: INK_QUIET, letterSpacing: '0.04em' }}
+            style={{ color: c.muted, letterSpacing: '0.04em' }}
           >
             {attributes}
           </div>

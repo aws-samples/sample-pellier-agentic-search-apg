@@ -12,21 +12,20 @@
 // Color tokens
 // ---------------------------------------------------------------------------
 
+/** Hex literals mirror `public/design-system/daylight/tokens.css` / bridge. */
 export const colors = {
-  cream: "#F7F3EE",
-  sand: "#E8DFD4",
-  espresso: "#3B2F2F",
+  cream: "#f7f3ec",
+  sand: "#f1ece1",
+  espresso: "#1f1410",
   olive: "#6B705C",
-  terracotta: "#C44536",
-  // Preserved existing palette
-  ink: "#2D1810",
-  inkSoft: "#6B4A35",
-  inkQuiet: "#A68668",
-  dusk: "#3D2518",
-  creamWarm: "#F5E8D3",
-  // Atelier dark surfaces
-  espressoDark: "#1F1410",
-  espressoMid: "#2A1E18",
+  terracotta: "#9a3412",
+  ink: "#1f1410",
+  inkSoft: "#3a3833",
+  inkQuiet: "#6b665d",
+  dusk: "#1f1410",
+  creamWarm: "#fbf8f2",
+  espressoDark: "#1f1410",
+  espressoMid: "#2a2724",
 } as const;
 
 // ---------------------------------------------------------------------------

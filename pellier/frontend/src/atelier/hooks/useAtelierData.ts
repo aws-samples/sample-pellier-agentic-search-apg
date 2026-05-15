@@ -51,6 +51,8 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
   skills: () => import('../fixtures/skills.json'),
   routing: () => import('../fixtures/routing.json'),
   'memory-marco': () => import('../fixtures/memory-marco.json'),
+  'memory-anna': () => import('../fixtures/memory-anna.json'),
+  'memory-theo': () => import('../fixtures/memory-theo.json'),
   performance: () => import('../fixtures/performance.json'),
   evaluations: () => import('../fixtures/evaluations.json'),
   observatory: () => import('../fixtures/observatory.json'),
@@ -63,7 +65,7 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
 const apiEndpoints: Record<string, string> = {
   sessions: '/api/atelier/sessions',
   agents: '/api/atelier/agents',
-  tools: '/api/atelier/tools',
+  tools: '/api/atelier/tools/list',
   routing: '/api/atelier/routing',
   performance: '/api/atelier/performance',
   evaluations: '/api/atelier/evaluations',

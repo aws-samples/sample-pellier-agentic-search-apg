@@ -45,7 +45,7 @@ const SkillsDetail: React.FC = () => {
         label: 'Current skill activation state. The SkillRouter evaluates each turn and activates skills based on persona context.',
         values: [
           { label: 'Skills available', value: '2' },
-          { label: 'Router model', value: 'Haiku 4.5' },
+          { label: 'Router model', value: 'Claude Haiku 4.5 (global.anthropic.claude-haiku-4-5-20251001-v1:0)' },
           { label: 'Active', value: 'None' },
         ],
       }}

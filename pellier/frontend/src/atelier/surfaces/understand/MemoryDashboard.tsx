@@ -10,12 +10,13 @@
  * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
   ExpCard,
   Eyebrow,
+  SurfaceFilterBar,
 } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { MemoryState, MemoryItem } from '../../types';
@@ -29,12 +30,16 @@ interface OrbitVisualizationProps {
   persona: string;
   stmItems: MemoryItem[];
   ltmItems: MemoryItem[];
+  selectedItemId: string | null;
+  onItemSelect: (item: MemoryItem) => void;
 }
 
 const OrbitVisualization: React.FC<OrbitVisualizationProps> = ({
   persona,
   stmItems,
   ltmItems,
+  selectedItemId,
+  onItemSelect,
 }) => {
   const cx = 300;
   const cy = 300;
@@ -123,15 +128,25 @@ const OrbitVisualization: React.FC<OrbitVisualizationProps> = ({
       {/* LTM dots + labels */}
       {ltmPositions.map((pos, i) => {
         const item = ltmItems[i];
+        const selected = selectedItemId === item.id;
         return (
-          <g key={`ltm-${item.id}`}>
+          <g
+            key={`ltm-${item.id}`}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onItemSelect(item)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onItemSelect(item);
+            }}
+          >
             <circle
               cx={pos.x}
               cy={pos.y}
-              r={6}
-              fill="var(--at-cream-2)"
-              stroke="var(--at-ink-1)"
-              strokeWidth="1.5"
+              r={selected ? 8 : 6}
+              fill={selected ? 'var(--at-green-soft)' : 'var(--at-cream-2)'}
+              stroke={selected ? 'var(--at-green-1)' : 'var(--at-ink-1)'}
+              strokeWidth={selected ? 2.5 : 1.5}
             />
             <text
               x={pos.x}
@@ -153,14 +168,26 @@ const OrbitVisualization: React.FC<OrbitVisualizationProps> = ({
       {/* STM dots + labels */}
       {stmPositions.map((pos, i) => {
         const item = stmItems[i];
+        const selected = selectedItemId === item.id;
         return (
-          <g key={`stm-${item.id}`}>
+          <g
+            key={`stm-${item.id}`}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onItemSelect(item)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onItemSelect(item);
+            }}
+          >
             <circle
               cx={pos.x}
               cy={pos.y}
-              r={5}
+              r={selected ? 7 : 5}
               fill="var(--at-red-1)"
-              opacity={0.85}
+              opacity={selected ? 1 : 0.85}
+              stroke={selected ? 'var(--at-cream-1)' : undefined}
+              strokeWidth={selected ? 2 : 0}
             />
             <text
               x={pos.x}
@@ -257,9 +284,17 @@ interface StmCardProps {
   turnCount: number;
   recentIntents: string[];
   items: MemoryItem[];
+  selectedItemId: string | null;
+  onItemSelect: (item: MemoryItem) => void;
 }
 
-const StmCard: React.FC<StmCardProps> = ({ turnCount, recentIntents, items }) => (
+const StmCard: React.FC<StmCardProps> = ({
+  turnCount,
+  recentIntents,
+  items,
+  selectedItemId,
+  onItemSelect,
+}) => (
   <ExpCard>
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
       <span
@@ -401,27 +436,35 @@ const StmCard: React.FC<StmCardProps> = ({ turnCount, recentIntents, items }) =>
           Fresh items
         </span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {items.map((item) => (
-            <span
-              key={item.id}
-              style={{
-                fontFamily: 'var(--at-mono)',
-                fontSize: '13px',
-                padding: '4px 10px',
-                background: 'var(--at-cream-2)',
-                border: '1px dashed var(--at-red-1)',
-                borderRadius: '100px',
-                color: 'var(--at-ink-2)',
-                letterSpacing: '0.02em',
-                maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap' as const,
-              }}
-            >
-              {item.content}
-            </span>
-          ))}
+          {items.map((item) => {
+            const selected = selectedItemId === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onItemSelect(item)}
+                style={{
+                  fontFamily: 'var(--at-mono)',
+                  fontSize: '13px',
+                  padding: '4px 10px',
+                  background: selected ? 'var(--at-red-soft)' : 'var(--at-cream-2)',
+                  border: selected
+                    ? '1px solid var(--at-red-1)'
+                    : '1px dashed var(--at-red-1)',
+                  borderRadius: '100px',
+                  color: 'var(--at-ink-2)',
+                  letterSpacing: '0.02em',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap' as const,
+                  cursor: 'pointer',
+                }}
+              >
+                {item.content}
+              </button>
+            );
+          })}
         </div>
       </div>
     )}
@@ -846,10 +889,31 @@ const EmptyState: React.FC = () => (
  * Main component
  * ----------------------------------------------------------------------- */
 
+type MemoryPersona = 'marco' | 'anna' | 'theo';
+
+const PERSONA_OPTIONS = [
+  { id: 'marco' as const, label: 'Marco' },
+  { id: 'anna' as const, label: 'Anna' },
+  { id: 'theo' as const, label: 'Theo' },
+];
+
 const MemoryDashboard: React.FC = () => {
+  const [persona, setPersona] = useState<MemoryPersona>('marco');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
   const { data, loading, error, refetch } = useAtelierData<MemoryState>({
-    key: 'memory-marco',
+    key: `memory-${persona}`,
   });
+
+  const personaCounts = {
+    marco: 1,
+    anna: 1,
+    theo: 1,
+  } as Record<MemoryPersona, number>;
+
+  const handleItemSelect = useCallback((item: MemoryItem) => {
+    setSelectedItemId((prev) => (prev === item.id ? null : item.id));
+  }, []);
 
   const hasData =
     data != null &&
@@ -874,6 +938,17 @@ const MemoryDashboard: React.FC = () => {
 
       {!loading && !error && hasData && data != null && (
         <>
+          <SurfaceFilterBar
+            label="Persona"
+            filter={persona}
+            counts={personaCounts}
+            options={PERSONA_OPTIONS}
+            onChange={(p) => {
+              setPersona(p);
+              setSelectedItemId(null);
+            }}
+          />
+
           {/* Orbit visualization */}
           <div style={{ marginBottom: '36px' }}>
             <ExpCard>
@@ -904,7 +979,19 @@ const MemoryDashboard: React.FC = () => {
                 persona={data.persona}
                 stmItems={data.stm.items}
                 ltmItems={data.ltm.items}
+                selectedItemId={selectedItemId}
+                onItemSelect={handleItemSelect}
               />
+              <p
+                style={{
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '12px',
+                  color: 'var(--at-ink-4)',
+                  marginTop: '10px',
+                }}
+              >
+                Click a dot on the orbit to highlight a memory item below.
+              </p>
             </ExpCard>
           </div>
 
@@ -920,6 +1007,8 @@ const MemoryDashboard: React.FC = () => {
               turnCount={data.stm.turnCount}
               recentIntents={data.stm.recentIntents}
               items={data.stm.items}
+              selectedItemId={selectedItemId}
+              onItemSelect={handleItemSelect}
             />
             <LtmCard
               preferences={data.ltm.preferences}

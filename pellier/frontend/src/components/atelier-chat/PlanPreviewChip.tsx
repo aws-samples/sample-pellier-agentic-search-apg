@@ -1,3 +1,4 @@
+import { cssVar as c } from '../../design/cssVars'
 /**
  * PlanPreviewChip — inline one-liner that previews the PLAN panel and
  * offers a "view trace" link that jumps the telemetry tab to the
@@ -7,9 +8,6 @@
  * in ink, terracotta "view trace ↗" link on the right.
  */
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const ACCENT = '#c44536'
 
 export interface PlanPreviewChipProps {
   stepCount: number
@@ -41,14 +39,14 @@ export default function PlanPreviewChip({
       >
         PLAN
       </span>
-      <span style={{ color: INK }}>{stepCount} steps</span>
-      <span style={{ color: INK_SOFT }}>· {chainLabel}</span>
+      <span style={{ color: c.ink }}>{stepCount} steps</span>
+      <span style={{ color: c.ink2 }}>· {chainLabel}</span>
       <button
         type="button"
         data-testid="plan-preview-view-trace"
         onClick={onViewTrace}
         className="ml-1 transition-opacity hover:opacity-75"
-        style={{ color: ACCENT }}
+        style={{ color: c.accent }}
       >
         view trace ↗
       </button>

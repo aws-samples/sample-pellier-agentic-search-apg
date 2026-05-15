@@ -13,8 +13,8 @@
  *       Group 2 Colors     -> 5 pill chips with gradient swatches.
  *       Group 3 Occasions  -> 6 pill chips.
  *       Group 4 Categories -> 6 pill chips.
- *   - Selected chip visual state: background #2d1810, color #fbf4e8,
- *     border-color #2d1810.
+ *   - Selected chip visual state: Daylight ink surface + paper foreground
+ *     (`var(--dl-ink)` / `var(--cream-warm)`).
  *   - Submit row: `Skip for now` secondary + `Save and see my storefront`
  *     primary.
  *   - Footer: `Preferences stored with AgentCore Memory` 10px mono with
@@ -50,22 +50,10 @@ import type {
   VibeTag,
 } from '../services/types'
 import { useAuth } from '../utils/auth'
+import { cssVar as c } from '../design/cssVars'
 
 // === CHALLENGE 9.4: START ===
-// --- Design tokens (storefront.md) ---------------------------------------
-const CREAM = '#fbf4e8'
-const CREAM_WARM = '#f5e8d3'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
-const DUSK = '#3d2518'
-
-// Selected chip tokens - these three hex values are asserted byte-for-byte
-// by PreferencesModal.test.tsx so changing them breaks the design contract.
-const SELECTED_BG = '#2d1810'
-const SELECTED_FG = '#fbf4e8'
-const SELECTED_BORDER = '#2d1810'
+// --- Design tokens → Daylight via `cssVars` / bridge --------------------
 
 const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -116,11 +104,16 @@ const CATEGORY_LABEL_TO_TAG: Record<string, CategoryTag> = {
 // Gradient swatch tokens for Group 2 (Colors). Each key matches the
 // `swatch` field in copy.ts PREFERENCES_MODAL.GROUPS[1].chips.
 const SWATCH_GRADIENTS: Record<string, string> = {
-  'terracotta-to-amber': 'linear-gradient(135deg, #c44536 0%, #d9a441 100%)',
-  'sand-to-ink-soft': 'linear-gradient(135deg, #e8d5b7 0%, #6b4a35 100%)',
-  'ink-soft-to-dusk': 'linear-gradient(135deg, #6b4a35 0%, #3d2518 100%)',
-  'cream-warm-to-cream': 'linear-gradient(135deg, #f5e8d3 0%, #fbf4e8 100%)',
-  'ink-to-near-black': 'linear-gradient(135deg, #2d1810 0%, #0f0806 100%)',
+  'terracotta-to-amber':
+    'linear-gradient(135deg, var(--dl-accent) 0%, var(--dl-warn) 100%)',
+  'sand-to-ink-soft':
+    'linear-gradient(135deg, var(--dl-paper-2) 0%, var(--dl-muted) 100%)',
+  'ink-soft-to-dusk':
+    'linear-gradient(135deg, var(--dl-muted) 0%, var(--dl-ink) 100%)',
+  'cream-warm-to-cream':
+    'linear-gradient(135deg, var(--cream-warm) 0%, var(--cream) 100%)',
+  'ink-to-near-black':
+    'linear-gradient(135deg, var(--dl-ink) 0%, color-mix(in srgb, var(--dl-ink) 65%, #000) 100%)',
 }
 
 // Index helpers — the GROUPS array in copy.ts is a four-entry tuple in a
@@ -158,17 +151,17 @@ function Chip({
     fontFamily: INTER_STACK,
   }
 
-  // Selected-state tokens are pinned (the test asserts them exactly).
+  // Selected state: Daylight ink + paper (resolved via cssVars).
   const selectedStyle = selected
     ? {
-        background: SELECTED_BG,
-        color: SELECTED_FG,
-        borderColor: SELECTED_BORDER,
+        background: c.surfaceInk,
+        color: c.onInkSurface,
+        borderColor: c.surfaceInk,
       }
     : {
-        background: CREAM,
-        color: INK,
-        borderColor: INK_QUIET,
+        background: c.bg,
+        color: c.ink,
+        borderColor: c.muted,
       }
 
   if (variant === 'card') {
@@ -197,7 +190,7 @@ function Chip({
           <span
             style={{
               fontSize: 11,
-              color: selected ? CREAM_WARM : INK_SOFT,
+              color: selected ? c.paper : c.ink2,
               letterSpacing: '0.02em',
             }}
           >
@@ -237,7 +230,7 @@ function Chip({
             height: 14,
             borderRadius: '50%',
             background: SWATCH_GRADIENTS[swatch],
-            border: `1px solid ${selected ? SELECTED_BG : INK_QUIET}`,
+            border: `1px solid ${selected ? c.surfaceInk : c.muted}`,
           }}
         />
       )}
@@ -379,13 +372,13 @@ export default function PreferencesModal() {
           maxWidth: 640,
           maxHeight: '90vh',
           overflowY: 'auto',
-          background: CREAM,
+          background: c.bg,
           borderRadius: 24,
           padding: '32px 32px 20px 32px',
           boxShadow:
             '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
           fontFamily: INTER_STACK,
-          color: INK,
+          color: c.ink,
         }}
       >
         {/* Header */}
@@ -408,8 +401,8 @@ export default function PreferencesModal() {
               width: 44,
               height: 44,
               borderRadius: '50%',
-              background: INK,
-              color: CREAM,
+              background: c.ink,
+              color: c.bg,
               fontFamily: FRAUNCES_STACK,
               fontStyle: 'italic',
               fontSize: 20,
@@ -426,7 +419,7 @@ export default function PreferencesModal() {
               fontFamily: FRAUNCES_STACK,
               fontSize: 24,
               fontWeight: 500,
-              color: INK,
+              color: c.ink,
               letterSpacing: '-0.01em',
             }}
           >
@@ -434,7 +427,7 @@ export default function PreferencesModal() {
           </h2>
           <p
             data-testid="prefs-modal-subheader"
-            style={{ margin: 0, fontSize: 13, color: INK_SOFT, lineHeight: 1.5 }}
+            style={{ margin: 0, fontSize: 13, color: c.ink2, lineHeight: 1.5 }}
           >
             {PREFERENCES_MODAL.SUBHEADER}
           </p>
@@ -457,7 +450,7 @@ export default function PreferencesModal() {
               fontFamily: FRAUNCES_STACK,
               fontStyle: 'italic',
               fontSize: 22,
-              color: INK,
+              color: c.ink,
               lineHeight: 1.3,
             }}
           >
@@ -465,7 +458,7 @@ export default function PreferencesModal() {
           </span>
           <span
             data-testid="prefs-modal-subheadline"
-            style={{ fontSize: 13, color: INK_SOFT }}
+            style={{ fontSize: 13, color: c.ink2 }}
           >
             {PREFERENCES_MODAL.SUBHEADLINE}
           </span>
@@ -488,7 +481,7 @@ export default function PreferencesModal() {
                   fontWeight: 600,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
-                  color: INK_SOFT,
+                  color: c.ink2,
                 }}
               >
                 {group.heading}
@@ -528,7 +521,7 @@ export default function PreferencesModal() {
             style={{
               marginTop: 14,
               fontSize: 12,
-              color: ACCENT,
+              color: c.accent,
               textAlign: 'center',
             }}
           >
@@ -554,7 +547,7 @@ export default function PreferencesModal() {
             style={{
               background: 'transparent',
               border: 'none',
-              color: INK_SOFT,
+              color: c.ink2,
               fontSize: 13,
               textDecoration: 'underline',
               textUnderlineOffset: 3,
@@ -571,8 +564,8 @@ export default function PreferencesModal() {
             onClick={handleSave}
             disabled={saving}
             style={{
-              background: INK,
-              color: CREAM,
+              background: c.ink,
+              color: c.bg,
               border: 'none',
               padding: '12px 20px',
               borderRadius: 9999,
@@ -584,10 +577,10 @@ export default function PreferencesModal() {
               opacity: saving ? 0.7 : 1,
             }}
             onMouseEnter={(e) => {
-              if (!saving) e.currentTarget.style.background = DUSK
+              if (!saving) e.currentTarget.style.background = c.accent
             }}
             onMouseLeave={(e) => {
-              if (!saving) e.currentTarget.style.background = INK
+              if (!saving) e.currentTarget.style.background = c.ink
             }}
           >
             {PREFERENCES_MODAL.SUBMIT}
@@ -600,12 +593,12 @@ export default function PreferencesModal() {
           style={{
             marginTop: 20,
             paddingTop: 14,
-            borderTop: `1px solid ${CREAM_WARM}`,
+            borderTop: `1px solid ${c.line}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            color: INK_QUIET,
+            color: c.muted,
             fontFamily: MONO_STACK,
             fontSize: 10,
             letterSpacing: '0.04em',

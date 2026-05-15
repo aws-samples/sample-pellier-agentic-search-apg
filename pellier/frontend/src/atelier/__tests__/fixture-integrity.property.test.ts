@@ -20,6 +20,8 @@ import rawAgents from '../fixtures/agents.json';
 import rawTools from '../fixtures/tools.json';
 import rawRouting from '../fixtures/routing.json';
 import rawMemoryMarco from '../fixtures/memory-marco.json';
+import rawMemoryAnna from '../fixtures/memory-anna.json';
+import rawMemoryTheo from '../fixtures/memory-theo.json';
 import rawPerformance from '../fixtures/performance.json';
 import rawEvaluations from '../fixtures/evaluations.json';
 import rawObservatory from '../fixtures/observatory.json';
@@ -27,7 +29,7 @@ import rawArchitecture from '../fixtures/architecture.json';
 
 /**
  * All fixture keys and their corresponding raw JSON data.
- * This is the complete set defined in the design document.
+ * This is the complete set covered by this property test (see guard test).
  */
 const fixtureEntries: [string, unknown][] = [
   ['sessions', rawSessions],
@@ -36,6 +38,8 @@ const fixtureEntries: [string, unknown][] = [
   ['tools', rawTools],
   ['routing', rawRouting],
   ['memory-marco', rawMemoryMarco],
+  ['memory-anna', rawMemoryAnna],
+  ['memory-theo', rawMemoryTheo],
   ['performance', rawPerformance],
   ['evaluations', rawEvaluations],
   ['observatory', rawObservatory],
@@ -65,7 +69,7 @@ describe('Property 4: Fixture data round-trip integrity', () => {
     },
   );
 
-  it('all 10 fixture keys are covered by this test', () => {
+  it('all 12 fixture keys are covered by this test', () => {
     // Guard: ensure we're testing the complete fixture set defined in
     // the design document, not a subset.
     const expectedKeys = [
@@ -75,6 +79,8 @@ describe('Property 4: Fixture data round-trip integrity', () => {
       'tools',
       'routing',
       'memory-marco',
+      'memory-anna',
+      'memory-theo',
       'performance',
       'evaluations',
       'observatory',
@@ -82,6 +88,6 @@ describe('Property 4: Fixture data round-trip integrity', () => {
     ];
     const testedKeys = fixtureEntries.map(([key]) => key);
     expect(testedKeys).toEqual(expectedKeys);
-    expect(testedKeys).toHaveLength(10);
+    expect(testedKeys).toHaveLength(12);
   });
 });

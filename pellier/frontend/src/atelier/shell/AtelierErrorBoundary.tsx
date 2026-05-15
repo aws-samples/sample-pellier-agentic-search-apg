@@ -63,15 +63,13 @@ class AtelierErrorBoundary extends React.Component<
           <Eyebrow label="Something went wrong" variant="burgundy" />
 
           <h1
+            className="font-display italic text-espresso"
             style={{
-              fontFamily: 'var(--at-serif)',
-              fontSize: '42px',
+              fontSize: 'clamp(36px, 4vw, 48px)',
               fontWeight: 400,
-              fontStyle: 'italic',
-              color: 'var(--at-ink-1)',
-              margin: '20px 0 16px',
               lineHeight: 1.15,
-              letterSpacing: '-0.02em',
+              margin: '20px 0 16px',
+              letterSpacing: '-0.015em',
             }}
           >
             The observatory hit a snag.

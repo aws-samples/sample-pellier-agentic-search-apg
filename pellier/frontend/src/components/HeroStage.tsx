@@ -231,8 +231,8 @@ export function IntentTicker({ intents, activeIndex, onSelect, onOpenDrawer }: I
             className={
               'shrink-0 border text-[11px] italic transition-colors ' +
               (selected
-                ? 'border-[#2d1810] bg-[#2d1810] not-italic text-[#fbf4e8]'
-                : 'border-[#6b4a35]/20 bg-[#fffaf0] text-[#6b4a35] hover:border-[#2d1810]')
+                ? 'border-ink bg-ink not-italic text-cream-warm'
+                : 'border-ink-quiet/20 bg-cream-warm text-ink-quiet hover:border-ink')
             }
             style={{
               fontFamily: 'Fraunces, Georgia, serif',

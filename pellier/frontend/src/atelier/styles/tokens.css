@@ -48,7 +48,7 @@
   --at-sidebar-bg: var(--at-espresso-1);
   --at-sidebar-active-bg: var(--at-espresso-2);
   --at-sidebar-text: rgba(250, 243, 232, 0.75);
-  --at-sidebar-text-active: #faf3e8;
+  --at-sidebar-text-active: var(--cream-warm);
   --at-sidebar-accent: var(--at-red-1);
   --at-sidebar-width: 300px;
 

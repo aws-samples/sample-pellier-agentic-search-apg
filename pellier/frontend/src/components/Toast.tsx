@@ -69,7 +69,7 @@ const Toast = ({ message, show, onClose, duration = 3000 }: ToastProps) => {
             setTimeout(onClose, 300)
           }}
           className="ml-1 p-1 rounded-md transition-colors duration-150"
-          style={{ color: '#a68668' }}
+          style={{ color: 'var(--ink-quiet)' }}
           aria-label="Dismiss"
         >
           <X className="h-3.5 w-3.5" />

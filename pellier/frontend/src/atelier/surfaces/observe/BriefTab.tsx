@@ -9,10 +9,10 @@
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Eyebrow, ExpCard } from '../../components';
-import { asset } from '../../../utils/assetPath';
+import { resolveProductImageUrl } from '../../../utils/resolveProductImageUrl';
 import type { SessionOutletContext } from './SessionView';
 import type { BriefSection, ProductCard } from '../../types';
 
@@ -274,59 +274,64 @@ const MemoryRow: React.FC<{ tier: string; content: string }> = ({
 );
 
 /** Product card for the brief products grid */
-const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => (
-  <div
-    style={{
-      background: 'var(--at-cream-2)',
-      border: '1px solid var(--at-rule-1)',
-      borderRadius: '10px',
-      overflow: 'hidden',
-    }}
-  >
-    {/* Product image */}
+const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = Boolean(product.imageUrl) && !imgFailed;
+
+  return (
     <div
       style={{
-        width: '100%',
-        height: '140px',
-        backgroundColor: 'var(--at-cream-2)',
-        borderBottom: '1px solid var(--at-rule-1)',
+        background: 'var(--at-cream-2)',
+        border: '1px solid var(--at-rule-1)',
+        borderRadius: '10px',
         overflow: 'hidden',
       }}
     >
-      {product.imageUrl ? (
-        <img
-          src={asset(product.imageUrl)}
-          alt={product.name}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span
+      {/* Product image */}
+      <div
+        style={{
+          width: '100%',
+          height: '140px',
+          backgroundColor: 'var(--at-cream-2)',
+          borderBottom: '1px solid var(--at-rule-1)',
+          overflow: 'hidden',
+        }}
+      >
+        {showImage ? (
+          <img
+            src={resolveProductImageUrl(product.imageUrl)}
+            alt={product.name}
+            onError={() => setImgFailed(true)}
             style={{
-              fontFamily: 'var(--at-mono)',
-              fontSize: '12px',
-              color: 'var(--at-ink-4)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {product.brand}
-          </span>
-        </div>
-      )}
-    </div>
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '12px',
+                color: 'var(--at-ink-4)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              {product.brand}
+            </span>
+          </div>
+        )}
+      </div>
 
     {/* Card content */}
     <div style={{ padding: '12px' }}>
@@ -358,7 +363,8 @@ const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => (
       {product.traceRef && <TracePill label={product.traceRef} />}
     </div>
   </div>
-);
+  );
+};
 
 /* =======================================================================
  * Editorial section renderer

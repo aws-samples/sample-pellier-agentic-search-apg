@@ -17,6 +17,28 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /**
+   * Circular “P” — Fraunces (same `font-display` stack as footer wordmark)
+   * so the chip matches the fuller weight next to “Pellier”.
+   */
+  .pellier-logo-chip {
+    box-sizing: border-box;
+    font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-style: normal;
+    font-size: 15px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+}
+
 @layer base {
   * {
     margin: 0;
@@ -81,7 +103,7 @@
 
   body {
     @apply antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    font-family: var(--sans);
     line-height: 1.6;
     overflow-x: hidden;
     background-color: var(--bg-primary);
@@ -121,34 +143,21 @@
   pre,
   samp,
   .font-mono {
-    font-family:
-      'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      'Liberation Mono', 'Courier New', monospace;
+    font-family: var(--mono);
     font-feature-settings: 'calt' 1, 'liga' 1;
     font-variant-ligatures: contextual common-ligatures;
   }
 
-  /* /workshop ("Atelier") font stack — scoped to the telemetry route
-     so the storefront's Fraunces + Inter pairing stays unchanged.
-     Applied on WorkshopPage's root via className.
-
-     Display serif is Iowan Old Style (ships with every macOS install,
-     also rendered by iOS's "Charter" when Iowan is missing) with
-     Georgia as the universal fallback on Windows/Linux. This reads
-     more "magazine" — slightly more condensed, higher contrast —
-     than Instrument Serif and requires no web-font load. Italic is
-     applied at the usage site so we can do both roman small-caps
-     kickers and italic display titles with the same stack. */
+  /* /workshop ("Atelier") font stack — scoped to the telemetry route.
+     Stacks match Daylight tokens (--dl-font-*) via the bridge. */
   .workshop-surface {
-    font-family:
-      'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-      'Helvetica Neue', sans-serif;
+    font-family: var(--sans);
   }
   .workshop-surface h1,
   .workshop-surface h2,
   .workshop-surface h3,
   .workshop-surface .workshop-display {
-    font-family: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    font-family: var(--serif);
     font-weight: 400;
   }
 
@@ -921,28 +930,29 @@
   }
 }
 
-/* RAG Demo — markdown formatting */
+/* RAG Demo — markdown on warm paper (Daylight tokens) */
 .rag-markdown h1 {
   font-size: 1.15rem;
   font-weight: 700;
   margin: 0.75rem 0 0.5rem;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--dl-ink);
 }
 .rag-markdown h2 {
   font-size: 1rem;
   font-weight: 600;
   margin: 0.75rem 0 0.35rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--dl-ink);
 }
 .rag-markdown h3 {
   font-size: 0.875rem;
   font-weight: 600;
   margin: 0.5rem 0 0.25rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--dl-ink-2);
 }
 .rag-markdown p {
   margin: 0.35rem 0;
   line-height: 1.6;
+  color: var(--dl-ink-2);
 }
 .rag-markdown ul,
 .rag-markdown ol {
@@ -951,14 +961,15 @@
 .rag-markdown li {
   margin: 0.2rem 0;
   line-height: 1.5;
+  color: var(--dl-ink-2);
 }
 .rag-markdown strong {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--dl-ink);
 }
 .rag-markdown hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--dl-line);
   margin: 0.75rem 0;
 }
 .rag-markdown table {
@@ -970,31 +981,39 @@
 .rag-markdown th {
   text-align: left;
   padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid var(--dl-line-strong);
+  color: var(--dl-muted);
   font-weight: 600;
 }
 .rag-markdown td {
   padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--dl-line);
+  color: var(--dl-ink-2);
 }
 .rag-markdown code {
-  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--dl-font-mono);
+  background: var(--dl-paper-2);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
   font-size: 0.8em;
+  color: var(--dl-ink-2);
 }
 .rag-markdown pre {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  padding: 0.75rem;
+  font-family: var(--dl-font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: var(--dl-ink);
+  color: var(--dl-accent-soft);
+  border-radius: var(--dl-r-lg);
+  padding: var(--dl-s-5);
   overflow-x: auto;
   margin: 0.5rem 0;
 }
 .rag-markdown pre code {
   background: none;
   padding: 0;
+  color: inherit;
+  font-size: inherit;
 }
 
 /* ========================================================================
@@ -1010,11 +1029,11 @@
 .shimmer-text {
   background: linear-gradient(
     90deg,
-    rgba(31, 20, 16, 0.55) 0%,
-    rgba(31, 20, 16, 0.55) 30%,
-    rgba(168, 66, 58, 0.95) 50%,
-    rgba(31, 20, 16, 0.55) 70%,
-    rgba(31, 20, 16, 0.55) 100%
+    rgba(31, 29, 26, 0.55) 0%,
+    rgba(31, 29, 26, 0.55) 30%,
+    rgba(154, 52, 18, 0.95) 50%,
+    rgba(31, 29, 26, 0.55) 70%,
+    rgba(31, 29, 26, 0.55) 100%
   );
   background-size: 200% 100%;
   -webkit-background-clip: text;

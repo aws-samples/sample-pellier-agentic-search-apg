@@ -153,17 +153,16 @@ describe('StatusDot', () => {
 // Eyebrow
 // ---------------------------------------------------------------------------
 describe('Eyebrow', () => {
-  it('renders monospace uppercase label with burgundy dot', () => {
+  it('renders uppercase label with burgundy dot and eyebrow typography', () => {
     render(<Eyebrow label="SESSIONS" />);
 
     const eyebrow = screen.getByText('SESSIONS');
     expect(eyebrow).toBeTruthy();
 
-    // Verify monospace font and uppercase transform
     expect(eyebrow.style.fontFamily).toBe('var(--at-mono)');
     expect(eyebrow.style.textTransform).toBe('uppercase');
     expect(eyebrow.style.letterSpacing).toBe('var(--at-eyebrow-tracking)');
-    expect(eyebrow.style.fontSize).toBe('var(--at-eyebrow-size)');
+    expect(eyebrow.style.fontSize).toBe('var(--dl-fs-small)');
   });
 
   it('renders a burgundy dot before the label (default variant)', () => {

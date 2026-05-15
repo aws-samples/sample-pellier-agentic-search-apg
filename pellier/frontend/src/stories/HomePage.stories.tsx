@@ -25,8 +25,8 @@ import LiveStatusStrip from '../components/LiveStatusStrip'
 import ProductGrid from '../components/ProductGrid'
 import RefinementPanel from '../components/RefinementPanel'
 import StoryboardTeaser from '../components/StoryboardTeaser'
+import { cssVar as c } from '../design/cssVars'
 
-const CREAM = '#fbf4e8'
 
 /**
  * Minimal home-page composition matching the design's Frontend
@@ -36,7 +36,7 @@ const CREAM = '#fbf4e8'
  */
 function HomePageComposition() {
   return (
-    <div style={{ minHeight: '100vh', background: CREAM }}>
+    <div style={{ minHeight: '100vh', background: c.bg }}>
       <AnnouncementBar />
       <Header current="home" />
       <main>

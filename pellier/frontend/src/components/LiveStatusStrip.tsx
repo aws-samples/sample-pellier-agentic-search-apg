@@ -10,6 +10,7 @@
  * it. The stale warning is gone; the strip is now pure decoration
  * and free of a network round-trip.
  */
+import { cssVar as c } from '../design/cssVars'
 import {
   LIVE_STATUS,
   SHIPPING,
@@ -18,10 +19,6 @@ import {
 } from '../copy'
 
 // --- Design tokens (storefront.md) --------------------------------------
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const ACCENT = '#c44536'
 
 // Kept as exported constants so any future consumer that wants to
 // re-introduce the live-signal fetch has the same contract to hit.
@@ -39,8 +36,8 @@ export default function LiveStatusStrip() {
       aria-label="Live inventory status"
       className="w-full border-y"
       style={{
-        background: CREAM,
-        color: INK,
+        background: c.bg,
+        color: c.ink,
         borderColor: 'rgba(45, 24, 16, 0.08)',
         padding: '10px 24px',
       }}
@@ -52,8 +49,8 @@ export default function LiveStatusStrip() {
             aria-hidden="true"
             className="inline-block h-2 w-2 rounded-full"
             style={{
-              background: ACCENT,
-              boxShadow: `0 0 0 0 ${ACCENT}`,
+              background: c.accent,
+              boxShadow: `0 0 0 0 ${c.accent}`,
               animation: 'pulse-glow 2s infinite',
             }}
           />
@@ -62,7 +59,7 @@ export default function LiveStatusStrip() {
             style={{
               fontSize: '12px',
               letterSpacing: '0.04em',
-              color: INK_SOFT,
+              color: c.ink2,
             }}
           >
             {LIVE_STATUS}
@@ -72,25 +69,25 @@ export default function LiveStatusStrip() {
           className="flex items-center gap-4"
           style={{
             fontSize: '12px',
-            color: INK_SOFT,
+            color: c.ink2,
             letterSpacing: '0.04em',
           }}
         >
           <span
             data-testid="live-status-shipping"
-            style={{ color: INK_SOFT }}
+            style={{ color: c.ink2 }}
           >
             {SHIPPING}
           </span>
           <span
             data-testid="live-status-returns"
-            style={{ color: INK_SOFT }}
+            style={{ color: c.ink2 }}
           >
             {RETURNS}
           </span>
           <span
             data-testid="live-status-secure"
-            style={{ color: INK_SOFT }}
+            style={{ color: c.ink2 }}
           >
             {SECURE_CHECKOUT}
           </span>

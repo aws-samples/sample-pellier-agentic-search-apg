@@ -1,3 +1,4 @@
+import { cssVar as c } from '../design/cssVars'
 /**
  * MetricsRow — four live metric cards above the chat/tabs split.
  *
@@ -19,9 +20,6 @@
  * Skills story gets a live dashboard number.
  */
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 
 export interface MetricsRowProps {
   /** Loaded-skill count from the latest skill routing decision. */
@@ -104,14 +102,14 @@ function MetricCard({ id, label, sublabel, value, unit, emptyValue }: MetricCard
     >
       <div
         className="font-mono text-[10px] uppercase mb-1.5"
-        style={{ color: INK_QUIET, letterSpacing: '0.16em' }}
+        style={{ color: c.muted, letterSpacing: '0.16em' }}
       >
         {label}
       </div>
       <div
         className="text-[26px] leading-[1]"
         style={{
-          color: INK,
+          color: c.ink,
           fontFamily: "'Iowan Old Style', Georgia, 'Times New Roman', serif",
           fontStyle: 'italic',
           fontWeight: 400,
@@ -121,13 +119,13 @@ function MetricCard({ id, label, sublabel, value, unit, emptyValue }: MetricCard
         {unit && (
           <span
             className="text-[14px] ml-0.5 font-sans"
-            style={{ color: INK_QUIET, fontStyle: 'normal' }}
+            style={{ color: c.muted, fontStyle: 'normal' }}
           >
             {unit}
           </span>
         )}
       </div>
-      <div className="text-[11px] mt-1" style={{ color: INK_SOFT }}>
+      <div className="text-[11px] mt-1" style={{ color: c.ink2 }}>
         {sublabel}
       </div>
     </div>

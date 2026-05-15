@@ -50,44 +50,48 @@ export default function MemoryHandoffCard() {
       <div className="max-w-[1100px] mx-auto px-container-x py-10 md:py-12">
         <div
           data-testid="memory-handoff-card"
-          className="grid items-center gap-6 md:gap-8"
+          className="grid items-start gap-6 md:gap-8 shadow-warm-sm"
           style={{
             gridTemplateColumns: 'auto 1fr auto',
-            background: '#fff8eb',
-            border: '1px solid rgba(168,66,58,0.18)',
+            background: 'color-mix(in srgb, var(--cream-warm) 65%, #ffffff)',
+            border: '1px solid color-mix(in srgb, var(--accent) 18%, var(--rule-1))',
             borderRadius: 18,
             padding: '28px 32px',
-            boxShadow: '0 8px 24px rgba(107,74,53,0.08)',
           }}
         >
-          {/* Persona-keyed glyph — espresso disc with italic Fraunces "P" */}
+          {/* Persona-keyed glyph — espresso disc + cream "P" (matches header wordmark). */}
           <div
             aria-hidden="true"
             style={{
               width: 54,
               height: 54,
               borderRadius: 999,
-              background: '#3b2f2f',
-              color: '#faf3e8',
+              background: 'var(--ink)',
+              color: 'var(--cream-warm)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: "'Fraunces', Georgia, serif",
-              fontStyle: 'italic',
-              fontSize: 24,
-              fontWeight: 500,
+              fontFamily: 'var(--sans)',
+              fontStyle: 'normal',
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
               flexShrink: 0,
             }}
           >
             P
           </div>
 
-          {/* Body — eyebrow, italic title, tool-tagged memory list */}
+          {/* Body — mono eyebrow, serif title, tool row + prose row */}
           <div className="min-w-0">
             <p
               data-testid="memory-handoff-eyebrow"
-              className="text-[11px] font-sans font-semibold tracking-[0.22em] uppercase mb-2"
-              style={{ color: '#a8423a' }}
+              className="font-mono font-semibold uppercase mb-2"
+              style={{
+                fontSize: 'var(--dl-fs-eyebrow)',
+                letterSpacing: '0.12em',
+                color: 'var(--accent)',
+              }}
             >
               {content.eyebrow}
             </p>
@@ -96,47 +100,49 @@ export default function MemoryHandoffCard() {
               className="font-display italic text-espresso"
               style={{
                 fontSize: 'clamp(20px, 2vw, 26px)',
-                lineHeight: 1.25,
+                lineHeight: 1.3,
                 fontWeight: 400,
-                margin: '0 0 12px',
+                letterSpacing: '-0.02em',
+                margin: '0 0 14px',
               }}
             >
               {content.title}
             </h3>
             <ul
               data-testid="memory-handoff-list"
-              className="flex flex-wrap gap-2.5 m-0 p-0 list-none mb-3"
+              className="m-0 mb-4 list-none divide-y divide-warm p-0"
             >
               {content.items.map((item) => (
                 <li
                   key={item.tool}
-                  className="inline-flex items-center gap-2"
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 999,
-                    background: '#faf3e8',
-                    border: '1px solid rgba(31,20,16,0.1)',
-                    fontFamily: 'var(--sans)',
-                    fontSize: 13,
-                    color: '#1f1410',
-                  }}
+                  className="flex flex-wrap items-start gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0"
                 >
-                  {/* Trace pill — clickable, deep-links to the Atelier
-                      route that explains this tool. Shoppers who want
-                      to see how memory works can click straight in. */}
+                  {/* Trace pill — deep-links to the Atelier explainer */}
                   <TraceChip tool={item.tool} linkToAtelier compact />
-                  <span>{item.text}</span>
+                  <p
+                    className="m-0 min-w-0 flex-1 font-sans text-ink-soft"
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.55,
+                      letterSpacing: '-0.01em',
+                      fontWeight: 400,
+                    }}
+                  >
+                    {item.text}
+                  </p>
                 </li>
               ))}
             </ul>
             {/* Atelier handoff — for an attendee curious how durable
                 memory actually works under the hood, this drops them on
                 the Memory orbit explainer in one click. */}
-            <SurfaceCrossLink
-              direction="to-atelier"
-              href="/atelier/memory"
-              label="See how the agent's memory works"
-            />
+            <div className="mt-1">
+              <SurfaceCrossLink
+                direction="to-atelier"
+                href="/atelier/memory"
+                label="See how the agent's memory works"
+              />
+            </div>
           </div>
 
           {/* CTA — opens the drawer with a persona-tailored resume query.
@@ -146,18 +152,22 @@ export default function MemoryHandoffCard() {
             type="button"
             data-testid="memory-handoff-cta"
             onClick={handleCta}
-            className="rounded-full font-sans font-medium transition-colors duration-fade hover:bg-dusk cursor-pointer"
+            className="rounded-full font-sans font-medium tracking-wide transition-colors duration-fade hover:opacity-95 cursor-pointer"
             style={{
-              background: '#3b2f2f',
-              color: '#faf3e8',
+              background: 'var(--ink)',
+              color: 'var(--cream-warm)',
               padding: '14px 22px',
               fontSize: 14,
+              letterSpacing: '0.04em',
               border: 0,
               whiteSpace: 'nowrap',
               alignSelf: isFresh ? 'flex-end' : 'center',
             }}
           >
-            {ctaLabel} →
+            {ctaLabel}
+            <span aria-hidden="true" style={{ marginLeft: 6 }}>
+              →
+            </span>
           </button>
         </div>
       </div>

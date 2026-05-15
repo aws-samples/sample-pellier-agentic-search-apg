@@ -136,31 +136,19 @@ const Sidebar: React.FC = () => {
         }}
       >
         <div
+          className="pellier-logo-chip"
           style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            background: 'var(--at-cream-1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
-            fontSize: '17px',
-            fontWeight: 400,
-            color: 'var(--at-ink-1)',
-            flexShrink: 0,
+            background: 'var(--at-espresso-2)',
+            color: 'var(--at-sidebar-text-active)',
+            boxShadow: 'inset 0 0 0 1px rgba(251, 248, 242, 0.12)',
           }}
         >
-          {/* Pellier wordmark glyph (was "B" during the Blaize era —
-              renamed when the storefront rebranded to Pellier). */}
+          {/* Pellier wordmark glyph — matches Boutique footer / header circular P */}
           P
         </div>
         <span
+          className="font-display text-xl font-medium tracking-tight"
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontSize: '17px',
-            fontWeight: 400,
             color: 'var(--at-sidebar-text-active)',
           }}
         >

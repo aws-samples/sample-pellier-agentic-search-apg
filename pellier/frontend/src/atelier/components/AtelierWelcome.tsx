@@ -3,7 +3,7 @@
  *
  * Sits above the Sessions list on first load. Three pieces:
  *   1. Burgundy dot + eyebrow ("Welcome to the Atelier")
- *   2. Fraunces italic headline + one-sentence editorial summary
+ *   2. Display italic headline (Fraunces stack, matches Boutique hero) +
  *   3. Three "cheat sheet" cards explaining the three verbs:
  *      Observe, Understand, Evaluate
  *
@@ -54,14 +54,12 @@ const PillarCard: React.FC<PillarCardProps> = ({ verb, title, description }) => 
       {verb}
     </div>
     <div
+      className="font-display italic text-espresso"
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '20px',
+        fontSize: 'clamp(18px, 1.8vw, 22px)',
         fontWeight: 400,
-        letterSpacing: '-0.01em',
-        color: 'var(--at-ink-1)',
-        lineHeight: 1.15,
+        letterSpacing: '-0.015em',
+        lineHeight: 1.2,
       }}
     >
       {title}
@@ -175,17 +173,14 @@ export const AtelierWelcome: React.FC = () => {
 
       {/* Headline */}
       <h1
-        className="font-display italic"
+        className="font-display italic text-espresso"
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
-          fontSize: 'clamp(32px, 4vw, 48px)',
+          fontSize: 'clamp(44px, 6vw, 76px)',
           fontWeight: 400,
-          lineHeight: 1.08,
-          letterSpacing: '-0.02em',
-          color: 'var(--at-ink-1)',
+          lineHeight: 1.05,
+          letterSpacing: '-0.015em',
           margin: '0 0 14px',
-          maxWidth: '760px',
+          maxWidth: '900px',
         }}
       >
         The operator's side of the boutique.

@@ -30,12 +30,8 @@ import {
   SIGN_IN_STRIP,
 } from '../copy'
 import ComingSoonLine from './ComingSoonLine'
+import { cssVar as c } from '../design/cssVars'
 
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const ACCENT = '#c44536'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 const INTER_STACK = 'Inter, system-ui, sans-serif'
 
@@ -46,8 +42,8 @@ function DiscoverSigninPrompt() {
     <section
       data-testid="discover-signin-prompt"
       style={{
-        background: CREAM,
-        color: INK,
+        background: c.bg,
+        color: c.ink,
         padding: '120px 24px',
         textAlign: 'center',
       }}
@@ -60,7 +56,7 @@ function DiscoverSigninPrompt() {
             fontSize: 11,
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
-            color: INK_QUIET,
+            color: c.muted,
             margin: 0,
           }}
         >
@@ -74,7 +70,7 @@ function DiscoverSigninPrompt() {
             fontWeight: 400,
             fontSize: 28,
             lineHeight: 1.3,
-            color: INK,
+            color: c.ink,
             margin: '16px 0 0',
           }}
         >
@@ -87,8 +83,8 @@ function DiscoverSigninPrompt() {
           style={{
             marginTop: 32,
             padding: '14px 28px',
-            background: INK,
-            color: CREAM,
+            background: c.ink,
+            color: c.bg,
             border: 'none',
             borderRadius: 9999,
             fontFamily: INTER_STACK,
@@ -99,10 +95,10 @@ function DiscoverSigninPrompt() {
             transition: 'background 180ms ease-out',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = ACCENT
+            e.currentTarget.style.background = c.accent
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = INK
+            e.currentTarget.style.background = c.ink
           }}
         >
           {SIGN_IN_STRIP.CTA}
@@ -111,7 +107,7 @@ function DiscoverSigninPrompt() {
           style={{
             fontFamily: INTER_STACK,
             fontSize: 13,
-            color: INK_SOFT,
+            color: c.ink2,
             marginTop: 16,
           }}
         >
@@ -155,7 +151,7 @@ export default function DiscoverPage() {
       data-testid="discover-page"
       style={{
         minHeight: '100vh',
-        background: CREAM,
+        background: c.bg,
       }}
     >
       <Header current="discover" onNavigate={handleNavigate} />

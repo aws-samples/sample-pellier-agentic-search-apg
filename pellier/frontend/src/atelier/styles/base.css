@@ -67,7 +67,9 @@
 .atelier-root h6 {
   margin: 0;
   font-weight: 400;
-  font-family: var(--at-serif);
+  /* Do not set font-family here — it overrides Tailwind `font-display`
+     (Fraunces / boutique hero headline stack) on EditorialTitle and
+     other headings. Unstyled headings inherit --at-sans from .atelier-root. */
   color: var(--at-ink-1);
 }
 
@@ -100,13 +102,18 @@
   font-feature-settings: 'calt' 1, 'liga' 1;
 }
 
+/* Match Daylight `.dl-code-block` (daylight-components.css) — dark ink
+ * canvas + accent-soft default text so Atelier telemetry SQL matches
+ * Architecture / Markdown surfaces that already use `.dl-code-block`. */
 .atelier-root pre {
-  background: var(--at-cream-2);
-  border: 1px solid var(--at-rule-1);
-  border-radius: 8px;
-  padding: 14px 16px;
-  font-size: var(--at-mono-size);
-  line-height: var(--at-mono-leading);
+  font-family: var(--at-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--dl-ink);
+  color: var(--dl-accent-soft);
+  border-radius: var(--dl-r-lg);
+  padding: var(--dl-s-5);
+  border: none;
   overflow-x: auto;
   white-space: pre;
 }
@@ -228,5 +235,30 @@
   .atelier-root .at-pulse-live {
     animation: none;
     opacity: 1;
+  }
+}
+
+/* Telemetry timeline — "Trace this pick" pulse (matches workshop panel-flash) */
+.atelier-root [data-telemetry-panel][data-flash='true'] {
+  animation: at-telemetry-panel-flash 800ms ease-out;
+}
+@keyframes at-telemetry-panel-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(154, 52, 18, 0);
+    border-color: var(--at-rule-1);
+  }
+  30% {
+    box-shadow: 0 0 0 6px rgba(154, 52, 18, 0.28);
+    border-color: var(--at-red-1);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(31, 20, 16, 0.06);
+    border-color: var(--at-rule-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atelier-root [data-telemetry-panel][data-flash='true'] {
+    animation: none;
+    border-color: var(--at-red-1);
   }
 }

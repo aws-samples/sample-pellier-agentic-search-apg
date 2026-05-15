@@ -24,6 +24,7 @@ import {
 import { useVoiceSearch } from '../hooks/useVoiceSearch'
 import { PresencePill } from '../shared'
 import { asset } from '../utils/assetPath'
+import { splitHeadlineAtRe } from '../utils/headlineAccent'
 
 // Per-persona hero images (landscape, in public/products/).
 // Falls back to the fresh hero for unknown personas.
@@ -99,6 +100,8 @@ export default function BoutiqueHero() {
     [openDrawerWithQuery],
   )
 
+  const heroHeadline = splitHeadlineAtRe('Search, re:Engineered.')
+
   return (
     <>
     <section
@@ -125,10 +128,9 @@ export default function BoutiqueHero() {
             className="w-full max-w-4xl py-12 md:py-0
                        flex flex-col items-center text-center"
           >
-            {/* Presence pill — "Pellier · listening" with a breathing dot.
-                Imported from `shared/` so the same atom appears on the
-                Atelier TopBar — attendees crossing surfaces see the
-                same agent signature on both. */}
+            {/* Presence — discreet concierge cue (breathing dot + label).
+                Shared atom with Atelier TopBar; session tail only when a
+                persona is signed in. */}
             <div data-testid="boutique-hero-presence" className="mb-5">
               <PresencePill surface="boutique" personaId={persona?.id} />
             </div>
@@ -140,18 +142,18 @@ export default function BoutiqueHero() {
               data-testid="boutique-hero-eyebrow"
               className="flex items-center gap-3 mb-5 text-[13px] font-sans font-semibold tracking-[0.22em] uppercase text-espresso"
             >
-              <span aria-hidden="true" style={{ color: '#a8423a', fontSize: '9px' }}>&#9679;</span>
+              <span aria-hidden="true" className="text-accent" style={{ fontSize: '9px' }}>&#9679;</span>
               <span>Summer Edit</span>
-              <span aria-hidden="true" style={{ color: '#a8423a', fontSize: '5px' }}>&#9679;</span>
+              <span aria-hidden="true" className="text-accent" style={{ fontSize: '5px' }}>&#9679;</span>
               <span>No. 06</span>
-              <span aria-hidden="true" style={{ color: '#a8423a', fontSize: '9px' }}>&#9679;</span>
+              <span aria-hidden="true" className="text-accent" style={{ fontSize: '9px' }}>&#9679;</span>
             </div>
 
             {/* Headline — same Fraunces italic treatment as
                 WeekendEditorial, but sized up for hero prominence. */}
             <h1
               data-testid="boutique-hero-headline"
-              className="whitespace-nowrap font-display italic text-espresso"
+              className="whitespace-nowrap font-display italic"
               style={{
                 fontSize: 'clamp(44px, 6vw, 76px)',
                 lineHeight: 1.05,
@@ -159,7 +161,14 @@ export default function BoutiqueHero() {
                 fontWeight: 400,
               }}
             >
-              Search, re:Engineered.
+              {heroHeadline.tail ? (
+                <>
+                  <span className="text-espresso">{heroHeadline.lead}</span>
+                  <span className="text-accent-ink">{heroHeadline.tail}</span>
+                </>
+              ) : (
+                <span className="text-espresso">{heroHeadline.lead}</span>
+              )}
             </h1>
 
             {/* Subheadline — same Inter sans / ink-soft treatment as
@@ -189,8 +198,7 @@ export default function BoutiqueHero() {
                     against the cream input. z-10 keeps it above the
                     input's own focus ring on click. */}
                 <span
-                  className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none z-10"
-                  style={{ color: '#a8423a' }}
+                  className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none z-10 text-accent"
                   aria-hidden="true"
                 >
                   <Sparkles size={22} strokeWidth={2} />
@@ -261,12 +269,12 @@ export default function BoutiqueHero() {
                   style={{
                     width: '50px',
                     height: '50px',
-                    background: isListening ? '#a8423a' : '#1f1410',
-                    color: '#faf3e8',
+                    background: isListening ? 'var(--accent)' : '#1f1410',
+                    color: 'var(--cream-warm)',
                     cursor: 'pointer',
                     // Pulsing ring when listening
                     boxShadow: isListening
-                      ? '0 0 0 4px rgba(168, 66, 58, 0.3), 0 0 0 8px rgba(168, 66, 58, 0.15)'
+                      ? '0 0 0 4px rgba(154, 52, 18, 0.3), 0 0 0 8px rgba(154, 52, 18, 0.15)'
                       : 'none',
                     animation: isListening ? 'pulse 1.5s ease-in-out infinite' : 'none',
                   }}
@@ -337,7 +345,7 @@ export default function BoutiqueHero() {
                     lineHeight: 1.35,
                     color: '#1f1410',
                     padding: '12px 20px',
-                    background: '#faf3e8',
+                    background: 'var(--cream-warm)',
                     width: '185px',
                     minHeight: '58px',
                     display: 'flex',
@@ -414,7 +422,7 @@ export default function BoutiqueHero() {
                         gap: 10,
                         padding: '10px 16px',
                         borderRadius: 999,
-                        border: '1px dashed rgba(168,66,58,0.35)',
+                        border: '1px dashed rgba(154, 52, 18, 0.35)',
                         background: 'rgba(255,250,240,0.78)',
                         fontFamily: "'Fraunces', Georgia, serif",
                         fontStyle: 'italic',
@@ -431,7 +439,7 @@ export default function BoutiqueHero() {
                           fontWeight: 600,
                           letterSpacing: '0.22em',
                           textTransform: 'uppercase',
-                          color: '#a8423a',
+                          color: 'var(--accent)',
                         }}
                       >
                         {BECAUSE_KIND_LABEL[chip.kind]}
@@ -457,7 +465,7 @@ export default function BoutiqueHero() {
     <div
       data-testid="boutique-hero-trust"
       className="w-full border-b border-sand/40"
-      style={{ background: '#faf3e8' }}
+      style={{ background: 'var(--cream-warm)' }}
     >
       <div
         className="max-w-[1200px] mx-auto px-6 py-5 flex flex-wrap justify-center items-center gap-x-3 gap-y-2"
@@ -480,7 +488,7 @@ export default function BoutiqueHero() {
                 aria-hidden="true"
                 style={{
                   marginRight: '12px',
-                  color: '#a8423a',
+                  color: 'var(--accent)',
                   fontSize: '6px',
                   lineHeight: 1,
                 }}

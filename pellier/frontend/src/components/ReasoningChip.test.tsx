@@ -105,8 +105,7 @@ describe('ReasoningChip — pricing style (Req 1.7.4)', () => {
 
     const urgentSpan = screen.getByTestId('reasoning-chip-urgent')
     expect(urgentSpan).toHaveTextContent('Only 3 left.')
-    // Exactly `color: var(--accent)` — the terracotta CSS custom
-    // property the storefront binds to `--accent: #c44536`.
+    // Terracotta urgent text uses `color: var(--accent)` (Daylight `--dl-accent`).
     const urgentStyle = urgentSpan.getAttribute('style') ?? ''
     expect(urgentStyle).toMatch(/color:\s*var\(--accent\)/)
   })

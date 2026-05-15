@@ -1,8 +1,9 @@
 /**
  * Header — Boutique sticky header (Phase 2 rebuild).
  *
- * Centered "Pellier" wordmark with circular P logo, four left nav
- * items (Shop, Stories, Ask Pellier, About), and right cluster: search
+ * Centered "Pellier" wordmark — Fraunces (`font-display`) + circular P
+ * chip; word one step above footer (`text-2xl` vs `text-xl`). Four left
+ * nav items (Shop, Stories, Ask Pellier, About), and right cluster: search
  * IconButton, persona Avatar dropdown, wishlist heart IconButton, bag
  * IconButton with count badge, and the Boutique ↔ Atelier surface toggle.
  *
@@ -70,29 +71,15 @@ function Wordmark() {
       href="/"
       data-testid="wordmark"
       aria-label={NAV.WORDMARK}
-      className="flex items-center gap-2 select-none"
+      className="flex items-center gap-2.5 select-none"
     >
       <span
         aria-hidden="true"
-        className="inline-flex items-center justify-center rounded-full font-semibold bg-espresso text-cream-50"
-        style={{
-          width: 28,
-          height: 28,
-          fontSize: 14,
-          fontFamily: 'var(--serif)',
-        }}
+        className="pellier-logo-chip bg-espresso text-cream-50"
       >
         P
       </span>
-      <span
-        className="text-espresso"
-        style={{
-          fontFamily: 'var(--serif)',
-          fontWeight: 500,
-          fontSize: 20,
-          letterSpacing: '-0.01em',
-        }}
-      >
+      <span className="font-display text-2xl font-medium tracking-tight text-espresso">
         {NAV.WORDMARK}
       </span>
     </a>
@@ -281,11 +268,12 @@ function PersonaDropdown() {
                 data-testid={`persona-option-${p.id}`}
                 onClick={() => handleSelect(p.id)}
                 className={[
-                  'w-full flex items-center gap-3 px-4 py-2.5 text-left',
-                  'transition-colors duration-fade ease-out',
+                  'w-full flex items-center gap-3 py-2.5 text-left border-l-[3px] transition-colors duration-fade ease-out',
                   'hover:bg-sand/50 cursor-pointer',
                   'focus-visible:outline-none focus-visible:bg-sand/50',
-                  isActive ? 'bg-sand/30' : '',
+                  isActive
+                    ? 'border-espresso bg-[rgba(31,20,16,0.08)] pl-[13px] pr-4'
+                    : 'border-transparent pl-[13px] pr-4',
                 ].join(' ')}
               >
                 <Avatar

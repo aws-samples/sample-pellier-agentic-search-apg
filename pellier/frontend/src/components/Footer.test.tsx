@@ -84,6 +84,14 @@ describe('Footer — bottom strip', () => {
     expect(copyright.textContent).toContain(String(new Date().getFullYear()))
   })
 
+  it('renders the attribution credit', () => {
+    renderFooter()
+    const strip = screen.getByTestId('footer-bottom-strip')
+    expect(within(strip).getByTestId('footer-attribution')).toHaveTextContent(
+      FOOTER.BOTTOM_STRIP.ATTRIBUTION,
+    )
+  })
+
   it('does not render Privacy / Terms / Accessibility placeholder links', () => {
     renderFooter()
     const strip = screen.getByTestId('footer-bottom-strip')

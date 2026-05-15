@@ -13,11 +13,26 @@
  * SKILL.md file directly, not a database row.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
+import { EditorialTitle, ExpCard, Eyebrow, SurfaceFilterBar } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { Skill } from '../../types';
+import { routeSkillsOffline, routerQueryForSkill } from './skillsRouterUtils';
+
+type PersonaFilter = 'all' | 'marco' | 'anna' | 'theo';
+
+const PERSONA_FILTER_OPTIONS = [
+  { id: 'all' as const, label: 'All personas' },
+  { id: 'marco' as const, label: 'Marco' },
+  { id: 'anna' as const, label: 'Anna' },
+  { id: 'theo' as const, label: 'Theo' },
+];
+
+function filterSkillsByPersona(skills: Skill[], filter: PersonaFilter): Skill[] {
+  if (filter === 'all') return skills;
+  return skills.filter((s) => s.persona === filter);
+}
 
 /* -----------------------------------------------------------------------
  * Skill Router Demo Card
@@ -51,45 +66,87 @@ const EXAMPLES: { label: string; query: string }[] = [
   { label: "Theo's pairing query", query: 'what goes well with the pour-over set?' },
 ];
 
-const SkillRouterDemoCard: React.FC = () => {
+interface SkillRouterDemoCardProps {
+  skills: Skill[];
+  highlightedSkillName: string | null;
+  onSelectSkill: (name: string) => void;
+  runRequest?: { query: string; nonce: number } | null;
+  onLoadedSkills?: (names: string[]) => void;
+}
+
+const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
+  skills,
+  highlightedSkillName,
+  onSelectSkill,
+  runRequest,
+  onLoadedSkills,
+}) => {
   const [query, setQuery] = useState('');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RouterResult | null>(null);
+  const [usedOffline, setUsedOffline] = useState(false);
 
-  const run = async (q: string) => {
-    if (!q.trim()) return;
-    setRunning(true);
-    setResult(null);
-    try {
-      const r = await fetch('/api/atelier/skills/route', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
-      });
-      if (r.ok) {
-        const data = (await r.json()) as RouterResult;
-        setResult(data);
-      } else {
-        setResult({
-          loaded_skills: [],
-          considered: [],
-          elapsed_ms: 0,
-          user_message: q,
-          error: `HTTP ${r.status}`,
+  const run = useCallback(
+    async (q: string) => {
+      if (!q.trim()) return;
+      setRunning(true);
+      setResult(null);
+      setUsedOffline(false);
+      const start = performance.now();
+      try {
+        const r = await fetch('/api/atelier/skills/route', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q }),
         });
+        if (r.ok) {
+          const data = (await r.json()) as RouterResult;
+          setResult(data);
+        } else if (skills.length > 0) {
+          const offline = routeSkillsOffline(q, skills);
+          setResult({ ...offline, elapsed_ms: Math.round(performance.now() - start) });
+          setUsedOffline(true);
+        } else {
+          setResult({
+            loaded_skills: [],
+            considered: [],
+            elapsed_ms: 0,
+            user_message: q,
+            error: `HTTP ${r.status}`,
+          });
+        }
+      } catch {
+        if (skills.length > 0) {
+          const offline = routeSkillsOffline(q, skills);
+          setResult({ ...offline, elapsed_ms: Math.round(performance.now() - start) });
+          setUsedOffline(true);
+        } else {
+          setResult({
+            loaded_skills: [],
+            considered: [],
+            elapsed_ms: 0,
+            user_message: q,
+            error: 'Router unreachable',
+          });
+        }
+      } finally {
+        setRunning(false);
       }
-    } catch (e) {
-      setResult({
-        loaded_skills: [],
-        considered: [],
-        elapsed_ms: 0,
-        user_message: q,
-        error: String(e),
-      });
-    } finally {
-      setRunning(false);
+    },
+    [skills],
+  );
+
+  React.useEffect(() => {
+    if (!runRequest?.query) return;
+    setQuery(runRequest.query);
+    run(runRequest.query);
+  }, [runRequest?.nonce, runRequest?.query, run]);
+
+  React.useEffect(() => {
+    if (result && !result.error) {
+      onLoadedSkills?.(result.loaded_skills);
     }
-  };
+  }, [result, onLoadedSkills]);
 
   return (
     <ExpCard>
@@ -243,10 +300,22 @@ const SkillRouterDemoCard: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {result.considered.map((c) => {
                   const isLoaded = result.loaded_skills.includes(c.name);
+                  const isHighlighted = highlightedSkillName === c.name;
                   return (
-                    <div
+                    <button
                       key={c.name}
+                      type="button"
+                      onClick={() => onSelectSkill(c.name)}
                       style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        border: isHighlighted
+                          ? '1px solid var(--at-red-1)'
+                          : '1px solid transparent',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        background: isLoaded ? 'var(--at-green-soft)' : 'transparent',
+                        cursor: 'pointer',
                         display: 'grid',
                         gridTemplateColumns: '160px 1fr',
                         gap: '14px',
@@ -269,7 +338,7 @@ const SkillRouterDemoCard: React.FC = () => {
                         {c.name}
                       </code>
                       <span style={{ lineHeight: 1.5 }}>{c.reason}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -277,10 +346,22 @@ const SkillRouterDemoCard: React.FC = () => {
           )}
         </div>
       )}
+
+      {usedOffline && result && !result.error && (
+        <p
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '12px',
+            color: 'var(--at-ink-4)',
+            marginTop: '10px',
+          }}
+        >
+          Offline workshop routing — live endpoint unavailable; decisions are illustrative.
+        </p>
+      )}
     </ExpCard>
   );
 };
-
 
 /* -----------------------------------------------------------------------
  * Persona chip — small pill with persona's first name
@@ -368,9 +449,45 @@ const AgentChip: React.FC<{ name: string }> = ({ name }) => (
 interface SkillCardProps {
   skill: Skill;
   numeral: string;
+  isSelected: boolean;
+  isRouterMatch: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
+  onSelect: () => void;
+  onTryRouter: () => void;
 }
 
-const SkillCard: React.FC<SkillCardProps> = ({ skill, numeral }) => (
+const SkillCard: React.FC<SkillCardProps> = ({
+  skill,
+  numeral,
+  isSelected,
+  isRouterMatch,
+  rowRef,
+  onSelect,
+  onTryRouter,
+}) => (
+  <div
+    ref={rowRef}
+    data-testid={`skill-card-${skill.name}`}
+    role="button"
+    tabIndex={0}
+    onClick={onSelect}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect();
+      }
+    }}
+    style={{
+      borderRadius: 'var(--at-card-radius)',
+      outline: isSelected
+        ? '2px solid var(--at-red-1)'
+        : isRouterMatch
+          ? '2px solid var(--at-green-1)'
+          : undefined,
+      boxShadow: isRouterMatch ? '0 0 0 3px var(--at-green-soft)' : undefined,
+      cursor: 'pointer',
+    }}
+  >
   <ExpCard>
     {/* Head: numeral + title + persona chip */}
     <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: '14px', alignItems: 'baseline', marginBottom: '14px' }}>
@@ -476,7 +593,54 @@ const SkillCard: React.FC<SkillCardProps> = ({ skill, numeral }) => (
     >
       Source: <code>pellier/backend/skills/{skill.name}/SKILL.md</code>
     </p>
+
+    {isSelected && (
+      <div
+        style={{
+          marginTop: '14px',
+          padding: '12px 14px',
+          borderRadius: '8px',
+          background: 'var(--at-cream-2)',
+          border: '1px dashed var(--at-rule-2)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            color: 'var(--at-ink-2)',
+            marginRight: '12px',
+          }}
+        >
+          Run the skill router with a query tuned for this persona.
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTryRouter();
+          }}
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '11px',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            color: 'var(--at-cream-1)',
+            background: 'var(--at-ink-1)',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '7px 12px',
+            cursor: 'pointer',
+          }}
+        >
+          Try in router
+        </button>
+      </div>
+    )}
   </ExpCard>
+  </div>
 );
 
 /* -----------------------------------------------------------------------
@@ -509,6 +673,43 @@ const ROMAN = ['I.', 'II.', 'III.', 'IV.', 'V.'];
 const Skills: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<Skill[]>({ key: 'skills' });
   const skills = data ?? [];
+  const [personaFilter, setPersonaFilter] = useState<PersonaFilter>('all');
+  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
+  const [routerMatchSkill, setRouterMatchSkill] = useState<string | null>(null);
+  const [routerRun, setRouterRun] = useState<{ query: string; nonce: number } | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const routerSectionRef = useRef<HTMLDivElement>(null);
+
+  const filterCounts = useMemo(
+    (): Record<PersonaFilter, number> => ({
+      all: skills.length,
+      marco: skills.filter((s) => s.persona === 'marco').length,
+      anna: skills.filter((s) => s.persona === 'anna').length,
+      theo: skills.filter((s) => s.persona === 'theo').length,
+    }),
+    [skills],
+  );
+
+  const filteredSkills = useMemo(
+    () => filterSkillsByPersona(skills, personaFilter),
+    [skills, personaFilter],
+  );
+
+  const focusSkill = useCallback((name: string) => {
+    setSelectedSkill(name);
+    setPersonaFilter('all');
+    requestAnimationFrame(() => {
+      rowRefs.current[name]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
+
+  const handleTryRouter = useCallback(
+    (skill: Skill) => {
+      setRouterRun({ query: routerQueryForSkill(skill), nonce: Date.now() });
+      routerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [],
+  );
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
@@ -524,11 +725,40 @@ const Skills: React.FC = () => {
 
       {!loading && !error && skills.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {skills.map((skill, idx) => (
-            <SkillCard key={skill.name} skill={skill} numeral={ROMAN[idx] ?? `${idx + 1}.`} />
+          <div ref={routerSectionRef}>
+            <SkillRouterDemoCard
+              skills={skills}
+              highlightedSkillName={selectedSkill ?? routerMatchSkill}
+              onSelectSkill={focusSkill}
+              runRequest={routerRun}
+              onLoadedSkills={(names) => setRouterMatchSkill(names[0] ?? null)}
+            />
+          </div>
+
+          <SurfaceFilterBar
+            label="Persona"
+            filter={personaFilter}
+            counts={filterCounts}
+            options={PERSONA_FILTER_OPTIONS}
+            onChange={setPersonaFilter}
+          />
+
+          {filteredSkills.map((skill, idx) => (
+            <SkillCard
+              key={skill.name}
+              skill={skill}
+              numeral={ROMAN[idx] ?? `${idx + 1}.`}
+              isSelected={selectedSkill === skill.name}
+              isRouterMatch={routerMatchSkill === skill.name}
+              rowRef={(el) => {
+                rowRefs.current[skill.name] = el;
+              }}
+              onSelect={() =>
+                setSelectedSkill((prev) => (prev === skill.name ? null : skill.name))
+              }
+              onTryRouter={() => handleTryRouter(skill)}
+            />
           ))}
-          {/* Live skill router — type a query, see what loads. */}
-          <SkillRouterDemoCard />
         </div>
       )}
 

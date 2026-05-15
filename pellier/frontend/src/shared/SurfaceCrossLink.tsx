@@ -10,8 +10,8 @@
  *      →" and deep-links to the Atelier route that explains the
  *      concept (memory, tools, agents, etc).
  *
- * Visual: italic Fraunces verb + a thin terracotta arrow, kept small
- * enough to live inline next to a section eyebrow. The same
+ * Visual: Instrument Serif / Fraunces italic, 15px, terracotta accent,
+ * subtle dotted underline — reads as editorial caption, not a banner CTA.
  * vocabulary (`see · this · in · the · Boutique`) on every Atelier
  * surface keeps the round trip predictable.
  */
@@ -31,8 +31,7 @@ export interface SurfaceCrossLinkProps {
   label?: string
 }
 
-const ACCENT = '#a8423a'
-const FRAUNCES_STACK = "'Fraunces', Georgia, serif"
+const ACCENT = 'var(--accent)'
 
 export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
   direction,
@@ -58,20 +57,24 @@ export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        fontFamily: FRAUNCES_STACK,
+        fontFamily: 'var(--serif)',
         fontStyle: 'italic',
-        fontSize: 14,
+        fontSize: 15,
+        fontWeight: 400,
+        letterSpacing: '-0.01em',
         color: ACCENT,
         textDecoration: 'none',
-        borderBottom: '1px dotted rgba(168,66,58,0.35)',
-        paddingBottom: 1,
+        borderBottom: '1px dotted color-mix(in srgb, var(--accent) 42%, transparent)',
+        paddingBottom: 2,
         transition: 'border-color 0.15s, color 0.15s',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderBottomColor = 'rgba(168,66,58,0.85)'
+        e.currentTarget.style.borderBottomColor =
+          'color-mix(in srgb, var(--accent) 78%, transparent)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderBottomColor = 'rgba(168,66,58,0.35)'
+        e.currentTarget.style.borderBottomColor =
+          'color-mix(in srgb, var(--accent) 42%, transparent)'
       }}
     >
       <span>{label ?? defaultLabel}</span>

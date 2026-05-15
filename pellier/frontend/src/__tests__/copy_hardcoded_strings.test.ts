@@ -363,7 +363,7 @@ describe('copy compliance lint - frontend (Task 6.3, Req 1.12)', () => {
       "  const heart = '\u2665'",
       '  if (klass.length < 50) return "text-red-400"',
       '  return (',
-      '    <button className="rounded-full bg-[#2d1810] px-4">',
+      '    <button className="rounded-full bg-ink px-4">',
       '      Add to bag',
       '    </button>',
       '  )',

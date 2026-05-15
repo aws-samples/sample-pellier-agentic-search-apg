@@ -29,14 +29,9 @@ import { useAgentChat, type AgentBadge, type AgentChatMessage } from '../hooks/u
 import { AGENT_IDENTITIES, type AgentType } from '../utils/agentIdentity'
 import ProductCardConcierge from './ProductCardConcierge'
 import MarkdownMessage from './MarkdownMessage'
+import { cssVar as c } from '../design/cssVars'
 
-// Warm palette from storefront.md §"Design tokens".
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
-const CREAM_WARM = '#f5e8d3'
+// Warm palette → Daylight via `cssVars` / bridge.
 
 const WELCOME_STOREFRONT =
   "Tell me what you're after. Linen for a slow Sunday, a piece that travels, a gift that lands."
@@ -171,7 +166,7 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
         onClick={onToggle}
         className="flex items-center gap-1.5 text-[10px] w-full text-left px-2 py-1 rounded-md transition-colors"
         style={{
-          color: INK_SOFT,
+          color: c.ink2,
           background: expanded ? 'rgba(45, 24, 16, 0.04)' : 'transparent',
         }}
       >
@@ -185,11 +180,11 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
-        <span className="font-medium" style={{ color: INK }}>Under the Hood</span>
+        <span className="font-medium" style={{ color: c.ink }}>Under the Hood</span>
         {message.agent && (
           <span
             className="px-1.5 py-0.5 rounded text-[9px] font-medium"
-            style={{ background: 'rgba(45, 24, 16, 0.04)', color: INK_SOFT }}
+            style={{ background: 'rgba(45, 24, 16, 0.04)', color: c.ink2 }}
           >
             {agentName}
           </span>
@@ -197,7 +192,7 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
         {toolCount > 0 && (
           <span
             className="px-1.5 py-0.5 rounded text-[9px]"
-            style={{ background: 'rgba(45, 24, 16, 0.04)', color: INK_SOFT }}
+            style={{ background: 'rgba(45, 24, 16, 0.04)', color: c.ink2 }}
           >
             {toolCount} tool{toolCount !== 1 ? 's' : ''}
           </span>
@@ -226,9 +221,9 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
           >
             {message.agent && (
               <div>
-                <span className="font-semibold" style={{ color: INK_SOFT }}>Agent: </span>
-                <span style={{ color: INK }}>{agentName}</span>
-                <span className="ml-1" style={{ color: INK_QUIET }}>
+                <span className="font-semibold" style={{ color: c.ink2 }}>Agent: </span>
+                <span style={{ color: c.ink }}>{agentName}</span>
+                <span className="ml-1" style={{ color: c.muted }}>
                   {message.agent === 'search' && '- finds products via semantic search and filters'}
                   {message.agent === 'pricing' && '- analyzes price trends, deals, and budget options'}
                   {message.agent === 'recommendation' && '- suggests products based on preferences'}
@@ -241,7 +236,7 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
 
             {message.agentExecution?.tool_calls && message.agentExecution.tool_calls.length > 0 && (
               <div>
-                <span className="font-semibold" style={{ color: INK_SOFT }}>Tools called: </span>
+                <span className="font-semibold" style={{ color: c.ink2 }}>Tools called: </span>
                 <span className="inline-flex flex-wrap gap-1 ml-1">
                   {message.agentExecution.tool_calls.map((tc, i) => (
                     <span
@@ -262,20 +257,20 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
 
             {guardrailsEnabled && (
               <div>
-                <span className="font-semibold" style={{ color: INK_SOFT }}>Guardrails: </span>
+                <span className="font-semibold" style={{ color: c.ink2 }}>Guardrails: </span>
                 <span style={{ color: '#047857' }}>Passed</span>
-                <span className="ml-1" style={{ color: INK_QUIET }}>(content safety + PII check)</span>
+                <span className="ml-1" style={{ color: c.muted }}>(content safety + PII check)</span>
               </div>
             )}
 
             {index >= 4 && (
               <div>
-                <span className="font-semibold" style={{ color: INK_SOFT }}>Context: </span>
-                <span style={{ color: INK }}>
+                <span className="font-semibold" style={{ color: c.ink2 }}>Context: </span>
+                <span style={{ color: c.ink }}>
                   {Math.floor((index - 1) / 2)} prior{' '}
                   {Math.floor((index - 1) / 2) === 1 ? 'exchange' : 'exchanges'} in window
                 </span>
-                <span className="ml-1" style={{ color: INK_QUIET }}>
+                <span className="ml-1" style={{ color: c.muted }}>
                   (more context = better answers, higher cost)
                 </span>
               </div>
@@ -283,8 +278,8 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
 
             {message.agentExecution?.total_duration_ms ? (
               <div>
-                <span className="font-semibold" style={{ color: INK_SOFT }}>Response time: </span>
-                <span style={{ color: INK }}>{message.agentExecution.total_duration_ms}ms</span>
+                <span className="font-semibold" style={{ color: c.ink2 }}>Response time: </span>
+                <span style={{ color: c.ink }}>{message.agentExecution.total_duration_ms}ms</span>
               </div>
             ) : null}
 
@@ -292,9 +287,9 @@ function UnderTheHood({ index, message, expanded, onToggle, guardrailsEnabled }:
               className="pt-1.5 mt-1"
               style={{ borderTop: '1px solid rgba(45, 24, 16, 0.06)' }}
             >
-              <p style={{ color: INK_QUIET }}>
+              <p style={{ color: c.muted }}>
                 The orchestrator picked which specialists to involve based on your query. Open{' '}
-                <span style={{ color: ACCENT }}>/inspector</span> to see the full waterfall.
+                <span style={{ color: c.accent }}>/inspector</span> to see the full waterfall.
               </p>
             </div>
           </motion.div>
@@ -426,7 +421,7 @@ export default function ConciergeModal() {
             data-testid="concierge-modal"
             className="relative flex flex-col w-full max-w-[560px] h-[min(680px,calc(100vh-4rem))] rounded-3xl overflow-hidden shadow-2xl"
             style={{
-              background: CREAM,
+              background: c.bg,
               border: '1px solid rgba(45, 24, 16, 0.08)',
             }}
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -449,12 +444,12 @@ export default function ConciergeModal() {
                 <div
                   aria-hidden="true"
                   className="inline-flex items-center justify-center rounded-full font-semibold"
-                  style={{ width: 32, height: 32, background: INK, color: CREAM, fontFamily: 'Fraunces, serif', fontSize: 15 }}
+                  style={{ width: 32, height: 32, background: c.ink, color: c.bg, fontFamily: 'Fraunces, serif', fontSize: 15 }}
                 >
                   B
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap" style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: INK, fontWeight: 500 }}>
+                  <div className="flex items-center gap-2 flex-wrap" style={{ fontFamily: 'Fraunces, serif', fontSize: 17, color: c.ink, fontWeight: 500 }}>
                     <span>Ask Pellier</span>
                     {/* Persona indicator — colored avatar + first name
                         in italic Fraunces with a persona-quote second
@@ -470,7 +465,7 @@ export default function ConciergeModal() {
                           fontSize: 9.5,
                           letterSpacing: '0.22em',
                           textTransform: 'uppercase',
-                          color: INK_QUIET,
+                          color: c.muted,
                           fontWeight: 500,
                         }}
                       >
@@ -481,7 +476,7 @@ export default function ConciergeModal() {
                             width: 18,
                             height: 18,
                             background: persona.avatar_color,
-                            color: '#faf3e8',
+                            color: 'var(--cream-warm)',
                             fontFamily: 'Inter, sans-serif',
                             fontSize: 10,
                           }}
@@ -494,17 +489,17 @@ export default function ConciergeModal() {
                   </div>
                   <div className="text-[11px] flex items-center gap-1.5 mt-0.5">
                     {isLoading ? (
-                      <span className="flex items-center gap-1.5" style={{ color: INK_SOFT }}>
-                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: INK_SOFT }} />
+                      <span className="flex items-center gap-1.5" style={{ color: c.ink2 }}>
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: c.ink2 }} />
                         Thinking...
                       </span>
                     ) : !backendOnline ? (
-                      <span className="flex items-center gap-1.5" style={{ color: ACCENT }}>
+                      <span className="flex items-center gap-1.5" style={{ color: c.accent }}>
                         <AlertCircle className="h-3 w-3" />
                         Offline
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1.5" style={{ color: INK_SOFT }}>
+                      <span className="flex items-center gap-1.5" style={{ color: c.ink2 }}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#047857' }} />
                         {mode === 'atelier' ? 'Atelier mode · instrumentation on' : 'Concierge ready'}
                       </span>
@@ -519,8 +514,8 @@ export default function ConciergeModal() {
                     setExpandedHoods(new Set())
                   }}
                   className="px-2.5 py-1 rounded-lg text-[11px] transition-colors"
-                  style={{ color: INK_SOFT }}
-                  onMouseEnter={e => (e.currentTarget.style.background = CREAM_WARM)}
+                  style={{ color: c.ink2 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = c.paper)}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   title="Reset conversation"
                 >
@@ -530,10 +525,10 @@ export default function ConciergeModal() {
                   onClick={closeModal}
                   aria-label="Close"
                   className="p-2 rounded-lg transition-colors"
-                  onMouseEnter={e => (e.currentTarget.style.background = CREAM_WARM)}
+                  onMouseEnter={e => (e.currentTarget.style.background = c.paper)}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <X className="h-4 w-4" style={{ color: INK_SOFT }} />
+                  <X className="h-4 w-4" style={{ color: c.ink2 }} />
                 </button>
               </div>
             </div>
@@ -559,8 +554,8 @@ export default function ConciergeModal() {
                             message.role === 'user' ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl rounded-bl-sm'
                           }`}
                           style={{
-                            background: message.role === 'user' ? INK : CREAM_WARM,
-                            color: message.role === 'user' ? CREAM : INK,
+                            background: message.role === 'user' ? c.ink : c.paper,
+                            color: message.role === 'user' ? c.bg : c.ink,
                             border: message.role === 'assistant' ? '1px solid rgba(45, 24, 16, 0.06)' : 'none',
                             letterSpacing: '-0.003em',
                           }}
@@ -571,11 +566,11 @@ export default function ConciergeModal() {
                           {message.agentStatus === 'thinking' && !message.content ? (
                             <div className="flex items-center gap-2 py-1">
                               <div className="flex gap-1">
-                                <motion.span className="w-2 h-2 rounded-full" style={{ background: INK_QUIET }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0 }} />
-                                <motion.span className="w-2 h-2 rounded-full" style={{ background: INK_QUIET }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }} />
-                                <motion.span className="w-2 h-2 rounded-full" style={{ background: INK_QUIET }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }} />
+                                <motion.span className="w-2 h-2 rounded-full" style={{ background: c.muted }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0 }} />
+                                <motion.span className="w-2 h-2 rounded-full" style={{ background: c.muted }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }} />
+                                <motion.span className="w-2 h-2 rounded-full" style={{ background: c.muted }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }} />
                               </div>
-                              <span className="text-[13px]" style={{ color: INK_SOFT }}>Thinking...</span>
+                              <span className="text-[13px]" style={{ color: c.ink2 }}>Thinking...</span>
                             </div>
                           ) : message.role === 'assistant' ? (
                             // Streaming cursor intentionally removed —
@@ -595,7 +590,7 @@ export default function ConciergeModal() {
                       <div className="flex flex-col gap-2.5 w-full">
                         {mode === 'atelier' && message.agent && <AgentBadgeRow message={message} />}
                         {message.content && (
-                          <div style={{ color: INK_SOFT }} className="text-sm font-light leading-relaxed">
+                          <div style={{ color: c.ink2 }} className="text-sm font-light leading-relaxed">
                             <MarkdownMessage content={message.content} />
                           </div>
                         )}
@@ -628,9 +623,9 @@ export default function ConciergeModal() {
                             onClick={() => openComparison(message.products!)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium self-start"
                             style={{
-                              background: CREAM_WARM,
-                              border: `1px solid ${INK_QUIET}`,
-                              color: INK,
+                              background: c.paper,
+                              border: `1px solid ${c.muted}`,
+                              color: c.ink,
                             }}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
@@ -664,9 +659,9 @@ export default function ConciergeModal() {
                             disabled={isLoading}
                             className="px-[13px] py-[6px] rounded-full text-[12.5px] font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             style={{
-                              background: CREAM,
+                              background: c.bg,
                               border: '1px solid rgba(45, 24, 16, 0.14)',
-                              color: INK_SOFT,
+                              color: c.ink2,
                               letterSpacing: '-0.003em',
                             }}
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -706,7 +701,7 @@ export default function ConciergeModal() {
                   style={{
                     background: '#ffffff',
                     border: '1px solid rgba(45, 24, 16, 0.12)',
-                    color: INK,
+                    color: c.ink,
                     letterSpacing: '-0.003em',
                   }}
                 />
@@ -715,26 +710,26 @@ export default function ConciergeModal() {
                   disabled={!inputValue.trim() || isLoading}
                   aria-label="Send"
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                  style={{ background: inputValue.trim() && !isLoading ? INK : 'rgba(45, 24, 16, 0.08)' }}
+                  style={{ background: inputValue.trim() && !isLoading ? c.ink : 'rgba(45, 24, 16, 0.08)' }}
                   whileHover={inputValue.trim() && !isLoading ? { scale: 1.05 } : {}}
                   whileTap={inputValue.trim() && !isLoading ? { scale: 0.95 } : {}}
                 >
                   {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" style={{ borderColor: 'rgba(251, 244, 232, 0.3)', borderTopColor: CREAM }} />
+                    <div className="w-4 h-4 border-2 border-cream/30 border-t-cream rounded-full animate-spin" style={{ borderColor: 'rgba(251, 244, 232, 0.3)', borderTopColor: c.bg }} />
                   ) : (
-                    <Send className="h-4 w-4" style={{ color: CREAM }} />
+                    <Send className="h-4 w-4" style={{ color: c.bg }} />
                   )}
                 </motion.button>
               </div>
 
               {/* Trace-ID footer — atelier route only */}
               {mode === 'atelier' && sessionId && (
-                <div className="mt-3 flex items-center justify-between text-[10px]" style={{ fontFamily: 'ui-monospace, monospace', color: INK_QUIET }}>
+                <div className="mt-3 flex items-center justify-between text-[10px]" style={{ fontFamily: 'ui-monospace, monospace', color: c.muted }}>
                   <span>session {sessionId.slice(0, 18)}...</span>
                   <Link
                     to={`/inspector?session=${encodeURIComponent(sessionId)}`}
                     onClick={closeModal}
-                    style={{ color: ACCENT, textDecoration: 'none' }}
+                    style={{ color: c.accent, textDecoration: 'none' }}
                   >
                     open in inspector →
                   </Link>

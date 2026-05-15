@@ -98,7 +98,7 @@ function Pillar({ icon, verb, title, description }: PillarProps) {
         style={{
           fontSize: '13.5px',
           lineHeight: 1.6,
-          color: '#6b4a35',
+          color: 'var(--ink-soft)',
           margin: 0,
         }}
       >
@@ -152,7 +152,7 @@ export default function BoutiqueWelcomeBand() {
             borderRadius: '50%',
             border: 'none',
             background: 'rgba(31, 20, 16, 0.05)',
-            color: '#6b4a35',
+            color: 'var(--ink-soft)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -228,7 +228,7 @@ export default function BoutiqueWelcomeBand() {
             style={{
               fontSize: '16px',
               lineHeight: 1.65,
-              color: '#6b4a35',
+              color: 'var(--ink-soft)',
               margin: 0,
             }}
           >

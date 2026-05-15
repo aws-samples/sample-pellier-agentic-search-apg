@@ -1,8 +1,7 @@
 /* ========================================================================
  * ChatDrawer — right-side chat drawer for the storefront.
  * Matches docs/storefront-hero-drawer.html State 3.
- * Colors use design-system tokens (espresso #3B2F2F, cream-50 #F7F3EE)
- * with fallbacks to CSS custom properties from index.css :root.
+ * Colors use Daylight tokens via the bridge (`--cream`, `--ink`, `--accent`).
  * ======================================================================== */
 
 /* ---- Backdrop ---- */
@@ -24,7 +23,7 @@
   z-index: 51;
   display: flex;
   flex-direction: column;
-  background: #F7F3EE;
+  background: var(--cream);
   box-shadow:
     -24px 0 64px -20px rgba(107, 74, 53, 0.14),
     -8px 0 16px rgba(107, 74, 53, 0.08),
@@ -45,7 +44,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  background: #F7F3EE;
+  background: var(--cream);
   position: relative;
   flex-shrink: 0;
   border-radius: 14px 0 0 0;
@@ -57,7 +56,7 @@
   left: 22px;
   width: 28px;
   height: 1px;
-  background: #C44536;
+  background: var(--accent);
 }
 .cd-head-stack {
   display: flex;
@@ -69,7 +68,7 @@
   font-size: 13px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #C44536;
+  color: var(--accent);
   font-weight: 500;
 }
 .cd-head-title {
@@ -79,7 +78,7 @@
   letter-spacing: -0.01em;
   line-height: 1.1;
   margin: 0;
-  color: #3B2F2F;
+  color: var(--ink);
 }
 .cd-head-title em {
   font-style: normal;
@@ -99,7 +98,7 @@
   align-items: center;
   gap: 5px;
   padding: 2px 7px 2px 2px;
-  background: #E8DFD4;
+  background: var(--cream-2);
   border: 1px solid rgba(107, 74, 53, 0.08);
   border-radius: 100px;
 }
@@ -116,7 +115,7 @@
   font-weight: 500;
 }
 .cd-persona-name {
-  color: #3B2F2F;
+  color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   
   font-size: 13px;
@@ -142,7 +141,7 @@
 }
 .cd-close:hover {
   background: rgba(59, 47, 47, 0.06);
-  color: #3B2F2F;
+  color: var(--ink);
 }
 
 /* ---- Body ---- */
@@ -150,7 +149,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 22px 22px 14px;
-  background: #F7F3EE;
+  background: var(--cream);
   min-height: 0;
 }
 .cd-empty-state {
@@ -167,15 +166,15 @@
 .cd-foot {
   padding: 14px 18px 18px;
   border-top: 1px solid rgba(107, 74, 53, 0.08);
-  background: #F7F3EE;
+  background: var(--cream);
   flex-shrink: 0;
 }
 .cd-input-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #F7F3EE;
-  border: 1px solid #E8DFD4;
+  background: var(--cream);
+  border: 1px solid var(--cream-2);
   border-radius: 100px;
   padding: 6px 6px 6px 16px;
 }
@@ -188,7 +187,7 @@
   
   font-size: 15px;
   line-height: 1.5;
-  color: #3B2F2F;
+  color: var(--ink);
 }
 .cd-input::placeholder {
   color: rgba(59, 47, 47, 0.42);
@@ -198,8 +197,8 @@
   opacity: 0.5;
 }
 .cd-send {
-  background: #3B2F2F;
-  color: #F7F3EE;
+  background: var(--ink);
+  color: var(--cream);
   border: none;
   padding: 7px 16px;
   border-radius: 100px;
@@ -242,7 +241,7 @@
     display: flex;
     justify-content: center;
     padding: 8px 0 0;
-    background: #F7F3EE;
+    background: var(--cream);
     border-radius: 14px 14px 0 0;
   }
   .cd-drag-handle::after {

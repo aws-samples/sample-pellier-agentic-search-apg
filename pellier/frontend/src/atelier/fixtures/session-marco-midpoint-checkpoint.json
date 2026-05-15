@@ -43,14 +43,14 @@
       ],
       "confidence": {
         "percentage": 99,
-        "reasoning": "Deterministic warehouse lookup. Haiku 4.5 at 0.0 — zero variance. The tool participants just wrote, running in 142ms."
+        "reasoning": "Deterministic warehouse lookup. Claude Haiku 4.5 at 0.0 — zero variance. The tool participants just wrote, running in 142ms."
       },
       "memoryPills": [
         { "tier": "stm", "content": "Pellier shirt confirmed at Brooklyn warehouse (8 units)" }
       ],
       "meta": {
         "agent": "Stock Keeper",
-        "model": "Haiku 4.5 · 0.0",
+        "model": "Claude Haiku 4.5 · 0.0",
         "latencyMs": 184,
         "note": "This is the checkpoint turn — floor_check is participant-authored code"
       }
@@ -70,7 +70,7 @@
       "index": 2,
       "category": "both",
       "title": "Warehouse stock lookup",
-      "description": "floor_check — participant-authored tool, running on Haiku 4.5 at 0.0",
+      "description": "floor_check — participant-authored tool, running on Claude Haiku 4.5 at 0.0",
       "status": "complete",
       "durationMs": 142,
       "agent": "Stock Keeper",
@@ -80,7 +80,7 @@
       "index": 3,
       "category": "managed",
       "title": "Response composition",
-      "description": "Haiku 4.5 at 0.0 — 3 warehouses summarized",
+      "description": "Claude Haiku 4.5 at 0.0 — 3 warehouses summarized",
       "status": "complete",
       "durationMs": 42,
       "agent": "Stock Keeper"
@@ -95,7 +95,7 @@
         "numeral": "i.",
         "title": "The checkpoint",
         "paragraphs": [
-          "Same question, different answer. Participants wired floor_check; the Dispatcher routed Turn 4 straight to Stock Keeper; Haiku 4.5 at 0.0 returned the warehouse breakdown in 184ms.",
+          "Same question, different answer. Participants wired floor_check; the Dispatcher routed Turn 4 straight to Stock Keeper; Claude Haiku 4.5 at 0.0 returned the warehouse breakdown in 184ms.",
           "The code behind this response is yours. The tool you wrote just shipped a real answer to a real question — and nothing about the Boutique changed. That's the whole lesson: capability is composable."
         ]
       }
@@ -113,7 +113,7 @@
       "stats": [
         { "label": "Tool latency", "value": "142 ms" },
         { "label": "End-to-end", "value": "184 ms" },
-        { "label": "Model", "value": "Haiku 4.5 · 0.0" },
+        { "label": "Model", "value": "Claude Haiku 4.5 · 0.0" },
         { "label": "Authored by", "value": "you" }
       ]
     }

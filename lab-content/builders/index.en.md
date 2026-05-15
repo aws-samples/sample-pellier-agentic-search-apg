@@ -1,63 +1,60 @@
 ---
-title: Pellier — Builder's Session (60 min)
-weight: 10
+title: "DAT4XX | Build Agentic AI-Powered Search with Amazon Aurora and Amazon Bedrock AgentCore"
+weight: 0
 ---
 
-**Level 400 · 60 minutes · DC Summit**
+## *Welcome to Pellier.*
 
-Welcome. In one hour you'll author the system prompt for a real specialist agent, wire the one tool that closes a shopper's gap, and walk through the operator-facing Atelier where every decision the agent stack makes is visible.
+Pellier is a small editorial boutique with one quiet promise — a
+shopper asks for something in their own words, and the right pieces
+find them. Behind that promise sits a system that reads live
+inventory, remembers your taste, cites every source, and hands off
+to a human stylist when it should.
 
-Not a tutorial. Not a sandbox. A real build.
+In the next sixty minutes, you'll see that system from both sides:
+about ten minutes of framing and live demo, forty-five minutes of
+guided hands-on work, and five minutes to close with questions.
 
-## What you'll build (honest scope)
+### The story
 
-Two artifacts of participant-authored code:
+Marco is a returning customer planning a long weekend in Lisbon. He
+opens Pellier, the agent recognizes him, and he asks five things in
+sequence. The first three turns work. The fourth quietly fails — Stock
+Keeper, the agent that knows the warehouse, isn't wired yet. You'll
+wire it. The fifth turn lands on its own.
 
-- **Stock Keeper** — one of Pellier's five specialists. You'll author its system prompt (Haiku 4.5 at 0.0 — tightest config in the system).
-- **`floor_check`** — the tool that makes Marco's Turn 4 warehouse question land.
+Then a shipment arrives. The catalog doesn't know about it. You'll
+fix that too, with a single line of SQL.
 
-Three more tools (`restock_shelf`, `running_low`) and the second specialist (Experience Guide) come pre-wired — you'll see them running in the Atelier but won't build them. That's the 2-hour Workshop. This is the 60-minute cut.
+### The arc (how the lab maps to the clock)
 
-## The narrative
+You move through **five short lab sections (00–04)** during the
+hands-on block: open the environment, watch Marco's story in the
+Boutique, implement `floor_check`, fix the catalog with SQL, then
+tour the Atelier. The instructor deck uses the same spine — Marco
+first, tools second, operators last.
 
-Marco shops Pellier. Asks four questions. Three land — Style Advisor, Curator, Value Analyst. The fourth — "Is the Pellier shirt at the Brooklyn warehouse?" — gets a graceful non-answer because Stock Keeper ships in stub state.
+### What you'll do
 
-**That's the build.** When you wire Stock Keeper + `floor_check`, the same question returns a real warehouse breakdown. Marco's gap closes. You flip to the Atelier and watch the routing arrow turn solid.
+| | | |
+|--|--|--|
+| **00** | *The Doors Are Open* | Health checks, two tabs, meet the personas |
+| **01** | *The Boutique, Re:Engineered* | Watch Marco's five turns, find the gap |
+| **02** | *Closing Marco's Gap* | Wire the `floor_check` tool body |
+| **03** | *The Shipment That Just Arrived* | Log fresh inventory, watch the agent notice |
+| **04** | *Step Into the Atelier* | See memory, tools, and agents from the operator's side |
 
-See [`../shared/marco-arc-overview.en.md`](../shared/marco-arc-overview.en.md) for the full script.
+You'll write code in **two** sections (Python in **02**, SQL in **03**).
+The others are guided setup and observation. **Hands-on pacing:** the
+time callouts on sections **00–04** add up to about forty-five minutes
+(5 + 8 + 18 + 7 + 7).
 
-## Shape of the hour
+:::alert{type="info"}
+**Level**  ·  400 — Expert
+**Duration**  ·  60 minutes (10 min presentation · 45 min hands-on · 5 min wrap)
+**Format**  ·  Builder's Session — 40 participants, 4 tables of 10, 1 AWS lead per table
+:::
 
-| Slot | Minutes | What |
-|---|---|---|
-| Opening talk + Boutique demo | 10 | Participants click Marco's 4 hero pills; presenter narrates model/agent/tool per turn |
-| **Module 1 · Observe** | 5 | Quick tour of the Atelier + model-mix sidebar |
-| **Module 2 · Understand** | 25 | Build Stock Keeper + `floor_check`. Midpoint checkpoint inside this slot. |
-| **Module 3 · Evaluate** | 10 | Performance deep-dive + Experience Guide code read |
-| Capstone + Q&A | 10 | 5-turn Marco capstone (click pills, presenter narrates) + Q&A |
+![Pellier — the boutique hero, with Marco listening](/static/introduction/pellier-hero.png)
 
-## How you verify
-
-Two paths:
-
-1. **`pytest` is the fast loop.** Run after each save — green means the logic works. No frontend needed.
-2. **Boutique + Atelier is the victory lap.** Click Marco's Turn 4 pill, flip to Atelier, watch the panels update.
-
-## The escape hatch
-
-Every challenge has a ⏩ **Short on time?** `cp` command that drops a solution file into place:
-
-```bash
-cp solutions/module2/agents/inventory_agent.py \
-   pellier/backend/agents/inventory_agent.py
-```
-
-Use it. The goal is the midpoint checkpoint — not to type every character manually.
-
-## Prerequisites
-
-- Python fluency (async/await, imports, light typing)
-- LLM comfort (temperature, system prompts, tool use)
-- Basic AWS awareness
-
-Next: [Setup](00-setup.en.md)
+[Step inside →](/00-the-doors-are-open/)

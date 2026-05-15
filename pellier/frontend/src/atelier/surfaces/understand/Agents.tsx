@@ -9,7 +9,7 @@
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6
  */
 
-import React from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
@@ -17,6 +17,7 @@ import {
   Eyebrow,
   StatusDot,
   StatusPill,
+  SurfaceFilterBar,
   WorkshopProgressStrip,
 } from '../../components';
 import type { Segment } from '../../components/WorkshopProgressStrip';
@@ -51,28 +52,61 @@ function buildSegments(agents: Agent[]): Segment[] {
   }));
 }
 
+type AgentFilter = 'all' | 'shipped' | 'exercise';
+
+const AGENT_FILTER_OPTIONS = [
+  { id: 'all' as const, label: 'All' },
+  { id: 'shipped' as const, label: 'Shipped' },
+  { id: 'exercise' as const, label: 'Exercise' },
+];
+
+function filterAgents(agents: Agent[], filter: AgentFilter): Agent[] {
+  if (filter === 'shipped') return agents.filter((a) => a.status === 'shipped');
+  if (filter === 'exercise') return agents.filter((a) => a.status === 'exercise');
+  return agents;
+}
+
 /* -----------------------------------------------------------------------
  * Agent row card
  * ----------------------------------------------------------------------- */
 
 interface AgentRowProps {
   agent: Agent;
+  isSelected: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
+  onSelect: () => void;
 }
 
-const AgentRow: React.FC<AgentRowProps> = ({ agent }) => {
+const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, rowRef, onSelect }) => {
   const isExercise = agent.status === 'exercise';
 
   return (
     <div
+      ref={rowRef}
+      data-testid={`agent-row-${agent.name}`}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       style={{
         position: 'relative',
         background: isExercise ? 'transparent' : 'var(--at-card-bg)',
-        border: isExercise
-          ? '1.5px dashed var(--at-rule-3)'
-          : '1px solid var(--at-card-border)',
+        border: isSelected
+          ? '2px solid var(--at-red-1)'
+          : isExercise
+            ? '1.5px dashed var(--at-rule-3)'
+            : '1px solid var(--at-card-border)',
         borderRadius: 'var(--at-card-radius)',
         padding: '22px 26px 20px',
         overflow: 'hidden',
+        cursor: 'pointer',
+        boxShadow: isSelected ? '0 4px 16px rgba(31, 20, 16, 0.08)' : undefined,
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       {/* Burgundy accent line at top-left (shipped only) */}
@@ -260,6 +294,45 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent }) => {
           </span>
         </div>
       </div>
+
+      {isSelected && (
+        <div
+          style={{
+            marginTop: '14px',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            background: 'var(--at-cream-2)',
+            border: '1px dashed var(--at-rule-2)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p
+            style={{
+              fontFamily: 'var(--at-sans)',
+              fontSize: '14px',
+              color: 'var(--at-ink-2)',
+              lineHeight: 1.55,
+              margin: '0 0 10px',
+            }}
+          >
+            Routed via <code style={CODE_INLINE}>Dispatcher</code> in the boutique — no agent
+            is a lead. {agent.tools.length} tool
+            {agent.tools.length === 1 ? '' : 's'} registered; see the Tools surface for
+            pgvector discovery.
+          </p>
+          <Link
+            to="/atelier/tools"
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              color: 'var(--at-burgundy)',
+              textDecoration: 'none',
+            }}
+          >
+            Open Tools →
+          </Link>
+        </div>
+      )}
 
       {/* Exercise files list */}
       {isExercise && agent.exerciseFiles && agent.exerciseFiles.length > 0 && (
@@ -601,6 +674,9 @@ const Agents: React.FC = () => {
     key: 'agents',
   });
   const buildState = useBuildState();
+  const [filter, setFilter] = useState<AgentFilter>('all');
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Apply build state overrides — when the backend reports a different status
   // than the fixture, the override takes precedence (exercise → shipped transition)
@@ -612,9 +688,43 @@ const Agents: React.FC = () => {
     return agent;
   });
 
+  const filterCounts = useMemo(
+    (): Record<AgentFilter, number> => ({
+      all: agents.length,
+      shipped: agents.filter((a) => a.status === 'shipped').length,
+      exercise: agents.filter((a) => a.status === 'exercise').length,
+    }),
+    [agents],
+  );
+
+  const filteredAgents = useMemo(
+    () => filterAgents(agents, filter),
+    [agents, filter],
+  );
+
+  const focusAgent = useCallback((name: string) => {
+    setSelectedAgent(name);
+    setFilter('all');
+    requestAnimationFrame(() => {
+      rowRefs.current[name]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
+
+  const handleSegmentClick = useCallback(
+    (seg: Segment) => {
+      const agent = agents.find((a) => a.numeral === seg.id);
+      if (agent) focusAgent(agent.name);
+    },
+    [agents, focusAgent],
+  );
+
   const shippedCount = agents.filter((a) => a.status === 'shipped').length;
   const totalCount = agents.length;
   const segments = buildSegments(agents);
+  const activeSegmentId =
+    selectedAgent != null
+      ? agents.find((a) => a.name === selectedAgent)?.numeral
+      : undefined;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
@@ -638,8 +748,27 @@ const Agents: React.FC = () => {
               segments={segments}
               shipped={shippedCount}
               total={totalCount}
+              activeSegmentId={activeSegmentId}
+              onSegmentClick={handleSegmentClick}
             />
+            <p
+              style={{
+                fontFamily: 'var(--at-sans)',
+                fontSize: '12px',
+                color: 'var(--at-ink-4)',
+                marginTop: '8px',
+              }}
+            >
+              Click a segment to jump to that agent.
+            </p>
           </div>
+
+          <SurfaceFilterBar
+            filter={filter}
+            counts={filterCounts}
+            options={AGENT_FILTER_OPTIONS}
+            onChange={setFilter}
+          />
 
           {/* Agent rows */}
           <div
@@ -650,9 +779,35 @@ const Agents: React.FC = () => {
               marginBottom: '32px',
             }}
           >
-            {agents.map((agent) => (
-              <AgentRow key={agent.numeral} agent={agent} />
-            ))}
+            {filteredAgents.length === 0 ? (
+              <p
+                style={{
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '15px',
+                  color: 'var(--at-ink-4)',
+                  textAlign: 'center',
+                  padding: '24px 0',
+                }}
+              >
+                No agents match this filter.
+              </p>
+            ) : (
+              filteredAgents.map((agent) => (
+                <AgentRow
+                  key={agent.numeral}
+                  agent={agent}
+                  isSelected={selectedAgent === agent.name}
+                  rowRef={(el) => {
+                    rowRefs.current[agent.name] = el;
+                  }}
+                  onSelect={() =>
+                    setSelectedAgent((prev) =>
+                      prev === agent.name ? null : agent.name,
+                    )
+                  }
+                />
+              ))
+            )}
           </div>
 
           {/* Related callout card */}

@@ -5,11 +5,10 @@
  * smooth vertical crossfade. Each line reads like a concierge aside —
  * the agent quietly surfacing what it noticed while watching the floor.
  *
- * Restyled for re:Invent: a pulse dot on the left, an italic Fraunces
- * verb (Noticing / Just spotted / Trending) leading the copy, and a
- * mono "trace" stamp on the right naming the tool that produced the
- * finding. The whole strip reads as the agent's voice — not a shipping
- * banner.
+ * Restyled for re:Invent: a pulse dot on the left, a small-caps-style
+ * verb (NOTICING / PAIRING / …) in sans semibold + wide tracking — same
+ * register as the hero "Summer Edit / No. 06" eyebrow, but in deep
+ * terracotta (`var(--accent)`). Body in cream, mono trace on the right.
  *
  * Falls back to the static ANNOUNCEMENT copy as the first item so the
  * shipping/returns line still appears in the rotation.
@@ -17,17 +16,14 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ANNOUNCEMENT } from '../copy'
+import { cssVar as c } from '../design/cssVars'
 
-const DUSK = '#3d2518'
-const CREAM = '#fbf4e8'
-const ACCENT = '#c44536'
-const FRAUNCES_STACK = "'Fraunces', Georgia, serif"
-const MONO_STACK = "'JetBrains Mono', ui-monospace, monospace"
+const MONO_STACK = 'var(--mono)'
 
 const CYCLE_MS = 5000
 
 interface Finding {
-  /** Italic verb that leads the copy ("Noticing", "Just spotted"). */
+  /** Uppercase sans label that leads the copy ("Noticing", "Pairing"). */
   verb?: string
   /** Body text. */
   text: string
@@ -92,8 +88,8 @@ export default function AnnouncementBar() {
       data-testid="announcement-bar"
       className="w-full relative overflow-hidden"
       style={{
-        background: DUSK,
-        color: CREAM,
+        background: c.ink,
+        color: c.bg,
         fontFamily: 'var(--sans)',
         fontSize: '12.5px',
         letterSpacing: '0.04em',
@@ -115,7 +111,7 @@ export default function AnnouncementBar() {
           width: 8,
           height: 8,
           borderRadius: 999,
-          background: ACCENT,
+          background: c.accent,
           zIndex: 1,
         }}
       >
@@ -157,12 +153,13 @@ export default function AnnouncementBar() {
             {FINDINGS[index].verb ? (
               <span
                 style={{
-                  fontFamily: FRAUNCES_STACK,
-                  fontStyle: 'italic',
-                  color: '#f6c8a8',
-                  fontWeight: 500,
-                  fontSize: '14.5px',
-                  letterSpacing: '-0.005em',
+                  fontFamily: 'var(--sans)',
+                  fontStyle: 'normal',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  color: c.accent,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -171,7 +168,7 @@ export default function AnnouncementBar() {
             ) : null}
             <span
               style={{
-                color: CREAM,
+                color: c.bg,
                 opacity: 0.92,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

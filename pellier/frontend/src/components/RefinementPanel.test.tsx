@@ -40,7 +40,7 @@ describe('RefinementPanel — static copy (Req 1.8.1)', () => {
     expect(screen.getByTestId('refinement-prompt')).toHaveTextContent(
       'Pellier here, want me to narrow this down?',
     )
-    expect(screen.getByTestId('refinement-b-mark')).toHaveTextContent('B')
+    expect(screen.getByTestId('refinement-b-mark')).toHaveTextContent('P')
 
     const chips = screen.getAllByRole('button')
     expect(chips).toHaveLength(REFINEMENT.CHIPS.length)

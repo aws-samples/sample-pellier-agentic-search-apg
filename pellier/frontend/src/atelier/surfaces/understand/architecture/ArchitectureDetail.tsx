@@ -120,13 +120,11 @@ const NotFoundState: React.FC<{ concept: string }> = ({ concept }) => {
     >
       <Eyebrow label="Not found" variant="muted" />
       <h1
+        className="font-display italic text-espresso"
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontSize: '36px',
+          fontSize: 'clamp(36px, 4vw, 48px)',
           fontWeight: 400,
-          fontStyle: 'italic',
           lineHeight: 1.15,
-          color: 'var(--at-ink-1)',
           margin: '16px 0 0 0',
         }}
       >

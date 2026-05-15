@@ -72,7 +72,7 @@ def build_recommendation_agent() -> Agent:
     agent as before in those scenarios.
     === CHALLENGE 3: END ===
     """
-    # Curator — Sonnet 4.6 at 0.4. Recommendations carry "taste";
+    # Curator — Claude Opus 4.6 at 0.4. Recommendations carry "taste";
     # skills shape voice. Warm model, warm temperature.
     #
     # Tool-grant note: the Curator gets ``find_pieces_hybrid`` (Anna's

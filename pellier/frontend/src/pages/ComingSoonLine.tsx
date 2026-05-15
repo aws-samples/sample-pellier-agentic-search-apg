@@ -12,9 +12,7 @@
  *     the authored strings in copy.ts.
  */
 import { STORYBOARD_PAGE_COMING_SOON } from '../copy'
-
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
+import { cssVar as c } from '../design/cssVars'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 
 interface ComingSoonLineProps {
@@ -32,8 +30,8 @@ export default function ComingSoonLine({
     <section
       data-testid={testId}
       style={{
-        background: CREAM,
-        color: INK,
+        background: c.bg,
+        color: c.ink,
         padding: '64px 24px',
         textAlign: 'center',
       }}
@@ -45,7 +43,7 @@ export default function ComingSoonLine({
           fontWeight: 400,
           fontSize: 22,
           lineHeight: 1.4,
-          color: INK,
+          color: c.ink,
           margin: 0,
           maxWidth: 720,
           marginInline: 'auto',

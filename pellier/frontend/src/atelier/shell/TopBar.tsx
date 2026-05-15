@@ -91,15 +91,9 @@ const TopBar: React.FC = () => {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Presence pill — same atom that sits on the Boutique hero, so
-          attendees crossing surfaces immediately recognize the agent
-          signature. The session fragment cites the active persona +
-          memory age so the personalization is visible everywhere. */}
-      <PresencePill
-        surface="boutique"
-        personaId={persona?.id}
-        label="Pellier · watching"
-      />
+      {/* Presence — same chip as Boutique hero; mono tail only when a
+          persona is signed in (hidden for fresh / anonymous). */}
+      <PresencePill surface="boutique" personaId={persona?.id} />
 
       {/* Persona avatar */}
       {(() => {

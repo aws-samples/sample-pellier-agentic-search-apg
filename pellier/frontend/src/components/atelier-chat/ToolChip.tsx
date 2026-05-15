@@ -18,12 +18,8 @@
  */
 import { useState } from 'react'
 import type { WorkshopPanelEvent } from '../../services/workshop'
+import { cssVar as c } from '../../design/cssVars'
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
-const CREAM_WARM = '#f5e8d3'
 
 export interface ToolChipProps {
   /** The panel event this chip represents. */
@@ -78,26 +74,26 @@ export default function ToolChip({
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-[10px] w-full px-[13px] py-[9px] text-left text-[12px] transition-colors hover:bg-[rgba(0,0,0,0.02)]"
         style={{
-          color: INK,
+          color: c.ink,
           borderBottom: expanded ? '1px solid rgba(45, 24, 16, 0.06)' : 'none',
         }}
       >
         <span
           className="text-[9px]"
-          style={{ color: expanded ? ACCENT : INK_QUIET }}
+          style={{ color: expanded ? c.accent : c.muted }}
           aria-hidden
         >
           {expanded ? '▼' : '▶'}
         </span>
-        <span style={{ color: INK, fontWeight: expanded ? 500 : 400 }}>{label}</span>
+        <span style={{ color: c.ink, fontWeight: expanded ? 500 : 400 }}>{label}</span>
         {summary && (
-          <span className="italic" style={{ color: INK_QUIET }}>
+          <span className="italic" style={{ color: c.muted }}>
             {summary}
           </span>
         )}
         <span
           className="ml-auto font-mono text-[10px]"
-          style={{ color: INK_QUIET }}
+          style={{ color: c.muted }}
         >
           {panel.duration_ms}ms
         </span>
@@ -108,8 +104,8 @@ export default function ToolChip({
             <pre
               className="font-mono text-[11px] leading-[1.7] rounded-[5px] overflow-hidden whitespace-pre-wrap break-words"
               style={{
-                background: CREAM_WARM,
-                color: INK,
+                background: c.paper,
+                color: c.ink,
                 padding: '9px 11px',
                 marginBottom: 9,
                 maxHeight: '4.5em',
@@ -122,7 +118,7 @@ export default function ToolChip({
           {panel.rows && panel.rows.length > 0 && (
             <div
               className="font-mono text-[11px] mb-2"
-              style={{ color: INK_SOFT }}
+              style={{ color: c.ink2 }}
             >
               {panel.rows.slice(0, 3).map((row, i) => (
                 <div key={i} className="truncate">
@@ -130,7 +126,7 @@ export default function ToolChip({
                 </div>
               ))}
               {panel.rows.length > 3 && (
-                <div style={{ color: INK_QUIET }}>
+                <div style={{ color: c.muted }}>
                   + {panel.rows.length - 3} more
                 </div>
               )}
@@ -140,7 +136,7 @@ export default function ToolChip({
             {panel.meta ? (
               <span
                 className="italic"
-                style={{ color: INK_QUIET }}
+                style={{ color: c.muted }}
                 dangerouslySetInnerHTML={{ __html: panel.meta }}
               />
             ) : (
@@ -155,7 +151,7 @@ export default function ToolChip({
                   onOpenTrace()
                 }}
                 className="transition-opacity hover:opacity-75"
-                style={{ color: ACCENT }}
+                style={{ color: c.accent }}
               >
                 Open in trace ↗
               </button>

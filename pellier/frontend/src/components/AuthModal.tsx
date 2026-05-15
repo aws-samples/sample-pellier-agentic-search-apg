@@ -33,14 +33,10 @@ import { useEffect } from 'react'
 import { AUTH_MODAL } from '../copy'
 import { useUI } from '../contexts/UIContext'
 import { redirectToSignIn, type SignInProvider } from '../utils/auth'
+import { cssVar as c } from '../design/cssVars'
 
 // === CHALLENGE 9.4: START ===
 // --- Design tokens (storefront.md) ---------------------------------------
-const CREAM = '#fbf4e8'
-const CREAM_WARM = '#f5e8d3'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 
 const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -65,9 +61,9 @@ function ProviderButton({ provider, label, testId, onClick }: ProviderButtonProp
         width: '100%',
         padding: '14px 18px',
         borderRadius: 9999,
-        background: CREAM,
-        color: INK,
-        border: `1px solid ${INK_QUIET}`,
+        background: c.bg,
+        color: c.ink,
+        border: `1px solid ${c.muted}`,
         fontFamily: INTER_STACK,
         fontSize: 14,
         fontWeight: 500,
@@ -77,14 +73,14 @@ function ProviderButton({ provider, label, testId, onClick }: ProviderButtonProp
           'background 180ms ease-out, color 180ms ease-out, border-color 180ms ease-out, transform 120ms ease-out',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = INK
-        e.currentTarget.style.color = CREAM
-        e.currentTarget.style.borderColor = INK
+        e.currentTarget.style.background = c.ink
+        e.currentTarget.style.color = c.bg
+        e.currentTarget.style.borderColor = c.ink
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = CREAM
-        e.currentTarget.style.color = INK
-        e.currentTarget.style.borderColor = INK_QUIET
+        e.currentTarget.style.background = c.bg
+        e.currentTarget.style.color = c.ink
+        e.currentTarget.style.borderColor = c.muted
       }}
     >
       {label}
@@ -147,13 +143,13 @@ export default function AuthModal() {
         style={{
           width: '100%',
           maxWidth: 440,
-          background: CREAM,
+          background: c.bg,
           borderRadius: 24,
           padding: '32px 32px 20px 32px',
           boxShadow:
             '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
           fontFamily: INTER_STACK,
-          color: INK,
+          color: c.ink,
         }}
       >
         {/* Header: B mark + title + subtitle */}
@@ -168,8 +164,8 @@ export default function AuthModal() {
               width: 44,
               height: 44,
               borderRadius: '50%',
-              background: INK,
-              color: CREAM,
+              background: c.ink,
+              color: c.bg,
               fontFamily: FRAUNCES_STACK,
               fontStyle: 'italic',
               fontSize: 20,
@@ -186,7 +182,7 @@ export default function AuthModal() {
               fontFamily: FRAUNCES_STACK,
               fontSize: 24,
               fontWeight: 500,
-              color: INK,
+              color: c.ink,
               letterSpacing: '-0.01em',
             }}
           >
@@ -197,7 +193,7 @@ export default function AuthModal() {
             style={{
               margin: 0,
               fontSize: 14,
-              color: INK_SOFT,
+              color: c.ink2,
               lineHeight: 1.45,
             }}
           >
@@ -213,7 +209,7 @@ export default function AuthModal() {
               fontSize: 10,
               fontWeight: 600,
               letterSpacing: '0.14em',
-              color: INK_SOFT,
+              color: c.ink2,
             }}
           >
             {AUTH_MODAL.EYEBROW}
@@ -224,7 +220,7 @@ export default function AuthModal() {
               fontFamily: FRAUNCES_STACK,
               fontStyle: 'italic',
               fontSize: 22,
-              color: INK,
+              color: c.ink,
               lineHeight: 1.25,
             }}
           >
@@ -261,7 +257,7 @@ export default function AuthModal() {
             marginTop: 20,
             textAlign: 'center',
             fontSize: 12,
-            color: INK_SOFT,
+            color: c.ink2,
             lineHeight: 1.45,
           }}
         >
@@ -274,12 +270,12 @@ export default function AuthModal() {
           style={{
             marginTop: 18,
             paddingTop: 14,
-            borderTop: `1px solid ${CREAM_WARM}`,
+            borderTop: `1px solid ${c.paper}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            color: INK_QUIET,
+            color: c.muted,
             fontFamily: MONO_STACK,
             fontSize: 10,
             letterSpacing: '0.04em',
@@ -300,7 +296,7 @@ export default function AuthModal() {
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <span>{AUTH_MODAL.FOOTER}</span>
-          <span style={{ color: INK_QUIET }}>{AUTH_MODAL.VERSION}</span>
+          <span style={{ color: c.muted }}>{AUTH_MODAL.VERSION}</span>
         </div>
       </div>
     </div>

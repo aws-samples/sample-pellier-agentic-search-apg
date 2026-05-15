@@ -70,7 +70,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: '#fbf4e8' }}
+        style={{ background: 'var(--cream)' }}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-black/10 border-t-black/40 rounded-full animate-spin" />

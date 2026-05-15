@@ -1,0 +1,28 @@
+{
+  "persona": "theo",
+  "stm": {
+    "turnCount": 2,
+    "recentIntents": ["Slow morning ceramics", "Tabletop in warm neutrals"],
+    "items": [
+      {
+        "id": "stm-theo-1",
+        "content": "Comparing pour-over sets and tumblers from the same kiln",
+        "tier": "stm",
+        "timestamp": "2025-01-14T10:30:00Z"
+      }
+    ]
+  },
+  "ltm": {
+    "preferences": ["stoneware", "hand-thrown", "slow living"],
+    "priorOrders": ["Stoneware Pour-Over Set — Ash Grey — $165"],
+    "behavioralPatterns": ["Reads long descriptions", "Favors tactile materials"],
+    "items": [
+      {
+        "id": "ltm-theo-1",
+        "content": "Builds rituals around morning coffee and quiet table moments",
+        "tier": "ltm",
+        "similarity": 0.88
+      }
+    ]
+  }
+}

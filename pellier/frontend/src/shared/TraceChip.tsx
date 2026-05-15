@@ -8,10 +8,10 @@
  * from this single file is the cohesion guarantee — when the visual
  * treatment evolves, every place that names a tool updates together.
  *
- * Visual: cream-warm bg + 1px burgundy border, JetBrains Mono 10.5px,
- * burgundy text. Optional `duration` renders a faint right-aligned
- * mono timestamp ("· 2.1s ago"). Optional `linkToAtelier` wraps the
- * chip in an anchor that deep-links to the Atelier route that
+ * Visual: warm tint + 1px accent border, mono label at 11px with slight
+ * tracking for readable dot-syntax. Optional `duration` renders a faint
+ * right-aligned mono timestamp ("· 2.1s ago"). Optional `linkToAtelier`
+ * wraps the chip in an anchor that deep-links to the Atelier route that
  * explains this concept (the "how this works" handoff).
  */
 import React from 'react'
@@ -35,10 +35,6 @@ export interface TraceChipProps {
   compact?: boolean
 }
 
-const ACCENT = '#a8423a'
-const MONO_STACK =
-  "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-
 export const TraceChip: React.FC<TraceChipProps> = ({
   tool,
   duration,
@@ -51,16 +47,20 @@ export const TraceChip: React.FC<TraceChipProps> = ({
   const baseStyle: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 8,
-    fontFamily: MONO_STACK,
-    fontSize: 10.5,
-    letterSpacing: '0.02em',
-    color: ACCENT,
+    gap: 6,
+    fontFamily: 'var(--mono)',
+    fontSize: 11,
+    fontWeight: 500,
+    letterSpacing: '0.05em',
+    fontFeatureSettings: "'calt' 1, 'liga' 1",
+    color: 'var(--accent)',
     background:
-      variant === 'ghost' ? 'rgba(168,66,58,0.04)' : 'rgba(168,66,58,0.08)',
-    border: '1px solid rgba(168,66,58,0.16)',
+      variant === 'ghost'
+        ? 'color-mix(in srgb, var(--accent) 5%, transparent)'
+        : 'color-mix(in srgb, var(--accent) 9%, var(--cream-warm))',
+    border: '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
     borderRadius: 6,
-    padding: compact ? '3px 7px' : '4px 8px',
+    padding: compact ? '4px 8px' : '5px 10px',
     whiteSpace: 'nowrap',
     textDecoration: 'none',
     cursor: linkToAtelier ? 'pointer' : 'default',
@@ -71,7 +71,9 @@ export const TraceChip: React.FC<TraceChipProps> = ({
     <>
       <span>{tool}</span>
       {duration ? (
-        <span style={{ color: 'rgba(168,66,58,0.55)' }}>· {duration}</span>
+        <span style={{ color: 'color-mix(in srgb, var(--accent) 48%, var(--ink))' }}>
+          · {duration}
+        </span>
       ) : null}
     </>
   )
@@ -84,13 +86,18 @@ export const TraceChip: React.FC<TraceChipProps> = ({
         data-testid={`trace-chip-${tool}`}
         style={baseStyle}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(168,66,58,0.14)'
-          e.currentTarget.style.borderColor = 'rgba(168,66,58,0.32)'
+          e.currentTarget.style.background =
+            'color-mix(in srgb, var(--accent) 14%, var(--cream-warm))'
+          e.currentTarget.style.borderColor =
+            'color-mix(in srgb, var(--accent) 38%, transparent)'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background =
-            variant === 'ghost' ? 'rgba(168,66,58,0.04)' : 'rgba(168,66,58,0.08)'
-          e.currentTarget.style.borderColor = 'rgba(168,66,58,0.16)'
+            variant === 'ghost'
+              ? 'color-mix(in srgb, var(--accent) 5%, transparent)'
+              : 'color-mix(in srgb, var(--accent) 9%, var(--cream-warm))'
+          e.currentTarget.style.borderColor =
+            'color-mix(in srgb, var(--accent) 22%, transparent)'
         }}
       >
         {content}

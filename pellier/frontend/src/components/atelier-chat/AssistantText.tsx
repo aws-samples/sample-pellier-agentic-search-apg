@@ -18,10 +18,7 @@
  * the pill.
  */
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const ACCENT = '#c44536'
-const CREAM_WARM = '#f5e8d3'
+import { cssVar as palette } from '../../design/cssVars'
 
 export interface AssistantCitation {
   k: string
@@ -62,7 +59,7 @@ export default function AssistantText({
           const match = part.match(/^\[trace (\d+)\]$/)
           if (match) {
             const ref = `trace ${match[1]}`
-            const c = citationByRef.get(ref)
+            const cite = citationByRef.get(ref)
             return (
               <button
                 key={i}
@@ -70,8 +67,8 @@ export default function AssistantText({
                 data-testid={`citation-pill-${ref}`}
                 onClick={() => onCitationClick?.(ref)}
                 className="font-mono text-[10px] px-[7px] py-[1px] rounded-full transition-opacity hover:opacity-80 mx-1 align-[2px]"
-                style={{ background: CREAM_WARM, color: ACCENT }}
-                title={c?.k ? `Source: ${c.k}` : undefined}
+                style={{ background: palette.paper, color: palette.accent }}
+                title={cite?.k ? `Source: ${cite.k}` : undefined}
               >
                 {ref}
               </button>
@@ -87,7 +84,7 @@ export default function AssistantText({
     <div
       data-testid="assistant-text"
       className="mb-4 text-[15px] leading-[1.7]"
-      style={{ color: INK, paddingLeft: 2, letterSpacing: '-0.003em' }}
+      style={{ color: palette.ink, paddingLeft: 2, letterSpacing: '-0.003em' }}
     >
       {text.split('\n').map((line, i) => renderLineWithCitations(line, i))}
       {/* Trailing pills fallback — shown when citations exist but no
@@ -97,20 +94,20 @@ export default function AssistantText({
           className="flex flex-wrap gap-1.5 mt-2"
           data-testid="assistant-text-citations"
         >
-          {citations!.map((c, i) => (
+          {citations!.map((cite, i) => (
             <button
-              key={`${c.ref}-${i}`}
+              key={`${cite.ref}-${i}`}
               type="button"
-              data-testid={`citation-pill-${c.ref}`}
-              onClick={() => onCitationClick?.(c.ref)}
+              data-testid={`citation-pill-${cite.ref}`}
+              onClick={() => onCitationClick?.(cite.ref)}
               className="font-mono text-[10px] px-[7px] py-[1px] rounded-full transition-opacity hover:opacity-80"
-              style={{ background: CREAM_WARM, color: ACCENT, verticalAlign: 2 }}
-              title={c.k ? `Source: ${c.k}` : undefined}
+              style={{ background: palette.paper, color: palette.accent, verticalAlign: 2 }}
+              title={cite.k ? `Source: ${cite.k}` : undefined}
             >
-              {c.ref}
+              {cite.ref}
             </button>
           ))}
-          <span className="text-[10px] italic" style={{ color: INK_SOFT }}>
+          <span className="text-[10px] italic" style={{ color: palette.ink2 }}>
             click to scroll to the source panel
           </span>
         </div>

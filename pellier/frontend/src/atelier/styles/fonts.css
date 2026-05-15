@@ -1,37 +1,19 @@
 /* ========================================================================
- * Atelier Observatory — Typography
+ * Atelier Observatory — Typography scale
  *
- * Font imports and CSS custom properties for the three Atelier type
- * families. Components reference --at-serif, --at-sans, and --at-mono
- * rather than hardcoding font stacks.
+ * Font stacks (--at-serif, --at-sans, --at-mono) resolve through
+ * styles/daylight-bridge.css → --dl-font-* (see daylight-tokens.css),
+ * which use the same self-hosted Instrument + Fraunces + Inter +
+ * JetBrains faces imported in src/main.tsx.
  *
- * Font roles:
- *   Fraunces (serif, italic-capable) — editorial headlines, titles,
- *       display type, product names, section headings
- *   Inter — UI body text, buttons, navigation, metadata
- *   JetBrains Mono — code snippets, labels, eyebrows, metadata,
- *       breadcrumbs, monospace surfaces
- *
- * The @fontsource-variable packages are already installed and imported
- * in src/design/typography.css. We re-import here so the Atelier module
- * is self-contained — duplicate @import is a no-op in the browser.
+ * This file only defines Atelier type *scale* tokens and utility
+ * classes. Do not re-declare font-family stacks on :root here — that
+ * would override the bridge and split Atelier from the Boutique.
  *
  * Requirements: 15.2 (typography families and roles)
  * ======================================================================== */
 
-@import "@fontsource-variable/fraunces";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/jetbrains-mono";
-
 :root {
-  /* ------------------------------------------------------------------
-   * Font stack custom properties
-   * ---------------------------------------------------------------- */
-  --at-serif: 'Fraunces Variable', 'Fraunces', 'Times New Roman', Georgia, serif;
-  --at-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --at-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
-             Monaco, Consolas, monospace;
-
   /* ------------------------------------------------------------------
    * Type scale — fixed sizes for the Atelier desktop-first layout
    * (min 1280px, no mobile breakpoints)

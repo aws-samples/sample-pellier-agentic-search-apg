@@ -5,13 +5,14 @@
  * Every link pointed to a placeholder route. Replaced with three
  * live surfaces that map 1:1 to routes that exist in the router:
  *
- *   - Brand column: "Pellier" mark + tagline (unchanged).
+ *   - Brand column: circular P mark + "Pellier" + tagline.
  *   - Explore:      The floor (`/#shop`), Discover, Storyboard.
  *   - Storyboard:   Italic blurb + a real link to `/storyboard`.
  *   - Atelier:      Italic blurb + a real link to `/atelier`.
  *   - Bottom strip: Copyright + current year. No Privacy/Terms/
  *                   Accessibility stubs — those were the same dead
- *                   links this rewrite is eliminating.
+ *                   links this rewrite is eliminating. Right-hand
+ *                   attribution from `FOOTER.BOTTOM_STRIP.ATTRIBUTION`.
  *
  * Copy from `FOOTER` in copy.ts.
  *
@@ -63,7 +64,10 @@ export default function Footer() {
             ctaHref={FOOTER.ATELIER.CTA_HREF}
           />
         </div>
-        <BottomStrip copyrightLine={copyrightLine} />
+        <BottomStrip
+          copyrightLine={copyrightLine}
+          attribution={FOOTER.BOTTOM_STRIP.ATTRIBUTION}
+        />
       </div>
     </footer>
   )
@@ -79,9 +83,9 @@ function BrandColumn() {
       <div className="flex items-center gap-2.5">
         <span
           aria-hidden="true"
-          className="inline-flex items-center justify-center rounded-full w-8 h-8 bg-espresso text-cream-50 font-display font-semibold text-base"
+          className="pellier-logo-chip bg-espresso text-cream-50"
         >
-          B
+          P
         </span>
         <span className="font-display text-xl font-medium tracking-tight">
           Pellier
@@ -174,9 +178,10 @@ function EditorialColumn({
 
 interface BottomStripProps {
   copyrightLine: string
+  attribution: string
 }
 
-function BottomStrip({ copyrightLine }: BottomStripProps) {
+function BottomStrip({ copyrightLine, attribution }: BottomStripProps) {
   return (
     <div
       data-testid="footer-bottom-strip"
@@ -188,8 +193,11 @@ function BottomStrip({ copyrightLine }: BottomStripProps) {
       >
         {copyrightLine}
       </span>
-      <span className="font-sans text-[11px] tracking-[0.18em] uppercase text-ink-quiet">
-        Made for the workshop
+      <span
+        data-testid="footer-attribution"
+        className="font-sans text-xs text-ink-quiet tracking-tight"
+      >
+        {attribution}
       </span>
     </div>
   )

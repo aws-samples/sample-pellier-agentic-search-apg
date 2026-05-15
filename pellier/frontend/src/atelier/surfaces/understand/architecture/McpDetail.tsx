@@ -162,23 +162,23 @@ const McpNetworkDiagram: React.FC = () => (
     <line x1="120" y1="250" x2="360" y2="250" stroke="rgba(31,20,16,0.18)" strokeWidth="1" strokeDasharray="4,4" />
 
     {/* Edge labels */}
-    <rect x="125" y="135" width="80" height="20" rx="10" fill="#faf3e8" stroke="rgba(168,66,58,0.4)" strokeWidth="1" />
+    <rect x="125" y="135" width="80" height="20" rx="10" fill="var(--cream-warm)" stroke="rgba(168,66,58,0.4)" strokeWidth="1" />
     <text x="165" y="149" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="11" fill="#a8423a">discovers</text>
-    <rect x="280" y="135" width="68" height="20" rx="10" fill="#faf3e8" stroke="rgba(168,66,58,0.4)" strokeWidth="1" />
+    <rect x="280" y="135" width="68" height="20" rx="10" fill="var(--cream-warm)" stroke="rgba(168,66,58,0.4)" strokeWidth="1" />
     <text x="314" y="149" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="11" fill="#a8423a">invokes</text>
 
     {/* Agent (top) */}
     <rect x="180" y="50" width="120" height="55" rx="10" fill="#1f1410" />
-    <text x="240" y="78" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="18" fill="#faf3e8">agent</text>
+    <text x="240" y="78" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="18" fill="var(--cream-warm)">agent</text>
     <text x="240" y="94" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(250,243,232,0.55)" letterSpacing="1.5">orchestrator + 5 specs</text>
 
     {/* Gateway (bottom-left) */}
-    <rect x="55" y="210" width="130" height="70" rx="10" fill="#faf3e8" stroke="#a8423a" strokeWidth="1.5" />
+    <rect x="55" y="210" width="130" height="70" rx="10" fill="var(--cream-warm)" stroke="var(--accent)" strokeWidth="1.5" />
     <text x="120" y="240" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="18" fill="#a8423a">gateway</text>
     <text x="120" y="258" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1.5">AGENTCORE</text>
 
     {/* Tools (bottom-right) */}
-    <rect x="295" y="210" width="130" height="70" rx="10" fill="#faf3e8" stroke="rgba(31,20,16,0.30)" strokeWidth="1" />
+    <rect x="295" y="210" width="130" height="70" rx="10" fill="var(--cream-warm)" stroke="rgba(31,29,26,0.30)" strokeWidth="1" />
     <text x="360" y="240" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="18" fill="#1f1410">tools</text>
     <text x="360" y="258" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1.5">REGISTERED</text>
 

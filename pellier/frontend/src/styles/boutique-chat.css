@@ -329,16 +329,18 @@
   margin-bottom: -4px;
 }
 .ec-b-mini {
-  width: 16px; height: 16px;
+  width: 18px; height: 18px;
   border-radius: 50%;
   background: var(--ink-1);
   color: var(--cream-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--serif);
-  font-size: 9px;
-  font-weight: 500;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: -0.04em;
   flex-shrink: 0;
 }
 

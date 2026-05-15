@@ -253,10 +253,10 @@ def test_bedrock_model_ids_have_spec_defaults(
 ) -> None:
     """The IN-CODE Bedrock model defaults SHALL match the spec:
 
-      - Cohere Embed v4 (cohere.embed-english-v4:0)
+      - Cohere Embed v4 (cohere.embed-v4:0)
       - Cohere Rerank v3.5 (cohere.rerank-v3-5:0)
-      - Claude Opus 4.7 (global.anthropic.claude-opus-4-7) for the
-        legacy BEDROCK_CHAT_MODEL alias
+      - Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) for the
+        legacy BEDROCK_CHAT_MODEL alias and editorial-agent default
 
     Settings normally loads ``.env`` via SettingsConfigDict, which would
     override these defaults with whatever the deploy environment set
@@ -280,13 +280,13 @@ def test_bedrock_model_ids_have_spec_defaults(
     nonexistent_env = str(tmp_path / "no-such-file.env")
     s = Settings(_env_file=nonexistent_env)
 
-    assert s.BEDROCK_EMBEDDING_MODEL == "cohere.embed-english-v4:0"
+    assert s.BEDROCK_EMBEDDING_MODEL == "cohere.embed-v4:0"
     assert s.BEDROCK_RERANK_MODEL == "cohere.rerank-v3-5:0"
-    assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-7"
+    assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-6-v1"
     # Per-agent model mix should also default cleanly.
-    assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-4-6"
+    assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-opus-4-6-v1"
     assert s.BEDROCK_HAIKU_MODEL == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-    assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-4-7"
+    assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-4-6-v1"
 
 
 # ---------------------------------------------------------------------------

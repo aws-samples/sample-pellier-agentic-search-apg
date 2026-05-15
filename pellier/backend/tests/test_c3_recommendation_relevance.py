@@ -164,7 +164,7 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
     """Building the Curator SHALL match the per-agent model mix from
     ``lab-content/shared/model-mix-sidebar.en.md``:
 
-      - Sonnet 4.6 (BEDROCK_SONNET_MODEL)
+      - Claude Opus 4.6 (BEDROCK_SONNET_MODEL — legacy constant name)
       - temperature 0.4 (warm — recommendations carry "taste")
       - exactly four tools: find_pieces_hybrid + whats_trending +
         side_by_side + explore_collection.

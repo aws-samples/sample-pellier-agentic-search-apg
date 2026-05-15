@@ -1,8 +1,7 @@
 /**
  * Eyebrow — Monospace uppercase label with burgundy dot.
  *
- * JetBrains Mono, 9-10px, letter-spacing 0.22em. Used as a section
- * identifier throughout the Atelier design system.
+ * Uses Daylight mono + small size tokens (--at-mono / --dl-fs-small).
  *
  * Requirements: 15.4
  */
@@ -27,17 +26,19 @@ export const Eyebrow: React.FC<EyebrowProps> = ({
 
   return (
     <span
-      className={`font-sans ${className}`.trim()}
+      className={className.trim()}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
-        fontSize: '13px',
+        fontFamily: 'var(--at-mono)',
+        fontSize: 'var(--dl-fs-small)',
         fontWeight: 600,
-        letterSpacing: '0.22em',
+        letterSpacing: 'var(--at-eyebrow-tracking)',
         textTransform: 'uppercase',
         color: textColor,
         lineHeight: 1,
+        fontFeatureSettings: "'calt' 1, 'liga' 1",
       }}
     >
       <span

@@ -1,3 +1,4 @@
+import { cssVar as c } from '../design/cssVars'
 /**
  * FieldNotes — short editorial essays for the Storyboard route.
  *
@@ -12,11 +13,6 @@
  * footer newsletter column so the phrase earns a home instead of
  * being decoration beneath a dead subscribe form.
  */
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
-const CREAM = '#fbf4e8'
 const RULE_1 = 'rgba(45, 24, 16, 0.08)'
 
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -75,7 +71,7 @@ export default function FieldNotes() {
       data-testid="field-notes"
       aria-labelledby="field-notes-heading"
       style={{
-        background: CREAM,
+        background: c.bg,
         padding: '72px 24px 96px',
       }}
     >
@@ -87,7 +83,7 @@ export default function FieldNotes() {
               fontSize: 11,
               letterSpacing: '0.24em',
               textTransform: 'uppercase',
-              color: ACCENT,
+              color: c.accent,
               fontWeight: 500,
               margin: 0,
               display: 'flex',
@@ -101,7 +97,7 @@ export default function FieldNotes() {
                 width: 5,
                 height: 5,
                 borderRadius: '50%',
-                background: ACCENT,
+                background: c.accent,
                 display: 'inline-block',
               }}
             />
@@ -116,12 +112,12 @@ export default function FieldNotes() {
               fontSize: 44,
               lineHeight: 1.1,
               letterSpacing: '-0.01em',
-              color: INK,
+              color: c.ink,
               margin: '16px 0 0',
             }}
           >
             A slower kind of shopping,{' '}
-            <span style={{ color: INK_SOFT }}>in four notes.</span>
+            <span style={{ color: c.ink2 }}>in four notes.</span>
           </h2>
           <p
             style={{
@@ -129,7 +125,7 @@ export default function FieldNotes() {
               fontStyle: 'italic',
               fontSize: 17,
               lineHeight: 1.6,
-              color: INK_SOFT,
+              color: c.ink2,
               margin: '16px 0 0',
               maxWidth: 560,
             }}
@@ -155,7 +151,7 @@ export default function FieldNotes() {
                   fontSize: 10,
                   letterSpacing: '0.22em',
                   textTransform: 'uppercase',
-                  color: INK_QUIET,
+                  color: c.muted,
                   fontWeight: 500,
                   margin: 0,
                 }}
@@ -170,7 +166,7 @@ export default function FieldNotes() {
                   fontSize: 28,
                   lineHeight: 1.2,
                   letterSpacing: '-0.005em',
-                  color: INK,
+                  color: c.ink,
                   margin: '10px 0 18px',
                 }}
               >
@@ -184,7 +180,7 @@ export default function FieldNotes() {
                     fontSize: 15,
                     lineHeight: 1.7,
                     letterSpacing: '-0.003em',
-                    color: INK,
+                    color: c.ink,
                     margin: j === 0 ? 0 : '16px 0 0',
                   }}
                 >
@@ -197,7 +193,7 @@ export default function FieldNotes() {
                   fontStyle: 'italic',
                   fontWeight: 400,
                   fontSize: 14,
-                  color: INK_SOFT,
+                  color: c.ink2,
                   margin: '18px 0 0',
                 }}
               >
@@ -222,7 +218,7 @@ export default function FieldNotes() {
               fontWeight: 600,
               fontSize: 15,
               lineHeight: 1.6,
-              color: INK_SOFT,
+              color: c.ink2,
               textAlign: 'center',
               margin: 0,
               maxWidth: 420,

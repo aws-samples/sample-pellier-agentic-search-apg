@@ -10,9 +10,8 @@
  * understand "why 94%".
  */
 import type { WorkshopPanelEvent } from '../../services/workshop'
+import { cssVar as c } from '../../design/cssVars'
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
 
 const GREEN_BG = 'rgba(192, 221, 151, 0.18)'
 const GREEN_BORDER = 'rgba(99, 153, 34, 0.18)'
@@ -70,13 +69,13 @@ export default function ConfidenceSummary({ panel }: ConfidenceSummaryProps) {
       >
         Confidence
       </span>
-      <span className="font-medium" style={{ color: INK }}>
+      <span className="font-medium" style={{ color: c.ink }}>
         {percent}%
       </span>
       {justification && (
         <span
           className="italic text-[11px]"
-          style={{ color: INK_SOFT }}
+          style={{ color: c.ink2 }}
         >
           {justification}
         </span>

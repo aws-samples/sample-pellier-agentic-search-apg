@@ -351,6 +351,8 @@ export const FOOTER = {
   },
   BOTTOM_STRIP: {
     COPYRIGHT: "\u00a9 Pellier",
+    /** Right-hand credit in the footer strip (replaces workshop banner). */
+    ATTRIBUTION: "\u00a9 Shayon Sanyal",
   },
 } as const;
 

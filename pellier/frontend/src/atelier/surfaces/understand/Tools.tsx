@@ -11,7 +11,7 @@
  * Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 16.3
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
@@ -26,6 +26,12 @@ import { useAtelierData } from '../../hooks/useAtelierData';
 import { useBuildState } from '../../hooks/useBuildState';
 import { useToolDiscovery } from '../../hooks/useToolDiscovery';
 import type { Tool, ToolDiscoveryResult } from '../../types';
+import {
+  DISCOVERY_EXAMPLES,
+  discoveryQueryForTool,
+  filterTools,
+  type ToolFilter,
+} from './toolsDiscoveryUtils';
 
 /* -----------------------------------------------------------------------
  * Build Segment[] from tool data for WorkshopProgressStrip
@@ -45,10 +51,42 @@ function buildSegments(tools: Tool[]): Segment[] {
 
 const DEFAULT_QUERY = 'find products matching customer preferences';
 
-const DiscoveryDemoCard: React.FC = () => {
+const FILTER_OPTIONS: Array<{ id: ToolFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'shipped', label: 'Shipped' },
+  { id: 'exercise', label: 'Exercise' },
+  { id: 'read', label: 'Read' },
+  { id: 'write', label: 'Write' },
+];
+
+interface DiscoveryDemoCardProps {
+  tools: Tool[];
+  highlightedToolName: string | null;
+  onSelectTool: (functionName: string) => void;
+  runRequest?: { query: string; nonce: number } | null;
+  onResultsChange?: (results: ToolDiscoveryResult[]) => void;
+}
+
+const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
+  tools,
+  highlightedToolName,
+  onSelectTool,
+  runRequest,
+  onResultsChange,
+}) => {
   const [query, setQuery] = useState(DEFAULT_QUERY);
-  const { results, loading, error, durationMs, sql, discover } =
-    useToolDiscovery();
+  const { results, loading, error, durationMs, sql, discover, usedOfflineFallback } =
+    useToolDiscovery(tools);
+
+  React.useEffect(() => {
+    if (!runRequest?.query) return;
+    setQuery(runRequest.query);
+    discover(runRequest.query);
+  }, [runRequest?.nonce, runRequest?.query, discover]);
+
+  React.useEffect(() => {
+    onResultsChange?.(results);
+  }, [results, onResultsChange]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -58,6 +96,14 @@ const DiscoveryDemoCard: React.FC = () => {
       }
     },
     [query, discover],
+  );
+
+  const runExample = useCallback(
+    (exampleQuery: string) => {
+      setQuery(exampleQuery);
+      discover(exampleQuery);
+    },
+    [discover],
   );
 
   return (
@@ -115,8 +161,40 @@ const DiscoveryDemoCard: React.FC = () => {
       >
         Type a natural-language query. The registry finds the closest tools
         using cosine similarity over Cohere Embed v4 embeddings — the same
-        primitive that powers product search.
+        primitive that powers product search. Click a result to jump to that tool
+        in the registry below.
       </p>
+
+      {/* Example queries */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '8px',
+          marginBottom: '14px',
+        }}
+      >
+        {DISCOVERY_EXAMPLES.map((ex) => (
+          <button
+            key={ex.label}
+            type="button"
+            disabled={loading}
+            onClick={() => runExample(ex.query)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '12px',
+              padding: '5px 12px',
+              borderRadius: '999px',
+              border: '1px solid var(--at-rule-2)',
+              background: 'var(--at-cream-2)',
+              color: 'var(--at-ink-2)',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {ex.label}
+          </button>
+        ))}
+      </div>
 
       {/* Query input */}
       <form onSubmit={handleSubmit}>
@@ -207,24 +285,36 @@ const DiscoveryDemoCard: React.FC = () => {
       {/* Results list */}
       {results.length > 0 && (
         <div style={{ marginBottom: '4px' }}>
-          {results.map((result: ToolDiscoveryResult, idx: number) => (
-            <div
+          {results.map((result: ToolDiscoveryResult, idx: number) => {
+            const isHighlighted = highlightedToolName === result.name;
+            return (
+            <button
               key={result.toolId ?? result.name ?? idx}
+              type="button"
+              onClick={() => onSelectTool(result.name)}
               style={{
                 display: 'grid',
+                width: '100%',
+                textAlign: 'left',
                 gridTemplateColumns: '30px 1fr auto auto',
                 gap: '14px',
                 alignItems: 'center',
                 padding: '10px 12px',
                 borderRadius: '6px',
                 marginBottom: '4px',
-                ...(idx === 0
-                  ? {
-                      background: 'var(--at-green-soft)',
-                      borderLeft: '2px solid var(--at-green-1)',
-                      paddingLeft: '10px',
-                    }
-                  : {}),
+                border: isHighlighted
+                  ? '1px solid var(--at-red-1)'
+                  : '1px solid transparent',
+                background:
+                  idx === 0 || isHighlighted
+                    ? 'var(--at-green-soft)'
+                    : 'transparent',
+                borderLeft:
+                  idx === 0 || isHighlighted
+                    ? '2px solid var(--at-green-1)'
+                    : '2px solid transparent',
+                paddingLeft: '10px',
+                cursor: 'pointer',
               }}
             >
               {/* Rank */}
@@ -287,9 +377,23 @@ const DiscoveryDemoCard: React.FC = () => {
                   ? result.similarity.toFixed(4)
                   : '—'}
               </span>
-            </div>
-          ))}
+            </button>
+          );
+          })}
         </div>
+      )}
+
+      {usedOfflineFallback && results.length > 0 && (
+        <p
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '12px',
+            color: 'var(--at-ink-4)',
+            margin: '0 0 8px',
+          }}
+        >
+          Offline workshop ranking — live endpoint unavailable; scores are illustrative.
+        </p>
       )}
 
       {/* Empty state after search */}
@@ -348,22 +452,54 @@ const DiscoveryDemoCard: React.FC = () => {
 
 interface ToolRowProps {
   tool: Tool;
+  isSelected: boolean;
+  isDiscoveryMatch: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
+  onSelect: () => void;
+  onTryDiscovery: () => void;
 }
 
-const ToolRow: React.FC<ToolRowProps> = ({ tool }) => {
+const ToolRow: React.FC<ToolRowProps> = ({
+  tool,
+  isSelected,
+  isDiscoveryMatch,
+  rowRef,
+  onSelect,
+  onTryDiscovery,
+}) => {
   const isExercise = tool.status === 'exercise';
 
   return (
     <div
+      ref={rowRef}
+      data-testid={`tool-row-${tool.functionName}`}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       style={{
         position: 'relative',
         background: isExercise ? 'transparent' : 'var(--at-card-bg)',
-        border: isExercise
-          ? '1.5px dashed var(--at-rule-3)'
-          : '1px solid var(--at-card-border)',
+        border: isSelected
+          ? '2px solid var(--at-red-1)'
+          : isExercise
+            ? '1.5px dashed var(--at-rule-3)'
+            : '1px solid var(--at-card-border)',
         borderRadius: 'var(--at-card-radius)',
         padding: '20px 24px 18px',
         overflow: 'hidden',
+        cursor: 'pointer',
+        boxShadow: isDiscoveryMatch
+          ? '0 0 0 3px var(--at-green-soft)'
+          : isSelected
+            ? '0 4px 16px rgba(31, 20, 16, 0.08)'
+            : undefined,
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       {/* Burgundy accent line at top-left (shipped only) */}
@@ -597,9 +733,111 @@ const ToolRow: React.FC<ToolRowProps> = ({ tool }) => {
         {/* Spacer for right column */}
         <span />
       </div>
+
+      {isSelected && (
+        <div
+          style={{
+            marginTop: '14px',
+            marginLeft: '46px',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            background: 'var(--at-cream-2)',
+            border: '1px dashed var(--at-rule-2)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--at-sans)',
+              fontSize: '14px',
+              color: 'var(--at-ink-2)',
+              flex: '1 1 200px',
+            }}
+          >
+            Run discovery with a query tuned for this tool.
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTryDiscovery();
+            }}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              color: 'var(--at-cream-1)',
+              background: 'var(--at-ink-1)',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '7px 12px',
+              cursor: 'pointer',
+            }}
+          >
+            Try in discovery
+          </button>
+        </div>
+      )}
     </div>
   );
 };
+
+const ToolFilterBar: React.FC<{
+  filter: ToolFilter;
+  counts: Record<ToolFilter, number>;
+  onChange: (f: ToolFilter) => void;
+}> = ({ filter, counts, onChange }) => (
+  <div
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '8px',
+      marginBottom: '16px',
+      alignItems: 'center',
+    }}
+  >
+    <span
+      style={{
+        fontFamily: 'var(--at-mono)',
+        fontSize: '11px',
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        color: 'var(--at-ink-4)',
+        marginRight: '4px',
+      }}
+    >
+      Show
+    </span>
+    {FILTER_OPTIONS.map((opt) => {
+      const active = filter === opt.id;
+      return (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '12px',
+            padding: '5px 12px',
+            borderRadius: '999px',
+            border: active ? '1px solid var(--at-ink-1)' : '1px solid var(--at-rule-2)',
+            background: active ? 'var(--at-ink-1)' : 'transparent',
+            color: active ? 'var(--at-cream-1)' : 'var(--at-ink-2)',
+            cursor: 'pointer',
+          }}
+        >
+          {opt.label} ({counts[opt.id]})
+        </button>
+      );
+    })}
+  </div>
+);
 
 /* -----------------------------------------------------------------------
  * Related callout card — links to Agents and Architecture · Tool Registry
@@ -919,6 +1157,15 @@ const Tools: React.FC = () => {
     key: 'tools',
   });
   const buildState = useBuildState();
+  const [filter, setFilter] = useState<ToolFilter>('all');
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [discoveryMatchTool, setDiscoveryMatchTool] = useState<string | null>(null);
+  const [discoveryRun, setDiscoveryRun] = useState<{
+    query: string;
+    nonce: number;
+  } | null>(null);
+  const toolRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const discoverySectionRef = useRef<HTMLDivElement>(null);
 
   // Apply build state overrides — when the backend reports a different status
   // than the fixture, the override takes precedence (exercise → shipped transition)
@@ -930,9 +1177,57 @@ const Tools: React.FC = () => {
     return tool;
   });
 
+  const filterCounts = useMemo(
+    (): Record<ToolFilter, number> => ({
+      all: tools.length,
+      shipped: tools.filter((t) => t.status === 'shipped').length,
+      exercise: tools.filter((t) => t.status === 'exercise').length,
+      read: tools.filter((t) => t.mutationType === 'read').length,
+      write: tools.filter((t) => t.mutationType === 'write').length,
+    }),
+    [tools],
+  );
+
+  const filteredTools = useMemo(
+    () => filterTools(tools, filter),
+    [tools, filter],
+  );
+
+  const focusTool = useCallback((functionName: string) => {
+    setSelectedTool(functionName);
+    setFilter('all');
+    requestAnimationFrame(() => {
+      toolRowRefs.current[functionName]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+  }, []);
+
+  const handleSegmentClick = useCallback(
+    (seg: Segment) => {
+      const tool = tools.find((t) => String(t.numeral) === seg.id);
+      if (tool) focusTool(tool.functionName);
+    },
+    [tools, focusTool],
+  );
+
+  const handleTryDiscovery = useCallback((tool: Tool) => {
+    setDiscoveryRun({ query: discoveryQueryForTool(tool), nonce: Date.now() });
+    discoverySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handleResultsChange = useCallback((results: ToolDiscoveryResult[]) => {
+    setDiscoveryMatchTool(results[0]?.name ?? null);
+  }, []);
+
   const shippedCount = tools.filter((t) => t.status === 'shipped').length;
   const totalCount = tools.length;
   const segments = buildSegments(tools);
+  const activeSegmentId =
+    selectedTool != null
+      ? String(tools.find((t) => t.functionName === selectedTool)?.numeral ?? '')
+      : undefined;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
@@ -956,13 +1251,33 @@ const Tools: React.FC = () => {
               segments={segments}
               shipped={shippedCount}
               total={totalCount}
+              activeSegmentId={activeSegmentId}
+              onSegmentClick={handleSegmentClick}
             />
+            <p
+              style={{
+                fontFamily: 'var(--at-sans)',
+                fontSize: '12px',
+                color: 'var(--at-ink-4)',
+                marginTop: '8px',
+              }}
+            >
+              Click a segment to jump to that tool.
+            </p>
           </div>
 
           {/* Discovery Demo Card */}
-          <div style={{ marginBottom: '32px' }}>
-            <DiscoveryDemoCard />
+          <div ref={discoverySectionRef} style={{ marginBottom: '32px' }}>
+            <DiscoveryDemoCard
+              tools={tools}
+              highlightedToolName={selectedTool ?? discoveryMatchTool}
+              onSelectTool={focusTool}
+              runRequest={discoveryRun}
+              onResultsChange={handleResultsChange}
+            />
           </div>
+
+          <ToolFilterBar filter={filter} counts={filterCounts} onChange={setFilter} />
 
           {/* Tool rows */}
           <div
@@ -973,9 +1288,37 @@ const Tools: React.FC = () => {
               marginBottom: '32px',
             }}
           >
-            {tools.map((tool) => (
-              <ToolRow key={tool.numeral} tool={tool} />
-            ))}
+            {filteredTools.length === 0 ? (
+              <p
+                style={{
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '15px',
+                  color: 'var(--at-ink-4)',
+                  textAlign: 'center',
+                  padding: '24px 0',
+                }}
+              >
+                No tools match this filter.
+              </p>
+            ) : (
+              filteredTools.map((tool) => (
+                <ToolRow
+                  key={tool.numeral}
+                  tool={tool}
+                  isSelected={selectedTool === tool.functionName}
+                  isDiscoveryMatch={discoveryMatchTool === tool.functionName}
+                  rowRef={(el) => {
+                    toolRowRefs.current[tool.functionName] = el;
+                  }}
+                  onSelect={() =>
+                    setSelectedTool((prev) =>
+                      prev === tool.functionName ? null : tool.functionName,
+                    )
+                  }
+                  onTryDiscovery={() => handleTryDiscovery(tool)}
+                />
+              ))
+            )}
           </div>
 
           {/* Related callout card */}

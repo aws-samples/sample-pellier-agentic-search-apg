@@ -84,7 +84,7 @@ describe('HeroStage — productOverride for intent 2 (Req 1.3.3)', () => {
     )
     expect(screen.getByTestId('hero-image')).toHaveAttribute(
       'alt',
-      'Featherweight Trail Runner',
+      'Cloudform Studio Runner',
     )
   })
 })

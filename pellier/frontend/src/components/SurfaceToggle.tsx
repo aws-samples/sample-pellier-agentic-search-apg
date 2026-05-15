@@ -19,11 +19,8 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useRef } from 'react'
 import { SURFACE_TOGGLE } from '../copy'
+import { cssVar as c } from '../design/cssVars'
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const CREAM = '#fbf4e8'
 
 type Surface = 'storefront' | 'atelier'
 
@@ -59,7 +56,7 @@ export default function SurfaceToggle() {
       className="inline-flex items-center rounded-full p-[3px]"
       style={{
         background: 'rgba(45, 24, 16, 0.06)',
-        border: `1px solid ${INK_QUIET}35`,
+        border: '1px solid color-mix(in srgb, var(--ink-quiet) 21%, transparent)',
       }}
     >
       {SEGMENTS.map((seg, i) => {
@@ -77,8 +74,8 @@ export default function SurfaceToggle() {
             onKeyDown={(e) => handleKeyDown(e, i)}
             className="px-3.5 sm:px-4 py-1 rounded-full text-[12.5px] font-medium transition-colors"
             style={{
-              background: isActive ? INK : 'transparent',
-              color: isActive ? CREAM : INK_SOFT,
+              background: isActive ? c.ink : 'transparent',
+              color: isActive ? c.bg : c.ink2,
             }}
           >
             {seg.label}

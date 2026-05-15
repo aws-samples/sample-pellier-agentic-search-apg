@@ -24,13 +24,9 @@
 import { useState } from 'react'
 
 import { STORYBOARD_TEASERS, type StoryboardTeaser as StoryboardTeaserCard } from '../copy'
+import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) ---------------------------------------
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const ACCENT = '#c44536'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 
 const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -49,8 +45,8 @@ export default function StoryboardTeaser() {
       data-testid="storyboard-teaser"
       aria-labelledby="storyboard-teaser-heading"
       style={{
-        background: CREAM,
-        color: INK,
+        background: c.bg,
+        color: c.ink,
         padding: '96px 24px',
         fontFamily: INTER_STACK,
       }}
@@ -63,7 +59,7 @@ export default function StoryboardTeaser() {
               fontSize: 11,
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
-              color: INK_QUIET,
+              color: c.muted,
               margin: 0,
             }}
           >
@@ -77,7 +73,7 @@ export default function StoryboardTeaser() {
               fontWeight: 400,
               fontSize: 36,
               lineHeight: 1.1,
-              color: INK,
+              color: c.ink,
               margin: '12px 0 0',
             }}
           >
@@ -128,7 +124,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
-        background: CREAM,
+        background: c.bg,
       }}
     >
       {/* --- Image panel with golden wash ----------------------------- */}
@@ -180,7 +176,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             fontSize: 11,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
-            color: INK_QUIET,
+            color: c.muted,
             margin: 0,
           }}
         >
@@ -194,7 +190,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             fontWeight: 400,
             fontSize: 24,
             lineHeight: 1.2,
-            color: INK,
+            color: c.ink,
             margin: 0,
           }}
         >
@@ -206,7 +202,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             fontFamily: INTER_STACK,
             fontSize: 14,
             lineHeight: 1.6,
-            color: INK_SOFT,
+            color: c.ink2,
             margin: 0,
           }}
         >
@@ -217,7 +213,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           href="#storyboard"
           style={{
             // Req 1.9.2 - terracotta link.
-            color: ACCENT,
+            color: c.accent,
             fontFamily: INTER_STACK,
             fontSize: 13,
             fontWeight: 500,

@@ -12,7 +12,7 @@
   --dl-line-strong:  #cbc1ad;   /* emphasized borders */
 
   /* ---------- Color · ink ---------- */
-  --dl-ink:          #1f1d1a;   /* primary text */
+  --dl-ink:          #1f1410;   /* primary text / espresso (matches filled controls) */
   --dl-ink-2:        #3a3833;   /* body prose */
   --dl-muted:        #6b665d;   /* secondary text, captions */
   --dl-faint:        #9a9285;   /* placeholders, disabled */
@@ -29,9 +29,9 @@
   --dl-info:         #1e40af;
 
   /* ---------- Type ---------- */
-  --dl-font-serif:   "Iowan Old Style","Source Serif Pro",Georgia,"Times New Roman",serif;
-  --dl-font-sans:    "Inter","Helvetica Neue",system-ui,-apple-system,sans-serif;
-  --dl-font-mono:    "JetBrains Mono","SF Mono",Menlo,monospace;
+  --dl-font-serif:   "Instrument Serif","Fraunces Variable","Fraunces",Georgia,"Times New Roman",serif;
+  --dl-font-sans:    "Instrument Sans","Inter","Helvetica Neue",system-ui,-apple-system,sans-serif;
+  --dl-font-mono:    "JetBrains Mono",ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace;
 
   --dl-fs-display:   54px;
   --dl-fs-h1:        40px;

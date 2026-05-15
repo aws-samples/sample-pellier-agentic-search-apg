@@ -20,7 +20,6 @@ import {
 } from '../components/atelier'
 import type { StatusBadgeVariant } from '../components/atelier'
 
-const CREAM = '#fbf4e8'
 
 const BADGE_VARIANTS: StatusBadgeVariant[] = [
   'active',
@@ -207,9 +206,9 @@ export default function AtelierComponentsPreview() {
                   x="180"
                   y="45"
                   textAnchor="middle"
-                  fontFamily="JetBrains Mono, monospace"
+                  fontFamily="var(--at-mono), ui-monospace, monospace"
                   fontSize="11"
-                  fill="#faf3e8"
+                  fill="var(--cream-warm)"
                   fontWeight="500"
                 >
                   agent
@@ -220,7 +219,7 @@ export default function AtelierComponentsPreview() {
                   width="64"
                   height="36"
                   rx="6"
-                  fill="#faf3e8"
+                  fill="var(--cream-warm)"
                   stroke="#a8423a"
                   strokeWidth="1.5"
                 />
@@ -228,7 +227,7 @@ export default function AtelierComponentsPreview() {
                   x="90"
                   y="145"
                   textAnchor="middle"
-                  fontFamily="JetBrains Mono, monospace"
+                  fontFamily="var(--at-mono), ui-monospace, monospace"
                   fontSize="11"
                   fill="#a8423a"
                   fontWeight="500"
@@ -241,7 +240,7 @@ export default function AtelierComponentsPreview() {
                   width="64"
                   height="36"
                   rx="6"
-                  fill="#faf3e8"
+                  fill="var(--cream-warm)"
                   stroke="rgba(31,20,16,0.22)"
                   strokeWidth="1"
                 />
@@ -249,7 +248,7 @@ export default function AtelierComponentsPreview() {
                   x="270"
                   y="145"
                   textAnchor="middle"
-                  fontFamily="JetBrains Mono, monospace"
+                  fontFamily="var(--at-mono), ui-monospace, monospace"
                   fontSize="11"
                   fill="#1f1410"
                   fontWeight="500"
@@ -278,7 +277,7 @@ export default function AtelierComponentsPreview() {
                   x="180"
                   y="95"
                   textAnchor="middle"
-                  fontFamily="Fraunces, serif"
+                  fontFamily="var(--at-serif), Georgia, serif"
                   fontStyle="italic"
                   fontWeight="300"
                   fontSize="32"
@@ -398,6 +397,5 @@ export default function AtelierComponentsPreview() {
   )
 }
 
-// Re-export cream constant for component consumers that want to know
-// the surrounding background without a second import.
-export { CREAM }
+// Page background token (Daylight `--cream`) for preview consumers.
+export const PREVIEW_PAGE_BG = 'var(--cream)'

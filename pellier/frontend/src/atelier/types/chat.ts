@@ -36,8 +36,10 @@ export interface ProductCard {
 }
 
 export interface PlanRow {
-  routingPattern: string;
-  stepCount: number;
+  /** When omitted (some fixtures), UI defaults to "steps" to match the plan chip row. */
+  routingPattern?: string;
+  /** When omitted, inferred from arrow segments in `flowSummary`. */
+  stepCount?: number;
   flowSummary: string;
   traceLink?: string;
 }

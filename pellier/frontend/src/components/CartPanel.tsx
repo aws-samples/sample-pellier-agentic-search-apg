@@ -17,12 +17,12 @@ import { useCart } from '../contexts/CartContext'
 export type { CartItem } from '../contexts/CartContext'
 
 // --- Boutique palette tokens (inline to avoid dark-theme var fallthrough) ---
-const BG = '#FAF3E8'
-const BG_CARD = 'rgba(31, 20, 16, 0.04)'
-const TEXT = '#1f1410'
-const TEXT_SOFT = '#6b4a35'
-const TEXT_QUIET = '#a68668'
-const BORDER = 'rgba(31, 20, 16, 0.08)'
+const BG = 'var(--cream-warm)'
+const BG_CARD = 'color-mix(in srgb, var(--dl-ink) 4%, transparent)'
+const TEXT = 'var(--ink)'
+const TEXT_SOFT = 'var(--ink-soft)'
+const TEXT_QUIET = 'var(--ink-quiet)'
+const BORDER = 'color-mix(in srgb, var(--dl-ink) 8%, transparent)'
 const GREEN = '#2d8a56'
 
 interface CartPanelProps {

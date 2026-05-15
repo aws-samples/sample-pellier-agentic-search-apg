@@ -35,14 +35,9 @@ import {
   curatedHeadline,
 } from '../copy'
 import type { Preferences } from '../services/types'
+import { cssVar as c } from '../design/cssVars'
 
 // --- Color tokens (storefront.md design tokens) -------------------------
-const CREAM = '#fbf4e8'
-const CREAM_WARM = '#f5e8d3'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const ACCENT = '#c44536'
-const DUSK = '#3d2518'
 
 const DISMISSED_KEY = 'pellier.signinStrip.dismissed'
 const JUST_SIGNED_IN_COOKIE = 'just_signed_in'
@@ -100,7 +95,7 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
       aria-label="Sign in for personalized visions"
       className="w-full"
       style={{
-        background: `linear-gradient(135deg, ${CREAM_WARM} 0%, ${CREAM} 100%)`,
+        background: `linear-gradient(135deg, ${c.paper} 0%, ${c.bg} 100%)`,
         padding: '20px 24px',
       }}
     >
@@ -111,8 +106,8 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
             aria-hidden="true"
             className="relative inline-flex h-8 w-8 items-center justify-center rounded-full"
             style={{
-              background: INK,
-              color: CREAM,
+              background: c.ink,
+              color: c.bg,
               fontFamily: 'Fraunces, serif',
               fontStyle: 'italic',
               fontSize: '14px',
@@ -124,8 +119,8 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
               data-testid="signin-strip-pulse-dot"
               className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full"
               style={{
-                background: ACCENT,
-                boxShadow: `0 0 0 0 ${ACCENT}`,
+                background: c.accent,
+                boxShadow: `0 0 0 0 ${c.accent}`,
                 animation: 'pulse-glow 2s infinite',
               }}
             />
@@ -135,7 +130,7 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
               style={{
                 fontSize: '10px',
                 letterSpacing: '0.14em',
-                color: INK_SOFT,
+                color: c.ink2,
                 fontWeight: 600,
               }}
             >
@@ -146,7 +141,7 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
                 fontFamily: 'Fraunces, serif',
                 fontStyle: 'italic',
                 fontSize: '18px',
-                color: INK,
+                color: c.ink,
                 lineHeight: 1.35,
               }}
             >
@@ -161,16 +156,16 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
             onClick={onSignIn}
             className="rounded-full px-5 py-2 transition-colors"
             style={{
-              background: INK,
-              color: CREAM,
+              background: c.ink,
+              color: c.bg,
               fontSize: '13px',
               letterSpacing: '0.04em',
             }}
             onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = DUSK
+              (e.currentTarget as HTMLButtonElement).style.background = c.ink
             }}
             onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = INK
+              (e.currentTarget as HTMLButtonElement).style.background = c.ink
             }}
           >
             {SIGN_IN_STRIP.CTA}
@@ -182,7 +177,7 @@ export function SignInStrip({ onDismiss, onSignIn }: SignInStripProps) {
             className="underline-offset-2 hover:underline"
             style={{
               background: 'transparent',
-              color: INK_SOFT,
+              color: c.ink2,
               fontSize: '12px',
               border: 'none',
               padding: '4px 8px',
@@ -223,8 +218,8 @@ export function CuratedBanner({ givenName, prefs, onAdjust }: CuratedBannerProps
             aria-hidden="true"
             className="inline-block h-2 w-2 rounded-full"
             style={{
-              background: ACCENT,
-              boxShadow: `0 0 0 0 ${ACCENT}`,
+              background: c.accent,
+              boxShadow: `0 0 0 0 ${c.accent}`,
               animation: 'pulse-glow 2s infinite',
             }}
           />
@@ -232,7 +227,7 @@ export function CuratedBanner({ givenName, prefs, onAdjust }: CuratedBannerProps
             style={{
               fontSize: '10px',
               letterSpacing: '0.14em',
-              color: INK_SOFT,
+              color: c.ink2,
               fontWeight: 600,
             }}
           >
@@ -244,7 +239,7 @@ export function CuratedBanner({ givenName, prefs, onAdjust }: CuratedBannerProps
               fontFamily: 'Fraunces, serif',
               fontStyle: 'italic',
               fontSize: '16px',
-              color: INK,
+              color: c.ink,
               lineHeight: 1.4,
             }}
           >
@@ -258,7 +253,7 @@ export function CuratedBanner({ givenName, prefs, onAdjust }: CuratedBannerProps
           style={{
             background: 'transparent',
             border: 'none',
-            color: ACCENT,
+            color: c.accent,
             fontSize: '13px',
             textDecoration: 'underline',
             textUnderlineOffset: '3px',

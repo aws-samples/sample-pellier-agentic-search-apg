@@ -19,14 +19,9 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import { CATEGORY_CHIPS } from '../copy'
+import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) --------------------------------------
-const CREAM = '#fbf4e8'
-const CREAM_WARM = '#f5e8d3'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const DUSK = '#3d2518'
 
 // The "no category" label doubles as the default selection (Req 1.5.3).
 export const ALL_CATEGORY = 'All'
@@ -73,7 +68,7 @@ export default function CategoryChips({
       aria-label="Filter products by category"
       className="w-full"
       style={{
-        background: CREAM,
+        background: c.bg,
         padding: '12px 24px',
       }}
     >
@@ -85,7 +80,7 @@ export default function CategoryChips({
           <span
             data-testid="category-chips-eyebrow"
             style={{
-              color: INK_QUIET,
+              color: c.muted,
               fontSize: '10px',
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
@@ -108,9 +103,9 @@ export default function CategoryChips({
                 onClick={() => handleClick(label)}
                 className="rounded-full transition-colors"
                 style={{
-                  background: isActive ? DUSK : CREAM_WARM,
-                  color: isActive ? CREAM : INK_SOFT,
-                  border: `1px solid ${isActive ? DUSK : 'rgba(45, 24, 16, 0.08)'}`,
+                  background: isActive ? c.ink : c.paper,
+                  color: isActive ? c.bg : c.ink2,
+                  border: `1px solid ${isActive ? c.ink : 'rgba(45, 24, 16, 0.08)'}`,
                   padding: '8px 18px',
                   fontSize: '13px',
                   letterSpacing: '0.04em',
@@ -119,13 +114,13 @@ export default function CategoryChips({
                 onMouseEnter={e => {
                   if (!isActive) {
                     const btn = e.currentTarget as HTMLButtonElement
-                    btn.style.color = INK
+                    btn.style.color = c.ink
                   }
                 }}
                 onMouseLeave={e => {
                   if (!isActive) {
                     const btn = e.currentTarget as HTMLButtonElement
-                    btn.style.color = INK_SOFT
+                    btn.style.color = c.ink2
                   }
                 }}
               >

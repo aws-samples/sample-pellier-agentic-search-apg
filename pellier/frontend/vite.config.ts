@@ -2,6 +2,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+/** Strip trailing slash; empty string means root (no path prefix). */
+function normalizeBasePath(raw: string | undefined): string {
+  const b = (raw || '/').replace(/\/$/, '')
+  return b === '/' ? '' : b
+}
+
+const workshopBase = normalizeBasePath(process.env.VITE_BASE_PATH)
+const transcribeWsProxyPrefix = workshopBase ? `${workshopBase}/ws` : '/ws'
+
 // Configuration for AWS Workshop Studio with CloudFront + VSCode Server
 export default defineConfig({
   test: {
@@ -42,11 +51,17 @@ export default defineConfig({
       allow: ['..', '../..', '../../..', '../../../..'],
     },
 
-    // API proxy
+    // API + Transcribe WebSocket proxy (Workshop Studio: browser cannot open :8000)
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+      },
+      [transcribeWsProxyPrefix]: {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
+        rewrite: (path) => '/ws' + path.slice(transcribeWsProxyPrefix.length),
       },
     },
   },

@@ -101,11 +101,9 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     for (let i = 0; i < STORYBOARD_TEASERS.length; i += 1) {
       const link = screen.getByTestId(`storyboard-card-link-${i}`)
       const style = link.getAttribute('style') ?? ''
-      // `#c44536` is the design-token value of `--accent` from storefront.md.
-      // jsdom normalizes hex colors to `rgb(...)` form, so accept either
-      // the raw token, the hex, or the normalized rgb triplet.
+      // `--accent` resolves to Daylight terracotta (#9a3412); jsdom may report rgb().
       expect(style).toMatch(
-        /color:\s*(var\(--accent\)|#c44536|rgb\(\s*196,\s*69,\s*54\s*\))/,
+        /color:\s*(var\(--accent\)|#9a3412|rgb\(\s*154,\s*52,\s*18\s*\))/,
       )
     }
   })

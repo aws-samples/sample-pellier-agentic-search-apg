@@ -13,12 +13,13 @@
  * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
  */
 
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   EditorialTitle,
   ExpCard,
   Eyebrow,
+  ModeStrip,
   StatusDot,
 } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
@@ -56,15 +57,59 @@ const ActivePill: React.FC = () => (
  * Routing pattern card
  * ----------------------------------------------------------------------- */
 
+const ROUTING_SCENARIOS: Array<{ label: string; hint: string }> = [
+  {
+    label: 'Marco · pairing',
+    hint: 'Dispatcher classifies “goes with” → Style Advisor + find_pieces',
+  },
+  {
+    label: 'Anna · gift search',
+    hint: 'Hybrid retrieval + gift-table skill — latency-sensitive',
+  },
+  {
+    label: 'Theo · return',
+    hint: 'Write-path tools — Graph or Agents-as-Tools for multi-step audit',
+  },
+];
+
 interface RoutingCardProps {
   pattern: RoutingPattern;
   numeral: string;
+  isFocused: boolean;
+  cardRef: (el: HTMLDivElement | null) => void;
+  onFocus: () => void;
+  scenarioHint?: string;
 }
 
-const RoutingCard: React.FC<RoutingCardProps> = ({ pattern, numeral }) => {
+const RoutingCard: React.FC<RoutingCardProps> = ({
+  pattern,
+  numeral,
+  isFocused,
+  cardRef,
+  onFocus,
+  scenarioHint,
+}) => {
   const isActive = pattern.isActive;
 
   return (
+    <div
+      ref={cardRef}
+      role="button"
+      tabIndex={0}
+      onClick={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onFocus();
+        }
+      }}
+      style={{
+        cursor: 'pointer',
+        outline: isFocused ? '2px solid var(--at-red-1)' : undefined,
+        borderRadius: 'var(--at-card-radius)',
+        boxShadow: isFocused ? '0 4px 20px rgba(31, 20, 16, 0.1)' : undefined,
+      }}
+    >
     <ExpCard>
       {/* Head: numeral + name + status */}
       <div
@@ -201,7 +246,25 @@ const RoutingCard: React.FC<RoutingCardProps> = ({ pattern, numeral }) => {
           </span>
         ))}
       </div>
+
+      {isFocused && scenarioHint && (
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            lineHeight: 1.55,
+            color: 'var(--at-ink-2)',
+            marginTop: '14px',
+            padding: '10px 12px',
+            background: 'var(--at-cream-2)',
+            borderRadius: '6px',
+          }}
+        >
+          {scenarioHint}
+        </p>
+      )}
     </ExpCard>
+    </div>
   );
 };
 
@@ -562,6 +625,20 @@ const Routing: React.FC = () => {
 
   const patterns = data ?? [];
   const activePattern = patterns.find((p) => p.isActive);
+  const [focusedSlug, setFocusedSlug] = useState<string | null>(
+    () => activePattern?.slug ?? patterns[0]?.slug ?? null,
+  );
+  const [scenarioIdx, setScenarioIdx] = useState(0);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const focusPattern = useCallback((slug: string) => {
+    setFocusedSlug(slug);
+    requestAnimationFrame(() => {
+      cardRefs.current[slug]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, []);
+
+  const scenarioHint = ROUTING_SCENARIOS[scenarioIdx]?.hint;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
@@ -589,11 +666,74 @@ const Routing: React.FC = () => {
             gap: '18px',
           }}
         >
+          <ExpCard>
+            <Eyebrow label="Explore patterns" />
+            <p
+              style={{
+                fontFamily: 'var(--at-sans)',
+                fontSize: '15px',
+                color: 'var(--at-ink-2)',
+                lineHeight: 1.55,
+                margin: '8px 0 14px',
+              }}
+            >
+              Pick a pattern to compare orchestration styles. Boutique sessions use{' '}
+              <strong style={{ color: 'var(--at-ink-1)' }}>Dispatcher</strong> today — the
+              others are alternatives you can trace in Observatory telemetry.
+            </p>
+            <ModeStrip
+              patterns={patterns.map((p) => p.name)}
+              active={patterns.find((p) => p.slug === focusedSlug)?.name ?? patterns[0].name}
+              onSelect={(name) => {
+                const p = patterns.find((x) => x.name === name);
+                if (p) focusPattern(p.slug);
+              }}
+            />
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                marginTop: '14px',
+              }}
+            >
+              {ROUTING_SCENARIOS.map((sc, i) => (
+                <button
+                  key={sc.label}
+                  type="button"
+                  onClick={() => setScenarioIdx(i)}
+                  style={{
+                    fontFamily: 'var(--at-mono)',
+                    fontSize: '12px',
+                    padding: '5px 12px',
+                    borderRadius: '999px',
+                    border:
+                      scenarioIdx === i
+                        ? '1px solid var(--at-ink-1)'
+                        : '1px solid var(--at-rule-2)',
+                    background:
+                      scenarioIdx === i ? 'var(--at-ink-1)' : 'var(--at-cream-2)',
+                    color: scenarioIdx === i ? 'var(--at-cream-1)' : 'var(--at-ink-2)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {sc.label}
+                </button>
+              ))}
+            </div>
+          </ExpCard>
+
           {patterns.map((pattern, idx) => (
             <RoutingCard
               key={pattern.slug}
               pattern={pattern}
               numeral={ROMAN_NUMERALS[idx] ?? String(idx + 1)}
+              isFocused={focusedSlug === pattern.slug}
+              cardRef={(el) => {
+                cardRefs.current[pattern.slug] = el;
+              }}
+              onFocus={() => focusPattern(pattern.slug)}
+              scenarioHint={focusedSlug === pattern.slug ? scenarioHint : undefined}
             />
           ))}
           {/* Dispatcher (Pattern III) is the active path; the intent

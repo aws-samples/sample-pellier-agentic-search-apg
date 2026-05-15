@@ -3,7 +3,7 @@
  *
  * Validates Requirements 1.8.1, 1.8.2, and 1.8.3.
  *
- * Renders a white card with a small B mark, the `Pellier here, want me to
+ * Renders a white card with a small P mark in an espresso disc, the
  * narrow this down?` prompt, and four toggleable chips from `copy.ts`:
  *   - Under $100
  *   - Ships by Friday
@@ -23,6 +23,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { REFINEMENT } from '../copy'
 import { usePersona } from '../contexts/PersonaContext'
+import { cssVar as c } from '../design/cssVars'
 
 // Persona-tailored prompt. Fresh (and null) keep the default from
 // copy.ts so the scanner stays happy. Returning personas get a
@@ -35,12 +36,6 @@ const PERSONA_PROMPT: Record<string, string> = {
 }
 
 // --- Design tokens (storefront.md) --------------------------------------
-const CREAM = '#fbf4e8'
-const CREAM_WARM = '#f5e8d3'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const DUSK = '#3d2518'
-const ACCENT = '#c44536'
 
 // Strongly-typed label union. The `as const` in copy.ts keeps the tuple
 // literal so the resulting union covers exactly the four panel chips.
@@ -127,11 +122,12 @@ export default function RefinementPanel({
             aria-hidden="true"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full"
             style={{
-              background: INK,
-              color: CREAM,
-              fontFamily: 'Fraunces, serif',
-              fontStyle: 'italic',
-              fontSize: '14px',
+              background: c.ink,
+              color: c.bg,
+              fontFamily: 'var(--sans)',
+              fontStyle: 'normal',
+              fontWeight: 600,
+              fontSize: '13px',
               lineHeight: 1,
             }}
           >
@@ -143,7 +139,7 @@ export default function RefinementPanel({
               fontFamily: 'Fraunces, serif',
               fontStyle: 'italic',
               fontSize: '18px',
-              color: INK,
+              color: c.ink,
               lineHeight: 1.4,
             }}
           >
@@ -167,9 +163,9 @@ export default function RefinementPanel({
                   onClick={() => toggle(chip as RefinementChip)}
                   className="rounded-full transition-colors"
                   style={{
-                    background: isActive ? INK : CREAM_WARM,
-                    color: isActive ? CREAM : INK_SOFT,
-                    border: `1px solid ${isActive ? INK : 'rgba(45, 24, 16, 0.08)'}`,
+                    background: isActive ? c.ink : c.paper,
+                    color: isActive ? c.bg : c.ink2,
+                    border: `1px solid ${isActive ? c.ink : 'rgba(45, 24, 16, 0.08)'}`,
                     padding: '8px 16px',
                     fontSize: '13px',
                     letterSpacing: '0.04em',
@@ -178,19 +174,19 @@ export default function RefinementPanel({
                   onMouseEnter={e => {
                     const btn = e.currentTarget as HTMLButtonElement
                     if (isActive) {
-                      btn.style.background = DUSK
+                      btn.style.background = c.ink
                     } else {
                       btn.style.background = '#efe2cc'
-                      btn.style.color = INK
+                      btn.style.color = c.ink
                     }
                   }}
                   onMouseLeave={e => {
                     const btn = e.currentTarget as HTMLButtonElement
                     if (isActive) {
-                      btn.style.background = INK
+                      btn.style.background = c.ink
                     } else {
-                      btn.style.background = CREAM_WARM
-                      btn.style.color = INK_SOFT
+                      btn.style.background = c.paper
+                      btn.style.color = c.ink2
                     }
                   }}
                 >
@@ -215,7 +211,7 @@ export default function RefinementPanel({
               marginTop: '14px',
               height: '1px',
               width: '100%',
-              background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+              background: `linear-gradient(90deg, transparent, ${c.accent}, transparent)`,
             }}
           />
           <div
@@ -229,7 +225,7 @@ export default function RefinementPanel({
               fontSize: 10.5,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: INK_SOFT,
+              color: c.ink2,
             }}
           >
             <span
@@ -238,7 +234,7 @@ export default function RefinementPanel({
                 width: 5,
                 height: 5,
                 borderRadius: '50%',
-                background: ACCENT,
+                background: c.accent,
               }}
             />
             pgvector cosine similarity
@@ -250,7 +246,7 @@ export default function RefinementPanel({
             <span aria-hidden style={{ color: 'rgba(45, 24, 16, 0.25)' }}>
               ·
             </span>
-            <span style={{ color: ACCENT }}>
+            <span style={{ color: c.accent }}>
               {measuredLatencyMs != null ? `~${measuredLatencyMs}ms` : '~143ms'}
             </span>
             <span aria-hidden style={{ color: 'rgba(45, 24, 16, 0.25)' }}>
@@ -263,7 +259,7 @@ export default function RefinementPanel({
                 fontSize: 12,
                 textTransform: 'none',
                 letterSpacing: 0,
-                color: INK_SOFT,
+                color: c.ink2,
               }}
             >
               one SQL round-trip

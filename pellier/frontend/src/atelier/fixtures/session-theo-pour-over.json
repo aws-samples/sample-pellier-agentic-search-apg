@@ -31,13 +31,13 @@
         { "name": "Ceramic Tumblers", "brand": "Pellier Editions", "price": 78, "imageUrl": "/products/theo-ceramic-tumblers.png" },
         { "name": "Woven Mat Set", "brand": "Pellier Editions", "price": 42, "imageUrl": "/products/theo-woven-mat-set.png" }
       ],
-      "meta": { "agent": "Curator", "model": "Sonnet 4.6 · 0.4", "skill": "the-makers-shelf", "latencyMs": 1412 }
+      "meta": { "agent": "Curator", "model": "Claude Opus 4.6 · 0.4", "skill": "the-makers-shelf", "latencyMs": 1412 }
     }
   ],
   "telemetry": [
     { "index": 1, "category": "managed", "title": "Intent → Curator", "description": "'hand-thrown' + 'slower morning' matched the-makers-shelf skill path", "status": "complete", "durationMs": 60, "agent": "Dispatcher" },
     { "index": 2, "category": "owned", "title": "Skill loaded", "description": "the-makers-shelf bound for persona: theo", "status": "complete", "durationMs": 38, "agent": "SkillRouter" },
-    { "index": 3, "category": "both", "title": "find_pieces", "description": "Sonnet 4.6 · 0.4 — slow-craft search", "status": "complete", "durationMs": 284, "agent": "Curator" }
+    { "index": 3, "category": "both", "title": "find_pieces", "description": "Claude Opus 4.6 · 0.4 — slow-craft search", "status": "complete", "durationMs": 284, "agent": "Curator" }
   ],
   "brief": {
     "folioNumber": 28,

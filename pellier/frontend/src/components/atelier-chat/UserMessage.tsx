@@ -1,3 +1,4 @@
+import { cssVar as c } from '../../design/cssVars'
 /**
  * UserMessage — right-aligned ink bubble with asymmetric corners.
  *
@@ -11,9 +12,6 @@
  * tell.
  */
 
-const INK = '#2d1810'
-const INK_QUIET = '#a68668'
-const CREAM = '#fbf4e8'
 
 export interface UserMessageProps {
   text: string
@@ -34,14 +32,14 @@ export default function UserMessage({ text, variant = 'default' }: UserMessagePr
           isResumed
             ? {
                 background: 'transparent',
-                color: INK_QUIET,
-                border: `1px dashed ${INK_QUIET}50`,
+                color: c.muted,
+                border: '1px dashed var(--dl-line)',
                 borderRadius: '14px 14px 4px 14px',
                 letterSpacing: '-0.003em',
               }
             : {
-                background: INK,
-                color: CREAM,
+                background: c.ink,
+                color: c.bg,
                 borderRadius: '14px 14px 4px 14px',
                 letterSpacing: '-0.003em',
               }

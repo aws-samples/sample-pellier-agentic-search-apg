@@ -10,7 +10,7 @@
  *     chip kinds (card vs pill).
  *   - Chip toggle: click selects, click again deselects.
  *   - Selected chip visual state matches storefront.md exactly:
- *       background #2d1810, color #fbf4e8, border-color #2d1810.
+ *       background Daylight ink, color paper (resolved from CSS vars).
  *   - Submit triggers `useAuth().savePreferences` with the tag-mapped
  *     payload, then closes the modal.
  *   - "Skip for now" closes the modal without posting.
@@ -282,15 +282,12 @@ describe('PreferencesModal chip selection', () => {
 
     await user.click(chip)
 
-    // The three tokens asserted verbatim from storefront.md.
-    // background: #2d1810 -> CSS reports rgb(45, 24, 16).
-    expect(chip.style.background).toMatch(
-      /rgb\(45,\s*24,\s*16\)|#2d1810/i,
-    )
-    expect(chip.style.color).toMatch(/rgb\(251,\s*244,\s*232\)|#fbf4e8/i)
-    expect(chip.style.borderColor).toMatch(
-      /rgb\(45,\s*24,\s*16\)|#2d1810/i,
-    )
+    const inline = chip.getAttribute('style') ?? ''
+    // React sets `background`, `color`, and `border` shorthand; `borderColor`
+    // longhand is often empty in jsdom — assert on the serialized inline block.
+    expect(inline).toMatch(/background:\s*var\(--dl-ink\)/)
+    expect(inline).toMatch(/color:\s*var\(--cream-warm\)/)
+    expect(inline).toMatch(/border:\s*1px solid var\(--dl-ink\)/)
   })
 })
 

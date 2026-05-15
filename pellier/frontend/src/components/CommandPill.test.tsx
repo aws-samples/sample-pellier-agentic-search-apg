@@ -52,7 +52,7 @@ describe('CommandPill - render (Req 1.11.1)', () => {
     expect(pill).toBeInTheDocument()
 
     // B mark is present and fixed.
-    expect(screen.getByTestId('command-pill-bmark')).toHaveTextContent('B')
+    expect(screen.getByTestId('command-pill-bmark')).toHaveTextContent('P')
 
     // Ask Pellier label from copy.ts.
     expect(screen.getByTestId('command-pill-label')).toHaveTextContent(
@@ -71,9 +71,9 @@ describe('CommandPill - render (Req 1.11.1)', () => {
   it('fixes the pill to the bottom-right of the viewport', () => {
     renderPill()
     const pill = screen.getByTestId('command-pill')
-    expect(pill.style.position).toBe('fixed')
-    expect(pill.style.bottom).not.toBe('')
-    expect(pill.style.right).not.toBe('')
+    expect(pill.className).toMatch(/(^|\s)fixed(\s|$)/)
+    expect(pill.className).toMatch(/bottom-6/)
+    expect(pill.className).toMatch(/right-6/)
   })
 
   it('uses an accessible button with an aria label that includes the shortcut', () => {

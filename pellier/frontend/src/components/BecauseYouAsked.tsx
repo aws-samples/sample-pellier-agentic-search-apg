@@ -91,7 +91,7 @@ export default function BecauseYouAsked() {
                 color: '#1f1410',
                 padding: '6px 12px',
                 borderRadius: 999,
-                background: '#faf3e8',
+                background: 'var(--cream-warm)',
                 border: '1px solid rgba(31,20,16,0.12)',
               }}
             >

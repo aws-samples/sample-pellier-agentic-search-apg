@@ -35,12 +35,9 @@
  *   9-card home-page grid (Req 1.7.1).
  */
 import type { ReasoningChip as ReasoningChipModel } from '../services/types'
+import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) ---------------------------------------
-const CREAM = '#fbf4e8'
-const ACCENT = '#c44536'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
 
 const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -81,7 +78,7 @@ function PickedChip({ chip }: ReasoningChipProps) {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        color: INK_SOFT,
+        color: c.ink2,
         fontFamily: FRAUNCES_STACK,
         fontStyle: 'italic',
         fontSize: 13,
@@ -102,7 +99,7 @@ function MatchedChip({ chip }: ReasoningChipProps) {
       data-testid="reasoning-chip"
       data-style="matched"
       style={{
-        color: INK_QUIET,
+        color: c.muted,
         fontFamily: MONO_STACK,
         fontSize: 10,
         letterSpacing: '0.06em',
@@ -123,7 +120,7 @@ function PricingChip({ chip }: ReasoningChipProps) {
       data-testid="reasoning-chip"
       data-style="pricing"
       style={{
-        color: INK_SOFT,
+        color: c.ink2,
         fontFamily: INTER_STACK,
         fontSize: 12,
         lineHeight: 1.5,
@@ -154,7 +151,7 @@ function ContextChip({ chip }: ReasoningChipProps) {
       data-testid="reasoning-chip"
       data-style="context"
       style={{
-        color: INK_SOFT,
+        color: c.ink2,
         fontFamily: FRAUNCES_STACK,
         fontStyle: 'italic',
         fontSize: 13,
@@ -183,8 +180,8 @@ function BMark() {
         width: 16,
         height: 16,
         borderRadius: '50%',
-        background: ACCENT,
-        color: CREAM,
+        background: c.accent,
+        color: c.bg,
         fontFamily: FRAUNCES_STACK,
         fontStyle: 'italic',
         fontSize: 10,

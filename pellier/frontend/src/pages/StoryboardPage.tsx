@@ -23,8 +23,7 @@ import Footer from '../components/Footer'
 import Header, { type NavItem } from '../components/Header'
 import StoryboardTeaser from '../components/StoryboardTeaser'
 import { useUI } from '../contexts/UIContext'
-
-const CREAM = '#fbf4e8'
+import { cssVar as c } from '../design/cssVars'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -57,7 +56,7 @@ export default function StoryboardPage() {
       data-testid="storyboard-page"
       style={{
         minHeight: '100vh',
-        background: CREAM,
+        background: c.bg,
       }}
     >
       <Header current="stories" onNavigate={handleNavigate} />

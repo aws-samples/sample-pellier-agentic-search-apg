@@ -1,15 +1,15 @@
 /**
- * PresencePill — "Pellier · listening" chip with a breathing burgundy
- * dot. The single signature element that tells an attendee the agent
- * is alive, on either surface.
+ * PresencePill — compact “agent is here” cue: breathing accent dot + a
+ * short professional label. The optional trailing fragment (mono) only
+ * appears for signed-in personas so first-time visitors are not hit with
+ * session jargon.
  *
  * Used on the Boutique hero (cream-tinted, glass background) and on
- * the Atelier TopBar (transparent, dark-surface variant). One atom,
- * two faces, controlled by `surface`.
+ * the Atelier TopBar (same boutique styling on the light cream bar).
  *
- * The session fragment ("session · marco · 14h memory") follows the
- * pill in a mono right-rule. Pass an explicit `sessionLabel` to
- * override the default fragment derivation.
+ * Pass `sessionLabel=""` explicitly to force-hide the fragment, or rely
+ * on defaults: fresh / anonymous → no fragment; returning shoppers →
+ * `marco · 14h memory` style tail.
  */
 import React from 'react'
 
@@ -24,13 +24,11 @@ export interface PresencePillProps {
   sessionLabel?: string
   /** Animation state. `thinking` makes the dot pulse faster. */
   mode?: PresenceMode
-  /** Lead label. Defaults to "Pellier · listening". */
+  /** Lead label. Defaults to a discreet concierge cue (no “listening”). */
   label?: string
 }
 
-const ACCENT = '#a8423a'
-const MONO_STACK =
-  "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+const ACCENT = 'var(--accent)'
 
 const MEMORY_AGE: Record<string, string> = {
   marco: '14h memory',
@@ -39,8 +37,8 @@ const MEMORY_AGE: Record<string, string> = {
 }
 
 function deriveSessionLabel(personaId: string | null | undefined): string {
-  if (!personaId || personaId === 'fresh') return 'session · new · learning'
-  return `session · ${personaId} · ${MEMORY_AGE[personaId] ?? 'recall on'}`
+  if (!personaId || personaId === 'fresh') return ''
+  return `${personaId} · ${MEMORY_AGE[personaId] ?? 'recall on'}`
 }
 
 const KEYFRAMES_INJECTED_FLAG = '__pelliersPresenceKeyframesInjected'
@@ -70,7 +68,7 @@ export const PresencePill: React.FC<PresencePillProps> = ({
   personaId,
   sessionLabel,
   mode = 'listening',
-  label = 'Pellier · listening',
+  label = 'Concierge online',
 }) => {
   // Inject the breathing keyframes once per page. Component-scoped
   // <style> tags would re-render on every mount; this hoists them.
@@ -90,6 +88,8 @@ export const PresencePill: React.FC<PresencePillProps> = ({
     <div
       data-testid={`presence-pill-${surface}`}
       data-mode={mode}
+      role="status"
+      aria-label="AI-assisted personal shopping. A concierge agent is ready to help."
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -97,17 +97,19 @@ export const PresencePill: React.FC<PresencePillProps> = ({
         padding: '6px 12px',
         borderRadius: 999,
         border: isAtelier
-          ? '1px solid rgba(250,243,232,0.18)'
-          : '1px solid rgba(31,20,16,0.16)',
+          ? '1px solid color-mix(in srgb, var(--cream-warm) 18%, transparent)'
+          : '1px solid color-mix(in srgb, var(--dl-ink) 16%, transparent)',
         background: isAtelier
-          ? 'rgba(250,243,232,0.06)'
-          : 'rgba(255,250,240,0.72)',
+          ? 'color-mix(in srgb, var(--cream-warm) 6%, transparent)'
+          : 'color-mix(in srgb, var(--cream-warm) 72%, transparent)',
         backdropFilter: 'blur(6px)',
-        fontFamily: 'var(--sans), Inter, system-ui, sans-serif',
-        fontSize: '11.5px',
-        letterSpacing: '0.18em',
+        fontFamily: 'var(--sans), system-ui, sans-serif',
+        fontSize: '11px',
+        letterSpacing: '0.12em',
         textTransform: 'uppercase',
-        color: isAtelier ? 'rgba(250,243,232,0.92)' : '#1f1410',
+        color: isAtelier
+          ? 'color-mix(in srgb, var(--cream-warm) 92%, transparent)'
+          : 'var(--ink)',
         fontWeight: 500,
       }}
     >
@@ -126,16 +128,18 @@ export const PresencePill: React.FC<PresencePillProps> = ({
       {session ? (
         <span
           style={{
-            fontFamily: MONO_STACK,
+            fontFamily: 'var(--mono)',
             fontSize: 10,
             letterSpacing: '0.06em',
-            color: isAtelier ? 'rgba(250,243,232,0.55)' : '#6b4a35',
+            color: isAtelier
+              ? 'color-mix(in srgb, var(--cream-warm) 55%, transparent)'
+              : 'var(--ink-soft)',
             textTransform: 'none',
             marginLeft: 4,
             paddingLeft: 10,
             borderLeft: isAtelier
-              ? '1px solid rgba(250,243,232,0.18)'
-              : '1px solid rgba(31,20,16,0.18)',
+              ? '1px solid color-mix(in srgb, var(--cream-warm) 18%, transparent)'
+              : '1px solid color-mix(in srgb, var(--dl-ink) 18%, transparent)',
           }}
         >
           {session}

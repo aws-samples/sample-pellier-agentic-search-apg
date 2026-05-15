@@ -19,12 +19,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Brain } from 'lucide-react'
 import { resolveAgentType, AGENT_IDENTITIES } from '../utils/agentIdentity'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
-
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
+import { cssVar as c } from '../design/cssVars'
 
 function loadWorkshopMessages(): AgentChatMessage[] {
   try {
@@ -114,22 +109,22 @@ export default function InspectorPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: CREAM, color: INK }}>
+    <div style={{ minHeight: '100vh', background: c.bg, color: c.ink }}>
       <header
         className="flex items-center justify-between px-6 py-5"
-        style={{ borderBottom: `1px solid ${INK_QUIET}30` }}
+        style={{ borderBottom: `1px solid var(--dl-line)` }}
       >
         <Link
           to="/atelier"
           className="inline-flex items-center gap-2 text-sm"
-          style={{ color: INK_SOFT }}
+          style={{ color: c.ink2 }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to atelier
         </Link>
         <div
           className="inline-flex items-center gap-2 text-[11px] font-mono"
-          style={{ color: INK_QUIET }}
+          style={{ color: c.muted }}
         >
           <Brain className="h-3.5 w-3.5" />
           {requestedSession
@@ -141,14 +136,14 @@ export default function InspectorPage() {
       <main className="max-w-4xl mx-auto px-6 py-10">
         <h1
           className="text-3xl mb-2"
-          style={{ fontFamily: "'Fraunces', serif", color: INK }}
+          style={{ fontFamily: "'Fraunces', serif", color: c.ink }}
         >
           Trace inspector
         </h1>
-        <p className="text-sm mb-8" style={{ color: INK_SOFT }}>
+        <p className="text-sm mb-8" style={{ color: c.ink2 }}>
           Frozen view of agent reasoning for the requested session. Live
           updates continue to flow inside the Concierge modal on
-          <Link to="/atelier" className="underline mx-1" style={{ color: ACCENT }}>
+          <Link to="/atelier" className="underline mx-1" style={{ color: c.accent }}>
             /atelier
           </Link>
           — the inspector only reflects what was captured when this page loaded.
@@ -158,9 +153,9 @@ export default function InspectorPage() {
           <div
             className="rounded-lg px-4 py-3 mb-6 text-sm"
             style={{
-              background: 'rgba(196, 69, 54, 0.08)',
-              border: `1px solid ${ACCENT}40`,
-              color: INK,
+              background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)',
+              color: c.ink,
             }}
           >
             The requested session id differs from the active one. Showing the
@@ -174,16 +169,16 @@ export default function InspectorPage() {
             style={{
               background: 'rgba(217, 119, 6, 0.10)',
               border: '1px solid rgba(217, 119, 6, 0.45)',
-              color: INK,
+              color: c.ink,
             }}
             data-testid="otel-banner"
           >
             <AlertTriangle
               className="h-5 w-5 flex-shrink-0 mt-0.5"
-              style={{ color: '#b45309' }}
+              style={{ color: 'var(--dl-warn)' }}
             />
             <div className="text-sm leading-relaxed">
-              <strong style={{ color: '#92400e' }}>Telemetry unavailable.</strong>{' '}
+              <strong style={{ color: 'var(--dl-warn)' }}>Telemetry unavailable.</strong>{' '}
               {globalBannerReason}
             </div>
           </div>
@@ -194,14 +189,14 @@ export default function InspectorPage() {
             className="rounded-xl px-6 py-12 text-center"
             style={{
               background: 'rgba(255, 255, 255, 0.5)',
-              border: `1px solid ${INK_QUIET}30`,
+              border: `1px solid var(--dl-line)`,
             }}
           >
             <Brain
               className="h-8 w-8 mx-auto mb-3"
-              style={{ color: INK_QUIET }}
+              style={{ color: c.muted }}
             />
-            <p className="text-sm" style={{ color: INK_SOFT }}>
+            <p className="text-sm" style={{ color: c.ink2 }}>
               No agent executions captured yet. Ask a question in the Concierge
               on the workshop route to populate this inspector.
             </p>
@@ -222,24 +217,24 @@ export default function InspectorPage() {
                   >
                     <AlertTriangle
                       className="h-5 w-5 flex-shrink-0 mt-0.5"
-                      style={{ color: '#b45309' }}
+                      style={{ color: 'var(--dl-warn)' }}
                     />
                     <div className="flex-1">
                       <p
                         className="text-xs font-mono mb-1"
-                        style={{ color: INK_SOFT }}
+                        style={{ color: c.ink2 }}
                       >
                         {msg.timestamp instanceof Date
                           ? msg.timestamp.toLocaleTimeString()
                           : ''}
                       </p>
-                      <p className="text-sm" style={{ color: INK }}>
+                      <p className="text-sm" style={{ color: c.ink }}>
                         Trace capture failed for this turn. Waterfall rendering
                         disabled.
                       </p>
                       <p
                         className="text-[11px] mt-1 leading-relaxed"
-                        style={{ color: INK_SOFT }}
+                        style={{ color: c.ink2 }}
                       >
                         {exec.reason || globalBannerReason}
                       </p>
@@ -253,22 +248,22 @@ export default function InspectorPage() {
                   className="rounded-xl overflow-hidden"
                   style={{
                     background: 'rgba(255, 255, 255, 0.6)',
-                    border: `1px solid ${INK_QUIET}30`,
+                    border: `1px solid var(--dl-line)`,
                   }}
                 >
                   <header
                     className="px-5 py-3 flex items-center justify-between"
                     style={{
-                      borderBottom: `1px solid ${INK_QUIET}25`,
+                      borderBottom: '1px solid var(--dl-line)',
                       background: 'rgba(255, 255, 255, 0.3)',
                     }}
                   >
-                    <span className="text-xs font-mono" style={{ color: INK_SOFT }}>
+                    <span className="text-xs font-mono" style={{ color: c.ink2 }}>
                       {msg.timestamp instanceof Date
                         ? msg.timestamp.toLocaleTimeString()
                         : ''}
                     </span>
-                    <span className="text-[11px]" style={{ color: INK_QUIET }}>
+                    <span className="text-[11px]" style={{ color: c.muted }}>
                       {exec.agent_steps.length} steps ·{' '}
                       {exec.tool_calls.length} tool calls ·{' '}
                       {exec.total_duration_ms}ms
@@ -278,7 +273,7 @@ export default function InspectorPage() {
                   {msg.content && (
                     <p
                       className="px-5 py-3 text-sm"
-                      style={{ color: INK, borderBottom: `1px solid ${INK_QUIET}20` }}
+                      style={{ color: c.ink, borderBottom: '1px solid var(--dl-line)' }}
                     >
                       {msg.content}
                     </p>
@@ -296,13 +291,13 @@ export default function InspectorPage() {
                         >
                           {step.agent}
                         </span>
-                        <span className="flex-1" style={{ color: INK }}>
+                        <span className="flex-1" style={{ color: c.ink }}>
                           {step.action}
                         </span>
                         {step.duration_ms > 0 && (
                           <span
                             className="font-mono text-[10px] flex-shrink-0"
-                            style={{ color: INK_QUIET }}
+                            style={{ color: c.muted }}
                           >
                             {step.duration_ms}ms
                           </span>
@@ -315,13 +310,13 @@ export default function InspectorPage() {
                     <div
                       className="px-5 py-3"
                       style={{
-                        borderTop: `1px solid ${INK_QUIET}20`,
+                        borderTop: '1px solid var(--dl-line)',
                         background: 'rgba(255, 255, 255, 0.25)',
                       }}
                     >
                       <p
                         className="text-[10px] uppercase tracking-wider mb-2"
-                        style={{ color: INK_QUIET }}
+                        style={{ color: c.muted }}
                       >
                         Tool calls
                       </p>
@@ -331,13 +326,13 @@ export default function InspectorPage() {
                             key={ti}
                             className="text-[11px] font-mono px-2 py-1 rounded"
                             style={{
-                              background: 'rgba(45, 24, 16, 0.06)',
-                              color: INK,
+                              background: 'color-mix(in srgb, var(--dl-ink) 6%, transparent)',
+                              color: c.ink,
                             }}
                           >
                             {tc.tool}
                             {tc.duration_ms > 0 && (
-                              <span style={{ color: INK_QUIET }}>
+                              <span style={{ color: c.muted }}>
                                 {' '}
                                 · {tc.duration_ms}ms
                               </span>

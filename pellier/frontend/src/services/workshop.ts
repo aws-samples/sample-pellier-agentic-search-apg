@@ -12,7 +12,8 @@
  * playEvents()). The panel renderer ports 1:1 — no transformation.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ''
 
 export type WorkshopEventType = 'plan' | 'step' | 'panel' | 'text' | 'response'
 

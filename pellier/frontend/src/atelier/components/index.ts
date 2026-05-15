@@ -39,6 +39,9 @@ export type { BreadcrumbTrailProps } from './BreadcrumbTrail';
 export { ModeStrip } from './ModeStrip';
 export type { ModeStripProps } from './ModeStrip';
 
+export { SurfaceFilterBar } from './SurfaceFilterBar';
+export type { SurfaceFilterBarProps, FilterOption } from './SurfaceFilterBar';
+
 export { ContextRail } from './ContextRail';
 export type { ContextRailProps } from './ContextRail';
 

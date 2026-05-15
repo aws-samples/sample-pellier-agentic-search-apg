@@ -18,18 +18,18 @@
       "role": "assistant",
       "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) — wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
       "timestamp": "2025-01-14T21:05:05Z",
-      "plan": { "flowSummary": "Dispatcher → Curator + the-gift-table → find_pieces_hybrid (vector + BM25 → RRF → Cohere Rerank v3.5)", "traceLink": "#telemetry-1" },
+      "plan": { "flowSummary": "Dispatcher → Curator + the-gift-table → find_pieces_hybrid (vector + BM25 → RRF → cohere.rerank-v3-5:0)", "traceLink": "#telemetry-1" },
       "toolCalls": [
         {
           "toolName": "find_pieces_hybrid",
-          "description": "Hybrid pgvector + BM25 + Cohere Rerank v3.5 over the gift-band catalog",
+          "description": "Hybrid pgvector + BM25 + cohere.rerank-v3-5:0 over the gift-band catalog",
           "durationMs": 706,
           "resultSummary": "30-candidate pool reranked to 3 gift-ready pieces, $35–$128 range",
           "subSteps": [
             { "label": "vector branch (pgvector cosine, k=20)", "durationMs": 967 },
             { "label": "BM25 branch (to_tsquery OR-of-stems via _build_or_tsquery, k=20)", "durationMs": 1031 },
             { "label": "RRF merge (k=60) → 21-candidate pool", "durationMs": 3 },
-            { "label": "Cohere Rerank v3.5 → top 5", "durationMs": 281 }
+            { "label": "cohere.rerank-v3-5:0 → top 5", "durationMs": 281 }
           ]
         }
       ],
@@ -38,17 +38,17 @@
         { "name": "Ceramic Ring Dish", "brand": "Pellier Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
         { "name": "Botanical Silk Scarf", "brand": "Pellier Editions", "price": 128, "imageUrl": "/products/anna-botanical-silk-scarf.png" }
       ],
-      "meta": { "agent": "Curator", "model": "Sonnet 4.6 · 0.4", "skill": "the-gift-table", "searchMethod": "hybrid+rerank", "latencyMs": 1492 }
+      "meta": { "agent": "Curator", "model": "Claude Opus 4.6 · 0.4", "skill": "the-gift-table", "searchMethod": "hybrid+rerank", "latencyMs": 1492 }
     }
   ],
   "telemetry": [
     { "index": 1, "category": "managed", "title": "Intent → Curator", "description": "'gift' matched the-gift-table skill path", "status": "complete", "durationMs": 62, "agent": "Dispatcher" },
     { "index": 2, "category": "owned", "title": "Skill loaded", "description": "the-gift-table bound for persona: anna", "status": "complete", "durationMs": 40, "agent": "SkillRouter" },
-    { "index": 3, "category": "both", "title": "vector branch", "description": "pgvector cosine over product_catalog (k=20)", "status": "complete", "durationMs": 305, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 3, "category": "both", "title": "vector branch", "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-v4:0", "status": "complete", "durationMs": 305, "agent": "Curator · find_pieces_hybrid" },
     { "index": 4, "category": "both", "title": "BM25 branch", "description": "ts_rank_cd over description_tsv with GIN index (k=20)", "status": "complete", "durationMs": 78, "agent": "Curator · find_pieces_hybrid" },
     { "index": 5, "category": "managed", "title": "RRF merge", "description": "Reciprocal Rank Fusion (k=60) → 30-candidate pool", "status": "complete", "durationMs": 3, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 6, "category": "both", "title": "Cohere Rerank v3.5", "description": "Bedrock cohere.rerank-v3-5:0 reranks 30 candidates", "status": "complete", "durationMs": 281, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 7, "category": "both", "title": "editorial composition", "description": "Sonnet 4.6 · 0.4 — gift-band framing across three price tiers", "status": "complete", "durationMs": 1244, "agent": "Curator" }
+    { "index": 6, "category": "both", "title": "cohere.rerank-v3-5:0", "description": "Cohere Rerank v3.5 — Bedrock cohere.rerank-v3-5:0 reranks 30 candidates", "status": "complete", "durationMs": 281, "agent": "Curator · find_pieces_hybrid" },
+    { "index": 7, "category": "both", "title": "editorial composition", "description": "Claude Opus 4.6 · 0.4 — gift-band framing across three price tiers", "status": "complete", "durationMs": 1244, "agent": "Curator" }
   ],
   "brief": {
     "folioNumber": 31,

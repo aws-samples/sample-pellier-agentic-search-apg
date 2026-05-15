@@ -6,10 +6,8 @@
  * boutique paired with a developer dashboard.
  */
 import { SURFACE_TOGGLE } from '../copy'
+import { cssVar as c } from '../design/cssVars'
 
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const ACCENT = '#c44536'
 
 export default function AtelierHero({ editionNumber = 6 }: { editionNumber?: number }) {
   const label = `${SURFACE_TOGGLE.ATELIER.toUpperCase()} · NO. ${String(editionNumber).padStart(
@@ -23,24 +21,24 @@ export default function AtelierHero({ editionNumber = 6 }: { editionNumber?: num
     >
       <p
         className="font-mono text-[11px] font-medium uppercase mb-5 flex items-center justify-center gap-2"
-        style={{ color: ACCENT, letterSpacing: '0.22em' }}
+        style={{ color: c.accent, letterSpacing: '0.22em' }}
       >
         <span
           aria-hidden
           className="inline-block w-[5px] h-[5px] rounded-full"
-          style={{ background: ACCENT }}
+          style={{ background: c.accent }}
         />
         <span>{label}</span>
         <span
           aria-hidden
           className="inline-block w-[5px] h-[5px] rounded-full"
-          style={{ background: ACCENT }}
+          style={{ background: c.accent }}
         />
       </p>
       <h1
         className="text-[54px] md:text-[60px] leading-[1] m-0"
         style={{
-          color: INK,
+          color: c.ink,
           fontFamily: 'Fraunces, Georgia, serif',
           fontWeight: 400,
           fontStyle: 'italic',
@@ -52,7 +50,7 @@ export default function AtelierHero({ editionNumber = 6 }: { editionNumber?: num
       <p
         className="text-[16px] leading-[1.6] max-w-[620px] mx-auto mt-5"
         style={{
-          color: INK_SOFT,
+          color: c.ink2,
           fontFamily: 'Fraunces, Georgia, serif',
           fontStyle: 'italic',
           fontWeight: 600,

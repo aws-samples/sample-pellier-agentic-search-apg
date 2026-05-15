@@ -16,13 +16,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
+import { cssVar as c } from '../design/cssVars'
 
-const CREAM = '#fbf4e8'
-const INK = '#2d1810'
-const INK_SOFT = '#6b4a35'
-const INK_QUIET = '#a68668'
-const ACCENT = '#c44536'
-const CREAM_WARM = '#f5e8d3'
 
 interface SpotlightStep {
   numeral: string
@@ -105,7 +100,7 @@ export default function AtelierSpotlight() {
           key={step}
           className="relative w-full max-w-[460px] rounded-3xl overflow-hidden"
           style={{
-            background: CREAM,
+            background: c.bg,
             border: '1px solid rgba(45, 24, 16, 0.08)',
             boxShadow: '0 25px 60px rgba(45, 24, 16, 0.18)',
           }}
@@ -123,7 +118,7 @@ export default function AtelierSpotlight() {
                 fontFamily: 'Fraunces, Georgia, serif',
                 fontWeight: 300,
                 fontStyle: 'italic',
-                color: ACCENT,
+                color: c.accent,
                 fontSize: 64,
                 letterSpacing: '-0.02em',
               }}
@@ -136,7 +131,7 @@ export default function AtelierSpotlight() {
           <div className="px-8 pb-3 text-center">
             <p
               className="text-[10px] font-medium uppercase mb-3"
-              style={{ color: ACCENT, letterSpacing: '0.2em' }}
+              style={{ color: c.accent, letterSpacing: '0.2em' }}
             >
               {current.kicker}
             </p>
@@ -146,7 +141,7 @@ export default function AtelierSpotlight() {
                 fontFamily: 'Fraunces, Georgia, serif',
                 fontWeight: 400,
                 fontStyle: 'italic',
-                color: INK,
+                color: c.ink,
                 letterSpacing: '-0.02em',
               }}
             >
@@ -154,7 +149,7 @@ export default function AtelierSpotlight() {
             </h2>
             <p
               className="text-[15px] leading-[1.7] mx-auto"
-              style={{ color: INK_SOFT, maxWidth: 360 }}
+              style={{ color: c.ink2, maxWidth: 360 }}
             >
               {current.body}
             </p>
@@ -174,7 +169,10 @@ export default function AtelierSpotlight() {
                   style={{
                     width: i === step ? 20 : 7,
                     height: 7,
-                    background: i === step ? ACCENT : `${INK_QUIET}50`,
+                    background:
+                      i === step
+                        ? c.accent
+                        : 'color-mix(in srgb, var(--ink-quiet) 50%, transparent)',
                   }}
                 />
               ))}
@@ -187,9 +185,9 @@ export default function AtelierSpotlight() {
                   type="button"
                   onClick={prev}
                   className="text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors"
-                  style={{ color: INK_SOFT }}
+                  style={{ color: c.ink2 }}
                   onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = CREAM_WARM)
+                    (e.currentTarget.style.background = c.paper)
                   }
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.background = 'transparent')
@@ -203,7 +201,7 @@ export default function AtelierSpotlight() {
                   type="button"
                   onClick={dismiss}
                   className="text-[13px] px-3 py-1.5 rounded-lg"
-                  style={{ color: INK_QUIET }}
+                  style={{ color: c.muted }}
                 >
                   Skip
                 </button>
@@ -212,12 +210,12 @@ export default function AtelierSpotlight() {
                 type="button"
                 onClick={next}
                 className="inline-flex items-center gap-1.5 text-[13px] font-medium px-5 py-2 rounded-full transition-colors"
-                style={{ background: INK, color: CREAM }}
+                style={{ background: c.ink, color: c.bg }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = '#3d2518')
+                  (e.currentTarget.style.background = 'var(--ink)')
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = INK)
+                  (e.currentTarget.style.background = c.ink)
                 }
               >
                 {isLast ? FINAL_CTA : 'Next'}

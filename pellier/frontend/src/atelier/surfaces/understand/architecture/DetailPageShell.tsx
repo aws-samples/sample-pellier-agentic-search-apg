@@ -293,16 +293,14 @@ const DetailPageShell: React.FC<DetailPageShellProps> = ({
         <CategoryBadge category={category} />
       </div>
 
-      {/* Hero title — Fraunces 56px italic */}
+      {/* Hero title — same Fraunces display stack as Boutique hero + EditorialTitle */}
       <h1
+        className="font-display italic text-espresso"
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontSize: '56px',
+          fontSize: 'clamp(40px, 5vw, 56px)',
           fontWeight: 400,
-          fontStyle: 'italic',
           lineHeight: 1.08,
           letterSpacing: '-0.02em',
-          color: 'var(--at-ink-1)',
           margin: '0 0 16px 0',
         }}
       >

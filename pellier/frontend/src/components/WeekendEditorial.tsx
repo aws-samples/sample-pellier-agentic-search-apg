@@ -6,7 +6,10 @@
  * on a slightly different background tone (cream-warm / sand).
  */
 
+import { splitHeadlineAtRe } from '../utils/headlineAccent'
+
 export default function WeekendEditorial() {
+  const headline = splitHeadlineAtRe('Weekend,\nre:defined.')
   return (
     <section
       data-testid="weekend-editorial"
@@ -29,15 +32,23 @@ export default function WeekendEditorial() {
         {/* Headline */}
         <h2
           data-testid="weekend-editorial-headline"
-          className="font-display italic text-espresso"
+          className="font-display italic"
           style={{
             fontSize: 'clamp(32px, 4.5vw, 56px)',
             lineHeight: 1.1,
             letterSpacing: '-0.01em',
             fontWeight: 400,
+            whiteSpace: 'pre-line',
           }}
         >
-          Weekend, re:defined.
+          {headline.tail ? (
+            <>
+              <span className="text-espresso">{headline.lead}</span>
+              <span className="text-accent-ink">{headline.tail}</span>
+            </>
+          ) : (
+            <span className="text-espresso">{headline.lead}</span>
+          )}
         </h2>
 
         {/* Subheadline */}

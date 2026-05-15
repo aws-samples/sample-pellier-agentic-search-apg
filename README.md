@@ -120,16 +120,15 @@ production and exposes the other two as Atelier toggles.
 
 | Agent              | Role                                          | Model            |
 | ------------------ | --------------------------------------------- | ---------------- |
-| **Style Advisor**      | Interprets intent, runs semantic search        | Claude Sonnet 4.6 |
-| **Curator**            | Pairing, palette, occasion, editorial picks    | Claude Sonnet 4.6 |
-| **Value Analyst**      | Price intelligence, deals, percentile context  | Claude Sonnet 4.6 |
+| **Style Advisor**      | Interprets intent, runs semantic search        | Claude Opus 4.6 |
+| **Curator**            | Pairing, palette, occasion, editorial picks    | Claude Opus 4.6 |
+| **Value Analyst**      | Price intelligence, deals, percentile context  | Claude Haiku 4.5  |
 | **Stock Keeper**       | Warehouse stock, restocks, low-inventory alerts | Claude Haiku 4.5  |
-| **Experience Guide**   | Returns, care, post-purchase                   | Claude Sonnet 4.6 |
-| **Curator (editorial)** | Editorial copy, hero descriptions             | Claude Opus 4.7   |
+| **Experience Guide**   | Returns, care, post-purchase                   | Claude Opus 4.6 |
 
 Per-agent model choice is an architectural decision — Stock Keeper's
-terse warehouse answers don't need Opus, the Curator's editorial
-prose earns it. The Atelier surfaces the mix.
+terse warehouse answers run on Haiku; the Curator's editorial
+prose earns Opus. The Atelier surfaces the mix.
 
 ### Tools
 
@@ -159,7 +158,7 @@ shape voice and handling without changing product selection:
 | Layer            | Technology                                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Database         | Aurora PostgreSQL Serverless v2 (engine 17.7) · pgvector 0.8.0 · HNSW index · 1024-dim Cohere Embed v4 vectors          |
-| Models           | Claude Opus 4.7 · Sonnet 4.6 · Haiku 4.5 (Bedrock) · Cohere Embed v4 · Cohere Rerank v3.5                               |
+| Models           | Claude Opus 4.6 · Claude Haiku 4.5 (Bedrock inference profiles) · Cohere Embed v4 · Cohere Rerank v3.5                               |
 | Voice            | Amazon Transcribe Streaming over WebSocket — interim + final transcripts                                                |
 | Agent infra      | Bedrock AgentCore — Runtime · Memory (STM + LTM) · Gateway (MCP) · Identity                                              |
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
