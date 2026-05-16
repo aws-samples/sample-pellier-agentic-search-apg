@@ -3,8 +3,9 @@
  * sign-out moments.
  *
  * Reads PersonaContext.lastTransition. On sign-in: cream card with
- * italic Fraunces "Welcome back, {name}." + a persona-specific tag
- * line + animated red-1 check. On sign-out: smaller farewell card
+ * sans "Welcome back, {name}." (same register as BoutiqueWelcome)
+ * + a persona-specific tag line + animated red-1 check. On sign-out:
+ * smaller farewell card
  * with "See you soon, {name}." — mirrored but quieter.
  *
  * Auto-dismisses after 2400ms (sign-in) / 1600ms (sign-out). Click
@@ -174,16 +175,16 @@ export default function PersonaTransitionOverlay() {
                 )}
               </motion.div>
 
-              {/* Italic Fraunces greeting — matches the storefront's
-                  editorial voice. */}
+              {/* Sans greeting — matches .sf-greeting on BoutiqueWelcome
+                  (readable; avoid heavy italic Fraunces on cream). */}
               <h2
                 style={{
-                  fontFamily: 'var(--serif)',
-                  fontStyle: 'italic',
+                  fontFamily: 'var(--sans)',
+                  fontStyle: 'normal',
                   fontWeight: 400,
                   fontSize: lastTransition.kind === 'sign-in' ? 30 : 24,
-                  lineHeight: 1.1,
-                  letterSpacing: '-0.01em',
+                  lineHeight: 1.15,
+                  letterSpacing: '-0.015em',
                   color: 'var(--ink-1)',
                   margin: 0,
                 }}
@@ -205,13 +206,12 @@ export default function PersonaTransitionOverlay() {
               {lastTransition.kind === 'sign-in' && (
                 <p
                   style={{
-                    fontFamily: 'var(--serif)',
-                    fontStyle: 'italic',
-                    fontWeight: 600,
+                    fontFamily: 'var(--sans)',
+                    fontStyle: 'normal',
+                    fontWeight: 400,
                     fontSize: 15,
-                    lineHeight: 1.55,
-                    letterSpacing: '-0.005em',
-                    color: 'var(--ink-3)',
+                    lineHeight: 1.6,
+                    color: 'var(--ink-2)',
                     margin: '14px auto 0',
                     maxWidth: 360,
                   }}

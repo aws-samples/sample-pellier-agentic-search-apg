@@ -17,7 +17,10 @@ import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { CartItemOrigin } from '../contexts/CartContext'
 import MarkdownMessage from './MarkdownMessage'
 import ProductArtifactCard from './ProductArtifactCard'
+import { TraceChip } from '../shared/TraceChip'
 import { resolveCover } from './BoutiqueWelcome'
+import { PERSONA_HERO_PILLS, MARCO_BUILDER_SESSION_QUERY } from '../data/personaCurations'
+import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import { useCatalogStats } from '../hooks/useCatalogStats'
 import '../styles/boutique-chat.css'
 import '../styles/boutique-welcome.css'
@@ -76,67 +79,27 @@ function toolLabel(
   return { label: cleaned.charAt(0).toUpperCase() + cleaned.slice(1) }
 }
 
-const SKILL_DISPLAY_NAMES: Record<string, string> = {
-  'style-advisor': 'Style Advisor',
-  'gift-concierge': 'Gift Concierge',
-  'the-packing-list': 'Packing List',
-  'the-gift-table': 'Gift Table',
-  'the-makers-shelf': "Maker's Shelf",
+/** Dot-notation trace labels for loaded skills (same register as memory.recall). */
+const SKILL_TRACE: Record<string, string> = {
+  'style-advisor': 'skill.style-advisor',
+  'gift-concierge': 'skill.gift-concierge',
+  'the-packing-list': 'skill.packing-list',
+  'the-gift-table': 'skill.gift-table',
+  'the-makers-shelf': 'skill.makers-shelf',
 }
 
-function skillDisplayName(canonicalName: string): string {
-  // Mapped names win — they encode the editorial intent exactly
-  // ('the-packing-list' → 'Packing List', not 'The Packing List').
-  if (SKILL_DISPLAY_NAMES[canonicalName]) {
-    return SKILL_DISPLAY_NAMES[canonicalName]
-  }
-  // Fallback: strip a leading 'the-' before un-kebabing so a new skill
-  // shipping with a 'the-' prefix doesn't render as 'the the X' once
-  // the attribution prepends 'Drawing from the '. Then title-case so
-  // 'the-foo-bar' becomes 'Foo Bar' (matching the manual map style).
-  const stripped = canonicalName.replace(/^the-/i, '')
-  return stripped
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
+function skillTraceTool(canonical: string): string {
+  return SKILL_TRACE[canonical] ?? `skill.${canonical.replace(/^the-/, '')}`
 }
 
-function formatAttribution(loadedSkills: string[]): string {
-  const names = loadedSkills.map(skillDisplayName)
-  if (names.length === 0) return ''
-  if (names.length === 1) return `Drawing from the ${names[0]}`
-  if (names.length === 2)
-    return `Drawing from the ${names[0]} and the ${names[1]}`
-  const head = names.slice(0, -1).map((n) => `the ${n}`).join(', ')
-  return `Drawing from ${head}, and the ${names[names.length - 1]}`
-}
-
-// Follow-up chips align with the canonical 3-turn persona journeys:
-//   Turn 1 fires from the hero pill / BoutiqueWelcome pick.
-//   Turn 2 + Turn 3 appear as follow-up chips after the first response.
-// This keeps the Boutique ↔ Atelier demo narrative coherent.
+// Follow-up chips = Turns 2–5 for each persona: same strings as the
+// Boutique hero row (PERSONA_HERO_PILLS), omitting Turn 1 (already sent
+// from the hero pill / welcome pick).
 const FOLLOWUPS_BY_PERSONA: Record<string, string[]> = {
-  marco: [
-    'What would go with the Hadley shirt?',                 // Turn 2
-    "What's the price range for linen shirts?",             // Turn 3
-    'Is the Hadley shirt at the Brooklyn warehouse?',       // Turn 4 (Stock Keeper payoff)
-  ],
-  anna: [
-    'Something beautiful under $100',                    // Turn 2
-    'Help me pair a candle with something else',          // Turn 3
-    'Wrap-ready gifts with no extra effort',
-  ],
-  theo: [
-    'What goes well with the pour-over set?',             // Turn 2
-    'Linen pieces that soften over seasons',              // Turn 3
-    'Something for the home, not the wardrobe',
-    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
-  ],
-  fresh: [
-    'A cozy layer for cooler nights',
-    'Pieces for slow Sunday mornings',
-    'Something to wear for warm evenings out',
-  ],
+  marco: PERSONA_HERO_PILLS.marco.slice(1),
+  anna: PERSONA_HERO_PILLS.anna.slice(1),
+  theo: PERSONA_HERO_PILLS.theo.slice(1),
+  fresh: PERSONA_HERO_PILLS.fresh.slice(1),
 }
 
 function followupsForPersona(persona?: PersonaSnapshot | null): string[] {
@@ -190,6 +153,7 @@ export default function BoutiqueChatBody({
   addToCart,
   persona,
 }: BoutiqueChatBodyProps) {
+  const { showBuilderSessionGap } = useFloorCheckWorkshopCue()
   const lastAssistantIndex = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant') return i
@@ -218,6 +182,7 @@ export default function BoutiqueChatBody({
                 persona={persona}
                 isLastAssistantMessage={index === lastAssistantIndex}
                 onFollowUp={(text) => void sendMessage(text)}
+                showBuilderSessionGap={showBuilderSessionGap}
               />
             )}
           </motion.div>
@@ -250,12 +215,14 @@ function AgentMessage({
   onFollowUp,
   persona,
   isLastAssistantMessage,
+  showBuilderSessionGap,
 }: {
   message: AgentChatMessage
   addToCart: BoutiqueChatBodyProps['addToCart']
   onFollowUp: (text: string) => void
   persona: PersonaSnapshot | null
   isLastAssistantMessage: boolean
+  showBuilderSessionGap: boolean
 }) {
   const isThinking = message.agentStatus === 'thinking' && !message.content
   const isStreaming = message.agentStatus === 'streaming'
@@ -286,11 +253,13 @@ function AgentMessage({
         Pellier
       </div>
 
-      {/* Skill attribution */}
+      {/* Loaded skills — TraceChip row (memory.recall register) */}
       {message.skillRouting &&
         message.skillRouting.loaded_skills.length > 0 && (
           <div className="ec-msg-attribution">
-            {formatAttribution(message.skillRouting.loaded_skills)}
+            {message.skillRouting.loaded_skills.map((skill) => (
+              <TraceChip key={skill} tool={skillTraceTool(skill)} compact />
+            ))}
           </div>
         )}
 
@@ -415,16 +384,31 @@ function AgentMessage({
       {/* Follow-up chips */}
       {isComplete && isLastAssistantMessage && (
         <div className="ec-followups">
-          {followupsForPersona(persona).map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              className="ec-followup"
-              onClick={() => onFollowUp(chip)}
-            >
-              {chip}
-            </button>
-          ))}
+          {followupsForPersona(persona).map((chip) => {
+            const workshopMarcoChip =
+              persona?.id === 'marco' &&
+              showBuilderSessionGap &&
+              chip === MARCO_BUILDER_SESSION_QUERY
+            return (
+              <button
+                key={chip}
+                type="button"
+                className={
+                  workshopMarcoChip
+                    ? 'ec-followup ec-followup-workshop'
+                    : 'ec-followup'
+                }
+                title={
+                  workshopMarcoChip
+                    ? "Builder's Session: wire floor_check so Stock Keeper can answer this."
+                    : undefined
+                }
+                onClick={() => onFollowUp(chip)}
+              >
+                {chip}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

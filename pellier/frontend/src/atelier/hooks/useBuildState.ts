@@ -3,7 +3,9 @@
  *
  * Provides an abstraction layer that can be backed by:
  *   1. Fixture data (default — reads status from agents.json / tools.json)
- *   2. A backend endpoint (GET /api/atelier/build-state) when available
+ *   2. GET /api/atelier/build-state — merges overlays (Builder's Session: when
+ *      floor_check is no longer the workshop stub in agent_tools.py, promotes
+ *      floor_check plus Stock Keeper to shipped without editing JSON fixtures).
  *   3. File-existence checks via a future backend probe
  *
  * Consumers (Agents, Tools surfaces, WorkshopProgressStrip) use this hook
@@ -108,6 +110,25 @@ export function useBuildState(): BuildStateResult {
   // Try the API on mount (non-blocking — fixture data is the fallback)
   useEffect(() => {
     fetchBuildState();
+  }, [fetchBuildState]);
+
+  // After wiring floor_check locally, revisit the tab or focus the window so
+  // build-state re-fetches once uvicorn has reloaded (Builder's Session flow).
+  useEffect(() => {
+    const refetchBuildState = () => {
+      fetchBuildState();
+    };
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchBuildState();
+      }
+    };
+    window.addEventListener('focus', refetchBuildState);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', refetchBuildState);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [fetchBuildState]);
 
   /* -----------------------------------------------------------------------

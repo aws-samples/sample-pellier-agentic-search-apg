@@ -26,7 +26,7 @@ const ToolRegistryDetail: React.FC = () => {
       conceptName="Tool Registry"
       category="both"
       title="Tools, discovered."
-      prose="Nine tools registered in Aurora PostgreSQL with pgvector embeddings. The gateway enables semantic discovery — agents find tools by describing what they need, not by knowing function names. HNSW indexing provides sub-millisecond lookup."
+      prose="Twelve tools in Aurora with pgvector embeddings. Discovery embeds what the agent needs and returns cosine-ranked matches — no hardcoded routing table inside the retrieval path. HNSW keeps similarity search tight."
       seeInBoutique={{
         href: '/?ask=Show+me+linen+pieces+like+the+Camp+Shirt',
         label: 'See tool discovery fire on the storefront',
@@ -42,14 +42,14 @@ const ToolRegistryDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Six tools are shipped, three are exercises. The registry doesn\'t care — it discovers whatever is registered.',
+          text: 'Fixture labels on the Understand · Tools surface: eleven shipped baseline; ``floor_check`` is the Builder\'s Session exercise until its stub is replaced — then `/api/atelier/build-state` reflects shipped.',
         },
       ]}
       liveState={{
         label: 'Current tool registry state. Tools are registered at boot with pgvector embeddings for semantic discovery.',
         values: [
-          { label: 'Tools registered', value: '9' },
-          { label: 'Shipped', value: '6' },
+          { label: 'Tools registered', value: '12' },
+          { label: 'Shipped (baseline image)', value: '11' },
           { label: 'Index', value: 'HNSW' },
         ],
       }}
@@ -102,14 +102,17 @@ LIMIT 5;`}</pre>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 {[
                   { name: 'find_pieces', status: 'shipped' },
+                  { name: 'find_pieces_hybrid', status: 'shipped' },
                   { name: 'explore_collection', status: 'shipped' },
                   { name: 'side_by_side', status: 'shipped' },
+                  { name: 'style_match', status: 'shipped' },
                   { name: 'whats_trending', status: 'shipped' },
                   { name: 'price_intelligence', status: 'shipped' },
-                  { name: 'returns_and_care', status: 'shipped' },
                   { name: 'floor_check', status: 'exercise' },
-                  { name: 'restock_shelf', status: 'exercise' },
-                  { name: 'low_stock', status: 'exercise' },
+                  { name: 'running_low', status: 'shipped' },
+                  { name: 'returns_and_care', status: 'shipped' },
+                  { name: 'restock_shelf', status: 'shipped' },
+                  { name: 'process_return', status: 'shipped' },
                 ].map((tool) => (
                   <div
                     key={tool.name}

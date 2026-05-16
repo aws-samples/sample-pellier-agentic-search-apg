@@ -15,7 +15,7 @@
  *                 quiet engineer-facing breadcrumb (Req 1.7.3). Copy
  *                 authoring lives in `copy.reasoningMatched`.
  *
- *   - `pricing` — two-part copy: the lead clause in the neutral Inter
+ *   - `pricing` — two-part copy: the lead clause in the neutral sans
  *                 body color, and a terracotta urgent clause that
  *                 wraps in `<span style={{color:'var(--accent)'}}>`
  *                 (Req 1.7.4). The urgent string is provided via
@@ -39,7 +39,6 @@ import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) ---------------------------------------
 
-const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 const MONO_STACK =
   'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
@@ -121,7 +120,7 @@ function PricingChip({ chip }: ReasoningChipProps) {
       data-style="pricing"
       style={{
         color: c.ink2,
-        fontFamily: INTER_STACK,
+        fontFamily: 'var(--sans)',
         fontSize: 12,
         lineHeight: 1.5,
         letterSpacing: '0.01em',

@@ -1301,10 +1301,11 @@ const AgentsCard: React.FC = () => (
   </ExpCard>
 );
 
-/** Skills card — style-advisor and gift-concierge with activation status */
+/** Skills card — three persona skills (`skills.json` bundles) with placeholder status */
 const SKILLS_LIST = [
-  { name: 'style-advisor', active: false },
-  { name: 'gift-concierge', active: false },
+  { name: 'the-packing-list', active: false },
+  { name: 'the-gift-table', active: false },
+  { name: 'the-makers-shelf', active: false },
 ];
 
 const SkillsCard: React.FC = () => (

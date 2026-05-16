@@ -33,8 +33,6 @@ import ComingSoonLine from './ComingSoonLine'
 import { cssVar as c } from '../design/cssVars'
 
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
-const INTER_STACK = 'Inter, system-ui, sans-serif'
-
 /** Centered sign-in CTA rendered when the visitor is signed out. */
 function DiscoverSigninPrompt() {
   const { login } = useAuth()
@@ -52,7 +50,7 @@ function DiscoverSigninPrompt() {
         <p
           data-testid="discover-eyebrow"
           style={{
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 11,
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
@@ -87,7 +85,7 @@ function DiscoverSigninPrompt() {
             color: c.bg,
             border: 'none',
             borderRadius: 9999,
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 14,
             fontWeight: 500,
             letterSpacing: '0.02em',
@@ -105,7 +103,7 @@ function DiscoverSigninPrompt() {
         </button>
         <p
           style={{
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 13,
             color: c.ink2,
             marginTop: 16,

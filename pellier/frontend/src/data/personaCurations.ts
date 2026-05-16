@@ -327,7 +327,9 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'What goes well with the pour-over set?',              // Turn 2
     'Linen pieces that soften over seasons',               // Turn 3
     "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
-    'Artisanal objects worth keeping',
+    // Turn 5 matches Persona Journeys + Boutique welcome P.S. (not the
+    // narrower "worth keeping" headline — this is the closet vs home axis).
+    'Something for the home, not the wardrobe',
   ],
   fresh: [
     'A thoughtful gift for someone who runs',
@@ -337,6 +339,9 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'A cozy layer for cooler nights',
   ],
 }
+
+/** Marco Boutique / Atelier Turn 4 — warehouse ask (Stock Keeper · `floor_check`). */
+export const MARCO_BUILDER_SESSION_QUERY = PERSONA_HERO_PILLS.marco[3]
 
 export function heroPillsForPersona(
   personaId: string | null | undefined,

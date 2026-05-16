@@ -6,7 +6,7 @@
 --
 -- The teaching shape:
 --
---   1. An agent (Experience Guide on Sonnet 4.6 at 0.2) calls a @tool
+--   1. An agent (Experience Guide on Opus 4.6 at 0.2) calls a @tool
 --      that mutates Aurora — process_return.
 --   2. Cedar gates the call BEFORE it executes (BeforeToolCallEvent).
 --      Bad reason → DENY → no row written.

@@ -86,7 +86,7 @@ export default {
         // Mirror Daylight / bridge stacks (self-hosted in main.tsx).
         sans: [
           '"Instrument Sans"',
-          'Inter',
+          'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
           '"Segoe UI"',

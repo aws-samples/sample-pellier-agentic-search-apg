@@ -57,7 +57,7 @@
       ],
       "confidence": {
         "percentage": 91,
-        "reasoning": "Strong semantic match on 'linen' + 'travel'; Marco's LTM preference profile (natural fibers, warm tones) weights the Pellier shirt and drawstring trousers highest."
+        "reasoning": "Strong semantic match on 'linen' + 'travel'; Marco's LTM preference profile (natural fibers, warm tones) weights the Hadley / Pellier linen shirt and drawstring trousers highest."
       },
       "memoryPills": [
         { "tier": "stm", "content": "Planning 10 days in Goa — linen, travels well" },
@@ -71,12 +71,12 @@
     },
     {
       "role": "user",
-      "content": "What would go with the Pellier shirt?",
+      "content": "What would go with the Hadley shirt?",
       "timestamp": "2025-01-15T19:42:32Z"
     },
     {
       "role": "assistant",
-      "content": "The Pellier pairs beautifully with the Drawstring Trousers in oat — same washed-linen family, same tonal register, they read as a considered set rather than an accident. For layering when the evening cools, the Washed Cotton Overshirt in ecru picks up the same muted palette without adding bulk. And the Leather Weekender ties the whole packing list together — the kind of bag that earns its patina on the trip.",
+      "content": "The Hadley pairs beautifully with the Drawstring Trousers in oat — same washed-linen family, same tonal register, they read as a considered set rather than an accident. For layering when the evening cools, the Washed Cotton Overshirt in ecru picks up the same muted palette without adding bulk. And the Leather Weekender ties the whole packing list together — the kind of bag that earns its patina on the trip.",
       "timestamp": "2025-01-15T19:42:38Z",
       "plan": {
         "routingPattern": "Dispatcher",
@@ -87,7 +87,7 @@
       "toolCalls": [
         {
           "toolName": "style_match",
-          "description": "Product-to-product pgvector similarity from Pellier Linen Shirt",
+          "description": "Product-to-product pgvector similarity from Hadley / Pellier Linen Shirt",
           "durationMs": 218,
           "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity FROM product_catalog p1, product_catalog p2 WHERE p1.product_id = $1 AND p2.product_id != $1 AND p2.quantity > 0 ORDER BY p1.embedding <=> p2.embedding LIMIT 5;",
           "resultSummary": "3 companion pieces above 0.76 cosine similarity"
@@ -121,7 +121,7 @@
         "reasoning": "the-packing-list skill loaded; style_match returned companions from Marco's travel-linen cluster with strong cosine similarity."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Interested in pairings for the Pellier shirt" },
+        { "tier": "stm", "content": "Interested in pairings for the Hadley shirt" },
         { "tier": "skill", "content": "the-packing-list loaded (persona: marco)" }
       ],
       "meta": {
@@ -171,12 +171,12 @@
     },
     {
       "role": "user",
-      "content": "Is the Pellier shirt at the Brooklyn warehouse?",
+      "content": "Is the Hadley shirt at the Brooklyn warehouse?",
       "timestamp": "2025-01-15T19:43:22Z"
     },
     {
       "role": "assistant",
-      "content": "I can help with style and recommendations, but I don't have real-time stock visibility for individual warehouses yet. I can tell you the Pellier shirt is in the catalog and marked in-stock system-wide — but which warehouse holds it, and how many are on the floor, sits outside what I can answer right now.",
+      "content": "I can help with style and recommendations, but I don't have real-time stock visibility for individual warehouses yet. I can tell you the Hadley shirt (Pellier Linen Shirt in ecru) is in the catalog and marked in-stock system-wide — but which warehouse holds it, and how many are on the floor, sits outside what I can answer right now.",
       "timestamp": "2025-01-15T19:43:24Z",
       "plan": {
         "routingPattern": "Dispatcher",
@@ -257,7 +257,7 @@
       "index": 6,
       "category": "both",
       "title": "Style match",
-      "description": "Product-to-product pgvector similarity from Pellier Linen Shirt; embeddings via Cohere Embed v4 (cohere.embed-v4:0)",
+      "description": "Product-to-product pgvector similarity from Hadley / Pellier Linen Shirt; embeddings via Cohere Embed v4 (cohere.embed-v4:0)",
       "status": "complete",
       "durationMs": 218,
       "agent": "Curator",
@@ -304,7 +304,7 @@
       "index": 11,
       "category": "teaching",
       "title": "Routing fall-through — Stock Keeper stubbed",
-      "description": "Dispatcher detected Stock Keeper in stub state. No agent invoked. Voice-matched non-answer returned from orchestrator.py fall-through. This is the workshop build — Module 2 · Understand · Agents.",
+      "description": "Dispatcher detected Stock Keeper in stub state. No agent invoked. Voice-matched non-answer returned from orchestrator.py fall-through. This is the workshop build — Builder's Session · Part I · wire floor_check.",
       "status": "complete",
       "durationMs": 4,
       "agent": null,

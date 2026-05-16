@@ -13,7 +13,7 @@
   {
     "id": "marco-midpoint-checkpoint",
     "personaId": "marco",
-    "openingQuery": "Is the Pellier shirt at the Brooklyn warehouse?",
+    "openingQuery": "Is the Hadley shirt at the Brooklyn warehouse?",
     "elapsedMs": 1840,
     "agentCount": 1,
     "routingPattern": "Dispatcher",

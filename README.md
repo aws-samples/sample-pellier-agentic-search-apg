@@ -128,7 +128,11 @@ production and exposes the other two as Atelier toggles.
 
 Per-agent model choice is an architectural decision — Stock Keeper's
 terse warehouse answers run on Haiku; the Curator's editorial
-prose earns Opus. The Atelier surfaces the mix.
+prose earns Opus. Factories load **`BEDROCK_OPUS_MODEL`** for editorial
+agents and **`BEDROCK_HAIKU_MODEL`** for reporting/routing —
+see `pellier/backend/config.py`. The **`BEDROCK_SONNET_MODEL`** env name is
+legacy only (same inference profile as Opus in defaults). The Atelier surfaces
+the mix.
 
 ### Tools
 

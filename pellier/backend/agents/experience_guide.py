@@ -62,8 +62,8 @@ _SUPPORT_SYSTEM_PROMPT = (
     "knows the write actually happened.\n"
 )
 
-# Solution state — the challenge is complete; flip the flag so the
-# Atelier renders Experience Guide as a shipped agent.
+# ``_SUPPORT_AGENT_STUBBED`` — legacy flag still read by chat routing; Atelier
+# lists Experience Guide as shipped in ``agents.json``.
 _SUPPORT_AGENT_STUBBED = False
 
 
@@ -119,7 +119,7 @@ def build_support_agent() -> Agent:
     # policy is policy.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_SONNET_MODEL,
+            model_id=settings.BEDROCK_OPUS_MODEL,
             max_tokens=4096,
             temperature=0.2,
         ),

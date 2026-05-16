@@ -93,11 +93,11 @@ class BusinessLogic:
           * ``product_query=None`` (default) — overall inventory health:
             stock counts, low-stock alerts, health score. Used for
             "what's running low" / "give me a stock overview" questions.
-          * ``product_query="Pellier shirt"`` — per-warehouse breakdown
-            for a single product. Resolves the query against
-            ``product_catalog.name`` (ILIKE) and joins
-            ``warehouse_inventory`` so Stock Keeper can answer "is the
-            Pellier shirt at the Brooklyn warehouse?" with concrete
+          * ``product_query="Hadley shirt"`` (or `"Pellier Linen Shirt"`) —
+            per-warehouse breakdown for a single product. Resolves the query
+            against ``product_catalog.name`` (ILIKE) and joins
+            ``warehouse_inventory`` so Stock Keeper can answer "is the Hadley shirt
+            (Pellier Linen Shirt in ecru) at the Brooklyn warehouse?" with concrete
             counts. Returns ambiguity error when more than one product
             matches; not_found when zero match.
         """
@@ -151,12 +151,10 @@ class BusinessLogic:
         envelope with candidate names so the agent can ask the customer
         to disambiguate. If zero, returns not_found.
         """
-        # Per-token ILIKE match: "Pellier shirt" → name ILIKE '%Pellier%'
-        # AND name ILIKE '%shirt%'. Substring-with-wildcards-at-ends
-        # would miss "Pellier Linen Shirt" because the customer typed
-        # the brand and product noun without the modifier between them.
-        # Tokenization is naive on whitespace which is fine for catalog
-        # names (none contain commas / punctuation that matters here).
+        # Per-token ILIKE match on whitespace-split tokens — e.g. "Hadley shirt"
+        # → `%Hadley%` AND `%shirt%` on catalog `name`. A single wrapped substring
+        # would miss compounds like "Pellier Linen Shirt" when the shopper writes
+        # "Pellier shirt".
         tokens = [t for t in product_query.strip().split() if t]
         if not tokens:
             return {

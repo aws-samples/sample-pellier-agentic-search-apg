@@ -76,8 +76,8 @@ def floor_check() -> str:
     # WORKSHOP_EXERCISE_STUB
     #
     # Wire this tool to BusinessLogic.floor_check() so Stock Keeper
-    # can answer Marco's Turn 4: "Is the Pellier shirt at the
-    # Brooklyn warehouse?"
+    # can answer Marco's Turn 4: "Is the Hadley shirt at the
+    # Brooklyn warehouse?" (Hadley · Pellier Linen Shirt in ecru.)
     #
     # Steps:
     #   1. Guard on _db_service being initialized (return a JSON error

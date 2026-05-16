@@ -34,16 +34,15 @@
     "tools": ["floor_check", "restock_shelf", "running_low"],
     "model": "Claude Opus 4.6",
     "temperature": 0.1,
-    "exerciseFiles": ["backend/agents/inventory_agent.py"]
+    "exerciseFiles": ["pellier/backend/agents/stock_keeper.py"]
   },
   {
     "numeral": "V",
     "name": "Experience Guide",
     "role": "Returns, care instructions, post-purchase support.",
-    "status": "exercise",
+    "status": "shipped",
     "tools": ["returns_and_care", "find_pieces"],
     "model": "Claude Opus 4.6",
-    "temperature": 0.2,
-    "exerciseFiles": ["backend/agents/customer_support_agent.py"]
+    "temperature": 0.2
   }
 ]

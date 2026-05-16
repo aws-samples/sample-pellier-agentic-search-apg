@@ -43,8 +43,8 @@ Semantic — `--dl-ok`, `--dl-warn`, `--dl-err`, `--dl-info`.
 
 Two faces: a serif for display and prose, a sans for UI metadata and code labels.
 
-- `--dl-font-serif` — Iowan Old Style → Source Serif Pro → Georgia. Display, headings, body.
-- `--dl-font-sans`  — Inter → Helvetica Neue → system. Eyebrows, buttons, table headers, captions.
+- `--dl-font-serif` — Instrument Serif → Fraunces (variable) → Georgia. Display, headings, body.
+- `--dl-font-sans`  — Instrument Sans → system UI stack. Eyebrows, buttons, table headers, captions.
 - `--dl-font-mono`  — JetBrains Mono → SF Mono → Menlo. Code, numerical readouts.
 
 Scale (in px): `display 54 / h1 40 / h2 28 / h3 20 / lead 18 / body 15 / small 13 / eyebrow 11`.

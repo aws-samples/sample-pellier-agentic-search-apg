@@ -1,8 +1,9 @@
 /**
- * Tools — Nine registered tool functions surface.
+ * Tools — Registered tool functions surface (fixture-backed).
  *
- * WorkshopProgressStrip (9 segments: 6 shipped, 3 exercise) + discovery demo card
- * + 9 tool row cards. Discovery demo card hits real POST /api/atelier/tools/discover.
+ * WorkshopProgressStrip: one segment per tool; shipped vs exercise from
+ * build state (`/api/atelier/build-state`) with live overlay when
+ * `floor_check` is wired — matches Builder's Session Part I.
  *
  * Shipped tools: solid borders, sage status.
  * Exercise tools: dashed borders, burgundy status.
@@ -146,7 +147,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
         </span>
       </div>
 
-      {/* Prose — same Inter sans treatment as AtelierWelcome's
+      {/* Prose — same Instrument Sans treatment as AtelierWelcome's
           summary paragraph so explanatory copy reads consistently
           across every Atelier surface (no stray italics). */}
       <p
@@ -563,7 +564,7 @@ const ToolRow: React.FC<ToolRowProps> = ({
           >
             {tool.functionName}
           </span>
-          {/* Tool description — sans Inter so technical body prose
+          {/* Tool description — sans Instrument Sans so technical body prose
               reads as documentation, not editorial. Matches the
               AtelierWelcome summary treatment. */}
           <span
@@ -1232,9 +1233,9 @@ const Tools: React.FC = () => {
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
       <EditorialTitle
-        eyebrow="Understand · Tools · nine functions · pgvector-discoverable"
+        eyebrow="Understand · Tools · twelve functions · pgvector-discoverable"
         title="The toolkit, by what each does."
-        summary="Nine tools. Six shipped reference, three to wire. Each lives in tool_registry with an embedding — the agent finds the right one with a single pgvector query."
+        summary="Twelve tools in the registry. Eleven ship as reference in the Builder's Session image; floor_check is the sole hands-on wire in Part I. Each tool has an embedding — discovery ranks by cosine similarity. Replacing the stub updates GET /api/atelier/build-state so Stock Keeper and floor_check read as shipped."
       />
 
       {loading && <LoadingState />}

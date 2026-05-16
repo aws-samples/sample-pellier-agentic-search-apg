@@ -92,7 +92,7 @@ pytest tests/test_agent_tools.py::test_floor_check -v
 ```
 
 ### Verify live
-1. In the Boutique, click Marco's Turn 4 pill: **"Is the Pellier shirt at the Brooklyn warehouse?"**
+1. In the Boutique, click Marco's Turn 4 pill: **"Is the Hadley shirt at the Brooklyn warehouse?"** *(Pellier Linen Shirt in ecru.)*
 2. Expected answer: warehouse breakdown with counts — Brooklyn, Austin, Portland.
 3. Flip to the Atelier: `/atelier/routing` — the dotted stock-intent arrow is now solid.
 4. `/atelier/agents` — Stock Keeper no longer carries the "Your turn" pill.
@@ -183,7 +183,7 @@ Open the Atelier concierge and ask *"What's running low?"* — list of low-stock
 ## C5 · Experience Guide agent (20 min)
 
 ### Why this matters
-Stock Keeper is done. Now the second full specialist build. Experience Guide handles returns and care — exactly what Theo needs when his ceramics arrived chipped. Different model (Sonnet 4.6 · 0.2), different voice, different pattern: **tool chaining**.
+Stock Keeper is done. Now the second full specialist build. Experience Guide handles returns and care — exactly what Theo needs when his ceramics arrived chipped. Different model (**Opus 4.6 · 0.2**), different voice, different pattern: **tool chaining**.
 
 ### Where to look
 - File: `pellier/backend/agents/customer_support_agent.py`
@@ -199,7 +199,7 @@ Replace the placeholder `_SUPPORT_SYSTEM_PROMPT` with a full system prompt that:
 3. **Teaches the chaining pattern** — this is the interesting part. If the customer mentions a product by name or ID, the agent should:
    - First call `find_pieces` to identify the product's `category`
    - Then call `returns_and_care` with that category
-4. Sets the empathy/discipline balance. Sonnet at 0.2 is warm but doesn't wander:
+4. Sets the empathy/discipline balance. Opus at 0.2 is warm but doesn't wander:
    - Always call a tool first
    - After tool: 1–2 short sentences, conversational
    - No markdown tables, numbered lists, emojis, follow-up questions

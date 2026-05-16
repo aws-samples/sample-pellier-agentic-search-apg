@@ -1,7 +1,7 @@
 {
   "id": "marco-midpoint-checkpoint",
   "personaId": "marco",
-  "openingQuery": "Is the Pellier shirt at the Brooklyn warehouse?",
+  "openingQuery": "Is the Hadley shirt at the Brooklyn warehouse?",
   "elapsedMs": 1840,
   "agentCount": 1,
   "routingPattern": "Dispatcher",
@@ -10,12 +10,12 @@
   "chat": [
     {
       "role": "user",
-      "content": "Is the Pellier shirt at the Brooklyn warehouse?",
+      "content": "Is the Hadley shirt at the Brooklyn warehouse?",
       "timestamp": "2025-01-15T20:18:00Z"
     },
     {
       "role": "assistant",
-      "content": "Yes — Brooklyn (BK-01) has 8 of the Pellier Linen Shirt in ecru on the floor right now. Also 4 at Austin (ATX-02) and 12 at Portland (PDX-01). Ship window from Brooklyn to your zip is 1–2 business days.",
+      "content": "Yes — Brooklyn (BK-01) has 8 of the Hadley (Pellier Linen Shirt in ecru) on the floor right now. Also 4 at Austin (ATX-02) and 12 at Portland (PDX-01). Ship window from Brooklyn to your zip is 1–2 business days.",
       "timestamp": "2025-01-15T20:18:02Z",
       "plan": {
         "routingPattern": "Dispatcher",
@@ -26,7 +26,7 @@
       "toolCalls": [
         {
           "toolName": "floor_check",
-          "description": "Warehouse-level stock lookup for Pellier Linen Shirt",
+          "description": "Warehouse-level stock lookup for Hadley / Pellier Linen Shirt",
           "durationMs": 142,
           "sql": "SELECT warehouse_id, warehouse_name, quantity, restock_eta FROM inventory_by_warehouse WHERE product_id = $1 AND quantity > 0 ORDER BY warehouse_id;",
           "resultSummary": "3 warehouses, 24 total units, Brooklyn leads with 8"
@@ -46,7 +46,7 @@
         "reasoning": "Deterministic warehouse lookup. Claude Haiku 4.5 at 0.0 — zero variance. The tool participants just wrote, running in 142ms."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Pellier shirt confirmed at Brooklyn warehouse (8 units)" }
+        { "tier": "stm", "content": "Hadley shirt confirmed at Brooklyn warehouse (8 units)" }
       ],
       "meta": {
         "agent": "Stock Keeper",

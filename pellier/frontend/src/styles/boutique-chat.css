@@ -290,7 +290,7 @@
  * do the prices stack up?"). The italic register made typed
  * questions feel performative.
  *
- * Switched to the canonical sans-serif chat spec (Inter 15/1.5)
+ * Switched to the canonical sans-serif chat spec (Instrument Sans 15/1.5)
  * with a slightly tighter tracking that matches the body copy of
  * assistant replies. The red decorative quote marks are gone —
  * italic P.S. chips on the welcome screen still carry the typographic
@@ -374,12 +374,12 @@
 
 /* Message body
  *
- * Canonical chat prose for both Boutique and Atelier. Inter at
+ * Canonical chat prose for both Boutique and Atelier. Instrument Sans at
  * 15px / 1.7 leading / -0.003em is the Claude-desktop register —
  * reads cleanly on any width and leaves enough air between lines
  * that a streamed reply doesn't feel cramped. Fraunces stays
- * reserved for the eyebrow, user-message italic quotes, and the
- * <strong> emphasis on product names.
+ * reserved for the eyebrow and user-message italic quotes; product
+ * names use <strong> in the same sans face as the body.
  */
 .ec-msg-body {
   font-family: var(--sans);
@@ -393,14 +393,12 @@
 .ec-msg-body p { margin-bottom: 10px; }
 .ec-msg-body p:last-child { margin-bottom: 0; }
 
-/* Product names and prices rendered inline as bold get Fraunces italic
- * so the editorial voice carries through the body text even when the
- * body is sans. Works with <strong>...</strong> inside MarkdownMessage. */
+/* Product names from **bold** markdown — same sans as body, heavier weight. */
 .ec-msg-body strong {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: inherit;
 }
 
 /* Streaming body — the prose grows in place, no cursor. We keep a
@@ -596,20 +594,16 @@
 /* ---- Skill attribution line ----
  *
  * Renders only when the router loaded one or more skills for the turn.
- * Sits between the "· Pellier" eyebrow and the reply body. Italic
- * burgundy serif, small-caps tracking — a whisper of context, never a
- * badge. When no skills load the line is absent entirely (empty state
- * is invisible per the storefront design contract).
+ * Sits between the "· Pellier" eyebrow and the reply body. TraceChip
+ * row (skill.gift-table, etc.) — same mono pill register as
+ * memory.recall on product cards. Absent when no skills load.
  */
 .ec-msg-attribution {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 13.5px;
-  line-height: 1.45;
-  color: var(--red-1);
-  letter-spacing: 0.02em;
-  margin-top: 6px;
-  margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  margin-bottom: 2px;
 }
 
 /* ---- Persona-tailored follow-up chips ----
@@ -661,4 +655,14 @@
 .ec-followup:focus-visible {
   outline: 2px solid var(--red-1);
   outline-offset: 2px;
+}
+
+.ec-followup-workshop {
+  border-style: dashed;
+  border-color: rgba(196, 69, 54, 0.52);
+  background: rgba(255, 252, 247, 0.95);
+  white-space: normal;
+}
+.ec-followup-workshop:hover {
+  border-color: rgba(196, 69, 54, 0.75);
 }

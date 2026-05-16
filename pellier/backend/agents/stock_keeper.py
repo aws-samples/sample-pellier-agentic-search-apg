@@ -76,8 +76,9 @@ _INVENTORY_SYSTEM_PROMPT = (
     "</output-rules>"
 )
 
-# Solution state — the challenge is complete; flip the flag so the
-# Atelier renders Stock Keeper as a shipped agent.
+# ``_INVENTORY_AGENT_STUBBED`` — legacy flag still read by chat fall-back when
+# Stock Keeper cannot run; Atelier shipped vs exercise uses ``agents.json``
+# plus ``GET /api/atelier/build-state`` (live ``floor_check`` stub detection).
 _INVENTORY_AGENT_STUBBED = False
 
 

@@ -164,7 +164,7 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
     """Building the Curator SHALL match the per-agent model mix from
     ``lab-content/shared/model-mix-sidebar.en.md``:
 
-      - Claude Opus 4.6 (BEDROCK_SONNET_MODEL — legacy constant name)
+      - Claude Opus 4.6 (BEDROCK_OPUS_MODEL)
       - temperature 0.4 (warm — recommendations carry "taste")
       - exactly four tools: find_pieces_hybrid + whats_trending +
         side_by_side + explore_collection.
@@ -209,7 +209,7 @@ def test_agent_system_prompt_references_recommendation_voice(
     prompt = _StubAgent.last_kwargs.get("system_prompt", "")
     assert isinstance(prompt, str) and prompt, "system_prompt SHALL be a non-empty str"
     lowered = prompt.lower()
-    assert "recommendation specialist" in lowered
+    assert "curator" in lowered or "recommendation specialist" in lowered
     assert "warm" in lowered
     assert "editorial" in lowered
     assert "catalog" in lowered

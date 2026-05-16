@@ -61,6 +61,6 @@ as the default per-turn router for curated storefront intents.
 
 Replay Marco's Turn 4 in the Boutique. Open **Sessions → marco-midpoint-checkpoint**
 if your table finished section 02. Note **Performance**: Haiku stock turn ~150 ms
-vs Sonnet style turns ~1.3 s — same architecture lesson, two surfaces.
+vs Opus editorial turns ~1.0–1.4 s — same architecture lesson, two surfaces.
 
 [Optional SQL appendix →](/90-appendix-shipment-sql/) · [When things misbehave →](/99-when-things-misbehave/)

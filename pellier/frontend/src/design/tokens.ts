@@ -48,7 +48,10 @@ export const spacing = {
 
 export const typography = {
   display: { family: "'Fraunces', Georgia, serif", weight: 400 },
-  body: { family: "'Inter', system-ui, sans-serif", weight: 400 },
+  body: {
+    family: "'Instrument Sans', system-ui, -apple-system, sans-serif",
+    weight: 400,
+  },
   mono: { family: "'JetBrains Mono', ui-monospace, monospace", weight: 400 },
 } as const;
 

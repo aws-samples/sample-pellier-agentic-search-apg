@@ -27,8 +27,6 @@ import { STORYBOARD_TEASERS, type StoryboardTeaser as StoryboardTeaserCard } fro
 import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) ---------------------------------------
-
-const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 
 // Warm amber gradient over every editorial image so the grid reads as
@@ -48,14 +46,14 @@ export default function StoryboardTeaser() {
         background: c.bg,
         color: c.ink,
         padding: '96px 24px',
-        fontFamily: INTER_STACK,
+        fontFamily: 'var(--sans)',
       }}
     >
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         <header style={{ marginBottom: 48 }}>
           <p
             style={{
-              fontFamily: INTER_STACK,
+              fontFamily: 'var(--sans)',
               fontSize: 11,
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
@@ -172,7 +170,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         <p
           data-testid={`storyboard-card-eyebrow-${index}`}
           style={{
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 11,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
@@ -199,7 +197,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         <p
           data-testid={`storyboard-card-excerpt-${index}`}
           style={{
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 14,
             lineHeight: 1.6,
             color: c.ink2,
@@ -214,7 +212,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           style={{
             // Req 1.9.2 - terracotta link.
             color: c.accent,
-            fontFamily: INTER_STACK,
+            fontFamily: 'var(--sans)',
             fontSize: 13,
             fontWeight: 500,
             letterSpacing: '0.02em',

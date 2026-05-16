@@ -13,7 +13,7 @@ Endpoints:
     GET  /sessions             — session list for persona
     GET  /sessions/{id}        — full session detail or 404
     GET  /agents               — 5 agents with status, tools, model config
-    GET  /tools                — 9 tools with signatures, status, metadata
+    GET  /tools                — tools with signatures, status, metadata
     POST /tools/discover       — pgvector semantic search
     GET  /routing              — 3 routing patterns with active indicator
     GET  /memory/{persona}     — STM + LTM state for persona
@@ -127,23 +127,41 @@ def _load_fixture(name: str) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Tool status mapping (shipped vs exercise)
+# Tool / build state helpers (fixtures + Builder's Session live overlay)
 # ---------------------------------------------------------------------------
 
-_SHIPPED_TOOLS = {
-    "find_pieces", "explore_collection", "side_by_side",
-    "whats_trending", "price_intelligence", "returns_and_care",
-}
-_EXERCISE_TOOLS = {"floor_check", "restock_shelf", "running_low"}
+
+def _fixture_tool_status_map() -> dict[str, str]:
+    """functionName → shipped | exercise from tools.json fixtures."""
+    tools = _load_fixture("tools") or []
+    out: dict[str, str] = {}
+    for t in tools:
+        fn = t.get("functionName")
+        st = t.get("status")
+        if isinstance(fn, str) and isinstance(st, str):
+            out[fn] = st
+    return out
 
 
-def _tool_status(name: str) -> str:
-    """Determine shipped/exercise status for a tool by name."""
-    if name in _SHIPPED_TOOLS:
-        return "shipped"
-    if name in _EXERCISE_TOOLS:
-        return "exercise"
-    return "shipped"
+def _tool_discovery_status(tool_name: str) -> str:
+    """Status for discovery rows — matches Atelier Tools surface / fixtures."""
+    return _fixture_tool_status_map().get(tool_name, "shipped")
+
+
+def _floor_check_is_workshop_stub() -> bool:
+    """True when the workshop stub body is still in live ``agent_tools.floor_check``."""
+    try:
+        import inspect
+        from services import agent_tools
+
+        src = inspect.getsource(agent_tools.floor_check)
+    except Exception:
+        return True
+    if "WORKSHOP_EXERCISE_STUB" in src:
+        return True
+    if "floor_check is in stub state" in src:
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +236,7 @@ async def list_agents():
 
 @router.get("/tools/list")
 async def list_tools():
-    """Return 9 tools with signatures, status, and metadata.
+    """Return tools with signatures, status, and metadata (fixture-backed).
 
     Path is ``/tools/list`` to avoid conflict with the existing
     ``/api/tools`` endpoint on the main app. Returns fixture data
@@ -266,7 +284,7 @@ async def discover_tools_endpoint(payload: AtelierToolDiscoverRequest):
                         name=row.get("name", ""),
                         description=row.get("description", ""),
                         similarity=round(row.get("similarity", 0.0), 4),
-                        status=_tool_status(row.get("name", "")),
+                        status=_tool_discovery_status(row.get("name", "")),
                     ))
                 return AtelierToolDiscoverResponse(
                     query=payload.query,
@@ -532,7 +550,12 @@ async def get_architecture():
 
 @router.get("/build-state")
 async def get_build_state():
-    """Return shipped vs exercise status for every agent and tool (fixtures).
+    """Shipped vs exercise for agents and tools (fixtures + live lab overlay).
+
+    Loads ``agents.json`` / ``tools.json`` then, when ``floor_check`` in
+    ``services.agent_tools`` is no longer the Builder's Session stub,
+    marks ``floor_check`` and **Stock Keeper** as shipped so the Atelier
+    progress strip matches a completed Part I exercise.
 
     Shape matches ``BuildStateApiResponse`` in the frontend ``useBuildState`` hook.
     """
@@ -551,6 +574,11 @@ async def get_build_state():
             status = tool.get("status")
             if isinstance(fn, str) and isinstance(status, str):
                 tool_map[fn] = status
+
+        if not _floor_check_is_workshop_stub():
+            tool_map["floor_check"] = "shipped"
+            agent_map["Stock Keeper"] = "shipped"
+
         return {"agents": agent_map, "tools": tool_map}
     except Exception as exc:
         logger.error("Failed to build build-state: %s", exc)

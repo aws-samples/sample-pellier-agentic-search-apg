@@ -62,15 +62,15 @@ class Settings(BaseSettings):
     #                 speed + determinism.
     #
     # Model IDs follow Bedrock cross-region inference profile naming.
-    # The `BEDROCK_SONNET_MODEL` constant name is legacy; it now defaults
-    # to the Opus 4.6 profile used for editorial agents in this workshop.
+    # Editorial agents (Style Advisor, Curator, Experience Guide) use
+    # BEDROCK_OPUS_MODEL. The `BEDROCK_SONNET_MODEL` name is legacy only:
+    # it defaults to the same Opus profile for older `.env` / scripts.
     BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
     BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
     BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
 
     # Legacy alias — kept for tests + scripts that still reference it.
-    # New code should use BEDROCK_SONNET_MODEL / BEDROCK_HAIKU_MODEL /
-    # BEDROCK_OPUS_MODEL directly so the per-agent choice is readable.
+    # Prefer BEDROCK_OPUS_MODEL / BEDROCK_HAIKU_MODEL in agent factories.
     BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
     
     # ========================================

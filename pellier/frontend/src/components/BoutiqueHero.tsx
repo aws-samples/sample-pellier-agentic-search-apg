@@ -19,8 +19,10 @@ import { usePersona } from '../contexts/PersonaContext'
 import {
   heroPillsForPersona,
   becauseChipsForPersona,
+  MARCO_BUILDER_SESSION_QUERY,
   type BecauseChip,
 } from '../data/personaCurations'
+import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import { useVoiceSearch } from '../hooks/useVoiceSearch'
 import { PresencePill } from '../shared'
 import { asset } from '../utils/assetPath'
@@ -67,6 +69,7 @@ const BECAUSE_KIND_LABEL: Record<BecauseChip['kind'], string> = {
 export default function BoutiqueHero() {
   const { openDrawerWithQuery } = useUI()
   const { persona } = usePersona()
+  const { showBuilderSessionGap } = useFloorCheckWorkshopCue()
   const suggestions = heroPillsForPersona(persona?.id)
   const becauseChips = becauseChipsForPersona(persona?.id)
   const heroImage = PERSONA_HERO_IMAGES[persona?.id ?? 'fresh'] ?? PERSONA_HERO_IMAGES.fresh
@@ -102,30 +105,34 @@ export default function BoutiqueHero() {
 
   const heroHeadline = splitHeadlineAtRe('Search, re:Engineered.')
 
+  /** Marco + exercise: align "Builder's Session" over Turn 4 pill on wide viewports. */
+  const marcoBuilderSessionBand =
+    persona?.id === 'marco' &&
+    showBuilderSessionGap &&
+    suggestions[3] === MARCO_BUILDER_SESSION_QUERY
+
   return (
     <>
-    <section
-      data-testid="boutique-hero"
-      aria-label="Search and discover"
-      className="relative h-[78vh] min-h-[720px] overflow-hidden"
-    >
-      {/* ── Full-bleed photograph — pushed left so text reads clean ── */}
-      <img
-        src={heroImage}
-        alt="Editorial boutique hero"
-        className="absolute inset-0 h-full w-full object-cover object-[20%_center]"
-      />
-
-      {/* ── Soft gradient overlay for text readability ── */}
-      <div
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f7f0e6]/20 to-[#f7f0e6]/45"
-        aria-hidden="true"
-      />
+    <section data-testid="boutique-hero" aria-label="Search and discover" className="relative h-[78vh] min-h-[720px]">
+      {/* ── Editorial photo + wash — clipped so tall images never spill beyond
+           the viewport. Foreground avoids overflow:hidden so Marco pill rails
+           are not clipped at the viewport edge. ── */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <img
+          src={heroImage}
+          alt="Editorial boutique hero"
+          className="absolute inset-0 h-full w-full object-cover object-[20%_center]"
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f7f0e6]/20 to-[#f7f0e6]/45"
+          aria-hidden="true"
+        />
+      </div>
 
       {/* ── Typography overlay — centered content ── */}
       <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center justify-center px-8">
           <div
-            className="w-full max-w-4xl py-12 md:py-0
+            className="min-w-0 w-full max-w-4xl py-12 md:py-0
                        flex flex-col items-center text-center"
           >
             {/* Presence — discreet concierge cue (breathing dot + label).
@@ -171,7 +178,7 @@ export default function BoutiqueHero() {
               )}
             </h1>
 
-            {/* Subheadline — same Inter sans / ink-soft treatment as
+            {/* Subheadline — same Instrument Sans / ink-soft treatment as
                 WeekendEditorial subhead, sized up for hero prominence. */}
             <p
               data-testid="boutique-hero-subheadline"
@@ -290,74 +297,370 @@ export default function BoutiqueHero() {
               </div>
             </form>
 
-            {/* "Try asking" label */}
-            <div
-              data-testid="boutique-hero-try-asking"
-              className="mt-6 md:mt-8"
-              style={{
-                fontFamily: 'var(--sans)',
-                fontSize: '16px',
-                fontWeight: 500,
-                color: '#1f1410',
-              }}
-            >
-              Try asking
-            </div>
+            {/* Marco + exercise (lg): labels absolutely positioned on the same
+                baseline — Try asking centered in the gap between pills 2 & 3,
+                Builder's Session centered over pill 4 (track scales with %). */}
+            <div className="mt-0 w-full min-w-0">
+              {marcoBuilderSessionBand ? (
+                <>
+                  {/* lg: Fluid 5-column track (max 965px). Fixed 185px columns
+                     exceeded max-w-4xl and clipped pill 5; labels use the same
+                     gap math off the fluid track width. */}
+                  <div
+                    className="mx-auto mt-6 hidden w-full min-w-0 pb-1 md:mt-8 lg:block"
+                    data-testid="boutique-hero-marco-pill-band"
+                  >
+                    <div
+                      className="mx-auto flex w-full max-w-[965px] flex-col"
+                      style={{
+                        fontFamily: 'var(--sans)',
+                        color: '#1f1410',
+                      }}
+                    >
+                      <div
+                        data-testid="boutique-hero-try-asking"
+                        className="relative w-full shrink-0"
+                        style={{
+                          height: '24px',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            left: 'calc((100% - 40px) * 2 / 5 + 15px)',
+                            bottom: 0,
+                            transform: 'translateX(-50%)',
+                            fontSize: '16px',
+                            fontWeight: 500,
+                            lineHeight: 1.2,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Try asking
+                        </span>
+                        <span
+                          data-testid="boutique-hero-builder-session-eyebrow"
+                          className="font-semibold uppercase"
+                          style={{
+                            position: 'absolute',
+                            left: 'calc((100% - 40px) * 7 / 10 + 30px)',
+                            bottom: 0,
+                            transform: 'translateX(-50%)',
+                            width:
+                              'clamp(116px, calc((100% - 40px) / 5), 185px)',
+                            boxSizing: 'border-box',
+                            textAlign: 'center',
+                            fontSize: '9px',
+                            lineHeight: 1.25,
+                            color: 'rgba(196, 69, 54, 0.98)',
+                            letterSpacing: '0.16em',
+                          }}
+                        >
+                          Builder&apos;s Session · Turn 4
+                        </span>
+                      </div>
 
-            {/* Suggestion chips — 5 in a row at desktop, wrap to 3+2
-                or 2+2+1 at narrower widths. Text wraps to 2 lines
-                inside each chip. Matches the reference's compact grid.
-                `flex-wrap` (instead of `flex-nowrap`) prevents the row
-                from spilling past the hero section's overflow:hidden
-                bounds — at <1024px the first / last pill were getting
-                clipped to "ft for runs" / "a cozy".
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                          columnGap: '10px',
+                          rowGap: '12px',
+                          width: '100%',
+                          maxWidth: '965px',
+                          marginInline: 'auto',
+                          marginTop: '10px',
+                        }}
+                      >
+                        {suggestions.map((query) => {
+                          const isMarcoWarehouseExercise =
+                            persona?.id === 'marco' &&
+                            showBuilderSessionGap &&
+                            query === MARCO_BUILDER_SESSION_QUERY
+                          return (
+                            <button
+                              key={query}
+                              type="button"
+                              data-testid={
+                                isMarcoWarehouseExercise
+                                  ? 'boutique-hero-pill-marco-builder-session'
+                                  : undefined
+                              }
+                              aria-describedby={
+                                isMarcoWarehouseExercise
+                                  ? 'boutique-hero-marco-exercise-hint'
+                                  : undefined
+                              }
+                              onClick={() => handlePillClick(query)}
+                              className={[
+                                'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
+                                'hover:border-[rgba(31,20,16,0.32)] hover:bg-[#f5eddf]',
+                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(31,20,16,0.15)]',
+                                isMarcoWarehouseExercise
+                                  ? 'border-dashed border-[rgba(196,69,54,0.55)] bg-[rgba(250,243,232,0.98)]'
+                                  : 'border border-[rgba(31,20,16,0.18)]',
+                              ].join(' ')}
+                              style={{
+                                fontFamily: 'var(--sans)',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                lineHeight: 1.35,
+                                color: '#1f1410',
+                                padding: '12px 20px',
+                                background: isMarcoWarehouseExercise
+                                  ? 'rgba(255, 252, 247, 0.95)'
+                                  : 'var(--cream-warm)',
+                                width: '100%',
+                                minWidth: 0,
+                                boxSizing: 'border-box',
+                                maxWidth: '185px',
+                                marginInline: 'auto',
+                                minHeight: '58px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {query}
+                            </button>
+                          )
+                        })}
+                      </div>
 
-                The pill row breaks out of the form's max-w-4xl wrapper
-                (896px) because 5 pills + gaps = 965px. We use clamp()
-                so the row caps at 965px on desktop and shrinks with
-                the viewport on smaller screens. */}
-            <div
-              data-testid="boutique-hero-pills"
-              className="mt-4 flex flex-wrap justify-center gap-2.5"
-              role="listbox"
-              aria-label="Suggested queries"
-              style={{
-                width: 'min(965px, calc(100vw - 32px))',
-              }}
-            >
-              {suggestions.map((query) => (
-                <button
-                  key={query}
-                  type="button"
-                  onClick={() => handlePillClick(query)}
-                  className="
-                    rounded-[10px]
-                    border border-[rgba(31,20,16,0.18)]
-                    hover:border-[rgba(31,20,16,0.32)] hover:bg-[#f5eddf]
-                    transition-all duration-fade ease-out
-                    cursor-pointer
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(31,20,16,0.15)]
-                  "
-                  style={{
-                    fontFamily: 'var(--sans)',
-                    fontSize: '14px',
-                    fontWeight: 400,
-                    lineHeight: 1.35,
-                    color: '#1f1410',
-                    padding: '12px 20px',
-                    background: 'var(--cream-warm)',
-                    width: '185px',
-                    minHeight: '58px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    flex: '0 0 auto',
-                  }}
-                >
-                  {query}
-                </button>
-              ))}
+                      <p
+                        id="boutique-hero-marco-exercise-hint"
+                        data-testid="boutique-hero-marco-exercise-hint"
+                        className="mt-3 w-full max-w-[965px] px-3 py-2.5 text-center font-sans font-medium leading-snug"
+                        style={{
+                          alignSelf: 'center',
+                          fontSize: '13px',
+                          color: '#1a1411',
+                          background: 'rgba(248, 240, 228, 0.98)',
+                          border: '1px solid rgba(31, 20, 16, 0.18)',
+                          borderRadius: '10px',
+                          boxShadow: '0 1px 3px rgba(31, 20, 16, 0.08)',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        Wire{' '}
+                        <span className="font-mono text-[12px] font-semibold text-[#1f1410]">
+                          floor_check
+                        </span>{' '}
+                        so Stock Keeper can answer the Turn&nbsp;4 warehouse question from live
+                        inventory.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    data-testid="boutique-hero-try-asking-mobile"
+                    className="mt-6 flex w-full flex-col items-center gap-1 md:mt-8 lg:hidden"
+                    style={{
+                      fontFamily: 'var(--sans)',
+                      fontSize: '16px',
+                      fontWeight: 500,
+                      color: '#1f1410',
+                    }}
+                  >
+                    <span>Try asking</span>
+                    <span
+                      className="font-sans font-semibold uppercase"
+                      style={{
+                        fontSize: '9px',
+                        lineHeight: 1.25,
+                        color: 'rgba(196, 69, 54, 0.98)',
+                        letterSpacing: '0.16em',
+                      }}
+                    >
+                      Builder&apos;s Session · Turn 4
+                    </span>
+                  </div>
+                  <div
+                    data-testid="boutique-hero-pills"
+                    className="mt-4 flex flex-wrap justify-center gap-2.5 lg:hidden"
+                    role="listbox"
+                    aria-label="Suggested queries"
+                  >
+                    {suggestions.map((query) => {
+                      const isMarcoWarehouseExercise =
+                        persona?.id === 'marco' &&
+                        showBuilderSessionGap &&
+                        query === MARCO_BUILDER_SESSION_QUERY
+                      return (
+                        <button
+                          key={query}
+                          type="button"
+                          data-testid={
+                            isMarcoWarehouseExercise
+                              ? 'boutique-hero-pill-marco-builder-session'
+                              : undefined
+                          }
+                          aria-describedby={
+                            isMarcoWarehouseExercise
+                              ? 'boutique-hero-marco-exercise-hint-mobile'
+                              : undefined
+                          }
+                          onClick={() => handlePillClick(query)}
+                          className={[
+                            'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
+                            'hover:border-[rgba(31,20,16,0.32)] hover:bg-[#f5eddf]',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(31,20,16,0.15)]',
+                            isMarcoWarehouseExercise
+                              ? 'border-dashed border-[rgba(196,69,54,0.55)] bg-[rgba(250,243,232,0.98)]'
+                              : 'border border-[rgba(31,20,16,0.18)]',
+                          ].join(' ')}
+                          style={{
+                            fontFamily: 'var(--sans)',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            lineHeight: 1.35,
+                            color: '#1f1410',
+                            padding: '12px 20px',
+                            background: isMarcoWarehouseExercise
+                              ? 'rgba(255, 252, 247, 0.95)'
+                              : 'var(--cream-warm)',
+                            width: '185px',
+                            minHeight: '58px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            flex: '0 0 auto',
+                          }}
+                        >
+                          {query}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p
+                    id="boutique-hero-marco-exercise-hint-mobile"
+                    data-testid="boutique-hero-marco-exercise-hint-mobile"
+                    className="mx-auto mt-3 w-full max-w-[640px] px-3 py-2.5 text-center font-sans font-medium leading-snug lg:hidden"
+                    style={{
+                      fontSize: '13px',
+                      color: '#1a1411',
+                      background: 'rgba(248, 240, 228, 0.98)',
+                      border: '1px solid rgba(31, 20, 16, 0.18)',
+                      borderRadius: '10px',
+                      boxShadow: '0 1px 3px rgba(31, 20, 16, 0.08)',
+                    }}
+                  >
+                    Wire{' '}
+                    <span className="font-mono text-[12px] font-semibold text-[#1f1410]">
+                      floor_check
+                    </span>{' '}
+                    so Stock Keeper can answer the Turn&nbsp;4 warehouse question from live
+                    inventory.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div
+                    data-testid="boutique-hero-try-asking"
+                    className="mt-6 flex w-full justify-center md:mt-8"
+                    style={{
+                      fontFamily: 'var(--sans)',
+                      fontSize: '16px',
+                      fontWeight: 500,
+                      color: '#1f1410',
+                    }}
+                  >
+                    Try asking
+                  </div>
+
+                  {(persona?.id === 'anna' || persona?.id === 'theo') && (
+                    <p
+                      data-testid="boutique-hero-observe-hint"
+                      className="mx-auto mt-2 max-w-[640px] text-center font-sans"
+                      style={{
+                        fontSize: '13px',
+                        lineHeight: 1.45,
+                        color: 'rgba(31, 20, 16, 0.58)',
+                      }}
+                    >
+                      {persona?.id === 'anna' ? (
+                        <>
+                          Observe &amp; learn — hybrid + rerank demo.{' '}
+                          <strong style={{ color: 'rgba(31, 20, 16, 0.72)', fontWeight: 600 }}>
+                            No participant exercise
+                          </strong>{' '}
+                          on this persona.
+                        </>
+                      ) : (
+                        <>
+                          Observe &amp; learn — write path + audit trail demo.{' '}
+                          <strong style={{ color: 'rgba(31, 20, 16, 0.72)', fontWeight: 600 }}>
+                            No participant exercise
+                          </strong>{' '}
+                          on this persona.
+                        </>
+                      )}
+                    </p>
+                  )}
+
+                  <div
+                    data-testid="boutique-hero-pills"
+                    className="mt-4 flex flex-wrap justify-center gap-2.5"
+                    role="listbox"
+                    aria-label="Suggested queries"
+                  >
+                    {suggestions.map((query) => {
+                      const isMarcoWarehouseExercise =
+                        persona?.id === 'marco' &&
+                        showBuilderSessionGap &&
+                        query === MARCO_BUILDER_SESSION_QUERY
+                      return (
+                        <button
+                          key={query}
+                          type="button"
+                          data-testid={
+                            isMarcoWarehouseExercise
+                              ? 'boutique-hero-pill-marco-builder-session'
+                              : undefined
+                          }
+                          aria-describedby={
+                            isMarcoWarehouseExercise
+                              ? 'boutique-hero-marco-exercise-hint'
+                              : undefined
+                          }
+                          onClick={() => handlePillClick(query)}
+                          className={[
+                            'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
+                            'hover:border-[rgba(31,20,16,0.32)] hover:bg-[#f5eddf]',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(31,20,16,0.15)]',
+                            isMarcoWarehouseExercise
+                              ? 'border-dashed border-[rgba(196,69,54,0.55)] bg-[rgba(250,243,232,0.98)]'
+                              : 'border border-[rgba(31,20,16,0.18)]',
+                          ].join(' ')}
+                          style={{
+                            fontFamily: 'var(--sans)',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            lineHeight: 1.35,
+                            color: '#1f1410',
+                            padding: '12px 20px',
+                            background: isMarcoWarehouseExercise
+                              ? 'rgba(255, 252, 247, 0.95)'
+                              : 'var(--cream-warm)',
+                            width: '185px',
+                            minHeight: '58px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            flex: '0 0 auto',
+                          }}
+                        >
+                          {query}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* "Because" chip row — second line of suggestions that cite

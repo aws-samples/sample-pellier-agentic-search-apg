@@ -74,11 +74,12 @@ def floor_check(product_query: str = "") -> str:
     """Inventory check across the catalog and three warehouses (BK-01 Brooklyn, ATX-02 Austin, PDX-01 Portland).
 
     PASS product_query whenever the customer mentions a specific product
-    by name (e.g. "Pellier shirt", "Wabi-Sabi Bowl", "linen overshirt").
+    by name — e.g. "Hadley shirt", "Hadley shirt (Pellier Linen Shirt in ecru)",
+    "Wabi-Sabi Bowl", "linen overshirt".
     The tool fuzzy-matches the name and returns per-warehouse stock
     counts plus ship windows. Examples:
 
-      floor_check(product_query="Pellier shirt")
+      floor_check(product_query="Hadley shirt")
         → {status: success, product: {...}, warehouses: [{warehouse_id: BK-01, quantity: 8, ship_window_min: 1, ...}, ...]}
 
     Call WITHOUT arguments only when the customer asks for an overall
@@ -93,8 +94,8 @@ def floor_check(product_query: str = "") -> str:
     # WORKSHOP_EXERCISE_STUB
     #
     # Wire this tool to BusinessLogic.floor_check() so Stock Keeper
-    # can answer Marco's Turn 4: "Is the Pellier shirt at the
-    # Brooklyn warehouse?"
+    # can answer Marco's Turn 4: "Is the Hadley shirt at the
+    # Brooklyn warehouse?" (Hadley · Pellier Linen Shirt in ecru.)
     #
     # Steps:
     #   1. Guard on _db_service being initialized (return a JSON error

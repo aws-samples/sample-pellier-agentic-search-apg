@@ -38,7 +38,6 @@ import { cssVar as c } from '../design/cssVars'
 // === CHALLENGE 9.4: START ===
 // --- Design tokens (storefront.md) ---------------------------------------
 
-const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 const MONO_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
@@ -64,7 +63,7 @@ function ProviderButton({ provider, label, testId, onClick }: ProviderButtonProp
         background: c.bg,
         color: c.ink,
         border: `1px solid ${c.muted}`,
-        fontFamily: INTER_STACK,
+        fontFamily: 'var(--sans)',
         fontSize: 14,
         fontWeight: 500,
         letterSpacing: '0.02em',
@@ -148,7 +147,7 @@ export default function AuthModal() {
           padding: '32px 32px 20px 32px',
           boxShadow:
             '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
-          fontFamily: INTER_STACK,
+          fontFamily: 'var(--sans)',
           color: c.ink,
         }}
       >

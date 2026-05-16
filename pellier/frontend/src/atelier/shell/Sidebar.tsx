@@ -65,7 +65,7 @@ const Sidebar: React.FC = () => {
       // Observatory is the wide-angle dashboard ("here is the whole
       // system at a glance"); Sessions drills into one specific
       // captured conversation; Persona Journeys lays out the workshop's
-      // narrative spine — 15 canonical turns across 3 personas.
+      // narrative spine — 20 Boutique hero turns across 4 personas.
       eyebrow: 'OBSERVE',
       items: [
         { label: 'Observatory', path: 'observatory', liveDot: true },
@@ -88,14 +88,14 @@ const Sidebar: React.FC = () => {
           path: 'agents',
           badge: buildState.agentTotal > 0
             ? `${buildState.agentShipped}/${buildState.agentTotal}`
-            : '3/5',
+            : '4/5',
         },
         {
           label: 'Tools',
           path: 'tools',
           badge: buildState.toolTotal > 0
             ? `${buildState.toolShipped}/${buildState.toolTotal}`
-            : '6/10',
+            : '11/12',
         },
         { label: 'Skills', path: 'skills', badge: '3' },
         { label: 'Routing', path: 'routing', badge: '3' },

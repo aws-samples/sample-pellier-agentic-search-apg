@@ -1,7 +1,7 @@
 -- Migration 008: Per-warehouse inventory for Stock Keeper (Marco's Turn 4).
 --
 -- The lab content promises Marco gets a real warehouse breakdown when he
--- asks "Is the Pellier shirt at the Brooklyn warehouse?":
+-- asks "Is the Hadley shirt at the Brooklyn warehouse?" (Pellier Linen Shirt in ecru):
 --
 --   "Yes — Brooklyn (BK-01) has 8 of the Pellier Linen Shirt in ecru on
 --    the floor right now. Also 4 at Austin (ATX-02) and 12 at Portland

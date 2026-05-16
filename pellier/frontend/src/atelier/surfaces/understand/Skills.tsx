@@ -521,7 +521,7 @@ const SkillCard: React.FC<SkillCardProps> = ({
       </div>
     </div>
 
-    {/* Description — sans Inter, mirroring the AtelierWelcome
+    {/* Description — sans Instrument Sans, mirroring the AtelierWelcome
         summary treatment so explanatory copy reads as documentation
         not editorial. */}
     <p

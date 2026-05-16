@@ -55,7 +55,6 @@ import { cssVar as c } from '../design/cssVars'
 // === CHALLENGE 9.4: START ===
 // --- Design tokens → Daylight via `cssVars` / bridge --------------------
 
-const INTER_STACK = 'Inter, system-ui, sans-serif'
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 const MONO_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
@@ -148,7 +147,7 @@ function Chip({
     cursor: 'pointer',
     transition:
       'background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out, transform 120ms ease-out',
-    fontFamily: INTER_STACK,
+    fontFamily: 'var(--sans)',
   }
 
   // Selected state: Daylight ink + paper (resolved via cssVars).
@@ -377,7 +376,7 @@ export default function PreferencesModal() {
           padding: '32px 32px 20px 32px',
           boxShadow:
             '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
-          fontFamily: INTER_STACK,
+          fontFamily: 'var(--sans)',
           color: c.ink,
         }}
       >

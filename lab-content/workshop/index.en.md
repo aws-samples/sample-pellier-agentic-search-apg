@@ -13,7 +13,7 @@ By the end of 120 minutes you'll have shipped:
 
 - **Stock Keeper** — one of five boutique specialists. You'll author its system prompt and wire all three of its tools (`floor_check`, `restock_shelf`, `running_low`).
 - **Experience Guide** — another full specialist build. You'll author the system prompt and teach it the find-first-then-lookup chaining pattern.
-- **A lived-in understanding** of per-agent model selection (Sonnet for voice, Haiku for reports), stubbed/wired state transitions, Dispatcher routing fall-through, and the Atelier's role as a production-grade operator surface.
+- **A lived-in understanding** of per-agent model selection (**Opus** for editorial voice, **Haiku** for reports), stubbed/wired state transitions, Dispatcher routing fall-through, and the Atelier's role as a production-grade operator surface.
 
 Two agents, five tools, and a capstone where Marco's full shopping journey ends with every specialist firing on its own model at its own temperature — the lesson made visible.
 

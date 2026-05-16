@@ -1,7 +1,9 @@
 /**
  * SkillsDetail — Architecture detail page for Skills.
  *
- * Persona-routed runtime capabilities — style-advisor and gift-concierge.
+ * Three persona-resident skills (the-packing-list, the-gift-table,
+ * the-makers-shelf); source-of-truth slugs live in skills.json and each
+ * backend skills folder (SKILL.md beside the skill slug).
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -26,7 +28,7 @@ const SkillsDetail: React.FC = () => {
       conceptName="Skills"
       category="teaching"
       title="Skills, persona-routed."
-      prose="Two skills — style-advisor and gift-concierge — are injected at runtime based on persona context. The SkillRouter (Claude Haiku 4.5) evaluates each turn and activates the appropriate skill when the conversation signals a styling question or gift occasion."
+      prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under pellier/backend/skills/; they are not separate agents."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -34,7 +36,7 @@ const SkillsDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'The SkillRouter is a lightweight classifier (Haiku 4.5) that evaluates each turn. If the conversation signals a styling question, style-advisor activates.',
+          text: 'The SkillRouter is Haiku 4.5 (~120ms). When the query matches travel/packing signals for Marco, the-packing-list activates; gift language for Anna lifts the-gift-table; slow-craft ceramics for Theo loads the-makers-shelf.',
         },
         {
           numeral: 'iii.',
@@ -44,7 +46,7 @@ const SkillsDetail: React.FC = () => {
       liveState={{
         label: 'Current skill activation state. The SkillRouter evaluates each turn and activates skills based on persona context.',
         values: [
-          { label: 'Skills available', value: '2' },
+          { label: 'Skills available', value: '3' },
           { label: 'Router model', value: 'Claude Haiku 4.5 (global.anthropic.claude-haiku-4-5-20251001-v1:0)' },
           { label: 'Active', value: 'None' },
         ],
@@ -55,19 +57,25 @@ const SkillsDetail: React.FC = () => {
       {!loading && !error && !concept && <DetailEmptyState conceptName="Skills" />}
       {!loading && !error && concept && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Two skill cards side by side */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {/* Three persona skills — matches skills.json + SKILL.md bundles under backend/skills */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
             <SkillCard
-              name="style-advisor"
-              trigger="Styling questions, outfit advice, fabric recommendations"
-              description="Boutique editorial voice for describing products, fit, fabric, and styling. Activates when the agent is recommending or describing pieces."
-              example='"What would go well with linen trousers for a summer evening?"'
+              name="the-packing-list"
+              trigger="Travel wardrobes, pack-flat pieces, natural fibers, weekender bags"
+              description="Marco's capsule logic — tight palette, linen-forward, pieces that earn suitcase space."
+              example='"I need a Goa trip wardrobe that still feels like me."'
             />
             <SkillCard
-              name="gift-concierge"
-              trigger="Gift occasions, milestone celebrations, gift wrapping"
-              description="Gift-occasion logic for recommendations — milestone vs casual, price-band etiquette, gift-message tone, packaging and timing."
-              example='"I need a thoughtful gift for someone who loves ceramics."'
+              name="the-gift-table"
+              trigger="Gifts, milestones, wrap-ready pieces, housewarmings, birthdays"
+              description="Anna's giving register — price bands, pairing, tissue-and-ribbon presentation."
+              example='"A thoughtful gift for someone who loves morning rituals."'
+            />
+            <SkillCard
+              name="the-makers-shelf"
+              trigger="Hand-thrown ceramics, kiln language, slow craft, patina, studio provenance"
+              description="Theo's slow-craft framing — imperfect glazes as feature, care that honors the object."
+              example='"Hand-thrown ceramics for a slower morning routine."'
             />
           </div>
 

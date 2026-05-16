@@ -62,8 +62,8 @@ component file needs editing.
 | `--at-ink-1` | `--dl-ink` | Atelier primary text |
 | `--at-red-1` | `--dl-accent` | Atelier accent |
 | `--at-green-1` | `--dl-ok` | Atelier "shipped" status |
-| `--serif` / `--at-serif` | `--dl-font-serif` | Iowan Old Style → Source Serif Pro → Georgia |
-| `--sans` / `--at-sans` | `--dl-font-sans` | Inter |
+| `--serif` / `--at-serif` | `--dl-font-serif` | Instrument Serif → Fraunces → Georgia |
+| `--sans` / `--at-sans` | `--dl-font-sans` | Instrument Sans → system UI |
 | `--mono` / `--at-mono` | `--dl-font-mono` | JetBrains Mono |
 
 Full list in `src/styles/daylight-bridge.css`.

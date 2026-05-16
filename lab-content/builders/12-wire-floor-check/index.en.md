@@ -92,8 +92,8 @@ def floor_check() -> str:
     # WORKSHOP_EXERCISE_STUB
     #
     # Wire this tool to BusinessLogic.floor_check() so Stock Keeper
-    # can answer Marco's Turn 4: "Is the Pellier shirt at the
-    # Brooklyn warehouse?"
+    # can answer Marco's Turn 4: "Is the Hadley shirt at the
+    # Brooklyn warehouse?" (Hadley · Pellier Linen Shirt in ecru.)
     #
     # Steps:
     #   1. Guard on _db_service being initialized (return a JSON
@@ -216,7 +216,7 @@ discovery layer.
 ## Replay turn 4 in the Boutique
 
 Switch to the Boutique tab and the chat drawer Marco was using.
-Click pill 4 again — *"Is the Pellier shirt at the Brooklyn
+Click pill 4 again — *"Is the Hadley shirt at the Brooklyn
 warehouse?"*
 
 This time the orchestrator routes to Stock Keeper (it always did),

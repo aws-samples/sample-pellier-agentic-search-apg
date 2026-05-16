@@ -141,6 +141,55 @@
   padding-bottom: 1px;
 }
 
+/* Marco — Builder's Session callout above stacked picks */
+.sf-workshop-cue-marco {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(196, 69, 54, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 252, 247, 0.92);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-1);
+}
+.sf-workshop-code {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(31, 20, 16, 0.06);
+  color: var(--ink-1);
+}
+
+/* Anna / Theo — intentional “observe · no exercise” cue (neutral shell) */
+.sf-observe-cue {
+  margin-top: 14px;
+  padding: 12px 14px 13px;
+  border: 1px solid rgba(31, 20, 16, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 252, 247, 0.88);
+}
+.sf-observe-cue-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.sf-observe-cue-body {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-1);
+  margin: 0;
+}
+.sf-observe-cue-body strong {
+  font-weight: 600;
+}
+
 /* Section */
 .sf-section { margin-top: 24px; }
 .sf-section-head {
@@ -161,6 +210,11 @@
   font-size: 10px;
   color: var(--ink-2);
   letter-spacing: 0.15em;
+}
+.sf-count-hero {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 9px;
 }
 
 /* Stacked action pills */
@@ -255,6 +309,14 @@
   color: var(--red-1);
   margin: 0 4px;
 }
+.sf-postscript-range {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-right: 4px;
+}
 .sf-postscript-list {
   display: flex;
   flex-direction: column;
@@ -292,3 +354,29 @@
   border-bottom-color: var(--ink-1);
 }
 .sf-overheard:hover { color: var(--ink-1); }
+
+.sf-overheard-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+}
+
+.sf-overheard-workshop-marco {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 0 12px 14px;
+  margin-top: 4px;
+  border-left: 2px solid var(--red-1);
+}
+.sf-overheard-workshop-chip {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red-1);
+}
+.sf-overheard-workshop-marco:hover .sf-overheard-workshop-chip {
+  color: var(--ink-1);
+}

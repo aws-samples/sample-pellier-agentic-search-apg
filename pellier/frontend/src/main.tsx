@@ -3,11 +3,10 @@ import ReactDOM from 'react-dom/client'
 
 // Self-hosted typefaces (@fontsource). Bundled into dist/assets at
 // build time so the workshop runs on corporate networks that block
-// fonts.gstatic.com. Five families cover both storefront
-// (Fraunces italic, Inter) and Atelier (Instrument Sans/Serif,
-// JetBrains Mono for SQL + telemetry tags). Ordered so the most
-// visible weights load first.
-import '@fontsource-variable/inter'
+// fonts.gstatic.com. Four families: Instrument Sans (UI), Instrument
+// Serif + Fraunces variable (editorial / display, incl. Fraunces italic),
+// JetBrains Mono (code + eyebrows). Ordered so the most visible
+// weights load first.
 import '@fontsource-variable/fraunces'
 import '@fontsource-variable/fraunces/full-italic.css'
 import '@fontsource/instrument-sans/400.css'

@@ -477,7 +477,7 @@ export default function ConciergeModal() {
                             height: 18,
                             background: persona.avatar_color,
                             color: 'var(--cream-warm)',
-                            fontFamily: 'Inter, sans-serif',
+                            fontFamily: 'var(--sans)',
                             fontSize: 10,
                           }}
                         >

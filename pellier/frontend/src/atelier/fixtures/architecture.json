@@ -31,7 +31,7 @@
     "category": "both",
     "title": "Tool Registry / Gateway",
     "role": "Semantic tool discovery and invocation",
-    "description": "Nine tools registered in Aurora PostgreSQL with pgvector embeddings. The gateway enables semantic discovery — agents find tools by describing what they need, not by knowing function names. HNSW indexing provides sub-millisecond lookup.",
+    "description": "Twelve tool functions registered with pgvector embeddings for semantic discovery — agents match natural-language need to the nearest tool record. HNSW indexing keeps discovery sub-millisecond.",
     "codeSnippet": "# Register tool with embedding\nINSERT INTO tools (name, description, embedding)\nVALUES ($1, $2, $3);\n\n# Discover by semantic similarity\nSELECT name, 1 - (embedding <=> $1) AS similarity\nFROM tools ORDER BY embedding <=> $1 LIMIT 5;",
     "slug": "tool-registry"
   },
@@ -40,8 +40,8 @@
     "category": "teaching",
     "title": "Skills",
     "role": "Persona-routed runtime capabilities",
-    "description": "Two skills — style-advisor and gift-concierge — are injected at runtime based on persona context. The SkillRouter (Claude Haiku 4.5) evaluates each turn and activates the appropriate skill when the conversation signals a styling question or gift occasion.",
-    "codeSnippet": "# SkillRouter evaluates each turn\nskill_router = Agent(\n    model=BedrockModel('claude-haiku-4-5'),\n    system_prompt=SKILL_ROUTER_PROMPT\n)\n\n# Activated skills inject into agent context\nif skill == 'style-advisor':\n    agent.tools.append(style_advisor_tool)",
+    "description": "Three persona-resident skills — ``the-packing-list`` (Marco), ``the-gift-table`` (Anna), ``the-makers-shelf`` (Theo) — injected when the SkillRouter (Claude Haiku 4.5) binds a turn's query to persona context.",
+    "codeSnippet": "# SkillRouter may load one persona skill per turn\n# e.g. the-packing-list | the-gift-table | the-makers-shelf\nskills = router.route_turn(query, persona_context)\nprompt += inject_loaded_skills(skills)",
     "slug": "skills"
   },
   {

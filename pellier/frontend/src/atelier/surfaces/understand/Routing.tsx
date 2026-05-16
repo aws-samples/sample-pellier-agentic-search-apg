@@ -25,6 +25,32 @@ import {
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { RoutingPattern } from '../../types';
 
+/** Readable emphasis on cream cards — avoid browser bold (700) on sans/mono. */
+const EMPHASIS: React.CSSProperties = {
+  fontWeight: 500,
+  color: 'var(--at-ink-1)',
+};
+
+/** Light mono callout for teaching copy on ExpCard (not dark `.dl-code-block`). */
+const SNIPPET_STYLE: React.CSSProperties = {
+  margin: 0,
+  padding: '12px 14px',
+  borderRadius: '8px',
+  background: 'var(--at-cream-2)',
+  border: '1px solid var(--at-card-border)',
+  fontFamily: 'var(--at-mono)',
+  fontSize: '13px',
+  fontWeight: 400,
+  lineHeight: 1.55,
+  color: 'var(--at-ink-2)',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+};
+
+const Emphasis: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span style={EMPHASIS}>{children}</span>
+);
+
 /* -----------------------------------------------------------------------
  * Active pill — custom pill for the active routing pattern.
  * StatusPill only supports shipped/exercise, so we render a custom one
@@ -176,9 +202,8 @@ const RoutingCard: React.FC<RoutingCardProps> = ({
         )}
       </div>
 
-      {/* Description — sans Inter for body prose, matches the
-          AtelierWelcome summary treatment. The italic Fraunces
-          pattern title above still carries the editorial voice. */}
+      {/* Description — Instrument Sans body prose, matching AtelierWelcome.
+          The italic Fraunces pattern title above still carries the editorial voice. */}
       <p
         style={{
           fontFamily: 'var(--at-sans)',
@@ -192,15 +217,8 @@ const RoutingCard: React.FC<RoutingCardProps> = ({
         {pattern.description}
       </p>
 
-      {/* Code snippet */}
-      <pre
-        className="dl-code-block"
-        style={{
-          marginBottom: '18px',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
+      {/* Code snippet — light mono on cream (readable, regular weight) */}
+      <pre style={{ ...SNIPPET_STYLE, marginBottom: '18px' }}>
         {pattern.codeSnippet}
       </pre>
 
@@ -497,9 +515,8 @@ const StorefrontProductionCard: React.FC = () => (
     >
       High-traffic commerce assistants optimize for predictability, latency, and
       cost. Pellier&apos;s Boutique keeps{' '}
-      <strong style={{ color: 'var(--at-ink-1)' }}>Dispatcher + specialists</strong>{' '}
-      on the hot path — not an LLM intent resolver at temperature&nbsp;0 (still
-      drifts with model updates).
+      <Emphasis>Dispatcher + specialists</Emphasis> on the hot path — not an LLM
+      intent resolver at temperature&nbsp;0 (still drifts with model updates).
     </p>
     <ul
       style={{
@@ -512,33 +529,35 @@ const StorefrontProductionCard: React.FC = () => (
       }}
     >
       <li>
-        <strong style={{ color: 'var(--at-ink-1)' }}>Rules / classifier first</strong>{' '}
-        — triage + keyword intent before any Bedrock call
+        <Emphasis>Rules / classifier first</Emphasis> — triage + keyword intent
+        before any Bedrock call
       </li>
       <li>
-        <strong style={{ color: 'var(--at-ink-1)' }}>Single owning agent</strong> per turn
-        — Style Advisor, Stock Keeper, etc.
+        <Emphasis>Single owning agent</Emphasis> per turn — Style Advisor, Stock
+        Keeper, etc.
       </li>
       <li>
-        <strong style={{ color: 'var(--at-ink-1)' }}>LLM router elsewhere</strong> —
-        Agents-as-Tools and Graph in the Atelier; AgentCore Runtime on{' '}
-        <code style={{ fontFamily: 'var(--at-mono)' }}>/api/agent/chat</code>
+        <Emphasis>LLM router elsewhere</Emphasis> — Agents-as-Tools and Graph in
+        the Atelier; AgentCore Runtime on{' '}
+        <code
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '12px',
+            fontWeight: 400,
+            padding: '1px 5px',
+            borderRadius: '3px',
+            background: 'var(--at-cream-2)',
+          }}
+        >
+          /api/agent/chat
+        </code>
       </li>
       <li>
-        <strong style={{ color: 'var(--at-ink-1)' }}>Semantic tool discovery</strong> at
-        scale — Tools panel / Gateway — not the default router for Marco&apos;s five pills
+        <Emphasis>Semantic tool discovery</Emphasis> at scale — Tools panel /
+        Gateway — not the default router for Marco&apos;s five pills
       </li>
     </ul>
-    <pre
-      className="dl-code-block"
-      style={{
-        margin: 0,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        fontFamily: 'var(--at-mono)',
-        fontSize: '13px',
-      }}
-    >
+    <pre style={SNIPPET_STYLE}>
       {`triage (rules) → intent (rules) → low confidence? → classifier / Haiku T=0
                               → else → one specialist (one LLM call)`}
     </pre>
@@ -751,8 +770,8 @@ const Routing: React.FC = () => {
               }}
             >
               Pick a pattern to compare orchestration styles. Boutique sessions use{' '}
-              <strong style={{ color: 'var(--at-ink-1)' }}>Dispatcher</strong> today — the
-              others are alternatives you can trace in Observatory telemetry.
+              <Emphasis>Dispatcher</Emphasis> today — the others are alternatives you
+              can trace in Observatory telemetry.
             </p>
             <ModeStrip
               patterns={patterns.map((p) => p.name)}

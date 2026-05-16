@@ -208,7 +208,7 @@ export function IntentTicker({ intents, activeIndex, onSelect, onOpenDrawer }: I
     >
       <span
         data-testid="intent-ticker-label"
-        className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.2em] text-ink-quiet font-[Inter]"
+        className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[10px] font-medium font-sans uppercase tracking-[0.2em] text-ink-quiet"
       >
         <span className="relative flex h-1.5 w-1.5" aria-hidden>
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />

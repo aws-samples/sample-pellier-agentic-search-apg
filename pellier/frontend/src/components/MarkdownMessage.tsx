@@ -19,7 +19,7 @@ const MarkdownMessage = ({ content }: Props) => {
       const boldParts = part.split(/(\*\*.*?\*\*)/)
       return boldParts.map((bp, j) => {
         if (bp.startsWith('**') && bp.endsWith('**')) {
-          return <strong key={`${i}-${j}`} className="font-semibold">{bp.slice(2, -2)}</strong>
+          return <strong key={`${i}-${j}`}>{bp.slice(2, -2)}</strong>
         }
         return <span key={`${i}-${j}`}>{bp}</span>
       })

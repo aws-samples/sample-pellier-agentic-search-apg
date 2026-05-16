@@ -4,115 +4,94 @@ weight: 11
 ---
 
 :::alert{type="info"}
-**Part I of III · Marco's arc · Sublab 11.** About six minutes. Click five
-pills, watch three land cleanly, see Turn 4 miss — then you'll fix it in
-sublab 12.*
+**Part I of III · Marco's arc · Sublab 11.** About six minutes. As **Marco**,
+click the five **Try asking** hero pills **in order** — turns 1–3 land cleanly,
+Turn 4 shows the Builder's Session gap, Turn 5 is a pairing beat that already
+works. Strings and flows match **`marco-opening-demo`** (turns 1–4) plus the
+opening turn of **`marco-capstone`** for pill five.
 :::
 
 ## Meet Marco
 
-Marco is a returning customer planning a long weekend in Lisbon. The
-agent recognizes him because his taste from prior visits is in
-long-term memory — linen, leather, terracotta, soft tailoring,
-nothing fussy.
+Marco is a returning customer packing **linen for a long stretch in Goa**. The
+agent recognizes him — taste from prior visits lives in **long-term memory**
+(warm neutrals, natural fibers, travel-ready pieces).
 
-In the Boutique tab (port 8000), open the chat drawer (bottom-right
-**Ask Pellier** pill, or press `⌘K` / `Ctrl+K`). The drawer slides
-in from the right. The agent greets Marco by name and offers a short
-list of suggested prompts — five pills, drawn from a curation that
-Pellier maintains for returning shoppers.
-
-Click them in order. Each one is a turn in Marco's afternoon.
+In the Boutique (port **8000**), open the chat drawer (**Ask Pellier**, or
+`⌘K` / `Ctrl+K`). With **Marco** selected in the header, you'll see five
+suggestion pills. **Click them in order** below — each matches
+`personaCurations` and the Sessions fixtures exactly.
 
 ---
 
-## Turn 1 — *"Linen pieces that travel well."*
+## Turn 1 — *"What linen do you have for 10 days in Goa?"*
 
-Click the first pill.
+**Style Advisor** · **Opus 4.6 · 0.4** · `find_pieces`
 
-The agent calls `find_pieces` (semantic vector search over the
-catalog), reranks the candidates, and answers in a few sentences. A
-small grid of three pieces lands under the answer: the Linen Camp
-Shirt, the Wide-Leg Trouser, the Chambray Shirt-Jacket.
+You'll get editorial copy and a three-card grid. The fixture cites **Pellier
+Linen Shirt in ecru**, **Linen Drawstring Trousers in oat**, and **Italian Linen
+Camp Shirt in indigo** — cosine search + rerank, with memory/lived-in tone layered
+on Marco's profile.
 
-Look at the trace chips just under each card — small mono pills that
-read `find_pieces · 240 ms`, `palette.match · 0.92`, `memory.recall`.
-Those are not decoration. They are the agent citing the tools it
-used, and they appear identically in the Atelier.
+**Flow (Atelier shorthand):** `Dispatcher → Style Advisor → find_pieces`
 
-::::expand{header="Why it works"}
-
-`find_pieces` runs cosine similarity against the 1024-dim Cohere
-Embed v4 column on `pellier.product_catalog`, with an HNSW index.
-The top thirty hits get reranked by Cohere Rerank v3.5, then the
-top five are returned. Memory recall layers Marco's persona on top.
-
-The Atelier's *Architecture · Tools* page explains the full pipeline.
-::::
+Trace chips in the drawer align with **`find_pieces`** latency and tool evidence;
+the same hops appear under **Sessions → `marco-opening-demo`**, turn 1.
 
 ---
 
-## Turn 2 — *"What pairs with the Camp Shirt?"*
+## Turn 2 — *"What would go with the Hadley shirt?"*
 
-Click the second pill.
+*(Hadley is the storefront name for the **Pellier Linen Shirt in ecru**.)*
 
-This time the orchestrator routes to the **Recommendation** agent, a
-specialist that knows pairing. It calls `pairing.score`, weighs
-fabric weight, palette, and occasion, and returns three pieces that
-go with the Camp Shirt — the Wide-Leg Trouser tops the list.
+**Curator** · **`the-packing-list` skill loaded** · **Opus 4.6 · 0.4** · **`style_match`**
 
-The trace chips now read `pairing.score · 0.88`, `inventory.live`.
-Note `inventory.live` — the agent confirmed stock before recommending.
+The curator answers with companions (drawstring trousers, washed cotton overshirt,
+weekender bag in the replay). Telemetry reads **`style_match`** — product-to-product
+pgvector similarity anchored on the Hadley / Pellier linen shirt embedding.
+
+**Flow:** `Dispatcher → Curator (+ the-packing-list) → style_match`
 
 ---
 
-## Turn 3 — *"Show me what just arrived."*
+## Turn 3 — *"What's the price range for linen shirts?"*
 
-Click the third pill.
+**Value Analyst** · **Haiku 4.5 · 0.1** · **`price_intelligence`**
 
-The agent surfaces a small "this week" edit — three pieces that
-landed in the catalog this morning. The trace cites `inventory.live`
-and `trend.signal`. A small "**Bestseller**" badge shows on the
-Cashmere-Blend Cardigan card.
+A numeric band with median — fast, deterministic SQL aggregate. Fixture copy lands
+near *"$88 to $285, median $148"* with a short contextual sentence.
 
-So far the agent looks like it can do anything. Let's find the
-seam.
+**Flow:** `Dispatcher → Value Analyst → price_intelligence`
 
 ---
 
 ## Turn 4 — *"Is the Hadley shirt at the Brooklyn warehouse?"*
 
-Click the fourth pill.
+*(Same SKU: **Pellier Linen Shirt in ecru**.)*
 
-The agent pauses — and answers something like:
+This is **the Builder's Session seam**. You'll see an answer **like**:
 
-> *I can't see the warehouse floor from here. I'd ask Stock Keeper,
-> but they aren't on shift yet. Would you like me to surface what's
-> in stock from the boutique catalog instead?*
+> *I can help with style and recommendations, but I don't have real-time stock
+> visibility for individual warehouses yet. I can tell you the Hadley shirt
+> (Pellier Linen Shirt in ecru) is in the catalog and marked in-stock system-wide —
+> but which warehouse holds it, and how many are on the floor, sits outside what I
+> can answer right now.*
 
-That's the gap. There **is** a Stock Keeper agent — you'll see it
-listed in the Atelier in a moment — wired up with a finished system
-prompt, ready to answer warehouse questions. The orchestrator
-already routes turn 4 to it. Stock Keeper already calls
-`floor_check`. The seam is one layer deeper: the *body* of
-`floor_check` is stubbed, so when Stock Keeper invokes the tool, it
-gets back a graceful `"floor_check is in stub state"` error and
-relays that as the polite non-answer above.
+Opening-demo telemetry calls this a **dispatcher fall-through**: stock intent is
+recognized, **`floor_check` is still stubbed**, and the storefront returns this
+graceful voice-matched non-answer rather than hallucinating bins.
 
-This is the only thing wrong with the system right now. You'll fix
-it in sublab 12.
+That's what you **wire closed** in sublab 12 (`BusinessLogic.floor_check()`).
 
-::::expand{header="Confirm the agent isn't hiding the warehouse"}
-
-Open a terminal in Code Editor and run:
+::::expand{header="Confirm the warehouse data is real"}
 
 ```bash
 psql -c "SELECT count(*) FROM pellier.warehouse_inventory;"
 ```
 
-You'll see ~120 rows — three warehouses (`BK-01`, `ATX-02`, `PDX-01`)
-each holding a slice of the 40-product catalog. The data exists.
-Stock Keeper's `floor_check` tool just isn't connected to it yet.
+Expect **about 120 rows** — **one row per (warehouse × product)** for the three
+warehouses seeded against the **40-product** catalog (`BK-01`, `ATX-02`, `PDX-01`).
+The gap is tooling, not empty tables.
 
 ```bash
 psql -c "\
@@ -123,35 +102,30 @@ psql -c "\
    ORDER BY w.id;"
 ```
 
-That's the table you'll teach the agent to read.
-
 ::::
 
 ---
 
-## Turn 5 — *"Hold those two pieces for me."*
+## Turn 5 — *"What pairs with the Ecru overshirt?"*
 
-Click the fifth pill.
+Still as Marco — **Curator** · **`the-packing-list`** · **Opus 4.6 · 0.4** · **`style_match`**
 
-This one already works. The Experience Guide agent runs `cart.holds`
-and writes a row into Aurora. Marco's bag now has the two pieces
-the Recommendation agent surfaced in turn 2. The trace chips read
-`cart.holds`, `memory.write` — that's the agent persisting the hold
-into long-term memory so the next visit picks up where this one
-left off.
+This is **not** the opening-demo transcript (that's four user turns ending in *"I'll
+come back when I'm ready to commit."*); it **is** the first user turn inside
+**Sessions → `marco-capstone`**. Editorial pairing fires cleanly — proof the system
+still sings after Turn 4's gap narrative.
 
 ---
 
 ## A quick visit to the Atelier
 
-Switch to your Atelier tab. In the left sidebar, under **OBSERVE**,
-click **Sessions**. The five turns Marco just took are listed in
-order, each with timing, agent, tools called, and the full
-reasoning trace. Click any turn to drill in.
+Under **OBSERVE → Sessions**, open **`marco-opening-demo`** — the four-turn spine
+(lines up with pills **1–4** plus Marco's closing line in the replay). Optionally
+peek at **`marco-capstone`** for the **Ecru overshirt** pairing you just drove on
+pill 5.
 
-This is the same agent. Different lens.
-
-You'll tour the Atelier in Part III (routing patterns).
+You'll tour routing in **Part III**; Parts **II · AgentCore** come next once Part I's
+gap is nailed.
 
 ---
 
@@ -159,13 +133,13 @@ You'll tour the Atelier in Part III (routing patterns).
 
 | | |
 | --- | --- |
-| ✓ Turn 1 | `find_pieces` works |
-| ✓ Turn 2 | `pairing.score` works |
-| ✓ Turn 3 | `inventory.live` + `trend.signal` work |
-| ✗ Turn 4 | Stock Keeper not wired — agent falls back gracefully |
-| ✓ Turn 5 | `cart.holds` works |
+| ✓ Turn 1 | `find_pieces` · Style Advisor |
+| ✓ Turn 2 | `style_match` · Curator + packing-list skill |
+| ✓ Turn 3 | `price_intelligence` · Value Analyst |
+| ✗ Turn 4 | **`floor_check` stub** — graceful non-answer (**your build**) |
+| ✓ Turn 5 | `style_match` · Curator — editorial pairing still works |
 
-Four of five. One gap. That gap is the only code exercise in Part I.
+One wiring exercise ahead: **`floor_check`** in **`agent_tools.py`**.
 
 :::alert{type="success" header="Part I · Build next"}
 [Part I · Wire `floor_check` →](/12-wire-floor-check/)

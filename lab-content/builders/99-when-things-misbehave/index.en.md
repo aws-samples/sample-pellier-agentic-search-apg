@@ -27,7 +27,7 @@ psql -c "SELECT count(*) FROM pellier.product_catalog;"
 
 # Verify the warehouse table exists (for Part I · sublab 12)
 psql -c "SELECT count(*) FROM pellier.warehouse_inventory;"
-# Expected: 6
+# Expected: ~120 (one row per warehouse × product; 3 warehouses × 40 catalog SKUs)
 
 # Tail the backend logs
 journalctl -fu pellier

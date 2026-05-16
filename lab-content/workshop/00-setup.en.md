@@ -60,9 +60,9 @@ If all three pass, you're set. If any fails, flag an instructor — this is much
 3. The storefront tunes to Marco's signals — hero photograph, Curated grid, Weekend Edit headline, Because-you-asked editorial cards all reshape.
 4. Scroll to the hero search. Below the Ask Pellier input you'll see Marco's suggestion pills:
    - "What linen do you have for 10 days in Goa?"
-   - "What would go with the Pellier shirt?"
+   - "What would go with the Hadley shirt?" *(same SKU: **Pellier Linen Shirt in ecru**.)*
    - "What's the price range for linen shirts?"
-   - "Is the Pellier shirt at the Brooklyn warehouse?"
+   - "Is the Hadley shirt at the Brooklyn warehouse?"
    - "What pairs with the Ecru overshirt?"
 
 These aren't random — they're Marco's exact 4-turn workshop sequence plus a capstone pill. **Don't click anything yet** — the opening demo runs as a class in Module 1.

@@ -5,13 +5,12 @@
  * storefront mode. Matches the design in docs/pellier-chat-synthesis.html:
  *
  *   Cover image (CSS-only vessel composition) → greeting → boutique
- *   stats → pre-vetted picks (3 stacked pills) → centered-dot divider
- *   → "Or tell me what you're after" prompt → P.S. close with 3
- *   quoted suggestions.
+ *   stats → pre-vetted picks (first 3 of 5 hero prompts) → centered-dot divider
+ *   → "Or tell me what you're after" prompt → P.S. close (hero 4–5 of 5)
  *
- * When a persona is active (Marco, Anna), greeting + picks + P.S. chips
- * swap to persona-specific copy grounded in their signals from
- * docs/personas-config.json. Fresh visitors see the editorial default.
+ * When a persona is active, greeting + picks + P.S. chips swap per
+ * persona. Marco surfaces the Builder&apos;s Session exercise cue;
+ * Anna and Theo surface explicit observe-only cues (no participant task).
  *
  * All picks and P.S. suggestions fire `onSend(text)` on click, which
  * the parent wires to `useAgentChat.sendMessage`.
@@ -20,6 +19,11 @@ import '../styles/boutique-welcome.css'
 import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import { useCatalogStats, type CatalogStats } from '../hooks/useCatalogStats'
 import { SHOWCASE_PRODUCTS } from '../data/showcaseProducts'
+import {
+  PERSONA_HERO_PILLS,
+  MARCO_BUILDER_SESSION_QUERY,
+} from '../data/personaCurations'
+import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import type { BoutiqueProduct } from '../services/types'
 
 interface BoutiqueWelcomeProps {
@@ -149,6 +153,8 @@ interface PersonaCopy {
 // CatalogStats is imported from the hook module so resolveCover and
 // PersonaCopy.context can both reference the same shape.
 
+const freshHero = PERSONA_HERO_PILLS.fresh
+
 const FRESH_COPY: PersonaCopy = {
   greetingSuffix: () => '',
   context: (stats) => {
@@ -173,16 +179,14 @@ const FRESH_COPY: PersonaCopy = {
       </>
     )
   },
+  // First three hero pills match the Boutique hero row; P.S. completes
+  // turns 4–5 so anonymous visitors see the same five strings as chips.
   picks: [
-    { label: 'A thoughtful gift for someone who runs', primary: true },
-    { label: 'Linen pieces that travel well', primary: false },
-    { label: 'Something for slow Sunday mornings', primary: false },
+    { label: freshHero[0], primary: true },
+    { label: freshHero[1], primary: false },
+    { label: freshHero[2], primary: false },
   ],
-  ps: [
-    'a cozy layer for cooler nights',
-    'pieces for slow Sunday mornings',
-    'something to wear for warm evenings out',
-  ],
+  ps: [freshHero[3], freshHero[4]],
 }
 
 const MARCO_COPY: PersonaCopy = {
@@ -197,17 +201,13 @@ const MARCO_COPY: PersonaCopy = {
     </>
   ),
   picks: [
-    // Must match the first 3 entries in PERSONA_HERO_PILLS.marco exactly —
-    // these are Marco's canonical workshop Turn 1/2/3 queries.
-    { label: 'What linen do you have for 10 days in Goa?', primary: true },    // Turn 1
-    { label: 'What would go with the Hadley shirt?', primary: false },          // Turn 2
-    { label: "What's the price range for linen shirts?", primary: false },      // Turn 3
+    // Marco's Turns 1–3 — verbatim first three Boutique hero pills.
+    { label: PERSONA_HERO_PILLS.marco[0], primary: true },
+    { label: PERSONA_HERO_PILLS.marco[1], primary: false },
+    { label: PERSONA_HERO_PILLS.marco[2], primary: false },
   ],
-  ps: [
-    'is the Hadley shirt at the Brooklyn warehouse?',
-    'what pairs with the Ecru overshirt?',
-    'neutral accessories for the road',
-  ],
+  // Turns 4–5 only — must match PERSONA_HERO_PILLS.marco[3–4] verbatim.
+  ps: [PERSONA_HERO_PILLS.marco[3], PERSONA_HERO_PILLS.marco[4]],
 }
 
 const ANNA_COPY: PersonaCopy = {
@@ -223,16 +223,11 @@ const ANNA_COPY: PersonaCopy = {
     </>
   ),
   picks: [
-    // Must match the first 3 entries in PERSONA_HERO_PILLS.anna exactly.
-    { label: 'A thoughtful gift for someone who loves morning rituals', primary: true },  // Turn 1
-    { label: 'Something beautiful under $100', primary: false },                           // Turn 2
-    { label: 'Help me pair a candle with something else', primary: false },                // Turn 3
+    { label: PERSONA_HERO_PILLS.anna[0], primary: true },
+    { label: PERSONA_HERO_PILLS.anna[1], primary: false },
+    { label: PERSONA_HERO_PILLS.anna[2], primary: false },
   ],
-  ps: [
-    'wrap-ready gifts with no extra effort',
-    'a milestone gift for a new homeowner',
-    'candles that feel considered, not generic',
-  ],
+  ps: [PERSONA_HERO_PILLS.anna[3], PERSONA_HERO_PILLS.anna[4]],
 }
 
 const THEO_COPY: PersonaCopy = {
@@ -248,15 +243,11 @@ const THEO_COPY: PersonaCopy = {
     </>
   ),
   picks: [
-    { label: 'Hand-thrown ceramics for a slower morning routine', primary: true },  // Turn 1
-    { label: 'What goes well with the pour-over set?', primary: false },             // Turn 2
-    { label: 'Linen pieces that soften over seasons', primary: false },              // Turn 3
+    { label: PERSONA_HERO_PILLS.theo[0], primary: true },
+    { label: PERSONA_HERO_PILLS.theo[1], primary: false },
+    { label: PERSONA_HERO_PILLS.theo[2], primary: false },
   ],
-  ps: [
-    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",
-    'something for the home, not the wardrobe',
-    'pieces with real patina',
-  ],
+  ps: [PERSONA_HERO_PILLS.theo[3], PERSONA_HERO_PILLS.theo[4]],
 }
 
 function copyForPersona(persona?: PersonaSnapshot | null): PersonaCopy {
@@ -276,10 +267,13 @@ function copyForPersona(persona?: PersonaSnapshot | null): PersonaCopy {
 
 export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProps) {
   const copy = copyForPersona(persona)
+  const { showBuilderSessionGap } = useFloorCheckWorkshopCue()
   const tod = timeOfDay()
   const firstName = persona ? persona.display_name.split(' ')[0] : ''
   const greeting = `${TOD_GREETING[tod]}${copy.greetingSuffix(firstName)}.`
   const stats = useCatalogStats()
+  const showMarcoBuilderCue =
+    persona?.id === 'marco' && showBuilderSessionGap
 
   // Resolve cover product + eyebrow per persona. Anna's gift branch
   // diverges from Marco/Fresh (who get the global standout); the
@@ -322,6 +316,38 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
         </h2>
         <p className="sf-context">{copy.context(stats)}</p>
 
+        {showMarcoBuilderCue && (
+          <p className="sf-workshop-cue-marco">
+            Builder&apos;s Session — Turn&nbsp;4 in your hero row asks for a live warehouse lookup.
+            Until <code className="sf-workshop-code">floor_check</code> is wired, Stock Keeper
+            can&apos;t answer it; that gap is deliberate.
+          </p>
+        )}
+
+        {persona?.id === 'anna' && (
+          <div className="sf-observe-cue" data-testid="boutique-welcome-observe-anna">
+            <span className="sf-observe-cue-label">Observe · demonstration only</span>
+            <p className="sf-observe-cue-body">
+              Anna&apos;s five hero prompts are here so you can <strong>watch</strong>{' '}
+              hybrid retrieval + rerank behave in chat. There is <strong>no participant wiring
+              task</strong> on this persona — follow along in Atelier Sessions or open{' '}
+              <strong>Observatory</strong> if you want the wide-angle telemetry.
+            </p>
+          </div>
+        )}
+
+        {persona?.id === 'theo' && (
+          <div className="sf-observe-cue" data-testid="boutique-welcome-observe-theo">
+            <span className="sf-observe-cue-label">Observe · demonstration only</span>
+            <p className="sf-observe-cue-body">
+              Theo surfaces the write path Experience Guide demonstrates (returns, inventory
+              updates, <code className="sf-workshop-code">tool_audit</code>). Treat this arc as{' '}
+              <strong>watch and learn</strong> — no Builder&apos;s Session coding checkpoint on Theo;
+              replay turns in Atelier when you want the audit trail visible.
+            </p>
+          </div>
+        )}
+
         {/* Pre-vetted picks */}
         <div className="sf-section">
           <div className="sf-section-head">
@@ -329,7 +355,9 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
               <span className="sf-dot" />
               {persona && persona.id !== 'fresh' ? 'Curated for you' : 'Pre-vetted picks'}
             </span>
-            <span className="sf-count">3 OF 9</span>
+            <span className="sf-count sf-count-hero" title="Hero journey · steps 1–3 of 5">
+              1–3 · 5
+            </span>
           </div>
           <div className="sf-actions-stack">
             {copy.picks.map((pick) => (
@@ -357,24 +385,40 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
           <p className="sf-postscript-lead">
             <span className="sf-ps-mark">P.S.</span>
             <span className="sf-ps-dash">&mdash;</span>
+            <span className="sf-postscript-range" title="Hero journey · steps 4–5 of 5">
+              4–5 · 5
+            </span>{' '}
             {persona && persona.id !== 'fresh'
               ? " If nothing comes to mind, here's what you've been asking lately:"
               : " If nothing comes to mind, here's what others have been asking lately:"}
           </p>
           <div className="sf-postscript-list">
-            {copy.ps.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                className="sf-overheard"
-                onClick={() => onSend(suggestion)}
-              >
-                <span className="sf-overheard-bullet">&middot;</span>
-                <span className="sf-overheard-quote">
-                  &ldquo;{suggestion}&rdquo;
-                </span>
-              </button>
-            ))}
+            {copy.ps.map((suggestion) => {
+              const isMarcoWarehouse =
+                showMarcoBuilderCue && suggestion === MARCO_BUILDER_SESSION_QUERY
+              return (
+                <button
+                  key={suggestion}
+                  type="button"
+                  className={
+                    isMarcoWarehouse
+                      ? 'sf-overheard sf-overheard-workshop-marco'
+                      : 'sf-overheard'
+                  }
+                  onClick={() => onSend(suggestion)}
+                >
+                  {isMarcoWarehouse && (
+                    <span className="sf-overheard-workshop-chip">Turn 4 · workshop gap</span>
+                  )}
+                  <span className="sf-overheard-line">
+                    <span className="sf-overheard-bullet">&middot;</span>
+                    <span className="sf-overheard-quote">
+                      &ldquo;{suggestion}&rdquo;
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>

@@ -85,7 +85,7 @@ const RuntimeDetail: React.FC = () => {
             <LayerCard
               name="Skill routing"
               timing="~120ms"
-              description="SkillRouter evaluates whether to inject style-advisor or gift-concierge for this turn."
+              description="SkillRouter may load one persona skill for this turn — the-packing-list (Marco), the-gift-table (Anna), or the-makers-shelf (Theo)."
             />
             <LayerCard
               name="Specialist execution"

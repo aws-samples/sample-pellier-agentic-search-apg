@@ -91,7 +91,7 @@
     "numeral": 9,
     "functionName": "running_low",
     "description": "Products with ≤5 units, ranked by rating.",
-    "status": "exercise",
+    "status": "shipped",
     "mutationType": "read",
     "signature": "running_low(limit) -> str",
     "usedBy": ["Stock Keeper"],

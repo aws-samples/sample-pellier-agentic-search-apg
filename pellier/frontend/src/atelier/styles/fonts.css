@@ -3,8 +3,8 @@
  *
  * Font stacks (--at-serif, --at-sans, --at-mono) resolve through
  * styles/daylight-bridge.css → --dl-font-* (see daylight-tokens.css),
- * which use the same self-hosted Instrument + Fraunces + Inter +
- * JetBrains faces imported in src/main.tsx.
+ * which use the same self-hosted Instrument Sans + Instrument Serif +
+ * Fraunces + JetBrains faces imported in src/main.tsx.
  *
  * This file only defines Atelier type *scale* tokens and utility
  * classes. Do not re-declare font-family stacks on :root here — that

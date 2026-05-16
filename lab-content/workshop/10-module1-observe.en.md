@@ -14,14 +14,14 @@ Module 1 is orientation. Before you change anything, you observe what Pellier al
 
 Open the Boutique tab. Make sure the **Marco** persona is active in the header.
 
-**Click the four Marco pills in order.** The presenter will narrate each beat live — you're driving the clicks.
+**Click the four Marco opening pills in order** (pill five on the hero is the capstone opener — observe it separately or with the facilitator). Presenter narrates; you click.
 
 | Click | Listen for |
 |---|---|
-| Pill 1 — "What linen do you have for 10 days in Goa?" | **Style Advisor on Sonnet 4.6 at 0.4.** Editorial voice. 3 pieces. ~1.3 seconds. |
-| Pill 2 — "What would go with the Pellier shirt?" | **Curator on Sonnet 4.6 at 0.4, with `the-packing-list` skill loaded.** Voice mentions packability. ~1.4 seconds. |
-| Pill 3 — "What's the price range for linen shirts?" | **Value Analyst on Haiku 4.5 at 0.1.** No narrative, just a number. Sub-200ms. |
-| Pill 4 — "Is the Pellier shirt at the Brooklyn warehouse?" | **Stock Keeper — in stub state.** Voice-matched non-answer. That's your build. |
+| Pill 1 — "What linen do you have for 10 days in Goa?" | **Style Advisor on Opus 4.6 at 0.4.** Editorial voice. Three pieces (~Pellier Linen Shirt in ecru, drawstring trousers, Italian Linen Camp Shirt). ~1.3 seconds. |
+| Pill 2 — "What would go with the Hadley shirt?" *(Pellier Linen Shirt in ecru)* | **Curator on Opus 4.6 at 0.4, with `the-packing-list` skill loaded.** **`style_match`**. ~1.4 seconds. |
+| Pill 3 — "What's the price range for linen shirts?" | **Value Analyst on Haiku 4.5 at 0.1.** **`price_intelligence`**. Sub-200ms. |
+| Pill 4 — "Is the Hadley shirt at the Brooklyn warehouse?" | **Stock intent + `floor_check` stub.** Voice-matched non-answer (see **`marco-opening-demo`** transcript). That's your build. |
 
 Marco closes: *"I'll come back when I'm ready to commit."*
 
@@ -37,12 +37,17 @@ The most important 2 minutes of the day. Open:
 
 Read it through once. Come back.
 
-Back? Now open `pellier/backend/config.py` and find the three constants:
+Back? Now open `pellier/backend/config.py` and confirm the inference profiles:
 
 ```python
-BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
-BEDROCK_HAIKU_MODEL:  str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-BEDROCK_OPUS_MODEL:   str = "global.anthropic.claude-opus-4-7"
+# Editorial specialists — Style Advisor, Curator, Experience Guide
+BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+
+# Reporting + routing — Value Analyst, Stock Keeper, Dispatcher, SkillRouter
+BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+# Legacy env name — same Opus profile; prefer BEDROCK_OPUS_MODEL in new code
+BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
 ```
 
 There's **no `DEFAULT_MODEL`**. Every agent picks its own.
@@ -55,7 +60,7 @@ In the Atelier's left sidebar, work top to bottom. The arc is
 *zoom out → zoom in → understand → measure*.
 
 ### `/atelier/observatory`
-Wide-angle dashboard — your starting point. Look at the **Agent Status** card — five rows, model tags per row, live/idle indicators. Then the **Performance headlines** at the bottom. Note the P50 numbers for Sonnet vs Haiku agents. *This is the system at a glance; everything below explains a piece of what's on this screen.*
+Wide-angle dashboard — your starting point. Look at the **Agent Status** card — five rows, model tags per row, live/idle indicators. Then the **Performance headlines** at the bottom. Note the P50 spread between **Opus** (voice) vs **Haiku** (reports). *This is the system at a glance; everything below explains a piece of what's on this screen.*
 
 ### `/atelier/sessions`
 The replay store. Seven sessions shipped: 3 Marco (opening / midpoint / capstone), 2 Anna (birthday / housewarming), 2 Theo (pour-over / return). You just watched `marco-opening-demo`. Keep it bookmarked — every later module references specific session turns.
@@ -73,7 +78,7 @@ Three routing patterns. **Dispatcher** (Pattern III) is the active one in the Bo
 STM + LTM orbit. Marco's LTM preferences are visible (minimal, warm tones, linen). This is what makes Turn 1 return Marco-shaped results.
 
 ### `/atelier/performance`
-Per-agent latency bars. Sonnet agents sit at ~1000-1500 ms. Haiku agents sit at ~100-250 ms. **An order of magnitude apart.** Stock Keeper's bar shows "—" with a "pending" tag.
+Per-agent latency bars. Opus editorial agents often sit ~1000–1500 ms warm. Haiku agents sit ~100–250 ms. **An order of magnitude apart.** Stock Keeper's bar may show pending until `floor_check` ships.
 
 ---
 
@@ -94,13 +99,13 @@ return Agent(
 )
 ```
 
-**Change `BEDROCK_HAIKU_MODEL` to `BEDROCK_SONNET_MODEL`. Save.** Uvicorn will reload.
+**Change `BEDROCK_HAIKU_MODEL` to `BEDROCK_OPUS_MODEL`. Save.** Uvicorn will reload.
 
-Click Marco's Turn 3 pill again in the Boutique: *"What's the price range for linen shirts?"*
+Click Marco's Turn 3 pill again: *"What's the price range for linen shirts?"*
 
-Open the Atelier Performance page. Value Analyst's latency bar just jumped from ~150 ms to ~1200 ms. **Almost 10× slower** for a question that wanted a number.
+Open the Atelier Performance page. Value Analyst's latency bar just jumped from ~150 ms toward **~1 s+**. **Roughly an order of magnitude slower** for a numeric aggregate.
 
-**Now swap it back.** Save. Latency drops back. You've just made the architectural argument for Haiku on a reporting agent tangible — you felt the cost of the wrong choice.
+**Now swap it back to `BEDROCK_HAIKU_MODEL`.** Save. Latency drops. You felt why reporting agents earn Haiku, not frontier prose models.
 
 ---
 

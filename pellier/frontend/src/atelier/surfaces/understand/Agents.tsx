@@ -1,7 +1,10 @@
 /**
  * Agents — Five specialist agents surface.
  *
- * WorkshopProgressStrip (5 segments: 3 shipped, 2 exercise) + 5 agent row cards.
+ * WorkshopProgressStrip: five peers; baseline is four shipped + Stock Keeper
+ * (exercise) until ``floor_check`` is live — then build-state promotes
+ * Stock Keeper to shipped alongside the tool.
+ *
  * Shipped agents: solid borders, cream-elev bg, sage "Shipped" pills.
  * Exercise agents: dashed borders, transparent bg, burgundy "Exercise" pills.
  * "Related" callout card linking to Skills and Routing surfaces.
@@ -172,7 +175,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, rowRef, onSelect
             >
               {agent.name}
             </h3>
-            {/* Agent role description — sans Inter so the body prose
+            {/* Agent role description — sans Instrument Sans so the body prose
                 reads as documentation, matching AtelierWelcome's
                 summary treatment. The Fraunces italic headline above
                 still carries the editorial voice. */}
@@ -426,7 +429,7 @@ const RelatedCard: React.FC = () => (
           }}
         >
           Skills{' '}
-          <span style={{ color: 'var(--at-red-1)' }}>· two voices</span>
+          <span style={{ color: 'var(--at-red-1)' }}>· three persona skills</span>
         </div>
         <p
           style={{
@@ -437,10 +440,11 @@ const RelatedCard: React.FC = () => (
             margin: 0,
           }}
         >
-          <code style={CODE_INLINE}>style-advisor</code> and{' '}
-          <code style={CODE_INLINE}>gift-concierge</code>. Loaded per-turn by
-          SkillRouter (Haiku 4.5 · 0.0). Injected into the specialist's system
-          prompt — they change voice and handling, not product selection.
+          <code style={CODE_INLINE}>the-packing-list</code>,{' '}
+          <code style={CODE_INLINE}>the-gift-table</code>, and{' '}
+          <code style={CODE_INLINE}>the-makers-shelf</code>. Loaded per-turn by
+          SkillRouter (Haiku 4.5 · 0.0). Injected into the specialist&apos;s system
+          prompt — they change voice and handling, not routing.
         </p>
         <Link
           to="/atelier/architecture/skills"
@@ -731,7 +735,7 @@ const Agents: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Agents · five peers · all Opus 4.6 · 0.2"
         title="The cast of five."
-        summary="Five peer specialists. None is a lead — routing happens at a separate layer (currently Dispatcher in the boutique). Three are shipped reference; two are yours to wire in Module 2."
+        summary="Five peer specialists — routing sits in Dispatcher (classify_intent) ahead of each turn. Four are shipped reference in the workshop image (including Experience Guide for Theo's write path). Stock Keeper stays exercise until you wire floor_check in Part I; saving the tool body updates build-state and promotes Stock Keeper to shipped."
       />
 
       {loading && <LoadingState />}

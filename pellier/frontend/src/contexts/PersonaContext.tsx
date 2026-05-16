@@ -6,9 +6,10 @@
  * persona modal (shared component, two entry points) writes to it via
  * ``switchPersona()``.
  *
- * State is persisted to localStorage so a page refresh doesn't lose the
- * active persona. Switching personas generates a new session_id and
- * clears the chat.
+ * State is persisted to **sessionStorage** (not localStorage) so a fresh
+ * browser tab or workshop box starts signed out, while an in-tab refresh
+ * keeps the persona the participant selected. Switching personas generates
+ * a new session_id and clears the chat.
  */
 import {
   createContext,
@@ -83,29 +84,45 @@ interface PersonaContextType {
 
 const PersonaContext = createContext<PersonaContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'pellier-persona'
+const PERSONA_STORAGE_KEY = 'pellier-persona'
 const SESSION_KEY = 'pellier-session-id'
 
-function loadStored(): PersonaSnapshot | null {
+function loadStoredPersona(): PersonaSnapshot | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = sessionStorage.getItem(PERSONA_STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
 
+/** Drop pre-3.2 localStorage persona so shared boxes don't reopen as Marco. */
+function clearLegacyPersonaPersistence(): void {
+  try {
+    localStorage.removeItem(PERSONA_STORAGE_KEY)
+  } catch {
+    // private mode — ignore
+  }
+}
+
 export function PersonaProvider({ children }: { children: ReactNode }) {
-  const [persona, setPersona] = useState<PersonaSnapshot | null>(loadStored)
+  const [persona, setPersona] = useState<PersonaSnapshot | null>(() => {
+    clearLegacyPersonaPersistence()
+    return loadStoredPersona()
+  })
   const [switching, setSwitching] = useState(false)
   const [lastTransition, setLastTransition] = useState<PersonaTransition | null>(null)
 
-  // Persist to localStorage on change
+  // Persist to sessionStorage on change (tab-scoped; fresh tab = signed out).
   useEffect(() => {
-    if (persona) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(persona))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
+    try {
+      if (persona) {
+        sessionStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(persona))
+      } else {
+        sessionStorage.removeItem(PERSONA_STORAGE_KEY)
+      }
+    } catch {
+      // quota / private mode — in-memory state still works for this visit
     }
   }, [persona])
 
@@ -152,7 +169,11 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     // overlay can greet the right name ("See you soon, Marco").
     const outgoing = persona
     setPersona(null)
-    localStorage.removeItem(STORAGE_KEY)
+    try {
+      sessionStorage.removeItem(PERSONA_STORAGE_KEY)
+    } catch {
+      // ignore
+    }
     localStorage.removeItem(SESSION_KEY)
     localStorage.removeItem('pellier-storefront-chat')
     localStorage.removeItem('pellier-atelier-chat')

@@ -52,7 +52,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     ],
     pellierFit: 'workshop',
     workshopNote:
-      'The production-shaped path: after Module 2 ships the exercise agents, wire eval datasets to the same Runtime ARNs you use in the boutique.',
+      'The production-shaped path: after the Builder\'s Session exercise (floor_check) is live, wire eval datasets to the same Runtime ARNs you use in the boutique.',
   },
   {
     id: 'ragas',

@@ -4,7 +4,7 @@ import { cssVar as c } from '../design/cssVars'
  *
  * Four notes total: one for each returning persona (Marco, Anna,
  * Theo) and one editorial note written in the boutique voice. Each
- * note is a tight italic Fraunces dek + a prose body in Inter, 15px/
+ * note is a tight italic Fraunces dek + a prose body in Instrument Sans, 15px/
  * 1.7, matching the Atelier AssistantText register so the page reads
  * as "the storefront wrote this, not a marketing page."
  *
@@ -16,7 +16,6 @@ import { cssVar as c } from '../design/cssVars'
 const RULE_1 = 'rgba(45, 24, 16, 0.08)'
 
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
-const INTER_STACK = 'Inter, system-ui, sans-serif'
 const MONO_STACK = 'JetBrains Mono, ui-monospace, monospace'
 
 interface Note {
@@ -176,7 +175,7 @@ export default function FieldNotes() {
                 <p
                   key={j}
                   style={{
-                    fontFamily: INTER_STACK,
+                    fontFamily: 'var(--sans)',
                     fontSize: 15,
                     lineHeight: 1.7,
                     letterSpacing: '-0.003em',

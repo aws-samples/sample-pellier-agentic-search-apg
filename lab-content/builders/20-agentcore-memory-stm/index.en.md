@@ -47,14 +47,8 @@ Each completed turn is appended to STM under your session id.
 
 ## 3 · Read session history from the API
 
-In Code Editor terminal:
-
-```bash
-SESSION=$(node -e "console.log(require('fs').readFileSync(0,'utf8'))" <<< "$(grep -o 'pellier-session-id[^"]*' /dev/null 2>/dev/null || true)")
-```
-
-Easier: open browser DevTools → **Application** → **Local Storage** → copy
-`pellier-session-id`, then:
+Open browser DevTools → **Application** → **Local Storage** on the Boutique
+origin → copy **`pellier-session-id`**, then in Code Editor terminal:
 
 ```bash
 SESSION="<paste-session-id-here>"

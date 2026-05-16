@@ -87,7 +87,7 @@ def build_recommendation_agent() -> Agent:
     # exact regime where vector-alone wears thin.
     return Agent(
         model=BedrockModel(
-            model_id=settings.BEDROCK_SONNET_MODEL,
+            model_id=settings.BEDROCK_OPUS_MODEL,
             max_tokens=4096,
             temperature=0.4,
         ),

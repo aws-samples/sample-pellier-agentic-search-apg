@@ -11,7 +11,7 @@ weight: 50
 - **Experience Guide** — full specialist build (system prompt + chaining pattern). Theo's return question resolves.
 - Five tools wired end-to-end. Two Atelier states changed from dashed-exercise to solid-shipped.
 - A "swap a model" moment that made the architectural cost of the wrong choice tangible.
-- A capstone where all five specialists fire on their own models — Sonnet for voice, Haiku for reports, no normalization.
+- A capstone where all five specialists fire on their own models — Opus for voice, Haiku for reports, no normalization.
 
 ## What's deferred (on purpose)
 

@@ -18,18 +18,18 @@ You're looking at per-agent latency bars for the session data the Atelier has lo
 
 | Agent | Model | p50 warm |
 |---|---|---|
-| Style Advisor | Sonnet 4.6 · 0.4 | ~1200–1400 ms |
-| Curator | Sonnet 4.6 · 0.4 | ~1300–1500 ms |
+| Style Advisor | Opus 4.6 · 0.4 | ~1200–1400 ms |
+| Curator | Opus 4.6 · 0.4 | ~1300–1500 ms |
 | Value Analyst | Haiku 4.5 · 0.1 | ~140–180 ms |
 | **Stock Keeper** (yours) | Haiku 4.5 · 0.0 | ~150–200 ms |
-| Experience Guide (yours) | Sonnet 4.6 · 0.2 | ~900–1100 ms |
+| Experience Guide (yours) | Opus 4.6 · 0.2 | ~900–1100 ms |
 | Dispatcher | *(no LLM)* | 60–120 ms |
 
 Notice the Dispatcher is **fastest** — it's pure pattern matching, no model call. That's why Pattern III is the active storefront pattern: classification wants determinism and speed, not capability.
 
 ### Why this matters in production
 
-Sonnet costs more per token and runs ~10× slower than Haiku. If Value Analyst ran on Sonnet, every price question would feel slow and rack up cost for no added quality (the answer is a number). If Style Advisor ran on Haiku, the editorial voice would flatten. The system makes a different trade for each agent based on what that agent's job actually is.
+**Opus** costs more per token and runs materially slower than **Haiku**. If Value Analyst ran on Opus for every median query, storefront price checks would lag and burn budget without improving the numeric answer. If Style Advisor ran on Haiku, editorial voice flattens. The stack picks the trade per job.
 
 ### The Search Strategy comparison card
 
@@ -60,7 +60,7 @@ SELECT audit_id, tool, latency_ms,
  LIMIT 1;
 ```
 
-The `latency_ms` column is the wall-clock measured between `BeforeToolCallEvent` (placeholder INSERT) and `AfterToolCallEvent` (UPDATE with result). Ours typically lands at ~180–250 ms — Sonnet 4.6 at 0.2 plus a single 3-statement transaction. **The same psql query replays Theo's whole turn from one row.** That's the third capability surfacing as a measurement, not just a claim.
+The `latency_ms` column is the wall-clock measured between `BeforeToolCallEvent` (placeholder INSERT) and `AfterToolCallEvent` (UPDATE with result). Ours typically lands at ~180–250 ms — mostly Aurora round-trips and tool orchestration surfaced as **one audited row**. **The same psql query replays Theo's whole turn from one row.** That's the third capability surfacing as a measurement, not just a claim.
 
 ---
 
@@ -82,22 +82,21 @@ In a production agent stack, behavior drift is inevitable — model updates, pro
 
 ---
 
-## Part 3 · Optional stretch — try Opus on Style Advisor (5 min)
+## Part 3 · Optional stretch — try Haiku on Style Advisor (5 min)
 
-**Only if you're ahead.** This is the decision framework every team makes: *is the most capable model always right?*
+**Only if you're ahead.** Style Advisor ships on **Opus** for prose. Feel what happens when you starve editorial work of frontier capacity:
 
-Open `pellier/backend/agents/search_agent.py`. Swap the model:
+Open `pellier/backend/agents/style_advisor.py`. Temporarily swap the model:
 
 ```python
-model_id=settings.BEDROCK_OPUS_MODEL,  # was BEDROCK_SONNET_MODEL
-temperature=0.4,                       # same
+model_id=settings.BEDROCK_HAIKU_MODEL,   # normally BEDROCK_OPUS_MODEL
 ```
 
-Save. Uvicorn reloads. Click Marco's Turn 1 pill: *"What linen do you have for 10 days in Goa?"*
+Save. Uvicorn reloads. Click Marco's Turn 1 pill — *linen for Goa*.
 
-Now open `/atelier/performance`. Style Advisor's p50 bar just doubled. Read the response carefully in the Boutique. Did the quality jump match the latency + cost jump? Probably not — Opus's extra capability doesn't show up on a 10-item semantic-search-plus-prose task. **This is the Level 400 decision point**: the most capable model is rarely the right one. You pick it for the jobs that actually need it (long-form reasoning, complex multi-step planning).
+`/atelier/performance` may still show a gain, but read the answer in the Boutique: packing-list voice often **flattens** when you force Haiku onto an editorial envelope.
 
-**Swap back to Sonnet when you're done.**
+**Swap back to `BEDROCK_OPUS_MODEL` when you're done.**
 
 ---
 
@@ -107,13 +106,13 @@ Click through the 5 Marco capstone pills in order. The presenter narrates each t
 
 | Turn | Pill | Listen for |
 |---|---|---|
-| 1 | "What pairs with the Ecru overshirt?" | Curator on Sonnet, `the-packing-list` loaded, `style_match` |
+| 1 | "What pairs with the Ecru overshirt?" | Curator on **Opus**, `the-packing-list` loaded, `style_match` |
 | 2 | "What's the cheapest piece that goes with it?" | Value Analyst on Haiku, `price_intelligence`, sub-200ms |
 | 3 | "Is it in stock at Brooklyn?" | **Stock Keeper on Haiku 0.0 — the agent you wrote**, `floor_check` |
-| 4 | "What's the return window?" | **Experience Guide on Sonnet — the agent you wrote**, `returns_and_care` |
-| 5 | "Show me one more linen piece under $100." | Style Advisor on Sonnet, `find_pieces` |
+| 4 | "What's the return window?" | **Experience Guide on Opus — the agent you wrote**, `returns_and_care` |
+| 5 | "Show me one more linen piece under $100." | Style Advisor on **Opus**, `find_pieces` |
 
-Watch the Atelier's `/atelier/performance` bars light up per turn. Sonnet bars at ~1200 ms. Haiku bars at ~150 ms. **Order of magnitude.**
+Watch the Atelier's `/atelier/performance` bars light up per turn. **Opus** bars ~1.0–1.5 s. **Haiku** bars ~150 ms. **Order of magnitude.**
 
 This is what "agentic composition" looks like in practice. Five specialists, three models, two temperatures, one shopper — no one specialist doing anything it doesn't need to do. You built two of them.
 

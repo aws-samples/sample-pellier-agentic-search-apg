@@ -142,6 +142,40 @@ export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
   },
 }
 
+/** Skills router — loaded skill chips in Boutique chat attribution. */
+const SKILL_VOCABULARY: Record<string, AgentToolEntry> = {
+  'skill.style-advisor': {
+    name: 'skill.style-advisor' as AgentToolName,
+    label: 'Style Advisor',
+    description: 'Personal styling and wardrobe pairing for the active shopper.',
+    atelierPath: '/atelier/skills',
+  },
+  'skill.gift-concierge': {
+    name: 'skill.gift-concierge' as AgentToolName,
+    label: 'Gift Concierge',
+    description: 'Gift-ready picks with wrapping and occasion context.',
+    atelierPath: '/atelier/skills',
+  },
+  'skill.packing-list': {
+    name: 'skill.packing-list' as AgentToolName,
+    label: 'The Packing List',
+    description: 'Travel and capsule packing recommendations.',
+    atelierPath: '/atelier/skills',
+  },
+  'skill.gift-table': {
+    name: 'skill.gift-table' as AgentToolName,
+    label: 'The Gift Table',
+    description: 'Curated gift-ready pieces for thoughtful giving.',
+    atelierPath: '/atelier/skills',
+  },
+  'skill.makers-shelf': {
+    name: 'skill.makers-shelf' as AgentToolName,
+    label: "The Maker's Shelf",
+    description: 'Hand-thrown ceramics and slow-living home pieces.',
+    atelierPath: '/atelier/skills',
+  },
+}
+
 /**
  * Look up a vocabulary entry, defaulting to a synthetic entry when an
  * unknown trace string flows through. Keeps consumers safe when the
@@ -155,9 +189,9 @@ export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
  */
 export function lookupVocab(name: string): AgentToolEntry {
   const canonical = name.split(' · ')[0]
-  const known = (AGENT_VOCABULARY as Record<string, AgentToolEntry | undefined>)[
-    canonical
-  ]
+  const known =
+    (AGENT_VOCABULARY as Record<string, AgentToolEntry | undefined>)[canonical] ??
+    SKILL_VOCABULARY[canonical]
   if (known) {
     // Preserve the caller's full label (including suffix) in `name`
     // but use the canonical entry for the description + atelierPath.
