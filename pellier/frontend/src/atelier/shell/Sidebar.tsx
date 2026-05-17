@@ -7,7 +7,7 @@
  *
  * UNDERSTAND items follow the learning arc:
  *   Architecture (the map) → Agents (the characters) →
- *   Tools (what they reach for) → Skills (persona-specific knowledge) →
+ *   Skills (persona-specific knowledge) → Tools (what they reach for) →
  *   Routing (how requests find them) → Memory (what persists between turns).
  *
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.13
@@ -61,24 +61,24 @@ const Sidebar: React.FC = () => {
   // Build dynamic nav sections with live shipped/total badges from build state
   const navSections: NavSection[] = [
     {
-      // Order: zoom out → zoom in → spine.
+      // Order: intro dashboard → narrative map → persona-scoped replay.
       // Observatory is the wide-angle dashboard ("here is the whole
-      // system at a glance"); Sessions drills into one specific
-      // captured conversation; Persona Journeys lays out the workshop's
-      // narrative spine — 20 Boutique hero turns across 4 personas.
+      // system at a glance"); Persona Journeys lays out the workshop's
+      // narrative spine — 15 Boutique hero turns across 3 personas;
+      // Sessions drills into the signed-in persona's replay set.
       eyebrow: 'OBSERVE',
       items: [
-        { label: 'Observatory', path: 'observatory', liveDot: true },
-        { label: 'Sessions', path: 'sessions', badge: '—' },
+        { label: 'Observatory', path: 'observatory' },
         { label: 'Persona Journeys', path: 'persona-journeys' },
+        { label: 'Sessions', path: 'sessions' },
       ],
     },
     {
       eyebrow: 'UNDERSTAND',
       // Order maps to the learning arc:
       //   Architecture (the map) → Agents (the characters) →
-      //   Tools (what they reach for) → Skills (persona-specific knowledge
-      //   they load) → Routing (how requests find them) → Memory (what the
+      //   Skills (persona-specific knowledge they load) → Tools (what they
+      //   reach for) → Routing (how requests find them) → Memory (what the
       //   system remembers between turns) → Write-path (how mutations are
       //   gated and audited; Theo's third Aurora capability).
       items: [
@@ -90,6 +90,7 @@ const Sidebar: React.FC = () => {
             ? `${buildState.agentShipped}/${buildState.agentTotal}`
             : '4/5',
         },
+        { label: 'Skills', path: 'skills', badge: '3' },
         {
           label: 'Tools',
           path: 'tools',
@@ -97,7 +98,6 @@ const Sidebar: React.FC = () => {
             ? `${buildState.toolShipped}/${buildState.toolTotal}`
             : '11/12',
         },
-        { label: 'Skills', path: 'skills', badge: '3' },
         { label: 'Routing', path: 'routing', badge: '3' },
         { label: 'Memory', path: 'memory' },
         { label: 'Write-path', path: 'write-path' },

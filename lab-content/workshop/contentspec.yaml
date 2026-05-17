@@ -2,16 +2,15 @@
 #
 # Instructor notes:
 #   - The narrative spine is Marco's arc. Participants click pills; presenter
-#     narrates. See lab-content/shared/marco-arc-overview.en.md for the spec.
+#     narrates. See 90-facilitator-reference.en.md for the consolidated spec.
 #   - Marco's Turn 4 pill (warehouse stock) is clicked twice in the session:
 #     once during the opening demo (Stock Keeper stubbed → graceful non-answer),
 #     once during the midpoint checkpoint (Stock Keeper wired → real warehouse).
 #   - Per-agent model mix is an architectural decision, not a knob. Do NOT
-#     normalize. lab-content/shared/model-mix-sidebar.en.md explains why.
-#   - The workshop teaches three Aurora capabilities in a ladder. See
-#     lab-content/shared/aurora-capabilities-arc.en.md for the framing:
+#     normalize. 90-facilitator-reference.en.md explains why.
+#   - The workshop teaches three Aurora capabilities in a ladder:
 #       * Marco — pgvector semantic search (foundation, Module 1)
-#       * Anna  — hybrid (vector + BM25) + Cohere Rerank (Module 1, Part 5)
+#       * Anna  — hybrid (vector + Postgres FTS) + Cohere Rerank (Module 1, Part 5)
 #       * Theo  — Aurora as system-of-record · Cedar-gated writes · audit
 #                 trail (Module 2, after C5 Experience Guide is wired)
 #   - If the room is slow: drop C4 (running_low) and C5 (Experience Guide).
@@ -47,8 +46,8 @@ infrastructure:
     # ${TemplatesBaseUrl}, which we compose from the Workshop Studio
     # asset variables below. All seven templates plus iam_policy.json
     # must live under lab-content/workshop/static/ for the deploy to
-    # resolve. The repo's source-of-truth lives in infrastructure/;
-    # static/ is a packaging mirror (see static/README.md).
+    # resolve. That static folder is the source of truth for the
+    # workshop CloudFormation bundle.
     - templateLocation: static/pellier-workshop.yml
       label: Pellier Workshop (120 min — re:Invent)
       parameters:
@@ -93,7 +92,7 @@ workshopTimeline:
   duration: 120
   checkpoints:
     - "00:00 — Opening talk + Boutique demo (Marco clicks 4 pills)"
-    - "00:10 — Module 1 · Observe (tour + model-mix sidebar + swap-a-model + Anna's hybrid pipeline)"
+    - "00:10 — Module 1 · Observe (tour + model-mix read + swap-a-model + Anna's hybrid pipeline)"
     - "00:30 — Module 2 · Understand (Stock Keeper + Experience Guide + Theo's write-path tour)"
     - "00:55 — Mid-point checkpoint (Marco's Turn 4 works)"
     - "01:40 — Module 3 · Evaluate (Performance + Search Strategy comparison + Evaluations + capstone)"

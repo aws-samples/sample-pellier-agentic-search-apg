@@ -25,7 +25,7 @@ Key design choices (Req 4.2):
   * Tokens never appear in logs (Req 5.3.3). The service logs validation
     failures with the exception class only.
 
-The workshop ``solutions/module3/services/cognito_auth.py`` file mirrors
+The workshop ``solutions/the-paper-trail/services/cognito_auth.py`` file mirrors
 the CHALLENGE 9.1 block here byte-for-byte (enforced by Task 7.4).
 """
 from __future__ import annotations
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # call is required.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/cognito_auth.py pellier/backend/services/cognito_auth.py
+#    cp solutions/the-paper-trail/services/cognito_auth.py pellier/backend/services/cognito_auth.py
 
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
 ACCESS_TOKEN_COOKIE = "access_token"

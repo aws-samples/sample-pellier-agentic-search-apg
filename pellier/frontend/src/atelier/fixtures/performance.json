@@ -48,6 +48,40 @@
       "isShipped": false
     }
   ],
+  "pgvectorTuning": [
+    {
+      "capability": "Iterative index scan",
+      "knob": "hnsw.iterative_scan = relaxed_order",
+      "productionUse": "Keeps filtered HNSW search from returning fewer than LIMIT when the nearest neighbors fail a WHERE clause.",
+      "smokeResult": "Synthetic filtered HNSW: off returned 0 rows; relaxed_order returned 10.",
+      "tradeoff": "More index work for better filtered recall.",
+      "status": "enabled"
+    },
+    {
+      "capability": "Half precision vectors",
+      "knob": "embedding::halfvec(1024)",
+      "productionUse": "Cuts index/storage footprint when full float precision is not worth the memory cost.",
+      "smokeResult": "Temp HNSW index: 536 KB baseline vs 120 KB halfvec.",
+      "tradeoff": "Smaller and cheaper; validate recall before replacing full vectors.",
+      "status": "available"
+    },
+    {
+      "capability": "Binary quantization",
+      "knob": "binary_quantize(embedding)::bit(1024)",
+      "productionUse": "Builds a very compact coarse-pass index for fast candidate generation.",
+      "smokeResult": "Temp HNSW index: 32 KB binary quantized.",
+      "tradeoff": "Fast and tiny, but approximate enough that rerank or full-vector rescoring should follow.",
+      "status": "available"
+    },
+    {
+      "capability": "Sparse vectors",
+      "knob": "sparsevec",
+      "productionUse": "Represents very high-dimensional sparse signals such as lexical weights, feature hashes, or hybrid scoring features without storing every zero.",
+      "smokeResult": "Type probe: sparsevec is available in the live pgvector 0.8.0 extension.",
+      "tradeoff": "Best for sparse feature spaces, not a replacement for Pellier's dense Cohere embeddings.",
+      "status": "available"
+    }
+  ],
   "searchStrategies": [
     {
       "strategy": "vector only",

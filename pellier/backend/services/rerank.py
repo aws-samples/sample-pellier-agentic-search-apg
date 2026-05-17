@@ -1,7 +1,7 @@
 """
 Rerank Service — Cohere Rerank v3.5 via Bedrock.
 
-Anna's hybrid pipeline (vector + BM25 → RRF) produces a candidate
+Anna's hybrid pipeline (vector + Postgres FTS → RRF) produces a candidate
 pool of ~30 products. The reranker reads the user's exact query
 plus a short text rendering of each candidate and reorders by
 relevance — usually with a markedly different ranking than what

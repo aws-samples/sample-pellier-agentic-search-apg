@@ -1,6 +1,6 @@
 """Tests for ``HybridSearch.search`` and the RRF merge math.
 
-Anna's anchor capability — pgvector + Postgres BM25 with RRF merge.
+Anna's anchor capability — pgvector + Postgres FTS with RRF merge.
 We mock psycopg so the tests run offline; the real Aurora migration
 is exercised live in the verification phase.
 

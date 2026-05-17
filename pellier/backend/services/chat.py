@@ -76,6 +76,10 @@ SUPPORT_KEYWORDS = {"return", "refund", "policy", "troubleshoot",
 # above (return/refund/warranty/chipped/damaged/etc.).
 SEARCH_KEYWORDS = {"search for", "looking for", "where can I", "compare", "browse",
                    "what do you have", "do you have", "show me", "find me"}
+PAIRING_PATTERN = re.compile(
+    r"\b(go(?:es)? with|go(?:es)? well with|pair(?:s|ed)? with|what pairs with|what would go with|complement(?:s|ary)?)\b",
+    re.IGNORECASE,
+)
 
 # Past-purchase / history queries — these reference the shopper's own
 # order history and must route to the recommendation specialist with the
@@ -270,6 +274,11 @@ def classify_intent(query: str) -> str:
 
     # Product-seeking queries → search
     if is_product_seeking:
+        return "search"
+
+    # Pairing questions belong to Style Advisor so the tool path can use
+    # style_match rather than generic recommendation retrieval.
+    if PAIRING_PATTERN.search(query):
         return "search"
 
     # Search keywords (multi-word phrase matching)
@@ -1642,9 +1651,15 @@ CURRENT REQUEST: {message}"""
             from skills import SkillRouter, get_registry
             router = SkillRouter(get_registry())
             skill_decision = router.route(message)
+            considered_names = [
+                item.get("name")
+                for item in (skill_decision.considered or [])
+                if isinstance(item, dict) and item.get("name")
+            ]
             logger.info(
-                "🪡 Skills | loaded=%s | elapsed=%dms",
+                "🪡 Skills | loaded=%s | considered=%s | elapsed=%dms",
                 skill_decision.loaded_skills or "none",
+                considered_names or "none",
                 skill_decision.elapsed_ms,
             )
         except Exception as exc:

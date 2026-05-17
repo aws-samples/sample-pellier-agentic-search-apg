@@ -1,8 +1,7 @@
 /**
- * StateDetail — Architecture detail page for State Management.
+ * StateDetail — Architecture detail page for Routing & State.
  *
- * Centralized state management coordinates conversation context,
- * agent activation status, and routing decisions.
+ * Dispatcher-first routing plus the small state bundle carried through a turn.
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -13,6 +12,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK, ARCHITECTURE_CODE_BLOCK_COMPACT } from './codeStyles';
 
 const StateDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -23,48 +23,48 @@ const StateDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="III"
-      conceptName="State Management"
-      category="managed"
-      title="State, coordinated."
-      prose="Centralized state management coordinates conversation context, agent activation status, and routing decisions across the multi-agent system. AgentCore Runtime maintains the state graph that the orchestrator traverses."
+      numeral="V"
+      conceptName="Routing & State"
+      category="live"
+      title="Routing, explicit."
+      prose="The Boutique default path is dispatcher-first: services/chat.py triages small talk, classifies intent, optionally loads one persona skill, then hands the turn to one owning specialist/tool path. Agents-as-Tools and graph routing stay visible as teaching patterns, not the default storefront runtime."
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'State flows in one direction: intent classification determines which agents activate, which determines which tools fire.',
+          text: 'State flows in one direction: triage and intent classification determine the specialist path, then tool results and memory context shape the reply.',
         },
         {
           numeral: 'ii.',
-          text: 'The orchestrator holds the state graph. Specialists read from it but never write to it directly — they return results that the orchestrator folds back in.',
+          text: 'The dispatcher path keeps state small and auditable: query, persona, session id, loaded skill, intent, tool calls, and telemetry events.',
         },
         {
           numeral: 'iii.',
-          text: 'Routing decisions are state transitions. Dispatcher, Agents-as-Tools, and Graph are three strategies for traversing the same state space.',
+          text: 'Routing pages compare Dispatcher, Agents-as-Tools, and Graph patterns, but the Boutique uses Dispatcher because it is cheaper and easier to reason about.',
         },
       ]}
       liveState={{
-        label: 'Current state management context for the active session. Shows the intent, active agents, and routing strategy.',
+        label: 'Current routing context for the active session. Shows the intent, selected specialist path, and routing strategy.',
         values: [
-          { label: 'Active agents', value: '3' },
+          { label: 'Owning path', value: '1' },
           { label: 'Routing', value: 'Dispatcher' },
-          { label: 'State keys', value: '4' },
+          { label: 'State keys', value: '6' },
         ],
       }}
     >
       {loading && <DetailLoadingState />}
       {error && <DetailErrorState message={error} onRetry={refetch} />}
-      {!loading && !error && !concept && <DetailEmptyState conceptName="State Management" />}
+      {!loading && !error && !concept && <DetailEmptyState conceptName="Routing & State" />}
       {!loading && !error && concept && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* State flow diagram */}
           <ExpCard>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <SectionLabel label="The state graph" />
-              <h3 style={titleStyle}>Intent to response, one graph.</h3>
+              <SectionLabel label="The dispatcher path" />
+              <h3 style={titleStyle}>Intent to response, one owner.</h3>
               <p style={proseStyle}>
-                A request arrives with an intent. The orchestrator classifies it, activates the
-                right specialists, and coordinates their tool calls. Each step is a state
-                transition — the graph is the execution plan.
+                A request arrives with a persona and session id. The dispatcher classifies the
+                intent, loads the relevant skill when needed, and chooses one specialist/tool
+                path for the turn. The telemetry tab records each step so the route is auditable.
               </p>
               <StateFlowDiagram />
             </div>
@@ -79,13 +79,13 @@ const StateDetail: React.FC = () => {
             />
             <StateKeyCard
               keyName="active_agents"
-              description="List of specialist agents activated for this turn based on the classified intent."
-              example="active_agents = [search, recommend]"
+              description="The owning specialist path for this turn. The Boutique default chooses one path, not a committee."
+              example='owner = "Curator"'
             />
             <StateKeyCard
               keyName="memory_context"
-              description="STM items loaded for this session — recent turns and intents."
-              example="memory_context = stm_items[:12]"
+              description="STM/LTM context scoped by persona and session namespace."
+              example="memory_context = { stm, ltm }"
             />
             <StateKeyCard
               keyName="routing"
@@ -131,13 +131,7 @@ const StateKeyCard: React.FC<{
       </p>
       <pre
         style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '11px',
-          color: 'var(--at-ink-1)',
-          backgroundColor: 'var(--at-cream-2)',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          margin: 0,
+          ...ARCHITECTURE_CODE_BLOCK_COMPACT,
           whiteSpace: 'pre',
         }}
       >
@@ -164,7 +158,7 @@ const StateFlowDiagram: React.FC = () => (
     <text x="52" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="var(--cream-warm)">intent</text>
 
     <rect x="160" y="75" width="85" height="50" rx="8" fill="var(--cream-warm)" stroke="var(--accent)" strokeWidth="1" />
-    <text x="202" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#a8423a">agents</text>
+    <text x="202" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#a8423a">skill</text>
 
     <rect x="310" y="75" width="85" height="50" rx="8" fill="var(--cream-warm)" stroke="rgba(31,29,26,0.3)" strokeWidth="1" />
     <text x="352" y="103" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="13" fill="#1f1410">tools</text>
@@ -174,7 +168,7 @@ const StateFlowDiagram: React.FC = () => (
 
     {/* Labels */}
     <text x="52" y="145" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1">CLASSIFY</text>
-    <text x="202" y="145" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1">ACTIVATE</text>
+    <text x="202" y="145" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1">LOAD</text>
     <text x="352" y="145" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1">INVOKE</text>
     <text x="475" y="145" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(31,20,16,0.42)" letterSpacing="1">DONE</text>
   </svg>
@@ -199,9 +193,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default StateDetail;

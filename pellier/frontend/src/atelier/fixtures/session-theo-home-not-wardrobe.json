@@ -1,0 +1,134 @@
+{
+  "id": "theo-home-not-wardrobe",
+  "personaId": "theo",
+  "openingQuery": "Something for the home, not the wardrobe",
+  "elapsedMs": 4020,
+  "agentCount": 2,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2026-05-15T18:28:00Z",
+  "status": "complete",
+  "chat": [
+    {
+      "role": "user",
+      "content": "Something for the home, not the wardrobe",
+      "timestamp": "2026-05-15T18:28:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Go home, not closet: the Wabi-Sabi Bowl ($65) is the one I would pull first. It has the handmade irregularity Theo responds to, works on a table or shelf, and feels collected rather than styled. If you want a softer landing, the Washed Linen Throw ($138) brings the same lived-in texture to the room.",
+      "timestamp": "2026-05-15T18:28:03Z",
+      "plan": {
+        "flowSummary": "Dispatcher \u2192 Curator + the-makers-shelf \u2192 find_pieces",
+        "traceLink": "#telemetry-1"
+      },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces",
+          "description": "Semantic search constrained to home goods, excluding wardrobe",
+          "durationMs": 276,
+          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home%'\n  AND category NOT ILIKE '%Apparel%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+          "resultSummary": "Home goods ranked with Wabi-Sabi Bowl first"
+        }
+      ],
+      "products": [
+        {
+          "name": "Wabi-Sabi Bowl",
+          "brand": "Pellier Editions",
+          "price": 65,
+          "imageUrl": "/products/theo-wabi-sabi-bowl.png"
+        },
+        {
+          "name": "Washed Linen Throw",
+          "brand": "Pellier Home",
+          "price": 138,
+          "imageUrl": "/products/theo-washed-linen-throw.png"
+        }
+      ],
+      "meta": {
+        "agent": "Curator",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "skill": "the-makers-shelf",
+        "latencyMs": 1088
+      }
+    }
+  ],
+  "telemetry": [
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent \u2192 Curator",
+      "description": "'home, not wardrobe' routed to home-goods curation",
+      "status": "complete",
+      "durationMs": 52,
+      "agent": "Dispatcher"
+    },
+    {
+      "index": 2,
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-makers-shelf bound for persona: theo",
+      "status": "complete",
+      "durationMs": 36,
+      "agent": "SkillRouter"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "find_pieces",
+      "description": "pgvector search constrained to home categories",
+      "status": "complete",
+      "durationMs": 276,
+      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home%'\n  AND category NOT ILIKE '%Apparel%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+      "agent": "Curator"
+    },
+    {
+      "index": 4,
+      "category": "both",
+      "title": "editorial composition",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 home-over-wardrobe framing",
+      "status": "complete",
+      "durationMs": 812,
+      "agent": "Curator"
+    }
+  ],
+  "brief": {
+    "folioNumber": 37,
+    "headline": "Not the closet",
+    "filedTime": "2026-05-15T18:29:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The axis",
+        "paragraphs": [
+          "The turn is explicit about exclusion. The query keeps the home cluster while avoiding apparel, making the category boundary visible in the SQL."
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "Wabi-Sabi Bowl",
+        "brand": "Pellier Editions",
+        "price": 65,
+        "imageUrl": "/products/theo-wabi-sabi-bowl.png"
+      },
+      {
+        "name": "Washed Linen Throw",
+        "brand": "Pellier Home",
+        "price": 138,
+        "imageUrl": "/products/theo-washed-linen-throw.png"
+      }
+    ],
+    "confidence": {
+      "stats": [
+        {
+          "label": "Category boundary",
+          "value": "home, not wardrobe"
+        },
+        {
+          "label": "Tool",
+          "value": "find_pieces"
+        }
+      ]
+    }
+  }
+}

@@ -535,6 +535,101 @@
   margin-bottom: 6px;
 }
 
+/* ---- Collapsed skills + tools disclosure ---- */
+.ec-worked {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--rule-1);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cream-2) 72%, transparent);
+  overflow: hidden;
+}
+.ec-worked-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  text-align: left;
+}
+.ec-worked-header:hover {
+  background: rgba(31, 20, 16, 0.035);
+}
+.ec-worked-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red-1);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+.ec-worked-title {
+  font-family: var(--sans);
+  font-style: normal;
+  color: var(--dl-ink-2, var(--ink-2));
+  font-size: 13px;
+  font-weight: 500;
+}
+.ec-worked-summary {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.ec-worked-chevron {
+  color: var(--ink-4);
+  font-size: 12px;
+  transition: transform 160ms ease;
+}
+.ec-worked-chevron-open {
+  transform: rotate(180deg);
+}
+.ec-worked-body {
+  border-top: 1px solid var(--rule-1);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ec-worked-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ec-worked-section-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.ec-worked .ec-msg-attribution {
+  margin: 0;
+}
+.ec-worked-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dl-ink-2, var(--ink-2));
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--red-1) 42%, transparent);
+  padding-bottom: 2px;
+}
+.ec-worked-link:hover {
+  color: var(--red-1);
+  border-bottom-color: var(--red-1);
+}
+
 /* ---- Tool-call lines ---- */
 .ec-toolcalls {
   display: flex;

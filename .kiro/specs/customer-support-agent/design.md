@@ -98,7 +98,7 @@ def get_return_policy(category: str = "default") -> str:
 
 The tool queries the `pellier.return_policies` table (seeded by the bootstrap script with 21 rows). If the category isn't found, it falls back to the `'default'` row. Uses the same `_db_service` + `_run_async` pattern as every other DB-backed tool.
 
-### 2. Customer Support Agent (`agents/customer_support_agent.py`)
+### 2. Customer Support Agent (`agents/experience_guide.py`)
 
 ```python
 @tool

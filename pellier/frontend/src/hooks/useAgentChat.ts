@@ -407,8 +407,11 @@ export function useAgentChat(
         return
       }
 
-      // Thinking placeholder — only populate agentExecution when atelier mode
+      // Thinking placeholder. Atelier gets the full instrumentation shell;
+      // storefront gets a lightweight shell so Boutique can show an optional
+      // collapsed "skills + tools" disclosure without surfacing agent steps.
       const showInstrumentation = mode === 'atelier'
+      const trackToolCalls = showInstrumentation || mode === 'storefront'
       const thinkingAgentName =
         workshopMode === 'production'
           ? 'AgentCore'
@@ -425,17 +428,19 @@ export function useAgentChat(
             ? 'orchestrator'
             : 'search'
           : undefined,
-        agentExecution: showInstrumentation
+        agentExecution: trackToolCalls
           ? {
-              agent_steps: [
-                {
-                  agent: thinkingAgentName,
-                  action: 'Analyzing query',
-                  status: 'in_progress',
-                  timestamp: Date.now(),
-                  duration_ms: 0,
-                },
-              ],
+              agent_steps: showInstrumentation
+                ? [
+                    {
+                      agent: thinkingAgentName,
+                      action: 'Analyzing query',
+                      status: 'in_progress',
+                      timestamp: Date.now(),
+                      duration_ms: 0,
+                    },
+                  ]
+                : [],
               tool_calls: [],
               reasoning_steps: [],
               total_duration_ms: 0,
@@ -537,7 +542,7 @@ export function useAgentChat(
               } catch {
                 // quota / private mode — non-fatal
               }
-              if (!showInstrumentation) return
+              if (!trackToolCalls) return
               updateLast(lastMsg => {
                 if (
                   lastMsg.agentStatus !== 'thinking' ||
@@ -554,7 +559,7 @@ export function useAgentChat(
                       {
                         tool: data.tool,
                         timestamp: Date.now(),
-                        duration_ms: 0,
+                        duration_ms: data.duration_ms ?? 0,
                         status: data.status,
                       },
                     ],
@@ -589,14 +594,14 @@ export function useAgentChat(
                   return {
                     ...lastMsg,
                     agentStatus: 'complete',
-                    agentExecution: undefined,
+                    agentExecution: showInstrumentation ? undefined : lastMsg.agentExecution,
                   }
                 }
                 return {
                   ...lastMsg,
                   content: data.content,
                   agentStatus: 'complete',
-                  agentExecution: undefined,
+                  agentExecution: showInstrumentation ? undefined : lastMsg.agentExecution,
                 }
               })
             } else if (data.type === 'product') {
@@ -612,7 +617,7 @@ export function useAgentChat(
                   ...lastMsg,
                   products: isDupe ? existing : [...existing, chatProduct],
                   agentStatus: 'complete',
-                  agentExecution: undefined,
+                  agentExecution: showInstrumentation ? undefined : lastMsg.agentExecution,
                 }
               })
             } else if (data.type === 'runtime_timing') {
@@ -704,7 +709,13 @@ export function useAgentChat(
             agentStatus: 'complete',
             agentExecution: showInstrumentation
               ? response.agent_execution
-              : undefined,
+              : response.agent_execution
+                ? {
+                    ...response.agent_execution,
+                    agent_steps: [],
+                    reasoning_steps: [],
+                  }
+                : lastMsg.agentExecution,
           }
         })
         setBackendOnline(true)

@@ -8,9 +8,10 @@
  * Requirements: 1.9, 1.10, 1.11, 1.12
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import SurfaceToggle from '../../components/SurfaceToggle';
+import PersonaModal from '../../components/PersonaModal';
 import { BreadcrumbTrail } from '../components/BreadcrumbTrail';
 import { usePersona } from '../../contexts/PersonaContext';
 import { getPersonaPhoto } from '../../data/personaPhotos';
@@ -65,75 +66,129 @@ function useBreadcrumbs(): string[] {
 const TopBar: React.FC = () => {
   const breadcrumbs = useBreadcrumbs();
   const { persona } = usePersona();
+  const [personaModalOpen, setPersonaModalOpen] = useState(false);
 
   const avatarInitial = persona?.avatar_initial ?? 'M';
   const avatarColor = persona?.avatar_color ?? '#a8423a';
+  const personaLabel = persona?.display_name?.split(' ')[0] ?? 'Persona';
 
   return (
-    <header
-      data-testid="atelier-topbar"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-        padding: '12px 24px',
-        borderBottom: '1px solid var(--at-rule-1)',
-        background: 'var(--at-cream-1)',
-        minHeight: '52px',
-      }}
-    >
-      {/* Surface toggle */}
-      <SurfaceToggle />
+    <>
+      <header
+        data-testid="atelier-topbar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          padding: '12px 24px',
+          borderBottom: '1px solid var(--at-rule-1)',
+          background: 'var(--at-cream-1)',
+          minHeight: '52px',
+        }}
+      >
+        {/* Surface toggle */}
+        <SurfaceToggle />
 
-      {/* Breadcrumb trail */}
-      <BreadcrumbTrail segments={breadcrumbs} />
+        {/* Breadcrumb trail */}
+        <BreadcrumbTrail segments={breadcrumbs} />
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
 
-      {/* Presence — same chip as Boutique hero; mono tail only when a
-          persona is signed in (hidden for fresh / anonymous). */}
-      <PresencePill surface="boutique" personaId={persona?.id} />
+        {/* Presence — same chip as Boutique hero; mono tail only when a
+            persona is signed in (hidden for fresh / anonymous). */}
+        <PresencePill surface="boutique" personaId={persona?.id} />
 
-      {/* Persona avatar */}
-      {(() => {
-        const photoUrl = getPersonaPhoto(persona?.id);
-        return photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={persona?.display_name ?? 'Marco'}
+        {/* Persona switcher */}
+        <button
+          type="button"
+          onClick={() => setPersonaModalOpen(true)}
+          aria-label={`Switch persona${persona?.display_name ? ` from ${persona.display_name}` : ''}`}
+          title="Switch persona"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '9px',
+            padding: '4px 9px 4px 4px',
+            border: '1px solid var(--at-rule-1)',
+            borderRadius: '999px',
+            background: 'var(--at-cream-2)',
+            color: 'var(--at-ink-1)',
+            cursor: 'pointer',
+          }}
+        >
+          {(() => {
+            const photoUrl = getPersonaPhoto(persona?.id);
+            return photoUrl ? (
+              <img
+                src={photoUrl}
+                alt=""
+                aria-hidden="true"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                  border: '1.5px solid rgba(31, 20, 16, 0.1)',
+                }}
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: avatarColor,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                {avatarInitial}
+              </span>
+            );
+          })()}
+          <span
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              flexShrink: 0,
-              border: '1.5px solid rgba(31, 20, 16, 0.1)',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: avatarColor,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--at-sans)',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#fff',
-              flexShrink: 0,
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              lineHeight: 1.1,
             }}
-            title={persona?.display_name ?? 'Marco'}
           >
-            {avatarInitial}
-          </div>
-        );
-      })()}
-    </header>
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '9px',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--at-ink-4)',
+              }}
+            >
+              Persona
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--at-sans)',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--at-ink-1)',
+              }}
+            >
+              {personaLabel}
+            </span>
+          </span>
+        </button>
+      </header>
+      <PersonaModal open={personaModalOpen} onClose={() => setPersonaModalOpen(false)} />
+    </>
   );
 };
 

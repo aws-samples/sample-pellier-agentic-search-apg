@@ -243,7 +243,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 - 2.4.1 WHEN C2 is opened at `pellier/backend/services/agent_tools.py` THEN the challenge block SHALL implement `get_trending_products()` as `@tool`-decorated, returning a JSON string of the top-trending products; it SHALL check `_db_service` availability, use `_run_async()`, and return `json.dumps({"error": str(e)})` on exception.
 - 2.4.2 WHEN C2 is done THEN the verification SHALL be: calling the tool directly in a REPL returns a parseable JSON string with ≥3 products.
-- 2.4.3 WHEN C3 is opened at `pellier/backend/agents/recommendation_agent.py` THEN the challenge block SHALL instantiate `product_recommendation_agent` as a Strands `Agent` wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2` and tools `[search_products, get_trending_products, compare_products, get_product_by_category]`.
+- 2.4.3 WHEN C3 is opened at `pellier/backend/agents/curator.py` THEN the challenge block SHALL instantiate `product_recommendation_agent` as a Strands `Agent` wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2` and tools `[search_products, get_trending_products, compare_products, get_product_by_category]`.
 - 2.4.4 WHEN C3's system prompt is authored THEN it SHALL emphasize warm, editorial, catalog-style reasoning grounded in specific product attributes.
 - 2.4.5 WHEN C3 is done THEN the verification SHALL be: calling the agent with `something for warm evenings out` returns a response that names at least one specific product (brand + color + price) AND that product's `tags` column SHALL include at least one of `evening`, `warm`, `dresses`, or `outerwear` (so relevance, not just mention, is checked). Expected matches include Sundress in Washed Linen or Cashmere-Blend Cardigan; an irrelevant recommendation such as Signature Straw Tote SHALL fail verification.
 - 2.4.6 WHEN C4 is opened at `pellier/backend/agents/orchestrator.py` THEN the challenge block SHALL instantiate the orchestrator with `BedrockModel(model_id='global.anthropic.claude-haiku-4-5-20251001-v1:0')`, `temperature=0.0`, and five specialist tools following the Strands "Agents as Tools" pattern.
@@ -287,7 +287,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 - 2.7.1 WHEN a participant runs `cp solutions/moduleN/<relative path> pellier/backend/<relative path>` THEN the copied file SHALL contain the complete solution code identical to what lives inside the `# === CHALLENGE N: START/END ===` block.
 - 2.7.2 WHEN the backend is restarted after a drop-in paste THEN the challenge verification step SHALL pass without further edits.
-- 2.7.3 WHEN solutions are organized on disk THEN they SHALL live under `solutions/module1/`, `solutions/module2/`, `solutions/module3/` only (per `project.md`).
+- 2.7.3 WHEN solutions are organized on disk THEN they SHALL live under the named module folders: `solutions/the-quiet-search/`, `solutions/closing-marcos-gap/`, and `solutions/the-paper-trail/` (per `project.md`).
 
 ---
 

@@ -422,7 +422,6 @@ const RelatedCard: React.FC = () => (
           style={{
             fontFamily: 'var(--at-serif)',
             fontWeight: 400,
-            fontStyle: 'italic',
             fontSize: '20px',
             color: 'var(--at-ink-1)',
             letterSpacing: '-0.01em',
@@ -486,7 +485,6 @@ const RelatedCard: React.FC = () => (
           style={{
             fontFamily: 'var(--at-serif)',
             fontWeight: 400,
-            fontStyle: 'italic',
             fontSize: '20px',
             color: 'var(--at-ink-1)',
             letterSpacing: '-0.01em',

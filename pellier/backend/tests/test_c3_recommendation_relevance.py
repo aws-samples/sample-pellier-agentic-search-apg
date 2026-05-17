@@ -170,7 +170,7 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
         side_by_side + explore_collection.
 
     ``find_pieces_hybrid`` is the Curator's anchor capability (Anna's
-    pgvector + BM25 + Cohere Rerank pipeline). Other specialists keep
+    pgvector + Postgres FTS + Cohere Rerank pipeline). Other specialists keep
     plain ``find_pieces``.
     """
     _StubAgent.canned_reply = "A canned response - ignored by this test."

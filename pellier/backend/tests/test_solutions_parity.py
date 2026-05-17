@@ -3,7 +3,7 @@
 The workshop's core promise to participants:
 
   ``⏩ SHORT ON TIME? Run:
-     cp solutions/module2/<path> pellier/backend/<path>``
+     cp solutions/<module-name>/<path> pellier/backend/<path>``
 
 If that ``cp`` command leaves the app in a broken or inconsistent
 state, the workshop flow silently breaks — participants paste a
@@ -11,18 +11,14 @@ stale solution, restart uvicorn, and the verification step fails
 with no obvious cause. This test is the CI tripwire for that
 contract.
 
-The new contract (differs from the old C1–C9 byte-parity one)
--------------------------------------------------------------
+The Builder's Session contract
+------------------------------
 
-Our challenges no longer use numbered blocks that byte-match against
-solutions. Instead:
-
-  * Each challenge is a STUB in a live file, with a module-level
-    flag like ``_INVENTORY_AGENT_STUBBED = True``.
-  * The matching solution file is a full drop-in replacement with
-    the same flag set to ``False`` (wired state).
-  * After ``cp solutions/... live/...``, the module still imports,
-    the flag is ``False``, and the system works.
+The 60-minute Builder's Session has one coding exercise:
+``floor_check`` inside ``services/agent_tools.py``. The specialist
+agents are pre-applied by bootstrap; the copy solution is a full
+agent_tools drop-in with the same public tools and a wired
+``floor_check`` body.
 
 What this test enforces
 -----------------------
@@ -31,13 +27,9 @@ For every ``(live_path, solution_path)`` pair:
 
   1. Both files exist.
   2. Both files parse as valid Python (``ast.parse`` smoke).
-  3. If the live file declares a ``*_STUBBED`` flag, the solution
-     declares the SAME flag (same name) set to ``False``.
-  4. The live file declares the flag set to ``True`` (stubbed by
-     default — participants flip it).
-  5. Both files import cleanly without raising.
-  6. The solution file is self-contained — no references to
-     ``solutions/`` paths that wouldn't exist after a ``cp``.
+  3. Live/builder-preapply ``floor_check`` keeps the starter stub.
+  4. The inventory solution keeps the ``product_query`` signature and
+     calls ``BusinessLogic.floor_check(product_query=...)``.
 
 Scope table
 -----------
@@ -74,28 +66,16 @@ _SOLUTIONS = _REPO_ROOT / "solutions"
 
 _PAIRS = [
     (
-        "stock-keeper-agent",
-        _BACKEND / "agents" / "stock_keeper.py",
-        _SOLUTIONS / "module2" / "agents" / "stock_keeper.py",
-        "_INVENTORY_AGENT_STUBBED",
-    ),
-    (
-        "experience-guide-agent",
-        _BACKEND / "agents" / "experience_guide.py",
-        _SOLUTIONS / "module2" / "agents" / "experience_guide.py",
-        "_SUPPORT_AGENT_STUBBED",
-    ),
-    (
         "stock-keeper-tools",
         _BACKEND / "services" / "agent_tools.py",
-        _SOLUTIONS / "module2" / "services" / "agent_tools__inventory.py",
-        None,  # No module-level flag; workshop tracks progress via CHALLENGE markers.
+        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_floor_check_solution.py",
+        None,
     ),
     (
         "stock-keeper-tools-builders-preapply",
         _BACKEND / "services" / "agent_tools.py",
-        _SOLUTIONS / "module2" / "services" / "agent_tools__builders_preapply.py",
-        None,  # Variant used by the CloudFormation UserData for the Builder's Session.
+        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py",
+        None,
     ),
 ]
 
@@ -259,3 +239,36 @@ def test_live_file_has_challenge_markers(
         f"{live_path.relative_to(_REPO_ROOT)}. Participants need a "
         f"visual anchor to find the build site."
     )
+
+
+def _function_source(path: Path, function_name: str) -> str:
+    tree = ast.parse(path.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            return ast.get_source_segment(path.read_text(), node) or ""
+    raise AssertionError(f"{function_name} not found in {path.relative_to(_REPO_ROOT)}")
+
+
+def test_floor_check_builder_contract() -> None:
+    """The live Builder file stays stubbed; the copy solution is wired."""
+    live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "floor_check")
+    preapply_src = _function_source(
+        _SOLUTIONS
+        / "closing-marcos-gap"
+        / "services"
+        / "agent_tools_builders_preapply.py",
+        "floor_check",
+    )
+    solution_src = _function_source(
+        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_floor_check_solution.py",
+        "floor_check",
+    )
+
+    assert "product_query: str = \"\"" in live_src
+    assert "floor_check is in stub state" in live_src
+    assert "product_query: str = \"\"" in preapply_src
+    assert "floor_check is in stub state" in preapply_src
+
+    assert "product_query: str = \"\"" in solution_src
+    assert "floor_check is in stub state" not in solution_src
+    assert "logic.floor_check(product_query=query)" in solution_src

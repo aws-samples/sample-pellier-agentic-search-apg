@@ -47,6 +47,29 @@ interface ToolAuditRow {
   created_at: string;
 }
 
+const DARK_CODE_BLOCK: React.CSSProperties = {
+  fontFamily: 'var(--dl-font-mono)',
+  fontSize: '12.5px',
+  lineHeight: 1.6,
+  background: 'var(--dl-ink)',
+  color: 'var(--dl-accent-soft)',
+  borderRadius: 'var(--dl-r-lg)',
+  border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
+  padding: '14px 16px',
+  overflow: 'auto',
+  margin: 0,
+  whiteSpace: 'pre-wrap',
+};
+
+const DARK_INLINE_CODE: React.CSSProperties = {
+  fontFamily: 'var(--dl-font-mono)',
+  fontSize: '11.5px',
+  background: 'var(--dl-ink)',
+  color: 'var(--dl-accent-soft)',
+  borderRadius: '6px',
+  padding: '3px 7px',
+};
+
 /* -----------------------------------------------------------------------
  * Two-layer enforcement diagram
  *
@@ -282,14 +305,8 @@ const PoliciesCard: React.FC = () => {
               </div>
               <pre
                 style={{
-                  fontFamily: 'var(--at-mono)',
+                  ...DARK_CODE_BLOCK,
                   fontSize: '12px',
-                  background: 'var(--at-cream-2)',
-                  padding: '10px 12px',
-                  borderRadius: '4px',
-                  overflowX: 'auto',
-                  margin: 0,
-                  color: 'var(--at-ink-1)',
                 }}
               >
                 {p.cedar}
@@ -415,7 +432,7 @@ const ToolAuditCard: React.FC = () => {
                     }}
                     title={JSON.stringify(r.args)}
                   >
-                    {JSON.stringify(r.args)}
+                    <code style={DARK_INLINE_CODE}>{JSON.stringify(r.args)}</code>
                   </td>
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--at-card-border)' }}>
                     {r.latency_ms ?? '—'}

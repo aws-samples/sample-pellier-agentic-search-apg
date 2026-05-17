@@ -67,7 +67,7 @@ export const EVALUATION_METRICS: EvaluationMetric[] = [
       'How high does the first relevant product appear? Averaged as 1/rank across queries (1.0 = always rank 1).',
     formula: 'mean(1 ÷ rank of first relevant hit)',
     catches:
-      'Right answer buried on page two — common when BM25 and vector disagree and rerank is off.',
+      'Right answer buried on page two — common when Postgres FTS and vector disagree and rerank is off.',
     pellierExample:
       'Compare MRR for vector-only vs hybrid+rerank on the same 50 boutique queries; a +0.15 MRR often matters more than a prettier prose answer.',
     measuredVia: ['Labeled search benchmarks', 'Performance search-strategy compare'],

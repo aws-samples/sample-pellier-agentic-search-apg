@@ -29,15 +29,21 @@ Flip to the Atelier tab. In the sidebar, click **Sessions**, then `marco-opening
 
 ---
 
-## Part 2 · Read the model-mix sidebar (2 minutes, solo)
+## Part 2 · Read the model mix (2 minutes, solo)
 
-The most important 2 minutes of the day. Open:
+The most important 2 minutes of the day: Pellier does **not** use one
+global model default.
 
-`lab-content/shared/model-mix-sidebar.en.md`
+- **Style Advisor** and **Curator** use Opus 4.6 at 0.4 because their
+  job is editorial.
+- **Value Analyst** and **Stock Keeper** use Haiku 4.5 at 0.1 / 0.0
+  because their job is to report.
+- **Experience Guide** uses Opus at 0.2 because return handling needs
+  warmth, but policy language needs steadiness.
+- **Orchestrator** and **SkillRouter** use Haiku at 0.0 because
+  classification wants determinism.
 
-Read it through once. Come back.
-
-Back? Now open `pellier/backend/config.py` and confirm the inference profiles:
+Now open `pellier/backend/config.py` and confirm the inference profiles:
 
 ```python
 # Editorial specialists — Style Advisor, Curator, Experience Guide
@@ -113,12 +119,12 @@ Open the Atelier Performance page. Value Analyst's latency bar just jumped from 
 
 Marco's Style Advisor runs on **plain pgvector cosine** — meaning-based search, top 5. That's the workshop's first Aurora capability. The next persona, **Anna**, anchors a different one: **hybrid retrieval with reranking**.
 
-Why? Because Anna's queries aren't clean. She doesn't say "find me a candle"; she says *"something thoughtful that arrives ready to give"* or *"wrap-ready gifts with no extra effort"*. The embedding catches "thoughtful" as a vibe; it doesn't catch "wrap-ready" as a literal lookup against the catalog's product descriptions. **Postgres' BM25 over a tsvector does.**
+Why? Because Anna's queries aren't clean. She doesn't say "find me a candle"; she says *"something thoughtful that arrives ready to give"* or *"wrap-ready gifts with no extra effort"*. The embedding catches "thoughtful" as a vibe; it doesn't catch "wrap-ready" as a literal lookup against the catalog's product descriptions. **Postgres FTS over a tsvector does.**
 
 Anna's Curator runs on `find_pieces_hybrid`:
 
 1. **Vector branch** — pgvector cosine, k=20.
-2. **BM25 branch** — `to_tsquery` against a `tsvector` column generated from `name + brand + category + color + tags + description` with weighted contributions. Query is OR-joined from content tokens (see `_build_or_tsquery` in `services/hybrid_search.py`).
+2. **Postgres FTS branch** — `to_tsquery` against a `tsvector` column generated from `name + brand + category + color + tags + description` with weighted contributions, ranked by `ts_rank_cd`. Query is OR-joined from content tokens (see `_build_or_tsquery` in `services/hybrid_search.py`).
 3. **RRF merge** — Reciprocal Rank Fusion with k=60 produces a 30-candidate union pool.
 4. **Cohere Rerank v3.5** — Bedrock invokes `cohere.rerank-v3-5:0` with the query + 30 documents, returns top 5.
 
@@ -128,7 +134,7 @@ Switch to **Anna** in the persona dropdown. Click her hero pill *"wrap-ready gif
 
 Now flip to `/atelier/performance`. Scroll to the **Search strategy comparison** card. Type the same query in the input and click **Run on Aurora**. The card runs all three strategies — vector only, hybrid (RRF), hybrid + rerank — against the live catalog and shows you the top-5 mix per row. Watch the ranking shift between rows: vector-only puts certain pieces first; hybrid+rerank reorders meaningfully (Cohere reads "no extra effort" and pulls in pieces neither retrieval branch ranked highly).
 
-That's the second-capability teaching moment: **vector finds meaning, BM25 finds literals, Cohere reads intent shape, RRF merges them honestly**.
+That's the second-capability teaching moment: **vector finds meaning, Postgres FTS finds literals, Cohere reads intent shape, RRF merges them honestly**.
 
 ### The Postgres FTS gotcha
 
@@ -150,4 +156,4 @@ You've observed the whole system. You've felt the model-mix lesson in your hands
 
 Next: [Module 2 · Understand](20-module2-understand.en.md)
 
-*Cross-links: [Anna's full arc](../shared/anna-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*
+*Reference: [Persona and Aurora capability spine](90-facilitator-reference.en.md)*

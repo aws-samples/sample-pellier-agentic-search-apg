@@ -17,6 +17,7 @@ import DetailPageShell from './DetailPageShell';
 import { ExpCard, CategoryBadge } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { MemoryState, MemoryItem } from '../../../types';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 /* -----------------------------------------------------------------------
  * Orbit Visualization — SVG with persona at center, STM inner ring,
@@ -189,7 +190,7 @@ const OrbitVisualization: React.FC<OrbitVisualizationProps> = ({
 
 interface TierCardProps {
   tierName: string;
-  category: 'managed' | 'both';
+  category: 'live' | 'optional';
   title: string;
   role: string;
   prose: string;
@@ -268,15 +269,7 @@ const TierCard: React.FC<TierCardProps> = ({
       {/* Code snippet */}
       <pre
         style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '14px',
-          lineHeight: 1.7,
-          color: 'var(--at-ink-1)',
-          backgroundColor: 'var(--at-cream-2)',
-          borderRadius: '8px',
-          padding: '16px 20px',
-          margin: 0,
-          overflowX: 'auto',
+          ...ARCHITECTURE_CODE_BLOCK,
           whiteSpace: 'pre',
         }}
       >
@@ -300,11 +293,11 @@ const MemoryDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="I"
+      numeral="II"
       conceptName="Memory"
-      category="both"
+      category="live"
       title="Memory, two-tiered."
-      prose="Two tiers of memory power every conversation. Short-term memory (STM) holds the current session context — intents, turns, fresh items. Long-term memory (LTM) stores preferences, order history, and behavioral patterns in Aurora pgvector for semantic recall across sessions."
+      prose="Memory keeps the persona story coherent. Short-term memory stores recent turns under a strict session namespace; long-term preferences and order-history facts are recalled when the specialist needs customer context. The workshop can use AgentCore Memory or the local fallback, but the namespace contract stays the same."
       seeInBoutique={{
         href: '/?ask=Pick+up+where+I+left+off',
         label: 'See memory.recall fire on the storefront',
@@ -356,10 +349,10 @@ const MemoryDetail: React.FC = () => {
           >
             <TierCard
               tierName="STM · Short-Term"
-              category="managed"
+              category="optional"
               title="Session context"
               role="Ephemeral, session-scoped conversation state"
-              prose="Conversation state managed by AgentCore. Last twelve turns, in order, fully read on every request. Cheap and bounded — the agent reads STM first on every turn."
+              prose="Session-scoped conversation state. In provisioned runs this uses AgentCore Memory; in local workshop runs it falls back to an in-process store with the same namespace shape."
               codeSnippet={`# STM — session-scoped via AgentCore Memory
 await memory.store(session_id, turn_context)
 
@@ -369,10 +362,10 @@ stm = session.get(limit=12)
             />
             <TierCard
               tierName="LTM · Long-Term"
-              category="both"
+              category="live"
               title="Semantic recall"
               role="Persistent cross-session memory via pgvector"
-              prose="Persistent memory stored in Aurora pgvector — preferences, order history, and behavioral patterns recalled via semantic similarity. Queried only when the turn earns the latency."
+              prose="Persistent persona context — preferences, order history, and behavioral patterns. The specialist receives this as grounding context when the turn earns the latency."
               codeSnippet={`# LTM — pgvector semantic recall
 SELECT content,
        1 - (embedding <=> $1) AS similarity

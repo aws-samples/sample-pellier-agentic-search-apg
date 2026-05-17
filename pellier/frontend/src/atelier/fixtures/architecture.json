@@ -1,74 +1,74 @@
 [
   {
     "numeral": "I",
-    "category": "both",
-    "title": "Memory",
-    "role": "Ephemeral and persistent recall",
-    "description": "Two-tier memory system: STM for session-scoped conversation state managed by AgentCore, and LTM for cross-session semantic recall stored in Aurora pgvector. Memory enables personalization, context continuity, and preference learning.",
-    "codeSnippet": "# STM — session-scoped via AgentCore Memory\nawait memory.store(session_id, turn_context)\n\n# LTM — pgvector semantic recall\nSELECT content, 1 - (embedding <=> $1) AS similarity\nFROM memory_items\nWHERE persona_id = $2 AND tier = 'ltm'\nORDER BY embedding <=> $1 LIMIT 5;",
-    "slug": "memory"
+    "category": "live",
+    "title": "Grounding",
+    "role": "Factual anchoring via Aurora PostgreSQL",
+    "description": "The live Boutique path grounds recommendations in Aurora data: product_catalog for products, inventory/quantity fields for availability, return policy tables for support, and pgvector/FTS for retrieval.",
+    "codeSnippet": "# Ground a recommendation in catalog rows\nSELECT product_id, name, brand, price, quantity\nFROM product_catalog\nWHERE quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 5;",
+    "slug": "grounding"
   },
   {
     "numeral": "II",
-    "category": "managed",
-    "title": "MCP",
-    "role": "Model Context Protocol gateway",
-    "description": "AgentCore MCP Gateway provides a standardized protocol for tool discovery and invocation. Tools are registered with semantic embeddings, enabling the orchestrator to discover relevant tools via natural-language queries rather than hardcoded routing.",
-    "codeSnippet": "# MCP tool discovery via AgentCore Gateway\ngateway = MCPGateway(endpoint=settings.MCP_ENDPOINT)\ntools = await gateway.discover(\n    query=\"find products matching user intent\",\n    limit=5\n)",
-    "slug": "mcp"
+    "category": "live",
+    "title": "Memory",
+    "role": "Session continuity and preference recall",
+    "description": "Short-term memory keeps recent turns scoped by session namespace. Long-term preference facts are tied to a persona/customer and surfaced as context for the specialist, with an in-memory fallback when AgentCore Memory is not provisioned.",
+    "codeSnippet": "# STM — namespace-scoped session history\nawait memory.append_session_turn(namespace, turn)\nhistory = await memory.get_session_history(namespace)\n\n# Persistent preferences\nprefs = await memory.get_user_preferences(user_id)",
+    "slug": "memory"
   },
   {
     "numeral": "III",
-    "category": "managed",
-    "title": "State Management",
-    "role": "Conversation and agent state coordination",
-    "description": "Centralized state management coordinates conversation context, agent activation status, and routing decisions across the multi-agent system. AgentCore Runtime maintains the state graph that the orchestrator traverses.",
-    "codeSnippet": "# State transitions managed by AgentCore Runtime\nstate = {\n    'intent': classified_intent,\n    'active_agents': [search, recommend],\n    'memory_context': stm_items,\n    'routing': 'dispatcher'\n}",
-    "slug": "state-management"
+    "category": "workshop",
+    "title": "Skills",
+    "role": "Persona-specific instructions loaded per turn",
+    "description": "Three persona skills — the-packing-list, the-gift-table, and the-makers-shelf — are loaded by the SkillRouter when a turn needs persona-specific handling. They shape voice and handling, not the database contract.",
+    "codeSnippet": "# SkillRouter may load one persona skill per turn\nskills = route_skills(query, persona)\nprompt += inject_loaded_skills(skills)",
+    "slug": "skills"
   },
   {
     "numeral": "IV",
-    "category": "both",
-    "title": "Tool Registry / Gateway",
-    "role": "Semantic tool discovery and invocation",
-    "description": "Twelve tool functions registered with pgvector embeddings for semantic discovery — agents match natural-language need to the nearest tool record. HNSW indexing keeps discovery sub-millisecond.",
-    "codeSnippet": "# Register tool with embedding\nINSERT INTO tools (name, description, embedding)\nVALUES ($1, $2, $3);\n\n# Discover by semantic similarity\nSELECT name, 1 - (embedding <=> $1) AS similarity\nFROM tools ORDER BY embedding <=> $1 LIMIT 5;",
+    "category": "workshop",
+    "title": "Tool Registry",
+    "role": "Aurora pgvector tool discovery",
+    "description": "The workshop uses an Aurora tool registry as a teaching surface: tool descriptions are embedded, searched with pgvector, and shown beside Gateway discovery. The live Boutique path still calls in-process Strands tools unless the optional Gateway path is configured.",
+    "codeSnippet": "# Discover tools by semantic similarity in Aurora\nSELECT name, 1 - (embedding <=> $1) AS similarity\nFROM tools\nORDER BY embedding <=> $1\nLIMIT 5;",
     "slug": "tool-registry"
   },
   {
     "numeral": "V",
-    "category": "teaching",
-    "title": "Skills",
-    "role": "Persona-routed runtime capabilities",
-    "description": "Three persona-resident skills — ``the-packing-list`` (Marco), ``the-gift-table`` (Anna), ``the-makers-shelf`` (Theo) — injected when the SkillRouter (Claude Haiku 4.5) binds a turn's query to persona context.",
-    "codeSnippet": "# SkillRouter may load one persona skill per turn\n# e.g. the-packing-list | the-gift-table | the-makers-shelf\nskills = router.route_turn(query, persona_context)\nprompt += inject_loaded_skills(skills)",
-    "slug": "skills"
+    "category": "live",
+    "title": "Routing & State",
+    "role": "Dispatcher-first request flow",
+    "description": "The production Boutique path uses deterministic routing in services/chat.py: triage, intent classification, optional skill routing, then one owning specialist/tool path. The Agents-as-Tools orchestrator is a separate teaching pattern, not the default storefront runtime.",
+    "codeSnippet": "# Boutique default path\nintent = classify_intent(query)\nskills = route_skills(query, persona)\nreturn await run_dispatcher_pattern(intent, skills, query)",
+    "slug": "state-management"
   },
   {
     "numeral": "VI",
-    "category": "managed",
-    "title": "Runtime",
-    "role": "AgentCore execution environment",
-    "description": "AgentCore Runtime provides the execution environment for all agents — model invocation, tool orchestration, memory access, and observability hooks. It manages the lifecycle from intent classification through response composition.",
-    "codeSnippet": "# AgentCore Runtime initialization\nfrom bedrock_agentcore import Runtime\n\nruntime = Runtime(\n    agents=[search, recommend, pricing],\n    memory=memory_service,\n    gateway=mcp_gateway,\n    telemetry=otel_exporter\n)",
+    "category": "optional",
+    "title": "Runtime Envelope",
+    "role": "Execution environment and workshop runtime pattern",
+    "description": "Runtime is the managed envelope around execution: model calls, memory, Gateway, and observability. In this codebase, the default Boutique flow is implemented in the app service layer; AgentCore Runtime concepts are surfaced as workshop infrastructure and deployment patterns.",
+    "codeSnippet": "# App-layer runtime shape\nrequest → triage → dispatcher → specialist/tool → SSE telemetry\n\n# Managed runtime is introduced as the deployment envelope\n# around the same agent/tool contracts.",
     "slug": "runtime"
   },
   {
     "numeral": "VII",
-    "category": "owned",
-    "title": "Evaluations",
-    "role": "Agent quality measurement and tracking",
-    "description": "Evaluation scorecards measure agent accuracy, latency percentiles, and citation rates. Version-over-version trends track quality improvements as agents are refined. Each evaluation recipe tests a specific capability.",
-    "codeSnippet": "# Evaluation scorecard structure\nscorecard = {\n    'agent': 'Search',\n    'accuracy': 0.94,\n    'latency_p50': 340,\n    'latency_p95': 620,\n    'citation_rate': 0.88\n}",
-    "slug": "evaluations"
+    "category": "optional",
+    "title": "MCP Gateway",
+    "role": "Optional managed tool gateway",
+    "description": "AgentCore Gateway exposes the tool surface over MCP when AGENTCORE_GATEWAY_URL is configured. Without that setting, Pellier deliberately falls back to in-process tools while still showing the Aurora tool registry as a teaching comparison.",
+    "codeSnippet": "# Optional Gateway path\nif settings.AGENTCORE_GATEWAY_URL:\n    agent = create_gateway_orchestrator()\nelse:\n    agent = create_in_process_dispatcher()",
+    "slug": "mcp"
   },
   {
     "numeral": "VIII",
-    "category": "both",
-    "title": "Grounding",
-    "role": "Factual anchoring via Aurora PostgreSQL",
-    "description": "All agent responses are grounded in data from Aurora PostgreSQL — product catalog, pricing, inventory, and return policies. pgvector embeddings enable semantic grounding, ensuring recommendations are factually anchored rather than hallucinated.",
-    "codeSnippet": "# Grounding query — verify product exists\nSELECT id, name, price, in_stock\nFROM product_catalog\nWHERE id = $1;\n\n# Semantic grounding — find related facts\nSELECT content FROM knowledge_base\nWHERE embedding <=> $1 < 0.3;",
-    "slug": "grounding"
+    "category": "quality",
+    "title": "Evaluations",
+    "role": "Quality checks and capability scorecards",
+    "description": "Evaluation cards are the owned quality layer: latency, relevance, grounding, and scenario checks for the three workshop capabilities. They are not the request path; they are how the team decides whether a path is worth shipping.",
+    "codeSnippet": "# Evaluation scorecard shape\nscorecard = {\n    'capability': 'hybrid + rerank',\n    'recall_at_5': 0.94,\n    'latency_p50_ms': 720,\n    'grounded': true\n}",
+    "slug": "evaluations"
   }
 ]

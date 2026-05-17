@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 #   restock_shelf, side_by_side, returns_and_care
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
+#    cp solutions/the-paper-trail/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
 # The 9 tool names exposed by the gateway, in stable order. Tests assert
 # discovery returns exactly this set by exact name (workshop-content.md).

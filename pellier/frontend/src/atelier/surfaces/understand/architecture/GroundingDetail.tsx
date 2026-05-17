@@ -13,6 +13,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK, ARCHITECTURE_CODE_BLOCK_COMPACT } from './codeStyles';
 
 const GroundingDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -23,11 +24,11 @@ const GroundingDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="VIII"
+      numeral="I"
       conceptName="Grounding"
-      category="both"
+      category="live"
       title="Grounding, factual."
-      prose="All agent responses are grounded in data from Aurora PostgreSQL — product catalog, pricing, inventory, and return policies. pgvector embeddings enable semantic grounding, ensuring recommendations are factually anchored rather than hallucinated."
+      prose="The live Boutique path grounds recommendations in Aurora PostgreSQL: catalog rows, inventory quantities, return policy data, and pgvector/FTS retrieval. The point is not a generic knowledge base; it is product facts the UI can verify."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -35,15 +36,15 @@ const GroundingDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'Semantic grounding uses pgvector to find related facts. The embedding decides what\'s relevant — prices, availability, return policies.',
+          text: 'Semantic grounding uses pgvector and Postgres FTS to find relevant catalog rows. Prices, quantities, and policies still come from structured Aurora data.',
         },
         {
           numeral: 'iii.',
-          text: 'Grounding is the difference between a helpful agent and a hallucinating one. Aurora is the source of truth.',
+          text: 'Grounding is what keeps the assistant from inventing products. Aurora is the source of truth; model prose is the presentation layer.',
         },
       ]}
       liveState={{
-        label: 'Current grounding state. Shows the data sources the agent uses to anchor its responses in facts.',
+        label: 'Current grounding state. Shows the Aurora-backed sources the assistant uses to anchor responses in facts.',
         values: [
           { label: 'Products', value: '444' },
           { label: 'Embeddings', value: '1024d' },
@@ -62,9 +63,10 @@ const GroundingDetail: React.FC = () => {
               <SectionLabel label="Data sources" />
               <h3 style={titleStyle}>Four tables, one truth.</h3>
               <p style={proseStyle}>
-                The agent grounds every response in four Aurora PostgreSQL tables: product catalog
-                (names, prices, descriptions), inventory (stock levels), return policies (rules
-                and conditions), and the knowledge base (semantic facts via pgvector).
+                The assistant grounds shopper-facing answers in Aurora PostgreSQL data: product
+                catalog rows, inventory quantities, return policies, and the tool registry used
+                by workshop discovery. Retrieval finds candidates; structured columns keep the
+                answer factual.
               </p>
             </div>
           </ExpCard>
@@ -73,8 +75,8 @@ const GroundingDetail: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <SourceCard
               name="product_catalog"
-              description="444 products with names, brands, prices, descriptions, tags, and 1024-dim Cohere Embed v4 vectors."
-              query="SELECT id, name, price, in_stock FROM product_catalog WHERE id = $1;"
+              description="Products with names, brands, prices, descriptions, tags, quantities, and 1024-dim Cohere Embed v4 vectors."
+              query="SELECT product_id, name, brand, price, quantity FROM product_catalog WHERE product_id = $1;"
             />
             <SourceCard
               name="return_policies"
@@ -82,13 +84,13 @@ const GroundingDetail: React.FC = () => {
               query="SELECT policy_text FROM return_policies WHERE category = $1;"
             />
             <SourceCard
-              name="knowledge_base"
-              description="Semantic facts stored with pgvector embeddings. The agent queries by similarity to find relevant context."
-              query="SELECT content FROM knowledge_base WHERE embedding <=> $1 < 0.3;"
+              name="description_tsv + embedding"
+              description="Hybrid retrieval uses pgvector for meaning and Postgres FTS for literal terms before optional rerank."
+              query="SELECT name, ts_rank_cd(description_tsv, $1) AS text_rank FROM product_catalog WHERE description_tsv @@ $1;"
             />
             <SourceCard
               name="tools (registry)"
-              description="9 tool functions with semantic embeddings. Agents discover tools by describing what they need."
+              description="Aurora-backed teaching surface for tool discovery; optional Gateway can publish the same tool surface over MCP."
               query="SELECT name, similarity FROM tools ORDER BY embedding <=> $1 LIMIT 5;"
             />
           </div>
@@ -130,13 +132,7 @@ const SourceCard: React.FC<{
       </p>
       <pre
         style={{
-          fontFamily: 'var(--at-mono)',
-          fontSize: '11px',
-          color: 'var(--at-ink-1)',
-          backgroundColor: 'var(--at-cream-2)',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          margin: 0,
+          ...ARCHITECTURE_CODE_BLOCK_COMPACT,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
         }}
@@ -166,9 +162,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default GroundingDetail;

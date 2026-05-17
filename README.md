@@ -73,9 +73,19 @@ the backend with `--reload` and rebuild the frontend on save.
 cp pellier/backend/.env.example pellier/backend/.env
 # edit DB_HOST, DB_USER, DB_PASSWORD, AWS_REGION, BEDROCK_*
 
-# 2. Apply schema + seed 40-product catalog (one-time)
-psql -f scripts/migrations/000_pellier_schema.sql
+# 2. Apply schema + seed 40-product catalog + required workshop tables (one-time)
+psql -f scripts/migrations/001_schema.sql
 python3 scripts/seed_boutique_catalog.py
+for migration in \
+  002_workshop_telemetry.sql \
+  003_persona_seed.sql \
+  004_anna_hybrid_search.sql \
+  005_theo_returns.sql \
+  006_warehouse_inventory.sql \
+  007_chat_session_tables.sql
+do
+  psql -v ON_ERROR_STOP=1 -f "scripts/migrations/$migration"
+done
 
 # 3. Backend
 cd pellier/backend
@@ -196,17 +206,16 @@ sample-pellier-agentic-search-apg/
 │   └── the-paper-trail/                     Module 3 (AgentCore production)
 │
 ├── scripts/
-│   ├── migrations/000_pellier_schema.sql    Schema + extension + HNSW index
+│   ├── migrations/001_schema.sql            Schema + extension + HNSW index
 │   ├── seed_boutique_catalog.py             40 products with Cohere embeddings
 │   ├── bootstrap-environment.sh             Code Editor + nginx + systemd
 │   └── bootstrap-labs.sh                    DB seed + frontend build + service start
 │
-├── infrastructure/                        CloudFormation source of truth
-│   └── pellier-{vpc,database,cognito,code-editor,labs,workshop,builders}.yml
-│
-└── lab-content/                           Workshop Studio packaging mirrors
+└── lab-content/                           Workshop Studio content + CFN
     ├── workshop/                            120-min re:Invent bundle
-    └── builders/                            60-min DC Summit bundle (symlinks)
+    │   └── static/                          Workshop CloudFormation source
+    └── builders/                            60-min DC Summit bundle
+        └── static/                          Builder CloudFormation source
 ```
 
 ---

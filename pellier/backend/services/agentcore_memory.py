@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 #     user:{user_id}:preferences            persistent prefs
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
+#    cp solutions/the-paper-trail/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
 
 # Process-local fallback store. Keyed by the raw namespace string so
 # ``anon:{sid}`` and ``user:{uid}:session:{sid}`` are physically

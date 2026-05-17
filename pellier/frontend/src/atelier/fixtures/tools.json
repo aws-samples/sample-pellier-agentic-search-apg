@@ -13,7 +13,7 @@
   {
     "numeral": 2,
     "functionName": "find_pieces_hybrid",
-    "description": "Hybrid pgvector + Postgres BM25 + Cohere Rerank v3.5. Anna's anchor capability — vector and BM25 run in parallel, RRF merges, Cohere reranks the top 30 to top 5.",
+    "description": "Hybrid pgvector + Postgres FTS + Cohere Rerank v3.5. Anna's anchor capability — vector and tsvector/ts_rank_cd run in parallel, RRF merges, Cohere reranks the top 30 to top 5.",
     "status": "shipped",
     "mutationType": "read",
     "signature": "find_pieces_hybrid(query, max_price, min_rating, category, limit) -> str",

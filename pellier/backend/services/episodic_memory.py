@@ -132,7 +132,7 @@ async def emit_memory_episodic_panel(
     if not rows:
         meta = (
             f'no seed rows for {ctx.customer_id} — '
-            'run <code>psql -f scripts/migrations/003_workshop_episodic_seed.sql</code>'
+            'run <code>psql -f scripts/migrations/003_persona_seed.sql</code>'
         )
 
     ctx.emit_panel(

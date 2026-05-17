@@ -37,7 +37,7 @@ Key design choices (Req 4.3):
     at sign-in. The anon namespace is left orphaned and reclaimed by
     AgentCore Memory's TTL sweep.
 
-The workshop ``solutions/module3/services/agentcore_identity.py`` file
+The workshop ``solutions/the-paper-trail/services/agentcore_identity.py`` file
 mirrors the CHALLENGE 9.2 block below byte-for-byte (enforced by Task
 7.4).
 """
@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 #     anon:{session_id}                     anonymous sessions
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module3/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
+#    cp solutions/the-paper-trail/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
 
 SESSION_ID_HEADER = "X-Session-Id"
 SESSION_ID_COOKIE = "session_id"

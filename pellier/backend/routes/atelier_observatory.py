@@ -149,7 +149,7 @@ def _tool_discovery_status(tool_name: str) -> str:
 
 
 def _floor_check_is_workshop_stub() -> bool:
-    """True when the workshop stub body is still in live ``agent_tools.floor_check``."""
+    """True when the live ``floor_check`` body still returns the starter stub."""
     try:
         import inspect
         from services import agent_tools
@@ -157,9 +157,9 @@ def _floor_check_is_workshop_stub() -> bool:
         src = inspect.getsource(agent_tools.floor_check)
     except Exception:
         return True
-    if "WORKSHOP_EXERCISE_STUB" in src:
-        return True
     if "floor_check is in stub state" in src:
+        return True
+    if "received_product_query" in src:
         return True
     return False
 

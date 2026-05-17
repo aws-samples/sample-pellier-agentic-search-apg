@@ -40,7 +40,7 @@ from boutique_copy import ORCHESTRATOR_SYSTEM_PROMPT
 # by the system prompt in boutique_copy.ORCHESTRATOR_SYSTEM_PROMPT.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/module2/agents/orchestrator.py pellier/backend/agents/orchestrator.py
+#    cp solutions/closing-marcos-gap/agents/orchestrator.py pellier/backend/agents/orchestrator.py
 
 ORCHESTRATOR_PROMPT = ORCHESTRATOR_SYSTEM_PROMPT
 

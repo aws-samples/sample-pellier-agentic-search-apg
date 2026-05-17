@@ -469,20 +469,22 @@ THE FIVE AGENTS
   Experience Guide agents/experience_guide.py   Returns + support
 
 WORKFLOW
-  1. Open the target file (look for # === CHALLENGE N: START ===)
-  2. Implement between the markers
-  3. Save - uvicorn restarts automatically
-  4. Test in the storefront
+  1. Open pellier/backend/services/agent_tools.py
+  2. Search for CHALLENGE · Stock Keeper · floor_check
+  3. Implement between the markers
+  4. Save - uvicorn restarts automatically
+  5. Test Marco Turn 4 in the storefront and Atelier
 
 SHORT ON TIME?
-  cp solutions/<module>/path/file.py pellier/backend/path/file.py
+  cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
+     pellier/backend/services/agent_tools.py
 
 ═══════════════════════════════════════════════════════════════════
 
 EOF
 
-# Auto-open the main backend services file participants will edit first
-code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/hybrid_search.py 2>/dev/null || true
+# Auto-open the one file participants edit in the Builder's Session.
+code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/agent_tools.py 2>/dev/null || true
 
 # Exit cleanly so task completes
 exit 0
@@ -687,7 +689,7 @@ if [ ! -z "${STAGE2_SCRIPT_URL}" ]; then
         export REPO_URL='${REPO_URL:-https://github.com/aws-samples/sample-pellier-agentic-search-apg.git}' && \
         export DB_SECRET_ARN='${DB_SECRET_ARN:-}' && \
         export DB_CLUSTER_ENDPOINT='${DB_CLUSTER_ENDPOINT:-}' && \
-        export DB_NAME='${DB_NAME:-postgres}' && \
+        export DB_NAME='${DB_NAME:-pellier}' && \
         export AWS_REGION='$AWS_REGION' && \
         export BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v4:0}' && \
         export BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}' && \

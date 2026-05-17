@@ -14,6 +14,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 const SkillsDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -24,9 +25,9 @@ const SkillsDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="V"
+      numeral="III"
       conceptName="Skills"
-      category="teaching"
+      category="workshop"
       title="Skills, persona-routed."
       prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under pellier/backend/skills/; they are not separate agents."
       cheatSheet={[
@@ -166,9 +167,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default SkillsDetail;

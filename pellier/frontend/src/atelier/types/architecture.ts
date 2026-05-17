@@ -8,7 +8,7 @@
 
 export interface ArchitectureConcept {
   numeral: string;
-  category: 'both' | 'managed' | 'owned' | 'teaching';
+  category: 'live' | 'workshop' | 'optional' | 'quality';
   title: string;
   role: string;
   description: string;

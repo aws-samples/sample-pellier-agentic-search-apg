@@ -76,11 +76,11 @@ def build_recommendation_agent() -> Agent:
     # skills shape voice. Warm model, warm temperature.
     #
     # Tool-grant note: the Curator gets ``find_pieces_hybrid`` (Anna's
-    # anchor capability — pgvector + BM25 + Cohere Rerank). Other
+    # anchor capability — pgvector + Postgres FTS + Cohere Rerank). Other
     # specialists (Style Advisor, Value Analyst, Experience Guide)
     # stay on plain ``find_pieces``: they need the simpler tool for
     # fall-through on price / availability / support queries where
-    # BM25 + rerank don't earn their cost. The Curator is uniquely
+    # FTS + rerank don't earn their cost. The Curator is uniquely
     # the right home for the hybrid pipeline because recommendation
     # queries blend soft semantic intent ("something beautiful") with
     # literal constraints ("under $100", "for a home office") — the
@@ -115,7 +115,7 @@ def recommendation(query: str) -> str:
         Agent response with product recommendations
 
     ⏩ SHORT ON TIME? Run:
-       cp solutions/module2/agents/curator.py pellier/backend/agents/curator.py
+       cp solutions/closing-marcos-gap/agents/curator.py pellier/backend/agents/curator.py
     """
     try:
         tool_results = []

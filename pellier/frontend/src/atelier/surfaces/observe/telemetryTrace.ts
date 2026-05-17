@@ -18,16 +18,16 @@ export function parseTelemetryPanelIndex(ref: string | undefined | null): number
   return null;
 }
 
-/** Hero pick: last product from the first assistant recommendation turn. */
+/** Hero pick: first product from the first assistant recommendation turn. */
 export function getTopPickProduct(session: SessionDetail): ProductCard | null {
   const firstRec = session.chat.find(
     (t) => t.role === 'assistant' && t.products && t.products.length > 0,
   );
   if (firstRec?.products?.length) {
-    return firstRec.products[firstRec.products.length - 1];
+    return firstRec.products[0];
   }
   if (session.brief?.products?.length) {
-    return session.brief.products[session.brief.products.length - 1];
+    return session.brief.products[0];
   }
   return null;
 }

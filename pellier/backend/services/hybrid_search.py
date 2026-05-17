@@ -3,17 +3,17 @@ Hybrid Search Service — pgvector + Postgres full-text + RRF.
 
 Anna's anchor capability on the workshop's Aurora ladder:
     Marco  → pgvector cosine similarity (foundation)
-    Anna   → vector + BM25 in parallel → RRF merge → Cohere Rerank v3.5
+    Anna   → vector + Postgres FTS in parallel → RRF merge → Cohere Rerank v3.5
     Theo   → Aurora as agent system-of-record (writes + audit)
 
 Why hybrid? Pure cosine struggles when the query carries a mix of
 soft semantic intent and hard explicit constraints — e.g. Anna's T2
 "something beautiful under $100". The embedding sees "beautiful" as a
-vibe and "$100" as a fuzzy number; BM25 over name/brand/category/tags
-catches "beautiful" as a literal token and the agent's max_price hint
-filters by the actual number. Each modality contributes what it's
-best at; RRF (Reciprocal Rank Fusion) merges the two ranked lists
-without needing the score scales to be comparable.
+vibe and "$100" as a fuzzy number; Postgres full-text search over
+name/brand/category/tags catches literal tokens and the agent's
+max_price hint filters by the actual number. Each modality contributes
+what it's best at; RRF (Reciprocal Rank Fusion) merges the two ranked
+lists without needing the score scales to be comparable.
 
 The RRF formula is intentionally simple:
     score(d) = sum over each list L : 1 / (rrf_k + rank_L(d))
@@ -26,7 +26,7 @@ a tail-of-list match doesn't drown out a head-of-list match.
 This service does NOT call Bedrock. The caller passes an
 already-computed embedding; reranking is a separate service
 (services/rerank.py) so the failure modes stay decoupled — a bad
-embedding doesn't bring down BM25; a Bedrock outage doesn't bring
+embedding doesn't bring down FTS; a Bedrock outage doesn't bring
 down hybrid retrieval.
 """
 from __future__ import annotations
@@ -67,18 +67,18 @@ class HybridSearch:
         top_n: int = 30,
     ) -> List[Dict[str, Any]]:
         """
-        Run vector + BM25 in parallel, RRF-merge, return top_n candidates.
+        Run vector + Postgres FTS in parallel, RRF-merge, return top_n candidates.
 
         The two SQL queries run concurrently via ``asyncio.gather``; this
         gives Anna's path the same wall-clock latency as a single query
         on a warm cache (both indexes — HNSW + GIN — are independent).
 
         Args:
-            query: Raw user query text. Used for BM25 only.
+            query: Raw user query text. Used for FTS only.
             query_embedding: 1024-dim Cohere Embed v4 vector. Used for
                 pgvector cosine search.
             k_vector: Pool size for the vector branch (default 20).
-            k_bm25: Pool size for the BM25 branch (default 20).
+            k_bm25: Pool size for the FTS branch (default 20).
             rrf_k: RRF damping constant (default 60).
             top_n: Maximum candidates returned after fusion (default 30).
                 The downstream reranker typically asks for top_n=30 so
@@ -92,7 +92,7 @@ class HybridSearch:
         start_time = time.time()
 
         # Run both branches in parallel. asyncio.gather propagates the
-        # first exception immediately — if BM25 fails (e.g. tsvector
+        # first exception immediately — if FTS fails (e.g. tsvector
         # column missing) we surface the real error rather than silently
         # falling back to vector-only.
         vector_rows, bm25_rows = await asyncio.gather(
@@ -112,7 +112,7 @@ class HybridSearch:
             get_query_logger().queries.append(
                 QueryLog(
                     query_type="hybrid_search",
-                    sql=f"hybrid: vector(k={k_vector}) + bm25(k={k_bm25}) + rrf(k={rrf_k})",
+                    sql=f"hybrid: vector(k={k_vector}) + fts(k={k_bm25}) + rrf(k={rrf_k})",
                     params=[query, "<embedding>"],
                     execution_time_ms=elapsed_ms,
                     timestamp=datetime.now(),
@@ -133,7 +133,7 @@ class HybridSearch:
         """Pgvector cosine search, no HNSW knobs.
 
         We deliberately don't tune ``ef_search`` or enable iterative_scan
-        in the hybrid path — the BM25 branch covers the recall floor that
+        in the hybrid path — the FTS branch covers the recall floor that
         iterative_scan was designed to protect, and a smaller HNSW pool
         keeps this stage fast (the reranker is the recall amplifier).
         """
@@ -184,7 +184,7 @@ class HybridSearch:
         return results
 
     # -----------------------------------------------------------------
-    # Internal — BM25 branch
+    # Internal — Postgres FTS branch
     # -----------------------------------------------------------------
     @staticmethod
     def _build_or_tsquery(query: str) -> str:
@@ -197,12 +197,12 @@ class HybridSearch:
         someone who loves morning rituals' compiles under plainto to
         ``'thought' & 'gift' & 'someon' & 'love' & 'morn' & 'ritual'``
         — no product description in a real catalog contains all six
-        stems, so BM25 contributes nothing.
+        stems, so the FTS branch contributes nothing.
 
         The fix is to OR-join the meaningful tokens manually before
         handing the result to ``to_tsquery``. ``ts_rank_cd`` then
         rewards documents that match the most tokens AND have the
-        matched tokens close together — which is the BM25-shaped
+        matched tokens close together — the lexical ranking
         ranking we actually want.
 
         Steps:
@@ -255,7 +255,7 @@ class HybridSearch:
     async def _bm25_search(
         self, query: str, k: int,
     ) -> List[Dict[str, Any]]:
-        """Postgres full-text BM25-ish search via ts_rank_cd.
+        """Postgres full-text search via tsvector + ts_rank_cd.
 
         Note on query shape: we use ``to_tsquery`` with an OR-joined
         token string (built by ``_build_or_tsquery``) rather than
@@ -263,10 +263,10 @@ class HybridSearch:
         wrappers default to AND-of-all-stems for plain text input,
         which over-filters conversational queries to zero results.
 
-        ``ts_rank_cd`` is the cover-density variant of ts_rank — it
-        rewards documents where the matched terms are close together,
-        which approximates BM25's term-frequency saturation reasonably
-        well without Postgres needing a real BM25 extension.
+        ``ts_rank_cd`` is the cover-density variant of ts_rank. It
+        rewards documents where matched terms are close together. This
+        is not native BM25; it is the built-in Postgres lexical ranker
+        we use for catalog FTS.
 
         The ``description_tsv @@ ts_query`` predicate is index-scanned
         via the GIN index on ``description_tsv`` (migration 005).
@@ -354,7 +354,7 @@ class HybridSearch:
             if pid not in rows_by_id:
                 rows_by_id[pid] = dict(row)
 
-        # BM25 branch.
+        # FTS branch.
         for rank_zero, row in enumerate(bm25_rows):
             pid = row["product_id"]
             scores[pid] = scores.get(pid, 0.0) + 1.0 / (rrf_k + rank_zero + 1)
@@ -365,8 +365,9 @@ class HybridSearch:
             if pid not in rows_by_id:
                 rows_by_id[pid] = dict(row)
             else:
-                # Carry the BM25 score over for the cases where it's
-                # the only signal for this row's diagnostic value.
+                # Carry the lexical rank score over for diagnostics.
+                # The field name stays bm25_score for backward-compatible
+                # fixtures/tests, but the source is Postgres ts_rank_cd.
                 if "bm25_score" in row and "bm25_score" not in rows_by_id[pid]:
                     rows_by_id[pid]["bm25_score"] = row["bm25_score"]
 

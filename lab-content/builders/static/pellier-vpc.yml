@@ -262,7 +262,7 @@ Resources:
   AuroraSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Aurora - 5432 from private subnets only
+      GroupDescription: Aurora - 5432 from private subnets and Code Editor
       VpcId: !Ref VPC
       SecurityGroupEgress:
         - IpProtocol: -1

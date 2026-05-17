@@ -31,7 +31,7 @@ The following are **not** tracked here. They live in the `.claude/prompts/` play
 | Blocker spec             | What this spec needs from it                                                                                                                                    | Tasks that depend                      |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `catalog-enrichment`     | `pellier.product_catalog` table with `tags text[]` column populated per the 9-product showcase and ~444-product full catalog, 1024-dim embeddings present | 2.1, 2.2, 3.6, 3.7                     |
-| `customer-support-agent` | `customer_support_agent` Strands Agent exportable from `backend/agents/customer_support_agent.py`                                                               | 2.4 (routing wiring), 7.3 verification |
+| `customer-support-agent` | `customer_support_agent` Strands Agent exportable from `backend/agents/experience_guide.py`                                                               | 2.4 (routing wiring), 7.3 verification |
 
 Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks on `catalog-enrichment` reaching the "seeded catalog with tags" milestone.
 
@@ -71,57 +71,57 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
 - [x] 2.1 **[P0] C1: Vector search — `_vector_search` on HybridSearchService** [blocked by: `catalog-enrichment`]
   - Acceptance: Req 2.3.1–2.3.6; wraps query patterns from `database.md`.
   - Modify `pellier/backend/services/hybrid_search.py` to add `async def _vector_search(self, embedding, limit, ef_search, iterative_scan=True)` inside a `# === CHALLENGE 1: START ===` / `# === CHALLENGE 1: END ===` block with the complete solution: CTE embedding, `SET LOCAL hnsw.ef_search`, conditional `SET LOCAL hnsw.iterative_scan = 'relaxed_order'`, parameterized placeholders, `quantity > 0` filter, cosine `<=>` ordering, `1 - distance` as similarity. Call `sql_query_logger` with parameterized args only (Req 5.4.2, 5.3.3).
-  - Files: `hybrid_search.py` (modify), `solutions/module1/services/hybrid_search.py` (new drop-in mirror).
+  - Files: `hybrid_search.py` (modify), `solutions/the-quiet-search/services/hybrid_search.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_vector_search.py` — mocks psycopg; asserts the CTE shape, the two `SET LOCAL` calls with the passed values, the `iterative_scan` branch, the parameterized-only call pattern, and the `limit` bound.
-  - Done when: `POST /api/search` with `query="linen shirt"` returns ≥5 results in <500ms p95 against the seeded catalog (Req 5.1.1) and the challenge block text matches verbatim between `services/hybrid_search.py` and `solutions/module1/services/hybrid_search.py`.
+  - Done when: `POST /api/search` with `query="linen shirt"` returns ≥5 results in <500ms p95 against the seeded catalog (Req 5.1.1) and the challenge block text matches verbatim between `services/hybrid_search.py` and `solutions/the-quiet-search/services/hybrid_search.py`.
 
 - [x] 2.2 **[P0] C2: `get_trending_products` tool** [blocked by: `catalog-enrichment`]
   - Acceptance: Req 2.4.1–2.4.2 and coding-standards tool pattern.
   - **Pre-existing context:** the 9 tools listed in `workshop-content.md` steering already exist in `pellier/backend/services/agent_tools.py`. C2 wraps ONLY `get_trending_products` in a challenge block — participants delete and reimplement that one function; the other 8 tools remain as-is.
   - Modify `pellier/backend/services/agent_tools.py` by carving the existing `get_trending_products()` body into a `# === CHALLENGE 2: START/END ===` block: `@tool` decorated, `_db_service` availability check, `_run_async()` bridging, returns `json.dumps(...)`, returns `json.dumps({"error": str(e)})` on exception.
-  - Files: `agent_tools.py` (modify), `solutions/module2/services/agent_tools.py` (new drop-in mirror).
+  - Files: `agent_tools.py` (modify), `solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py` (drop-in mirror).
   - Test verification: `tests/backend/test_agent_tools.py::test_get_trending_products` — happy path returns ≥3 products as valid JSON; `_db_service=None` returns an error envelope; raised exception returns `{"error": ...}`.
   - Done when: tool callable from a REPL returns a parseable JSON string with ≥3 products.
 
 - [x] 2.3 **[P0] C3: `product_recommendation_agent` specialist** [blocked by: 2.2]
   - Acceptance: Req 2.4.3–2.4.5. **All 4 tools this agent uses (`search_products`, `get_trending_products`, `compare_products`, `get_product_by_category`) already exist in `agent_tools.py` today; no scaffolding work here for those tools — only wire them into the Strands Agent.**
-  - Modify `pellier/backend/agents/recommendation_agent.py` to define `product_recommendation_agent` inside a `# === CHALLENGE 3: START/END ===` block: `Agent(model=BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL), temperature=0.2, tools=[search_products, get_trending_products, compare_products, get_product_by_category], system_prompt=copy.RECOMMENDATION_SYSTEM_PROMPT)`.
-  - Files: `recommendation_agent.py` (modify), `solutions/module2/agents/recommendation_agent.py` (new drop-in mirror), `copy.py` (add `RECOMMENDATION_SYSTEM_PROMPT`).
+  - Modify `pellier/backend/agents/curator.py` to define `product_recommendation_agent` inside a `# === CHALLENGE 3: START/END ===` block: `Agent(model=BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL), temperature=0.2, tools=[search_products, get_trending_products, compare_products, get_product_by_category], system_prompt=copy.RECOMMENDATION_SYSTEM_PROMPT)`.
+  - Files: `curator.py` (modify), `solutions/closing-marcos-gap/agents/curator.py` (new drop-in mirror), `copy.py` (add `RECOMMENDATION_SYSTEM_PROMPT`).
   - Test verification: `tests/backend/test_c3_recommendation_relevance.py` — stubbed Bedrock returns a canned answer mentioning `Sundress in Washed Linen`; test parses the response, looks up the product's `tags`, asserts overlap with `{evening, warm, dresses, outerwear}`. Assert the Straw Tote would fail this check.
   - Done when: `"something for warm evenings out"` produces a recommendation whose tags intersect the evening/warm set (Req 2.4.5).
 
 - [x] 2.4 **[P0] C4: Multi-agent orchestrator** [blocked by: 2.3, `customer-support-agent` spec]
   - Acceptance: Req 2.4.6–2.4.8 and 4.3.1.
   - Modify `pellier/backend/agents/orchestrator.py` to define the orchestrator inside a `# === CHALLENGE 4: START/END ===` block: Haiku 4.5 model id exactly as steering specifies, `temperature=0.0`, tools list `[search_agent, product_recommendation_agent, price_optimization_agent, inventory_restock_agent, customer_support_agent]` (symbol import for the last), `system_prompt=copy.ORCHESTRATOR_SYSTEM_PROMPT` enforcing priority `pricing > inventory > support > search > recommendation`.
-  - Files: `orchestrator.py` (modify), `solutions/module2/agents/orchestrator.py` (new drop-in mirror), `copy.py` (add `ORCHESTRATOR_SYSTEM_PROMPT`).
+  - Files: `orchestrator.py` (modify), `solutions/closing-marcos-gap/agents/orchestrator.py` (new drop-in mirror), `copy.py` (add `ORCHESTRATOR_SYSTEM_PROMPT`).
   - Test verification: `tests/backend/test_orchestrator_routing.py` — five representative queries (one per specialist intent) each route to the expected specialist via stubbed Bedrock; routing is observable via span tags from `otel_trace_extractor`. Add `test_priority_order_on_ambiguous_queries` that injects a query matching both pricing and inventory and asserts pricing (higher priority) fires.
   - Done when: routing tests green, including `test_priority_order_on_ambiguous_queries`.
 
 - [x] 2.5 **[P1] C5: AgentCore Runtime migration**
   - Acceptance: Req 2.5.1 and Design "Runtime selection switch".
   - Modify `pellier/backend/services/agentcore_runtime.py` to add `async def run_agent_on_runtime(message, session_id, user_id)` inside a `# === CHALLENGE 5: START/END ===` block. Add `USE_AGENTCORE_RUNTIME: bool = False` to `backend/config.py` via `pydantic-settings`. Update `app.py` (or the `/api/agent/chat` route — created in 3.5) to branch on the env var.
-  - Files: `agentcore_runtime.py` (modify), `config.py` (modify), `solutions/module3/services/agentcore_runtime.py` (new drop-in mirror).
+  - Files: `agentcore_runtime.py` (modify), `config.py` (modify), `solutions/the-paper-trail/services/agentcore_runtime.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_runtime_switch.py` — with `USE_AGENTCORE_RUNTIME=false` the in-process Strands orchestrator handles the request; with `=true` the runtime path is called (mocked).
   - Done when: flipping `USE_AGENTCORE_RUNTIME=true` in `backend/.env` and restarting routes `/api/agent/chat` through runtime without further code changes.
 
 - [x] 2.6 **[P0] C6: AgentCore STM Memory (session history + user preferences)**
   - Acceptance: Req 2.5.2, 4.3.2, 4.4.1, 6.2.1.
   - Modify `pellier/backend/services/agentcore_memory.py` to implement `AgentCoreMemory` with `append_session_turn`, `get_session_history`, `get_user_preferences`, `set_user_preferences` inside a `# === CHALLENGE 6: START/END ===` block. Key schemes: `user:{user_id}:session:{session_id}` for authenticated sessions, `anon:{session_id}` for anonymous. No cross-namespace merge; anon namespace left orphaned on sign-in (Req 4.3.3).
-  - Files: `agentcore_memory.py` (modify), `solutions/module3/services/agentcore_memory.py` (new drop-in mirror).
+  - Files: `agentcore_memory.py` (modify), `solutions/the-paper-trail/services/agentcore_memory.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_agentcore_memory.py` — round-trip preference save/load; session history append-and-read; assert anon namespace is not accessible via user key and vice versa.
   - Done when: `POST /api/user/preferences` and `/api/agent/chat` (from 3.4, 3.5) exercise this service end-to-end.
 
 - [x] 2.7 **[P1] C7: AgentCore MCP Gateway**
   - Acceptance: Req 2.5.3.
   - Modify `pellier/backend/services/agentcore_gateway.py` to expose the 9 tools via MCP streamable HTTP inside a `# === CHALLENGE 7: START/END ===` block. Tool signatures and JSON envelopes identical to `agent_tools.py`.
-  - Files: `agentcore_gateway.py` (modify), `solutions/module3/services/agentcore_gateway.py` (new drop-in mirror).
+  - Files: `agentcore_gateway.py` (modify), `solutions/the-paper-trail/services/agentcore_gateway.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_gateway.py` — MCP client can discover all 9 tools and invoke `get_trending_products` returning the same JSON shape as the in-process call.
   - Done when: discovery returns the full 9-tool list with names matching `workshop-content.md` exactly (Req 2.2.3).
 
 - [x] 2.8 **[P1] C8: OpenTelemetry trace extraction**
   - Acceptance: Req 2.5.4, 5.4.1.
   - Modify `pellier/backend/services/otel_trace_extractor.py` to produce `{ spans: Span[], totalMs: number, specialistRoute: string }` for a given run inside a `# === CHALLENGE 8: START/END ===` block. Wire it into the orchestrator's streaming path so each request produces an extractable trace.
-  - Files: `otel_trace_extractor.py` (modify), `solutions/module3/services/otel_trace_extractor.py` (new drop-in mirror).
+  - Files: `otel_trace_extractor.py` (modify), `solutions/the-paper-trail/services/otel_trace_extractor.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_otel_extractor.py` — run the orchestrator with a stubbed Bedrock, assert the extractor returns at least one orchestrator span, one specialist span, and one tool span.
   - Done when: the `/inspector` view (existing frontend component) renders the extractor output.
 
@@ -132,14 +132,14 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
 - [x] 3.1 **[P0] C9.1: Cognito JWT validation middleware**
   - Acceptance: Req 4.2.1–4.2.4, 5.3.1–5.3.3.
   - Create `pellier/backend/services/cognito_auth.py` inside a `# === CHALLENGE 9.1: START/END ===` block: `CognitoAuthService` with JWKS client (1h TTL cache), `validate_jwt(token) -> VerifiedUser`, `extract_user(request)` reading `Authorization: Bearer` then `access_token` cookie, and a FastAPI `require_user` dependency setting `request.state.user`.
-  - Files: `cognito_auth.py` (new), `config.py` (add `COGNITO_POOL_ID`, `COGNITO_REGION`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `APP_BASE_URL`, `OAUTH_REDIRECT_URI`), `solutions/module3/services/cognito_auth.py` (new drop-in mirror).
+  - Files: `cognito_auth.py` (new), `config.py` (add `COGNITO_POOL_ID`, `COGNITO_REGION`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `APP_BASE_URL`, `OAUTH_REDIRECT_URI`), `solutions/the-paper-trail/services/cognito_auth.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_cognito_auth.py` — valid token passes; expired / wrong `iss` / wrong `aud` / wrong `token_use` / unsigned-by-JWKS all fail; JWKS fetch is called once for N concurrent validations (cache hit).
   - Done when: a protected endpoint returns 401 without a token and returns `request.state.user` populated with a valid one.
 
 - [x] 3.2 **[P0] C9.2: AgentCore Identity wrapper**
   - Acceptance: Req 4.3.1–4.3.3.
   - Create `pellier/backend/services/agentcore_identity.py` inside a `# === CHALLENGE 9.2: START/END ===` block: `AgentCoreIdentityService` with `get_verified_user_context(request)` returning `UserContext(user_id | None, session_id, namespace)`. Namespace uses `user:{user_id}:session:{session_id}` when authenticated, `anon:{session_id}` otherwise.
-  - Files: `agentcore_identity.py` (new), `solutions/module3/services/agentcore_identity.py` (new drop-in mirror).
+  - Files: `agentcore_identity.py` (new), `solutions/the-paper-trail/services/agentcore_identity.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_agentcore_identity.py` — authenticated request yields user namespace; unauthenticated yields anon namespace; `user_id` in `UserContext` equals `request.state.user.user_id`.
   - Done when: the orchestrator consumes `UserContext` to scope `agentcore_memory` calls (wired in 3.5).
 
@@ -273,7 +273,7 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
     - Exports: `redirectToSignIn(provider, opts?)`, `openSignInChooser(opts?)`, `redirectToLogout()`, `useAuth()`.
     - Extend `contexts/AuthContext.tsx` (existing) rather than replace it; expose `user`, `preferences`, `refresh()`, `savePreferences(p)`, `isLoading`.
     - `services/api.ts` 401 interceptor: call `/api/auth/refresh`; on success retry once; on failure call `openSignInChooser({ returnTo: window.location.pathname + window.location.search })`.
-  - Files: `utils/auth.ts` (new), `contexts/AuthContext.tsx` (modify), `services/api.ts` (modify), `solutions/module3/frontend/utils/auth.ts` (new drop-in mirror).
+  - Files: `utils/auth.ts` (new), `contexts/AuthContext.tsx` (modify), `services/api.ts` (modify), `solutions/the-paper-trail/frontend/utils/auth.ts` (new drop-in mirror).
   - Test verification: `auth.test.ts` — `openSignInChooser` routes to `/signin?returnTo=...`; the 401 interceptor retries once after a successful refresh; a second 401 falls through to the chooser.
   - Done when: E2E refresh test (`e2e/auth-refresh.spec.ts`) passes and the fail test (`e2e/auth-refresh-fail.spec.ts`) lands on `/signin` with all three providers visible.
 

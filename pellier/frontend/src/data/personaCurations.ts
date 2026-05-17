@@ -350,6 +350,36 @@ export function heroPillsForPersona(
   return PERSONA_HERO_PILLS[personaId] ?? PERSONA_HERO_PILLS.fresh
 }
 
+export interface PersonaTurnTrace {
+  skill?: string
+  tools: string[]
+}
+
+export const PERSONA_TURN_TRACES: Record<string, PersonaTurnTrace[]> = {
+  marco: [
+    { skill: 'the-packing-list', tools: ['find_pieces'] },
+    { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
+    { tools: ['price_intelligence'] },
+    { tools: ['floor_check'] },
+    { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
+  ],
+  anna: [
+    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+  ],
+  theo: [
+    { skill: 'the-makers-shelf', tools: ['find_pieces'] },
+    { skill: 'the-makers-shelf', tools: ['find_pieces', 'style_match'] },
+    { skill: 'the-makers-shelf', tools: ['find_pieces'] },
+    { skill: 'the-makers-shelf', tools: ['find_pieces', 'returns_and_care', 'process_return'] },
+    { skill: 'the-makers-shelf', tools: ['find_pieces'] },
+  ],
+  fresh: PERSONA_HERO_PILLS.fresh.map(() => ({ tools: ['find_pieces'] })),
+}
+
 // ---------------------------------------------------------------------
 // Featured product ID — the big hero product slot per persona.
 // Maps persona → product ID from SHOWCASE_PRODUCTS.

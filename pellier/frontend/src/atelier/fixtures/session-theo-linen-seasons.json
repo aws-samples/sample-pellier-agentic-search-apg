@@ -1,0 +1,134 @@
+{
+  "id": "theo-linen-seasons",
+  "personaId": "theo",
+  "openingQuery": "Linen pieces that soften over seasons",
+  "elapsedMs": 4680,
+  "agentCount": 2,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2026-05-15T18:16:00Z",
+  "status": "complete",
+  "chat": [
+    {
+      "role": "user",
+      "content": "Linen pieces that soften over seasons",
+      "timestamp": "2026-05-15T18:16:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "For linen that gets better with time, start with the Washed Linen Throw ($138): already soft, but better after a season on the sofa. The Linen Napkin Set ($58) has the same lived-in logic at a smaller scale, especially if the gift is meant for a table rather than a closet.",
+      "timestamp": "2026-05-15T18:16:04Z",
+      "plan": {
+        "flowSummary": "Dispatcher \u2192 Style Advisor + the-makers-shelf \u2192 find_pieces",
+        "traceLink": "#telemetry-1"
+      },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces",
+          "description": "Semantic search for linen home pieces that soften with use",
+          "durationMs": 302,
+          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE (category ILIKE '%linen%' OR description ILIKE '%linen%')\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+          "resultSummary": "Washed Linen Throw and Linen Napkin Set returned as home-leaning linen pieces"
+        }
+      ],
+      "products": [
+        {
+          "name": "Washed Linen Throw",
+          "brand": "Pellier Home",
+          "price": 138,
+          "imageUrl": "/products/theo-washed-linen-throw.png"
+        },
+        {
+          "name": "Linen Napkin Set",
+          "brand": "Pellier Home",
+          "price": 58,
+          "imageUrl": "/products/theo-linen-napkin-set.png"
+        }
+      ],
+      "meta": {
+        "agent": "Style Advisor",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "skill": "the-makers-shelf",
+        "latencyMs": 1194
+      }
+    }
+  ],
+  "telemetry": [
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent \u2192 Style Advisor",
+      "description": "'linen' + 'soften over seasons' routed to material-led search",
+      "status": "complete",
+      "durationMs": 60,
+      "agent": "Dispatcher"
+    },
+    {
+      "index": 2,
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-makers-shelf bound for persona: theo",
+      "status": "complete",
+      "durationMs": 39,
+      "agent": "SkillRouter"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "find_pieces",
+      "description": "pgvector search over linen home goods and care language",
+      "status": "complete",
+      "durationMs": 302,
+      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE (category ILIKE '%linen%' OR description ILIKE '%linen%')\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+      "agent": "Style Advisor"
+    },
+    {
+      "index": 4,
+      "category": "both",
+      "title": "editorial composition",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 patina and softening language",
+      "status": "complete",
+      "durationMs": 892,
+      "agent": "Style Advisor"
+    }
+  ],
+  "brief": {
+    "folioNumber": 36,
+    "headline": "Linen with a future",
+    "filedTime": "2026-05-15T18:17:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The material lens",
+        "paragraphs": [
+          "Theo's linen ask is not travel wardrobe. The skill steers the search toward home goods and language about softening, washing, and patina."
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "Washed Linen Throw",
+        "brand": "Pellier Home",
+        "price": 138,
+        "imageUrl": "/products/theo-washed-linen-throw.png"
+      },
+      {
+        "name": "Linen Napkin Set",
+        "brand": "Pellier Home",
+        "price": 58,
+        "imageUrl": "/products/theo-linen-napkin-set.png"
+      }
+    ],
+    "confidence": {
+      "stats": [
+        {
+          "label": "Skill",
+          "value": "the-makers-shelf"
+        },
+        {
+          "label": "Tool",
+          "value": "find_pieces"
+        }
+      ]
+    }
+  }
+}

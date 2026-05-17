@@ -208,7 +208,7 @@ Tool and agent naming follows `coding-standards.md` and `workshop-content.md` st
   - Handles `_db_service` unavailability and error cases per coding-standards error pattern
   - Uses `_run_async()` helper for async-to-sync bridging
 
-- **C3:** `product_recommendation_agent` in `pellier/backend/agents/recommendation_agent.py`
+- **C3:** `product_recommendation_agent` in `pellier/backend/agents/curator.py`
   - Strands Agent wrapping `BedrockModel(model_id=settings.BEDROCK_CHAT_MODEL)` with `temperature=0.2`
   - Tools: `search_products`, `get_trending_products`, `compare_products`, `get_product_by_category`
   - System prompt emphasizes warm, editorial, catalog-style reasoning — grounded in specific product attributes

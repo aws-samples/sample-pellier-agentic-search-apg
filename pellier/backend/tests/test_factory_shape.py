@@ -201,6 +201,6 @@ def test_support_agent_has_no_exa_references() -> None:
     code_only = ast.unparse(tree)
     for forbidden in ("exa_client", "MCPClient", "from mcp", "EXA_API_KEY"):
         assert forbidden not in code_only, (
-            f"customer_support_agent.py contains forbidden token {forbidden!r} "
+            f"experience_guide.py contains forbidden token {forbidden!r} "
             f"in executable code (module docstring is excluded from this check)"
         )

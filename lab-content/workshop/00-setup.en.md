@@ -45,10 +45,8 @@ curl -s -X POST http://localhost:8000/api/search \
 # Expected: 3 products with similarity scores > 0.7
 
 # 3. The test suite is green on everything already implemented
-pytest tests/ -q --ignore=tests/test_inventory_agent.py \
-               --ignore=tests/test_agent_tools.py \
-               --ignore=tests/test_customer_support_agent.py
-# Expected: all green (we ignore the three suites you're about to make green)
+pytest tests/ -q --ignore=tests/test_agent_tools.py
+# Expected: all green (we ignore the tool suite you're about to make green)
 ```
 
 If all three pass, you're set. If any fails, flag an instructor — this is much easier to sort now than mid-Module-2.
@@ -73,7 +71,7 @@ These aren't random — they're Marco's exact 4-turn workshop sequence plus a ca
 2. You land on `/atelier/sessions` — a list of replay-able Pellier conversations. You'll see Marco's three workshop sessions plus Anna and Theo's supporting sessions.
 3. Click **Agents** in the left sidebar (under UNDERSTAND).
 4. Notice the five specialists. **Stock Keeper** carries a burgundy **"Your turn"** pill. That's the build.
-5. Notice every agent row's **model tag**. Five rows, three different model configurations. No normalization. The reasoning lives in the model-mix sidebar, coming next.
+5. Notice every agent row's **model tag**. Five rows, three different model configurations. No normalization. The reasoning comes next in Module 1.
 
 You're ready.
 

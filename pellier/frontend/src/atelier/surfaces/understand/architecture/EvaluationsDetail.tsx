@@ -12,6 +12,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 const EvaluationsDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -22,11 +23,11 @@ const EvaluationsDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="VII"
+      numeral="VIII"
       conceptName="Evaluations"
-      category="owned"
+      category="quality"
       title="Evaluations, measured."
-      prose="Evaluation scorecards measure agent accuracy, latency percentiles, and citation rates. Version-over-version trends track quality improvements as agents are refined. Each evaluation recipe tests a specific capability."
+      prose="Evaluations are the quality layer. They are not in the request path; they help decide whether a retrieval, rerank, routing, or write-path change is worth shipping."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -168,9 +169,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default EvaluationsDetail;

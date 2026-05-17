@@ -108,11 +108,11 @@ interface HistogramProps {
 
 const ColdStartHistogram: React.FC<HistogramProps> = ({ histogram }) => {
   const maxCount = Math.max(...histogram.map((b) => b.count), 1);
-  const barWidth = 56;
-  const barGap = 8;
+  const barWidth = 64;
+  const barGap = 18;
   const chartHeight = 180;
   const chartWidth = histogram.length * (barWidth + barGap) - barGap;
-  const svgPadding = { top: 10, bottom: 50, left: 10, right: 10 };
+  const svgPadding = { top: 28, bottom: 68, left: 12, right: 12 };
   const totalWidth = chartWidth + svgPadding.left + svgPadding.right;
   const totalHeight = chartHeight + svgPadding.top + svgPadding.bottom;
 
@@ -165,7 +165,7 @@ const ColdStartHistogram: React.FC<HistogramProps> = ({ histogram }) => {
                   textAnchor="middle"
                   style={{
                     fontFamily: 'var(--at-mono)',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fill: 'var(--at-ink-2)',
                   }}
                 >
@@ -178,10 +178,10 @@ const ColdStartHistogram: React.FC<HistogramProps> = ({ histogram }) => {
                   textAnchor="middle"
                   style={{
                     fontFamily: 'var(--at-mono)',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fill: bucket.type === 'warm' ? 'var(--at-green-1)' : 'var(--at-red-1)',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.15em',
+                    letterSpacing: '0.12em',
                   }}
                 >
                   {bucket.type}
@@ -247,14 +247,14 @@ const LatencyBudgetTable: React.FC<LatencyBudgetProps> = ({ budget }) => {
 
   return (
     <ExpCard>
-      <Eyebrow label="Per-panel latency budget" />
+      <Eyebrow label="Per-panel latency · p50 / budget" />
       <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {budget.map((row) => {
           const barPct = Math.min((row.p50Ms / maxMs) * 100, 100);
           const color = TYPE_COLORS[row.type] ?? 'var(--at-ink-4)';
 
           return (
-            <div key={row.panel} style={{ display: 'grid', gridTemplateColumns: '200px 1fr 80px', gap: '12px', alignItems: 'center' }}>
+            <div key={row.panel} style={{ display: 'grid', gridTemplateColumns: '200px 1fr 116px', gap: '12px', alignItems: 'center' }}>
               {/* Panel name + type badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                 <span
@@ -317,11 +317,12 @@ const LatencyBudgetTable: React.FC<LatencyBudgetProps> = ({ budget }) => {
                   color: 'var(--at-ink-2)',
                   textAlign: 'right',
                   letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {row.p50Ms}ms
                 <span style={{ color: 'var(--at-ink-3)', marginLeft: '4px', fontSize: '13px' }}>
-                  / {row.maxMs}
+                  / {row.maxMs}ms
                 </span>
               </span>
             </div>
@@ -436,6 +437,215 @@ const PgvectorComparison: React.FC<PgvectorComparisonProps> = ({ strategies }) =
 };
 
 /* -----------------------------------------------------------------------
+ * Advanced pgvector Tuning — production knobs behind the simple benchmark
+ * ----------------------------------------------------------------------- */
+
+interface PgvectorTuningProps {
+  tuning: PerformanceData['pgvectorTuning'];
+}
+
+const STATUS_STYLES: Record<
+  PerformanceData['pgvectorTuning'][number]['status'],
+  { label: string; color: string }
+> = {
+  enabled: { label: 'Enabled', color: 'var(--at-green-1)' },
+  available: { label: 'Available', color: 'var(--at-red-1)' },
+};
+
+const PgvectorTuning: React.FC<PgvectorTuningProps> = ({ tuning }) => {
+  const headerStyle: React.CSSProperties = {
+    fontFamily: 'var(--at-mono)',
+    fontSize: '11px',
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    color: 'var(--at-ink-2)',
+    fontWeight: 500,
+    padding: '8px 12px',
+    textAlign: 'left',
+    borderBottom: '1px solid var(--at-card-border)',
+  };
+
+  const cellStyle: React.CSSProperties = {
+    fontFamily: 'var(--at-mono)',
+    fontSize: '13px',
+    color: 'var(--at-ink-2)',
+    padding: '12px',
+    lineHeight: 1.45,
+    verticalAlign: 'top',
+  };
+
+  return (
+    <ExpCard>
+      <Eyebrow label="Advanced pgvector tuning · recall · storage · speed" />
+      <p
+        style={{
+          fontFamily: 'var(--at-sans)',
+          fontSize: '15px',
+          lineHeight: 1.5,
+          color: 'var(--at-ink-2)',
+          marginTop: '12px',
+          maxWidth: '720px',
+        }}
+      >
+        Retrieval performance is not only vector vs hybrid vs rerank. At
+        production scale, pgvector index settings and representation choices
+        decide whether filtered search returns enough candidates, how much RAM
+        the index wants, and how much recall you trade for speed.
+      </p>
+
+      <div
+        style={{
+          marginTop: '16px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: '12px',
+        }}
+      >
+        {[
+          ['pgvector', '0.8.0'],
+          ['iterative scan', 'relaxed_order'],
+          ['baseline HNSW', '536 KB'],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            style={{
+              backgroundColor: 'var(--at-cream-2)',
+              border: '1px solid var(--at-card-border)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '10px',
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                color: 'var(--at-ink-3)',
+              }}
+            >
+              {label}
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--at-sans)',
+                fontSize: '22px',
+                fontWeight: 400,
+                color: 'var(--at-ink-1)',
+                marginTop: '6px',
+              }}
+            >
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: '16px', overflowX: 'auto' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            borderSpacing: 0,
+          }}
+        >
+          <thead>
+            <tr>
+              <th style={headerStyle}>Capability</th>
+              <th style={headerStyle}>Knob</th>
+              <th style={headerStyle}>Smoke result</th>
+              <th style={headerStyle}>Tradeoff</th>
+              <th style={{ ...headerStyle, textAlign: 'center' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tuning.map((row) => {
+              const status = STATUS_STYLES[row.status];
+              const isEnabled = row.status === 'enabled';
+              return (
+                <tr
+                  key={row.capability}
+                  style={{
+                    backgroundColor: isEnabled
+                      ? 'color-mix(in srgb, var(--at-green-1) 6%, transparent)'
+                      : 'transparent',
+                  }}
+                >
+                  <td style={{ ...cellStyle, color: 'var(--at-ink-1)' }}>
+                    <div style={{ fontWeight: 600 }}>{row.capability}</div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--at-sans)',
+                        fontSize: '13px',
+                        lineHeight: 1.45,
+                        color: 'var(--at-ink-2)',
+                        marginTop: '4px',
+                      }}
+                    >
+                      {row.productionUse}
+                    </div>
+                  </td>
+                  <td style={cellStyle}>
+                    <code style={{ fontFamily: 'var(--at-mono)', fontSize: '12px' }}>
+                      {row.knob}
+                    </code>
+                  </td>
+                  <td style={cellStyle}>{row.smokeResult}</td>
+                  <td style={cellStyle}>{row.tradeoff}</td>
+                  <td style={{ ...cellStyle, textAlign: 'center' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        fontFamily: 'var(--at-mono)',
+                        fontSize: '10px',
+                        letterSpacing: '0.16em',
+                        textTransform: 'uppercase',
+                        color: status.color,
+                        border: `1px solid ${status.color}`,
+                        borderRadius: '999px',
+                        padding: '3px 8px',
+                      }}
+                    >
+                      {status.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        style={{
+          marginTop: '16px',
+          padding: '14px 16px',
+          backgroundColor: 'var(--at-cream-2)',
+          borderLeft: '3px solid var(--at-green-1)',
+          borderRadius: '4px',
+        }}
+      >
+        <Eyebrow label="Why this is not a fourth exercise" variant="muted" />
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            lineHeight: 1.55,
+            color: 'var(--at-ink-1)',
+            marginTop: '8px',
+          }}
+        >
+          The boutique catalog has only 40 products, so full benchmarking would
+          be theater. The smoke probes prove the features exist on Aurora; the
+          workshop keeps the hands-on moment on agent tools and uses this card
+          to name the production knobs participants should tune at scale.
+        </p>
+      </div>
+    </ExpCard>
+  );
+};
+
+/* -----------------------------------------------------------------------
  * Search Strategy Comparison — Anna's anchor capability surfaced honestly
  *
  * Three rows: vector only / hybrid (RRF) / hybrid + rerank. The card has
@@ -531,8 +741,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
       <Eyebrow label="Search strategy comparison · Anna's anchor capability" />
       <p
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
+          fontFamily: 'var(--at-sans)',
           fontSize: '15px',
           lineHeight: 1.5,
           color: 'var(--at-ink-2)',
@@ -540,7 +749,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           maxWidth: '640px',
         }}
       >
-        Vector finds meaning. BM25 finds literals. Cohere Rerank reads the
+        Vector finds meaning. Postgres FTS finds literals. Cohere Rerank reads the
         union and picks. Each row is a real choice — recall vs latency vs
         cost — and the workshop teaches that the answer depends on the
         query class, not the database.
@@ -741,7 +950,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
       </div>
 
       {/* Postgres FTS gotcha teaching note — surfaces a real lesson from
-          the implementation. Anna's BM25 branch returned zero rows in
+          the implementation. Anna's FTS branch returned zero rows in
           early testing because plainto_tsquery AND-joins all stems;
           the fix is OR-joining via the _build_or_tsquery helper. */}
       <div
@@ -756,8 +965,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
         <Eyebrow label="Postgres FTS gotcha" variant="muted" />
         <p
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
+            fontFamily: 'var(--at-sans)',
             fontSize: '14px',
             lineHeight: 1.55,
             color: 'var(--at-ink-1)',
@@ -773,8 +981,8 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>to_tsquery</code> — that's
           what <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>HybridSearch._build_or_tsquery</code>{' '}
           does in <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>services/hybrid_search.py</code>.
-          One of those Postgres footguns whose obvious primitive doesn't do
-          what its name suggests.
+          The key lesson is to match the FTS query constructor to the retrieval
+          behavior you want, especially for conversational shopper phrasing.
         </p>
       </div>
     </ExpCard>
@@ -1146,7 +1354,7 @@ const Performance: React.FC = () => {
       <EditorialTitle
         eyebrow="Measure · Performance · latency · pgvector · storage"
         title="Under the hood."
-        summary="Cold start times, per-panel latency budgets, pgvector index benchmarks, and storage footprint. All metrics from fixture data — wire to live telemetry in Phase 2."
+        summary="Cold start times, per-panel latency budgets, pgvector index benchmarks, retrieval strategy comparisons, and storage footprint. The Aurora-backed comparison card can run live; advanced pgvector tuning notes come from smoke probes."
       />
 
       {loading && <LoadingState />}
@@ -1181,6 +1389,12 @@ const Performance: React.FC = () => {
 
           {/* pgvector comparison table */}
           <PgvectorComparison strategies={data.pgvectorComparison} />
+
+          {/* Production pgvector knobs — iterative scans and vector
+              representation tradeoffs. */}
+          {data.pgvectorTuning && data.pgvectorTuning.length > 0 && (
+            <PgvectorTuning tuning={data.pgvectorTuning} />
+          )}
 
           {/* Search strategy comparison — Anna's anchor capability.
               Renders even when the fixture defaults are static; the

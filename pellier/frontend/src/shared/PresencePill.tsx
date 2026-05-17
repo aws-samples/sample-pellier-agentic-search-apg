@@ -4,8 +4,8 @@
  * appears for signed-in personas so first-time visitors are not hit with
  * session jargon.
  *
- * Used on the Boutique hero (cream-tinted, glass background) and on
- * the Atelier TopBar (same boutique styling on the light cream bar).
+ * Used on the Boutique capability strip (cream-tinted, glass background)
+ * and on the Atelier TopBar (same boutique styling on the light cream bar).
  *
  * Pass `sessionLabel=""` explicitly to force-hide the fragment, or rely
  * on defaults: fresh / anonymous → no fragment; returning shoppers →

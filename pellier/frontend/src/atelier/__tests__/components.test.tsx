@@ -191,10 +191,10 @@ describe('Eyebrow', () => {
 // CategoryBadge
 // ---------------------------------------------------------------------------
 describe('CategoryBadge', () => {
-  it('renders "Both" badge with burgundy color and red-soft background', () => {
-    render(<CategoryBadge category="both" />);
+  it('renders "Live path" badge with burgundy color and red-soft background', () => {
+    render(<CategoryBadge category="live" />);
 
-    const badge = screen.getByText('Both');
+    const badge = screen.getByText('Live path');
     expect(badge).toBeTruthy();
     expect(badge.style.color).toBe('var(--at-cat-both)');
     expect(badge.style.backgroundColor).toBe('var(--at-red-soft)');
@@ -202,26 +202,26 @@ describe('CategoryBadge', () => {
     expect(badge.style.fontFamily).toBe('var(--at-mono)');
   });
 
-  it('renders "Managed" badge with green color and green-soft background', () => {
-    render(<CategoryBadge category="managed" />);
+  it('renders "Optional infra" badge with green color and green-soft background', () => {
+    render(<CategoryBadge category="optional" />);
 
-    const badge = screen.getByText('Managed');
+    const badge = screen.getByText('Optional infra');
     expect(badge.style.color).toBe('var(--at-cat-managed)');
     expect(badge.style.backgroundColor).toBe('var(--at-green-soft)');
   });
 
-  it('renders "Owned" badge with amber color', () => {
-    render(<CategoryBadge category="owned" />);
+  it('renders "Quality layer" badge with amber color', () => {
+    render(<CategoryBadge category="quality" />);
 
-    const badge = screen.getByText('Owned');
+    const badge = screen.getByText('Quality layer');
     expect(badge.style.color).toBe('var(--at-cat-owned)');
     expect(badge.style.backgroundColor).toBe('rgba(184, 138, 58, 0.12)');
   });
 
-  it('renders "Teaching" badge with muted ink color', () => {
-    render(<CategoryBadge category="teaching" />);
+  it('renders "Workshop lens" badge with muted ink color', () => {
+    render(<CategoryBadge category="workshop" />);
 
-    const badge = screen.getByText('Teaching');
+    const badge = screen.getByText('Workshop lens');
     expect(badge.style.color).toBe('var(--at-cat-teaching)');
     expect(badge.style.backgroundColor).toBe('rgba(31, 20, 16, 0.06)');
   });

@@ -4,7 +4,7 @@
  * Single-column layout (max-width 620px, centered) with editorial typography.
  * Renders the full brief content from session data: title block, metadata grid,
  * numbered editorial sections with drop-caps, evidence panels, memory rows,
- * product cards, confidence display, and editorial footer.
+ * product cards, evidence summary, and editorial footer.
  *
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10
  */
@@ -64,6 +64,14 @@ function formatFiledTime(iso: string): string {
 function formatElapsed(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatEvidenceValue(label: string, value: string | number): string {
+  const raw = String(value);
+  if (label.toLowerCase() === 'price bands' && /^\d+$/.test(raw)) {
+    return `${raw} bands`;
+  }
+  return raw;
 }
 
 /* =======================================================================
@@ -622,13 +630,13 @@ const BriefTab: React.FC = () => {
       )}
 
       {/* ================================================================
-       * Confidence section
+       * Evidence summary
        * ================================================================ */}
       {brief.confidence && (
         <section
           style={{
             marginBottom: '48px',
-            textAlign: 'center',
+            textAlign: 'left',
             padding: '32px 0',
           }}
         >
@@ -640,30 +648,19 @@ const BriefTab: React.FC = () => {
             }}
           />
 
-          {/* Large confidence percentage */}
-          <div
+          <Eyebrow label="Evidence" variant="muted" />
+          <p
             style={{
-              fontFamily: 'var(--at-serif)',
-              fontSize: '76px',
-              fontWeight: 400,
-              lineHeight: 1,
-              color: 'var(--at-green-1)',
-              marginBottom: '8px',
+              fontFamily: 'var(--at-sans)',
+              fontSize: '18px',
+              lineHeight: 1.45,
+              color: 'var(--at-ink-1)',
+              margin: '10px 0 0',
             }}
           >
-            {brief.confidence.percentage}%
-          </div>
-          <span
-            style={{
-              fontFamily: 'var(--at-mono)',
-              fontSize: 'var(--at-eyebrow-size)',
-              letterSpacing: 'var(--at-eyebrow-tracking)',
-              textTransform: 'uppercase',
-              color: 'var(--at-ink-2)',
-            }}
-          >
-            Confidence Score
-          </span>
+            Tool-backed signals that explain why this recommendation was safe to
+            write, without inventing a final-answer confidence percentage.
+          </p>
 
           {/* Supporting statistics */}
           {brief.confidence.stats && brief.confidence.stats.length > 0 && (
@@ -680,41 +677,38 @@ const BriefTab: React.FC = () => {
                 textAlign: 'center',
               }}
             >
-              {brief.confidence.stats.map((stat, i) => (
-                <div key={stat.label}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--at-sans)',
-                      fontSize: '14px',
-                      color: 'var(--at-ink-2)',
-                      display: 'block',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    {i + 1}.
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: 'var(--at-serif)',
-                      fontSize: '20px',
-                      fontWeight: 400,
-                      color: 'var(--at-ink-1)',
-                      display: 'block',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    {stat.value}
-                  </span>
+              {brief.confidence.stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '6px',
+                    textAlign: 'left',
+                  }}
+                >
                   <span
                     style={{
                       fontFamily: 'var(--at-mono)',
                       fontSize: '11px',
                       letterSpacing: '0.1em',
                       textTransform: 'uppercase',
-                      color: 'var(--at-ink-2)',
+                      color: 'var(--at-ink-3)',
                     }}
                   >
                     {stat.label}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--at-sans)',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      color: 'var(--at-ink-1)',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {formatEvidenceValue(stat.label, stat.value)}
                   </span>
                 </div>
               ))}

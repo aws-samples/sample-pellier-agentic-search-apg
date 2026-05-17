@@ -9,12 +9,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useLocation, useOutletContext } from 'react-router-dom';
 import {
   ContextRail,
   ExpCard,
   Eyebrow,
-  CategoryBadge,
   StatusDot,
   ModeStrip,
 } from '../../components';
@@ -28,6 +27,7 @@ import {
   estimateTokenCount,
   findRecommendationTurn,
   getTopPickProduct,
+  parseTelemetryPanelIndex,
   resolveTracePanelIndex,
 } from './telemetryTrace';
 
@@ -107,12 +107,34 @@ const SQL_KEYWORDS = new Set([
   'END', 'ASC', 'DESC', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
 ]);
 
+const DARK_CODE_BLOCK: React.CSSProperties = {
+  fontFamily: 'var(--dl-font-mono)',
+  fontSize: '12.5px',
+  lineHeight: 1.6,
+  background: 'var(--dl-ink)',
+  color: 'var(--dl-accent-soft)',
+  borderRadius: 'var(--dl-r-lg)',
+  border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
+  padding: '14px 16px',
+  overflow: 'auto',
+  margin: 0,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+};
+
 function highlightSQL(sql: string): React.ReactNode[] {
   const tokens = sql.split(/(\b\w+\b)/g);
   return tokens.map((token, i) => {
     if (SQL_KEYWORDS.has(token.toUpperCase())) {
       return (
-        <span key={i} style={{ color: 'var(--at-red-1)', fontWeight: 600 }}>
+        <span key={i} style={{ color: '#f7c873', fontWeight: 600 }}>
+          {token}
+        </span>
+      );
+    }
+    if (/^'.*'$/.test(token) || token.includes('%')) {
+      return (
+        <span key={i} style={{ color: '#e8927c' }}>
           {token}
         </span>
       );
@@ -120,6 +142,98 @@ function highlightSQL(sql: string): React.ReactNode[] {
     return <span key={i}>{token}</span>;
   });
 }
+
+type StepType = 'Route' | 'Skill' | 'Query' | 'Tool' | 'Model' | 'Rerank' | 'Reply' | 'Write';
+
+function stepTypeForPanel(panel: TelemetryPanel): StepType {
+  const title = panel.title.toLowerCase();
+  const description = panel.description.toLowerCase();
+  const agent = panel.agent?.toLowerCase() ?? '';
+  const retrievalText = `${title} ${description}`;
+
+  if (title.includes('intent') || title.includes('classify') || title.includes('dispatcher') || title.includes('router')) {
+    return 'Route';
+  }
+  if (title.includes('skill') || agent.includes('skillrouter')) {
+    return 'Skill';
+  }
+  if (title.includes('rerank') || description.includes('rerank')) {
+    return 'Rerank';
+  }
+  if (title.includes('rrf') || description.includes('reciprocal rank fusion')) {
+    return 'Query';
+  }
+  if (title.includes('process_return') || title.includes('write') || title.includes('restock') || description.includes('tool_audit') || description.includes('cedar')) {
+    return 'Write';
+  }
+  if (title.includes('style_match') || title.includes('style match') || title.includes('price_intelligence') || title.includes('price intelligence') || title.includes('floor_check') || title.includes('returns_and_care')) {
+    return 'Tool';
+  }
+  if (title.includes('find_pieces')) {
+    return 'Query';
+  }
+  if (
+    /\b(vector|semantic|postgres fts|fts|ts_rank|tsvector|gin index|pgvector|cosine|retrieval|search)\b/.test(
+      retrievalText,
+    )
+  ) {
+    return 'Query';
+  }
+  if (title.includes('response') || title.includes('reply') || title.includes('compose') || title.includes('composition') || title.includes('merge')) {
+    return 'Reply';
+  }
+  if (title.includes('return')) {
+    return 'Write';
+  }
+  if (title.includes('match') || title.includes('intelligence') || title.includes('check') || title.includes('lookup')) {
+    return 'Tool';
+  }
+  if (panel.sql) {
+    return title.includes('search') || title.includes('retrieval')
+      ? 'Query'
+      : 'Tool';
+  }
+  if (title.includes('tool:') || title.includes('tool ')) {
+    return 'Tool';
+  }
+  return 'Model';
+}
+
+const STEP_TYPE_COLORS: Record<StepType, { color: string; bg: string }> = {
+  Route: { color: 'var(--at-green-1)', bg: 'var(--at-green-soft)' },
+  Skill: { color: '#b88a3a', bg: 'rgba(184, 138, 58, 0.12)' },
+  Query: { color: 'var(--at-burgundy)', bg: 'var(--at-red-soft)' },
+  Tool: { color: 'var(--at-burgundy)', bg: 'var(--at-red-soft)' },
+  Model: { color: 'var(--at-ink-2)', bg: 'rgba(31, 20, 16, 0.06)' },
+  Rerank: { color: 'var(--at-burgundy)', bg: 'var(--at-red-soft)' },
+  Reply: { color: 'var(--at-ink-2)', bg: 'rgba(31, 20, 16, 0.06)' },
+  Write: { color: 'var(--at-burgundy)', bg: 'var(--at-red-soft)' },
+};
+
+const StepTypeBadge: React.FC<{ type: StepType }> = ({ type }) => {
+  const { color, bg } = STEP_TYPE_COLORS[type];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 10px',
+        borderRadius: '4px',
+        backgroundColor: bg,
+        color,
+        fontFamily: 'var(--at-mono)',
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        lineHeight: 1.4,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {type}
+    </span>
+  );
+};
 
 /* =======================================================================
  * Timeline panel component
@@ -140,6 +254,7 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
 }) => {
   const statusColor = getStatusColor(panel.status);
   const isRunning = panel.status === 'running';
+  const stepType = stepTypeForPanel(panel);
 
   return (
     <div
@@ -219,7 +334,7 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
           transition: 'background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
         }}
       >
-        {/* Top row: category badge + status */}
+        {/* Top row: step-type badge + status */}
         <div
           style={{
             display: 'flex',
@@ -228,7 +343,7 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
             marginBottom: '6px',
           }}
         >
-          <CategoryBadge category={panel.category} />
+          <StepTypeBadge type={stepType} />
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {/* Status dot */}
             <span
@@ -324,23 +439,16 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
 
         {/* Expanded SQL (only for active panel with SQL) */}
         {isActive && panel.sql && (
-          <div
+          <pre
             style={{
+              ...DARK_CODE_BLOCK,
               marginTop: '12px',
-              padding: '12px 14px',
-              background: 'var(--at-cream-2)',
-              borderRadius: '8px',
-              fontFamily: 'var(--at-mono)',
-              fontSize: '13px',
-              lineHeight: 'var(--at-mono-leading)',
-              color: 'var(--at-ink-2)',
-              overflowX: 'auto',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
             }}
           >
+            <span style={{ color: '#8a8270' }}>-- panel {panel.index}: {panel.title}</span>
+            {'\n'}
             {highlightSQL(panel.sql)}
-          </div>
+          </pre>
         )}
       </div>
     </div>
@@ -356,7 +464,6 @@ interface ProductRecommendationCardProps {
   product: ProductCard;
   blurb: string;
   reasons: string[];
-  confidencePct: number;
   tokenEstimate: number;
   tracePanelIndex: number;
   onTracePick: () => void;
@@ -366,7 +473,6 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
   product,
   blurb,
   reasons,
-  confidencePct,
   tokenEstimate,
   tracePanelIndex,
   onTracePick,
@@ -517,7 +623,7 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
       Trace this pick
     </button>
 
-    {/* Confidence + token count */}
+    {/* Evidence + token count */}
     <div
       style={{
         display: 'flex',
@@ -528,13 +634,15 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontSize: '22px',
-            fontWeight: 400,
+            fontFamily: 'var(--at-mono)',
+            fontSize: '11px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
             color: 'var(--at-green-1)',
           }}
         >
-          {confidencePct}%
+          Evidence
         </span>
         <span
           style={{
@@ -545,7 +653,7 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
             letterSpacing: '0.06em',
           }}
         >
-          Confidence
+          Tool-backed
         </span>
       </div>
       <div
@@ -613,22 +721,16 @@ const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
                 >
                   Panel {p.index} · {p.title}
                 </div>
-                <div
+                <pre
                   style={{
-                    padding: '10px 12px',
-                    background: 'var(--at-cream-2)',
-                    borderRadius: '8px',
-                    fontFamily: 'var(--at-mono)',
+                    ...DARK_CODE_BLOCK,
                     fontSize: '12px',
-                    lineHeight: 'var(--at-mono-leading)',
-                    color: 'var(--at-ink-2)',
-                    overflowX: 'auto',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
                   }}
                 >
+                  <span style={{ color: '#8a8270' }}>-- panel {p.index}: {p.title}</span>
+                  {'\n'}
                   {highlightSQL(p.sql!)}
-                </div>
+                </pre>
               </div>
             ))
           ) : (
@@ -939,7 +1041,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'both',
       title: 'Hybrid retrieval',
       description:
-        'Managed agent invokes find_pieces_hybrid: pgvector + BM25 in parallel, then RRF merge.',
+        'Managed agent invokes find_pieces_hybrid: pgvector + Postgres FTS in parallel, then RRF merge.',
       status: 'complete',
       durationMs: 312,
       agent: 'Curator · find_pieces_hybrid',
@@ -1171,6 +1273,7 @@ function WorkshopBedrockProfilesStrip() {
 
 const TelemetryTab: React.FC = () => {
   const { session } = useOutletContext<SessionOutletContext>();
+  const location = useLocation();
   const sessionPanels = session.telemetry ?? [];
   const sessionCanonical = canonicalRoutingPattern(session.routingPattern);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -1195,8 +1298,6 @@ const TelemetryTab: React.FC = () => {
       product: topPick,
       blurb: blurbForProduct(turn, topPick),
       reasons: buildWhyThisPickReasons(session, topPick, sessionPanels),
-      confidencePct:
-        turn?.confidence?.percentage ?? session.brief?.confidence?.percentage ?? 85,
       tokenEstimate: estimateTokenCount(sessionPanels),
       tracePanelIndex: panelIndex,
     };
@@ -1231,6 +1332,19 @@ const TelemetryTab: React.FC = () => {
     setActiveIndex(sessionPanels.length > 0 ? sessionPanels[0].index : -1);
     pendingTracePanel.current = null;
   }, [session.id, sessionCanonical, sessionPanels.length]);
+
+  useEffect(() => {
+    const panelIndex = parseTelemetryPanelIndex(location.hash);
+    if (panelIndex == null) return;
+    pendingTracePanel.current = panelIndex;
+    if (activePattern !== sessionCanonical) {
+      setActivePattern(sessionCanonical);
+      return;
+    }
+    pendingTracePanel.current = null;
+    setActiveIndex(panelIndex);
+    requestAnimationFrame(() => scrollToTelemetryPanel(panelIndex));
+  }, [location.hash, activePattern, sessionCanonical, scrollToTelemetryPanel]);
 
   useEffect(() => {
     if (pendingTracePanel.current == null) return;
@@ -1368,7 +1482,6 @@ const TelemetryTab: React.FC = () => {
               product={pickContext.product}
               blurb={pickContext.blurb}
               reasons={pickContext.reasons}
-              confidencePct={pickContext.confidencePct}
               tokenEstimate={pickContext.tokenEstimate}
               tracePanelIndex={pickContext.tracePanelIndex}
               onTracePick={handleTracePick}

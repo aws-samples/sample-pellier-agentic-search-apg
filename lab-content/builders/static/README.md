@@ -1,9 +1,9 @@
-# Builder's Session — static assets for Workshop Studio
+# Builder's Session — CloudFormation source
 
 Workshop Studio uploads this folder to
 `s3://${AssetsBucketName}/${AssetsBucketPrefix}/` (prefix usually ends with `static/`).
 
-**Required files (all in this directory):**
+**Bundle files (all in this directory):**
 
 | File | Role |
 |------|------|
@@ -13,4 +13,5 @@ Workshop Studio uploads this folder to
 | `pellier-code-editor.yml` | Nested stack (`WORKSHOP_FORMAT=builders`) |
 | `iam_policy.json` | Participant inline policy (AgentCore + Bedrock models) |
 
-Source-of-truth copies also live under `lab-content/builders/assets/` and `infrastructure/`.
+These files are the source of truth for the Builder's Session. Update
+CloudFormation here.

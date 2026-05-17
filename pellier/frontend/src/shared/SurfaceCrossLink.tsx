@@ -29,6 +29,8 @@ export interface SurfaceCrossLinkProps {
   href?: string
   /** Override the default copy. */
   label?: string
+  /** Use upright text when the link sits inside sans/body UI copy. */
+  italic?: boolean
 }
 
 const ACCENT = 'var(--accent)'
@@ -37,6 +39,7 @@ export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
   direction,
   href,
   label,
+  italic = true,
 }) => {
   const defaultLabel =
     direction === 'to-boutique'
@@ -58,7 +61,7 @@ export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
         alignItems: 'center',
         gap: 6,
         fontFamily: 'var(--serif)',
-        fontStyle: 'italic',
+        fontStyle: italic ? 'italic' : 'normal',
         fontSize: 15,
         fontWeight: 400,
         letterSpacing: '-0.01em',

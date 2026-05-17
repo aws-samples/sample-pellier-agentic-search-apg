@@ -4,7 +4,7 @@
     "turnCount": 4,
     "recentIntents": [
       "Looking for linen evening wear",
-      "Interested in sundress for outdoor dining",
+      "Interested in camp-shirt pairings for warm evenings",
       "Comparing linen trousers and oxford shirt",
       "Gift for ceramics lover"
     ],
@@ -23,7 +23,7 @@
       },
       {
         "id": "stm-003",
-        "content": "Asked about sundress suitability for outdoor dining occasions",
+        "content": "Asked about camp-shirt pairings for warm evening occasions",
         "tier": "stm",
         "timestamp": "2025-01-15T19:42:48Z"
       }

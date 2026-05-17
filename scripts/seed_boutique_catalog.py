@@ -144,7 +144,7 @@ class Product:
 
 FRESH_PRODUCTS: List[Product] = [
     Product(1, "Olive Branch Vessel", "Pellier Home", "Ivory", 185,
-            "Sculptural ceramic vase with olive branch motif. Hand-thrown stoneware with a matte ivory glaze.",
+            "Sculptural ceramic vessel for housewarming and new-home milestones. Hand-thrown stoneware with an olive branch motif and matte ivory glaze; a lasting entryway or mantel piece for a new homeowner.",
             CAT_HOME, ["ceramic", "sculptural", "minimal", "warm", "neutral", "home"],
             4.9, 127, "fresh-olive-branch-vessel.png", persona="fresh"),
     Product(2, "Hadley Linen Shirt", "Hadley", "Ivory", 248,

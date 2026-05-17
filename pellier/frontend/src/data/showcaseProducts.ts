@@ -75,7 +75,7 @@ if (findAdjacentDuplicateStyleIndex(CHIPS) !== -1) {
 
 export const SHOWCASE_PRODUCTS: BoutiqueProduct[] = [
   // ─── FRESH (1-9) ───
-  { id: 1, brand: 'Pellier Home', name: 'Olive Branch Vessel', color: 'Ivory', price: 185, rating: 4.9, reviewCount: 127, category: 'Home Decor', imageUrl: '/products/fresh-olive-branch-vessel.png', tags: ['ceramic', 'sculptural', 'minimal', 'warm', 'neutral', 'home'], reasoning: CHIPS[0] },
+  { id: 1, brand: 'Pellier Home', name: 'Olive Branch Vessel', color: 'Ivory', price: 185, rating: 4.9, reviewCount: 127, category: 'Home Decor', imageUrl: '/products/fresh-olive-branch-vessel.png', tags: ['ceramic', 'sculptural', 'minimal', 'warm', 'neutral', 'home', 'housewarming', 'milestone'], reasoning: CHIPS[0] },
   { id: 2, brand: 'Pellier Editions', name: 'Pellier Linen Shirt', color: 'Ivory', price: 248, rating: 4.8, reviewCount: 312, category: 'Apparel', imageUrl: '/products/fresh-pellier-linen-shirt.png', badge: 'EDITORS_PICK', tags: ['linen', 'minimal', 'resort', 'warm', 'neutral', 'everyday'], reasoning: CHIPS[1] },
   { id: 3, brand: 'Pellier Travel', name: 'Nocturne Leather Weekender', color: 'Espresso', price: 425, rating: 4.9, reviewCount: 89, category: 'Accessories', imageUrl: '/products/fresh-nocturne-leather-weekender.png', tags: ['leather', 'travel', 'classic', 'warm', 'earth', 'accessories'], reasoning: CHIPS[2] },
   { id: 4, brand: 'Pellier Home', name: 'Santal & Fig Candle', color: 'Amber', price: 92, rating: 4.7, reviewCount: 445, category: 'Home Fragrance', imageUrl: '/products/fresh-santal-fig-candle.png', tags: ['candle', 'home', 'minimal', 'warm', 'slow'], reasoning: CHIPS[3] },

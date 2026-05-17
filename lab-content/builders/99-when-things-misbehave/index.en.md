@@ -25,13 +25,12 @@ env | grep DB_
 psql -c "SELECT count(*) FROM pellier.product_catalog;"
 # Expected: 40
 
-# Verify the warehouse table exists (for Part I · sublab 12)
+# Verify the warehouse table exists (for Act I · floor_check)
 psql -c "SELECT count(*) FROM pellier.warehouse_inventory;"
 # Expected: ~120 (one row per warehouse × product; 3 warehouses × 40 catalog SKUs)
 
-# Tail the backend logs
-journalctl -fu pellier
-# Builder's Session (uvicorn via nohup): tail -f /tmp/pellier/uvicorn.log
+# Tail the Builder backend logs
+tail -f /tmp/pellier/uvicorn.log
 
 # If the frontend is stale after an edit
 rebuild-frontend   # npm run build + restart app (no sudo — builders: uvicorn; workshop: systemctl)
@@ -41,10 +40,10 @@ rebuild-frontend   # npm run build + restart app (no sudo — builders: uvicorn;
 
 | Symptom | What's likely | Run this |
 | --- | --- | --- |
-| Boutique page is blank / 502 | Pellier service didn't start | `journalctl -u pellier --since '5 min ago'` |
+| Boutique page is blank / 502 | Pellier service didn't start | `tail -n 80 /tmp/pellier/uvicorn.log` |
 | Boutique loads but `Pellier · listening` chip is missing | Frontend bundle is stale | `rebuild-frontend` |
 | Hero search returns 0 results | Catalog never seeded | `psql -c "SELECT count(*) FROM pellier.product_catalog;"` — if 0, see *Catalog empty* below |
-| Marco's turn 4 still says "I can't see the warehouse" *after* you wired Stock Keeper | Tool import error | `journalctl -u pellier \| grep -i error` |
+| Marco's turn 4 still says "I can't see the warehouse" after you wired `floor_check` | Tool import error or stub body still in place | `tail -n 80 /tmp/pellier/uvicorn.log \| grep -iE "error\|traceback"` |
 | Atelier `/atelier/agents` shows Stock Keeper still dashed | Frontend cached the old agent registry | Hard-reload the Atelier tab |
 | Anna's "out of stock" message persists after the SQL UPDATE | The UPDATE hit the wrong row, or the agent cached the answer | Re-run the UPDATE; click the same pill again |
 | `psql` says "no such table `pellier.warehouse_inventory`" | Schema migration didn't run | See *Schema migration didn't run* below |
@@ -71,7 +70,8 @@ granted in the Bedrock console for `us-west-2`.
 ## Schema migration didn't run
 
 If `pellier.warehouse_inventory` (or `pellier.product_catalog`)
-doesn't exist, the schema migration didn't fire. Apply it by hand:
+doesn't exist, the schema migration didn't fire. Apply the base schema,
+re-run the seeder, then apply the warehouse migration:
 
 ```bash
 cd /workshop/sample-pellier-agentic-search-apg
@@ -79,21 +79,31 @@ PGPASSWORD="$DB_PASSWORD" psql \
     -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" \
     -v ON_ERROR_STOP=1 \
-    -f scripts/migrations/000_pellier_schema.sql
+    -f scripts/migrations/001_schema.sql
+python3 scripts/seed_boutique_catalog.py
+for migration in \
+    002_workshop_telemetry.sql \
+    003_persona_seed.sql \
+    004_anna_hybrid_search.sql \
+    005_theo_returns.sql \
+    006_warehouse_inventory.sql \
+    007_chat_session_tables.sql
+do
+    PGPASSWORD="$DB_PASSWORD" psql \
+        -h "$DB_HOST" -p "$DB_PORT" \
+        -U "$DB_USER" -d "$DB_NAME" \
+        -v ON_ERROR_STOP=1 \
+        -f "scripts/migrations/$migration"
+done
 ```
 
-Then re-run the seeder (above).
+Then verify `SELECT count(*) FROM pellier.warehouse_inventory;` returns
+about 120 rows.
 
 ## Pellier service won't start
 
 ```bash
-# What does systemd think?
-systemctl status pellier
-
-# Last 50 lines of the service log
-journalctl -u pellier -n 50
-
-# The uvicorn log (separate file)
+# Last 50 lines of the Builder uvicorn log
 tail -50 /tmp/pellier/uvicorn.log
 ```
 

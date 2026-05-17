@@ -1,11 +1,11 @@
 /**
- * ArchitectureIndex — 2-column grid of 8 architecture concept ExpCards.
+ * ArchitectureIndex — 2-column grid of 8 architecture lens ExpCards.
  *
  * Each card displays a Roman numeral, CategoryBadge, title, role subtitle,
  * prose description, code snippet, and an "Open [concept]" link that
  * navigates to `/atelier/architecture/:slug`.
  *
- * A legend card below the grid explains the four category badges.
+ * A legend card explains what is owned, managed, optional, or teaching-only.
  *
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
  */
@@ -21,26 +21,22 @@ import type { ArchitectureConcept } from '../../types';
  * Legend data — explains the four category badges
  * ----------------------------------------------------------------------- */
 
-const legendItems: { category: CategoryType; label: string; description: string }[] = [
+const legendItems: { category: CategoryType; description: string }[] = [
   {
-    category: 'both',
-    label: 'Both',
-    description: 'Shared between AgentCore managed services and your owned application code.',
+    category: 'live',
+    description: 'Used directly in the Boutique request path participants can replay in Sessions.',
   },
   {
-    category: 'managed',
-    label: 'Managed',
-    description: 'Fully managed by AgentCore — you configure, the platform operates.',
+    category: 'workshop',
+    description: 'A teaching lens or demo surface that explains the system without running on every request.',
   },
   {
-    category: 'owned',
-    label: 'Owned',
-    description: 'Your application code — you build, deploy, and maintain it.',
+    category: 'optional',
+    description: 'Infrastructure available when configured, not required for the default local workshop path.',
   },
   {
-    category: 'teaching',
-    label: 'Teaching',
-    description: 'Workshop teaching concept — illustrates a pattern or technique.',
+    category: 'quality',
+    description: 'Evaluation and measurement layer used to decide what is worth shipping.',
   },
 ];
 
@@ -169,7 +165,7 @@ const LegendCard: React.FC = () => (
           whiteSpace: 'nowrap',
         }}
       >
-        Understanding the four badges
+        Where this appears in Pellier
       </h3>
       <div
         style={{
@@ -359,7 +355,7 @@ const ArchitectureIndex: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Architecture"
         title="Architecture"
-        summary="Eight foundational concepts that power the agentic system — from memory and routing to tool discovery and grounding. Each card opens a deep-dive detail page with prose, code, and live state."
+        summary="Eight architecture lenses for Pellier. Some are live in the app path, some are optional AgentCore infrastructure, and some are workshop teaching surfaces. Each card says where the idea appears in the codebase."
       />
 
       {loading && <LoadingState />}

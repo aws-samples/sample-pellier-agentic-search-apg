@@ -10,10 +10,11 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { ContextRail, ExpCard, Eyebrow, StatusDot } from '../../components';
 import { resolveProductImageUrl } from '../../../utils/resolveProductImageUrl';
 import { searchCatalog } from '../../services/catalogSearch';
+import { SHOWCASE_PRODUCTS } from '../../../data/showcaseProducts';
 import type { SessionOutletContext } from './SessionView';
 import type {
   ChatTurn,
@@ -38,13 +39,35 @@ const SQL_KEYWORDS = new Set([
   'END', 'ASC', 'DESC', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
 ]);
 
+const DARK_CODE_BLOCK: React.CSSProperties = {
+  fontFamily: 'var(--dl-font-mono)',
+  fontSize: '12.5px',
+  lineHeight: 1.6,
+  background: 'var(--dl-ink)',
+  color: 'var(--dl-accent-soft)',
+  borderRadius: 'var(--dl-r-lg)',
+  border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
+  padding: '14px 16px',
+  overflow: 'auto',
+  margin: 0,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+};
+
 function highlightSQL(sql: string): React.ReactNode[] {
   // Split on word boundaries while preserving whitespace and symbols
   const tokens = sql.split(/(\b\w+\b)/g);
   return tokens.map((token, i) => {
     if (SQL_KEYWORDS.has(token.toUpperCase())) {
       return (
-        <span key={i} style={{ color: 'var(--at-red-1)', fontWeight: 600 }}>
+        <span key={i} style={{ color: '#f7c873', fontWeight: 600 }}>
+          {token}
+        </span>
+      );
+    }
+    if (/^'.*'$/.test(token) || token.includes('%')) {
+      return (
+        <span key={i} style={{ color: '#e8927c' }}>
           {token}
         </span>
       );
@@ -202,22 +225,93 @@ const ToolCallChip: React.FC<{ tool: ToolCall }> = ({ tool }) => {
       {expanded && (
         <div style={{ padding: '12px 14px', borderTop: '1px solid var(--at-rule-1)' }}>
           {tool.sql && (
-            <div
+            <pre
               style={{
-                background: 'var(--at-cream-2)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-                marginBottom: tool.resultSummary ? '10px' : 0,
-                fontFamily: 'var(--at-mono)',
-                fontSize: '13px',
-                lineHeight: 'var(--at-mono-leading)',
-                color: 'var(--at-ink-2)',
-                overflowX: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                ...DARK_CODE_BLOCK,
+                marginBottom: tool.subSteps?.length || tool.writes?.length || tool.resultSummary ? '10px' : 0,
               }}
             >
+              <span style={{ color: '#8a8270' }}>-- {tool.toolName}</span>
+              {'\n'}
               {highlightSQL(tool.sql)}
+            </pre>
+          )}
+          {tool.subSteps && tool.subSteps.length > 0 && (
+            <div style={{ display: 'grid', gap: '8px', marginBottom: tool.writes?.length || tool.resultSummary ? '10px' : 0 }}>
+              {tool.subSteps.map((step) => (
+                <div
+                  key={step.label}
+                  style={{
+                    border: '1px solid var(--at-rule-1)',
+                    borderRadius: '8px',
+                    background: 'var(--at-cream-2)',
+                    padding: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      marginBottom: step.sql ? '8px' : 0,
+                      fontFamily: 'var(--at-mono)',
+                      fontSize: '11px',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: 'var(--at-ink-2)',
+                    }}
+                  >
+                    <span>{step.label}</span>
+                    <span>{step.durationMs}ms</span>
+                  </div>
+                  {step.sql && (
+                    <pre
+                      style={{
+                        ...DARK_CODE_BLOCK,
+                        fontSize: '12px',
+                      }}
+                    >
+                      <span style={{ color: '#8a8270' }}>-- {step.label}</span>
+                      {'\n'}
+                      {highlightSQL(step.sql)}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {tool.writes && tool.writes.length > 0 && (
+            <div style={{ display: 'grid', gap: '8px', marginBottom: tool.resultSummary ? '10px' : 0 }}>
+              {tool.writes.map((write, index) => (
+                <div
+                  key={`${write.table}-${write.operation}-${write.rowId}-${index}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr auto',
+                    gap: '10px',
+                    alignItems: 'center',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: 'var(--at-cream-2)',
+                    border: '1px solid var(--at-rule-1)',
+                    fontFamily: 'var(--at-mono)',
+                    fontSize: '12px',
+                    color: 'var(--at-ink-2)',
+                  }}
+                >
+                  <span style={{ color: 'var(--at-red-1)', fontWeight: 700 }}>
+                    {write.operation}
+                  </span>
+                  <span>
+                    {write.table}
+                    {write.field ? `.${write.field}` : ''}
+                    {write.before !== undefined && write.after !== undefined
+                      ? ` ${write.before} \u2192 ${write.after}`
+                      : ''}
+                  </span>
+                  <span>#{write.rowId}</span>
+                </div>
+              ))}
             </div>
           )}
           {tool.resultSummary && (
@@ -383,8 +477,14 @@ function normalizePlanRow(plan: PlanRow): {
   };
 }
 
-const PlanRowDisplay: React.FC<{ plan: PlanRow }> = ({ plan: rawPlan }) => {
+const PlanRowDisplay: React.FC<{ plan: PlanRow; sessionId: string }> = ({
+  plan: rawPlan,
+  sessionId,
+}) => {
   const plan = normalizePlanRow(rawPlan);
+  const traceTarget = plan.traceLink
+    ? `/atelier/sessions/${sessionId}/telemetry${plan.traceLink.startsWith('#') ? plan.traceLink : `#${plan.traceLink}`}`
+    : undefined;
   return (
     <div
       style={{
@@ -434,9 +534,9 @@ const PlanRowDisplay: React.FC<{ plan: PlanRow }> = ({ plan: rawPlan }) => {
       >
         {plan.flowSummary}
       </span>
-      {plan.traceLink && (
-        <a
-          href={plan.traceLink}
+      {traceTarget && (
+        <Link
+          to={traceTarget}
           style={{
             fontFamily: 'var(--at-mono)',
             fontSize: '12px',
@@ -446,47 +546,51 @@ const PlanRowDisplay: React.FC<{ plan: PlanRow }> = ({ plan: rawPlan }) => {
           }}
         >
           view trace →
-        </a>
+        </Link>
       )}
     </div>
   );
 };
 
 /* =======================================================================
- * Confidence row
+ * Evidence row
  * ======================================================================= */
 
-const ConfidenceDisplay: React.FC<{ confidence: ConfidenceRow }> = ({
+const EvidenceDisplay: React.FC<{ confidence: ConfidenceRow }> = ({
   confidence,
 }) => (
   <div
     style={{
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: '12px',
       padding: '10px 14px',
-      background: 'var(--at-green-soft)',
+      background: 'var(--at-cream-2)',
+      border: '1px solid var(--at-card-border)',
       borderRadius: '8px',
       marginTop: '8px',
     }}
   >
     <span
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontSize: '22px',
-        fontWeight: 400,
+        fontFamily: 'var(--at-mono)',
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
         color: 'var(--at-green-1)',
         whiteSpace: 'nowrap',
+        paddingTop: '3px',
       }}
     >
-      {confidence.percentage}%
+      Evidence
     </span>
     <span
       style={{
         fontFamily: 'var(--at-sans)',
-        fontSize: '15px',
+        fontSize: '14px',
         color: 'var(--at-ink-2)',
-        lineHeight: 1.45,
+        lineHeight: 1.5,
       }}
     >
       {confidence.reasoning}
@@ -533,7 +637,10 @@ const MemoryPillDisplay: React.FC<{ pill: MemoryPill }> = ({ pill }) => (
  * Chat turn renderer
  * ======================================================================= */
 
-const ChatTurnDisplay: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
+const ChatTurnDisplay: React.FC<{ turn: ChatTurn; sessionId: string }> = ({
+  turn,
+  sessionId,
+}) => {
   if (turn.role === 'user') {
     return (
       <div
@@ -565,7 +672,7 @@ const ChatTurnDisplay: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
   return (
     <div style={{ marginBottom: '24px' }}>
       {/* Plan row at start of assistant turn */}
-      {turn.plan && <PlanRowDisplay plan={turn.plan} />}
+      {turn.plan && <PlanRowDisplay plan={turn.plan} sessionId={sessionId} />}
 
       {/* Tool calls */}
       {turn.toolCalls && turn.toolCalls.length > 0 && (
@@ -594,8 +701,8 @@ const ChatTurnDisplay: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
         <ProductGrid products={turn.products} />
       )}
 
-      {/* Confidence */}
-      {turn.confidence && <ConfidenceDisplay confidence={turn.confidence} />}
+      {/* Evidence */}
+      {turn.confidence && <EvidenceDisplay confidence={turn.confidence} />}
 
       {/* Memory pills */}
       {turn.memoryPills && turn.memoryPills.length > 0 && (
@@ -620,7 +727,7 @@ const ChatTurnDisplay: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
  * Follow-up hints + live catalog search
  * ======================================================================= */
 
-function followUpHintsForSession(session: SessionDetail): string[] {
+export function followUpHintsForSession(session: SessionDetail): string[] {
   const q = session.openingQuery.toLowerCase();
   const persona = session.personaId.toLowerCase();
   const contextual: string[] = [];
@@ -648,6 +755,181 @@ function followUpHintsForSession(session: SessionDetail): string[] {
   ];
 
   return Array.from(new Set([...contextual, ...generic])).slice(0, 5);
+}
+
+const COUNT_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+};
+
+interface FollowUpConstraints {
+  limit: number;
+  maxPrice?: number;
+  requiredTerms: string[];
+  preferredTerms: string[];
+  sortBy?: 'price-asc';
+  brooklynInventory?: boolean;
+}
+
+interface FollowUpProductCandidate {
+  id: number;
+  brand: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  category?: string;
+  tags?: string[];
+}
+
+function contextTermsForSession(session: SessionDetail): string[] {
+  const terms: string[] = [];
+  const opening = session.openingQuery.toLowerCase();
+
+  if (session.personaId === 'marco' || opening.includes('linen')) terms.push('linen');
+  if (session.personaId === 'anna') terms.push('gift');
+  if (session.personaId === 'theo') terms.push('home');
+
+  return terms;
+}
+
+export function parseFollowUpConstraints(
+  query: string,
+  session?: SessionDetail,
+): FollowUpConstraints {
+  const lower = query.toLowerCase();
+  const explicitCount = lower.match(/\b([1-9]|one|two|three|four|five|six)\b/);
+  const maxPrice = lower.match(/\b(?:under|below|less than|max(?:imum)?|up to)\s*\$?(\d{2,4})\b/);
+  const requiredTerms: string[] = [];
+  const preferredTerms: string[] = [];
+
+  if (lower.includes('linen')) requiredTerms.push('linen');
+  if (lower.includes('ceramic') || lower.includes('tabletop')) requiredTerms.push('ceramic');
+  if (lower.includes('home accent') || lower.includes('home accents')) requiredTerms.push('home');
+  if (lower.includes('gift')) preferredTerms.push('gift');
+
+  if (
+    (lower.includes('substitute') || lower.includes('size is gone') || lower.includes('brooklyn') || lower.includes('stock') || lower.includes('ships fastest')) &&
+    session
+  ) {
+    requiredTerms.push(...contextTermsForSession(session));
+  }
+
+  const parsedLimit = explicitCount
+    ? Number.isNaN(Number(explicitCount[1]))
+      ? COUNT_WORDS[explicitCount[1]] ?? 6
+      : Number(explicitCount[1])
+    : 6;
+  const limit = lower.includes('cheapest')
+    ? 1
+    : lower.includes('brooklyn') || lower.includes('ships fastest')
+    ? Math.min(parsedLimit, 3)
+    : parsedLimit;
+
+  return {
+    limit,
+    maxPrice: maxPrice ? Number(maxPrice[1]) : undefined,
+    requiredTerms: Array.from(new Set(requiredTerms)),
+    preferredTerms: Array.from(new Set(preferredTerms)),
+    sortBy: lower.includes('cheapest') ? 'price-asc' : undefined,
+    brooklynInventory: lower.includes('brooklyn') || lower.includes('ships fastest') || lower.includes('stock'),
+  };
+}
+
+export function productMatchesConstraints(
+  product: { name: string; category?: string; price: number; tags?: string[] },
+  constraints: FollowUpConstraints,
+): boolean {
+  if (constraints.maxPrice !== undefined && product.price >= constraints.maxPrice) {
+    return false;
+  }
+
+  const searchableText = `${product.name} ${product.category ?? ''} ${(product.tags ?? []).join(' ')}`.toLowerCase();
+  return constraints.requiredTerms.every((term) => searchableText.includes(term));
+}
+
+function fallbackCatalogProducts(): FollowUpProductCandidate[] {
+  return SHOWCASE_PRODUCTS.map((product) => ({
+    id: product.id,
+    brand: product.brand,
+    name: product.name,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    category: product.category,
+    tags: product.tags,
+  }));
+}
+
+export function selectFollowUpProducts(
+  products: FollowUpProductCandidate[],
+  constraints: FollowUpConstraints,
+): FollowUpProductCandidate[] {
+  const seen = new Set<number>();
+  const merged = [...products, ...fallbackCatalogProducts()]
+    .filter((product) => {
+      if (seen.has(product.id)) return false;
+      seen.add(product.id);
+      return productMatchesConstraints(product, constraints);
+    });
+
+  if (constraints.preferredTerms.length > 0) {
+    merged.sort((a, b) => {
+      const score = (product: FollowUpProductCandidate) => {
+        const text = `${product.name} ${product.category ?? ''} ${(product.tags ?? []).join(' ')}`.toLowerCase();
+        return constraints.preferredTerms.filter((term) => text.includes(term)).length;
+      };
+      return score(b) - score(a);
+    });
+  }
+
+  if (constraints.sortBy === 'price-asc') {
+    merged.sort((a, b) => a.price - b.price);
+  }
+
+  return merged.slice(0, constraints.limit);
+}
+
+export function buildFollowUpSql(query: string, constraints: FollowUpConstraints): string {
+  const tableAlias = constraints.brooklynInventory ? 'p.' : '';
+  const whereClauses = [`${tableAlias}"imgUrl" IS NOT NULL`];
+
+  for (const term of constraints.requiredTerms) {
+    whereClauses.push(`(${tableAlias}name ILIKE '%${term}%' OR ${tableAlias}category ILIKE '%${term}%' OR ${tableAlias}tags::text ILIKE '%${term}%')`);
+  }
+
+  if (constraints.maxPrice !== undefined) {
+    whereClauses.push(`${tableAlias}price < ${constraints.maxPrice}`);
+  }
+
+  if (constraints.brooklynInventory) {
+    return [
+      'WITH query_embedding AS (SELECT $1::vector AS emb)',
+      'SELECT p.name, p.brand, p.price, wi.quantity, w.display_name, w.ship_window_min, w.ship_window_max,',
+      '       1 - (p.embedding <=> (SELECT emb FROM query_embedding)) AS similarity',
+      'FROM pellier.product_catalog p',
+      'JOIN pellier.warehouse_inventory wi ON wi.product_id = p."productId"',
+      'JOIN pellier.warehouses w ON w.id = wi.warehouse_id',
+      `WHERE ${whereClauses.join('\n  AND ')}`,
+      "  AND w.id = 'BK-01'",
+      '  AND wi.quantity > 0',
+      'ORDER BY w.ship_window_min ASC, p.embedding <=> (SELECT emb FROM query_embedding)',
+      `LIMIT ${constraints.limit}`,
+      `-- query: ${query}`,
+    ].join('\n');
+  }
+
+  return [
+    'WITH query_embedding AS (SELECT $1::vector AS emb)',
+    'SELECT name, brand, price, 1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity',
+    'FROM pellier.product_catalog',
+    `WHERE ${whereClauses.join('\n  AND ')}`,
+    'ORDER BY embedding <=> (SELECT emb FROM query_embedding)',
+    `LIMIT ${constraints.limit}`,
+    `-- query: ${query}`,
+  ].join('\n');
 }
 
 function isoTimestamp(): string {
@@ -692,7 +974,10 @@ function traceVisibleCountFromReplay(
 }
 
 /** One row of the staggered transcript replay */
-const ReplayEntryDisplay: React.FC<{ entry: ReplayEntry }> = ({ entry }) => {
+const ReplayEntryDisplay: React.FC<{ entry: ReplayEntry; sessionId: string }> = ({
+  entry,
+  sessionId,
+}) => {
   switch (entry.kind) {
     case 'user':
       return (
@@ -720,7 +1005,7 @@ const ReplayEntryDisplay: React.FC<{ entry: ReplayEntry }> = ({ entry }) => {
         </div>
       );
     case 'plan':
-      return <PlanRowDisplay plan={entry.plan} />;
+      return <PlanRowDisplay plan={entry.plan} sessionId={sessionId} />;
     case 'tool':
       return <ToolCallChip tool={entry.tool} />;
     case 'assistant_tail': {
@@ -741,7 +1026,7 @@ const ReplayEntryDisplay: React.FC<{ entry: ReplayEntry }> = ({ entry }) => {
           {turn.products && turn.products.length > 0 && (
             <ProductGrid products={turn.products} />
           )}
-          {turn.confidence && <ConfidenceDisplay confidence={turn.confidence} />}
+          {turn.confidence && <EvidenceDisplay confidence={turn.confidence} />}
           {turn.memoryPills && turn.memoryPills.length > 0 && (
             <div
               style={{
@@ -1301,14 +1586,36 @@ const AgentsCard: React.FC = () => (
   </ExpCard>
 );
 
-/** Skills card — three persona skills (`skills.json` bundles) with placeholder status */
+/** Skills card — three persona skills (`skills.json` bundles) */
 const SKILLS_LIST = [
-  { name: 'the-packing-list', active: false },
-  { name: 'the-gift-table', active: false },
-  { name: 'the-makers-shelf', active: false },
+  'the-packing-list',
+  'the-gift-table',
+  'the-makers-shelf',
 ];
 
-const SkillsCard: React.FC = () => (
+function activeSkillsForSession(session: SessionDetail): Set<string> {
+  const active = new Set<string>();
+  for (const turn of session.chat) {
+    if (turn.meta?.skill) active.add(turn.meta.skill);
+    for (const pill of turn.memoryPills ?? []) {
+      for (const skill of SKILLS_LIST) {
+        if (pill.content.includes(skill)) active.add(skill);
+      }
+    }
+  }
+  for (const panel of session.telemetry) {
+    const text = `${panel.title} ${panel.description} ${panel.agent ?? ''}`;
+    for (const skill of SKILLS_LIST) {
+      if (text.includes(skill)) active.add(skill);
+    }
+  }
+  return active;
+}
+
+const SkillsCard: React.FC<{ session: SessionDetail }> = ({ session }) => {
+  const activeSkills = activeSkillsForSession(session);
+
+  return (
   <ExpCard>
     <Eyebrow label="Skills" />
     <div
@@ -1319,42 +1626,44 @@ const SkillsCard: React.FC = () => (
         marginTop: '14px',
       }}
     >
-      {SKILLS_LIST.map((skill) => (
-        <div
-          key={skill.name}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <StatusDot status={skill.active ? 'live' : 'empty'} size={8} />
-          <span
+      {SKILLS_LIST.map((skill) => {
+        const active = activeSkills.has(skill);
+        return (
+          <div
+            key={skill}
             style={{
-              fontFamily: 'var(--at-mono)',
-              fontSize: '13px',
-              color: skill.active
-                ? 'var(--at-ink-1)'
-                : 'var(--at-ink-4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
             }}
           >
-            {skill.name}
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--at-mono)',
-              fontSize: '11px',
-              color: 'var(--at-ink-2)',
-              marginLeft: 'auto',
-            }}
-          >
-            {skill.active ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-      ))}
+            <StatusDot status={active ? 'live' : 'empty'} size={8} />
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '13px',
+                color: active ? 'var(--at-ink-1)' : 'var(--at-ink-4)',
+              }}
+            >
+              {skill}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '11px',
+                color: 'var(--at-ink-2)',
+                marginLeft: 'auto',
+              }}
+            >
+              {active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        );
+      })}
     </div>
   </ExpCard>
-);
+  );
+};
 
 /* =======================================================================
  * Main ChatTab component
@@ -1415,14 +1724,17 @@ const ChatTab: React.FC = () => {
     setReplyError(null);
     setReplyBusy(true);
     try {
-      const data = await searchCatalog(trimmed, 6);
+      const constraints = parseFollowUpConstraints(trimmed, session);
+      const retrievalLimit = Math.max(12, constraints.limit * 4);
+      const data = await searchCatalog(trimmed, retrievalLimit);
+      const constrainedProducts = selectFollowUpProducts(data.products, constraints);
       const ts = isoTimestamp();
       const userTurn: ChatTurn = {
         role: 'user',
         content: trimmed,
         timestamp: ts,
       };
-      const cards: ProductCard[] = data.products.map((p) => ({
+      const cards: ProductCard[] = constrainedProducts.map((p) => ({
         brand: p.brand,
         name: p.name,
         price: Math.round(p.price),
@@ -1432,18 +1744,18 @@ const ChatTab: React.FC = () => {
             : `/${p.imageUrl || ''}`,
         traceRef: `product:${p.id}`,
       }));
-      const toolSql = [
-        'WITH query_embedding AS (SELECT $1::vector AS emb)',
-        'SELECT name, brand, price, 1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity',
-        'FROM pellier.product_catalog',
-        'WHERE "imgUrl" IS NOT NULL',
-        'ORDER BY embedding <=> (SELECT emb FROM query_embedding)',
-        'LIMIT 6',
-      ].join('\n');
+      const toolSql = buildFollowUpSql(trimmed, constraints);
+      const priceText = constraints.maxPrice !== undefined
+        ? ` under $${constraints.maxPrice}`
+        : '';
+      const termText = constraints.requiredTerms.length > 0
+        ? ` matching ${constraints.requiredTerms.join(', ')}`
+        : '';
+      const inventoryText = constraints.brooklynInventory ? ' available from Brooklyn' : '';
 
       const assistantTurn: ChatTurn = {
         role: 'assistant',
-        content: `Pulled ${data.products.length} rows from pellier.product_catalog (${data.searchMs}ms vector search · ${data.queryEmbeddingMs}ms embed).`,
+        content: `Pulled ${cards.length} filtered row${cards.length === 1 ? '' : 's'}${termText}${priceText}${inventoryText} from pellier.product_catalog (${data.searchMs}ms vector search · ${data.queryEmbeddingMs}ms embed).`,
         timestamp: ts,
         plan: {
           routingPattern: 'Search',
@@ -1456,7 +1768,7 @@ const ChatTab: React.FC = () => {
             description: `Semantic search: ${trimmed.length > 140 ? `${trimmed.slice(0, 137)}…` : trimmed}`,
             durationMs: data.searchMs,
             sql: toolSql,
-            resultSummary: `${data.products.length} products within cosine window.`,
+            resultSummary: `${cards.length} products after deterministic filters from ${data.products.length} retrieved candidates.`,
           },
         ],
         products: cards,
@@ -1490,13 +1802,13 @@ const ChatTab: React.FC = () => {
           replayDone ? (
             <div>
               {fixtureTurns.map((turn, i) => (
-                <ChatTurnDisplay key={`fixture-${i}`} turn={turn} />
+                <ChatTurnDisplay key={`fixture-${i}`} turn={turn} sessionId={session.id} />
               ))}
             </div>
           ) : (
             <div>
               {timeline.slice(0, replayVisible).map((entry) => (
-                <ReplayEntryDisplay key={entry.id} entry={entry} />
+                <ReplayEntryDisplay key={entry.id} entry={entry} sessionId={session.id} />
               ))}
             </div>
           )
@@ -1507,7 +1819,7 @@ const ChatTab: React.FC = () => {
         {liveTurns.length > 0 && (
           <div>
             {liveTurns.map((turn, i) => (
-              <ChatTurnDisplay key={`live-${i}`} turn={turn} />
+              <ChatTurnDisplay key={`live-${i}`} turn={turn} sessionId={session.id} />
             ))}
           </div>
         )}
@@ -1531,7 +1843,7 @@ const ChatTab: React.FC = () => {
         />
         <MemoryCard turns={displayTurns} />
         <AgentsCard />
-        <SkillsCard />
+        <SkillsCard session={session} />
       </ContextRail>
     </div>
   );

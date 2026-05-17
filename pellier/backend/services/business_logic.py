@@ -8,8 +8,8 @@ Aligned to the boutique catalog schema:
     rating, reviews (TEXT), "imgUrl", badge, tier, image_verified,
     quantity, embedding, created_at, updated_at
 
-The ``quantity`` column was added by migration 004_add_quantity.sql
-with realistic stock numbers seeded by tier + rating. Stock-level
+The ``quantity`` column is created by ``001_schema.sql`` and seeded by
+``seed_boutique_catalog.py``. Stock-level
 functions (floor_check, running_low, restock_shelf) now issue
 real SQL against this column.
 """
@@ -339,6 +339,8 @@ class BusinessLogic:
                 ),
             }
 
+        product_id_text = str(product_id)
+
         # Single transaction so the ownership check, INSERT, and
         # conditional quantity decrement either all succeed or all fail.
         # If any step raises, psycopg's context manager rolls back.
@@ -350,7 +352,7 @@ class BusinessLogic:
                     "SELECT 1 FROM orders "
                     "WHERE customer_id = %s AND product_id = %s "
                     "LIMIT 1",
-                    [customer_id, product_id],
+                    [customer_id, product_id_text],
                 )
                 owns = await cur.fetchone()
                 if not owns:
@@ -367,7 +369,7 @@ class BusinessLogic:
                     "INSERT INTO returns (customer_id, product_id, reason) "
                     "VALUES (%s, %s, %s) "
                     "RETURNING id",
-                    [customer_id, product_id, reason],
+                    [customer_id, product_id_text, reason],
                 )
                 ins = await cur.fetchone()
                 return_id = ins["id"] if ins else None
@@ -383,7 +385,7 @@ class BusinessLogic:
                         '    updated_at = NOW() '
                         'WHERE "productId" = %s '
                         'RETURNING "productId", name, quantity',
-                        [product_id],
+                        [product_id_text],
                     )
                     upd = await cur.fetchone()
                     if upd:
@@ -394,7 +396,7 @@ class BusinessLogic:
                     await cur.execute(
                         'SELECT "productId", name FROM pellier.product_catalog '
                         'WHERE "productId" = %s',
-                        [product_id],
+                        [product_id_text],
                     )
                     sel = await cur.fetchone()
                     product_name = sel["name"] if sel else None
@@ -427,7 +429,7 @@ class BusinessLogic:
             'SET quantity = quantity + %s, updated_at = NOW() '
             'WHERE "productId" = %s '
             'RETURNING "productId", name, quantity',
-            quantity, product_id,
+            quantity, str(product_id),
         )
         if not row:
             return {"status": "error", "message": f"Product {product_id} not found."}

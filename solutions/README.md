@@ -8,8 +8,7 @@ module:
 solutions/
 ├── the-quiet-search/   → Module 1 reference (semantic search)
 ├── closing-marcos-gap/ → Module 2 (Stock Keeper + agent tools)
-├── the-paper-trail/    → Module 3 (AgentCore production plumbing)
-└── builders/           → DC Summit copy-paste (floor_check body, README)
+└── the-paper-trail/    → Module 3 (AgentCore production plumbing)
 ```
 
 ## Module 1 — *The Quiet Search*
@@ -22,8 +21,8 @@ cp solutions/the-quiet-search/services/business_logic.py   pellier/backend/servi
 ## Module 2 — *Closing Marco's Gap*
 
 ```bash
-# The full agent-tools file (every @tool, including a finished floor_check)
-cp solutions/closing-marcos-gap/services/agent_tools.py    pellier/backend/services/agent_tools.py
+# Current agent-tools file (every @tool, including a finished floor_check)
+cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py    pellier/backend/services/agent_tools.py
 
 # The dispatcher + the two specialists turns 2/5 use
 cp solutions/closing-marcos-gap/agents/orchestrator.py     pellier/backend/agents/orchestrator.py
@@ -34,8 +33,9 @@ cp solutions/closing-marcos-gap/agents/stock_keeper.py     pellier/backend/agent
 
 The 60-min Builder's Session pre-applies everything **except** the
 `floor_check` tool body in `agent_tools.py`. Participants edit only
-that one function. If a table is short on time, copying the full
-`agent_tools.py` (first line above) is the rescue command.
+that one function. If a table is short on time, copy the full
+`agent_tools_floor_check_solution.py` file, or paste only
+`closing-marcos-gap/services/floor_check_tool_body.py`.
 
 ## Module 3 — *The Paper Trail*
 

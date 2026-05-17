@@ -1,80 +1,207 @@
 {
   "id": "anna-birthday-gift",
   "personaId": "anna",
-  "openingQuery": "Birthday gift for my sister — no idea where to start",
+  "openingQuery": "Wrap-ready gifts with no extra effort",
   "elapsedMs": 6231,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2025-01-14T21:05:00Z",
+  "timestamp": "2026-05-15T17:48:00Z",
   "status": "complete",
   "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
-      "content": "Birthday gift for my sister — no idea where to start",
-      "timestamp": "2025-01-14T21:05:00Z"
+      "content": "Wrap-ready gifts with no extra effort",
+      "timestamp": "2026-05-15T17:48:00Z"
     },
     {
       "role": "assistant",
-      "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) — wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
-      "timestamp": "2025-01-14T21:05:05Z",
-      "plan": { "flowSummary": "Dispatcher → Curator + the-gift-table → find_pieces_hybrid (vector + BM25 → RRF → cohere.rerank-v3-5:0)", "traceLink": "#telemetry-1" },
+      "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) \u2014 wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
+      "timestamp": "2026-05-15T17:48:05Z",
+      "plan": {
+        "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (vector + Postgres FTS \u2192 RRF \u2192 cohere.rerank-v3-5:0)",
+        "traceLink": "#telemetry-1"
+      },
       "toolCalls": [
         {
           "toolName": "find_pieces_hybrid",
-          "description": "Hybrid pgvector + BM25 + cohere.rerank-v3-5:0 over the gift-band catalog",
+          "description": "Hybrid pgvector + Postgres FTS + cohere.rerank-v3-5:0 over the gift-band catalog",
           "durationMs": 706,
-          "resultSummary": "30-candidate pool reranked to 3 gift-ready pieces, $35–$128 range",
+          "sql": "WITH vector_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY embedding <=> $1::vector) AS vector_rank\n  FROM product_catalog\n  WHERE quantity > 0\n  LIMIT 20\n),\nfts_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY ts_rank_cd(description_tsv, $2::tsquery) DESC) AS text_rank\n  FROM product_catalog\n  WHERE quantity > 0\n    AND description_tsv @@ $2::tsquery\n  LIMIT 20\n),\nrrf AS (\n  SELECT COALESCE(v.product_id, f.product_id) AS product_id,\n         COALESCE(1.0 / (60 + v.vector_rank), 0) +\n         COALESCE(1.0 / (60 + f.text_rank), 0) AS rrf_score\n  FROM vector_results v\n  FULL OUTER JOIN fts_results f USING (product_id)\n)\nSELECT product_id, rrf_score\nFROM rrf\nORDER BY rrf_score DESC\nLIMIT 30;",
+          "resultSummary": "30-candidate pool reranked to 3 gift-ready pieces, $35\u2013$128 range",
           "subSteps": [
-            { "label": "vector branch (pgvector cosine, k=20)", "durationMs": 967 },
-            { "label": "BM25 branch (to_tsquery OR-of-stems via _build_or_tsquery, k=20)", "durationMs": 1031 },
-            { "label": "RRF merge (k=60) → 21-candidate pool", "durationMs": 3 },
-            { "label": "cohere.rerank-v3-5:0 → top 5", "durationMs": 281 }
+            {
+              "label": "vector branch (pgvector cosine, k=20)",
+              "durationMs": 967
+            },
+            {
+              "label": "Postgres FTS branch (to_tsquery OR-of-stems via _build_or_tsquery, k=20)",
+              "durationMs": 1031
+            },
+            {
+              "label": "RRF merge (k=60) \u2192 21-candidate pool",
+              "durationMs": 3
+            },
+            {
+              "label": "cohere.rerank-v3-5:0 \u2192 top 5",
+              "durationMs": 281
+            }
           ]
         }
       ],
       "products": [
-        { "name": "Beeswax Taper Candles", "brand": "Pellier Editions", "price": 48, "imageUrl": "/products/anna-beeswax-taper-candles.png" },
-        { "name": "Ceramic Ring Dish", "brand": "Pellier Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
-        { "name": "Botanical Silk Scarf", "brand": "Pellier Editions", "price": 128, "imageUrl": "/products/anna-botanical-silk-scarf.png" }
+        {
+          "name": "Beeswax Taper Candles",
+          "brand": "Pellier Editions",
+          "price": 48,
+          "imageUrl": "/products/anna-beeswax-taper-candles.png"
+        },
+        {
+          "name": "Ceramic Ring Dish",
+          "brand": "Pellier Editions",
+          "price": 35,
+          "imageUrl": "/products/anna-ceramic-ring-dish.png"
+        },
+        {
+          "name": "Botanical Silk Scarf",
+          "brand": "Pellier Editions",
+          "price": 128,
+          "imageUrl": "/products/anna-botanical-silk-scarf.png"
+        }
       ],
-      "meta": { "agent": "Curator", "model": "Claude Opus 4.6 · 0.4", "skill": "the-gift-table", "searchMethod": "hybrid+rerank", "latencyMs": 1492 }
+      "meta": {
+        "agent": "Curator",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "skill": "the-gift-table",
+        "searchMethod": "hybrid+rerank",
+        "latencyMs": 1492
+      }
     }
   ],
   "telemetry": [
-    { "index": 1, "category": "managed", "title": "Intent → Curator", "description": "'gift' matched the-gift-table skill path", "status": "complete", "durationMs": 62, "agent": "Dispatcher" },
-    { "index": 2, "category": "owned", "title": "Skill loaded", "description": "the-gift-table bound for persona: anna", "status": "complete", "durationMs": 40, "agent": "SkillRouter" },
-    { "index": 3, "category": "both", "title": "vector branch", "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-v4:0", "status": "complete", "durationMs": 305, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 4, "category": "both", "title": "BM25 branch", "description": "ts_rank_cd over description_tsv with GIN index (k=20)", "status": "complete", "durationMs": 78, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 5, "category": "managed", "title": "RRF merge", "description": "Reciprocal Rank Fusion (k=60) → 30-candidate pool", "status": "complete", "durationMs": 3, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 6, "category": "both", "title": "cohere.rerank-v3-5:0", "description": "Cohere Rerank v3.5 — Bedrock cohere.rerank-v3-5:0 reranks 30 candidates", "status": "complete", "durationMs": 281, "agent": "Curator · find_pieces_hybrid" },
-    { "index": 7, "category": "both", "title": "editorial composition", "description": "Claude Opus 4.6 · 0.4 — gift-band framing across three price tiers", "status": "complete", "durationMs": 1244, "agent": "Curator" }
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent \u2192 Curator",
+      "description": "'gift' matched the-gift-table skill path",
+      "status": "complete",
+      "durationMs": 62,
+      "agent": "Dispatcher"
+    },
+    {
+      "index": 2,
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-gift-table bound for persona: anna",
+      "status": "complete",
+      "durationMs": 40,
+      "agent": "SkillRouter"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "vector branch",
+      "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-v4:0",
+      "status": "complete",
+      "durationMs": 305,
+      "sql": "WITH query_embedding AS (\n  SELECT $1::vector AS embedding\n)\nSELECT\n  p.product_id,\n  p.name,\n  p.brand,\n  p.price,\n  1 - (p.embedding <=> q.embedding) AS similarity\nFROM product_catalog p\nCROSS JOIN query_embedding q\nWHERE p.quantity > 0\nORDER BY p.embedding <=> q.embedding\nLIMIT 20;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 4,
+      "category": "both",
+      "title": "Postgres FTS branch",
+      "description": "ts_rank_cd over description_tsv with GIN index (k=20)",
+      "status": "complete",
+      "durationMs": 78,
+      "sql": "WITH query_terms AS (\n  SELECT to_tsquery('english', 'wrap:* | gift:* | ready:* | effort:*') AS q\n)\nSELECT\n  p.product_id,\n  p.name,\n  p.brand,\n  p.price,\n  ts_rank_cd(p.description_tsv, query_terms.q) AS text_rank\nFROM product_catalog p\nCROSS JOIN query_terms\nWHERE p.quantity > 0\n  AND p.description_tsv @@ query_terms.q\nORDER BY text_rank DESC\nLIMIT 20;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 5,
+      "category": "managed",
+      "title": "RRF merge",
+      "description": "Reciprocal Rank Fusion (k=60) \u2192 30-candidate pool",
+      "status": "complete",
+      "durationMs": 3,
+      "sql": "WITH vector_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY embedding <=> $1::vector) AS vector_rank\n  FROM product_catalog\n  WHERE quantity > 0\n  LIMIT 20\n),\nfts_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY ts_rank_cd(description_tsv, $2::tsquery) DESC) AS text_rank\n  FROM product_catalog\n  WHERE quantity > 0\n    AND description_tsv @@ $2::tsquery\n  LIMIT 20\n),\nrrf AS (\n  SELECT\n    COALESCE(v.product_id, f.product_id) AS product_id,\n    COALESCE(1.0 / (60 + v.vector_rank), 0) +\n    COALESCE(1.0 / (60 + f.text_rank), 0) AS rrf_score\n  FROM vector_results v\n  FULL OUTER JOIN fts_results f USING (product_id)\n)\nSELECT product_id, rrf_score\nFROM rrf\nORDER BY rrf_score DESC\nLIMIT 30;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 6,
+      "category": "both",
+      "title": "cohere.rerank-v3-5:0",
+      "description": "Cohere Rerank v3.5 \u2014 Bedrock cohere.rerank-v3-5:0 reranks 30 candidates",
+      "status": "complete",
+      "durationMs": 281,
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 7,
+      "category": "both",
+      "title": "editorial composition",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 gift-band framing across three price tiers",
+      "status": "complete",
+      "durationMs": 1244,
+      "agent": "Curator"
+    }
   ],
   "brief": {
     "folioNumber": 31,
     "headline": "Gift, considered",
-    "filedTime": "2025-01-14T21:06:00Z",
+    "filedTime": "2026-05-15T17:49:00Z",
     "sections": [
       {
         "numeral": "i.",
         "title": "The ask",
         "paragraphs": [
-          "Anna arrived with a real gift-shopper's opening line: 'no idea where to start.' The Curator, with the-gift-table skill loaded, pulled three pieces across price bands so she could read her way into a choice rather than be handed one."
+          "Anna arrived with a real gift-shopper's constraint: wrap-ready, no extra effort. The Curator, with the-gift-table skill loaded, pulled three pieces across price bands so she could read her way into a choice rather than be handed one."
         ]
       },
       {
         "numeral": "ii.",
         "title": "Why hybrid retrieval matters here",
         "paragraphs": [
-          "'No idea where to start' has zero literal product tokens — pure cosine handled this beautifully. But 'birthday gift for my sister' carries gendered + occasion-specific tokens that BM25 caught and used to demote pieces the embedding ranked high but that read as 'office gift' rather than 'sister gift'. RRF merged the two signals; Cohere Rerank then put the Beeswax Taper Candles (which the BM25 branch ranked rank-3 and the vector branch ranked rank-7) at the top because Cohere read 'wrap-ready' and 'no fussy preamble' as the right register for an unsure giver."
+          "'Wrap-ready gifts with no extra effort' mixes literal packaging language with soft occasion intent. Postgres FTS caught wrap-ready terms the vector branch could blur; pgvector kept adjacent gift-table pieces in the pool. RRF merged the two signals; Cohere Rerank then put the Beeswax Taper Candles near the top because Cohere read 'wrap-ready' and 'no fussy preamble' as the right register for an unsure giver."
         ]
       }
     ],
     "products": [
-      { "name": "Beeswax Taper Candles", "brand": "Pellier Editions", "price": 48, "imageUrl": "/products/anna-beeswax-taper-candles.png" },
-      { "name": "Ceramic Ring Dish", "brand": "Pellier Editions", "price": 35, "imageUrl": "/products/anna-ceramic-ring-dish.png" },
-      { "name": "Botanical Silk Scarf", "brand": "Pellier Editions", "price": 128, "imageUrl": "/products/anna-botanical-silk-scarf.png" }
+      {
+        "name": "Beeswax Taper Candles",
+        "brand": "Pellier Editions",
+        "price": 48,
+        "imageUrl": "/products/anna-beeswax-taper-candles.png"
+      },
+      {
+        "name": "Ceramic Ring Dish",
+        "brand": "Pellier Editions",
+        "price": 35,
+        "imageUrl": "/products/anna-ceramic-ring-dish.png"
+      },
+      {
+        "name": "Botanical Silk Scarf",
+        "brand": "Pellier Editions",
+        "price": 128,
+        "imageUrl": "/products/anna-botanical-silk-scarf.png"
+      }
     ],
-    "confidence": { "percentage": 93, "stats": [{ "label": "Skill", "value": "the-gift-table" }, { "label": "Price bands", "value": "3" }, { "label": "Search method", "value": "hybrid+rerank" }] }
+    "confidence": {
+      "percentage": 93,
+      "stats": [
+        {
+          "label": "Skill",
+          "value": "the-gift-table"
+        },
+        {
+          "label": "Price bands",
+          "value": "3"
+        },
+        {
+          "label": "Search method",
+          "value": "hybrid+rerank"
+        }
+      ]
+    }
   }
 }

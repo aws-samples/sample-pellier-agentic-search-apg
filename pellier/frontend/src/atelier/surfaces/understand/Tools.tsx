@@ -34,6 +34,20 @@ import {
   type ToolFilter,
 } from './toolsDiscoveryUtils';
 
+const DARK_CODE_BLOCK: React.CSSProperties = {
+  fontFamily: 'var(--dl-font-mono)',
+  fontSize: '12.5px',
+  lineHeight: 1.6,
+  background: 'var(--dl-ink)',
+  color: 'var(--dl-accent-soft)',
+  borderRadius: 'var(--dl-r-lg)',
+  border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
+  padding: '14px 16px',
+  overflow: 'auto',
+  margin: 0,
+  whiteSpace: 'pre-wrap',
+};
+
 /* -----------------------------------------------------------------------
  * Build Segment[] from tool data for WorkshopProgressStrip
  * ----------------------------------------------------------------------- */
@@ -129,9 +143,9 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
           }}
         >
           Discovery demo{' '}
-          <em style={{ fontStyle: 'italic', color: 'var(--at-red-1)' }}>
+          <span style={{ color: 'var(--at-red-1)' }}>
             · pgvector
-          </em>
+          </span>
         </h3>
         <span
           style={{
@@ -231,8 +245,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
             aria-label="Tool discovery query"
             style={{
               flex: 1,
-              fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
+              fontFamily: 'var(--at-sans)',
               fontSize: '17px',
               color: 'var(--at-ink-1)',
               background: 'transparent',
@@ -418,11 +431,6 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
       {(durationMs > 0 || sql) && (
         <div
           style={{
-            fontFamily: 'var(--at-mono)',
-            fontStyle: 'italic',
-            fontSize: '13px',
-            color: 'var(--at-ink-1)',
-            letterSpacing: '0.04em',
             paddingTop: '14px',
             marginTop: '14px',
             borderTop: '1px dashed var(--at-rule-1)',
@@ -437,9 +445,11 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
             </>
           )}
           {sql && (
-            <span style={{ color: 'var(--at-ink-2)' }}>
-              {sql.split('\n')[0]}
-            </span>
+            <pre style={{ ...DARK_CODE_BLOCK, marginTop: durationMs > 0 ? '8px' : 0 }}>
+              <span style={{ color: '#8a8270' }}>-- tool registry similarity query</span>
+              {'\n'}
+              {sql}
+            </pre>
           )}
         </div>
       )}
@@ -619,25 +629,21 @@ const ToolRow: React.FC<ToolRowProps> = ({
       {/* Signature code block */}
       <div
         style={{
-          background: isExercise ? 'transparent' : 'var(--at-cream-2)',
-          border: isExercise ? '1px dashed var(--at-rule-2)' : 'none',
-          padding: '9px 12px',
-          borderRadius: '6px',
-          fontFamily: 'var(--at-mono)',
+          ...DARK_CODE_BLOCK,
+          padding: '10px 12px',
           fontSize: '13px',
-          color: 'var(--at-ink-1)',
-          lineHeight: 1.5,
           margin: '12px 0 12px 46px',
-          overflowX: 'auto' as const,
         }}
       >
         <code>
-          <span style={{ color: 'var(--at-red-1)' }}>def</span>{' '}
-          {tool.functionName}
-          <span style={{ color: 'var(--at-ink-1)' }}>
+          <span style={{ color: '#f7c873' }}>def</span>{' '}
+          <span style={{ color: '#a0d3a4' }}>
+            {tool.functionName}
+          </span>
+          <span style={{ color: 'var(--dl-accent-soft)' }}>
             ({tool.signature.split('(')[1]?.split(')')[0] ?? ''})
           </span>
-          <span style={{ color: 'var(--at-ink-2)' }}>
+          <span style={{ color: '#e8927c' }}>
             {' '}
             → {tool.signature.split('->')[1]?.trim() ?? 'str'}
           </span>
@@ -886,7 +892,6 @@ const RelatedCard: React.FC = () => (
           style={{
             fontFamily: 'var(--at-serif)',
             fontWeight: 400,
-            fontStyle: 'italic',
             fontSize: '20px',
             color: 'var(--at-ink-1)',
             letterSpacing: '-0.01em',
@@ -949,7 +954,6 @@ const RelatedCard: React.FC = () => (
           style={{
             fontFamily: 'var(--at-serif)',
             fontWeight: 400,
-            fontStyle: 'italic',
             fontSize: '20px',
             color: 'var(--at-ink-1)',
             letterSpacing: '-0.01em',

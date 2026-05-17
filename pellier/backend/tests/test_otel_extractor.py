@@ -165,7 +165,7 @@ def stubbed_specialists(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]
                 tspan.set_attribute("gen_ai.tool.call.id", f"call-{name}")
                 # Nested invoke_agent span — the specialist internally
                 # constructs its own Strands Agent (see
-                # recommendation_agent.py).
+                # curator.py).
                 with tracer.start_as_current_span(
                     f"invoke_agent {name}"
                 ) as aspan:

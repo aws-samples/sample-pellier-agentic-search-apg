@@ -1,0 +1,151 @@
+{
+  "id": "theo-pour-over-pairing",
+  "personaId": "theo",
+  "openingQuery": "What goes well with the pour-over set?",
+  "elapsedMs": 4380,
+  "agentCount": 2,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2026-05-15T18:13:00Z",
+  "status": "complete",
+  "chat": [
+    {
+      "role": "user",
+      "content": "What goes well with the pour-over set?",
+      "timestamp": "2026-05-15T18:13:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "The Ceramic Tumblers ($78) are the natural companion to the Stoneware Pour-Over Set: same kiln register, same charcoal undertone, and no two pieces quite match. Add the Woven Mat Set ($42) if you want the table to feel intentional rather than assembled.",
+      "timestamp": "2026-05-15T18:13:03Z",
+      "plan": {
+        "flowSummary": "Dispatcher \u2192 Curator + the-makers-shelf \u2192 find_pieces \u2192 style_match",
+        "traceLink": "#telemetry-1"
+      },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces",
+          "description": "Resolve Stoneware Pour-Over Set as anchor product",
+          "durationMs": 186,
+          "sql": "SELECT product_id, name, brand, price\nFROM product_catalog\nWHERE name ILIKE '%Stoneware Pour-Over Set%'\n  AND quantity > 0\nLIMIT 1;",
+          "resultSummary": "Anchor product resolved: Stoneware Pour-Over Set"
+        },
+        {
+          "toolName": "style_match",
+          "description": "Product-to-product pgvector similarity from Stoneware Pour-Over Set",
+          "durationMs": 214,
+          "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity\nFROM product_catalog p1\nJOIN product_catalog p2 ON p2.product_id != p1.product_id\nWHERE p1.name ILIKE '%Stoneware Pour-Over Set%'\n  AND p2.quantity > 0\nORDER BY p1.embedding <=> p2.embedding\nLIMIT 5;",
+          "resultSummary": "Ceramic Tumblers and Woven Mat Set ranked as closest companions"
+        }
+      ],
+      "products": [
+        {
+          "name": "Ceramic Tumblers",
+          "brand": "Pellier Editions",
+          "price": 78,
+          "imageUrl": "/products/theo-ceramic-tumblers.png"
+        },
+        {
+          "name": "Woven Mat Set",
+          "brand": "Pellier Editions",
+          "price": 42,
+          "imageUrl": "/products/theo-woven-mat-set.png"
+        }
+      ],
+      "meta": {
+        "agent": "Curator",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "skill": "the-makers-shelf",
+        "latencyMs": 1136
+      }
+    }
+  ],
+  "telemetry": [
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent \u2192 Curator",
+      "description": "'goes well with' routed as companion search",
+      "status": "complete",
+      "durationMs": 56,
+      "agent": "Dispatcher"
+    },
+    {
+      "index": 2,
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-makers-shelf bound for persona: theo",
+      "status": "complete",
+      "durationMs": 38,
+      "agent": "SkillRouter"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "find_pieces",
+      "description": "Resolve pour-over anchor product",
+      "status": "complete",
+      "durationMs": 186,
+      "sql": "SELECT product_id, name, brand, price\nFROM product_catalog\nWHERE name ILIKE '%Stoneware Pour-Over Set%'\n  AND quantity > 0\nLIMIT 1;",
+      "agent": "Curator"
+    },
+    {
+      "index": 4,
+      "category": "both",
+      "title": "style_match",
+      "description": "Product-to-product pgvector similarity from Stoneware Pour-Over Set",
+      "status": "complete",
+      "durationMs": 214,
+      "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity\nFROM product_catalog p1\nJOIN product_catalog p2 ON p2.product_id != p1.product_id\nWHERE p1.name ILIKE '%Stoneware Pour-Over Set%'\n  AND p2.quantity > 0\nORDER BY p1.embedding <=> p2.embedding\nLIMIT 5;",
+      "agent": "Curator"
+    },
+    {
+      "index": 5,
+      "category": "both",
+      "title": "editorial composition",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 same-kiln pairing voice",
+      "status": "complete",
+      "durationMs": 736,
+      "agent": "Curator"
+    }
+  ],
+  "brief": {
+    "folioNumber": 35,
+    "headline": "Same kiln, same table",
+    "filedTime": "2026-05-15T18:14:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The companion move",
+        "paragraphs": [
+          "Theo's second turn demonstrates product-to-product similarity: resolve the anchor, then ask pgvector for neighbors that share material, use, and visual register."
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "Ceramic Tumblers",
+        "brand": "Pellier Editions",
+        "price": 78,
+        "imageUrl": "/products/theo-ceramic-tumblers.png"
+      },
+      {
+        "name": "Woven Mat Set",
+        "brand": "Pellier Editions",
+        "price": 42,
+        "imageUrl": "/products/theo-woven-mat-set.png"
+      }
+    ],
+    "confidence": {
+      "stats": [
+        {
+          "label": "Skill",
+          "value": "the-makers-shelf"
+        },
+        {
+          "label": "Tool path",
+          "value": "find_pieces + style_match"
+        }
+      ]
+    }
+  }
+}

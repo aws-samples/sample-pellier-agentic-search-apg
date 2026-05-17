@@ -1,8 +1,7 @@
 /**
- * RuntimeDetail — Architecture detail page for Runtime.
+ * RuntimeDetail — Architecture detail page for Runtime Envelope.
  *
- * AgentCore execution environment — model invocation, tool orchestration,
- * memory access, and observability hooks.
+ * Managed/deployment envelope around the app-layer dispatcher and tools.
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -13,6 +12,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 const RuntimeDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -24,47 +24,48 @@ const RuntimeDetail: React.FC = () => {
   return (
     <DetailPageShell
       numeral="VI"
-      conceptName="Runtime"
-      category="managed"
-      title="Runtime, managed."
-      prose="AgentCore Runtime provides the execution environment for all agents — model invocation, tool orchestration, memory access, and observability hooks. It manages the lifecycle from intent classification through response composition."
+      conceptName="Runtime Envelope"
+      category="optional"
+      title="Runtime, bounded."
+      prose="Runtime is the envelope around execution: model calls, memory, optional Gateway, and observability. In this repository, the Boutique default flow lives in the app service layer; AgentCore Runtime concepts are introduced as the managed deployment pattern around those same contracts."
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'The Runtime is the execution environment. It manages agent lifecycle, model invocation, and tool orchestration in a single managed surface.',
+          text: 'The app-layer runtime is explicit: triage, dispatcher, specialist/tool call, SSE telemetry, reply. That is the path participants see in Sessions.',
         },
         {
           numeral: 'ii.',
-          text: 'Memory access, gateway routing, and telemetry export are all wired through the Runtime. You configure, the platform operates.',
+          text: 'Managed runtime concepts matter at deployment: cold starts, identity, memory, Gateway connectivity, and trace export.',
         },
         {
           numeral: 'iii.',
-          text: 'The Runtime handles cold starts, connection pooling, and model routing. Your code focuses on agent logic, not infrastructure.',
+          text: 'The workshop separates what the code owns from what the platform can operate, so the architecture page does not imply every request uses a hidden graph runtime.',
         },
       ]}
       liveState={{
-        label: 'Current AgentCore Runtime state. Shows the execution environment configuration and active services.',
+        label: 'Current runtime envelope. Shows the app-layer execution path plus optional managed services.',
         values: [
-          { label: 'Agents', value: '5' },
+          { label: 'Default path', value: 'Dispatcher' },
           { label: 'Memory', value: 'Active' },
-          { label: 'Gateway', value: 'MCP' },
+          { label: 'Gateway', value: 'Optional' },
         ],
       }}
     >
       {loading && <DetailLoadingState />}
       {error && <DetailErrorState message={error} onRetry={refetch} />}
-      {!loading && !error && !concept && <DetailEmptyState conceptName="Runtime" />}
+      {!loading && !error && !concept && <DetailEmptyState conceptName="Runtime Envelope" />}
       {!loading && !error && concept && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Runtime layers */}
           <ExpCard>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <SectionLabel label="The layers" />
-              <h3 style={titleStyle}>Seven layers, one request.</h3>
+              <h3 style={titleStyle}>Seven visible steps, one request.</h3>
               <p style={proseStyle}>
-                A request flows through seven layers: fast-path check, intent classification,
-                skill routing, orchestrator dispatch, specialist execution, tool invocation,
-                and response streaming. The Runtime manages all of them.
+                A Boutique request flows through visible steps: fast-path check, intent
+                classification, skill routing, dispatcher handoff, specialist execution,
+                tool invocation, and response streaming. Sessions and Telemetry render these
+                steps directly.
               </p>
               <RuntimeLayersDiagram />
             </div>
@@ -75,12 +76,12 @@ const RuntimeDetail: React.FC = () => {
             <LayerCard
               name="Fast-path"
               timing="~5ms"
-              description="Quick check for cached responses or simple queries that don't need agent reasoning."
+              description="Deterministic greeting, thanks, and meta handling before any specialist work."
             />
             <LayerCard
               name="Intent classification"
               timing="~120ms"
-              description="Haiku 4.5 classifies the user's intent: pricing, inventory, support, search, or recommendation."
+              description="Keyword and pattern routing in services/chat.py picks pricing, inventory, support, search, or recommendation."
             />
             <LayerCard
               name="Skill routing"
@@ -90,7 +91,7 @@ const RuntimeDetail: React.FC = () => {
             <LayerCard
               name="Specialist execution"
               timing="~800ms"
-              description="Opus 4.6 specialists compose the response using STM context, LTM recall, and tool results."
+              description="The owning specialist composes the response using persona context, memory, and tool results."
             />
           </div>
 
@@ -175,9 +176,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default RuntimeDetail;

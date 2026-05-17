@@ -16,6 +16,14 @@ export interface ChatTurn {
   plan?: PlanRow;
   confidence?: ConfidenceRow;
   memoryPills?: MemoryPill[];
+  meta?: {
+    agent?: string | null;
+    model?: string | null;
+    skill?: string;
+    searchMethod?: string;
+    latencyMs?: number;
+    note?: string;
+  };
 }
 
 export interface ToolCall {
@@ -24,7 +32,25 @@ export interface ToolCall {
   durationMs: number;
   sql?: string;
   resultSummary?: string;
+  subSteps?: ToolSubStep[];
+  writes?: ToolWrite[];
   expanded?: boolean;
+}
+
+export interface ToolSubStep {
+  label: string;
+  durationMs: number;
+  sql?: string;
+}
+
+export interface ToolWrite {
+  table: string;
+  operation: string;
+  rowId: number | string;
+  field?: string;
+  before?: number | string;
+  after?: number | string;
+  via?: string;
 }
 
 export interface ProductCard {
@@ -45,11 +71,11 @@ export interface PlanRow {
 }
 
 export interface ConfidenceRow {
-  percentage: number;
+  percentage?: number;
   reasoning: string;
 }
 
 export interface MemoryPill {
-  tier: 'stm' | 'ltm';
+  tier: 'stm' | 'ltm' | 'skill';
   content: string;
 }

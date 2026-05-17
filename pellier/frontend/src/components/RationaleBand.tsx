@@ -89,6 +89,7 @@ export default function RationaleBand() {
           direction="to-atelier"
           href="/atelier/architecture"
           label="How this works · in the Atelier"
+          italic={false}
         />
       </div>
     </div>

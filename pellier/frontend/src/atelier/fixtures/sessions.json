@@ -6,7 +6,7 @@
     "elapsedMs": 14820,
     "agentCount": 3,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-15T19:42:00Z",
+    "timestamp": "2026-05-15T17:00:00Z",
     "status": "complete",
     "tagline": "Linen for summer in Goa"
   },
@@ -17,9 +17,9 @@
     "elapsedMs": 1840,
     "agentCount": 1,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-15T20:18:00Z",
+    "timestamp": "2026-05-15T17:24:00Z",
     "status": "complete",
-    "tagline": "Stock check — after the build"
+    "tagline": "Stock check \u2014 after the build"
   },
   {
     "id": "marco-capstone",
@@ -28,31 +28,64 @@
     "elapsedMs": 22340,
     "agentCount": 5,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-15T21:05:00Z",
+    "timestamp": "2026-05-15T17:34:00Z",
     "status": "complete",
-    "tagline": "Full journey — all five agents"
+    "tagline": "Full journey \u2014 all five agents"
+  },
+  {
+    "id": "anna-morning-ritual",
+    "personaId": "anna",
+    "openingQuery": "A thoughtful gift for someone who loves morning rituals",
+    "elapsedMs": 5520,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T17:42:00Z",
+    "status": "complete",
+    "tagline": "Morning ritual gift"
+  },
+  {
+    "id": "anna-under-100",
+    "personaId": "anna",
+    "openingQuery": "Something beautiful under $100",
+    "elapsedMs": 4860,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T17:44:00Z",
+    "status": "complete",
+    "tagline": "Beautiful gift under $100"
+  },
+  {
+    "id": "anna-candle-pairing",
+    "personaId": "anna",
+    "openingQuery": "Help me pair a candle with something else",
+    "elapsedMs": 5120,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T17:46:00Z",
+    "status": "complete",
+    "tagline": "Candle plus companion gift"
   },
   {
     "id": "anna-birthday-gift",
     "personaId": "anna",
-    "openingQuery": "Birthday gift for my sister — no idea where to start",
+    "openingQuery": "Wrap-ready gifts with no extra effort",
     "elapsedMs": 5640,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-14T21:05:00Z",
+    "timestamp": "2026-05-15T17:48:00Z",
     "status": "complete",
-    "tagline": "Birthday gift, sister, no idea where to start"
+    "tagline": "Wrap-ready gifts with no extra effort"
   },
   {
     "id": "anna-housewarming",
     "personaId": "anna",
-    "openingQuery": "Something considered under $100 for a new homeowner",
+    "openingQuery": "A milestone gift for a new homeowner",
     "elapsedMs": 4220,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-13T18:22:00Z",
+    "timestamp": "2026-05-15T17:58:00Z",
     "status": "complete",
-    "tagline": "Housewarming, considered, under $100"
+    "tagline": "A milestone gift for a new homeowner"
   },
   {
     "id": "theo-pour-over",
@@ -61,19 +94,52 @@
     "elapsedMs": 6120,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-14T10:33:00Z",
+    "timestamp": "2026-05-15T18:10:00Z",
     "status": "complete",
     "tagline": "Slow-craft ceramics, mornings"
   },
   {
+    "id": "theo-pour-over-pairing",
+    "personaId": "theo",
+    "openingQuery": "What goes well with the pour-over set?",
+    "elapsedMs": 4380,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T18:13:00Z",
+    "status": "complete",
+    "tagline": "Pour-over companion pieces"
+  },
+  {
+    "id": "theo-linen-seasons",
+    "personaId": "theo",
+    "openingQuery": "Linen pieces that soften over seasons",
+    "elapsedMs": 4680,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T18:16:00Z",
+    "status": "complete",
+    "tagline": "Linen with patina"
+  },
+  {
     "id": "theo-ceramics-return",
     "personaId": "theo",
-    "openingQuery": "These ceramics arrived chipped. What now?",
+    "openingQuery": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2014 my customer id is 'theo'.",
     "elapsedMs": 2140,
     "agentCount": 1,
     "routingPattern": "Dispatcher",
-    "timestamp": "2025-01-13T09:15:00Z",
+    "timestamp": "2026-05-15T18:22:00Z",
     "status": "complete",
-    "tagline": "These ceramics arrived chipped. What now?"
+    "tagline": "Damaged Wabi-Sabi Bowl return"
+  },
+  {
+    "id": "theo-home-not-wardrobe",
+    "personaId": "theo",
+    "openingQuery": "Something for the home, not the wardrobe",
+    "elapsedMs": 4020,
+    "agentCount": 2,
+    "routingPattern": "Dispatcher",
+    "timestamp": "2026-05-15T18:28:00Z",
+    "status": "complete",
+    "tagline": "Home goods over wardrobe"
   }
 ]

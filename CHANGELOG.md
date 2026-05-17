@@ -42,12 +42,12 @@ Drop-in replacement files for participants short on time. Each solution is the c
 solutions/
 ├── module2/services/       hybrid_search.py, business_logic.py
 ├── module3a/services/      agent_tools.py
-├── module3b/agents/        recommendation_agent.py, orchestrator.py
+├── module3b/agents/        curator.py, orchestrator.py
 ├── module4/services/       agentcore_memory.py, agentcore_gateway.py, agentcore_policy.py
 └── README.md               Copy commands for each module
 ```
 
-Usage: `cp solutions/module2/services/hybrid_search.py pellier/backend/services/hybrid_search.py`
+Usage: `cp solutions/the-quiet-search/services/hybrid_search.py pellier/backend/services/hybrid_search.py`
 
 ---
 
@@ -58,7 +58,7 @@ Usage: `cp solutions/module2/services/hybrid_search.py pellier/backend/services/
 | 2      | `services/hybrid_search.py`      | `_vector_search()` — pgvector cosine distance query   | Returns empty → fulltext search still works    |
 | 2      | `services/business_logic.py`     | `search_products()` — filtered vector search with CTE | Returns empty product list                     |
 | 3a     | `services/agent_tools.py`        | `get_trending_products()` — @tool function            | Returns "not implemented" JSON                 |
-| 3b     | `agents/recommendation_agent.py` | `product_recommendation_agent()` — specialist agent   | Returns "not implemented" JSON                 |
+| 3b     | `agents/curator.py` | `product_recommendation_agent()` — specialist agent   | Returns "not implemented" JSON                 |
 | 3b     | `agents/orchestrator.py`         | `ORCHESTRATOR_PROMPT` + `create_orchestrator()`       | Returns `None` → chat shows "not wired up"     |
 | 4      | `services/agentcore_memory.py`   | `create_agentcore_session_manager()`                  | Returns `None` → falls back to Aurora sessions |
 | 4      | `services/agentcore_gateway.py`  | `create_gateway_orchestrator()`                       | Returns `None` → falls back to direct imports  |
@@ -132,7 +132,7 @@ Removed from lab-content: `MIGRATION_GUIDE.md`, `LIVESTREAM_RUNDOWN.md`, `KIRO_S
 - `pellier/frontend/` — untouched, pre-built React app
 - `pellier/backend/services/database.py` — untouched
 - `pellier/backend/services/embeddings.py` — untouched
-- `pellier/backend/agents/inventory_agent.py` — untouched (pre-built example)
+- `pellier/backend/agents/stock_keeper.py` — untouched (pre-built example)
 - `pellier/backend/agents/pricing_agent.py` — untouched (pre-built example)
 - `modules/05/` — deployment scripts, untouched
 - `sample-images/` — visual search test images, untouched

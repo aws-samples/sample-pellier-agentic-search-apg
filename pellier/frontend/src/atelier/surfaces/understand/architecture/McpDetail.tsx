@@ -1,7 +1,7 @@
 /**
- * McpDetail — Architecture detail page for the MCP concept.
+ * McpDetail — Architecture detail page for the optional MCP Gateway concept.
  *
- * Model Context Protocol gateway — standardized tool discovery and invocation.
+ * Model Context Protocol gateway — optional managed tool publishing path.
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -12,6 +12,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 const McpDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -22,48 +23,48 @@ const McpDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="II"
-      conceptName="MCP"
-      category="managed"
-      title="MCP, the seam."
-      prose="Model Context Protocol is how the agent discovers and calls tools. The Gateway publishes the surface; the agent consumes it. One address, one protocol, many tools. The agent never talks to a tool directly."
+      numeral="VII"
+      conceptName="MCP Gateway"
+      category="optional"
+      title="Gateway, optional."
+      prose="MCP Gateway is the optional managed path for publishing Pellier tools over a protocol boundary. When AGENTCORE_GATEWAY_URL is unset, the app uses in-process Strands tools; when configured, the Gateway can expose the same tool surface to an MCP client."
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'The agent asks the Gateway for the tool catalog — names, signatures, descriptions. This is discovery.',
+          text: 'When configured, the agent asks the Gateway for the tool catalog — names, signatures, descriptions. This is MCP discovery.',
         },
         {
           numeral: 'ii.',
-          text: 'The agent calls a tool by name through the Gateway. The Gateway routes to the implementation and returns the result. This is invocation.',
+          text: 'When configured, the agent calls a tool by name through the Gateway. Without Gateway, the dispatcher calls the in-process tool directly.',
         },
         {
           numeral: 'iii.',
-          text: 'The Gateway handles authentication, observability, and rate limiting. You don\'t run the protocol layer — Gateway does it.',
+          text: 'The Gateway handles the protocol boundary, authentication, and managed-tool publishing. It is a deployment option, not a requirement for every workshop run.',
         },
       ]}
       liveState={{
-        label: 'Current MCP Gateway state. Tools are registered at boot and discovered via semantic similarity at runtime.',
+        label: 'Current MCP Gateway state. Shows the optional managed Gateway path beside the app\'s default in-process tool calls.',
         values: [
-          { label: 'Tools registered', value: '9' },
-          { label: 'Gateway p50', value: '18ms' },
-          { label: 'Protocol', value: 'MCP' },
+          { label: 'Gateway', value: 'Optional' },
+          { label: 'Default path', value: 'In-process' },
+          { label: 'Protocol', value: 'MCP when configured' },
         ],
       }}
     >
       {loading && <DetailLoadingState />}
       {error && <DetailErrorState message={error} onRetry={refetch} />}
-      {!loading && !error && !concept && <DetailEmptyState conceptName="MCP" />}
+      {!loading && !error && !concept && <DetailEmptyState conceptName="MCP Gateway" />}
       {!loading && !error && concept && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Network diagram card */}
           <ExpCard>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <ConceptEyebrow label="The network" />
-              <h3 style={sectionTitleStyle}>Three nodes, two edges.</h3>
+              <h3 style={sectionTitleStyle}>Three nodes, only when enabled.</h3>
               <p style={sectionProseStyle}>
-                The agent never talks to a tool directly. It asks the Gateway "what's available?",
-                gets back a list of tool descriptions, and invokes the ones it needs through the
-                same channel.
+                The default Boutique path calls in-process tools. If Gateway is configured, the
+                agent can ask "what's available?", receive the MCP tool catalog, and invoke tools
+                through the managed protocol boundary.
               </p>
               <McpNetworkDiagram />
             </div>
@@ -74,20 +75,20 @@ const McpDetail: React.FC = () => {
             <NodeCard
               nodeKey="A"
               name="The Agent"
-              tag="Owned"
-              description="Strands orchestrator (Haiku) plus five specialists (Opus). Fetches the tool catalog from the Gateway on startup."
+              tag="App path"
+              description="Strands agent or gateway-aware client. Uses Gateway only when AGENTCORE_GATEWAY_URL is configured."
             />
             <NodeCard
               nodeKey="B"
               name="The Gateway"
-              tag="Managed"
-              description="AgentCore Gateway. Publishes the tool surface as MCP, handles authentication, observability, and rate limiting."
+              tag="Optional infra"
+              description="AgentCore Gateway. Publishes the tool surface as MCP and handles the managed protocol boundary."
             />
             <NodeCard
               nodeKey="C"
               name="The Tools"
-              tag="Owned"
-              description="Our @tool-decorated functions. Registered with the Gateway at boot. The Gateway exposes their signatures."
+              tag="Live tools"
+              description="The same @tool-decorated functions the in-process dispatcher can call directly."
             />
           </div>
 
@@ -170,7 +171,7 @@ const McpNetworkDiagram: React.FC = () => (
     {/* Agent (top) */}
     <rect x="180" y="50" width="120" height="55" rx="10" fill="#1f1410" />
     <text x="240" y="78" textAnchor="middle" fontFamily="Fraunces, serif" fontStyle="italic" fontSize="18" fill="var(--cream-warm)">agent</text>
-    <text x="240" y="94" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(250,243,232,0.55)" letterSpacing="1.5">orchestrator + 5 specs</text>
+    <text x="240" y="94" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" fill="rgba(250,243,232,0.55)" letterSpacing="1.5">gateway-aware agent</text>
 
     {/* Gateway (bottom-left) */}
     <rect x="55" y="210" width="130" height="70" rx="10" fill="var(--cream-warm)" stroke="var(--accent)" strokeWidth="1.5" />
@@ -224,15 +225,7 @@ const sectionProseStyle: React.CSSProperties = {
 };
 
 const codeBlockStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)',
-  fontSize: '14px',
-  lineHeight: 1.7,
-  color: 'var(--at-ink-1)',
-  backgroundColor: 'var(--at-cream-2)',
-  borderRadius: '8px',
-  padding: '14px 16px',
-  margin: 0,
-  overflowX: 'auto',
+  ...ARCHITECTURE_CODE_BLOCK,
   whiteSpace: 'pre',
 };
 

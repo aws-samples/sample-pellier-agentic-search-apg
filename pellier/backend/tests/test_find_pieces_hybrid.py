@@ -193,6 +193,38 @@ class TestReranking:
         assert names[0] == "Product 5"
         assert names[-1] == "Product 1"
 
+    def test_milestone_home_query_promotes_olive_branch_when_rerank_found_it(
+        self,
+        candidates: List[Dict[str, Any]],
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        candidates[1]["name"] = "Olive Branch Vessel"
+        result = json.loads(
+            agent_tools.find_pieces_hybrid(
+                query="A milestone gift for a new homeowner",
+                limit=5,
+            )
+        )
+        names = [p["name"] for p in result["products"]]
+        assert names[0] == "Olive Branch Vessel"
+
+    def test_non_home_milestone_queries_keep_rerank_order(
+        self,
+        candidates: List[Dict[str, Any]],
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        candidates[1]["name"] = "Olive Branch Vessel"
+        result = json.loads(
+            agent_tools.find_pieces_hybrid(query="something beautiful", limit=5)
+        )
+        names = [p["name"] for p in result["products"]]
+        assert names[0] == "Product 5"
+        assert names[3] == "Olive Branch Vessel"
+
     def test_each_product_has_rerank_score(
         self,
         patch_embedding: MagicMock,

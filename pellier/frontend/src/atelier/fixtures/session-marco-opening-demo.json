@@ -5,22 +5,22 @@
   "elapsedMs": 14820,
   "agentCount": 3,
   "routingPattern": "Dispatcher",
-  "timestamp": "2025-01-15T19:42:00Z",
+  "timestamp": "2026-05-15T17:00:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "What linen do you have for 10 days in Goa?",
-      "timestamp": "2025-01-15T19:42:00Z"
+      "timestamp": "2026-05-15T17:00:00Z"
     },
     {
       "role": "assistant",
-      "content": "Goa in linen — you'll want pieces that breathe, pack flat, and forgive a ten-day wear. Three I'd pull: the Pellier Linen Shirt in ecru ($148), the Linen Drawstring Trousers in oat ($118), and the Italian Linen Camp Shirt in indigo ($228). All three crumple honestly rather than crease — that's the tell of real linen, not a blend.",
-      "timestamp": "2025-01-15T19:42:04Z",
+      "content": "Goa in linen \u2014 you'll want pieces that breathe, pack flat, and forgive a ten-day wear. Three I'd pull: the Pellier Linen Shirt in ecru ($148), the Linen Drawstring Trousers in oat ($118), and the Italian Linen Camp Shirt in indigo ($228). All three crumple honestly rather than crease \u2014 that's the tell of real linen, not a blend.",
+      "timestamp": "2026-05-15T17:00:04Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 3,
-        "flowSummary": "Dispatcher → Style Advisor → find_pieces",
+        "flowSummary": "Dispatcher \u2192 Style Advisor \u2192 find_pieces",
         "traceLink": "#telemetry-1"
       },
       "toolCalls": [
@@ -29,7 +29,7 @@
           "description": "Semantic search for linen travel pieces",
           "durationMs": 312,
           "sql": "SELECT name, brand, price, 1 - (embedding <=> $1) AS similarity FROM product_catalog WHERE category ILIKE '%linen%' AND quantity > 0 ORDER BY embedding <=> $1 LIMIT 10;",
-          "resultSummary": "3 linen pieces above 0.82 cosine similarity"
+          "resultSummary": "Top 3 linen travel pieces returned by cosine distance"
         }
       ],
       "products": [
@@ -38,7 +38,7 @@
           "brand": "Pellier Editions",
           "price": 148,
           "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png",
-          "traceRef": "panel-1"
+          "traceRef": "panel-2"
         },
         {
           "name": "Linen Drawstring Trousers",
@@ -52,7 +52,7 @@
           "brand": "Pellier Editions",
           "price": 228,
           "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
-          "traceRef": "panel-3"
+          "traceRef": "panel-2"
         }
       ],
       "confidence": {
@@ -60,28 +60,34 @@
         "reasoning": "Strong semantic match on 'linen' + 'travel'; Marco's LTM preference profile (natural fibers, warm tones) weights the Hadley / Pellier linen shirt and drawstring trousers highest."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Planning 10 days in Goa — linen, travels well" },
-        { "tier": "ltm", "content": "Prefers natural fibers; warm neutrals; pieces that soften" }
+        {
+          "tier": "stm",
+          "content": "Planning 10 days in Goa \u2014 linen, travels well"
+        },
+        {
+          "tier": "ltm",
+          "content": "Prefers natural fibers; warm neutrals; pieces that soften"
+        }
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.6 · 0.4",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
         "latencyMs": 1312
       }
     },
     {
       "role": "user",
       "content": "What would go with the Hadley shirt?",
-      "timestamp": "2025-01-15T19:42:32Z"
+      "timestamp": "2026-05-15T17:00:32Z"
     },
     {
       "role": "assistant",
-      "content": "The Hadley pairs beautifully with the Drawstring Trousers in oat — same washed-linen family, same tonal register, they read as a considered set rather than an accident. For layering when the evening cools, the Washed Cotton Overshirt in ecru picks up the same muted palette without adding bulk. And the Leather Weekender ties the whole packing list together — the kind of bag that earns its patina on the trip.",
-      "timestamp": "2025-01-15T19:42:38Z",
+      "content": "The Hadley pairs beautifully with the Drawstring Trousers in oat \u2014 same washed-linen family, same tonal register, they read as a considered set rather than an accident. For layering when the evening cools, the Washed Cotton Overshirt in ecru picks up the same muted palette without adding bulk. And the Leather Weekender ties the whole packing list together \u2014 the kind of bag that earns its patina on the trip.",
+      "timestamp": "2026-05-15T17:00:38Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 3,
-        "flowSummary": "Dispatcher → Curator (+ packing-list skill) → style_match",
+        "flowSummary": "Dispatcher \u2192 Curator (+ packing-list skill) \u2192 style_match",
         "traceLink": "#telemetry-4"
       },
       "toolCalls": [
@@ -90,7 +96,7 @@
           "description": "Product-to-product pgvector similarity from Hadley / Pellier Linen Shirt",
           "durationMs": 218,
           "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity FROM product_catalog p1, product_catalog p2 WHERE p1.product_id = $1 AND p2.product_id != $1 AND p2.quantity > 0 ORDER BY p1.embedding <=> p2.embedding LIMIT 5;",
-          "resultSummary": "3 companion pieces above 0.76 cosine similarity"
+          "resultSummary": "3 companion pieces returned by product-to-product similarity"
         }
       ],
       "products": [
@@ -99,14 +105,14 @@
           "brand": "Pellier Editions",
           "price": 118,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
-          "traceRef": "panel-4"
+          "traceRef": "panel-6"
         },
         {
           "name": "Washed Cotton Overshirt",
           "brand": "Pellier Editions",
           "price": 185,
           "imageUrl": "/products/marco-washed-cotton-overshirt.png",
-          "traceRef": "panel-5"
+          "traceRef": "panel-6"
         },
         {
           "name": "Leather Weekender",
@@ -121,12 +127,18 @@
         "reasoning": "the-packing-list skill loaded; style_match returned companions from Marco's travel-linen cluster with strong cosine similarity."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Interested in pairings for the Hadley shirt" },
-        { "tier": "skill", "content": "the-packing-list loaded (persona: marco)" }
+        {
+          "tier": "stm",
+          "content": "Interested in pairings for the Hadley shirt"
+        },
+        {
+          "tier": "skill",
+          "content": "the-packing-list loaded (persona: marco)"
+        }
       ],
       "meta": {
         "agent": "Curator",
-        "model": "Claude Opus 4.6 · 0.4",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
         "skill": "the-packing-list",
         "latencyMs": 1428
       }
@@ -134,16 +146,16 @@
     {
       "role": "user",
       "content": "What's the price range for linen shirts?",
-      "timestamp": "2025-01-15T19:43:02Z"
+      "timestamp": "2026-05-15T17:01:02Z"
     },
     {
       "role": "assistant",
-      "content": "Linen shirts in the catalog run from $88 to $285. Median is $148. The Pellier sits right at the median; the Italian Linen Camp Shirt ($228) is in the upper third. Under $100 there are two — both cotton-linen blends rather than pure linen.",
-      "timestamp": "2025-01-15T19:43:03Z",
+      "content": "Linen shirts in the catalog run from $88 to $285. Median is $148. The Pellier sits right at the median; the Italian Linen Camp Shirt ($228) is in the upper third. Under $100 there are two \u2014 both cotton-linen blends rather than pure linen.",
+      "timestamp": "2026-05-15T17:01:03Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 2,
-        "flowSummary": "Dispatcher → Value Analyst → price_intelligence",
+        "flowSummary": "Dispatcher \u2192 Value Analyst \u2192 price_intelligence",
         "traceLink": "#telemetry-7"
       },
       "toolCalls": [
@@ -158,52 +170,58 @@
       "products": [],
       "confidence": {
         "percentage": 96,
-        "reasoning": "Deterministic aggregate. Claude Haiku 4.5 at 0.1 — no variance, sub-200ms."
+        "reasoning": "Deterministic aggregate. Claude Haiku 4.5 at 0.1 \u2014 no variance, sub-200ms."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Checking price range before committing" }
+        {
+          "tier": "stm",
+          "content": "Checking price range before committing"
+        }
       ],
       "meta": {
         "agent": "Value Analyst",
-        "model": "Claude Haiku 4.5 · 0.1",
+        "model": "Claude Haiku 4.5 \u00b7 0.1",
         "latencyMs": 168
       }
     },
     {
       "role": "user",
       "content": "Is the Hadley shirt at the Brooklyn warehouse?",
-      "timestamp": "2025-01-15T19:43:22Z"
+      "timestamp": "2026-05-15T17:01:22Z"
     },
     {
       "role": "assistant",
-      "content": "I can help with style and recommendations, but I don't have real-time stock visibility for individual warehouses yet. I can tell you the Hadley shirt (Pellier Linen Shirt in ecru) is in the catalog and marked in-stock system-wide — but which warehouse holds it, and how many are on the floor, sits outside what I can answer right now.",
-      "timestamp": "2025-01-15T19:43:24Z",
+      "content": "I can help with style and recommendations, but I don't have real-time stock visibility for individual warehouses yet. I can tell you the Hadley shirt (Pellier Linen Shirt in ecru) is in the catalog and marked in-stock system-wide \u2014 but which warehouse holds it, and how many are on the floor, sits outside what I can answer right now.",
+      "timestamp": "2026-05-15T17:01:24Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 1,
-        "flowSummary": "Dispatcher → stock intent matched → Stock Keeper stubbed → voice-matched non-answer",
+        "flowSummary": "Dispatcher \u2192 stock intent matched \u2192 Stock Keeper stubbed \u2192 voice-matched non-answer",
         "traceLink": "#telemetry-11"
       },
       "toolCalls": [],
       "products": [],
       "confidence": {
         "percentage": 0,
-        "reasoning": "Stock intent matched by the Dispatcher (keywords: warehouse, available, at the). Stock Keeper is in stub state — no agent invoked. Fall-through returned the voice-matched non-answer."
+        "reasoning": "Stock intent matched by the Dispatcher (keywords: warehouse, available, at the). Stock Keeper is in stub state \u2014 no agent invoked. Fall-through returned the voice-matched non-answer."
       },
       "memoryPills": [
-        { "tier": "stm", "content": "Asked about warehouse stock — not answered" }
+        {
+          "tier": "stm",
+          "content": "Asked about warehouse stock \u2014 not answered"
+        }
       ],
       "meta": {
         "agent": null,
         "model": null,
-        "note": "Pattern III fall-through — Stock Keeper is the workshop build",
+        "note": "Pattern III fall-through \u2014 Stock Keeper is the workshop build",
         "latencyMs": 72
       }
     },
     {
       "role": "user",
       "content": "I'll come back when I'm ready to commit.",
-      "timestamp": "2025-01-15T19:44:01Z"
+      "timestamp": "2026-05-15T17:02:01Z"
     }
   ],
   "telemetry": [
@@ -230,7 +248,7 @@
       "index": 3,
       "category": "managed",
       "title": "Response composition",
-      "description": "Claude Opus 4.6 at 0.4 — editorial voice, 3 pieces",
+      "description": "Claude Opus 4.6 at 0.4 \u2014 editorial voice, 3 pieces",
       "status": "complete",
       "durationMs": 938,
       "agent": "Style Advisor"
@@ -286,7 +304,7 @@
       "index": 9,
       "category": "managed",
       "title": "Response composition",
-      "description": "Claude Haiku 4.5 at 0.1 — fast, deterministic numerical answer",
+      "description": "Claude Haiku 4.5 at 0.1 \u2014 fast, deterministic numerical answer",
       "status": "complete",
       "durationMs": 74,
       "agent": "Value Analyst"
@@ -303,8 +321,8 @@
     {
       "index": 11,
       "category": "teaching",
-      "title": "Routing fall-through — Stock Keeper stubbed",
-      "description": "Dispatcher detected Stock Keeper in stub state. No agent invoked. Voice-matched non-answer returned from orchestrator.py fall-through. This is the workshop build — Builder's Session · Part I · wire floor_check.",
+      "title": "Routing fall-through \u2014 Stock Keeper stubbed",
+      "description": "Dispatcher detected Stock Keeper in stub state. No agent invoked. Voice-matched non-answer returned from orchestrator.py fall-through. This is the workshop build \u2014 Builder's Session \u00b7 Part I \u00b7 wire floor_check.",
       "status": "complete",
       "durationMs": 4,
       "agent": null,
@@ -314,13 +332,13 @@
   "brief": {
     "folioNumber": 42,
     "headline": "Three answers, one gap",
-    "filedTime": "2025-01-15T19:44:30Z",
+    "filedTime": "2026-05-15T17:02:30Z",
     "sections": [
       {
         "numeral": "i.",
         "title": "The arc",
         "paragraphs": [
-          "Marco arrived with a clear plan — ten days in Goa, linen — and walked through the catalog in four turns. Three landed cleanly. The fourth didn't.",
+          "Marco arrived with a clear plan \u2014 ten days in Goa, linen \u2014 and walked through the catalog in four turns. Three landed cleanly. The fourth didn't.",
           "The Dispatcher routed each turn to exactly one specialist: Style Advisor on Claude Opus 4.6 for the opening ask, Curator on Claude Opus 4.6 with the-packing-list skill loaded for pairings, Value Analyst on Claude Haiku 4.5 for the price range. All three specialists running on their declared models; no normalization."
         ]
       },
@@ -328,7 +346,7 @@
         "numeral": "ii.",
         "title": "The gap",
         "paragraphs": [
-          "Turn 4 — the warehouse-stock question — sits outside the system's current reach. The Dispatcher matched the intent, routed to Stock Keeper, and Stock Keeper answered with a voice-matched non-answer because the agent ships in stub state.",
+          "Turn 4 \u2014 the warehouse-stock question \u2014 sits outside the system's current reach. The Dispatcher matched the intent, routed to Stock Keeper, and Stock Keeper answered with a voice-matched non-answer because the agent ships in stub state.",
           "This is the workshop build. Participants wire floor_check (and in the full Workshop format, restock_shelf and running_low). Once wired, the same Turn 4 pill returns a real warehouse + count + ETA."
         ]
       },
@@ -363,10 +381,22 @@
     "confidence": {
       "percentage": 69,
       "stats": [
-        { "label": "Turns answered", "value": "3 of 4" },
-        { "label": "Specialists invoked", "value": "3" },
-        { "label": "Models used", "value": "Claude Opus 4.6, Claude Haiku 4.5" },
-        { "label": "Unresolved", "value": "1 — stock" }
+        {
+          "label": "Turns answered",
+          "value": "3 of 4"
+        },
+        {
+          "label": "Specialists invoked",
+          "value": "3"
+        },
+        {
+          "label": "Models used",
+          "value": "Claude Opus 4.6, Claude Haiku 4.5"
+        },
+        {
+          "label": "Unresolved",
+          "value": "1 \u2014 stock"
+        }
       ]
     }
   }

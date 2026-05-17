@@ -72,7 +72,7 @@ pellier/
 │   └── dist/          ← Built SPA served by FastAPI
 └── config/            ← MCP server config (auto-generated)
 
-solutions/             ← Drop-in reference files per module
+solutions/             ← Drop-in reference files by named module
 scripts/               ← Bootstrap, seed, and utility scripts
 data/                  ← Product catalog CSV with embeddings
 ```
@@ -100,7 +100,7 @@ The **Orchestrator** (`agents/orchestrator.py`) routes every query to the right 
 **Import error on startup?** Check the terminal — the error names the missing function. Most likely a challenge file needs the solution copied:
 
 ```bash
-# Example: copy the Module 2 orchestrator solution
+# Example: copy the Closing Marco's Gap orchestrator solution
 cp solutions/closing-marcos-gap/agents/orchestrator.py pellier/backend/agents/orchestrator.py
 ```
 
@@ -114,18 +114,19 @@ bash scripts/seed-database.sh
 
 ---
 
-## Workflow for each challenge
+## Workflow for the build exercise
 
-1. Read the challenge description in the lab guide
-2. Open the target file — look for the `# === CHALLENGE N: START ===` block
+1. Read the `floor_check` challenge description in the lab guide
+2. Open `pellier/backend/services/agent_tools.py` — look for the `floor_check` challenge block
 3. Implement between the markers (hints are in the comments)
 4. Save — uvicorn restarts automatically
 5. Test in the storefront or Atelier
 
-Short on time? Every challenge has a one-liner to copy the solution:
+Short on time? Copy the Closing Marco's Gap solution:
 
 ```bash
-cp solutions/<module>/<path>/file.py pellier/backend/<path>/file.py
+cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
+   pellier/backend/services/agent_tools.py
 ```
 
-The exact command is in the challenge comments.
+The exact command is also in the challenge comments.

@@ -141,6 +141,7 @@ export default function MemoryHandoffCard() {
                 direction="to-atelier"
                 href="/atelier/memory"
                 label="See how the agent's memory works"
+                italic={false}
               />
             </div>
           </div>

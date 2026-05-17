@@ -1,7 +1,7 @@
 /**
  * PersonaJourneys — the workshop's narrative spine in one screen.
  *
- * Four personas (Marco / Anna / Theo / fresh) each surface five Boutique
+ * Three returning personas (Marco / Anna / Theo) each surface five Boutique
  * hero pills from `PERSONA_HERO_PILLS` — the same strings as the
  * storefront "Try asking" row. For each turn we list agent / tool /
  * model / outcome and link into captured session fixtures when they
@@ -14,13 +14,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
-import { PERSONA_HERO_PILLS } from '../../../data/personaCurations';
+import { PERSONA_HERO_PILLS, PERSONA_TURN_TRACES } from '../../../data/personaCurations';
 
 interface JourneyTurn {
   n: number;
   pill: string;
   agent: string;
   model: string;
+  skill?: string;
   tool?: string;
   outcome: string;
   /** Primary Atelier fixture for this turn (stub path, or only path). */
@@ -30,7 +31,7 @@ interface JourneyTurn {
 }
 
 interface PersonaJourney {
-  id: 'marco' | 'anna' | 'theo' | 'fresh';
+  id: 'marco' | 'anna' | 'theo';
   displayName: string;
   capability: string;
   capabilityRole: string;
@@ -50,7 +51,7 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
   {
     agent: 'Curator (the-packing-list)',
     model: 'Claude Opus 4.6 · 0.4',
-    tool: 'style_match',
+    tool: 'find_pieces → style_match',
     outcome: 'Complementary pieces; voice mentions packability',
     sessionId: 'marco-opening-demo',
   },
@@ -73,7 +74,7 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
   {
     agent: 'Curator (the-packing-list)',
     model: 'Claude Opus 4.6 · 0.4',
-    tool: 'style_match',
+    tool: 'find_pieces → style_match',
     outcome: 'Capstone — Ecru overshirt anchor; pairing + price discipline',
     sessionId: 'marco-capstone',
   },
@@ -85,25 +86,28 @@ const ANNA_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
     outcome:
-      'Vector → BM25 → RRF → Rerank v3.5. Four SSE telemetry spans visible.',
+      'Vector → Postgres FTS → RRF → Rerank v3.5. Four SSE telemetry spans visible.',
+    sessionId: 'anna-morning-ritual',
   },
   {
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
     outcome: 'Soft "beautiful" + literal "$100" — hybrid handles both.',
+    sessionId: 'anna-under-100',
   },
   {
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
     outcome: 'Candle as anchor + "with something else" reranks the band.',
+    sessionId: 'anna-candle-pairing',
   },
   {
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
-    outcome: 'Gift Wrapping Kit at rank 1 — Cohere reads "wrap-ready" intent.',
+    outcome: 'Beeswax Taper Candles at rank 1 — Cohere reads "wrap-ready" intent.',
     sessionId: 'anna-birthday-gift',
   },
   {
@@ -126,19 +130,21 @@ const THEO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
   {
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
-    tool: 'style_match',
-    outcome: 'Ceramic Tumblers + Bud Vase — same kiln register.',
+    tool: 'find_pieces → style_match',
+    outcome: 'Ceramic Tumblers + Woven Mat Set — same kiln register.',
+    sessionId: 'theo-pour-over-pairing',
   },
   {
     agent: 'Style Advisor',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces',
     outcome: 'Washed-linen pieces with patina-leaning prose.',
+    sessionId: 'theo-linen-seasons',
   },
   {
     agent: 'Experience Guide',
     model: 'Claude Opus 4.6 · 0.2',
-    tool: 'find_pieces → process_return',
+    tool: 'find_pieces → returns_and_care → process_return',
     outcome:
       'Three writes in one transaction · returns row + product_catalog decrement + tool_audit · Cedar + SQL gated',
     sessionId: 'theo-ceramics-return',
@@ -148,21 +154,21 @@ const THEO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces',
     outcome: 'Home-decor read — same fifth pill as the Boutique hero row.',
+    sessionId: 'theo-home-not-wardrobe',
   },
 ];
 
-const FRESH_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = PERSONA_HERO_PILLS.fresh.map(() => ({
-  agent: 'Live storefront',
-  model: 'Runtime routing',
-  outcome:
-    'Anonymous hero pills only — identical to the Boutique "Try asking" row. Capture a run under Sessions when you need telemetry.',
-}));
-
-function attachPills(meta: Omit<JourneyTurn, 'pill' | 'n'>[], pills: string[]): JourneyTurn[] {
+function attachPills(
+  meta: Omit<JourneyTurn, 'pill' | 'n'>[],
+  pills: string[],
+  traces: Array<{ skill?: string; tools: string[] }>,
+): JourneyTurn[] {
   return meta.map((m, idx) => ({
     n: idx + 1,
     pill: pills[idx],
     ...m,
+    skill: traces[idx]?.skill,
+    tool: traces[idx]?.tools.join(' → ') ?? m.tool,
   }));
 }
 
@@ -174,7 +180,7 @@ const JOURNEYS: PersonaJourney[] = [
     capabilityRole: 'Foundation · Capability 1',
     blurb:
       "Returning customer. Natural fabrics, linen, travel-ready, warm tones. Marco's arc anchors pgvector cosine over Cohere Embed v4. Turn 4 is the Builder's Session: same hero pill ships stub telemetry in opening demo, then a real floor_check replay in midpoint.",
-    turns: attachPills(MARCO_TURNS_META, PERSONA_HERO_PILLS.marco),
+    turns: attachPills(MARCO_TURNS_META, PERSONA_HERO_PILLS.marco, PERSONA_TURN_TRACES.marco),
     capstoneNote:
       "Claude Opus 4.6 turns at ~1200ms. Claude Haiku 4.5 turns at ~150ms. That's the architectural lesson, made visible — and Turn 4 is where the wiring exercise lands.",
   },
@@ -185,7 +191,7 @@ const JOURNEYS: PersonaJourney[] = [
     capabilityRole: 'Capability 2 · when pure vector wears thin',
     blurb:
       "Gift-giver — observe & learn only. Her five Boutique hero strings are a live demo of Capability 2 (hybrid + rerank); there is no Builder's Session wiring exercise on this arc. Use Sessions and Observatory to study spans and cost.",
-    turns: attachPills(ANNA_TURNS_META, PERSONA_HERO_PILLS.anna),
+    turns: attachPills(ANNA_TURNS_META, PERSONA_HERO_PILLS.anna, PERSONA_TURN_TRACES.anna),
     capstoneNote:
       "Recall@5 jumps ~20 points; p50 doubles; cost goes 6×. The Performance card lets you decide — there's no universally right answer per query class.",
   },
@@ -196,18 +202,9 @@ const JOURNEYS: PersonaJourney[] = [
     capabilityRole: 'Capability 3 · writes leave a paper trail',
     blurb:
       "Slow-craft buyer — observe & learn only. This arc demonstrates Capability 3 (writes + tool_audit / Cedar). No participant coding checkpoint on Theo in the Builder's Session; replay session fixtures to see the paper trail.",
-    turns: attachPills(THEO_TURNS_META, PERSONA_HERO_PILLS.theo),
+    turns: attachPills(THEO_TURNS_META, PERSONA_HERO_PILLS.theo, PERSONA_TURN_TRACES.theo),
     capstoneNote:
       'Every mutation is reconstructible from tool_audit — see Write-path.',
-  },
-  {
-    id: 'fresh',
-    displayName: 'Fresh visitor',
-    capability: 'Canonical baseline',
-    capabilityRole: 'Anonymous · no persona lean',
-    blurb:
-      'First-time storefront. Tags and curated grid fall through to unbiased ordering; hero pills mirror the Boutique row so instructors can cite the same twenty strings everywhere.',
-    turns: attachPills(FRESH_TURNS_META, PERSONA_HERO_PILLS.fresh),
   },
 ];
 
@@ -323,6 +320,7 @@ const TurnRow: React.FC<{ turn: JourneyTurn; isFirst?: boolean }> = ({ turn, isF
         >
           <div style={{ color: 'var(--at-ink-1)' }}>{turn.agent}</div>
           <div>{turn.model}</div>
+          {turn.skill && <div>skill.{turn.skill}</div>}
           {turn.tool && <div>{turn.tool}</div>}
         </div>
       </div>
@@ -418,9 +416,9 @@ const PersonaSection: React.FC<{ journey: PersonaJourney }> = ({ journey }) => (
 const PersonaJourneys: React.FC = () => (
   <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
     <EditorialTitle
-      eyebrow="Observe · Persona Journeys · 20 Boutique hero turns"
-      title="Four personas, twenty hero queries."
-      summary="Every quoted line is the same string as the Boutique “Try asking” pill for that slot (see personaCurations · PERSONA_HERO_PILLS). Marco Turn 4 links twice: opening demo shows floor_check still stubbed; midpoint shows the wired warehouse answer. Click a session link to replay telemetry."
+      eyebrow="Observe · Persona Journeys · 15 Boutique hero turns"
+      title="Three personas, fifteen hero queries."
+      summary="Each row mirrors one Boutique “Try asking” pill, so the storefront and Atelier tell the same story turn by turn. The right rail shows what happened under the hood: which persona skill loaded, which tools ran, and which replay proves it. Marco Turn 4 appears twice because the workshop first shows the stubbed floor_check, then the wired warehouse answer after the build."
     />
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -432,16 +430,40 @@ const PersonaJourneys: React.FC = () => (
     <div
       style={{
         marginTop: '32px',
-        paddingTop: '20px',
-        borderTop: '1px solid var(--at-card-border)',
-        fontFamily: 'var(--at-mono)',
-        fontSize: '13px',
-        color: 'var(--at-ink-2)',
+        padding: '18px 20px',
+        background: 'var(--dl-ink)',
+        border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
+        borderRadius: 'var(--dl-r-lg)',
+        fontFamily: 'var(--dl-font-mono)',
+        fontSize: '12.5px',
+        lineHeight: 1.6,
+        color: 'var(--dl-accent-soft)',
       }}
     >
+      <p
+        style={{
+          margin: '0 0 12px',
+          lineHeight: 1.6,
+        }}
+      >
+        <span style={{ color: '#8a8270' }}>-- backend trace markers</span>
+        {'\n'}
+        <span style={{ color: '#f7c873' }}>skills.route</span>
+        <span> loaded + considered skills</span>
+        {'\n'}
+        <span style={{ color: '#f7c873' }}>tool.start / tool.done</span>
+        <span> lifecycle + latency for every tool call</span>
+        {'\n'}
+        <span style={{ color: '#f7c873' }}>chat_stream.done</span>
+        <span> compact per-turn tool waterfall</span>
+        {'\n'}
+        <span style={{ color: '#8a8270' }}>
+          -- Boutique "Under the hood" is the shopper-facing view of the same events.
+        </span>
+      </p>
       <Link
         to="/atelier/architecture/grounding"
-        style={{ color: 'var(--at-burgundy)', textDecoration: 'none' }}
+        style={{ color: '#e8927c', textDecoration: 'none' }}
       >
         → Read the architecture brief on Grounding (the capability ladder
         in detail)

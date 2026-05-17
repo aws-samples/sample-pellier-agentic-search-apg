@@ -7,7 +7,7 @@ Pellier is a multi-agent e-commerce shopping assistant built with the Strands SD
 ## Glossary
 
 - **Orchestrator**: The top-level Strands Agent (Claude Haiku 4.5, model ID `global.anthropic.claude-haiku-4-5-20251001-v1:0`) that classifies user intent and routes queries to one specialist agent.
-- **Customer_Support_Agent**: A new Strands specialist agent (using `settings.BEDROCK_CHAT_MODEL`, currently `global.anthropic.claude-opus-4-6-v1`) defined as a `@tool` function named `customer_support_agent` in `agents/customer_support_agent.py`. Handles return policies, product search for support contexts, and troubleshooting queries.
+- **Customer_Support_Agent**: A new Strands specialist agent (using `settings.BEDROCK_CHAT_MODEL`, currently `global.anthropic.claude-opus-4-6-v1`) defined as a `@tool` function named `customer_support_agent` in `agents/experience_guide.py`. Handles return policies, product search for support contexts, and troubleshooting queries.
 - **get_return_policy**: A `@tool` decorated function in `services/agent_tools.py` that returns return policy details for a given product category by querying the `pellier.return_policies` Aurora PostgreSQL table.
 - **return_policies table**: An Aurora PostgreSQL table (`pellier.return_policies`) seeded by the bootstrap script with 21 rows (20 product categories + a default). Columns: `category_name`, `return_window_days`, `conditions`, `refund_method`.
 - **search_products**: The `@tool` decorated function in `services/agent_tools.py` that performs hybrid AI search (semantic + keyword + reranking). Renamed from `semantic_product_search` for naming consistency — every other data tool follows a `get_*` or `verb_noun` pattern, and `search_products` matches that convention.
@@ -42,7 +42,7 @@ Pellier is a multi-agent e-commerce shopping assistant built with the Strands SD
 
 #### Acceptance Criteria
 
-1. THE Customer_Support_Agent SHALL be defined as a `@tool` decorated function named `customer_support_agent` in `agents/customer_support_agent.py`, following the same pattern as the existing specialist agents (`product_recommendation_agent` in `agents/recommendation_agent.py`, `price_optimization_agent` in `agents/pricing_agent.py`, `inventory_restock_agent` in `agents/inventory_agent.py`).
+1. THE Customer_Support_Agent SHALL be defined as a `@tool` decorated function named `customer_support_agent` in `agents/experience_guide.py`, following the same pattern as the existing specialist agents (`product_recommendation_agent` in `agents/curator.py`, `price_optimization_agent` in `agents/pricing_agent.py`, `inventory_restock_agent` in `agents/stock_keeper.py`).
 2. THE Customer_Support_Agent SHALL use the model ID referenced by `settings.BEDROCK_CHAT_MODEL` (currently `global.anthropic.claude-opus-4-6-v1`), consistent with the other specialist agents.
 3. THE Customer_Support_Agent SHALL have access to the get_return_policy tool and the search_products tool from the Agent_Tools_Module.
 4. THE Customer_Support_Agent SHALL accept a `query` string parameter and return a string response.
@@ -148,9 +148,9 @@ Pellier is a multi-agent e-commerce shopping assistant built with the Strands SD
 #### Acceptance Criteria
 
 1. THE `@tool` function `semantic_product_search` in `services/agent_tools.py` SHALL be renamed to `search_products`, with the docstring and behavior remaining unchanged.
-2. THE import statement and all references to `semantic_product_search` in `agents/recommendation_agent.py` SHALL be updated to `search_products`.
+2. THE import statement and all references to `semantic_product_search` in `agents/curator.py` SHALL be updated to `search_products`.
 3. THE import statement and all references to `semantic_product_search` in `agents/pricing_agent.py` SHALL be updated to `search_products`.
-4. THE `agents/customer_support_agent.py` module SHALL import and use `search_products` (the renamed function) from the Agent_Tools_Module.
+4. THE `agents/experience_guide.py` module SHALL import and use `search_products` (the renamed function) from the Agent_Tools_Module.
 5. THE `_tool_to_agent_name` mapping in `services/chat.py` SHALL be updated from `'semantic_product_search': 'Search Agent'` to `'search_products': 'Search Agent'`.
 6. THE SINGLE_AGENT_PROMPT text in `services/chat.py` SHALL reference `search_products` instead of `semantic_product_search` in the tool selection instructions.
 7. THE import statements referencing `semantic_product_search` in `services/chat.py` (used by `_single_agent_chat` and `_single_agent_stream`) SHALL be updated to `search_products`, and the corresponding `tools=` lists SHALL use `search_products`.
@@ -168,10 +168,10 @@ Pellier is a multi-agent e-commerce shopping assistant built with the Strands SD
 5. THE Search_Agent SHALL accept a `query` string parameter and return a string response.
 6. THE Search_Agent SHALL capture inner tool results and append product JSON to the output when the LLM response lacks a JSON products block, following the `_ensure_products_in_output` pattern and `AfterToolCallEvent` hook capture used by the other specialist agents.
 7. IF an exception occurs during Search_Agent execution, THEN THE Search_Agent SHALL return a JSON object containing the error description, following the existing error pattern used by the other specialist agents.
-8. THE `product_recommendation_agent` in `agents/recommendation_agent.py` SHALL be updated to REMOVE `search_products` (renamed from `semantic_product_search`) from its tools list.
+8. THE `product_recommendation_agent` in `agents/curator.py` SHALL be updated to REMOVE `search_products` (renamed from `semantic_product_search`) from its tools list.
 9. AFTER the refactor, THE `product_recommendation_agent` SHALL have ONLY `get_trending_products` and `get_product_by_category` as its tools.
 10. THE `product_recommendation_agent` system prompt SHALL be updated to focus on trending, popular, and personalized product recommendations, removing references to descriptive or intent-based product search.
-11. THE import of `semantic_product_search` (or `search_products`) SHALL be removed from `agents/recommendation_agent.py`.
+11. THE import of `semantic_product_search` (or `search_products`) SHALL be removed from `agents/curator.py`.
 
 ### Requirement 12: AgentCore Gateway Integration for New Tools
 

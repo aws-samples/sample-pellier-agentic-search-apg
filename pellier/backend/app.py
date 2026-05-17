@@ -1037,7 +1037,7 @@ async def compare_search_strategies(query: str):
     Strategies:
       1. **vector only** — pgvector cosine over product_catalog.
          Marco's foundation path.
-      2. **hybrid (RRF)** — vector + BM25 in parallel, RRF-merged.
+      2. **hybrid (RRF)** — vector + Postgres FTS in parallel, RRF-merged.
          No reranker pass.
       3. **hybrid + rerank** — same as #2 plus Cohere Rerank v3.5.
          Anna's shipped path.

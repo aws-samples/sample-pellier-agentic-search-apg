@@ -1,0 +1,165 @@
+{
+  "id": "anna-under-100",
+  "personaId": "anna",
+  "openingQuery": "Something beautiful under $100",
+  "elapsedMs": 4860,
+  "agentCount": 2,
+  "routingPattern": "Dispatcher",
+  "timestamp": "2026-05-15T17:44:00Z",
+  "status": "complete",
+  "searchMethod": "hybrid+rerank",
+  "chat": [
+    {
+      "role": "user",
+      "content": "Something beautiful under $100",
+      "timestamp": "2026-05-15T17:44:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Under $100, the Santal & Fig Candle ($92) is the cleanest gift: substantial, beautifully wrapped, and still comfortably inside the ceiling. If you want something smaller, the Ceramic Ring Dish ($35) has the same considered feel without pretending to be the main event.",
+      "timestamp": "2026-05-15T17:44:04Z",
+      "plan": {
+        "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (price filter + rerank)",
+        "traceLink": "#telemetry-1"
+      },
+      "toolCalls": [
+        {
+          "toolName": "find_pieces_hybrid",
+          "description": "Hybrid search for giftable pieces under $100",
+          "durationMs": 642,
+          "sql": "WITH candidates AS (\n  SELECT product_id, name, price\n  FROM product_catalog\n  WHERE price < 100 AND quantity > 0\n),\nvector_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY embedding <=> $1::vector) AS vector_rank\n  FROM product_catalog\n  WHERE product_id IN (SELECT product_id FROM candidates)\n  LIMIT 20\n),\nfts_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY ts_rank_cd(description_tsv, $2::tsquery) DESC) AS text_rank\n  FROM product_catalog\n  WHERE product_id IN (SELECT product_id FROM candidates)\n    AND description_tsv @@ $2::tsquery\n  LIMIT 20\n)\nSELECT COALESCE(v.product_id, f.product_id) AS product_id\nFROM vector_results v\nFULL OUTER JOIN fts_results f USING (product_id)\nLIMIT 30;",
+          "resultSummary": "Under-$100 gift pool reranked to Santal & Fig Candle, then Ceramic Ring Dish"
+        }
+      ],
+      "products": [
+        {
+          "name": "Santal & Fig Candle",
+          "brand": "Pellier Home",
+          "price": 92,
+          "imageUrl": "/products/fresh-santal-fig-candle.png"
+        },
+        {
+          "name": "Ceramic Ring Dish",
+          "brand": "Pellier Editions",
+          "price": 35,
+          "imageUrl": "/products/anna-ceramic-ring-dish.png"
+        }
+      ],
+      "meta": {
+        "agent": "Curator",
+        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "skill": "the-gift-table",
+        "searchMethod": "hybrid+rerank",
+        "latencyMs": 1264
+      }
+    }
+  ],
+  "telemetry": [
+    {
+      "index": 1,
+      "category": "managed",
+      "title": "Intent \u2192 Curator",
+      "description": "'beautiful' + '$100' routed as gift constraint",
+      "status": "complete",
+      "durationMs": 54,
+      "agent": "Dispatcher"
+    },
+    {
+      "index": 2,
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-gift-table bound for persona: anna",
+      "status": "complete",
+      "durationMs": 38,
+      "agent": "SkillRouter"
+    },
+    {
+      "index": 3,
+      "category": "both",
+      "title": "vector branch",
+      "description": "pgvector cosine over price-filtered gift candidates",
+      "status": "complete",
+      "durationMs": 286,
+      "sql": "SELECT product_id, name, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE price < 100 AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 20;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 4,
+      "category": "both",
+      "title": "Postgres FTS branch",
+      "description": "literal price and gift language over description_tsv",
+      "status": "complete",
+      "durationMs": 70,
+      "sql": "SELECT product_id, name, price, ts_rank_cd(description_tsv, q) AS text_rank\nFROM product_catalog, to_tsquery('english', 'beautiful:* | gift:*') q\nWHERE price < 100 AND quantity > 0 AND description_tsv @@ q\nORDER BY text_rank DESC\nLIMIT 20;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 5,
+      "category": "managed",
+      "title": "RRF merge",
+      "description": "Fused vector and FTS branches under the $100 ceiling",
+      "status": "complete",
+      "durationMs": 3,
+      "sql": "SELECT product_id, rrf_score\nFROM rrf\nORDER BY rrf_score DESC\nLIMIT 30;",
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 6,
+      "category": "both",
+      "title": "cohere.rerank-v3-5:0",
+      "description": "Reranked by gift suitability and price fit",
+      "status": "complete",
+      "durationMs": 283,
+      "agent": "Curator \u00b7 find_pieces_hybrid"
+    },
+    {
+      "index": 7,
+      "category": "both",
+      "title": "editorial composition",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 price-aware gifting voice",
+      "status": "complete",
+      "durationMs": 623,
+      "agent": "Curator"
+    }
+  ],
+  "brief": {
+    "folioNumber": 33,
+    "headline": "Under one hundred",
+    "filedTime": "2026-05-15T17:45:00Z",
+    "sections": [
+      {
+        "numeral": "i.",
+        "title": "The constraint",
+        "paragraphs": [
+          "The price ceiling is not a final formatting step. It shapes retrieval first, then rerank decides which affordable items still feel like a gift."
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "Santal & Fig Candle",
+        "brand": "Pellier Home",
+        "price": 92,
+        "imageUrl": "/products/fresh-santal-fig-candle.png"
+      },
+      {
+        "name": "Ceramic Ring Dish",
+        "brand": "Pellier Editions",
+        "price": 35,
+        "imageUrl": "/products/anna-ceramic-ring-dish.png"
+      }
+    ],
+    "confidence": {
+      "stats": [
+        {
+          "label": "Price ceiling",
+          "value": "$100"
+        },
+        {
+          "label": "Search method",
+          "value": "hybrid+rerank"
+        }
+      ]
+    }
+  }
+}

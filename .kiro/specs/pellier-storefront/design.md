@@ -519,7 +519,7 @@ Tools (names per `workshop-content.md`):
 - `compare_products(ids: list[str]) -> str`
 - `get_return_policy(category: str) -> str`
 
-#### `agents/recommendation_agent.py` — `product_recommendation_agent` (C3)
+#### `agents/curator.py` — `product_recommendation_agent` (C3)
 
 ```python
 product_recommendation_agent = Agent(

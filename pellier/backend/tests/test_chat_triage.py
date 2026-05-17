@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.chat import classify_triage, _TRIAGE_REPLIES
+from services.chat import classify_intent, classify_triage, _TRIAGE_REPLIES
 
 
 class TestTriageGreetings:
@@ -101,3 +101,16 @@ class TestTriageRepliesShape:
             assert _TRIAGE_REPLIES[bucket]
             # On-brand: should not start with generic "I can help"
             assert len(_TRIAGE_REPLIES[bucket]) > 20
+
+
+class TestIntentPairing:
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "What would go with the Hadley shirt?",
+            "What pairs with the Ecru overshirt?",
+            "What goes well with the pour-over set?",
+        ],
+    )
+    def test_pairing_turns_route_to_search_for_style_match(self, query: str) -> None:
+        assert classify_intent(query) == "search"

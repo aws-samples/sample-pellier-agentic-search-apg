@@ -9,11 +9,13 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { Session } from '../../types';
+import { usePersona } from '../../../contexts/PersonaContext';
+import { PERSONA_HERO_PILLS, PERSONA_TURN_TRACES } from '../../../data/personaCurations';
 
 /* -----------------------------------------------------------------------
  * Sort helper — exported for property-based testing (Property 1)
@@ -39,26 +41,53 @@ function formatElapsed(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-/**
- * Format an ISO timestamp relative to NOW so fixture dates from 2025
- * render as if they happened recently. Computes the offset between
- * the newest fixture date and now, then shifts all dates forward by
- * that offset. This way "today" and "yesterday" labels are always
- * accurate regardless of when the workshop runs.
- */
-const FIXTURE_ANCHOR = new Date('2025-01-15T19:42:00Z').getTime();
-const NOW_ANCHOR = Date.now();
-const OFFSET_MS = NOW_ANCHOR - FIXTURE_ANCHOR;
-
 function formatTimestamp(iso: string): string {
-  const shifted = new Date(new Date(iso).getTime() + OFFSET_MS);
-  return shifted.toLocaleDateString('en-US', {
+  return new Date(iso).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+const CANONICAL_PERSONAS = ['marco', 'anna', 'theo'] as const;
+type CanonicalPersona = (typeof CANONICAL_PERSONAS)[number];
+
+const PERSONA_LABELS: Record<CanonicalPersona, string> = {
+  marco: 'Marco',
+  anna: 'Anna',
+  theo: 'Theo',
+};
+
+const REPLAY_BY_PERSONA_TURN: Record<CanonicalPersona, string[]> = {
+  marco: [
+    'marco-opening-demo',
+    'marco-opening-demo',
+    'marco-opening-demo',
+    'marco-midpoint-checkpoint',
+    'marco-capstone',
+  ],
+  anna: [
+    'anna-morning-ritual',
+    'anna-under-100',
+    'anna-candle-pairing',
+    'anna-birthday-gift',
+    'anna-housewarming',
+  ],
+  theo: [
+    'theo-pour-over',
+    'theo-pour-over-pairing',
+    'theo-linen-seasons',
+    'theo-ceramics-return',
+    'theo-home-not-wardrobe',
+  ],
+};
+
+function activeCanonicalPersona(personaId: string | null | undefined): CanonicalPersona | null {
+  return CANONICAL_PERSONAS.includes(personaId as CanonicalPersona)
+    ? (personaId as CanonicalPersona)
+    : null;
 }
 
 /* -----------------------------------------------------------------------
@@ -168,6 +197,119 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onClick }) => (
     </div>
   </ExpCard>
 );
+
+interface PersonaTurnCardProps {
+  personaId: CanonicalPersona;
+  turnIndex: number;
+  query: string;
+  replayId: string;
+  onOpenReplay: (id: string) => void;
+}
+
+const PersonaTurnCard: React.FC<PersonaTurnCardProps> = ({
+  personaId,
+  turnIndex,
+  query,
+  replayId,
+  onOpenReplay,
+}) => {
+  const trace = PERSONA_TURN_TRACES[personaId][turnIndex];
+  return (
+    <ExpCard>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              color: 'var(--at-ink-4)',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {PERSONA_LABELS[personaId]} · turn {turnIndex + 1}
+          </span>
+          <button
+            type="button"
+            onClick={() => onOpenReplay(replayId)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--at-red-1)',
+              background: 'transparent',
+              border: '1px solid var(--at-card-border)',
+              borderRadius: '999px',
+              padding: '5px 10px',
+              cursor: 'pointer',
+            }}
+          >
+            Open replay
+          </button>
+        </div>
+
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '18px',
+            lineHeight: 1.35,
+            color: 'var(--at-ink-1)',
+            margin: 0,
+          }}
+        >
+          {query}
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            alignItems: 'center',
+          }}
+        >
+          {trace.skill && (
+            <span
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '11px',
+                color: 'var(--at-green-1)',
+                background: 'var(--at-green-soft)',
+                borderRadius: '4px',
+                padding: '3px 8px',
+              }}
+            >
+              skill.{trace.skill}
+            </span>
+          )}
+          {trace.tools.map((tool) => (
+            <span
+              key={tool}
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '11px',
+                color: 'var(--at-red-1)',
+                background: 'var(--at-red-soft)',
+                borderRadius: '4px',
+                padding: '3px 8px',
+              }}
+            >
+              tool.{tool}
+            </span>
+          ))}
+        </div>
+      </div>
+    </ExpCard>
+  );
+};
 
 /* -----------------------------------------------------------------------
  * Empty state
@@ -310,11 +452,23 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
 
 const SessionsList: React.FC = () => {
   const navigate = useNavigate();
+  const { persona } = usePersona();
+  const scopedPersona = activeCanonicalPersona(persona?.id);
+  const [showAllPersonas, setShowAllPersonas] = useState(false);
   const { data, loading, error, refetch } = useAtelierData<Session[]>({
     key: 'sessions',
   });
 
   const sorted = data ? sortSessionsByRecency(data) : [];
+  const personaTurns = useMemo(() => {
+    if (!scopedPersona) return [];
+    return PERSONA_HERO_PILLS[scopedPersona].map((query, index) => ({
+      query,
+      replayId: REPLAY_BY_PERSONA_TURN[scopedPersona][index],
+    }));
+  }, [scopedPersona]);
+  const showingPersonaJourney = Boolean(scopedPersona && !showAllPersonas);
+  const activePersonaLabel = scopedPersona ? PERSONA_LABELS[scopedPersona] : 'Persona';
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '960px' }}>
@@ -323,17 +477,97 @@ const SessionsList: React.FC = () => {
           to repeat the intro here. */}
       <EditorialTitle
         eyebrow="Observe · Sessions"
-        title="Sessions"
-        summary="Every conversation between a persona and the agentic system, captured and ready for inspection. Select a session to explore its chat thread, telemetry timeline, and curator's brief."
+        title={showingPersonaJourney ? `${activePersonaLabel}'s five-turn journey` : 'Sessions'}
+        summary={
+          showingPersonaJourney
+            ? 'Sessions opens on the signed-in persona so participants follow one coherent Boutique story. Each turn mirrors the Boutique pill text and expected skill/tool trace; instructor view reveals all recorded replays.'
+            : 'Instructor view shows every recorded conversation across personas, captured and ready for inspection. Select a session to explore its chat thread, telemetry timeline, and curator brief.'
+        }
       />
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          margin: '0 0 22px',
+          padding: '14px 16px',
+          border: '1px solid var(--at-card-border)',
+          borderRadius: 'var(--at-card-radius)',
+          background: 'var(--at-cream-1)',
+        }}
+      >
+        <div>
+          <Eyebrow
+            label={showingPersonaJourney ? `${activePersonaLabel} scoped` : 'Instructor view'}
+            variant="muted"
+          />
+          <p
+            style={{
+              fontFamily: 'var(--at-sans)',
+              fontSize: '14px',
+              lineHeight: 1.45,
+              color: 'var(--at-ink-3)',
+              margin: '6px 0 0',
+            }}
+          >
+            {showingPersonaJourney
+              ? 'Only this persona appears by default; the five cards below match the Boutique hero pills turn by turn.'
+              : 'Showing Marco, Anna, and Theo together for facilitation and QA.'}
+          </p>
+        </div>
+        {scopedPersona && (
+          <button
+            type="button"
+            onClick={() => setShowAllPersonas((value) => !value)}
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--at-cream-1)',
+              background: 'var(--at-ink-1)',
+              border: 'none',
+              borderRadius: '999px',
+              padding: '9px 13px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {showAllPersonas ? `View ${activePersonaLabel} only` : 'View all personas'}
+          </button>
+        )}
+      </div>
 
       {loading && <LoadingState />}
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 
-      {!loading && !error && sorted.length === 0 && <EmptyState />}
+      {!loading && !error && scopedPersona && !showAllPersonas && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          {personaTurns.map((turn, index) => (
+            <PersonaTurnCard
+              key={`${scopedPersona}-${index}`}
+              personaId={scopedPersona}
+              turnIndex={index}
+              query={turn.query}
+              replayId={turn.replayId}
+              onOpenReplay={(id) => navigate(`/atelier/sessions/${id}`)}
+            />
+          ))}
+        </div>
+      )}
 
-      {!loading && !error && sorted.length > 0 && (
+      {!loading && !error && !showingPersonaJourney && sorted.length === 0 && <EmptyState />}
+
+      {!loading && !error && !showingPersonaJourney && sorted.length > 0 && (
         <div
           style={{
             display: 'flex',

@@ -14,10 +14,10 @@ describe('telemetryTrace', () => {
     expect(parseTelemetryPanelIndex('trace 2')).toBe(2);
   });
 
-  it('resolves marco camp shirt to panel-3', () => {
+  it('resolves Marco top pick to the retrieval panel', () => {
     const session = sessionMarco as SessionDetail;
     const pick = getTopPickProduct(session);
-    expect(pick?.name).toContain('Camp Shirt');
-    expect(resolveTracePanelIndex(pick, session.telemetry)).toBe(3);
+    expect(pick?.name).toBe('Pellier Linen Shirt');
+    expect(resolveTracePanelIndex(pick, session.telemetry)).toBe(2);
   });
 });

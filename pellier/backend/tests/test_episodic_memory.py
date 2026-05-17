@@ -140,7 +140,7 @@ def test_emit_memory_episodic_panel_no_seed_rows_still_emits_panel() -> None:
     assert len(panels) == 1
     assert panels[0]["rows"] == []
     assert "no seed rows" in panels[0]["meta"]
-    assert "003_workshop_episodic_seed" in panels[0]["meta"]
+    assert "003_persona_seed" in panels[0]["meta"]
 
 
 def test_emit_memory_episodic_panel_survives_db_error() -> None:

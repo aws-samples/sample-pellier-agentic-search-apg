@@ -443,6 +443,38 @@ const AgentChip: React.FC<{ name: string }> = ({ name }) => (
   </span>
 );
 
+function renderSkillBody(body: string): React.ReactNode {
+  const lines = body.split('\n');
+  return lines.map((line, index) => {
+    const isBullet = line.trim().startsWith('- ');
+    const isIntro = index === 0;
+
+    return (
+      <React.Fragment key={`${index}-${line}`}>
+        <span
+          style={{
+            color: isIntro
+              ? '#f7c873'
+              : isBullet
+                ? '#e8927c'
+                : 'var(--dl-accent-soft)',
+          }}
+        >
+          {isBullet ? (
+            <>
+              <span style={{ color: '#f7c873' }}>- </span>
+              <span>{line.trim().slice(2)}</span>
+            </>
+          ) : (
+            line
+          )}
+        </span>
+        {index < lines.length - 1 && '\n'}
+      </React.Fragment>
+    );
+  });
+}
+
 /* -----------------------------------------------------------------------
  * Skill card
  * ----------------------------------------------------------------------- */
@@ -563,21 +595,22 @@ const SkillCard: React.FC<SkillCardProps> = ({
       <pre
         style={{
           marginTop: '8px',
-          padding: '16px 20px',
-          backgroundColor: 'var(--dl-paper)',
-          border: '1px solid var(--dl-line)',
+          padding: '18px 20px',
+          backgroundColor: 'var(--dl-ink)',
+          border: '1px solid color-mix(in srgb, var(--dl-accent-soft) 18%, transparent)',
           borderRadius: 'var(--dl-r-lg)',
           fontFamily: 'var(--dl-font-mono)',
-          fontSize: '12.5px',
-          lineHeight: 1.55,
-          color: 'var(--dl-ink)',
+          fontSize: '13px',
+          lineHeight: 1.6,
+          color: 'var(--dl-accent-soft)',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
           overflow: 'auto',
           maxHeight: '320px',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
         }}
       >
-        {skill.body}
+        {renderSkillBody(skill.body)}
       </pre>
     </div>
 

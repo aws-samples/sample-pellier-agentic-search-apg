@@ -45,7 +45,7 @@ if [ -n "${DB_SECRET_ARN:-}" ]; then
         export DB_HOST=$(echo "$DB_SECRET" | jq -r '.host // empty')
         export DB_USER=$(echo "$DB_SECRET" | jq -r '.username // empty')
         export DB_PASSWORD=$(echo "$DB_SECRET" | jq -r '.password // empty')
-        export DB_NAME=$(echo "$DB_SECRET" | jq -r '.dbname // .database // "postgres"')
+        export DB_NAME=$(echo "$DB_SECRET" | jq -r --arg default_db "${DB_NAME:-postgres}" '.dbname // .database // $default_db')
         log "✅ Database credentials retrieved"
     fi
 fi
@@ -264,19 +264,24 @@ setup_database() {
         export ASSETS_BUCKET_NAME ASSETS_BUCKET_PREFIX
         export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
 
+        if ! command -v psql >/dev/null 2>&1; then
+            warn "psql is not installed or not on PATH — database setup cannot run"
+            return 1
+        fi
+
         # ---- 1. Schema bootstrap (CREATE EXTENSION vector + schema +
         # product_catalog table + HNSW index). pellier-database.yml
         # provisions an empty Aurora cluster; this migration is what
         # makes the cluster boutique-ready. Runs first because the
         # seeder INSERTs into pellier.product_catalog and assumes the
         # vector(1024) column exists. ----
-        if [ -f "$REPO_PATH/scripts/migrations/000_pellier_schema.sql" ]; then
-            log "Applying schema bootstrap (000_pellier_schema.sql)..."
+        if [ -f "$REPO_PATH/scripts/migrations/001_schema.sql" ]; then
+            log "Applying migration 001_schema.sql..."
             PGPASSWORD="$DB_PASSWORD" psql \
                 -h "$DB_HOST" -p "$DB_PORT" \
                 -U "$DB_USER" -d "$DB_NAME" \
                 -v ON_ERROR_STOP=1 \
-                -f "$REPO_PATH/scripts/migrations/000_pellier_schema.sql" \
+                -f "$REPO_PATH/scripts/migrations/001_schema.sql" \
                 2>&1 | tee /var/log/database-schema.log
             local rc=${PIPESTATUS[0]}
             if [ "$rc" -ne 0 ]; then
@@ -284,7 +289,7 @@ setup_database() {
                 return "$rc"
             fi
         else
-            warn "000_pellier_schema.sql not found — seeder will fail without the table"
+            warn "001_schema.sql not found — seeder will fail without the table"
         fi
 
         # ---- 2. Boutique catalog seeder — 40 hand-curated products
@@ -292,7 +297,46 @@ setup_database() {
         # Cohere Embed v4 embeddings generated at seed time.
         # Authoritative source for pellier.product_catalog. ----
         python3 scripts/seed_boutique_catalog.py 2>&1 | tee /var/log/database-setup.log
-        return ${PIPESTATUS[0]}
+        local seed_rc=${PIPESTATUS[0]}
+        if [ "$seed_rc" -ne 0 ]; then
+            warn "Boutique catalog seed failed (rc=$seed_rc) — see /var/log/database-setup.log"
+            return "$seed_rc"
+        fi
+
+        # ---- 3. Required fresh-cluster migrations. These are intentionally
+        # idempotent and run after the catalog exists because several
+        # tables FK into pellier.product_catalog. Ordering matters:
+        # telemetry creates customers/orders, persona seed populates them,
+        # Theo returns references them, and warehouse inventory powers
+        # floor_check. ----
+        local migration
+        for migration in \
+            002_workshop_telemetry.sql \
+            003_persona_seed.sql \
+            004_anna_hybrid_search.sql \
+            005_theo_returns.sql \
+            006_warehouse_inventory.sql \
+            007_chat_session_tables.sql
+        do
+            if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
+                log "Applying migration $migration..."
+                PGPASSWORD="$DB_PASSWORD" psql \
+                    -h "$DB_HOST" -p "$DB_PORT" \
+                    -U "$DB_USER" -d "$DB_NAME" \
+                    -v ON_ERROR_STOP=1 \
+                    -f "$REPO_PATH/scripts/migrations/$migration" \
+                    2>&1 | tee -a /var/log/database-setup.log
+                local migration_rc=${PIPESTATUS[0]}
+                if [ "$migration_rc" -ne 0 ]; then
+                    warn "Migration $migration failed (rc=$migration_rc) — see /var/log/database-setup.log"
+                    return "$migration_rc"
+                fi
+            else
+                warn "Migration $migration not found — skipping"
+            fi
+        done
+
+        return 0
     fi
     return 1
 }
@@ -301,7 +345,7 @@ setup_frontend & PID_FE=$!
 setup_database & PID_DB=$!
 wait $PID_FE && log "✅ Frontend dependencies installed" || warn "Frontend install issues"
 if wait $PID_DB; then
-    log "✅ Database setup complete (40 boutique products, HNSW index, iterative_scan configured)"
+    log "✅ Database setup complete (40 boutique products, HNSW index, workshop tables)"
 else
     warn "Database setup had issues - check /var/log/database-setup.log"
 fi
@@ -471,6 +515,13 @@ if [ -n "$DB_HOST" ]; then
         log "✅ Database verified ($PRODUCT_COUNT products)"
     else
         warn "⚠️  Database may not be set up correctly (0 products found)"
+    fi
+
+    WAREHOUSE_ROWS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.warehouse_inventory;" 2>/dev/null | xargs || echo "0")
+    if [ "$WAREHOUSE_ROWS" -gt 0 ]; then
+        log "✅ Warehouse inventory verified ($WAREHOUSE_ROWS rows)"
+    else
+        warn "⚠️  Warehouse inventory missing — floor_check exercise will not land"
     fi
 fi
 
@@ -652,7 +703,7 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     # Wires restock_shelf + running_low (everything Stock Keeper-adjacent
     # except floor_check itself). Participants will edit this file in
     # Module 02 to add the floor_check body — and only that body.
-    copy_solution "solutions/closing-marcos-gap/services/agent_tools__builders_preapply.py" \
+    copy_solution "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py" \
                   "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
 
     # ---- AgentCore production plumbing ----

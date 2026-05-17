@@ -89,7 +89,7 @@ DEFAULT_POLICIES = [
 
 # Canonical set of return reasons. Mirrored in:
 #   - the Cedar policy `process-return-allowed-reasons` above
-#   - the SQL CHECK constraint in scripts/migrations/006_theo_returns.sql
+#   - the SQL CHECK constraint in scripts/migrations/005_theo_returns.sql
 #   - the defense-in-depth guard in BusinessLogic.process_return
 # Three layers, one truth.
 RETURN_REASONS = {
@@ -174,7 +174,7 @@ class PolicyService:
             - Each violation dict needs: policy_id, policy_name, reason, cedar_condition
 
         ⏩ SHORT ON TIME? Run:
-           cp solutions/module3/services/agentcore_policy.py pellier/backend/services/agentcore_policy.py
+           cp solutions/the-paper-trail/services/agentcore_policy.py pellier/backend/services/agentcore_policy.py
         """
         pid = policy["id"]
 

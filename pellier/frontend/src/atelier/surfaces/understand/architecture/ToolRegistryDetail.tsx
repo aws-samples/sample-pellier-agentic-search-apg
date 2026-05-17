@@ -1,7 +1,7 @@
 /**
- * ToolRegistryDetail — Architecture detail page for Tool Registry / Gateway.
+ * ToolRegistryDetail — Architecture detail page for Aurora Tool Registry.
  *
- * Semantic tool discovery and invocation via pgvector embeddings.
+ * Semantic tool discovery via pgvector embeddings.
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -12,6 +12,7 @@ import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
+import { ARCHITECTURE_CODE_BLOCK } from './codeStyles';
 
 const ToolRegistryDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
@@ -24,9 +25,9 @@ const ToolRegistryDetail: React.FC = () => {
     <DetailPageShell
       numeral="IV"
       conceptName="Tool Registry"
-      category="both"
+      category="workshop"
       title="Tools, discovered."
-      prose="Twelve tools in Aurora with pgvector embeddings. Discovery embeds what the agent needs and returns cosine-ranked matches — no hardcoded routing table inside the retrieval path. HNSW keeps similarity search tight."
+      prose="The Aurora tool registry is the live workshop teaching surface for semantic discovery. Tool descriptions are embedded, searched with pgvector, and compared with the optional MCP Gateway view. The Boutique default still calls in-process Strands tools unless Gateway is configured."
       seeInBoutique={{
         href: '/?ask=Show+me+linen+pieces+like+the+Camp+Shirt',
         label: 'See tool discovery fire on the storefront',
@@ -38,15 +39,15 @@ const ToolRegistryDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'Discovery is a cosine similarity query: embed the agent\'s need, find the closest tools. HNSW indexing makes this sub-millisecond.',
+          text: 'Discovery is a cosine similarity query: embed the agent need, find the closest tool descriptions, and show the ranking as telemetry.',
         },
         {
           numeral: 'iii.',
-          text: 'Fixture labels on the Understand · Tools surface: eleven shipped baseline; ``floor_check`` is the Builder\'s Session exercise until its stub is replaced — then `/api/atelier/build-state` reflects shipped.',
+          text: 'Fixture labels on the Understand · Tools surface: eleven shipped baseline; floor_check is the Builder\'s Session exercise until its stub is replaced — then /api/atelier/build-state reflects shipped.',
         },
       ]}
       liveState={{
-        label: 'Current tool registry state. Tools are registered at boot with pgvector embeddings for semantic discovery.',
+        label: 'Current tool registry state. Aurora ranks tool descriptions for the workshop discovery demo; optional Gateway publishes the callable surface over MCP.',
         values: [
           { label: 'Tools registered', value: '12' },
           { label: 'Shipped (baseline image)', value: '11' },
@@ -65,9 +66,10 @@ const ToolRegistryDetail: React.FC = () => {
               <SectionLabel label="Discovery flow" />
               <h3 style={titleStyle}>Describe the need, find the tool.</h3>
               <p style={proseStyle}>
-                The agent doesn't hardcode tool names. It describes what it needs in natural
-                language, and the registry returns the closest matches by cosine similarity.
-                This is the architectural punchline — semantic discovery over a vector index.
+                The workshop demo describes what the turn needs in natural language, embeds that
+                description, and asks Aurora for the nearest tool records. This is semantic
+                discovery over a vector index; the production dispatcher can still call the
+                known in-process tool directly.
               </p>
             </div>
           </ExpCard>
@@ -166,9 +168,8 @@ const proseStyle: React.CSSProperties = {
 };
 
 const codeStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-mono)', fontSize: '14px', lineHeight: 1.7,
-  color: 'var(--at-ink-1)', backgroundColor: 'var(--at-cream-2)', borderRadius: '8px',
-  padding: '14px 16px', margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+  ...ARCHITECTURE_CODE_BLOCK,
+  whiteSpace: 'pre',
 };
 
 export default ToolRegistryDetail;

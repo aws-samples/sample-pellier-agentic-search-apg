@@ -15,8 +15,8 @@ export interface BriefContent {
   filedTime: string;
   sections: BriefSection[];
   products: ProductCard[];
-  confidence: {
-    percentage: number;
+  confidence?: {
+    percentage?: number;
     stats: { label: string; value: string }[];
   };
 }

@@ -835,7 +835,7 @@ const Routing: React.FC = () => {
         </div>
       )}
 
-      {/* Cross-link to the Architecture concept brief on State Management
+      {/* Cross-link to the Architecture concept brief on Routing & State
           (where routing patterns live in the broader architecture). */}
       <div
         style={{
@@ -851,7 +851,7 @@ const Routing: React.FC = () => {
           to="/atelier/architecture/state-management"
           style={{ color: 'var(--at-burgundy)', textDecoration: 'none' }}
         >
-          → Read the architecture brief on State Management
+          → Read the architecture brief on Routing & State
         </Link>
       </div>
     </div>

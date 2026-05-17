@@ -55,30 +55,6 @@ function relativeTime(ts: Date): string {
   return `${hrs}h ago`
 }
 
-function toolLabel(
-  toolName: string,
-  _status: string,
-): { label: string; meta?: string } {
-  const n = toolName.toLowerCase()
-  if (n.includes('find_pieces') || n.includes('search'))
-    return { label: 'Searched the boutique' }
-  if (n.includes('get_trending') || n.includes('recommendation') || n.includes('get_recommendations'))
-    return { label: 'Pulled recommendations' }
-  if (n.includes('check_inventory') || n.includes('inventory') || n.includes('get_low_stock'))
-    return { label: 'Checked the floor' }
-  if (n.includes('get_price') || n.includes('pricing') || n.includes('price_intelligence'))
-    return { label: 'Confirmed pricing' }
-  if (n.includes('recall') || n.includes('memory') || n.includes('session'))
-    return { label: 'Read your last visit' }
-  if (n.includes('restock'))
-    return { label: 'Flagged for restock' }
-  const cleaned = toolName
-    .replace(/_/g, ' ')
-    .replace(/^get /i, '')
-    .replace(/^check /i, 'Checked ')
-  return { label: cleaned.charAt(0).toUpperCase() + cleaned.slice(1) }
-}
-
 /** Dot-notation trace labels for loaded skills (same register as memory.recall). */
 const SKILL_TRACE: Record<string, string> = {
   'style-advisor': 'skill.style-advisor',
@@ -90,6 +66,66 @@ const SKILL_TRACE: Record<string, string> = {
 
 function skillTraceTool(canonical: string): string {
   return SKILL_TRACE[canonical] ?? `skill.${canonical.replace(/^the-/, '')}`
+}
+
+function toolTraceTool(toolName: string): string {
+  return toolName.includes('.') ? toolName : `tool.${toolName}`
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function productsForRenderedProse(
+  products: NonNullable<AgentChatMessage['products']>,
+  content: string,
+): NonNullable<AgentChatMessage['products']> {
+  const normalizedContent = content.toLowerCase()
+  const ranked = products.map((product, index) => ({
+    product,
+    index,
+    mentionIndex: product.name
+      ? normalizedContent.indexOf(product.name.toLowerCase())
+      : -1,
+  }))
+  const mentioned = ranked.filter((item) => item.mentionIndex >= 0)
+  if (mentioned.length === 0) return products
+
+  return mentioned
+    .sort((a, b) => {
+      if (a.mentionIndex !== b.mentionIndex) {
+        return a.mentionIndex - b.mentionIndex
+      }
+      return a.index - b.index
+    })
+    .map((item) => item.product)
+}
+
+function emphasizeProductMentionsAndPrices(
+  content: string,
+  products: NonNullable<AgentChatMessage['products']>,
+): string {
+  const names = Array.from(
+    new Set(
+      products
+        .map((product) => product.name?.trim())
+        .filter((name): name is string => !!name),
+    ),
+  ).sort((a, b) => b.length - a.length)
+
+  if (names.length === 0) return content
+
+  // Leave existing markdown bold spans and code fences untouched.
+  return content
+    .split(/(```[\s\S]*?```|\*\*.*?\*\*)/g)
+    .map((segment) => {
+      if (segment.startsWith('```') || segment.startsWith('**')) return segment
+      return names.reduce((text, name) => {
+        const pattern = new RegExp(`(${escapeRegExp(name)})`, 'gi')
+        return text.replace(pattern, '**$1**')
+      }, segment).replace(/(\$\d+(?:,\d{3})*(?:\.\d{2})?)/g, '**$1**')
+    })
+    .join('')
 }
 
 // Follow-up chips = Turns 2–5 for each persona: same strings as the
@@ -228,6 +264,7 @@ function AgentMessage({
   const isStreaming = message.agentStatus === 'streaming'
   const isComplete = message.agentStatus === 'complete'
   const [thinkingOpen, setThinkingOpen] = useState(!isComplete)
+  const [attributionOpen, setAttributionOpen] = useState(false)
 
   useEffect(() => {
     if (message.content && message.content.length > 0 && thinkingOpen) {
@@ -240,10 +277,40 @@ function AgentMessage({
   const reasoningText = hasReasoning
     ? reasoning.map((r) => r.content).join(' ')
     : null
-  const toolCalls = message.agentExecution?.tool_calls
+  const toolCalls = message.agentExecution?.tool_calls ?? []
+  const dedupedToolCalls = Array.from(
+    toolCalls
+      .reduce(
+        (byTool, toolCall) => byTool.set(toolCall.tool, toolCall),
+        new Map<string, (typeof toolCalls)[number]>(),
+      )
+      .values(),
+  )
+  const loadedSkills = message.skillRouting?.loaded_skills ?? []
+  const showAnnaRetrievalLink =
+    persona?.id === 'anna' &&
+    dedupedToolCalls.some((toolCall) =>
+      toolCall.tool.toLowerCase().includes('find_pieces_hybrid'),
+    )
+  const hasAttribution = loadedSkills.length > 0 || dedupedToolCalls.length > 0
+  const attributionSummary = [
+    loadedSkills.length > 0
+      ? `${loadedSkills.length} skill${loadedSkills.length === 1 ? '' : 's'}`
+      : null,
+    dedupedToolCalls.length
+      ? `${dedupedToolCalls.length} tool${dedupedToolCalls.length === 1 ? '' : 's'}`
+      : null,
+  ].filter(Boolean).join(' · ')
   const durationSec = message.agentExecution?.total_duration_ms
     ? (message.agentExecution.total_duration_ms / 1000).toFixed(1)
     : null
+  const orderedProducts = message.products
+    ? productsForRenderedProse(message.products, message.content)
+    : []
+  const displayContent =
+    orderedProducts.length > 0
+      ? emphasizeProductMentionsAndPrices(message.content, orderedProducts)
+      : message.content
 
   return (
     <div className="ec-msg-agent">
@@ -253,15 +320,76 @@ function AgentMessage({
         Pellier
       </div>
 
-      {/* Loaded skills — TraceChip row (memory.recall register) */}
-      {message.skillRouting &&
-        message.skillRouting.loaded_skills.length > 0 && (
-          <div className="ec-msg-attribution">
-            {message.skillRouting.loaded_skills.map((skill) => (
-              <TraceChip key={skill} tool={skillTraceTool(skill)} compact />
-            ))}
-          </div>
-        )}
+      {/* Skills + tool calls — collapsed by default so Boutique stays calm,
+          with a Claude-style disclosure for curious shoppers. */}
+      {hasAttribution && (
+        <div className={`ec-worked ${attributionOpen ? 'ec-worked-open' : ''}`}>
+          <button
+            type="button"
+            className="ec-worked-header"
+            aria-expanded={attributionOpen}
+            onClick={() => setAttributionOpen((open) => !open)}
+          >
+            <span className="ec-worked-dot" aria-hidden="true" />
+            <span className="ec-worked-title">Under the hood</span>
+            <span className="ec-worked-summary">{attributionSummary}</span>
+            <span className={`ec-worked-chevron ${attributionOpen ? 'ec-worked-chevron-open' : ''}`}>
+              &#x25BE;
+            </span>
+          </button>
+
+          {attributionOpen && (
+            <div className="ec-worked-body">
+              {loadedSkills.length > 0 && (
+                <div className="ec-worked-section">
+                  <div className="ec-worked-section-label">Skills</div>
+                  <div className="ec-msg-attribution">
+                    {loadedSkills.map((skill) => (
+                      <TraceChip key={skill} tool={skillTraceTool(skill)} compact />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {dedupedToolCalls.length > 0 && (
+                <div className="ec-worked-section">
+                  <div className="ec-worked-section-label">Tools</div>
+                  <div className="ec-toolcalls">
+                    {dedupedToolCalls.map((tc, i) => {
+                      const isActive = tc.status !== 'success' && tc.status !== 'error'
+                      return (
+                        <div
+                          key={`${tc.tool}-${i}`}
+                          className={`ec-toolcall ${isActive ? 'ec-toolcall-active' : 'ec-toolcall-complete'}`}
+                        >
+                          <span className="ec-toolcall-indicator">
+                            {isActive ? '\u25CF' : '\u2713'}
+                          </span>
+                          <TraceChip tool={toolTraceTool(tc.tool)} compact />
+                          {tc.duration_ms > 0 && (
+                            <span className="ec-toolcall-meta">
+                              {tc.duration_ms < 1000
+                                ? `${tc.duration_ms}ms`
+                                : `${(tc.duration_ms / 1000).toFixed(1)}s`}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {showAnnaRetrievalLink && (
+                <a className="ec-worked-link" href="/atelier/performance">
+                  Compare retrieval strategies in Atelier
+                  <span aria-hidden="true">↗</span>
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Thinking state — inline dots when no reasoning yet */}
       {isThinking && !hasReasoning && (
@@ -302,35 +430,6 @@ function AgentMessage({
         </div>
       )}
 
-      {/* Tool-call lines */}
-      {toolCalls && toolCalls.length > 0 && (
-        <div className="ec-toolcalls">
-          {toolCalls.map((tc, i) => {
-            const isActive = tc.status !== 'success' && tc.status !== 'error'
-            const { label, meta } = toolLabel(tc.tool, tc.status)
-            return (
-              <div
-                key={i}
-                className={`ec-toolcall ${isActive ? 'ec-toolcall-active' : 'ec-toolcall-complete'}`}
-              >
-                <span className="ec-toolcall-indicator">
-                  {isActive ? '\u25CF' : '\u2713'}
-                </span>
-                <span className="ec-toolcall-label">{label}</span>
-                {meta && <span className="ec-toolcall-meta">{meta}</span>}
-                {tc.duration_ms > 0 && !meta && (
-                  <span className="ec-toolcall-meta">
-                    {tc.duration_ms < 1000
-                      ? `${tc.duration_ms}ms`
-                      : `${(tc.duration_ms / 1000).toFixed(1)}s`}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
       {/* Message body.
        *
        * Streaming cursor intentionally omitted — the prose itself grows
@@ -341,7 +440,7 @@ function AgentMessage({
        */}
       {message.content && (
         <div className={`ec-msg-body ${isStreaming ? 'ec-msg-streaming' : ''}`}>
-          <MarkdownMessage content={message.content} />
+          <MarkdownMessage content={displayContent} />
         </div>
       )}
 
@@ -351,9 +450,9 @@ function AgentMessage({
        * both surface as full ProductArtifactCards. Keeps the chat's
        * visual register consistent across retrospective and
        * forward-looking turns. */}
-      {message.products && message.products.length > 0 && (
+      {orderedProducts.length > 0 && (
         <div className="ec-artifacts">
-          {message.products.map((product, pIdx) => (
+          {orderedProducts.map((product, pIdx) => (
             <motion.div
               key={product.id || pIdx}
               initial={{ opacity: 0, y: 8, scale: 0.97 }}

@@ -135,13 +135,6 @@ export default function BoutiqueHero() {
             className="min-w-0 w-full max-w-4xl py-12 md:py-0
                        flex flex-col items-center text-center"
           >
-            {/* Presence — discreet concierge cue (breathing dot + label).
-                Shared atom with Atelier TopBar; session tail only when a
-                persona is signed in. */}
-            <div data-testid="boutique-hero-presence" className="mb-5">
-              <PresencePill surface="boutique" personaId={persona?.id} />
-            </div>
-
             {/* Eyebrow — "• SUMMER EDIT • NO. 06 •" — matches
                 WeekendEditorial eyebrow type treatment exactly, with
                 burgundy dot separators. */}
@@ -149,11 +142,41 @@ export default function BoutiqueHero() {
               data-testid="boutique-hero-eyebrow"
               className="flex items-center gap-3 mb-5 text-[13px] font-sans font-semibold tracking-[0.22em] uppercase text-espresso"
             >
-              <span aria-hidden="true" className="text-accent" style={{ fontSize: '9px' }}>&#9679;</span>
+              <span
+                aria-hidden="true"
+                className="text-accent"
+                style={{
+                  animation: 'pelliers-presence-breathe 2.4s ease-in-out infinite',
+                  display: 'inline-block',
+                  fontSize: '9px',
+                }}
+              >
+                &#9679;
+              </span>
               <span>Summer Edit</span>
-              <span aria-hidden="true" className="text-accent" style={{ fontSize: '5px' }}>&#9679;</span>
+              <span
+                aria-hidden="true"
+                className="text-accent"
+                style={{
+                  animation: 'pelliers-presence-breathe 2.4s ease-in-out infinite',
+                  display: 'inline-block',
+                  fontSize: '5px',
+                }}
+              >
+                &#9679;
+              </span>
               <span>No. 06</span>
-              <span aria-hidden="true" className="text-accent" style={{ fontSize: '9px' }}>&#9679;</span>
+              <span
+                aria-hidden="true"
+                className="text-accent"
+                style={{
+                  animation: 'pelliers-presence-breathe 2.4s ease-in-out infinite',
+                  display: 'inline-block',
+                  fontSize: '9px',
+                }}
+              >
+                &#9679;
+              </span>
             </div>
 
             {/* Headline — same Fraunces italic treatment as
@@ -576,8 +599,8 @@ export default function BoutiqueHero() {
                       data-testid="boutique-hero-observe-hint"
                       className="mx-auto mt-2 max-w-[640px] text-center font-sans"
                       style={{
-                        fontSize: '13px',
-                        lineHeight: 1.45,
+                        fontSize: '15px',
+                        lineHeight: 1.55,
                         color: 'rgba(31, 20, 16, 0.58)',
                       }}
                     >
@@ -770,56 +793,59 @@ export default function BoutiqueHero() {
       className="w-full border-b border-sand/40"
       style={{ background: 'var(--cream-warm)' }}
     >
-      <div
-        className="max-w-[1200px] mx-auto px-6 py-5 flex flex-wrap justify-center items-center gap-x-3 gap-y-2"
-      >
-        {TRUST_ITEMS.map((item, i) => (
-          <span
-            key={item.lead}
-            className="inline-flex items-center whitespace-nowrap"
-            style={{
-              fontFamily: 'var(--sans)',
-              fontSize: '12px',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'rgba(31, 20, 16, 0.62)',
-              fontWeight: 500,
-            }}
-          >
-            {i > 0 && (
-              <span
-                aria-hidden="true"
-                style={{
-                  marginRight: '12px',
-                  color: 'var(--accent)',
-                  fontSize: '6px',
-                  lineHeight: 1,
-                }}
-              >
-                &#9679;
-              </span>
-            )}
-            <span style={{ color: '#1f1410', fontWeight: 600 }}>
-              {item.lead}
-            </span>
-            {item.trail ? (
-              <>
+      <div className="max-w-[1200px] mx-auto px-6 py-5 flex flex-col items-center justify-center gap-3 lg:flex-row lg:justify-between">
+        <div className="shrink-0">
+          <PresencePill surface="boutique" personaId={persona?.id} />
+        </div>
+        <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-2">
+          {TRUST_ITEMS.map((item, i) => (
+            <span
+              key={item.lead}
+              className="inline-flex items-center whitespace-nowrap"
+              style={{
+                fontFamily: 'var(--sans)',
+                fontSize: '12px',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'rgba(31, 20, 16, 0.62)',
+                fontWeight: 500,
+              }}
+            >
+              {i > 0 && (
                 <span
                   aria-hidden="true"
                   style={{
-                    margin: '0 8px',
-                    color: 'rgba(31,20,16,0.35)',
+                    marginRight: '12px',
+                    color: 'var(--accent)',
                     fontSize: '6px',
                     lineHeight: 1,
                   }}
                 >
                   &#9679;
                 </span>
-                <span>{item.trail}</span>
-              </>
-            ) : null}
-          </span>
-        ))}
+              )}
+              <span style={{ color: '#1f1410', fontWeight: 600 }}>
+                {item.lead}
+              </span>
+              {item.trail ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      margin: '0 8px',
+                      color: 'rgba(31,20,16,0.35)',
+                      fontSize: '6px',
+                      lineHeight: 1,
+                    }}
+                  >
+                    &#9679;
+                  </span>
+                  <span>{item.trail}</span>
+                </>
+              ) : null}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
     </>

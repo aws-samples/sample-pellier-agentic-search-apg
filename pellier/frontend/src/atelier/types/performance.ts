@@ -25,6 +25,14 @@ export interface PerformanceData {
     storage: string;
     isShipped: boolean;
   }[];
+  pgvectorTuning: {
+    capability: string;
+    knob: string;
+    productionUse: string;
+    smokeResult: string;
+    tradeoff: string;
+    status: 'enabled' | 'available';
+  }[];
   /**
    * Anna's anchor capability comparison: vector-only vs hybrid (RRF) vs
    * hybrid+rerank, measured against the live catalog. Numbers come from

@@ -1,5 +1,5 @@
 /**
- * CategoryBadge — Both / Managed / Owned / Teaching with distinct color schemes.
+ * CategoryBadge — participant-facing Architecture location badges.
  *
  * Each category maps to a specific color token from the design system.
  *
@@ -8,7 +8,7 @@
 
 import React from 'react';
 
-export type CategoryType = 'both' | 'managed' | 'owned' | 'teaching';
+export type CategoryType = 'live' | 'workshop' | 'optional' | 'quality';
 
 export interface CategoryBadgeProps {
   category: CategoryType;
@@ -19,25 +19,25 @@ const categoryConfig: Record<
   CategoryType,
   { label: string; color: string; bg: string }
 > = {
-  both: {
-    label: 'Both',
+  live: {
+    label: 'Live path',
     color: 'var(--at-cat-both)',
     bg: 'var(--at-red-soft)',
   },
-  managed: {
-    label: 'Managed',
+  workshop: {
+    label: 'Workshop lens',
+    color: 'var(--at-cat-teaching)',
+    bg: 'rgba(31, 20, 16, 0.06)',
+  },
+  optional: {
+    label: 'Optional infra',
     color: 'var(--at-cat-managed)',
     bg: 'var(--at-green-soft)',
   },
-  owned: {
-    label: 'Owned',
+  quality: {
+    label: 'Quality layer',
     color: 'var(--at-cat-owned)',
     bg: 'rgba(184, 138, 58, 0.12)',
-  },
-  teaching: {
-    label: 'Teaching',
-    color: 'var(--at-cat-teaching)',
-    bg: 'rgba(31, 20, 16, 0.06)',
   },
 };
 

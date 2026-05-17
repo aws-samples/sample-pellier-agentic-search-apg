@@ -2,9 +2,8 @@
  * Observatory — Default /atelier landing: intro + where to go next.
  *
  * The dismissible AtelierWelcome band plus a short EditorialTitle orient
- * the attendee; a single row of deep links replaces the former metric
- * dashboard (sessions / agents / memory cards) to reduce fixture noise
- * while keeping clear paths into the real surfaces.
+ * the attendee; a single row of deep links follows the sidebar learning
+ * sequence so participants move from narrative map to replay to system map.
  */
 
 import React from 'react';
@@ -14,26 +13,30 @@ import { AtelierWelcome, EditorialTitle } from '../../components';
 const CTA_ITEMS: Array<{
   to: string;
   testId: string;
+  step: string;
   title: string;
   hint: string;
 }> = [
   {
+    to: '/atelier/persona-journeys',
+    testId: 'observatory-cta-persona-journeys',
+    step: '01',
+    title: 'Persona journeys',
+    hint: 'Zoom out to Marco, Anna, and Theo: 15 Boutique turns across three Aurora capabilities.',
+  },
+  {
     to: '/atelier/sessions',
     testId: 'observatory-cta-sessions',
+    step: '02',
     title: 'Sessions',
-    hint: 'Replay captured shopper conversations turn-by-turn.',
+    hint: 'Open the signed-in persona replay and inspect chat, telemetry, and brief.',
   },
   {
     to: '/atelier/architecture',
     testId: 'observatory-cta-architecture',
+    step: '03',
     title: 'Architecture',
-    hint: 'The system map — agents, tools, memory, routing.',
-  },
-  {
-    to: '/atelier/persona-journeys',
-    testId: 'observatory-cta-persona-journeys',
-    title: 'Persona journeys',
-    hint: 'Three personas, three Aurora capabilities, one spine.',
+    hint: 'Then move into the system map: agents, skills, tools, routing, memory, and writes.',
   },
 ];
 
@@ -45,7 +48,7 @@ const Observatory: React.FC = () => {
       <EditorialTitle
         eyebrow="Observe · Observatory · system overview"
         title="The wide-angle view."
-        summary="A lightweight lobby before you drill in — the live detail lives on Sessions, the architecture map, and the persona arcs."
+        summary="A lightweight lobby before you drill in. Start with the persona story, replay one journey in depth, then open the architecture map once the moving parts have names."
       />
 
       <section aria-label="Where to go next">
@@ -96,6 +99,17 @@ const Observatory: React.FC = () => {
                   '0 2px 10px rgba(45, 24, 16, 0.04)';
               }}
             >
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '11px',
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  color: 'var(--at-red-1)',
+                }}
+              >
+                {item.step}
+              </span>
               <span
                 className="font-display italic text-espresso"
                 style={{

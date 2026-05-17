@@ -25,7 +25,7 @@ After C2 alone Marco's Turn 4 works. C3–C5 add depth.
 Marco asked about the Brooklyn warehouse. The Dispatcher correctly matched stock intent — but Stock Keeper ships in stub state, so a voice-matched non-answer came back. You're authoring the agent that closes the gap.
 
 ### Where to look
-- File: `pellier/backend/agents/inventory_agent.py`
+- File: `pellier/backend/agents/stock_keeper.py`
 - Challenge block: line 22 (`# === CHALLENGE · Stock Keeper · system prompt: START ===`)
 
 ### What to implement
@@ -46,14 +46,14 @@ Then flip `_INVENTORY_AGENT_STUBBED = False` at the bottom of the block.
 
 ### ⏩ Short on time?
 ```bash
-cp solutions/module2/agents/inventory_agent.py \
-   pellier/backend/agents/inventory_agent.py
+cp solutions/closing-marcos-gap/agents/stock_keeper.py \
+   pellier/backend/agents/stock_keeper.py
 ```
 
 ### Verify locally (pytest)
 ```bash
 cd pellier-workshop/pellier/backend
-pytest tests/test_inventory_agent.py -v
+pytest tests/test_factory_shape.py -v
 ```
 
 ### Verify live
@@ -76,13 +76,13 @@ Replace the stub body with the real tool:
 1. Guard on `_db_service` being initialized (return a JSON error if not)
 2. `from services.business_logic import BusinessLogic`
 3. `logic = BusinessLogic(_db_service)`
-4. Call `logic.floor_check()` via `_run_async()` — it's an `async` method
+4. Normalize `product_query`, then call `logic.floor_check(product_query=query)` via `_run_async()` — it's an `async` method
 5. Return `json.dumps(result, indent=2)`
 6. Wrap the whole block in try/except and return a JSON error envelope on failure
 
 ### ⏩ Short on time?
 ```bash
-cp solutions/module2/services/agent_tools__inventory.py \
+cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
    pellier/backend/services/agent_tools.py
 ```
 
@@ -129,7 +129,7 @@ Wire to `BusinessLogic.restock_shelf(product_id, quantity)`. Same pattern as `fl
 
 ### ⏩ Short on time?
 ```bash
-cp solutions/module2/services/agent_tools__inventory.py \
+cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
    pellier/backend/services/agent_tools.py
 ```
 (Same file, covers all three inventory tools at once.)
@@ -166,7 +166,7 @@ Wire to `BusinessLogic.running_low(limit)`. Same pattern.
 
 ### ⏩ Short on time?
 ```bash
-cp solutions/module2/services/agent_tools__inventory.py \
+cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
    pellier/backend/services/agent_tools.py
 ```
 
@@ -186,7 +186,7 @@ Open the Atelier concierge and ask *"What's running low?"* — list of low-stock
 Stock Keeper is done. Now the second full specialist build. Experience Guide handles returns and care — exactly what Theo needs when his ceramics arrived chipped. Different model (**Opus 4.6 · 0.2**), different voice, different pattern: **tool chaining**.
 
 ### Where to look
-- File: `pellier/backend/agents/customer_support_agent.py`
+- File: `pellier/backend/agents/experience_guide.py`
 - Challenge block: line 31 (`# === CHALLENGE · Experience Guide · system prompt: START ===`)
 
 ### What to implement
@@ -208,13 +208,13 @@ Then flip `_SUPPORT_AGENT_STUBBED = False` at the end of the block.
 
 ### ⏩ Short on time?
 ```bash
-cp solutions/module2/agents/customer_support_agent.py \
-   pellier/backend/agents/customer_support_agent.py
+cp solutions/closing-marcos-gap/agents/experience_guide.py \
+   pellier/backend/agents/experience_guide.py
 ```
 
 ### Verify locally
 ```bash
-pytest tests/test_customer_support_agent.py -v
+pytest tests/test_factory_shape.py -v
 ```
 
 ### Verify live
@@ -309,4 +309,4 @@ You've built Marco's gap closure (Stock Keeper + 3 tools), Anna's hybrid path is
 
 Next: [Module 3 · Evaluate](30-module3-evaluate.en.md)
 
-*Cross-links: [Theo's full write-path arc](../shared/theo-arc-overview.en.md) · [Aurora capabilities ladder](../shared/aurora-capabilities-arc.en.md)*
+*Reference: [Theo write path and Aurora capability ladder](90-facilitator-reference.en.md)*

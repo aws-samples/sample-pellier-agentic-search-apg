@@ -19,7 +19,8 @@ Two agents, five tools, and a capstone where Marco's full shopping journey ends 
 
 ## The narrative spine
 
-See the Marco arc overview at [`../shared/marco-arc-overview.en.md`](../shared/marco-arc-overview.en.md).
+The facilitator reference appendix keeps the full persona and capability
+spine in one place: [Facilitator Reference](90-facilitator-reference.en.md).
 
 Marco shops Pellier. Asks four questions. Three land; the fourth — a warehouse-stock question — gets a voice-matched non-answer because Stock Keeper ships in stub state. **That's the build.** After participants wire the agent + tools, Marco's same question returns a real Brooklyn warehouse answer with count and ship ETA. The workshop narrates itself through Marco's pill clicks.
 
@@ -29,7 +30,7 @@ The Atelier's own left sidebar names the verbs. The workshop follows them:
 
 | Module | Atelier surfaces | Minutes | What you do |
 |---|---|---|---|
-| **1 · Observe** | Sessions → Observatory | 20 | Tour the system. Replay Marco's opening demo. Read the model-mix sidebar. A 5-minute "swap a model" hands-on exercise. |
+| **1 · Observe** | Sessions → Observatory | 20 | Tour the system. Replay Marco's opening demo. Read the model mix. A 5-minute "swap a model" hands-on exercise. |
 | **2 · Understand** | Architecture → Agents → Tools → Skills → Routing → Memory | 70 | Build Stock Keeper (agent + 3 tools). Mid-point checkpoint. Build Experience Guide (agent + tool wiring). |
 | **3 · Evaluate** | Performance → Evaluations | 20 | Per-agent latency deep-dive. Optional stretch lab: try Style Advisor on Opus 4.6. Capstone Marco journey. |
 
@@ -47,8 +48,8 @@ Each challenge page shows both the pytest command and the Boutique/Atelier obser
 Every challenge has a ⏩ **Short on time?** block with a one-line `cp` command that drops the solution file into place:
 
 ```bash
-cp solutions/module2/agents/inventory_agent.py \
-   pellier/backend/agents/inventory_agent.py
+cp solutions/closing-marcos-gap/agents/stock_keeper.py \
+   pellier/backend/agents/stock_keeper.py
 ```
 
 The solution file is a plain copy of working code. No merge logic, no variant. Run the `cp`, save, move on. The goal is to get everyone to the capstone — not to pass every sub-challenge manually.
