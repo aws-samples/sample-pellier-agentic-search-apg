@@ -9,6 +9,8 @@ to ship — verify that short-term memory persists across turns. Bootstrap
 already created `PellierSTM` and wrote `AGENTCORE_MEMORY_ID` to `.env`.*
 :::
 
+One-hour option: skim sections 1 and 3 only, then continue to Runtime/Routing.
+
 ## What STM is doing here
 
 **Short-term memory (STM)** holds the last turns of a session — Marco's

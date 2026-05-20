@@ -8,6 +8,9 @@ weight: 30
 how the Boutique picks a specialist, and where AgentCore fits.*
 :::
 
+In the one-hour session, keep this page tight (4-5 minutes): confirm the two
+routers model, then close with takeaways instead of deep architecture debate.
+
 ## Open Routing in the Atelier
 
 Click **Routing** under **UNDERSTAND**.
@@ -33,6 +36,22 @@ The Boutique (`/api/chat/stream`, pattern `dispatcher`) uses:
 
 Scroll to **What you type maps to one specialist** — that's the literal
 keyword map from code.
+
+---
+
+## Two routers, one turn
+
+Pellier runs two different routing decisions in sequence:
+
+1. **Intent router** (`classify_intent` in `services/chat.py`) picks the
+   specialist (`search`, `pricing`, `inventory`, `support`, or `recommendation`).
+2. **Skill router** (`POST /api/atelier/skills/route`) decides whether to
+   inject persona overlays like `the-gift-table` into that specialist's prompt.
+
+Use this mental model in reviews:
+
+- Wrong specialist = intent-router issue.
+- Right specialist, wrong voice/framing = skill-router issue.
 
 ---
 

@@ -1078,7 +1078,11 @@ async def compare_search_strategies(query: str):
     # Strategy 1: pure pgvector cosine. Marco's path.
     t0 = time.time()
     vec = VectorSearch(db)
-    vec_rows = await vec.vector_search(query_embedding, 5, ef_search=40)
+    vec_rows = await vec.vector_search(
+        query_embedding,
+        5,
+        ef_search=settings.VECTOR_EF_SEARCH_DEFAULT,
+    )
     vec_ms = int((time.time() - t0) * 1000)
     vec_products = [
         {"name": r.get("name", ""), "productId": r.get("product_id")}
@@ -1105,7 +1109,7 @@ async def compare_search_strategies(query: str):
     rerank_pool = await hybrid.search(
         query=q,
         query_embedding=query_embedding,
-        top_n=30,
+        top_n=settings.HYBRID_TOP_N,
     )
     documents = [
         f"{r.get('name','')} — {(r.get('description','') or '')[:200]} ({r.get('category','')})"

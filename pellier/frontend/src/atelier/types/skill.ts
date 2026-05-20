@@ -3,7 +3,7 @@
  *
  * Represents one of the 3 persona-tied skills loaded by the SkillRouter
  * per turn. Mirrors the YAML + Markdown structure of the live
- * `pellier/backend/skills/<name>/SKILL.md` files.
+ * `/skills/<name>/SKILL.md` files.
  */
 
 export interface Skill {

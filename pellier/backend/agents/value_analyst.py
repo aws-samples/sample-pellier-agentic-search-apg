@@ -80,7 +80,7 @@ def build_pricing_agent() -> Agent:
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_HAIKU_MODEL,
-            max_tokens=2048,
+            max_tokens=settings.AGENT_MAX_TOKENS_HAIKU,
             temperature=0.1,
         ),
         system_prompt=inject_persona_preamble(

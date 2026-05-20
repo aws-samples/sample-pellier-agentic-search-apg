@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # --- Agent model config ---
     #
     # Per-agent model selection is an architectural decision, not a knob.
-    # Read `lab-content/shared/model-mix-sidebar.en.md` for the reasoning:
+    # See `lab-content/workshop/10-module1-observe.en.md` for the rationale:
     #
     #   Claude Opus 4.6  — editorial specialists (Style Advisor, Curator,
     #                 Experience Guide). Needs voice + personality.
@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # Legacy alias — kept for tests + scripts that still reference it.
     # Prefer BEDROCK_OPUS_MODEL / BEDROCK_HAIKU_MODEL in agent factories.
     BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+
+    # Token budgets tuned for short-form concierge replies (1-2 sentences).
+    # Keep generous enough for tool reasoning, but avoid over-allocation that
+    # increases latency/cost with restricted model access.
+    AGENT_MAX_TOKENS_OPUS: int = 1200
+    AGENT_MAX_TOKENS_HAIKU: int = 800
+    ROUTER_MAX_TOKENS_HAIKU: int = 320
     
     # ========================================
     # Application Configuration
@@ -102,6 +109,10 @@ class Settings(BaseSettings):
     DB_POOL_MAX_SIZE: int = 20
     DB_POOL_TIMEOUT: int = 30  # seconds
     DB_CONNECT_TIMEOUT: int = 10  # seconds
+    DB_STATEMENT_TIMEOUT_MS: int = 8000
+    DB_LOCK_TIMEOUT_MS: int = 1200
+    DB_IDLE_IN_TX_TIMEOUT_MS: int = 15000
+    DB_WORK_MEM_MB: int = 16
     
     # ========================================
     # Search Configuration
@@ -112,6 +123,14 @@ class Settings(BaseSettings):
     
     # Vector search parameters
     VECTOR_SIMILARITY_THRESHOLD: float = 0.0  # Minimum similarity score
+    VECTOR_EF_SEARCH_DEFAULT: int = 40
+    VECTOR_EF_SEARCH_MAX: int = 160
+    HYBRID_VECTOR_K: int = 20
+    HYBRID_FTS_K: int = 20
+    HYBRID_TOP_N: int = 30
+    HYBRID_RRF_K: int = 60
+    RERANK_MAX_DOCUMENTS: int = 30
+    RERANK_CACHE_TTL_SEC: int = 120
     
     # ========================================
     # Performance & Caching

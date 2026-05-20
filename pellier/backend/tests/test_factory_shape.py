@@ -42,7 +42,7 @@ from services.persona_context import persona_preamble_var, set_persona_preamble
 SPECIALIST_SPECS = [
     ("search", build_search_agent, {"find_pieces", "explore_collection", "side_by_side"}),
     ("recommendation", build_recommendation_agent,
-     {"find_pieces", "whats_trending", "side_by_side", "explore_collection"}),
+     {"find_pieces_hybrid", "whats_trending", "side_by_side", "explore_collection"}),
     ("pricing", build_pricing_agent,
      {"price_intelligence", "explore_collection", "find_pieces"}),
     ("inventory", build_inventory_agent,

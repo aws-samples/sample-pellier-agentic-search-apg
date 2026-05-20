@@ -45,8 +45,8 @@ class BusinessLogic:
         params: List[Any] = []
 
         if category:
-            conditions.append("category ILIKE %s")
-            params.append(f"%{category}%")
+            conditions.append("lower(category) LIKE %s")
+            params.append(f"%{category.lower()}%")
 
         where_clause = " AND ".join(conditions)
 
@@ -163,9 +163,11 @@ class BusinessLogic:
                 "message": "Empty product query.",
             }
 
-        # Build "name ILIKE %s AND name ILIKE %s ..." with one param per token.
-        clause = " AND ".join(["name ILIKE %s"] * len(tokens))
-        params = tuple(f"%{t}%" for t in tokens)
+        # Build "lower(name) LIKE %s AND lower(name) LIKE %s ..." with one
+        # param per token so the trigram index on lower(name) can accelerate
+        # fuzzy lookups at larger catalog sizes.
+        clause = " AND ".join(["lower(name) LIKE %s"] * len(tokens))
+        params = tuple(f"%{t.lower()}%" for t in tokens)
 
         rows = await self.db.fetch_all(
             f"""
@@ -247,8 +249,8 @@ class BusinessLogic:
         """Per-category price statistics."""
         params: List[Any] = []
         if category:
-            cat_condition = "category ILIKE %s"
-            params.append(f"%{category}%")
+            cat_condition = "lower(category) LIKE %s"
+            params.append(f"%{category.lower()}%")
             query = f"""
                 SELECT
                     category,
@@ -474,8 +476,8 @@ class BusinessLogic:
             params.append(min_rating)
 
         if category:
-            conditions.append("category ILIKE %s")
-            params.append(f"%{category}%")
+            conditions.append("lower(category) LIKE %s")
+            params.append(f"%{category.lower()}%")
 
         params.append(limit)
         where_clause = " AND ".join(conditions)
@@ -539,8 +541,8 @@ class BusinessLogic:
         limit: int = 5,
     ) -> Dict[str, Any]:
         """Browse products by category with rating and price filters."""
-        conditions = ["category ILIKE %s", '"imgUrl" IS NOT NULL']
-        params: List[Any] = [f"%{category}%"]
+        conditions = ["lower(category) LIKE %s", '"imgUrl" IS NOT NULL']
+        params: List[Any] = [f"%{category.lower()}%"]
 
         if min_rating:
             conditions.append("rating >= %s")

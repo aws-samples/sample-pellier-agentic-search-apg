@@ -9,7 +9,7 @@
  *      darker warm ground, doubling as the visual page-end signal.
  */
 
-const BRIEF_IMAGE = '/products/editorial-brief-shayon.png'
+const BRIEF_IMAGE = '/products/hero-fresh-2.png'
 
 export default function EditorialBrief() {
   return (
@@ -34,7 +34,7 @@ export default function EditorialBrief() {
             >
               <img
                 src={BRIEF_IMAGE}
-                alt="Editorial brief — workshop curator at desk"
+                alt="Pellier editorial still life"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none'
@@ -84,21 +84,23 @@ export default function EditorialBrief() {
                   fontWeight: 400,
                 }}
               >
-                Workshop built and
+                Built to feel
                 <br />
-                curated by
+                like a real boutique.
               </h2>
 
-              {/* Name */}
+              {/* Brand mark */}
               <div
                 className="font-sans text-espresso"
                 style={{
-                  fontSize: 'clamp(22px, 2.5vw, 32px)',
+                  fontSize: '12px',
                   fontWeight: 600,
-                  letterSpacing: '-0.01em',
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(31, 20, 16, 0.68)',
                 }}
               >
-                Shayon Sanyal
+                Pellier Atelier
               </div>
 
               {/* Philosophy */}
@@ -111,13 +113,11 @@ export default function EditorialBrief() {
                   color: '#4a3a2e',
                 }}
               >
-                The best way to learn agentic AI is to take a working system
-                apart. Every agent decision in this workshop traces back to a
-                real product, a real embedding, and a real database query. The
-                Boutique is built to feel like a place you'd actually shop
-                &mdash; linen shirts with weight and a recommendation that
-                knows what you bought last summer. The seams are visible
-                because that's the point.
+                Pellier is a working reference for agentic commerce: elegant on
+                the surface, inspectable underneath. Every recommendation can be
+                traced to retrieval signals, tool execution, and policy-aware
+                decisions. The interface stays quiet and premium; the system
+                behind it stays explicit, testable, and production-minded.
               </p>
 
               {/* Stack */}
@@ -172,7 +172,7 @@ export default function EditorialBrief() {
             letterSpacing: '0.01em',
           }}
         >
-          Built for re:Invent. Designed to be taken apart.
+          Designed for teams building agentic systems with taste.
         </p>
       </div>
     </>

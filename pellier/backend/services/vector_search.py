@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List
 
+from config import settings
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
 
@@ -62,8 +63,6 @@ class VectorSearch:
         Returns:
             List of product dicts with similarity scores.
 
-        ⏩ SHORT ON TIME? Run:
-           cp solutions/the-quiet-search/services/hybrid_search.py pellier/backend/services/hybrid_search.py
         """
         # === CHALLENGE 1: START ===
         sql = """
@@ -86,6 +85,7 @@ class VectorSearch:
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
             FROM pellier.product_catalog
             WHERE "imgUrl" IS NOT NULL
+              AND embedding IS NOT NULL
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
         """
@@ -95,13 +95,17 @@ class VectorSearch:
         # so HNSW tuning values are interpolated directly. Inputs are coerced
         # (int for ef_search, whitelisted literal for iterative_scan) — no
         # user-supplied strings reach the SQL.
-        ef_search_sql = int(ef_search)
+        ef_search_sql = int(ef_search or settings.VECTOR_EF_SEARCH_DEFAULT)
+        ef_search_sql = max(8, min(ef_search_sql, settings.VECTOR_EF_SEARCH_MAX))
         start_time = time.time()
         async with self.db.get_connection() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(
-                    f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
-                )
+                try:
+                    await cur.execute(
+                        f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
+                    )
+                except Exception:
+                    logger.debug("hnsw.ef_search not supported; skipping per-query tuning")
                 if iterative_scan:
                     await cur.execute(
                         "SET LOCAL hnsw.iterative_scan = 'relaxed_order'"

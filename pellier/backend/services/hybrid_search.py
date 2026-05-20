@@ -38,6 +38,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
+from config import settings
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
 
@@ -61,10 +62,10 @@ class HybridSearch:
         self,
         query: str,
         query_embedding: List[float],
-        k_vector: int = 20,
-        k_bm25: int = 20,
-        rrf_k: int = _RRF_K_DEFAULT,
-        top_n: int = 30,
+        k_vector: int = 0,
+        k_bm25: int = 0,
+        rrf_k: int = 0,
+        top_n: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Run vector + Postgres FTS in parallel, RRF-merge, return top_n candidates.
@@ -90,6 +91,13 @@ class HybridSearch:
             field. Sorted by rrf_score descending.
         """
         start_time = time.time()
+        k_vector = int(k_vector or settings.HYBRID_VECTOR_K)
+        k_bm25 = int(k_bm25 or settings.HYBRID_FTS_K)
+        rrf_k = int(rrf_k or settings.HYBRID_RRF_K or _RRF_K_DEFAULT)
+        top_n = int(top_n or settings.HYBRID_TOP_N)
+        k_vector = max(5, min(k_vector, 100))
+        k_bm25 = max(5, min(k_bm25, 100))
+        top_n = max(5, min(top_n, 100))
 
         # Run both branches in parallel. asyncio.gather propagates the
         # first exception immediately — if FTS fails (e.g. tsvector
@@ -277,6 +285,9 @@ class HybridSearch:
             # back to vector-only ranking.
             return []
         sql = """
+            WITH q AS (
+                SELECT to_tsquery('english', %s) AS ts_q
+            )
             SELECT
                 "productId" AS product_id,
                 name,
@@ -290,14 +301,15 @@ class HybridSearch:
                 reviews,
                 badge,
                 tags,
-                ts_rank_cd(description_tsv, to_tsquery('english', %s)) AS bm25_score
+                ts_rank_cd(description_tsv, q.ts_q) AS bm25_score
             FROM pellier.product_catalog
+            CROSS JOIN q
             WHERE "imgUrl" IS NOT NULL
-              AND description_tsv @@ to_tsquery('english', %s)
+              AND description_tsv @@ q.ts_q
             ORDER BY bm25_score DESC
             LIMIT %s
         """
-        params: List[Any] = [or_query, or_query, k]
+        params: List[Any] = [or_query, k]
         start = time.time()
         async with self.db.get_connection() as conn:
             async with conn.cursor() as cur:

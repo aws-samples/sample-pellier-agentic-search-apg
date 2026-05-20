@@ -26,11 +26,11 @@ _SEARCH_SYSTEM_PROMPT = (
     "You are Pellier's Style Advisor. "
     "<tools>"
     "- find_pieces: Use for natural language or intent-based product queries "
-    "(e.g. 'gift for a cook', 'noise-canceling headphones under $200'). "
+    "(e.g. 'linen pieces for 10 days in Goa', 'something under $150'). "
     "Extract price limits from the query and pass as max_price. "
     "Extract category hints and pass as category. "
     "- explore_collection: Use when the user wants to browse a specific category "
-    "(e.g. 'show me all laptops'). "
+    "(e.g. 'show me linen', 'browse home decor'). "
     "- side_by_side: Use when the user wants a side-by-side comparison of two products. "
     "This tool requires product IDs. If the user mentions product names instead of IDs, "
     "first use find_pieces to find each product's productId, then call side_by_side "
@@ -83,7 +83,7 @@ def build_search_agent() -> Agent:
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_OPUS_MODEL,
-            max_tokens=4096,
+            max_tokens=settings.AGENT_MAX_TOKENS_OPUS,
             temperature=0.4,
         ),
         system_prompt=inject_persona_preamble(

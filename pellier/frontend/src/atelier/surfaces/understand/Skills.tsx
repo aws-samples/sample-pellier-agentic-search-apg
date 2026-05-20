@@ -10,7 +10,7 @@
  *
  * Skills are file-based, not DB-backed — this surface is intentionally
  * read-only; the lab's Customize-the-Gift-Table challenge edits the
- * SKILL.md file directly, not a database row.
+ * /skills/<slug>/SKILL.md file directly, not a database row.
  */
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
@@ -624,7 +624,7 @@ const SkillCard: React.FC<SkillCardProps> = ({
         lineHeight: 1.4,
       }}
     >
-      Source: <code>pellier/backend/skills/{skill.name}/SKILL.md</code>
+      Source: <code>/skills/{skill.name}/SKILL.md</code>
     </p>
 
     {isSelected && (
@@ -694,7 +694,7 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ messag
 
 const EmptyState: React.FC = () => (
   <div style={{ padding: '32px', textAlign: 'center', color: 'var(--at-ink-2)' }}>
-    <p>No skills loaded. Check <code>pellier/backend/skills/</code>.</p>
+    <p>No skills loaded. Check <code>/skills/</code>.</p>
   </div>
 );
 
@@ -751,6 +751,23 @@ const Skills: React.FC = () => {
         title="Persona-specific knowledge the agents load."
         summary="Three Markdown files. One per persona. Loaded per turn by the SkillRouter — Haiku 4.5 at 0.0, deterministic classification — and injected into the specialist's system prompt. Skills change voice and handling, not product selection."
       />
+      <ExpCard>
+        <Eyebrow label="Two routers · different jobs" />
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            lineHeight: 1.6,
+            color: 'var(--at-ink-2)',
+            margin: '8px 0 0',
+          }}
+        >
+          Intent router in <code style={{ fontFamily: 'var(--at-mono)' }}>services/chat.py</code>{' '}
+          picks the specialist. SkillRouter then decides whether to inject persona overlays from{' '}
+          <code style={{ fontFamily: 'var(--at-mono)' }}>/skills/&lt;slug&gt;/SKILL.md</code>{' '}
+          into that specialist&apos;s prompt for this turn.
+        </p>
+      </ExpCard>
 
       {loading && <LoadingState />}
       {error && <ErrorState message={error} onRetry={refetch} />}

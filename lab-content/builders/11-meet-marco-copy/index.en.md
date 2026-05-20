@@ -11,6 +11,9 @@ already works. Strings and flows match **`marco-opening-demo`** (turns
 1–4) plus the opening turn of **`marco-capstone`** for pill five.
 :::
 
+For the 60-minute session, treat this page as a checklist: click the pills,
+confirm the routing/tool pattern, then move quickly to coding in lab 12.
+
 ## Meet Marco
 
 Marco is a returning customer packing **linen for a long stretch in Goa**. The

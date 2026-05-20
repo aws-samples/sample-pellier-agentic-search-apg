@@ -120,7 +120,7 @@ def build_support_agent() -> Agent:
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_OPUS_MODEL,
-            max_tokens=4096,
+            max_tokens=settings.AGENT_MAX_TOKENS_OPUS,
             temperature=0.2,
         ),
         system_prompt=inject_persona_preamble(

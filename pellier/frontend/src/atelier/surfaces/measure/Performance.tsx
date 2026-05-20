@@ -490,7 +490,9 @@ const PgvectorTuning: React.FC<PgvectorTuningProps> = ({ tuning }) => {
         Retrieval performance is not only vector vs hybrid vs rerank. At
         production scale, pgvector index settings and representation choices
         decide whether filtered search returns enough candidates, how much RAM
-        the index wants, and how much recall you trade for speed.
+        the index wants, and how much recall you trade for speed. For this
+        workshop's 40-product catalog, halfvec and binary quantization are
+        mostly production-awareness knobs, not wins you need to ship today.
       </p>
 
       <div

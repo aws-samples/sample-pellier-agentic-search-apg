@@ -24,6 +24,7 @@ import re
 import time
 from typing import Optional
 
+from config import settings
 from .models import RouterDecision, Skill
 from .registry import SkillRegistry
 
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 # sits under our per-turn budget. Kept separate from the orchestrator
 # model id (which is also Haiku today) so the two can diverge later
 # without touching the router.
-_ROUTER_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+_ROUTER_MODEL_ID = settings.BEDROCK_HAIKU_MODEL
 
 
 _ROUTER_PROMPT_HEADER = """You are a skill router for an editorial boutique's AI agent.
@@ -99,7 +100,7 @@ class SkillRouter:
         self._agent = Agent(
             model=BedrockModel(
                 model_id=self._model_id,
-                max_tokens=512,
+                max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU,
                 temperature=0.0,
             ),
             system_prompt=self._build_prompt(),

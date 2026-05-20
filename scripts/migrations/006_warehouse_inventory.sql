@@ -120,6 +120,90 @@ CREATE TABLE IF NOT EXISTS pellier.warehouse_inventory (
     PRIMARY KEY (warehouse_id, product_id)
 );
 
+-- Backward-compat normalization for older workshop tables that used
+-- camelCase "productId" (INTEGER) in public.warehouse_inventory.
+-- After moving schemas above, normalize to snake_case TEXT so joins/FKs
+-- against product_catalog."productId" (TEXT) remain type-safe.
+DO $$
+DECLARE
+    c RECORD;
+    target_type text;
+BEGIN
+    -- Drop any existing FKs on warehouse_inventory first so product_id
+    -- type normalization can succeed across legacy schemas.
+    FOR c IN
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'pellier.warehouse_inventory'::regclass
+          AND contype = 'f'
+    LOOP
+        EXECUTE format(
+            'ALTER TABLE pellier.warehouse_inventory DROP CONSTRAINT IF EXISTS %I',
+            c.conname
+        );
+    END LOOP;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'pellier'
+          AND table_name = 'warehouse_inventory'
+          AND column_name = 'productId'
+    ) THEN
+        EXECUTE 'ALTER TABLE pellier.warehouse_inventory RENAME COLUMN "productId" TO product_id';
+        RAISE NOTICE 'Normalized warehouse_inventory."productId" → product_id';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'pellier'
+          AND table_name = 'warehouse_inventory'
+          AND column_name = 'product_id'
+    ) THEN
+        SELECT data_type
+          INTO target_type
+          FROM information_schema.columns
+         WHERE table_schema = 'pellier'
+           AND table_name = 'product_catalog'
+           AND column_name = 'productId'
+         LIMIT 1;
+
+        target_type := COALESCE(target_type, 'text');
+
+        IF target_type = 'integer' THEN
+            EXECUTE '
+                ALTER TABLE pellier.warehouse_inventory
+                ALTER COLUMN product_id TYPE integer
+                USING product_id::integer
+            ';
+        ELSE
+            EXECUTE '
+                ALTER TABLE pellier.warehouse_inventory
+                ALTER COLUMN product_id TYPE text
+                USING product_id::text
+            ';
+        END IF;
+        RAISE NOTICE 'Normalized warehouse_inventory.product_id type → %', target_type;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'warehouse_inventory_product_id_fkey'
+          AND conrelid = 'pellier.warehouse_inventory'::regclass
+    ) THEN
+        ALTER TABLE pellier.warehouse_inventory
+            ADD CONSTRAINT warehouse_inventory_product_id_fkey
+            FOREIGN KEY (product_id)
+            REFERENCES pellier.product_catalog("productId")
+            ON DELETE CASCADE;
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS warehouse_inventory_product_idx
     ON pellier.warehouse_inventory (product_id);
 

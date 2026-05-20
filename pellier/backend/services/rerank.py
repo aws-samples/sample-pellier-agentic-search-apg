@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 
 from config import settings
+from services.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
@@ -90,13 +91,33 @@ class RerankService:
             return []
         if top_n <= 0:
             return []
+        max_docs = max(1, int(settings.RERANK_MAX_DOCUMENTS))
+        documents = documents[:max_docs]
+        top_n = min(top_n, len(documents))
+
+        cache = get_cache()
+        cache_key = None
+        if cache:
+            cache_key = json.dumps(
+                {
+                    "query": query,
+                    "documents": documents,
+                    "top_n": top_n,
+                    "model_id": self.model_id,
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+            cached = cache.get("rerank", cache_key)
+            if cached is not None:
+                return cached
 
         # Cohere's v2 API expects a JSON body with these fields. The
         # api_version is part of the body (not a Bedrock-level header).
         body = {
             "query": query,
             "documents": documents,
-            "top_n": min(top_n, len(documents)),
+            "top_n": top_n,
             "api_version": 2,
         }
 
@@ -108,7 +129,10 @@ class RerankService:
                 accept="application/json",
             )
             payload = json.loads(response["body"].read())
-            return payload.get("results", [])
+            results = payload.get("results", [])
+            if cache and cache_key:
+                cache.set("rerank", cache_key, results, ttl=settings.RERANK_CACHE_TTL_SEC)
+            return results
         except Exception as exc:
             # Don't crash the pipeline — return empty so the caller
             # falls back to RRF order. The Atelier will surface this

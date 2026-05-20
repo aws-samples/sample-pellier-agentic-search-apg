@@ -30,6 +30,7 @@ from .value_analyst import pricing
 from .experience_guide import support
 from .style_advisor import search
 from boutique_copy import ORCHESTRATOR_SYSTEM_PROMPT
+from config import settings
 
 
 # === CHALLENGE 4: Multi-Agent Orchestrator — START ===
@@ -49,8 +50,8 @@ def create_orchestrator():
     """Create the orchestrator agent with all specialized agents as tools"""
     return Agent(
         model=BedrockModel(
-            model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
-            max_tokens=4096,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU,
             temperature=0.0,
         ),
         system_prompt=ORCHESTRATOR_PROMPT,
@@ -82,8 +83,8 @@ def create_guarded_orchestrator():
     rules to the system prompt and can filter responses through Bedrock Guardrails."""
     return Agent(
         model=BedrockModel(
-            model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
-            max_tokens=4096,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU,
             temperature=0.0,
         ),
         system_prompt=ORCHESTRATOR_PROMPT + GUARDRAILS_PROMPT_SUFFIX,

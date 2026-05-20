@@ -3,7 +3,7 @@
  *
  * Three persona-resident skills (the-packing-list, the-gift-table,
  * the-makers-shelf); source-of-truth slugs live in skills.json and each
- * backend skills folder (SKILL.md beside the skill slug).
+ * /skills/<slug>/SKILL.md file at repo root.
  *
  * Requirements: 7.1, 7.6, 7.7
  */
@@ -29,7 +29,7 @@ const SkillsDetail: React.FC = () => {
       conceptName="Skills"
       category="workshop"
       title="Skills, persona-routed."
-      prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under pellier/backend/skills/; they are not separate agents."
+      prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -37,7 +37,7 @@ const SkillsDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'The SkillRouter is Haiku 4.5 (~120ms). When the query matches travel/packing signals for Marco, the-packing-list activates; gift language for Anna lifts the-gift-table; slow-craft ceramics for Theo loads the-makers-shelf.',
+          text: 'The SkillRouter is Haiku 4.5 (~120ms). Intent routing already chose the specialist; this second router only decides which skill overlays to inject for that turn.',
         },
         {
           numeral: 'iii.',
@@ -58,7 +58,7 @@ const SkillsDetail: React.FC = () => {
       {!loading && !error && !concept && <DetailEmptyState conceptName="Skills" />}
       {!loading && !error && concept && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Three persona skills — matches skills.json + SKILL.md bundles under backend/skills */}
+          {/* Three persona skills — matches skills.json + /skills/<slug>/SKILL.md bundles */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
             <SkillCard
               name="the-packing-list"

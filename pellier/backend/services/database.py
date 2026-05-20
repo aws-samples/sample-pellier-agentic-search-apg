@@ -173,8 +173,25 @@ async def _configure_connection(conn: AsyncConnection) -> None:
     that only applies to NEW connections — existing pool connections need
     this configure callback to pick up the setting.
     """
+    stmt_ms = int(max(1000, settings.DB_STATEMENT_TIMEOUT_MS))
+    lock_ms = int(max(250, settings.DB_LOCK_TIMEOUT_MS))
+    idle_ms = int(max(1000, settings.DB_IDLE_IN_TX_TIMEOUT_MS))
+    work_mem_mb = int(max(4, settings.DB_WORK_MEM_MB))
+    ef_default = int(max(8, min(settings.VECTOR_EF_SEARCH_DEFAULT, settings.VECTOR_EF_SEARCH_MAX)))
+
     async with conn.cursor() as cur:
         await cur.execute("SET hnsw.iterative_scan = 'relaxed_order'")
+        try:
+            await cur.execute(f"SET hnsw.ef_search = {ef_default}")
+        except Exception:
+            logger.warning(
+                "hnsw.ef_search setting unavailable on this cluster; "
+                "continuing with engine defaults"
+            )
+        await cur.execute(f"SET statement_timeout = '{stmt_ms}ms'")
+        await cur.execute(f"SET lock_timeout = '{lock_ms}ms'")
+        await cur.execute(f"SET idle_in_transaction_session_timeout = '{idle_ms}ms'")
+        await cur.execute(f"SET work_mem = '{work_mem_mb}MB'")
     await conn.commit()
 
 

@@ -123,6 +123,60 @@ usually pays for itself.
 
 ---
 
+## 5 · Code extension (recommended in 60-minute format): customize a skill, prove with SQL
+
+This is a fast builder extension (about 6-8 minutes). In the one-hour
+Builder's Session, treat this as the **second coding moment** after
+`floor_check`.
+
+### Edit one skill rule
+
+Open:
+
+```text
+skills/the-gift-table/SKILL.md
+```
+
+Change one guidance line under **Voice and curation rules** (for example:
+"Offer one strong primary recommendation before alternates").
+
+Save, then run Anna again:
+
+```text
+A milestone gift for a new homeowner
+```
+
+### Prove the retrieval path with SQL
+
+From your terminal, inspect the latest hybrid tool call:
+
+```sql
+SELECT tool_name,
+       tool_input ->> 'query' AS query,
+       "timestamp"
+  FROM pellier.tool_uses
+ WHERE tool_name = 'find_pieces_hybrid'
+ ORDER BY "timestamp" DESC
+ LIMIT 3;
+```
+
+You should see your Anna query in the latest rows. This proves the turn hit
+the real retrieval tool path, not a canned fixture.
+
+### Verify in Under the hood
+
+In Boutique, expand **Under the hood** for the same reply and confirm:
+
+```text
+skill.the-gift-table
+tool.find_pieces_hybrid
+```
+
+If those chips are present and SQL confirms the latest call, your skill edit is
+live and grounded in the same retrieval pipeline.
+
+---
+
 ## *What you proved*
 
 - The Boutique's `tool.find_pieces_hybrid` chip is not decoration — it

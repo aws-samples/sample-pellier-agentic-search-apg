@@ -6,8 +6,26 @@ weight: 10
 :::alert{type="info"}
 **Act I · Build + prove.** About five minutes — step in, verify the
 lights are on, and confirm AgentCore ids in `.env`. The whole session
-has one coding exercise; the other pages prove and observe the system.*
+has one core coding exercise (`floor_check`) plus one short coding extension
+(Anna skill edit).*
 :::
+
+## 60-minute facilitator flow (code-first)
+
+For a one-hour Builder's Session, use this page as the pacing source of truth.
+Participants should spend most of their time in code, not prose.
+
+| Time | Segment | Mode |
+| --- | --- | --- |
+| 0-5 min | Setup + health checks (this page) | Read + terminal |
+| 5-12 min | Marco pills + identify the gap (`11-meet-marco`) | Click + observe |
+| 12-30 min | Wire `floor_check` (`12-wire-floor-check`) | **Code** |
+| 30-40 min | Verify in Boutique/Atelier + Anna rerank proof (`13-prove-rerank`) | Test + compare |
+| 40-48 min | **Second coding moment:** edit `skills/the-gift-table/SKILL.md`, re-run Anna, verify chips + SQL | **Code** |
+| 48-55 min | Routing + Runtime skim (`30`, `21`) | Operator view |
+| 55-60 min | Debrief: model mix, tool wiring, skill overlays, DB tradeoffs | Group close |
+
+Target ratio for this format: **~40 minutes hands-on code/verification, ~20 minutes reading/discussion**.
 
 ## Step in
 

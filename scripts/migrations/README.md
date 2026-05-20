@@ -22,6 +22,8 @@ Numbered in apply order; running a migration twice is safe.
    `pellier.warehouse_inventory` for Marco's `floor_check` exercise.
 7. **`007_chat_session_tables.sql`** — creates chat/session persistence
    tables in the `pellier` schema.
+8. **`008_search_performance_indexes.sql`** — adds `pg_trgm` + GIN trigram
+   indexes on `lower(name)` and `lower(category)` for fuzzy ILIKE paths.
 
 ## Run
 
@@ -40,7 +42,8 @@ for migration in \
     004_anna_hybrid_search.sql \
     005_theo_returns.sql \
     006_warehouse_inventory.sql \
-    007_chat_session_tables.sql
+    007_chat_session_tables.sql \
+    008_search_performance_indexes.sql
 do
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
         -U "$DB_USER" -d "$DB_NAME" \

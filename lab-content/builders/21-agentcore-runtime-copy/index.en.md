@@ -10,6 +10,9 @@ arrived. In-room you read the entrypoint and **invoke** the managed
 runtime — you do not launch again.*
 :::
 
+One-hour option: keep this to one invoke plus one takeaway (managed runtime
+keeps architecture constant, moves execution boundary).
+
 ## Local code → managed runtime
 
 | Phase | Who | What |

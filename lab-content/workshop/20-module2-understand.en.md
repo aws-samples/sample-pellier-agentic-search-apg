@@ -52,7 +52,7 @@ cp solutions/closing-marcos-gap/agents/stock_keeper.py \
 
 ### Verify locally (pytest)
 ```bash
-cd pellier-workshop/pellier/backend
+cd /workshop/sample-pellier-agentic-search-apg/pellier/backend
 pytest tests/test_factory_shape.py -v
 ```
 

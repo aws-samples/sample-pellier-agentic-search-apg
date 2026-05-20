@@ -7,6 +7,7 @@ asymmetric input types for improved retrieval quality.
 """
 
 import logging
+import math
 import time
 from typing import List
 
@@ -63,6 +64,14 @@ class EmbeddingService:
                 cb(attempt, max_attempts)
             except Exception:
                 pass
+
+    @staticmethod
+    def _normalize_embedding(vec: List[float]) -> List[float]:
+        """L2-normalize embedding vector for stable cosine behavior."""
+        norm = math.sqrt(sum(v * v for v in vec))
+        if norm <= 0:
+            return vec
+        return [v / norm for v in vec]
 
     def _call_bedrock_embedding(self, request_body: dict) -> dict:
         """
@@ -169,6 +178,9 @@ class EmbeddingService:
                     f"Invalid embedding dimension: expected {self.embedding_dimension}, "
                     f"got {len(embedding)}"
                 )
+
+            if normalize:
+                embedding = self._normalize_embedding(embedding)
 
             _TOTAL_EMBEDDING_COST += _EMBEDDING_COST_PER_CALL
 

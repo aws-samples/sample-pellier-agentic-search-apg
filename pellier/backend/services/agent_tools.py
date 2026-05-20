@@ -16,11 +16,15 @@ from strands import tool
 import contextvars
 import json
 import asyncio
+import logging
 import re
+
+from config import settings
 
 # Global service references
 _db_service = None
 _main_loop = None
+logger = logging.getLogger(__name__)
 
 def set_db_service(db_service):
     """Set the database service instance"""
@@ -160,8 +164,6 @@ def whats_trending(limit: int = 5, category: str = None) -> str:
     Returns:
         JSON string with trending products
 
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE 2: START ===
     if not _db_service:
@@ -198,8 +200,6 @@ def restock_shelf(product_id: int, quantity: int) -> str:
         product_id: Integer productId (1-40 in the boutique catalog).
         quantity: Units to add to current stock.
 
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE · Stock Keeper · restock_shelf: START ===
     # Workshop format ships with this block as a stub (see the original
@@ -474,9 +474,9 @@ def find_pieces_hybrid(
             hybrid.search(
                 query=query,
                 query_embedding=query_embedding,
-                k_vector=20,
-                k_bm25=20,
-                top_n=30,
+                k_vector=settings.HYBRID_VECTOR_K,
+                k_bm25=settings.HYBRID_FTS_K,
+                top_n=settings.HYBRID_TOP_N,
             )
         )
 
@@ -498,7 +498,7 @@ def find_pieces_hybrid(
         rerank_results = rerank_service.rerank(
             query=query,
             documents=documents,
-            top_n=min(limit * 3, len(documents)),  # over-rerank then filter
+            top_n=min(limit * 3, settings.RERANK_MAX_DOCUMENTS),  # over-rerank then filter
         )
 
         # Project candidates by reranked indices. If rerank failed
@@ -602,8 +602,6 @@ def running_low(limit: int = 5) -> str:
     Args:
         limit: Number of results (default: 5)
 
-    ⏩ SHORT ON TIME? Run:
-       cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py pellier/backend/services/agent_tools.py
     """
     # === CHALLENGE · Stock Keeper · running_low: START ===
     # WORKSHOP_EXERCISE_STUB (Workshop format only — Builder's session
@@ -637,14 +635,16 @@ def side_by_side(product_id_1: int, product_id_2: int) -> str:
             FROM pellier.product_catalog
             WHERE "productId" = %s
         """
-        p1 = _run_async(_db_service.fetch_one(query, product_id_1))
-        p2 = _run_async(_db_service.fetch_one(query, product_id_2))
+        p1_id = str(product_id_1).strip()
+        p2_id = str(product_id_2).strip()
+        p1 = _run_async(_db_service.fetch_one(query, p1_id))
+        p2 = _run_async(_db_service.fetch_one(query, p2_id))
 
         if not p1 or not p2:
             missing = []
             if not p1: missing.append(product_id_1)
             if not p2: missing.append(product_id_2)
-            return json.dumps({"error": f"Product(s) not found: {', '.join(missing)}"})
+            return json.dumps({"error": f"Product(s) not found: {', '.join(str(m) for m in missing)}"})
 
         def fmt(row):
             reviews_raw = row.get("reviews")
@@ -742,17 +742,22 @@ def style_match(product_id: int, limit: int = 5) -> str:
         JSON with the source product and its closest style matches,
         including cosine similarity scores.
     """
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+
     try:
+        product_id_text = str(product_id).strip()
         source = _run_async(_db_service.fetch_one(
             'SELECT "productId", name, brand, price, category_name, embedding '
             'FROM pellier.product_catalog WHERE "productId" = %s',
-            str(product_id).ljust(10),
+            product_id_text,
         ))
         if not source:
             return json.dumps({"error": f"Product {product_id} not found"})
         if not source.get("embedding"):
             return json.dumps({"error": f"Product {product_id} has no embedding"})
 
+        limit = max(1, min(int(limit), settings.MAX_SEARCH_LIMIT))
         matches = _run_async(_db_service.fetch_all(
             'SELECT "productId", name, brand, color, price, rating, reviews, '
             'category_name, "imgUrl", '
@@ -761,11 +766,11 @@ def style_match(product_id: int, limit: int = 5) -> str:
             'WHERE "productId" != %s '
             'ORDER BY embedding <=> %s::vector '
             'LIMIT %s',
-            str(source["embedding"]), str(product_id).ljust(10),
+            str(source["embedding"]), product_id_text,
             str(source["embedding"]), limit,
         ))
 
-        return json.dumps({
+        payload = {
             "source": {
                 "productId": str(source["productId"]).strip(),
                 "name": source["name"],
@@ -787,9 +792,27 @@ def style_match(product_id: int, limit: int = 5) -> str:
                 }
                 for m in matches
             ],
+            # Keep compatibility with ProductExtractor, which expects
+            # top-level "products" lists from tool outputs.
+            "products": [
+                {
+                    "productId": str(m["productId"]).strip(),
+                    "name": m["name"],
+                    "brand": m["brand"],
+                    "color": m.get("color", ""),
+                    "price": float(m["price"]),
+                    "rating": float(m.get("rating", 0)),
+                    "reviews": int(m.get("reviews", 0)),
+                    "category": m.get("category_name", ""),
+                    "imgUrl": m.get("imgUrl", ""),
+                    "similarity_score": round(float(m.get("similarity_score", 0)), 4),
+                }
+                for m in matches
+            ],
             "query_type": "pgvector_cosine_similarity",
             "index": "hnsw",
-        })
+        }
+        return json.dumps(payload)
     except Exception as e:
         logger.error(f"style_match error: {e}")
         return json.dumps({"error": str(e)})

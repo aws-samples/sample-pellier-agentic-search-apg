@@ -316,7 +316,8 @@ setup_database() {
             004_anna_hybrid_search.sql \
             005_theo_returns.sql \
             006_warehouse_inventory.sql \
-            007_chat_session_tables.sql
+            007_chat_session_tables.sql \
+            008_search_performance_indexes.sql
         do
             if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
                 log "Applying migration $migration..."

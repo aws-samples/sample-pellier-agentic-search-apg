@@ -9,6 +9,10 @@ weight: 12
 then Marco's Turn 4 lands.
 :::
 
+For a one-hour run, this is the core build block. Timebox this section to
+about 18 minutes max, including verification, then move to Anna's proof and
+the short skill-edit extension.
+
 ::::expand{header="Out of time? Drop in the solution"}
 
 ```bash
