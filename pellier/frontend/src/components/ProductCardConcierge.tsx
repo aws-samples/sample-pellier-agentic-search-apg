@@ -85,7 +85,7 @@ const ProductCardConcierge = ({
     ? `Show ${productName} in another size or color.`
     : `Show ${productName} in another color.`
   const alternativesPrompt = `Show alternatives to ${productName} at a similar style and price.`
-  const whyMatchPrompt = `Why is ${productName} a ${matchLabel.toLowerCase()} for this request?`
+  const whyMatchPrompt = `Why is ${productName} a ${matchLabel.toLowerCase()} match for this request?`
 
   return (
     <div

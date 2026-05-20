@@ -134,6 +134,36 @@ _META_PHRASES = (
 # it as a whole-query word, not as a substring (which mis-classified
 # Anna's "help me pair a candle with something else" turn).
 _META_EXACT_WORDS = ("help",)
+_EXPLAIN_MATCH_PATTERN = re.compile(
+    r"^\s*why\s+is\s+(?P<product>.+?)\s+a\s+(?P<label>top match|strong match|related)\b.*$",
+    re.IGNORECASE,
+)
+
+
+def parse_explain_match_query(query: str) -> Optional[Dict[str, str]]:
+    """Parse "Why is X a related/top match/strong match" quick-action prompts."""
+    if not query:
+        return None
+    m = _EXPLAIN_MATCH_PATTERN.match(query.strip())
+    if not m:
+        return None
+    product = (m.group("product") or "").strip(" \"'")
+    label = (m.group("label") or "").strip().lower()
+    if not product:
+        return None
+    return {"product": product, "label": label}
+
+
+def _last_user_turn(conversation_history: Optional[List[Dict[str, str]]]) -> Optional[str]:
+    """Return the most recent user turn from history."""
+    if not conversation_history:
+        return None
+    for msg in reversed(conversation_history):
+        if (msg or {}).get("role") == "user":
+            content = (msg.get("content") or "").strip()
+            if content:
+                return content
+    return None
 
 
 def classify_triage(query: str) -> Optional[str]:
@@ -1396,6 +1426,88 @@ CURRENT REQUEST: {message}"""
                         "success_rate": 1.0,
                         "otel_enabled": False,
                         "reason": "triage fast-path — orchestrator skipped",
+                    },
+                    "token_count": 0,
+                    "estimated_cost_usd": 0.0,
+                },
+            }
+            return
+
+        # "Why this match?" fast-path — explanation-only turn.
+        # Keep this scoped and deterministic: do not run retrieval tools,
+        # do not emit product cards, and ground the explanation in the
+        # user's prior request when available.
+        explain_req = parse_explain_match_query(message)
+        if explain_req:
+            product = explain_req["product"]
+            label = explain_req["label"]
+            prior_user_ask = _last_user_turn(conversation_history)
+            ask_context = (
+                f" for your request ({prior_user_ask})"
+                if prior_user_ask
+                else " for this request"
+            )
+            if label == "top match":
+                rationale = (
+                    f"{product} is a top match{ask_context} because it aligns with the main intent "
+                    "signals and constraint cues more directly than the rest of the set."
+                )
+            elif label == "strong match":
+                rationale = (
+                    f"{product} is a strong match{ask_context} because it fits the core intent, "
+                    "but one or two signals are slightly weaker than the lead result."
+                )
+            else:
+                rationale = (
+                    f"{product} is marked related{ask_context} because it shares partial intent signals, "
+                    "but it does not satisfy the primary constraints as tightly as the top matches."
+                )
+            reply = (
+                rationale
+                + " If you'd like, ask to keep results strictly on-brief and I’ll narrow to only top/strong matches."
+            )
+            logger.info("🎯 Explain-match fast-path | product=%r label=%s", product, label)
+            yield {"type": "start", "content": "Explaining match quality..."}
+            yield {
+                "type": "agent_step",
+                "agent": "Match Explainer",
+                "action": f"Explained why '{product}' is {label}",
+                "status": "completed",
+            }
+            yield {"type": "content", "content": reply}
+            yield {
+                "type": "complete",
+                "response": {
+                    "response": reply,
+                    "products": [],
+                    "suggestions": [
+                        "Show only top and strong matches",
+                        "Remove accessories and keep only linen apparel",
+                        "Refresh this set with stricter constraints",
+                    ],
+                    "success": True,
+                    "triage": "explain_match",
+                    "orchestrator_enabled": False,
+                    "agent_execution": {
+                        "agent_steps": [
+                            {
+                                "agent": "Match Explainer",
+                                "action": f"Explained why '{product}' is {label}",
+                                "status": "completed",
+                                "timestamp": 0,
+                                "duration_ms": 0,
+                            },
+                        ],
+                        "tool_calls": [],
+                        "reasoning_steps": [],
+                        "waterfall": [],
+                        "spans": [],
+                        "totalMs": 0,
+                        "specialistRoute": "fastpath:explain_match",
+                        "total_duration_ms": 0,
+                        "success_rate": 1.0,
+                        "otel_enabled": False,
+                        "reason": "explain-match fast-path — retrieval skipped",
                     },
                     "token_count": 0,
                     "estimated_cost_usd": 0.0,
