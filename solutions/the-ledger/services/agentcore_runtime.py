@@ -12,7 +12,8 @@ on the flag (see Design "Runtime selection switch").
 Two public entry points:
 
     run_agent(message, session_id, user_id)
-        Dispatcher called by the ``/api/agent/chat`` route (Task 3.5).
+        Dispatcher called by the ``/api/agent/chat`` route (Task 3.5)
+        and by the legacy ``/api/agents/query`` endpoint in ``app.py``.
         Branches on ``settings.USE_AGENTCORE_RUNTIME``.
 
     run_agent_on_runtime(message, session_id, user_id)
@@ -90,8 +91,7 @@ async def _run_orchestrator_inprocess(
 
     # Drain the captured OpenTelemetry spans into the latest-trace slot
     # so the ``/inspector`` view can render this run's waterfall
-    # immediately. Importing lazily keeps the dispatcher self-contained
-    # and avoids a hard dependency on the OTEL SDK at module load.
+    # immediately.
     try:
         from services.otel_trace_extractor import extract_trace
 
@@ -202,9 +202,10 @@ async def run_agent(
     ``settings.USE_AGENTCORE_RUNTIME``.
 
     This is the single entry point used by the route handler for
-    ``/api/agent/chat`` (Task 3.5). Flipping ``USE_AGENTCORE_RUNTIME=true``
-    in ``backend/.env`` and restarting is the only change participants
-    need to make to migrate from local execution to managed runtime.
+    ``/api/agent/chat`` (Task 3.5) and the legacy ``/api/agents/query``
+    endpoint in ``app.py``. Flipping ``USE_AGENTCORE_RUNTIME=true`` in
+    ``backend/.env`` and restarting is the only change participants need
+    to make to migrate from local execution to managed runtime.
     """
     if settings.USE_AGENTCORE_RUNTIME:
         return await run_agent_on_runtime(message, session_id, user_id)

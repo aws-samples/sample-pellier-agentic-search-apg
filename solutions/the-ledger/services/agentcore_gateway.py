@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 # agent client (or the AgentCore Gateway) can discover and invoke them with
 # the same signatures and JSON envelopes used by the in-process orchestrator.
 #
-# The 9 tools come from workshop-content.md steering and MUST be registered
-# under these exact names (Req 2.2.3):
+# The 9 tools come from the boutique agent_tools module and MUST be registered
+# under these exact names (matching the @tool function names):
 #   find_pieces, whats_trending, price_intelligence,
 #   explore_collection, floor_check, running_low,
 #   restock_shelf, side_by_side, returns_and_care
@@ -47,7 +47,6 @@ GATEWAY_TOOL_NAMES: List[str] = [
     "restock_shelf",
     "side_by_side",
     "returns_and_care",
-    "style_match",
 ]
 
 

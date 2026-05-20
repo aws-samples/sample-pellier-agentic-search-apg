@@ -670,7 +670,7 @@ log "✅ Status marker created"
 # Solutions directory layout:
 #   solutions/the-quiet-search/   — Module 01 reference (observe-only)
 #   solutions/closing-marcos-gap/ — Module 02 (the only edited module)
-#   solutions/the-paper-trail/    — Module 03 reference (observe-only)
+#   solutions/the-ledger/    — Module 03 reference (observe-only)
 #
 # Files we explicitly do NOT copy (participants build these):
 #   inside agent_tools.py — the floor_check tool body only
@@ -713,28 +713,28 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     # these the FastAPI app won't even start. Note the destination is
     # services/agentcore_runtime.py (NOT backend/agentcore_runtime.py
     # — the routes import services.agentcore_runtime).
-    copy_solution "solutions/the-paper-trail/services/agentcore_runtime.py" \
+    copy_solution "solutions/the-ledger/services/agentcore_runtime.py" \
                   "pellier/backend/services/agentcore_runtime.py" "AgentCore runtime"
-    copy_solution "solutions/the-paper-trail/services/agentcore_memory.py" \
+    copy_solution "solutions/the-ledger/services/agentcore_memory.py" \
                   "pellier/backend/services/agentcore_memory.py" "AgentCore memory"
-    copy_solution "solutions/the-paper-trail/services/agentcore_gateway.py" \
+    copy_solution "solutions/the-ledger/services/agentcore_gateway.py" \
                   "pellier/backend/services/agentcore_gateway.py" "AgentCore gateway"
-    copy_solution "solutions/the-paper-trail/services/agentcore_policy.py" \
+    copy_solution "solutions/the-ledger/services/agentcore_policy.py" \
                   "pellier/backend/services/agentcore_policy.py" "AgentCore policy (Cedar)"
-    copy_solution "solutions/the-paper-trail/services/agentcore_identity.py" \
+    copy_solution "solutions/the-ledger/services/agentcore_identity.py" \
                   "pellier/backend/services/agentcore_identity.py" "AgentCore identity"
-    copy_solution "solutions/the-paper-trail/services/cognito_auth.py" \
+    copy_solution "solutions/the-ledger/services/cognito_auth.py" \
                   "pellier/backend/services/cognito_auth.py" "Cognito auth helper"
-    copy_solution "solutions/the-paper-trail/services/otel_trace_extractor.py" \
+    copy_solution "solutions/the-ledger/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
 
     # ---- Frontend agent-identity hook ----
     # The Boutique chat drawer reads this to attach an identity claim
     # to every agent call. The auth.ts + AuthModal/PreferencesModal
-    # solutions also live in solutions/the-paper-trail/frontend/ but
+    # solutions also live in solutions/the-ledger/frontend/ but
     # the 60-min Builder's Session runs in demo mode (AUTH_MODE=demo)
     # so we skip them.
-    copy_solution "solutions/the-paper-trail/frontend/agentIdentity.ts" \
+    copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
     # ---- AgentCore Runtime pre-launch (~5 min, best-effort) ----

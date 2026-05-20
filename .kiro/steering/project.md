@@ -37,7 +37,7 @@ Three modules, nine challenges total. Infrastructure-out ordering in Module 3.
 - `pellier/backend/` — FastAPI Python backend with Strands SDK agents
 - `pellier/frontend/` — React + Vite + Tailwind storefront
 - `solutions/` — Drop-in solution files for each module (cp and restart)
-  - `solutions/the-quiet-search/`, `solutions/closing-marcos-gap/`, `solutions/the-paper-trail/`
+  - `solutions/the-quiet-search/`, `solutions/closing-marcos-gap/`, `solutions/the-ledger/`
 - `scripts/` — Bootstrap and seed scripts for the workshop environment
 - `lab-content/workshop/` — 2-hour Workshop Studio content
 - `lab-content/builders/` — 1-hour Builders Session content

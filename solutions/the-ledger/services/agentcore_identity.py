@@ -1,45 +1,15 @@
 """
 AgentCoreIdentityService — verified user context for the orchestrator.
 
-Challenge 9.2 (Requirements 4.3.1–4.3.3). Builds a ``UserContext`` that
-pairs the verified Cognito ``user_id`` (when present) with a stable
-``session_id`` and the exact namespace string ``agentcore_memory`` keys
-on. Callers hand the context straight into
-``AgentCoreMemory.append_session_turn`` /
-``AgentCoreMemory.get_session_history`` so a single definition of the
-namespace format lives in one place.
+Challenge 9.2 solution drop-in (Requirements 4.3.1–4.3.3). Copy over
+``pellier/backend/services/agentcore_identity.py`` and restart the
+backend:
 
-This is the backend half of Challenge 9's four-file capstone:
+    cp solutions/the-ledger/services/agentcore_identity.py \
+       pellier/backend/services/agentcore_identity.py
 
-    9.1  services/cognito_auth.py
-    9.2  services/agentcore_identity.py         ← this file
-    9.3  frontend/src/utils/auth.ts
-    9.4  frontend/src/components/{AuthModal,PreferencesModal}.tsx
-
-Key design choices (Req 4.3):
-
-  * Authenticated namespace:  ``user:{user_id}:session:{session_id}``
-  * Anonymous namespace:      ``anon:{session_id}``
-  * These MUST match ``services/agentcore_memory.py`` byte-for-byte —
-    ``AgentCoreMemory`` keys on the raw string, so any drift silently
-    fragments session history.
-  * ``user_id`` is only ever populated from ``request.state.user``
-    (set by ``require_user``) or from a successful
-    ``CognitoAuthService.extract_user`` call. It is never inferred
-    from a header the client controls. This is the Req 4.3.2
-    "no cross-user bleed" guarantee.
-  * Anonymous ``session_id`` is read from an ``X-Session-Id`` request
-    header or a ``session_id`` cookie before falling back to a freshly
-    minted uuid4. The route layer is responsible for echoing the
-    resolved id back to the client (Req 3.4.3 first-SSE-event contract)
-    so subsequent turns land in the same namespace.
-  * Per Req 4.3.3 there is deliberately no ``anon:`` → ``user:`` merge
-    at sign-in. The anon namespace is left orphaned and reclaimed by
-    AgentCore Memory's TTL sweep.
-
-The workshop ``solutions/the-ledger/services/agentcore_identity.py`` file
-mirrors the CHALLENGE 9.2 block below byte-for-byte (enforced by Task
-7.4).
+The CHALLENGE 9.2 block below matches the one in the in-tree file
+byte-for-byte (enforced by Task 7.4).
 """
 from __future__ import annotations
 
@@ -131,13 +101,10 @@ class AgentCoreIdentityService:
         Kept static + public so ``/api/agent/session/{id}`` and any
         future tooling can recompute the exact string without going
         through a full ``UserContext`` resolution.
-
-        Uses dashes (not colons) as separators because AgentCore
-        session IDs must match ``[a-zA-Z0-9][a-zA-Z0-9-_]*``.
         """
         if user_id:
-            return f"user-{user_id}-session-{session_id}"
-        return f"anon-{session_id}"
+            return f"user:{user_id}:session:{session_id}"
+        return f"anon:{session_id}"
 
     @staticmethod
     def _resolve_session_id(request: Request) -> str:

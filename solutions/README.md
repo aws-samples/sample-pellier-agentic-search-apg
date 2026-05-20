@@ -8,7 +8,7 @@ module:
 solutions/
 ├── the-quiet-search/   → Module 1 reference (semantic search)
 ├── closing-marcos-gap/ → Module 2 (Stock Keeper + agent tools)
-└── the-paper-trail/    → Module 3 (AgentCore production plumbing)
+└── the-ledger/    → Module 3 (AgentCore production plumbing)
 ```
 
 ## Module 1 — *The Quiet Search*
@@ -37,15 +37,15 @@ that one function. If a table is short on time, copy the full
 `agent_tools_floor_check_solution.py` file, or paste only
 `closing-marcos-gap/services/floor_check_tool_body.py`.
 
-## Module 3 — *The Paper Trail*
+## Module 3 — *The Ledger*
 
 ```bash
-cp solutions/the-paper-trail/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
-cp solutions/the-paper-trail/services/agentcore_memory.py         pellier/backend/services/agentcore_memory.py
-cp solutions/the-paper-trail/services/agentcore_gateway.py        pellier/backend/services/agentcore_gateway.py
-cp solutions/the-paper-trail/services/agentcore_policy.py         pellier/backend/services/agentcore_policy.py
-cp solutions/the-paper-trail/services/agentcore_identity.py       pellier/backend/services/agentcore_identity.py
-cp solutions/the-paper-trail/services/cognito_auth.py             pellier/backend/services/cognito_auth.py
-cp solutions/the-paper-trail/services/otel_trace_extractor.py     pellier/backend/services/otel_trace_extractor.py
-cp solutions/the-paper-trail/frontend/agentIdentity.ts            pellier/frontend/src/utils/agentIdentity.ts
+cp solutions/the-ledger/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
+cp solutions/the-ledger/services/agentcore_memory.py         pellier/backend/services/agentcore_memory.py
+cp solutions/the-ledger/services/agentcore_gateway.py        pellier/backend/services/agentcore_gateway.py
+cp solutions/the-ledger/services/agentcore_policy.py         pellier/backend/services/agentcore_policy.py
+cp solutions/the-ledger/services/agentcore_identity.py       pellier/backend/services/agentcore_identity.py
+cp solutions/the-ledger/services/cognito_auth.py             pellier/backend/services/cognito_auth.py
+cp solutions/the-ledger/services/otel_trace_extractor.py     pellier/backend/services/otel_trace_extractor.py
+cp solutions/the-ledger/frontend/agentIdentity.ts            pellier/frontend/src/utils/agentIdentity.ts
 ```

@@ -100,28 +100,28 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
 - [x] 2.5 **[P1] C5: AgentCore Runtime migration**
   - Acceptance: Req 2.5.1 and Design "Runtime selection switch".
   - Modify `pellier/backend/services/agentcore_runtime.py` to add `async def run_agent_on_runtime(message, session_id, user_id)` inside a `# === CHALLENGE 5: START/END ===` block. Add `USE_AGENTCORE_RUNTIME: bool = False` to `backend/config.py` via `pydantic-settings`. Update `app.py` (or the `/api/agent/chat` route — created in 3.5) to branch on the env var.
-  - Files: `agentcore_runtime.py` (modify), `config.py` (modify), `solutions/the-paper-trail/services/agentcore_runtime.py` (new drop-in mirror).
+  - Files: `agentcore_runtime.py` (modify), `config.py` (modify), `solutions/the-ledger/services/agentcore_runtime.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_runtime_switch.py` — with `USE_AGENTCORE_RUNTIME=false` the in-process Strands orchestrator handles the request; with `=true` the runtime path is called (mocked).
   - Done when: flipping `USE_AGENTCORE_RUNTIME=true` in `backend/.env` and restarting routes `/api/agent/chat` through runtime without further code changes.
 
 - [x] 2.6 **[P0] C6: AgentCore STM Memory (session history + user preferences)**
   - Acceptance: Req 2.5.2, 4.3.2, 4.4.1, 6.2.1.
   - Modify `pellier/backend/services/agentcore_memory.py` to implement `AgentCoreMemory` with `append_session_turn`, `get_session_history`, `get_user_preferences`, `set_user_preferences` inside a `# === CHALLENGE 6: START/END ===` block. Key schemes: `user:{user_id}:session:{session_id}` for authenticated sessions, `anon:{session_id}` for anonymous. No cross-namespace merge; anon namespace left orphaned on sign-in (Req 4.3.3).
-  - Files: `agentcore_memory.py` (modify), `solutions/the-paper-trail/services/agentcore_memory.py` (new drop-in mirror).
+  - Files: `agentcore_memory.py` (modify), `solutions/the-ledger/services/agentcore_memory.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_agentcore_memory.py` — round-trip preference save/load; session history append-and-read; assert anon namespace is not accessible via user key and vice versa.
   - Done when: `POST /api/user/preferences` and `/api/agent/chat` (from 3.4, 3.5) exercise this service end-to-end.
 
 - [x] 2.7 **[P1] C7: AgentCore MCP Gateway**
   - Acceptance: Req 2.5.3.
   - Modify `pellier/backend/services/agentcore_gateway.py` to expose the 9 tools via MCP streamable HTTP inside a `# === CHALLENGE 7: START/END ===` block. Tool signatures and JSON envelopes identical to `agent_tools.py`.
-  - Files: `agentcore_gateway.py` (modify), `solutions/the-paper-trail/services/agentcore_gateway.py` (new drop-in mirror).
+  - Files: `agentcore_gateway.py` (modify), `solutions/the-ledger/services/agentcore_gateway.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_gateway.py` — MCP client can discover all 9 tools and invoke `get_trending_products` returning the same JSON shape as the in-process call.
   - Done when: discovery returns the full 9-tool list with names matching `workshop-content.md` exactly (Req 2.2.3).
 
 - [x] 2.8 **[P1] C8: OpenTelemetry trace extraction**
   - Acceptance: Req 2.5.4, 5.4.1.
   - Modify `pellier/backend/services/otel_trace_extractor.py` to produce `{ spans: Span[], totalMs: number, specialistRoute: string }` for a given run inside a `# === CHALLENGE 8: START/END ===` block. Wire it into the orchestrator's streaming path so each request produces an extractable trace.
-  - Files: `otel_trace_extractor.py` (modify), `solutions/the-paper-trail/services/otel_trace_extractor.py` (new drop-in mirror).
+  - Files: `otel_trace_extractor.py` (modify), `solutions/the-ledger/services/otel_trace_extractor.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_otel_extractor.py` — run the orchestrator with a stubbed Bedrock, assert the extractor returns at least one orchestrator span, one specialist span, and one tool span.
   - Done when: the `/inspector` view (existing frontend component) renders the extractor output.
 
@@ -132,14 +132,14 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
 - [x] 3.1 **[P0] C9.1: Cognito JWT validation middleware**
   - Acceptance: Req 4.2.1–4.2.4, 5.3.1–5.3.3.
   - Create `pellier/backend/services/cognito_auth.py` inside a `# === CHALLENGE 9.1: START/END ===` block: `CognitoAuthService` with JWKS client (1h TTL cache), `validate_jwt(token) -> VerifiedUser`, `extract_user(request)` reading `Authorization: Bearer` then `access_token` cookie, and a FastAPI `require_user` dependency setting `request.state.user`.
-  - Files: `cognito_auth.py` (new), `config.py` (add `COGNITO_POOL_ID`, `COGNITO_REGION`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `APP_BASE_URL`, `OAUTH_REDIRECT_URI`), `solutions/the-paper-trail/services/cognito_auth.py` (new drop-in mirror).
+  - Files: `cognito_auth.py` (new), `config.py` (add `COGNITO_POOL_ID`, `COGNITO_REGION`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `APP_BASE_URL`, `OAUTH_REDIRECT_URI`), `solutions/the-ledger/services/cognito_auth.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_cognito_auth.py` — valid token passes; expired / wrong `iss` / wrong `aud` / wrong `token_use` / unsigned-by-JWKS all fail; JWKS fetch is called once for N concurrent validations (cache hit).
   - Done when: a protected endpoint returns 401 without a token and returns `request.state.user` populated with a valid one.
 
 - [x] 3.2 **[P0] C9.2: AgentCore Identity wrapper**
   - Acceptance: Req 4.3.1–4.3.3.
   - Create `pellier/backend/services/agentcore_identity.py` inside a `# === CHALLENGE 9.2: START/END ===` block: `AgentCoreIdentityService` with `get_verified_user_context(request)` returning `UserContext(user_id | None, session_id, namespace)`. Namespace uses `user:{user_id}:session:{session_id}` when authenticated, `anon:{session_id}` otherwise.
-  - Files: `agentcore_identity.py` (new), `solutions/the-paper-trail/services/agentcore_identity.py` (new drop-in mirror).
+  - Files: `agentcore_identity.py` (new), `solutions/the-ledger/services/agentcore_identity.py` (new drop-in mirror).
   - Test verification: `tests/backend/test_agentcore_identity.py` — authenticated request yields user namespace; unauthenticated yields anon namespace; `user_id` in `UserContext` equals `request.state.user.user_id`.
   - Done when: the orchestrator consumes `UserContext` to scope `agentcore_memory` calls (wired in 3.5).
 
@@ -273,7 +273,7 @@ Start tasks 1.x in parallel with sibling-spec work; gate catalog-dependent tasks
     - Exports: `redirectToSignIn(provider, opts?)`, `openSignInChooser(opts?)`, `redirectToLogout()`, `useAuth()`.
     - Extend `contexts/AuthContext.tsx` (existing) rather than replace it; expose `user`, `preferences`, `refresh()`, `savePreferences(p)`, `isLoading`.
     - `services/api.ts` 401 interceptor: call `/api/auth/refresh`; on success retry once; on failure call `openSignInChooser({ returnTo: window.location.pathname + window.location.search })`.
-  - Files: `utils/auth.ts` (new), `contexts/AuthContext.tsx` (modify), `services/api.ts` (modify), `solutions/the-paper-trail/frontend/utils/auth.ts` (new drop-in mirror).
+  - Files: `utils/auth.ts` (new), `contexts/AuthContext.tsx` (modify), `services/api.ts` (modify), `solutions/the-ledger/frontend/utils/auth.ts` (new drop-in mirror).
   - Test verification: `auth.test.ts` — `openSignInChooser` routes to `/signin?returnTo=...`; the 401 interceptor retries once after a successful refresh; a second 401 falls through to the chooser.
   - Done when: E2E refresh test (`e2e/auth-refresh.spec.ts`) passes and the fail test (`e2e/auth-refresh-fail.spec.ts`) lands on `/signin` with all three providers visible.
 

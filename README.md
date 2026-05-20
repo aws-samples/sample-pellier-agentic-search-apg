@@ -213,7 +213,7 @@ sample-pellier-agentic-search-apg/
 ├── solutions/                             Reference implementations
 │   ├── the-quiet-search/                    Module 1 (semantic search)
 │   ├── closing-marcos-gap/                  Module 2 (Stock Keeper)
-│   └── the-paper-trail/                     Module 3 (AgentCore production)
+│   └── the-ledger/                     Module 3 (AgentCore production)
 │
 ├── scripts/
 │   ├── migrations/                         Ordered fresh-cluster SQL (001-007)

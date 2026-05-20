@@ -174,7 +174,7 @@ class PolicyService:
             - Each violation dict needs: policy_id, policy_name, reason, cedar_condition
 
         ⏩ SHORT ON TIME? Run:
-           cp solutions/the-paper-trail/services/agentcore_policy.py pellier/backend/services/agentcore_policy.py
+           cp solutions/the-ledger/services/agentcore_policy.py pellier/backend/services/agentcore_policy.py
         """
         pid = policy["id"]
 

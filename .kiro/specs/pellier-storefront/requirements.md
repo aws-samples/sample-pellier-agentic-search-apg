@@ -287,7 +287,7 @@ Requirements below are grouped by audience where the distinction matters.
 
 - 2.7.1 WHEN a participant runs `cp solutions/moduleN/<relative path> pellier/backend/<relative path>` THEN the copied file SHALL contain the complete solution code identical to what lives inside the `# === CHALLENGE N: START/END ===` block.
 - 2.7.2 WHEN the backend is restarted after a drop-in paste THEN the challenge verification step SHALL pass without further edits.
-- 2.7.3 WHEN solutions are organized on disk THEN they SHALL live under the named module folders: `solutions/the-quiet-search/`, `solutions/closing-marcos-gap/`, and `solutions/the-paper-trail/` (per `project.md`).
+- 2.7.3 WHEN solutions are organized on disk THEN they SHALL live under the named module folders: `solutions/the-quiet-search/`, `solutions/closing-marcos-gap/`, and `solutions/the-ledger/` (per `project.md`).
 
 ---
 
