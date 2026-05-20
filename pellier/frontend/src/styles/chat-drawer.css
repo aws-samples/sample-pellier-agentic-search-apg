@@ -222,6 +222,57 @@
   letter-spacing: 0.05em;
 }
 
+/* ---- Closed-state continue / clear control ---- */
+.cd-continue-shell {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 39;
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ink);
+  box-shadow:
+    0 4px 16px rgba(31, 20, 16, 0.2),
+    0 2px 6px rgba(31, 20, 16, 0.1);
+}
+.cd-continue-main,
+.cd-continue-clear {
+  border: none;
+  font-family: var(--sans);
+  color: var(--cream-warm);
+  cursor: pointer;
+  transition:
+    background 160ms ease-out,
+    opacity 160ms ease-out;
+}
+.cd-continue-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 12px 18px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+.cd-continue-clear {
+  padding: 0 14px;
+  background: rgba(247, 243, 238, 0.08);
+  border-left: 1px solid rgba(247, 243, 238, 0.16);
+  font-size: 13px;
+  font-weight: 500;
+}
+.cd-continue-main:hover,
+.cd-continue-clear:hover {
+  background: rgba(247, 243, 238, 0.12);
+}
+.cd-continue-key {
+  font-family: var(--mono);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
 /* ---- Mobile bottom sheet (< 768px) ---- */
 @media (max-width: 767.98px) {
   .cd-drawer {
@@ -250,5 +301,9 @@
     height: 4px;
     border-radius: 2px;
     background: rgba(59, 47, 47, 0.22);
+  }
+  .cd-continue-shell {
+    right: 16px;
+    bottom: 16px;
   }
 }

@@ -604,7 +604,9 @@ export default function ConciergeModal() {
                             >
                               <ProductCardConcierge
                                 product={product}
+                                rankIndex={pIdx}
                                 agentSource={message.agent as AgentType}
+                                onPrompt={(prompt) => void sendMessage(prompt)}
                                 onAddToCart={() => {
                                   addToCart({
                                     productId: product.id,

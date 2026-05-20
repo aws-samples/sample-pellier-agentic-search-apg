@@ -16,11 +16,15 @@ import '../styles/product-artifact.css'
 interface ProductArtifactCardProps {
   product: ChatProduct
   onAddToCart?: () => void
+  rankIndex?: number
+  onPrompt?: (prompt: string) => void
 }
 
 export default function ProductArtifactCard({
   product,
   onAddToCart,
+  rankIndex = 0,
+  onPrompt,
 }: ProductArtifactCardProps) {
   const hasImage =
     product.image &&
@@ -44,12 +48,42 @@ export default function ProductArtifactCard({
         ? 'Out of stock'
         : null
 
+  const matchLabel = (() => {
+    const score = product.similarityScore
+    if (typeof score === 'number' && Number.isFinite(score)) {
+      if (score >= 0.86) return 'Top match'
+      if (score >= 0.75) return 'Strong match'
+      return 'Related'
+    }
+    if (rankIndex === 0) return 'Top match'
+    if (rankIndex <= 2) return 'Strong match'
+    return 'Related'
+  })()
+
+  const categorySignal = `${product.category ?? ''} ${product.name ?? ''}`.toLowerCase()
+  const isApparelLike =
+    /shirt|tee|dress|trouser|pants|pant|jacket|coat|overshirt|sweater|knit|wardrobe|wear/.test(
+      categorySignal,
+    )
+  const swapLabel = isApparelLike ? 'Swap size/color' : 'Swap color'
+  const productName = (product.name || 'this piece').trim()
+  const swapPrompt = isApparelLike
+    ? `Show ${productName} in another size or color.`
+    : `Show ${productName} in another color.`
+  const alternativesPrompt = `Show alternatives to ${productName} at a similar style and price.`
+  const whyMatchPrompt = `Why is ${productName} a ${matchLabel.toLowerCase()} for this request?`
+
   return (
     <div className="pa-card">
       {/* Eyebrow */}
       <div className="pa-eyebrow">
-        <span className="pa-eyebrow-dot" />
-        Pulled for you
+        <span className="pa-eyebrow-left">
+          <span className="pa-eyebrow-dot" />
+          Pulled for you
+        </span>
+        <span className={`pa-match pa-match-${matchLabel.toLowerCase().replace(' ', '-')}`}>
+          {matchLabel}
+        </span>
       </div>
 
       {/* Image area */}
@@ -99,6 +133,31 @@ export default function ProductArtifactCard({
             <Heart size={14} />
           </button>
         </div>
+        {onPrompt && (
+          <div className="pa-quick-actions">
+            <button
+              type="button"
+              className="pa-quick"
+              onClick={() => onPrompt(swapPrompt)}
+            >
+              {swapLabel}
+            </button>
+            <button
+              type="button"
+              className="pa-quick"
+              onClick={() => onPrompt(alternativesPrompt)}
+            >
+              Show alternatives
+            </button>
+            <button
+              type="button"
+              className="pa-quick"
+              onClick={() => onPrompt(whyMatchPrompt)}
+            >
+              Why this match?
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

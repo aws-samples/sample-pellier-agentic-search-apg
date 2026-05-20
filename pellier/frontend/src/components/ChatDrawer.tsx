@@ -85,6 +85,13 @@ export default function ChatDrawer() {
     setIsMac(detectMac())
   }, [])
 
+  // Persona-first workshop flow: when signed out, hide chat surfaces.
+  useEffect(() => {
+    if (!persona && isOpen) {
+      closeModal()
+    }
+  }, [persona, isOpen, closeModal])
+
   // Initial welcome message — persona-aware with personal touch
   const initialMessages = useMemo<AgentChatMessage[]>(() => {
     const firstName = persona ? persona.display_name.split(' ')[0] : ''
@@ -240,6 +247,8 @@ export default function ChatDrawer() {
   const hasUserMessages = messages.some(m => m.role === 'user')
   const keycap = isMac ? '⌘K' : 'Ctrl+K'
 
+  if (!persona) return null
+
   return createPortal(
     <>
     <AnimatePresence>
@@ -370,42 +379,37 @@ export default function ChatDrawer() {
     </AnimatePresence>
 
     {/* "Continue chat" pill — shows when drawer is closed but has
-        an active conversation. Gives the user a way to reopen. */}
+        an active conversation. Gives the user a way to reopen or clear
+        the persisted storefront thread. */}
     <AnimatePresence>
       {!isOpen && hasUserMessages && (
-        <motion.button
+        <motion.div
           data-testid="continue-chat-pill"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.25, delay: 0.3 }}
-          onClick={() => openModal('drawer')}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 39,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 20px',
-            borderRadius: '999px',
-            background: 'var(--ink)',
-            color: 'var(--cream-warm)',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'var(--sans)',
-            fontSize: '14px',
-            fontWeight: 500,
-            boxShadow: '0 4px 16px rgba(31, 20, 16, 0.2), 0 2px 6px rgba(31, 20, 16, 0.1)',
-          }}
+          className="cd-continue-shell"
         >
-          <span style={{ fontSize: '16px' }}>💬</span>
-          Continue chat
-          <span style={{ fontSize: '11px', opacity: 0.6, fontFamily: 'var(--mono)' }}>
-            {keycap}
-          </span>
-        </motion.button>
+          <button
+            type="button"
+            className="cd-continue-main"
+            onClick={() => openModal('drawer')}
+          >
+            <span aria-hidden>💬</span>
+            <span>Continue chat</span>
+            <span className="cd-continue-key">{keycap}</span>
+          </button>
+          <button
+            type="button"
+            className="cd-continue-clear"
+            onClick={() => clearChat(initialMessages)}
+            aria-label="Clear chat"
+            title="Clear chat"
+          >
+            Clear
+          </button>
+        </motion.div>
       )}
     </AnimatePresence>
     </>,

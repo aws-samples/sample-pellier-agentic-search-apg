@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react'
 
 import { COMMAND_PILL, REFINEMENT } from '../copy'
+import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 
 function detectMac(): boolean {
@@ -32,6 +33,7 @@ function detectMac(): boolean {
 
 export default function CommandPill() {
   const { toggleDrawer, toggleConcierge, activeModal, chatSurface } = useUI()
+  const { persona } = usePersona()
   const [isMac, setIsMac] = useState(false)
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function CommandPill() {
 
   // Hide the pill while the drawer is open — no reason for two entry
   // points to the same surface to be visible simultaneously.
+  if (!persona) return null
   if (activeModal === 'drawer') return null
 
   const pressed = activeModal === 'concierge'

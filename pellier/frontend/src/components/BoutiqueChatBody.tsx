@@ -465,6 +465,8 @@ function AgentMessage({
             >
               <ProductArtifactCard
                 product={product}
+                rankIndex={pIdx}
+                onPrompt={(prompt) => onFollowUp(prompt)}
                 onAddToCart={() => {
                   addToCart({
                     productId: product.id,

@@ -174,6 +174,12 @@ function mapProduct(p: any): ChatProduct {
     inStock: p.inStock,
     originalPrice: p.originalPrice,
     discountPercent: p.discountPercent,
+    similarityScore:
+      p.similarityScore ??
+      p.similarity_score ??
+      p.similarity ??
+      p.relevance_score ??
+      undefined,
   }
 }
 

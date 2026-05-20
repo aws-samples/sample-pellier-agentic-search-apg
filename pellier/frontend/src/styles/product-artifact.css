@@ -23,6 +23,12 @@
   font-weight: 500;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pa-eyebrow-left {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
 .pa-eyebrow-dot {
@@ -31,6 +37,32 @@
   background: var(--red-1);
   display: inline-block;
   flex-shrink: 0;
+}
+.pa-match {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.pa-match-top-match {
+  color: var(--ink-1);
+  border-color: rgba(31, 20, 16, 0.3);
+  background: rgba(31, 20, 16, 0.06);
+}
+.pa-match-strong-match {
+  color: #6e2f1f;
+  border-color: rgba(168, 66, 58, 0.35);
+  background: rgba(168, 66, 58, 0.1);
+}
+.pa-match-related {
+  color: var(--ink-3);
+  border-color: rgba(31, 20, 16, 0.18);
+  background: rgba(31, 20, 16, 0.04);
 }
 
 /* Image area */
@@ -157,4 +189,30 @@
 .pa-heart:hover {
   color: var(--red-1);
   border-color: var(--red-1);
+}
+
+.pa-quick-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pa-quick {
+  border: 1px solid var(--rule-2);
+  background: rgba(31, 20, 16, 0.03);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-family: var(--sans);
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.pa-quick:hover {
+  border-color: rgba(31, 20, 16, 0.28);
+  color: var(--ink-1);
+  background: rgba(31, 20, 16, 0.06);
 }

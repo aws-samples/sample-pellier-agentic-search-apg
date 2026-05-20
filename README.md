@@ -72,9 +72,13 @@ the backend with `--reload` and rebuild the frontend on save.
 # 1. Aurora + Bedrock credentials
 cp pellier/backend/.env.example pellier/backend/.env
 # edit DB_HOST, DB_USER, DB_PASSWORD, AWS_REGION, BEDROCK_*
+set -a; source pellier/backend/.env; set +a
 
 # 2. Apply schema + seed 40-product catalog + required workshop tables (one-time)
-psql -f scripts/migrations/001_schema.sql
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
+  -U "$DB_USER" -d "$DB_NAME" \
+  -v ON_ERROR_STOP=1 \
+  -f scripts/migrations/001_schema.sql
 python3 scripts/seed_boutique_catalog.py
 for migration in \
   002_workshop_telemetry.sql \
@@ -84,7 +88,10 @@ for migration in \
   006_warehouse_inventory.sql \
   007_chat_session_tables.sql
 do
-  psql -v ON_ERROR_STOP=1 -f "scripts/migrations/$migration"
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
+    -U "$DB_USER" -d "$DB_NAME" \
+    -v ON_ERROR_STOP=1 \
+    -f "scripts/migrations/$migration"
 done
 
 # 3. Backend
@@ -114,9 +121,12 @@ package it for live events:
 | **Builder's Session** (DC Summit)   | 60 min (45 hands-on) | 1 exercise | `floor_check` tool + AgentCore STM verify + Runtime invoke (pre-launched) |
 | **Workshop** (re:Invent)        | 120 min  | 9 challenges   | Full stack — semantic search, agents, AgentCore production patterns         |
 
-The 60-min Builder's Session lab guide lives in
-[`build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders/`](https://github.com/aws-samples/build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders).
-The 120-min Workshop bundle lives in `lab-content/workshop/`.
+The 60-min Builder's Session source of truth lives in
+`lab-content/builders/`. The 120-min Workshop bundle lives in
+`lab-content/workshop/`. The `lab-content/builders/ws-repo/` folder is
+kept only as a reference snapshot of the Workshop Studio repo shape;
+make canonical edits in `lab-content/builders/` and
+`lab-content/builders/static/`.
 
 ---
 
@@ -206,7 +216,7 @@ sample-pellier-agentic-search-apg/
 │   └── the-paper-trail/                     Module 3 (AgentCore production)
 │
 ├── scripts/
-│   ├── migrations/001_schema.sql            Schema + extension + HNSW index
+│   ├── migrations/                         Ordered fresh-cluster SQL (001-007)
 │   ├── seed_boutique_catalog.py             40 products with Cohere embeddings
 │   ├── bootstrap-environment.sh             Code Editor + nginx + systemd
 │   └── bootstrap-labs.sh                    DB seed + frontend build + service start
@@ -215,7 +225,8 @@ sample-pellier-agentic-search-apg/
     ├── workshop/                            120-min re:Invent bundle
     │   └── static/                          Workshop CloudFormation source
     └── builders/                            60-min DC Summit bundle
-        └── static/                          Builder CloudFormation source
+        ├── static/                          Builder CloudFormation source
+        └── ws-repo/                         Reference snapshot only
 ```
 
 ---

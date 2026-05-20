@@ -23,6 +23,7 @@ import { NAV } from '../copy'
 import { colors } from '../design/tokens'
 import { Avatar } from '../design/primitives'
 import { getPersonaPhoto } from '../data/personaPhotos'
+import { LOCAL_PERSONAS } from '../data/personas'
 import { IconButton } from '../design/primitives'
 import {
   Search,
@@ -143,10 +144,13 @@ function PersonaDropdown() {
         // Remove Fresh — signed-out state IS the baseline.
         // Only show Marco, Anna, Theo as selectable personas.
         const withoutFresh = list.filter((p: { id: string }) => p.id !== 'fresh')
-        setPersonas(withoutFresh)
+        setPersonas(withoutFresh.length > 0 ? withoutFresh : [...LOCAL_PERSONAS])
         setFetched(true)
       })
-      .catch(() => setFetched(true))
+      .catch(() => {
+        setPersonas([...LOCAL_PERSONAS])
+        setFetched(true)
+      })
   }, [open, fetched])
 
   // Close on outside click
@@ -341,14 +345,19 @@ export default function Header({
 }: HeaderProps) {
   const { items: cartItems, setCartOpen, notify } = useCart()
   const { openModal } = useUI()
+  const { persona } = usePersona()
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
+  const navItems = persona
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter(({ item }) => item !== 'ask-pellier')
 
   // The boutique's search is Pellier — the chat drawer. Clicking the
   // Search icon opens the same concierge pill uses, which keeps the
   // header honest: one search surface, two entry points.
   const handleSearchClick = useCallback(() => {
+    if (!persona) return
     openModal('drawer')
-  }, [openModal])
+  }, [persona, openModal])
 
   // Wishlist isn't wired to a real store (demo scope). Fire a warm
   // toast acknowledging the interaction instead of navigating to a
@@ -387,7 +396,7 @@ export default function Header({
         <div className="h-full max-w-[1440px] mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-6">
           {/* Left: four text nav items */}
           <div className="flex items-center gap-6 min-w-0">
-            {NAV_ITEMS.map(({ item, label }) => (
+            {navItems.map(({ item, label }) => (
               <NavLink
                 key={item}
                 item={item}
@@ -405,12 +414,14 @@ export default function Header({
 
           {/* Right: search, persona dropdown, wishlist, bag, surface toggle */}
           <div className="flex items-center gap-2 justify-end min-w-0">
-            <IconButton
-              icon={<Search className="w-5 h-5" />}
-              ariaLabel="Search — ask Pellier"
-              onClick={handleSearchClick}
-              size="md"
-            />
+            {persona && (
+              <IconButton
+                icon={<Search className="w-5 h-5" />}
+                ariaLabel="Search — ask Pellier"
+                onClick={handleSearchClick}
+                size="md"
+              />
+            )}
 
             <PersonaDropdown />
 

@@ -19,6 +19,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { LOCAL_PERSONAS } from '../data/personas'
 
 export interface PersonaSnapshot {
   id: string
@@ -159,6 +160,32 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       })
     } catch (err) {
       console.error('Persona switch failed:', err)
+      const fallback = LOCAL_PERSONAS.find((p) => p.id === personaId)
+      if (!fallback) return
+
+      const fallbackPersona: PersonaSnapshot = {
+        id: fallback.id,
+        display_name: fallback.display_name,
+        role_tag: fallback.role_tag,
+        avatar_color: fallback.avatar_color,
+        avatar_initial: fallback.avatar_initial,
+        customer_id: fallback.customer_id,
+        stats: fallback.stats,
+      }
+
+      localStorage.setItem(SESSION_KEY, `local-${fallback.id}-${Date.now()}`)
+      localStorage.removeItem('pellier-storefront-chat')
+      localStorage.removeItem('pellier-atelier-chat')
+      localStorage.removeItem('pellier-concierge-storefront')
+      localStorage.removeItem('pellier-concierge-atelier')
+      localStorage.removeItem('pellier-drawer-storefront')
+
+      setPersona(fallbackPersona)
+      setLastTransition({
+        id: Date.now(),
+        kind: 'sign-in',
+        persona: fallbackPersona,
+      })
     } finally {
       setSwitching(false)
     }

@@ -22,6 +22,8 @@ import {
   MARCO_BUILDER_SESSION_QUERY,
   type BecauseChip,
 } from '../data/personaCurations'
+import { LOCAL_PERSONAS } from '../data/personas'
+import { getPersonaPhoto } from '../data/personaPhotos'
 import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import { useVoiceSearch } from '../hooks/useVoiceSearch'
 import { PresencePill } from '../shared'
@@ -66,9 +68,47 @@ const BECAUSE_KIND_LABEL: Record<BecauseChip['kind'], string> = {
   weather: 'weather',
 }
 
+const PERSONA_GATEWAY_COPY: Record<
+  string,
+  {
+    focus: string
+    bullets: string[]
+    learn: string
+  }
+> = {
+  marco: {
+    focus: 'Travel wardrobe',
+    bullets: [
+      'Natural fibers and packability',
+      'Styling and outfit pairing',
+      'Fit-forward recommendations',
+    ],
+    learn: 'Learn: semantic retrieval in action',
+  },
+  anna: {
+    focus: 'Thoughtful gifting',
+    bullets: [
+      'Budget-aware gift curation',
+      'Hybrid retrieval with rerank',
+      'Gift-ready pairings and bundles',
+    ],
+    learn: 'Learn: hybrid + rerank decisioning',
+  },
+  theo: {
+    focus: 'Home + slow craft',
+    bullets: [
+      'Ceramics, rituals, and care',
+      'Write-path behaviors (returns)',
+      'Traceable tool-and-audit flow',
+    ],
+    learn: 'Learn: writes, policy, and audit trail',
+  },
+}
+
 export default function BoutiqueHero() {
   const { openDrawerWithQuery } = useUI()
-  const { persona } = usePersona()
+  const { persona, switchPersona, switching } = usePersona()
+  const isSignedIn = Boolean(persona)
   const { showBuilderSessionGap } = useFloorCheckWorkshopCue()
   const suggestions = heroPillsForPersona(persona?.id)
   const becauseChips = becauseChipsForPersona(persona?.id)
@@ -80,6 +120,7 @@ export default function BoutiqueHero() {
   const { isListening, startListening, stopListening } = useVoiceSearch({
     onInterimTranscript: (text) => setSearchValue(text),
     onFinalTranscript: (text) => {
+      if (!isSignedIn) return
       setSearchValue('')
       openDrawerWithQuery(text)
     },
@@ -88,19 +129,21 @@ export default function BoutiqueHero() {
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault()
+      if (!isSignedIn) return
       const trimmed = searchValue.trim()
       if (!trimmed) return
       openDrawerWithQuery(trimmed)
       setSearchValue('')
     },
-    [searchValue, openDrawerWithQuery],
+    [isSignedIn, searchValue, openDrawerWithQuery],
   )
 
   const handlePillClick = useCallback(
     (query: string) => {
+      if (!isSignedIn) return
       openDrawerWithQuery(query)
     },
-    [openDrawerWithQuery],
+    [isSignedIn, openDrawerWithQuery],
   )
 
   const heroHeadline = splitHeadlineAtRe('Search, re:Engineered.')
@@ -211,18 +254,30 @@ export default function BoutiqueHero() {
                 lineHeight: 1.55,
               }}
             >
-              Tell Pellier what you&rsquo;re looking for.
-              <br />
-              Watch the pieces find you.
+              {isSignedIn ? (
+                <>
+                  Tell Pellier what you&rsquo;re looking for.
+                  <br />
+                  Watch the pieces find you.
+                </>
+              ) : (
+                <>
+                  This workshop runs through three guided personas.
+                  <br />
+                  Choose one to begin the Boutique and Atelier journey.
+                </>
+              )}
             </p>
 
-            {/* Search input — substantial pill, sparkles left, espresso mic right */}
-            <form
-              onSubmit={handleSubmit}
-              className="mt-8 md:mt-10 w-full"
-              role="search"
-              style={{ maxWidth: '640px' }}
-            >
+            {isSignedIn ? (
+              <>
+                {/* Search input — substantial pill, sparkles left, espresso mic right */}
+                <form
+                  onSubmit={handleSubmit}
+                  className="mt-8 md:mt-10 w-full"
+                  role="search"
+                  style={{ maxWidth: '640px' }}
+                >
               <div className="relative">
                 {/* Sparkles icon — left. Burgundy for clear visibility
                     against the cream input. z-10 keeps it above the
@@ -318,12 +373,12 @@ export default function BoutiqueHero() {
                   )}
                 </button>
               </div>
-            </form>
+                </form>
 
-            {/* Marco + exercise (lg): labels absolutely positioned on the same
+                {/* Marco + exercise (lg): labels absolutely positioned on the same
                 baseline — Try asking centered in the gap between pills 2 & 3,
                 Builder's Session centered over pill 4 (track scales with %). */}
-            <div className="mt-0 w-full min-w-0">
+                <div className="mt-0 w-full min-w-0">
               {marcoBuilderSessionBand ? (
                 <>
                   {/* lg: Fluid 5-column track (max 965px). Fixed 185px columns
@@ -684,16 +739,16 @@ export default function BoutiqueHero() {
                   </div>
                 </>
               )}
-            </div>
+                </div>
 
-            {/* "Because" chip row — second line of suggestions that cite
+                {/* "Because" chip row — second line of suggestions that cite
                 memory or live trend instead of canned queries. Reads as
                 the agent's reasoning vocabulary: every chip names *why*
                 it's surfacing, with a small kind label (memory · trend ·
                 inventory) and an italic Fraunces clause. Clicking fires
                 the chip's underlying query, same drawer flow as the
                 suggestion pills above. */}
-            {becauseChips.length > 0 && (
+                {becauseChips.length > 0 && (
               <div
                 data-testid="boutique-hero-because"
                 className="mt-5 flex flex-col items-center gap-3"
@@ -773,6 +828,172 @@ export default function BoutiqueHero() {
                       <span>{chip.text}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+                )}
+              </>
+            ) : (
+              <div className="mt-8 md:mt-10 w-full" style={{ maxWidth: '920px' }}>
+                <div
+                  className="rounded-2xl p-4 md:p-6"
+                  style={{
+                    background: 'rgba(31, 20, 16, 0.9)',
+                    border: '1px solid rgba(251, 244, 232, 0.16)',
+                    boxShadow:
+                      '0 10px 28px rgba(31, 20, 16, 0.28), inset 0 1px 0 rgba(251,244,232,0.06)',
+                  }}
+                >
+                  <div
+                    className="mb-2 text-center"
+                    style={{
+                      fontFamily: "'Fraunces', Georgia, serif",
+                      fontSize: '13px',
+                      fontStyle: 'italic',
+                      color: 'rgba(251, 244, 232, 0.72)',
+                    }}
+                  >
+                    Guided Boutique Journeys
+                  </div>
+                  <div
+                    className="mb-3 text-center font-sans uppercase"
+                    style={{
+                      fontSize: '11px',
+                      letterSpacing: '0.18em',
+                      color: 'rgba(251, 244, 232, 0.78)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Choose a persona to begin
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {LOCAL_PERSONAS.map((p) => {
+                      const profile = PERSONA_GATEWAY_COPY[p.id]
+                      const photoUrl = getPersonaPhoto(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          disabled={switching}
+                          onClick={() => void switchPersona(p.id)}
+                          className="rounded-[12px] border cursor-pointer text-left transition-all duration-fade ease-out hover:-translate-y-[1px] hover:shadow-[0_8px_18px_rgba(31,20,16,0.12)] hover:border-[rgba(31,20,16,0.28)] hover:bg-[#f8f0e5] disabled:opacity-60 disabled:cursor-wait"
+                          style={{
+                            fontFamily: 'var(--sans)',
+                            color: '#1f1410',
+                            padding: '12px 12px 11px',
+                            background:
+                              'linear-gradient(180deg, rgba(255,252,248,0.98) 0%, rgba(250,243,232,0.95) 100%)',
+                            borderColor: 'rgba(31,20,16,0.15)',
+                            minHeight: '172px',
+                            boxShadow:
+                              '0 1px 8px rgba(31, 20, 16, 0.05), inset 0 0 0 1px rgba(255,255,255,0.42)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: '999px',
+                                  overflow: 'hidden',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: p.avatar_color,
+                                  color: '#fff',
+                                  border: `1px solid ${p.avatar_color}`,
+                                  boxShadow: '0 1px 3px rgba(31,20,16,0.18)',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {photoUrl ? (
+                                  <img
+                                    src={photoUrl}
+                                    alt={`${p.display_name} persona`}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: 12, fontWeight: 600 }}>{p.avatar_initial}</span>
+                                )}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.16em',
+                                  color: 'rgba(31,20,16,0.58)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {profile?.focus ?? p.role_tag}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '8px',
+                                fontWeight: 600,
+                                letterSpacing: '0.12em',
+                                textTransform: 'uppercase',
+                                color: p.avatar_color,
+                                border: `1px solid ${p.avatar_color}33`,
+                                background: `${p.avatar_color}14`,
+                                borderRadius: 999,
+                                padding: '2px 7px',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {p.role_tag}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 8,
+                              fontSize: '17px',
+                              lineHeight: 1.15,
+                              fontWeight: 600,
+                              color: '#1f1410',
+                              fontFamily: "'Fraunces', Georgia, serif",
+                            }}
+                          >
+                            {p.display_name}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 8,
+                              fontSize: '12.5px',
+                              lineHeight: 1.45,
+                              color: 'rgba(31,20,16,0.8)',
+                            }}
+                          >
+                            {(profile?.bullets ?? [p.blurb]).map((bullet) => (
+                              <div key={bullet}>• {bullet}</div>
+                            ))}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 8,
+                              fontSize: '11px',
+                              lineHeight: 1.35,
+                              color: 'rgba(31,20,16,0.62)',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {profile?.learn ?? 'Learn: persona-guided agent flow'}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 9,
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#1f1410',
+                            }}
+                          >
+                            {switching ? 'Signing in...' : `Sign in as ${p.display_name} →`}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}

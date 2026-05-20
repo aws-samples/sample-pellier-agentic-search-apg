@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
+import { LOCAL_PERSONAS } from '../data/personas'
 import '../styles/persona-modal.css'
 
 interface PersonaModalProps {
@@ -31,9 +32,10 @@ export default function PersonaModal({ open, onClose }: PersonaModalProps) {
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : []
-        setPersonas(list.filter((p: { id: string }) => p.id !== 'fresh'))
+        const withoutFresh = list.filter((p: { id: string }) => p.id !== 'fresh')
+        setPersonas(withoutFresh.length > 0 ? withoutFresh : [...LOCAL_PERSONAS])
       })
-      .catch(() => {})
+      .catch(() => setPersonas([...LOCAL_PERSONAS]))
   }, [open, personas.length])
 
   // Escape key closes the modal

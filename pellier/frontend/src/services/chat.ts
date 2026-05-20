@@ -201,7 +201,13 @@ export async function sendChatMessage(query: string, conversationHistory: ChatMe
         category: p.category || p.category_name,
         rating: p.stars || p.rating,
         reviews: p.reviews,
-        url: p.url || p.producturl
+        url: p.url || p.producturl,
+        similarityScore:
+          p.similarityScore ??
+          p.similarity_score ??
+          p.similarity ??
+          p.relevance_score ??
+          undefined,
       }
     ))
 

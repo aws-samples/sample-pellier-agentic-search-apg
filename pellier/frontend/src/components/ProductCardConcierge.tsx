@@ -36,6 +36,8 @@ interface ProductCardConciergeProps {
   onAddToCart?: () => void
   agentSource?: AgentType
   recommendationReasons?: string[]
+  onPrompt?: (prompt: string) => void
+  rankIndex?: number
 }
 
 
@@ -43,6 +45,8 @@ const ProductCardConcierge = ({
   product,
   onAddToCart,
   recommendationReasons,
+  onPrompt,
+  rankIndex = 0,
 }: ProductCardConciergeProps) => {
   const [showReasons, setShowReasons] = useState(false)
   const href = product.url || ''
@@ -59,6 +63,29 @@ const ProductCardConcierge = ({
   })()
 
   const eyebrow = product.category || 'Pellier Editions'
+  const matchLabel = (() => {
+    const score = product.similarityScore
+    if (typeof score === 'number' && Number.isFinite(score)) {
+      if (score >= 0.86) return 'Top match'
+      if (score >= 0.75) return 'Strong match'
+      return 'Related'
+    }
+    if (rankIndex === 0) return 'Top match'
+    if (rankIndex <= 2) return 'Strong match'
+    return 'Related'
+  })()
+  const categorySignal = `${product.category ?? ''} ${product.name ?? ''}`.toLowerCase()
+  const isApparelLike =
+    /shirt|tee|dress|trouser|pants|pant|jacket|coat|overshirt|sweater|knit|wardrobe|wear/.test(
+      categorySignal,
+    )
+  const swapLabel = isApparelLike ? 'Swap size/color' : 'Swap color'
+  const productName = (product.name || 'this piece').trim()
+  const swapPrompt = isApparelLike
+    ? `Show ${productName} in another size or color.`
+    : `Show ${productName} in another color.`
+  const alternativesPrompt = `Show alternatives to ${productName} at a similar style and price.`
+  const whyMatchPrompt = `Why is ${productName} a ${matchLabel.toLowerCase()} for this request?`
 
   return (
     <div
@@ -109,10 +136,20 @@ const ProductCardConcierge = ({
 
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
         <div
-          className="text-[10px] uppercase tracking-[1.4px] font-medium"
+          className="text-[10px] uppercase tracking-[1.4px] font-medium flex items-center justify-between gap-2"
           style={{ color: c.muted }}
         >
-          {eyebrow}
+          <span>{eyebrow}</span>
+          <span
+            className="text-[9px] px-2 py-0.5 rounded-full tracking-[1px]"
+            style={{
+              color: c.ink,
+              border: '1px solid rgba(45, 24, 16, 0.16)',
+              background: 'rgba(45, 24, 16, 0.04)',
+            }}
+          >
+            {matchLabel}
+          </span>
         </div>
         <a
           href={href || undefined}
@@ -177,6 +214,46 @@ const ProductCardConcierge = ({
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {onPrompt && (
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <button
+              type="button"
+              onClick={() => onPrompt(swapPrompt)}
+              className="px-2 py-1 rounded-full text-[10px] transition-colors"
+              style={{
+                border: '1px solid rgba(45, 24, 16, 0.14)',
+                background: 'rgba(45, 24, 16, 0.03)',
+                color: c.ink2,
+              }}
+            >
+              {swapLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => onPrompt(alternativesPrompt)}
+              className="px-2 py-1 rounded-full text-[10px] transition-colors"
+              style={{
+                border: '1px solid rgba(45, 24, 16, 0.14)',
+                background: 'rgba(45, 24, 16, 0.03)',
+                color: c.ink2,
+              }}
+            >
+              Show alternatives
+            </button>
+            <button
+              type="button"
+              onClick={() => onPrompt(whyMatchPrompt)}
+              className="px-2 py-1 rounded-full text-[10px] transition-colors"
+              style={{
+                border: '1px solid rgba(45, 24, 16, 0.14)',
+                background: 'rgba(45, 24, 16, 0.03)',
+                color: c.ink2,
+              }}
+            >
+              Why this match?
+            </button>
           </div>
         )}
       </div>
