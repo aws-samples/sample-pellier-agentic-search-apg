@@ -17,6 +17,7 @@ import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { CartItemOrigin } from '../contexts/CartContext'
 import MarkdownMessage from './MarkdownMessage'
 import ProductArtifactCard from './ProductArtifactCard'
+import StylistHandoffCard from './StylistHandoffCard'
 import { TraceChip } from '../shared/TraceChip'
 import { resolveCover } from './BoutiqueWelcome'
 import { PERSONA_HERO_PILLS, MARCO_BUILDER_SESSION_QUERY } from '../data/personaCurations'
@@ -459,6 +460,11 @@ function AgentMessage({
           <MarkdownMessage content={displayContent} />
         </div>
       )}
+
+      {/* Stylist handoff card — escalation tool fired. Replaces the
+       * product grid for this turn; product buffering was already
+       * suppressed server-side so orderedProducts is empty. */}
+      {message.escalation && <StylistHandoffCard handoff={message.escalation} />}
 
       {/* Product cards — one render path for all products regardless
        * of origin. Past-order references (backend persona-match

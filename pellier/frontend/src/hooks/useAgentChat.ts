@@ -73,6 +73,29 @@ export interface SkillRouting {
   user_message: string
 }
 
+/**
+ * Stylist handoff payload from the `escalate_to_stylist` tool.
+ *
+ * Emitted as a dedicated SSE event so the chat surface can render the
+ * handoff card alongside the agent's prose. The "stylist" is the
+ * placeholder name for the human escalation channel — production
+ * deployments wire it to live chat or a CX queue. For the workshop
+ * it's a contact card with a mailto fallback (pure UI, no real human
+ * on the other end).
+ */
+export interface StylistHandoff {
+  channel: string
+  status: string
+  reason: string
+  customer_id: string | null
+  contact: {
+    label: string
+    mailto: string
+    response_window: string
+  }
+  next_steps: string[]
+}
+
 export type AgentBadge =
   | 'search'
   | 'pricing'
@@ -95,6 +118,10 @@ export interface AgentChatMessage {
    * render the italic burgundy attribution line; Atelier renders the
    * full decision in its live activation log. */
   skillRouting?: SkillRouting
+  /** Stylist handoff payload when this turn fired escalate_to_stylist.
+   * The chat surface renders the StylistHandoffCard in place of the
+   * usual product grid. */
+  escalation?: StylistHandoff
 }
 
 export interface UseAgentChatOptions {
@@ -638,6 +665,19 @@ export function useAgentChat(
               } catch {
                 // quota / private mode — non-fatal
               }
+            } else if (data.type === 'escalation') {
+              // Honest "this is outside what I can answer" handoff.
+              // Render the StylistHandoffCard in place of product
+              // cards via message.escalation; the agent's prose stays
+              // alongside it.
+              updateLast(lastMsg => {
+                if (lastMsg.role !== 'assistant') return null
+                return {
+                  ...lastMsg,
+                  escalation: data.escalation as StylistHandoff,
+                  agentStatus: 'complete',
+                }
+              })
             } else if (data.type === 'db_queries') {
               // Per-turn database operations (reads and writes) with
               // SQL snippets. Written to localStorage for the Atelier
