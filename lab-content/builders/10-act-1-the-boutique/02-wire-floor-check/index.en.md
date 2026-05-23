@@ -226,10 +226,13 @@ A few lines of Python. But what those lines did:
   decorator declares the contract the agent discovers; the body
   decides which source of truth answers the question.
 
-:::alert{type="success" header="Exercise 2 next — Anna's skill"}
+:::alert{type="success" header="Next — measure rerank for Anna"}
 Turn 4 lands. Switch to Anna, prove whether hybrid + rerank earns
-its latency, then **edit one rule in `the-gift-table` skill (Exercise 2)**
-and verify it landed with SQL.
+its latency. If your table has time, the same page has an **optional
+stretch** that lets you edit one rule in `the-gift-table` skill and
+verify it landed with SQL — but it's not a required exercise.
+**Exercise 2 is in Act II** (one `logger.info(...)` on the managed
+Runtime path).
 
 [Prove rerank earns its cost →](../03-prove-rerank/)
 :::

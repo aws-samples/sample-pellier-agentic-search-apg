@@ -192,15 +192,15 @@ usually pays for itself.
 
 ---
 
-## 5 · Optional builder extension — customize Anna's skill, prove with SQL
+## 5 · Stretch · customize Anna's skill, prove with SQL
 
-:::alert{type="info" header="Optional · only if your table has time"}
-This is **not a required exercise** — Act II's exercise (one
-`logger.info(...)` line on the managed Runtime path) is the second
-build moment. If you finished the analyst's call early, this 5–6 min
-extension lets you edit one rule in `skills/the-gift-table/SKILL.md`,
-re-run Anna's anchor query, and prove with a `SELECT` against
-`pellier.tool_uses` that your edit landed on the real retrieval path.
+:::alert{type="info" header="Stretch · only if your table has time"}
+This is **not Exercise 2** — Exercise 2 is in Act II (one
+`logger.info(...)` line on the managed Runtime path). If you finished
+the analyst's call early, this 5–6 min stretch lets you edit one rule
+in `skills/the-gift-table/SKILL.md`, re-run Anna's anchor query, and
+prove with a `SELECT` against `pellier.tool_uses` that your edit landed
+on the real retrieval path.
 :::
 
 ### Edit one skill rule
