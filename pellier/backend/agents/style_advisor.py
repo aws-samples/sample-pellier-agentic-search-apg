@@ -17,7 +17,13 @@ import re
 from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import find_pieces, explore_collection, side_by_side, style_match
+from services.agent_tools import (
+    escalate_to_stylist,
+    explore_collection,
+    find_pieces,
+    side_by_side,
+    style_match,
+)
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
@@ -38,6 +44,12 @@ _SEARCH_SYSTEM_PROMPT = (
     "- style_match: Use when the user asks what pairs with, goes with, or complements "
     "a specific product. First resolve the product with find_pieces if you need its "
     "productId, then call style_match with that productId. "
+    "- escalate_to_stylist: ONLY use when the ask is genuinely outside what the "
+    "catalog tools can answer — body-image or fit-for-pregnancy questions, cultural "
+    "dressing norms the agent doesn't know, deep personal-style coaching beyond the "
+    "boutique's 40 pieces, or shopper distress that deserves a real person. "
+    "Always try find_pieces / style_match first; calling escalate_to_stylist is the "
+    "honest fallback, never a way to skip the work. Pass a one-sentence reason. "
     "</tools>"
     "<output-rules>"
     "ALWAYS call a tool first. Do NOT write any text before calling a tool. "
@@ -89,7 +101,13 @@ def build_search_agent() -> Agent:
         system_prompt=inject_persona_preamble(
             inject_skills(_SEARCH_SYSTEM_PROMPT)
         ),
-        tools=[find_pieces, explore_collection, side_by_side, style_match],
+        tools=[
+            find_pieces,
+            explore_collection,
+            side_by_side,
+            style_match,
+            escalate_to_stylist,
+        ],
     )
 
 

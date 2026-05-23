@@ -24,7 +24,12 @@ import re
 from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import returns_and_care, find_pieces, process_return
+from services.agent_tools import (
+    escalate_to_stylist,
+    find_pieces,
+    process_return,
+    returns_and_care,
+)
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
@@ -49,6 +54,12 @@ _SUPPORT_SYSTEM_PROMPT = (
     "Cedar policy enforces that exact set; SQL enforces that the customer "
     "must have ordered the product. If reason='damaged', the catalog "
     "quantity decrements by 1 in the same transaction.\n"
+    "  - escalate_to_stylist: the honest escape hatch. Use ONLY when "
+    "process_return cannot handle the case — Cedar rejected the reason, "
+    "the customer doesn't own the product, the window has closed, or the "
+    "shopper is in distress and deserves a real person. Always try "
+    "returns_and_care + process_return first. Pass a one-sentence reason "
+    "explaining what's being routed and why.\n"
     "\n"
     "Output discipline:\n"
     "  - ALWAYS call a tool before writing prose. No greeting, no preamble.\n"
@@ -126,7 +137,7 @@ def build_support_agent() -> Agent:
         system_prompt=inject_persona_preamble(
             inject_skills(_SUPPORT_SYSTEM_PROMPT)
         ),
-        tools=[returns_and_care, find_pieces, process_return],
+        tools=[returns_and_care, find_pieces, process_return, escalate_to_stylist],
     )
 
 

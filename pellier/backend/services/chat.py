@@ -2197,6 +2197,21 @@ CURRENT REQUEST: {message}"""
                             write_tool_succeeded = True
                     except (json.JSONDecodeError, TypeError):
                         pass
+                # escalate_to_stylist emits a structured handoff payload
+                # that the chat surface renders as a contact card. The
+                # agent's reply IS the handoff — we drop the products
+                # buffer so the customer isn't shown a shelf of options
+                # the agent just said it can't recommend.
+                if result_str and tool_name == "escalate_to_stylist":
+                    try:
+                        _data = json.loads(result_str)
+                        if (
+                            isinstance(_data, dict)
+                            and _data.get("type") == "escalation"
+                        ):
+                            escalation_payload = _data
+                    except (json.JSONDecodeError, TypeError):
+                        pass
                 if result_str:
                     raw_products = ProductExtractor.extract(result_str)
                     if raw_products:
@@ -2347,6 +2362,15 @@ CURRENT REQUEST: {message}"""
             products_buffered = []
             parsed["products"] = []
             logger.info("🔇 Products suppressed — successful write tool in turn")
+
+        # Same suppression on escalation. The handoff card is the
+        # answer; product cards would contradict it. The card renders
+        # downstream via the dedicated `escalation` SSE event.
+        if escalation_payload is not None:
+            products_buffered = []
+            parsed["products"] = []
+            logger.info("🤝 Products suppressed — escalation handoff in turn")
+            yield {"type": "escalation", "escalation": escalation_payload}
 
         # Now send buffered products (collected from tool hooks during execution)
         if products_buffered:

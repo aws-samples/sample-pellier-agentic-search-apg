@@ -266,6 +266,71 @@ def process_return(customer_id: str, product_id: int, reason: str) -> str:
         return json.dumps({"error": str(e)})
 
 
+# === ESCAPE HATCH — escalate_to_stylist =====================================
+#
+# Honest "when the agent shouldn't try to answer" tool. The agent calls
+# this when the ask is outside what it can reasonably handle: nuanced
+# personal advice (wedding-guest dressing for an unfamiliar culture,
+# body-image or pregnancy questions), out-of-policy returns the
+# Experience Guide can't process, or catalog misses where the shopper
+# deserves a real person rather than another search.
+#
+# The "stylist" is a placeholder for whatever human escalation channel
+# a production deployment would wire in (live chat, email queue, CX
+# ticket). The tool emits a structured handoff payload that the chat
+# surface renders as a contact card — pure UI, no real human on the
+# other end for the workshop. Builder's Session teaches this as the
+# escape hatch every agent needs but most demos skip.
+@tool
+def escalate_to_stylist(reason: str, customer_id: str = "") -> str:
+    """Hand the conversation off to a human stylist when the agent shouldn't try to answer.
+
+    Use this tool when:
+      - The shopper asks for advice the agent cannot honestly give
+        (cultural dressing norms it doesn't know, body-image or
+        pregnancy fit, personal style coaching beyond the catalog).
+      - The shopper escalates a return the policy won't cover
+        (damaged-in-transit past the window, special-order pieces,
+        sentimental exceptions Experience Guide can't process).
+      - The catalog cannot match the ask and the shopper deserves a
+        real person rather than another search.
+
+    Do NOT use this tool when a different tool can answer (search the
+    catalog first; check policy first). Calling escalate_to_stylist
+    is an honest fallback, not a way to skip the work.
+
+    Args:
+        reason: One short sentence describing why the agent is
+            escalating. Surfaced in the handoff card so the customer
+            knows what's being routed.
+        customer_id: Optional Salesforce-style customer id so the
+            stylist queue can pre-load the shopper's order history.
+
+    Returns:
+        JSON payload with ``type="escalation"`` so the chat surface
+        renders the stylist handoff card. No products, no audit row —
+        this is a UI handoff, not a database write.
+    """
+    return json.dumps({
+        "type": "escalation",
+        "channel": "stylist",
+        "status": "handed_off",
+        "reason": (reason or "").strip()
+        or "The agent thought a human stylist was the right next step.",
+        "customer_id": (customer_id or "").strip() or None,
+        "contact": {
+            "label": "Talk to a stylist",
+            "mailto": "stylist@pellier.example",
+            "response_window": "Within 1 business day",
+        },
+        "next_steps": [
+            "A Pellier stylist receives your note with full context.",
+            "They reply within one business day.",
+            "You can keep browsing — we'll pick up where you left off.",
+        ],
+    })
+
+
 _CATEGORY_MAP = {
     # Boutique catalog categories (92 products, 9 categories)
     'linen': 'Linen', 'camp shirt': 'Linen', 'oxford': 'Linen',
