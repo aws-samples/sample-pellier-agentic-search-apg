@@ -46,7 +46,7 @@ const PERSONA_HERO_IMAGES: Record<string, string> = {
 // Atelier actually teaches and a participant can verify:
 //   - Reads live inventory in Aurora       \u2192 Stock Keeper / floor_check (tools)
 //   - Remembers your taste across sessions \u2192 AgentCore Memory (STM + LTM)
-//   - Cites every source it used           \u2192 Under the hood disclosure + Sessions trace
+//   - Shows every tool and skill it used   \u2192 Under the hood trace chips (specialist · skill · tool)
 //   - Refuses requests outside policy      \u2192 Cedar policies + tool_audit (write path)
 //   - Hands off to a human stylist         \u2192 escalate_to_stylist tool (escape hatch)
 interface CapabilityItem {
@@ -58,7 +58,7 @@ interface CapabilityItem {
 const TRUST_ITEMS: CapabilityItem[] = [
   { lead: 'Reads live inventory in Aurora' },
   { lead: 'Remembers your taste across sessions' },
-  { lead: 'Cites every source it used' },
+  { lead: 'Shows every tool and skill it used' },
   { lead: 'Refuses requests outside policy' },
   { lead: 'Hands off to a human stylist when it should' },
 ]
