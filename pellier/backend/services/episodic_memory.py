@@ -4,7 +4,7 @@ Teaching frame: AgentCore Memory owns session history in production.
 The Atelier demo needs deterministic, pre-seeded episodes so a
 workshop attendee picking "Marco" sees continuity without provisioning
 an AgentCore Memory resource. This module is the OFFLINE FALLBACK —
-the table it reads from is ``customer_episodic_seed``, seeded by
+the table it reads from is ``pellier.customer_episodic_seed``, seeded by
 migration 003.
 
 Two callers:
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 _SELECT_SEED_SQL = (
     "SELECT summary_text, ts_offset_days "
-    "FROM customer_episodic_seed "
+    "FROM pellier.customer_episodic_seed "
     "WHERE customer_id = %s "
     "ORDER BY ts_offset_days DESC "
     "LIMIT %s"
@@ -152,23 +152,23 @@ async def emit_memory_episodic_panel(
 # ---------------------------------------------------------------------------
 # Procedural + Preferences emitters — used together with the episodic
 # emitter above on the welcome-back resume turn. All three read from
-# Aurora (customers, orders, customer_episodic_seed); AgentCore is the
+# Aurora (pellier.customers / orders / customer_episodic_seed); AgentCore is the
 # abstraction level above episodic in production, but the workshop's
 # teaching point is that procedural and preferences are always Aurora-owned.
 # ---------------------------------------------------------------------------
 
 
 _SELECT_PREFERENCES_SQL = (
-    "SELECT name, preferences_summary FROM customers WHERE id = %s"
+    "SELECT name, preferences_summary FROM pellier.customers WHERE id = %s"
 )
 
 _SELECT_PROCEDURAL_SQL = (
     "SELECT pc.\"name\" AS name, COUNT(*) AS bought "
-    "FROM orders o "
+    "FROM pellier.orders o "
     "JOIN pellier.product_catalog pc "
     "  ON pc.\"productId\" = o.product_id "
     "WHERE o.product_id IN ( "
-    "    SELECT product_id FROM orders WHERE customer_id = %s "
+    "    SELECT product_id FROM pellier.orders WHERE customer_id = %s "
     ") "
     "AND o.customer_id <> %s "
     "GROUP BY pc.\"name\" "

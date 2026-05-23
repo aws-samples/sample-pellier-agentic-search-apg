@@ -71,7 +71,7 @@ class TestRecordAllow:
         assert mock_db_with_loop.fetch_one.call_count == 1
         call_args = mock_db_with_loop.fetch_one.call_args
         sql = call_args.args[0]
-        assert "INSERT INTO tool_audit" in sql
+        assert "INSERT INTO pellier.tool_audit" in sql
         assert "RETURNING audit_id" in sql
         # args column is JSONB — verify the JSON is well-formed.
         positional = call_args.args[1:]
@@ -126,7 +126,7 @@ class TestRecordAfter:
         )
         assert mock_db_with_loop.execute_query.call_count == 1
         sql = mock_db_with_loop.execute_query.call_args.args[0]
-        assert "UPDATE tool_audit" in sql
+        assert "UPDATE pellier.tool_audit" in sql
         assert "result = %s::jsonb" in sql
         positional = mock_db_with_loop.execute_query.call_args.args[1:]
         result_json = json.loads(positional[0])

@@ -20,7 +20,7 @@ export interface MemoryState {
     items: MemoryItem[];
     /**
      * True when items[] was overlaid from a live Aurora read of
-     * public.customer_episodic_seed. False/absent when the items
+     * pellier.customer_episodic_seed. False/absent when the items
      * came from the per-persona fixture only (DB unavailable or no
      * matching customer_id rows).
      */

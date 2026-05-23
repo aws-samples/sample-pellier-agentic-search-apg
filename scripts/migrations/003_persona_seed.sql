@@ -8,9 +8,15 @@
 -- Why this is required:
 --   * Marco / Anna / Theo / Fresh need customer rows for memory and
 --     Atelier overlays.
---   * Theo's process_return tool checks ownership in orders before it
---     writes to returns.
---   * The memory surfaces read public.customer_episodic_seed directly.
+--   * Theo's process_return tool checks ownership in pellier.orders
+--     before it writes to pellier.returns.
+--   * The memory surfaces read pellier.customer_episodic_seed directly.
+--
+-- Schema placement: every operational table lives under `pellier.*`.
+-- Older revisions of this migration created `customer_episodic_seed`
+-- at `public`; the relocation block at the top moves existing rows in
+-- place when an older deploy is upgraded, and `IF NOT EXISTS` keeps
+-- a fresh deploy idempotent.
 --
 -- Idempotent: customer rows upsert, order and seed rows are refreshed
 -- for the canonical persona ids.
@@ -19,18 +25,37 @@
 
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS customer_episodic_seed (
+-- ---------------------------------------------------------------------
+-- One-time relocation: move legacy public.customer_episodic_seed into
+-- pellier. ALTER TABLE ... SET SCHEMA preserves the FK to customers.
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'customer_episodic_seed'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'pellier' AND table_name = 'customer_episodic_seed'
+    ) THEN
+        ALTER TABLE public.customer_episodic_seed SET SCHEMA pellier;
+        RAISE NOTICE 'Moved public.customer_episodic_seed → pellier.customer_episodic_seed';
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS pellier.customer_episodic_seed (
     id             BIGSERIAL PRIMARY KEY,
-    customer_id    TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id    TEXT NOT NULL
+                   REFERENCES pellier.customers(id) ON DELETE CASCADE,
     summary_text   TEXT NOT NULL,
     ts_offset_days INTEGER NOT NULL CHECK (ts_offset_days <= 0),
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS customer_episodic_seed_customer_idx
-    ON customer_episodic_seed (customer_id, ts_offset_days DESC);
+    ON pellier.customer_episodic_seed (customer_id, ts_offset_days DESC);
 
-INSERT INTO customers (id, name, preferences_summary)
+INSERT INTO pellier.customers (id, name, preferences_summary)
 VALUES
     ('CUST-MARCO', 'Marco',
      'Brooklyn-based, partial to natural fibers. Linen, travel-ready pieces, warm neutrals.'),
@@ -48,7 +73,7 @@ ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     preferences_summary = EXCLUDED.preferences_summary;
 
-DELETE FROM orders
+DELETE FROM pellier.orders
  WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH', 'theo');
 
 WITH order_seed(customer_id, product_name, days_ago) AS (
@@ -80,7 +105,7 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         ('theo', 'Ceramic Tumblers', 45),
         ('theo', 'Brass Incense Holder', 90)
 )
-INSERT INTO orders (customer_id, product_id, quantity, placed_at)
+INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
 SELECT
     os.customer_id,
     pc."productId",
@@ -90,10 +115,10 @@ FROM order_seed os
 JOIN pellier.product_catalog pc
   ON pc.name = os.product_name;
 
-DELETE FROM customer_episodic_seed
+DELETE FROM pellier.customer_episodic_seed
  WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH');
 
-INSERT INTO customer_episodic_seed (customer_id, summary_text, ts_offset_days)
+INSERT INTO pellier.customer_episodic_seed (customer_id, summary_text, ts_offset_days)
 VALUES
     ('CUST-MARCO', 'Prefers natural fibers, oat tones, and warm neutrals.', -60),
     ('CUST-MARCO', 'Browsed linen shirts for a warm-weather trip; saved travel-ready pieces.', -21),
@@ -114,13 +139,13 @@ DECLARE
     n_facts INTEGER;
 BEGIN
     SELECT COUNT(*) INTO n_customers
-      FROM customers
+      FROM pellier.customers
      WHERE id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH', 'theo');
     SELECT COUNT(*) INTO n_orders
-      FROM orders
+      FROM pellier.orders
      WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'theo');
     SELECT COUNT(*) INTO n_facts
-      FROM customer_episodic_seed
+      FROM pellier.customer_episodic_seed
      WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO');
     RAISE NOTICE 'Persona seed ready: % customers, % orders, % memory facts',
         n_customers, n_orders, n_facts;

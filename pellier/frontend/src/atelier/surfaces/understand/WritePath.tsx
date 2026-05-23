@@ -3,7 +3,7 @@
  *
  * Shows how mutating tools (process_return, restock_shelf) flow through
  * a two-layer enforcement gate (Cedar BeforeToolCallEvent + SQL ownership)
- * and leave a paper trail in public.tool_audit that's reconstructible
+ * and leave a paper trail in pellier.tool_audit that's reconstructible
  * from a single SELECT.
  *
  * Three sections:

@@ -211,9 +211,9 @@ async def _catalog_snapshot(db_service: Any) -> dict[str, Any]:
 
 
 async def _preference_summary(db_service: Any, sub: Optional[str]) -> Optional[str]:
-    """Fetch ``customers.preferences_summary`` for the signed-in user.
+    """Fetch ``pellier.customers.preferences_summary`` for the signed-in user.
 
-    The ``customers`` table is seeded in migration 001; signed-in
+    The ``pellier.customers`` table is seeded in migration 002; signed-in
     visitors whose sub isn't in that table get ``None`` (briefing
     falls back to the generic line). Never raises.
     """
@@ -221,7 +221,7 @@ async def _preference_summary(db_service: Any, sub: Optional[str]) -> Optional[s
         return None
     try:
         row = await db_service.fetch_one(
-            "SELECT preferences_summary FROM customers WHERE id = %s", sub
+            "SELECT preferences_summary FROM pellier.customers WHERE id = %s", sub
         )
         if row and row.get("preferences_summary"):
             return str(row["preferences_summary"]).strip() or None

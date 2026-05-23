@@ -2,14 +2,17 @@
 -- Migration 002 — workshop telemetry, audit, customers, and orders
 -- =========================================================================
 -- This migration is IDEMPOTENT — safe to re-run. It adds six tables that
--- back the PostgresConf Builders Session /workshop route:
+-- back the PostgresConf Builders Session /workshop route. Every table
+-- lives under the ``pellier`` schema so the workshop has one schema —
+-- the "Aurora as agent system-of-record" anchor for Theo doesn't have
+-- to span ``public`` and ``pellier``:
 --
---   agent_trace_spans  — OTEL span persistence for trace replay.
---   tools              — pgvector-backed tool registry (Card 7, teaching).
---   tool_audit         — unified audit row per LLM / SQL tool call.
---   customers          — demo customers for MEMORY · PROCEDURAL + approvals.
---   orders             — demo orders; backs the headline 3-table JOIN panel.
---   approvals          — Identity-gated sensitive-tool gate (Card 10).
+--   pellier.agent_trace_spans  — OTEL span persistence for trace replay.
+--   pellier.tools              — pgvector-backed tool registry (Card 7).
+--   pellier.tool_audit         — unified audit row per mutating tool call.
+--   pellier.customers          — demo customers for MEMORY · PROCEDURAL + approvals.
+--   pellier.orders             — demo orders; backs the headline 3-table JOIN panel.
+--   pellier.approvals          — Identity-gated sensitive-tool gate (Card 10).
 --
 -- Runs after 001_schema.sql and scripts/seed_boutique_catalog.py. The
 -- product_catalog table is this migration's FK target.
@@ -30,13 +33,56 @@ BEGIN;
 -- IF NOT EXISTS keeps this migration self-contained if run first.
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- -- agent_trace_spans ----------------------------------------------------
--- OTEL span persistence. Populated by the Strands OTLP exporter (Week 5+)
--- when we ship a custom SpanProcessor that INSERTs alongside the
+-- The pellier schema is created by 001_schema.sql; restated here so this
+-- migration is safe to apply against an older Aurora cluster that has
+-- the public.* tables but not the schema.
+CREATE SCHEMA IF NOT EXISTS pellier;
+
+-- ---------------------------------------------------------------------
+-- One-time relocation: move legacy public.* tables into pellier.*
+--
+-- Earlier deploys of this migration created the six tables at `public`.
+-- We rename them in place rather than drop + recreate so existing rows
+-- survive — ALTER TABLE ... SET SCHEMA preserves indexes, FKs,
+-- triggers, and data. Mirrors the pattern in 006_warehouse_inventory.sql.
+--
+-- Order matters: relocate parents first (customers, product_catalog
+-- already-in-pellier) so FK refs from orders/approvals/returns follow
+-- cleanly.
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY ARRAY[
+        'customers',
+        'orders',
+        'approvals',
+        'tool_audit',
+        'agent_trace_spans',
+        'tools'
+    ]
+    LOOP
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'public' AND table_name = t
+        ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'pellier' AND table_name = t
+        ) THEN
+            EXECUTE format('ALTER TABLE public.%I SET SCHEMA pellier', t);
+            RAISE NOTICE 'Moved public.% → pellier.%', t, t;
+        END IF;
+    END LOOP;
+END $$;
+
+-- -- pellier.agent_trace_spans -------------------------------------------
+-- OTEL span persistence. Populated by the Strands OTLP exporter when we
+-- ship a custom SpanProcessor that INSERTs alongside the
 -- InMemorySpanExporter path. The 24h pg_cron cleanup at the bottom of
 -- this file expires old rows so the table doesn't grow unbounded between
 -- workshop runs.
-CREATE TABLE IF NOT EXISTS agent_trace_spans (
+CREATE TABLE IF NOT EXISTS pellier.agent_trace_spans (
     trace_id        UUID NOT NULL,
     span_id         UUID PRIMARY KEY,
     parent_span_id  UUID,
@@ -48,16 +94,16 @@ CREATE TABLE IF NOT EXISTS agent_trace_spans (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS agent_trace_spans_session_idx
-    ON agent_trace_spans (session_id, started_at);
+    ON pellier.agent_trace_spans (session_id, started_at);
 CREATE INDEX IF NOT EXISTS agent_trace_spans_created_idx
-    ON agent_trace_spans (created_at);
+    ON pellier.agent_trace_spans (created_at);
 
--- -- tools ---------------------------------------------------------------
+-- -- pellier.tools -------------------------------------------------------
 -- Aurora-teaching tool registry. Sits next to GatewayToolsPanel on
 -- /workshop so attendees see the same discovery concept implemented
--- both ways. description_emb is populated by the Week 2 seeder (one
--- row per @tool the orchestrator registers, embedded via Cohere v4).
-CREATE TABLE IF NOT EXISTS tools (
+-- both ways. description_emb is populated by the seeder (one row per
+-- @tool the orchestrator registers, embedded via Cohere v4).
+CREATE TABLE IF NOT EXISTS pellier.tools (
     tool_id            TEXT PRIMARY KEY,
     name               TEXT NOT NULL,
     description        TEXT NOT NULL,
@@ -69,15 +115,15 @@ CREATE TABLE IF NOT EXISTS tools (
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS tools_description_emb_idx
-    ON tools USING hnsw (description_emb vector_cosine_ops);
+    ON pellier.tools USING hnsw (description_emb vector_cosine_ops);
 
--- -- tool_audit ----------------------------------------------------------
--- Unified audit log. One row per tool invocation, whether it's a SQL
--- tool call or an LLM call (``tool = 'llm:claude-haiku-4-5'`` vs
--- ``tool = 'sql:check_inventory'``). Half the teaching story on the
--- workshop is that ``SELECT * FROM tool_audit WHERE session_id = ...``
--- rebuilds the entire turn for debugging.
-CREATE TABLE IF NOT EXISTS tool_audit (
+-- -- pellier.tool_audit --------------------------------------------------
+-- Unified audit log. One row per mutating tool invocation
+-- (``_MUTATING_TOOLS = {restock_shelf, process_return}`` in
+-- services/policy_hook.py). Half the teaching story on the workshop is
+-- that ``SELECT * FROM pellier.tool_audit WHERE session_id = ...``
+-- rebuilds the entire turn for debugging — Act II · Exercise 2.
+CREATE TABLE IF NOT EXISTS pellier.tool_audit (
     audit_id    BIGSERIAL PRIMARY KEY,
     session_id  TEXT NOT NULL,
     tool        TEXT NOT NULL,
@@ -88,28 +134,29 @@ CREATE TABLE IF NOT EXISTS tool_audit (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS tool_audit_session_idx
-    ON tool_audit (session_id, created_at);
+    ON pellier.tool_audit (session_id, created_at);
 
--- -- customers ----------------------------------------------------------
+-- -- pellier.customers ---------------------------------------------------
 -- Demo customer shell. Kept minimal because the /workshop surface isn't
 -- a real storefront — it just needs identifiable actors so the
 -- MEMORY · PROCEDURAL panel can show cohort overlap ("Marco bought
 -- these 3 items your current pick is closest to").
-CREATE TABLE IF NOT EXISTS customers (
+CREATE TABLE IF NOT EXISTS pellier.customers (
     id                    TEXT PRIMARY KEY,
     name                  TEXT NOT NULL,
     preferences_summary   TEXT,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- -- orders -------------------------------------------------------------
+-- -- pellier.orders ------------------------------------------------------
 -- Demo order log. product_id is TEXT to match
 -- pellier.product_catalog."productId" from 001_schema.sql.
 -- ON DELETE CASCADE keeps the demo set self-consistent when a customer
 -- is re-seeded by 003_persona_seed.sql.
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE IF NOT EXISTS pellier.orders (
     id           BIGSERIAL PRIMARY KEY,
-    customer_id  TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id  TEXT NOT NULL
+                 REFERENCES pellier.customers(id) ON DELETE CASCADE,
     -- product_catalog."productId" is TEXT in the boutique schema.
     -- Keep orders.product_id TEXT too so fresh-cluster bootstrap can
     -- create the FK without type coercion surprises.
@@ -120,19 +167,20 @@ CREATE TABLE IF NOT EXISTS orders (
     placed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS orders_customer_idx
-    ON orders (customer_id, placed_at DESC);
+    ON pellier.orders (customer_id, placed_at DESC);
 CREATE INDEX IF NOT EXISTS orders_product_idx
-    ON orders (product_id);
+    ON pellier.orders (product_id);
 
--- -- approvals ----------------------------------------------------------
+-- -- pellier.approvals ---------------------------------------------------
 -- Identity-gated approvals queue for sensitive tools (place_order,
 -- restock, etc.). Card 5 on /workshop shows pending rows; the
 -- GUARDRAIL · APPROVAL panel fires when a tool call lands here
 -- instead of executing inline. Status is a free-form TEXT rather than
--- an ENUM so Week 6 can evolve the state machine without a migration.
-CREATE TABLE IF NOT EXISTS approvals (
+-- an ENUM so future state-machine evolution doesn't need a migration.
+CREATE TABLE IF NOT EXISTS pellier.approvals (
     id             BIGSERIAL PRIMARY KEY,
-    customer_id    TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id    TEXT NOT NULL
+                   REFERENCES pellier.customers(id) ON DELETE CASCADE,
     tool           TEXT NOT NULL,
     args           JSONB NOT NULL,
     status         TEXT NOT NULL DEFAULT 'pending'
@@ -141,26 +189,27 @@ CREATE TABLE IF NOT EXISTS approvals (
     decided_at     TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS approvals_status_idx
-    ON approvals (status, requested_at);
+    ON pellier.approvals (status, requested_at);
 
--- -- pg_cron cleanup ---------------------------------------------------
--- 24h TTL on agent_trace_spans. pg_cron runs in the postgres database
--- on Aurora; we wrap the schedule call in a DO block so missing-extension
--- is a WARNING rather than a hard error (workshop envs without the
--- extension can still run this migration and opt into manual cleanup).
+-- -- pg_cron cleanup ----------------------------------------------------
+-- 24h TTL on pellier.agent_trace_spans. pg_cron runs in the postgres
+-- database on Aurora; we wrap the schedule call in a DO block so
+-- missing-extension is a WARNING rather than a hard error (workshop
+-- envs without the extension can still run this migration and opt
+-- into manual cleanup).
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
         PERFORM cron.schedule(
             'cleanup_trace_spans',
             '0 * * * *',
-            $cleanup$DELETE FROM agent_trace_spans
+            $cleanup$DELETE FROM pellier.agent_trace_spans
                      WHERE created_at < now() - interval '24 hours'$cleanup$
         );
         RAISE NOTICE 'pg_cron job cleanup_trace_spans scheduled';
     ELSE
         RAISE WARNING
-            'pg_cron extension not installed — agent_trace_spans will grow unbounded. '
+            'pg_cron extension not installed — pellier.agent_trace_spans will grow unbounded. '
             'Install with: CREATE EXTENSION pg_cron;';
     END IF;
 EXCEPTION WHEN duplicate_object THEN
@@ -169,4 +218,4 @@ END $$;
 
 COMMIT;
 
-\echo '✅ Migration 002 complete — telemetry, audit, customers, and orders ready'
+\echo '✅ Migration 002 complete — pellier.{agent_trace_spans, tools, tool_audit, customers, orders, approvals} ready'

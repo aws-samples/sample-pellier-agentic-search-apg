@@ -24,7 +24,7 @@ Endpoints:
     GET  /build-state          — shipped vs exercise maps for agents and tools
     POST /skills/route         — Live skill router demo (Haiku 4.5 @ 0.0)
     GET  /policies             — Cedar policies for the Write-path surface
-    GET  /tool-audit/recent    — Recent rows from public.tool_audit
+    GET  /tool-audit/recent    — Recent rows from pellier.tool_audit
 """
 
 from __future__ import annotations
@@ -339,7 +339,7 @@ async def discover_tools_endpoint(payload: AtelierToolDiscoverRequest):
         "WITH q AS (SELECT $1::vector AS emb)\n"
         "SELECT tool_id, name, description,\n"
         "       1 - (description_emb <=> (SELECT emb FROM q)) AS similarity\n"
-        "FROM tools WHERE enabled = true\n"
+        "FROM pellier.tools WHERE enabled = true\n"
         "ORDER BY description_emb <=> (SELECT emb FROM q)\n"
         f"LIMIT {payload.limit}"
     )
@@ -394,7 +394,7 @@ async def _load_live_ltm_facts(persona: str) -> Optional[list]:
         rows = await db_service.fetch_all(
             """
             SELECT id, summary_text, ts_offset_days
-              FROM public.customer_episodic_seed
+              FROM pellier.customer_episodic_seed
              WHERE customer_id = %s
              ORDER BY ts_offset_days DESC NULLS LAST, id ASC
              LIMIT 20
@@ -653,7 +653,7 @@ async def get_cedar_policies():
 
 @router.get("/tool-audit/recent")
 async def get_recent_tool_audit(limit: int = Query(default=10, ge=1, le=50)):
-    """Return the most recent rows from public.tool_audit, in reverse
+    """Return the most recent rows from pellier.tool_audit, in reverse
     chronological order. Used by the Write-path surface to demonstrate
     that every mutating tool call is reconstructible from a single row
     (args + result + latency_ms).
@@ -676,7 +676,7 @@ async def get_recent_tool_audit(limit: int = Query(default=10, ge=1, le=50)):
                    result,
                    latency_ms,
                    created_at
-              FROM public.tool_audit
+              FROM pellier.tool_audit
              ORDER BY audit_id DESC
              LIMIT %s
             """,

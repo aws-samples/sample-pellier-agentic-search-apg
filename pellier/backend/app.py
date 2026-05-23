@@ -9,7 +9,7 @@ import time
 import logging
 import json
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from pathlib import Path
 
@@ -204,7 +204,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Agent tools initialized with pgvector semantic search")
 
         # Wire the tool_audit writer the same way. Theo's anchor
-        # capability persists every mutation to Aurora's tool_audit
+        # capability persists every mutation to Aurora's pellier.tool_audit
         # table; the writer is fire-and-forget but needs the same
         # DB pool + main event loop reference to bridge sync→async.
         from services import tool_audit_writer
@@ -1026,40 +1026,54 @@ async def list_skills():
 
 @app.get("/api/atelier/search-strategies/compare")
 async def compare_search_strategies(query: str):
-    """Run the same query through three retrieval strategies, return
-    per-strategy timing + top-5 product names.
+    """Run the same query through four retrieval strategies, return
+    per-strategy timing + top-5 product names + (when present) the
+    structured filters Haiku extracted.
 
     Surfaces Anna's anchor-capability comparison live to the
     Atelier Performance page so workshop participants can see the
-    delta between vector-only / hybrid / hybrid+rerank against the
-    real catalog rather than reading a static fixture.
+    delta between vector-only / hybrid / hybrid+rerank / agentic
+    against the real catalog rather than reading a static fixture.
 
     Strategies:
       1. **vector only** — pgvector cosine over product_catalog.
          Marco's foundation path.
       2. **hybrid (RRF)** — vector + Postgres FTS in parallel, RRF-merged.
-         No reranker pass.
+         No reranker pass. Kept as a teaching foil — pure lexical
+         loses on conversational queries with this corpus.
       3. **hybrid + rerank** — same as #2 plus Cohere Rerank v3.5.
-         Anna's shipped path.
+      4. **agentic (Haiku → filter → vector → rerank)** — Anna's
+         shipped path. Haiku 4.5 extracts {categories, tags,
+         price_max, in_stock, soft_signal} at T=0; pgvector cosine
+         runs over the filtered candidate set with
+         ``hnsw.iterative_scan = 'relaxed_order'`` so filtered recall
+         doesn't silently collapse; Cohere Rerank reorders the pool
+         using the soft_signal phrase (not the raw query) so
+         structured constraints don't pollute the rerank score.
 
     Returns:
       {
         "query": str,
         "strategies": [
-          {"strategy", "p50Ms", "costPerThousandUsd", "products": [{name, productId}]}
+          {"strategy", "p50Ms", "costPerThousandUsd",
+           "products": [{name, productId}],
+           "extractedFilters": {...}  // strategy 4 only
+          }
         ]
       }
 
     Cost numbers are static (workshop-known fixtures: vector + hybrid
-    are effectively free per query, rerank adds ~$1 per 1000 queries).
-    The latency numbers come from real wall-clock measurement of each
-    branch against the live Aurora pool.
+    are effectively free per query, rerank adds ~$1 per 1000 queries,
+    Haiku at T=0 with a 400-token cap is roughly $0.10 per 1000
+    queries on the workshop's prompt size).
     """
+    import asyncio
     import time
     from services.embeddings import EmbeddingService
     from services.vector_search import VectorSearch
     from services.hybrid_search import HybridSearch
     from services.rerank import get_rerank_service
+    from services.structured_extract import get_structured_extractor
 
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="query parameter required")
@@ -1089,8 +1103,7 @@ async def compare_search_strategies(query: str):
         for r in vec_rows[:5]
     ]
 
-    # Strategy 2: hybrid (RRF), no rerank. Cap top_n at 5 here so we
-    # see the union ranking pre-rerank.
+    # Strategy 2: hybrid (RRF), no rerank.
     t0 = time.time()
     hybrid = HybridSearch(db)
     hybrid_rows = await hybrid.search(
@@ -1104,7 +1117,7 @@ async def compare_search_strategies(query: str):
         for r in hybrid_rows[:5]
     ]
 
-    # Strategy 3: hybrid (top 30) + Cohere Rerank to top 5. Anna's path.
+    # Strategy 3: hybrid + rerank.
     t0 = time.time()
     rerank_pool = await hybrid.search(
         query=q,
@@ -1127,10 +1140,76 @@ async def compare_search_strategies(query: str):
             for r in rerank_results
         ]
     else:
-        # Bedrock failure — same fallback the find_pieces_hybrid tool uses.
         rerank_products = [
             {"name": r.get("name", ""), "productId": r.get("product_id")}
             for r in rerank_pool[:5]
+        ]
+
+    # Strategy 4: agentic — Haiku-extracted filters → filtered vector
+    # → rerank with soft_signal. The boto3 calls are synchronous, so
+    # they run on a worker thread to keep the event loop responsive.
+    t0 = time.time()
+    extractor = get_structured_extractor()
+    extracted = await asyncio.to_thread(extractor.extract, q)
+    soft_signal = extracted.get("soft_signal") or q
+    # Re-embed only when the soft_signal differs from the raw query —
+    # a wasted embed on identical text would just inflate the cost
+    # number without changing the ranking.
+    if soft_signal != q:
+        soft_embedding = embed.embed_query(soft_signal)
+    else:
+        soft_embedding = query_embedding
+
+    # Try the strictest filter set first; if Haiku over-constrained the
+    # query, peel filters back in priority order — drop tags before
+    # categories before price — until the pool is large enough to
+    # actually rerank against. This is the same pattern production
+    # retrieval pipelines use: structured filters are hints, not
+    # guarantees, and a one-result return is usually worse than a
+    # wider pool with the reranker doing the final cut.
+    AGENTIC_MIN_POOL = 5
+    cat = extracted.get("categories") or None
+    tag = extracted.get("tags") or None
+    pmax = extracted.get("price_max_usd")
+    in_stock = bool(extracted.get("in_stock_only"))
+    filter_attempts: List[tuple[str, Dict[str, Any]]] = [
+        ("strict", dict(categories=cat, tags=tag, price_max_usd=pmax, in_stock_only=in_stock)),
+        ("drop_tags", dict(categories=cat, tags=None, price_max_usd=pmax, in_stock_only=in_stock)),
+        ("drop_cats", dict(categories=None, tags=None, price_max_usd=pmax, in_stock_only=in_stock)),
+        ("drop_all", dict(categories=None, tags=None, price_max_usd=None, in_stock_only=False)),
+    ]
+    agentic_pool: List[Dict[str, Any]] = []
+    filter_used = "strict"
+    for label, kw in filter_attempts:
+        agentic_pool = await vec.vector_search_filtered(
+            embedding=soft_embedding,
+            limit=settings.HYBRID_TOP_N,
+            ef_search=settings.VECTOR_EF_SEARCH_DEFAULT,
+            **kw,
+        )
+        filter_used = label
+        if len(agentic_pool) >= AGENTIC_MIN_POOL:
+            break
+    agentic_docs = [
+        f"{r.get('name','')} — {(r.get('description','') or '')[:200]} ({r.get('category','')})"
+        for r in agentic_pool
+    ]
+    agentic_rerank = rerank_service.rerank(
+        query=soft_signal, documents=agentic_docs, top_n=5,
+    )
+    agentic_ms = int((time.time() - t0) * 1000)
+    if agentic_rerank:
+        agentic_products = [
+            {
+                "name": agentic_pool[r["index"]].get("name", ""),
+                "productId": agentic_pool[r["index"]].get("product_id"),
+            }
+            for r in agentic_rerank
+        ]
+    else:
+        agentic_products = [
+            {"name": r.get("name", ""), "productId": r.get("product_id")}
+            for r in agentic_pool[:5]
         ]
 
     return {
@@ -1139,7 +1218,7 @@ async def compare_search_strategies(query: str):
             {
                 "strategy": "vector only",
                 "p50Ms": vec_ms,
-                "costPerThousandUsd": 0.18,  # embedding cost only
+                "costPerThousandUsd": 0.18,
                 "products": vec_products,
             },
             {
@@ -1151,8 +1230,22 @@ async def compare_search_strategies(query: str):
             {
                 "strategy": "hybrid + rerank",
                 "p50Ms": rerank_ms,
-                "costPerThousandUsd": 1.18,  # +$1 for Cohere Rerank
+                "costPerThousandUsd": 1.18,
                 "products": rerank_products,
+            },
+            {
+                "strategy": "agentic (Haiku → filter → vector → rerank)",
+                "p50Ms": agentic_ms,
+                "costPerThousandUsd": 1.28,
+                "products": agentic_products,
+                "extractedFilters": {
+                    "categories": extracted.get("categories", []),
+                    "tags": extracted.get("tags", []),
+                    "priceMaxUsd": extracted.get("price_max_usd"),
+                    "inStockOnly": extracted.get("in_stock_only", False),
+                    "softSignal": soft_signal,
+                    "filterUsed": filter_used,
+                },
             },
         ],
     }
@@ -1692,7 +1785,7 @@ async def check_policy(request: Request):
 async def memory_ltm(customer_id: str = ""):
     """Return LTM facts for a persona, ranked by recency.
 
-    Reads the ``customer_episodic_seed`` fixture table via
+    Reads the ``pellier.customer_episodic_seed`` fixture table via
     ``services/episodic_memory.fetch_episodic_seed`` — the same source
     chat.py consults when building the persona preamble. The
     MemoryArchPage uses this to replace its hard-coded STUB_LTM_FACTS

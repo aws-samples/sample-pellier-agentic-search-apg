@@ -74,7 +74,7 @@ async def discover_tools(
             name,
             description,
             1 - (description_emb <=> (SELECT emb FROM q)) AS similarity
-        FROM tools
+        FROM pellier.tools
         WHERE enabled = true
           AND description_emb IS NOT NULL
         ORDER BY description_emb <=> (SELECT emb FROM q)
@@ -89,7 +89,7 @@ async def discover_tools(
                 await cur.execute(sql, [query_embedding, int(limit)])
                 raw = await cur.fetchall()
                 await cur.execute(
-                    "SELECT count(*) AS n FROM tools "
+                    "SELECT count(*) AS n FROM pellier.tools "
                     "WHERE enabled = true AND description_emb IS NOT NULL"
                 )
                 count_row = await cur.fetchone()

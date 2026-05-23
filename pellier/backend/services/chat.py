@@ -1651,7 +1651,7 @@ CURRENT REQUEST: {message}"""
             try:
                 facts_rows = await self.db_service.fetch_all(
                     "SELECT summary_text, ts_offset_days "
-                    "FROM customer_episodic_seed "
+                    "FROM pellier.customer_episodic_seed "
                     "WHERE customer_id = %s "
                     "ORDER BY ts_offset_days DESC LIMIT 8",
                     customer_id,
@@ -1660,14 +1660,14 @@ CURRENT REQUEST: {message}"""
                     'SELECT pc."productId", pc.name, pc.brand, pc.color, '
                     'pc.price, pc.category, pc."imgUrl", pc.rating, pc.reviews, '
                     'o.placed_at '
-                    'FROM orders o '
+                    'FROM pellier.orders o '
                     'JOIN pellier.product_catalog pc ON o.product_id = pc."productId" '
                     "WHERE o.customer_id = %s "
                     "ORDER BY o.placed_at DESC LIMIT 10",
                     customer_id,
                 )
                 customer_row = await self.db_service.fetch_one(
-                    "SELECT name FROM customers WHERE id = %s",
+                    "SELECT name FROM pellier.customers WHERE id = %s",
                     customer_id,
                 )
                 name = customer_row["name"] if customer_row else "the shopper"
@@ -2145,6 +2145,11 @@ CURRENT REQUEST: {message}"""
         # to an integer id) are plumbing, not recommendations the user
         # wants rendered as cards.
         write_tool_succeeded = False
+        # Captured handoff payload from escalate_to_stylist. Emitted as
+        # a dedicated SSE event after streaming completes and used to
+        # suppress product cards (the agent's answer is the handoff,
+        # not a shelf of options).
+        escalation_payload: Optional[Dict[str, Any]] = None
 
         while True:
             try:

@@ -64,7 +64,7 @@ def test_emit_panel_carries_tag_class_and_rows() -> None:
         agent="memory",
         tag="MEMORY · PROCEDURAL",
         title="What similar customers bought",
-        sql="SELECT * FROM orders",
+        sql="SELECT * FROM pellier.orders",
         columns=["bean", "count"],
         rows=[["Sumatra", "2"]],
         meta="one JOIN",

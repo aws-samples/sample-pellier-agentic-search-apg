@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""seed_tool_registry.py — Populate the ``tools`` table for /workshop card 7.
+"""seed_tool_registry.py — Populate the ``pellier.tools`` table for /workshop card 7.
 
 Loads the 9 canonical tool names from
 ``pellier/backend/services/agentcore_gateway.py:GATEWAY_TOOL_NAMES``,
 pulls each tool's docstring as the description (single source of truth —
 the Gateway uses the same docstring for its MCP ``description`` field),
 embeds the description via Cohere Embed v4, and UPSERTs into the
-``tools`` table created in migration 001.
+``pellier.tools`` table created in migration 002.
 
 Idempotent: rerunning replaces descriptions + embeddings in place
 (``ON CONFLICT (tool_id) DO UPDATE``). Run after ``seed-database.sh``
@@ -160,7 +160,7 @@ def _embed(bedrock: Any, text: str) -> List[float]:
 
 
 UPSERT_SQL = """
-    INSERT INTO tools (
+    INSERT INTO pellier.tools (
         tool_id, name, description, description_emb,
         enabled, owner_agent, requires_approval
     )

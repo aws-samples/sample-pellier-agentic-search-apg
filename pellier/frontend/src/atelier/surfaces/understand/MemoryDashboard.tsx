@@ -532,7 +532,7 @@ const LtmCard: React.FC<LtmCardProps> = ({
             fontWeight: 600,
             marginLeft: 'auto',
           }}
-          title="LTM items below are read live from public.customer_episodic_seed in Aurora — the same rows the chat pipeline reads on every turn."
+          title="LTM items below are read live from pellier.customer_episodic_seed in Aurora — the same rows the chat pipeline reads on every turn."
         >
           ● Live · Aurora
         </span>

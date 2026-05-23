@@ -45,7 +45,7 @@ async def seed() -> None:
             # ---- customers (upsert) ----
             await db.execute_query(
                 """
-                INSERT INTO customers (id, name, preferences_summary)
+                INSERT INTO pellier.customers (id, name, preferences_summary)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (id) DO UPDATE
                     SET name = EXCLUDED.name,
@@ -57,7 +57,7 @@ async def seed() -> None:
 
             # ---- orders (delete + re-insert) ----
             await db.execute_query(
-                "DELETE FROM orders WHERE customer_id = %s", cid
+                "DELETE FROM pellier.orders WHERE customer_id = %s", cid
             )
             product_ids = p.get("order_product_ids", [])
             inserted = 0
@@ -70,7 +70,7 @@ async def seed() -> None:
                 if row:
                     interval_days = (len(product_ids) - i) * 8
                     await db.execute_query(
-                        "INSERT INTO orders (customer_id, product_id, quantity, placed_at) "
+                        "INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at) "
                         "VALUES (%s, %s, 1, now() - make_interval(days => %s))",
                         cid, int(pid), interval_days,
                     )
@@ -81,13 +81,13 @@ async def seed() -> None:
 
             # ---- episodic seed (delete + re-insert) ----
             await db.execute_query(
-                "DELETE FROM customer_episodic_seed WHERE customer_id = %s", cid
+                "DELETE FROM pellier.customer_episodic_seed WHERE customer_id = %s", cid
             )
             facts = p.get("ltm_facts", [])
             for fact in facts:
                 await db.execute_query(
                     """
-                    INSERT INTO customer_episodic_seed
+                    INSERT INTO pellier.customer_episodic_seed
                         (customer_id, summary_text, ts_offset_days)
                     VALUES (%s, %s, %s)
                     """,

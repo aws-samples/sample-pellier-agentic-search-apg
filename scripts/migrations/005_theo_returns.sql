@@ -12,18 +12,18 @@
 --      Bad reason → DENY → no row written.
 --   3. SQL gates ownership inside the transaction. Customer doesn't
 --      own the product → reject before INSERT.
---   4. INSERT into returns + (if reason='damaged') UPDATE quantity in
---      product_catalog. Both in one transaction.
---   5. AfterToolCallEvent persists the call to tool_audit so the
---      mutation has a paper trail readable from /atelier — every
+--   4. INSERT into pellier.returns + (if reason='damaged') UPDATE
+--      quantity in pellier.product_catalog. Both in one transaction.
+--   5. AfterToolCallEvent persists the call to pellier.tool_audit so
+--      the mutation has a paper trail readable from /atelier — every
 --      mutation is reconstructible from a single SELECT.
 --
 -- This table is the second source of truth in the workshop. The first
--- (product_catalog) is the read-side index for Anna's retrieval pipeline.
--- The second (returns) is the write-side ledger for Theo's lifecycle.
--- Together they teach why Aurora — not a vector store, not a key-value
--- cache, not Bedrock memory — is the right home for an agentic system's
--- transactional state.
+-- (pellier.product_catalog) is the read-side index for Anna's retrieval
+-- pipeline. The second (pellier.returns) is the write-side ledger for
+-- Theo's lifecycle. Together they teach why Aurora — not a vector
+-- store, not a key-value cache, not Bedrock memory — is the right home
+-- for an agentic system's transactional state.
 --
 -- Idempotent: CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS.
 -- Run: psql $DATABASE_URL -f scripts/migrations/005_theo_returns.sql
@@ -31,10 +31,29 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS returns (
+-- ---------------------------------------------------------------------
+-- One-time relocation: move legacy public.returns into pellier.
+-- ALTER TABLE ... SET SCHEMA preserves FKs to pellier.customers and
+-- pellier.product_catalog.
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'returns'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'pellier' AND table_name = 'returns'
+    ) THEN
+        ALTER TABLE public.returns SET SCHEMA pellier;
+        RAISE NOTICE 'Moved public.returns → pellier.returns';
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS pellier.returns (
     id            BIGSERIAL PRIMARY KEY,
     customer_id   TEXT NOT NULL
-                  REFERENCES customers(id) ON DELETE CASCADE,
+                  REFERENCES pellier.customers(id) ON DELETE CASCADE,
     -- product_catalog."productId" is TEXT in the boutique schema.
     -- Match it here so the FK applies cleanly on fresh Builder clusters.
     product_id    TEXT NOT NULL
@@ -57,13 +76,13 @@ CREATE TABLE IF NOT EXISTS returns (
 -- session brief tab joins this when rendering Theo's ceramics-return
 -- folio).
 CREATE INDEX IF NOT EXISTS returns_customer_idx
-    ON returns (customer_id, requested_at DESC);
+    ON pellier.returns (customer_id, requested_at DESC);
 
 -- Index for "how many returns has product X had" — feeds future
 -- inventory-quality dashboards. Cheap on 40 products today, future-
 -- proof on 40 million.
 CREATE INDEX IF NOT EXISTS returns_product_idx
-    ON returns (product_id);
+    ON pellier.returns (product_id);
 
 -- Quick summary so the operator can confirm the table is reachable.
 DO $$
@@ -72,12 +91,12 @@ DECLARE
 BEGIN
     SELECT EXISTS (
         SELECT 1 FROM information_schema.tables
-         WHERE table_name = 'returns'
+         WHERE table_schema = 'pellier' AND table_name = 'returns'
     ) INTO has_table;
     IF has_table THEN
-        RAISE NOTICE 'returns table ready for process_return writes';
+        RAISE NOTICE 'pellier.returns ready for process_return writes';
     ELSE
-        RAISE NOTICE 'returns table creation appears to have failed';
+        RAISE NOTICE 'pellier.returns creation appears to have failed';
     END IF;
 END $$;
 

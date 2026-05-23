@@ -128,7 +128,7 @@ class TestOwnership:
         assert "did not order" in result["message"]
         # Only the SELECT 1 ran — no INSERT or UPDATE attempted.
         assert len(db.cursor.executes) == 1
-        assert "SELECT 1 FROM orders" in db.cursor.executes[0][0]
+        assert "SELECT 1 FROM pellier.orders" in db.cursor.executes[0][0]
 
     def test_owned_product_proceeds_to_insert(self) -> None:
         db = FakeDB([
@@ -163,8 +163,8 @@ class TestQuantityAdjustment:
         # Three SQL statements: ownership SELECT, INSERT, UPDATE.
         assert len(db.cursor.executes) == 3
         sqls = [s[0] for s in db.cursor.executes]
-        assert "SELECT 1 FROM orders" in sqls[0]
-        assert "INSERT INTO returns" in sqls[1]
+        assert "SELECT 1 FROM pellier.orders" in sqls[0]
+        assert "INSERT INTO pellier.returns" in sqls[1]
         assert "UPDATE pellier.product_catalog" in sqls[2]
         assert "GREATEST(quantity - 1, 0)" in sqls[2]
 

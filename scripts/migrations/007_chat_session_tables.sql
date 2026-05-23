@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS pellier.session_metadata (
 );
 
 -- tool_uses: per-tool-call telemetry within a session.
--- Distinct from public.tool_audit (which is the canonical write-tool
+-- Distinct from pellier.tool_audit (which is the canonical write-tool
 -- ledger for Cedar-gated mutations); tool_uses captures all tool calls
 -- including reads. Useful for /atelier/sessions replay.
 CREATE TABLE IF NOT EXISTS pellier.tool_uses (

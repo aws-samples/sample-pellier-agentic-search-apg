@@ -351,7 +351,7 @@ class BusinessLogic:
                 # 1. Ownership: customer must have ordered this product.
                 #    LIMIT 1 because we only need existence, not count.
                 await cur.execute(
-                    "SELECT 1 FROM orders "
+                    "SELECT 1 FROM pellier.orders "
                     "WHERE customer_id = %s AND product_id = %s "
                     "LIMIT 1",
                     [customer_id, product_id_text],
@@ -368,7 +368,7 @@ class BusinessLogic:
 
                 # 2. INSERT the return row, capture the id.
                 await cur.execute(
-                    "INSERT INTO returns (customer_id, product_id, reason) "
+                    "INSERT INTO pellier.returns (customer_id, product_id, reason) "
                     "VALUES (%s, %s, %s) "
                     "RETURNING id",
                     [customer_id, product_id_text, reason],

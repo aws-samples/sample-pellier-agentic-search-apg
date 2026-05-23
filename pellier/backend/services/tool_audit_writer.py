@@ -1,9 +1,9 @@
 """
-Tool Audit Writer — fire-and-forget INSERT/UPDATE pair against tool_audit.
+Tool Audit Writer — fire-and-forget INSERT/UPDATE pair against pellier.tool_audit.
 
 Theo's anchor capability is "Aurora as agent system-of-record." Every
-mutation an agent performs gets a row in ``tool_audit`` so the entire
-turn is reconstructible from a single SELECT — that's the demo
+mutation an agent performs gets a row in ``pellier.tool_audit`` so the
+entire turn is reconstructible from a single SELECT — that's the demo
 bullet on the workshop sidebar.
 
 Why a separate writer module:
@@ -17,7 +17,7 @@ Why a separate writer module:
   the tool raises, the row remains with result=NULL — which is itself
   a real signal (a tool that started but didn't finish).
 * DENY decisions live in the in-memory deque (``policy_hook.record_decision``)
-  rather than tool_audit. Audit is for what *happened*; deque is for
+  rather than pellier.tool_audit. Audit is for what *happened*; deque is for
   what *was prevented*. Two different teaching surfaces.
 
 The writes go through ``DatabaseService.execute_query`` so they share
@@ -98,7 +98,7 @@ def record_allow(
     args: Dict[str, Any],
     session_id: Optional[str],
 ) -> None:
-    """INSERT a row into ``tool_audit`` for an ALLOW decision.
+    """INSERT a row into ``pellier.tool_audit`` for an ALLOW decision.
 
     Called from policy_hook's BeforeToolCallEvent right after Cedar
     returns ALLOW. The row's ``result`` and ``latency_ms`` start NULL
@@ -114,7 +114,7 @@ def record_allow(
         return
 
     sql = (
-        "INSERT INTO tool_audit "
+        "INSERT INTO pellier.tool_audit "
         "(session_id, tool, caller, args, result, latency_ms) "
         "VALUES (%s, %s, %s, %s::jsonb, NULL, NULL) "
         "RETURNING audit_id"
@@ -188,7 +188,7 @@ def record_after(
         })
 
     sql = (
-        "UPDATE tool_audit "
+        "UPDATE pellier.tool_audit "
         "SET result = %s::jsonb, latency_ms = %s "
         "WHERE audit_id = %s"
     )
