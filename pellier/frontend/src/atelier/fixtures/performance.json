@@ -102,6 +102,13 @@
       "recallAt5": 0.94,
       "p50Ms": 720,
       "costPerThousandUsd": 1.18,
+      "isShipped": false
+    },
+    {
+      "strategy": "agentic (Haiku → filter → vector → rerank)",
+      "recallAt5": 0.96,
+      "p50Ms": 2300,
+      "costPerThousandUsd": 1.28,
       "isShipped": true
     }
   ],

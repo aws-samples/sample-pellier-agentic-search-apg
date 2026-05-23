@@ -650,22 +650,198 @@ const PgvectorTuning: React.FC<PgvectorTuningProps> = ({ tuning }) => {
 /* -----------------------------------------------------------------------
  * Search Strategy Comparison — Anna's anchor capability surfaced honestly
  *
- * Three rows: vector only / hybrid (RRF) / hybrid + rerank. The card has
- * two states:
+ * Four rows: vector only / hybrid (RRF) / hybrid + rerank / agentic.
+ * The card has two states:
  *   1. Default — fixture numbers from performance.json. Card always
  *      renders with sensible defaults so the page never has a hole.
  *   2. Live — when the user types a query and clicks "Run on Aurora",
  *      we hit /api/atelier/search-strategies/compare which executes all
- *      three strategies against the catalog and returns measured numbers
+ *      four strategies against the catalog and returns measured numbers
  *      + the actual top-5 product names per strategy. The recall@5
  *      column stays the static fixture value (we'd need labeled data
- *      to compute it live) but the p50Ms + products refresh.
+ *      to compute it live) but the p50Ms + products refresh, and the
+ *      agentic row also surfaces extractedFilters chips so participants
+ *      can see what Haiku pulled out and which filter-degradation step
+ *      the pipeline ended up using.
  *
  * The teaching beat: workshop participants can see the rerank lift in
- * dollars (6× cost increase per 1k queries) AND in latency (roughly 2×)
- * AND in product mix differences (literal-token matches like "Gift
- * Wrapping Kit" climb under hybrid+rerank that vector-only misses).
+ * dollars AND latency AND product mix differences. The agentic row
+ * adds a fourth axis — filter respect. A "$100 milestone gift" query
+ * is the canonical case: only the agentic strategy actually keeps
+ * results under $100 because Haiku extracted price_max_usd=100 into
+ * a WHERE clause; the other three rank but never filter, so a $185
+ * candle can still surface in the top-5.
  * ----------------------------------------------------------------------- */
+
+/* -----------------------------------------------------------------------
+ * Extracted Filters Strip — receipt for the agentic strategy
+ *
+ * Renders Haiku's structured extraction below the agentic row: category
+ * pills, tag pills, optional price ceiling, optional in-stock badge,
+ * the soft_signal phrase, and which filter-degradation step the
+ * pipeline ended up using. The degradation badge is the honest one —
+ * "drop_cats" tells participants the strict filter set returned too
+ * few candidates and the pipeline relaxed.
+ * ----------------------------------------------------------------------- */
+
+const FILTER_USED_LABELS: Record<
+  NonNullable<PerformanceData['searchStrategies'][number]['extractedFilters']>['filterUsed'],
+  { label: string; tone: 'green' | 'red' }
+> = {
+  strict: { label: 'strict', tone: 'green' },
+  drop_tags: { label: 'drop_tags', tone: 'red' },
+  drop_cats: { label: 'drop_cats', tone: 'red' },
+  drop_all: { label: 'drop_all', tone: 'red' },
+};
+
+interface ExtractedFiltersStripProps {
+  filters: NonNullable<
+    PerformanceData['searchStrategies'][number]['extractedFilters']
+  >;
+}
+
+const ExtractedFiltersStrip: React.FC<ExtractedFiltersStripProps> = ({
+  filters,
+}) => {
+  const used = FILTER_USED_LABELS[filters.filterUsed] ?? FILTER_USED_LABELS.strict;
+  const usedColor = used.tone === 'green' ? 'var(--at-green-1)' : 'var(--at-red-1)';
+
+  const chipStyle: React.CSSProperties = {
+    display: 'inline-block',
+    fontFamily: 'var(--at-mono)',
+    fontSize: '11px',
+    letterSpacing: '0.04em',
+    padding: '2px 8px',
+    borderRadius: '999px',
+    border: '1px solid var(--at-card-border)',
+    backgroundColor: 'var(--at-cream-1)',
+    color: 'var(--at-ink-2)',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'var(--at-mono)',
+    fontSize: '10px',
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: 'var(--at-ink-3)',
+    marginRight: '8px',
+  };
+
+  const hasAnyFilter =
+    filters.categories.length > 0 ||
+    filters.tags.length > 0 ||
+    filters.priceMaxUsd !== null ||
+    filters.inStockOnly;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        padding: '10px 12px',
+        backgroundColor: 'color-mix(in srgb, var(--at-green-1) 4%, transparent)',
+        border: '1px solid var(--at-card-border)',
+        borderRadius: '6px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        <span style={labelStyle}>Haiku extract ·</span>
+        {filters.categories.length > 0 &&
+          filters.categories.map((c) => (
+            <span key={`cat-${c}`} style={chipStyle}>
+              cat: {c}
+            </span>
+          ))}
+        {filters.tags.length > 0 &&
+          filters.tags.map((t) => (
+            <span key={`tag-${t}`} style={chipStyle}>
+              #{t}
+            </span>
+          ))}
+        {filters.priceMaxUsd !== null && (
+          <span style={chipStyle}>≤ ${filters.priceMaxUsd}</span>
+        )}
+        {filters.inStockOnly && <span style={chipStyle}>in stock</span>}
+        {!hasAnyFilter && (
+          <span
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              color: 'var(--at-ink-3)',
+              fontStyle: 'italic',
+            }}
+          >
+            no structured signal — degenerates to plain vector + rerank
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        <span style={labelStyle}>Soft signal →</span>
+        <span
+          style={{
+            fontFamily: 'var(--at-serif)',
+            fontStyle: 'italic',
+            fontSize: '14px',
+            color: 'var(--at-ink-1)',
+          }}
+        >
+          "{filters.softSignal}"
+        </span>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        <span style={labelStyle}>Filter applied ·</span>
+        <span
+          style={{
+            display: 'inline-block',
+            fontFamily: 'var(--at-mono)',
+            fontSize: '10px',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: usedColor,
+            border: `1px solid ${usedColor}`,
+            borderRadius: '999px',
+            padding: '2px 8px',
+          }}
+        >
+          {used.label}
+        </span>
+        {used.tone === 'red' && (
+          <span
+            style={{
+              fontFamily: 'var(--at-sans)',
+              fontSize: '12px',
+              color: 'var(--at-ink-2)',
+            }}
+          >
+            — strict filter returned too few candidates; pipeline relaxed
+            gracefully
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
 
 interface SearchStrategyComparisonProps {
   strategies: PerformanceData['searchStrategies'];
@@ -697,7 +873,9 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
       const j = await r.json();
       // Backend returns { strategies: [...] } where each strategy has
       // p50Ms + costPerThousandUsd + products. We merge those onto the
-      // fixture's recallAt5 + isShipped so the card stays whole.
+      // fixture's recallAt5 + isShipped so the card stays whole. The
+      // agentic strategy additionally carries extractedFilters surfacing
+      // what Haiku pulled out and which filter-degradation step ran.
       const merged: PerformanceData['searchStrategies'] = strategies.map((s) => {
         const live = (j.strategies || []).find(
           (l: { strategy: string }) => l.strategy === s.strategy,
@@ -708,6 +886,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           p50Ms: live.p50Ms ?? s.p50Ms,
           costPerThousandUsd: live.costPerThousandUsd ?? s.costPerThousandUsd,
           products: live.products,
+          extractedFilters: live.extractedFilters,
         };
       });
       setLiveStrategies(merged);
@@ -748,13 +927,21 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           lineHeight: 1.5,
           color: 'var(--at-ink-2)',
           marginTop: '12px',
-          maxWidth: '640px',
+          maxWidth: '720px',
         }}
       >
-        Vector finds meaning. Postgres FTS finds literals. Cohere Rerank reads the
-        union and picks. Each row is a real choice — recall vs latency vs
-        cost — and the workshop teaches that the answer depends on the
-        query class, not the database.
+        Vector finds meaning. Postgres FTS finds literals. Cohere Rerank reads
+        the union and picks. The agentic row goes one step further: Haiku 4.5
+        at T=0 splits the query into structured filters (categories, tags,
+        price ceiling, in-stock) and a residual taste phrase, then the
+        WHERE-clause filters run with{' '}
+        <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
+          hnsw.iterative_scan = relaxed_order
+        </code>{' '}
+        so a strict filter doesn't silently drop recall. Each row is a real
+        choice — recall vs latency vs cost vs filter respect — and the
+        workshop teaches that the right answer depends on the query class,
+        not the database.
       </p>
 
       {/* Live-fetch query input — runs all three strategies through the
@@ -774,8 +961,8 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !running) handleRun();
           }}
-          placeholder="wrap-ready gifts with no extra effort"
-          aria-label="Query to run against all three search strategies"
+          placeholder="under $100 milestone gift for a homeowner"
+          aria-label="Query to run against all four search strategies"
           style={{
             flex: 1,
             fontFamily: 'var(--at-mono)',
@@ -944,6 +1131,18 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
                       </td>
                     </tr>
                   )}
+                  {/* Agentic-only: surface the structured filters Haiku
+                      extracted, the soft_signal the reranker scored
+                      against, and which filter-degradation step the
+                      pipeline ended up using. This is the receipt for
+                      "Haiku → filter → vector → rerank". */}
+                  {s.extractedFilters && (
+                    <tr style={{ backgroundColor: rowBg }}>
+                      <td colSpan={5} style={{ padding: '0 12px 14px' }}>
+                        <ExtractedFiltersStrip filters={s.extractedFilters} />
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               );
             })}
@@ -951,20 +1150,18 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
         </table>
       </div>
 
-      {/* Postgres FTS gotcha teaching note — surfaces a real lesson from
-          the implementation. Anna's FTS branch returned zero rows in
-          early testing because plainto_tsquery AND-joins all stems;
-          the fix is OR-joining via the _build_or_tsquery helper. */}
+      {/* Why the agentic row is Anna's path — the framing the workshop
+          lands on after participants compare the four strategies. */}
       <div
         style={{
           marginTop: '20px',
           padding: '14px 16px',
           backgroundColor: 'var(--at-cream-2)',
-          borderLeft: '3px solid var(--at-red-1)',
+          borderLeft: '3px solid var(--at-green-1)',
           borderRadius: '4px',
         }}
       >
-        <Eyebrow label="Postgres FTS gotcha" variant="muted" />
+        <Eyebrow label="Why agentic is Anna's path" variant="muted" />
         <p
           style={{
             fontFamily: 'var(--at-sans)',
@@ -974,17 +1171,66 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
             marginTop: '8px',
           }}
         >
-          Both <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>plainto_tsquery</code> and{' '}
-          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>websearch_to_tsquery</code>{' '}
-          AND-join every stem for plain-text input. A 6-stem query
+          The first three rows <em>rank</em>, but they never <em>filter</em>.
+          A "$100 milestone gift" query running through hybrid+rerank can
+          still surface a $185 candle in the top-5 — the price ceiling is
+          a string the embedding never quite respects. The agentic row
+          turns "$100" into a real{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
+            price &lt;= 100
+          </code>{' '}
+          predicate, runs cosine over only the rows that pass, and lets
+          Cohere Rerank score against the residual taste phrase ("milestone
+          gift for a homeowner"). The chips above are the receipt — you
+          can see exactly what Haiku extracted, which filter-degradation
+          step ran when the strict filter was too tight, and what soft
+          signal the reranker actually scored.
+        </p>
+      </div>
+
+      {/* Postgres FTS gotcha — kept as a teaching foil for the hybrid (RRF)
+          row. The agentic strategy bypasses this entire class of bug
+          because Haiku owns the lexical decomposition, but participants
+          still need to know the failure mode if they ever deploy plain
+          FTS. */}
+      <div
+        style={{
+          marginTop: '12px',
+          padding: '14px 16px',
+          backgroundColor: 'var(--at-cream-2)',
+          borderLeft: '3px solid var(--at-red-1)',
+          borderRadius: '4px',
+        }}
+      >
+        <Eyebrow label="Why hybrid (RRF) is a teaching foil, not Anna's path" variant="muted" />
+        <p
+          style={{
+            fontFamily: 'var(--at-sans)',
+            fontSize: '14px',
+            lineHeight: 1.55,
+            color: 'var(--at-ink-1)',
+            marginTop: '8px',
+          }}
+        >
+          Both{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
+            plainto_tsquery
+          </code>{' '}
+          and{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
+            websearch_to_tsquery
+          </code>{' '}
+          AND-join every stem. A six-stem conversational query
           (<em>"thoughtful gift for someone who loves morning rituals"</em>)
-          matches zero products if no description contains all six stems.
-          The fix is OR-joining content tokens manually before passing to{' '}
-          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>to_tsquery</code> — that's
-          what <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>HybridSearch._build_or_tsquery</code>{' '}
-          does in <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>services/hybrid_search.py</code>.
-          The key lesson is to match the FTS query constructor to the retrieval
-          behavior you want, especially for conversational shopper phrasing.
+          matches zero products if no description contains all six stems
+          together — exactly the shape of query a boutique shopper asks.
+          Pellier OR-joins content tokens via{' '}
+          <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
+            HybridSearch._build_or_tsquery
+          </code>{' '}
+          to keep the row alive for comparison, but Anna's production
+          path is the agentic row above: Haiku owns the structured
+          decomposition, and FTS doesn't have to guess.
         </p>
       </div>
     </ExpCard>

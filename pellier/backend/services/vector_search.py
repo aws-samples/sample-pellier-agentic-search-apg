@@ -134,3 +134,121 @@ class VectorSearch:
 
         return results
         # === CHALLENGE 1: END ===
+
+    async def vector_search_filtered(
+        self,
+        embedding: List[float],
+        limit: int,
+        ef_search: int,
+        categories: List[str] | None = None,
+        tags: List[str] | None = None,
+        price_max_usd: float | None = None,
+        in_stock_only: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Filtered vector cosine search — Path 2 retrieval.
+
+        Combines structured WHERE-clause filters (extracted by
+        ``StructuredExtractor``) with pgvector cosine ranking. The
+        method always runs with ``hnsw.iterative_scan = 'relaxed_order'``
+        because filtered HNSW is exactly the workload that ``iterative_scan``
+        was designed for: a strict WHERE clause can drop the candidate
+        count below the index's natural ``ef_search`` ceiling, which
+        would cause silent recall loss without iterative scanning.
+
+        Filters are applied as additional predicates on the same
+        ``WHERE "imgUrl" IS NOT NULL AND embedding IS NOT NULL`` baseline
+        the unfiltered branch uses. Empty/None filters are no-ops; an
+        all-empty filter set degenerates to the same ranking as
+        ``vector_search()`` plus the unconditional ``imgUrl`` /
+        ``embedding`` checks.
+        """
+        params: List[Any] = [embedding]
+        clauses: List[str] = [
+            '"imgUrl" IS NOT NULL',
+            "embedding IS NOT NULL",
+        ]
+        if categories:
+            clauses.append("category = ANY(%s)")
+            params.append(list(categories))
+        if tags:
+            clauses.append("tags ?| %s")
+            params.append(list(tags))
+        if price_max_usd is not None:
+            clauses.append("price <= %s")
+            params.append(float(price_max_usd))
+        if in_stock_only:
+            clauses.append("quantity > 0")
+        where = " AND ".join(clauses)
+        sql = f"""
+            WITH query_embedding AS (
+                SELECT %s::vector AS emb
+            )
+            SELECT
+                "productId" AS product_id,
+                name,
+                brand,
+                color,
+                description,
+                "imgUrl"   AS img_url,
+                category,
+                price,
+                rating,
+                reviews,
+                badge,
+                tags,
+                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
+            FROM pellier.product_catalog
+            WHERE {where}
+            ORDER BY embedding <=> (SELECT emb FROM query_embedding)
+            LIMIT %s
+        """
+        # ``WITH ... %s::vector`` consumed the embedding param above; the
+        # filter params follow positionally; ``LIMIT %s`` closes the list.
+        # Reorder into the final binding sequence.
+        bind: List[Any] = [embedding] + params[1:] + [limit]
+        # Recreate ``params[0]`` was the embedding placeholder for clause
+        # accounting; the actual SQL has the embedding twice (once in the
+        # CTE, once in the SELECT/ORDER BY through the CTE alias). Simpler
+        # to rebuild ``bind`` cleanly:
+        bind = [embedding]
+        if categories:
+            bind.append(list(categories))
+        if tags:
+            bind.append(list(tags))
+        if price_max_usd is not None:
+            bind.append(float(price_max_usd))
+        bind.append(limit)
+
+        ef_search_sql = int(ef_search or settings.VECTOR_EF_SEARCH_DEFAULT)
+        ef_search_sql = max(8, min(ef_search_sql, settings.VECTOR_EF_SEARCH_MAX))
+        start_time = time.time()
+        async with self.db.get_connection() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    await cur.execute(
+                        f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
+                    )
+                except Exception:
+                    logger.debug("hnsw.ef_search not supported; skipping per-query tuning")
+                # Filtered HNSW always benefits from iterative_scan.
+                await cur.execute(
+                    "SET LOCAL hnsw.iterative_scan = 'relaxed_order'"
+                )
+                await cur.execute(sql, bind)
+                rows = await cur.fetchall()
+                results = [dict(r) for r in rows]
+
+        try:
+            get_query_logger().queries.append(
+                QueryLog(
+                    query_type="vector_search_filtered",
+                    sql=sql,
+                    params=bind,
+                    execution_time_ms=(time.time() - start_time) * 1000,
+                    timestamp=datetime.now(),
+                    rows_returned=len(results),
+                )
+            )
+        except Exception as log_err:  # pragma: no cover
+            logger.debug(f"sql_query_logger append failed: {log_err}")
+        return results
