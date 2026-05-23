@@ -141,7 +141,7 @@
   padding-bottom: 1px;
 }
 
-/* Marco — Builder's Session callout above stacked picks */
+/* Marco — exercise callout above stacked picks */
 .sf-workshop-cue-marco {
   margin-top: 14px;
   padding: 12px 14px;
@@ -152,6 +152,16 @@
   font-size: 14px;
   line-height: 1.55;
   color: var(--ink-1);
+}
+.sf-workshop-cue-tag {
+  display: inline-block;
+  margin-right: 8px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(196, 69, 54, 0.98);
 }
 .sf-workshop-code {
   font-family: var(--mono);

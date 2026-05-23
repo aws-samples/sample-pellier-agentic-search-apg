@@ -66,6 +66,7 @@ export default function Footer() {
         </div>
         <BottomStrip
           copyrightLine={copyrightLine}
+          service={FOOTER.BOTTOM_STRIP.SERVICE}
           attribution={FOOTER.BOTTOM_STRIP.ATTRIBUTION}
         />
       </div>
@@ -178,20 +179,27 @@ function EditorialColumn({
 
 interface BottomStripProps {
   copyrightLine: string
+  service: string
   attribution: string
 }
 
-function BottomStrip({ copyrightLine, attribution }: BottomStripProps) {
+function BottomStrip({ copyrightLine, service, attribution }: BottomStripProps) {
   return (
     <div
       data-testid="footer-bottom-strip"
-      className="flex items-center justify-between gap-4 pt-6 border-t border-sand/50"
+      className="flex flex-col items-center gap-2 pt-6 border-t border-sand/50 sm:flex-row sm:items-center sm:justify-between"
     >
       <span
         data-testid="footer-copyright"
         className="text-xs text-ink-quiet"
       >
         {copyrightLine}
+      </span>
+      <span
+        data-testid="footer-service"
+        className="font-sans text-xs text-ink-quiet tracking-tight"
+      >
+        {service}
       </span>
       <span
         data-testid="footer-attribution"

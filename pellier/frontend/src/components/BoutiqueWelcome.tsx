@@ -318,9 +318,10 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
 
         {showMarcoBuilderCue && (
           <p className="sf-workshop-cue-marco">
-            Builder&apos;s Session — Turn&nbsp;4 in your hero row asks for a live warehouse lookup.
-            Until <code className="sf-workshop-code">floor_check</code> is wired, Stock Keeper
-            can&apos;t answer it; that gap is deliberate.
+            <span className="sf-workshop-cue-tag">▸ Your exercise</span>
+            Turn&nbsp;4 in your hero row asks for a live warehouse lookup. Wire{' '}
+            <code className="sf-workshop-code">floor_check</code> so Stock Keeper can answer it —
+            the lab guide walks you through it step by step.
           </p>
         )}
 
@@ -408,7 +409,7 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
                   onClick={() => onSend(suggestion)}
                 >
                   {isMarcoWarehouse && (
-                    <span className="sf-overheard-workshop-chip">Turn 4 · workshop gap</span>
+                    <span className="sf-overheard-workshop-chip">Your exercise · Turn 4</span>
                   )}
                   <span className="sf-overheard-line">
                     <span className="sf-overheard-bullet">&middot;</span>

@@ -39,24 +39,26 @@ const PERSONA_HERO_IMAGES: Record<string, string> = {
   theo: asset('/products/hero-theo.png'),
 }
 
-// Trust strip restyled as Agent Capabilities \u2014 bold lead reads as the
-// agent's skill, the trailing fragment keeps the shipping/returns
-// boilerplate on the page without leading with it. The first three
-// items map to the agent surfaces inside /atelier (memory, tools,
-// grounding) so a re:Invent attendee sees the same vocabulary on both
-// sides of the demo.
+// Trust strip restyled as Agent Capabilities \u2014 each claim names
+// something unusual about the agent (not table-stakes retail). Retail
+// boilerplate (shipping, free-over-$150) lives in the footer service
+// strip; this strip stays focused on the four agent capabilities the
+// Atelier actually teaches:
+//   - Reads live inventory in Aurora       \u2192 Stock Keeper / floor_check (tools)
+//   - Remembers your taste across sessions \u2192 AgentCore Memory (STM + LTM)
+//   - Cites every source it used           \u2192 Under the hood disclosure + Sessions trace
+//   - Hands off to a human stylist         \u2192 Experience Guide / process_return (write path)
 interface CapabilityItem {
   /** Bold lead clause \u2014 agent capability. */
   lead: string
-  /** Optional trailing clause \u2014 operational reassurance. */
+  /** Optional trailing clause \u2014 kept for forward compatibility. */
   trail?: string
 }
 const TRUST_ITEMS: CapabilityItem[] = [
-  { lead: 'Reads live inventory' },
-  { lead: 'Remembers your taste' },
-  { lead: 'Cites every source' },
-  { lead: 'Hands off to a human stylist' },
-  { lead: 'Ships in 1\u20132 days', trail: 'Free over $150' },
+  { lead: 'Reads live inventory in Aurora' },
+  { lead: 'Remembers your taste across sessions' },
+  { lead: 'Cites every source it used' },
+  { lead: 'Hands off to a human stylist when it should' },
 ]
 
 // Visual treatment per because-chip kind. Same dashed-italic shell, just
@@ -148,7 +150,7 @@ export default function BoutiqueHero() {
 
   const heroHeadline = splitHeadlineAtRe('Search, re:Engineered.')
 
-  /** Marco + exercise: align "Builder's Session" over Turn 4 pill on wide viewports. */
+  /** Marco + exercise: align "Your exercise" eyebrow over Turn 4 pill on wide viewports. */
   const marcoBuilderSessionBand =
     persona?.id === 'marco' &&
     showBuilderSessionGap &&
@@ -377,7 +379,7 @@ export default function BoutiqueHero() {
 
                 {/* Marco + exercise (lg): labels absolutely positioned on the same
                 baseline — Try asking centered in the gap between pills 2 & 3,
-                Builder's Session centered over pill 4 (track scales with %). */}
+                "Your exercise" centered over pill 4 (track scales with %). */}
                 <div className="mt-0 w-full min-w-0">
               {marcoBuilderSessionBand ? (
                 <>
@@ -435,7 +437,7 @@ export default function BoutiqueHero() {
                             letterSpacing: '0.16em',
                           }}
                         >
-                          Builder&apos;s Session · Turn 4
+                          ▸ Your exercise · Turn 4
                         </span>
                       </div>
 
@@ -522,12 +524,23 @@ export default function BoutiqueHero() {
                           boxSizing: 'border-box',
                         }}
                       >
+                        <span
+                          className="font-semibold uppercase"
+                          style={{
+                            color: 'rgba(196, 69, 54, 0.98)',
+                            letterSpacing: '0.14em',
+                            fontSize: '10px',
+                            marginRight: '8px',
+                          }}
+                        >
+                          Your task
+                        </span>
                         Wire{' '}
                         <span className="font-mono text-[12px] font-semibold text-[#1f1410]">
                           floor_check
                         </span>{' '}
-                        so Stock Keeper can answer the Turn&nbsp;4 warehouse question from live
-                        inventory.
+                        so Stock Keeper can answer this turn from live inventory — the lab guide
+                        walks you through it step by step.
                       </p>
                     </div>
                   </div>
@@ -552,7 +565,7 @@ export default function BoutiqueHero() {
                         letterSpacing: '0.16em',
                       }}
                     >
-                      Builder&apos;s Session · Turn 4
+                      ▸ Your exercise · Turn 4
                     </span>
                   </div>
                   <div
@@ -626,12 +639,23 @@ export default function BoutiqueHero() {
                       boxShadow: '0 1px 3px rgba(31, 20, 16, 0.08)',
                     }}
                   >
+                    <span
+                      className="font-semibold uppercase"
+                      style={{
+                        color: 'rgba(196, 69, 54, 0.98)',
+                        letterSpacing: '0.14em',
+                        fontSize: '10px',
+                        marginRight: '8px',
+                      }}
+                    >
+                      Your task
+                    </span>
                     Wire{' '}
                     <span className="font-mono text-[12px] font-semibold text-[#1f1410]">
                       floor_check
                     </span>{' '}
-                    so Stock Keeper can answer the Turn&nbsp;4 warehouse question from live
-                    inventory.
+                    so Stock Keeper can answer this turn from live inventory — the lab guide
+                    walks you through it step by step.
                   </p>
                 </>
               ) : (
@@ -1002,13 +1026,12 @@ export default function BoutiqueHero() {
       </div>
     </section>
 
-    {/* Capabilities strip — replaces the old shipping/returns trust
-        strip. Bold lead clauses name agent capabilities (reads live
-        inventory · remembers your taste · cites every source · hands
-        off to a human stylist), with the operational shipping line
-        kept as a tail item so the reassurance still appears. Same
-        cream-warm background, same burgundy dot separators, same
-        whitespace — only the copy and emphasis change. */}
+    {/* Capabilities strip — four agent claims, no retail filler.
+        Reads live inventory in Aurora · remembers your taste across
+        sessions · cites every source it used · hands off to a human
+        stylist when it should. The shipping/returns boilerplate moved
+        to the footer service strip. Each item maps to a teaching
+        surface in /atelier — see the TRUST_ITEMS docblock above. */}
     <div
       data-testid="boutique-hero-trust"
       className="w-full border-b border-sand/40"

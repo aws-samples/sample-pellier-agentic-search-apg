@@ -351,6 +351,10 @@ export const FOOTER = {
   },
   BOTTOM_STRIP: {
     COPYRIGHT: "\u00a9 Pellier",
+    /** Centered service line \u2014 retail boilerplate moved out of the
+     * hero capabilities strip so the strip can stay focused on agent
+     * claims. Lives in the footer where shipping/returns info belongs. */
+    SERVICE: "Ships in 1\u20132 days \u00b7 Free over $150",
     /** Right-hand credit in the footer strip (replaces workshop banner). */
     ATTRIBUTION: "\u00a9 Shayon Sanyal",
   },

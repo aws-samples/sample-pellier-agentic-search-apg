@@ -90,8 +90,7 @@ function productsForRenderedProse(
   }))
   const mentioned = ranked.filter((item) => item.mentionIndex >= 0)
   if (mentioned.length === 0) return products
-
-  return mentioned
+  const orderedMentioned = mentioned
     .sort((a, b) => {
       if (a.mentionIndex !== b.mentionIndex) {
         return a.mentionIndex - b.mentionIndex
@@ -99,6 +98,23 @@ function productsForRenderedProse(
       return a.index - b.index
     })
     .map((item) => item.product)
+
+  // Keep prose alignment as the primary rule, but ensure discovery turns
+  // still show a usable shelf when the model only names one or two picks.
+  // Backfill from original ranked tool results to a floor of 3 cards.
+  if (orderedMentioned.length >= 3) return orderedMentioned
+
+  const seen = new Set(
+    orderedMentioned.map((product) => `${product.id ?? ''}::${product.name ?? ''}`),
+  )
+  const backfill = products.filter((product) => {
+    const key = `${product.id ?? ''}::${product.name ?? ''}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  return [...orderedMentioned, ...backfill].slice(0, Math.min(3, products.length))
 }
 
 function emphasizeProductMentionsAndPrices(
@@ -501,7 +517,7 @@ function AgentMessage({
                 }
                 title={
                   workshopMarcoChip
-                    ? "Builder's Session: wire floor_check so Stock Keeper can answer this."
+                    ? 'Your exercise: wire floor_check so Stock Keeper can answer this turn from live inventory.'
                     : undefined
                 }
                 onClick={() => onFollowUp(chip)}
