@@ -82,7 +82,7 @@ const Sidebar: React.FC = () => {
       //   system remembers between turns) → Write-path (how mutations are
       //   gated and audited; Theo's third Aurora capability).
       items: [
-        { label: 'Architecture', path: 'architecture', badge: '8' },
+        { label: 'Architecture', path: 'architecture', badge: '6' },
         {
           label: 'Agents',
           path: 'agents',
@@ -110,6 +110,19 @@ const Sidebar: React.FC = () => {
       items: [
         { label: 'Performance', path: 'performance' },
         { label: 'Evaluations', path: 'evaluations' },
+      ],
+    },
+    {
+      // OPERATE — production patterns underneath every shipped agent.
+      // Identity, Guardrails, Multi-tenancy & STM hygiene, and Tool
+      // publishing & discovery (which absorbs the MCP Gateway + Tool
+      // Registry cards that used to live under Architecture). This
+      // surface is the seam between "we built the prototype" and "we
+      // ship to customers"; it's intentionally one panel rather than
+      // four sidebar entries because the patterns reinforce each other.
+      eyebrow: 'OPERATE',
+      items: [
+        { label: 'Production Patterns', path: 'production-patterns', badge: '4' },
       ],
     },
   ];

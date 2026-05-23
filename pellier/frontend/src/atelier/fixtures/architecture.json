@@ -28,15 +28,6 @@
   },
   {
     "numeral": "IV",
-    "category": "workshop",
-    "title": "Tool Registry",
-    "role": "Aurora pgvector tool discovery",
-    "description": "The workshop uses an Aurora tool registry as a teaching surface: tool descriptions are embedded, searched with pgvector, and shown beside Gateway discovery. The live Boutique path still calls in-process Strands tools unless the optional Gateway path is configured.",
-    "codeSnippet": "# Discover tools by semantic similarity in Aurora\nSELECT name, 1 - (embedding <=> $1) AS similarity\nFROM tools\nORDER BY embedding <=> $1\nLIMIT 5;",
-    "slug": "tool-registry"
-  },
-  {
-    "numeral": "V",
     "category": "live",
     "title": "Routing & State",
     "role": "Dispatcher-first request flow",
@@ -45,7 +36,7 @@
     "slug": "state-management"
   },
   {
-    "numeral": "VI",
+    "numeral": "V",
     "category": "optional",
     "title": "Runtime Envelope",
     "role": "Execution environment and workshop runtime pattern",
@@ -54,21 +45,12 @@
     "slug": "runtime"
   },
   {
-    "numeral": "VII",
-    "category": "optional",
-    "title": "MCP Gateway",
-    "role": "Optional managed tool gateway",
-    "description": "AgentCore Gateway exposes the tool surface over MCP when AGENTCORE_GATEWAY_URL is configured. Without that setting, Pellier deliberately falls back to in-process tools while still showing the Aurora tool registry as a teaching comparison.",
-    "codeSnippet": "# Optional Gateway path\nif settings.AGENTCORE_GATEWAY_URL:\n    agent = create_gateway_orchestrator()\nelse:\n    agent = create_in_process_dispatcher()",
-    "slug": "mcp"
-  },
-  {
-    "numeral": "VIII",
+    "numeral": "VI",
     "category": "quality",
     "title": "Evaluations",
     "role": "Quality checks and capability scorecards",
     "description": "Evaluation cards are the owned quality layer: latency, relevance, grounding, and scenario checks for the three workshop capabilities. They are not the request path; they are how the team decides whether a path is worth shipping.",
-    "codeSnippet": "# Evaluation scorecard shape\nscorecard = {\n    'capability': 'hybrid + rerank',\n    'recall_at_5': 0.94,\n    'latency_p50_ms': 720,\n    'grounded': true\n}",
+    "codeSnippet": "# Evaluation scorecard shape\nscorecard = {\n    'capability': 'agentic (Haiku → filter → vector → rerank)',\n    'recall_at_5': 0.96,\n    'latency_p50_ms': 2300,\n    'grounded': true\n}",
     "slug": "evaluations"
   }
 ]

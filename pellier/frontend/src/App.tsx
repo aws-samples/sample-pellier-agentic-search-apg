@@ -44,6 +44,7 @@ import MemoryDashboard from './atelier/surfaces/understand/MemoryDashboard'
 import WritePath from './atelier/surfaces/understand/WritePath'
 import Performance from './atelier/surfaces/measure/Performance'
 import Evaluations from './atelier/surfaces/measure/Evaluations'
+import ProductionPatterns from './atelier/surfaces/measure/ProductionPatterns'
 import AtelierSettings from './atelier/surfaces/Settings'
 import InspectorPage from './pages/InspectorPage'
 import StoryboardPage from './pages/StoryboardPage'
@@ -196,6 +197,7 @@ function App() {
                   <Route path="write-path" element={<WritePath />} />
                   <Route path="performance" element={<Performance />} />
                   <Route path="evaluations" element={<Evaluations />} />
+                  <Route path="production-patterns" element={<ProductionPatterns />} />
                   <Route path="observatory" element={<Observatory />} />
                   <Route path="persona-journeys" element={<PersonaJourneys />} />
                   <Route path="settings" element={<AtelierSettings />} />

@@ -1,0 +1,123 @@
+{
+  "summary": "Four production patterns sit underneath every shipped agent: identity (who is asking), guardrails (what they can ask for), multi-tenancy hygiene (how their data stays separate), and tool publishing (how the agent finds the right capability). The default builder path runs without any of them by design — they're the seams you reach for once the prototype is real.",
+  "patterns": [
+    {
+      "numeral": "I",
+      "slug": "identity",
+      "title": "Identity",
+      "role": "Who is the agent acting for, and on whose behalf",
+      "summary": "AgentCore Identity gives the agent a workload identity ARN that distinguishes its own AWS calls from end-user calls. Pellier already routes anonymous shoppers through the namespace anon:{session_id} and signed-in shoppers through user:{cognito_sub}:session:{id} — Identity is the production-grade upgrade that lets the agent take an action on behalf of a specific customer without conflating the two.",
+      "shipped": false,
+      "category": "auth",
+      "namespacePattern": {
+        "anon": "anon:{session_id}",
+        "signedIn": "user:{cognito_sub}:session:{session_id}",
+        "note": "Same session id, different namespace — the switch is what AgentCore Memory keys on."
+      },
+      "codeSnippet": "# Workload identity for the agent itself\nworkload_identity_arn = settings.AGENTCORE_WORKLOAD_IDENTITY_ARN\n\n# OAuth2 credential provider for end-user calls\ncredentials = identity_client.get_token(\n    workload_identity_arn=workload_identity_arn,\n    user_token=cognito_id_token,\n)\n\n# Namespace switch — same session, different identity\nnamespace = (\n    f\"user:{cognito_sub}:session:{session_id}\"\n    if cognito_sub else\n    f\"anon:{session_id}\"\n)",
+      "whatToReachFor": "Identity becomes mandatory the first time you let the agent take an action that mutates a customer's data — orders, returns, profile edits. Until then, the namespace switch is the right boundary.",
+      "crossLinks": [
+        { "label": "Sessions", "to": "/atelier/sessions" },
+        { "label": "Memory", "to": "/atelier/memory" }
+      ]
+    },
+    {
+      "numeral": "II",
+      "slug": "guardrails",
+      "title": "Guardrails",
+      "role": "What the agent will and will not do, enforced at the edge",
+      "summary": "Bedrock Guardrails layers content filters, denied-topic blocks, and PII redaction in front of every model call. Pellier's allow-list of categories and tags inside the StructuredExtractor is the same idea at the application layer — a whitelist that drops hallucinated values before they reach the SQL WHERE clause.",
+      "shipped": true,
+      "shippedNote": "The Haiku-driven structured extractor whitelists categories and tags before they touch SQL — see services/structured_extract.py.",
+      "category": "policy",
+      "layers": [
+        {
+          "name": "Bedrock content filters",
+          "where": "Per-invoke at the model boundary",
+          "what": "Sexual / violence / hate / insults / misconduct / prompt injection — block or flag"
+        },
+        {
+          "name": "Denied topics",
+          "where": "Per-invoke",
+          "what": "Custom topic blocks (e.g. medical advice, legal advice)"
+        },
+        {
+          "name": "PII redaction",
+          "where": "Per-invoke, applied to model output",
+          "what": "Names, emails, phone numbers, addresses redacted before the response leaves the model"
+        },
+        {
+          "name": "Application allow-lists",
+          "where": "services/structured_extract.py",
+          "what": "Categories and tags from Haiku are whitelisted against KNOWN_CATEGORIES / KNOWN_TAGS before they reach the SQL WHERE clause — hallucinated values are silently dropped"
+        }
+      ],
+      "codeSnippet": "# Application-layer allow-list (already shipped)\ncat_set = {c.lower(): c for c in KNOWN_CATEGORIES}\ncategories = [\n    cat_set[c.lower()]\n    for c in parsed.get(\"categories\", []) or []\n    if isinstance(c, str) and c.lower() in cat_set\n]\n\n# Bedrock Guardrail at the model boundary\nresponse = bedrock.invoke_model(\n    modelId=settings.BEDROCK_HAIKU_MODEL,\n    body=json.dumps(body),\n    guardrailIdentifier=\"pellier-shopper-guardrail\",\n    guardrailVersion=\"1\",\n)",
+      "crossLinks": [
+        { "label": "Performance · search strategies", "to": "/atelier/performance" }
+      ]
+    },
+    {
+      "numeral": "III",
+      "slug": "multitenancy",
+      "title": "Multi-tenancy & STM hygiene",
+      "role": "Keeping sessions, memories, and writes separate when traffic is real",
+      "summary": "Every memory write, vector search, and tool call carries a namespace. STM is bounded (30-day expiry by design); long-term taste lives in Aurora pgvector profile embeddings keyed by user. Multi-tenancy hygiene is the operational discipline that keeps tenant A's data out of tenant B's recall — it's a property of the keys, not a separate system.",
+      "shipped": true,
+      "shippedNote": "Namespaces flow through every memory call, agentcore_memory.append_session_turn, and pgvector profile embedding lookup.",
+      "category": "ops",
+      "concerns": [
+        {
+          "concern": "Session namespace",
+          "answer": "anon:{session_id} or user:{cognito_sub}:session:{session_id} — keyed at write time, scoped at read time."
+        },
+        {
+          "concern": "STM expiry",
+          "answer": "30-day TTL on AgentCore Memory by design — the ledger is a recent record, not a permanent transcript."
+        },
+        {
+          "concern": "Long-term taste",
+          "answer": "Aurora pgvector profile embeddings, keyed by user id — not session id. Survives session expiry."
+        },
+        {
+          "concern": "Cross-tenant leakage risk",
+          "answer": "A vector search without a tenant filter returns rows from every tenant. The fix is in the WHERE clause, not the index — the index doesn't know about tenants."
+        }
+      ],
+      "codeSnippet": "# Session namespace at write time\nawait memory.append_session_turn(\n    namespace=f\"user:{user_sub}:session:{session_id}\",\n    turn={\"role\": \"user\", \"content\": query},\n)\n\n# Tenant-safe vector search — predicate FIRST, then cosine\nSELECT product_id, name,\n       1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE tenant_id = $2\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 5;",
+      "crossLinks": [
+        { "label": "Memory", "to": "/atelier/memory" },
+        { "label": "Sessions", "to": "/atelier/sessions" }
+      ]
+    },
+    {
+      "numeral": "IV",
+      "slug": "tool-publishing",
+      "title": "Tool publishing & discovery",
+      "role": "How the agent finds the right capability when the catalog grows",
+      "summary": "The default builder path uses in-process Strands tools — fast, type-safe, all in one Python process. At production scale, two surfaces help: AgentCore Gateway publishes tools over MCP so multiple agents share a single source of truth, and the Aurora pgvector tool registry lets a Strands agent semantically search tool descriptions when there are too many to fit in a system prompt.",
+      "shipped": false,
+      "shippedNote": "Optional. The default Boutique path is in-process Strands tools — the orchestrator and tools live in one Python module.",
+      "category": "scaling",
+      "surfaces": [
+        {
+          "name": "AgentCore Gateway (MCP)",
+          "where": "Configured via AGENTCORE_GATEWAY_URL — falls back to in-process when unset",
+          "purpose": "Lets multiple agents (re:Invent advanced track, ops tools, internal copilots) share one Lambda-backed tool surface. Each tool is published once, discovered over MCP, called by ARN.",
+          "tradeoff": "Adds a network hop and a deploy step. Worth it when more than one agent needs the same capability."
+        },
+        {
+          "name": "Aurora pgvector tool registry",
+          "where": "scripts/migrations/00X_tool_registry.sql + services/tool_registry.py",
+          "purpose": "Stores tool name + description + embedding. A Strands agent searches by semantic similarity to find the right tool when the catalog is too large for a static system prompt.",
+          "tradeoff": "Useful past ~20 tools. Below that, just put them in the prompt — the agent's tool-selection logic is the bottleneck, not retrieval."
+        }
+      ],
+      "codeSnippet": "# Optional Gateway path\nif settings.AGENTCORE_GATEWAY_URL:\n    agent = create_gateway_orchestrator()\nelse:\n    agent = create_in_process_dispatcher()\n\n# Aurora tool registry — semantic tool discovery\nSELECT name, description,\n       1 - (embedding <=> $1::vector) AS similarity\nFROM tools\nORDER BY embedding <=> $1::vector\nLIMIT 5;",
+      "crossLinks": [
+        { "label": "Tools", "to": "/atelier/tools" },
+        { "label": "Architecture · Routing & State", "to": "/atelier/architecture/state-management" }
+      ]
+    }
+  ]
+}

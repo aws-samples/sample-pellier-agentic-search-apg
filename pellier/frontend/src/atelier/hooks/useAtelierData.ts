@@ -63,6 +63,7 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
   evaluations: () => import('../fixtures/evaluations.json'),
   observatory: () => import('../fixtures/observatory.json'),
   architecture: () => import('../fixtures/architecture.json'),
+  'production-patterns': () => import('../fixtures/production-patterns.json'),
 };
 
 /**

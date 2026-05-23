@@ -40,3 +40,12 @@ export type { ObservatorySummary } from './observatory';
 export type { ArchitectureConcept } from './architecture';
 
 export type { Skill } from './skill';
+
+export type {
+  ProductionPattern,
+  ProductionPatternsData,
+  IdentityPattern,
+  GuardrailsPattern,
+  MultitenancyPattern,
+  ToolPublishingPattern,
+} from './productionPatterns';
