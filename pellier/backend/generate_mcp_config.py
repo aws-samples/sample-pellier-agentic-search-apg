@@ -2,9 +2,10 @@
 """
 Generate MCP server configuration for Aurora PostgreSQL.
 
-Creates two config files:
-1. pellier/config/mcp-server-config.json (for general MCP use)
-2. ~/.aws/amazonq/default.json (for Q Developer in IDE)
+Writes one config file:
+- pellier/config/mcp-server-config.json — read by the workshop and
+  consumable by any MCP host (VS Code chat extension, Claude Code,
+  Strands `MCPClient`, Bedrock AgentCore Gateway).
 
 Environment Variables Required (set by bootstrap-labs.sh):
 - DB_CLUSTER_ARN: Aurora cluster ARN
@@ -81,52 +82,6 @@ def generate_mcp_config():
         return 1
     
     # =========================================================================
-    # File 2: Q Developer config (~/.aws/amazonq/default.json)
-    # =========================================================================
-    
-    # Q Developer configuration format
-    q_developer_config = {
-        "mcpServers": {
-            "awslabs.postgres-mcp-server": mcp_server_config
-        },
-        "useLegacyMcpJson": True  # Support for legacy mcp.json files
-    }
-    
-    # Determine Q Developer config location
-    home = Path.home()
-    q_config_dir = home / ".aws" / "amazonq"
-    q_config_dir.mkdir(parents=True, exist_ok=True)
-    q_config_file = q_config_dir / "default.json"
-    
-    try:
-        # Check if file already exists and merge configs
-        if q_config_file.exists():
-            with open(q_config_file, 'r') as f:
-                existing_config = json.load(f)
-            
-            # Merge MCP servers (keep existing, add/update ours)
-            if "mcpServers" not in existing_config:
-                existing_config["mcpServers"] = {}
-            
-            existing_config["mcpServers"]["awslabs.postgres-mcp-server"] = mcp_server_config
-            existing_config["useLegacyMcpJson"] = True
-            
-            q_developer_config = existing_config
-        
-        # Write Q Developer config
-        with open(q_config_file, 'w') as f:
-            json.dump(q_developer_config, f, indent=2)
-        
-        print(f"✅ Q Developer config: {q_config_file}")
-        
-        # Set proper permissions
-        q_config_file.chmod(0o600)
-        
-    except Exception as e:
-        print(f"ERROR: Failed to write Q Developer config: {e}", file=sys.stderr)
-        return 1
-    
-    # =========================================================================
     # Summary
     # =========================================================================
     print()
@@ -134,12 +89,11 @@ def generate_mcp_config():
     print("✅ MCP Configuration Generated Successfully!")
     print("=" * 70)
     print()
-    print("📁 Configuration Files Created:")
-    print(f"   1. Workshop: {workshop_file}")
-    print(f"   2. Q Developer: {q_config_file}")
+    print("📁 Configuration File:")
+    print(f"   {workshop_file}")
     print()
     print("🔧 Server Configuration:")
-    print(f"   • Server: AWS Labs PostgreSQL MCP Server (uvx)")
+    print(f"   • Server: awslabs.postgres-mcp-server (uvx)")
     print(f"   • Database Cluster: {db_cluster_arn}")
     print(f"   • Secret ARN: {db_secret_arn}")
     print(f"   • Database: {db_name}")
@@ -147,15 +101,15 @@ def generate_mcp_config():
     print(f"   • Read-only: True")
     print()
     print("🎯 Usage:")
-    print("   • Amazon Q Developer: Open Q Chat in VS Code")
-    print("   • Ask: 'What tables exist in pellier schema?'")
-    print("   • MCP tools available: get_table_schema, run_query")
+    print("   • Any MCP host (VS Code chat extension, Claude Code,")
+    print("     Strands MCPClient, AgentCore Gateway) consumes this JSON.")
+    print("   • Tools advertised: get_table_schema, run_query, ...")
     print()
-    print("💡 Verification:")
-    print("   • Open VS Code → Amazon Q sidebar")
-    print("   • Settings → MCP Servers → Should see 'awslabs.postgres-mcp-server'")
+    print("💡 Verification (Act III §02):")
+    print("   • cat pellier/config/mcp-server-config.json | python3 -m json.tool")
+    print("   • uvx awslabs.postgres-mcp-server@latest --help")
     print("=" * 70)
-    
+
     return 0
 
 

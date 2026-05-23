@@ -6,7 +6,7 @@ weight: 30
 *Operator view. ~7 minutes — no code, two closing reads.*
 
 :::alert{type="info" header="Act III · The Concierge"}
-**Time:** ~7 min  ·  **Exercises:** 0 (operator-grade read)  ·  **Surfaces:** Atelier → Routing · `/api/chat/stream` · `/api/agent/chat` · IDE → Aurora MCP
+**Time:** ~7 min  ·  **Exercises:** 0 (operator-grade read)  ·  **Surfaces:** Atelier → Routing · `/api/chat/stream` · `/api/agent/chat` · Terminal → `awslabs.postgres-mcp-server` config + verify
 
 Every boutique needs a concierge — someone who, before the customer
 ever sees a hesitation, decides which specialist will answer this
@@ -38,9 +38,10 @@ minutes, no code, and the loop closes:
 ```text
    Routing patterns       MCP + Knowledge Bases
    ~4 min                 ~3 min
-   read the dispatcher    open Aurora MCP sidebar,
-   live, then the two     compare to Bedrock
-   alternates             Knowledge Bases
+   read the dispatcher    read the MCP config,
+   live, then the two     verify the server from
+   alternates             the terminal, compare to
+                          Bedrock KB
    ▲                      ▲
    operator view          portability — what this
                           maps to in your stack
@@ -89,7 +90,7 @@ the Atelier:
 | Page | Activity | Time |
 |---|---|---|
 | 01 · [Routing patterns](01-routing-patterns/) | Read the live dispatcher, the two-routers seam, and the decision tree | ~4 min |
-| 02 · [MCP and Bedrock Knowledge Bases](02-mcp-and-knowledge-bases/) | Open Aurora MCP in the IDE, run a query, compare to managed Knowledge Bases | ~3 min |
+| 02 · [MCP and Bedrock Knowledge Bases](02-mcp-and-knowledge-bases/) | Read the `awslabs.postgres-mcp-server` config + verify it from the terminal, then compare to managed Knowledge Bases | ~3 min |
 
 ---
 

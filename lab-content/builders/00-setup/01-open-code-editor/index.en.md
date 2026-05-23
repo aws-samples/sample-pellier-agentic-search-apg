@@ -49,15 +49,15 @@ weight: 10
 
 - **Code Editor (code-server)** — VS Code in the browser. Same
   keybindings, same extensions API.
-- **Aurora MCP Server** — a sidebar panel that exposes
-  `pellier.product_catalog`, `pellier.warehouse_inventory`, and the
-  rest of the schema as **MCP tools**. You'll click into it during
-  [Act III · MCP and Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) to
-  see the same tool contract the agents use, but driven by the IDE.
-  The MCP server config lives at `pellier/config/mcp.json` (auto-generated
-  by bootstrap).
-- **Amazon Q** — AI-assisted code completion. Optional; the lab
-  doesn't depend on it.
+- **AWS Labs Postgres MCP server** — the bootstrap installs
+  [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server)
+  via `uvx` and registers it against your Aurora cluster (read-only,
+  secret-backed). The config lives at
+  `pellier/config/mcp-server-config.json`. Any MCP host reads that
+  shape: VS Code chat extensions, Claude Code, a Strands agent using
+  `MCPClient`, or Bedrock AgentCore Gateway in managed deploys. You'll
+  poke it from the integrated terminal in
+  [Act III · MCP and Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/).
 - **Auto-reload** — every save to a `.py` file restarts the backend
   in about a second. No manual restart commands.
 

@@ -347,13 +347,15 @@ install_extension() {
 
 # Install essential extensions for the 60-min Builder's Session.
 # No Jupyter — there are no notebooks in the lab content.
+# No Amazon Q extension — the MCP demo runs from the integrated terminal
+# (the Q extension is being retired, and Act III §02 reads the config +
+# verifies `awslabs.postgres-mcp-server` via uvx instead).
 install_extension "ms-python.python" "Python"
 install_extension "ms-python.vscode-pylance" "Pylance"
 install_extension "dbaeumer.vscode-eslint" "ESLint"
 install_extension "esbenp.prettier-vscode" "Prettier"
 install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
 install_extension "amazonwebservices.aws-toolkit-vscode" "AWS Toolkit"
-install_extension "amazonwebservices.amazon-q-vscode" "Amazon Q"
 
 log "✅ VS Code extensions installed"
 
@@ -396,8 +398,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "**/.github": true,
         "**/.vscode": true,
         "**/scripts": true
-    },
-    "amazonQ.mcp.trustedServers": ["awslabs.postgres-mcp-server"]
+    }
 }
 VSCODE_SETTINGS
 

@@ -46,7 +46,7 @@ maps to something runnable in this repo:
 |---|---|
 | **RAG** with embeddings on **Aurora PostgreSQL & RDS for PostgreSQL** | `pellier.product_catalog.embedding vector(1024)` · pgvector 0.8.0 · HNSW index · `<=>` cosine operator |
 | **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 12 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
-| **Model Context Protocol (MCP)** | Aurora MCP server in IDE sidebar · `pellier/config/mcp.json` · AgentCore Gateway as managed counterpart |
+| **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
 | **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped STM via Bedrock AgentCore Memory |
 | **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` |
 
@@ -146,7 +146,7 @@ The 60-min Builder's Session source of truth lives in
 | [Setup](lab-content/builders/00-setup/) | 7 min | Open IDE, meet Boutique + Atelier, 5-check pre-flight, optional [pgvector primer](lab-content/builders/00-setup/04-pgvector-primer/) |
 | [Act I · The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
 | [Act II · The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
-| [Act III · The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → open Aurora MCP and compare to Bedrock Knowledge Bases |
+| [Act III · The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
 | Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
 
 The 120-min Workshop bundle lives in `lab-content/workshop/`. The
@@ -214,7 +214,7 @@ shape voice and handling without changing product selection:
 | Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim) · Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) — all via Bedrock inference profiles |
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
 | Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP) · Identity     |
-| MCP              | Aurora MCP server in IDE sidebar exposes `pellier.*` tables as MCP tools; `pellier/config/mcp.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
+| MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN with `--readonly True`; `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI · Python 3.13 · psycopg3 · boto3 · SSE streaming                                                                 |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
 | Editorial system | Fraunces Variable (display) · Inter (body) · JetBrains Mono (code) · cream / espresso / terracotta palette               |
@@ -254,13 +254,29 @@ sample-pellier-agentic-search-apg/
     ├── workshop/                            120-min re:Invent bundle
     │   └── static/                          Workshop CloudFormation source
     └── builders/                            60-min DC Summit bundle
-        ├── 00-setup/                        IDE + pre-flight + pgvector primer
-        ├── 10-act-1-the-boutique/           Wire floor_check + prove rerank
-        ├── 20-act-2-the-ledger/             AgentCore Memory + Runtime
-        ├── 30-act-3-the-concierge/          Routing + MCP + Knowledge Bases
-        ├── 90-appendix/                     Cast · SQL · runbook · your-stack
-        ├── static/                          Builder CloudFormation source
-        └── ws-repo/                         Reference snapshot only
+        ├── index.en.md                        Title · arc · stack table
+        ├── 00-setup/                          IDE · Boutique tour · pre-flight · pgvector primer
+        │   ├── 01-open-code-editor/
+        │   ├── 02-meet-the-boutique/
+        │   ├── 03-pre-flight-checklist/
+        │   └── 04-pgvector-primer/
+        ├── 10-act-1-the-boutique/             Act I — observe Marco, wire floor_check, prove rerank
+        │   ├── 01-meet-marco/
+        │   ├── 02-wire-floor-check/             Exercise 1
+        │   └── 03-prove-rerank/
+        ├── 20-act-2-the-ledger/               Act II — STM + managed Runtime
+        │   ├── 01-agentcore-memory-stm/
+        │   └── 02-agentcore-runtime/            Exercise 2 (logger.info hook)
+        ├── 30-act-3-the-concierge/            Act III — routing + MCP + Knowledge Bases
+        │   ├── 01-routing-patterns/
+        │   └── 02-mcp-and-knowledge-bases/      reads pellier/config/mcp-server-config.json + uvx
+        ├── 90-appendix/                       Cast · SQL · runbook · your-stack · quick-start
+        │   ├── 01-the-cast/
+        │   ├── 02-shipment-sql/
+        │   ├── 03-when-things-misbehave/
+        │   ├── 04-your-stack/
+        │   └── quick-start.en.md
+        └── static/                            Builder CloudFormation source
 ```
 
 ---

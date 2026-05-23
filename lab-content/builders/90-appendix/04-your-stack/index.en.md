@@ -27,7 +27,7 @@ the swaps that make this pattern portable.
 | **Strands Agents SDK** | Bedrock Agents (managed), LangGraph, LlamaIndex agents — the `@tool` contract is portable; only the runtime differs. |
 | **AgentCore Memory** | Cheap path: a Postgres table with a TTL job. Managed: AgentCore Memory or DynamoDB with TTL. **The `turns[]` shape is what the agent reads — own that contract before picking storage.** |
 | **AgentCore Runtime** | Lambda with a 15-minute deadline (small agents), ECS/Fargate (long-lived sessions), or AgentCore Runtime when you want microVM isolation per session without owning the cluster. |
-| **MCP (Aurora MCP server)** | Any MCP server you already run — local processes for IDE work, Bedrock AgentCore Gateway for managed cross-account hosting. Same protocol. |
+| **MCP (`awslabs.postgres-mcp-server` over Aurora)** | The lab uses the open-source [AWS Labs Postgres MCP server](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`. Any MCP host reads the same config — VS Code chat extensions, Claude Code, a Strands agent using `MCPClient`, or Bedrock AgentCore Gateway in managed deploys. Swap servers as needed; the protocol stays the same. |
 
 ---
 
@@ -79,7 +79,7 @@ If you walk out remembering only four things:
 | Replicate this pattern in your account | The CFN templates in `lab-content/builders/static/pellier-*.yml` |
 | Move from Aurora to RDS | The pgvector docs — you'll change `aws rds create-db-cluster` to `aws rds create-db-instance`; everything inside the database is identical |
 | Add Bedrock Knowledge Bases on top | Aurora is a supported KB store for PostgreSQL — point it at the same cluster and a new schema |
-| Productionize tool discovery at scale (>100 tools) | AgentCore Gateway docs on MCP — the same protocol you saw in the Aurora sidebar today |
+| Productionize tool discovery at scale (>100 tools) | AgentCore Gateway docs on MCP — the same protocol behind `awslabs.postgres-mcp-server` you read today |
 | Tune retrieval at 10M+ rows | `hnsw.iterative_scan`, `halfvec`, `binary_quantize`, `SET LOCAL work_mem`, the pgvector README |
 
 :::alert{type="success" header="That's the workshop"}
