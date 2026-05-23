@@ -42,12 +42,13 @@ const PERSONA_HERO_IMAGES: Record<string, string> = {
 // Trust strip restyled as Agent Capabilities \u2014 each claim names
 // something unusual about the agent (not table-stakes retail). Retail
 // boilerplate (shipping, free-over-$150) lives in the footer service
-// strip; this strip stays focused on the four agent capabilities the
-// Atelier actually teaches:
+// strip; this strip stays focused on the five agent capabilities the
+// Atelier actually teaches and a participant can verify:
 //   - Reads live inventory in Aurora       \u2192 Stock Keeper / floor_check (tools)
 //   - Remembers your taste across sessions \u2192 AgentCore Memory (STM + LTM)
 //   - Cites every source it used           \u2192 Under the hood disclosure + Sessions trace
-//   - Hands off to a human stylist         \u2192 Experience Guide / process_return (write path)
+//   - Refuses requests outside policy      \u2192 Cedar policies + tool_audit (write path)
+//   - Hands off to a human stylist         \u2192 escalate_to_stylist tool (escape hatch)
 interface CapabilityItem {
   /** Bold lead clause \u2014 agent capability. */
   lead: string
@@ -58,6 +59,7 @@ const TRUST_ITEMS: CapabilityItem[] = [
   { lead: 'Reads live inventory in Aurora' },
   { lead: 'Remembers your taste across sessions' },
   { lead: 'Cites every source it used' },
+  { lead: 'Refuses requests outside policy' },
   { lead: 'Hands off to a human stylist when it should' },
 ]
 
