@@ -99,23 +99,25 @@ working example before you write yours.**
 ## 3 · Write the body
 
 Replace the `return json.dumps({...})` block between the `START` /
-`END` markers with this shape:
+`END` markers. **Read the four-line skeleton first**, then write
+the four lines yourself — don't paste:
 
 ```python
-if not _db_service:
-    return json.dumps({"error": "Database service not initialized"})
-
-try:
-    from services.business_logic import BusinessLogic
-    logic = BusinessLogic(_db_service)
-    query = (product_query or "").strip() or None
-    result = _run_async(logic.floor_check(product_query=query))
-    return json.dumps(result, indent=2)
-except Exception as e:
-    return json.dumps({"error": str(e)})
+# 1. Guard: bail if DB service didn't initialize.
+# 2. Build a BusinessLogic from the existing _db_service.
+# 3. Normalize product_query: empty string → None (matches the docstring).
+# 4. await BusinessLogic.floor_check(product_query=...) and return as JSON.
+# 5. Wrap (2)–(4) in try/except so a Postgres error becomes a helpful JSON message,
+#    not a 500 that the agent can't reason about.
 ```
 
-**A short block between the guards.** That's it.
+The other tools in the file (`whats_trending`, `price_intelligence`,
+`running_low`) follow this exact pattern. Crib the *shape*; write
+the body in your own keystrokes — that's where the muscle memory lives.
+
+**Hint:** `_run_async(...)` is the helper that lets a sync `@tool`
+function call an `async` `BusinessLogic` method without an
+`asyncio.run()` per call. Use it.
 
 ::::expand{header="Why this shape (the handoff from app code to agent behavior)"}
 

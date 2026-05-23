@@ -44,6 +44,8 @@ You only need this if you edit files in `pellier/frontend/src/`. Python changes 
 
 ```bash
 psql                   # Connects to Aurora PostgreSQL (credentials pre-loaded)
+                       # Same command works against Amazon RDS for PostgreSQL
+                       # if you re-point DB_HOST in .env to an RDS endpoint.
 ```
 
 ### Check model access
@@ -52,7 +54,16 @@ psql                   # Connects to Aurora PostgreSQL (credentials pre-loaded)
 python3 scripts/check_model_access.py
 ```
 
-Verifies all four Bedrock models are accessible: Claude Opus 4.6, Claude Haiku 4.5, Cohere Embed v4, Cohere Rerank v3.5.
+Verifies all four Bedrock models are accessible:
+
+- `global.anthropic.claude-opus-4-6-v1` (Claude Opus 4.6)
+- `global.anthropic.claude-haiku-4-5-20251001-v1:0` (Claude Haiku 4.5)
+- `us.cohere.embed-v4:0` (Cohere Embed v4 · 1024-dim)
+- `cohere.rerank-v3-5:0` (Cohere Rerank v3.5)
+
+These are pinned in `pellier/backend/config.py`. The legacy
+`BEDROCK_SONNET_MODEL` env name still resolves to Opus by default —
+you may see it in older code paths.
 
 ---
 

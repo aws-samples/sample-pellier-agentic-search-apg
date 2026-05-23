@@ -3,10 +3,10 @@ title: "Act II · The Ledger"
 weight: 20
 ---
 
-*Evidence view. ~11 minutes — no new code, two production proofs.*
+*Evidence view. ~11 minutes — one observability hook, two production proofs.*
 
 :::alert{type="info" header="Act II · The Ledger"}
-**Time:** ~11 min  ·  **Exercises:** 0 (read + verify)  ·  **Surfaces:** `/api/agent/session/{id}` (STM) · `/api/agent/chat` (Runtime)
+**Time:** ~11 min  ·  **Exercise:** 1 (the observability hook on the managed Runtime path)  ·  **Surfaces:** `/api/agent/session/{id}` (STM) · `/api/agent/chat` (Runtime)
 
 Every good boutique keeps a ledger — a quiet, inspectable record of
 what happened, in order, that anyone can reopen later. **Act I shipped
@@ -14,11 +14,11 @@ the agent on your laptop. Act II is the same agent in production** —
 same orchestrator, same tools, same prompts — reached through Bedrock
 AgentCore.
 
-You won't write code in this act. Bootstrap already ran
-`agentcore configure` and `agentcore launch` before you sat down. Your
-job is to **read the ledger** the platform keeps for you: a session
-timeline you can replay, a managed Runtime you can invoke, and the
-seam between session-scoped memory and long-term taste.
+Bootstrap already ran `agentcore configure` and `agentcore launch`
+before you sat down. Your job is to **read the ledger** the platform
+keeps for you, then **add the one log line** that makes every
+`InvokeRuntime` call visible in `uvicorn.log` — the second build
+moment of the session.
 :::
 
 The Boutique's ledger is **Bedrock AgentCore**. Two artifacts make it
@@ -37,11 +37,11 @@ real:
 ```text
    Memory (STM)            Runtime
    ~6 min                  ~5 min
-   read session timeline   invoke managed endpoint
-   from /api/agent/        from /api/agent/chat
-   session/{id}            (USE_AGENTCORE_RUNTIME=true)
+   read session timeline   wire one log line, invoke
+   from /api/agent/        managed endpoint, watch
+   session/{id}            uvicorn.log
    ▲                       ▲
-   evidence                production seam
+   evidence                Exercise 2 + production seam
 ```
 
 ---
@@ -59,7 +59,11 @@ By the end of Act II you will be able to:
 3. **Invoke a pre-launched AgentCore Runtime** through the same
    FastAPI surface, observe SSE events (`session` → `chunk` → `done`),
    and read the `@app.entrypoint` that made it possible.
-4. **Narrate `configure → launch → invoke`** to your table — what
+4. **Add one `logger.info(...)` line** to the managed Runtime path
+   (Exercise 2) so every `InvokeRuntime` call is visible in
+   `uvicorn.log` — the smallest observability seam that proves the
+   request really left the local process.
+5. **Narrate `configure → launch → invoke`** to your table — what
    bootstrap did *for* you, and what you'd run *yourself* in your own
    pipeline.
 
@@ -83,10 +87,10 @@ meet it:
 
 ## What you'll do
 
-| Page | Activity | Time |
-|---|---|---|
-| 01 · [AgentCore Memory (STM)](01-agentcore-memory-stm/) | Generate two turns, read them back from API, prove continuity on reload | ~6 min |
-| 02 · [AgentCore Runtime (demo)](02-agentcore-runtime/) | Read the entrypoint, invoke the managed endpoint, observe SSE events | ~5 min |
+| Page | Activity | Time | Exercise |
+|---|---|---|---|
+| 01 · [AgentCore Memory (STM)](01-agentcore-memory-stm/) | Generate two turns, read them back from API, prove continuity on reload | ~6 min | — |
+| 02 · [AgentCore Runtime (demo)](02-agentcore-runtime/) | Add one `logger.info(...)` line, invoke the managed endpoint, watch the call land in `uvicorn.log` | ~5 min | **Exercise 2** |
 
 ---
 
@@ -96,23 +100,23 @@ meet it:
    STM persists              → /api/agent/session/{id} returns ordered turns
    STM survives reload        → conversation rehydrates from same session id
    Runtime is reachable       → SSE: event: session → event: chunk → event: done
+   Exercise 2 lands           → grep "agentcore.invoke" uvicorn.log shows your line
    Same agent, two surfaces   → /api/chat/stream (in-process) ≡ /api/agent/chat (managed)
 ```
 
-::::expand{header="Why no code in this act?"}
+---
 
-Act I was a build act because a missing tool body was a real gap. Act
-II's gap doesn't get closed by typing — it gets closed by **reading
-the evidence the platform already produces**. The discipline this act
-teaches is operational: trusting that managed services emit
-inspectable artifacts, and knowing which API to call to see them.
+:::alert{type="warning" header="Exercise 2 — the build moment in Act II"}
 
-If your table finishes early, the entrypoint file
-(`pellier/backend/agentcore_runtime.py`) and the client
-(`services/agentcore_runtime.py`) are short, readable, and worth the
-five extra minutes.
+**`logger.info(...)` on the managed Runtime path**  *(in 02-agentcore-runtime)*
+Add one line in `pellier/backend/services/agentcore_runtime.py` so
+every `InvokeRuntime` call is visible in `uvicorn.log`. This is the
+smallest observability seam that proves the request really left the
+local process.
+**⏩ Out of time?** A one-line `cp` from `solutions/the-ledger/`
+swaps in the reference implementation — the act still completes.
 
-::::
+:::
 
 :::alert{type="success" header="Begin Act II"}
 [Platform · AgentCore Memory (STM) →](01-agentcore-memory-stm/)

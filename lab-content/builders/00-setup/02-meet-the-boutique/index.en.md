@@ -43,9 +43,9 @@ Same agent, different lens. Keep both tabs open.
 |---|---|---|
 | Audience | Shopper | Operator |
 | Tone | Editorial | Telemetry-first |
-| Shows | Product cards, chat, voice search | Trace chips, tool calls, memory reads, routing |
+| Shows | Product cards, chat drawer, persona pills | Trace chips, tool calls, memory reads, routing, performance comparisons |
 | Persona switch | Chat drawer | Header dropdown |
-| Source of truth | Same backend agent · same Aurora data · same AgentCore memory |
+| Source of truth | Same backend agent · same Aurora (or RDS) data · same AgentCore memory |
 
 ::::
 

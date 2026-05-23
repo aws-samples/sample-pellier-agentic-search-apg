@@ -49,13 +49,38 @@ weight: 10
 
 - **Code Editor (code-server)** — VS Code in the browser. Same
   keybindings, same extensions API.
-- **Aurora MCP Server** — a sidebar panel that lets you browse the
-  `pellier.product_catalog` schema and run SQL without leaving the
-  IDE.
+- **Aurora MCP Server** — a sidebar panel that exposes
+  `pellier.product_catalog`, `pellier.warehouse_inventory`, and the
+  rest of the schema as **MCP tools**. You'll click into it during
+  [Act III · MCP and Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) to
+  see the same tool contract the agents use, but driven by the IDE.
+  The MCP server config lives at `pellier/config/mcp.json` (auto-generated
+  by bootstrap).
 - **Amazon Q** — AI-assisted code completion. Optional; the lab
   doesn't depend on it.
 - **Auto-reload** — every save to a `.py` file restarts the backend
   in about a second. No manual restart commands.
+
+::::
+
+::::expand{header="Aurora vs Amazon RDS for PostgreSQL — which one am I using?"}
+
+This Builder's Session uses **Aurora PostgreSQL Serverless v2** because
+the workshop pool needs elastic ACU scaling for parallel attendees. In
+your own stack, **Amazon RDS for PostgreSQL** runs the exact same
+pgvector primitives — `CREATE EXTENSION vector`, `vector(1024)` columns,
+HNSW indexes, the `<=>` operator. Nothing in this lab is Aurora-specific.
+
+| | Aurora PostgreSQL | RDS for PostgreSQL |
+|---|---|---|
+| Scaling | ACU-based (Serverless v2), seconds | Instance-class step (`db.r7g.xlarge` → `db.r7g.2xlarge`) |
+| Failover | < 30 s typical | Multi-AZ failover ~60–120 s |
+| Storage | Decoupled, auto-grow to 128 TiB | EBS, max 64 TiB |
+| pgvector | 0.8.0 (engine 17.x) | 0.8.0 (engine 17.x) |
+| Cost shape | Pay per ACU-second | Pay per instance-hour |
+| Best for | Bursty workshop / spiky catalogs | Predictable single-AZ, smaller catalogs |
+
+The retrieval, reranking, and agent code in this lab is **pgvector + Postgres**, not Aurora-specific.
 
 ::::
 

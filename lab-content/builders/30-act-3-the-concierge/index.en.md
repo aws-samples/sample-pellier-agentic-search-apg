@@ -3,21 +3,23 @@ title: "Act III · The Concierge"
 weight: 30
 ---
 
-*Operator view. ~4 minutes — no code, one closing read.*
+*Operator view. ~7 minutes — no code, two closing reads.*
 
 :::alert{type="info" header="Act III · The Concierge"}
-**Time:** ~4 min  ·  **Exercises:** 0 (operator-grade read)  ·  **Surfaces:** Atelier → Routing · `/api/chat/stream` · `/api/agent/chat`
+**Time:** ~7 min  ·  **Exercises:** 0 (operator-grade read)  ·  **Surfaces:** Atelier → Routing · `/api/chat/stream` · `/api/agent/chat` · IDE → Aurora MCP
 
 Every boutique needs a concierge — someone who, before the customer
 ever sees a hesitation, decides which specialist will answer this
 turn. **Act I built the agent. Act II proved it in production. Act III
-is the concierge's read of the room.**
+is the concierge's read of the room — and the takeaway slide on how
+this maps to MCP and Bedrock Knowledge Bases for your own stack.**
 
 Marco's restock question is not Anna's gift question; Anna's gift
 question is not Theo's returns question. Behind the calm of the
 storefront, a **dispatcher** is reading intent and handing off — fast,
 cheap, auditable. You step into the Atelier and watch the routing
-decision happen in real time.
+decision happen in real time, then close with the MCP / Knowledge
+Bases comparison.
 :::
 
 A boutique with five specialists has a quiet decision to make on
@@ -31,14 +33,17 @@ minutes, no code, and the loop closes:
 
 ---
 
-## The arc · ~4 minutes
+## The arc · ~7 minutes
 
 ```text
-   Routing patterns
-   ~4 min
-   read the dispatcher live, then the two alternates
-   ▲
-   operator view — closes the loop opened in Setup
+   Routing patterns       MCP + Knowledge Bases
+   ~4 min                 ~3 min
+   read the dispatcher    open Aurora MCP sidebar,
+   live, then the two     compare to Bedrock
+   alternates             Knowledge Bases
+   ▲                      ▲
+   operator view          portability — what this
+                          maps to in your stack
 ```
 
 ---
@@ -84,6 +89,7 @@ the Atelier:
 | Page | Activity | Time |
 |---|---|---|
 | 01 · [Routing patterns](01-routing-patterns/) | Read the live dispatcher, the two-routers seam, and the decision tree | ~4 min |
+| 02 · [MCP and Bedrock Knowledge Bases](02-mcp-and-knowledge-bases/) | Open Aurora MCP in the IDE, run a query, compare to managed Knowledge Bases | ~3 min |
 
 ---
 

@@ -78,7 +78,8 @@ Use this mental model in reviews:
 | **Agents-as-Tools** | Atelier mode strip / `/api/agent/chat` in-process | Teaching multi-agent routing; Haiku orchestrator + specialists as `@tool` |
 | **Graph** | Atelier telemetry | Multi-step workflows with explicit edges |
 | **AgentCore Runtime** | `/api/agent/chat` + `USE_AGENTCORE_RUNTIME=true` | Same orchestrator, managed microVM, ops-owned deploy |
-| **Gateway semantic search** | Tools discovery card | Hundreds of tools — embed descriptions, don't stuff every tool in prompt |
+| **Gateway semantic search (MCP)** | Tools discovery card | Hundreds of tools — embed descriptions, don't stuff every tool in prompt; Gateway is the managed-host MCP server you reach across accounts |
+| **Bedrock Knowledge Bases** | Managed RAG | Document-heavy corpora (PDFs, S3 buckets) where you don't want to own ingestion or chunking — see [§02](../02-mcp-and-knowledge-bases/) |
 
 **Industry upgrade path** when keywords aren't enough:
 
@@ -120,6 +121,11 @@ vs Opus editorial turns ~1.0–1.4 s — same architecture lesson, two surfaces.
   memory → managed Runtime is the full Pellier path you've now
   walked end-to-end.
 
-:::alert{type="success" header="That's the workshop"}
-[Optional SQL appendix →](/90-appendix/02-shipment-sql/) · [When things misbehave →](/90-appendix/03-when-things-misbehave/)
+:::alert{type="success" header="One closing read — MCP and Knowledge Bases"}
+The concierge view is one half of "what this maps to in your stack."
+The other half is the **MCP / Bedrock Knowledge Bases comparison** —
+how the same Aurora pgvector substrate reaches your IDE today and
+your managed RAG path tomorrow.
+
+[MCP and Bedrock Knowledge Bases →](../02-mcp-and-knowledge-bases/)
 :::

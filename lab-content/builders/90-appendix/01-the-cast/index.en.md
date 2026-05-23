@@ -36,10 +36,15 @@ Haiku at 0.1 because price language tolerates almost no creativity.
 Experience Guide is Opus at 0.2 because a return needs warmth without
 drift.
 
-`pellier/backend/config.py` reads `BEDROCK_OPUS_MODEL` and
-`BEDROCK_HAIKU_MODEL` from `.env`. The legacy `BEDROCK_SONNET_MODEL`
-env name still resolves to Opus by default — you may see it in older
-code paths.
+`pellier/backend/config.py` reads these Bedrock inference profiles:
+
+- `BEDROCK_OPUS_MODEL=global.anthropic.claude-opus-4-6-v1`
+- `BEDROCK_HAIKU_MODEL=global.anthropic.claude-haiku-4-5-20251001-v1:0`
+
+The legacy `BEDROCK_SONNET_MODEL` env name still resolves to Opus by
+default — you may see it in older code paths. **The model names will
+shift over time; the temperature-vs-task pattern is the architectural
+choice that survives.**
 
 ::::
 
@@ -103,7 +108,9 @@ versus Anna versus Theo without you maintaining three Curators.
 
 Each persona ships with **10 products** carrying real Cohere Embed
 v4 1024-dim embeddings — 40 products total in
-`pellier.product_catalog`, HNSW-indexed.
+`pellier.product_catalog`, HNSW-indexed. The same column shape and
+HNSW index work unchanged on **Amazon RDS for PostgreSQL** — pgvector
+behaves identically on both engines.
 
 ---
 
@@ -118,7 +125,9 @@ Customer turn (Marco / Anna / Theo / Fresh)
         ↓ (Curator path also loads one of the three skills)
    One or more @tool calls (cosine-discovered from the registry)
         ↓
-   Aurora pgvector + warehouse + Cohere Rerank
+   pgvector retrieve (Aurora or RDS for PostgreSQL) + Postgres FTS + Cohere Rerank
+        ↓
+   Claude Opus / Haiku grounds the reply on those rows
         ↓
    Editorial reply + product cards + trace chips
 ```

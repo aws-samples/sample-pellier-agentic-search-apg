@@ -7,7 +7,7 @@ weight: 30
 **Setup.** About one minute. Confirm the lights are on before Marco walks in.
 :::
 
-Run these four checks in your Code Editor terminal. If any one
+Run these five checks in your Code Editor terminal. If any one
 fails, jump to [When things misbehave](/90-appendix/03-when-things-misbehave/)
 and rejoin the workshop flow when you're back.
 
@@ -52,7 +52,28 @@ Expect a non-empty `AGENTCORE_MEMORY_ID`. If `AGENTCORE_RUNTIME_ENDPOINT`
 is also present, Runtime is launched too — that's a bonus, not a
 requirement.
 
-## All four green
+## 5 · Bedrock model access
+
+```bash
+python3 scripts/check_model_access.py
+```
+
+Verifies all four Bedrock models the lab calls are reachable from this
+account and region:
+
+| Model | Used for |
+|---|---|
+| `global.anthropic.claude-opus-4-6-v1` | Editorial specialists (Style Advisor, Curator, Experience Guide) |
+| `global.anthropic.claude-haiku-4-5-20251001-v1:0` | Reporting specialists (Value Analyst, Stock Keeper) |
+| `us.cohere.embed-v4:0` | 1024-dim catalog embeddings |
+| `cohere.rerank-v3-5:0` | Cross-encoder rerank on hybrid retrieval |
+
+**This is the most common live failure** — Bedrock model access is
+account-and-region scoped. If a row reports `AccessDeniedException`,
+the [When things misbehave](/90-appendix/03-when-things-misbehave/)
+runbook has the one-click console step to enable it.
+
+## All five green
 
 | Check | Expected |
 | --- | --- |
@@ -60,6 +81,7 @@ requirement.
 | Catalog count | 40 |
 | Warehouse count | ~120 |
 | `AGENTCORE_MEMORY_ID` | Non-empty |
+| Bedrock model access | All four green |
 
 :::alert{type="success" header="You're in"}
 Next: meet Marco and watch where the system breaks.

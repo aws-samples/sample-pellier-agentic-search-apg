@@ -93,6 +93,50 @@ taste still lives in Aurora pgvector (Atelier **Memory** orbit).
 
 ---
 
+## 5 · See long-term memory (Aurora) — the second memory system
+
+Where STM is *transient turns*, **long-term memory is durable taste** —
+the customer's prior orders, preferences, and episodic facts that
+should outlive any single chat. In Pellier those live in two
+Aurora-backed tables, queryable from the same `psql` you've been
+running:
+
+```bash
+psql <<'SQL'
+-- Persona-level preferences (the strings the agents read at turn start)
+SELECT id, name, preferences_summary
+  FROM pellier.customers
+ WHERE id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO');
+
+-- Episodic facts the memory surface returns (most recent first)
+SELECT customer_id, ts_offset_days, summary_text
+  FROM pellier.customer_episodic_seed
+ WHERE customer_id = 'CUST-MARCO'
+ ORDER BY ts_offset_days DESC
+ LIMIT 5;
+SQL
+```
+
+**Read the rows out loud at your table.** Marco's "prefers natural
+fibers, oat tones, warm neutrals" is the literal context that makes
+Turn 1 (*"linen for Goa"*) feel personalized — not a model fine-tune,
+just a row.
+
+Where do **vector embeddings** of taste live? In the same
+`pellier.product_catalog.embedding` column you've already inspected:
+the agents read a customer's order history, then run pgvector cosine
+queries against the catalog anchored on those purchases. **One vector
+column powers both product search and taste personalization** — that
+is the design payoff of putting the catalog in pgvector.
+
+| Memory | Where | Bounded? | Survives session? | TTL |
+|---|---|---|---|---|
+| **STM (turns)** | AgentCore Memory | Yes (30-day) | No (per-session) | 30 days |
+| **Long-term taste** | Aurora `pellier.customers` + `pellier.customer_episodic_seed` | No | Yes | Until you delete |
+| **Catalog vectors** | Aurora `pellier.product_catalog.embedding` | No | Yes | Until you re-embed |
+
+---
+
 ## See in the Atelier
 
 Click **Memory** in the sidebar. The orbit is illustrative; the API you just

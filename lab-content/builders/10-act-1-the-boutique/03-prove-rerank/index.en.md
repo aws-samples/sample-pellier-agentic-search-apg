@@ -4,12 +4,13 @@ weight: 30
 ---
 
 :::alert{type="info"}
-**Time:** ~9 min  ·  **Page:** 3 of 3 in Act I  ·  **Exercise 2** lives in section 5
+**Time:** ~9 min  ·  **Page:** 3 of 3 in Act I  ·  **Exercises on this page:** 0 (analytical)
 
-You'll run Anna's exact Boutique turn through three retrieval strategies,
-decide per-query-class whether the reranker paid for itself, then **edit
-one rule in Anna's `the-gift-table` skill (Exercise 2)** and prove with
-SQL that your edit landed on the real retrieval path.
+You'll run Anna's exact Boutique turn through three retrieval strategies
+and decide per-query-class whether the reranker paid for itself. No
+new code is required — this is the *analyst's call* that closes Act I.
+A short optional skill-edit lives at the bottom for tables with time
+to spare.
 :::
 
 **You'll learn to:**
@@ -21,8 +22,6 @@ SQL that your edit landed on the real retrieval path.
    differently.
 3. Name the production pgvector knobs (`hnsw.iterative_scan`,
    `halfvec`, `binary_quantize(...)`) without yet exercising them.
-4. **Edit a skill rule and prove it landed** with a `SELECT` against
-   `pellier.tool_uses` — no fixture, no restart.
 
 ---
 
@@ -30,7 +29,10 @@ SQL that your edit landed on the real retrieval path.
 
 Marco's build task proved the agent can reach live warehouse data.
 Anna's exercise asks a different question: **did the more expensive
-retrieval path actually improve the answer?**
+retrieval path actually improve the answer?** This is the *retrieval*
+half of RAG, instrumented — the Curator's editorial reply is the
+*generation* half, grounded in whichever ordered list of rows you
+choose to ship.
 
 Anna's Curator uses `find_pieces_hybrid`:
 
@@ -103,6 +105,54 @@ footprint, and `binary_quantize(...)` for compact coarse retrieval. This is
 not a fourth exercise — the live catalog is intentionally small — but it is
 the performance conversation you have before taking the pattern to production.
 
+::::expand{header="Run one production tuning knob yourself (60 sec, optional)"}
+
+Even on 40 rows, the EXPLAIN plan shows the index path. Paste this in
+`psql`:
+
+```sql
+-- 1. Baseline plan with the HNSW index
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name
+  FROM pellier.product_catalog
+ ORDER BY embedding <=> (
+     SELECT embedding FROM pellier.product_catalog
+      WHERE name = 'Pellier Linen Shirt'
+   )
+ LIMIT 5;
+
+-- 2. Turn on iterative scan — protects recall when you ALSO filter
+--    on metadata (e.g. category = 'shirts' AND price < 200).
+SET hnsw.iterative_scan = strict_order;
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name, price
+  FROM pellier.product_catalog
+ WHERE price < 200
+ ORDER BY embedding <=> (
+     SELECT embedding FROM pellier.product_catalog
+      WHERE name = 'Pellier Linen Shirt'
+   )
+ LIMIT 5;
+
+RESET hnsw.iterative_scan;
+```
+
+Plan #1 should show `Index Scan using product_catalog_embedding_hnsw`.
+Plan #2 with the `WHERE price < 200` filter is where `iterative_scan`
+earns its keep at scale: it keeps walking the HNSW graph until it
+finds enough rows that satisfy your filter, instead of cutting the
+recall short. **At 40 rows it's invisible; at 4M rows it's the
+difference between empty result sets and correct ones.**
+
+`halfvec(1024)` (16-bit storage, ~50% smaller index) and
+`binary_quantize(embedding)` (1-bit, used as a coarse first pass)
+are the next two knobs — read them in the [pgvector
+README](https://github.com/pgvector/pgvector#performance), not in
+the room.
+
+::::
+
 ---
 
 ## 3 · Decide if rerank earned it
@@ -142,14 +192,15 @@ usually pays for itself.
 
 ---
 
-## 5 · Exercise 2 · Customize Anna's skill, prove with SQL
+## 5 · Optional builder extension — customize Anna's skill, prove with SQL
 
-:::alert{type="warning" header="Exercise 2 of 2 — don't skip this"}
-This is the **second of the two coding moments** in Act I. About
-6–8 minutes. You'll edit one rule in `skills/the-gift-table/SKILL.md`,
+:::alert{type="info" header="Optional · only if your table has time"}
+This is **not a required exercise** — Act II's exercise (one
+`logger.info(...)` line on the managed Runtime path) is the second
+build moment. If you finished the analyst's call early, this 5–6 min
+extension lets you edit one rule in `skills/the-gift-table/SKILL.md`,
 re-run Anna's anchor query, and prove with a `SELECT` against
-`pellier.tool_uses` that your edit is live on the real retrieval path —
-not a fixture, not a cache.
+`pellier.tool_uses` that your edit landed on the real retrieval path.
 :::
 
 ### Edit one skill rule
@@ -220,9 +271,10 @@ live and grounded in the same retrieval pipeline.
 
 :::alert{type="success" header="Act II · The Ledger"}
 You've wired Marco's live tool and measured Anna's retrieval tradeoff.
-Next, switch from building to reading the platform's ledger around
-that build: short-term memory, Runtime, and the concierge that routes
-every turn.
+Next, switch from in-process Strands to the **managed AgentCore
+Runtime** — and add **Exercise 2**: a one-line `logger.info(...)`
+observability hook so every `InvokeRuntime` call shows up in
+`uvicorn.log`.
 
 [Act II · AgentCore Memory (STM) →](/20-act-2-the-ledger/01-agentcore-memory-stm/)
 :::

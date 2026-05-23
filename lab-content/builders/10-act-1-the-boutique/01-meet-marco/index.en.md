@@ -126,6 +126,31 @@ not `floor_check`.
 | ✗ **Turn 4** | **`floor_check` stub** — graceful non-answer (your build) |
 | ✓ Turn 5 | `style_match` · Curator |
 
+::::expand{header="Where the reasoning shows (agentic, not just retrieval)"}
+
+The trace chips show **what** the agent did. The reasoning — the
+*why* — is one click deeper. Expand **Under the hood** below any
+reply and you'll see the dispatcher trace:
+
+```text
+classify_triage → not_meta
+classify_intent → "warehouse" keyword → specialist=stock
+SkillRouter     → no persona overlay (Marco · Stock Keeper)
+Stock Keeper    → tool=floor_check  args={"product_query": "Hadley shirt"}
+                  → result=stub envelope
+                  → reply: graceful non-answer
+```
+
+That trace is the **agentic loop** the abstract names: *reasoning
+(intent classification) → tool selection (`floor_check`) → tool
+execution (Aurora warehouse) → grounded reply.* The dispatcher isn't
+asking an LLM "which specialist?" — it's running keyword rules
+(~60–120 ms, deterministic). The *agent* reasoning happens inside
+the specialist when it picks **which tool** to call from its set.
+You'll see this distinction again in [Act III · Routing](/30-act-3-the-concierge/01-routing-patterns/).
+
+::::
+
 ## What you've learned
 
 - A Pellier specialist is **six things, not one prompt**: model,
