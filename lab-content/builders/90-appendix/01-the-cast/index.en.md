@@ -6,10 +6,11 @@ weight: 10
 *A one-page reference. Skim before the session, return mid-flight when
 you can't remember which specialist owns which tool.*
 
-Pellier is **five specialists, twelve tools, three skills, three
-personas, plus a returning-customer-as-baseline (Fresh).** The names
-are intentional — they're not a generic "inventory agent" or "pricing
-agent" — and the cast list below is the canonical mapping.
+Pellier is **five specialists, twelve tools, three skills, and three
+personas.** The signed-out state is the editorial baseline — a hero
+state, not a fourth persona. The names are intentional — they're not
+a generic "inventory agent" or "pricing agent" — and the cast list
+below is the canonical mapping.
 
 ---
 
@@ -97,27 +98,31 @@ versus Anna versus Theo without you maintaining three Curators.
 
 ---
 
-## The three personas (plus Fresh)
+## The three personas
 
 | Persona | Profile | Signature piece | Anchor query |
 |---|---|---|---|
 | **Marco** | Natural fibers, travel, linen | Italian Linen Camp Shirt | *"What linen do you have for 10 days in Goa?"* |
 | **Anna** | Gifts, milestones, candles | Beeswax Taper Candles | *"A milestone gift for a new homeowner"* |
 | **Theo** | Slow craft, ceramics, ritual | Stoneware Pour-Over Set | *"Something to slow my morning ritual"* |
-| **Fresh** | Editorial baseline (signed-out) | Nocturne Leather Weekender | The hero state with no prior context |
+
+The **signed-out state** is the editorial baseline — a 10-piece grid
+anchored by the Nocturne Leather Weekender, no prior context, no
+profile embedding. It is the hero state, not a fourth persona.
 
 Each persona ships with **10 products** carrying real Cohere Embed
 v4 1024-dim embeddings — 40 products total in
-`pellier.product_catalog`, HNSW-indexed. The same column shape and
-HNSW index work unchanged on **Amazon RDS for PostgreSQL** — pgvector
-behaves identically on both engines.
+`pellier.product_catalog` (10 signed-out baseline + 10 per persona),
+HNSW-indexed. The same column shape and HNSW index work unchanged on
+**Amazon RDS for PostgreSQL** — pgvector behaves identically on both
+engines.
 
 ---
 
 ## How they fit together
 
 ```text
-Customer turn (Marco / Anna / Theo / Fresh)
+Customer turn (Marco / Anna / Theo, or signed-out baseline)
         ↓
    Dispatcher (services/chat.py — keyword + intent classification)
         ↓

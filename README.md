@@ -65,13 +65,16 @@ editorial cards, chat greeting — reshapes immediately.
 | *Marco*  | Natural fibers, travel, linen    | Italian Linen Camp Shirt     |
 | *Anna*   | Gifts, milestones, candles       | Beeswax Taper Candles        |
 | *Theo*   | Slow craft, ceramics, ritual     | Stoneware Pour-Over Set      |
-| *Fresh*  | Editorial baseline (signed out)  | Nocturne Leather Weekender   |
+
+The **signed-out state** is the editorial baseline — a 10-piece grid
+anchored by the Nocturne Leather Weekender, no prior context, no
+profile embedding. It is the hero state, not a fourth persona.
 
 Each persona ships with 10 products carrying real Cohere Embed v4
 1024-dim embeddings, generated at seed time by
 [`scripts/seed_boutique_catalog.py`](scripts/seed_boutique_catalog.py).
-40 products total; HNSW-indexed vector column on the
-`pellier.product_catalog` table.
+40 products total (10 signed-out baseline + 10 per persona);
+HNSW-indexed vector column on the `pellier.product_catalog` table.
 
 ---
 
