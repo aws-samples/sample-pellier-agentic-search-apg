@@ -1,4 +1,4 @@
-# Pellier — Agentic AI-Powered Search with Amazon Aurora & Bedrock AgentCore
+# Pellier — Agentic AI-Powered Search with Amazon Aurora, Amazon RDS for PostgreSQL & Bedrock AgentCore
 
 <div align="center">
 
@@ -19,22 +19,36 @@
 
 **Pellier** is a small editorial boutique with one quiet promise — a
 shopper asks for something in their own words, and the right pieces
-find them. Behind the storefront sits a multi-agent system that reads
-live inventory, remembers your taste, cites every source, and hands
-off to a human stylist when it should.
+find them. Behind the storefront sits an agentic Retrieval-Augmented
+Generation (RAG) system that reads live inventory, remembers your
+taste, cites every source, and hands off to a human stylist when it
+should.
 
 The application has two surfaces:
 
 - **Boutique** (`/`) — the customer-facing storefront. Editorial
-  photograph, AI search bar, voice input, persona-aware
-  recommendations, conversational chat drawer.
+  photograph, AI search bar, persona-aware recommendations,
+  conversational chat drawer.
 - **Atelier** (`/atelier`) — the operator's observatory. Every agent
-  decision, tool call, memory read, and routing hop in editorial
-  detail. Same agent, different lens.
+  decision, tool call, memory read, retrieval comparison, and
+  routing hop in editorial detail. Same agent, different lens.
 
 The two surfaces share design tokens, presence pill, trace chips, and
 a typed agent vocabulary so an attendee crossing between them sees
 the same atoms in both places.
+
+### What it demonstrates
+
+Every claim in the [Builder's Session abstract](lab-content/builders/index.en.md)
+maps to something runnable in this repo:
+
+| Claim | Where it lives |
+|---|---|
+| **RAG** with embeddings on **Aurora PostgreSQL & RDS for PostgreSQL** | `pellier.product_catalog.embedding vector(1024)` · pgvector 0.8.0 · HNSW index · `<=>` cosine operator |
+| **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 12 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
+| **Model Context Protocol (MCP)** | Aurora MCP server in IDE sidebar · `pellier/config/mcp.json` · AgentCore Gateway as managed counterpart |
+| **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped STM via Bedrock AgentCore Memory |
+| **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` |
 
 ---
 
@@ -44,8 +58,7 @@ The signed-out state is the editorial baseline. Sign in as one of the
 three returning customers and the entire storefront — hero
 photograph, suggestion pills, featured product, weekend edit copy,
 curated grid (10 exclusive products per persona, zero overlap),
-editorial cards, chat greeting, voice search hints — reshapes
-immediately.
+editorial cards, chat greeting — reshapes immediately.
 
 | Persona  | Profile                          | Signature piece              |
 | -------- | -------------------------------- | ---------------------------- |
@@ -118,15 +131,25 @@ package it for live events:
 
 | Format                          | Duration | Coding modules | What participants build                                       |
 | ------------------------------- | -------- | -------------- | ------------------------------------------------------------- |
-| **Builder's Session** (DC Summit)   | 60 min (45 hands-on) | 1 exercise | `floor_check` tool + AgentCore STM verify + Runtime invoke (pre-launched) |
+| **Builder's Session** (DC Summit)   | 60 min (50 hands-on) | 2 exercises | `floor_check` tool body (Act I) + one `logger.info` observability hook on the managed Runtime path (Act II) |
 | **Workshop** (re:Invent)        | 120 min  | 9 challenges   | Full stack — semantic search, agents, AgentCore production patterns         |
 
 The 60-min Builder's Session source of truth lives in
-`lab-content/builders/`. The 120-min Workshop bundle lives in
-`lab-content/workshop/`. The `lab-content/builders/ws-repo/` folder is
-kept only as a reference snapshot of the Workshop Studio repo shape;
-make canonical edits in `lab-content/builders/` and
-`lab-content/builders/static/`.
+[`lab-content/builders/`](lab-content/builders/). It is structured as:
+
+| Section | Time | What attendees do |
+|---|---|---|
+| Framing | 3 min | Title slide + RAG-with-agents shape |
+| [Setup](lab-content/builders/00-setup/) | 7 min | Open IDE, meet Boutique + Atelier, 5-check pre-flight, optional [pgvector primer](lab-content/builders/00-setup/04-pgvector-primer/) |
+| [Act I · The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
+| [Act II · The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
+| [Act III · The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → open Aurora MCP and compare to Bedrock Knowledge Bases |
+| Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
+
+The 120-min Workshop bundle lives in `lab-content/workshop/`. The
+`lab-content/builders/ws-repo/` folder is kept only as a reference
+snapshot of the Workshop Studio repo shape; make canonical edits in
+`lab-content/builders/` and `lab-content/builders/static/`.
 
 ---
 
@@ -181,11 +204,14 @@ shape voice and handling without changing product selection:
 
 | Layer            | Technology                                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Database         | Aurora PostgreSQL Serverless v2 (engine 17.7) · pgvector 0.8.0 · HNSW index · 1024-dim Cohere Embed v4 vectors          |
-| Models           | Claude Opus 4.6 · Claude Haiku 4.5 (Bedrock inference profiles) · Cohere Embed v4 · Cohere Rerank v3.5                               |
-| Voice            | Amazon Transcribe Streaming over WebSocket — interim + final transcripts                                                |
-| Agent infra      | Bedrock AgentCore — Runtime · Memory (STM + LTM) · Gateway (MCP) · Identity                                              |
+| Database         | **Aurora PostgreSQL Serverless v2** (engine 17.7) in this lab; same pgvector primitives run unchanged on **Amazon RDS for PostgreSQL** — choose Aurora for elastic ACU scaling, RDS for predictable instance-class workloads |
+| Vector retrieval | pgvector 0.8.0 · `vector(1024)` column · HNSW (m=16, ef_construction=64, `vector_cosine_ops`) · `<=>` cosine operator |
+| Lexical retrieval | Postgres FTS — `tsvector` + GIN + `ts_rank_cd` (no native BM25; `pg_trgm` for fuzzy match) |
+| Hybrid merge     | Reciprocal Rank Fusion (RRF) — fuses pgvector + FTS rank lists without normalizing raw scores |
+| Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim) · Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) — all via Bedrock inference profiles |
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
+| Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP) · Identity     |
+| MCP              | Aurora MCP server in IDE sidebar exposes `pellier.*` tables as MCP tools; `pellier/config/mcp.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI · Python 3.13 · psycopg3 · boto3 · SSE streaming                                                                 |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
 | Editorial system | Fraunces Variable (display) · Inter (body) · JetBrains Mono (code) · cream / espresso / terracotta palette               |
@@ -225,6 +251,11 @@ sample-pellier-agentic-search-apg/
     ├── workshop/                            120-min re:Invent bundle
     │   └── static/                          Workshop CloudFormation source
     └── builders/                            60-min DC Summit bundle
+        ├── 00-setup/                        IDE + pre-flight + pgvector primer
+        ├── 10-act-1-the-boutique/           Wire floor_check + prove rerank
+        ├── 20-act-2-the-ledger/             AgentCore Memory + Runtime
+        ├── 30-act-3-the-concierge/          Routing + MCP + Knowledge Bases
+        ├── 90-appendix/                     Cast · SQL · runbook · your-stack
         ├── static/                          Builder CloudFormation source
         └── ws-repo/                         Reference snapshot only
 ```
@@ -234,8 +265,10 @@ sample-pellier-agentic-search-apg/
 ## Resources
 
 - [Aurora PostgreSQL with pgvector](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.VectorDB.html)
+- [Amazon RDS for PostgreSQL with pgvector](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html#PostgreSQL.Concepts.General.FeatureSupport.Extensions)
 - [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/)
-- [Amazon Transcribe Streaming](https://docs.aws.amazon.com/transcribe/latest/dg/streaming.html)
+- [Amazon Bedrock Knowledge Bases (Aurora as vector store)](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-setup-rds.html)
+- [Model Context Protocol (MCP) specification](https://modelcontextprotocol.io/)
 - [Strands Agents SDK](https://strandsagents.com/latest/)
 - [pgvector 0.8.0 performance on Aurora](https://aws.amazon.com/blogs/database/supercharging-vector-search-performance-and-relevance-with-pgvector-0-8-0-on-amazon-aurora-postgresql/)
 
