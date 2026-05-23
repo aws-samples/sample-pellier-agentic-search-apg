@@ -43,12 +43,14 @@ const PERSONA_HERO_IMAGES: Record<string, string> = {
 // something unusual about the agent (not table-stakes retail). Retail
 // boilerplate (shipping, free-over-$150) lives in the footer service
 // strip; this strip stays focused on the five agent capabilities the
-// Atelier actually teaches and a participant can verify:
-//   - Reads live inventory in Aurora       \u2192 Stock Keeper / floor_check (tools)
-//   - Remembers your taste across sessions \u2192 AgentCore Memory (STM + LTM)
-//   - Shows every tool and skill it used   \u2192 Under the hood trace chips (specialist · skill · tool)
-//   - Refuses requests outside policy      \u2192 Cedar policies + tool_audit (write path)
-//   - Hands off to a human stylist         \u2192 escalate_to_stylist tool (escape hatch)
+// Atelier actually teaches and a participant can verify. Phrasing is
+// terse on purpose so all five fit in roughly two lines on standard
+// viewports without wrapping individual pills:
+//   - Reads live inventory       \u2192 Stock Keeper / floor_check (tools)
+//   - Remembers your taste       \u2192 AgentCore Memory (STM + LTM)
+//   - Cites tools and skills     \u2192 Under the hood trace chips
+//   - Refuses out-of-policy asks \u2192 Cedar policies + tool_audit (write path)
+//   - Hands off to a stylist     \u2192 escalate_to_stylist tool (escape hatch)
 interface CapabilityItem {
   /** Bold lead clause \u2014 agent capability. */
   lead: string
@@ -56,11 +58,11 @@ interface CapabilityItem {
   trail?: string
 }
 const TRUST_ITEMS: CapabilityItem[] = [
-  { lead: 'Reads live inventory in Aurora' },
-  { lead: 'Remembers your taste across sessions' },
-  { lead: 'Shows every tool and skill it used' },
-  { lead: 'Refuses requests outside policy' },
-  { lead: 'Hands off to a human stylist when it should' },
+  { lead: 'Reads live inventory' },
+  { lead: 'Remembers your taste' },
+  { lead: 'Cites tools and skills' },
+  { lead: 'Refuses out-of-policy asks' },
+  { lead: 'Hands off to a stylist' },
 ]
 
 // Visual treatment per because-chip kind. Same dashed-italic shell, just

@@ -4,7 +4,7 @@
     "name": "Style Advisor",
     "role": "Interprets intent, searches the catalog, and curates options. The lead agent.",
     "status": "shipped",
-    "tools": ["find_pieces", "explore_collection", "side_by_side", "style_match"],
+    "tools": ["find_pieces", "explore_collection", "side_by_side", "style_match", "escalate_to_stylist"],
     "model": "Claude Opus 4.6",
     "temperature": 0.2
   },
@@ -41,7 +41,7 @@
     "name": "Experience Guide",
     "role": "Returns, care instructions, post-purchase support.",
     "status": "shipped",
-    "tools": ["returns_and_care", "find_pieces"],
+    "tools": ["returns_and_care", "find_pieces", "process_return", "escalate_to_stylist"],
     "model": "Claude Opus 4.6",
     "temperature": 0.2
   }

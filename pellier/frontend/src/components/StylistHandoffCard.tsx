@@ -15,7 +15,7 @@
  * escape hatch every agent needs but most demos skip.
  */
 import { motion } from 'framer-motion'
-import { ArrowUpRight, UserRound } from 'lucide-react'
+import { ArrowUpRight, User } from 'lucide-react'
 
 import type { StylistHandoff } from '../hooks/useAgentChat'
 
@@ -74,7 +74,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
             color: 'rgba(196, 69, 54, 0.98)',
           }}
         >
-          <UserRound size={13} strokeWidth={1.75} />
+          <User size={13} strokeWidth={1.75} />
         </span>
         <span
           style={{

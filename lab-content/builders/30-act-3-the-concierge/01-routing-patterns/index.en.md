@@ -71,6 +71,44 @@ Use this mental model in reviews:
 
 ---
 
+## When the agent shouldn't try to answer
+
+Routing decides **which** specialist runs. The harder design decision is
+when **none** of them should — when the honest answer is "this needs a
+human."
+
+Pellier ships an `escalate_to_stylist` tool wired into Style Advisor and
+Experience Guide. It returns a structured handoff payload that the chat
+renders as a contact card; no DB write, no real human on the other end
+in the workshop. The system prompts pin its use to three cases:
+
+- **Style Advisor**: nuanced personal-style coaching beyond the
+  catalog's 40 pieces — body-image or pregnancy fit, cultural dressing
+  norms the agent doesn't know, shopper distress.
+- **Experience Guide**: returns the Cedar policy can't process —
+  damaged-in-transit past the window, special-order pieces,
+  sentimental exceptions, or anything `process_return` would silently
+  drop.
+- **Either**: catalog misses where another `find_pieces` call won't
+  help.
+
+Try it in the Boutique chat as Marco:
+
+```text
+What should I wear to a Bengali wedding as the groom's cousin?
+```
+
+`escalate_to_stylist` fires, the chat replaces the product grid with
+the stylist handoff card, and the `Hands off to a human stylist`
+capability claim on the hero strip is now backed by something real.
+
+**The teaching point:** every agent needs an escape hatch — a tool the
+prompt explicitly permits the model to call when no other tool would
+be honest. Most demos skip this; it's the single cheapest credibility
+move an agent can make.
+
+---
+
 ## When to use the other patterns
 
 | Pattern | Where | Use when |
@@ -120,6 +158,10 @@ vs Opus editorial turns ~1.0–1.4 s — same architecture lesson, two surfaces.
 - **The loop closes here.** Question → vector search → specialist →
   memory → managed Runtime is the full Pellier path you've now
   walked end-to-end.
+- **Every agent needs an escape hatch.** `escalate_to_stylist` makes
+  the hero strip's *Hands off to a human stylist when it should*
+  claim verifiable. The capability isn't the email address — it's the
+  agent knowing when no tool would be honest.
 
 :::alert{type="success" header="One closing read — MCP and Knowledge Bases"}
 The concierge view is one half of "what this maps to in your stack."
