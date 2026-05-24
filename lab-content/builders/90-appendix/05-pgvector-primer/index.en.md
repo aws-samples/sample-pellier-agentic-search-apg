@@ -1,10 +1,10 @@
 ---
-title: "pgvector primer (optional)"
-weight: 40
+title: "pgvector primer"
+weight: 50
 ---
 
 :::alert{type="info"}
-**Time:** ~2 min  ·  **Optional** — skip if you've shipped pgvector
+**Time:** ~2 min. **Optional** — skip if you've shipped pgvector
 before. New to embeddings? This is the 60-second SQL you'll be glad
 you saw before Marco walks in.
 :::
@@ -20,7 +20,7 @@ once so you've seen them with your own eyes.
 
 ---
 
-## 1 · The column
+## 1. The column
 
 ```bash
 psql -c "\d pellier.product_catalog" | grep -E "embedding|vector"
@@ -39,7 +39,7 @@ an index in place.
 
 ---
 
-## 2 · The operator
+## 2. The operator
 
 `<=>` is cosine distance. Smaller is closer. Run a real query against
 Marco's signature piece:
@@ -66,7 +66,7 @@ on Turn 2.
 
 ---
 
-## 3 · The index
+## 3. The index
 
 ```bash
 psql -c "\d+ pellier.product_catalog" | grep -A1 hnsw
@@ -99,5 +99,5 @@ retrieval). Those land in the [Prove rerank](/10-act-1-the-boutique/03-prove-rer
 :::alert{type="success"}
 Next: meet Marco and watch where the stub breaks.
 
-[Act I · Meet Marco →](/10-act-1-the-boutique/01-meet-marco/)
+[Act I: Meet Marco →](/10-act-1-the-boutique/01-meet-marco/)
 :::

@@ -143,7 +143,7 @@ Knowledge Bases is the faster path.
 ::::expand{header="The Aurora pgvector substrate is identical"}
 
 Knowledge Bases on Aurora **uses the same `vector(1024)` column type
-and HNSW index** you saw in [the pgvector primer](/00-setup/04-pgvector-primer/).
+and HNSW index** you saw in [the pgvector primer](/90-appendix/05-pgvector-primer/).
 The difference is which side of the AWS line owns the lifecycle:
 
 - **DIY (this lab):** you `CREATE TABLE`, you embed, you query, you

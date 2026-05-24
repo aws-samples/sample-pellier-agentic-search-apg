@@ -143,10 +143,10 @@ The 60-min Builder's Session source of truth lives in
 | Section | Time | What attendees do |
 |---|---|---|
 | Framing | 3 min | Title slide + RAG-with-agents shape |
-| [Setup](lab-content/builders/00-setup/) | 7 min | Open IDE, meet Boutique + Atelier, 5-check pre-flight, optional [pgvector primer](lab-content/builders/00-setup/04-pgvector-primer/) |
-| [Act I · The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
-| [Act II · The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
-| [Act III · The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
+| [Setup](lab-content/builders/00-setup/) | 7 min | Open the workspace, run the 5-check pre-flight, optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
+| [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
+| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
+| [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
 | Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
 
 The 120-min Workshop bundle lives in `lab-content/workshop/`. The

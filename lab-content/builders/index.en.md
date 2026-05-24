@@ -52,12 +52,12 @@ agent code.
 | Section | What you do | Time |
 |---|---|---|
 | **Framing** | Title slide + abstract + the RAG-with-agents shape | ~3 min |
-| **Setup** | Open Code Editor, meet Boutique + Atelier, four-check pre-flight, optional [pgvector primer](/00-setup/04-pgvector-primer/) | ~7 min |
-| **Act I · The Boutique** | Observe Marco's broken Turn 4, **wire `floor_check`** against `pellier.warehouse_inventory`, then measure vector / hybrid / hybrid+rerank in the Atelier — and read the **HNSW tuning** knobs you'd reach for at scale | ~28 min |
-| **Act II · The Ledger** | Read STM through `/api/agent/session/{id}`; inspect the **long-term taste table** in Aurora; **wire one log line** and invoke the pre-launched **AgentCore Runtime** at `bedrock-agentcore:InvokeRuntime` | ~11 min |
-| **Act III · The Concierge** | Read the dispatcher + specialists pattern in the Atelier, then [read the MCP config + verify the AWS Labs Postgres server from the terminal, and compare to Bedrock Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) | ~7 min |
+| **Setup** | Open the workspace, run the 5-check pre-flight, optional [pgvector primer](/90-appendix/05-pgvector-primer/) | ~7 min |
+| **Act I: The Boutique** | Observe Marco's broken Turn 4, **wire `floor_check`** against `pellier.warehouse_inventory`, then measure vector / hybrid / hybrid+rerank in the Atelier — and read the **HNSW tuning** knobs you'd reach for at scale | ~28 min |
+| **Act II: The Ledger** | Read STM through `/api/agent/session/{id}`; inspect the **long-term taste table** in Aurora; **wire one log line** and invoke the pre-launched **AgentCore Runtime** at `bedrock-agentcore:InvokeRuntime` | ~11 min |
+| **Act III: The Concierge** | Read the dispatcher + specialists pattern in the Atelier, then [read the MCP config + verify the AWS Labs Postgres server from the terminal, and compare to Bedrock Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) | ~7 min |
 | **Close** | "What this maps to in your stack" + Q&A | ~4 min |
-| **Appendix** | [The Cast](/90-appendix/01-the-cast/) · [Shipment SQL](/90-appendix/02-shipment-sql/) · [Troubleshooting](/90-appendix/03-when-things-misbehave/) · [Quick start](/90-appendix/quick-start/) | — |
+| **Appendix** | [The Cast](/90-appendix/01-the-cast/), [Shipment SQL](/90-appendix/02-shipment-sql/), [Troubleshooting](/90-appendix/03-when-things-misbehave/), [Quick start](/90-appendix/quick-start/) | — |
 
 ---
 
@@ -70,7 +70,7 @@ agent code.
 | **Models** | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed v4 (`us.cohere.embed-v4:0`) · Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) — all via Bedrock inference profiles |
 | **Agent framework** | Strands Agents SDK · `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks |
 | **Agent infra** | Bedrock AgentCore — Memory (STM) · Runtime (`@app.entrypoint` → `InvokeRuntime`) · Gateway (MCP) · Identity |
-| **MCP** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against your Aurora cluster — config at `pellier/config/mcp-server-config.json`. Any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON contract. See [Act III · MCP and Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) |
+| **MCP** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against your Aurora cluster — config at `pellier/config/mcp-server-config.json`. Any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON contract. See [Act III: MCP and Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) |
 | **Server** | FastAPI · Python 3.13 · psycopg3 · boto3 · SSE streaming on `:8000` |
 | **Surfaces** | **Boutique** (`/`) — shopper · **Atelier** (`/atelier`) — operator. Same agent, two lenses. |
 
@@ -124,7 +124,7 @@ is the same skeleton with three new bones — **agentic tool selection**
 (Strands), **managed runtime** (AgentCore), and **MCP** as the protocol
 that lets the same tools work from your IDE.
 
-If you have *not* shipped RAG before, the optional [pgvector primer](/00-setup/04-pgvector-primer/)
-in Setup is your two-minute on-ramp.
+If you have *not* shipped RAG before, the optional [pgvector primer](/90-appendix/05-pgvector-primer/)
+in the appendix is your two-minute on-ramp.
 
-[Begin with Setup →](/00-setup/01-open-code-editor/)
+[Begin with Setup →](/00-setup/01-open-workspace/)
