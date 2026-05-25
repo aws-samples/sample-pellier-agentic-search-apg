@@ -45,7 +45,7 @@ maps to something runnable in this repo:
 | Claim | Where it lives |
 |---|---|
 | **RAG** with embeddings on **Aurora PostgreSQL & RDS for PostgreSQL** | `pellier.product_catalog.embedding vector(1024)` · pgvector 0.8.0 · HNSW index · `<=>` cosine operator |
-| **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 12 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
+| **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 13 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
 | **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped STM via Bedrock AgentCore Memory |
 | **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` |
@@ -201,12 +201,12 @@ the mix.
 
 ### Tools
 
-12 `@tool` functions across the agent set:
+13 `@tool` functions across the agent set:
 
-`find_pieces` · `style_match` · `whats_trending` ·
+`find_pieces` · `find_pieces_hybrid` · `style_match` · `whats_trending` ·
 `price_intelligence` · `explore_collection` · `side_by_side` ·
 `floor_check` · `restock_shelf` · `running_low` ·
-`returns_and_care` · `process_return` · `cart.holds`
+`returns_and_care` · `process_return` · `escalate_to_stylist`
 
 Tool registry is itself stored in Aurora pgvector; the orchestrator
 uses cosine similarity to discover the right tool from a natural-

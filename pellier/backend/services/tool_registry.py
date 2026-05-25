@@ -7,7 +7,7 @@ attendees can see what a managed primitive does for them.
 
 Production recommendation stays "use Gateway". This module runs in
 **shadow mode** alongside Gateway during workshop turns — both rank
-the 9 tools on every query, and card 7 shows the two rankings
+the 13 tools on every query, and card 7 shows the two rankings
 side-by-side. When Gateway isn't configured, the pgvector ranking is
 the only thing card 7 has to show (the Card 7 banner makes this
 explicit so attendees can tell dual-rank from single-source at a

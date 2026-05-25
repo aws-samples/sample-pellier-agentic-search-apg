@@ -102,19 +102,19 @@ Save. Uvicorn reloads. Click Marco's Turn 1 pill — *linen for Goa*.
 
 ## Part 4 · Capstone — Marco's full journey (5 minutes, whole class)
 
-Click through the 5 Marco capstone pills in order. The presenter narrates each turn's agent / tool / model live.
+Click through Marco's 5 hero pills in order. The presenter narrates each turn's agent / tool / model live.
 
 | Turn | Pill | Listen for |
 |---|---|---|
-| 1 | "What pairs with the Ecru overshirt?" | Curator on **Opus**, `the-packing-list` loaded, `style_match` |
-| 2 | "What's the cheapest piece that goes with it?" | Value Analyst on Haiku, `price_intelligence`, sub-200ms |
-| 3 | "Is it in stock at Brooklyn?" | **Stock Keeper on Haiku 0.0 — the agent you wrote**, `floor_check` |
-| 4 | "What's the return window?" | **Experience Guide on Opus — the agent you wrote**, `returns_and_care` |
-| 5 | "Show me one more linen piece under $100." | Style Advisor on **Opus**, `find_pieces` |
+| 1 | "What linen do you have for 10 days in Goa?" | Style Advisor on **Opus**, `the-packing-list` loaded, `find_pieces` |
+| 2 | "What would go with the Hadley shirt?" | Curator on **Opus**, `find_pieces` → `style_match` |
+| 3 | "What's the price range for linen shirts?" | Value Analyst on Haiku, `price_intelligence`, sub-200ms |
+| 4 | "Is the Hadley shirt at the Brooklyn warehouse?" | **Stock Keeper on Haiku 0.0 — the agent you wrote**, `floor_check` |
+| 5 | "Can you connect me with a real Pellier stylist?…" | Style Advisor on **Opus** → `escalate_to_stylist` — the **honest fallback** when catalog tools can't dress a body for an occasion |
 
 Watch the Atelier's `/atelier/performance` bars light up per turn. **Opus** bars ~1.0–1.5 s. **Haiku** bars ~150 ms. **Order of magnitude.**
 
-This is what "agentic composition" looks like in practice. Five specialists, three models, two temperatures, one shopper — no one specialist doing anything it doesn't need to do. You built two of them.
+This is what "agentic composition" looks like in practice. Four specialists across three models and two temperatures — plus a fifth turn that *refuses to fake it* and routes to a real person. You built one of those agents and the rest of Pellier ships with the same `escalate_to_stylist` honesty wired in.
 
 ---
 

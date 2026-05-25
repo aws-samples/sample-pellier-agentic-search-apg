@@ -23,7 +23,7 @@ const EvaluationsDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="VIII"
+      numeral="VI"
       conceptName="Evaluations"
       category="quality"
       title="Evaluations, measured."

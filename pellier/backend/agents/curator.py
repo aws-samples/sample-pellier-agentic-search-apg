@@ -30,6 +30,7 @@ from services.agent_tools import (
     whats_trending,
     side_by_side,
     explore_collection,
+    escalate_to_stylist,
 )
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
@@ -99,6 +100,7 @@ def build_recommendation_agent() -> Agent:
             whats_trending,
             side_by_side,
             explore_collection,
+            escalate_to_stylist,
         ],
     )
 
@@ -137,11 +139,23 @@ def recommendation(query: str) -> str:
         except ImportError:
             pass
 
-        from agents.specialist_hooks import attach_policy_hook
+        from agents.specialist_hooks import (
+            append_escalation_marker,
+            attach_policy_hook,
+            extract_escalation_payload,
+        )
         attach_policy_hook(agent)
 
         result = agent(query)
         text = str(result)
+        # Forward any inner escalate_to_stylist payload up so chat.py
+        # can render the StylistHandoffCard. The Curator gets the
+        # escalation tool too because some recommendation asks (e.g.
+        # sympathy gifting, sentimental milestones) belong with a
+        # human, not a search.
+        escalation = extract_escalation_payload(tool_results)
+        if escalation is not None:
+            return append_escalation_marker(text, escalation)
         return _ensure_products_in_output(text, tool_results)
     except Exception as e:
         return json.dumps({"error": f"Recommendation agent error: {str(e)}"})

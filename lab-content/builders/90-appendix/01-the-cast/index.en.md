@@ -103,7 +103,7 @@ versus Anna versus Theo without you maintaining three Curators.
 | Persona | Profile | Signature piece | Anchor query |
 |---|---|---|---|
 | **Marco** | Natural fibers, travel, linen | Italian Linen Camp Shirt | *"What linen do you have for 10 days in Goa?"* |
-| **Anna** | Gifts, milestones, candles | Beeswax Taper Candles | *"A milestone gift for a new homeowner"* |
+| **Anna** | Gifts, milestones, candles | Beeswax Taper Candles | *"A thoughtful gift for someone who loves morning rituals"* |
 | **Theo** | Slow craft, ceramics, ritual | Stoneware Pour-Over Set | *"Something to slow my morning ritual"* |
 
 The **signed-out state** is the editorial baseline — a 10-piece grid

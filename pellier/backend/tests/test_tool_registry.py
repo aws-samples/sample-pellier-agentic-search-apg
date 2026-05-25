@@ -236,7 +236,7 @@ def test_tool_registry_panel_emits_panel_event(embedding: List[float]) -> None:
                 },
             ],
         },
-        fetchone_by_call_index={2: {"n": 9}},
+        fetchone_by_call_index={2: {"n": 13}},
     )
     ctx = AgentContext(session_id="ws-t", query="linen")
     _run(
@@ -251,7 +251,7 @@ def test_tool_registry_panel_emits_panel_event(embedding: List[float]) -> None:
     assert p["tag_class"] == "cyan"
     assert p["columns"] == ["name", "similarity"]
     assert p["rows"] == [["find_pieces", "0.910"]]
-    assert "9 tool(s) indexed" in p["meta"]
+    assert "13 tool(s) indexed" in p["meta"]
 
 
 def test_tool_registry_panel_meta_prompts_seeder_when_empty(

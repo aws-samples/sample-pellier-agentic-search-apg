@@ -72,10 +72,11 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     wiredSessionId: 'marco-midpoint-checkpoint',
   },
   {
-    agent: 'Curator (the-packing-list)',
+    agent: 'Style Advisor (the-packing-list)',
     model: 'Claude Opus 4.6 · 0.4',
-    tool: 'find_pieces → style_match',
-    outcome: 'Capstone - Ecru overshirt anchor; pairing + price discipline',
+    tool: 'escalate_to_stylist',
+    outcome:
+      'Capstone - human-stylist handoff. Catalog tools cannot dress a body for an occasion; escalate_to_stylist is the honest fallback.',
     sessionId: 'marco-capstone',
   },
 ];
@@ -111,10 +112,11 @@ const ANNA_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     sessionId: 'anna-birthday-gift',
   },
   {
-    agent: 'Curator',
+    agent: 'Curator (the-gift-table)',
     model: 'Claude Opus 4.6 · 0.4',
-    tool: 'find_pieces_hybrid',
-    outcome: 'Milestone-coded vibe + homeowner literal converge cleanly.',
+    tool: 'escalate_to_stylist',
+    outcome:
+      'Capstone - human-stylist handoff for sympathy gifting. Hybrid retrieval can find candles; it cannot read the room.',
     sessionId: 'anna-housewarming',
   },
 ];
@@ -150,10 +152,11 @@ const THEO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     sessionId: 'theo-ceramics-return',
   },
   {
-    agent: 'Curator',
-    model: 'Claude Opus 4.6 · 0.4',
-    tool: 'find_pieces',
-    outcome: 'Home-decor read - same fifth pill as the Boutique hero row.',
+    agent: 'Experience Guide (the-makers-shelf)',
+    model: 'Claude Opus 4.6 · 0.2',
+    tool: 'escalate_to_stylist',
+    outcome:
+      'Capstone - exception-return handoff. Outside the standard window; process_return refuses, escalate_to_stylist is the honest fallback.',
     sessionId: 'theo-home-not-wardrobe',
   },
 ];

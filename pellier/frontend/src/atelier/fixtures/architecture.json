@@ -52,5 +52,23 @@
     "description": "Evaluation cards are the owned quality layer: latency, relevance, grounding, and scenario checks for the three workshop capabilities. They are not the request path; they are how the team decides whether a path is worth shipping.",
     "codeSnippet": "# Evaluation scorecard shape\nscorecard = {\n    'capability': 'agentic (Haiku → filter → vector → rerank)',\n    'recall_at_5': 0.96,\n    'latency_p50_ms': 2300,\n    'grounded': true\n}",
     "slug": "evaluations"
+  },
+  {
+    "numeral": "VII",
+    "category": "workshop",
+    "title": "Tool Registry",
+    "role": "Semantic tool discovery via pgvector",
+    "description": "The Aurora tool registry is the live workshop teaching surface for semantic discovery. Tool descriptions are embedded with Cohere Embed v4 (1024-dim) and ranked by cosine similarity. The Boutique default still calls in-process Strands tools; the registry is how attendees see discovery as a first-class capability.",
+    "codeSnippet": "# Discover by semantic similarity\nSELECT name,\n       1 - (embedding <=> $1) AS similarity\nFROM pellier.tools\nORDER BY embedding <=> $1\nLIMIT 5;",
+    "slug": "tool-registry"
+  },
+  {
+    "numeral": "VIII",
+    "category": "optional",
+    "title": "MCP Gateway",
+    "role": "Optional managed tool publishing path",
+    "description": "MCP Gateway is the optional managed path for publishing Pellier tools over a protocol boundary. When AGENTCORE_GATEWAY_URL is unset, the app uses in-process Strands tools; when configured, the Gateway exposes the same tool surface to an MCP client.",
+    "codeSnippet": "# Optional Gateway path\nif AGENTCORE_GATEWAY_URL:\n    tools = await mcp_client.list_tools()\n    result = await mcp_client.call_tool(name, args)\nelse:\n    result = await strands_dispatch(name, args)",
+    "slug": "mcp"
   }
 ]

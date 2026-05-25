@@ -3,7 +3,7 @@ AgentCore Gateway — MCP Tool Discovery via Bedrock AgentCore Gateway.
 
 This module has two sides:
 
-1. **Server side (Challenge 7)** — exposes the 9 `agent_tools.py` tools via
+1. **Server side (Challenge 7)** — exposes the 13 `agent_tools.py` tools via
    the MCP streamable HTTP transport so external agent clients can discover
    and invoke them over the wire. Signatures and JSON envelopes are
    identical to the in-process `@tool` functions.
@@ -22,23 +22,25 @@ logger = logging.getLogger(__name__)
 
 
 # === CHALLENGE 7: START ===
-# Expose the 9 Strands @tool functions via MCP streamable HTTP so an external
+# Expose the 13 Strands @tool functions via MCP streamable HTTP so an external
 # agent client (or the AgentCore Gateway) can discover and invoke them with
 # the same signatures and JSON envelopes used by the in-process orchestrator.
 #
-# The 9 tools come from workshop-content.md steering and MUST be registered
+# The 13 tools come from workshop-content.md steering and MUST be registered
 # under these exact names (Req 2.2.3):
-#   find_pieces, whats_trending, price_intelligence,
-#   explore_collection, floor_check, running_low,
-#   restock_shelf, side_by_side, returns_and_care
+#   find_pieces, find_pieces_hybrid, whats_trending, price_intelligence,
+#   explore_collection, floor_check, running_low, restock_shelf,
+#   side_by_side, returns_and_care, style_match, process_return,
+#   escalate_to_stylist
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
-# The 9 tool names exposed by the gateway, in stable order. Tests assert
+# The 13 tool names exposed by the gateway, in stable order. Tests assert
 # discovery returns exactly this set by exact name (workshop-content.md).
 GATEWAY_TOOL_NAMES: List[str] = [
     "find_pieces",
+    "find_pieces_hybrid",
     "whats_trending",
     "price_intelligence",
     "explore_collection",
@@ -48,6 +50,8 @@ GATEWAY_TOOL_NAMES: List[str] = [
     "side_by_side",
     "returns_and_care",
     "style_match",
+    "process_return",
+    "escalate_to_stylist",
 ]
 
 
@@ -63,7 +67,7 @@ def _unwrap_strands_tool(strands_tool: Any) -> Any:
 
 
 def build_mcp_server(name: str = "pellier-gateway") -> Any:
-    """Build a FastMCP server registering the 9 agent tools.
+    """Build a FastMCP server registering the 13 agent tools.
 
     Each registered MCP tool is a thin wrapper that delegates to the
     corresponding `@tool` function in `services.agent_tools`. Wrappers
@@ -78,7 +82,7 @@ def build_mcp_server(name: str = "pellier-gateway") -> Any:
 
     mcp_server = FastMCP(name=name)
 
-    # Register each of the 9 tools by name. We pass the unwrapped function
+    # Register each of the 13 tools by name. We pass the unwrapped function
     # (not the Strands DecoratedFunctionTool) so FastMCP can introspect the
     # signature and docstring to generate the MCP input schema.
     for tool_name in GATEWAY_TOOL_NAMES:

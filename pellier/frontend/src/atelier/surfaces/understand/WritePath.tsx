@@ -174,7 +174,7 @@ const EnforcementDiagram: React.FC = () => {
         <div style={stepStyle}>
           INSERT INTO pellier.returns
           <br />
-          UPDATE pellier.product_catalog SET quantity = ... (only if reason='damaged')
+          UPDATE pellier.product_catalog SET quantity = quantity - 1 WHERE reason = 'damaged'
           <br />
           UPDATE pellier.tool_audit SET result, latency_ms
         </div>

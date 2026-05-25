@@ -211,6 +211,8 @@ const Scorecard: React.FC<ScorecardProps> = ({ card, index, isSelected, rowRef, 
       ref={rowRef}
       role="button"
       tabIndex={0}
+      aria-label={`Select ${card.agentName} scorecard`}
+      aria-pressed={isSelected}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -784,6 +786,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
       {message}
     </p>
     <button
+      type="button"
       onClick={onRetry}
       style={{
         marginTop: '24px',

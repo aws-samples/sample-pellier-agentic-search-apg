@@ -23,9 +23,9 @@ const RuntimeDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="VI"
+      numeral="V"
       conceptName="Runtime Envelope"
-      category="optional"
+      category="workshop"
       title="Runtime, bounded."
       prose="Runtime is the envelope around execution: model calls, memory, optional Gateway, and observability. In this repository, the Boutique default flow lives in the app service layer; AgentCore Runtime concepts are introduced as the managed deployment pattern around those same contracts."
       cheatSheet={[

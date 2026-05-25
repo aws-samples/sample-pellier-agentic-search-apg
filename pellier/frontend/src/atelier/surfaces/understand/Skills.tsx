@@ -502,6 +502,8 @@ const SkillCard: React.FC<SkillCardProps> = ({
     data-testid={`skill-card-${skill.name}`}
     role="button"
     tabIndex={0}
+    aria-label={skill.displayName}
+    aria-pressed={isSelected}
     onClick={onSelect}
     onKeyDown={(e) => {
       if (e.key === 'Enter' || e.key === ' ') {

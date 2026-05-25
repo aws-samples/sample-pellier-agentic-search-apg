@@ -61,9 +61,9 @@ If all three pass, you're set. If any fails, flag an instructor — this is much
    - "What would go with the Hadley shirt?" *(same SKU: **Pellier Linen Shirt in ecru**.)*
    - "What's the price range for linen shirts?"
    - "Is the Hadley shirt at the Brooklyn warehouse?"
-   - "What pairs with the Ecru overshirt?"
+   - "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards."
 
-These aren't random — they're Marco's exact 4-turn workshop sequence plus a capstone pill. **Don't click anything yet** — the opening demo runs as a class in Module 1.
+These aren't random — they're Marco's exact 4-turn workshop sequence plus a capstone *escalate-to-stylist* pill that demonstrates the honest fallback when catalog tools can't answer the ask. **Don't click anything yet** — the opening demo runs as a class in Module 1.
 
 ## Open the Atelier, find Stock Keeper
 

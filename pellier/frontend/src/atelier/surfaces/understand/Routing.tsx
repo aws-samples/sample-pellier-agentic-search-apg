@@ -122,6 +122,8 @@ const RoutingCard: React.FC<RoutingCardProps> = ({
       ref={cardRef}
       role="button"
       tabIndex={0}
+      aria-label={pattern.name}
+      aria-pressed={isFocused}
       onClick={onFocus}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

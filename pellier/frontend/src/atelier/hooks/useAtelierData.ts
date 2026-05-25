@@ -68,12 +68,17 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
 
 /**
  * Map of data keys to their API endpoint paths.
+ *
+ * Note: `production-patterns` is intentionally fixture-only (no backend
+ * route); the surface is a teaching catalog and `useAtelierData` falls back
+ * to the fixture loader when the key is absent here.
  */
 const apiEndpoints: Record<string, string> = {
   sessions: '/api/atelier/sessions',
   agents: '/api/atelier/agents',
   tools: '/api/atelier/tools/list',
   routing: '/api/atelier/routing',
+  skills: '/api/atelier/skills',
   performance: '/api/atelier/performance',
   evaluations: '/api/atelier/evaluations',
   observatory: '/api/atelier/observatory',

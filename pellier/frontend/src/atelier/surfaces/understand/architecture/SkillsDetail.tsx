@@ -27,13 +27,13 @@ const SkillsDetail: React.FC = () => {
     <DetailPageShell
       numeral="III"
       conceptName="Skills"
-      category="workshop"
+      category="live"
       title="Skills, persona-routed."
       prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'Skills are not agents. They\'re capabilities injected into the agent\'s tool set at runtime based on persona context.',
+          text: 'Skills are not agents. They\'re markdown briefs injected into the specialist\'s system prompt at runtime based on persona context.',
         },
         {
           numeral: 'ii.',

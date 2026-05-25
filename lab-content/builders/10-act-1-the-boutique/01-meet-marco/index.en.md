@@ -91,11 +91,11 @@ Expect ~120 rows — three warehouses (`BK-01`, `ATX-02`, `PDX-01`) × 40 produc
 
 ::::
 
-## 6 · Turn 5 — *"What pairs with the Ecru overshirt?"*
+## 6 · Turn 5 — *"Can you connect me with a real Pellier stylist?…"*
 
-**Curator** · `the-packing-list` · Opus 4.6 · `style_match`
+**Style Advisor** · `the-packing-list` · Opus 4.6 · `escalate_to_stylist`
 
-The editorial pairing returns cleanly. Turn 5 routes through `style_match` rather than `floor_check`, so the gap from Turn 4 doesn't propagate. This isolation is by design: a stubbed tool degrades one capability, not the system.
+Marco asks for a human stylist by name to help him dress for his brother's wedding. The Style Advisor recognizes that catalog tools cannot dress a body for an occasion and calls `escalate_to_stylist` — the **honest fallback** every specialist ships with. The orchestrator's stylist-handoff branch routes the explicit ask to `search` instead of refusing as "outside shopping," and the response surfaces as a `StylistHandoffCard` with a 1-business-day response window. Capability isolation again: the stub on Turn 4 didn't degrade anything else; the honest fallback on Turn 5 is its own path.
 
 ## What the traces showed you
 
@@ -105,14 +105,14 @@ The editorial pairing returns cleanly. Turn 5 routes through `style_match` rathe
 | 2 | Curator + `the-packing-list` | `style_match` | ✓ |
 | 3 | Value Analyst | `price_intelligence` | ✓ |
 | **4** | **Stock Keeper** | **`floor_check`** *(stub)* | **✗** |
-| 5 | Curator | `style_match` | ✓ |
+| 5 | Style Advisor | `escalate_to_stylist` | ✓ |
 
 ## Takeaways
 
 - A specialist is **six components, not one prompt**: model, instructions, skills, tools, state, telemetry. Each is independently observable and replaceable.
 - The orchestrator **routed Turn 4 correctly** — the failure is at the tool body, not the dispatcher. That's the diagnostic skill you'll lean on throughout the workshop.
 - A graceful non-answer is a **design choice**. Stub tools should refuse to fabricate; that's why Marco received a voice-matched apology rather than invented bin numbers.
-- Turn 5 still works because it routes through a different tool. **Capability isolation** is what lets you ship an agent system with partial tool coverage — and it's the reason the next exercise is one focused wiring task, not a system rebuild.
+- Turn 5's `escalate_to_stylist` is the same design choice at a different layer: when the ask genuinely sits outside what the catalog can answer, the honest move is to route to a human — not to fake an answer with the wrong tool.
 
 :::alert{type="success" header="Build next — Exercise 1"}
 [Wire `floor_check` →](../02-wire-floor-check/)

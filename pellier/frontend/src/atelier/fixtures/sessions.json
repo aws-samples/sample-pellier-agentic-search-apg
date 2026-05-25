@@ -24,13 +24,13 @@
   {
     "id": "marco-capstone",
     "personaId": "marco",
-    "openingQuery": "What pairs with the Ecru overshirt?",
-    "elapsedMs": 22340,
-    "agentCount": 5,
+    "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding \u2014 not product cards.",
+    "elapsedMs": 3680,
+    "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-15T17:34:00Z",
     "status": "complete",
-    "tagline": "Full journey \u2014 all five agents"
+    "tagline": "Honest fallback \u2014 stylist handoff"
   },
   {
     "id": "anna-morning-ritual",
@@ -79,13 +79,13 @@
   {
     "id": "anna-housewarming",
     "personaId": "anna",
-    "openingQuery": "A milestone gift for a new homeowner",
-    "elapsedMs": 4220,
+    "openingQuery": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
+    "elapsedMs": 3940,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-15T17:58:00Z",
     "status": "complete",
-    "tagline": "A milestone gift for a new homeowner"
+    "tagline": "Sympathy gift — stylist handoff"
   },
   {
     "id": "theo-pour-over",
@@ -134,12 +134,12 @@
   {
     "id": "theo-home-not-wardrobe",
     "personaId": "theo",
-    "openingQuery": "Something for the home, not the wardrobe",
-    "elapsedMs": 4020,
+    "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
+    "elapsedMs": 4280,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-15T18:28:00Z",
     "status": "complete",
-    "tagline": "Home goods over wardrobe"
+    "tagline": "Exception return — stylist handoff"
   }
 ]

@@ -162,8 +162,10 @@ const ToolCallChip: React.FC<{ tool: ToolCall }> = ({ tool }) => {
     >
       {/* Collapsed header */}
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
+        aria-label={`${expanded ? 'Collapse' : 'Expand'} ${tool.name} tool call`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -1540,11 +1542,11 @@ const MemoryCard: React.FC<{ turns: ChatTurn[] }> = ({ turns }) => {
 
 /** Agents card — 5 specialists with status dots */
 const AGENTS_LIST = [
-  { name: 'Search', status: 'live' as const },
-  { name: 'Recommendation', status: 'live' as const },
-  { name: 'Pricing', status: 'live' as const },
-  { name: 'Inventory', status: 'idle' as const },
-  { name: 'Customer Support', status: 'idle' as const },
+  { name: 'Style Advisor', status: 'live' as const },
+  { name: 'Curator', status: 'live' as const },
+  { name: 'Value Analyst', status: 'live' as const },
+  { name: 'Stock Keeper', status: 'idle' as const },
+  { name: 'Experience Guide', status: 'idle' as const },
 ];
 
 const AgentsCard: React.FC = () => (

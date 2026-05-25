@@ -6,7 +6,7 @@
     "status": "shipped",
     "tools": ["find_pieces", "explore_collection", "side_by_side", "style_match", "escalate_to_stylist"],
     "model": "Claude Opus 4.6",
-    "temperature": 0.2
+    "temperature": 0.4
   },
   {
     "numeral": "II",
@@ -15,7 +15,7 @@
     "status": "shipped",
     "tools": ["find_pieces", "whats_trending", "side_by_side", "explore_collection"],
     "model": "Claude Opus 4.6",
-    "temperature": 0.2
+    "temperature": 0.4
   },
   {
     "numeral": "III",
@@ -23,7 +23,7 @@
     "role": "Price intelligence — deals, comparisons, value-per-dollar across collections.",
     "status": "shipped",
     "tools": ["price_intelligence", "explore_collection", "find_pieces"],
-    "model": "Claude Opus 4.6",
+    "model": "Claude Haiku 4.5",
     "temperature": 0.1
   },
   {
@@ -32,8 +32,8 @@
     "role": "Inventory — stock levels, restock operations, low-stock alerts.",
     "status": "exercise",
     "tools": ["floor_check", "restock_shelf", "running_low"],
-    "model": "Claude Opus 4.6",
-    "temperature": 0.1,
+    "model": "Claude Haiku 4.5",
+    "temperature": 0.0,
     "exerciseFiles": ["pellier/backend/agents/stock_keeper.py"]
   },
   {

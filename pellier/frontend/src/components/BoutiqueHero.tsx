@@ -18,6 +18,7 @@ import { useUI } from '../contexts/UIContext'
 import { usePersona } from '../contexts/PersonaContext'
 import {
   heroPillsForPersona,
+  heroPillLabel,
   becauseChipsForPersona,
   MARCO_BUILDER_SESSION_QUERY,
   type BecauseChip,
@@ -162,7 +163,11 @@ export default function BoutiqueHero() {
 
   return (
     <>
-    <section data-testid="boutique-hero" aria-label="Search and discover" className="relative h-[78vh] min-h-[720px]">
+    <section
+      data-testid="boutique-hero"
+      aria-label="Search and discover"
+      className="relative min-h-[820px] py-10 md:py-14"
+    >
       {/* ── Editorial photo + wash — clipped so tall images never spill beyond
            the viewport. Foreground avoids overflow:hidden so Marco pill rails
            are not clipped at the viewport edge. ── */}
@@ -395,7 +400,7 @@ export default function BoutiqueHero() {
                     data-testid="boutique-hero-marco-pill-band"
                   >
                     <div
-                      className="mx-auto flex w-full max-w-[965px] flex-col"
+                      className="mx-auto flex w-full max-w-[1080px] flex-col"
                       style={{
                         fontFamily: 'var(--sans)',
                         color: '#1f1410',
@@ -452,16 +457,17 @@ export default function BoutiqueHero() {
                           columnGap: '10px',
                           rowGap: '12px',
                           width: '100%',
-                          maxWidth: '965px',
+                          maxWidth: '1080px',
                           marginInline: 'auto',
                           marginTop: '10px',
                         }}
                       >
-                        {suggestions.map((query) => {
+                        {suggestions.map((query, idx) => {
                           const isMarcoWarehouseExercise =
                             persona?.id === 'marco' &&
                             showBuilderSessionGap &&
                             query === MARCO_BUILDER_SESSION_QUERY
+                          const label = heroPillLabel(persona?.id, idx, query)
                           return (
                             <button
                               key={query}
@@ -476,6 +482,7 @@ export default function BoutiqueHero() {
                                   ? 'boutique-hero-marco-exercise-hint'
                                   : undefined
                               }
+                              aria-label={label === query ? undefined : query}
                               onClick={() => handlePillClick(query)}
                               className={[
                                 'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
@@ -498,16 +505,16 @@ export default function BoutiqueHero() {
                                 width: '100%',
                                 minWidth: 0,
                                 boxSizing: 'border-box',
-                                maxWidth: '185px',
+                                maxWidth: '210px',
                                 marginInline: 'auto',
-                                minHeight: '58px',
+                                minHeight: '76px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 textAlign: 'center',
                               }}
                             >
-                              {query}
+                              {label}
                             </button>
                           )
                         })}
@@ -516,7 +523,7 @@ export default function BoutiqueHero() {
                       <p
                         id="boutique-hero-marco-exercise-hint"
                         data-testid="boutique-hero-marco-exercise-hint"
-                        className="mt-3 w-full max-w-[965px] px-3 py-2.5 text-center font-sans font-medium leading-snug"
+                        className="mt-3 w-full max-w-[1080px] px-3 py-2.5 text-center font-sans font-medium leading-snug"
                         style={{
                           alignSelf: 'center',
                           fontSize: '13px',
@@ -578,11 +585,12 @@ export default function BoutiqueHero() {
                     role="listbox"
                     aria-label="Suggested queries"
                   >
-                    {suggestions.map((query) => {
+                    {suggestions.map((query, idx) => {
                       const isMarcoWarehouseExercise =
                         persona?.id === 'marco' &&
                         showBuilderSessionGap &&
                         query === MARCO_BUILDER_SESSION_QUERY
+                      const label = heroPillLabel(persona?.id, idx, query)
                       return (
                         <button
                           key={query}
@@ -597,6 +605,7 @@ export default function BoutiqueHero() {
                               ? 'boutique-hero-marco-exercise-hint-mobile'
                               : undefined
                           }
+                          aria-label={label === query ? undefined : query}
                           onClick={() => handlePillClick(query)}
                           className={[
                             'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
@@ -616,8 +625,8 @@ export default function BoutiqueHero() {
                             background: isMarcoWarehouseExercise
                               ? 'rgba(255, 252, 247, 0.95)'
                               : 'var(--cream-warm)',
-                            width: '185px',
-                            minHeight: '58px',
+                            width: '210px',
+                            minHeight: '76px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -625,7 +634,7 @@ export default function BoutiqueHero() {
                             flex: '0 0 auto',
                           }}
                         >
-                          {query}
+                          {label}
                         </button>
                       )
                     })}
@@ -713,11 +722,12 @@ export default function BoutiqueHero() {
                     role="listbox"
                     aria-label="Suggested queries"
                   >
-                    {suggestions.map((query) => {
+                    {suggestions.map((query, idx) => {
                       const isMarcoWarehouseExercise =
                         persona?.id === 'marco' &&
                         showBuilderSessionGap &&
                         query === MARCO_BUILDER_SESSION_QUERY
+                      const label = heroPillLabel(persona?.id, idx, query)
                       return (
                         <button
                           key={query}
@@ -732,6 +742,7 @@ export default function BoutiqueHero() {
                               ? 'boutique-hero-marco-exercise-hint'
                               : undefined
                           }
+                          aria-label={label === query ? undefined : query}
                           onClick={() => handlePillClick(query)}
                           className={[
                             'rounded-[10px] border transition-all duration-fade ease-out cursor-pointer',
@@ -751,8 +762,8 @@ export default function BoutiqueHero() {
                             background: isMarcoWarehouseExercise
                               ? 'rgba(255, 252, 247, 0.95)'
                               : 'var(--cream-warm)',
-                            width: '185px',
-                            minHeight: '58px',
+                            width: '210px',
+                            minHeight: '76px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -760,7 +771,7 @@ export default function BoutiqueHero() {
                             flex: '0 0 auto',
                           }}
                         >
-                          {query}
+                          {label}
                         </button>
                       )
                     })}
@@ -780,7 +791,7 @@ export default function BoutiqueHero() {
               <div
                 data-testid="boutique-hero-because"
                 className="mt-5 flex flex-col items-center gap-3"
-                style={{ width: 'min(965px, calc(100vw - 32px))' }}
+                style={{ width: 'min(1080px, calc(100vw - 32px))' }}
               >
                 <div
                   className="inline-flex items-center gap-2"

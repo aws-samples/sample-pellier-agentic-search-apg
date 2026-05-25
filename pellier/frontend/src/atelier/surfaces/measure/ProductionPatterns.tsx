@@ -657,6 +657,7 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({
       {message}
     </p>
     <button
+      type="button"
       onClick={onRetry}
       style={{
         marginTop: '20px',
@@ -687,7 +688,7 @@ const ProductionPatterns: React.FC = () => {
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
       <EditorialTitle
-        eyebrow="Operate · Production patterns · identity · guardrails · tenancy · tools"
+        eyebrow="Measure · Production patterns · identity · guardrails · tenancy · tools"
         title="What you reach for once it's real."
         summary={
           data?.summary ??

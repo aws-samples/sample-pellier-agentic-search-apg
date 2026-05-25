@@ -23,7 +23,7 @@ const ToolRegistryDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="IV"
+      numeral="VII"
       conceptName="Tool Registry"
       category="workshop"
       title="Tools, discovered."
@@ -43,14 +43,14 @@ const ToolRegistryDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Fixture labels on the Understand · Tools surface: eleven shipped baseline; floor_check is the Builder\'s Session exercise until its stub is replaced — then /api/atelier/build-state reflects shipped.',
+          text: 'Fixture labels on the Understand · Tools surface: twelve shipped baseline; floor_check is the Builder\'s Session exercise until its stub is replaced — then /api/atelier/build-state reflects shipped.',
         },
       ]}
       liveState={{
         label: 'Current tool registry state. Aurora ranks tool descriptions for the workshop discovery demo; optional Gateway publishes the callable surface over MCP.',
         values: [
-          { label: 'Tools registered', value: '12' },
-          { label: 'Shipped (baseline image)', value: '11' },
+          { label: 'Tools registered', value: '13' },
+          { label: 'Shipped (baseline image)', value: '12' },
           { label: 'Index', value: 'HNSW' },
         ],
       }}
@@ -115,6 +115,7 @@ LIMIT 5;`}</pre>
                   { name: 'returns_and_care', status: 'shipped' },
                   { name: 'restock_shelf', status: 'shipped' },
                   { name: 'process_return', status: 'shipped' },
+                  { name: 'escalate_to_stylist', status: 'shipped' },
                 ].map((tool) => (
                   <div
                     key={tool.name}

@@ -139,7 +139,7 @@ export const EVALUATION_METRICS: EvaluationMetric[] = [
     catches:
       'End-to-end regressions across routing, tools, retrieval, and prompt — what the scorecards summarize.',
     pellierExample:
-      'Fixture sessions encode expected picks (e.g. Camp Shirt on Marco opening); accuracy is the golden-set view of "did we ship the right answer?"',
+      'Fixture sessions encode expected picks (e.g. Hadley Camp Shirt on Marco opening); accuracy is the golden-set view of "did we ship the right answer?"',
     measuredVia: ['Golden-set regression', 'AgentCore Evals datasets'],
   },
   {

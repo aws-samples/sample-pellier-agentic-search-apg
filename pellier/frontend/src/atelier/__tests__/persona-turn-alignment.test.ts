@@ -23,21 +23,21 @@ const EXPECTED_TURNS = {
     'What would go with the Hadley shirt?',
     "What's the price range for linen shirts?",
     'Is the Hadley shirt at the Brooklyn warehouse?',
-    'What pairs with the Ecru overshirt?',
+    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
   ],
   anna: [
     'A thoughtful gift for someone who loves morning rituals',
     'Something beautiful under $100',
     'Help me pair a candle with something else',
     'Wrap-ready gifts with no extra effort',
-    'A milestone gift for a new homeowner',
+    'Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.',
   ],
   theo: [
     'Hand-thrown ceramics for a slower morning routine',
     'What goes well with the pour-over set?',
     'Linen pieces that soften over seasons',
     "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",
-    'Something for the home, not the wardrobe',
+    'The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
 } satisfies Record<(typeof CANONICAL_PERSONAS)[number], string[]>
 
@@ -47,21 +47,21 @@ const EXPECTED_TRACES = {
     { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
     { tools: ['price_intelligence'] },
     { tools: ['floor_check'] },
-    { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
+    { skill: 'the-packing-list', tools: ['escalate_to_stylist'] },
   ],
   anna: [
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
-    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['escalate_to_stylist'] },
   ],
   theo: [
     { skill: 'the-makers-shelf', tools: ['find_pieces'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces', 'style_match'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces', 'returns_and_care', 'process_return'] },
-    { skill: 'the-makers-shelf', tools: ['find_pieces'] },
+    { skill: 'the-makers-shelf', tools: ['escalate_to_stylist'] },
   ],
 } satisfies Pick<typeof PERSONA_TURN_TRACES, (typeof CANONICAL_PERSONAS)[number]>
 

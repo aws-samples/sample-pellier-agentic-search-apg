@@ -23,7 +23,7 @@ const McpDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="VII"
+      numeral="VIII"
       conceptName="MCP Gateway"
       category="optional"
       title="Gateway, optional."

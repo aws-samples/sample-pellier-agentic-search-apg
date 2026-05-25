@@ -1,68 +1,41 @@
 {
   "id": "anna-housewarming",
   "personaId": "anna",
-  "openingQuery": "A milestone gift for a new homeowner",
-  "elapsedMs": 4988,
+  "openingQuery": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
+  "elapsedMs": 3940,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
   "timestamp": "2026-05-15T17:58:00Z",
   "status": "complete",
-  "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
-      "content": "A milestone gift for a new homeowner",
+      "content": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
       "timestamp": "2026-05-15T17:58:00Z"
     },
     {
       "role": "assistant",
-      "content": "For a housewarming milestone, the Olive Branch Vessel by Pellier Home ($185, Ivory) is the one \u2014 hand-thrown stoneware with a sculptural olive branch motif, rated 4.9 stars, the kind of piece that anchors a mantel or entryway from day one. It sits comfortably in your usual gift range and arrives wrapped in tissue with satin ribbon, so it feels like an event the moment it's opened.",
+      "content": "I'm so sorry for your friend's loss. I've passed your note to a Pellier stylist who'll reach out within one business day to help you choose something thoughtful — they'll consider your friend's relationship, the moment, and what arrives well. The catalog couldn't read this room; a stylist can.",
       "timestamp": "2026-05-15T17:58:04Z",
       "plan": {
-        "flowSummary": "Dispatcher \u2192 Curator \u2192 find_pieces_hybrid (vector + Postgres FTS \u2192 RRF \u2192 cohere.rerank-v3-5:0) \u2192 editorial composition",
+        "flowSummary": "Dispatcher → Curator → escalate_to_stylist (sympathy framing, honest fallback)",
         "traceLink": "#telemetry-1"
       },
       "toolCalls": [
         {
-          "toolName": "find_pieces_hybrid",
-          "description": "Hybrid pgvector + Postgres FTS + cohere.rerank-v3-5:0",
-          "durationMs": 712,
-          "sql": "WITH vector_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY embedding <=> $1::vector) AS vector_rank\n  FROM product_catalog\n  WHERE quantity > 0\n  LIMIT 20\n),\nfts_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY ts_rank_cd(description_tsv, $2::tsquery) DESC) AS text_rank\n  FROM product_catalog\n  WHERE quantity > 0\n    AND description_tsv @@ $2::tsquery\n  LIMIT 20\n),\nrrf AS (\n  SELECT COALESCE(v.product_id, f.product_id) AS product_id,\n         COALESCE(1.0 / (60 + v.vector_rank), 0) +\n         COALESCE(1.0 / (60 + f.text_rank), 0) AS rrf_score\n  FROM vector_results v\n  FULL OUTER JOIN fts_results f USING (product_id)\n)\nSELECT product_id, rrf_score\nFROM rrf\nORDER BY rrf_score DESC\nLIMIT 30;",
-          "resultSummary": "30-candidate pool reranked to Olive Branch Vessel plus housewarming-ready alternates",
-          "subSteps": [
-            {
-              "label": "vector branch (pgvector cosine, k=20)",
-              "durationMs": 984
-            },
-            {
-              "label": "Postgres FTS branch (to_tsquery OR-of-stems via _build_or_tsquery, k=20)",
-              "durationMs": 1049
-            },
-            {
-              "label": "RRF merge (k=60) \u2192 25-candidate pool",
-              "durationMs": 3
-            },
-            {
-              "label": "cohere.rerank-v3-5:0 \u2192 top 5",
-              "durationMs": 287
-            }
-          ]
+          "toolName": "escalate_to_stylist",
+          "description": "Hand off to a human stylist for sympathy/sentimental gifting beyond catalog scope",
+          "durationMs": 232,
+          "resultSummary": "Stylist handoff queued · response window 1 business day"
         }
       ],
-      "products": [
-        {
-          "name": "Olive Branch Vessel",
-          "brand": "Pellier Home",
-          "price": 185,
-          "imageUrl": "/products/fresh-olive-branch-vessel.png"
-        }
-      ],
+      "products": [],
       "meta": {
         "agent": "Curator",
-        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "model": "Claude Opus 4.6 · 0.4",
         "skill": "the-gift-table",
-        "searchMethod": "hybrid+rerank",
-        "latencyMs": 1384
+        "latencyMs": 1480,
+        "note": "Curator's hybrid retrieval can find candles all day — but the right sympathy gift depends on the friendship, not the catalog. Escalation is the honest answer."
       }
     }
   ],
@@ -70,103 +43,99 @@
     {
       "index": 1,
       "category": "managed",
-      "title": "Intent \u2192 Curator",
-      "description": "'milestone gift' + 'new homeowner' routed via Dispatcher",
+      "title": "Intent → Curator",
+      "description": "'real stylist' + 'sympathy gift' → orchestrator stylist-handoff branch routes to recommendation",
       "status": "complete",
-      "durationMs": 58,
+      "durationMs": 64,
       "agent": "Dispatcher"
     },
     {
       "index": 2,
-      "category": "both",
-      "title": "vector branch",
-      "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-v4:0",
+      "category": "owned",
+      "title": "Skill loaded",
+      "description": "the-gift-table bound for persona: anna — voice + gifting heuristics carry through the handoff",
       "status": "complete",
-      "durationMs": 312,
-      "sql": "WITH query_embedding AS (\n  SELECT $1::vector AS embedding\n)\nSELECT\n  p.product_id,\n  p.name,\n  p.brand,\n  p.price,\n  1 - (p.embedding <=> q.embedding) AS similarity\nFROM product_catalog p\nCROSS JOIN query_embedding q\nWHERE p.quantity > 0\nORDER BY p.embedding <=> q.embedding\nLIMIT 20;",
-      "agent": "Curator \u00b7 find_pieces_hybrid"
+      "durationMs": 42,
+      "agent": "SkillRouter"
     },
     {
       "index": 3,
-      "category": "both",
-      "title": "Postgres FTS branch",
-      "description": "ts_rank_cd over description_tsv with GIN index (k=20)",
+      "category": "owned",
+      "title": "escalate_to_stylist",
+      "description": "Curator decides hybrid retrieval cannot read sympathy framing; emits {type: escalation, channel: stylist, reason}",
       "status": "complete",
-      "durationMs": 84,
-      "sql": "WITH query_terms AS (\n  SELECT to_tsquery('english', 'milestone:* | housewarming:* | homeowner:* | home:*') AS q\n)\nSELECT\n  p.product_id,\n  p.name,\n  p.brand,\n  p.price,\n  ts_rank_cd(p.description_tsv, query_terms.q) AS text_rank\nFROM product_catalog p\nCROSS JOIN query_terms\nWHERE p.quantity > 0\n  AND p.description_tsv @@ query_terms.q\nORDER BY text_rank DESC\nLIMIT 20;",
-      "agent": "Curator \u00b7 find_pieces_hybrid"
+      "durationMs": 232,
+      "agent": "Curator · escalate_to_stylist"
     },
     {
       "index": 4,
       "category": "managed",
-      "title": "RRF merge",
-      "description": "Reciprocal Rank Fusion (k=60) \u2192 30-candidate pool",
+      "title": "Inner specialist → wrapper marker",
+      "description": "Inner Curator emits the escalation envelope; recommendation @tool wrapper appends it as a JSON code block",
       "status": "complete",
-      "durationMs": 3,
-      "sql": "WITH vector_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY embedding <=> $1::vector) AS vector_rank\n  FROM product_catalog\n  WHERE quantity > 0\n  LIMIT 20\n),\nfts_results AS (\n  SELECT product_id, row_number() OVER (ORDER BY ts_rank_cd(description_tsv, $2::tsquery) DESC) AS text_rank\n  FROM product_catalog\n  WHERE quantity > 0\n    AND description_tsv @@ $2::tsquery\n  LIMIT 20\n),\nrrf AS (\n  SELECT\n    COALESCE(v.product_id, f.product_id) AS product_id,\n    COALESCE(1.0 / (60 + v.vector_rank), 0) +\n    COALESCE(1.0 / (60 + f.text_rank), 0) AS rrf_score\n  FROM vector_results v\n  FULL OUTER JOIN fts_results f USING (product_id)\n)\nSELECT product_id, rrf_score\nFROM rrf\nORDER BY rrf_score DESC\nLIMIT 30;",
-      "agent": "Curator \u00b7 find_pieces_hybrid"
+      "durationMs": 5,
+      "agent": "recommendation wrapper · append_escalation_marker"
     },
     {
       "index": 5,
-      "category": "both",
-      "title": "cohere.rerank-v3-5:0",
-      "description": "Cohere Rerank v3.5 \u2014 Bedrock cohere.rerank-v3-5:0 reranks 30 candidates",
+      "category": "owned",
+      "title": "SSE escalation event",
+      "description": "chat.py scans every tool result for {type: escalation}; renders the StylistHandoffCard via 'data: {type: escalation, ...}' SSE",
       "status": "complete",
-      "durationMs": 287,
-      "agent": "Curator \u00b7 find_pieces_hybrid"
+      "durationMs": 6,
+      "agent": "chat.py · _scan_for_escalation"
     },
     {
       "index": 6,
       "category": "both",
-      "title": "editorial composition",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 voice + milestone framing",
+      "title": "Editorial acknowledgement",
+      "description": "Claude Opus 4.6 · 0.4 — empathy first, concrete next step second",
       "status": "complete",
-      "durationMs": 1244,
+      "durationMs": 1248,
       "agent": "Curator"
     }
   ],
   "brief": {
     "folioNumber": 30,
-    "headline": "A lasting object for the first mantel",
+    "headline": "Sympathy is a job for a person",
     "filedTime": "2026-05-15T17:59:00Z",
     "sections": [
       {
         "numeral": "i.",
-        "title": "The arc",
+        "title": "Why hybrid + rerank is the wrong tool here",
         "paragraphs": [
-          "Anna's constraint was occasion fit. The Curator's hybrid retrieval pulled 30 candidates by combining pgvector cosine (which caught 'milestone gift' as a vibe) with Postgres FTS (which caught 'new homeowner' as a literal). Cohere Rerank then reordered the pool by relevance to Anna's exact phrasing, and the final curation pass kept Olive Branch Vessel as the stable housewarming hero because retrieval had already surfaced it."
+          "Anna's other four turns lean on hybrid + Cohere Rerank because gifting queries blend vibe with literal constraints, and rerank scores both. But sympathy gifting isn't a vibe — it's a relationship. The right object depends on whether her friend is a colleague or a sister, on whether the loss was sudden or expected, on what the friend has loved before.",
+          "No retrieval pipeline holds that context. The catalog can return tasteful candles; only a person can read the room."
         ]
       },
       {
         "numeral": "ii.",
-        "title": "Why hybrid + rerank earns its cost",
+        "title": "Escalation as architecture, not failure",
         "paragraphs": [
-          "Pure cosine returned tasteful home objects, but not all of them carried the homeowner signal. Postgres FTS alone returned literal-token matches but missed the 'milestone' editorial shape. RRF + Rerank combined: the durable home object stayed in the pool, gift-ready alternates followed, and the answer matched the occasion instead of just the category."
+          "Every specialist ships with escalate_to_stylist. The Curator's system prompt names the cases — sympathy, sentimental milestones, deep style coaching — and instructs the agent to always try catalog tools first.",
+          "Here, the explicit ask ('a real stylist') tripped the orchestrator's stylist-handoff branch, which routed Anna to recommendation rather than refusing as 'outside shopping.' The Curator chose escalation immediately. That decision is the architecture working — not failing."
         ]
       }
     ],
-    "products": [
-      {
-        "name": "Olive Branch Vessel",
-        "brand": "Pellier Home",
-        "price": 185,
-        "imageUrl": "/products/fresh-olive-branch-vessel.png"
-      }
-    ],
+    "products": [],
     "confidence": {
-      "percentage": 92,
+      "percentage": 95,
       "stats": [
+        {
+          "label": "Specialist",
+          "value": "Curator"
+        },
+        {
+          "label": "Tool",
+          "value": "escalate_to_stylist"
+        },
         {
           "label": "Skill",
           "value": "the-gift-table"
         },
         {
-          "label": "Hero",
-          "value": "Olive Branch Vessel"
-        },
-        {
-          "label": "Search method",
-          "value": "hybrid+rerank"
+          "label": "Response window",
+          "value": "Within 1 business day"
         }
       ]
     }

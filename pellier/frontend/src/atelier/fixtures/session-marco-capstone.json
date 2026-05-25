@@ -1,183 +1,41 @@
 {
   "id": "marco-capstone",
   "personaId": "marco",
-  "openingQuery": "What pairs with the Ecru overshirt?",
-  "elapsedMs": 22340,
-  "agentCount": 5,
+  "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
+  "elapsedMs": 3680,
+  "agentCount": 2,
   "routingPattern": "Dispatcher",
   "timestamp": "2026-05-15T17:34:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
-      "content": "What pairs with the Ecru overshirt?",
+      "content": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
       "timestamp": "2026-05-15T17:34:00Z"
     },
     {
       "role": "assistant",
-      "content": "The Ecru Overshirt pairs with the Linen Drawstring Trousers (same washed-oat register) and the Pellier Linen Shirt as a base layer. For texture variety, the Knit Tee in undyed cotton works beautifully underneath \u2014 softens the structure of the overshirt without breaking the tonal palette.",
+      "content": "I've routed your note to a Pellier stylist. They'll reach out within one business day with personal styling for the wedding — silhouette, palette, and how the moment feels — beyond what our catalog tools can answer alone. Keep browsing in the meantime; we'll pick up where you left off.",
       "timestamp": "2026-05-15T17:34:03Z",
       "plan": {
-        "flowSummary": "Dispatcher \u2192 Curator + the-packing-list \u2192 style_match",
+        "flowSummary": "Dispatcher → Style Advisor → escalate_to_stylist (honest fallback)",
         "traceLink": "#telemetry-1"
       },
       "toolCalls": [
         {
-          "toolName": "style_match",
-          "description": "Product-to-product pgvector similarity from Ecru Overshirt",
-          "durationMs": 198,
-          "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity\nFROM product_catalog p1\nJOIN product_catalog p2 ON p2.product_id != p1.product_id\nWHERE p1.name ILIKE '%Ecru Overshirt%'\n  AND p2.quantity > 0\nORDER BY p1.embedding <=> p2.embedding\nLIMIT 5;",
-          "resultSummary": "3 companion pieces returned by product-to-product similarity"
-        }
-      ],
-      "products": [
-        {
-          "name": "Linen Drawstring Trousers",
-          "brand": "Pellier Editions",
-          "price": 118,
-          "imageUrl": "/products/marco-linen-drawstring-trousers.png"
-        },
-        {
-          "name": "Pellier Linen Shirt",
-          "brand": "Pellier Editions",
-          "price": 148,
-          "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png"
-        },
-        {
-          "name": "Knit Tee Undyed",
-          "brand": "Pellier Editions",
-          "price": 68,
-          "imageUrl": "/products/marco-knit-tee-undyed.png"
-        }
-      ],
-      "meta": {
-        "agent": "Curator",
-        "model": "Claude Opus 4.6 \u00b7 0.4",
-        "skill": "the-packing-list",
-        "latencyMs": 1418
-      }
-    },
-    {
-      "role": "user",
-      "content": "What's the cheapest piece that goes with the overshirt?",
-      "timestamp": "2026-05-15T17:34:38Z"
-    },
-    {
-      "role": "assistant",
-      "content": "The Knit Tee in undyed cotton at $68. Sits $50 below the Drawstring Trousers and reads as a layering piece rather than an anchor.",
-      "timestamp": "2026-05-15T17:34:39Z",
-      "plan": {
-        "flowSummary": "Dispatcher \u2192 Value Analyst \u2192 price_intelligence",
-        "traceLink": "#telemetry-4"
-      },
-      "toolCalls": [
-        {
-          "toolName": "price_intelligence",
-          "description": "Lowest price in companion set",
-          "durationMs": 82,
-          "sql": "WITH companions AS (\n  SELECT unnest(ARRAY['Linen Drawstring Trousers', 'Pellier Linen Shirt', 'Knit Tee Undyed']) AS name\n)\nSELECT MIN(p.price) AS min_price,\n       MAX(p.price) AS max_price,\n       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY p.price) AS median_price\nFROM product_catalog p\nJOIN companions c ON p.name = c.name;",
-          "resultSummary": "Min $68, max $148, median $118"
+          "toolName": "escalate_to_stylist",
+          "description": "Hand off to a human stylist with a one-sentence reason and persona context",
+          "durationMs": 218,
+          "resultSummary": "Stylist handoff queued · response window 1 business day"
         }
       ],
       "products": [],
-      "meta": {
-        "agent": "Value Analyst",
-        "model": "Claude Haiku 4.5 \u00b7 0.1",
-        "latencyMs": 144
-      }
-    },
-    {
-      "role": "user",
-      "content": "Is the overshirt in stock at Brooklyn?",
-      "timestamp": "2026-05-15T17:34:58Z"
-    },
-    {
-      "role": "assistant",
-      "content": "Yes \u2014 6 of the Ecru Overshirt on the floor at Brooklyn (BK-01) right now. Portland has 9; Austin has 3.",
-      "timestamp": "2026-05-15T17:35:00Z",
-      "plan": {
-        "flowSummary": "Dispatcher \u2192 Stock Keeper \u2192 floor_check",
-        "traceLink": "#telemetry-7"
-      },
-      "toolCalls": [
-        {
-          "toolName": "floor_check",
-          "description": "Warehouse-level stock for Ecru Overshirt",
-          "durationMs": 138,
-          "sql": "SELECT warehouse_id, warehouse_name, quantity, restock_eta\nFROM inventory_by_warehouse\nWHERE product_id = $1\n  AND quantity > 0\nORDER BY warehouse_id;",
-          "resultSummary": "3 warehouses, 18 total units"
-        }
-      ],
-      "products": [],
-      "meta": {
-        "agent": "Stock Keeper",
-        "model": "Claude Haiku 4.5 \u00b7 0.0",
-        "latencyMs": 172
-      }
-    },
-    {
-      "role": "user",
-      "content": "If I don't love it, what's the return window?",
-      "timestamp": "2026-05-15T17:35:22Z"
-    },
-    {
-      "role": "assistant",
-      "content": "30 days from delivery for apparel \u2014 unworn, tags attached. We'll email a prepaid label; drop it at any carrier. Refunds post within 5\u20137 business days after we receive it back.",
-      "timestamp": "2026-05-15T17:35:24Z",
-      "plan": {
-        "flowSummary": "Dispatcher \u2192 Experience Guide \u2192 returns_and_care",
-        "traceLink": "#telemetry-10"
-      },
-      "toolCalls": [
-        {
-          "toolName": "returns_and_care",
-          "description": "Return window + shipping policy for apparel category",
-          "durationMs": 58,
-          "sql": "SELECT category, return_window_days, prepaid_label, refund_sla\nFROM return_policies\nWHERE category = 'Apparel'\nLIMIT 1;",
-          "resultSummary": "30-day return, prepaid label, 5-7 day refund window"
-        }
-      ],
-      "products": [],
-      "meta": {
-        "agent": "Experience Guide",
-        "model": "Claude Opus 4.6 \u00b7 0.2",
-        "latencyMs": 922
-      }
-    },
-    {
-      "role": "user",
-      "content": "Show me one more linen piece under $100.",
-      "timestamp": "2026-05-15T17:35:52Z"
-    },
-    {
-      "role": "assistant",
-      "content": "The Knit Tee in undyed cotton ($68) \u2014 technically cotton, not linen. In pure linen under $100 there's one: the Linen Pocket Square ($78). Small piece, outsized effect; rolls up flat in the side pocket of the Weekender.",
-      "timestamp": "2026-05-15T17:35:55Z",
-      "plan": {
-        "flowSummary": "Dispatcher \u2192 Style Advisor \u2192 find_pieces",
-        "traceLink": "#telemetry-13"
-      },
-      "toolCalls": [
-        {
-          "toolName": "find_pieces",
-          "description": "Semantic search: linen under $100",
-          "durationMs": 284,
-          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%linen%'\n  AND price < 100\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
-          "resultSummary": "1 pure linen piece under $100"
-        }
-      ],
-      "products": [
-        {
-          "name": "Linen Pocket Square",
-          "brand": "Pellier Editions",
-          "price": 78,
-          "imageUrl": "/products/marco-linen-pocket-square.png"
-        }
-      ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.6 \u00b7 0.4",
-        "latencyMs": 1282
+        "model": "Claude Opus 4.6 · 0.4",
+        "skill": "the-packing-list",
+        "latencyMs": 1462,
+        "note": "Style Advisor recognizes this is outside catalog capability and escalates rather than returning irrelevant cards."
       }
     }
   ],
@@ -185,174 +43,99 @@
     {
       "index": 1,
       "category": "managed",
-      "title": "Turn 1 \u00b7 Intent \u2192 Curator",
-      "description": "'pairs with' \u2192 recommendation intent",
+      "title": "Intent → Style Advisor",
+      "description": "'real stylist' + 'wedding outfit' → orchestrator stylist-handoff branch routes to search",
       "status": "complete",
-      "durationMs": 64,
+      "durationMs": 62,
       "agent": "Dispatcher"
     },
     {
       "index": 2,
       "category": "owned",
-      "title": "Turn 1 \u00b7 Skill loaded",
-      "description": "the-packing-list bound for persona: marco",
+      "title": "Skill loaded",
+      "description": "the-packing-list bound for persona: marco — preserves voice even on the handoff path",
       "status": "complete",
       "durationMs": 38,
       "agent": "SkillRouter"
     },
     {
       "index": 3,
-      "category": "both",
-      "title": "Turn 1 \u00b7 style_match",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 editorial pairings",
+      "category": "owned",
+      "title": "escalate_to_stylist",
+      "description": "Style Advisor decides catalog tools cannot dress a body for an occasion; emits {type: escalation, channel: stylist, reason}",
       "status": "complete",
-      "durationMs": 198,
-      "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity\nFROM product_catalog p1\nJOIN product_catalog p2 ON p2.product_id != p1.product_id\nWHERE p1.name ILIKE '%Ecru Overshirt%'\n  AND p2.quantity > 0\nORDER BY p1.embedding <=> p2.embedding\nLIMIT 5;",
-      "agent": "Curator"
+      "durationMs": 218,
+      "agent": "Style Advisor · escalate_to_stylist"
     },
     {
       "index": 4,
       "category": "managed",
-      "title": "Turn 2 \u00b7 Intent \u2192 Value Analyst",
-      "description": "'cheapest' \u2192 pricing intent",
+      "title": "Inner specialist → wrapper marker",
+      "description": "Inner Style Advisor emits the escalation envelope; the @tool wrapper appends it as a JSON code block so the outer orchestrator surfaces it back to chat.py",
       "status": "complete",
-      "durationMs": 54,
-      "agent": "Dispatcher"
+      "durationMs": 4,
+      "agent": "search wrapper · append_escalation_marker"
     },
     {
       "index": 5,
-      "category": "both",
-      "title": "Turn 2 \u00b7 price_intelligence",
-      "description": "Claude Haiku 4.5 \u00b7 0.1 \u2014 sub-200ms",
+      "category": "owned",
+      "title": "SSE escalation event",
+      "description": "chat.py scans every tool result for {type: escalation}; renders the StylistHandoffCard via 'data: {type: escalation, ...}' SSE",
       "status": "complete",
-      "durationMs": 82,
-      "sql": "WITH companions AS (\n  SELECT unnest(ARRAY['Linen Drawstring Trousers', 'Pellier Linen Shirt', 'Knit Tee Undyed']) AS name\n)\nSELECT MIN(p.price) AS min_price,\n       MAX(p.price) AS max_price,\n       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY p.price) AS median_price\nFROM product_catalog p\nJOIN companions c ON p.name = c.name;",
-      "agent": "Value Analyst"
+      "durationMs": 6,
+      "agent": "chat.py · _scan_for_escalation"
     },
     {
       "index": 6,
-      "category": "managed",
-      "title": "Turn 3 \u00b7 Intent \u2192 Stock Keeper",
-      "description": "'in stock at Brooklyn' \u2192 inventory intent",
-      "status": "complete",
-      "durationMs": 62,
-      "agent": "Dispatcher"
-    },
-    {
-      "index": 7,
       "category": "both",
-      "title": "Turn 3 \u00b7 floor_check",
-      "description": "Claude Haiku 4.5 \u00b7 0.0 \u2014 deterministic warehouse lookup",
+      "title": "Editorial acknowledgement",
+      "description": "Claude Opus 4.6 · 0.4 — empathetic one-paragraph confirmation; tool result is the load-bearing artifact, not the prose",
       "status": "complete",
-      "durationMs": 138,
-      "sql": "SELECT warehouse_id, warehouse_name, quantity, restock_eta\nFROM inventory_by_warehouse\nWHERE product_id = $1\n  AND quantity > 0\nORDER BY warehouse_id;",
-      "agent": "Stock Keeper"
-    },
-    {
-      "index": 8,
-      "category": "managed",
-      "title": "Turn 4 \u00b7 Intent \u2192 Experience Guide",
-      "description": "'return window' \u2192 support intent",
-      "status": "complete",
-      "durationMs": 58,
-      "agent": "Dispatcher"
-    },
-    {
-      "index": 9,
-      "category": "both",
-      "title": "Turn 4 \u00b7 returns_and_care",
-      "description": "Claude Opus 4.6 \u00b7 0.2 \u2014 empathy + concrete policy",
-      "status": "complete",
-      "durationMs": 58,
-      "sql": "SELECT category, return_window_days, prepaid_label, refund_sla\nFROM return_policies\nWHERE category = 'Apparel'\nLIMIT 1;",
-      "agent": "Experience Guide"
-    },
-    {
-      "index": 10,
-      "category": "managed",
-      "title": "Turn 5 \u00b7 Intent \u2192 Style Advisor",
-      "description": "'show me' + 'linen under $100' \u2192 search intent",
-      "status": "complete",
-      "durationMs": 66,
-      "agent": "Dispatcher"
-    },
-    {
-      "index": 11,
-      "category": "both",
-      "title": "Turn 5 \u00b7 find_pieces",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 editorial voice",
-      "status": "complete",
-      "durationMs": 284,
-      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%linen%'\n  AND price < 100\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+      "durationMs": 1244,
       "agent": "Style Advisor"
     }
   ],
   "brief": {
     "folioNumber": 44,
-    "headline": "Five agents, one shopper",
-    "filedTime": "2026-05-15T17:36:30Z",
+    "headline": "When the honest answer is 'a real person'",
+    "filedTime": "2026-05-15T17:35:00Z",
     "sections": [
       {
         "numeral": "i.",
-        "title": "The full journey",
+        "title": "Why escalate, not search",
         "paragraphs": [
-          "Marco moved through five turns and touched all five specialists. Every routing decision was pattern-matched by the Dispatcher in under 70ms; every specialist ran on its own model at its own temperature.",
-          "Curator on Claude Opus 4.6 carried the editorial opening. Value Analyst on Claude Haiku 4.5 answered the price question in 144ms. Stock Keeper on Claude Haiku 4.5 at 0.0 confirmed warehouse inventory \u2014 the tool you wrote at lunch. Experience Guide on Claude Opus 4.6 handled the return policy with warmth. Style Advisor on Claude Opus 4.6 closed with one more linen piece."
+          "Marco asked for a stylist by name — to dress him for his brother's wedding. Pellier's catalog tools (find_pieces, style_match, side_by_side) are designed for piece-level questions: silhouette, fabric, fit-as-described. They cannot judge how a body looks in motion at an event, or read the shopper's relationship to the day.",
+          "The Style Advisor recognizes the gap and calls escalate_to_stylist with a one-sentence reason. The orchestrator's stylist-handoff branch routes the explicit request to search instead of refusing as 'outside shopping.'"
         ]
       },
       {
         "numeral": "ii.",
-        "title": "The architecture, made visible",
+        "title": "Honest fallback, not lazy fallback",
         "paragraphs": [
-          "The Performance page tells the rest of the story. The Claude Haiku 4.5 turns (Value Analyst, Stock Keeper) ran in 144ms and 172ms respectively. The Claude Opus 4.6 turns (Curator, Experience Guide, Style Advisor) ran between 920ms and 1420ms. An order of magnitude apart.",
-          "That variation isn't a bug. It's the lesson: model selection is an architectural decision."
+          "Every specialist has escalate_to_stylist in its toolset. Every system prompt instructs the agent to ALWAYS try catalog tools first; escalate_to_stylist is the honest exit when the ask genuinely sits outside what the tools can answer. The orchestrator routes by topic — search for wardrobe, recommendation for sentiment, support for exception returns — and the inner specialist makes the final call.",
+          "The handoff payload includes a stylist contact, a 1-business-day response window, and next steps. The shopper is not stranded; they are routed."
         ]
       }
     ],
-    "products": [
-      {
-        "name": "Ecru Overshirt",
-        "brand": "Pellier Editions",
-        "price": 185,
-        "imageUrl": "/products/marco-washed-cotton-overshirt.png"
-      },
-      {
-        "name": "Linen Drawstring Trousers",
-        "brand": "Pellier Editions",
-        "price": 118,
-        "imageUrl": "/products/marco-linen-drawstring-trousers.png"
-      },
-      {
-        "name": "Pellier Linen Shirt",
-        "brand": "Pellier Editions",
-        "price": 148,
-        "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png"
-      },
-      {
-        "name": "Linen Pocket Square",
-        "brand": "Pellier Editions",
-        "price": 78,
-        "imageUrl": "/products/marco-linen-pocket-square.png"
-      }
-    ],
+    "products": [],
     "confidence": {
-      "percentage": 94,
+      "percentage": 96,
       "stats": [
         {
-          "label": "Turns",
-          "value": "5"
+          "label": "Specialist",
+          "value": "Style Advisor"
         },
         {
-          "label": "Specialists used",
-          "value": "5 of 5"
+          "label": "Tool",
+          "value": "escalate_to_stylist"
         },
         {
-          "label": "Models active",
-          "value": "Claude Opus 4.6 + Claude Haiku 4.5"
+          "label": "Channel",
+          "value": "stylist"
         },
         {
-          "label": "Avg dispatcher latency",
-          "value": "60 ms"
+          "label": "Response window",
+          "value": "Within 1 business day"
         }
       ]
     }

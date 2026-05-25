@@ -944,7 +944,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
         not the database.
       </p>
 
-      {/* Live-fetch query input — runs all three strategies through the
+      {/* Live-fetch query input — runs all four strategies through the
           backend's /api/atelier/search-strategies/compare endpoint. */}
       <div
         style={{
@@ -1171,7 +1171,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
             marginTop: '8px',
           }}
         >
-          The first three rows <em>rank</em>, but they never <em>filter</em>.
+          The first three rows (vector-only, hybrid RRF, hybrid + rerank) <em>rank</em>, but they never <em>filter</em>.
           A "$100 milestone gift" query running through hybrid+rerank can
           still surface a $185 candle in the top-5 — the price ceiling is
           a string the embedding never quite respects. The agentic row
@@ -1356,7 +1356,10 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
         {TIME_WINDOWS.map((w) => (
           <button
             key={w}
+            type="button"
             onClick={() => onWindowChange(w)}
+            aria-pressed={activeWindow === w}
+            aria-label={`Time window: ${w}`}
             style={{
               fontFamily: 'var(--at-mono)',
               fontSize: '13px',
@@ -1418,6 +1421,10 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
 
       {/* Run benchmark button */}
       <button
+        type="button"
+        disabled
+        aria-label="Run benchmark — coming soon"
+        title="Benchmark runner is wired in a later workshop step."
         style={{
           fontFamily: 'var(--at-sans)',
           fontSize: '15px',
@@ -1427,7 +1434,8 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
           border: 'none',
           borderRadius: '8px',
           padding: '9px 22px',
-          cursor: 'pointer',
+          cursor: 'not-allowed',
+          opacity: 0.55,
           letterSpacing: '0.02em',
           transition: 'opacity 0.15s ease',
         }}
@@ -1521,6 +1529,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
       {message}
     </p>
     <button
+      type="button"
       onClick={onRetry}
       style={{
         marginTop: '24px',

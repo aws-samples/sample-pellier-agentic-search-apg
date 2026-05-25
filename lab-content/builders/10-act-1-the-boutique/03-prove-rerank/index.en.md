@@ -60,7 +60,7 @@ In the Boutique:
 2. Click:
 
 ```text
-A milestone gift for a new homeowner
+Wrap-ready gifts with no extra effort
 ```
 
 Open **Under the hood** under Pellier's reply (the expandable trace panel
@@ -81,7 +81,7 @@ The link lands on **Atelier → Performance**. In the
 **Search strategy comparison · Anna's anchor capability** card, run:
 
 ```text
-A milestone gift for a new homeowner
+Wrap-ready gifts with no extra effort
 ```
 
 The card calls:
@@ -217,7 +217,7 @@ Change one guidance line under **Voice and curation rules** (for example:
 Save, then run Anna again:
 
 ```text
-A milestone gift for a new homeowner
+Wrap-ready gifts with no extra effort
 ```
 
 ### Prove the retrieval path with SQL

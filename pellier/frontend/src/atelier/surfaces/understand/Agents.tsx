@@ -505,9 +505,9 @@ const RelatedCard: React.FC = () => (
           Three patterns:{' '}
           <code style={CODE_INLINE}>Dispatcher</code> (active in the boutique),{' '}
           <code style={CODE_INLINE}>Agents-as-Tools</code>,{' '}
-          <code style={CODE_INLINE}>Graph</code>. The first runs without an
-          orchestrator; the other two use a Haiku 4.5 router. None of the five
-          specialists is a lead — that's the routing layer's job.
+          <code style={CODE_INLINE}>Graph</code>. The first classifies intent
+          ahead of each turn; the other two re-shape how specialists collaborate.
+          None of the five specialists is a lead — that's the routing layer's job.
         </p>
         <Link
           to="/atelier/routing"
@@ -731,7 +731,7 @@ const Agents: React.FC = () => {
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
       <EditorialTitle
-        eyebrow="Understand · Agents · five peers · all Opus 4.6 · 0.2"
+        eyebrow="Understand · Agents · five peers · Opus 4.6 + Haiku 4.5 · T 0.0–0.4"
         title="The cast of five."
         summary="Five peer specialists — routing sits in Dispatcher (classify_intent) ahead of each turn. Four are shipped reference in the workshop image (including Experience Guide for Theo's write path). Stock Keeper stays exercise until you wire floor_check in Part I; saving the tool body updates build-state and promotes Stock Keeper to shipped."
       />

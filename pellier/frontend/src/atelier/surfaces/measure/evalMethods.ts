@@ -96,7 +96,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'Your CI pipeline',
     tagline: 'Fixed queries with expected products, tools, or JSON shapes.',
     bestFor: [
-      'Non-negotiable regressions — "Marco Turn 2 must surface Camp Shirt"',
+      'Non-negotiable regressions — "Marco Turn 2 must surface Hadley Camp Shirt"',
       'Tool routing and pgvector discover smoke tests',
       'Cheap, deterministic gates on every PR',
     ],

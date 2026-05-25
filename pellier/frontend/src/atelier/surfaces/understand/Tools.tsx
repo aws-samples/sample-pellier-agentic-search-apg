@@ -910,8 +910,8 @@ const RelatedCard: React.FC = () => (
           }}
         >
           Five specialist agents invoke these tools. Each agent has a curated
-          tool set — Search uses find_pieces and explore_collection;
-          Recommendation uses find_pieces and side_by_side. The registry lets
+          tool set — Style Advisor uses find_pieces and explore_collection;
+          Curator uses find_pieces_hybrid and side_by_side. The registry lets
           agents discover tools they weren't explicitly given.
         </p>
         <Link
@@ -1237,9 +1237,9 @@ const Tools: React.FC = () => {
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
       <EditorialTitle
-        eyebrow="Understand · Tools · twelve functions · pgvector-discoverable"
+        eyebrow="Understand · Tools · thirteen functions · pgvector-discoverable"
         title="The toolkit, by what each does."
-        summary="Twelve tools in the registry. Eleven ship as reference in the Builder's Session image; floor_check is the sole hands-on wire in Part I. Each tool has an embedding — discovery ranks by cosine similarity. Replacing the stub updates GET /api/atelier/build-state so Stock Keeper and floor_check read as shipped."
+        summary="Thirteen tools in the registry. Twelve ship as reference in the Builder's Session image; floor_check is the sole hands-on wire in Part I. Each tool has an embedding — discovery ranks by cosine similarity. Replacing the stub updates GET /api/atelier/build-state so Stock Keeper and floor_check read as shipped."
       />
 
       {loading && <LoadingState />}

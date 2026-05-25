@@ -23,7 +23,7 @@ const StateDetail: React.FC = () => {
 
   return (
     <DetailPageShell
-      numeral="V"
+      numeral="IV"
       conceptName="Routing & State"
       category="live"
       title="Routing, explicit."

@@ -1,8 +1,8 @@
 {
   "id": "theo-home-not-wardrobe",
   "personaId": "theo",
-  "openingQuery": "Something for the home, not the wardrobe",
-  "elapsedMs": 4020,
+  "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
+  "elapsedMs": 4280,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
   "timestamp": "2026-05-15T18:28:00Z",
@@ -10,45 +10,32 @@
   "chat": [
     {
       "role": "user",
-      "content": "Something for the home, not the wardrobe",
+      "content": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
       "timestamp": "2026-05-15T18:28:00Z"
     },
     {
       "role": "assistant",
-      "content": "Go home, not closet: the Wabi-Sabi Bowl ($65) is the one I would pull first. It has the handmade irregularity Theo responds to, works on a table or shelf, and feels collected rather than styled. If you want a softer landing, the Washed Linen Throw ($138) brings the same lived-in texture to the room.",
-      "timestamp": "2026-05-15T18:28:03Z",
+      "content": "You're right — slow-craft linen shouldn't fail at the seam after four months. The standard return path can't accept an exception this far past the window, so I've routed your note to a Pellier stylist with the full context. They'll reach out within one business day to take it from here. Keep the throw; we'll tell you what to do with it.",
+      "timestamp": "2026-05-15T18:28:04Z",
       "plan": {
-        "flowSummary": "Dispatcher \u2192 Curator + the-makers-shelf \u2192 find_pieces",
+        "flowSummary": "Dispatcher → Experience Guide → escalate_to_stylist (exception beyond Cedar policy)",
         "traceLink": "#telemetry-1"
       },
       "toolCalls": [
         {
-          "toolName": "find_pieces",
-          "description": "Semantic search constrained to home goods, excluding wardrobe",
-          "durationMs": 276,
-          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home%'\n  AND category NOT ILIKE '%Apparel%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
-          "resultSummary": "Home goods ranked with Wabi-Sabi Bowl first"
+          "toolName": "escalate_to_stylist",
+          "description": "Hand off to a human after process_return cannot accommodate an out-of-window exception",
+          "durationMs": 224,
+          "resultSummary": "Stylist handoff queued · response window 1 business day"
         }
       ],
-      "products": [
-        {
-          "name": "Wabi-Sabi Bowl",
-          "brand": "Pellier Editions",
-          "price": 65,
-          "imageUrl": "/products/theo-wabi-sabi-bowl.png"
-        },
-        {
-          "name": "Washed Linen Throw",
-          "brand": "Pellier Home",
-          "price": 138,
-          "imageUrl": "/products/theo-washed-linen-throw.png"
-        }
-      ],
+      "products": [],
       "meta": {
-        "agent": "Curator",
-        "model": "Claude Opus 4.6 \u00b7 0.4",
+        "agent": "Experience Guide",
+        "model": "Claude Opus 4.6 · 0.2",
         "skill": "the-makers-shelf",
-        "latencyMs": 1088
+        "latencyMs": 1462,
+        "note": "Cedar policy enforces the return window. process_return refuses beyond it. escalate_to_stylist is the honest exit for durability-expectation exceptions a human should weigh."
       }
     }
   ],
@@ -56,77 +43,99 @@
     {
       "index": 1,
       "category": "managed",
-      "title": "Intent \u2192 Curator",
-      "description": "'home, not wardrobe' routed to home-goods curation",
+      "title": "Intent → Experience Guide",
+      "description": "'tear at the seam' + 'past the window' + 'exception' → orchestrator stylist-handoff branch routes to support",
       "status": "complete",
-      "durationMs": 52,
+      "durationMs": 66,
       "agent": "Dispatcher"
     },
     {
       "index": 2,
       "category": "owned",
       "title": "Skill loaded",
-      "description": "the-makers-shelf bound for persona: theo",
+      "description": "the-makers-shelf bound for persona: theo — durability + slow-craft framing applies",
       "status": "complete",
-      "durationMs": 36,
+      "durationMs": 40,
       "agent": "SkillRouter"
     },
     {
       "index": 3,
-      "category": "both",
-      "title": "find_pieces",
-      "description": "pgvector search constrained to home categories",
+      "category": "owned",
+      "title": "escalate_to_stylist",
+      "description": "Experience Guide recognizes Cedar policy will refuse process_return beyond the window; emits {type: escalation, channel: stylist, reason}",
       "status": "complete",
-      "durationMs": 276,
-      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home%'\n  AND category NOT ILIKE '%Apparel%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
-      "agent": "Curator"
+      "durationMs": 224,
+      "agent": "Experience Guide · escalate_to_stylist"
     },
     {
       "index": 4,
-      "category": "both",
-      "title": "editorial composition",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 home-over-wardrobe framing",
+      "category": "managed",
+      "title": "Inner specialist → wrapper marker",
+      "description": "Inner Experience Guide emits the escalation envelope; support @tool wrapper appends it as a JSON code block",
       "status": "complete",
-      "durationMs": 812,
-      "agent": "Curator"
+      "durationMs": 5,
+      "agent": "support wrapper · append_escalation_marker"
+    },
+    {
+      "index": 5,
+      "category": "owned",
+      "title": "SSE escalation event",
+      "description": "chat.py scans every tool result for {type: escalation}; renders the StylistHandoffCard via 'data: {type: escalation, ...}' SSE",
+      "status": "complete",
+      "durationMs": 6,
+      "agent": "chat.py · _scan_for_escalation"
+    },
+    {
+      "index": 6,
+      "category": "both",
+      "title": "Empathetic acknowledgement",
+      "description": "Claude Opus 4.6 · 0.2 — empathy for the durability claim; concrete next step",
+      "status": "complete",
+      "durationMs": 1238,
+      "agent": "Experience Guide"
     }
   ],
   "brief": {
-    "folioNumber": 37,
-    "headline": "Not the closet",
+    "folioNumber": 51,
+    "headline": "Cedar said no. The honest fallback said 'a person'.",
     "filedTime": "2026-05-15T18:29:00Z",
     "sections": [
       {
         "numeral": "i.",
-        "title": "The axis",
+        "title": "Why process_return refuses",
         "paragraphs": [
-          "The turn is explicit about exclusion. The query keeps the home cluster while avoiding apparel, making the category boundary visible in the SQL."
+          "Theo's prior turn (the chipped Wabi-Sabi Bowl) ran cleanly through process_return because Cedar's policy allows the 'damaged' reason inside the standard window. Here, four months have passed — the same Cedar policy refuses the write, and SQL would refuse it too. The automated path is closed.",
+          "But the case isn't closed. A linen throw with a seam failure at four months is a durability claim, not a buyer's remorse. That's a judgment call, and judgment calls belong with a person."
+        ]
+      },
+      {
+        "numeral": "ii.",
+        "title": "Honest fallback over silent failure",
+        "paragraphs": [
+          "The Experience Guide's system prompt names this exact case: 'Use ONLY when process_return cannot handle the case — Cedar rejected the reason, the customer doesn't own the product, the window has closed, or the shopper is in distress and deserves a real person.'",
+          "escalate_to_stylist emits an envelope with the customer's framing intact. The stylist sees the full context — purchase date, durability expectation, shopper's tone — and decides. The customer is not stranded with a refusal; they are routed to a person who can say yes or no."
         ]
       }
     ],
-    "products": [
-      {
-        "name": "Wabi-Sabi Bowl",
-        "brand": "Pellier Editions",
-        "price": 65,
-        "imageUrl": "/products/theo-wabi-sabi-bowl.png"
-      },
-      {
-        "name": "Washed Linen Throw",
-        "brand": "Pellier Home",
-        "price": 138,
-        "imageUrl": "/products/theo-washed-linen-throw.png"
-      }
-    ],
+    "products": [],
     "confidence": {
+      "percentage": 96,
       "stats": [
         {
-          "label": "Category boundary",
-          "value": "home, not wardrobe"
+          "label": "Specialist",
+          "value": "Experience Guide"
         },
         {
           "label": "Tool",
-          "value": "find_pieces"
+          "value": "escalate_to_stylist"
+        },
+        {
+          "label": "Cedar verdict",
+          "value": "out-of-window: refused"
+        },
+        {
+          "label": "Response window",
+          "value": "Within 1 business day"
         }
       ]
     }

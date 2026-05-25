@@ -313,23 +313,36 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'What would go with the Hadley shirt?',                  // Turn 2 → Curator + the-packing-list · style_match
     "What's the price range for linen shirts?",              // Turn 3 → Value Analyst · price_intelligence
     'Is the Hadley shirt at the Brooklyn warehouse?',        // Turn 4 → Stock Keeper (stub/wired)
-    'What pairs with the Ecru overshirt?',                   // Turn 5 (capstone) → Curator · style_match
+    // Turn 5 (capstone) → Style Advisor · escalate_to_stylist. The
+    // explicit "real Pellier stylist" + "not product cards" framing is
+    // load-bearing: it teaches the orchestrator's stylist-handoff
+    // branch to route to search instead of refusing as "outside
+    // shopping," and it teaches the Style Advisor that catalog tools
+    // can't satisfy the ask.
+    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
   ],
   anna: [
     'A thoughtful gift for someone who loves morning rituals',  // Turn 1
     'Something beautiful under $100',                            // Turn 2
     'Help me pair a candle with something else',                 // Turn 3
-    'Wrap-ready gifts with no extra effort',
-    'A milestone gift for a new homeowner',
+    'Wrap-ready gifts with no extra effort',                     // Turn 4
+    // Turn 5 (capstone) → Curator · escalate_to_stylist. Sympathy
+    // gifting is the Curator's honest fallback — catalog tools can
+    // surface candles, but they can't read the room. The explicit
+    // "real stylist" ask routes through the orchestrator's
+    // stylist-handoff branch.
+    "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
   ],
   theo: [
     'Hand-thrown ceramics for a slower morning routine',  // Turn 1
     'What goes well with the pour-over set?',              // Turn 2
     'Linen pieces that soften over seasons',               // Turn 3
     "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
-    // Turn 5 matches Persona Journeys + Boutique welcome P.S. (not the
-    // narrower "worth keeping" headline — this is the closet vs home axis).
-    'Something for the home, not the wardrobe',
+    // Turn 5 (capstone) → Experience Guide · escalate_to_stylist.
+    // Durability-expectation framing past the standard return window —
+    // process_return refuses, escalate_to_stylist is the honest
+    // fallback for an exception that needs a human.
+    'The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
   fresh: [
     'A thoughtful gift for someone who runs',
@@ -342,6 +355,30 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
 
 /** Marco Boutique / Atelier Turn 4 — warehouse ask (Stock Keeper · `floor_check`). */
 export const MARCO_BUILDER_SESSION_QUERY = PERSONA_HERO_PILLS.marco[3]
+
+/**
+ * Short display labels for hero pills. The underlying click-fire query
+ * (in PERSONA_HERO_PILLS) stays verbatim — these labels exist purely so
+ * Turn 5's 150–200 char stylist-handoff strings don't blow out the
+ * 185px-wide pill grid and overlap the "Because" chips below. A `null`
+ * (or missing entry) falls back to the full query.
+ */
+export const PERSONA_HERO_PILL_LABELS: Record<string, (string | null)[]> = {
+  marco: [null, null, null, null, 'Connect me with a real Pellier stylist'],
+  anna: [null, null, null, null, 'Connect me with a real Pellier stylist'],
+  theo: [null, null, null, null, 'Handle a worn-in piece past the return window'],
+  fresh: [null, null, null, null, null],
+}
+
+/** Display label for hero pill at `index` in the persona's list. */
+export function heroPillLabel(
+  personaId: string | null | undefined,
+  index: number,
+  fallback: string,
+): string {
+  const key = personaId ?? 'fresh'
+  return PERSONA_HERO_PILL_LABELS[key]?.[index] ?? fallback
+}
 
 export function heroPillsForPersona(
   personaId: string | null | undefined,
@@ -361,21 +398,21 @@ export const PERSONA_TURN_TRACES: Record<string, PersonaTurnTrace[]> = {
     { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
     { tools: ['price_intelligence'] },
     { tools: ['floor_check'] },
-    { skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] },
+    { skill: 'the-packing-list', tools: ['escalate_to_stylist'] },
   ],
   anna: [
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
     { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
-    { skill: 'the-gift-table', tools: ['find_pieces_hybrid'] },
+    { skill: 'the-gift-table', tools: ['escalate_to_stylist'] },
   ],
   theo: [
     { skill: 'the-makers-shelf', tools: ['find_pieces'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces', 'style_match'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces'] },
     { skill: 'the-makers-shelf', tools: ['find_pieces', 'returns_and_care', 'process_return'] },
-    { skill: 'the-makers-shelf', tools: ['find_pieces'] },
+    { skill: 'the-makers-shelf', tools: ['escalate_to_stylist'] },
   ],
   fresh: PERSONA_HERO_PILLS.fresh.map(() => ({ tools: ['find_pieces'] })),
 }
@@ -553,7 +590,7 @@ export const PERSONA_MEMORY_HANDOFF: Record<string, MemoryHandoffContent> = {
     title: 'You were deciding between two linen pieces. I held them for you.',
     items: [
       { tool: 'memory.recall', text: 'Linen Camp Shirt · size 41 · saved' },
-      { tool: 'cart.holds', text: 'Wide-Leg Trouser · in bag, 2 left' },
+      { tool: 'memory.holds', text: 'Wide-Leg Trouser · in bag, 2 left' },
       { tool: 'inventory.watch', text: 'Slide Sandal · back in 42' },
     ],
   },

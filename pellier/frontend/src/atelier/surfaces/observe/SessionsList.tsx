@@ -239,6 +239,7 @@ const PersonaTurnCard: React.FC<PersonaTurnCardProps> = ({
           <button
             type="button"
             onClick={() => onOpenReplay(replayId)}
+            aria-label={`Open replay for ${PERSONA_LABELS[personaId]} turn ${turnIndex + 1}`}
             style={{
               fontFamily: 'var(--at-mono)',
               fontSize: '11px',
@@ -427,6 +428,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
       {message}
     </p>
     <button
+      type="button"
       onClick={onRetry}
       style={{
         marginTop: '24px',
@@ -521,6 +523,8 @@ const SessionsList: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowAllPersonas((value) => !value)}
+            aria-label={showAllPersonas ? `View ${activePersonaLabel} only` : 'View all personas'}
+            aria-pressed={showAllPersonas}
             style={{
               fontFamily: 'var(--at-mono)',
               fontSize: '11px',

@@ -315,6 +315,8 @@ const TimelinePanelCard: React.FC<TimelinePanelProps> = ({
         data-telemetry-panel
         role="button"
         tabIndex={0}
+        aria-label={`Step ${panel.index} · ${panel.title}`}
+        aria-pressed={isActive}
         onClick={onClick}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -1046,7 +1048,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       durationMs: 312,
       agent: 'Curator · find_pieces_hybrid',
       sql:
-        'SELECT id, embedding <=> $1::vector AS dist FROM product_catalog ORDER BY dist LIMIT 20;',
+        'SELECT id, embedding <=> $1::vector AS dist FROM pellier.product_catalog ORDER BY dist LIMIT 20;',
     },
     {
       index: 4,
@@ -1152,7 +1154,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       durationMs: 276,
       agent: 'Style Advisor',
       sql:
-        'SELECT id, ts_rank_cd(description_tsv, plainto_tsquery($1)) AS r FROM product_catalog WHERE description_tsv @@ plainto_tsquery($1) LIMIT 20;',
+        'SELECT id, ts_rank_cd(description_tsv, plainto_tsquery($1)) AS r FROM pellier.product_catalog WHERE description_tsv @@ plainto_tsquery($1) LIMIT 20;',
     },
     {
       index: 4,
