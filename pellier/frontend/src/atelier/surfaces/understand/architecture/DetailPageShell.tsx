@@ -77,13 +77,16 @@ export interface DetailPageShellProps {
 const CheatSheetStrip: React.FC<{ items: CheatSheetItem[] }> = ({ items }) => {
   if (items.length === 0) return null;
 
+  // 4 items lay out best as a 2x2 grid; 3 (the common case) stays 3-up.
+  const columns = items.length === 4 ? 2 : 3;
+
   return (
     <section style={{ marginTop: '48px' }}>
       <Eyebrow label="Cheat sheet" variant="muted" />
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
           gap: '20px',
           marginTop: '20px',
         }}
@@ -115,9 +118,8 @@ const CheatSheetStrip: React.FC<{ items: CheatSheetItem[] }> = ({ items }) => {
             </span>
             <p
               style={{
-                fontFamily: 'var(--at-serif)',
-                fontStyle: 'italic',
-                fontSize: '14px',
+                fontFamily: 'var(--at-sans)',
+                fontSize: '13.5px',
                 lineHeight: 1.55,
                 color: 'var(--at-ink-1)',
                 margin: 0,
@@ -332,6 +334,7 @@ const DetailPageShell: React.FC<DetailPageShellProps> = ({
             direction="to-boutique"
             href={seeInBoutique.href}
             label={seeInBoutique.label}
+            italic={false}
           />
         </div>
       )}

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
@@ -325,19 +325,28 @@ async def get_embedding_service() -> EmbeddingService:
 # Windows" failure modes (port 5173 conflicts, file watcher limits,
 # node_modules install issues behind corporate proxies).
 #
-# Resolution order for the root ``/`` endpoint:
+# Resolution order for ``FRONTEND_DIST``:
 #   1. If ``FRONTEND_DIST_PATH`` env var is set, use that.
 #   2. Otherwise look for ``../frontend/dist`` relative to backend/.
 #   3. If neither exists (pure API mode / tests), fall back to the
-#      JSON status blob.
+#      JSON status blob from the root handler.
+#
+# ``SPA_MOUNT_PATH`` controls the URL prefix the SPA is served from.
+# Default ``/`` matches the historical behavior — nginx in this repo
+# rewrites ``/app/`` → ``/`` before forwarding (see
+# scripts/bootstrap-environment.sh:173-182), so root mount works behind
+# both ``/ports/8000/*`` and ``/app/*`` proxies. Set to ``/app`` if a
+# downstream proxy ever forwards the prefix verbatim instead of
+# stripping it.
 FRONTEND_DIST = Path(
     os.environ.get("FRONTEND_DIST_PATH")
     or (Path(__file__).resolve().parent.parent / "frontend" / "dist")
 ).resolve()
 
+SPA_MOUNT_PATH = (os.environ.get("SPA_MOUNT_PATH", "/").rstrip("/") or "/")
 
-@app.get("/", include_in_schema=False)
-async def root():
+
+async def _serve_spa_root():
     """Serve the SPA's ``index.html`` if built, else return API status."""
     index_html = FRONTEND_DIST / "index.html"
     if index_html.is_file():
@@ -355,6 +364,39 @@ async def root():
                 "to produce the SPA, or set FRONTEND_DIST_PATH."
             ),
         }
+    )
+
+
+# Mount path semantics:
+#   - SPA_MOUNT_PATH = "/"   → serve SPA at ``/`` (legacy default).
+#   - SPA_MOUNT_PATH = "/app" → serve SPA at ``/app/`` and 307-redirect
+#     bare ``/app`` to ``/app/``. Trailing slash matters because the
+#     bundle uses relative asset URLs ("assets/foo.js"); without the
+#     slash, the browser resolves them against ``/`` and 404s.
+if SPA_MOUNT_PATH == "/":
+    app.add_api_route(
+        "/",
+        _serve_spa_root,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+else:
+    _slash_target = SPA_MOUNT_PATH + "/"
+
+    async def _spa_redirect_to_slash():
+        return RedirectResponse(url=_slash_target, status_code=307)
+
+    app.add_api_route(
+        SPA_MOUNT_PATH,
+        _spa_redirect_to_slash,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+    app.add_api_route(
+        _slash_target,
+        _serve_spa_root,
+        methods=["GET"],
+        include_in_schema=False,
     )
 
 
@@ -2053,20 +2095,46 @@ async def analytics_query(request: Request):
 # picks up from there.
 
 if FRONTEND_DIST.is_dir():
+    _assets_url = (
+        "/assets" if SPA_MOUNT_PATH == "/" else f"{SPA_MOUNT_PATH}/assets"
+    )
+    _fonts_url = (
+        "/fonts" if SPA_MOUNT_PATH == "/" else f"{SPA_MOUNT_PATH}/fonts"
+    )
     assets_dir = FRONTEND_DIST / "assets"
     if assets_dir.is_dir():
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        app.mount(_assets_url, StaticFiles(directory=assets_dir), name="assets")
     fonts_dir = FRONTEND_DIST / "fonts"
     if fonts_dir.is_dir():
-        app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
+        app.mount(_fonts_url, StaticFiles(directory=fonts_dir), name="fonts")
 
-    # Client-route catch-all. Explicitly does NOT match /api/* — those
-    # already resolve against the routers above and a 404 from here
-    # would mask a real routing bug. We also refuse to serve files that
-    # escape dist/ via .. segments.
-    @app.get("/{full_path:path}", include_in_schema=False)
+    # Client-route catch-all. Explicitly does NOT match /api/* or /ws/*
+    # — those already resolve against the routers above and a 404 from
+    # here would mask a real routing bug. We also refuse to serve files
+    # that escape dist/ via .. segments.
+    #
+    # IMPORTANT: do not register any routes after this catch-all — its
+    # ``{full_path:path}`` pattern matches everything under SPA_MOUNT_PATH
+    # and would shadow them. The dynamic mount path makes ordering
+    # invisible from a quick read; if you need a new route under the
+    # SPA prefix, add it ABOVE this block.
+    _catchall_url = (
+        "/{full_path:path}"
+        if SPA_MOUNT_PATH == "/"
+        else f"{SPA_MOUNT_PATH}/{{full_path:path}}"
+    )
+
+    @app.get(_catchall_url, include_in_schema=False)
     async def spa_fallback(full_path: str):
-        if full_path.startswith("api/") or full_path.startswith("ws/"):
+        # When SPA_MOUNT_PATH = "/", /api/foo arrives here as "api/foo"
+        # and we must reject it so the real router 404s aren't masked.
+        # When SPA_MOUNT_PATH = "/app", /app/api/foo arrives as
+        # "api/foo" too — but in that case the real API lives at
+        # /api/foo (no /app prefix), so the SPA correctly owns
+        # /app/api/* and we let it fall through to index.html.
+        if SPA_MOUNT_PATH == "/" and (
+            full_path.startswith("api/") or full_path.startswith("ws/")
+        ):
             raise HTTPException(status_code=404, detail="Not Found")
         candidate = (FRONTEND_DIST / full_path).resolve()
         # Prevent directory traversal — the resolved path must live
@@ -2082,6 +2150,10 @@ if FRONTEND_DIST.is_dir():
             FRONTEND_DIST / "index.html",
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
         )
+
+    logger.info(
+        "SPA mounted at %s (FRONTEND_DIST=%s)", SPA_MOUNT_PATH, FRONTEND_DIST
+    )
 else:
     logger.warning(
         "⚠️  Frontend dist not found at %s — API will run, SPA will 404. "

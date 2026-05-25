@@ -59,7 +59,7 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Value Analyst',
     model: 'Claude Haiku 4.5 · 0.1',
     tool: 'price_intelligence',
-    outcome: '"$88 to $285, median $148" — sub-200ms',
+    outcome: '"$88 to $285, median $148" - sub-200ms',
     sessionId: 'marco-opening-demo',
   },
   {
@@ -67,7 +67,7 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     model: 'Claude Haiku 4.5 · 0.0',
     tool: 'floor_check',
     outcome:
-      'Opening demo: Dispatcher matches stock intent; floor_check still stubbed → fall-through telemetry (no tool). Midpoint: same Boutique pill — real warehouse breakdown after the build.',
+      'Opening demo: Dispatcher matches stock intent; floor_check still stubbed → fall-through telemetry (no tool). Midpoint: same Boutique pill - real warehouse breakdown after the build.',
     sessionId: 'marco-opening-demo',
     wiredSessionId: 'marco-midpoint-checkpoint',
   },
@@ -75,7 +75,7 @@ const MARCO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Curator (the-packing-list)',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces → style_match',
-    outcome: 'Capstone — Ecru overshirt anchor; pairing + price discipline',
+    outcome: 'Capstone - Ecru overshirt anchor; pairing + price discipline',
     sessionId: 'marco-capstone',
   },
 ];
@@ -93,7 +93,7 @@ const ANNA_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
-    outcome: 'Soft "beautiful" + literal "$100" — hybrid handles both.',
+    outcome: 'Soft "beautiful" + literal "$100" - hybrid handles both.',
     sessionId: 'anna-under-100',
   },
   {
@@ -107,7 +107,7 @@ const ANNA_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces_hybrid',
-    outcome: 'Beeswax Taper Candles at rank 1 — Cohere reads "wrap-ready" intent.',
+    outcome: 'Beeswax Taper Candles at rank 1 - Cohere reads "wrap-ready" intent.',
     sessionId: 'anna-birthday-gift',
   },
   {
@@ -124,14 +124,14 @@ const THEO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Curator (the-makers-shelf)',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces',
-    outcome: 'Stoneware Pour-Over Set at rank 1 — patina vibe matches.',
+    outcome: 'Stoneware Pour-Over Set at rank 1 - patina vibe matches.',
     sessionId: 'theo-pour-over',
   },
   {
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces → style_match',
-    outcome: 'Ceramic Tumblers + Woven Mat Set — same kiln register.',
+    outcome: 'Ceramic Tumblers + Woven Mat Set - same kiln register.',
     sessionId: 'theo-pour-over-pairing',
   },
   {
@@ -153,7 +153,7 @@ const THEO_TURNS_META: Omit<JourneyTurn, 'pill' | 'n'>[] = [
     agent: 'Curator',
     model: 'Claude Opus 4.6 · 0.4',
     tool: 'find_pieces',
-    outcome: 'Home-decor read — same fifth pill as the Boutique hero row.',
+    outcome: 'Home-decor read - same fifth pill as the Boutique hero row.',
     sessionId: 'theo-home-not-wardrobe',
   },
 ];
@@ -182,7 +182,7 @@ const JOURNEYS: PersonaJourney[] = [
       "Returning customer. Natural fabrics, linen, travel-ready, warm tones. Marco's arc anchors pgvector cosine over Cohere Embed v4. Turn 4 is the Builder's Session: same hero pill ships stub telemetry in opening demo, then a real floor_check replay in midpoint.",
     turns: attachPills(MARCO_TURNS_META, PERSONA_HERO_PILLS.marco, PERSONA_TURN_TRACES.marco),
     capstoneNote:
-      "Claude Opus 4.6 turns at ~1200ms. Claude Haiku 4.5 turns at ~150ms. That's the architectural lesson, made visible — and Turn 4 is where the wiring exercise lands.",
+      "Claude Opus 4.6 turns at ~1200ms. Claude Haiku 4.5 turns at ~150ms. That's the architectural lesson, made visible - and Turn 4 is where the wiring exercise lands.",
   },
   {
     id: 'anna',
@@ -190,10 +190,10 @@ const JOURNEYS: PersonaJourney[] = [
     capability: 'hybrid + Cohere Rerank v3.5',
     capabilityRole: 'Capability 2 · when pure vector wears thin',
     blurb:
-      "Gift-giver — observe & learn only. Her five Boutique hero strings are a live demo of Capability 2 (hybrid + rerank); there is no Builder's Session wiring exercise on this arc. Use Sessions and Observatory to study spans and cost.",
+      "Gift-giver - observe & learn only. Her five Boutique hero strings are a live demo of Capability 2 (hybrid + rerank); there is no Builder's Session wiring exercise on this arc. Use Sessions and Observatory to study spans and cost.",
     turns: attachPills(ANNA_TURNS_META, PERSONA_HERO_PILLS.anna, PERSONA_TURN_TRACES.anna),
     capstoneNote:
-      "Recall@5 jumps ~20 points; p50 doubles; cost goes 6×. The Performance card lets you decide — there's no universally right answer per query class.",
+      "Recall@5 jumps ~20 points; p50 doubles; cost goes 6×. The Performance card lets you decide - there's no universally right answer per query class.",
   },
   {
     id: 'theo',
@@ -201,10 +201,10 @@ const JOURNEYS: PersonaJourney[] = [
     capability: 'Aurora as agent system-of-record',
     capabilityRole: 'Capability 3 · writes leave a paper trail',
     blurb:
-      "Slow-craft buyer — observe & learn only. This arc demonstrates Capability 3 (writes + tool_audit / Cedar). No participant coding checkpoint on Theo in the Builder's Session; replay session fixtures to see the paper trail.",
+      "Slow-craft buyer - observe & learn only. This arc demonstrates Capability 3 (writes + tool_audit / Cedar). No participant coding checkpoint on Theo in the Builder's Session; replay session fixtures to see the paper trail.",
     turns: attachPills(THEO_TURNS_META, PERSONA_HERO_PILLS.theo, PERSONA_TURN_TRACES.theo),
     capstoneNote:
-      'Every mutation is reconstructible from tool_audit — see Write-path.',
+      'Every mutation is reconstructible from tool_audit - see Write-path.',
   },
 ];
 
@@ -287,11 +287,10 @@ const TurnRow: React.FC<{ turn: JourneyTurn; isFirst?: boolean }> = ({ turn, isF
         <div>
           <div
             style={{
-              fontFamily: 'var(--at-serif)',
-              fontSize: '15px',
+              fontFamily: 'var(--at-sans)',
+              fontSize: '14px',
               color: 'var(--at-ink-1)',
               marginBottom: '4px',
-              fontStyle: 'italic' as const,
             }}
           >
             “{turn.pill}”
@@ -398,7 +397,6 @@ const PersonaSection: React.FC<{ journey: PersonaJourney }> = ({ journey }) => (
           borderTop: '1px solid var(--at-card-border)',
           fontFamily: 'var(--at-sans)',
           fontSize: '13px',
-          fontStyle: 'italic' as const,
           color: 'var(--at-ink-2)',
           lineHeight: 1.6,
         }}

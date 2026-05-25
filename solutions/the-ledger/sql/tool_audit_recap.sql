@@ -1,16 +1,17 @@
 -- tool_audit_recap.sql — Act II · Exercise 2 (Aurora read path)
 --
 -- Drops in for the in-room SELECT when a participant runs out of
--- time. Pulls the most recent session that has at least one
--- mutation row in pellier.tool_audit, then prints two views:
+-- time. Pulls the most recent session with at least one row in
+-- pellier.tool_audit, then prints two views:
 --
 --   1) raw rows  — tool, caller, args, result, latency_ms, created_at
 --   2) JSONB extraction — args->>'reason', result->>'return_id', etc.
 --
--- Why mutations only: services/policy_hook.py:75 audits
--- _MUTATING_TOOLS = {"restock_shelf", "process_return"}. Read tools
--- (floor_check, find_pieces_hybrid) skip the ledger by design — the
--- Atelier Spans surface already shows them.
+-- Every ALLOWed tool call writes a row — reads and writes alike —
+-- so a typical browse session shows find_pieces, find_pieces_hybrid,
+-- floor_check etc. alongside any process_return / restock_shelf
+-- mutations. DENY decisions skip the ledger (the tool never ran)
+-- and live in policy_hook's per-session decision deque instead.
 --
 -- Run:
 --   psql "$PG_URL" -f solutions/the-ledger/sql/tool_audit_recap.sql

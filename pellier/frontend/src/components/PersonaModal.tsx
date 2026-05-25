@@ -167,7 +167,7 @@ export default function PersonaModal({ open, onClose }: PersonaModalProps) {
         {/* Foot */}
         <div className="pm-foot">
           <div className="pm-foot-text">
-            <em>Three curated identities</em> — switch any time from the header.
+            <em>Three curated identities</em> - switch any time from the header.
           </div>
           <div className="pm-foot-meta">v1.0</div>
         </div>

@@ -172,11 +172,11 @@ const EnforcementDiagram: React.FC = () => {
 
         <div style={layerLabel}>3 writes in one transaction</div>
         <div style={stepStyle}>
-          INSERT INTO returns
+          INSERT INTO pellier.returns
           <br />
-          UPDATE product_catalog SET quantity = ... (only if reason='damaged')
+          UPDATE pellier.product_catalog SET quantity = ... (only if reason='damaged')
           <br />
-          UPDATE tool_audit SET result, latency_ms
+          UPDATE pellier.tool_audit SET result, latency_ms
         </div>
         <div style={arrowStyle}>↓ commit</div>
 

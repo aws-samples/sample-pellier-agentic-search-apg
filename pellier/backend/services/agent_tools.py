@@ -813,26 +813,35 @@ def style_match(product_id: int, limit: int = 5) -> str:
     try:
         product_id_text = str(product_id).strip()
         source = _run_async(_db_service.fetch_one(
-            'SELECT "productId", name, brand, price, category_name, embedding '
+            'SELECT "productId", name, brand, price, category, embedding '
             'FROM pellier.product_catalog WHERE "productId" = %s',
             product_id_text,
         ))
         if not source:
             return json.dumps({"error": f"Product {product_id} not found"})
-        if not source.get("embedding"):
+        # ``embedding`` comes back as a numpy array (pgvector adapter).
+        # ``if not array`` raises "truth value is ambiguous" — check
+        # for None / length-zero explicitly.
+        emb = source.get("embedding")
+        if emb is None or len(emb) == 0:
             return json.dumps({"error": f"Product {product_id} has no embedding"})
+
+        # pgvector's text I/O wants ``[v1,v2,...]`` (comma-separated).
+        # ``str(numpy_array)`` produces space-separated values which
+        # the parser rejects with "invalid input syntax for type vector".
+        emb_literal = "[" + ",".join(repr(float(v)) for v in emb) + "]"
 
         limit = max(1, min(int(limit), settings.MAX_SEARCH_LIMIT))
         matches = _run_async(_db_service.fetch_all(
             'SELECT "productId", name, brand, color, price, rating, reviews, '
-            'category_name, "imgUrl", '
+            'category, "imgUrl", '
             '1 - (embedding <=> %s::vector) AS similarity_score '
             'FROM pellier.product_catalog '
             'WHERE "productId" != %s '
             'ORDER BY embedding <=> %s::vector '
             'LIMIT %s',
-            str(source["embedding"]), product_id_text,
-            str(source["embedding"]), limit,
+            emb_literal, product_id_text,
+            emb_literal, limit,
         ))
 
         payload = {
@@ -851,7 +860,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
                     "price": float(m["price"]),
                     "rating": float(m.get("rating", 0)),
                     "reviews": int(m.get("reviews", 0)),
-                    "category": m.get("category_name", ""),
+                    "category": m.get("category") or m.get("category_name", ""),
                     "imgUrl": m.get("imgUrl", ""),
                     "similarity_score": round(float(m.get("similarity_score", 0)), 4),
                 }
@@ -868,7 +877,7 @@ def style_match(product_id: int, limit: int = 5) -> str:
                     "price": float(m["price"]),
                     "rating": float(m.get("rating", 0)),
                     "reviews": int(m.get("reviews", 0)),
-                    "category": m.get("category_name", ""),
+                    "category": m.get("category") or m.get("category_name", ""),
                     "imgUrl": m.get("imgUrl", ""),
                     "similarity_score": round(float(m.get("similarity_score", 0)), 4),
                 }

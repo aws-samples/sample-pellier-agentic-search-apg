@@ -3,7 +3,7 @@
 # Optimizations: Parallel pip installs, reduced redundancy, faster execution
 # Duration: ~12-15 minutes
 
-set -uo pipefail  # Removed -e to allow graceful failures
+set -euo pipefail
 
 # ============================================================================
 # PARAMETERS & LOGGING
@@ -37,7 +37,7 @@ fi
 # STEP 2: FETCH DB CREDENTIALS (~10 sec)
 # ============================================================================
 log "Fetching database credentials..."
-export DB_HOST="" DB_PORT="5432" DB_USER="" DB_PASSWORD="" DB_NAME="${DB_NAME:-postgres}"
+export DB_HOST="" DB_PORT="5432" DB_USER="" DB_PASSWORD="" DB_NAME="${DB_NAME:-pellier}"
 
 if [ -n "${DB_SECRET_ARN:-}" ]; then
     DB_SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_ARN" --region "$AWS_REGION" --query SecretString --output text 2>/dev/null || echo "")
@@ -45,7 +45,7 @@ if [ -n "${DB_SECRET_ARN:-}" ]; then
         export DB_HOST=$(echo "$DB_SECRET" | jq -r '.host // empty')
         export DB_USER=$(echo "$DB_SECRET" | jq -r '.username // empty')
         export DB_PASSWORD=$(echo "$DB_SECRET" | jq -r '.password // empty')
-        export DB_NAME=$(echo "$DB_SECRET" | jq -r --arg default_db "${DB_NAME:-postgres}" '.dbname // .database // $default_db')
+        export DB_NAME=$(echo "$DB_SECRET" | jq -r --arg default_db "${DB_NAME:-pellier}" '.dbname // .database // $default_db')
         log "✅ Database credentials retrieved"
     fi
 fi
@@ -224,7 +224,18 @@ log "Setting up frontend and database (parallel)..."
 setup_frontend() {
     if [ -d "$REPO_PATH/pellier/frontend" ]; then
         cd "$REPO_PATH/pellier/frontend"
-        sudo -u "$CODE_EDITOR_USER" npm install &>/dev/null
+        # npm ci is reproducible (uses package-lock.json verbatim) and
+        # fails loudly when the lock is out of sync — the right behavior
+        # for a controlled workshop env. Output goes to a log file, not
+        # /dev/null, so install failures aren't invisible.
+        if [ -f package-lock.json ]; then
+            sudo -u "$CODE_EDITOR_USER" npm ci \
+                >> /var/log/pellier-npm-install.log 2>&1
+        else
+            warn "package-lock.json missing — falling back to npm install"
+            sudo -u "$CODE_EDITOR_USER" npm install \
+                >> /var/log/pellier-npm-install.log 2>&1
+        fi
     fi
 }
 
@@ -266,8 +277,23 @@ setup_database() {
         # ---- 2. Boutique catalog seeder — 40 hand-curated products
         # across the four personas (Marco / Anna / Theo / Fresh), with
         # Cohere Embed v4 embeddings generated at seed time.
-        # Authoritative source for pellier.product_catalog. ----
-        python3 scripts/seed_boutique_catalog.py 2>&1 | tee /var/log/database-setup.log
+        # Authoritative source for pellier.product_catalog.
+        #
+        # Must run as $CODE_EDITOR_USER: psycopg + boto3 are installed
+        # via `pip install --user` for that user in Stage 1, so root's
+        # python3 cannot import them. Without sudo -u, the seeder dies
+        # with ModuleNotFoundError and the catalog stays empty —
+        # cascading silent failures into 003's persona-orders JOIN. ----
+        sudo -u "$CODE_EDITOR_USER" bash -c "
+            export DB_HOST='$DB_HOST' DB_PORT='$DB_PORT' DB_NAME='$DB_NAME'
+            export DB_USER='$DB_USER' DB_PASSWORD='$DB_PASSWORD'
+            export AWS_REGION='$AWS_REGION'
+            export ASSETS_BUCKET_NAME='${ASSETS_BUCKET_NAME:-}'
+            export ASSETS_BUCKET_PREFIX='${ASSETS_BUCKET_PREFIX:-}'
+            export DATABASE_URL='$DATABASE_URL'
+            cd '$REPO_PATH'
+            python3.13 scripts/seed_boutique_catalog.py
+        " 2>&1 | tee /var/log/database-setup.log
         local seed_rc=${PIPESTATUS[0]}
         if [ "$seed_rc" -ne 0 ]; then
             warn "Boutique catalog seed failed (rc=$seed_rc) — see /var/log/database-setup.log"
@@ -307,6 +333,28 @@ setup_database() {
                 warn "Migration $migration not found — skipping"
             fi
         done
+
+        # ---- 4. Tool registry seed — populates pellier.tools (created
+        # empty by migration 002) with the 9 canonical Gateway tool names
+        # plus their Cohere Embed v4 descriptions. The Atelier
+        # Observatory's tool-registry tab and the pgvector
+        # tool-discovery card both read from this table and silently
+        # render zero rows if the seed is skipped. ----
+        if [ -f "$REPO_PATH/scripts/seed_tool_registry.py" ]; then
+            log "Seeding pellier.tools registry..."
+            sudo -u "$CODE_EDITOR_USER" bash -c "
+                export DB_HOST='$DB_HOST' DB_PORT='$DB_PORT' DB_NAME='$DB_NAME'
+                export DB_USER='$DB_USER' DB_PASSWORD='$DB_PASSWORD'
+                export AWS_REGION='$AWS_REGION'
+                export DATABASE_URL='$DATABASE_URL'
+                cd '$REPO_PATH'
+                python3.13 scripts/seed_tool_registry.py
+            " 2>&1 | tee -a /var/log/database-setup.log
+            local tool_rc=${PIPESTATUS[0]}
+            if [ "$tool_rc" -ne 0 ]; then
+                warn "Tool registry seed failed (rc=$tool_rc) — Atelier tool-registry tab will show zero rows"
+            fi
+        fi
 
         return 0
     fi

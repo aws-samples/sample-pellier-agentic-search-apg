@@ -137,6 +137,9 @@ def recommendation(query: str) -> str:
         except ImportError:
             pass
 
+        from agents.specialist_hooks import attach_policy_hook
+        attach_policy_hook(agent)
+
         result = agent(query)
         text = str(result)
         return _ensure_products_in_output(text, tool_results)

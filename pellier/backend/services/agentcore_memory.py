@@ -71,6 +71,18 @@ logger = logging.getLogger(__name__)
 _SESSION_STORE: Dict[str, List[Dict[str, Any]]] = {}
 _PREFS_STORE: Dict[str, Dict[str, Any]] = {}
 
+# Module-level SDK import status. The Atelier memory route constructs a
+# fresh ``AgentCoreMemory`` on every request (see
+# ``routes/atelier_observatory.py::_load_live_semantic``), so a per-instance
+# cache for the SDK handle is useless — every new instance would retry the
+# import and log "bedrock-agentcore not installed" again. Caching the
+# success/failure at module level means the warning fires once per process.
+#
+# ``None``  → not yet probed
+# ``False`` → probed and failed (SDK not installed); use in-memory fallback
+# ``True``  → probed and succeeded; SDK is importable
+_SDK_AVAILABLE: Optional[bool] = None
+
 
 def _prefs_key(user_id: str) -> str:
     """Return the canonical preferences key for ``user_id``.
@@ -107,24 +119,42 @@ class AgentCoreMemory:
         Returns ``None`` (not raises) when the SDK is unavailable or
         ``AGENTCORE_MEMORY_ID`` is unset so the in-memory fallback path
         takes over without any try/except gymnastics at call sites.
+
+        The "SDK installed?" probe is cached at module scope (not
+        per-instance) because the Atelier memory route builds a fresh
+        ``AgentCoreMemory`` per request — without this the warning would
+        fire on every page load when ``bedrock-agentcore`` isn't
+        importable in the running interpreter (e.g. uvicorn launched
+        outside the venv).
         """
         if not self._memory_id:
             return None
         if self._sdk_manager is not None:
             return self._sdk_manager
+
+        global _SDK_AVAILABLE
+        if _SDK_AVAILABLE is False:
+            return None
+
         try:
             from bedrock_agentcore.memory import MemorySessionManager
 
+            _SDK_AVAILABLE = True
             self._sdk_manager = MemorySessionManager(
                 memory_id=self._memory_id,
                 region_name=self._region,
             )
             return self._sdk_manager
         except ImportError:
-            logger.warning(
-                "bedrock-agentcore not installed — AgentCoreMemory using "
-                "in-memory fallback"
-            )
+            if _SDK_AVAILABLE is None:
+                logger.warning(
+                    "bedrock-agentcore not installed — AgentCoreMemory using "
+                    "in-memory fallback. If you provisioned an AgentCore Memory "
+                    "resource, make sure uvicorn is launched from the venv where "
+                    "``pip install -e .`` ran (e.g. "
+                    "``pellier/backend/.venv/bin/uvicorn app:app``)."
+                )
+            _SDK_AVAILABLE = False
             return None
         except Exception as exc:  # pragma: no cover - SDK init path
             logger.warning("AgentCore MemorySessionManager init failed: %s", exc)

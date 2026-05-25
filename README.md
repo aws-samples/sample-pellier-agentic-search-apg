@@ -125,6 +125,25 @@ npm run build      # production build → served by FastAPI on :8000
 Open <http://localhost:8000> for the Boutique, or
 <http://localhost:8000/atelier> for the Atelier.
 
+### Facilitator note: `SPA_MOUNT_PATH`
+
+By default the SPA is served at `/`. The nginx layer
+([`scripts/bootstrap-environment.sh:173-182`](scripts/bootstrap-environment.sh#L173-L182))
+rewrites `/app/*` → `/` before forwarding to FastAPI, so root-mount works
+behind both Workshop Studio's `/ports/8000/*` proxy and the `/app/*`
+shortcut. If you ever deploy behind a proxy that forwards `/app/*`
+verbatim (no prefix-stripping), set:
+
+```bash
+SPA_MOUNT_PATH=/app
+VITE_BASE_PATH=/app/   # bake the prefix into the bundle at build time
+```
+
+The app moves to `/app/`, `GET /app` 307-redirects to `/app/`, and the
+real API stays at `/api/*`. Do not register new FastAPI routes below
+the SPA catch-all — its `{full_path:path}` pattern shadows everything
+under the mount.
+
 ---
 
 ## Workshop formats
@@ -143,7 +162,7 @@ The 60-min Builder's Session source of truth lives in
 | Section | Time | What attendees do |
 |---|---|---|
 | Framing | 3 min | Title slide + RAG-with-agents shape |
-| [Setup](lab-content/builders/00-setup/) | 7 min | Open the workspace, run the 5-check pre-flight, optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
+| [Setup](lab-content/builders/00-setup/) | 2 min | Open the workspace and land in Boutique + Atelier (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger). Optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
 | [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
 | [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
 | [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |

@@ -142,6 +142,13 @@ def search(query: str) -> str:
         except ImportError:
             pass
 
+        # Audit hook: inner specialist tool calls (find_pieces,
+        # style_match, …) reach pellier.tool_audit so procedural memory
+        # sees them. Outer @tool wrapper already audits at the
+        # orchestrator level; this surfaces the layer below.
+        from agents.specialist_hooks import attach_policy_hook
+        attach_policy_hook(agent)
+
         result = agent(query)
         text = str(result)
         return _ensure_products_in_output(text, tool_results)

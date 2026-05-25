@@ -11,6 +11,7 @@ import React from 'react';
 import DetailPageShell from './DetailPageShell';
 import { ExpCard } from '../../../components';
 import { useAtelierData } from '../../../hooks/useAtelierData';
+import { useCatalogStats } from '../../../../hooks/useCatalogStats';
 import type { ArchitectureConcept } from '../../../types';
 import { DetailLoadingState, DetailErrorState, DetailEmptyState } from './DetailStates';
 import { ARCHITECTURE_CODE_BLOCK, ARCHITECTURE_CODE_BLOCK_COMPACT } from './codeStyles';
@@ -19,8 +20,11 @@ const GroundingDetail: React.FC = () => {
   const { data, loading, error, refetch } = useAtelierData<ArchitectureConcept[]>({
     key: 'architecture',
   });
+  const catalogStats = useCatalogStats();
 
   const concept = data?.find((c) => c.slug === 'grounding');
+  const productCount =
+    catalogStats?.product_count != null ? String(catalogStats.product_count) : '—';
 
   return (
     <DetailPageShell
@@ -46,7 +50,7 @@ const GroundingDetail: React.FC = () => {
       liveState={{
         label: 'Current grounding state. Shows the Aurora-backed sources the assistant uses to anchor responses in facts.',
         values: [
-          { label: 'Products', value: '444' },
+          { label: 'Products', value: productCount },
           { label: 'Embeddings', value: '1024d' },
           { label: 'Index', value: 'HNSW' },
         ],
@@ -61,7 +65,7 @@ const GroundingDetail: React.FC = () => {
           <ExpCard>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <SectionLabel label="Data sources" />
-              <h3 style={titleStyle}>Four tables, one truth.</h3>
+              <h3 style={titleStyle}>Four sources, one truth.</h3>
               <p style={proseStyle}>
                 The assistant grounds shopper-facing answers in Aurora PostgreSQL data: product
                 catalog rows, inventory quantities, return policies, and the tool registry used
@@ -152,7 +156,7 @@ const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
 );
 
 const titleStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 400, fontStyle: 'italic',
+  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 500,
   lineHeight: 1.15, color: 'var(--at-ink-1)', margin: 0,
 };
 

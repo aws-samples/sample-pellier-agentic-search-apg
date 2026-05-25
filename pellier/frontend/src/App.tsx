@@ -52,6 +52,7 @@ import DiscoverPage from './pages/DiscoverPage'
 import AboutPage from './pages/AboutPage'
 import AtelierComponentsPreview from './pages/AtelierComponentsPreview'
 import DesignSystemPreview from './pages/DesignSystemPreview'
+import { routerBasename } from './utils/assetPath'
 import './styles/premium-heading-styles.css'
 
 // ---------------------------------------------------------------------------
@@ -156,6 +157,7 @@ function App() {
             <CartPanelSlot />
             <ToastSlot />
             <BrowserRouter
+              basename={routerBasename()}
               future={{
                 v7_startTransition: true,
                 v7_relativeSplatPath: true,

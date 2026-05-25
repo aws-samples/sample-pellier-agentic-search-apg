@@ -41,9 +41,9 @@ agent code.
 ```text
    Framing  Setup         Act I              Act II           Act III           Close
    ───────  ────────      ───────────        ──────────       ──────────        ─────
-   3 min    7 min         28 min             11 min           7 min             4 min
-   slide    open IDE      wire floor_check   verify STM       routing +         takeaways +
-            pre-flight    prove rerank       invoke Runtime   MCP / KB read     Q&A
+   3 min    3 min         28 min             11 min           7 min             4 min
+   slide    open IDE,     wire floor_check   verify STM       routing +         takeaways +
+            two tabs      prove rerank       invoke Runtime   MCP / KB read     Q&A
                           ▲                  ▲                ▲
                           build              ship to prod     operate
                           (one tool body)    (no new code)    (no code)
@@ -52,7 +52,7 @@ agent code.
 | Section | What you do | Time |
 |---|---|---|
 | **Framing** | Title slide + abstract + the RAG-with-agents shape | ~3 min |
-| **Setup** | Open the workspace, run the 5-check pre-flight, optional [pgvector primer](/90-appendix/05-pgvector-primer/) | ~7 min |
+| **Setup** | Open Code Editor, open Boutique + Atelier in two tabs (CFN bootstrap has already verified Aurora seeds, AgentCore Memory, and the FastAPI service before the room opens) — optional [pgvector primer](/90-appendix/05-pgvector-primer/) | ~3 min |
 | **Act I: The Boutique** | Observe Marco's broken Turn 4, **wire `floor_check`** against `pellier.warehouse_inventory`, then measure vector / hybrid / hybrid+rerank in the Atelier — and read the **HNSW tuning** knobs you'd reach for at scale | ~28 min |
 | **Act II: The Ledger** | Read STM through `/api/agent/session/{id}`; inspect the **long-term taste table** in Aurora; **wire one log line** and invoke the pre-launched **AgentCore Runtime** at `bedrock-agentcore:InvokeRuntime` | ~11 min |
 | **Act III: The Concierge** | Read the dispatcher + specialists pattern in the Atelier, then [read the MCP config + verify the AWS Labs Postgres server from the terminal, and compare to Bedrock Knowledge Bases](/30-act-3-the-concierge/02-mcp-and-knowledge-bases/) | ~7 min |
@@ -127,4 +127,4 @@ that lets the same tools work from your IDE.
 If you have *not* shipped RAG before, the optional [pgvector primer](/90-appendix/05-pgvector-primer/)
 in the appendix is your two-minute on-ramp.
 
-[Begin with Setup →](/00-setup/01-open-workspace/)
+[Begin with Setup →](/00-setup/)

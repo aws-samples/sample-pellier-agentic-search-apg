@@ -137,6 +137,7 @@ DECLARE
     n_customers INTEGER;
     n_orders INTEGER;
     n_facts INTEGER;
+    n_theo_orders INTEGER;
 BEGIN
     SELECT COUNT(*) INTO n_customers
       FROM pellier.customers
@@ -147,6 +148,36 @@ BEGIN
     SELECT COUNT(*) INTO n_facts
       FROM pellier.customer_episodic_seed
      WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO');
+
+    -- Theo's process_return demo specifically requires the Wabi-Sabi Bowl
+    -- order to exist for both 'CUST-THEO' and the 'theo' alias. If
+    -- pellier.product_catalog is empty (e.g. the seeder failed silently
+    -- earlier in bootstrap), the JOIN above produces zero rows and the
+    -- demo dies at runtime with "product not found in your orders" —
+    -- with no obvious connection to the bootstrap step. Fail loud here.
+    SELECT COUNT(*) INTO n_theo_orders
+      FROM pellier.orders o
+      JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
+     WHERE o.customer_id IN ('CUST-THEO', 'theo')
+       AND pc.name = 'Wabi-Sabi Bowl';
+
+    IF n_orders < 15 THEN
+        RAISE EXCEPTION
+            'Persona seed produced only % orders (expected >= 15). '
+            'Most likely cause: pellier.product_catalog is empty or '
+            'product names do not match the order_seed VALUES list. '
+            'Check that scripts/seed_boutique_catalog.py succeeded before '
+            'this migration ran.', n_orders;
+    END IF;
+
+    IF n_theo_orders < 2 THEN
+        RAISE EXCEPTION
+            'Theo Wabi-Sabi Bowl order missing (got % rows for CUST-THEO + theo). '
+            'process_return demo will fail with "product not found in your orders". '
+            'Verify pellier.product_catalog contains a row named "Wabi-Sabi Bowl".',
+            n_theo_orders;
+    END IF;
+
     RAISE NOTICE 'Persona seed ready: % customers, % orders, % memory facts',
         n_customers, n_orders, n_facts;
 END $$;

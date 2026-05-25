@@ -377,12 +377,11 @@ _PERSONA_TO_CUSTOMER_ID = {
 }
 
 
-async def _load_live_ltm_facts(persona: str) -> Optional[list]:
-    """Read the persona's actual episodic memory rows from Aurora.
+async def _load_live_episodic(persona: str) -> Optional[list]:
+    """Read the persona's episodic seed rows from Aurora.
 
-    Returns a list of LTM item dicts shaped to match the fixture
-    schema, or None when the database is unavailable / no rows exist.
-    Used by /memory/{persona} to overlay live state on the fixture.
+    Returns a list of episodic items in the 4-substrate shape, or None
+    when the database is unavailable / no rows exist for the persona.
     """
     customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
     if not customer_id:
@@ -396,7 +395,7 @@ async def _load_live_ltm_facts(persona: str) -> Optional[list]:
             SELECT id, summary_text, ts_offset_days
               FROM pellier.customer_episodic_seed
              WHERE customer_id = %s
-             ORDER BY ts_offset_days DESC NULLS LAST, id ASC
+             ORDER BY ts_offset_days DESC NULLS LAST, id DESC
              LIMIT 20
             """,
             customer_id,
@@ -407,32 +406,162 @@ async def _load_live_ltm_facts(persona: str) -> Optional[list]:
         for r in rows:
             d = dict(r)
             items.append({
-                "id": f"ltm-live-{d.get('id')}",
+                "id": f"ep-live-{d.get('id')}",
                 "content": d.get("summary_text", ""),
-                "tier": "ltm",
+                "substrate": "episodic",
                 "tsOffsetDays": d.get("ts_offset_days"),
             })
         return items
     except Exception as exc:
-        logger.warning("Live LTM read failed for %s: %s", persona, exc)
+        logger.warning("Live episodic read failed for %s: %s", persona, exc)
         return None
+
+
+async def _load_live_procedural() -> Optional[list]:
+    """Aggregate live tool_audit rows into procedural patterns.
+
+    Every ALLOWed tool call writes to pellier.tool_audit (reads and
+    writes alike), so this aggregate covers the full per-tool signal.
+    What we can honestly surface today is per-tool call counts and
+    average latency — the same shape an intent-aware aggregate will
+    take once intent / persona_id / success columns land on the table.
+    """
+    try:
+        from app import db_service
+        if db_service is None:
+            return None
+        rows = await db_service.fetch_all(
+            """
+            SELECT tool,
+                   count(*)::int AS calls,
+                   round(avg(latency_ms)::numeric, 0)::int AS avg_ms
+              FROM pellier.tool_audit
+             GROUP BY tool
+             ORDER BY calls DESC, tool ASC
+             LIMIT 6
+            """,
+        )
+        if not rows:
+            return None
+        items = []
+        for i, r in enumerate(rows):
+            d = dict(r)
+            items.append({
+                "id": f"proc-live-{i}",
+                "content": (
+                    f"{d.get('tool')} - fired {d.get('calls')}x, "
+                    f"avg {d.get('avg_ms')}ms"
+                ),
+                "substrate": "procedural",
+            })
+        return items
+    except Exception as exc:
+        logger.warning("Live procedural read failed: %s", exc)
+        return None
+
+
+async def _load_live_working(persona: str) -> Optional[list]:
+    """Read recent working-memory turns from AgentCore Memory.
+
+    Atelier doesn't carry a session_ns into this read-only endpoint,
+    so we probe the in-memory fallback store for any namespace whose
+    user_id matches the persona's customer_id. When AgentCore is
+    provisioned the SDK path is queried with the same actor_id; both
+    return [] for a fresh persona, in which case we fall back to the
+    fixture so the panel always has something to teach.
+    """
+    customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
+    if not customer_id:
+        return None
+    try:
+        from services.agentcore_memory import _SESSION_STORE  # type: ignore[attr-defined]
+    except Exception:
+        return None
+    prefix = f"user:{customer_id}:session:"
+    turns: list[dict] = []
+    for ns, ns_turns in _SESSION_STORE.items():
+        if not ns.startswith(prefix):
+            continue
+        turns.extend(ns_turns)
+    if not turns:
+        return None
+    items = []
+    for i, t in enumerate(turns[-6:]):
+        items.append({
+            "id": f"wk-live-{i}",
+            "content": str(t.get("content", ""))[:160],
+            "substrate": "working",
+            "timestamp": t.get("timestamp"),
+        })
+    return items
+
+
+async def _load_live_semantic(persona: str) -> Optional[list]:
+    """Read durable preferences from AgentCore Memory KV.
+
+    Returns one item per non-empty preference field in the stored
+    Preferences blob, or None when nothing is persisted for the
+    persona. Falls back to fixture in the route when None.
+    """
+    customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
+    if not customer_id:
+        return None
+    try:
+        from services.agentcore_memory import AgentCoreMemory
+        memory = AgentCoreMemory()
+        prefs = await memory.get_user_preferences(customer_id)
+    except Exception as exc:
+        logger.warning("Live semantic read failed for %s: %s", persona, exc)
+        return None
+    if prefs is None:
+        return None
+    payload = prefs.model_dump(mode="json", by_alias=False)
+    items = []
+    idx = 0
+    for key, value in payload.items():
+        if value in (None, "", [], {}):
+            continue
+        if isinstance(value, list):
+            text = f"{key}: {', '.join(str(v) for v in value)}"
+        else:
+            text = f"{key}: {value}"
+        items.append({
+            "id": f"sem-live-{idx}",
+            "content": text[:200],
+            "substrate": "semantic",
+        })
+        idx += 1
+    return items or None
+
+
+def _empty_substrate(label: str, store: str) -> dict:
+    return {
+        "label": label,
+        "store": store,
+        "source": "fixture",
+        "items": [],
+    }
 
 
 @router.get("/memory/{persona}")
 async def get_memory(persona: str):
-    """Return STM + LTM state for a persona.
+    """Return the 4-substrate memory state for a persona.
 
-    Hybrid: starts from a per-persona fixture (memory-marco.json etc.),
-    then overlays the persona's actual customer_episodic_seed rows from
-    Aurora when the database is available. The overlay replaces the
-    fixture's LTM items list so workshop participants see real LTM
-    facts (the ones the chat pipeline actually reads on every turn)
-    rather than a static snapshot.
-
-    Falls back to fixture-only when:
-      * The persona isn't one of the four canonical IDs (marco/anna/theo/fresh)
-      * The DB is unavailable
-      * No rows exist for the persona's customer_id
+    Each substrate is sourced honestly:
+      working    — AgentCore Memory session turns under
+                   user:{customer_id}:session:{sid}; live when any
+                   namespace exists, otherwise the fixture.
+      semantic   — AgentCore Memory KV under user:{customer_id}:preferences;
+                   live when a Preferences blob is persisted, otherwise
+                   the fixture.
+      episodic   — pellier.customer_episodic_seed rows; live when the
+                   DB is reachable and the persona has rows, otherwise
+                   the fixture (used by personas with no seed data).
+      procedural — pellier.tool_audit aggregate (calls + avg latency
+                   per tool, every ALLOWed call - reads and writes
+                   alike). Promotes to 'live' when the aggregate
+                   succeeds; the caveat persists because the schema
+                   still lacks intent/persona_id/success columns.
 
     Read-only.
     """
@@ -441,30 +570,74 @@ async def get_memory(persona: str):
         if data is None:
             data = {
                 "persona": persona,
-                "stm": {
-                    "turnCount": 0,
-                    "recentIntents": [],
-                    "items": [],
-                },
-                "ltm": {
-                    "preferences": [],
-                    "priorOrders": [],
-                    "behavioralPatterns": [],
-                    "items": [],
+                "working": _empty_substrate(
+                    "Working - AgentCore Memory",
+                    f"user:{persona}:session:{{sid}}",
+                ),
+                "semantic": _empty_substrate(
+                    "Semantic - AgentCore Memory KV",
+                    f"user:{persona}:preferences",
+                ),
+                "episodic": _empty_substrate(
+                    "Episodic - Aurora",
+                    "pellier.customer_episodic_seed",
+                ),
+                "procedural": {
+                    **_empty_substrate(
+                        "Procedural - Aurora",
+                        "pellier.tool_audit (aggregate)",
+                    ),
+                    "source": "sketch",
+                    "caveat": (
+                        "tool_audit records every ALLOWed tool call but "
+                        "lacks intent / persona_id / success columns "
+                        "today - this panel sketches the shape the "
+                        "aggregate will take once they land."
+                    ),
                 },
             }
-
-        # Live LTM overlay — replace fixture items with real episodic
-        # memory rows when available. STM stays fixture-only because
-        # it's per-conversation state (not persisted to Aurora).
-        live_items = await _load_live_ltm_facts(persona)
-        if live_items is not None:
-            data.setdefault("ltm", {})
-            data["ltm"]["items"] = live_items
-            data["ltm"]["live"] = True
         else:
-            data.setdefault("ltm", {})
-            data["ltm"]["live"] = False
+            # Hand-edited fixtures may still be on the legacy stm/ltm
+            # shape during the migration. Normalize to a safe empty
+            # 4-substrate shell so downstream overlays don't KeyError.
+            for key, label, store in (
+                ("working", "Working - AgentCore Memory",
+                 f"user:{persona}:session:{{sid}}"),
+                ("semantic", "Semantic - AgentCore Memory KV",
+                 f"user:{persona}:preferences"),
+                ("episodic", "Episodic - Aurora",
+                 "pellier.customer_episodic_seed"),
+                ("procedural", "Procedural - Aurora",
+                 "pellier.tool_audit (aggregate)"),
+            ):
+                if key not in data or not isinstance(data.get(key), dict):
+                    data[key] = _empty_substrate(label, store)
+
+        # Live overlays - each promotes source to 'live' on success.
+        ep_live = await _load_live_episodic(persona)
+        if ep_live:
+            data["episodic"]["items"] = ep_live
+            data["episodic"]["source"] = "live"
+
+        proc_live = await _load_live_procedural()
+        if proc_live:
+            data["procedural"]["items"] = proc_live
+            data["procedural"]["source"] = "live"
+            # Caveat persists even when source flips to 'live' - the
+            # items are real aggregates from tool_audit, but the
+            # schema gap (no intent/persona/success columns) is real
+            # too and worth teaching.
+
+        wk_live = await _load_live_working(persona)
+        if wk_live:
+            data["working"]["items"] = wk_live
+            data["working"]["source"] = "live"
+
+        sem_live = await _load_live_semantic(persona)
+        if sem_live:
+            data["semantic"]["items"] = sem_live
+            data["semantic"]["source"] = "live"
+
         return data
     except Exception as exc:
         logger.error("Failed to load memory for %s: %s", persona, exc)
@@ -655,8 +828,8 @@ async def get_cedar_policies():
 async def get_recent_tool_audit(limit: int = Query(default=10, ge=1, le=50)):
     """Return the most recent rows from pellier.tool_audit, in reverse
     chronological order. Used by the Write-path surface to demonstrate
-    that every mutating tool call is reconstructible from a single row
-    (args + result + latency_ms).
+    that every ALLOWed tool call (read or write) is reconstructible
+    from a single row (args + result + latency_ms).
 
     Read-only. Aggregate against the live DB; falls back to empty list
     when the database is unavailable.

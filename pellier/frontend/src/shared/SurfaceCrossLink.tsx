@@ -16,6 +16,7 @@
  * surface keeps the round trip predictable.
  */
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 export type CrossLinkDirection = 'to-boutique' | 'to-atelier'
 
@@ -53,8 +54,8 @@ export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
   const arrow = direction === 'to-boutique' ? '→' : '→'
 
   return (
-    <a
-      href={targetHref}
+    <Link
+      to={targetHref}
       data-testid={`surface-cross-link-${direction}`}
       style={{
         display: 'inline-flex',
@@ -82,6 +83,6 @@ export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
     >
       <span>{label ?? defaultLabel}</span>
       <span aria-hidden="true">{arrow}</span>
-    </a>
+    </Link>
   )
 }

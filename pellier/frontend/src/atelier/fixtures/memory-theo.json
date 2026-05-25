@@ -1,28 +1,100 @@
 {
   "persona": "theo",
-  "stm": {
-    "turnCount": 2,
-    "recentIntents": ["Slow morning ceramics", "Tabletop in warm neutrals"],
+  "working": {
+    "label": "Working - AgentCore Memory",
+    "store": "user:CUST-THEO:session:{sid}",
+    "source": "fixture",
     "items": [
       {
-        "id": "stm-theo-1",
-        "content": "Comparing pour-over sets and tumblers from the same kiln",
-        "tier": "stm",
+        "id": "wk-001",
+        "content": "Asked for hand-thrown ceramics for a slower morning routine",
+        "substrate": "working",
         "timestamp": "2025-01-14T10:30:00Z"
+      },
+      {
+        "id": "wk-002",
+        "content": "Asked what goes well with the pour-over set",
+        "substrate": "working",
+        "timestamp": "2025-01-14T10:31:20Z"
+      },
+      {
+        "id": "wk-003",
+        "content": "Asked for linen pieces that soften over seasons",
+        "substrate": "working",
+        "timestamp": "2025-01-14T10:32:05Z"
+      },
+      {
+        "id": "wk-004",
+        "content": "Filed a damaged return for the Wabi-Sabi Bowl",
+        "substrate": "working",
+        "timestamp": "2025-01-14T10:33:40Z"
       }
     ]
   },
-  "ltm": {
-    "preferences": ["stoneware", "hand-thrown", "slow living"],
-    "priorOrders": ["Stoneware Pour-Over Set — Ash Grey — $165"],
-    "behavioralPatterns": ["Reads long descriptions", "Favors tactile materials"],
+  "semantic": {
+    "label": "Semantic - AgentCore Memory KV",
+    "store": "user:CUST-THEO:preferences",
+    "source": "fixture",
     "items": [
       {
-        "id": "ltm-theo-1",
-        "content": "Builds rituals around morning coffee and quiet table moments",
-        "tier": "ltm",
-        "similarity": 0.88
+        "id": "sem-001",
+        "content": "Home + slow craft - ceramics, linen throws, stoneware",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-002",
+        "content": "Prefers stoneware, hand-thrown, slow-living tags",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-003",
+        "content": "Reads long product descriptions",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-004",
+        "content": "Favors tactile materials",
+        "substrate": "semantic"
       }
     ]
+  },
+  "episodic": {
+    "label": "Episodic - Aurora",
+    "store": "pellier.customer_episodic_seed (CUST-THEO)",
+    "source": "fixture",
+    "caveat": "Theo's customer_episodic_seed has one curated summary today; the rest of the per-customer story lives in pellier.orders + pellier.returns. Production episodic recall would derive both. The fixture below previews that derived shape.",
+    "items": [
+      {
+        "id": "ep-001",
+        "content": "Builds rituals around morning coffee and quiet table moments",
+        "substrate": "episodic",
+        "tsOffsetDays": 0
+      },
+      {
+        "id": "ep-002",
+        "content": "Bought Stoneware Pour-Over Set ($148) 22 days ago",
+        "substrate": "episodic",
+        "tsOffsetDays": -22
+      },
+      {
+        "id": "ep-003",
+        "content": "Bought Wabi-Sabi Bowl ($64) 9 days ago - filed damaged return today",
+        "substrate": "episodic",
+        "tsOffsetDays": -9
+      },
+      {
+        "id": "ep-004",
+        "content": "Bought Linen Throw, Oat ($118) 47 days ago",
+        "substrate": "episodic",
+        "tsOffsetDays": -47
+      }
+    ]
+  },
+  "procedural": {
+    "label": "Procedural - Aurora",
+    "store": "pellier.tool_audit (aggregate)",
+    "source": "sketch",
+    "caveat": "tool_audit records every ALLOWed tool call - reads and writes - so this aggregate covers the full per-tool signal in real time. Theo's process_return shows up alongside reads like find_pieces and whats_trending. Intent / persona_id / success columns are the next ticket; once they land the aggregate becomes 'which tool wins for which intent at which latency, per persona'.",
+    "items": []
   }
 }

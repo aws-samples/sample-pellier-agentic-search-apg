@@ -9,7 +9,7 @@
 --
 --   pellier.agent_trace_spans  — OTEL span persistence for trace replay.
 --   pellier.tools              — pgvector-backed tool registry (Card 7).
---   pellier.tool_audit         — unified audit row per mutating tool call.
+--   pellier.tool_audit         — unified audit row per tool call (read + write).
 --   pellier.customers          — demo customers for MEMORY · PROCEDURAL + approvals.
 --   pellier.orders             — demo orders; backs the headline 3-table JOIN panel.
 --   pellier.approvals          — Identity-gated sensitive-tool gate (Card 10).
@@ -118,11 +118,17 @@ CREATE INDEX IF NOT EXISTS tools_description_emb_idx
     ON pellier.tools USING hnsw (description_emb vector_cosine_ops);
 
 -- -- pellier.tool_audit --------------------------------------------------
--- Unified audit log. One row per mutating tool invocation
--- (``_MUTATING_TOOLS = {restock_shelf, process_return}`` in
--- services/policy_hook.py). Half the teaching story on the workshop is
--- that ``SELECT * FROM pellier.tool_audit WHERE session_id = ...``
--- rebuilds the entire turn for debugging — Act II · Exercise 2.
+-- Unified audit log. One row per ALLOWed tool call — reads and writes
+-- alike. The Strands BeforeToolCallEvent hook in
+-- services/policy_hook.py INSERTs a placeholder row before the tool
+-- body runs, and the matching AfterToolCallEvent UPDATEs it with
+-- result + latency_ms. DENY decisions skip audit (the tool never
+-- ran) and live in policy_hook's per-session decision deque instead.
+-- Half the teaching story on the workshop is that
+-- ``SELECT * FROM pellier.tool_audit WHERE session_id = ...``
+-- rebuilds the entire turn for debugging — Act II · Exercise 2 — and
+-- the same table feeds procedural memory's "which tool wins for
+-- which intent" aggregate.
 CREATE TABLE IF NOT EXISTS pellier.tool_audit (
     audit_id    BIGSERIAL PRIMARY KEY,
     session_id  TEXT NOT NULL,
@@ -200,20 +206,39 @@ CREATE INDEX IF NOT EXISTS approvals_status_idx
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-        PERFORM cron.schedule(
-            'cleanup_trace_spans',
-            '0 * * * *',
-            $cleanup$DELETE FROM pellier.agent_trace_spans
-                     WHERE created_at < now() - interval '24 hours'$cleanup$
-        );
-        RAISE NOTICE 'pg_cron job cleanup_trace_spans scheduled';
+        -- Pre-check rather than relying on EXCEPTION: different pg_cron
+        -- versions raise different SQLSTATEs on re-registration
+        -- (duplicate_object 42710 vs unique_violation 23505), and an
+        -- uncaught exception inside a DO block aborts the whole
+        -- migration under ON_ERROR_STOP. Pre-checking avoids the
+        -- guessing game entirely. The COALESCE handles the case where
+        -- the cron schema/table doesn't exist yet.
+        IF NOT EXISTS (
+            SELECT 1 FROM cron.job WHERE jobname = 'cleanup_trace_spans'
+        ) THEN
+            PERFORM cron.schedule(
+                'cleanup_trace_spans',
+                '0 * * * *',
+                $cleanup$DELETE FROM pellier.agent_trace_spans
+                         WHERE created_at < now() - interval '24 hours'$cleanup$
+            );
+            RAISE NOTICE 'pg_cron job cleanup_trace_spans scheduled';
+        ELSE
+            RAISE NOTICE 'pg_cron job cleanup_trace_spans already scheduled';
+        END IF;
     ELSE
         RAISE WARNING
             'pg_cron extension not installed — pellier.agent_trace_spans will grow unbounded. '
             'Install with: CREATE EXTENSION pg_cron;';
     END IF;
-EXCEPTION WHEN duplicate_object THEN
-    RAISE NOTICE 'pg_cron job cleanup_trace_spans already scheduled';
+EXCEPTION
+    -- Belt-and-suspenders: if some future pg_cron version raises on
+    -- the schedule call despite the pre-check (e.g. concurrent
+    -- registration), swallow the duplicate-style SQLSTATEs rather than
+    -- aborting the migration. Anything else still propagates.
+    WHEN unique_violation OR duplicate_object THEN
+        RAISE NOTICE 'pg_cron job cleanup_trace_spans already scheduled (caught %)',
+            SQLSTATE;
 END $$;
 
 COMMIT;

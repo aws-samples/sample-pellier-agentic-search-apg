@@ -11,6 +11,7 @@
  * All styling comes from storefront-chat.css (the ``ec-*`` classes).
  */
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
 import type { PersonaSnapshot } from '../contexts/PersonaContext'
@@ -398,10 +399,10 @@ function AgentMessage({
               )}
 
               {showAnnaRetrievalLink && (
-                <a className="ec-worked-link" href="/atelier/performance">
+                <Link className="ec-worked-link" to="/atelier/performance">
                   Compare retrieval strategies in Atelier
                   <span aria-hidden="true">↗</span>
-                </a>
+                </Link>
               )}
             </div>
           )}

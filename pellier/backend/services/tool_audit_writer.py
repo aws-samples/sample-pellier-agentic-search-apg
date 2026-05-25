@@ -2,9 +2,10 @@
 Tool Audit Writer — fire-and-forget INSERT/UPDATE pair against pellier.tool_audit.
 
 Theo's anchor capability is "Aurora as agent system-of-record." Every
-mutation an agent performs gets a row in ``pellier.tool_audit`` so the
-entire turn is reconstructible from a single SELECT — that's the demo
-bullet on the workshop sidebar.
+tool call an agent runs — read or write — gets a row in
+``pellier.tool_audit`` so the entire turn is reconstructible from a
+single SELECT, and procedural memory has the full per-tool signal
+(which tool ran for which intent, at which latency).
 
 Why a separate writer module:
 
@@ -23,9 +24,9 @@ Why a separate writer module:
 The writes go through ``DatabaseService.execute_query`` so they share
 the same connection pool + per-cursor logging the rest of the backend
 uses. Latency-wise the INSERT adds ~5-10ms; we take that cost on
-every mutating tool call because the alternative — async fire-and-
-forget through a queue — would be a bigger teaching distraction
-than the cost itself.
+every tool call because the alternative — async fire-and-forget
+through a queue — would be a bigger teaching distraction than the
+cost itself.
 """
 from __future__ import annotations
 

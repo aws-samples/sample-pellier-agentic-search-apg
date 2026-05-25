@@ -21,3 +21,23 @@ export function asset(path: string): string {
   // BASE always ends with '/' (Vite guarantees this)
   return `${BASE}${clean}`
 }
+
+/**
+ * React Router basename — leading slash, no trailing slash.
+ * Empty string when the app is served from the domain root.
+ */
+export function routerBasename(): string {
+  if (BASE === '/' || BASE === '') return ''
+  return BASE.replace(/\/$/, '')
+}
+
+/**
+ * Prefix an in-app route for plain `<a href>` links outside React Router.
+ * Prefer `<Link to="...">` when possible; basename on BrowserRouter
+ * handles those automatically.
+ */
+export function routePath(path: string): string {
+  const base = routerBasename()
+  const clean = path.startsWith('/') ? path : `/${path}`
+  return base ? `${base}${clean}` : clean
+}

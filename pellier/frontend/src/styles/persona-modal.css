@@ -68,12 +68,12 @@
   margin-bottom: 6px;
   color: var(--ink-1);
 }
-.pm-title em { font-style: italic; }
+.pm-title em { font-style: normal; }
 .pm-sub {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 300;
-  font-size: 14.5px;
+  font-family: var(--sans);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -186,7 +186,7 @@
   letter-spacing: -0.005em;
   color: var(--ink-1);
 }
-.pm-name em { font-style: italic; }
+.pm-name em { font-style: normal; font-weight: 400; }
 .pm-tag {
   font-family: var(--sans);
   font-size: 9.5px;
@@ -203,10 +203,10 @@
   border-color: var(--rule-2);
 }
 .pm-blurb {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 13px;
-  line-height: 1.45;
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--ink-3);
   margin-top: 3px;
 }
@@ -263,16 +263,16 @@
   flex-shrink: 0;
 }
 .pm-foot-text {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 13px;
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 12.5px;
   color: var(--ink-3);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 .pm-foot-text em {
   color: var(--ink-1);
   font-weight: 500;
-  font-style: italic;
+  font-style: normal;
 }
 .pm-foot-meta {
   font-family: var(--mono);

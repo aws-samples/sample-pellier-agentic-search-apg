@@ -244,9 +244,9 @@ Switch to **Theo** in the persona dropdown. Send:
 
 Read the response. *"I've filed the damaged return for the Wabi-Sabi Bowl..."*. Now flip to the Atelier session for that turn (Atelier sidebar → Sessions → `theo-ceramics-return` → Brief tab). The brief enumerates **three Aurora writes in one transaction**:
 
-1. `INSERT INTO returns (customer_id, product_id, reason)` → returns the new `id`
+1. `INSERT INTO pellier.returns (customer_id, product_id, reason)` → returns the new `id`
 2. `UPDATE pellier.product_catalog SET quantity = GREATEST(quantity - 1, 0)` (only when reason='damaged')
-3. `INSERT INTO tool_audit (...)` + `UPDATE tool_audit SET result, latency_ms` from the policy hook
+3. `INSERT INTO pellier.tool_audit (...)` + `UPDATE pellier.tool_audit SET result, latency_ms` from the policy hook
 
 ### The two enforcement layers
 
@@ -277,25 +277,21 @@ That's the **ownership gate**. Cedar can't enforce it because it requires a JOIN
 
 ### The audit row
 
-Open `services/policy_hook.py`. Find `_MUTATING_TOOLS` (around line 60). It's a set:
+Open `services/policy_hook.py`. Look at `_on_before_tool` — every tool call that resolves to ALLOW (mapped or unmapped, read or write) calls `tool_audit_writer.record_allow()` to INSERT a placeholder row, and the matching `AfterToolCallEvent` calls `record_after()` to UPDATE it with result + latency. DENY decisions skip audit because the tool never ran; they live in the in-memory decision deque instead.
 
-```python
-_MUTATING_TOOLS = {"restock_shelf", "process_return"}
-```
-
-Read tools skip the audit because the Atelier already shows their tool calls in the spans. Mutating tools fire `tool_audit_writer.record_allow()` in `BeforeToolCallEvent` (placeholder INSERT) and `record_after()` in `AfterToolCallEvent` (UPDATE with result + latency).
+The earlier design gated audit on a `_MUTATING_TOOLS = {"restock_shelf", "process_return"}` set so browse turns wouldn't fill the table. Procedural memory needs the broader signal — which tool wins for which intent at which latency — so the gate was dropped.
 
 Now run from psql:
 
 ```sql
 SELECT audit_id, tool, args, result, latency_ms
-  FROM tool_audit
+  FROM pellier.tool_audit
  WHERE tool = 'process_return'
  ORDER BY audit_id DESC
  LIMIT 1;
 ```
 
-You'll see your turn's args, result, and measured latency in one row. **The whole turn is replayable from a single SELECT.** That's the third capability landing.
+You'll see your turn's args, result, and measured latency in one row. Swap `process_return` for `find_pieces` to see read tools sharing the same shape. **The whole turn is replayable from a single SELECT.** That's the third capability landing.
 
 ### See the WRITE badges
 

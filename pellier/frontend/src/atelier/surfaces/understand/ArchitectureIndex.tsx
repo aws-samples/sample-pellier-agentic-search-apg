@@ -56,11 +56,11 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onOpen }) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span
           style={{
-            fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
-            fontSize: '16px',
+            fontFamily: 'var(--at-mono)',
+            fontSize: '13px',
+            letterSpacing: '0.06em',
             color: 'var(--at-red-1)',
-            fontWeight: 400,
+            fontWeight: 500,
           }}
         >
           {concept.numeral}.
@@ -86,10 +86,9 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onOpen }) => (
       {/* Role subtitle */}
       <p
         style={{
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
-          fontSize: '15px',
-          lineHeight: 1.4,
+          fontFamily: 'var(--at-sans)',
+          fontSize: '14px',
+          lineHeight: 1.45,
           color: 'var(--at-red-1)',
           margin: 0,
         }}
@@ -129,9 +128,9 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onOpen }) => (
           display: 'inline-flex',
           alignItems: 'center',
           gap: '6px',
-          fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
-          fontSize: '14px',
+          fontFamily: 'var(--at-sans)',
+          fontSize: '13px',
+          fontWeight: 500,
           color: 'var(--at-red-1)',
           background: 'none',
           border: 'none',
@@ -253,10 +252,9 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <Eyebrow label="Something went wrong" variant="muted" />
     <p
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '20px',
-        lineHeight: 1.35,
+        fontFamily: 'var(--at-sans)',
+        fontSize: '16px',
+        lineHeight: 1.45,
         color: 'var(--at-ink-1)',
         maxWidth: '420px',
         marginTop: '16px',
@@ -313,10 +311,9 @@ const EmptyState: React.FC = () => (
     <Eyebrow label="No concepts" variant="muted" />
     <p
       style={{
-        fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
-        fontSize: '22px',
-        lineHeight: 1.35,
+        fontFamily: 'var(--at-sans)',
+        fontSize: '16px',
+        lineHeight: 1.45,
         color: 'var(--at-ink-1)',
         maxWidth: '420px',
         marginTop: '16px',

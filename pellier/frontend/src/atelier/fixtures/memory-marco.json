@@ -1,84 +1,93 @@
 {
   "persona": "marco",
-  "stm": {
-    "turnCount": 4,
-    "recentIntents": [
-      "Looking for linen evening wear",
-      "Interested in camp-shirt pairings for warm evenings",
-      "Comparing linen trousers and oxford shirt",
-      "Gift for ceramics lover"
-    ],
+  "working": {
+    "label": "Working - AgentCore Memory",
+    "store": "user:CUST-MARCO:session:{sid}",
+    "source": "fixture",
     "items": [
       {
-        "id": "stm-001",
-        "content": "Currently browsing linen evening wear options",
-        "tier": "stm",
+        "id": "wk-001",
+        "content": "Browsing linen evening wear",
+        "substrate": "working",
         "timestamp": "2025-01-15T19:42:00Z"
       },
       {
-        "id": "stm-002",
-        "content": "Interested in Sundress in Washed Linen for outdoor dinners",
-        "tier": "stm",
+        "id": "wk-002",
+        "content": "Asked about Sundress in Washed Linen for outdoor dinners",
+        "substrate": "working",
         "timestamp": "2025-01-15T19:42:45Z"
       },
       {
-        "id": "stm-003",
-        "content": "Asked about camp-shirt pairings for warm evening occasions",
-        "tier": "stm",
+        "id": "wk-003",
+        "content": "Asked about camp-shirt pairings for warm evenings",
+        "substrate": "working",
         "timestamp": "2025-01-15T19:42:48Z"
+      },
+      {
+        "id": "wk-004",
+        "content": "Comparing linen trousers and oxford shirt",
+        "substrate": "working",
+        "timestamp": "2025-01-15T19:43:10Z"
       }
     ]
   },
-  "ltm": {
-    "preferences": [
-      "minimal",
-      "warm tones",
-      "linen",
-      "classic",
-      "neutral"
-    ],
-    "priorOrders": [
-      "Italian Linen Camp Shirt \u2014 Sand \u2014 $128",
-      "Leather Slide Sandal \u2014 Chestnut \u2014 $112",
-      "Ceramic Tumbler Set \u2014 4pc \u2014 $52"
-    ],
-    "behavioralPatterns": [
-      "Tends to browse in the evening (7-10 PM)",
-      "Prefers natural materials over synthetics",
-      "Responds well to editorial product descriptions",
-      "Average order value: $97"
-    ],
+  "semantic": {
+    "label": "Semantic - AgentCore Memory KV",
+    "store": "user:CUST-MARCO:preferences",
+    "source": "fixture",
     "items": [
       {
-        "id": "ltm-001",
+        "id": "sem-001",
         "content": "Prefers minimal aesthetic with warm, neutral tones",
-        "tier": "ltm",
-        "similarity": 0.94
+        "substrate": "semantic"
       },
       {
-        "id": "ltm-002",
+        "id": "sem-002",
         "content": "Strong affinity for linen and natural fabrics",
-        "tier": "ltm",
-        "similarity": 0.91
+        "substrate": "semantic"
       },
       {
-        "id": "ltm-003",
-        "content": "Previously purchased Italian Linen Camp Shirt (Sand, $128)",
-        "tier": "ltm",
-        "similarity": 0.87
+        "id": "sem-003",
+        "content": "Average order value: $97",
+        "substrate": "semantic"
       },
       {
-        "id": "ltm-004",
-        "content": "Enjoys slow, considered shopping experiences",
-        "tier": "ltm",
-        "similarity": 0.82
-      },
-      {
-        "id": "ltm-005",
-        "content": "Interested in home goods (purchased Ceramic Tumbler Set)",
-        "tier": "ltm",
-        "similarity": 0.76
+        "id": "sem-004",
+        "content": "Responds well to editorial product descriptions",
+        "substrate": "semantic"
       }
     ]
+  },
+  "episodic": {
+    "label": "Episodic - Aurora",
+    "store": "pellier.customer_episodic_seed (CUST-MARCO)",
+    "source": "fixture",
+    "items": [
+      {
+        "id": "ep-001",
+        "content": "Bought Italian Linen Camp Shirt (Sand, $128) 28 days ago",
+        "substrate": "episodic",
+        "tsOffsetDays": -28
+      },
+      {
+        "id": "ep-002",
+        "content": "Bought Leather Slide Sandal (Chestnut, $112) 41 days ago",
+        "substrate": "episodic",
+        "tsOffsetDays": -41
+      },
+      {
+        "id": "ep-003",
+        "content": "Bought Ceramic Tumbler Set (4pc, $52) 67 days ago",
+        "substrate": "episodic",
+        "tsOffsetDays": -67
+      }
+    ]
+  },
+  "procedural": {
+    "label": "Procedural - Aurora",
+    "store": "pellier.tool_audit (aggregate)",
+    "source": "sketch",
+    "caveat": "tool_audit records every ALLOWed tool call - reads and writes - so this aggregate covers the full per-tool signal in real time. Intent / persona_id / success columns are the next ticket; once they land the aggregate becomes 'which tool wins for which intent at which latency, per persona'.",
+    "items": []
   }
 }

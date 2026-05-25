@@ -286,13 +286,94 @@ Resources:
           bash scripts/bootstrap-environment.sh 2>&1 | tee /var/log/bootstrap-environment.log || true
           bash scripts/bootstrap-labs.sh 2>&1 | tee /var/log/bootstrap-labs.log || true
 
+          # --- Pre-flight verification ---
+          # Run the same five checks the facilitator pre-flight page
+          # documents. Builders no longer run pre-flight in-room; the
+          # stack itself fails if any check misses, so a green stack
+          # means a green room. Mirror this list in
+          # 90-appendix/06-facilitator-preflight (repo) and
+          # 90-appendix/04-facilitator-notes (Workshop Studio).
+          #
+          # Note on shell scoping: the brace group below uses process
+          # substitution (`> >(tee ...)`) instead of a pipe so the
+          # PREFLIGHT_STATUS / PREFLIGHT_REASON assignments stay in
+          # the parent shell. A pipe (`{ ... } | tee ...`) would put
+          # the block in a subshell, the FAILURE assignments would be
+          # lost, and the curl below would always signal SUCCESS.
+          PREFLIGHT_STATUS="SUCCESS"
+          PREFLIGHT_REASON="UserData complete"
+          {
+            echo "=== pellier pre-flight checks ==="
+
+            # 1. Backend health
+            if ! curl -sf http://localhost:8000/api/health > /dev/null; then
+              PREFLIGHT_STATUS="FAILURE"
+              PREFLIGHT_REASON="Backend health check failed (port 8000 not responding)"
+              echo "FAIL: backend /api/health"
+            else
+              echo "PASS: backend /api/health"
+            fi
+
+            # 2-3 + 5: Aurora-side counts. Use the master secret.
+            export PGPASSWORD=$(aws secretsmanager get-secret-value \
+              --secret-id "$DB_SECRET_ARN" --region "$AWS_REGION" \
+              --query SecretString --output text | jq -r .password)
+            export PGUSER=$(aws secretsmanager get-secret-value \
+              --secret-id "$DB_SECRET_ARN" --region "$AWS_REGION" \
+              --query SecretString --output text | jq -r .username)
+
+            CATALOG_COUNT=$(psql -h "$DB_HOST" -d "$DB_NAME" -tAc \
+              "SELECT count(*) FROM pellier.product_catalog;" 2>/dev/null || echo 0)
+            if [ "$CATALOG_COUNT" -lt 40 ]; then
+              PREFLIGHT_STATUS="FAILURE"
+              PREFLIGHT_REASON="Catalog seed incomplete (expected 40, got $CATALOG_COUNT)"
+              echo "FAIL: pellier.product_catalog count=$CATALOG_COUNT"
+            else
+              echo "PASS: pellier.product_catalog count=$CATALOG_COUNT"
+            fi
+
+            WAREHOUSE_COUNT=$(psql -h "$DB_HOST" -d "$DB_NAME" -tAc \
+              "SELECT count(*) FROM pellier.warehouse_inventory;" 2>/dev/null || echo 0)
+            if [ "$WAREHOUSE_COUNT" -lt 100 ]; then
+              PREFLIGHT_STATUS="FAILURE"
+              PREFLIGHT_REASON="Warehouse seed incomplete (expected ~120, got $WAREHOUSE_COUNT)"
+              echo "FAIL: pellier.warehouse_inventory count=$WAREHOUSE_COUNT"
+            else
+              echo "PASS: pellier.warehouse_inventory count=$WAREHOUSE_COUNT"
+            fi
+
+            AUDIT_TABLE=$(psql -h "$DB_HOST" -d "$DB_NAME" -tAc \
+              "SELECT to_regclass('pellier.tool_audit');" 2>/dev/null || echo "")
+            if [ "$AUDIT_TABLE" != "pellier.tool_audit" ]; then
+              PREFLIGHT_STATUS="FAILURE"
+              PREFLIGHT_REASON="Audit ledger missing (pellier.tool_audit not found)"
+              echo "FAIL: pellier.tool_audit"
+            else
+              echo "PASS: pellier.tool_audit"
+            fi
+
+            # 4. AgentCore Memory id (env var written by bootstrap-labs.sh)
+            ENV_FILE="${HomeFolder}/sample-pellier-agentic-search-apg/pellier/backend/.env"
+            if [ ! -f "$ENV_FILE" ] || ! grep -qE '^AGENTCORE_MEMORY_ID=.+' "$ENV_FILE"; then
+              PREFLIGHT_STATUS="FAILURE"
+              PREFLIGHT_REASON="AGENTCORE_MEMORY_ID missing from $ENV_FILE"
+              echo "FAIL: AGENTCORE_MEMORY_ID"
+            else
+              echo "PASS: AGENTCORE_MEMORY_ID"
+            fi
+
+            unset PGPASSWORD PGUSER
+            echo "=== pre-flight result: $PREFLIGHT_STATUS ==="
+          } > >(tee /var/log/preflight.log) 2>&1
+
           # --- Signal CloudFormation ---
           # cfn-signal depends on the cfnbootstrap Python module which
           # breaks after bootstrap-environment.sh switches the system
           # python to 3.13. Use curl directly against the pre-signed
-          # WaitHandle URL instead.
+          # WaitHandle URL instead. A FAILURE signal here aborts the
+          # stack so attendees never see a half-baked room.
           curl -X PUT -H 'Content-Type:' \
-            --data-binary '{"Status":"SUCCESS","Reason":"UserData complete","UniqueId":"userdata","Data":"done"}' \
+            --data-binary "{\"Status\":\"$PREFLIGHT_STATUS\",\"Reason\":\"$PREFLIGHT_REASON\",\"UniqueId\":\"userdata\",\"Data\":\"done\"}" \
             '${WaitHandle}' || true
 
   # --------------------------------------------------------------------------

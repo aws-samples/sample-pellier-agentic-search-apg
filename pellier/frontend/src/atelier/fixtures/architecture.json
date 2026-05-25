@@ -12,14 +12,14 @@
     "numeral": "II",
     "category": "live",
     "title": "Memory",
-    "role": "Session continuity and preference recall",
-    "description": "Short-term memory keeps recent turns scoped by session namespace. Long-term preference facts are tied to a persona/customer and surfaced as context for the specialist, with an in-memory fallback when AgentCore Memory is not provisioned.",
-    "codeSnippet": "# STM — namespace-scoped session history\nawait memory.append_session_turn(namespace, turn)\nhistory = await memory.get_session_history(namespace)\n\n# Persistent preferences\nprefs = await memory.get_user_preferences(user_id)",
+    "role": "Four substrates: working, semantic, episodic, procedural",
+    "description": "Memory is not one tier - it is four substrates with different storage and lifetimes. AgentCore Memory owns working memory (session turns) and semantic memory (durable preferences) under namespaced keys. Aurora owns episodic memory (per-customer events) and procedural memory (tool patterns from tool_audit). The Boutique reads all four; only working memory writes on every turn.",
+    "codeSnippet": "# Working - AgentCore Memory, per-turn append\nawait memory.append_session_turn(session_ns, turn)\n\n# Semantic - AgentCore Memory KV, durable preferences\nprefs = await memory.get_user_preferences(user_id)\n\n# Episodic - Aurora customer_episodic_seed\nseed = await fetch_episodic_seed(customer_id)\n\n# Procedural - Aurora tool_audit cohort patterns\nawait emit_memory_procedural_panel(ctx, customer_id)",
     "slug": "memory"
   },
   {
     "numeral": "III",
-    "category": "workshop",
+    "category": "live",
     "title": "Skills",
     "role": "Persona-specific instructions loaded per turn",
     "description": "Three persona skills — the-packing-list, the-gift-table, and the-makers-shelf — are loaded by the SkillRouter when a turn needs persona-specific handling. They shape voice and handling, not the database contract.",
@@ -37,7 +37,7 @@
   },
   {
     "numeral": "V",
-    "category": "optional",
+    "category": "workshop",
     "title": "Runtime Envelope",
     "role": "Execution environment and workshop runtime pattern",
     "description": "Runtime is the managed envelope around execution: model calls, memory, Gateway, and observability. In this codebase, the default Boutique flow is implemented in the app service layer; AgentCore Runtime concepts are surfaced as workshop infrastructure and deployment patterns.",

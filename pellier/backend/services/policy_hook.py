@@ -67,12 +67,16 @@ _TOOL_TO_POLICY_ACTION: Dict[str, str] = {
     "process_return": "process_return",
 }
 
-# Tools that mutate Aurora state. Audited unconditionally on ALLOW so
-# Theo's "agents that write state with a paper trail" story has a
-# real paper trail. Read-only tools skip the audit because the
-# Atelier already shows their tool calls via the spans surface; no
-# need to double-write.
-_MUTATING_TOOLS = {"restock_shelf", "process_return"}
+# Audit posture: every tool call that *runs* gets a row in
+# pellier.tool_audit — not just mutations. The original design gated
+# the writer on _MUTATING_TOOLS so Theo's process_return story had
+# a paper trail without audit volume from read-heavy browse turns.
+# Procedural memory needs the broader signal — which tool wins for
+# which intent at which latency — so the gate is gone. DENY still
+# skips the audit (the tool never ran); ALLOW + unmapped reads both
+# write a row. The `tool` and `args` columns plus a ~5ms INSERT cost
+# per call are acceptable; the workshop's "replay a turn from one
+# SELECT" demo only gets richer with reads in the table.
 
 
 # Bounded in-memory buffer of recent enforcement decisions, keyed by
@@ -147,14 +151,13 @@ class PolicyEnforcementHook(HookProvider):
 
     def _on_before_tool(self, event: BeforeToolCallEvent) -> None:
         """Evaluate the pending tool call against PolicyService and
-        cancel it with a human-readable message on DENY."""
+        cancel it with a human-readable message on DENY. On every
+        ALLOW (mapped or unmapped) start an audit row so procedural
+        memory has the full per-tool signal."""
         tool_use = event.tool_use
         if not isinstance(tool_use, dict):
             return
         tool_name = tool_use.get("name", "")
-        action = _TOOL_TO_POLICY_ACTION.get(tool_name)
-        if action is None:
-            return  # Not a policy-gated tool; let it run.
 
         # Strands stores tool args under ``input`` for v1 tool_use.
         # Fall back to ``parameters`` and the top-level dict for
@@ -165,6 +168,15 @@ class PolicyEnforcementHook(HookProvider):
         if not isinstance(params, dict):
             params = {}
 
+        action = _TOOL_TO_POLICY_ACTION.get(tool_name)
+        if action is None:
+            # Not a policy-gated tool — skip Cedar but still audit so
+            # procedural memory sees read-tool calls (find_pieces,
+            # whats_trending, ...). The After event will UPDATE the
+            # row with result + latency.
+            self._begin_audit(tool_use, tool_name, params)
+            return
+
         try:
             result = self._policy.evaluate(action, params)
         except Exception as exc:
@@ -172,6 +184,10 @@ class PolicyEnforcementHook(HookProvider):
                 "PolicyService.evaluate raised for tool=%s: %s — fail-open",
                 tool_name, exc,
             )
+            # Fail-open path: tool will run, so audit it like any
+            # other ALLOW. No decision row recorded (we couldn't
+            # produce one).
+            self._begin_audit(tool_use, tool_name, params)
             return
 
         decision_record = {
@@ -186,23 +202,13 @@ class PolicyEnforcementHook(HookProvider):
         }
         record_decision(self.session_id, decision_record)
 
-        if result.get("decision") == "ALLOW" and tool_name in _MUTATING_TOOLS:
-            # ALLOW + mutating tool → audit it. We INSERT a placeholder
-            # row now (latency_ms NULL, result NULL); the AfterToolCallEvent
-            # below will UPDATE it once the tool returns. If the tool
-            # raises, the placeholder row remains — itself a real signal
-            # ("started but didn't finish").
-            tool_use_id = tool_use.get("toolUseId")
-            if tool_use_id:
-                self._allow_starts[tool_use_id] = time.time()
-                tool_audit_writer.record_allow(
-                    tool_use_id=tool_use_id,
-                    tool_name=tool_name,
-                    caller="agent",  # Strands doesn't expose the agent
-                                       # name on the event; we tag generically.
-                    args=params,
-                    session_id=self.session_id,
-                )
+        if result.get("decision") == "ALLOW":
+            # Every ALLOW writes a placeholder row now; the After event
+            # will UPDATE it with result + latency. If the tool raises,
+            # the placeholder remains — itself a real signal ("started
+            # but didn't finish"). DENY skips audit because the tool
+            # never ran.
+            self._begin_audit(tool_use, tool_name, params)
 
         if result.get("decision") == "DENY":
             violations = result.get("violations", [])
@@ -224,12 +230,34 @@ class PolicyEnforcementHook(HookProvider):
                 tool_name, reason_text[:80],
             )
 
+    def _begin_audit(
+        self,
+        tool_use: Dict[str, Any],
+        tool_name: str,
+        params: Dict[str, Any],
+    ) -> None:
+        """INSERT the placeholder audit row and remember the start
+        time so the After event can compute latency. No-op when the
+        event has no toolUseId."""
+        tool_use_id = tool_use.get("toolUseId")
+        if not tool_use_id:
+            return
+        self._allow_starts[tool_use_id] = time.time()
+        tool_audit_writer.record_allow(
+            tool_use_id=tool_use_id,
+            tool_name=tool_name,
+            caller="agent",  # Strands doesn't expose the agent name on the event.
+            args=params,
+            session_id=self.session_id,
+        )
+
     def _on_after_tool(self, event: AfterToolCallEvent) -> None:
         """UPDATE the audit row with the tool's result + latency.
 
-        Only fires for mutating tools whose ALLOW path INSERTed a
-        placeholder row in ``_on_before_tool``. For everything else
-        this is a no-op (no _allow_starts entry).
+        Fires for any tool whose ALLOW path INSERTed a placeholder row
+        in ``_on_before_tool``. Tools whose Before event was cancelled
+        by DENY (or arrived without a toolUseId) have no entry in
+        ``_allow_starts`` and this is a no-op for them.
 
         Strands' AfterToolCallEvent attribute names vary across versions
         (``result``, ``output``, ``tool_result``); we duck-type so we

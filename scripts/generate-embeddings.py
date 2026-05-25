@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
-Generate Product Embeddings and Store in Aurora PostgreSQL
-Generates embeddings using Cohere Embed v4 via Amazon Bedrock and stores in pgvector.
+DEPRECATED — DO NOT RUN. Use scripts/seed_boutique_catalog.py instead.
 
-Usage:
-    python generate_and_store_embeddings.py --workers 10 --batch-size 1000
+This script targets the legacy product_catalog schema (columns like
+product_description, imgurl, isbestseller, category_id) which does not
+exist in the current pellier.product_catalog defined by
+scripts/migrations/001_schema.sql. Running it against the current schema
+will fail with "column does not exist".
+
+The authoritative seeder is scripts/seed_boutique_catalog.py — it
+generates Cohere Embed v4 embeddings for the 40 curated boutique
+products and INSERTs them into pellier.product_catalog with the
+matching column names. bootstrap-labs.sh calls that one.
+
+Kept here only as historical reference. Delete in a future cleanup.
 """
 
 import os
@@ -16,11 +25,19 @@ import argparse
 from typing import Optional
 from datetime import datetime
 
-import boto3
-import pandas as pd
-import psycopg
-from pandarallel import pandarallel
-from tqdm import tqdm
+# Hard-fail at import time so anyone who runs this by accident gets a
+# clear pointer instead of a confusing SQL error 30 seconds in.
+sys.stderr.write(
+    "ERROR: scripts/generate-embeddings.py is deprecated.\n"
+    "       Use scripts/seed_boutique_catalog.py instead.\n"
+)
+sys.exit(2)
+
+import boto3  # noqa: E402  unreachable, kept for grep / future revival
+import pandas as pd  # noqa: E402
+import psycopg  # noqa: E402
+from pandarallel import pandarallel  # noqa: E402
+from tqdm import tqdm  # noqa: E402
 
 # Configure logging
 logging.basicConfig(

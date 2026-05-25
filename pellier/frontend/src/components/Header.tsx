@@ -16,6 +16,7 @@
  * Tailwind extended config.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
@@ -68,8 +69,8 @@ const NAV_ITEMS: Array<{ item: NavItem; label: string }> = [
 
 function Wordmark() {
   return (
-    <a
-      href="/"
+    <Link
+      to="/"
       data-testid="wordmark"
       aria-label={NAV.WORDMARK}
       className="flex items-center gap-2.5 select-none"
@@ -83,7 +84,7 @@ function Wordmark() {
       <span className="font-display text-2xl font-medium tracking-tight text-espresso">
         {NAV.WORDMARK}
       </span>
-    </a>
+    </Link>
   )
 }
 

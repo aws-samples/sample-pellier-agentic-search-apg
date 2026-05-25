@@ -41,7 +41,7 @@
           "toolName": "process_return",
           "description": "Write the return row (Cedar-gated on reason='damaged') + decrement quantity",
           "durationMs": 184,
-          "sql": "BEGIN;\n\nSELECT oi.order_id, oi.product_id\nFROM order_items oi\nJOIN orders o ON o.order_id = oi.order_id\nWHERE o.customer_id = $1\n  AND oi.product_id = $2\nLIMIT 1;\n\nINSERT INTO returns (customer_id, product_id, reason, status)\nVALUES ($1, $2, 'damaged', 'pending')\nRETURNING return_id;\n\nUPDATE product_catalog\nSET quantity = quantity - 1\nWHERE product_id = $2;\n\nCOMMIT;",
+          "sql": "BEGIN;\n\nSELECT oi.order_id, oi.product_id\nFROM pellier.order_items oi\nJOIN pellier.orders o ON o.order_id = oi.order_id\nWHERE o.customer_id = $1\n  AND oi.product_id = $2\nLIMIT 1;\n\nINSERT INTO pellier.returns (customer_id, product_id, reason, status)\nVALUES ($1, $2, 'damaged', 'pending')\nRETURNING return_id;\n\nUPDATE pellier.product_catalog\nSET quantity = quantity - 1\nWHERE product_id = $2;\n\nCOMMIT;",
           "resultSummary": "return_id=42 inserted; Wabi-Sabi Bowl quantity 9 \u2192 8",
           "writes": [
             {
@@ -146,7 +146,7 @@
       "description": "Atomic transaction: ownership SELECT \u2192 INSERT into returns \u2192 UPDATE product_catalog.quantity",
       "status": "complete",
       "durationMs": 184,
-      "sql": "BEGIN;\n\nSELECT oi.order_id, oi.product_id\nFROM order_items oi\nJOIN orders o ON o.order_id = oi.order_id\nWHERE o.customer_id = $1\n  AND oi.product_id = $2\nLIMIT 1;\n\nINSERT INTO returns (customer_id, product_id, reason, status)\nVALUES ($1, $2, 'damaged', 'pending')\nRETURNING return_id;\n\nUPDATE product_catalog\nSET quantity = quantity - 1\nWHERE product_id = $2;\n\nCOMMIT;",
+      "sql": "BEGIN;\n\nSELECT oi.order_id, oi.product_id\nFROM pellier.order_items oi\nJOIN pellier.orders o ON o.order_id = oi.order_id\nWHERE o.customer_id = $1\n  AND oi.product_id = $2\nLIMIT 1;\n\nINSERT INTO pellier.returns (customer_id, product_id, reason, status)\nVALUES ($1, $2, 'damaged', 'pending')\nRETURNING return_id;\n\nUPDATE pellier.product_catalog\nSET quantity = quantity - 1\nWHERE product_id = $2;\n\nCOMMIT;",
       "agent": "Experience Guide"
     },
     {

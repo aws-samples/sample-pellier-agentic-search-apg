@@ -1,28 +1,105 @@
 {
   "persona": "anna",
-  "stm": {
-    "turnCount": 2,
-    "recentIntents": ["Housewarming gift under $100", "Botanical wrap for a birthday"],
+  "working": {
+    "label": "Working - AgentCore Memory",
+    "store": "user:CUST-ANNA:session:{sid}",
+    "source": "fixture",
     "items": [
       {
-        "id": "stm-anna-1",
-        "content": "Browsing home accents for a new apartment",
-        "tier": "stm",
+        "id": "wk-001",
+        "content": "Asked for a milestone gift for a new homeowner",
+        "substrate": "working",
         "timestamp": "2025-01-14T18:00:00Z"
+      },
+      {
+        "id": "wk-002",
+        "content": "Asked for something beautiful under $100",
+        "substrate": "working",
+        "timestamp": "2025-01-14T18:01:30Z"
+      },
+      {
+        "id": "wk-003",
+        "content": "Asked to pair a candle with the gift",
+        "substrate": "working",
+        "timestamp": "2025-01-14T18:02:10Z"
+      },
+      {
+        "id": "wk-004",
+        "content": "Asked for wrap-ready gifts with no extra effort",
+        "substrate": "working",
+        "timestamp": "2025-01-14T18:02:55Z"
       }
     ]
   },
-  "ltm": {
-    "preferences": ["gift-ready", "artisanal", "warm neutrals"],
-    "priorOrders": ["Monogrammed Linen Napkins — White — $72"],
-    "behavioralPatterns": ["Prefers items that ship flat", "Often shops weekday evenings"],
+  "semantic": {
+    "label": "Semantic - AgentCore Memory KV",
+    "store": "user:CUST-ANNA:preferences",
+    "source": "fixture",
     "items": [
       {
-        "id": "ltm-anna-1",
-        "content": "Looks for considered gifts under $100 with strong presentation",
-        "tier": "ltm",
-        "similarity": 0.9
+        "id": "sem-001",
+        "content": "Buys for others - milestone occasions, explicit budgets",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-002",
+        "content": "Prefers gift-ready, artisanal, warm-neutral palette",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-003",
+        "content": "Prefers items that ship flat",
+        "substrate": "semantic"
+      },
+      {
+        "id": "sem-004",
+        "content": "Shops weekday evenings",
+        "substrate": "semantic"
       }
     ]
+  },
+  "episodic": {
+    "label": "Episodic - Aurora",
+    "store": "pellier.customer_episodic_seed (CUST-ANNA)",
+    "source": "fixture",
+    "items": [
+      {
+        "id": "ep-001",
+        "content": "Asked about gift wrapping and delivery timing for an anniversary",
+        "substrate": "episodic",
+        "tsOffsetDays": -9
+      },
+      {
+        "id": "ep-002",
+        "content": "Price bands range $140 to $310, milestone-leaning",
+        "substrate": "episodic",
+        "tsOffsetDays": -15
+      },
+      {
+        "id": "ep-003",
+        "content": "Recent searches mention 'for my mother'",
+        "substrate": "episodic",
+        "tsOffsetDays": -20
+      },
+      {
+        "id": "ep-004",
+        "content": "Bought a sundress as a birthday gift last month",
+        "substrate": "episodic",
+        "tsOffsetDays": -30
+      },
+      {
+        "id": "ep-005",
+        "content": "Past orders skew gift-shaped - multiple recipients, varied price bands",
+        "substrate": "episodic",
+        "tsOffsetDays": -50
+      }
+    ]
+  },
+  "procedural": {
+    "label": "Procedural - Aurora",
+    "store": "pellier.tool_audit (aggregate)",
+    "source": "sketch",
+    "caveat": "tool_audit records every ALLOWed tool call - reads and writes - so this aggregate covers the full per-tool signal in real time. Intent / persona_id / success columns are the next ticket; once they land the aggregate becomes 'which tool wins for which intent at which latency, per persona'.",
+    "items": []
   }
 }

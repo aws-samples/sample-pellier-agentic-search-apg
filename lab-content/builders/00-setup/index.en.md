@@ -3,33 +3,58 @@ title: "Setup"
 weight: 1
 ---
 
-You have **~7 minutes** before Act I opens.
+:::alert{type="info"}
+**Time:** ~2 min  
+**Exercises:** 0  
+**Surfaces:** Code Editor · Boutique (`/`) · Atelier (`/atelier`)
 
-Setup is verification, not installation. The CloudFormation bootstrap already seeded Aurora, created AgentCore Memory, launched Runtime, and started the FastAPI backend on `:8000`.
-
-:::alert{type="warning" header="📷 Capture asset before ship"}
-**6-second loop** — Marco's chat drawer opens (`⌘K`), query types in *"what linen do you have for Goa"*, response streams with editorial copy + three product cards, trace chip appears: `Style Advisor · Opus 4.6 · find_pieces`. Loop seamlessly. Target: `/static/setup/marco-chat-loop.webp` (~1200×750, &lt;2MB).
+One page gets you into the working environment. The CloudFormation bootstrap has already seeded Aurora, created AgentCore Memory, launched Runtime, and started the FastAPI backend on `:8000`. The facilitator confirmed readiness before the room opened — your job is to land in the IDE and open both surfaces side by side.
 :::
 
-<!-- Once asset is captured, REPLACE the alert above with the line below:
-![Marco asks Pellier for linen for Goa — response streams with three product cards and a trace chip](/static/setup/marco-chat-loop.webp)
--->
+## Step 1: Open Code Editor
 
-## Setup path
+In **Workshop Studio → Event Outputs**, copy **`CodeEditorURL`** and open it in a new tab. When prompted, paste **`CodeEditorPassword`**.
 
-1. [Open the workspace](./01-open-workspace/) — enter Code Editor, confirm the backend, and open Boutique plus Atelier side by side.
-2. [Run pre-flight checks](./02-pre-flight/) — verify Aurora data, AgentCore resources, and the audit ledger before Marco's flow.
+You should land in:
+
+```text
+/workshop/sample-pellier-agentic-search-apg/
+```
+
+The file tree is on the left, the editor is in the middle, and the integrated terminal is at the bottom. If the terminal is collapsed, press ``Ctrl+` ``.
+
+::::expand{header="Folders you'll touch"}
+
+```text
+pellier/backend/services/agent_tools.py       # Act I · Exercise 1 (floor_check)
+pellier/backend/agentcore_runtime.py          # Act II · Runtime entrypoint (read-only)
+solutions/                                    # escape-hatch copies
+```
+
+::::
+
+## Step 2: Open Boutique and Atelier
+
+In Code Editor, open the **Ports** panel and click the forwarded address for port **8000**. The Pellier storefront opens in a new tab.
+
+Look for the small *Pellier · listening* chip in the hero. That means the agent surface is awake.
+
+In a second tab, append `/atelier` to the same URL. Keep both tabs open: you will use the Boutique to create behavior and the Atelier to explain it.
+
+:::alert{type="info"}
+Demo mode skips login. Use the chat drawer persona switcher for Marco, Anna, and Theo.
+:::
 
 ## Key takeaways
 
-- The lab is already deployed; you are proving it is ready.
-- Boutique (`/`) creates shopper behavior. Atelier (`/atelier`) explains it.
-- Green checks now keep the build focused on Marco, not infrastructure.
+- Code Editor is your operator seat for the hour.
+- Boutique (`/`) is the shopper experience; Atelier (`/atelier`) is the evidence layer.
+- Both surfaces read the same backend, Aurora data (`pellier.product_catalog`, `pellier.warehouse_inventory`, `pellier.tool_audit`), and AgentCore Memory.
 
 :::alert{type="info"}
 Optional primer: [pgvector in two minutes](/90-appendix/05-pgvector-primer/).
 :::
 
-::::alert{type="success" header="Begin setup"}
-[Open the workspace →](./01-open-workspace/)
+::::alert{type="success" header="You're in"}
+[Act I: Meet Marco →](/10-act-1-the-boutique/01-meet-marco/)
 ::::

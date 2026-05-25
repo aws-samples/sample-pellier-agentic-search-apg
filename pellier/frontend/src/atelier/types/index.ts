@@ -29,7 +29,13 @@ export type { Tool, ToolDiscoveryResult } from './tool';
 
 export type { RoutingPattern } from './routing';
 
-export type { MemoryState, MemoryItem } from './memory';
+export type {
+  MemoryState,
+  MemoryItem,
+  MemorySubstrate,
+  MemorySubstratePanel,
+  MemorySource,
+} from './memory';
 
 export type { PerformanceData } from './performance';
 

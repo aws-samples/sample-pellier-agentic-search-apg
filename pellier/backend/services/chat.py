@@ -1973,6 +1973,33 @@ CURRENT REQUEST: {message}"""
                     logger.warning("Persona ContextVar reset failed: %s", exc)
                 persona_token = None
 
+        # --- Session ContextVar (Pattern I inner-specialist audit) ----
+        # Pattern I builds a fresh inner specialist Agent inside each
+        # @tool wrapper (style_advisor.search, curator.recommendation,
+        # …). Those wrappers don't take session_id as a parameter, so
+        # we stash it here and let agents/specialist_hooks.attach_policy_hook
+        # read it when registering the audit hook on the inner agent.
+        # Without this, only the wrapper-level tool call audits;
+        # find_pieces / style_match / etc. inside the specialist
+        # never reach pellier.tool_audit.
+        session_token = None
+        try:
+            from services.session_context import session_id_var
+            session_token = session_id_var.set(session_id)
+        except Exception as exc:
+            logger.warning("Session ContextVar set failed: %s", exc)
+
+        def _reset_session_token() -> None:
+            """Idempotent reset — safe to call on any exit path."""
+            nonlocal session_token
+            if session_token is not None:
+                try:
+                    from services.session_context import session_id_var
+                    session_id_var.reset(session_token)
+                except Exception as exc:
+                    logger.warning("Session ContextVar reset failed: %s", exc)
+                session_token = None
+
         # Pattern II (Graph) builds the GraphAdapter here, AFTER the
         # persona + skill ContextVars are live so the specialist
         # factories inside the adapter pick them up at construction
@@ -2055,9 +2082,11 @@ CURRENT REQUEST: {message}"""
 
             if _stub_flag:
                 fallback_text = _STUB_FALLBACK_MESSAGES[intent_hint]
+                stub_name = self._tool_to_agent_name(intent_hint)
                 logger.info(
-                    "🎯 Dispatcher | specialist=%s is STUBBED — returning "
-                    "voice-matched non-answer (workshop build pending)",
+                    "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
+                    "returning voice-matched non-answer (workshop build pending)",
+                    stub_name,
                     intent_hint,
                 )
                 # Stream the non-answer as if a normal agent produced it.
@@ -2121,7 +2150,10 @@ CURRENT REQUEST: {message}"""
                 orchestrator.session_manager = session_manager
                 _safe_register_hooks(session_manager, orchestrator)
             _attach_streaming_and_hooks(orchestrator)
-            logger.info(f"🎯 Dispatcher | specialist={intent_hint}")
+            specialist_name = self._tool_to_agent_name(intent_hint)
+            logger.info(
+                f"🎯 Dispatcher | specialist={specialist_name} (intent={intent_hint})"
+            )
 
         async def run_orchestrator():
             try:
@@ -2289,6 +2321,7 @@ CURRENT REQUEST: {message}"""
             # exception paths too.
             _reset_skill_token()
             _reset_persona_token()
+            _reset_session_token()
 
         if orchestrator_error[0]:
             yield {"type": "error", "error": str(orchestrator_error[0])}

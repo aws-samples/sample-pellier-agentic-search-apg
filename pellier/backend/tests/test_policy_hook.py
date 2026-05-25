@@ -36,15 +36,18 @@ def _reset_decision_buffer():
 
 
 def test_allow_for_unmapped_tool_bypasses_policy():
-    """Tools not in ``_TOOL_TO_POLICY_ACTION`` (read-only catalog
-    queries) run unconditionally — no PolicyService call, no decision
-    recorded, no cancel."""
+    """Tools not in ``_TOOL_TO_POLICY_ACTION`` (e.g. whats_trending)
+    run unconditionally — no PolicyService call, no decision recorded,
+    no cancel. Audit is exercised separately in
+    ``test_unmapped_tool_audits_without_policy_evaluate``."""
     from services.policy_hook import PolicyEnforcementHook, get_decisions
+    from services import tool_audit_writer
 
     hook = PolicyEnforcementHook(session_id="s1")
     event = _event_for("whats_trending", limit=5)
 
-    with patch.object(hook._policy, "evaluate") as evaluate_mock:
+    with patch.object(hook._policy, "evaluate") as evaluate_mock, \
+         patch.object(tool_audit_writer, "record_allow"):
         hook._on_before_tool(event)
         evaluate_mock.assert_not_called()
 
@@ -231,14 +234,15 @@ def test_after_tool_event_writes_audit_update_for_mutating_tool():
 
 
 def test_after_tool_event_no_op_when_no_pending_start():
-    """If the Before event didn't capture a start (e.g. the tool wasn't
-    in _MUTATING_TOOLS), the After event must not call record_after."""
+    """If the Before event didn't capture a start (e.g. the toolUseId
+    was missing or the tool was DENYed), the After event must not call
+    record_after — there's no row to UPDATE."""
     from services.policy_hook import PolicyEnforcementHook
     from services import tool_audit_writer
 
     hook = PolicyEnforcementHook(session_id="s-x")
     after = SimpleNamespace(
-        tool_use={"name": "find_pieces", "toolUseId": "tid-readonly"},
+        tool_use={"name": "find_pieces", "toolUseId": "tid-no-start"},
         result={"products": []},
     )
     with patch.object(tool_audit_writer, "record_after") as record_after_mock:
@@ -246,9 +250,10 @@ def test_after_tool_event_no_op_when_no_pending_start():
     record_after_mock.assert_not_called()
 
 
-def test_read_only_allow_does_not_audit():
-    """ALLOW on a non-mutating tool (find_pieces) must NOT call
-    record_allow — audit is reserved for mutations."""
+def test_read_only_allow_audits():
+    """ALLOW on a policy-mapped read tool (find_pieces) writes an audit
+    row — procedural memory needs the full per-tool signal, not just
+    mutations."""
     from services.policy_hook import PolicyEnforcementHook
     from services import tool_audit_writer
 
@@ -259,4 +264,121 @@ def test_read_only_allow_does_not_audit():
         hook._on_before_tool(event)
 
     assert event.cancel_tool is False
-    record_allow_mock.assert_not_called()
+    assert record_allow_mock.call_count == 1
+    kwargs = record_allow_mock.call_args.kwargs
+    assert kwargs["tool_name"] == "find_pieces"
+    assert kwargs["session_id"] == "s-read"
+
+
+def test_unmapped_tool_audits_without_policy_evaluate():
+    """Tools not in ``_TOOL_TO_POLICY_ACTION`` (e.g. whats_trending)
+    skip Cedar — but still get audited so procedural memory has
+    coverage of every tool the agent runs."""
+    from services.policy_hook import PolicyEnforcementHook, get_decisions
+    from services import tool_audit_writer
+
+    hook = PolicyEnforcementHook(session_id="s-unmapped")
+    event = _event_for("whats_trending", limit=5)
+
+    with patch.object(hook._policy, "evaluate") as evaluate_mock, \
+         patch.object(tool_audit_writer, "record_allow") as record_allow_mock:
+        hook._on_before_tool(event)
+        evaluate_mock.assert_not_called()
+
+    assert event.cancel_tool is False
+    # Unmapped tools don't write to the decision deque (no Cedar
+    # decision to record), but they DO get audited.
+    assert get_decisions("s-unmapped") == []
+    assert record_allow_mock.call_count == 1
+    assert record_allow_mock.call_args.kwargs["tool_name"] == "whats_trending"
+
+
+# ---------------------------------------------------------------------------
+# Inner-specialist hook propagation (Pattern I)
+# ---------------------------------------------------------------------------
+
+
+def test_attach_policy_hook_uses_session_id_from_contextvar():
+    """The Pattern I @tool wrappers (search, recommendation, …) build
+    a fresh inner specialist Agent that doesn't carry the outer
+    orchestrator's audit hook. ``attach_policy_hook`` reads the
+    session_id from ``session_id_var`` and registers a
+    ``PolicyEnforcementHook`` on the inner agent so its tool calls
+    (``find_pieces``, ``style_match``, …) reach ``pellier.tool_audit``
+    too — without changing the @tool LLM-facing signature."""
+    from agents.specialist_hooks import attach_policy_hook
+    from services.session_context import session_id_var
+    from services.policy_hook import PolicyEnforcementHook
+
+    captured_providers: list = []
+
+    class _FakeRegistry:
+        def add_hook(self, provider):
+            captured_providers.append(provider)
+
+    class _FakeAgent:
+        def __init__(self):
+            self.hooks = _FakeRegistry()
+
+    agent = _FakeAgent()
+    token = session_id_var.set("inner-prop-session")
+    try:
+        attach_policy_hook(agent)
+    finally:
+        session_id_var.reset(token)
+
+    assert len(captured_providers) == 1
+    provider = captured_providers[0]
+    assert isinstance(provider, PolicyEnforcementHook)
+    assert provider.session_id == "inner-prop-session"
+
+
+def test_attach_policy_hook_falls_back_to_callback_registration():
+    """Shims without a ``hooks`` registry (older agents, GraphAdapter)
+    still get the policy via the callback-style ``add_hook``."""
+    from agents.specialist_hooks import attach_policy_hook
+    from services.session_context import session_id_var
+
+    callbacks: list = []
+
+    class _FakeAgent:
+        hooks = None  # no registry surface
+
+        def add_hook(self, cb):
+            callbacks.append(cb)
+
+    agent = _FakeAgent()
+    token = session_id_var.set("inner-fallback")
+    try:
+        attach_policy_hook(agent)
+    finally:
+        session_id_var.reset(token)
+
+    # The fallback registers the bound _on_before_tool callback so the
+    # provider's enforcement still runs without the full registry surface.
+    assert len(callbacks) == 1
+    assert callbacks[0].__name__ == "_on_before_tool"
+
+
+def test_attach_policy_hook_with_no_session_id_uses_anonymous():
+    """When the ContextVar is unset (unit tests, REPL, etc.), the
+    hook still attaches — record_allow tolerates a None session_id by
+    writing ``"_anonymous"``."""
+    from agents.specialist_hooks import attach_policy_hook
+    from services.policy_hook import PolicyEnforcementHook
+
+    captured: list = []
+
+    class _FakeRegistry:
+        def add_hook(self, provider):
+            captured.append(provider)
+
+    class _FakeAgent:
+        hooks = _FakeRegistry()
+
+    # Don't set the ContextVar — its default is None.
+    attach_policy_hook(_FakeAgent())
+
+    assert len(captured) == 1
+    assert isinstance(captured[0], PolicyEnforcementHook)
+    assert captured[0].session_id is None
