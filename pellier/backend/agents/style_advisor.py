@@ -146,11 +146,21 @@ def search(query: str) -> str:
         # style_match, …) reach pellier.tool_audit so procedural memory
         # sees them. Outer @tool wrapper already audits at the
         # orchestrator level; this surfaces the layer below.
-        from agents.specialist_hooks import attach_policy_hook
+        from agents.specialist_hooks import (
+            append_escalation_marker,
+            attach_policy_hook,
+            extract_escalation_payload,
+        )
         attach_policy_hook(agent)
 
         result = agent(query)
         text = str(result)
+        # Forward any inner escalate_to_stylist payload up through the
+        # wrapper output. chat.py only sees this wrapper's return value;
+        # without the marker the stylist handoff card never renders.
+        escalation = extract_escalation_payload(tool_results)
+        if escalation is not None:
+            return append_escalation_marker(text, escalation)
         return _ensure_products_in_output(text, tool_results)
     except Exception as e:
         return json.dumps({"error": f"Search agent error: {str(e)}"})

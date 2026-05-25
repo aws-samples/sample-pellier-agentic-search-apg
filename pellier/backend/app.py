@@ -87,6 +87,54 @@ query_logger = None
 index_performance_service = None
 
 
+def _log_agent_and_tool_inventory() -> None:
+    """Log the live specialist roster and tool catalogue at boot.
+
+    Mirrors the ``✅ Loaded N skills...`` line emitted by ``skills.loader``
+    so the operator can confirm at a glance:
+
+      * which specialists the Dispatcher (Pattern III) and Orchestrator
+        (Pattern I) can route to, and
+      * which @tool functions those specialists are allowed to call.
+
+    Runs once per process at lifespan startup. The lists are short and
+    lookup-only, so importing the modules here is cheap.
+    """
+    # Specialists. Each file exports a build_<role>_agent() factory; the
+    # public role is the @tool wrapper name the orchestrator sees.
+    specialists = [
+        ("style_advisor", "search"),
+        ("curator", "recommendation"),
+        ("value_analyst", "pricing"),
+        ("stock_keeper", "inventory"),
+        ("experience_guide", "support"),
+    ]
+    specialist_summary = ", ".join(f"{role}→{name}" for name, role in specialists)
+    logger.info(
+        "✅ Loaded %d specialist agents: %s",
+        len(specialists),
+        specialist_summary,
+    )
+
+    # Tools. Walk services.agent_tools and collect every Strands @tool
+    # so the count stays honest if a tool is added or removed.
+    try:
+        import services.agent_tools as agent_tools
+
+        tool_names = sorted(
+            name
+            for name in dir(agent_tools)
+            if getattr(agent_tools, name).__class__.__name__ == "DecoratedFunctionTool"
+        )
+        logger.info(
+            "✅ Loaded %d agent tools: %s",
+            len(tool_names),
+            ", ".join(tool_names),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Could not enumerate agent tools: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -217,6 +265,11 @@ async def lifespan(app: FastAPI):
         # registry, models, and (Phase 2) the one-call router.
         from skills import load_registry
         load_registry()
+
+        # Inventory the specialists + tools so the operator can confirm at
+        # a glance what the process can actually route to. Keeps parity
+        # with the skills loader's "✅ Loaded N skills..." line.
+        _log_agent_and_tool_inventory()
 
         logger.info("🚀 Pellier Boutique API is ready!")
         

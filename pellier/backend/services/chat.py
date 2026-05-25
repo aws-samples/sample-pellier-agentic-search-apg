@@ -368,6 +368,39 @@ class ProductExtractor:
         }
 
 
+def _scan_for_escalation(result_str: str) -> Optional[Dict[str, Any]]:
+    """Return the first ``{"type": "escalation", ...}`` envelope in ``result_str``.
+
+    Tool results arrive as plain JSON when ``escalate_to_stylist`` was the
+    tool itself, but as ``"<prose>\\n\\n```json\\n{...}\\n```"`` when an
+    inner specialist (Experience Guide, Style Advisor) routed through its
+    wrapper and ``append_escalation_marker`` appended the payload. This
+    helper handles both shapes so the caller doesn't care which path ran.
+    """
+    if not result_str:
+        return None
+
+    # Direct JSON envelope (escalate_to_stylist as the routed tool).
+    try:
+        data = json.loads(result_str)
+        if isinstance(data, dict) and data.get("type") == "escalation":
+            return data
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Embedded ```json {...} ``` block from the specialist wrapper. The
+    # wrapper writes a single object (not a list of products), so we
+    # match objects only.
+    for match in re.finditer(r"```json\s*(\{[^`]*?\})\s*```", result_str, re.DOTALL):
+        try:
+            data = json.loads(match.group(1))
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(data, dict) and data.get("type") == "escalation":
+            return data
+    return None
+
+
 def _repair_json(raw: str) -> str:
     """Best-effort repair of common LLM JSON quirks."""
     # Remove trailing commas before ] or }
@@ -2234,16 +2267,22 @@ CURRENT REQUEST: {message}"""
                 # agent's reply IS the handoff — we drop the products
                 # buffer so the customer isn't shown a shelf of options
                 # the agent just said it can't recommend.
-                if result_str and tool_name == "escalate_to_stylist":
-                    try:
-                        _data = json.loads(result_str)
-                        if (
-                            isinstance(_data, dict)
-                            and _data.get("type") == "escalation"
-                        ):
-                            escalation_payload = _data
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                #
+                # Two paths reach here:
+                #   1. The orchestrator routes directly to escalate_to_stylist
+                #      (tool_name == "escalate_to_stylist"), so result_str
+                #      is the raw JSON envelope.
+                #   2. The orchestrator routes to a specialist (support,
+                #      search) and the specialist's inner agent calls
+                #      escalate_to_stylist. The wrapper appends the
+                #      payload as an inline JSON code block (see
+                #      agents/specialist_hooks.append_escalation_marker)
+                #      so we scan every tool result for an embedded
+                #      escalation envelope.
+                if result_str and escalation_payload is None:
+                    candidate = _scan_for_escalation(result_str)
+                    if candidate is not None:
+                        escalation_payload = candidate
                 if result_str:
                     raw_products = ProductExtractor.extract(result_str)
                     if raw_products:

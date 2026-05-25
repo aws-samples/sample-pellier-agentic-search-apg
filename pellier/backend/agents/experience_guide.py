@@ -172,11 +172,23 @@ def support(query: str) -> str:
         except ImportError:
             pass
 
-        from agents.specialist_hooks import attach_policy_hook
+        from agents.specialist_hooks import (
+            append_escalation_marker,
+            attach_policy_hook,
+            extract_escalation_payload,
+        )
         attach_policy_hook(agent)
 
         result = agent(query)
         text = str(result)
+        # Surface any inner escalate_to_stylist payload back to the
+        # orchestrator-facing string so chat.py can render the stylist
+        # handoff card. Without this the inner tool result gets buried
+        # inside the inner Agent and the outer SSE stream never sees
+        # the {"type": "escalation"} envelope.
+        escalation = extract_escalation_payload(tool_results)
+        if escalation is not None:
+            return append_escalation_marker(text, escalation)
         return _ensure_products_in_output(text, tool_results)
     except Exception as e:
         return json.dumps({"error": f"Support agent error: {str(e)}"})
