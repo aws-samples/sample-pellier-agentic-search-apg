@@ -760,7 +760,7 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     log "Pre-launching AgentCore Runtime (pellier-agent)..."
     export REPO_PATH="$REPO_PATH"
     RUNTIME_ARN=""
-    if command -v agentcore &>/dev/null && command -v python3.13 &>/dev/null; then
+    if command -v npx &>/dev/null && command -v python3.13 &>/dev/null; then
         RUNTIME_ARN=$(sudo -u "$CODE_EDITOR_USER" bash -c "
             export PATH=\"\$HOME/.local/bin:\$PATH\"
             export AWS_REGION=$AWS_REGION

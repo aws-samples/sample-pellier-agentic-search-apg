@@ -279,11 +279,10 @@ def main() -> int:
         _log(f"Backend path missing: {BACKEND}")
         return 0
 
-    # `agentcore` is the Node CLI installed via `npm install -g @aws/agentcore`.
-    # The AMI bakes it in; this guard catches the case where someone runs
-    # this script on a fresh machine.
-    if shutil.which("agentcore") is None:
-        _log("agentcore CLI not on PATH — install @aws/agentcore (npm i -g @aws/agentcore)")
+    # Prefer `npx @aws/agentcore@latest` so every bootstrap run picks up the
+    # latest CLI even when a host has an older global install.
+    if shutil.which("npx") is None:
+        _log("npx not on PATH — install Node.js/npm to run @aws/agentcore CLI")
         return 0
 
     role_arn = _ensure_execution_role_arn()
@@ -306,7 +305,7 @@ def main() -> int:
     # against a fresh account can take a while — AgentCore provisions
     # ECR repos, Lambda layers, and warm pools on demand.
     deploy = _run(
-        ["agentcore", "deploy", "-y", "--json"],
+        ["npx", "-y", "@aws/agentcore@latest", "deploy", "-y", "--json"],
         BACKEND,
         env=env,
         timeout=900,

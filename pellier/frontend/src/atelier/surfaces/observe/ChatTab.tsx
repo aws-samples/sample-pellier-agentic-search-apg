@@ -165,7 +165,7 @@ const ToolCallChip: React.FC<{ tool: ToolCall }> = ({ tool }) => {
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        aria-label={`${expanded ? 'Collapse' : 'Expand'} ${tool.name} tool call`}
+        aria-label={`${expanded ? 'Collapse' : 'Expand'} ${tool.toolName} tool call`}
         style={{
           display: 'flex',
           alignItems: 'center',

@@ -288,7 +288,7 @@ function AgentMessage({
     if (message.content && message.content.length > 0 && thinkingOpen) {
       setThinkingOpen(false)
     }
-  }, [message.content]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [message.content])
 
   const reasoning = message.agentExecution?.reasoning_steps
   const hasReasoning = reasoning && reasoning.length > 0

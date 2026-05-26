@@ -128,7 +128,6 @@ function ModalRouteGuard() {
     }
     // intentionally only run on pathname changes — activeModal in the
     // dep array would close the modal the instant it opened.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
   return null
 }

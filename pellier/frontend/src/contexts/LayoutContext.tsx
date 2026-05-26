@@ -79,7 +79,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
       }, 1000)
       return () => clearTimeout(timer)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- mount only
+  }, [])
 
   const startTour = useCallback((mode: WorkshopMode) => {
     setTourStep(0)

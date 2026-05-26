@@ -310,7 +310,6 @@ export function useAgentChat(
         // Silent — localStorage is the fallback
       })
     return () => { alive = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps — only on sessionId change
   }, [sessionId])
 
   // Active persona (if any) — used to scope backend LTM reads to the

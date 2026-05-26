@@ -153,7 +153,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     setMetrics(emptyMetrics())
     prevModeRef.current = workshopMode
-  }, [workshopMode]) // eslint-disable-line react-hooks/exhaustive-deps -- intentional: only fire on mode change
+  }, [workshopMode])
 
   // Persist cart to localStorage + stamp the session so stale carts
   // from prior sessions don't resurrect on the next page load.

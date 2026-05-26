@@ -196,7 +196,7 @@ echo "  MCP_GATEWAY_URL=$MCP_GATEWAY_URL"
 # the live workshop account.
 #
 # CLI repo:    https://github.com/aws/agentcore-cli
-# Install:     npm install -g @aws/agentcore
+# Run latest:  npx -y @aws/agentcore@latest <command>
 #
 echo ""
 echo "=== [6/8] Rendering AgentCore CLI config ==="
@@ -250,7 +250,7 @@ pushd "$BACKEND_DIR" > /dev/null
 # which packages our Python entrypoint, uploads it to AgentCore-managed
 # infrastructure, and registers it under the JWT authorizer in our config.
 #   https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateAgentRuntime.html
-agentcore deploy -y --json
+npx -y @aws/agentcore@latest deploy -y --json
 
 popd > /dev/null
 

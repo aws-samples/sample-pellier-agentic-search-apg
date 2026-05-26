@@ -40,7 +40,27 @@ def reload_app(fake_dist: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("SPA_MOUNT_PATH", mount_path)
         monkeypatch.setenv("FRONTEND_DIST_PATH", str(fake_dist))
         import app as app_module
-        return importlib.reload(app_module)
+        app_module = importlib.reload(app_module)
+
+        # Keep SPA-mount tests focused on routing behavior, not external
+        # Aurora/Bedrock connectivity during FastAPI lifespan startup.
+        async def _noop_connect(self):
+            return None
+
+        async def _noop_disconnect(self):
+            return None
+
+        async def _ok_query(self, *_args, **_kwargs):
+            return [{"?column?": 1}]
+
+        def _ok_embedding(self, *_args, **_kwargs):
+            return [0.0, 0.1, 0.2]
+
+        monkeypatch.setattr(app_module.DatabaseService, "connect", _noop_connect, raising=True)
+        monkeypatch.setattr(app_module.DatabaseService, "disconnect", _noop_disconnect, raising=True)
+        monkeypatch.setattr(app_module.DatabaseService, "execute_query", _ok_query, raising=True)
+        monkeypatch.setattr(app_module.EmbeddingService, "generate_embedding", _ok_embedding, raising=True)
+        return app_module
 
     return _factory
 

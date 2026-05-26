@@ -28,7 +28,7 @@ const MarkdownMessage = ({ content }: Props) => {
 
   const renderContent = (raw: string) => {
     // Pre-clean: strip artifacts the backend should have removed
-    let text = raw
+    const text = raw
       // Remove markdown table rows (| col | col |)
       .replace(/^\|.*$/gm, '')
       // Remove horizontal rules (---, ***, ___)

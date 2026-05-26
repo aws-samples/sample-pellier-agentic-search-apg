@@ -285,7 +285,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     // Intentional: refresh is stable (useCallback with empty deps) and
     // accessToken is only read on first mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const login = useCallback(() => {

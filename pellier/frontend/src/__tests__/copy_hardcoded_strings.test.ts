@@ -236,7 +236,7 @@ export function looksLikeUserFacingSentence(s: string): boolean {
   // English-sentence-like character class: letters, digits, spaces, and a
   // small punctuation set. This intentionally excludes "/", "{", "$", "[",
   // etc. so template-literal fragments and CSS values never match.
-  if (!/^[A-Za-z0-9 ,.!?'\-]+$/.test(s)) return false
+  if (!/^[A-Za-z0-9 ,.!?'-]+$/.test(s)) return false
   return true
 }
 
