@@ -74,6 +74,9 @@ lab1/**/*.ipynb
 data/amazon-products-sample-with-embeddings.csv
 data/amazon-products-sample.csv
 
+# Large demo video (97MB, exceeds GitHub's 50MB warning threshold)
+lab-content/builders/static/introduction/pellier-demo.webp
+
 # Test environment
 tmp/
 .env
