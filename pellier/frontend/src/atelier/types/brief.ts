@@ -29,6 +29,6 @@ export interface BriefSection {
     sql: string;
     toolRanking: { name: string; distance: number }[];
   };
-  memoryRows?: { tier: string; content: string }[];
+  memoryRows?: { tier: 'working' | 'semantic' | 'episodic' | 'procedural' | 'skill'; content: string }[];
   tracePills?: string[];
 }

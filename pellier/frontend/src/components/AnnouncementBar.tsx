@@ -51,7 +51,7 @@ const FINDINGS: Finding[] = [
   {
     verb: 'Holding',
     text: 'last 2 pairs of the Leather Slide Sandal in 42 — saved for shoppers who looked twice.',
-    trace: 'trace · cart.holds · 47s ago',
+    trace: 'trace · memory.holds · 47s ago',
   },
   {
     verb: 'Pairing',

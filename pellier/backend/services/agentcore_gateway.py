@@ -1,17 +1,29 @@
 """
-AgentCore Gateway — MCP Tool Discovery via Bedrock AgentCore Gateway.
+AgentCore Gateway — MCP tool discovery via Bedrock AgentCore Gateway.
+
+AgentCore Gateway (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html)
+is a managed MCP front-door for tool catalogs. It enforces Cognito JWT
+auth on every tool call, then proxies to registered Lambda or HTTP
+targets. From the orchestrator's perspective, "having a Gateway" means
+tool definitions stop living in Python imports and start being
+discovered dynamically over the wire.
 
 This module has two sides:
 
-1. **Server side (Challenge 7)** — exposes the 13 `agent_tools.py` tools via
-   the MCP streamable HTTP transport so external agent clients can discover
-   and invoke them over the wire. Signatures and JSON envelopes are
-   identical to the in-process `@tool` functions.
+1. **Server side (Challenge 7)** — exposes the 13 `agent_tools.py`
+   tools via the MCP streamable HTTP transport so external agent
+   clients (or AgentCore Gateway itself) can discover and invoke them.
+   Signatures and JSON envelopes are identical to the in-process
+   `@tool` functions, so the orchestrator can switch between the two
+   transports without changing how it calls them.
 
-2. **Client side** — creates a Strands `Agent` that connects *back* to a
-   Gateway URL and discovers tools dynamically via `MCPClient`. Used when
-   migrating the orchestrator from hard-coded tool imports to MCP-based
-   discovery.
+2. **Client side** — creates a Strands `Agent` that connects *back* to
+   a Gateway URL and pulls its tool list at agent-construction time
+   via `MCPClient.list_tools_sync()`. This is the production wiring:
+   the agent prompt no longer carries a hard-coded tool list; the
+   Gateway is the source of truth.
+
+MCP (Model Context Protocol) docs: https://modelcontextprotocol.io
 """
 import logging
 from typing import Optional, List, Dict, Any

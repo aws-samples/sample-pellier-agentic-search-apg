@@ -5,19 +5,19 @@
   "elapsedMs": 6231,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:48:00Z",
+  "timestamp": "2026-05-25T17:48:00Z",
   "status": "complete",
   "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
       "content": "Wrap-ready gifts with no extra effort",
-      "timestamp": "2026-05-15T17:48:00Z"
+      "timestamp": "2026-05-25T17:48:00Z"
     },
     {
       "role": "assistant",
       "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) \u2014 wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
-      "timestamp": "2026-05-15T17:48:05Z",
+      "timestamp": "2026-05-25T17:48:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (vector + Postgres FTS \u2192 RRF \u2192 cohere.rerank-v3-5:0)",
         "traceLink": "#telemetry-1"
@@ -69,6 +69,24 @@
           "imageUrl": "/products/anna-botanical-silk-scarf.png"
         }
       ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Wants wrap-ready gifts that need no extra effort"
+        },
+        {
+          "tier": "semantic",
+          "content": "Prefers items that ship flat and arrive gift-ready"
+        },
+        {
+          "tier": "episodic",
+          "content": "Bought a sundress as a birthday gift last month"
+        },
+        {
+          "tier": "skill",
+          "content": "the-gift-table loaded (persona: anna)"
+        }
+      ],
       "meta": {
         "agent": "Curator",
         "model": "Claude Opus 4.6 \u00b7 0.4",
@@ -99,6 +117,23 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall — Semantic",
+      "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: ships-flat, wrap-ready, warm-neutral palette. Used to weight gift-band candidates.",
+      "status": "complete",
+      "durationMs": 36
+    },
+    {
+      "index": 4,
+      "category": "owned",
+      "title": "Memory Recall — Episodic",
+      "description": "Read Aurora episodic memory: last month's birthday-gift sundress purchase reinforces the wrap-ready intent.",
+      "status": "complete",
+      "durationMs": 48,
+      "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
+    },
+    {
+      "index": 5,
       "category": "both",
       "title": "vector branch",
       "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-v4:0",
@@ -108,7 +143,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 4,
+      "index": 6,
       "category": "both",
       "title": "Postgres FTS branch",
       "description": "ts_rank_cd over description_tsv with GIN index (k=20)",
@@ -118,7 +153,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 5,
+      "index": 7,
       "category": "managed",
       "title": "RRF merge",
       "description": "Reciprocal Rank Fusion (k=60) \u2192 30-candidate pool",
@@ -128,7 +163,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 6,
+      "index": 8,
       "category": "both",
       "title": "cohere.rerank-v3-5:0",
       "description": "Cohere Rerank v3.5 \u2014 Bedrock cohere.rerank-v3-5:0 reranks 30 candidates",
@@ -137,19 +172,27 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 7,
+      "index": 9,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 gift-band framing across three price tiers",
       "status": "complete",
       "durationMs": 1244,
       "agent": "Curator"
+    },
+    {
+      "index": 10,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: wants wrap-ready gifts that need no extra effort.",
+      "status": "complete",
+      "durationMs": 22
     }
   ],
   "brief": {
     "folioNumber": 31,
     "headline": "Gift, considered",
-    "filedTime": "2026-05-15T17:49:00Z",
+    "filedTime": "2026-05-25T17:49:00Z",
     "sections": [
       {
         "numeral": "i.",

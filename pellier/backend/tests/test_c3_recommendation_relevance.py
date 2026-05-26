@@ -158,7 +158,7 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 # ---------------------------------------------------------------------------
 
 
-def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
+def test_curator_is_constructed_with_per_agent_model_mix_and_five_tools(
     stubbed_specialist,
 ) -> None:
     """Building the Curator SHALL match the per-agent model mix from
@@ -166,12 +166,14 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
 
       - Claude Opus 4.6 (BEDROCK_OPUS_MODEL)
       - temperature 0.4 (warm — recommendations carry "taste")
-      - exactly four tools: find_pieces_hybrid + whats_trending +
-        side_by_side + explore_collection.
+      - exactly five tools: find_pieces_hybrid + whats_trending +
+        side_by_side + explore_collection + escalate_to_stylist.
 
     ``find_pieces_hybrid`` is the Curator's anchor capability (Anna's
     pgvector + Postgres FTS + Cohere Rerank pipeline). Other specialists keep
-    plain ``find_pieces``.
+    plain ``find_pieces``. ``escalate_to_stylist`` is the honest fallback when
+    the catalog tools can't answer (sympathy gifting, sentimental milestones,
+    deep style coaching beyond the catalog).
     """
     _StubAgent.canned_reply = "A canned response - ignored by this test."
 
@@ -195,7 +197,8 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_four_tools(
         "whats_trending",
         "side_by_side",
         "explore_collection",
-    }, f"expected the four Curator tools, got {unwrapped!r} / {tool_names!r}"
+        "escalate_to_stylist",
+    }, f"expected the five Curator tools, got {unwrapped!r} / {tool_names!r}"
 
 
 def test_agent_system_prompt_references_recommendation_voice(

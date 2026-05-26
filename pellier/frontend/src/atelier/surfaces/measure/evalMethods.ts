@@ -42,8 +42,8 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'AWS',
     tagline: 'Managed eval runs tied to agents deployed on AgentCore Runtime.',
     bestFor: [
+      'Prod-cutover graduation — score a deployed runtime against a curated dataset',
       'Regression gates before promoting agent versions',
-      'Built-in trajectories when you already run on AgentCore',
       'Operational evals in the same account as production',
     ],
     watchOuts: [
@@ -52,7 +52,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     ],
     pellierFit: 'workshop',
     workshopNote:
-      'The production-shaped path: after the Builder\'s Session exercise (floor_check) is live, wire eval datasets to the same Runtime ARNs you use in the boutique.',
+      'Wired in `services/agentcore_evals.py`, env-flag-gated by `AGENTCORE_EVALS_ENABLED` (off by default). Single `create_evaluation_job` call against the Runtime ARN you already deploy — runs at prod cutover, not on every PR.',
   },
   {
     id: 'ragas',
@@ -96,9 +96,9 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'Your CI pipeline',
     tagline: 'Fixed queries with expected products, tools, or JSON shapes.',
     bestFor: [
-      'Non-negotiable regressions — "Marco Turn 2 must surface Hadley Camp Shirt"',
+      'Non-negotiable regressions — "Marco Turn 2 must surface the Hadley Camp Shirt"',
       'Tool routing and pgvector discover smoke tests',
-      'Cheap, deterministic gates on every PR',
+      'Cheap, deterministic gates that run on every PR',
     ],
     watchOuts: [
       'Brittle if overfit to fixture SKUs — refresh when catalog changes',
@@ -106,7 +106,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     ],
     pellierFit: 'strong',
     workshopNote:
-      'What the repo already leans on — pytest + fixture sessions. Extend with labeled picks per persona journey.',
+      'Wired in `tests/test_golden_journeys.py` against `tests/golden/journeys.json` — four pinned persona turns assert tool order, products, and routing. Runs every PR, no AWS calls. The day-1 gate; AgentCore Evals is the prod-cutover graduation.',
   },
   {
     id: 'human-eval',
@@ -129,4 +129,4 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
 ];
 
 export const PELLIER_EVAL_STACK_NOTE =
-  'For Pellier: measure retrieval first (Recall@K, MRR, context relevance), then generation faithfulness, then end-to-end accuracy and citation rate on fixture journeys. Golden-set regression guards CI; RAGAS quantifies retrieval+grounding; an LLM judge covers tone; AgentCore Evals promotes winners on Runtime. LangSmith is optional if you already live there.';
+  'Two gates, two cadences. Golden-set regression (`tests/test_golden_journeys.py`) runs every PR — deterministic, fixture-driven, no AWS. AgentCore Evals (`services/agentcore_evals.py`, env-flag-gated) runs at prod cutover against a deployed Runtime ARN. RAGAS quantifies retrieval+grounding when you need it; an LLM judge covers tone; LangSmith is optional if you already live there. Measure retrieval first (Recall@K, MRR, context relevance), then generation faithfulness, then end-to-end accuracy and citation rate.';

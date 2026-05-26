@@ -105,7 +105,6 @@ const VersionTrend: React.FC<VersionTrendProps> = ({ trend }) => {
           fontFamily: 'var(--at-mono)',
           fontSize: '12px',
           color: 'var(--at-ink-3)',
-          fontStyle: 'italic',
           padding: '8px 0',
         }}
       >
@@ -240,7 +239,6 @@ const Scorecard: React.FC<ScorecardProps> = ({ card, index, isSelected, rowRef, 
           <span
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontWeight: 400,
               fontSize: '24px',
               color: 'var(--at-red-1)',
@@ -296,7 +294,6 @@ const Scorecard: React.FC<ScorecardProps> = ({ card, index, isSelected, rowRef, 
             paddingTop: '16px',
             borderTop: '1px dashed var(--at-rule-2)',
             fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
             fontSize: '16px',
             color: 'var(--at-ink-2)',
             lineHeight: 1.5,
@@ -413,7 +410,7 @@ const EvaluationMethodsPanel: React.FC<{
             margin: '0 0 12px',
           }}
         >
-          {method.tagline} · <span style={{ fontStyle: 'italic' }}>{method.vendor}</span>
+          {method.tagline} · <span>{method.vendor}</span>
         </p>
         <p
           style={{
@@ -764,7 +761,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -825,7 +821,6 @@ const EmptyState: React.FC = () => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '24px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',

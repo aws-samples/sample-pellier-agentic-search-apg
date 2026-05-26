@@ -6,8 +6,8 @@ Validates Requirements 2.5.2, 4.3.2, 4.3.3, 4.4.1, and 6.2.1 from
   2.5.2 ``agentcore_memory`` implements session history + persistent
         user preferences via the ``AgentCoreMemory`` class.
   4.3.2 Agent calls SHALL be scoped so no cross-user bleed is
-        possible (``user:{user_id}:...`` keyspace).
-  4.3.3 Anonymous ``anon:{session_id}`` namespace SHALL NOT be
+        possible (``user-{user_id}-...`` keyspace).
+  4.3.3 Anonymous ``anon-{session_id}`` namespace SHALL NOT be
         merged into the user namespace on sign-in.
   4.4.1 Preferences persist via ``agentcore_memory`` at
         ``user:{user_id}:preferences`` — never in localStorage, never
@@ -132,7 +132,7 @@ def test_preferences_scoped_per_user_id(memory) -> None:
 
 def test_session_history_append_and_read_preserves_order(memory) -> None:
     """Turns appended in order SHALL read back in the same order."""
-    ns = "user:alice:session:s1"
+    ns = "user-alice-session-s1"
     turns = [
         {"role": "user", "content": "show me linen"},
         {"role": "assistant", "content": "here are four linen pieces"},
@@ -148,13 +148,13 @@ def test_session_history_append_and_read_preserves_order(memory) -> None:
 
 def test_session_history_returns_empty_list_for_unknown_ns(memory) -> None:
     """A namespace with no writes SHALL return ``[]`` (not ``None``)."""
-    assert _run(memory.get_session_history("user:ghost:session:nope")) == []
+    assert _run(memory.get_session_history("user-ghost-session-nope")) == []
 
 
 def test_append_session_turn_copies_input(memory) -> None:
     """Mutating the caller's turn dict after appending SHALL NOT
     mutate the stored history — callers often reuse dicts."""
-    ns = "user:alice:session:s1"
+    ns = "user-alice-session-s1"
     turn = {"role": "user", "content": "hello"}
     _run(memory.append_session_turn(ns, turn))
 
@@ -169,12 +169,16 @@ def test_append_session_turn_copies_input(memory) -> None:
 
 
 def test_anon_namespace_not_accessible_via_user_key(memory) -> None:
-    """Req 4.3.3: turns written to ``anon:{sid}`` SHALL NOT be readable
-    via ``user:{uid}:session:{sid}``.
+    """Req 4.3.3: turns written to ``anon-{sid}`` SHALL NOT be readable
+    via ``user-{uid}-session-{sid}``.
     """
+    from services.agentcore_identity import AgentCoreIdentityService
+
     session_id = "s-shared"
-    anon_ns = f"anon:{session_id}"
-    user_ns = f"user:alice:session:{session_id}"
+    anon_ns = AgentCoreIdentityService.build_namespace(None, session_id)
+    user_ns = AgentCoreIdentityService.build_namespace("alice", session_id)
+    assert anon_ns == f"anon-{session_id}"
+    assert user_ns == f"user-alice-session-{session_id}"
 
     _run(memory.append_session_turn(anon_ns, {"role": "user", "content": "anon turn"}))
 
@@ -190,9 +194,11 @@ def test_user_namespace_not_accessible_via_anon_key(memory) -> None:
     """The reverse direction: authenticated turns SHALL NOT leak to a
     request that lands on the anon namespace with the same session id.
     """
+    from services.agentcore_identity import AgentCoreIdentityService
+
     session_id = "s-shared"
-    anon_ns = f"anon:{session_id}"
-    user_ns = f"user:alice:session:{session_id}"
+    anon_ns = AgentCoreIdentityService.build_namespace(None, session_id)
+    user_ns = AgentCoreIdentityService.build_namespace("alice", session_id)
 
     _run(memory.append_session_turn(user_ns, {"role": "user", "content": "signed-in turn"}))
 
@@ -206,9 +212,11 @@ def test_session_history_scoped_per_user(memory) -> None:
     """Two users sharing nothing but a session-id SHALL see disjoint
     histories (Req 4.3.2).
     """
+    from services.agentcore_identity import AgentCoreIdentityService
+
     shared_sid = "s1"
-    alice_ns = f"user:alice:session:{shared_sid}"
-    bob_ns = f"user:bob:session:{shared_sid}"
+    alice_ns = AgentCoreIdentityService.build_namespace("alice", shared_sid)
+    bob_ns = AgentCoreIdentityService.build_namespace("bob", shared_sid)
 
     _run(memory.append_session_turn(alice_ns, {"role": "user", "content": "alice hi"}))
     _run(memory.append_session_turn(bob_ns, {"role": "user", "content": "bob hi"}))
@@ -219,3 +227,51 @@ def test_session_history_scoped_per_user(memory) -> None:
     assert _run(memory.get_session_history(bob_ns)) == [
         {"role": "user", "content": "bob hi"}
     ]
+
+
+# ---------------------------------------------------------------------------
+# SDK signature pinning (Batch 3 — list_long_term_memory_records drift)
+# ---------------------------------------------------------------------------
+
+
+def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
+    """The bedrock-agentcore SDK's ``MemorySessionManager.list_long_term_memory_records``
+    takes ``namespace`` (exact-match keyword) + ``max_results`` (keyword)
+    and returns a ``List[MemoryRecord]``. The historic ``namespace_prefix``
+    kwarg is now deprecated in favor of ``namespace`` (exact-match) /
+    ``namespace_path`` (hierarchical prefix); ``memoryId`` and ``maxResults``
+    were never the right names. Pin the call shape so a future SDK bump
+    that changes the signature trips this test instead of warning silently
+    in prod.
+    """
+    from services.agentcore_memory import AgentCoreMemory
+
+    captured: dict = {}
+
+    class _FakeRecord:
+        def __init__(self, content: dict) -> None:
+            self._content = content
+
+        def get(self, key: str, default=None):
+            return {"content": self._content}.get(key, default)
+
+    class _FakeManager:
+        def list_long_term_memory_records(self, **kwargs):
+            captured.update(kwargs)
+            # Reject the deprecated / historic kwargs so a regression is loud.
+            assert "memoryId" not in kwargs, "drifted SDK kwarg memoryId"
+            assert "namespace_prefix" not in kwargs, "deprecated SDK kwarg namespace_prefix"
+            assert "maxResults" not in kwargs, "drifted SDK kwarg maxResults"
+            return [
+                _FakeRecord({"vibe": ["minimal"], "colors": ["warm"]}),
+            ]
+
+    mem = AgentCoreMemory(memory_id="mem-test")
+    mem._sdk_manager = _FakeManager()
+
+    loaded = _run(mem.get_user_preferences("alice"))
+
+    assert loaded is not None
+    assert loaded.vibe == ["minimal"]
+    assert captured["namespace"] == "user:alice:preferences"
+    assert captured["max_results"] == 1

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "description": "Golden-set journey assertions — deterministic, fixture-driven CI gates. Each entry pins a published Atelier session fixture to the agent behavior the workshop teaches as non-negotiable. No AWS calls. Assertions check tool ordering, product surfacing, and routing pattern only — not free-form prose.",
+  "fixtureRoot": "pellier/frontend/src/atelier/fixtures",
+  "journeys": [
+    {
+      "id": "marco-opening-linen",
+      "fixture": "session-marco-opening-demo.json",
+      "persona": "marco",
+      "summary": "Opening linen query surfaces the three travel-grade pieces via find_pieces.",
+      "asserts": {
+        "routingPattern": "Dispatcher",
+        "turn": 1,
+        "expectedTools": ["find_pieces"],
+        "expectedProductsAny": [
+          "Pellier Linen Shirt",
+          "Italian Linen Camp Shirt"
+        ],
+        "expectedProductsAll": [
+          "Linen Drawstring Trousers"
+        ]
+      }
+    },
+    {
+      "id": "marco-midpoint-floor-check",
+      "fixture": "session-marco-midpoint-checkpoint.json",
+      "persona": "marco",
+      "summary": "Stock claims gate on floor_check — the Builder's Session exercise contract.",
+      "asserts": {
+        "turn": 1,
+        "expectedToolsInOrder": ["floor_check"],
+        "expectedProductsAll": ["Pellier Linen Shirt"]
+      }
+    },
+    {
+      "id": "anna-gift-hybrid",
+      "fixture": "session-anna-birthday-gift.json",
+      "persona": "anna",
+      "summary": "Anna's anchor gift query routes through hybrid retrieval, not vector-only.",
+      "asserts": {
+        "turn": 1,
+        "expectedTools": ["find_pieces_hybrid"],
+        "forbiddenTools": ["find_pieces"],
+        "expectedProductsAny": [
+          "Beeswax Taper Candles",
+          "Ceramic Ring Dish"
+        ]
+      }
+    },
+    {
+      "id": "theo-ceramics-return",
+      "fixture": "session-theo-ceramics-return.json",
+      "persona": "theo",
+      "summary": "Return flow runs returns_and_care before process_return — read-then-write order.",
+      "asserts": {
+        "turn": 1,
+        "expectedToolsInOrder": ["returns_and_care", "process_return"],
+        "expectedProductsAll": ["Wabi-Sabi Bowl"]
+      }
+    }
+  ]
+}

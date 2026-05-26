@@ -1,5 +1,5 @@
 /**
- * TabNav — Fraunces italic tab links with burgundy underline on active.
+ * TabNav — Fraunces tab links with burgundy underline on active.
  *
  * Used for session detail tab navigation (Chat, Telemetry, Brief)
  * and other tabbed interfaces.
@@ -50,7 +50,6 @@ export const TabNav: React.FC<TabNavProps> = ({
             onClick={() => onTabChange?.(tab.id)}
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontSize: 'var(--at-tab-size)',
               fontWeight: 400,
               color: isActive ? 'var(--at-ink-1)' : 'var(--at-ink-1)',

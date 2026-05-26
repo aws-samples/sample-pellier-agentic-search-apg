@@ -6,15 +6,42 @@
       "slug": "identity",
       "title": "Identity",
       "role": "Who is the agent acting for, and on whose behalf",
-      "summary": "AgentCore Identity gives the agent a workload identity ARN that distinguishes its own AWS calls from end-user calls. Pellier already routes anonymous shoppers through the namespace anon:{session_id} and signed-in shoppers through user:{cognito_sub}:session:{id} — Identity is the production-grade upgrade that lets the agent take an action on behalf of a specific customer without conflating the two.",
+      "summary": "AgentCore Identity gives the agent a workload identity ARN that distinguishes its own AWS calls from end-user calls. Pellier already routes anonymous shoppers through the namespace anon-{session_id} and signed-in shoppers through user-{cognito_sub}-session-{session_id} — Identity is the production-grade upgrade that lets the agent take an action on behalf of a specific customer without conflating the two.",
       "shipped": false,
       "category": "auth",
       "namespacePattern": {
-        "anon": "anon:{session_id}",
-        "signedIn": "user:{cognito_sub}:session:{session_id}",
-        "note": "Same session id, different namespace — the switch is what AgentCore Memory keys on."
+        "anon": "anon-{session_id}",
+        "signedIn": "user-{cognito_sub}-session-{session_id}",
+        "note": "Same session id, different namespace — the switch is what AgentCore Memory keys on. Dashes (not colons) because AgentCore session IDs must match [a-zA-Z0-9][a-zA-Z0-9-_]*."
       },
-      "codeSnippet": "# Workload identity for the agent itself\nworkload_identity_arn = settings.AGENTCORE_WORKLOAD_IDENTITY_ARN\n\n# OAuth2 credential provider for end-user calls\ncredentials = identity_client.get_token(\n    workload_identity_arn=workload_identity_arn,\n    user_token=cognito_id_token,\n)\n\n# Namespace switch — same session, different identity\nnamespace = (\n    f\"user:{cognito_sub}:session:{session_id}\"\n    if cognito_sub else\n    f\"anon:{session_id}\"\n)",
+      "wiring": [
+        {
+          "label": "Cognito hosted UI",
+          "detail": "Shopper signs in. Cognito redirects back with access_token + id_token in the URL hash.",
+          "anchor": "frontend/src/contexts/AuthContext.tsx · parseTokenFromHash"
+        },
+        {
+          "label": "Frontend stores token + session id",
+          "detail": "AuthContext caches the access token in localStorage; chat service mints a stable session_id and persists it under pellier-session-id.",
+          "anchor": "frontend/src/services/chat.ts · getSessionId / getAuthHeaders"
+        },
+        {
+          "label": "Outgoing request",
+          "detail": "Every /api/agent/chat call sends Authorization: Bearer {access_token} plus the session id in the body. Subsequent turns echo the same id back.",
+          "anchor": "frontend/src/services/chat.ts · /api/chat/stream POST"
+        },
+        {
+          "label": "Backend identity resolution",
+          "detail": "AgentCoreIdentityService.get_verified_user_context() validates the JWT once per request via CognitoAuthService and resolves session_id from header → cookie → uuid4.",
+          "anchor": "backend/services/agentcore_identity.py · get_verified_user_context"
+        },
+        {
+          "label": "Namespace handed to AgentCore Memory",
+          "detail": "build_namespace(user_id, session_id) returns user-{user_id}-session-{session_id} or anon-{session_id}. AgentCoreMemory.append_session_turn keys on the raw string — no merge on sign-in (Req 4.3.3).",
+          "anchor": "backend/services/agentcore_identity.py · build_namespace"
+        }
+      ],
+      "codeSnippet": "# Workload identity for the agent itself\nworkload_identity_arn = settings.AGENTCORE_WORKLOAD_IDENTITY_ARN\n\n# OAuth2 credential provider for end-user calls\ncredentials = identity_client.get_token(\n    workload_identity_arn=workload_identity_arn,\n    user_token=cognito_id_token,\n)\n\n# Namespace switch — same session, different identity.\n# Built once via AgentCoreIdentityService.build_namespace so the\n# scheme lives in one place.\nnamespace = AgentCoreIdentityService.build_namespace(\n    user_id=cognito_sub,  # None for anon shoppers\n    session_id=session_id,\n)\n# → \"user-{cognito_sub}-session-{session_id}\" or \"anon-{session_id}\"",
       "whatToReachFor": "Identity becomes mandatory the first time you let the agent take an action that mutates a customer's data — orders, returns, profile edits. Until then, the namespace switch is the right boundary.",
       "crossLinks": [
         { "label": "Sessions", "to": "/atelier/sessions" },
@@ -69,7 +96,7 @@
       "concerns": [
         {
           "concern": "Session namespace",
-          "answer": "anon:{session_id} or user:{cognito_sub}:session:{session_id} — keyed at write time, scoped at read time."
+          "answer": "anon-{session_id} or user-{cognito_sub}-session-{session_id} — keyed at write time, scoped at read time."
         },
         {
           "concern": "STM expiry",
@@ -84,7 +111,7 @@
           "answer": "A vector search without a tenant filter returns rows from every tenant. The fix is in the WHERE clause, not the index — the index doesn't know about tenants."
         }
       ],
-      "codeSnippet": "# Session namespace at write time\nawait memory.append_session_turn(\n    namespace=f\"user:{user_sub}:session:{session_id}\",\n    turn={\"role\": \"user\", \"content\": query},\n)\n\n# Tenant-safe vector search — predicate FIRST, then cosine\nSELECT product_id, name,\n       1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE tenant_id = $2\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 5;",
+      "codeSnippet": "# Session namespace at write time\nns = AgentCoreIdentityService.build_namespace(user_sub, session_id)\n# → \"user-{user_sub}-session-{session_id}\" or \"anon-{session_id}\"\nawait memory.append_session_turn(\n    namespace=ns,\n    turn={\"role\": \"user\", \"content\": query},\n)\n\n# Tenant-safe vector search — predicate FIRST, then cosine\nSELECT product_id, name,\n       1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE tenant_id = $2\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 5;",
       "crossLinks": [
         { "label": "Memory", "to": "/atelier/memory" },
         { "label": "Sessions", "to": "/atelier/sessions" }

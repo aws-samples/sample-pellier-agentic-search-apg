@@ -133,7 +133,7 @@ const NodeCard: React.FC<{
         >
           {nodeKey}
         </span>
-        <span style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic', fontSize: '14px', color: 'var(--at-ink-1)' }}>
+        <span style={{ fontFamily: 'var(--at-serif)', fontSize: '14px', color: 'var(--at-ink-1)' }}>
           {name}
         </span>
       </div>
@@ -209,7 +209,6 @@ const sectionTitleStyle: React.CSSProperties = {
   fontFamily: 'var(--at-serif)',
   fontSize: '22px',
   fontWeight: 400,
-  fontStyle: 'italic',
   lineHeight: 1.15,
   color: 'var(--at-ink-1)',
   margin: 0,

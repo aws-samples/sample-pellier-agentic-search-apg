@@ -32,12 +32,12 @@ def seeder_module():
 
 
 def test_tool_specs_match_gateway_name_list(seeder_module) -> None:
-    """Seeder MUST load exactly the 10 Gateway tool names, in the same order."""
+    """Seeder MUST load exactly the 13 Gateway tool names, in the same order."""
     from services.agentcore_gateway import GATEWAY_TOOL_NAMES
 
     specs = seeder_module._load_tool_specs()
     assert [s["tool_id"] for s in specs] == list(GATEWAY_TOOL_NAMES)
-    assert len(specs) == 10
+    assert len(specs) == 13
 
 
 def test_every_tool_has_nonempty_description(seeder_module) -> None:
@@ -51,12 +51,14 @@ def test_every_tool_has_nonempty_description(seeder_module) -> None:
         assert "SHORT ON TIME" not in s["description"], s["tool_id"]
 
 
-def test_restock_shelf_is_the_only_sensitive_tool(seeder_module) -> None:
-    """The approvals gate is narrow. Widening it needs a deliberate code
-    change here + a test update, not accidental drift."""
+def test_write_path_tools_require_approval(seeder_module) -> None:
+    """The approvals gate is narrow. Both write-path tools require approval:
+    ``restock_shelf`` (inventory write) and ``process_return`` (refund / dollars
+    out). Widening it needs a deliberate code change here + a test update, not
+    accidental drift."""
     specs = {s["tool_id"]: s for s in seeder_module._load_tool_specs()}
     sensitive = {name for name, spec in specs.items() if spec["requires_approval"]}
-    assert sensitive == {"restock_shelf"}
+    assert sensitive == {"restock_shelf", "process_return"}
 
 
 def test_owner_agent_assigned_for_every_tool(seeder_module) -> None:

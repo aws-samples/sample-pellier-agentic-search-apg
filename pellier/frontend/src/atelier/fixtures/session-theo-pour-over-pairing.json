@@ -5,18 +5,18 @@
   "elapsedMs": 4380,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T18:13:00Z",
+  "timestamp": "2026-05-25T18:13:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "What goes well with the pour-over set?",
-      "timestamp": "2026-05-15T18:13:00Z"
+      "timestamp": "2026-05-25T18:13:00Z"
     },
     {
       "role": "assistant",
       "content": "The Ceramic Tumblers ($78) are the natural companion to the Stoneware Pour-Over Set: same kiln register, same charcoal undertone, and no two pieces quite match. Add the Woven Mat Set ($42) if you want the table to feel intentional rather than assembled.",
-      "timestamp": "2026-05-15T18:13:03Z",
+      "timestamp": "2026-05-25T18:13:03Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-makers-shelf \u2192 find_pieces \u2192 style_match",
         "traceLink": "#telemetry-1"
@@ -51,6 +51,24 @@
           "imageUrl": "/products/theo-woven-mat-set.png"
         }
       ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Pairing the pour-over set with companion pieces"
+        },
+        {
+          "tier": "semantic",
+          "content": "Stoneware, hand-thrown, slow-living tags; tactile materials"
+        },
+        {
+          "tier": "episodic",
+          "content": "Bought Stoneware Pour-Over Set 22d ago; anchor product for this pairing"
+        },
+        {
+          "tier": "skill",
+          "content": "the-makers-shelf loaded (persona: theo)"
+        }
+      ],
       "meta": {
         "agent": "Curator",
         "model": "Claude Opus 4.6 \u00b7 0.4",
@@ -80,6 +98,23 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Loaded Theo's maker-collector profile from AgentCore Memory: stoneware, hand-thrown, slow-living tags. Used to weight companion candidates.",
+      "status": "complete",
+      "durationMs": 34
+    },
+    {
+      "index": 4,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Episodic",
+      "description": "Read Aurora episodic memory: Theo bought Stoneware Pour-Over Set 22d ago. Confirms the anchor product is owned, not aspirational.",
+      "status": "complete",
+      "durationMs": 48,
+      "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
+    },
+    {
+      "index": 5,
       "category": "both",
       "title": "find_pieces",
       "description": "Resolve pour-over anchor product",
@@ -89,7 +124,7 @@
       "agent": "Curator"
     },
     {
-      "index": 4,
+      "index": 6,
       "category": "both",
       "title": "style_match",
       "description": "Product-to-product pgvector similarity from Stoneware Pour-Over Set",
@@ -99,19 +134,27 @@
       "agent": "Curator"
     },
     {
-      "index": 5,
+      "index": 7,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 same-kiln pairing voice",
       "status": "complete",
       "durationMs": 736,
       "agent": "Curator"
+    },
+    {
+      "index": 8,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: pairing the pour-over set with companion pieces.",
+      "status": "complete",
+      "durationMs": 23
     }
   ],
   "brief": {
     "folioNumber": 35,
     "headline": "Same kiln, same table",
-    "filedTime": "2026-05-15T18:14:00Z",
+    "filedTime": "2026-05-25T18:14:00Z",
     "sections": [
       {
         "numeral": "i.",

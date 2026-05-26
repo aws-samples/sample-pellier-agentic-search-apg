@@ -8,11 +8,12 @@
  * Requirements: 3.1, 20.2
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TabNav, Eyebrow } from '../../components';
 import { useAtelierData } from '../../hooks/useAtelierData';
 import type { SessionDetail } from '../../types';
+import { usePersona } from '../../../contexts/PersonaContext';
 
 /** Context shape passed to child tabs via useOutletContext. */
 export interface SessionOutletContext {
@@ -29,6 +30,7 @@ const SessionView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { persona } = usePersona();
 
   // Derive active tab from the current URL path segment
   const pathSegments = location.pathname.split('/');
@@ -41,6 +43,17 @@ const SessionView: React.FC = () => {
   const { data: session, loading, error, refetch } = useAtelierData<SessionDetail>({
     key: `session-${id?.toLowerCase()}`,
   });
+
+  // Each persona has their own history — viewing another persona's session
+  // while signed in as someone else creates a confusing split screen
+  // (TopBar pill says "Marco", body shows Theo's chat). Send the user
+  // back to the sessions list so they can pick from their own history.
+  useEffect(() => {
+    if (!persona || !session) return;
+    if (session.personaId !== persona.id) {
+      navigate('/atelier/sessions', { replace: true });
+    }
+  }, [persona, session, navigate]);
 
   const handleTabChange = (tabId: string) => {
     navigate(`/atelier/sessions/${id}/${tabId}`);

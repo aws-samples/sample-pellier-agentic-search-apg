@@ -2,6 +2,13 @@
 AgentCore Memory — Short-Term Memory (STM) for session history and
 persistent user preferences.
 
+AgentCore Memory (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory.html)
+is the managed memory primitive for AgentCore. We use the short-term
+side here (event log per session) plus a key-value namespace for
+durable preferences. Episodic and procedural memory live elsewhere
+(Aurora `pellier.customer_episodic_seed` and `pellier.tool_audit`
+respectively) — see the four-substrate model in lab-content-audit.md §1.
+
 Challenge 6 (Requirements 2.5.2, 4.3.2, 4.4.1, 6.2.1). Exposes a single
 ``AgentCoreMemory`` class with four async methods:
 
@@ -12,9 +19,13 @@ Challenge 6 (Requirements 2.5.2, 4.3.2, 4.4.1, 6.2.1). Exposes a single
 
 Key schemes (strict — never silently merged, per Requirement 4.3.3):
 
-    user:{user_id}:session:{session_id}   authenticated sessions
-    anon:{session_id}                     anonymous sessions
+    user-{user_id}-session-{session_id}   authenticated sessions
+    anon-{session_id}                     anonymous sessions
     user:{user_id}:preferences            persistent prefs
+
+Session namespaces use dashes (not colons) because AgentCore session
+IDs must match ``[a-zA-Z0-9][a-zA-Z0-9-_]*``. The preferences key has
+no session-id component so colons are fine there.
 
 The authenticated session namespace is built by
 ``services.agentcore_identity.AgentCoreIdentityService`` (Challenge 9.2)
@@ -58,15 +69,19 @@ logger = logging.getLogger(__name__)
 #
 # Key schemes (strict — never silently merged, per Req 4.3.3):
 #
-#     user:{user_id}:session:{session_id}   authenticated sessions
-#     anon:{session_id}                     anonymous sessions
+#     user-{user_id}-session-{session_id}   authenticated sessions
+#     anon-{session_id}                     anonymous sessions
 #     user:{user_id}:preferences            persistent prefs
+#
+# Session namespaces use dashes — AgentCore session IDs must match
+# ``[a-zA-Z0-9][a-zA-Z0-9-_]*``. The preferences key has no session-id
+# component so the legacy colon form is retained there.
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
 
 # Process-local fallback store. Keyed by the raw namespace string so
-# ``anon:{sid}`` and ``user:{uid}:session:{sid}`` are physically
+# ``anon-{sid}`` and ``user-{uid}-session-{sid}`` are physically
 # disjoint entries — Req 4.3.3 holds by construction.
 _SESSION_STORE: Dict[str, List[Dict[str, Any]]] = {}
 _PREFS_STORE: Dict[str, Dict[str, Any]] = {}
@@ -180,7 +195,7 @@ class AgentCoreMemory:
             try:
                 # MemorySessionManager.create_memory_session expects
                 # actor_id + session_id. We treat the full namespace as
-                # actor_id so anon:{sid} and user:{uid}:session:{sid}
+                # actor_id so anon-{sid} and user-{uid}-session-{sid}
                 # land in separate AgentCore actors and Req 4.3.3 holds
                 # end-to-end.
                 session = mgr.create_memory_session(
@@ -202,8 +217,8 @@ class AgentCoreMemory:
         """Return all turns stored under ``session_ns`` in insertion order.
 
         A namespace with no writes returns ``[]``. Crucially, a
-        ``user:{uid}:session:{sid}`` namespace never reads from the
-        corresponding ``anon:{sid}`` namespace and vice versa — they
+        ``user-{uid}-session-{sid}`` namespace never reads from the
+        corresponding ``anon-{sid}`` namespace and vice versa — they
         are different strings keying different entries (Req 4.3.3).
         """
         mgr = self._get_sdk_manager()
@@ -242,13 +257,11 @@ class AgentCoreMemory:
         if mgr is not None:
             try:
                 records = mgr.list_long_term_memory_records(
-                    memoryId=self._memory_id,
                     namespace=key,
-                    maxResults=1,
+                    max_results=1,
                 )
-                items = records.get("memoryRecords") or records.get("records") or []
-                if items:
-                    payload = items[0].get("content", {})
+                if records:
+                    payload = records[0].get("content", {})
                     if isinstance(payload, dict) and payload:
                         return Preferences.model_validate(payload)
                 return None

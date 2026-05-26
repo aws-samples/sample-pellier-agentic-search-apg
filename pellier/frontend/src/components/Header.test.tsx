@@ -82,6 +82,17 @@ beforeEach(() => {
 
 describe('Header — nav items', () => {
   it('renders four text nav items: Shop, Stories, Ask Pellier, About', () => {
+    // 'Ask Pellier' only renders when a persona is signed in; the chat
+    // surface needs a persona to scope memory.
+    mockPersona = {
+      id: 'marco',
+      display_name: 'Marco',
+      avatar_initial: 'M',
+      avatar_color: '#1f1410',
+      customer_id: 'C-MARCO',
+      role_tag: 'shopper',
+      stats: { visits: 0, orders: 0, last_seen_days: null },
+    }
     renderHeader()
 
     const navItems = screen.getAllByRole('button', {

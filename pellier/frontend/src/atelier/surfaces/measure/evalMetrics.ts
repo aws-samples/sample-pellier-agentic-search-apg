@@ -139,8 +139,8 @@ export const EVALUATION_METRICS: EvaluationMetric[] = [
     catches:
       'End-to-end regressions across routing, tools, retrieval, and prompt — what the scorecards summarize.',
     pellierExample:
-      'Fixture sessions encode expected picks (e.g. Hadley Camp Shirt on Marco opening); accuracy is the golden-set view of "did we ship the right answer?"',
-    measuredVia: ['Golden-set regression', 'AgentCore Evals datasets'],
+      'Fixture sessions encode expected picks (e.g. Hadley Camp Shirt on Marco opening); `tests/test_golden_journeys.py` enforces them on every PR. AgentCore Evals (env-flag-gated) scores the same shape against a deployed runtime at prod cutover.',
+    measuredVia: ['Golden-set regression (every PR)', 'AgentCore Evals (prod cutover)'],
   },
   {
     id: 'citation-rate',

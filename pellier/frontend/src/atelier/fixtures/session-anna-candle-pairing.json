@@ -5,19 +5,19 @@
   "elapsedMs": 5120,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:46:00Z",
+  "timestamp": "2026-05-25T17:46:00Z",
   "status": "complete",
   "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
       "content": "Help me pair a candle with something else",
-      "timestamp": "2026-05-15T17:46:00Z"
+      "timestamp": "2026-05-25T17:46:00Z"
     },
     {
       "role": "assistant",
       "content": "The classic pairing is the Santal & Fig Candle ($92) alongside the Ceramic Bud Vase in Dusty Rose ($42). Together they come in just under $135, look like you planned it weeks ago, and both arrive wrapped in tissue with satin ribbon.",
-      "timestamp": "2026-05-15T17:46:04Z",
+      "timestamp": "2026-05-25T17:46:04Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (anchor candle + companion rerank)",
         "traceLink": "#telemetry-1"
@@ -43,6 +43,24 @@
           "brand": "Pellier Home",
           "price": 42,
           "imageUrl": "/products/anna-ceramic-bud-vase.png"
+        }
+      ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Pairing the candle with a companion gift"
+        },
+        {
+          "tier": "semantic",
+          "content": "Prefers gift-ready, artisanal, warm-neutral palette"
+        },
+        {
+          "tier": "episodic",
+          "content": "Recent searches mention 'for my mother'; bought a sundress as a birthday gift last month"
+        },
+        {
+          "tier": "skill",
+          "content": "the-gift-table loaded (persona: anna)"
         }
       ],
       "meta": {
@@ -75,6 +93,23 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall — Semantic",
+      "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: gift-ready, artisanal, warm-neutral palette. Used to weight companion candidates.",
+      "status": "complete",
+      "durationMs": 38
+    },
+    {
+      "index": 4,
+      "category": "owned",
+      "title": "Memory Recall — Episodic",
+      "description": "Read Aurora episodic memory: recent 'for my mother' searches and last month's birthday-gift sundress purchase. Strengthens gift framing.",
+      "status": "complete",
+      "durationMs": 52,
+      "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
+    },
+    {
+      "index": 5,
       "category": "both",
       "title": "vector branch",
       "description": "pgvector cosine over candle and home-gift candidates",
@@ -84,7 +119,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 4,
+      "index": 6,
       "category": "both",
       "title": "Postgres FTS branch",
       "description": "literal candle and companion tokens over description_tsv",
@@ -94,7 +129,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 5,
+      "index": 7,
       "category": "managed",
       "title": "RRF merge",
       "description": "Fused candle anchor and companion candidates",
@@ -104,7 +139,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 6,
+      "index": 8,
       "category": "both",
       "title": "cohere.rerank-v3-5:0",
       "description": "Reranked for a two-piece gift set",
@@ -113,19 +148,27 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 7,
+      "index": 9,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 paired gift framing",
       "status": "complete",
       "durationMs": 651,
       "agent": "Curator"
+    },
+    {
+      "index": 10,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: pairing the candle with a companion gift.",
+      "status": "complete",
+      "durationMs": 23
     }
   ],
   "brief": {
     "folioNumber": 34,
     "headline": "A candle, made complete",
-    "filedTime": "2026-05-15T17:47:00Z",
+    "filedTime": "2026-05-25T17:47:00Z",
     "sections": [
       {
         "numeral": "i.",

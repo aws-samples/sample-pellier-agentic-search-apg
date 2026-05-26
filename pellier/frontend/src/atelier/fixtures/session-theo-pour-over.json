@@ -5,18 +5,18 @@
   "elapsedMs": 6120,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T18:10:00Z",
+  "timestamp": "2026-05-25T18:10:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "Hand-thrown ceramics for a slower morning routine",
-      "timestamp": "2026-05-15T18:10:00Z"
+      "timestamp": "2026-05-25T18:10:00Z"
     },
     {
       "role": "assistant",
       "content": "Three worth reaching for: the Stoneware Pour-Over Set ($95) \u2014 hand-thrown, ash-grey, built for a slow pour. The Ceramic Tumblers in charcoal ($78) pair with it \u2014 same kiln run, no two quite alike. And the Woven Mat Set ($42) under both of them finishes the table.",
-      "timestamp": "2026-05-15T18:10:05Z",
+      "timestamp": "2026-05-25T18:10:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-makers-shelf \u2192 find_pieces",
         "traceLink": "#telemetry-1"
@@ -50,6 +50,20 @@
           "imageUrl": "/products/theo-woven-mat-set.png"
         }
       ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Looking for hand-thrown ceramics for a slower morning"
+        },
+        {
+          "tier": "semantic",
+          "content": "Stoneware, hand-thrown, slow-living tags; tactile, matte materials"
+        },
+        {
+          "tier": "skill",
+          "content": "the-makers-shelf loaded (persona: theo)"
+        }
+      ],
       "meta": {
         "agent": "Curator",
         "model": "Claude Opus 4.6 \u00b7 0.4",
@@ -79,6 +93,14 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Loaded Theo's maker-collector profile from AgentCore Memory: stoneware, hand-thrown, slow-living tags. Used to weight retrieval.",
+      "status": "complete",
+      "durationMs": 36
+    },
+    {
+      "index": 4,
       "category": "both",
       "title": "find_pieces",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 slow-craft search",
@@ -86,12 +108,20 @@
       "durationMs": 284,
       "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home Decor%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
       "agent": "Curator"
+    },
+    {
+      "index": 5,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: hand-thrown ceramics for a slower morning routine.",
+      "status": "complete",
+      "durationMs": 22
     }
   ],
   "brief": {
     "folioNumber": 28,
     "headline": "The morning table",
-    "filedTime": "2026-05-15T18:11:00Z",
+    "filedTime": "2026-05-25T18:11:00Z",
     "sections": [
       {
         "numeral": "i.",

@@ -5,19 +5,19 @@
   "elapsedMs": 5520,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:42:00Z",
+  "timestamp": "2026-05-25T17:42:00Z",
   "status": "complete",
   "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
       "content": "A thoughtful gift for someone who loves morning rituals",
-      "timestamp": "2026-05-15T17:42:00Z"
+      "timestamp": "2026-05-25T17:42:00Z"
     },
     {
       "role": "assistant",
       "content": "For a morning-ritual gift, the Stoneware Pour-Over Set ($95) is the strongest anchor: hand-thrown, useful every day, and still gift-like. Pair it with the Ceramic Tumblers ($78) if you want the gesture to feel complete; together they read as a quiet breakfast table, not just another kitchen object.",
-      "timestamp": "2026-05-15T17:42:05Z",
+      "timestamp": "2026-05-25T17:42:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (vector + Postgres FTS \u2192 RRF \u2192 cohere.rerank-v3-5:0)",
         "traceLink": "#telemetry-1"
@@ -66,6 +66,20 @@
           "imageUrl": "/products/theo-ceramic-tumblers.png"
         }
       ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Looking for a thoughtful gift framed around morning rituals"
+        },
+        {
+          "tier": "semantic",
+          "content": "Buys for others; milestone occasions; warm-neutral, gift-ready palette"
+        },
+        {
+          "tier": "skill",
+          "content": "the-gift-table loaded (persona: anna)"
+        }
+      ],
       "meta": {
         "agent": "Curator",
         "model": "Claude Opus 4.6 \u00b7 0.4",
@@ -96,6 +110,14 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: buys for others, milestone occasions, gift-ready warm-neutral palette. Used to weight ranking.",
+      "status": "complete",
+      "durationMs": 36
+    },
+    {
+      "index": 4,
       "category": "both",
       "title": "vector branch",
       "description": "pgvector cosine over product_catalog (k=20)",
@@ -105,7 +127,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 4,
+      "index": 5,
       "category": "both",
       "title": "Postgres FTS branch",
       "description": "OR-of-stems to_tsquery over description_tsv",
@@ -115,7 +137,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 5,
+      "index": 6,
       "category": "managed",
       "title": "RRF merge",
       "description": "Reciprocal Rank Fusion (k=60) \u2192 30-candidate pool",
@@ -125,7 +147,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 6,
+      "index": 7,
       "category": "both",
       "title": "cohere.rerank-v3-5:0",
       "description": "Cohere Rerank v3.5 reads gift intent over the fused pool",
@@ -134,19 +156,27 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 7,
+      "index": 8,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 morning ritual framing",
       "status": "complete",
       "durationMs": 704,
       "agent": "Curator"
+    },
+    {
+      "index": 9,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: looking for a thoughtful gift framed around morning rituals.",
+      "status": "complete",
+      "durationMs": 24
     }
   ],
   "brief": {
     "folioNumber": 32,
     "headline": "A ritual, wrapped",
-    "filedTime": "2026-05-15T17:43:00Z",
+    "filedTime": "2026-05-25T17:43:00Z",
     "sections": [
       {
         "numeral": "i.",

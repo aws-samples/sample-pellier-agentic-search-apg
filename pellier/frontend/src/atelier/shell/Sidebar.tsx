@@ -96,7 +96,7 @@ const Sidebar: React.FC = () => {
           path: 'tools',
           badge: buildState.toolTotal > 0
             ? `${buildState.toolShipped}/${buildState.toolTotal}`
-            : '11/12',
+            : '12/13',
         },
         { label: 'Routing', path: 'routing', badge: '3' },
         { label: 'Memory', path: 'memory' },
@@ -281,7 +281,6 @@ const Sidebar: React.FC = () => {
           <div
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontSize: '16px',
               color: 'var(--at-sidebar-text-active)',
               lineHeight: 1.2,

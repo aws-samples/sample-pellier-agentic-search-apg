@@ -53,9 +53,20 @@ vi.mock('../contexts/CartContext', () => ({
   }),
 }))
 
+// CommandPill is part of site chrome and gates on persona for memory
+// scoping; mock a truthy persona so the floating pill renders in both
+// auth states under test.
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
-    persona: null,
+    persona: {
+      id: 'marco',
+      display_name: 'Marco',
+      avatar_initial: 'M',
+      avatar_color: '#1f1410',
+      customer_id: 'C-MARCO',
+      role_tag: 'shopper',
+      stats: { visits: 0, orders: 0, last_seen_days: null },
+    },
     switchPersona: vi.fn(),
     signOut: vi.fn(),
     switching: false,

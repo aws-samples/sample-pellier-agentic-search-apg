@@ -118,7 +118,7 @@ const LayerCard: React.FC<{
   <ExpCard>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-        <span style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic', fontSize: '16px', color: 'var(--at-ink-1)' }}>
+        <span style={{ fontFamily: 'var(--at-serif)', fontSize: '16px', color: 'var(--at-ink-1)' }}>
           {name}
         </span>
         <span style={{ fontFamily: 'var(--at-mono)', fontSize: '11px', color: 'var(--at-ink-4)' }}>
@@ -166,7 +166,7 @@ const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
 );
 
 const titleStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 400, fontStyle: 'italic',
+  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 400,
   lineHeight: 1.15, color: 'var(--at-ink-1)', margin: 0,
 };
 

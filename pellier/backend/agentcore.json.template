@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "name": "pellier",
+  "runtimes": [
+    {
+      "name": "pellier_orchestrator",
+      "entrypoint": "scripts/deploy/agentcore_runtime_adapter.py",
+      "requirementsFile": "scripts/deploy/requirements.txt",
+      "executionRoleArn": "${AGENTCORE_ROLE_ARN}",
+      "protocol": "HTTP",
+      "authorizerType": "CUSTOM_JWT",
+      "authorizerConfiguration": {
+        "customJwtAuthorizer": {
+          "discoveryUrl": "${OAUTH_ISSUER_URL}/.well-known/openid-configuration",
+          "allowedClients": ["${COGNITO_CLIENT}"]
+        }
+      },
+      "envVars": [
+        { "name": "MCP_GATEWAY_URL", "value": "${MCP_GATEWAY_URL}" },
+        { "name": "AGENT_MODEL_ID", "value": "${AGENT_MODEL_ID}" }
+      ]
+    }
+  ]
+}

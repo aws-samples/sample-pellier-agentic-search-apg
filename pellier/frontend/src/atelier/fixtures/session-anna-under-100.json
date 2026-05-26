@@ -5,19 +5,19 @@
   "elapsedMs": 4860,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:44:00Z",
+  "timestamp": "2026-05-25T17:44:00Z",
   "status": "complete",
   "searchMethod": "hybrid+rerank",
   "chat": [
     {
       "role": "user",
       "content": "Something beautiful under $100",
-      "timestamp": "2026-05-15T17:44:00Z"
+      "timestamp": "2026-05-25T17:44:00Z"
     },
     {
       "role": "assistant",
       "content": "Under $100, the Santal & Fig Candle ($92) is the cleanest gift: substantial, beautifully wrapped, and still comfortably inside the ceiling. If you want something smaller, the Ceramic Ring Dish ($35) has the same considered feel without pretending to be the main event.",
-      "timestamp": "2026-05-15T17:44:04Z",
+      "timestamp": "2026-05-25T17:44:04Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (price filter + rerank)",
         "traceLink": "#telemetry-1"
@@ -43,6 +43,20 @@
           "brand": "Pellier Editions",
           "price": 35,
           "imageUrl": "/products/anna-ceramic-ring-dish.png"
+        }
+      ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Looking for something beautiful under $100"
+        },
+        {
+          "tier": "semantic",
+          "content": "Buys for others; explicit budgets; gift-ready, artisanal palette"
+        },
+        {
+          "tier": "skill",
+          "content": "the-gift-table loaded (persona: anna)"
         }
       ],
       "meta": {
@@ -75,6 +89,14 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall — Semantic",
+      "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: explicit budgets, gift-ready artisanal palette. Used to weight under-$100 candidates.",
+      "status": "complete",
+      "durationMs": 34
+    },
+    {
+      "index": 4,
       "category": "both",
       "title": "vector branch",
       "description": "pgvector cosine over price-filtered gift candidates",
@@ -84,7 +106,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 4,
+      "index": 5,
       "category": "both",
       "title": "Postgres FTS branch",
       "description": "literal price and gift language over description_tsv",
@@ -94,7 +116,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 5,
+      "index": 6,
       "category": "managed",
       "title": "RRF merge",
       "description": "Fused vector and FTS branches under the $100 ceiling",
@@ -104,7 +126,7 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 6,
+      "index": 7,
       "category": "both",
       "title": "cohere.rerank-v3-5:0",
       "description": "Reranked by gift suitability and price fit",
@@ -113,19 +135,27 @@
       "agent": "Curator \u00b7 find_pieces_hybrid"
     },
     {
-      "index": 7,
+      "index": 8,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 price-aware gifting voice",
       "status": "complete",
       "durationMs": 623,
       "agent": "Curator"
+    },
+    {
+      "index": 9,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: looking for something beautiful under $100.",
+      "status": "complete",
+      "durationMs": 22
     }
   ],
   "brief": {
     "folioNumber": 33,
     "headline": "Under one hundred",
-    "filedTime": "2026-05-15T17:45:00Z",
+    "filedTime": "2026-05-25T17:45:00Z",
     "sections": [
       {
         "numeral": "i.",

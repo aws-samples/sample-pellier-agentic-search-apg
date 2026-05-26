@@ -4,7 +4,7 @@
  * Sits between the BoutiqueWelcomeBand and the Weekend Edit. Surfaces
  * what the agent remembers about a returning shopper (saved item,
  * holds in bag, restock watches) with each line tagged by the tool
- * that produced it (`memory.recall`, `cart.holds`, `inventory.watch`).
+ * that produced it (`memory.recall`, `memory.holds`, `inventory.watch`).
  * For fresh visitors, the same slot reads as a "I'll learn as we go"
  * onboarding card so the layout rhythm stays consistent persona-to-
  * persona.
@@ -135,7 +135,7 @@ export default function MemoryHandoffCard() {
             </ul>
             {/* Atelier handoff — for an attendee curious how durable
                 memory actually works under the hood, this drops them on
-                the Memory orbit explainer in one click. */}
+                the Memory substrate explainer in one click. */}
             <div className="mt-1">
               <SurfaceCrossLink
                 direction="to-atelier"

@@ -5,18 +5,18 @@
   "elapsedMs": 3680,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:34:00Z",
+  "timestamp": "2026-05-25T17:34:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
-      "timestamp": "2026-05-15T17:34:00Z"
+      "timestamp": "2026-05-25T17:34:00Z"
     },
     {
       "role": "assistant",
       "content": "I've routed your note to a Pellier stylist. They'll reach out within one business day with personal styling for the wedding — silhouette, palette, and how the moment feels — beyond what our catalog tools can answer alone. Keep browsing in the meantime; we'll pick up where you left off.",
-      "timestamp": "2026-05-15T17:34:03Z",
+      "timestamp": "2026-05-25T17:34:03Z",
       "plan": {
         "flowSummary": "Dispatcher → Style Advisor → escalate_to_stylist (honest fallback)",
         "traceLink": "#telemetry-1"
@@ -30,6 +30,16 @@
         }
       ],
       "products": [],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Asked for a real stylist for brother's wedding — escalated"
+        },
+        {
+          "tier": "skill",
+          "content": "the-packing-list loaded (persona: marco)"
+        }
+      ],
       "meta": {
         "agent": "Style Advisor",
         "model": "Claude Opus 4.6 · 0.4",
@@ -69,6 +79,14 @@
     },
     {
       "index": 4,
+      "category": "owned",
+      "title": "Memory Write — Working",
+      "description": "Recorded escalation context to AgentCore Memory: stylist handoff queued for brother's-wedding ask.",
+      "status": "complete",
+      "durationMs": 18
+    },
+    {
+      "index": 5,
       "category": "managed",
       "title": "Inner specialist → wrapper marker",
       "description": "Inner Style Advisor emits the escalation envelope; the @tool wrapper appends it as a JSON code block so the outer orchestrator surfaces it back to chat.py",
@@ -77,7 +95,7 @@
       "agent": "search wrapper · append_escalation_marker"
     },
     {
-      "index": 5,
+      "index": 6,
       "category": "owned",
       "title": "SSE escalation event",
       "description": "chat.py scans every tool result for {type: escalation}; renders the StylistHandoffCard via 'data: {type: escalation, ...}' SSE",
@@ -86,7 +104,7 @@
       "agent": "chat.py · _scan_for_escalation"
     },
     {
-      "index": 6,
+      "index": 7,
       "category": "both",
       "title": "Editorial acknowledgement",
       "description": "Claude Opus 4.6 · 0.4 — empathetic one-paragraph confirmation; tool result is the load-bearing artifact, not the prose",
@@ -98,7 +116,7 @@
   "brief": {
     "folioNumber": 44,
     "headline": "When the honest answer is 'a real person'",
-    "filedTime": "2026-05-15T17:35:00Z",
+    "filedTime": "2026-05-25T17:35:00Z",
     "sections": [
       {
         "numeral": "i.",

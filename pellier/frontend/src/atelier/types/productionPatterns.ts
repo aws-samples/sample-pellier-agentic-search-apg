@@ -26,6 +26,17 @@ export interface IdentityPattern {
     signedIn: string;
     note: string;
   };
+  /**
+   * Request lifecycle — the five hops a JWT takes from the Cognito hosted
+   * UI to the namespace AgentCore Memory keys on. Each step is anchored
+   * to the file that owns it so operators can read the diff alongside
+   * the code.
+   */
+  wiring: {
+    label: string;
+    detail: string;
+    anchor: string;
+  }[];
   codeSnippet: string;
   whatToReachFor: string;
   crossLinks: CrossLink[];

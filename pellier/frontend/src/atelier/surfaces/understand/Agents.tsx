@@ -151,7 +151,6 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, rowRef, onSelect
           <span
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontWeight: 400,
               fontSize: '30px',
               color: 'var(--at-red-1)',
@@ -282,7 +281,6 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, rowRef, onSelect
               alignItems: 'center',
               gap: '8px',
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontSize: '16px',
               fontWeight: 400,
               color: 'var(--at-red-1)',
@@ -464,7 +462,7 @@ const RelatedCard: React.FC = () => (
           Open Skills surface
           <span
             aria-hidden="true"
-            style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic' }}
+            style={{ fontFamily: 'var(--at-serif)' }}
           >
             →
           </span>
@@ -528,7 +526,7 @@ const RelatedCard: React.FC = () => (
           Open Routing surface
           <span
             aria-hidden="true"
-            style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic' }}
+            style={{ fontFamily: 'var(--at-serif)' }}
           >
             →
           </span>
@@ -583,7 +581,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -643,7 +640,6 @@ const EmptyState: React.FC = () => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '24px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',

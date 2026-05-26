@@ -1,5 +1,11 @@
 # AgentCore Runtime deployment configuration (Lab 4e)
-# Used by `agentcore configure` and `agentcore launch`
+#
+# Legacy file from the deprecated Python `bedrock-agentcore-starter-toolkit`
+# (`agentcore configure` / `agentcore launch`). The active deploy path now
+# uses the @aws/agentcore Node CLI with `agentcore.json` + `aws-targets.json`
+# (see `scripts/deploy/deploy_all.sh` step 5/7). Kept for reference until
+# the workshop docs are updated and for one-time `agentcore import` to
+# bootstrap a fresh agentcore.json from this YAML if needed.
 runtime:
   name: pellier-agent
   description: "Pellier shopping assistant agent"

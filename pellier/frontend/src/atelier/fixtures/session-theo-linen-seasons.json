@@ -5,18 +5,18 @@
   "elapsedMs": 4680,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T18:16:00Z",
+  "timestamp": "2026-05-25T18:16:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "Linen pieces that soften over seasons",
-      "timestamp": "2026-05-15T18:16:00Z"
+      "timestamp": "2026-05-25T18:16:00Z"
     },
     {
       "role": "assistant",
       "content": "For linen that gets better with time, start with the Washed Linen Throw ($138): already soft, but better after a season on the sofa. The Linen Napkin Set ($58) has the same lived-in logic at a smaller scale, especially if the gift is meant for a table rather than a closet.",
-      "timestamp": "2026-05-15T18:16:04Z",
+      "timestamp": "2026-05-25T18:16:04Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Style Advisor + the-makers-shelf \u2192 find_pieces",
         "traceLink": "#telemetry-1"
@@ -42,6 +42,24 @@
           "brand": "Pellier Home",
           "price": 58,
           "imageUrl": "/products/theo-linen-napkin-set.png"
+        }
+      ],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Looking for linen pieces that soften over seasons"
+        },
+        {
+          "tier": "semantic",
+          "content": "Tactile, natural materials; slow-living tags; home-leaning over wardrobe"
+        },
+        {
+          "tier": "episodic",
+          "content": "Bought Linen Throw, Oat ($118) 47d ago \u2014 linen affinity confirmed"
+        },
+        {
+          "tier": "skill",
+          "content": "the-makers-shelf loaded (persona: theo)"
         }
       ],
       "meta": {
@@ -73,6 +91,23 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Loaded Theo's maker-collector profile from AgentCore Memory: tactile materials, slow-living tags. Used to weight home-leaning linen.",
+      "status": "complete",
+      "durationMs": 35
+    },
+    {
+      "index": 4,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Episodic",
+      "description": "Read Aurora episodic memory: Linen Throw, Oat purchased 47d ago. Confirms linen affinity and steers retrieval toward home goods.",
+      "status": "complete",
+      "durationMs": 50,
+      "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
+    },
+    {
+      "index": 5,
       "category": "both",
       "title": "find_pieces",
       "description": "pgvector search over linen home goods and care language",
@@ -82,19 +117,27 @@
       "agent": "Style Advisor"
     },
     {
-      "index": 4,
+      "index": 6,
       "category": "both",
       "title": "editorial composition",
       "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 patina and softening language",
       "status": "complete",
       "durationMs": 892,
       "agent": "Style Advisor"
+    },
+    {
+      "index": 7,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: looking for linen pieces that soften over seasons.",
+      "status": "complete",
+      "durationMs": 23
     }
   ],
   "brief": {
     "folioNumber": 36,
     "headline": "Linen with a future",
-    "filedTime": "2026-05-15T18:17:00Z",
+    "filedTime": "2026-05-25T18:17:00Z",
     "sections": [
       {
         "numeral": "i.",

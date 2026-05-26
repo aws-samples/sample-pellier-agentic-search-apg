@@ -162,7 +162,6 @@ const RoutingCard: React.FC<RoutingCardProps> = ({
           <span
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontWeight: 400,
               fontSize: '30px',
               color: 'var(--at-red-1)',
@@ -339,7 +338,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -399,7 +397,6 @@ const EmptyState: React.FC = () => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '24px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -695,7 +692,6 @@ const DispatcherIntentCard: React.FC = () => (
               style={{
                 padding: '10px',
                 borderBottom: '1px solid var(--at-card-border)',
-                fontStyle: 'italic' as const,
                 color: 'var(--at-ink-2)',
               }}
             >
@@ -705,6 +701,180 @@ const DispatcherIntentCard: React.FC = () => (
         ))}
       </tbody>
     </table>
+  </ExpCard>
+);
+
+/* -----------------------------------------------------------------------
+ * LangGraph comparison card
+ *
+ * Pins the editorial difference between Strands' three patterns and
+ * LangGraph's single-graph mental model. Operators arriving from a
+ * LangChain/LangGraph background ask the same question every workshop:
+ * "where's the graph?" — this card answers it without the surface
+ * pretending the comparison is a feature toggle.
+ * ----------------------------------------------------------------------- */
+
+interface LangGraphMapping {
+  pellier: string;
+  langgraph: string;
+  difference: string;
+}
+
+const LANGGRAPH_MAPPINGS: LangGraphMapping[] = [
+  {
+    pellier: 'Dispatcher (rules → specialist)',
+    langgraph: 'Conditional edges from a router node',
+    difference:
+      'No graph object. The router is a Python function in services/chat.py — keyword rules, no LLM, ~60–120 ms.',
+  },
+  {
+    pellier: 'Agents-as-Tools (orchestrator + @tool)',
+    langgraph: 'Supervisor pattern with create_react_agent',
+    difference:
+      'Strands keeps specialists as @tool callables; the orchestrator is just an Agent. No StateGraph, no compile() step, no checkpointer wiring.',
+  },
+  {
+    pellier: 'Graph (Strands GraphBuilder)',
+    langgraph: 'StateGraph with add_node / add_edge',
+    difference:
+      'Closest analogue. Strands GraphBuilder is opt-in for multi-step ops; in LangGraph the graph is the default authoring surface from turn one.',
+  },
+];
+
+const LangGraphComparisonCard: React.FC = () => (
+  <ExpCard>
+    <Eyebrow label="Coming from LangGraph · the editorial difference" />
+    <h3
+      style={{
+        fontFamily: 'var(--at-serif)',
+        fontSize: '24px',
+        fontWeight: 400,
+        margin: '6px 0 14px',
+        color: 'var(--at-ink-1)',
+      }}
+    >
+      Three patterns, not one graph.
+    </h3>
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '14px',
+        lineHeight: 1.65,
+        color: 'var(--at-ink-2)',
+        marginBottom: '16px',
+      }}
+    >
+      LangGraph asks you to{' '}
+      <Emphasis>commit to a StateGraph from turn one</Emphasis> — every flow is
+      nodes, edges, and a compiled state machine. Strands lets you start with{' '}
+      <Emphasis>Dispatcher</Emphasis> (a Python function), graduate to{' '}
+      <Emphasis>Agents-as-Tools</Emphasis> when one orchestrator needs to call
+      specialists, and reach for <Emphasis>Graph</Emphasis> only when you
+      genuinely need conditional multi-step topology. The patterns are
+      progressive — you don&apos;t pay for a graph runtime until you actually
+      need one.
+    </p>
+
+    <table
+      data-testid="langgraph-comparison-table"
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontFamily: 'var(--at-sans)',
+        fontSize: '13px',
+        marginBottom: '16px',
+      }}
+    >
+      <thead>
+        <tr style={{ textAlign: 'left' as const, color: 'var(--at-ink-3)' }}>
+          <th
+            style={{
+              padding: '8px 10px',
+              borderBottom: '1px solid var(--at-card-border)',
+              width: '28%',
+            }}
+          >
+            Pellier pattern
+          </th>
+          <th
+            style={{
+              padding: '8px 10px',
+              borderBottom: '1px solid var(--at-card-border)',
+              width: '28%',
+            }}
+          >
+            Closest LangGraph concept
+          </th>
+          <th
+            style={{
+              padding: '8px 10px',
+              borderBottom: '1px solid var(--at-card-border)',
+            }}
+          >
+            Key difference
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {LANGGRAPH_MAPPINGS.map((row) => (
+          <tr key={row.pellier} data-testid={`langgraph-row-${row.pellier.split(' ')[0].toLowerCase()}`}>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                fontFamily: 'var(--at-serif)',
+                color: 'var(--at-ink-1)',
+                verticalAlign: 'top' as const,
+              }}
+            >
+              {row.pellier}
+            </td>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                fontFamily: 'var(--at-mono)',
+                fontSize: '12px',
+                color: 'var(--at-ink-2)',
+                verticalAlign: 'top' as const,
+              }}
+            >
+              {row.langgraph}
+            </td>
+            <td
+              style={{
+                padding: '10px',
+                borderBottom: '1px solid var(--at-card-border)',
+                color: 'var(--at-ink-2)',
+                lineHeight: 1.5,
+                verticalAlign: 'top' as const,
+              }}
+            >
+              {row.difference}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <p
+      style={{
+        fontFamily: 'var(--at-sans)',
+        fontSize: '13px',
+        lineHeight: 1.6,
+        color: 'var(--at-ink-3)',
+        margin: 0,
+        paddingTop: '12px',
+        borderTop: '1px solid var(--at-card-border)',
+      }}
+    >
+      <Emphasis>When to reach for LangGraph instead:</Emphasis> long-running
+      stateful workflows that need durable checkpointing, human-in-the-loop
+      pause/resume, or cycle-heavy graphs (planner ↔ critic ↔ executor) where
+      the topology itself is the design. Pellier&apos;s e-commerce concierge
+      hot path is none of those — a keyword classifier plus one specialist
+      call wins on latency every time.
+    </p>
   </ExpCard>
 );
 
@@ -834,6 +1004,10 @@ const Routing: React.FC = () => {
           {/* Dispatcher (Pattern III) is the active path; the intent
               table makes the keyword-to-specialist mapping concrete. */}
           <DispatcherIntentCard />
+          {/* LangGraph comparison — for operators arriving from LangChain.
+              Pins the editorial difference: three progressive patterns vs
+              one StateGraph from turn one. */}
+          <LangGraphComparisonCard />
         </div>
       )}
 

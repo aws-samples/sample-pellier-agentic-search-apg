@@ -137,6 +137,22 @@ _PRODUCT_SELECT = """
 """
 
 
+# The boutique catalog still uses the curator-import taxonomy
+# ("Apparel", "Home Decor", "Beauty", "Gifts" — see
+# ``services/structured_extract.KNOWN_CATEGORIES``). The wire shape
+# uses the editorial Literal in ``models/search.StorefrontCategory``.
+# This is the boundary projection from one to the other; rows that are
+# already in the editorial set pass through unchanged.
+_CATEGORY_DB_TO_WIRE: Dict[str, str] = {
+    "Home Decor": "Home",
+    "Apparel": "Tops",
+    "Beauty": "Accessories",
+    "Gifts": "Accessories",
+}
+
+_VALID_BADGES = {"EDITORS_PICK", "BESTSELLER", "JUST_IN"}
+
+
 def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
     """Project a raw catalog row onto the ``StorefrontProduct`` wire shape.
 
@@ -152,6 +168,12 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
     except (TypeError, ValueError):
         review_count = 0
 
+    raw_category = row.get("category") or ""
+    category = _CATEGORY_DB_TO_WIRE.get(raw_category, raw_category)
+
+    raw_badge = row.get("badge")
+    badge = raw_badge if raw_badge in _VALID_BADGES else None
+
     return StorefrontProduct(
         id=int(row["id"]),
         brand=row.get("brand") or "Pellier Editions",
@@ -160,9 +182,9 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
         price=float(row.get("price") or 0),
         rating=float(row.get("rating") or 0),
         review_count=review_count,
-        category=row["category"],
+        category=category,
         image_url=row.get("image_url") or "",
-        badge=row.get("badge"),
+        badge=badge,
         tags=list(row.get("tags") or []),
     )
 

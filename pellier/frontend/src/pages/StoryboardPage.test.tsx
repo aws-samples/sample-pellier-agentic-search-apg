@@ -49,10 +49,20 @@ vi.mock('../contexts/CartContext', () => ({
   }),
 }))
 
-// usePersona - Header uses the persona pill.
+// usePersona - Header uses the persona pill, and CommandPill returns null
+// when no persona is set (memory scoping needs a customer_id). Mock with
+// a truthy persona so the floating pill renders for the chrome tests.
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
-    persona: null,
+    persona: {
+      id: 'marco',
+      display_name: 'Marco',
+      avatar_initial: 'M',
+      avatar_color: '#1f1410',
+      customer_id: 'C-MARCO',
+      role_tag: 'shopper',
+      stats: { visits: 0, orders: 0, last_seen_days: null },
+    },
     switchPersona: vi.fn(),
     signOut: vi.fn(),
     switching: false,

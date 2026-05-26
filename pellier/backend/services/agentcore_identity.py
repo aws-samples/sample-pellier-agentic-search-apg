@@ -18,8 +18,10 @@ This is the backend half of Challenge 9's four-file capstone:
 
 Key design choices (Req 4.3):
 
-  * Authenticated namespace:  ``user:{user_id}:session:{session_id}``
-  * Anonymous namespace:      ``anon:{session_id}``
+  * Authenticated namespace:  ``user-{user_id}-session-{session_id}``
+  * Anonymous namespace:      ``anon-{session_id}``
+  * Dashes (not colons) because AgentCore session IDs must match
+    ``[a-zA-Z0-9][a-zA-Z0-9-_]*`` — colons are rejected at the API.
   * These MUST match ``services/agentcore_memory.py`` byte-for-byte —
     ``AgentCoreMemory`` keys on the raw string, so any drift silently
     fragments session history.
@@ -70,8 +72,11 @@ logger = logging.getLogger(__name__)
 #
 # Namespace scheme (must match services/agentcore_memory.py byte-for-byte):
 #
-#     user:{user_id}:session:{session_id}   authenticated sessions
-#     anon:{session_id}                     anonymous sessions
+#     user-{user_id}-session-{session_id}   authenticated sessions
+#     anon-{session_id}                     anonymous sessions
+#
+# (Dashes, not colons — AgentCore session IDs must match
+# [a-zA-Z0-9][a-zA-Z0-9-_]*.)
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py

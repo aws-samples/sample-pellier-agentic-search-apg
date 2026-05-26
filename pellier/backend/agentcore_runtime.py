@@ -2,14 +2,17 @@
 AgentCore Runtime — deployment entrypoint (Builder's Session + Workshop C5).
 
 Wraps the pre-applied Strands orchestrator for execution in an AgentCore
-Runtime container. Bootstrap runs ``agentcore configure`` + ``agentcore launch``
-before participants arrive; in-room they read this file and invoke via
+Runtime container. Bootstrap renders ``agentcore.json`` from
+``agentcore.json.template`` and runs ``agentcore deploy`` (the new
+@aws/agentcore Node CLI — https://github.com/aws/agentcore-cli) before
+participants arrive; in-room they read this file and invoke via
 ``POST /api/agent/chat`` with ``USE_AGENTCORE_RUNTIME=true``.
 
 Deploy (bootstrap / instructor):
     cd pellier/backend
-    agentcore configure --name pellier-agent ...
-    agentcore launch --agent pellier-agent
+    envsubst < agentcore.json.template > agentcore.json
+    envsubst < aws-targets.json.template > aws-targets.json
+    agentcore deploy -y --json
 """
 from __future__ import annotations
 

@@ -5,18 +5,18 @@
   "elapsedMs": 1840,
   "agentCount": 1,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:24:00Z",
+  "timestamp": "2026-05-25T17:24:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "Is the Hadley shirt at the Brooklyn warehouse?",
-      "timestamp": "2026-05-15T17:24:00Z"
+      "timestamp": "2026-05-25T17:24:00Z"
     },
     {
       "role": "assistant",
       "content": "Yes \u2014 Brooklyn (BK-01) has 8 of the Hadley (Pellier Linen Shirt in ecru) on the floor right now. Also 4 at Austin (ATX-02) and 12 at Portland (PDX-01). Ship window from Brooklyn to your zip is 1\u20132 business days.",
-      "timestamp": "2026-05-15T17:24:02Z",
+      "timestamp": "2026-05-25T17:24:02Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 2,
@@ -47,7 +47,7 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Hadley shirt confirmed at Brooklyn warehouse (8 units)"
         }
       ],
@@ -81,6 +81,14 @@
     },
     {
       "index": 3,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped result to AgentCore Memory: Hadley shirt confirmed at Brooklyn warehouse (8 units).",
+      "status": "complete",
+      "durationMs": 22
+    },
+    {
+      "index": 4,
       "category": "managed",
       "title": "Response composition",
       "description": "Claude Haiku 4.5 at 0.0 \u2014 3 warehouses summarized",
@@ -92,7 +100,7 @@
   "brief": {
     "folioNumber": 43,
     "headline": "Now it works",
-    "filedTime": "2026-05-15T17:24:30Z",
+    "filedTime": "2026-05-25T17:24:30Z",
     "sections": [
       {
         "numeral": "i.",

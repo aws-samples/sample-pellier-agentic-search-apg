@@ -76,6 +76,6 @@ export interface ConfidenceRow {
 }
 
 export interface MemoryPill {
-  tier: 'stm' | 'ltm' | 'skill';
+  tier: 'working' | 'semantic' | 'episodic' | 'procedural' | 'skill';
   content: string;
 }

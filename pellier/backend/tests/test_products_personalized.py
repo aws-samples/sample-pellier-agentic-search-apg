@@ -684,3 +684,57 @@ def test_inventory_stale_field_present(client: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["stale"] is False
+
+
+# ---------------------------------------------------------------------------
+# Schema/data drift — converter boundary
+# ---------------------------------------------------------------------------
+#
+# The boutique catalog seed still uses the curator-import taxonomy
+# ("Apparel", "Home Decor", "Beauty", "Gifts"; see
+# ``services/structured_extract.KNOWN_CATEGORIES``) while the wire shape
+# uses the editorial Literal in ``models/search.StorefrontCategory``. The
+# converter coerces at the boundary; a regression here would resurface
+# the production 500 we hit on /api/products?limit=30.
+
+
+def test_row_to_storefront_product_coerces_legacy_category() -> None:
+    """Legacy DB category ``Home Decor`` SHALL project onto wire ``Home``."""
+    from routes.products import _row_to_storefront_product
+
+    product = _row_to_storefront_product({
+        "id": 99,
+        "brand": "Pellier Home",
+        "name": "Stoneware Pitcher",
+        "color": "sand",
+        "price": 78.0,
+        "rating": 4.6,
+        "reviews": "12",
+        "category": "Home Decor",
+        "image_url": "https://example.com/99.jpg",
+        "badge": None,
+        "tags": ["home", "ceramic"],
+    })
+    assert product.category == "Home"
+
+
+def test_row_to_storefront_product_drops_empty_badge() -> None:
+    """A DB row with ``badge=''`` SHALL project to ``badge=None`` on the
+    wire — the StorefrontBadge Literal does not accept the empty string.
+    """
+    from routes.products import _row_to_storefront_product
+
+    product = _row_to_storefront_product({
+        "id": 100,
+        "brand": "Pellier Editions",
+        "name": "Linen Robe",
+        "color": "cream",
+        "price": 220.0,
+        "rating": 4.8,
+        "reviews": "47",
+        "category": "Linen",
+        "image_url": "https://example.com/100.jpg",
+        "badge": "",
+        "tags": ["linen"],
+    })
+    assert product.badge is None

@@ -5,18 +5,18 @@
   "elapsedMs": 14820,
   "agentCount": 3,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:00:00Z",
+  "timestamp": "2026-05-25T17:00:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "What linen do you have for 10 days in Goa?",
-      "timestamp": "2026-05-15T17:00:00Z"
+      "timestamp": "2026-05-25T17:00:00Z"
     },
     {
       "role": "assistant",
       "content": "Goa in linen \u2014 you'll want pieces that breathe, pack flat, and forgive a ten-day wear. Three I'd pull: the Pellier Linen Shirt in ecru ($148), the Linen Drawstring Trousers in oat ($118), and the Italian Linen Camp Shirt in indigo ($228). All three crumple honestly rather than crease \u2014 that's the tell of real linen, not a blend.",
-      "timestamp": "2026-05-15T17:00:04Z",
+      "timestamp": "2026-05-25T17:00:04Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 3,
@@ -38,34 +38,34 @@
           "brand": "Pellier Editions",
           "price": 148,
           "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png",
-          "traceRef": "panel-2"
+          "traceRef": "panel-3"
         },
         {
           "name": "Linen Drawstring Trousers",
           "brand": "Pellier Editions",
           "price": 118,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
-          "traceRef": "panel-2"
+          "traceRef": "panel-3"
         },
         {
           "name": "Italian Linen Camp Shirt",
           "brand": "Pellier Editions",
           "price": 228,
           "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
-          "traceRef": "panel-2"
+          "traceRef": "panel-3"
         }
       ],
       "confidence": {
         "percentage": 91,
-        "reasoning": "Strong semantic match on 'linen' + 'travel'; Marco's LTM preference profile (natural fibers, warm tones) weights the Hadley / Pellier linen shirt and drawstring trousers highest."
+        "reasoning": "Strong semantic match on 'linen' + 'travel'; Marco's semantic-memory preference profile (natural fibers, warm tones) weights the Hadley / Pellier linen shirt and drawstring trousers highest."
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Planning 10 days in Goa \u2014 linen, travels well"
         },
         {
-          "tier": "ltm",
+          "tier": "semantic",
           "content": "Prefers natural fibers; warm neutrals; pieces that soften"
         }
       ],
@@ -78,17 +78,17 @@
     {
       "role": "user",
       "content": "What would go with the Hadley shirt?",
-      "timestamp": "2026-05-15T17:00:32Z"
+      "timestamp": "2026-05-25T17:00:32Z"
     },
     {
       "role": "assistant",
       "content": "The Hadley pairs beautifully with the Drawstring Trousers in oat \u2014 same washed-linen family, same tonal register, they read as a considered set rather than an accident. For layering when the evening cools, the Washed Cotton Overshirt in ecru picks up the same muted palette without adding bulk. And the Leather Weekender ties the whole packing list together \u2014 the kind of bag that earns its patina on the trip.",
-      "timestamp": "2026-05-15T17:00:38Z",
+      "timestamp": "2026-05-25T17:00:38Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 3,
         "flowSummary": "Dispatcher \u2192 Curator (+ packing-list skill) \u2192 style_match",
-        "traceLink": "#telemetry-4"
+        "traceLink": "#telemetry-6"
       },
       "toolCalls": [
         {
@@ -105,21 +105,21 @@
           "brand": "Pellier Editions",
           "price": 118,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
-          "traceRef": "panel-6"
+          "traceRef": "panel-8"
         },
         {
           "name": "Washed Cotton Overshirt",
           "brand": "Pellier Editions",
           "price": 185,
           "imageUrl": "/products/marco-washed-cotton-overshirt.png",
-          "traceRef": "panel-6"
+          "traceRef": "panel-8"
         },
         {
           "name": "Leather Weekender",
           "brand": "Pellier Editions",
           "price": 485,
           "imageUrl": "/products/marco-leather-weekender.png",
-          "traceRef": "panel-6"
+          "traceRef": "panel-8"
         }
       ],
       "confidence": {
@@ -128,7 +128,7 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Interested in pairings for the Hadley shirt"
         },
         {
@@ -146,17 +146,17 @@
     {
       "role": "user",
       "content": "What's the price range for linen shirts?",
-      "timestamp": "2026-05-15T17:01:02Z"
+      "timestamp": "2026-05-25T17:01:02Z"
     },
     {
       "role": "assistant",
       "content": "Linen shirts in the catalog run from $88 to $285. Median is $148. The Pellier sits right at the median; the Italian Linen Camp Shirt ($228) is in the upper third. Under $100 there are two \u2014 both cotton-linen blends rather than pure linen.",
-      "timestamp": "2026-05-15T17:01:03Z",
+      "timestamp": "2026-05-25T17:01:03Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 2,
         "flowSummary": "Dispatcher \u2192 Value Analyst \u2192 price_intelligence",
-        "traceLink": "#telemetry-7"
+        "traceLink": "#telemetry-9"
       },
       "toolCalls": [
         {
@@ -174,7 +174,7 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Checking price range before committing"
         }
       ],
@@ -187,17 +187,17 @@
     {
       "role": "user",
       "content": "Is the Hadley shirt at the Brooklyn warehouse?",
-      "timestamp": "2026-05-15T17:01:22Z"
+      "timestamp": "2026-05-25T17:01:22Z"
     },
     {
       "role": "assistant",
       "content": "I can help with style and recommendations, but I don't have real-time stock visibility for individual warehouses yet. I can tell you the Hadley shirt (Pellier Linen Shirt in ecru) is in the catalog and marked in-stock system-wide \u2014 but which warehouse holds it, and how many are on the floor, sits outside what I can answer right now.",
-      "timestamp": "2026-05-15T17:01:24Z",
+      "timestamp": "2026-05-25T17:01:24Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 1,
         "flowSummary": "Dispatcher \u2192 stock intent matched \u2192 Stock Keeper stubbed \u2192 voice-matched non-answer",
-        "traceLink": "#telemetry-11"
+        "traceLink": "#telemetry-13"
       },
       "toolCalls": [],
       "products": [],
@@ -207,7 +207,7 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Asked about warehouse stock \u2014 not answered"
         }
       ],
@@ -221,7 +221,7 @@
     {
       "role": "user",
       "content": "I'll come back when I'm ready to commit.",
-      "timestamp": "2026-05-15T17:02:01Z"
+      "timestamp": "2026-05-25T17:02:01Z"
     }
   ],
   "telemetry": [
@@ -236,6 +236,14 @@
     },
     {
       "index": 2,
+      "category": "owned",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Loaded Marco's durable preferences from AgentCore Memory: natural fibers, warm neutrals, pieces that soften. Used to weight retrieval candidates.",
+      "status": "complete",
+      "durationMs": 38
+    },
+    {
+      "index": 3,
       "category": "both",
       "title": "Semantic search",
       "description": "pgvector cosine over product_catalog; query vector from Cohere Embed v4 (cohere.embed-v4:0); linen + in-stock filters",
@@ -245,7 +253,15 @@
       "sql": "SELECT name, brand, price, 1 - (embedding <=> $1) AS similarity FROM product_catalog WHERE category ILIKE '%linen%' AND quantity > 0 ORDER BY embedding <=> $1 LIMIT 10;"
     },
     {
-      "index": 3,
+      "index": 4,
+      "category": "owned",
+      "title": "Memory Write \u2014 Working",
+      "description": "Wrote turn-scoped context to AgentCore Memory: planning 10 days in Goa \u2014 linen, travels well.",
+      "status": "complete",
+      "durationMs": 24
+    },
+    {
+      "index": 5,
       "category": "managed",
       "title": "Response composition",
       "description": "Claude Opus 4.6 at 0.4 \u2014 editorial voice, 3 pieces",
@@ -254,7 +270,7 @@
       "agent": "Style Advisor"
     },
     {
-      "index": 4,
+      "index": 6,
       "category": "managed",
       "title": "Intent classification (Turn 2)",
       "description": "Dispatcher matched 'would go with' as recommendation intent",
@@ -263,7 +279,7 @@
       "agent": "Dispatcher"
     },
     {
-      "index": 5,
+      "index": 7,
       "category": "owned",
       "title": "Skill routing",
       "description": "the-packing-list skill loaded for persona: marco",
@@ -272,7 +288,7 @@
       "agent": "SkillRouter"
     },
     {
-      "index": 6,
+      "index": 8,
       "category": "both",
       "title": "Style match",
       "description": "Product-to-product pgvector similarity from Hadley / Pellier Linen Shirt; embeddings via Cohere Embed v4 (cohere.embed-v4:0)",
@@ -282,7 +298,7 @@
       "sql": "SELECT p2.name, p2.price, 1 - (p1.embedding <=> p2.embedding) AS similarity FROM product_catalog p1, product_catalog p2 WHERE p1.product_id = $1 AND p2.product_id != $1 AND p2.quantity > 0 ORDER BY p1.embedding <=> p2.embedding LIMIT 5;"
     },
     {
-      "index": 7,
+      "index": 9,
       "category": "managed",
       "title": "Intent classification (Turn 3)",
       "description": "Dispatcher matched 'price range' as pricing intent",
@@ -291,7 +307,7 @@
       "agent": "Dispatcher"
     },
     {
-      "index": 8,
+      "index": 10,
       "category": "both",
       "title": "Price intelligence",
       "description": "Aggregate distribution query on linen shirts",
@@ -301,7 +317,7 @@
       "sql": "SELECT MIN(price), MAX(price), AVG(price), PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) AS median FROM product_catalog WHERE category ILIKE '%linen%' AND name ILIKE '%shirt%';"
     },
     {
-      "index": 9,
+      "index": 11,
       "category": "managed",
       "title": "Response composition",
       "description": "Claude Haiku 4.5 at 0.1 \u2014 fast, deterministic numerical answer",
@@ -310,7 +326,7 @@
       "agent": "Value Analyst"
     },
     {
-      "index": 10,
+      "index": 12,
       "category": "managed",
       "title": "Intent classification (Turn 4)",
       "description": "Dispatcher matched 'at the Brooklyn warehouse' as inventory intent",
@@ -319,7 +335,7 @@
       "agent": "Dispatcher"
     },
     {
-      "index": 11,
+      "index": 13,
       "category": "teaching",
       "title": "Routing fall-through \u2014 Stock Keeper stubbed",
       "description": "Dispatcher detected Stock Keeper in stub state. No agent invoked. Voice-matched non-answer returned from orchestrator.py fall-through. This is the workshop build \u2014 Builder's Session \u00b7 Part I \u00b7 wire floor_check.",
@@ -332,7 +348,7 @@
   "brief": {
     "folioNumber": 42,
     "headline": "Three answers, one gap",
-    "filedTime": "2026-05-15T17:02:30Z",
+    "filedTime": "2026-05-25T17:02:30Z",
     "sections": [
       {
         "numeral": "i.",

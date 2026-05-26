@@ -569,7 +569,7 @@ export function becauseChipsForPersona(
 // ---------------------------------------------------------------------
 
 export interface MemoryHandoffItem {
-  /** Tool/source label, rendered in mono ("memory.recall", "cart.holds"). */
+  /** Tool/source label, rendered in mono ("memory.recall", "memory.holds"). */
   tool: string
   /** Plain-language line. */
   text: string

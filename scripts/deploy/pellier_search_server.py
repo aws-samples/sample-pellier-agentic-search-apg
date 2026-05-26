@@ -1,13 +1,25 @@
 """
-Bazaar Search MCP Server — Lambda-hosted MCP server for semantic search + inventory.
+Pellier Search MCP Server — Lambda-hosted MCP server for catalog discovery.
 
 Exposes tools:
-  - semantic_search: Vector similarity search over product catalog
-  - get_inventory_health: Stock level summary across categories
-  - get_low_stock_products: Products below restock threshold
-  - restock_product: Update product quantity
+  - semantic_search:      Vector similarity search (Anna's pure-vector path)
+  - find_pieces_hybrid:   Vector + Postgres FTS + Cohere Rerank v3.5
+                          (Anna's production retrieval pipeline)
+  - get_inventory_health: Stock-level summary across categories
+  - get_low_stock_products: Products below the restock threshold
+  - restock_product:      Update product quantity (bounded by policy)
 
-Deployed as a Lambda function behind AgentCore Gateway.
+Deployed as a Lambda function behind AgentCore Gateway. The Lambda
+mirrors the in-process @tool functions in ``pellier/backend/services/``
+— same JSON envelopes, same error shapes — so swapping the orchestrator
+between the in-process path and the Gateway path is invisible to the
+agent's prompt.
+
+References:
+    Cohere Rerank on Bedrock:
+        https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-cohere-rerank.html
+    RDS Data API:
+        https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html
 """
 import json
 import logging
@@ -139,6 +151,160 @@ def get_low_stock_products(limit: int = 5) -> dict:
     return {"products": rows, "count": len(rows)}
 
 
+def find_pieces_hybrid(
+    query: str,
+    max_price: float = None,
+    min_rating: float = 0.0,
+    category: str = None,
+    limit: int = 5,
+) -> dict:
+    """Hybrid retrieval: pgvector + Postgres FTS → RRF → Cohere Rerank v3.5.
+
+    Mirrors `services.agent_tools.find_pieces_hybrid` but runs inside the
+    Lambda microVM instead of the orchestrator's process. Three stages:
+
+      1. Vector branch (pgvector cosine, k=20) and FTS branch
+         (`ts_rank_cd`, k=20) execute in a single SQL statement against
+         `pellier.product_catalog`. RDS Data API can't run multi-statement
+         transactions, so we fold the two ranked lists into a CTE plus
+         Reciprocal Rank Fusion (RRF) inside the same query.
+      2. The merged ~30-candidate pool is sent to Cohere Rerank v3.5
+         (`cohere.rerank-v3-5:0`) via Bedrock `invoke_model`.
+      3. Top `limit` results are returned, with post-rerank filters for
+         max_price and min_rating applied last so the rerank order is
+         preserved.
+
+    On a Bedrock failure (rate limit, invalid response), we fall back to
+    RRF order — the Atelier surfaces this as a missing rerank stage in
+    telemetry rather than crashing the request.
+    """
+    embedding = _get_embedding(query)
+    embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+    # Hybrid retrieval in a single statement. RRF merges the two
+    # ranked lists by `1/(60 + rank)` — the same constant the
+    # in-process implementation uses, so participants get a one-to-one
+    # comparison between paths.
+    sql = f"""
+        SET hnsw.iterative_scan = 'relaxed_order';
+        WITH vector_results AS (
+          SELECT "productId" AS pid,
+                 row_number() OVER (ORDER BY embedding <=> :embedding::vector) AS vrank
+          FROM {SCHEMA}.product_catalog
+          WHERE quantity > 0
+          LIMIT 20
+        ),
+        fts_results AS (
+          SELECT "productId" AS pid,
+                 row_number() OVER (ORDER BY ts_rank_cd(description_tsv, plainto_tsquery(:query)) DESC) AS frank
+          FROM {SCHEMA}.product_catalog
+          WHERE quantity > 0
+            AND description_tsv @@ plainto_tsquery(:query)
+          LIMIT 20
+        ),
+        rrf AS (
+          SELECT COALESCE(v.pid, f.pid) AS pid,
+                 COALESCE(1.0 / (60 + v.vrank), 0) +
+                 COALESCE(1.0 / (60 + f.frank), 0) AS rrf_score
+          FROM vector_results v
+          FULL OUTER JOIN fts_results f USING (pid)
+        )
+        SELECT pc."productId", pc.product_description, pc.price, pc.stars,
+               pc.reviews, pc.category_name, pc.quantity, pc."imgUrl",
+               rrf.rrf_score
+        FROM rrf
+        JOIN {SCHEMA}.product_catalog pc ON pc."productId" = rrf.pid
+        ORDER BY rrf.rrf_score DESC
+        LIMIT 30;
+    """
+    parameters = [
+        {"name": "embedding", "value": {"stringValue": embedding_str}},
+        {"name": "query", "value": {"stringValue": query}},
+    ]
+    candidates = _execute_sql(sql, parameters)
+
+    # Rerank stage. Cohere wants plain text per document; we mirror
+    # the in-process `_doc_for_rerank` shape (name + description + cat).
+    documents = []
+    for p in candidates:
+        desc = (p.get("product_description") or "").strip()
+        cat = (p.get("category_name") or "").strip()
+        if len(desc) > 240:
+            desc = desc[:237] + "…"
+        documents.append(f"{desc} ({cat})")
+
+    rerank_results = _bedrock_rerank(query, documents, top_n=min(limit * 3, 30))
+    if rerank_results:
+        ordered = [
+            {**candidates[r["index"]], "rerank_score": float(r["relevance_score"])}
+            for r in rerank_results
+        ]
+        search_method = "hybrid+rerank"
+    else:
+        ordered = [{**c, "rerank_score": None} for c in candidates]
+        search_method = "hybrid (rerank fallback to RRF order)"
+
+    # Apply post-rerank filters last so the rerank ordering is honoured.
+    filtered = []
+    for p in ordered:
+        if max_price is not None:
+            try:
+                if float(p.get("price") or 0) > float(max_price):
+                    continue
+            except (TypeError, ValueError):
+                pass
+        if min_rating:
+            try:
+                if float(p.get("stars") or 0) < float(min_rating):
+                    continue
+            except (TypeError, ValueError):
+                pass
+        if category and category.lower() not in (p.get("category_name") or "").lower():
+            continue
+        filtered.append(p)
+        if len(filtered) >= limit:
+            break
+
+    return {
+        "status": "success",
+        "query": query,
+        "count": len(filtered),
+        "products": filtered,
+        "search_method": search_method,
+        "pool_size": len(candidates),
+    }
+
+
+def _bedrock_rerank(query: str, documents: list, top_n: int) -> list:
+    """Call Cohere Rerank v3.5 on Bedrock; return [] on any failure.
+
+    Returning [] (instead of raising) matches the in-process service so
+    the caller can fall back to RRF order. The Atelier surfaces a
+    missing-rerank state from this signal — useful demo when the
+    workshop wants to show graceful degradation under Bedrock pressure.
+    """
+    if not documents:
+        return []
+    body = {
+        "query": query,
+        "documents": documents,
+        "top_n": min(top_n, len(documents)),
+        "api_version": 2,
+    }
+    try:
+        response = bedrock_client.invoke_model(
+            modelId="cohere.rerank-v3-5:0",
+            body=json.dumps(body),
+            contentType="application/json",
+            accept="application/json",
+        )
+        payload = json.loads(response["body"].read())
+        return payload.get("results", [])
+    except Exception as exc:
+        logger.warning(f"Cohere rerank failed: {exc}")
+        return []
+
+
 def restock_product(product_id: str, quantity: int) -> dict:
     """Restock a product by adding quantity."""
     if quantity > 500:
@@ -173,6 +339,21 @@ TOOLS = {
                 "limit": {"type": "integer", "description": "Max results to return", "default": 5},
                 "max_price": {"type": "number", "description": "Maximum price filter"},
                 "min_rating": {"type": "number", "description": "Minimum star rating filter"},
+            },
+            "required": ["query"],
+        },
+    },
+    "find_pieces_hybrid": {
+        "fn": find_pieces_hybrid,
+        "description": "Hybrid retrieval over the catalog: pgvector cosine + Postgres FTS merged via RRF, reranked by Cohere Rerank v3.5. Higher quality than semantic_search at the cost of one extra Bedrock call.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Natural language search query"},
+                "max_price": {"type": "number", "description": "Maximum price filter (post-rerank)"},
+                "min_rating": {"type": "number", "description": "Minimum star rating filter (post-rerank)", "default": 0.0},
+                "category": {"type": "string", "description": "Category substring filter (post-rerank). Leave unset to let the reranker pick across categories."},
+                "limit": {"type": "integer", "description": "Max results to return", "default": 5},
             },
             "required": ["query"],
         },

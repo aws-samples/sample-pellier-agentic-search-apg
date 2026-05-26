@@ -196,6 +196,16 @@ class Settings(BaseSettings):
     # this single env var in `backend/.env`.
     USE_AGENTCORE_RUNTIME: bool = False
 
+    # 4f — Evals (Batch 4 spike)
+    #
+    # Off by default — golden-set regression in `tests/test_golden_journeys.py`
+    # is the day-1 CI gate. Flip this to `true` (and supply a dataset ARN)
+    # to opt into the prod-cutover graduation path: a single
+    # `create_evaluation_job` call against AgentCore Evals.
+    AGENTCORE_EVALS_ENABLED: bool = False
+    AGENTCORE_EVALS_DATASET_ARN: Optional[str] = None
+    AGENTCORE_EVALS_JOB_ROLE_ARN: Optional[str] = None
+
     # ========================================
     # Development & Debugging
     # ========================================

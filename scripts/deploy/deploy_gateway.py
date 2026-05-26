@@ -2,7 +2,12 @@
 """
 Deploy Pellier MCP Servers to Amazon Bedrock AgentCore Gateway.
 
-Creates a gateway with 3 Lambda targets: search, pricing, recommendations.
+Creates a gateway with 4 Lambda targets: search, pricing, recommendations,
+experience. The ``search`` target now also exposes ``find_pieces_hybrid``
+(vector + FTS + Cohere Rerank), and the new ``experience`` target carries
+the two Theo-flow tools — ``process_return`` and ``escalate_to_stylist`` —
+that previously stayed in-process. Together these surface every backend
+``@tool`` (13 of 13) over Gateway, closing the gateway-vs-backend asymmetry.
 Adapted from DAT403 deploy_gateway_simple.py for Pellier.
 """
 import boto3
@@ -35,6 +40,25 @@ TOOL_SCHEMAS = {
                         "limit": {"type": "integer", "description": "Max results", "default": 5},
                         "max_price": {"type": "number", "description": "Maximum price filter"},
                         "min_rating": {"type": "number", "description": "Minimum star rating"},
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "find_pieces_hybrid",
+                "description": (
+                    "Hybrid retrieval: pgvector cosine + Postgres FTS merged via "
+                    "RRF, then reranked by Cohere Rerank v3.5. Higher quality "
+                    "than semantic_search at the cost of one extra Bedrock call."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Natural language search query"},
+                        "max_price": {"type": "number", "description": "Maximum price filter (post-rerank)"},
+                        "min_rating": {"type": "number", "description": "Minimum star rating (post-rerank)", "default": 0.0},
+                        "category": {"type": "string", "description": "Category substring filter (post-rerank)"},
+                        "limit": {"type": "integer", "description": "Max results", "default": 5},
                     },
                     "required": ["query"],
                 },
@@ -133,6 +157,55 @@ TOOL_SCHEMAS = {
                     "properties": {
                         "limit": {"type": "integer", "default": 10},
                         "category": {"type": "string"},
+                    },
+                    "required": [],
+                },
+            },
+        ],
+    },
+    "experience": {
+        "target_name": "pellier-experience-server-function",
+        "description": "Pellier experience-guide MCP server (returns + stylist handoff)",
+        "tools": [
+            {
+                "name": "process_return",
+                "description": (
+                    "Process a return atomically: ownership check + INSERT into "
+                    "pellier.returns + (if damaged) decrement product_catalog "
+                    "quantity. Reason must be one of damaged, wrong_size, "
+                    "not_as_described, changed_mind, other."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "customer_id": {"type": "string"},
+                        "product_id": {"type": "integer"},
+                        "reason": {
+                            "type": "string",
+                            "enum": [
+                                "changed_mind",
+                                "damaged",
+                                "not_as_described",
+                                "other",
+                                "wrong_size",
+                            ],
+                        },
+                    },
+                    "required": ["customer_id", "product_id", "reason"],
+                },
+            },
+            {
+                "name": "escalate_to_stylist",
+                "description": (
+                    "Hand the conversation off to a human stylist. Honest "
+                    "fallback when no catalog tool can answer (cultural "
+                    "dressing norms, body-image fit, out-of-policy returns)."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "reason": {"type": "string"},
+                        "customer_id": {"type": "string"},
                     },
                     "required": [],
                 },
@@ -247,7 +320,7 @@ class BazaarGatewayDeployer:
         params = {
             "name": self.config.gateway_name,
             "roleArn": role_arn,
-            "description": "Pellier MCP Gateway — search, pricing, recommendations",
+            "description": "Pellier MCP Gateway — search, pricing, recommendations, experience",
             "protocolType": "MCP",
             "protocolConfiguration": {"mcp": {"searchType": "SEMANTIC", "supportedVersions": ["2025-03-26"]}},
         }
@@ -309,6 +382,7 @@ def main():
     parser.add_argument("--search-lambda-arn", required=True)
     parser.add_argument("--pricing-lambda-arn", required=True)
     parser.add_argument("--recommendation-lambda-arn", required=True)
+    parser.add_argument("--experience-lambda-arn", required=True)
     parser.add_argument("--cognito-user-pool-id")
     parser.add_argument("--cognito-client-id")
     args = parser.parse_args()
@@ -320,6 +394,7 @@ def main():
             MCPTarget(lambda_arn=args.search_lambda_arn, server_type="search"),
             MCPTarget(lambda_arn=args.pricing_lambda_arn, server_type="pricing"),
             MCPTarget(lambda_arn=args.recommendation_lambda_arn, server_type="recommendation"),
+            MCPTarget(lambda_arn=args.experience_lambda_arn, server_type="experience"),
         ],
         cognito_user_pool_id=args.cognito_user_pool_id,
         cognito_client_id=args.cognito_client_id,

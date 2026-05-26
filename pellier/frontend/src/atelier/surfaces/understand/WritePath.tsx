@@ -118,7 +118,7 @@ const EnforcementDiagram: React.FC = () => {
           color: 'var(--at-ink-1)',
         }}
       >
-        Cedar guards <em>what</em>; SQL guards <em>whose</em>.
+        Cedar guards what; SQL guards whose.
       </h3>
       <p
         style={{

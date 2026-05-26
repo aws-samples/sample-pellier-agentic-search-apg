@@ -126,7 +126,7 @@ const ScorecardCard: React.FC<{
 }> = ({ agent, accuracy, latencyP50, latencyP95, citationRate }) => (
   <ExpCard>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <span style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic', fontSize: '18px', color: 'var(--at-ink-1)' }}>
+      <span style={{ fontFamily: 'var(--at-serif)', fontSize: '18px', color: 'var(--at-ink-1)' }}>
         {agent}
       </span>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -159,7 +159,7 @@ const SectionLabel: React.FC<{ label: string }> = ({ label }) => (
 );
 
 const titleStyle: React.CSSProperties = {
-  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 400, fontStyle: 'italic',
+  fontFamily: 'var(--at-serif)', fontSize: '22px', fontWeight: 400,
   lineHeight: 1.15, color: 'var(--at-ink-1)', margin: 0,
 };
 

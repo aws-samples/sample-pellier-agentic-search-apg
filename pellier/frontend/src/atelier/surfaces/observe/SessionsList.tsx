@@ -22,12 +22,14 @@ import { PERSONA_HERO_PILLS, PERSONA_TURN_TRACES } from '../../../data/personaCu
  * ----------------------------------------------------------------------- */
 
 /**
- * Sort sessions by timestamp descending (most recent first).
+ * Sort sessions by timestamp ascending (earliest first) so the
+ * instructor-view list reads Marco → Anna → Theo, matching the
+ * canonical persona order used everywhere else in the Atelier.
  * Returns a new array; does not mutate the input.
  */
 export function sortSessionsByRecency(sessions: Session[]): Session[] {
   return [...sessions].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
 }
 

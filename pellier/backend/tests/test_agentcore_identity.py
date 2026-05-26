@@ -8,9 +8,9 @@ with and without ``request.state.user`` and assert the returned
 
 Covered assertions (from tasks.md Task 3.2 "Test verification"):
 
-  * authenticated request yields ``user:{user_id}-session-{session_id}``
+  * authenticated request yields ``user-{user_id}-session-{session_id}``
     namespace
-  * unauthenticated request yields ``anon:{session_id}`` namespace
+  * unauthenticated request yields ``anon-{session_id}`` namespace
   * ``user_id`` in ``UserContext`` equals ``request.state.user.user_id``
 
 Plus the "Done when" assertion: session_id is stable across a request
@@ -220,7 +220,7 @@ def test_cookie_token_falls_through_on_unprotected_route(
 def test_unauthenticated_request_yields_anon_namespace(
     identity_service_anon: AgentCoreIdentityService,
 ) -> None:
-    """No state user + no token → ``anon:{session_id}`` namespace."""
+    """No state user + no token → ``anon-{session_id}`` namespace."""
     req = _make_request(headers={SESSION_ID_HEADER: "anon-sess-1"})
 
     ctx = _run(identity_service_anon.get_verified_user_context(req))

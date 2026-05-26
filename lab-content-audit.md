@@ -7,7 +7,7 @@ Two changes need to land in the golden lab content, CFNs, contentspec, and IAM p
 
 ---
 
-## Status as of 2026-05-25 (Workshop Studio repo)
+## Status as of 2026-05-26 (Workshop Studio repo)
 
 | § | Topic | Status |
 |---|---|---|
@@ -26,6 +26,12 @@ Two changes need to land in the golden lab content, CFNs, contentspec, and IAM p
 | 13 | Architecture detail-page numeral / category drift (source repo) | ✅ **Source-repo fix needed.** Six of the eight detail pages hardcode numerals and categories that disagree with `architecture.json`. Affected: `SkillsDetail` (category `workshop` → `live`), `StateDetail` (numeral `V` → `IV`), `RuntimeDetail` (numeral `VI` → `V`, category `optional` → `workshop`), `EvaluationsDetail` (numeral `VIII` → `VI`), `ToolRegistryDetail` (numeral collides with StateDetail; orphaned from the 6-entry index grid), `McpDetail` (numeral `VII`, orphaned from grid). |
 | 14 | Tool registry "9 tools" stale copy (source repo) | ✅ **Source-repo fix needed.** `agentcore_gateway.py:6/25/38`, `tool_registry.py:11`, `seed_tool_registry.py:4/23`, `test_tool_registry.py:254`, `test_gateway.py:158` all say "9 tools" — `GATEWAY_TOOL_NAMES` actually has 10 entries (added `style_match`). Note: gateway exposes 10 of the 13 backend `@tool` functions (skips `find_pieces_hybrid`, `process_return`, `escalate_to_stylist`); this is the gateway-vs-backend asymmetry, not a bug. |
 | 15 | README "12 @tool functions" + lists `cart.holds` as a tool | ✅ **Source-repo fix needed.** `README.md:48` claims `5 specialists × 12 @tool functions`; line 204 says `12 @tool functions across the agent set:`; lines 206–209 list omits `find_pieces_hybrid` + `escalate_to_stylist` and includes `cart.holds`. `cart.holds` is a memory namespace, not a `@tool`. |
+| 16 | Per-turn memory substrate visibility — fixtures + Sessions surfaces | ✅ **Source-repo fix shipped (this commit).** All 13 session fixtures across the 3 personas now carry `memoryPills` in chat (working / semantic / episodic / procedural / skill, persona-appropriate) and matching telemetry panels (`Memory Recall — Semantic`, `Memory Recall — Episodic`, `Memory Write — Working`); ChatTab `MemoryCard` and TelemetryTab "Memory substrate" column gained per-substrate gloss lines + a `→ What are the four substrates?` cross-link to `/atelier/architecture/memory`; "Memory orbit" terminology renamed to "Memory substrate" across `TelemetryTab.tsx` (3 spots) + `MemoryHandoffCard.tsx` (1 comment). Sequential indexes verified across all 13 fixtures; `sessions.property.test.ts` passes. **Closes the Batch 4 "memory substrate rollup" item.** |
+| 17 | AgentCore CLI migration — `bedrock-agentcore-starter-toolkit` (Python) → `@aws/agentcore` (Node) | ⚠️ **Source-repo deploy refactor shipped (this commit); 6 builder markdown lines need upstream fixes.** The Python `bedrock-agentcore-starter-toolkit` (with `agentcore configure` + `agentcore launch`) is being retired; the new canonical CLI is the Node-based `@aws/agentcore` (https://github.com/aws/agentcore-cli) installed via `npm install -g @aws/agentcore`. The runtime SDK (`bedrock-agentcore>=1.4.3`) is unchanged — only the deploy CLI moved. **Source-repo done:** new `pellier/backend/agentcore.json.template` + `pellier/backend/aws-targets.json.template` carry all the config previously passed as CLI flags; `scripts/deploy/deploy_all.sh` step 5–6 now `envsubst`-renders both templates from CFN outputs and runs `agentcore deploy -y --json` (no more `agentcore configure`/`launch`); docstrings updated in `pellier/backend/.bedrock_agentcore.yaml`, `pellier/backend/agentcore_runtime.py`, `scripts/provision_agentcore_runtime.py` (marked deprecated), `scripts/deploy/agentcore_runtime_adapter.py`, and `scripts/deploy/README.md`. **Stale builder markdown lines upstream (Workshop Studio repo):** (a) `lab-content/builders/20-act-2-the-ledger/index.en.md:17, 84` — references to `agentcore configure`/`launch`; (b) `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:9, 39, 189, 193, 224` — same. Replace with the `envsubst < agentcore.json.template > agentcore.json && agentcore deploy -y --json` flow. Also bootstrap install line should change from `pip install bedrock-agentcore-starter-toolkit` to `npm install -g @aws/agentcore`. **SDK signature drift fixed in same pass:** `services/agentcore_memory.py:244` now calls `list_long_term_memory_records(namespace=key, max_results=1)` (was `namespace_prefix=key`, deprecated; `memoryId` and `maxResults` were never the right names). `test_agentcore_memory.py::test_get_user_preferences_sdk_path_uses_correct_signature` pin-locks the new spelling. **Italics removal pass:** 42 `fontStyle: 'italic'` removals + 6 `<em>` tag removals across 18 Atelier surface files (Fraunces serif already provides editorial weight; italic on top was redundant). |
+| 18 | AgentCore Identity sub-batch — namespace dash-form drift + Production Patterns lifecycle strip | ✅ **Source-repo only — no Workshop Studio carry-over needed.** Two pieces landed in one pass (2026-05-26). **(a) Namespace format drift (real bug):** the canonical AgentCore Memory namespace is `anon-{session_id}` / `user-{cognito_sub}-session-{session_id}` (dashes), because AgentCore session IDs must match `[a-zA-Z0-9][a-zA-Z0-9-_]*` — colons would 400 at the API boundary. The fixture, `chat.py`, `routes/atelier_observatory.py:480` (substrate-scan prefix would have returned zero matches against dash-form keys), 4 docstrings, and the `solutions/the-ledger/services/` mirror all carried colon-form strings (`user:{sub}:session:{id}`). Fixed across 13+ files in one sweep; `services/chat.py` now delegates to `AgentCoreIdentityService.build_namespace(sub, session_id)` so the format lives in one place. **(b) Production Patterns lifecycle strip:** new `wiring` field on `IdentityPattern` (5-step Cognito → namespace lifecycle, each step file-anchored) renders as a numbered strip on the Identity card. Strip pins the request flow: Cognito hosted UI → frontend `AuthContext`/`chat.ts` → outgoing `/api/agent/chat` with Bearer token + session_id → backend `get_verified_user_context` → `build_namespace` handoff to AgentCore Memory. New `surfaces/measure/ProductionPatterns.test.tsx` (6 tests) pins both contracts. 312/312 frontend tests green; 478 backend pass + 1 benign skip. |
+| 19 | LangGraph comparison sub-batch — Routing surface comparison card | ✅ **Source-repo only — no Workshop Studio carry-over needed.** New `LangGraphComparisonCard` in `surfaces/understand/Routing.tsx`, rendered after `DispatcherIntentCard`. Three-row mapping table (Dispatcher → conditional edges from a router node; Agents-as-Tools → supervisor pattern with `create_react_agent`; Graph → `StateGraph` with `add_node`/`add_edge`) plus a "when to reach for LangGraph instead" footer pinning the three workflow shapes that justify a graph runtime: durable checkpointing, human-in-the-loop pause/resume, cycle-heavy planner ↔ critic ↔ executor topology. Editorial framing: *"Three patterns, not one graph"* — Strands lets you start with Dispatcher (a Python function) and graduate; LangGraph commits to a `StateGraph` from turn one. New `Routing.test.tsx` (4 tests) pins the rows, the keyword mapping per row, the editorial header, and the footer shapes. 316/316 frontend tests green. **Closes Batch 4.** |
+| 20 | AgentCore — Workshop Studio testing guide (Runtime + Gateway + Memory) | 📝 **Reference, not a code change.** Step-by-step verification script for the new `@aws/agentcore` Node CLI flow on a Workshop Studio account: provision Memory (control-plane `create_memory`), run `deploy_all.sh` (4 Lambdas + Gateway + Runtime), wire local backend to live Gateway, observe in-process → MCP tool-discovery flip, cleanup. Documents the failure modes participants hit most often (token expiry, region drift, `iam:PassRole`, `.env` reload) and now reflects the full 13/13 gateway parity from §21. See §20 below. |
+| 21 | Gateway parity sub-batch — every backend `@tool` reaches the Gateway | ✅ **Source-repo only — closes the §20 "optional extension".** New `pellier_experience_server.py` Lambda (process_return + escalate_to_stylist), `find_pieces_hybrid` added to the search target's schema, `deploy_gateway.py` gains the `experience` target, `deploy_all.sh` restructured 7 → 8 steps with the new Experience Lambda step, runtime adapter prompt lists the new tools, §20 step list / counts / cleanup loop updated. `GATEWAY_TOOL_NAMES` follow-up still needed in `services/agentcore_gateway.py` + `seed_tool_registry.py` to collapse §14's drift to a single canonical 13. See §21 below. |
 
 **Open items not in any section:**
 - `atelier-memory.png` still needs re-screenshotting against the live 4-panel viewer once the source-repo frontend ships. (Image task, not content.)
@@ -39,7 +45,7 @@ The new model:
 
 | Substrate | Storage | Lifetime | Write cadence |
 |---|---|---|---|
-| **Working** | AgentCore Memory session turns under `user:{id}:session:{sid}` (or `anon:{sid}`) | Last K turns | Every turn |
+| **Working** | AgentCore Memory session turns under `user-{cognito_sub}-session-{sid}` (or `anon-{sid}`) — dashes, not colons; session IDs must match the AgentCore regex `[a-zA-Z0-9][a-zA-Z0-9-_]*` | Last K turns | Every turn |
 | **Semantic** | AgentCore Memory KV under `user:{id}:preferences` | Durable | When customer tells us something stable |
 | **Episodic** | Aurora `pellier.customer_episodic_seed` today; `pellier.orders` + `pellier.returns` are the real per-customer ledger | Durable | When the turn earns the latency |
 | **Procedural** | Aurora `pellier.tool_audit` aggregate | Append-only | After every mutating tool call |
@@ -278,3 +284,517 @@ Before this fix, the same session would have shown `('recommendation', 1)` only.
 ### Lab content
 
 No lab snippet teaches the broken state, so nothing to rewrite. The Workshop Studio "partial for Pattern I" hedge in `01-memory-substrates/index.en.md` is now historical; either remove it on the next pass or keep it as the dev-history footnote it always was.
+
+---
+
+## 16. Per-turn memory substrate visibility — fixtures + Sessions surfaces
+
+The Architecture Memory page already taught the 4-substrate model in depth (tier cards, code snippets, provenance pills). But the **per-turn Sessions surfaces** were under-teaching: `marco-opening-demo/telemetry` showed *"No memory operations in this session"* even though the chat referenced semantic preferences and the system was demonstrably writing working memory each turn. Memory was visible in Architecture but invisible in Observe.
+
+### What changed (source-repo only — no Workshop Studio carry-over needed)
+
+**Fixtures — all 13 sessions × 3 personas now have memory operations recorded:**
+
+| Fixture archetype | Fixtures | Memory pattern applied |
+|---|---|---|
+| Multi-turn opener (Marco linen-Goa) | `session-marco-opening-demo` | Semantic recall before retrieval each turn + Working write after each turn |
+| Deterministic lookup (Marco midpoint) | `session-marco-midpoint-checkpoint` | Working write after the lookup |
+| Single-turn hybrid+rerank (Anna gifting) | `session-anna-morning-ritual`, `session-anna-under-100` | Semantic recall + Working write |
+| Mid-conversation gifting (Anna with episodic context) | `session-anna-candle-pairing`, `session-anna-birthday-gift` | Semantic recall + Episodic recall + Working write |
+| Escalation (no catalog tool can answer) | `session-marco-capstone`, `session-anna-housewarming`, `session-theo-home-not-wardrobe` | Working write after `escalate_to_stylist`; episodic + procedural pills where context applies |
+| Theo browse (slow-craft retrieval) | `session-theo-pour-over`, `session-theo-pour-over-pairing`, `session-theo-linen-seasons` | Semantic recall (+ Episodic where purchase history loads) + Working write |
+| Theo write path (returns) | `session-theo-ceramics-return` | Episodic recall (verifies ownership before write opens) + Working write at end |
+
+**Surfaces:**
+- `pellier/frontend/src/atelier/surfaces/observe/TelemetryTab.tsx` — renamed "Memory orbit" → "Memory substrate" (3 spots); added `→ What are the four substrates?` link to `/atelier/architecture/memory` in the column header.
+- `pellier/frontend/src/atelier/surfaces/observe/ChatTab.tsx` — `MemoryCard` now carries a one-sentence gloss under each substrate label *("This session's last K turns — read first, written every turn"* etc.) plus the same cross-link in its header.
+- `pellier/frontend/src/components/MemoryHandoffCard.tsx` — comment renamed to "Memory substrate explainer".
+
+**Verification:**
+- All 13 fixtures parse as valid JSON; telemetry indexes are sequential 1..N.
+- `traceLink` / `panel-N` refs all resolve to live indexes.
+- `sessions.property.test.ts` passes (2/2).
+
+### Lab content
+
+No Workshop Studio carry-over needed — the Sessions surfaces are source-repo-only. **Closes the Batch 4 "memory substrate rollup" item** in the pending-batches memo.
+
+---
+
+## 17. AgentCore CLI migration + Memory SDK signature fix (Batch 3)
+
+Two pieces of pre-existing drift, both surfacing as warnings before this commit:
+
+1. **`MemorySessionManager.list_long_term_memory_records()` warning** — `unexpected keyword argument 'memoryId'`. The historic `namespace_prefix=` kwarg has been deprecated in favor of `namespace=` (exact match) / `namespace_path=` (hierarchical prefix); `memoryId` and `maxResults` were never the right names. Source-repo fix at `pellier/backend/services/agentcore_memory.py:244` calls the new shape; `test_agentcore_memory.py` pin-locks the spelling so a future SDK bump trips loudly.
+
+2. **`bedrock-agentcore-starter-toolkit` (Python, `agentcore configure`/`launch`) is being retired** in favor of the new Node-based `@aws/agentcore` CLI (https://github.com/aws/agentcore-cli, `npm install -g @aws/agentcore`). The new CLI has NO flag overrides for region / role ARN / JWT config / env vars / entrypoint — everything must be in `agentcore.json` + `aws-targets.json` before `agentcore deploy`. The runtime Python SDK (`bedrock-agentcore>=1.4.3`) is unaffected.
+
+### Source-repo changes (this commit)
+
+| File | Change |
+|---|---|
+| `pellier/backend/agentcore.json.template` | **New.** Carries `${AGENTCORE_ROLE_ARN}` / `${OAUTH_ISSUER_URL}` / `${COGNITO_CLIENT}` / `${MCP_GATEWAY_URL}` / `${AGENT_MODEL_ID}` placeholders — every value previously passed as a `agentcore configure`/`launch` flag. |
+| `pellier/backend/aws-targets.json.template` | **New.** Carries `${AWS_ACCOUNT}` + `${AWS_REGION}` for `agentcore deploy`. |
+| `scripts/deploy/deploy_all.sh` step 5/7 + 6/7 | Replaced 9-flag `agentcore configure` + `agentcore launch --env` block with `envsubst < …template` rendering + single `agentcore deploy -y --json` call. New step 5/7 also derives `$AWS_ACCOUNT` via `aws sts get-caller-identity`. |
+| `pellier/backend/.bedrock_agentcore.yaml` | Header comment marks file as legacy; notes new flow path. |
+| `pellier/backend/agentcore_runtime.py` | Docstring updated to show new deploy invocation. |
+| `scripts/provision_agentcore_runtime.py` | Docstring marks the script DEPRECATED; points at `deploy_all.sh`. |
+| `scripts/deploy/agentcore_runtime_adapter.py` | Docstring updated to show new deploy invocation. |
+| `scripts/deploy/README.md` | Step-by-step deploy refreshed; template files added to the file table. |
+| `pellier/backend/services/agentcore_memory.py:244` | `namespace_prefix=key` → `namespace=key`. |
+| `pellier/backend/tests/test_agentcore_memory.py:229–268` | Pin-test rewritten to reject the deprecated `namespace_prefix` (and the historic `memoryId`/`maxResults`). |
+
+### Workshop Studio carry-over (builder markdowns — upstream-only)
+
+These six lines reference the deprecated CLI surface; they need replacement with the new flow on the Workshop Studio side. Builder markdowns are not edited from this repo.
+
+| File | Line | Stale ref |
+|---|---|---|
+| `lab-content/builders/20-act-2-the-ledger/index.en.md` | 17 | "`agentcore configure`" / "`agentcore launch`" |
+| `lab-content/builders/20-act-2-the-ledger/index.en.md` | 84 | same |
+| `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md` | 9 | introductory "we'll use the starter toolkit" framing |
+| `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md` | 39 | `agentcore configure` invocation |
+| `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md` | 189 | `agentcore launch` invocation |
+| `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md` | 193 | `pip install bedrock-agentcore-starter-toolkit` install line |
+| `lab-content/builders/20-act-2-the-ledger/02-agentcore-runtime/index.en.md` | 224 | wrap-up reference to "configure → launch" two-step |
+
+#### Why the migration matters (teaching note)
+
+The new `@aws/agentcore` CLI has **no flag overrides** for region / role ARN / JWT config / env vars / entrypoint. Every value previously passed as a `agentcore configure` or `agentcore launch --env` flag must now live in `agentcore.json` + `aws-targets.json` *before* `agentcore deploy` runs. This is why the source-repo flow uses `envsubst` to render the templates from CFN outputs at deploy time — there's no other way to inject dynamic values.
+
+The runtime SDK (`bedrock-agentcore>=1.4.3`, used inside `agentcore_runtime_adapter.py`) is unchanged — only the deploy CLI moved.
+
+#### Concrete before/after blocks
+
+**Install line** (Workshop Studio repo, `02-agentcore-runtime/index.en.md:193`):
+
+```bash
+# BEFORE (deprecated)
+pip install bedrock-agentcore-starter-toolkit
+
+# AFTER
+# Prerequisite: Node 18+ on the participant machine. Bootstrap script
+# already provisions Node on Workshop Studio EC2; verify with `node -v`.
+npm install -g @aws/agentcore
+```
+
+**Configure + launch two-step** (`02-agentcore-runtime/index.en.md:39, 189` and `index.en.md:17, 84`):
+
+```bash
+# BEFORE — configure (line 39) + launch (line 189)
+agentcore configure \
+  --entrypoint scripts/deploy/agentcore_runtime_adapter.py \
+  --execution-role $AGENTCORE_ROLE_ARN \
+  --authorizer-type CUSTOM_JWT \
+  --jwt-discovery-url $OAUTH_ISSUER_URL/.well-known/openid-configuration \
+  --jwt-allowed-clients $COGNITO_CLIENT \
+  --env MCP_GATEWAY_URL=$MCP_GATEWAY_URL \
+  --env AGENT_MODEL_ID=$AGENT_MODEL_ID
+agentcore launch --env MCP_GATEWAY_URL=$MCP_GATEWAY_URL --env AGENT_MODEL_ID=$AGENT_MODEL_ID
+
+# AFTER — render templates from CFN outputs, then one-shot deploy
+envsubst < pellier/backend/agentcore.json.template > pellier/backend/agentcore.json
+envsubst < pellier/backend/aws-targets.json.template > pellier/backend/aws-targets.json
+agentcore deploy -y --json
+```
+
+**Template shape** (the new `agentcore.json` carries the same values that were CLI flags before):
+
+```json
+{
+  "version": 1,
+  "name": "pellier",
+  "runtimes": [
+    {
+      "name": "pellier_orchestrator",
+      "entrypoint": "scripts/deploy/agentcore_runtime_adapter.py",
+      "requirementsFile": "scripts/deploy/requirements.txt",
+      "executionRoleArn": "${AGENTCORE_ROLE_ARN}",
+      "protocol": "HTTP",
+      "authorizerType": "CUSTOM_JWT",
+      "authorizerConfiguration": {
+        "customJwtAuthorizer": {
+          "discoveryUrl": "${OAUTH_ISSUER_URL}/.well-known/openid-configuration",
+          "allowedClients": ["${COGNITO_CLIENT}"]
+        }
+      },
+      "envVars": [
+        { "name": "MCP_GATEWAY_URL", "value": "${MCP_GATEWAY_URL}" },
+        { "name": "AGENT_MODEL_ID", "value": "${AGENT_MODEL_ID}" }
+      ]
+    }
+  ]
+}
+```
+
+`aws-targets.json.template` is just `{ "account": "${AWS_ACCOUNT}", "region": "${AWS_REGION}" }` — `$AWS_ACCOUNT` is derived in the source-repo deploy script via `aws sts get-caller-identity`.
+
+**Framing prose** (`02-agentcore-runtime/index.en.md:9, 224` and the wrap-up):
+
+| Stale | Replacement |
+|---|---|
+| "we'll use the AgentCore starter toolkit" | "we'll use the AgentCore CLI (`@aws/agentcore`) — Node-based, replaces the deprecated Python `bedrock-agentcore-starter-toolkit`." |
+| "configure → launch two-step" | "render-templates → deploy one-shot — `envsubst` injects CFN outputs into `agentcore.json` + `aws-targets.json`, then `agentcore deploy -y --json` does the rest." |
+| any "edit `.bedrock_agentcore.yaml`" callout | drop entirely; the new CLI doesn't read that file. The source repo keeps it as a legacy stub but the deploy path no longer touches it. |
+
+#### Verification on a Workshop Studio EC2
+
+After the upstream rewrite, a participant should be able to run:
+
+```bash
+node -v                                      # 18+
+npm install -g @aws/agentcore
+agentcore --version                          # confirms install
+cd pellier/backend
+envsubst < agentcore.json.template > agentcore.json
+envsubst < aws-targets.json.template > aws-targets.json
+agentcore deploy -y --json
+```
+
+…and see the runtime ARN in stdout (`agentcore deploy --json` emits one JSON object with `runtimeArn`, `endpointArn`, `iamRoleArn`). If `envsubst` leaves any `${...}` placeholders unfilled (i.e., the env var wasn't set by the bootstrap script), the deploy will fail validation before any AWS call — that's the intended fail-fast behavior, and the bootstrap script's `set -e` will surface it cleanly.
+
+### Italics pass on Atelier surfaces (paired with Batch 3)
+
+Copy hygiene done in the same commit as the CLI migration: 42 `fontStyle: 'italic'` removals + 6 `<em>` tag removals across 18 Atelier surface files. Rationale: the Atelier already uses Fraunces serif for editorial weight, so italic on top was redundant + cluttering on metric labels and prose. SVG diagram annotations (`<text fontStyle="italic">` in `StateDetail.tsx` / `McpDetail.tsx`) and the orientation arrow `<span>` at `Agents.tsx:294` are intentional and were preserved.
+
+**Closes Batch 3 (both items): SDK warning fix + italics removal.**
+
+---
+
+## 18. AgentCore Identity sub-batch — namespace drift + lifecycle strip (Batch 4)
+
+Two pieces landed together (2026-05-26). The first is a real accuracy bug — colon-form namespace strings would have failed at the AgentCore API boundary if they ever hit live SDK calls; the in-memory fallback path papered over it in dev. The second is a teaching surface that makes the Cognito → namespace handoff legible to operators.
+
+### (a) Namespace format drift (colon → dash)
+
+AgentCore session IDs must match `[a-zA-Z0-9][a-zA-Z0-9-_]*`. The canonical namespace builder (`AgentCoreIdentityService.build_namespace`) returns:
+
+- Authenticated: `user-{cognito_sub}-session-{session_id}`
+- Anonymous: `anon-{session_id}`
+
+The fixture, the chat handler, the substrate-scan filter, four docstrings, and the `solutions/the-ledger/` mirror all carried colon-form strings (`user:{sub}:session:{id}` / `anon:{sid}`). Two of those would have caused real, visible bugs:
+
+1. `services/chat.py` was constructing the namespace inline by string concatenation — would have produced colon-form keys against a real AgentCore Memory backend, which 400s.
+2. `routes/atelier_observatory.py:480` filters `_SESSION_STORE` by prefix `f"user:{customer_id}:session:"`. Once writers use dashes, this filter returns zero matches — the live working-substrate panel would have rendered empty.
+
+### Source-repo files touched (this commit)
+
+| File | Change |
+|---|---|
+| `pellier/backend/services/chat.py` | Replaced inline namespace construction with `AgentCoreIdentityService.build_namespace(sub, session_id)` so the format lives in one place. |
+| `pellier/backend/routes/atelier_observatory.py:480` | `f"user:{customer_id}:session:"` → `f"user-{customer_id}-session-"`. Substrate-scan filter now matches canonical writers. |
+| `pellier/backend/services/agentcore_identity.py` | Module docstring + CHALLENGE 9.2 block updated to dash form with regex note. |
+| `pellier/backend/services/agentcore_memory.py` | Module docstring + CHALLENGE 6 block + 2 method docstrings updated. (Preferences key keeps colons — `user:{user_id}:preferences` has no session-id component, so the regex doesn't apply.) |
+| `pellier/backend/routes/agent.py` | Three docstrings updated. |
+| `solutions/the-ledger/services/agentcore_identity.py` | Function body + docstring updated. The "byte-for-byte mirror with the challenge block" claim was untrue before this fix. |
+| `solutions/the-ledger/services/agentcore_memory.py` | Multiple docstring + comment sites updated. |
+| `pellier/backend/tests/test_agentcore_memory.py` | Tests now call `AgentCoreIdentityService.build_namespace` directly (pins the contract through the canonical builder); previous hardcoded `"user:alice:session:s1"` strings replaced. Two new namespace-isolation tests assert `user-alice-session-s1` form. |
+| `pellier/backend/tests/test_agent_chat_stream.py` | Five docstring sites updated. |
+| `pellier/backend/tests/test_agentcore_identity.py` | Three docstring sites updated. |
+| `pellier/frontend/src/atelier/surfaces/understand/architecture/MemoryDetail.tsx` | Cheat-sheet entry + TierCard prose + code snippet updated to dash form; inline `f"user:..."` replaced with `AgentCoreIdentityService.build_namespace(user_id, session_id)`. |
+| `pellier/frontend/src/atelier/fixtures/production-patterns.json` | Identity card summary, `namespacePattern.anon`/`signedIn`, code snippet, and Multitenancy answer + code snippet all updated. |
+
+### (b) Production Patterns lifecycle strip
+
+New `wiring` field on `IdentityPattern` carries five lifecycle steps, each anchored to the file/function that owns the hop. Renders as a numbered strip on the Identity card so operators can read the diff alongside the surface:
+
+1. **Cognito hosted UI** — `frontend/src/contexts/AuthContext.tsx · parseTokenFromHash`
+2. **Frontend stores token + session id** — `frontend/src/services/chat.ts · getSessionId / getAuthHeaders`
+3. **Outgoing request** — `frontend/src/services/chat.ts · /api/chat/stream POST`
+4. **Backend identity resolution** — `backend/services/agentcore_identity.py · get_verified_user_context`
+5. **Namespace handed to AgentCore Memory** — `backend/services/agentcore_identity.py · build_namespace`
+
+### Tests
+
+`pellier/frontend/src/atelier/surfaces/measure/ProductionPatterns.test.tsx` (new, 6 tests) pins:
+- Namespace pattern uses dashes, not colons (assertion against the regex constraint).
+- Wiring strip lists exactly 5 lifecycle hops, each with a file anchor.
+- Wiring covers the full Cognito → namespace chain (keyword spot-check).
+- Identity card renders the strip with all 5 steps + their anchors.
+- Both anon and signed-in namespace cards render in dash form.
+
+312/312 frontend tests green; 478 backend pass + 1 benign skip.
+
+### Lab content
+
+No Workshop Studio carry-over needed — the namespace canonical form was already accurate in builder markdowns (or absent). Source-repo only.
+
+---
+
+## 19. LangGraph comparison sub-batch — Routing surface (Batch 4 close)
+
+Operators arriving from a LangChain/LangGraph background ask the same question every workshop: *"where's the graph?"* The Routing surface ships three patterns (Dispatcher, Agents-as-Tools, Graph) — three progressive choices, not one StateGraph. The new card pins the editorial difference.
+
+### Source-repo change (this commit)
+
+| File | Change |
+|---|---|
+| `pellier/frontend/src/atelier/surfaces/understand/Routing.tsx` | New `LangGraphComparisonCard` rendered after `DispatcherIntentCard`. Header *"Three patterns, not one graph."* Three-row mapping table + "when to reach for LangGraph instead" footer. |
+| `pellier/frontend/src/atelier/surfaces/understand/Routing.test.tsx` | **New.** 4 tests: editorial header present; three mapping rows with non-empty cells; recognizable LangGraph-concept keywords per row (`conditional edge` / `supervisor` / `StateGraph`); footer's three workflow shapes (`checkpoint`, `human-in-the-loop`, `cycle/planner-critic/topology`). |
+
+### Mapping table (rendered)
+
+| Pellier pattern | Closest LangGraph concept | Key difference |
+|---|---|---|
+| Dispatcher (rules → specialist) | Conditional edges from a router node | No graph object. The router is a Python function in `services/chat.py` — keyword rules, no LLM, ~60–120 ms. |
+| Agents-as-Tools (orchestrator + `@tool`) | Supervisor pattern with `create_react_agent` | Strands keeps specialists as `@tool` callables; the orchestrator is just an Agent. No `StateGraph`, no `compile()` step, no checkpointer wiring. |
+| Graph (Strands GraphBuilder) | `StateGraph` with `add_node` / `add_edge` | Closest analogue. Strands GraphBuilder is opt-in for multi-step ops; in LangGraph the graph is the default authoring surface from turn one. |
+
+### Editorial framing (footer copy)
+
+*"When to reach for LangGraph instead: long-running stateful workflows that need durable checkpointing, human-in-the-loop pause/resume, or cycle-heavy graphs (planner ↔ critic ↔ executor) where the topology itself is the design. Pellier's e-commerce concierge hot path is none of those — a keyword classifier plus one specialist call wins on latency every time."*
+
+### Why co-located, not a separate sidebar
+
+The "where's the graph?" question arrives *mid-Routing surface*, while the operator is already comparing the three patterns. Splitting it to a top-level sidebar would force a context switch. Co-located, the comparison reads as a fourth column on the same mental model.
+
+### Lab content
+
+No Workshop Studio carry-over needed — `lab-content/builders/90-appendix/04-your-stack/index.en.md:26` already lists LangGraph alongside LlamaIndex + Bedrock Agents as Strands alternatives, framed correctly (different runtime, portable `@tool` contract). The new Routing card supplements that one-line appendix mention with the operator-facing comparison; no upstream rewrite needed.
+
+316/316 frontend tests green. **Closes Batch 4.**
+
+---
+
+## 20. AgentCore — Workshop Studio testing guide (Runtime + Gateway + Memory)
+
+The new `@aws/agentcore` Node CLI changed the deploy ergonomics enough that the full Runtime + Gateway + Memory loop should be walked end-to-end on a Workshop Studio account before the next session. This section is the verification script — copy/paste-able blocks ordered by dependency.
+
+> **Why this matters.** The Python `bedrock-agentcore-starter-toolkit` shipped two CLI verbs (`agentcore configure` + `agentcore launch`) that took region / role ARN / JWT config / env vars as flags. The new Node CLI has *no flags* for any of those — everything must live in `agentcore.json` and `aws-targets.json` before `agentcore deploy` runs. The migration is mostly mechanical, but the new "config-as-file" shape is what trips operators on first contact.
+
+### Prerequisites
+
+| Resource | Where it comes from |
+|---|---|
+| Workshop Studio EC2 (Code Editor) | Provisioned by the lab CFN; "Open Code Editor" link from the event console |
+| Cognito user pool + client | CFN outputs `COGNITO_POOL`, `COGNITO_CLIENT` |
+| Aurora cluster ARN + secret | CFN outputs `PGHOSTARN`, `PGSECRET`, `PGDATABASE` |
+| AgentCore execution role | CFN output `AGENTCORE_ROLE_ARN` (trust policy: `bedrock-agentcore.amazonaws.com`) |
+| Stack name | CFN output `STACKNAME` (used for the smoke-test user lookup) |
+| Region | `us-west-2` (AgentCore GA region) |
+
+The Workshop Studio AMI ships with `agentcore` (Node CLI) preinstalled. Verify before starting:
+
+```bash
+which agentcore && agentcore --version   # /usr/local/bin/agentcore, v1.x
+node --version                           # >= 20.x
+python3.13 --version                     # 3.13.x
+aws sts get-caller-identity --query Account --output text
+```
+
+If the CLI is missing (or you're testing a fresh AMI build):
+
+```bash
+npm install -g @aws/agentcore
+```
+
+**Reference docs:**
+- AgentCore CLI repo: https://github.com/aws/agentcore-cli
+- Bedrock AgentCore developer guide: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/
+- Runtime API reference: https://docs.aws.amazon.com/bedrock-agentcore/latest/APIReference/
+
+### Step 1 — Provision AgentCore Memory (one-time per account)
+
+`AGENTCORE_MEMORY_ID` is read at backend boot time (`config.py:178`); when unset, `AgentCoreMemoryService` falls back to in-process dicts and the four-substrate panels show `fixture` provenance. To test the live path:
+
+```bash
+# us-west-2; one memory per workshop account is enough.
+python3.13 - <<'PY'
+import boto3, sys
+client = boto3.client("bedrock-agentcore-control", region_name="us-west-2")
+
+# Idempotent: reuse if a PellierSTM memory already exists.
+for mem in client.list_memories(maxResults=20).get("memories", []):
+    if mem.get("name") == "PellierSTM":
+        print(mem["id"]); sys.exit(0)
+
+resp = client.create_memory(
+    name="PellierSTM",
+    description="Pellier workshop — short-term conversation memory",
+    eventExpiryDuration=30,  # days
+)
+print(resp["memory"]["id"])
+PY
+```
+
+API ref: [`bedrock-agentcore-control:CreateMemory`](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateMemory.html). Capture the printed memory id, then:
+
+```bash
+echo "AGENTCORE_MEMORY_ID=<paste-memory-id>" >> pellier/backend/.env
+# Restart uvicorn (Builder's Session AMI: --reload picks it up automatically;
+# otherwise: pkill -HUP -f 'uvicorn app:app').
+```
+
+**Verify:** hit `GET /api/agentcore/memory/status` — it should report `{"configured": true, "memory_id": "<id>", ...}`. Run any persona session in the Boutique chat, then `GET /api/agent/session/<session_id>` — the response now includes the AgentCore-side event log (working memory) instead of just the in-process buffer.
+
+### Step 2 — Deploy the four Lambda MCP servers + AgentCore Gateway + Runtime
+
+`scripts/deploy/deploy_all.sh` is the canonical end-to-end script. It now uses the Node CLI for the Runtime step (no more `agentcore configure`/`launch`) and provisions four Lambda MCP servers (search adds `find_pieces_hybrid`; the new `experience` server carries `process_return` + `escalate_to_stylist` so every backend `@tool` reaches the Gateway):
+
+```bash
+cd $REPO_PATH/scripts/deploy
+
+# All values are CFN outputs of the workshop stack.
+export PGHOSTARN=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`AuroraClusterArn`].OutputValue' --output text)
+export PGSECRET=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`AuroraSecretArn`].OutputValue' --output text)
+export PGDATABASE=postgres
+export COGNITO_POOL=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' --output text)
+export COGNITO_CLIENT=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text)
+export AGENTCORE_ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`AgentCoreExecutionRoleArn`].OutputValue' --output text)
+export AWS_REGION=us-west-2
+
+source ./deploy_all.sh
+```
+
+`deploy_all.sh` runs eight steps:
+
+1. **Search Lambda** (`pellier-search-server-function`) — Lambda MCP server for `semantic_search`, `find_pieces_hybrid`, and the inventory tools.
+2. **Pricing Lambda** (`pellier-pricing-server-function`) — Lambda MCP server for price analysis + deal finding.
+3. **Recommendation Lambda** (`pellier-recommend-server-function`) — Lambda MCP server for personalized recommendations.
+4. **Experience Lambda** (`pellier-experience-server-function`) — Lambda MCP server for `process_return` (atomic ownership + INSERT + conditional quantity decrement against `pellier.returns`) and `escalate_to_stylist` (UI-only handoff payload).
+5. **AgentCore Gateway** — created with Cognito JWT auth + the 4 Lambda targets; captures `MCP_GATEWAY_URL`. ([`CreateGateway`](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateGateway.html))
+6. **Render `agentcore.json` + `aws-targets.json`** — `envsubst` substitutes `${AGENTCORE_ROLE_ARN}`, `${OAUTH_ISSUER_URL}`, `${COGNITO_CLIENT}`, `${MCP_GATEWAY_URL}`, `${AGENT_MODEL_ID}`, `${AWS_ACCOUNT}`, `${AWS_REGION}` from env into the two `.template` files. The Node CLI has *no* flags for these — they must be in JSON before deploy.
+7. **`agentcore deploy -y --json`** — reads both JSON files from `pellier/backend/`, creates the Runtime, prints a JSON envelope on stdout for downstream tooling. ([`CreateAgentRuntime`](https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateAgentRuntime.html))
+8. **Three smoke-test invocations** against the deployed Runtime (search / trending / pricing).
+
+Fail-fast guards: step 6 errors out via `: "${VAR:?...}"` if any of `AGENTCORE_ROLE_ARN`, `COGNITO_POOL`, `COGNITO_CLIENT`, `AWS_REGION` is unset — without those, the rendered JSON would have empty strings and `agentcore deploy` would only fail at the AWS-call stage with a much harder-to-triage error.
+
+### Step 3 — Verify Gateway tool discovery
+
+The Gateway now exposes all 13 backend `@tool` functions over MCP streamable HTTP, split across four Lambda targets. List them:
+
+```bash
+cd $REPO_PATH/scripts/deploy
+uv run test_gateway_tools.py --gateway-url "$MCP_GATEWAY_URL" --token "$TOKEN"
+```
+
+Expected 13 tools (search target carries `find_pieces_hybrid` alongside the basic vector path; the new `experience` target carries `process_return` + `escalate_to_stylist` — closing the prior gateway-vs-backend asymmetry):
+
+```
+find_pieces, find_pieces_hybrid, whats_trending, price_intelligence,
+explore_collection, floor_check, running_low, restock_shelf,
+side_by_side, returns_and_care, style_match, process_return,
+escalate_to_stylist
+```
+
+If the count is wrong: re-check `services/agentcore_gateway.py:GATEWAY_TOOL_NAMES` — `seed_tool_registry.py` uses the same list, so a drift surfaces in both spots.
+
+### Step 4 — Test the Runtime (deployed agent path)
+
+```bash
+export AGENT_RUNTIME_ID=$(aws bedrock-agentcore-control list-agent-runtimes \
+  --region "$AWS_REGION" \
+  --query "agentRuntimes[?agentRuntimeName=='pellier_orchestrator'].agentRuntimeId | [0]" \
+  --output text)
+
+# Cognito access token (workshop user) — 1-hour lifetime.
+export USER=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApplicationUserEmail`].OutputValue' --output text)
+export PASSWORD=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApplicationUserPassword`].OutputValue' --output text)
+export TOKEN=$(aws cognito-idp initiate-auth --client-id "$COGNITO_CLIENT" \
+  --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters "USERNAME=$USER,PASSWORD=$PASSWORD" \
+  --region "$AWS_REGION" --query 'AuthenticationResult.AccessToken' --output text)
+
+uv run test_runtime.py \
+  --runtime-id "$AGENT_RUNTIME_ID" \
+  --prompt "Find me linen for a 10-day trip to Goa" \
+  --token "$TOKEN" --stream
+```
+
+Expected: streaming response with product cards. Trace links: CloudWatch log group `/aws/bedrock-agentcore/runtimes/<runtime-id>` (search for the `session.id` you passed in `payload`).
+
+### Step 5 — Wire the local backend to the deployed Gateway
+
+The hot path most operators want to test is *"local backend → AgentCore Gateway → Lambda MCP servers."* The runtime-as-Lambda hop is the production target; the local-orchestrator-against-live-Gateway path is what you exercise in the workshop because it lets participants edit Python and watch the Gateway path light up immediately.
+
+```bash
+# pellier/backend/.env
+AGENTCORE_GATEWAY_URL=<paste $MCP_GATEWAY_URL>
+AGENTCORE_GATEWAY_API_KEY=<paste from Gateway create — typically Cognito client secret or workshop literal>
+AGENTCORE_MEMORY_ID=<from Step 1>
+USE_AGENTCORE_RUNTIME=false   # leave false; we're testing the Gateway path, not the Runtime path
+```
+
+Restart uvicorn (Builder's AMI: `--reload` watch picks it up automatically).
+
+**Verify:** in the Boutique, run *"What linen do you have for 10 days in Goa?"*
+
+- The orchestrator picks the Gateway path because `AGENTCORE_GATEWAY_URL` is set (`services/chat.py:1603`).
+- Atelier surface `/atelier/architecture/mcp` (McpDetail) status pill flips from `fixture` to `live`.
+- `GET /api/workshop/card7` (Workshop card 7 panel) shows `gateway.configured = true` and lists all 13 tools.
+
+If the orchestrator still uses in-process tools, `services/agentcore_gateway.py:create_gateway_orchestrator` returned `None` — check the uvicorn log for `MCP dependencies not installed` or `Gateway orchestrator setup failed`. The `mcp` Python package is in `pellier/backend/requirements.txt`; on a fresh AMI you may need `uv sync`.
+
+### Step 6 — Production-ready: route Boutique tool calls through MCP Gateway
+
+This is the teaching moment for *"taking it to production."* Today's Boutique calls the 13 `@tool` functions in-process via Strands. The Gateway path moves those tool definitions out of the orchestrator's process and into four Lambda functions discovered over MCP. The wiring already exists; the workshop just needs to flip the switch and have participants observe what changes.
+
+**No code change needed for the demo path** (Step 5 covers it). The teaching points:
+
+1. **Tool catalog moves out of the agent prompt.** With `AGENTCORE_GATEWAY_URL` set, the orchestrator pulls tools dynamically via `MCPClient.list_tools_sync()` instead of importing them from `services.agent_tools`. Show this in the Atelier Tools surface — provenance pill flips per tool.
+2. **Auth boundary moves to the Gateway.** Lambda functions are no longer publicly callable; the Gateway enforces Cognito JWT before invoking them. Demo the failure case by hitting a Lambda's function URL directly (`InvalidSignatureException`).
+3. **Semantic tool discovery scales.** `services/agentcore_gateway.py:create_gateway_orchestrator_with_semantic_search` already wires the `x_amz_bedrock_agentcore_search` tool. With 13 tools it's overkill, but show the prompt difference: instead of *"here are 13 tools, pick one"* the orchestrator gets *"call `x_amz_bedrock_agentcore_search` with the user's intent, then invoke the returned tool."* This is how the pattern scales to hundreds of tools without bloating the agent's prompt.
+4. **Every backend tool now has a Gateway path.** The previous gateway-vs-backend asymmetry (10 of 13) is closed: `find_pieces_hybrid` rides the search target, `process_return` + `escalate_to_stylist` ride the new `experience` target. This is what lets the runtime-adapter prompt list every tool the in-process orchestrator can — no more "this only works locally" caveats during the workshop.
+
+### Step 7 — Cleanup (Workshop Studio account hygiene)
+
+```bash
+# Delete the runtime (reads agentcore.json from cwd)
+cd $REPO_PATH/pellier/backend && agentcore delete -y
+# Delete the gateway
+aws bedrock-agentcore-control delete-gateway --gateway-identifier <gw-id> --region us-west-2
+# Delete the memory
+aws bedrock-agentcore-control delete-memory --memory-id <mem-id> --region us-west-2
+# Delete the 4 Lambdas
+for fn in pellier-search-server pellier-pricing-server pellier-recommend-server pellier-experience-server; do
+  aws lambda delete-function --function-name ${fn}-function --region us-west-2
+done
+```
+
+Workshop Studio accounts are time-boxed, so cleanup is mostly to verify the deletion paths work — the account itself reaps everything when the event ends.
+
+### Failure modes to expect (and how to diagnose)
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `agentcore deploy` errors with `AccessDenied` on `iam:PassRole` | Workshop role lacks `iam:PassRole` for the AgentCore execution role | CFN should grant it; if testing outside the lab, attach `IAMFullAccess` to your test principal |
+| `agentcore deploy` succeeds but `list-agent-runtimes` returns nothing | Different region between deploy and list | Both must use `us-west-2`; check `aws-targets.json` and the `--region` flag |
+| Gateway returns `401` on tool list | Cognito token expired (1-hour default) or wrong client id | Re-run the `cognito-idp initiate-auth` block; verify `COGNITO_CLIENT` matches the Gateway's allowed-clients |
+| Runtime returns `MCP_GATEWAY_URL not configured` | `agentcore.json.template` rendered before `MCP_GATEWAY_URL` was exported (step 4 of `deploy_all.sh` exports it; manual reorder breaks this) | Re-export `MCP_GATEWAY_URL`, re-run step 5 (`envsubst`) and step 6 (`agentcore deploy`) |
+| `mem_id` from Step 1 was created but `/api/agentcore/memory/status` still says `configured: false` | Backend wasn't restarted after the `.env` edit | `pkill -HUP -f 'uvicorn app:app'` (or wait for `--reload`) |
+| Frontend McpDetail still shows `fixture` after Step 5 | Frontend caches the first `/api/workshop/card7` response | Hard reload (Cmd-Shift-R) — fixture/live flip is reflected only on next request |
+
+### What this guide does *not* cover
+
+- **AgentCore Identity** — Cognito hosted UI is separate from the Runtime/Gateway/Memory loop. Builder's Session uses Cognito for the Boutique frontend's auth; the Identity-as-resource-credential flow (3rd-party API tokens vaulted in Identity) is mentioned in the Atelier Identity card but not exercised in this workshop.
+- **AgentCore Code Interpreter / Browser** — out of scope for Pellier; the agent-tools surface mentions them as available primitives but doesn't deploy them.
+- **Multi-region / DR** — workshop deploys to `us-west-2` only.
+
+---
+
+## 21. Gateway parity sub-batch — every backend `@tool` is now a Gateway target (Batch 4 follow-on)
+
+The §20 *"optional extension"* (move `find_pieces_hybrid` / `process_return` / `escalate_to_stylist` behind the Gateway) is now wired in the source repo. Closes the gateway-vs-backend asymmetry that §14 flagged — `GATEWAY_TOOL_NAMES` (and any "10 of 13" prose downstream) need a follow-up touch in a separate pass; this section pins what landed here.
+
+**Source-repo edits (this commit):**
+- ✅ `scripts/deploy/pellier_search_server.py` — `find_pieces_hybrid` was already implemented and registered in `TOOLS`; the Gateway schema now lists it (previously only the in-process orchestrator could call it).
+- ✅ `scripts/deploy/pellier_experience_server.py` — new Lambda handler. Mirrors `BusinessLogic.process_return` (atomic ownership-check → INSERT into `pellier.returns` → conditional `product_catalog.quantity` decrement, all inside one RDS Data API transaction) and `agent_tools.escalate_to_stylist` (UI-only handoff payload, no DB write). Cedar's allowed-reason set is duplicated as a defense-in-depth guard inside the Lambda.
+- ✅ `scripts/deploy/deploy_gateway.py` — `TOOL_SCHEMAS` gains `find_pieces_hybrid` under the search target plus a new `experience` target with `process_return` + `escalate_to_stylist`. CLI args + `main()` accept `--experience-lambda-arn`.
+- ✅ `scripts/deploy/deploy_all.sh` — restructured from 7 → 8 steps. Step 4 deploys the new Experience Lambda; step 5 (Gateway) now passes `--experience-lambda-arn`; cleanup loop deletes 4 Lambdas. Banner numbers, comment block, and the docstring at the top of the file are all renumbered.
+- ✅ `scripts/deploy/agentcore_runtime_adapter.py` — orchestrator system prompt lists the new tools (`find_pieces_hybrid`, `process_return`, `escalate_to_stylist`) and adds a rule for *when* to escalate (only when no other tool can honestly answer).
+- ✅ `lab-content-audit.md` §20 — step list is now 1–8, expected Gateway tool count is 13 (the prior list of 10), cleanup loop deletes 4 functions, and the "optional extension" callout is replaced with a "every backend tool now has a Gateway path" teaching point.
+
+**What still needs a follow-up:**
+- `services/agentcore_gateway.py:GATEWAY_TOOL_NAMES` and `seed_tool_registry.py` still describe a 10-tool gateway view. Once those are widened to all 13, §14's "9 tools / 10 entries" drift list collapses to a single canonical count.
+- `agentcore.json.template` doesn't change — the Runtime adapter discovers tools dynamically from the Gateway URL, so adding targets is invisible to the agentcore.json envelope.
+
+**Why:** The §20 testing guide called this out as a follow-on; landing it removes the *"this only works locally"* caveat from `find_pieces_hybrid` (the production retrieval pipeline) and from the two anchor write/handoff tools. Workshop participants now see *every* backend tool light up over Gateway when they flip `AGENTCORE_GATEWAY_URL`.
+
+**How to apply:** When updating the Gateway tool count in any other surface (Atelier Tools card, Workshop card 7, README), the source-of-truth count is now 13 of 13. The previous "10 of 13" framing is obsolete.

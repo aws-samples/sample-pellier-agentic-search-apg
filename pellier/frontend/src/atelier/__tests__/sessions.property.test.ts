@@ -3,7 +3,8 @@
  *
  * Property 1: Sessions are sorted by recency — for any list of Session
  * objects with distinct timestamps, sortSessionsByRecency returns them
- * in descending order (most recent first).
+ * in ascending order (earliest first) so the instructor view reads
+ * Marco → Anna → Theo, matching the canonical persona order.
  *
  * Property 2: Session card field completeness — for any valid Session
  * object, all 6 required card fields (hex ID, opening query, elapsed
@@ -92,7 +93,7 @@ const sessionsWithDistinctTimestampsArb: fc.Arbitrary<Session[]> = fc
 // Property 1: Sessions are sorted by recency
 // ---------------------------------------------------------------------------
 describe('Property 1: Sessions are sorted by recency', () => {
-  it('sortSessionsByRecency returns sessions in descending timestamp order', () => {
+  it('sortSessionsByRecency returns sessions in ascending timestamp order', () => {
     fc.assert(
       fc.property(sessionsWithDistinctTimestampsArb, (sessions) => {
         const sorted = sortSessionsByRecency(sessions);
@@ -100,11 +101,11 @@ describe('Property 1: Sessions are sorted by recency', () => {
         // Length must be preserved.
         expect(sorted).toHaveLength(sessions.length);
 
-        // Each consecutive pair must be in descending order.
+        // Each consecutive pair must be in ascending order.
         for (let i = 0; i < sorted.length - 1; i++) {
           const current = new Date(sorted[i].timestamp).getTime();
           const next = new Date(sorted[i + 1].timestamp).getTime();
-          expect(current).toBeGreaterThanOrEqual(next);
+          expect(current).toBeLessThanOrEqual(next);
         }
       }),
       { numRuns: 200 },

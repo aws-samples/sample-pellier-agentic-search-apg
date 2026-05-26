@@ -16,7 +16,7 @@ Endpoints:
     GET  /tools                — tools with signatures, status, metadata
     POST /tools/discover       — pgvector semantic search
     GET  /routing              — 3 routing patterns with active indicator
-    GET  /memory/{persona}     — STM + LTM state for persona
+    GET  /memory/{persona}     — four-substrate memory state (working / semantic / episodic / procedural) for persona
     GET  /performance          — metrics and benchmarks
     GET  /evaluations          — agent scorecards
     GET  /observatory          — dashboard summary
@@ -477,7 +477,7 @@ async def _load_live_working(persona: str) -> Optional[list]:
         from services.agentcore_memory import _SESSION_STORE  # type: ignore[attr-defined]
     except Exception:
         return None
-    prefix = f"user:{customer_id}:session:"
+    prefix = f"user-{customer_id}-session-"
     turns: list[dict] = []
     for ns, ns_turns in _SESSION_STORE.items():
         if not ns.startswith(prefix):
@@ -549,7 +549,7 @@ async def get_memory(persona: str):
 
     Each substrate is sourced honestly:
       working    — AgentCore Memory session turns under
-                   user:{customer_id}:session:{sid}; live when any
+                   user-{customer_id}-session-{sid}; live when any
                    namespace exists, otherwise the fixture.
       semantic   — AgentCore Memory KV under user:{customer_id}:preferences;
                    live when a Preferences blob is persisted, otherwise
@@ -572,7 +572,7 @@ async def get_memory(persona: str):
                 "persona": persona,
                 "working": _empty_substrate(
                     "Working - AgentCore Memory",
-                    f"user:{persona}:session:{{sid}}",
+                    f"user-{persona}-session-{{sid}}",
                 ),
                 "semantic": _empty_substrate(
                     "Semantic - AgentCore Memory KV",
@@ -602,7 +602,7 @@ async def get_memory(persona: str):
             # 4-substrate shell so downstream overlays don't KeyError.
             for key, label, store in (
                 ("working", "Working - AgentCore Memory",
-                 f"user:{persona}:session:{{sid}}"),
+                 f"user-{persona}-session-{{sid}}"),
                 ("semantic", "Semantic - AgentCore Memory KV",
                  f"user:{persona}:preferences"),
                 ("episodic", "Episodic - Aurora",

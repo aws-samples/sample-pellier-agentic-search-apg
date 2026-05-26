@@ -776,7 +776,6 @@ const ExtractedFiltersStrip: React.FC<ExtractedFiltersStripProps> = ({
               fontFamily: 'var(--at-mono)',
               fontSize: '11px',
               color: 'var(--at-ink-3)',
-              fontStyle: 'italic',
             }}
           >
             no structured signal — degenerates to plain vector + rerank
@@ -795,7 +794,6 @@ const ExtractedFiltersStrip: React.FC<ExtractedFiltersStripProps> = ({
         <span
           style={{
             fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
             fontSize: '14px',
             color: 'var(--at-ink-1)',
           }}
@@ -1171,7 +1169,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
             marginTop: '8px',
           }}
         >
-          The first three rows (vector-only, hybrid RRF, hybrid + rerank) <em>rank</em>, but they never <em>filter</em>.
+          The first three rows (vector-only, hybrid RRF, hybrid + rerank) rank, but they never filter.
           A "$100 milestone gift" query running through hybrid+rerank can
           still surface a $185 candle in the top-5 — the price ceiling is
           a string the embedding never quite respects. The agentic row
@@ -1221,7 +1219,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
             websearch_to_tsquery
           </code>{' '}
           AND-join every stem. A six-stem conversational query
-          (<em>"thoughtful gift for someone who loves morning rituals"</em>)
+          ("thoughtful gift for someone who loves morning rituals")
           matches zero products if no description contains all six stems
           together — exactly the shape of query a boutique shopper asks.
           Pellier OR-joins content tokens via{' '}
@@ -1507,7 +1505,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -1568,7 +1565,6 @@ const EmptyState: React.FC = () => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '24px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',

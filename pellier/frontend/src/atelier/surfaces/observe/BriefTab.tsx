@@ -231,55 +231,64 @@ const EvidencePanel: React.FC<{
   </ExpCard>
 );
 
-/** Memory tier row */
+/** Memory substrate row — uppercase mono label in editorial neutral, matching the Memory dashboard. */
+const SUBSTRATE_LABELS: Record<string, string> = {
+  working: 'Working',
+  semantic: 'Semantic',
+  episodic: 'Episodic',
+  procedural: 'Procedural',
+  skill: 'Skill',
+  // Legacy aliases — keep so older fixtures still render until they're migrated.
+  stm: 'Working',
+  ltm: 'Semantic',
+};
+
 const MemoryRow: React.FC<{ tier: string; content: string }> = ({
   tier,
   content,
-}) => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '12px',
-      padding: '10px 0',
-      borderBottom: '1px solid var(--at-rule-1)',
-    }}
-  >
-    <span
+}) => {
+  const label = SUBSTRATE_LABELS[tier.toLowerCase()] ?? tier;
+  return (
+    <div
       style={{
-        fontFamily: 'var(--at-mono)',
-        fontSize: '12px',
-        fontWeight: 600,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        color:
-          tier.toUpperCase() === 'LTM'
-            ? 'var(--at-green-1)'
-            : 'var(--at-red-1)',
-        backgroundColor:
-          tier.toUpperCase() === 'LTM'
-            ? 'var(--at-green-soft)'
-            : 'var(--at-red-soft)',
-        borderRadius: '4px',
-        padding: '2px 6px',
-        flexShrink: 0,
-        lineHeight: 1.6,
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '12px',
+        padding: '10px 0',
+        borderBottom: '1px solid var(--at-rule-1)',
       }}
     >
-      {tier}
-    </span>
-    <span
-      style={{
-        fontFamily: 'var(--at-serif)',
-        fontSize: '15px',
-        lineHeight: 1.5,
-        color: 'var(--at-ink-2)',
-      }}
-    >
-      {content}
-    </span>
-  </div>
-);
+      <span
+        style={{
+          fontFamily: 'var(--at-mono)',
+          fontSize: '11px',
+          fontWeight: 500,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--at-ink-1)',
+          border: '1px solid var(--at-card-border)',
+          borderRadius: '4px',
+          padding: '2px 6px',
+          flexShrink: 0,
+          lineHeight: 1.6,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--at-serif)',
+          fontSize: '15px',
+          lineHeight: 1.5,
+          color: 'var(--at-ink-2)',
+        }}
+      >
+        {content}
+      </span>
+    </div>
+  );
+};
 
 /** Product card for the brief products grid */
 const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => {

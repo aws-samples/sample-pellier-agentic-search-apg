@@ -612,7 +612,7 @@ const MemoryPillDisplay: React.FC<{ pill: MemoryPill }> = ({ pill }) => (
       gap: '6px',
       padding: '4px 10px',
       borderRadius: '999px',
-      border: '1.5px dashed var(--at-red-1)',
+      border: '1.5px dashed var(--at-card-border)',
       fontFamily: 'var(--at-sans)',
       fontSize: '14px',
       color: 'var(--at-ink-2)',
@@ -623,10 +623,10 @@ const MemoryPillDisplay: React.FC<{ pill: MemoryPill }> = ({ pill }) => (
       style={{
         fontFamily: 'var(--at-mono)',
         fontSize: '11px',
-        fontWeight: 600,
+        fontWeight: 500,
         textTransform: 'uppercase',
-        letterSpacing: '0.08em',
-        color: 'var(--at-red-1)',
+        letterSpacing: '0.18em',
+        color: 'var(--at-ink-1)',
       }}
     >
       {pill.tier}
@@ -1415,126 +1415,159 @@ const LiveTraceRail: React.FC<{
   );
 };
 
-/** Memory card — STM/LTM tiers with item counts and chips */
+/** Memory card — four substrates (working / semantic / episodic / procedural) with item counts and chips */
+const MEMORY_SUBSTRATES: {
+  tier: MemoryPill['tier'];
+  label: string;
+  store: string;
+  gloss: string;
+}[] = [
+  {
+    tier: 'working',
+    label: 'Working',
+    store: 'AgentCore Memory · session turns',
+    gloss: "This session's last K turns — read first, written every turn.",
+  },
+  {
+    tier: 'semantic',
+    label: 'Semantic',
+    store: 'AgentCore Memory · durable preferences',
+    gloss: 'Stable facts about this customer — fabric, sizing, palette.',
+  },
+  {
+    tier: 'episodic',
+    label: 'Episodic',
+    store: 'Aurora · per-customer events',
+    gloss: 'What this customer has bought or returned over time.',
+  },
+  {
+    tier: 'procedural',
+    label: 'Procedural',
+    store: 'Aurora · tool patterns',
+    gloss: 'Which tool tends to win — derived from tool_audit.',
+  },
+];
+
 const MemoryCard: React.FC<{ turns: ChatTurn[] }> = ({ turns }) => {
-  // Collect all memory pills from the chat
   const allPills = turns.flatMap((t) => t.memoryPills ?? []);
-  const stmPills = allPills.filter((p) => p.tier === 'stm');
-  const ltmPills = allPills.filter((p) => p.tier === 'ltm');
 
   return (
     <ExpCard>
-      <Eyebrow label="Memory" />
-      <div style={{ marginTop: '14px' }}>
-        {/* STM tier */}
-        <div style={{ marginBottom: '14px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '8px',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--at-mono)',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--at-red-1)',
-                padding: '1px 6px',
-                border: '1px solid var(--at-red-1)',
-                borderRadius: '3px',
-              }}
-            >
-              STM
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--at-mono)',
-                fontSize: '13px',
-                color: 'var(--at-ink-2)',
-              }}
-            >
-              {stmPills.length} item{stmPills.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {stmPills.map((pill, i) => (
-              <span
-                key={i}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <Eyebrow label="Memory" />
+        <Link
+          to="/atelier/architecture/memory"
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '11px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'var(--at-burgundy)',
+            textDecoration: 'none',
+          }}
+        >
+          → What are the four substrates?
+        </Link>
+      </div>
+      <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {MEMORY_SUBSTRATES.map(({ tier, label, store, gloss }) => {
+          const pills = allPills.filter((p) => p.tier === tier);
+          return (
+            <div key={tier}>
+              <div
                 style={{
-                  fontFamily: 'var(--at-sans)',
-                  fontSize: '14px',
-                  color: 'var(--at-ink-2)',
-                  padding: '4px 10px',
-                  background: 'var(--at-cream-2)',
-                  borderRadius: '6px',
-                  lineHeight: 1.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '4px',
+                  flexWrap: 'wrap',
                 }}
               >
-                {pill.content}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* LTM tier */}
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '8px',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--at-mono)',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--at-green-1)',
-                padding: '1px 6px',
-                border: '1px solid var(--at-green-1)',
-                borderRadius: '3px',
-              }}
-            >
-              LTM
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--at-mono)',
-                fontSize: '13px',
-                color: 'var(--at-ink-2)',
-              }}
-            >
-              {ltmPills.length} item{ltmPills.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {ltmPills.map((pill, i) => (
-              <span
-                key={i}
+                <span
+                  style={{
+                    fontFamily: 'var(--at-mono)',
+                    fontSize: '11px',
+                    letterSpacing: '0.22em',
+                    textTransform: 'uppercase',
+                    color: 'var(--at-ink-1)',
+                    fontWeight: 500,
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--at-mono)',
+                    fontSize: '12px',
+                    color: 'var(--at-ink-4)',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {store}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--at-mono)',
+                    fontSize: '13px',
+                    color: 'var(--at-ink-2)',
+                    marginLeft: 'auto',
+                  }}
+                >
+                  {pills.length} item{pills.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <p
                 style={{
                   fontFamily: 'var(--at-sans)',
-                  fontSize: '14px',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
                   color: 'var(--at-ink-2)',
-                  padding: '4px 10px',
-                  background: 'var(--at-cream-2)',
-                  borderRadius: '6px',
-                  lineHeight: 1.4,
+                  margin: '0 0 8px 0',
                 }}
               >
-                {pill.content}
-              </span>
-            ))}
-          </div>
-        </div>
+                {gloss}
+              </p>
+              {pills.length === 0 ? (
+                <span
+                  style={{
+                    fontFamily: 'var(--at-sans)',
+                    fontSize: '13px',
+                    color: 'var(--at-ink-4)',
+                  }}
+                >
+                  No items recorded this turn.
+                </span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {pills.map((pill, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        fontFamily: 'var(--at-sans)',
+                        fontSize: '14px',
+                        color: 'var(--at-ink-2)',
+                        padding: '4px 10px',
+                        background: 'var(--at-cream-2)',
+                        borderRadius: '6px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {pill.content}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </ExpCard>
   );

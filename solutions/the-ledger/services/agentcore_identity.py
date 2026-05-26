@@ -40,8 +40,11 @@ logger = logging.getLogger(__name__)
 #
 # Namespace scheme (must match services/agentcore_memory.py byte-for-byte):
 #
-#     user:{user_id}:session:{session_id}   authenticated sessions
-#     anon:{session_id}                     anonymous sessions
+#     user-{user_id}-session-{session_id}   authenticated sessions
+#     anon-{session_id}                     anonymous sessions
+#
+# (Dashes, not colons — AgentCore session IDs must match
+# [a-zA-Z0-9][a-zA-Z0-9-_]*.)
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
@@ -101,10 +104,13 @@ class AgentCoreIdentityService:
         Kept static + public so ``/api/agent/session/{id}`` and any
         future tooling can recompute the exact string without going
         through a full ``UserContext`` resolution.
+
+        Uses dashes (not colons) as separators because AgentCore
+        session IDs must match ``[a-zA-Z0-9][a-zA-Z0-9-_]*``.
         """
         if user_id:
-            return f"user:{user_id}:session:{session_id}"
-        return f"anon:{session_id}"
+            return f"user-{user_id}-session-{session_id}"
+        return f"anon-{session_id}"
 
     @staticmethod
     def _resolve_session_id(request: Request) -> str:

@@ -18,9 +18,9 @@ Design notes
   "Error Handling" row and Sequence Diagram #2 note). Silent refresh
   fires on the next request.
 * **Anonymous fallback.** Requests without a valid token still stream.
-  ``AgentCoreIdentityService`` returns an ``anon:{session_id}``
+  ``AgentCoreIdentityService`` returns an ``anon-{session_id}``
   namespace and the orchestrator runs with ``user_id=None``. Session
-  history for these shoppers is keyed by ``anon:{session_id}`` and is
+  history for these shoppers is keyed by ``anon-{session_id}`` and is
   never merged into a user namespace later (Req 4.3.3).
 * **Session continuity.** ``session_id`` is resolved by the identity
   service in this priority:
@@ -226,7 +226,7 @@ async def chat(
     a token that expires mid-response does not abort the stream (Design
     "Error Handling" row, Sequence Diagram #2 note).
 
-    Anonymous callers are accepted and routed to the ``anon:{session_id}``
+    Anonymous callers are accepted and routed to the ``anon-{session_id}``
     namespace (Req 4.3.3).
     """
     # Resolve the verified user + session namespace. This is the ONE
@@ -277,11 +277,11 @@ async def get_session(
 
     Scoping rules:
       * When the request carries a verified JWT, the history is read
-        from ``user:{user_id}:session:{session_id}``. Another user's
+        from ``user-{user_id}-session-{session_id}``. Another user's
         JWT over the same ``session_id`` sees an empty list — the
         namespace is keyed per-user (Req 4.3.2).
       * When the request is anonymous, the history is read from
-        ``anon:{session_id}``. The route does not allow an anonymous
+        ``anon-{session_id}``. The route does not allow an anonymous
         caller to read another user's history because the namespace
         string never matches.
     """

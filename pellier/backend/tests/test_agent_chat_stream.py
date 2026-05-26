@@ -13,7 +13,7 @@ Covered assertions (from tasks.md Task 3.5 "Test verification"):
   * mid-stream token expiry does not abort the stream
   * session continuity works with ``session_id`` passed in subsequent
     calls
-  * anonymous requests fall to ``anon:{session_id}`` namespace
+  * anonymous requests fall to ``anon-{session_id}`` namespace
 
 Additional coverage keeps the route contract honest:
 
@@ -21,7 +21,7 @@ Additional coverage keeps the route contract honest:
     (Req 3.4.3)
   * authenticated requests route the orchestrator under the verified
     ``user_id`` and memory writes land in
-    ``user:{user_id}-session-{session_id}`` (Req 3.4.2)
+    ``user-{user_id}-session-{session_id}`` (Req 3.4.2)
   * ``GET /api/agent/session/{id}`` returns the turn history the
     stream just wrote (Req 3.4.4)
   * a foreign user cannot read another user's session history through
@@ -333,8 +333,8 @@ def test_chat_anonymous_request_uses_anon_namespace(
     client: TestClient, agent_calls: List[Dict[str, Any]], memory: AgentCoreMemory
 ) -> None:
     """Test-verification bullet: anonymous requests fall to
-    ``anon:{session_id}`` (Req 4.3.3). No JWT means no user id and no
-    ``user:`` prefix.
+    ``anon-{session_id}`` (Req 4.3.3). No JWT means no user id and no
+    ``user-`` prefix.
     """
     with client.stream(
         "POST",
@@ -588,11 +588,11 @@ def test_get_session_scoped_per_user(
 def test_get_session_anonymous_reads_anon_namespace(
     client: TestClient, agent_calls: List[Dict[str, Any]]
 ) -> None:
-    """An anonymous GET resolves to ``anon:{session_id}`` — the same
+    """An anonymous GET resolves to ``anon-{session_id}`` — the same
     namespace the anonymous POST wrote to. This keeps anon shoppers'
     multi-turn threads working without any sign-in.
     """
-    # Anonymous POST populates anon:{sid}.
+    # Anonymous POST populates anon-{sid}.
     with client.stream(
         "POST",
         "/api/agent/chat",

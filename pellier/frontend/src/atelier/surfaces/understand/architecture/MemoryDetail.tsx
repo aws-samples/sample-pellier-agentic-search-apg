@@ -366,7 +366,7 @@ const MemoryDetail: React.FC = () => {
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'Working - AgentCore Memory holds the last K session turns under user:{id}:session:{sid} (or anon:{sid}). Cheap, bounded, always relevant. Read first on every turn.',
+          text: 'Working - AgentCore Memory holds the last K session turns under user-{id}-session-{sid} (or anon-{sid}). Cheap, bounded, always relevant. Read first on every turn.',
         },
         {
           numeral: 'ii.',
@@ -413,9 +413,10 @@ const MemoryDetail: React.FC = () => {
               category="live"
               title="Session turns"
               role="Per-turn append, namespace-scoped"
-              prose={`Every authenticated turn ends with append_session_turn(session_ns, turn). Reads via get_session_history bring the last K turns back. Namespace is user:{user_id}:session:{session_id} or anon:{session_id} - physically disjoint so a sign-in flip never silently merges history.`}
+              prose={`Every authenticated turn ends with append_session_turn(session_ns, turn). Reads via get_session_history bring the last K turns back. Namespace is user-{user_id}-session-{session_id} or anon-{session_id} - physically disjoint so a sign-in flip never silently merges history. Dashes (not colons) because AgentCore session IDs must match [a-zA-Z0-9][a-zA-Z0-9-_]*.`}
               codeSnippet={`# Working - AgentCore Memory
-ns = f"user:{user_id}:session:{session_id}"
+ns = AgentCoreIdentityService.build_namespace(user_id, session_id)
+# → "user-{user_id}-session-{session_id}" or "anon-{session_id}"
 await memory.append_session_turn(ns, turn)
 
 # Last K turns back into the prompt

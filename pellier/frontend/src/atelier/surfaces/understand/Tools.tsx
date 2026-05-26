@@ -335,7 +335,6 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
               <span
                 style={{
                   fontFamily: 'var(--at-serif)',
-                  fontStyle: 'italic',
                   fontSize: '17px',
                   color: 'var(--at-red-1)',
                 }}
@@ -543,7 +542,6 @@ const ToolRow: React.FC<ToolRowProps> = ({
         <span
           style={{
             fontFamily: 'var(--at-serif)',
-            fontStyle: 'italic',
             fontWeight: 400,
             fontSize: '24px',
             color: 'var(--at-red-1)',
@@ -698,7 +696,6 @@ const ToolRow: React.FC<ToolRowProps> = ({
                 key={agent}
                 style={{
                   fontFamily: 'var(--at-serif)',
-                  fontStyle: 'italic',
                   fontSize: '13px',
                   padding: '2px 9px',
                   background: isExercise
@@ -933,7 +930,7 @@ const RelatedCard: React.FC = () => (
           Open Agents surface
           <span
             aria-hidden="true"
-            style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic' }}
+            style={{ fontFamily: 'var(--at-serif)' }}
           >
             →
           </span>
@@ -1007,7 +1004,7 @@ const RelatedCard: React.FC = () => (
           Open Tool Registry detail
           <span
             aria-hidden="true"
-            style={{ fontFamily: 'var(--at-serif)', fontStyle: 'italic' }}
+            style={{ fontFamily: 'var(--at-serif)' }}
           >
             →
           </span>
@@ -1069,7 +1066,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -1129,7 +1125,6 @@ const EmptyState: React.FC = () => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '24px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',

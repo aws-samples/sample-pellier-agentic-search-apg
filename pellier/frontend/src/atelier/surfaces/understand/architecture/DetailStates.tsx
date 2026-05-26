@@ -65,7 +65,6 @@ export const DetailErrorState: React.FC<DetailErrorStateProps> = ({ message, onR
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '20px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -129,7 +128,6 @@ export const DetailEmptyState: React.FC<DetailEmptyStateProps> = ({ conceptName 
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '20px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',

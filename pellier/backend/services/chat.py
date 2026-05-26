@@ -246,14 +246,11 @@ async def _append_boutique_stm_turn(
 
         if not _settings.AGENTCORE_MEMORY_ID:
             return
+        from services.agentcore_identity import AgentCoreIdentityService
         from services.agentcore_memory import AgentCoreMemory
 
         sub = user.get("sub") if user and isinstance(user, dict) else None
-        namespace = (
-            f"user:{sub}:session:{session_id}"
-            if sub
-            else f"anon:{session_id}"
-        )
+        namespace = AgentCoreIdentityService.build_namespace(sub, session_id)
         memory = AgentCoreMemory()
         await memory.append_session_turn(
             namespace, {"role": "user", "content": user_message}

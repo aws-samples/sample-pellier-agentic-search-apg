@@ -528,7 +528,6 @@ const SkillCard: React.FC<SkillCardProps> = ({
       <span
         style={{
           fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
           fontSize: '30px',
           color: 'var(--at-red-1)',
           letterSpacing: '-0.02em',

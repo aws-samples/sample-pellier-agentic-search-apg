@@ -5,18 +5,18 @@
   "elapsedMs": 4230,
   "agentCount": 3,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:10:00Z",
+  "timestamp": "2026-05-25T17:10:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "A linen shirt for warm evenings out",
-      "timestamp": "2026-05-15T17:10:00Z"
+      "timestamp": "2026-05-25T17:10:00Z"
     },
     {
       "role": "assistant",
       "content": "Let me find some linen pieces perfect for warm evenings. I'll search our collection and check what's been trending.",
-      "timestamp": "2026-05-15T17:10:02Z",
+      "timestamp": "2026-05-25T17:10:02Z",
       "plan": {
         "routingPattern": "Dispatcher",
         "stepCount": 4,
@@ -67,11 +67,11 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Looking for linen evening wear"
         },
         {
-          "tier": "ltm",
+          "tier": "semantic",
           "content": "Prefers minimal, warm tones, linen"
         }
       ]
@@ -79,12 +79,12 @@
     {
       "role": "user",
       "content": "What goes well with the camp shirt?",
-      "timestamp": "2026-05-15T17:10:45Z"
+      "timestamp": "2026-05-25T17:10:45Z"
     },
     {
       "role": "assistant",
       "content": "The Camp Shirt pairs beautifully with a few pieces from the collection. The Linen Drawstring Trousers in oat keep the same tonal register \u2014 relaxed, warm, breathable. For cooler evenings, the Washed Cotton Overshirt layers over it without adding bulk. And the Leather Weekender ties the whole travel wardrobe together.",
-      "timestamp": "2026-05-15T17:10:48Z",
+      "timestamp": "2026-05-25T17:10:48Z",
       "toolCalls": [
         {
           "toolName": "style_match",
@@ -100,7 +100,7 @@
       },
       "memoryPills": [
         {
-          "tier": "stm",
+          "tier": "working",
           "content": "Looking for pieces to pair with the Camp Shirt"
         }
       ]
@@ -156,19 +156,19 @@
     {
       "index": 6,
       "category": "owned",
-      "title": "Memory Write \u2014 STM",
-      "description": "Stored current intent and product interest in short-term memory",
+      "title": "Memory Write \u2014 Working",
+      "description": "Stored current intent and product interest in working memory (AgentCore Memory \u00b7 session turns)",
       "status": "complete",
       "durationMs": 45
     },
     {
       "index": 7,
       "category": "owned",
-      "title": "Memory Recall \u2014 LTM",
-      "description": "Retrieved Marco's stored preferences: minimal, warm tones, linen",
+      "title": "Memory Recall \u2014 Semantic",
+      "description": "Retrieved Marco's durable preferences from semantic memory: minimal, warm tones, linen",
       "status": "complete",
       "durationMs": 62,
-      "sql": "SELECT content, 1 - (embedding <=> $1) AS similarity FROM memory_items WHERE persona_id = 'marco' AND tier = 'ltm' ORDER BY embedding <=> $1 LIMIT 5;"
+      "sql": "SELECT content, 1 - (embedding <=> $1) AS similarity FROM memory_items WHERE persona_id = 'marco' AND tier = 'semantic' ORDER BY embedding <=> $1 LIMIT 5;"
     },
     {
       "index": 8,
@@ -200,8 +200,8 @@
     {
       "index": 11,
       "category": "owned",
-      "title": "Memory Write \u2014 STM",
-      "description": "Updated short-term memory with camp-shirt pairing interest and warm-evening occasion",
+      "title": "Memory Write \u2014 Working",
+      "description": "Updated working memory with camp-shirt pairing interest and warm-evening occasion",
       "status": "complete",
       "durationMs": 38
     },
@@ -225,7 +225,7 @@
   "brief": {
     "folioNumber": 42,
     "headline": "A linen evening, curated in four seconds",
-    "filedTime": "2026-05-15T17:11:00Z",
+    "filedTime": "2026-05-25T17:11:00Z",
     "sections": [
       {
         "numeral": "i.",
@@ -272,15 +272,19 @@
         "numeral": "iii.",
         "title": "Memory at Work",
         "paragraphs": [
-          "Long-term memory recalled Marco's stored preferences \u2014 minimal, warm tones, linen \u2014 which the Recommendation agent used to weight candidates. Short-term memory tracked the evolving conversation context, noting the shift from general browsing to specific interest in camp-shirt pairings."
+          "Semantic memory recalled Marco's durable preferences \u2014 minimal, warm tones, linen \u2014 which the Recommendation agent used to weight candidates. Working memory tracked the evolving conversation context, noting the shift from general browsing to specific interest in camp-shirt pairings."
         ],
         "memoryRows": [
           {
-            "tier": "LTM",
-            "content": "Prefers minimal, warm tones, linen (3 prior orders)"
+            "tier": "semantic",
+            "content": "Prefers minimal, warm tones, linen"
           },
           {
-            "tier": "STM",
+            "tier": "episodic",
+            "content": "3 prior orders show consistent linen + warm-tone selections"
+          },
+          {
+            "tier": "working",
             "content": "Looking for linen evening wear \u2192 interested in camp-shirt pairings"
           }
         ],

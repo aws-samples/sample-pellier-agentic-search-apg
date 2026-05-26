@@ -5,18 +5,18 @@
   "elapsedMs": 3940,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
-  "timestamp": "2026-05-15T17:58:00Z",
+  "timestamp": "2026-05-25T17:58:00Z",
   "status": "complete",
   "chat": [
     {
       "role": "user",
       "content": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
-      "timestamp": "2026-05-15T17:58:00Z"
+      "timestamp": "2026-05-25T17:58:00Z"
     },
     {
       "role": "assistant",
       "content": "I'm so sorry for your friend's loss. I've passed your note to a Pellier stylist who'll reach out within one business day to help you choose something thoughtful — they'll consider your friend's relationship, the moment, and what arrives well. The catalog couldn't read this room; a stylist can.",
-      "timestamp": "2026-05-15T17:58:04Z",
+      "timestamp": "2026-05-25T17:58:04Z",
       "plan": {
         "flowSummary": "Dispatcher → Curator → escalate_to_stylist (sympathy framing, honest fallback)",
         "traceLink": "#telemetry-1"
@@ -30,6 +30,20 @@
         }
       ],
       "products": [],
+      "memoryPills": [
+        {
+          "tier": "working",
+          "content": "Asked for a real stylist for sympathy gift — escalated"
+        },
+        {
+          "tier": "semantic",
+          "content": "Buys for others; milestone and sentimental occasions; gift-ready palette"
+        },
+        {
+          "tier": "skill",
+          "content": "the-gift-table loaded (persona: anna)"
+        }
+      ],
       "meta": {
         "agent": "Curator",
         "model": "Claude Opus 4.6 · 0.4",
@@ -69,6 +83,14 @@
     },
     {
       "index": 4,
+      "category": "owned",
+      "title": "Memory Write — Working",
+      "description": "Recorded escalation context to AgentCore Memory: stylist handoff queued for sympathy-gift ask.",
+      "status": "complete",
+      "durationMs": 21
+    },
+    {
+      "index": 5,
       "category": "managed",
       "title": "Inner specialist → wrapper marker",
       "description": "Inner Curator emits the escalation envelope; recommendation @tool wrapper appends it as a JSON code block",
@@ -77,7 +99,7 @@
       "agent": "recommendation wrapper · append_escalation_marker"
     },
     {
-      "index": 5,
+      "index": 6,
       "category": "owned",
       "title": "SSE escalation event",
       "description": "chat.py scans every tool result for {type: escalation}; renders the StylistHandoffCard via 'data: {type: escalation, ...}' SSE",
@@ -86,7 +108,7 @@
       "agent": "chat.py · _scan_for_escalation"
     },
     {
-      "index": 6,
+      "index": 7,
       "category": "both",
       "title": "Editorial acknowledgement",
       "description": "Claude Opus 4.6 · 0.4 — empathy first, concrete next step second",
@@ -98,7 +120,7 @@
   "brief": {
     "folioNumber": 30,
     "headline": "Sympathy is a job for a person",
-    "filedTime": "2026-05-15T17:59:00Z",
+    "filedTime": "2026-05-25T17:59:00Z",
     "sections": [
       {
         "numeral": "i.",

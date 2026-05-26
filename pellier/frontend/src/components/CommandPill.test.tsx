@@ -15,7 +15,18 @@
  */
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// CommandPill calls usePersona() and returns null when no persona is set.
+// Mock the hook with a truthy persona so the pill renders for these tests.
+vi.mock('../contexts/PersonaContext', () => ({
+  usePersona: () => ({
+    persona: { id: 'marco', display_name: 'Marco' },
+    switchPersona: vi.fn(),
+    signOut: vi.fn(),
+    switching: false,
+  }),
+}))
 
 import CommandPill from './CommandPill'
 import { COMMAND_PILL } from '../copy'

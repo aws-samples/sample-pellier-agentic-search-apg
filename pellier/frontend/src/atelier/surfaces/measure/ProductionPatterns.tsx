@@ -132,7 +132,6 @@ const PatternHeader: React.FC<{ pattern: ProductionPattern }> = ({ pattern }) =>
       <p
         style={{
           fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
           fontSize: '17px',
           color: 'var(--at-ink-2)',
           marginTop: '6px',
@@ -301,11 +300,89 @@ const IdentityCard: React.FC<{ pattern: IdentityPattern }> = ({ pattern }) => (
           fontSize: '13px',
           color: 'var(--at-ink-2)',
           marginTop: '8px',
-          fontStyle: 'italic',
         }}
       >
         {pattern.namespacePattern.note}
       </p>
+    </div>
+
+    <div style={{ marginTop: '18px' }} data-testid="identity-wiring">
+      <Eyebrow label="Request lifecycle · Cognito → namespace" variant="muted" />
+      <ol
+        style={{
+          marginTop: '10px',
+          listStyle: 'none',
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}
+      >
+        {pattern.wiring.map((step, i) => (
+          <li
+            key={step.label}
+            data-testid={`identity-wiring-step-${i}`}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '32px 1fr',
+              gap: '12px',
+              alignItems: 'start',
+              padding: '10px 12px',
+              border: '1px solid var(--at-card-border)',
+              borderRadius: '8px',
+              backgroundColor: 'var(--at-cream-1)',
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                fontFamily: 'var(--at-mono)',
+                fontSize: '12px',
+                letterSpacing: '0.04em',
+                color: 'var(--at-ink-3)',
+                paddingTop: '1px',
+              }}
+            >
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--at-ink-1)',
+                }}
+              >
+                {step.label}
+              </div>
+              <p
+                style={{
+                  fontFamily: 'var(--at-sans)',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                  color: 'var(--at-ink-2)',
+                  margin: '4px 0 0',
+                }}
+              >
+                {step.detail}
+              </p>
+              <code
+                style={{
+                  display: 'inline-block',
+                  marginTop: '6px',
+                  fontFamily: 'var(--at-mono)',
+                  fontSize: '11px',
+                  color: 'var(--at-ink-3)',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {step.anchor}
+              </code>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
 
     <div style={{ marginTop: '18px' }}>
@@ -561,7 +638,6 @@ const ToolPublishingCard: React.FC<{ pattern: ToolPublishingPattern }> = ({
             <p
               style={{
                 fontFamily: 'var(--at-serif)',
-                fontStyle: 'italic',
                 fontSize: '13px',
                 color: 'var(--at-ink-2)',
                 marginTop: '6px',
@@ -638,7 +714,6 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '22px',
         color: 'var(--at-ink-1)',
         marginTop: '16px',

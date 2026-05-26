@@ -25,7 +25,7 @@ export type AgentToolName =
   | 'trend.signal'
   | 'pairing.score'
   | 'palette.match'
-  | 'cart.holds'
+  | 'memory.holds'
   | 'experience.return'
   | 'weather.lookup'
   | 'tag.match'
@@ -104,9 +104,9 @@ export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
     description: 'A color-and-tone match between a candidate piece and a shopper’s saved palette.',
     atelierPath: '/atelier/tools',
   },
-  'cart.holds': {
-    name: 'cart.holds',
-    label: 'Cart holds',
+  'memory.holds': {
+    name: 'memory.holds',
+    label: 'Memory holds',
     description: 'Items the agent is keeping in your bag from a previous session.',
     atelierPath: '/atelier/memory',
   },

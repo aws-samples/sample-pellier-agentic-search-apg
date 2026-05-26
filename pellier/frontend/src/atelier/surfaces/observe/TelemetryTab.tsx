@@ -9,7 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useOutletContext } from 'react-router-dom';
 import {
   ContextRail,
   ExpCard,
@@ -66,6 +66,23 @@ function numberToWord(n: number): string {
 /* =======================================================================
  * Status dot mapping for telemetry panels
  * ======================================================================= */
+
+/**
+ * Map a telemetry panel title to one of the four memory substrates.
+ * Recognizes both legacy STM/LTM titles and the new substrate names so
+ * fixtures can migrate progressively without breaking the orbit display.
+ */
+function detectMemorySubstrate(title: string): 'Working' | 'Semantic' | 'Episodic' | 'Procedural' {
+  const t = title.toLowerCase();
+  if (t.includes('procedural')) return 'Procedural';
+  if (t.includes('episodic')) return 'Episodic';
+  if (t.includes('semantic')) return 'Semantic';
+  if (t.includes('working')) return 'Working';
+  // Legacy fallbacks: STM ≈ working (session turns), LTM ≈ semantic (durable preferences).
+  if (t.includes('stm')) return 'Working';
+  if (t.includes('ltm')) return 'Semantic';
+  return 'Working';
+}
 
 function getStatusColor(status: TelemetryPanel['status']): string {
   switch (status) {
@@ -680,7 +697,7 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
 const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
   // Collect SQL panels for "How we arrived"
   const sqlPanels = panels.filter((p) => p.sql);
-  // Collect memory panels for "Memory orbit"
+  // Collect memory panels for "Memory substrate"
   const memoryPanels = panels.filter(
     (p) => p.title.toLowerCase().includes('memory'),
   );
@@ -750,9 +767,32 @@ const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
         </div>
       </ExpCard>
 
-      {/* Memory orbit — STM/LTM visualization */}
+      {/* Memory substrate — four-substrate visualization */}
       <ExpCard>
-        <Eyebrow label="Memory orbit" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <Eyebrow label="Memory substrate" />
+          <Link
+            to="/atelier/architecture/memory"
+            style={{
+              fontFamily: 'var(--at-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--at-burgundy)',
+              textDecoration: 'none',
+            }}
+          >
+            → What are the four substrates?
+          </Link>
+        </div>
         <div
           style={{
             display: 'flex',
@@ -762,65 +802,63 @@ const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
           }}
         >
           {memoryPanels.length > 0 ? (
-            memoryPanels.map((p) => (
-              <div
-                key={p.index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  background: 'var(--at-cream-2)',
-                  borderRadius: '8px',
-                }}
-              >
-                <span
+            memoryPanels.map((p) => {
+              const substrate = detectMemorySubstrate(p.title);
+              return (
+                <div
+                  key={p.index}
                   style={{
-                    fontFamily: 'var(--at-mono)',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: p.title.includes('STM')
-                      ? 'var(--at-red-1)'
-                      : 'var(--at-green-1)',
-                    padding: '1px 6px',
-                    border: `1px solid ${
-                      p.title.includes('STM')
-                        ? 'var(--at-red-1)'
-                        : 'var(--at-green-1)'
-                    }`,
-                    borderRadius: '3px',
-                    flexShrink: 0,
-                    marginTop: '1px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: 'var(--at-cream-2)',
+                    borderRadius: '8px',
                   }}
                 >
-                  {p.title.includes('STM') ? 'STM' : 'LTM'}
-                </span>
-                <div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--at-sans)',
-                      fontSize: '14px',
-                      color: 'var(--at-ink-2)',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {p.description}
-                  </div>
-                  <div
+                  <span
                     style={{
                       fontFamily: 'var(--at-mono)',
-                      fontSize: '12px',
-                      color: 'var(--at-ink-2)',
-                      marginTop: '4px',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.18em',
+                      color: 'var(--at-ink-1)',
+                      padding: '1px 6px',
+                      border: '1px solid var(--at-card-border)',
+                      borderRadius: '3px',
+                      flexShrink: 0,
+                      marginTop: '1px',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {p.durationMs}ms
+                    {substrate}
+                  </span>
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--at-sans)',
+                        fontSize: '14px',
+                        color: 'var(--at-ink-2)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {p.description}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--at-mono)',
+                        fontSize: '12px',
+                        color: 'var(--at-ink-2)',
+                        marginTop: '4px',
+                      }}
+                    >
+                      {p.durationMs}ms
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <p
               style={{
@@ -1194,13 +1232,13 @@ const RoutingPatternIntro: React.FC = () => (
     <p style={{ ...introParagraphStyle, marginTop: '12px' }}>
       <strong style={{ color: 'var(--at-ink-1)' }}>Dispatcher</strong> is what the{' '}
       <strong style={{ color: 'var(--at-ink-1)' }}>Boutique storefront</strong> uses in production:
-      each shopper turn is routed to <em>one</em> owning specialist at a time, the concierge stays easy
+      each shopper turn is routed to one owning specialist at a time, the concierge stays easy
       to reason about, and latency/token paths map cleanly to support and compliance reviews. Workshop
       sessions on this tab are captured from that same path, so the default timeline matches what ships.
     </p>
     <p style={{ ...introParagraphStyle, marginTop: '12px' }}>
       <strong style={{ color: 'var(--at-ink-1)' }}>Agents-as-Tools</strong> fits when a{' '}
-      <em>single</em> orchestrator turn should call several specialist-shaped tools (serial or parallel)
+      single orchestrator turn should call several specialist-shaped tools (serial or parallel)
       without standing up a new service for every hop — specialists return structured payloads into the
       parent frame.
     </p>

@@ -134,7 +134,6 @@ const PersonaCard: React.FC<PersonaCardProps> = ({
           <div
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontSize: '22px',
               fontWeight: 400,
               color: 'var(--at-ink-1)',
@@ -184,7 +183,6 @@ const PersonaCard: React.FC<PersonaCardProps> = ({
       <p
         style={{
           fontFamily: 'var(--at-serif)',
-          fontStyle: 'italic',
           fontSize: '14px',
           lineHeight: 1.55,
           color: 'var(--at-ink-1)',
@@ -300,7 +298,6 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     <p
       style={{
         fontFamily: 'var(--at-serif)',
-        fontStyle: 'italic',
         fontSize: '20px',
         lineHeight: 1.35,
         color: 'var(--at-ink-1)',
@@ -452,7 +449,6 @@ const Settings: React.FC = () => {
           <p
             style={{
               fontFamily: 'var(--at-serif)',
-              fontStyle: 'italic',
               fontSize: '20px',
               color: 'var(--at-ink-1)',
               marginTop: '16px',
