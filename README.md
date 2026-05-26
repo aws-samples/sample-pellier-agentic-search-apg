@@ -48,7 +48,7 @@ maps to something runnable in this repo:
 | **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 13 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
 | **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped STM via Bedrock AgentCore Memory |
-| **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` |
+| **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` · deploy path uses `npx -y @aws/agentcore@latest deploy -y --json` |
 
 ---
 
@@ -125,6 +125,19 @@ npm run build      # production build → served by FastAPI on :8000
 Open <http://localhost:8000> for the Boutique, or
 <http://localhost:8000/atelier> for the Atelier.
 
+### AgentCore CLI (latest)
+
+Pellier uses the Node-based AgentCore CLI via `npx` so deploy commands
+always resolve the latest published version:
+
+```bash
+npx -y @aws/agentcore@latest --version
+npx -y @aws/agentcore@latest deploy -y --json
+```
+
+This replaces the older `agentcore configure` / `agentcore launch`
+starter-toolkit flow.
+
 ### Facilitator note: `SPA_MOUNT_PATH`
 
 By default the SPA is served at `/`. The nginx layer
@@ -168,10 +181,9 @@ The 60-min Builder's Session source of truth lives in
 | [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
 | Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
 
-The 120-min Workshop bundle lives in `lab-content/workshop/`. The
-`lab-content/builders/ws-repo/` folder is kept only as a reference
-snapshot of the Workshop Studio repo shape; make canonical edits in
-`lab-content/builders/` and `lab-content/builders/static/`.
+The 120-min Workshop bundle lives in `lab-content/workshop/`. Make
+canonical Builder's Session edits in `lab-content/builders/` and
+`lab-content/builders/static/`.
 
 ---
 
