@@ -68,6 +68,14 @@ Parameters:
     Type: String
     Description: Cognito app client id allowed for AgentCore Gateway/Runtime JWT auth.
 
+  CognitoClientSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing the Cognito app client secret JSON.
+
+  CognitoTestCredentialsSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing workshop test-user credentials.
+
   AgentCoreRoleArn:
     Type: String
     Description: AgentCore Runtime execution role ARN.
@@ -283,6 +291,8 @@ Resources:
           export AUTH_MODE="demo"
           export COGNITO_USER_POOL_ID="${CognitoUserPoolId}"
           export COGNITO_CLIENT_ID="${CognitoClientId}"
+          export COGNITO_CLIENT_SECRET_ARN="${CognitoClientSecretArn}"
+          export COGNITO_TEST_CREDENTIALS_SECRET_ARN="${CognitoTestCredentialsSecretArn}"
           export AGENTCORE_ROLE_ARN="${AgentCoreRoleArn}"
           export CODE_EDITOR_USER="${CodeEditorUser}"
           export HOME_FOLDER="${HomeFolder}"

@@ -806,6 +806,8 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
         export COGNITO_POOL='${COGNITO_POOL:-}'
         export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
         export AGENTCORE_ROLE_ARN='${AGENTCORE_ROLE_ARN:-}'
+        export COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}'
+        export COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
         python3.13 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
             --repo-path '$REPO_PATH' \
             --output-json '$MANAGED_OUTPUT_JSON'

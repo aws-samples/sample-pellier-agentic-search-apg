@@ -24,6 +24,8 @@ Metadata:
         Parameters:
           - CognitoUserPoolId
           - CognitoClientId
+          - CognitoClientSecretArn
+          - CognitoTestCredentialsSecretArn
           - AgentCoreRoleArn
 
 Parameters:
@@ -60,6 +62,14 @@ Parameters:
   CognitoClientId:
     Type: String
     Description: Cognito app client id allowed for AgentCore JWT authorizers.
+
+  CognitoClientSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing Cognito app client secret JSON.
+
+  CognitoTestCredentialsSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing workshop test-user credentials.
 
   AgentCoreRoleArn:
     Type: String
@@ -157,6 +167,8 @@ Resources:
         DBClusterEndpoint: !GetAtt DatabaseStack.Outputs.ClusterEndpoint
         CognitoUserPoolId: !Ref CognitoUserPoolId
         CognitoClientId: !Ref CognitoClientId
+        CognitoClientSecretArn: !Ref CognitoClientSecretArn
+        CognitoTestCredentialsSecretArn: !Ref CognitoTestCredentialsSecretArn
         AgentCoreRoleArn: !Ref AgentCoreRoleArn
         RepoUrl: !Ref RepoUrl
         RepoBranch: !Ref RepoBranch

@@ -16,6 +16,9 @@ Any failure exits non-zero so bootstrap can fail readiness gates.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -23,6 +26,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import boto3
 
 
 EXPECTED_TARGETS = {
@@ -130,6 +135,82 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _compute_secret_hash(username: str, client_id: str, client_secret: str) -> str:
+    digest = hmac.new(
+        client_secret.encode("utf-8"),
+        msg=f"{username}{client_id}".encode("utf-8"),
+        digestmod=hashlib.sha256,
+    ).digest()
+    return base64.b64encode(digest).decode("utf-8")
+
+
+def _authenticated_runtime_smoke(
+    region: str,
+    runtime_arn: str,
+    user_pool_id: str,
+    client_id: str,
+    creds_secret_arn: str,
+    client_secret_arn: str | None,
+) -> dict[str, Any]:
+    sm = boto3.client("secretsmanager", region_name=region)
+    cognito = boto3.client("cognito-idp", region_name=region)
+    runtime = boto3.client("bedrock-agentcore-runtime", region_name=region)
+
+    creds_raw = sm.get_secret_value(SecretId=creds_secret_arn).get("SecretString", "")
+    creds = json.loads(creds_raw) if creds_raw else {}
+    users = creds.get("users", [])
+    if not users:
+        raise RuntimeError("Cognito test credentials secret has no users array")
+
+    user0 = users[0]
+    username = user0.get("username", "")
+    password = user0.get("password", "")
+    if not username or not password:
+        raise RuntimeError("Cognito test credentials secret is missing username/password")
+
+    auth_params: dict[str, str] = {"USERNAME": username, "PASSWORD": password}
+    if client_secret_arn:
+        client_secret_raw = sm.get_secret_value(SecretId=client_secret_arn).get("SecretString", "")
+        client_secret_payload = json.loads(client_secret_raw) if client_secret_raw else {}
+        client_secret = client_secret_payload.get("client_secret", "")
+        if client_secret:
+            auth_params["SECRET_HASH"] = _compute_secret_hash(username, client_id, client_secret)
+
+    auth = cognito.admin_initiate_auth(
+        UserPoolId=user_pool_id,
+        ClientId=client_id,
+        AuthFlow="ADMIN_USER_PASSWORD_AUTH",
+        AuthParameters=auth_params,
+    )
+    access_token = auth.get("AuthenticationResult", {}).get("AccessToken")
+    if not access_token:
+        raise RuntimeError("Failed to obtain Cognito access token for runtime smoke")
+
+    runtime_id = runtime_arn.rsplit("/", 1)[-1]
+    payload = json.dumps(
+        {
+            "prompt": "Smoke test: find one linen item under 150.",
+            "session_id": "builders-smoke-session",
+        }
+    )
+    invoke = runtime.invoke_agent_runtime(
+        agentRuntimeId=runtime_id,
+        payload=payload,
+        authToken=access_token,
+    )
+    body = invoke.get("body")
+    decoded = json.loads(body.read()) if hasattr(body, "read") else {}
+    response_text = str(decoded.get("response", "")).strip()
+    if not response_text:
+        raise RuntimeError("Runtime smoke invoke returned empty response payload")
+
+    return {
+        "runtime_id": runtime_id,
+        "username": username,
+        "response_preview": response_text[:200],
+    }
+
+
 def _render_runtime_templates(backend_dir: Path, substitutions: dict[str, str]) -> None:
     pattern = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
     templates = [
@@ -164,7 +245,9 @@ def main() -> int:
         "COGNITO_POOL": _require_env("COGNITO_POOL"),
         "COGNITO_CLIENT": _require_env("COGNITO_CLIENT"),
         "AGENTCORE_ROLE_ARN": _require_env("AGENTCORE_ROLE_ARN"),
+        "COGNITO_TEST_CREDENTIALS_SECRET_ARN": _require_env("COGNITO_TEST_CREDENTIALS_SECRET_ARN"),
     }
+    client_secret_arn = os.environ.get("COGNITO_CLIENT_SECRET_ARN", "").strip() or None
     db_name = os.environ.get("DB_NAME", "pellier")
     model_id = os.environ.get("AGENT_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
 
@@ -403,6 +486,17 @@ def main() -> int:
         runtime_status = matched[0].get("status") or matched[0].get("agentRuntimeStatus") or "UNKNOWN"
         result["verification"]["runtime_control_plane_visible"] = True
         result["verification"]["runtime_status"] = runtime_status
+
+        smoke = _authenticated_runtime_smoke(
+            region=required["AWS_REGION"],
+            runtime_arn=runtime_arn,
+            user_pool_id=required["COGNITO_POOL"],
+            client_id=required["COGNITO_CLIENT"],
+            creds_secret_arn=required["COGNITO_TEST_CREDENTIALS_SECRET_ARN"],
+            client_secret_arn=client_secret_arn,
+        )
+        result["verification"]["authenticated_runtime_invoke_smoke"] = True
+        result["verification"]["runtime_invoke_smoke"] = smoke
 
         result["runtime"] = {
             "runtime_arn": runtime_arn,
