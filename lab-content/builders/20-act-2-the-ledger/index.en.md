@@ -63,7 +63,7 @@ By the end of Act II you will be able to:
 | Concept | Plain-English meaning | What you will see |
 |---|---|---|
 | **AgentCore Memory** | Managed session and memory storage for agent applications | `AGENTCORE_MEMORY_ID`, namespace-scoped session events, `/api/agent/session/{id}` |
-| **Working memory** | The current conversation timeline, not a generated summary | Ordered user/assistant turns |
+| **Working memory (AgentCore STM)** | The current conversation timeline, not a generated summary | Ordered user/assistant turns |
 | **Memory substrates** | Different memory stores for different lifetimes and questions | Working, semantic, episodic, procedural panels in Atelier |
 | **AgentCore Runtime** | Managed execution boundary for the same orchestrator code | `@app.entrypoint`, `/api/agent/chat`, SSE events |
 | **Cedar policy seam** | Authorization check before a tool action runs | Theo's damaged-return turn exercises `process_return` |

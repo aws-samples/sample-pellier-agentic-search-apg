@@ -53,8 +53,24 @@ Parameters:
     Type: String
     Description: Aurora master secret ARN.
 
+  DBClusterArn:
+    Type: String
+    Description: Aurora cluster ARN used by MCP Lambda Data API calls.
+
   DBClusterEndpoint:
     Type: String
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito user pool id for AgentCore Gateway/Runtime JWT auth.
+
+  CognitoClientId:
+    Type: String
+    Description: Cognito app client id allowed for AgentCore Gateway/Runtime JWT auth.
+
+  AgentCoreRoleArn:
+    Type: String
+    Description: AgentCore Runtime execution role ARN.
 
   CodeEditorUser:
     Type: String
@@ -261,9 +277,13 @@ Resources:
           export AWS_REGION="${AWS::Region}"
           export AWS_DEFAULT_REGION="${AWS::Region}"
           export DB_SECRET_ARN="${DBSecretArn}"
+          export DB_CLUSTER_ARN="${DBClusterArn}"
           export DB_HOST="${DBClusterEndpoint}"
           export DB_NAME="pellier"
           export AUTH_MODE="demo"
+          export COGNITO_USER_POOL_ID="${CognitoUserPoolId}"
+          export COGNITO_CLIENT_ID="${CognitoClientId}"
+          export AGENTCORE_ROLE_ARN="${AgentCoreRoleArn}"
           export CODE_EDITOR_USER="${CodeEditorUser}"
           export HOME_FOLDER="${HomeFolder}"
           export WORKSHOP_FORMAT="builders"

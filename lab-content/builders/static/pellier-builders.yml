@@ -19,6 +19,12 @@ Metadata:
         Parameters:
           - RepoUrl
           - RepoBranch
+      - Label:
+          default: AgentCore Identity
+        Parameters:
+          - CognitoUserPoolId
+          - CognitoClientId
+          - AgentCoreRoleArn
 
 Parameters:
   AssetsBucketName:
@@ -46,6 +52,18 @@ Parameters:
     Type: String
     Default: main
     Description: Git branch to check out on the Code Editor instance.
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito user pool id for AgentCore JWT authorizers.
+
+  CognitoClientId:
+    Type: String
+    Description: Cognito app client id allowed for AgentCore JWT authorizers.
+
+  AgentCoreRoleArn:
+    Type: String
+    Description: AgentCore Runtime execution role ARN.
 
 Mappings:
   # Region -> S3 regional endpoint host. Workshop Studio currently
@@ -135,7 +153,11 @@ Resources:
         PublicSubnetId: !GetAtt VpcStack.Outputs.PublicSubnetA
         CodeEditorSecurityGroupId: !GetAtt VpcStack.Outputs.CodeEditorSecurityGroupId
         DBSecretArn: !GetAtt DatabaseStack.Outputs.MasterSecretArn
+        DBClusterArn: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseStack.Outputs.ClusterIdentifier}
         DBClusterEndpoint: !GetAtt DatabaseStack.Outputs.ClusterEndpoint
+        CognitoUserPoolId: !Ref CognitoUserPoolId
+        CognitoClientId: !Ref CognitoClientId
+        AgentCoreRoleArn: !Ref AgentCoreRoleArn
         RepoUrl: !Ref RepoUrl
         RepoBranch: !Ref RepoBranch
       Tags:

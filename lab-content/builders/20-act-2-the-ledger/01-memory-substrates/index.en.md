@@ -9,7 +9,7 @@ weight: 10
 **Surface:** `/api/agent/session/{id}` · Boutique chat · Atelier Memory panel
 :::
 
-No code to ship. The hands-on is a **working-memory readback**: create two turns, read the ordered timeline from `/api/agent/session/{id}`, reload the Boutique, and confirm the same session comes back. Bootstrap already created `PellierMemory` and wrote `AGENTCORE_MEMORY_ID` to `.env`.
+No code to ship. The hands-on is a **working-memory (AgentCore STM) readback**: create two turns, read the ordered timeline from `/api/agent/session/{id}`, reload the Boutique, and confirm the same session comes back. Bootstrap already created `PellierMemory` and wrote `AGENTCORE_MEMORY_ID` to `.env`.
 
 **You'll learn to:**
 
@@ -32,7 +32,7 @@ Memory in an agent system is not one bucket. Pellier wires four substrates with 
 
 | Substrate | What it answers | Storage | Lifetime | Write cadence |
 |---|---|---|---|---|
-| **Working** | What happened in this conversation, in order? | AgentCore Memory session events under `anon-{sid}` or `user-{cognito_sub}-session-{sid}` | Last K turns | Every turn |
+| **Working memory (AgentCore STM)** | What happened in this conversation, in order? | AgentCore Memory session events under `anon-{sid}` or `user-{cognito_sub}-session-{sid}` | Last K turns | Every turn |
 | **Semantic** | What stable preferences do we know? | AgentCore Memory KV under `user:{id}:preferences` | Durable | When the customer tells us something stable |
 | **Episodic** | What customer events are relevant now? | Aurora `pellier.customer_episodic_seed`, `pellier.orders`, `pellier.returns` | Durable | When the turn earns the latency |
 | **Procedural** | Which tools win for which intents, and how fast? | Aurora `pellier.tool_audit` aggregate | Append-only | After allowed tool calls |

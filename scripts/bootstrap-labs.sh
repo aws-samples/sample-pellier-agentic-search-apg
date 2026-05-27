@@ -17,6 +17,38 @@ AWS_REGION="${AWS_REGION:-us-west-2}"
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
+write_status_json() {
+    local status="$1"
+    local managed_status="$2"
+    local managed_path="$3"
+    cat > /tmp/workshop-ready.json << EOF
+{
+    "status": "${status}",
+    "timestamp": "$(date -Iseconds)",
+    "stage": "labs-bootstrap",
+    "components": {
+        "pellier_backend": "ready",
+        "pellier_frontend": "ready",
+        "database_config": "ready"
+    },
+    "builders_managed_path": {
+        "status": "${managed_status}",
+        "details_path": "${managed_path}"
+    }
+}
+EOF
+    chmod 644 /tmp/workshop-ready.json
+}
+upsert_env() {
+    local key="$1"
+    local value="$2"
+    local env_file="$3"
+    if grep -q "^${key}=" "$env_file" 2>/dev/null; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$env_file"
+    else
+        echo "${key}=${value}" >> "$env_file"
+    fi
+}
 
 log "=========================================="
 log "Pellier Stage 2: Labs Bootstrap (Optimized)"
@@ -74,7 +106,10 @@ EOF
 
 # Backend/Root .env (if DB available)
 if [ -n "$DB_HOST" ]; then
-    DB_CLUSTER_ARN="arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):cluster:pellier-cluster"
+    DB_CLUSTER_ARN="${DB_CLUSTER_ARN:-}"
+    if [ -z "$DB_CLUSTER_ARN" ]; then
+        DB_CLUSTER_ARN="arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):cluster:pellier-cluster"
+    fi
 
     # URL-encode the password for DATABASE_URL. Aurora master secrets
     # routinely contain @ : / ? % which must be percent-encoded inside
@@ -656,19 +691,7 @@ log "   Frontend rebuild: run 'rebuild-frontend' alias or restart the service"
 # ============================================================================
 # STEP 15: STATUS MARKER
 # ============================================================================
-cat > /tmp/workshop-ready.json << EOF
-{
-    "status": "complete",
-    "timestamp": "$(date -Iseconds)",
-    "stage": "labs-bootstrap",
-    "components": {
-        "pellier_backend": "ready",
-        "pellier_frontend": "ready",
-        "database_config": "ready"
-    }
-}
-EOF
-chmod 644 /tmp/workshop-ready.json
+write_status_json "in_progress" "pending" ""
 log "✅ Status marker created"
 
 # ============================================================================
@@ -756,33 +779,57 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
-    # ---- AgentCore Runtime pre-launch (~5 min, best-effort) ----
-    log "Pre-launching AgentCore Runtime (pellier-agent)..."
+    # ---- AgentCore full managed path (mandatory, strict gate) ----
+    log "Provisioning full AgentCore managed path (Lambdas + Gateway + Runtime)..."
     export REPO_PATH="$REPO_PATH"
-    RUNTIME_ARN=""
-    if command -v npx &>/dev/null && command -v python3.13 &>/dev/null; then
-        RUNTIME_ARN=$(sudo -u "$CODE_EDITOR_USER" bash -c "
-            export PATH=\"\$HOME/.local/bin:\$PATH\"
-            export AWS_REGION=$AWS_REGION
-            export AWS_DEFAULT_REGION=$AWS_REGION
-            export REPO_PATH=$REPO_PATH
-            python3.13 $REPO_PATH/scripts/provision_agentcore_runtime.py 2>/dev/null
-        " 2>/dev/null || true)
+    MANAGED_OUTPUT_JSON="/tmp/pellier-agentcore-managed.json"
+
+    # Keep both variable names during the transition; backend config resolves
+    # either COGNITO_POOL_ID or COGNITO_USER_POOL_ID.
+    export COGNITO_POOL="${COGNITO_POOL:-${COGNITO_POOL_ID:-${COGNITO_USER_POOL_ID:-}}}"
+    export COGNITO_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
+
+    if ! command -v npx &>/dev/null || ! command -v python3.13 &>/dev/null; then
+        warn "Missing npx or python3.13 — cannot run strict managed provisioning"
+        write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
+        exit 1
     fi
-    if [ -n "$RUNTIME_ARN" ]; then
-        log "✅ AgentCore Runtime provisioned: $RUNTIME_ARN"
-        grep -q '^AGENTCORE_RUNTIME_ENDPOINT=' "$REPO_PATH/.env" 2>/dev/null && \
-            sed -i "s|^AGENTCORE_RUNTIME_ENDPOINT=.*|AGENTCORE_RUNTIME_ENDPOINT=$RUNTIME_ARN|" "$REPO_PATH/.env" || \
-            echo "AGENTCORE_RUNTIME_ENDPOINT=$RUNTIME_ARN" >> "$REPO_PATH/.env"
-        grep -q '^USE_AGENTCORE_RUNTIME=' "$REPO_PATH/.env" 2>/dev/null && \
-            sed -i 's|^USE_AGENTCORE_RUNTIME=.*|USE_AGENTCORE_RUNTIME=true|' "$REPO_PATH/.env" || \
-            echo "USE_AGENTCORE_RUNTIME=true" >> "$REPO_PATH/.env"
-        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
-    else
-        warn "AgentCore Runtime pre-launch skipped — Runtime demo uses in-process fallback"
-        grep -q '^USE_AGENTCORE_RUNTIME=' "$REPO_PATH/.env" 2>/dev/null || \
-            echo "USE_AGENTCORE_RUNTIME=false" >> "$REPO_PATH/.env"
+
+    if ! sudo -u "$CODE_EDITOR_USER" bash -c "
+        export PATH=\"\$HOME/.local/bin:\$PATH\"
+        export AWS_REGION='$AWS_REGION'
+        export AWS_DEFAULT_REGION='$AWS_REGION'
+        export REPO_PATH='$REPO_PATH'
+        export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
+        export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+        export DB_NAME='${DB_NAME:-pellier}'
+        export COGNITO_POOL='${COGNITO_POOL:-}'
+        export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
+        export AGENTCORE_ROLE_ARN='${AGENTCORE_ROLE_ARN:-}'
+        python3.13 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
+            --repo-path '$REPO_PATH' \
+            --output-json '$MANAGED_OUTPUT_JSON'
+    "; then
+        warn "Strict managed provisioning failed; see $MANAGED_OUTPUT_JSON"
+        write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
+        exit 1
     fi
+
+    RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+    GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+    MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+    if [ -z "$RUNTIME_ARN" ] || [ -z "$GATEWAY_URL" ] || [ "$MANAGED_STATUS" != "ready" ]; then
+        warn "Managed provisioning output missing runtime/gateway readiness"
+        write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
+        exit 1
+    fi
+
+    upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
+    upsert_env "MCP_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
+    upsert_env "USE_AGENTCORE_RUNTIME" "true" "$REPO_PATH/.env"
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
+    write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
+    log "✅ AgentCore managed path ready"
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
 
@@ -818,6 +865,10 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     fi
 
     log "✅ Builders solutions applied, uvicorn running with --reload"
+fi
+
+if [ "${WORKSHOP_FORMAT:-workshop}" != "builders" ]; then
+    write_status_json "complete" "not_applicable" ""
 fi
 
 # ============================================================================

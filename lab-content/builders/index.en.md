@@ -14,7 +14,7 @@ weight: 0
 
 Pellier is a small editorial boutique with one quiet promise: *a shopper asks in their own words, and the right pieces find them.*
 
-In this workshop, that promise becomes a working agentic system. You will use Aurora PostgreSQL with pgvector for retrieval, combine semantic and keyword signals through hybrid search, rerank results for relevance, route requests through specialist agents, preserve short-term memory across turns, and invoke the orchestrator through an AgentCore Runtime endpoint.
+In this workshop, that promise becomes a working agentic system. You will use Aurora PostgreSQL with pgvector for retrieval, combine semantic and keyword signals through hybrid search, rerank results for relevance, route requests through specialist agents, preserve working memory (AgentCore STM) across turns, and invoke the orchestrator through an AgentCore Runtime endpoint.
 
 ![Pellier in motion – the storefront and Atelier in action](/static/introduction/pellier-demo.webp)
 

@@ -47,7 +47,7 @@ maps to something runnable in this repo:
 | **RAG** with embeddings on **Aurora PostgreSQL & RDS for PostgreSQL** | `pellier.product_catalog.embedding vector(1024)` · pgvector 0.8.0 · HNSW index · `<=>` cosine operator |
 | **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 13 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
-| **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped STM via Bedrock AgentCore Memory |
+| **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped working memory (AgentCore STM) via Bedrock AgentCore Memory |
 | **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` · deploy path uses `npx -y @aws/agentcore@latest deploy -y --json` |
 
 ---
@@ -177,7 +177,7 @@ The 60-min Builder's Session source of truth lives in
 | Framing | 3 min | Title slide + RAG-with-agents shape |
 | [Setup](lab-content/builders/00-setup/) | 2 min | Open the workspace and land in Boutique + Atelier (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger). Optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
 | [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
-| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read STM via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
+| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read working memory (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
 | [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
 | Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
 
@@ -295,7 +295,7 @@ sample-pellier-agentic-search-apg/
         │   ├── 01-meet-marco/
         │   ├── 02-wire-floor-check/             Exercise 1
         │   └── 03-prove-rerank/
-        ├── 20-act-2-the-ledger/               Act II — STM + managed Runtime
+        ├── 20-act-2-the-ledger/               Act II — Working memory (AgentCore STM) + managed Runtime
         │   ├── 01-agentcore-memory-stm/
         │   └── 02-agentcore-runtime/            Exercise 2 (logger.info hook)
         ├── 30-act-3-the-concierge/            Act III — routing + MCP + Knowledge Bases
