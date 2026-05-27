@@ -71,7 +71,9 @@ The small domain makes the mechanics visible. In your organization, the same pat
 4. Keep both tabs open for the rest of the session.
 
 :::alert{type="info" header="Authentication and policy scope"}
-The default Builder Session path runs in demo mode, so you do not sign in as a shopper. The guide still calls out the production seams: Cognito or another identity provider for user identity, AgentCore Identity for workload identity, and Cedar policy checks for sensitive tool actions.
+The Builder Session keeps shopper interactions in demo mode, but the platform path is production-like: Cognito-backed user identity and AgentCore Identity workload credentials are prewired as required infrastructure, alongside Cedar policy checks for sensitive tool actions.
+
+There is one workshop Cognito user pool per environment, not one pool per persona. Marco, Anna, and Theo are seeded shopping personas in application data.
 :::
 
 ## What you will build

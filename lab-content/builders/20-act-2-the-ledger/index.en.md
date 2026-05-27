@@ -15,7 +15,7 @@ You do not need prior AgentCore experience for this act. Treat AgentCore as the 
 
 - **Memory** stores the session evidence the agent needs on the next turn.
 - **Runtime** exposes the same orchestrator behind a managed invocation endpoint.
-- **Identity** is the production trust boundary; you see the namespace seam, but you do not wire sign-in during this session.
+- **Identity** is the production trust boundary; Cognito user identity plus AgentCore Identity workload credentials are part of the prewired managed path, and this session focuses on observing that seam.
 - **Gateway and MCP** are the managed tool-hosting path; this lab keeps that as an Act III read so Act II can stay focused on memory, runtime, policy, and evidence.
 
 Every good boutique keeps a ledger: a quiet record of what happened, in order, that an operator can reopen later. Pellier has two ledgers in this act:

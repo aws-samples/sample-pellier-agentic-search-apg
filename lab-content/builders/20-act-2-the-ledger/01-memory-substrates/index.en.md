@@ -139,9 +139,9 @@ Marco's session id can stay the same whether he is anonymous or signed in. What 
 | Mode | Namespace | In this lab |
 |---|---|---|
 | Anonymous | `anon-{session_id}` | Default builder path |
-| Signed in | `user-{cognito_sub}-session-{session_id}` | Production sign-in path, not wired in the room |
+| Signed in | `user-{cognito_sub}-session-{session_id}` | Production path prewired in infrastructure; this lab keeps shopper turns in demo mode for pacing |
 
-This is the place where production identity lands. In a real shopper-facing deployment, the app would attach the end user's identity to the memory namespace, while AgentCore Identity would let the agent use its own workload identity for AWS calls. You do not wire Cognito or Identity here; you learn where the seam belongs.
+This is the place where production identity lands. In a shopper-facing deployment, the app attaches the end user's identity to the memory namespace, while AgentCore Identity gives the agent its own workload identity for AWS calls. In Builder's Session, that identity stack is provisioned as required infrastructure; this page focuses on reading the seam, not rebuilding auth by hand.
 
 :::alert{type="info" header="If you're new to auth terminology"}
 The user identity answers *who is the shopper?* The workload identity answers *what is the agent allowed to call in AWS?* Production systems keep those separate. Pellier shows the boundary with `anon:` and `user:` namespaces without making authentication a hands-on exercise.
