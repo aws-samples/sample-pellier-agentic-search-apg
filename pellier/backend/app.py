@@ -246,7 +246,9 @@ async def lifespan(app: FastAPI):
         # to the Module 1 teaching surface.
         from services.agent_tools import set_db_service, set_main_loop
         set_db_service(db_service)
-        set_main_loop(asyncio.get_event_loop())
+        # Capture the running lifespan loop (get_running_loop is the correct,
+        # non-deprecated call here — we are inside the async startup hook).
+        set_main_loop(asyncio.get_running_loop())
         logger.info("✅ Agent tools initialized with pgvector semantic search")
 
         # Wire the tool_audit writer the same way. Theo's anchor
@@ -255,7 +257,7 @@ async def lifespan(app: FastAPI):
         # DB pool + main event loop reference to bridge sync→async.
         from services import tool_audit_writer
         tool_audit_writer.set_db_service(db_service)
-        tool_audit_writer.set_main_loop(asyncio.get_event_loop())
+        tool_audit_writer.set_main_loop(asyncio.get_running_loop())
         logger.info("✅ tool_audit writer initialized for ALLOW-path mutation logging")
 
         # Load the skill registry once at boot. Per-request cost is zero —

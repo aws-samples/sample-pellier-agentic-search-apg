@@ -58,20 +58,25 @@ def _run_async(coro):
     if _main_loop and _main_loop.is_running():
         future = asyncio.run_coroutine_threadsafe(_run_in_ctx(), _main_loop)
         return future.result(timeout=30)
-    # Fallback for standalone / test contexts where no main loop is set
+    # Fallback for standalone / test contexts where no main loop is set.
+    # Use get_running_loop() (not the deprecated get_event_loop()): it raises
+    # RuntimeError exactly when there is no running loop, which is the case we
+    # handle by spinning up a fresh one.
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(_run_in_ctx(), loop)
-            return future.result(timeout=30)
-        return loop.run_until_complete(coro)
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(coro)
-        finally:
-            loop.close()
+        loop = None
+    if loop is not None:
+        # A loop is already running on this thread — hand the coroutine to it.
+        future = asyncio.run_coroutine_threadsafe(_run_in_ctx(), loop)
+        return future.result(timeout=30)
+    # No running loop: create a private one, run to completion, and tear down.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 _MILESTONE_HOME_GIFT_PATTERN = re.compile(
