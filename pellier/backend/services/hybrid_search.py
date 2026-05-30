@@ -76,7 +76,7 @@ class HybridSearch:
 
         Args:
             query: Raw user query text. Used for FTS only.
-            query_embedding: 1024-dim Cohere Embed v4 vector. Used for
+            query_embedding: 1024-dim Cohere Embed English v3 vector. Used for
                 pgvector cosine search.
             k_vector: Pool size for the vector branch (default 20).
             k_bm25: Pool size for the FTS branch (default 20).

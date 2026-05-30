@@ -58,7 +58,7 @@
     "category": "workshop",
     "title": "Tool Registry",
     "role": "Semantic tool discovery via pgvector",
-    "description": "The Aurora tool registry is the live workshop teaching surface for semantic discovery. Tool descriptions are embedded with Cohere Embed v4 (1024-dim) and ranked by cosine similarity. The Boutique default still calls in-process Strands tools; the registry is how attendees see discovery as a first-class capability.",
+    "description": "The Aurora tool registry is the live workshop teaching surface for semantic discovery. Tool descriptions are embedded with Cohere Embed English v3 (1024-dim) and ranked by cosine similarity. The Boutique default still calls in-process Strands tools; the registry is how attendees see discovery as a first-class capability.",
     "codeSnippet": "# Discover by semantic similarity\nSELECT name,\n       1 - (embedding <=> $1) AS similarity\nFROM pellier.tools\nORDER BY embedding <=> $1\nLIMIT 5;",
     "slug": "tool-registry"
   },

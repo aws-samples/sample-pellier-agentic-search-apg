@@ -128,7 +128,7 @@ Resources:
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-opus-4-7
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-sonnet-4-6
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0
-                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.embed-english-v4:0
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.embed-english-v3
                   - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/cohere.rerank-v3-5:0
               # Bedrock AgentCore — runtime + control-plane memory APIs.
               # We split the two Sids because the control-plane prefix

@@ -216,7 +216,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database service initialized")
         
         embedding_service = EmbeddingService()
-        logger.info("✅ Embedding service initialized (Cohere Embed v4)")
+        logger.info("✅ Embedding service initialized (Cohere Embed English v3)")
 
         # Initialize Valkey cache (graceful fallback to in-memory)
         cache_svc = init_cache(

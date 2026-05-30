@@ -19,7 +19,7 @@ The components stay. The corpus, specialists, policy boundaries, and audited act
 |---|---|---|---|
 | **Vector store** | Aurora PostgreSQL Serverless v2 + `pgvector` | Stores `vector(1024)` embeddings with HNSW index | Amazon RDS for PostgreSQL + `pgvector`; OpenSearch Serverless; existing vector service |
 | **Hybrid retrieval** | pgvector cosine + PostgreSQL full-text search + RRF | Mixes semantic recall with literal token recall | Knowledge Bases retrieve API; OpenSearch hybrid query; custom BM25 service |
-| **Embeddings** | Cohere Embed v4 through Bedrock | Embeds catalog rows and query text | Amazon Titan Text Embeddings; SageMaker-hosted embeddings; approved enterprise embedder |
+| **Embeddings** | Cohere Embed English v3 through Bedrock | Embeds catalog rows and query text | Amazon Titan Text Embeddings; SageMaker-hosted embeddings; approved enterprise embedder |
 | **Reranking** | Cohere Rerank v3.5 through Bedrock | Reorders candidate results for final phrasing | Amazon reranking options; custom cross-encoder; skip rerank for tight literal queries |
 | **Agent framework** | Strands Agents SDK | Defines specialists and `@tool` contracts | Bedrock Agents; LangGraph; custom loop using Bedrock Runtime |
 | **Specialist routing** | Rules-first dispatcher | Picks one specialist per curated intent | Small classifier; Haiku at temperature 0; embedding-based routing at tool-catalog scale |

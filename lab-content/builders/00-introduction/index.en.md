@@ -55,7 +55,7 @@ You will see Aurora in three roles:
 
 Pellier's dataset is deliberately small enough to inspect in a live session:
 
-- 40 curated product records with editorial copy and Cohere Embed v4 vectors.
+- 40 curated product records with editorial copy and Cohere Embed English v3 vectors.
 - Three personas: Marco, Anna, and Theo, plus a signed-out baseline experience.
 - Three warehouse locations with seeded inventory.
 - Orders, returns, and episodic rows that support memory and post-purchase flows.

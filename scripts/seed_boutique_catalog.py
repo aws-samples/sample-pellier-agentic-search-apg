@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Seed the boutique catalog — 36 curated products with real Cohere Embed v4 embeddings.
+Seed the boutique catalog — 36 curated products with real Cohere Embed English v3 embeddings.
 
 10 products per persona (Marco / Anna / Theo / Fresh), zero overlap.
 Each persona: 1 hero + 1 weekend edit featured + 8 grid = 10 total.
-Each product gets a 1024-dim embedding via Bedrock's Cohere Embed v4,
+Each product gets a 1024-dim embedding via Bedrock's Cohere Embed English v3,
 stored in Aurora's pgvector column for HNSW-indexed similarity search.
 
 Usage:
@@ -29,7 +29,7 @@ Workshop note:
     The catalog embeddings never change between runs, so we generate them
     ONCE (committing data/embeddings_cache.json) and every participant
     account seeds from that cache via --from-cache. This removes the
-    Cohere Embed v4 Bedrock call from the bootstrap critical path — the
+    Cohere Embed English v3 Bedrock call from the bootstrap critical path — the
     slowest, most throttle-prone step — turning the seed into a
     deterministic SQL load. Runtime models (Cohere Rerank, Claude) are
     still required and checked by the model-access preflight.
@@ -340,21 +340,18 @@ ALL_PRODUCTS = FRESH_PRODUCTS + MARCO_PRODUCTS + ANNA_PRODUCTS + THEO_PRODUCTS
 # =========================================================================
 
 def generate_embeddings(products: List[Product], region: str) -> None:
-    """Generate Cohere Embed v4 embeddings via Bedrock for all products.
+    """Generate Cohere Embed English v3 embeddings via Bedrock for all products.
 
-    Cohere Embed v4 is not available for on-demand invocation by its bare
-    model ID — it must be called through a cross-region inference profile
-    (e.g. ``us.cohere.embed-v4:0``). We derive the profile from the region
-    group, overridable via BEDROCK_EMBED_MODEL_ID for an explicit ID/ARN.
+    Cohere Embed English v3 is enabled by default in AWS Workshop Studio
+    accounts and supports on-demand invocation by its bare model ID
+    (``cohere.embed-english-v3``) — no cross-region inference profile is
+    required. Overridable via BEDROCK_EMBED_MODEL_ID for an explicit ID/ARN.
     """
     import boto3
 
-    # Region group prefix for the inference profile: us-* → "us", eu-* → "eu",
-    # ap-* → "apac". Cohere Embed v4 ships US + EU + APAC system profiles.
-    group = region.split("-")[0]
-    group = {"ap": "apac"}.get(group, group)
-    default_profile = f"{group}.cohere.embed-v4:0"
-    model_id = os.getenv("BEDROCK_EMBED_MODEL_ID", default_profile)
+    # Embed English v3 invokes on-demand by bare model ID; no profile prefix.
+    default_model = "cohere.embed-english-v3"
+    model_id = os.getenv("BEDROCK_EMBED_MODEL_ID", default_model)
 
     client = boto3.client("bedrock-runtime", region_name=region)
     logger.info(
@@ -365,11 +362,12 @@ def generate_embeddings(products: List[Product], region: str) -> None:
     for i, product in enumerate(products):
         text = product.search_text
         try:
+            # Embed English v3 does NOT accept output_dimension — it returns a
+            # fixed 1024-dim vector natively.
             payload = json.dumps({
                 "texts": [text],
                 "input_type": "search_document",
                 "embedding_types": ["float"],
-                "output_dimension": 1024,
             })
             response = client.invoke_model(
                 body=payload,
@@ -414,7 +412,7 @@ def write_embeddings_cache(products: List[Product], path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         json.dump(
-            {"model": "us.cohere.embed-v4:0", "dim": EMBED_DIM, "embeddings": cache},
+            {"model": "cohere.embed-english-v3", "dim": EMBED_DIM, "embeddings": cache},
             f,
         )
     logger.info("Wrote %d cached embeddings to %s", len(cache), path)

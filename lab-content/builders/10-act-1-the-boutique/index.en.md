@@ -70,7 +70,7 @@ you'll meet it:
 | Concept | What you'll see |
 |---|---|
 | **Strands SDK anatomy** | `Agent`, `@tool`, system instructions, skills as markdown playbooks, telemetry on every turn |
-| **Aurora pgvector retrieval** | HNSW index, 1024-dim Cohere Embed v4, cosine similarity, sub-100 ms vector recall |
+| **Aurora pgvector retrieval** | HNSW index, 1024-dim Cohere Embed English v3, cosine similarity, sub-100 ms vector recall |
 | **Hybrid retrieval with RRF** | pgvector cosine + Postgres FTS (`tsvector` + GIN + `ts_rank_cd`), merged via Reciprocal Rank Fusion *without* normalizing raw scores |
 | **Cohere Rerank v3.5** | Cross-encoder reordering of the merged candidate pool for the exact user phrasing |
 | **Production tuning knobs** | `hnsw.iterative_scan` for filtered recall, `halfvec` for storage footprint, `binary_quantize(...)` for compact coarse retrieval – named, not exercised |

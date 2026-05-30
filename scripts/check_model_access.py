@@ -49,18 +49,22 @@ MODELS = [
         },
     },
     {
-        # NOT required at runtime: the catalog is seeded from a committed
-        # embeddings cache (data/embeddings_cache.json). Embed access is only
-        # needed to *regenerate* that cache after a catalog change. We still
-        # report it so facilitators know, but it does not fail the preflight.
-        "name": "Cohere Embed v4",
-        "model_id": "us.cohere.embed-v4:0",  # cross-region inference profile (no on-demand by bare ID)
-        "required": False,
+        # REQUIRED at runtime: every shopper query is embedded live via this
+        # model before the pgvector search (services/embeddings.py → embed_query).
+        # The committed cache (data/embeddings_cache.json) only seeds the catalog
+        # corpus; it does NOT cover runtime query embedding. If this model is
+        # inaccessible, /api/health reports bedrock:inaccessible and search fails.
+        #
+        # Cohere Embed English v3 is enabled by default in AWS Workshop Studio
+        # accounts and invokes on-demand by bare model ID (no inference profile).
+        # Note: v3 does NOT accept output_dimension — it returns 1024-dim natively.
+        "name": "Cohere Embed English v3",
+        "model_id": "cohere.embed-english-v3",
+        "required": True,
         "body": {
             "texts": ["test"],
             "input_type": "search_query",
             "embedding_types": ["float"],
-            "output_dimension": 1024,
         },
     },
 ]
@@ -77,14 +81,43 @@ def check_model(client, model: dict) -> bool:
         # Read the body to confirm a valid response
         response["body"].read()
         return True
-    except client.exceptions.AccessDeniedException:
-        print(f"    Access denied — enable this model in the Bedrock console")
+    except client.exceptions.AccessDeniedException as e:
+        msg = str(e)
+        if "private marketplace" in msg.lower() or "marketplace subscription" in msg.lower():
+            # The account is behind an AWS Private Marketplace (common for
+            # Workshop Studio / event accounts) that has NOT allow-listed this
+            # third-party model. IAM permission is irrelevant — governance wins.
+            print(
+                "    Access denied (Private Marketplace): this model is not on the\n"
+                "      account's approved-products list. The org/event admin must add it\n"
+                "      to the Private Marketplace, or switch to a model enabled by default\n"
+                "      in Workshop Studio (e.g. cohere.embed-english-v3 for embeddings)."
+            )
+        else:
+            print("    Access denied — enable this model in the Bedrock console (Model access).")
         return False
     except Exception as e:
         error_str = str(e)
         if "ValidationException" in error_str:
-            # Model is accessible but request format was wrong — still a pass for access check
-            print(f"    Note: model accessible but test payload rejected ({e.__class__.__name__})")
+            low = error_str.lower()
+            # A ValidationException is NOT proof of access. Two cases that look
+            # like "access works" but are real failures:
+            if "on-demand throughput isn't supported" in low or "on-demand throughput is not supported" in low:
+                print(
+                    "    FAIL: this model has no on-demand throughput by bare model ID.\n"
+                    "      Invoke it through a cross-region inference profile instead\n"
+                    "      (e.g. us.<model-id>)."
+                )
+                return False
+            if "output_dimension" in low:
+                print(
+                    "    FAIL: the request includes output_dimension, which this model\n"
+                    "      rejects (Embed English v3 returns 1024-dim natively — drop it)."
+                )
+                return False
+            # Any other ValidationException is a genuine payload-shape issue and
+            # does imply the model is reachable. Treat as a pass for ACCESS only.
+            print(f"    Note: model reachable; test payload rejected ({e.__class__.__name__}). Access OK.")
             return True
         print(f"    Error: {e}")
         return False
@@ -105,7 +138,7 @@ def main():
             tag = "\033[31m✗ FAIL\033[0m"
         else:
             tag = "\033[33m• SKIP\033[0m"
-        label = model["name"] + ("" if req else "  (optional — cache covers it)")
+        label = model["name"] + ("" if req else "  (optional)")
         print(f"  {tag}  {label:<40} ({model['model_id']})")
         if not passed:
             if req:
@@ -118,9 +151,7 @@ def main():
         print(
             "Note: optional model(s) not accessible: "
             + ", ".join(optional_missing)
-            + ".\n      The catalog seeds from the committed embeddings cache, so this\n"
-            "      does not block the workshop. You only need Embed v4 to\n"
-            "      regenerate data/embeddings_cache.json after a catalog change."
+            + "."
         )
     if required_ok:
         print("All required models accessible. Workshop is ready.")

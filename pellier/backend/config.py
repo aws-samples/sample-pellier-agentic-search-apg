@@ -44,10 +44,13 @@ class Settings(BaseSettings):
     # ========================================
     # Bedrock Model Configuration
     # ========================================
-    # Embedding model for semantic search (Cohere Embed v4).
-    # Embed v4 has no on-demand throughput by bare model ID — it must be
-    # invoked through a cross-region inference profile (us.* / eu.* / apac.*).
-    BEDROCK_EMBEDDING_MODEL: str = "us.cohere.embed-v4:0"
+    # Embedding model for semantic search (Cohere Embed English v3).
+    # Embed English v3 is enabled by default in AWS Workshop Studio accounts
+    # and supports on-demand invocation by bare model ID (no inference
+    # profile required). It outputs 1024-dim vectors, matching the
+    # pellier.product_catalog vector(1024) column. Note: unlike Embed v4,
+    # v3 does NOT accept an output_dimension parameter.
+    BEDROCK_EMBEDDING_MODEL: str = "cohere.embed-english-v3"
 
     # Rerank model for hybrid search (Cohere Rerank v3.5).
     # Like Embed v4, Rerank v3.5 has no on-demand throughput by bare model

@@ -9,7 +9,7 @@ scripts/migrations/001_schema.sql. Running it against the current schema
 will fail with "column does not exist".
 
 The authoritative seeder is scripts/seed_boutique_catalog.py — it
-generates Cohere Embed v4 embeddings for the 40 curated boutique
+generates Cohere Embed English v3 embeddings for the 40 curated boutique
 products and INSERTs them into pellier.product_catalog with the
 matching column names. bootstrap-labs.sh calls that one.
 
@@ -56,7 +56,7 @@ bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REG
 
 def generate_embedding(text: str) -> Optional[list]:
     """
-    Generate embedding for a single text using Cohere Embed v4 via Bedrock.
+    Generate embedding for a single text using Cohere Embed English v3 via Bedrock.
     Uses input_type="search_document" since these are product descriptions being indexed.
 
     Args:
@@ -66,15 +66,15 @@ def generate_embedding(text: str) -> Optional[list]:
         Embedding vector (1024 dimensions) or None if failed
     """
     try:
+        # Embed English v3 does NOT accept output_dimension (returns 1024-dim natively).
         payload = json.dumps({
             'texts': [text],
             'input_type': 'search_document',
             'embedding_types': ['float'],
-            'output_dimension': 1024,
         })
         response = bedrock_runtime.invoke_model(
             body=payload,
-            modelId='us.cohere.embed-v4:0',
+            modelId='cohere.embed-english-v3',
             accept="*/*",
             contentType="application/json"
         )

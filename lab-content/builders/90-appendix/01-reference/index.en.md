@@ -129,7 +129,7 @@ ALTER TABLE pellier.product_catalog
   ADD COLUMN embedding vector(1024);
 ```
 
-`vector(1024)` stores a 1024-dimensional embedding per row. Pellier uses Cohere Embed v4, so the column dimension must match the embedder output.
+`vector(1024)` stores a 1024-dimensional embedding per row. Pellier uses Cohere Embed English v3, so the column dimension must match the embedder output.
 
 ### The distance operator you see most
 

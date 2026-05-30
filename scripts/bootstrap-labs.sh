@@ -137,7 +137,7 @@ PGPASSWORD='${DB_PASSWORD}'
 PGDATABASE='${DB_NAME}'
 AWS_REGION='${AWS_REGION}'
 AWS_DEFAULT_REGION='${AWS_REGION}'
-BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
+BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v3}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 WORKSHOP_ID='${WORKSHOP_ID:-}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-workshop}'
@@ -256,8 +256,9 @@ fi
 # ============================================================================
 # Fail fast and loud if the runtime models aren't enabled in this account.
 # Without this, a missing grant surfaces much later as an empty storefront
-# or a dead chat turn mid-session. Embed v4 is intentionally optional here
-# because the catalog seeds from the committed embeddings cache.
+# or a dead chat turn mid-session. All four models are required at runtime —
+# Cohere Embed English v3 included, because every shopper query is embedded
+# live before the pgvector search (the cache only covers the catalog corpus).
 log "Preflight: checking Bedrock model access (us-west-2)..."
 if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
@@ -341,7 +342,7 @@ setup_database() {
         #
         # Embeddings come from the COMMITTED cache (data/embeddings_cache.json)
         # via --from-cache. The catalog never changes between runs, so we
-        # generate Cohere Embed v4 vectors once (committed) instead of calling
+        # generate Cohere Embed English v3 vectors once (committed) instead of calling
         # Bedrock on every account. This removes the slowest, most
         # throttle-prone step from the bootstrap critical path and makes the
         # seed a deterministic SQL load. To regenerate the cache after a
@@ -405,7 +406,7 @@ setup_database() {
 
         # ---- 4. Tool registry seed — populates pellier.tools (created
         # empty by migration 002) with the 9 canonical Gateway tool names
-        # plus their Cohere Embed v4 descriptions. The Atelier
+        # plus their Cohere Embed English v3 descriptions. The Atelier
         # Observatory's tool-registry tab and the pgvector
         # tool-discovery card both read from this table and silently
         # render zero rows if the seed is skipped. ----
@@ -815,10 +816,18 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 
-    # ---- AgentCore full managed path (mandatory, strict gate) ----
+    # ---- AgentCore full managed path (warn-and-continue) ----
+    #
+    # AgentCore provisioning is best-effort, NOT a hard gate. A failure here
+    # must never abort the bootstrap: the backend still launches below and the
+    # app degrades gracefully (STM falls back to Aurora session tables, and the
+    # Act II Runtime-invoke step shows a clear "Runtime not provisioned" state
+    # rather than the whole environment coming up with no backend and no logs).
+    # The health gate at the end reports AgentCore readiness explicitly.
     log "Provisioning full AgentCore managed path (Lambdas + Gateway + Runtime)..."
     export REPO_PATH="$REPO_PATH"
     MANAGED_OUTPUT_JSON="/tmp/pellier-agentcore-managed.json"
+    AGENTCORE_OK=true
 
     # Keep both variable names during the transition; backend config resolves
     # either COGNITO_POOL_ID or COGNITO_USER_POOL_ID.
@@ -826,12 +835,12 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     export COGNITO_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
 
     if ! command -v npx &>/dev/null || ! command -v python3.13 &>/dev/null; then
-        warn "Missing npx or python3.13 — cannot run strict managed provisioning"
+        warn "Missing npx or python3.13 — skipping managed AgentCore provisioning (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
-        exit 1
+        AGENTCORE_OK=false
     fi
 
-    if ! sudo -u "$CODE_EDITOR_USER" bash -c "
+    if [ "$AGENTCORE_OK" = true ] && ! sudo -u "$CODE_EDITOR_USER" bash -c "
         export PATH=\"\$HOME/.local/bin:\$PATH\"
         export AWS_REGION='$AWS_REGION'
         export AWS_DEFAULT_REGION='$AWS_REGION'
@@ -848,26 +857,32 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
             --repo-path '$REPO_PATH' \
             --output-json '$MANAGED_OUTPUT_JSON'
     "; then
-        warn "Strict managed provisioning failed; see $MANAGED_OUTPUT_JSON"
+        warn "Managed AgentCore provisioning failed; see $MANAGED_OUTPUT_JSON (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
-        exit 1
+        AGENTCORE_OK=false
     fi
 
-    RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-    GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-    MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-    if [ -z "$RUNTIME_ARN" ] || [ -z "$GATEWAY_URL" ] || [ "$MANAGED_STATUS" != "ready" ]; then
-        warn "Managed provisioning output missing runtime/gateway readiness"
-        write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
-        exit 1
+    if [ "$AGENTCORE_OK" = true ]; then
+        RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        if [ -z "$RUNTIME_ARN" ] || [ -z "$GATEWAY_URL" ] || [ "$MANAGED_STATUS" != "ready" ]; then
+            warn "Managed provisioning output missing runtime/gateway readiness (backend will still start)"
+            write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
+            AGENTCORE_OK=false
+        fi
     fi
 
-    upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
-    upsert_env "MCP_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
-    upsert_env "USE_AGENTCORE_RUNTIME" "true" "$REPO_PATH/.env"
-    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
-    write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
-    log "✅ AgentCore managed path ready"
+    if [ "$AGENTCORE_OK" = true ]; then
+        upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
+        upsert_env "MCP_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
+        upsert_env "USE_AGENTCORE_RUNTIME" "true" "$REPO_PATH/.env"
+        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
+        write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
+        log "✅ AgentCore managed path ready"
+    else
+        warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; re-run provisioning to recover the Runtime/Gateway path."
+    fi
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
 

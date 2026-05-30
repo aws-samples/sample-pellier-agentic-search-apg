@@ -35,7 +35,7 @@ const ToolRegistryDetail: React.FC = () => {
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'Tools are registered with name, description, and a 1024-dim Cohere Embed v4 vector. The embedding captures what the tool does, not just its name.',
+          text: 'Tools are registered with name, description, and a 1024-dim Cohere Embed English v3 vector. The embedding captures what the tool does, not just its name.',
         },
         {
           numeral: 'ii.',

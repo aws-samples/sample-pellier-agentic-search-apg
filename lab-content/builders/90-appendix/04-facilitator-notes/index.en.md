@@ -61,7 +61,7 @@ for the other.
 
 ## Two failure modes that eat the most time
 
-1. **Bedrock model access not granted.** Cohere Embed v4 + Cohere
+1. **Bedrock model access not granted.** Cohere Embed English v3 + Cohere
    Rerank v3.5 + Anthropic Claude Haiku 4.5 must be enabled in
    `us-west-2`. Pre-flight: `python3 scripts/seed_boutique_catalog.py
    --dry-run`. If access is missing, the seeder fails with
@@ -84,7 +84,7 @@ pricing. Assume a 60-minute live session, ~30 builders.
 | Service | What's running | Why it costs |
 |---|---|---|
 | **Aurora PostgreSQL Serverless v2** | 1 cluster, 0.5–2 ACU autoscaling, ~120 catalog rows | Compute-time, not row-count. Idle ACU floor is the dominant cost during slow blocks. |
-| **Bedrock: Cohere Embed v4** | 40 catalog seedings + ~3 query embeddings per builder turn | Per-token, embed-only. Seeding is one-shot at bootstrap; in-room calls are tiny. |
+| **Bedrock: Cohere Embed English v3** | 40 catalog seedings + ~3 query embeddings per builder turn | Per-token, embed-only. Seeding is one-shot at bootstrap; in-room calls are tiny. |
 | **Bedrock: Cohere Rerank v3.5** | 1 call per agentic search turn | Per-document scored. Workshop catalog caps at 40, so each call is bounded. |
 | **Bedrock: Claude Haiku 4.5** | Structured-filter extraction at T=0 + agent prose | Per-input/output token. Haiku is the cheapest of the named models; leave it on. |
 | **Bedrock: Claude Opus 4.6** | Editorial specialist turns (Style Advisor, Curator, Experience Guide) | Higher per-token than Haiku; biggest cost lever if a table over-runs. |

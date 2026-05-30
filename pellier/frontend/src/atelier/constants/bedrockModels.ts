@@ -7,6 +7,6 @@
 export const BEDROCK_INFERENCE_PROFILES = {
   CLAUDE_OPUS_46: 'global.anthropic.claude-opus-4-6-v1',
   CLAUDE_HAIKU_45: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
-  COHERE_EMBED_V4: 'cohere.embed-v4:0',
+  COHERE_EMBED_ENGLISH_V3: 'cohere.embed-english-v3',
   COHERE_RERANK_V35: 'cohere.rerank-v3-5:0',
 } as const

@@ -18,7 +18,7 @@ Column reference:
     tool_id           TEXT PRIMARY KEY
     name              TEXT
     description       TEXT
-    description_emb   vector(1024)   (Cohere Embed v4, input_type=search_document)
+    description_emb   vector(1024)   (Cohere Embed English v3, input_type=search_document)
     enabled           BOOLEAN
 """
 

@@ -313,7 +313,7 @@ Resources:
           # Code Editor + nginx + Python 3.13 + postgresql17, then
           # configures the auto-start. bootstrap-labs.sh applies the
           # schema migration (001_schema.sql), seeds the 40-
-          # product catalog with Cohere Embed v4 embeddings, builds
+          # product catalog with Cohere Embed English v3 embeddings, builds
           # the frontend, provisions AgentCore Memory, and starts the
           # FastAPI service on :8000. Both scripts read the env vars
           # we sourced from .pellier-env above.
