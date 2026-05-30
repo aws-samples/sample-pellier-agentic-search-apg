@@ -57,7 +57,7 @@ class SearchResponse(BaseModel):
 
 
 class RecommendationRequest(BaseModel):
-    """Recommendation request model for Lab 2"""
+    """Recommendation request model"""
 
     productId: int
     limit: int = 5
@@ -65,7 +65,7 @@ class RecommendationRequest(BaseModel):
 
 
 class AgentResponse(BaseModel):
-    """Response from multi-agent system (Lab 2)"""
+    """Response from the multi-agent system"""
     
     agent_name: str
     response: str

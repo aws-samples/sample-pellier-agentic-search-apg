@@ -74,7 +74,7 @@ def generate_embedding(text: str) -> Optional[list]:
         })
         response = bedrock_runtime.invoke_model(
             body=payload,
-            modelId='cohere.embed-english-v4:0',
+            modelId='us.cohere.embed-v4:0',
             accept="*/*",
             contentType="application/json"
         )

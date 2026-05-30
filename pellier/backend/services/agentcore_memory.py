@@ -323,7 +323,7 @@ class AgentCoreMemory:
 
 
 # ---------------------------------------------------------------------------
-# Legacy helpers (pre-C9 "Wire It Live" surface)
+# Legacy helpers
 # ---------------------------------------------------------------------------
 #
 # These are NOT part of Challenge 6. ``app.py`` and ``services/chat.py``

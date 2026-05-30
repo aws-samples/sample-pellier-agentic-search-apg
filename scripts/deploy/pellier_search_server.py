@@ -169,7 +169,7 @@ def find_pieces_hybrid(
          transactions, so we fold the two ranked lists into a CTE plus
          Reciprocal Rank Fusion (RRF) inside the same query.
       2. The merged ~30-candidate pool is sent to Cohere Rerank v3.5
-         (`cohere.rerank-v3-5:0`) via Bedrock `invoke_model`.
+         (`us.cohere.rerank-v3-5:0`) via Bedrock `invoke_model`.
       3. Top `limit` results are returned, with post-rerank filters for
          max_price and min_rating applied last so the rerank order is
          preserved.
@@ -293,7 +293,7 @@ def _bedrock_rerank(query: str, documents: list, top_n: int) -> list:
     }
     try:
         response = bedrock_client.invoke_model(
-            modelId="cohere.rerank-v3-5:0",
+            modelId="us.cohere.rerank-v3-5:0",
             body=json.dumps(body),
             contentType="application/json",
             accept="application/json",

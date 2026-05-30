@@ -77,7 +77,7 @@ class ProductFilters(BaseModel):
 
 
 class InventoryStats(BaseModel):
-    """Inventory statistics for Lab 2"""
+    """Inventory statistics"""
 
     model_config = ConfigDict(
         json_schema_extra={

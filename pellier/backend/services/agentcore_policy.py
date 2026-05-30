@@ -145,36 +145,13 @@ class PolicyService:
     def _check_policy(
         self, policy: Dict[str, Any], action: str, params: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """
-        TODO (Module 4): Implement Cedar policy evaluation for a single policy.
+        """Evaluate a single Cedar-style policy against an action + params.
 
-        Check if the given action + parameters violate the policy.
-        Return a violation dict if denied, or None if allowed.
-
-        Steps:
-            1. Get the policy ID: pid = policy["id"]
-            2. For "max-restock-quantity":
-               - Get qty from params.get("quantity", 0)
-               - If qty > 500, return a violation dict:
-                 {"policy_id": pid, "policy_name": policy["name"],
-                  "reason": f"Restock quantity {qty} exceeds maximum of 500 units",
-                  "cedar_condition": "resource.quantity > 500"}
-            3. For "restrict-categories":
-               - Get query from params, lowercase it
-               - Check if any RESTRICTED_WORDS appear in the query
-               - If found, return violation with the matched terms
-            4. For "price-ceiling":
-               - Get price from params
-               - If price > 10000, return violation
-            5. Return None if no violation
-
-        Hints:
-            - Use RESTRICTED_WORDS set for category checking
-            - re.findall(r'\\w+', query) splits query into words for set intersection
-            - Each violation dict needs: policy_id, policy_name, reason, cedar_condition
-
-        ⏩ SHORT ON TIME? Run:
-           cp solutions/the-ledger/services/agentcore_policy.py pellier/backend/services/agentcore_policy.py
+        Returns a violation dict if the action is denied, or None if allowed.
+        Handles the boutique's three operational policies: max-restock-quantity,
+        restrict-categories, and price-ceiling. This is the live enforcement
+        path consulted by ``policy_hook.PolicyEnforcementHook`` before every
+        mutating tool call.
         """
         pid = policy["id"]
 

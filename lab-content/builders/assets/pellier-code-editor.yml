@@ -187,6 +187,13 @@ Resources:
                   - secretsmanager:DescribeSecret
                 Resource:
                   - !Ref DBSecretArn
+                  - !Ref CognitoClientSecretArn
+                  - !Ref CognitoTestCredentialsSecretArn
+              - Sid: CognitoAdminAuthForRuntimeSmoke
+                Effect: Allow
+                Action:
+                  - cognito-idp:AdminInitiateAuth
+                Resource: !Sub arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
               - Sid: CloudWatchLogs
                 Effect: Allow
                 Action:

@@ -1,8 +1,12 @@
 """
-Guardrails Service — Bedrock Guardrails API integration for responsible AI.
+Guardrails Service — Bedrock Guardrails ApplyGuardrail integration.
 
-Wire It Live: Participants implement check_input() and check_output() using
-the Bedrock Guardrails ApplyGuardrail API.
+The input/output checks are fully implemented. Enforcement activates only
+when ``BEDROCK_GUARDRAIL_ID`` is set; otherwise the service runs in
+pass-through mode (allow-all) so the boutique works without a provisioned
+guardrail. In the Builder's Session this is an inspect-only surface — the
+Atelier shows the config and attach point — so we do not make every turn
+depend on a live ApplyGuardrail round-trip.
 """
 import re
 import logging
@@ -38,15 +42,11 @@ class GuardrailsService:
 
     def check_input(self, text: str) -> Dict[str, Any]:
         """
-        Check user input against Bedrock Guardrails.
+        Check user input against Bedrock Guardrails (source="INPUT").
 
-        Wire It Live: TODO — call self._client.apply_guardrail(
-            guardrailIdentifier=self.guardrail_id,
-            guardrailVersion=self.guardrail_version,
-            source="INPUT",
-            content=[{"text": {"text": text}}],
-        )
-        Parse the response action: GUARDRAIL_INTERVENED → blocked.
+        Calls ApplyGuardrail when a guardrail is configured and parses the
+        response action (GUARDRAIL_INTERVENED → blocked). Returns allow-all
+        in pass-through mode.
 
         Returns:
             {allowed: bool, action: str, violations: list}
@@ -54,7 +54,6 @@ class GuardrailsService:
         if not self.is_configured:
             return {"allowed": True, "action": "NONE", "violations": [], "mode": "pass-through"}
 
-        # === WIRE IT LIVE (Lab 3) ===
         try:
             response = self._client.apply_guardrail(
                 guardrailIdentifier=self.guardrail_id,
@@ -80,13 +79,12 @@ class GuardrailsService:
         except Exception as e:
             logger.warning(f"Guardrail input check failed: {e}")
             return {"allowed": True, "action": "ERROR", "violations": []}
-        # === END WIRE IT LIVE ===
 
     def check_output(self, text: str) -> Dict[str, Any]:
         """
-        Check model output against Bedrock Guardrails.
+        Check model output against Bedrock Guardrails (source="OUTPUT").
 
-        Wire It Live: TODO — same as check_input but with source="OUTPUT".
+        Same contract as check_input. Returns allow-all in pass-through mode.
 
         Returns:
             {allowed: bool, action: str, violations: list}
@@ -94,7 +92,6 @@ class GuardrailsService:
         if not self.is_configured:
             return {"allowed": True, "action": "NONE", "violations": [], "mode": "pass-through"}
 
-        # === WIRE IT LIVE (Lab 3) ===
         try:
             response = self._client.apply_guardrail(
                 guardrailIdentifier=self.guardrail_id,
@@ -120,7 +117,6 @@ class GuardrailsService:
         except Exception as e:
             logger.warning(f"Guardrail output check failed: {e}")
             return {"allowed": True, "action": "ERROR", "violations": []}
-        # === END WIRE IT LIVE ===
 
     def detect_pii(self, text: str) -> Dict[str, Any]:
         """Basic regex-based PII detection for demo purposes."""

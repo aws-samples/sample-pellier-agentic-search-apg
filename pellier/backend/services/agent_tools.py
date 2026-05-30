@@ -681,7 +681,6 @@ def running_low(limit: int = 5) -> str:
     # === CHALLENGE · Stock Keeper · running_low: END ===
 
 
-# === WIRE IT LIVE (Lab 2) ===
 @tool
 def side_by_side(product_id_1: int, product_id_2: int) -> str:
     """Compare two products side by side by their product IDs. Use when customers want to see differences in price, rating, and features.
@@ -749,7 +748,6 @@ def side_by_side(product_id_1: int, product_id_2: int) -> str:
         }, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
-# === END WIRE IT LIVE ===
 
 
 # === RETURN POLICY TOOL (backed by pellier.return_policies table) ===

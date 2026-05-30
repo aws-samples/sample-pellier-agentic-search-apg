@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Tool schemas for Pellier MCP servers
 TOOL_SCHEMAS = {
     "search": {
-        "target_name": "pellier-search-server-function",
+        "target_name": "pellier-discovery-search-target",
         "description": "Pellier search and inventory MCP server",
         "tools": [
             {
@@ -92,7 +92,7 @@ TOOL_SCHEMAS = {
         ],
     },
     "pricing": {
-        "target_name": "pellier-pricing-server-function",
+        "target_name": "pellier-value-pricing-target",
         "description": "Pellier pricing analysis MCP server",
         "tools": [
             {
@@ -132,7 +132,7 @@ TOOL_SCHEMAS = {
         ],
     },
     "recommendation": {
-        "target_name": "pellier-recommend-server-function",
+        "target_name": "pellier-curation-recommendation-target",
         "description": "Pellier product recommendation MCP server",
         "tools": [
             {
@@ -164,7 +164,7 @@ TOOL_SCHEMAS = {
         ],
     },
     "experience": {
-        "target_name": "pellier-experience-server-function",
+        "target_name": "pellier-concierge-experience-target",
         "description": "Pellier experience-guide MCP server (returns + stylist handoff)",
         "tools": [
             {

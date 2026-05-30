@@ -137,7 +137,7 @@ PGPASSWORD='${DB_PASSWORD}'
 PGDATABASE='${DB_NAME}'
 AWS_REGION='${AWS_REGION}'
 AWS_DEFAULT_REGION='${AWS_REGION}'
-BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v4:0}'
+BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 WORKSHOP_ID='${WORKSHOP_ID:-}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-workshop}'
@@ -252,6 +252,32 @@ else
 fi
 
 # ============================================================================
+# STEP 8b: BEDROCK MODEL-ACCESS PREFLIGHT (~10 sec)
+# ============================================================================
+# Fail fast and loud if the runtime models aren't enabled in this account.
+# Without this, a missing grant surfaces much later as an empty storefront
+# or a dead chat turn mid-session. Embed v4 is intentionally optional here
+# because the catalog seeds from the committed embeddings cache.
+log "Preflight: checking Bedrock model access (us-west-2)..."
+if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
+    if sudo -u "$CODE_EDITOR_USER" bash -c "
+        export AWS_REGION='${AWS_REGION:-us-west-2}'
+        cd '$REPO_PATH'
+        python3.13 scripts/check_model_access.py
+    " 2>&1 | tee /var/log/model-access-preflight.log; then
+        log "✅ Bedrock model-access preflight passed"
+    else
+        warn "❌ Bedrock model-access preflight FAILED — required models not enabled."
+        warn "   See /var/log/model-access-preflight.log and enable models at:"
+        warn "   https://console.aws.amazon.com/bedrock/home#/modelaccess"
+        warn "   Continuing bootstrap so the IDE is usable, but the session will"
+        warn "   not work until model access is granted and the seed is re-run."
+    fi
+else
+    warn "check_model_access.py not found — skipping model preflight"
+fi
+
+# ============================================================================
 # STEP 9-10: PARALLEL FRONTEND + DATABASE (~8 min vs 8.5 min)
 # ============================================================================
 log "Setting up frontend and database (parallel)..."
@@ -310,15 +336,23 @@ setup_database() {
         fi
 
         # ---- 2. Boutique catalog seeder — 40 hand-curated products
-        # across the four personas (Marco / Anna / Theo / Fresh), with
-        # Cohere Embed v4 embeddings generated at seed time.
+        # across the four personas (Marco / Anna / Theo / Fresh).
         # Authoritative source for pellier.product_catalog.
         #
-        # Must run as $CODE_EDITOR_USER: psycopg + boto3 are installed
-        # via `pip install --user` for that user in Stage 1, so root's
-        # python3 cannot import them. Without sudo -u, the seeder dies
-        # with ModuleNotFoundError and the catalog stays empty —
-        # cascading silent failures into 003's persona-orders JOIN. ----
+        # Embeddings come from the COMMITTED cache (data/embeddings_cache.json)
+        # via --from-cache. The catalog never changes between runs, so we
+        # generate Cohere Embed v4 vectors once (committed) instead of calling
+        # Bedrock on every account. This removes the slowest, most
+        # throttle-prone step from the bootstrap critical path and makes the
+        # seed a deterministic SQL load. To regenerate the cache after a
+        # catalog change, run `python scripts/seed_boutique_catalog.py --csv-only`
+        # on a machine with Bedrock access and commit the updated cache.
+        #
+        # Must run as $CODE_EDITOR_USER: psycopg is installed via
+        # `pip install --user` for that user in Stage 1, so root's python3
+        # cannot import it. Without sudo -u the seeder dies with
+        # ModuleNotFoundError and the catalog stays empty — cascading silent
+        # failures into 003's persona-orders JOIN. ----
         sudo -u "$CODE_EDITOR_USER" bash -c "
             export DB_HOST='$DB_HOST' DB_PORT='$DB_PORT' DB_NAME='$DB_NAME'
             export DB_USER='$DB_USER' DB_PASSWORD='$DB_PASSWORD'
@@ -327,7 +361,7 @@ setup_database() {
             export ASSETS_BUCKET_PREFIX='${ASSETS_BUCKET_PREFIX:-}'
             export DATABASE_URL='$DATABASE_URL'
             cd '$REPO_PATH'
-            python3.13 scripts/seed_boutique_catalog.py
+            python3.13 scripts/seed_boutique_catalog.py --from-cache
         " 2>&1 | tee /var/log/database-setup.log
         local seed_rc=${PIPESTATUS[0]}
         if [ "$seed_rc" -ne 0 ]; then
@@ -476,18 +510,17 @@ log "Creating start scripts..."
 # Single-process model: FastAPI on :8000 serves both /api/* and the
 # built SPA. The legacy start-frontend.sh / http-server on 5173 is
 # gone — attendees point their browser at /ports/8000/* only.
-cat > "$REPO_PATH/pellier/start-backend.sh" << 'EOF'
+# Single source of truth for the restart command is
+# scripts/start-backend-builders.sh (safe `set -a; source .env` env
+# loading — avoids the unquoted-env word-splitting bug that bit us with
+# special chars in DB passwords). This convenience wrapper just delegates
+# so there is exactly ONE definition of "how the backend restarts".
+cat > "$REPO_PATH/pellier/start-backend.sh" << EOF
 #!/bin/bash
-# Convenience script for interactive iteration. The workshop's
-# production flow is the pellier systemd service (see below).
-# Use this script when you want --reload during local dev.
-cd "$(dirname "$0")/backend"
-export PATH="$HOME/.local/bin:$PATH"
-[ -f "../../.env" ] && export $(grep -v '^#' ../../.env | xargs)
-[ ! -f "../config/mcp-server-config.json" ] && [ -f "generate_mcp_config.py" ] && python3 generate_mcp_config.py 2>/dev/null
-echo "🚀 Starting FastAPI backend on http://localhost:8000 (with --reload)"
-echo "   App: http://localhost:8000/ — uvicorn serves the built SPA + /api"
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+# Convenience wrapper — delegates to the canonical builders start script.
+# Do not duplicate the uvicorn invocation here; edit
+# scripts/start-backend-builders.sh instead.
+exec "$REPO_PATH/scripts/start-backend-builders.sh" "\$@"
 EOF
 
 chmod +x "$REPO_PATH/pellier/start-backend.sh"
@@ -523,6 +556,9 @@ alias workshop='cd /workshop/sample-pellier-agentic-search-apg'
 alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 alias backend='cd /workshop/sample-pellier-agentic-search-apg/pellier/backend'
 alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
+
+# One-shot readiness check (catalog / warehouse / memory id / runtime / health)
+alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-gate.sh'
 
 # Pellier service shortcuts — see FORMAT_ALIASES below (workshop vs builders).
 
@@ -931,7 +967,25 @@ else
     echo "  journalctl -fu pellier           # Service logs (workshop)"
 fi
 echo "  rebuild-frontend                 # Rebuild SPA + restart app"
+echo "  health                           # One-shot readiness check (catalog/memory/runtime)"
 echo ""
+
+# ============================================================================
+# STEP 19: POST-BOOT HEALTH GATE
+# ============================================================================
+# One consolidated PASS/FAIL summary so the facilitator sees readiness at a
+# glance. Non-fatal: bootstrap already finished; this only reports. Give the
+# backend a moment to come up first (builders launches uvicorn in STEP 16).
+if [ -x "$REPO_PATH/scripts/health-gate.sh" ]; then
+    log "Running post-boot health gate..."
+    sleep 5
+    sudo -u "$CODE_EDITOR_USER" bash -c "
+        export PELLIER_REPO='$REPO_PATH'
+        bash '$REPO_PATH/scripts/health-gate.sh'
+    " 2>&1 | tee /var/log/pellier-health-gate.log || \
+        warn "Health gate reported NOT READY — see /var/log/pellier-health-gate.log"
+fi
+
 log "=========================================="
 
 exit 0

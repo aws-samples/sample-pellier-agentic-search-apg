@@ -53,7 +53,7 @@ logging.basicConfig(
 logger = logging.getLogger("seed_tool_registry")
 
 
-COHERE_MODEL_ID = "cohere.embed-english-v4:0"
+COHERE_MODEL_ID = "us.cohere.embed-v4:0"
 EMBEDDING_DIMENSION = 1024
 
 

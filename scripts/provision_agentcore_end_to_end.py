@@ -32,25 +32,25 @@ import boto3
 
 EXPECTED_TARGETS = {
     "search": {
-        "target_name": "pellier-search-server-function",
+        "target_name": "pellier-discovery-search-target",
         "handler": "pellier_search_server.lambda_handler",
         "server_name": "pellier-search-server",
         "entrypoint": "scripts/deploy/pellier_search_server.py",
     },
     "pricing": {
-        "target_name": "pellier-pricing-server-function",
+        "target_name": "pellier-value-pricing-target",
         "handler": "pellier_pricing_server.lambda_handler",
         "server_name": "pellier-pricing-server",
         "entrypoint": "scripts/deploy/pellier_pricing_server.py",
     },
     "recommendation": {
-        "target_name": "pellier-recommend-server-function",
+        "target_name": "pellier-curation-recommendation-target",
         "handler": "pellier_recommend_server.lambda_handler",
         "server_name": "pellier-recommend-server",
         "entrypoint": "scripts/deploy/pellier_recommend_server.py",
     },
     "experience": {
-        "target_name": "pellier-experience-server-function",
+        "target_name": "pellier-concierge-experience-target",
         "handler": "pellier_experience_server.lambda_handler",
         "server_name": "pellier-experience-server",
         "entrypoint": "scripts/deploy/pellier_experience_server.py",

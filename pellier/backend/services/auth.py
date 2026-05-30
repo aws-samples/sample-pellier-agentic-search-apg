@@ -1,9 +1,10 @@
 """
-AgentCore Identity — Cognito JWT verification for Lab 4a.
+AgentCore Identity — Cognito JWT verification.
 
-Wire It Live: Participants implement verify_cognito_token() to decode and
-validate JWTs from Amazon Cognito, then wire get_current_user() as a
-FastAPI dependency.
+verify_cognito_token() decodes and validates JWTs from Amazon Cognito;
+get_current_user() is the FastAPI dependency that extracts the bearer
+token. In the Builder's Session the app runs in demo auth mode
+(AUTH_MODE=demo), so this path is dormant but fully functional.
 """
 import logging
 import time
@@ -41,7 +42,6 @@ def _get_jwks(user_pool_id: str, region: str) -> Dict[str, Any]:
     return _jwks_cache
 
 
-# === WIRE IT LIVE (Lab 4a) ===
 def verify_cognito_token(token: str) -> Dict[str, Any]:
     """
     Verify a Cognito JWT and return its claims.
@@ -98,7 +98,6 @@ def verify_cognito_token(token: str) -> Dict[str, Any]:
     except requests.RequestException as e:
         logger.error(f"Failed to fetch JWKS: {e}")
         raise HTTPException(status_code=503, detail="Cannot verify token")
-# === END WIRE IT LIVE ===
 
 
 async def get_current_user(
@@ -107,11 +106,11 @@ async def get_current_user(
     """
     FastAPI dependency: extract and verify the Bearer token.
 
-    Returns None for anonymous users (Labs 1-3).
-    Returns {sub, email} for authenticated users (Lab 4).
+    Returns None for anonymous users (demo mode).
+    Returns {sub, email} for authenticated users.
     """
     if not authorization or not authorization.startswith("Bearer "):
-        return None  # Anonymous — backward-compatible with Labs 1-3
+        return None  # Anonymous — demo mode default
 
     token = authorization.split(" ", 1)[1]
     claims = verify_cognito_token(token)

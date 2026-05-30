@@ -184,7 +184,6 @@ async def lifespan(app: FastAPI):
 
             logger.info("✅ Strands OpenTelemetry tracing enabled (compact format)")
 
-            # === WIRE IT LIVE (Lab 4d) ===
             # Export traces to CloudWatch X-Ray via OTLP (requires OTEL_EXPORTER_OTLP_ENDPOINT)
             try:
                 import os
@@ -198,7 +197,6 @@ async def lifespan(app: FastAPI):
                     logger.info("ℹ️  OTLP exporter skipped (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)")
             except Exception as e:
                 logger.warning(f"⚠️ OTLP exporter not available: {e}")
-            # === END WIRE IT LIVE ===
 
             # Attach in-memory span capture for trace extraction
             try:
@@ -1597,49 +1595,11 @@ async def get_current_persona(session_id: Optional[str] = Query(default=None)):
     }
 
 
-@app.get("/api/atelier/status")
-async def get_workshop_status():
-    """Detect which workshop modules have been completed by inspecting stub source code."""
-    import inspect
-
-    def is_stub(func, sentinel: str) -> bool:
-        try:
-            return sentinel.lower() in inspect.getsource(func).lower()
-        except Exception:
-            return True
-
-    # Module 1 — Smart Search
-    from services.vector_search import VectorSearch
-    from services.business_logic import BusinessLogic
-    m1a = is_stub(VectorSearch.vector_search, "# TODO: Your implementation here")
-    m1b = is_stub(BusinessLogic.find_pieces, "# TODO: Your implementation here")
-
-    # Module 2 — Agentic AI (tools + agents + orchestrator)
-    from services.agent_tools import whats_trending
-    from agents.curator import recommendation
-    from agents.orchestrator import create_orchestrator
-    m2_tools = is_stub(whats_trending, "# TODO: Your implementation here")
-    m2_rec = is_stub(recommendation, "# TODO: Your implementation here")
-    m2_orch = is_stub(create_orchestrator, "# TODO: Your implementation here")
-
-    # Module 3 — Production Patterns
-    from services.agentcore_memory import create_agentcore_session_manager
-    from services.agentcore_gateway import create_gateway_orchestrator
-    from services.agentcore_policy import PolicyService
-    m3_mem = is_stub(create_agentcore_session_manager, "# TODO: Your implementation here")
-    m3_gw = is_stub(create_gateway_orchestrator, "# TODO: Your implementation here")
-    m3_pol = is_stub(PolicyService._check_policy, "# TODO: Your implementation here")
-
-    return {
-        "modules": {
-            "module1": {"complete": not m1a and not m1b, "label": "Smart Search",
-                        "stubs": {"vector_search": not m1a, "find_pieces": not m1b}},
-            "module2": {"complete": not m2_tools and not m2_rec and not m2_orch, "label": "Agentic AI",
-                        "stubs": {"whats_trending": not m2_tools, "recommendation_agent": not m2_rec, "orchestrator": not m2_orch}},
-            "module3": {"complete": not m3_mem and not m3_gw and not m3_pol, "label": "Production Patterns",
-                        "stubs": {"memory": not m3_mem, "gateway": not m3_gw, "policy": not m3_pol}},
-        }
-    }
+# NOTE: the legacy /api/atelier/status endpoint (multi-module stub detection
+# for the 120-min re:Invent workshop) was removed for the Builder's Session.
+# The Atelier progress strip reads GET /api/atelier/build-state instead, which
+# tracks only the single floor_check exercise. See
+# routes/atelier_observatory.py::get_build_state.
 
 
 # ============================================================================
@@ -2013,12 +1973,12 @@ async def policy_decisions(session_id: str = "", limit: int = 50):
 
 
 # ============================================================================
-# AGENTCORE ENDPOINTS (Lab 4)
+# AGENTCORE ENDPOINTS
 # ============================================================================
 
 @app.get("/api/agentcore/memories")
 async def agentcore_memories(user=Depends(get_current_user)):
-    """Get stored memories for authenticated user (Lab 4b)"""
+    """Get stored memories for authenticated user"""
     if not user:
         return {"memories": [], "message": "Sign in to view memories"}
     try:
@@ -2032,7 +1992,7 @@ async def agentcore_memories(user=Depends(get_current_user)):
 
 @app.get("/api/agentcore/gateway/tools")
 async def agentcore_gateway_tools():
-    """List tools registered in AgentCore Gateway MCP server (Lab 4c)"""
+    """List tools registered in the AgentCore Gateway MCP server"""
     try:
         from services.agentcore_gateway import list_gateway_tools
         tools = list_gateway_tools()
@@ -2044,7 +2004,7 @@ async def agentcore_gateway_tools():
 
 @app.get("/api/agentcore/runtime/status")
 async def agentcore_runtime_status():
-    """Get AgentCore Runtime execution status (Lab 4e)"""
+    """Get AgentCore Runtime execution status"""
     runtime_endpoint = settings.AGENTCORE_RUNTIME_ENDPOINT
     if runtime_endpoint:
         # Check health of remote runtime

@@ -66,7 +66,6 @@ def create_orchestrator():
 # === CHALLENGE 4: Multi-Agent Orchestrator — END ===
 
 
-# === WIRE IT LIVE (Lab 3) ===
 GUARDRAILS_PROMPT_SUFFIX = """
 
 GUARDRAILS (ACTIVE):
@@ -96,4 +95,3 @@ def create_guarded_orchestrator():
             support,
         ],
     )
-# === END WIRE IT LIVE ===

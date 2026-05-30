@@ -571,7 +571,6 @@ class EnhancedChatService:
             # Create session manager if session_id provided
             session_manager = None
             if session_id:
-                # === WIRE IT LIVE (Lab 4b) ===
                 # Use AgentCore Memory for managed session persistence
                 if user and settings.AGENTCORE_MEMORY_ID:
                     from services.agentcore_memory import create_agentcore_session_manager
@@ -581,25 +580,26 @@ class EnhancedChatService:
                     )
                     if session_manager:
                         logger.info(f"🧠 AgentCore Memory session created for user={user.get('email')}")
-                # === END WIRE IT LIVE ===
 
                 # No fallback — AgentCore Memory is the only session manager.
                 # If AGENTCORE_MEMORY_ID is not set, the agent runs without session memory.
                 if not session_manager:
                     logger.info(f"ℹ️ No session manager — agent runs stateless (set AGENTCORE_MEMORY_ID to enable)")
 
-            # Create orchestrator — use guarded variant when guardrails enabled (Lab 3)
+            # Create orchestrator — use guarded variant when guardrails enabled
             logger.info(f"🎯 Creating agent orchestrator (guardrails={'ON' if guardrails_enabled else 'OFF'})...")
             if guardrails_enabled:
                 orchestrator = create_guarded_orchestrator()
             else:
                 orchestrator = create_orchestrator()
 
-            # Graceful fallback if orchestrator not implemented yet (Module 3b TODO)
+            # Defensive guard: orchestrator factory returned None (missing
+            # dependency or misconfigured model). Should not happen in a
+            # provisioned environment — surfaces a clear message if it does.
             if orchestrator is None:
                 return self._error_response(
-                    "🔧 The AI agent orchestrator isn't wired up yet. "
-                    "Complete Module 3b to enable the chat assistant."
+                    "🔧 The AI agent orchestrator isn't available. "
+                    "Check the backend logs (/tmp/pellier/uvicorn.log)."
                 )
 
             # Add OpenTelemetry trace attributes
@@ -730,7 +730,7 @@ CURRENT REQUEST: {message}"""
         session_id: Optional[str] = None,
         guardrails_enabled: bool = False
     ):
-        """Streaming single-agent mode for Lab 2."""
+        """Streaming single-agent mode."""
         import asyncio
         import time
 
@@ -942,7 +942,7 @@ CURRENT REQUEST: {message}"""
         session_id: Optional[str] = None,
         guardrails_enabled: bool = False
     ) -> Dict[str, Any]:
-        """Single-agent mode for Lab 2 — basic tools, no orchestrator routing."""
+        """Single-agent mode — basic tools, no orchestrator routing."""
         import asyncio
         import time
 
@@ -1558,7 +1558,6 @@ CURRENT REQUEST: {message}"""
 
         session_manager = None
         if session_id:
-            # === WIRE IT LIVE (Lab 4b) ===
             from config import settings
             if user and settings.AGENTCORE_MEMORY_ID:
                 try:
@@ -1577,7 +1576,6 @@ CURRENT REQUEST: {message}"""
                         logger.info(f"🧠 AgentCore Memory (stream) for user={memory_user_id}")
                 except Exception as e:
                     logger.warning(f"AgentCore Memory setup failed: {e}")
-            # === END WIRE IT LIVE ===
 
             if not session_manager:
                 logger.info("ℹ️ No session manager for streaming — agent runs stateless")
@@ -1617,12 +1615,14 @@ CURRENT REQUEST: {message}"""
                 else:
                     orchestrator = create_orchestrator()
 
-            # Graceful fallback if orchestrator not implemented yet (Module 3b TODO)
+            # Defensive guard: orchestrator factory returned None (missing
+            # dependency or misconfigured model). Should not happen in a
+            # provisioned environment — surfaces a clear message if it does.
             if orchestrator is None:
                 yield {
                     "type": "error",
-                    "error": "🔧 The AI agent orchestrator isn't wired up yet. "
-                             "Complete Module 3b to enable the chat assistant."
+                    "error": "🔧 The AI agent orchestrator isn't available. "
+                             "Check the backend logs (/tmp/pellier/uvicorn.log)."
                 }
                 return
         # For dispatcher/graph, ``orchestrator`` is bound later once

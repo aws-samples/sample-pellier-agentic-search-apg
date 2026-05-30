@@ -8,18 +8,31 @@ Each product gets a 1024-dim embedding via Bedrock's Cohere Embed v4,
 stored in Aurora's pgvector column for HNSW-indexed similarity search.
 
 Usage:
-    # Generate embeddings + write CSV (no DB connection needed):
-    python scripts/seed_boutique_catalog.py --csv-only
-
-    # Generate embeddings + seed directly into Aurora:
+    # Generate embeddings via Bedrock + seed directly into Aurora:
     python scripts/seed_boutique_catalog.py
 
-    # Skip embedding generation (use empty vectors, for local dev):
+    # Generate embeddings + write CSV + embeddings cache (no DB connection):
+    python scripts/seed_boutique_catalog.py --csv-only
+
+    # PREFERRED FOR WORKSHOPS — seed from the committed embeddings cache,
+    # no Bedrock embedding calls (deterministic, fast, no throttle/AccessDenied):
+    python scripts/seed_boutique_catalog.py --from-cache
+
+    # Skip embedding generation (use zero vectors, for local dev):
     python scripts/seed_boutique_catalog.py --skip-embeddings --csv-only
 
 Environment:
     DB_HOST, DB_NAME, DB_USER, DB_PASSWORD — Aurora connection
-    AWS_REGION — Bedrock region (default: us-east-1)
+    AWS_REGION — Bedrock region (default: us-west-2)
+
+Workshop note:
+    The catalog embeddings never change between runs, so we generate them
+    ONCE (committing data/embeddings_cache.json) and every participant
+    account seeds from that cache via --from-cache. This removes the
+    Cohere Embed v4 Bedrock call from the bootstrap critical path — the
+    slowest, most throttle-prone step — turning the seed into a
+    deterministic SQL load. Runtime models (Cohere Rerank, Claude) are
+    still required and checked by the model-access preflight.
 """
 
 from __future__ import annotations
@@ -44,6 +57,11 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 CSV_OUT = os.path.join(DATA_DIR, "boutique_catalog_40.csv")
+# Committed cache of precomputed 1024-dim embeddings, keyed by productId.
+# Generated once via --csv-only; loaded by --from-cache so the workshop
+# bootstrap never has to call Bedrock to embed the catalog.
+EMBED_CACHE = os.path.join(DATA_DIR, "embeddings_cache.json")
+EMBED_DIM = 1024
 
 # CSV column order matches the seed-database.sh temp_products schema
 CSV_FIELDS = [
@@ -322,11 +340,27 @@ ALL_PRODUCTS = FRESH_PRODUCTS + MARCO_PRODUCTS + ANNA_PRODUCTS + THEO_PRODUCTS
 # =========================================================================
 
 def generate_embeddings(products: List[Product], region: str) -> None:
-    """Generate Cohere Embed v4 embeddings via Bedrock for all products."""
+    """Generate Cohere Embed v4 embeddings via Bedrock for all products.
+
+    Cohere Embed v4 is not available for on-demand invocation by its bare
+    model ID — it must be called through a cross-region inference profile
+    (e.g. ``us.cohere.embed-v4:0``). We derive the profile from the region
+    group, overridable via BEDROCK_EMBED_MODEL_ID for an explicit ID/ARN.
+    """
     import boto3
 
+    # Region group prefix for the inference profile: us-* → "us", eu-* → "eu",
+    # ap-* → "apac". Cohere Embed v4 ships US + EU + APAC system profiles.
+    group = region.split("-")[0]
+    group = {"ap": "apac"}.get(group, group)
+    default_profile = f"{group}.cohere.embed-v4:0"
+    model_id = os.getenv("BEDROCK_EMBED_MODEL_ID", default_profile)
+
     client = boto3.client("bedrock-runtime", region_name=region)
-    logger.info("Generating embeddings for %d products via Cohere Embed v4...", len(products))
+    logger.info(
+        "Generating embeddings for %d products via %s...",
+        len(products), model_id,
+    )
 
     for i, product in enumerate(products):
         text = product.search_text
@@ -339,7 +373,7 @@ def generate_embeddings(products: List[Product], region: str) -> None:
             })
             response = client.invoke_model(
                 body=payload,
-                modelId="cohere.embed-english-v4:0",
+                modelId=model_id,
                 contentType="application/json",
                 accept="application/json",
             )
@@ -364,6 +398,54 @@ def generate_embeddings(products: List[Product], region: str) -> None:
         # Respect rate limits
         if (i + 1) % 10 == 0:
             time.sleep(1)
+
+
+# =========================================================================
+# EMBEDDINGS CACHE (precomputed vectors, committed to the repo)
+# =========================================================================
+
+def write_embeddings_cache(products: List[Product], path: str) -> None:
+    """Persist generated embeddings keyed by productId, for later --from-cache."""
+    cache = {
+        str(p.productId): p.embedding
+        for p in products
+        if p.embedding and len(p.embedding) == EMBED_DIM
+    }
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(
+            {"model": "us.cohere.embed-v4:0", "dim": EMBED_DIM, "embeddings": cache},
+            f,
+        )
+    logger.info("Wrote %d cached embeddings to %s", len(cache), path)
+
+
+def load_embeddings_cache(products: List[Product], path: str) -> int:
+    """Attach precomputed embeddings from the committed cache. Returns count applied."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Embeddings cache not found at {path}. Generate it once with "
+            f"`python scripts/seed_boutique_catalog.py --csv-only` and commit it."
+        )
+    with open(path) as f:
+        payload = json.load(f)
+    cache = payload.get("embeddings", {})
+    applied = 0
+    missing: List[int] = []
+    for p in products:
+        vec = cache.get(str(p.productId))
+        if vec and len(vec) == EMBED_DIM:
+            p.embedding = vec
+            applied += 1
+        else:
+            missing.append(p.productId)
+    if missing:
+        logger.warning(
+            "Cache missing/invalid embeddings for %d products: %s",
+            len(missing), missing,
+        )
+    logger.info("Applied %d/%d cached embeddings from %s", applied, len(products), path)
+    return applied
 
 
 # =========================================================================
@@ -494,26 +576,39 @@ def print_summary(products: List[Product]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Seed boutique catalog with embeddings")
-    parser.add_argument("--csv-only", action="store_true", help="Write CSV only, no DB connection")
-    parser.add_argument("--skip-embeddings", action="store_true", help="Skip Cohere embedding generation")
-    parser.add_argument("--region", default=os.getenv("AWS_REGION", "us-east-1"), help="AWS region")
+    parser.add_argument("--csv-only", action="store_true", help="Write CSV + embeddings cache only, no DB connection")
+    parser.add_argument("--from-cache", action="store_true", help="Seed using committed embeddings cache (no Bedrock calls) — preferred for workshops")
+    parser.add_argument("--skip-embeddings", action="store_true", help="Skip Cohere embedding generation (zero vectors)")
+    parser.add_argument("--region", default=os.getenv("AWS_REGION", "us-west-2"), help="AWS region")
     args = parser.parse_args()
 
     products = ALL_PRODUCTS
 
-    if not args.skip_embeddings:
+    if args.from_cache:
+        # Workshop fast path: deterministic SQL load from precomputed vectors.
+        applied = load_embeddings_cache(products, EMBED_CACHE)
+        if applied < len(products):
+            logger.warning(
+                "Only %d/%d products have cached embeddings — the rest seed "
+                "with zero vectors and will not surface in semantic search.",
+                applied, len(products),
+            )
+    elif not args.skip_embeddings:
         generate_embeddings(products, args.region)
+        # Refresh the committed cache whenever we regenerate, so the next
+        # --from-cache run stays in sync with the live model output.
+        write_embeddings_cache(products, EMBED_CACHE)
     else:
         logger.info("Skipping embedding generation (--skip-embeddings)")
 
-    write_csv(products, CSV_OUT)
     print_summary(products)
 
     if not args.csv_only:
         seed_database(products)
     else:
-        logger.info("CSV-only mode — skipping DB seeding")
-        logger.info("To seed Aurora, run without --csv-only")
+        write_csv(products, CSV_OUT)
+        logger.info("CSV-only mode — wrote CSV + embeddings cache, skipped DB seeding")
+        logger.info("To seed Aurora from the cache, run: --from-cache")
 
 
 if __name__ == "__main__":

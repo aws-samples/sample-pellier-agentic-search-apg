@@ -44,11 +44,15 @@ class Settings(BaseSettings):
     # ========================================
     # Bedrock Model Configuration
     # ========================================
-    # Embedding model for semantic search (Cohere Embed v4)
-    BEDROCK_EMBEDDING_MODEL: str = "cohere.embed-v4:0"
+    # Embedding model for semantic search (Cohere Embed v4).
+    # Embed v4 has no on-demand throughput by bare model ID — it must be
+    # invoked through a cross-region inference profile (us.* / eu.* / apac.*).
+    BEDROCK_EMBEDDING_MODEL: str = "us.cohere.embed-v4:0"
 
-    # Rerank model for hybrid search (Cohere Rerank v3.5)
-    BEDROCK_RERANK_MODEL: str = "cohere.rerank-v3-5:0"
+    # Rerank model for hybrid search (Cohere Rerank v3.5).
+    # Like Embed v4, Rerank v3.5 has no on-demand throughput by bare model
+    # ID — invoke via a cross-region inference profile (us.* / eu.* / apac.*).
+    BEDROCK_RERANK_MODEL: str = "us.cohere.rerank-v3-5:0"
 
     # --- Agent model config ---
     #
@@ -149,17 +153,17 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
     # ========================================
-    # Bedrock Guardrails (Lab 3)
+    # Bedrock Guardrails
     # ========================================
     BEDROCK_GUARDRAIL_ID: Optional[str] = None
     BEDROCK_GUARDRAIL_VERSION: str = "DRAFT"
 
     # ========================================
-    # AgentCore Configuration (Lab 4)
+    # AgentCore Configuration
     # ========================================
     # 4a — Identity (Cognito)
     #
-    # Historical name was COGNITO_USER_POOL_ID (Lab 4 "wire it live" demo).
+    # Historical name was COGNITO_USER_POOL_ID.
     # The storefront spec (Req 4.1, 4.2, Challenge 9.1) standardises on
     # COGNITO_POOL_ID. Both are accepted; `cognito_pool_id_resolved` picks
     # whichever is set so existing .env files keep working.
