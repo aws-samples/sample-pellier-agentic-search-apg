@@ -3,7 +3,7 @@
 Copy a solution file over its runtime counterpart and the backend
 auto-restarts. Two formats consume this directory:
 
-- **60-min Builder's Session (DC Summit)** — two exercises, one stretch.
+- **60-min Builder's Session (DC Summit)** — two mandatory builds, two optional fast-finishers.
 - **120-min Workshop (re:Invent)** — three modules, multiple challenges.
 
 ```
@@ -17,10 +17,11 @@ solutions/
 
 ## Builder's Session — 60 min
 
-Two exercises, one optional stretch. The cp commands below are the
-"⏩ out of time" escape hatches referenced from each lab page.
+**Two mandatory builds, two optional fast-finishers.** The cp commands
+below are the "⏩ out of time" escape hatches referenced from each lab
+page.
 
-### Exercise 1 — `floor_check` body (Act I)
+### Exercise 1 (mandatory) — `floor_check` body (Act I)
 
 Replaces the stubbed `floor_check` tool body with the working
 implementation that calls `BusinessLogic.floor_check()` against
@@ -34,7 +35,29 @@ cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
 Paste-only option (just the 9-line body, between `START` / `END`
 markers): `solutions/closing-marcos-gap/services/floor_check_tool_body.py`.
 
-### Exercise 2 — `logger.info` observability hook (Act II)
+### Exercise 2 (mandatory) — `SELECT` from `pellier.tool_audit` (Act II)
+
+Generate a tool call, then read the Aurora ledger path by querying
+`pellier.tool_audit`. This is a `SELECT`, not a code drop — there is no
+file to copy over a runtime counterpart. The "⏩ out of time" escape
+hatch is a canned recap query a facilitator can run live:
+
+```bash
+psql "$PG_URL" -f solutions/the-ledger/sql/tool_audit_recap.sql
+```
+
+It prints the most recent audited session, the raw rows, and a
+JSONB-extracted view.
+
+### Optional fast-finisher A — Anna skill edit (Act I)
+
+The fast-finisher on the *Prove rerank* page asks attendees to change
+one guidance line in `skills/the-gift-table/SKILL.md` and prove the
+edit landed with SQL against `pellier.tool_audit`. **There is no
+solution file** — the change is a single rule in the skill markdown,
+and the proof is a `SELECT`, not a code drop.
+
+### Optional fast-finisher B — `logger.info` observability hook (Act II)
 
 Adds one `logger.info("agentcore.invoke ...")` line to
 `run_agent_on_runtime()` so every managed `InvokeRuntime` call shows up
@@ -44,14 +67,6 @@ in `uvicorn.log`.
 cp solutions/the-ledger/services/agentcore_runtime_with_invoke_log.py \
    pellier/backend/services/agentcore_runtime.py
 ```
-
-### Stretch — Anna skill edit (Act I, optional)
-
-The "stretch" on the *Prove rerank* page asks attendees to change one
-guidance line in `skills/the-gift-table/SKILL.md` and prove the edit
-landed with SQL against `pellier.tool_uses`. **There is no solution
-file** — the change is a single rule in the skill markdown, and the
-proof is a `SELECT`, not a code drop.
 
 ---
 

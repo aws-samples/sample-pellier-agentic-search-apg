@@ -69,6 +69,11 @@ class VerifiedUser(BaseModel):
     user_id: str
     email: str
     given_name: str
+    # Raw Cognito access token (the original bearer string), kept server-side
+    # only so it can be passed through to the AgentCore Gateway for
+    # identity-preserving MCP tool calls. ``exclude=True`` keeps it out of all
+    # API responses — it must never be serialized back to the frontend.
+    access_token: Optional[str] = Field(default=None, exclude=True)
 
     model_config = ConfigDict(
         alias_generator=to_camel,

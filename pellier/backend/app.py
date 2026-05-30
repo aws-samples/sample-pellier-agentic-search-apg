@@ -1991,11 +1991,17 @@ async def agentcore_memories(user=Depends(get_current_user)):
 
 
 @app.get("/api/agentcore/gateway/tools")
-async def agentcore_gateway_tools():
-    """List tools registered in the AgentCore Gateway MCP server"""
+async def agentcore_gateway_tools(user=Depends(get_current_user)):
+    """List tools registered in the AgentCore Gateway MCP server.
+
+    JWT passthrough: forwards the caller's Cognito token so the live tool
+    list is fetched under their identity. Anonymous callers get [] from a
+    JWT-protected Gateway (the "skipped" state), which is intentional.
+    """
     try:
         from services.agentcore_gateway import list_gateway_tools
-        tools = list_gateway_tools()
+        _token = (user or {}).get("access_token") if isinstance(user, dict) else None
+        tools = list_gateway_tools(access_token=_token)
         return {"tools": tools, "gateway_url": settings.AGENTCORE_GATEWAY_URL or "not configured"}
     except Exception as e:
         logger.warning(f"Failed to list gateway tools: {e}")

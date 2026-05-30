@@ -1598,13 +1598,19 @@ CURRENT REQUEST: {message}"""
         gateway_used = False
         if pattern == "agents_as_tools":
             from config import settings as _settings
-            if getattr(_settings, "AGENTCORE_GATEWAY_URL", None):
+            # JWT passthrough: the caller's raw Cognito access token (captured
+            # by get_current_user) is forwarded to the Gateway so MCP tool
+            # calls carry the user's identity. Anonymous/Fresh turns have no
+            # token, so the gateway factory returns None and we fall back to
+            # the in-process orchestrator (the Gateway panel renders "skipped").
+            _user_token = (user or {}).get("access_token") if isinstance(user, dict) else None
+            if getattr(_settings, "AGENTCORE_GATEWAY_URL", None) and _user_token:
                 try:
                     from services.agentcore_gateway import create_gateway_orchestrator
-                    orchestrator = create_gateway_orchestrator()
+                    orchestrator = create_gateway_orchestrator(access_token=_user_token)
                     if orchestrator is not None:
                         gateway_used = True
-                        logger.info("🛰️ Gateway orchestrator | tools via MCP discovery")
+                        logger.info("🛰️ Gateway orchestrator | tools via MCP discovery | JWT passthrough")
                 except Exception as exc:
                     logger.warning("Gateway orchestrator failed; falling back to in-proc: %s", exc)
                     orchestrator = None

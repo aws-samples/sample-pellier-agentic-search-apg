@@ -126,7 +126,7 @@ CREATE INDEX IF NOT EXISTS tools_description_emb_idx
 -- ran) and live in policy_hook's per-session decision deque instead.
 -- Half the teaching story on the workshop is that
 -- ``SELECT * FROM pellier.tool_audit WHERE session_id = ...``
--- rebuilds the entire turn for debugging — Act II · Exercise 2 — and
+-- rebuilds the entire turn for debugging — Act II: Exercise 2 — and
 -- the same table feeds procedural memory's "which tool wins for
 -- which intent" aggregate.
 CREATE TABLE IF NOT EXISTS pellier.tool_audit (

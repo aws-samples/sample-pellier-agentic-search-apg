@@ -205,6 +205,10 @@ class CognitoAuthService:
             user_id=claims.get("sub", ""),
             email=claims.get("email", ""),
             given_name=claims.get("given_name") or claims.get("username", ""),
+            # Preserve the raw bearer token so the request path can pass the
+            # caller's identity through to the AgentCore Gateway (JWT
+            # passthrough). Excluded from serialization in the model.
+            access_token=token,
         )
 
     # ------------------------------------------------------------------

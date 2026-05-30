@@ -46,11 +46,12 @@ import logging
 import uuid
 from typing import Any, AsyncGenerator, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from services.agent_context import AgentContext
+from services.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,10 @@ class ToolRegistryQuery(BaseModel):
 
 
 @router.post("/tool-registry")
-async def tool_registry(payload: ToolRegistryQuery) -> dict[str, Any]:
+async def tool_registry(
+    payload: ToolRegistryQuery,
+    user=Depends(get_current_user),
+) -> dict[str, Any]:
     """Dual-rank tool discovery for Card 7.
 
     Returns:
@@ -166,7 +170,11 @@ async def tool_registry(payload: ToolRegistryQuery) -> dict[str, Any]:
         try:
             from services.agentcore_gateway import list_gateway_tools
 
-            gateway_block["tools"] = list_gateway_tools()
+            # JWT passthrough: forward the caller's token so the live tool
+            # list is fetched under their identity. Anonymous → no token →
+            # JWT-protected Gateway returns [] (rendered as the "skipped" state).
+            _token = (user or {}).get("access_token") if isinstance(user, dict) else None
+            gateway_block["tools"] = list_gateway_tools(access_token=_token)
         except Exception as exc:
             gateway_block["error"] = str(exc)
             logger.warning("Card 7 gateway list failed: %s", exc)

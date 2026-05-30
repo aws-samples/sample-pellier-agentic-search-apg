@@ -114,4 +114,11 @@ async def get_current_user(
 
     token = authorization.split(" ", 1)[1]
     claims = verify_cognito_token(token)
-    return {"sub": claims.get("sub"), "email": claims.get("email", "anonymous")}
+    # Include the raw bearer token so the chat path can pass the caller's
+    # identity through to the AgentCore Gateway (JWT passthrough). This dict
+    # stays server-side; it is never returned to the client as-is.
+    return {
+        "sub": claims.get("sub"),
+        "email": claims.get("email", "anonymous"),
+        "access_token": token,
+    }

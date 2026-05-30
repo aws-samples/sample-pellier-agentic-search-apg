@@ -119,7 +119,26 @@ def get_streamable_http_app(name: str = "pellier-gateway") -> Any:
     return mcp_server.streamable_http_app()
 
 
-def create_gateway_orchestrator():
+def _gateway_headers(access_token: Optional[str] = None) -> Dict[str, str]:
+    """Build the auth headers for an MCP call to the AgentCore Gateway.
+
+    The Gateway is deployed with a Cognito CUSTOM_JWT authorizer, so the
+    production path is **JWT passthrough**: the caller's raw Cognito access
+    token is sent as ``Authorization: Bearer <token>`` and the Gateway
+    validates it against the Cognito discovery URL, so every tool call
+    carries the user's identity end to end.
+
+    When no token is provided (anonymous/Fresh turns, or local dev against a
+    Gateway deployed with ``authorizerType=NONE``), we fall back to the
+    placeholder ``x-api-key`` header. A JWT-protected Gateway will reject
+    that with 401, which the caller treats as "fall back to in-process".
+    """
+    if access_token:
+        return {"Authorization": f"Bearer {access_token}"}
+    return {"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY}
+
+
+def create_gateway_orchestrator(access_token: Optional[str] = None):
     """Create a Strands Agent that discovers tools via an MCP Gateway URL.
 
     When `settings.AGENTCORE_GATEWAY_URL` is unset, returns None so callers
@@ -127,6 +146,10 @@ def create_gateway_orchestrator():
     agent pulls tools from the remote Gateway using streamable HTTP, which
     is how the orchestrator migrates from hard-coded tool lists to
     managed, discoverable tools.
+
+    ``access_token`` is the caller's raw Cognito JWT. When supplied it is
+    forwarded to the Gateway as a Bearer token (identity passthrough); the
+    tool calls then run under the user's identity, not a shared service key.
     """
     if not settings.AGENTCORE_GATEWAY_URL:
         logger.info("AGENTCORE_GATEWAY_URL not set — gateway disabled")
@@ -141,7 +164,7 @@ def create_gateway_orchestrator():
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)
@@ -176,7 +199,7 @@ def create_gateway_orchestrator():
 # === CHALLENGE 7: END ===
 
 
-def create_gateway_orchestrator_with_semantic_search():
+def create_gateway_orchestrator_with_semantic_search(access_token: Optional[str] = None):
     """
     Create an orchestrator that discovers tools via Gateway semantic search.
 
@@ -184,6 +207,9 @@ def create_gateway_orchestrator_with_semantic_search():
     this uses the x_amz_bedrock_agentcore_search tool to find relevant
     tools by natural language description at query time. This scales to
     hundreds or thousands of tools without bloating the agent's prompt.
+
+    ``access_token`` is forwarded as a Bearer token (JWT passthrough) when
+    supplied, so semantic discovery also runs under the caller's identity.
 
     Returns:
         Strands Agent with semantic tool discovery, or None if not configured
@@ -201,7 +227,7 @@ def create_gateway_orchestrator_with_semantic_search():
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)
@@ -240,9 +266,14 @@ def create_gateway_orchestrator_with_semantic_search():
         return None
 
 
-def list_gateway_tools() -> List[Dict[str, Any]]:
+def list_gateway_tools(access_token: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List all tools registered in the AgentCore Gateway MCP server.
+
+    ``access_token`` is forwarded as a Bearer token (JWT passthrough) when
+    supplied. Against a JWT-protected Gateway, calling without a token returns
+    [] (the call is rejected with 401) — which the Atelier panel renders as a
+    "skipped / needs identity" state rather than failing the turn.
 
     Returns a list of tool descriptors with name, description, and input schema.
     """
@@ -256,7 +287,7 @@ def list_gateway_tools() -> List[Dict[str, Any]]:
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)

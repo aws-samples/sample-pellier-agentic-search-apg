@@ -1,4 +1,4 @@
--- tool_audit_recap.sql — Act II · Exercise 2 (Aurora read path)
+-- tool_audit_recap.sql — Act II: Exercise 2 (Aurora read path)
 --
 -- Drops in for the in-room SELECT when a participant runs out of
 -- time. Pulls the most recent session with at least one row in

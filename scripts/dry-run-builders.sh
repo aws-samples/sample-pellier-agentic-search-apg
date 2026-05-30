@@ -117,6 +117,20 @@ else
   info "Skipped — USE_AGENTCORE_RUNTIME not true / endpoint unset (in-process fallback is fine for builders)"
 fi
 
+# --- 4b. Gateway wiring (Atelier Card 7 demo + JWT passthrough) --------------
+echo "[4b/5] AgentCore Gateway wiring — GET /api/agentcore/gateway/status"
+gw="$(curl -fsN --max-time 30 "${BASE}/api/agentcore/gateway/status" 2>/dev/null || true)"
+if echo "$gw" | grep -q '"configured"[[:space:]]*:[[:space:]]*true'; then
+  pass "Gateway configured (AGENTCORE_GATEWAY_URL set; source=mcp-discovery)"
+else
+  # Not fatal: in-process is the default execution path for the room. But on a
+  # provisioned account this should be true, or the Atelier Card 7 Gateway
+  # demo and JWT passthrough won't have anything live to show.
+  info "Gateway NOT configured (source=in-process-imports) — Card 7 shows the 'skipped' panel."
+  info "  Expected the live demo? Check AGENTCORE_GATEWAY_URL in pellier/backend/.env"
+  info "  Raw: ${gw:0:200}"
+fi
+
 # --- 5. Audit ledger --------------------------------------------------------
 echo "[5/5] Audit ledger — pellier.tool_audit"
 n="$(_psql "SELECT count(*) FROM pellier.tool_audit WHERE tool='floor_check' AND session_id LIKE 'dryrun-%';")"

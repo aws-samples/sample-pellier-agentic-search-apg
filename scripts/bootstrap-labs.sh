@@ -840,6 +840,11 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
         AGENTCORE_OK=false
     fi
 
+    # Tee the full provisioning run (incl. `agentcore deploy` stdout/stderr) to
+    # a dedicated log so a failed run has a single, predictable place to look —
+    # /var/log/pellier-agentcore.log — instead of grepping the master bootstrap
+    # log. pipefail propagates the python3.13 exit status through the pipe.
+    AGENTCORE_LOG="/var/log/pellier-agentcore.log"
     if [ "$AGENTCORE_OK" = true ] && ! sudo -u "$CODE_EDITOR_USER" bash -c "
         export PATH=\"\$HOME/.local/bin:\$PATH\"
         export AWS_REGION='$AWS_REGION'
@@ -856,8 +861,8 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
         python3.13 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
             --repo-path '$REPO_PATH' \
             --output-json '$MANAGED_OUTPUT_JSON'
-    "; then
-        warn "Managed AgentCore provisioning failed; see $MANAGED_OUTPUT_JSON (backend will still start)"
+    " 2>&1 | tee "$AGENTCORE_LOG"; then
+        warn "Managed AgentCore provisioning failed; see $AGENTCORE_LOG and $MANAGED_OUTPUT_JSON (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
         AGENTCORE_OK=false
     fi
@@ -876,12 +881,20 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     if [ "$AGENTCORE_OK" = true ]; then
         upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
         upsert_env "MCP_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
+        # The backend reads AGENTCORE_GATEWAY_URL (config.py), not MCP_GATEWAY_URL.
+        # Write both so the deployed Gateway is reachable for the opt-in Gateway
+        # demo. NOTE: this does NOT change the default execution path — the chat
+        # service only uses the Gateway orchestrator when pattern == "agents_as_tools"
+        # (an explicit opt-in), so the Builder's Session still runs in-process by
+        # default. The Gateway authorizer is Cognito JWT (CUSTOM_JWT), so a live
+        # invoke needs a bearer token, not the placeholder x-api-key.
+        upsert_env "AGENTCORE_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
         upsert_env "USE_AGENTCORE_RUNTIME" "true" "$REPO_PATH/.env"
         chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
         write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
         log "✅ AgentCore managed path ready"
     else
-        warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; re-run provisioning to recover the Runtime/Gateway path."
+        warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; see $AGENTCORE_LOG, then re-run provisioning to recover the Runtime/Gateway path."
     fi
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
@@ -981,6 +994,7 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
 else
     echo "  journalctl -fu pellier           # Service logs (workshop)"
 fi
+echo "  cat /var/log/pellier-agentcore.log # AgentCore deploy log (Gateway + Runtime)"
 echo "  rebuild-frontend                 # Rebuild SPA + restart app"
 echo "  health                           # One-shot readiness check (catalog/memory/runtime)"
 echo ""
