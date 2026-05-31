@@ -60,7 +60,8 @@ class Settings(BaseSettings):
     # --- Agent model config ---
     #
     # Per-agent model selection is an architectural decision, not a knob.
-    # See `lab-content/workshop/10-module1-observe.en.md` for the rationale:
+    # See `lab-content/builders/90-appendix/01-reference/` (the cast table)
+    # for the rationale:
     #
     #   Claude Opus 4.6  — editorial specialists (Style Advisor, Curator,
     #                 Experience Guide). Needs voice + personality.

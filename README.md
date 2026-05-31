@@ -9,8 +9,8 @@
 
 </div>
 
-> Educational reference implementation for AWS re:Invent and Summit
-> sessions. Not intended for production deployment without security
+> Educational reference implementation for the AWS Summit Builder's
+> Session. Not intended for production deployment without security
 > hardening.
 
 ---
@@ -18,8 +18,8 @@
 ## What this is
 
 **Pellier** is a small editorial boutique with one quiet promise — a
-shopper asks for something in their own words, and the right pieces
-find them. Behind the storefront sits an agentic Retrieval-Augmented
+shopper asks for something in their own words, and the search
+understands what they mean. Behind the storefront sits an agentic Retrieval-Augmented
 Generation (RAG) system that reads live inventory, remembers your
 taste, cites every source, and hands off to a human stylist when it
 should.
@@ -47,6 +47,7 @@ maps to something runnable in this repo:
 | **RAG** with embeddings on **Aurora PostgreSQL & RDS for PostgreSQL** | `pellier.product_catalog.embedding vector(1024)` · pgvector 0.8.0 · HNSW index · `<=>` cosine operator |
 | **Agentic AI — reasoning + tool use** | Strands Agents SDK · 5 specialists × 13 `@tool` functions · dispatcher routes intent → one specialist → cosine-discovered tools |
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
+| **Managed tool catalog (AgentCore Gateway)** | `services/agentcore_gateway.py` discovers tools at runtime via `MCPClient.list_tools_sync()` over a Cognito-JWT-gated Gateway · the shopper's JWT is passed through (`Authorization: Bearer`) so tool calls carry the caller's identity · in-process tools stay the default; Gateway is the demonstrable side-path (Atelier Card 7) |
 | **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped working memory (AgentCore STM) via Bedrock AgentCore Memory |
 | **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` · deploy path uses `npx -y @aws/agentcore@latest deploy -y --json` |
 
@@ -159,17 +160,16 @@ under the mount.
 
 ---
 
-## Workshop formats
+## Builder's Session (60 min)
 
-This repo is the source of truth. Two Workshop Studio bundles
-package it for live events:
+This repo is the source of truth for the **60-minute Builder's Session**
+(AWS Summit). Two mandatory builds plus two optional fast-finishers:
+`floor_check` tool body (Act I) and a `SELECT` from `pellier.tool_audit`
+(Act II); the optional skill-edit and `logger.info` observability hook
+round out tables that finish early. Everything else is observe / measure
+/ read.
 
-| Format                          | Duration | Coding modules | What participants build                                       |
-| ------------------------------- | -------- | -------------- | ------------------------------------------------------------- |
-| **Builder's Session** (DC Summit)   | 60 min (50 hands-on) | 2 exercises | `floor_check` tool body (Act I) + one `logger.info` observability hook on the managed Runtime path (Act II) |
-| **Workshop** (re:Invent)        | 120 min  | 9 challenges   | Full stack — semantic search, agents, AgentCore production patterns         |
-
-The 60-min Builder's Session source of truth lives in
+The session source of truth lives in
 [`lab-content/builders/`](lab-content/builders/). It is structured as:
 
 | Section | Time | What attendees do |
@@ -177,13 +177,12 @@ The 60-min Builder's Session source of truth lives in
 | Framing | 3 min | Title slide + RAG-with-agents shape |
 | [Setup](lab-content/builders/00-setup/) | 2 min | Open the workspace and land in Boutique + Atelier (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger). Optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
 | [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
-| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read working memory (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → add observability log line and invoke managed Runtime (Exercise 2) |
+| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then `SELECT` from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability hook |
 | [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
 | Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
 
-The 120-min Workshop bundle lives in `lab-content/workshop/`. Make
-canonical Builder's Session edits in `lab-content/builders/` and
-`lab-content/builders/static/`.
+Make canonical edits in [`lab-content/builders/`](lab-content/builders/)
+and `lab-content/builders/static/`.
 
 ---
 
@@ -244,7 +243,7 @@ shape voice and handling without changing product selection:
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) — fuses pgvector + FTS rank lists without normalizing raw scores |
 | Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed English v3 (`cohere.embed-english-v3`, 1024-dim, on-demand) · Cohere Rerank v3.5 (`us.cohere.rerank-v3-5:0`, inference profile) |
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
-| Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP) · Identity     |
+| Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP tool catalog, Cognito-JWT auth with shopper identity passthrough) · Identity     |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN with `--readonly True`; `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI · Python 3.13 · psycopg3 · boto3 · SSE streaming                                                                 |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
@@ -270,10 +269,10 @@ sample-pellier-agentic-search-apg/
 │           └── data/                        showcaseProducts.ts (40), personaCurations.ts
 │
 ├── skills/                                Per-persona Strands skills (3)
-├── solutions/                             Reference implementations
-│   ├── the-quiet-search/                    Module 1 (semantic search)
-│   ├── closing-marcos-gap/                  Module 2 (Stock Keeper)
-│   └── the-ledger/                     Module 3 (AgentCore production)
+├── solutions/                             Reference implementations (drop-in escape hatches)
+│   ├── the-quiet-search/                    Semantic search reference (observe-only)
+│   ├── closing-marcos-gap/                  floor_check + Stock Keeper (Exercise 1)
+│   └── the-ledger/                     AgentCore production + audit ledger (Exercise 2)
 │
 ├── scripts/
 │   ├── migrations/                         Ordered fresh-cluster SQL (001-007)
@@ -282,9 +281,7 @@ sample-pellier-agentic-search-apg/
 │   └── bootstrap-labs.sh                    DB seed + frontend build + service start
 │
 └── lab-content/                           Workshop Studio content + CFN
-    ├── workshop/                            120-min re:Invent bundle
-    │   └── static/                          Workshop CloudFormation source
-    └── builders/                            60-min DC Summit bundle
+    └── builders/                            60-min Builder's Session bundle
         ├── index.en.md                        Title · arc · stack table
         ├── 00-setup/                          IDE · Boutique tour · pre-flight · pgvector primer
         │   ├── 01-open-code-editor/
@@ -295,9 +292,9 @@ sample-pellier-agentic-search-apg/
         │   ├── 01-meet-marco/
         │   ├── 02-wire-floor-check/             Exercise 1
         │   └── 03-prove-rerank/
-        ├── 20-act-2-the-ledger/               Act II — Working memory (AgentCore STM) + managed Runtime
-        │   ├── 01-agentcore-memory-stm/
-        │   └── 02-agentcore-runtime/            Exercise 2 (logger.info hook)
+        ├── 20-act-2-the-ledger/               Act II — Memory substrates (AgentCore STM) + managed Runtime + audit ledger
+        │   ├── 01-memory-substrates/
+        │   └── 02-agentcore-runtime/            Exercise 2 (SELECT from pellier.tool_audit; optional logger.info hook)
         ├── 30-act-3-the-concierge/            Act III — routing + MCP + Knowledge Bases
         │   ├── 01-routing-patterns/
         │   └── 02-mcp-and-knowledge-bases/      reads pellier/config/mcp-server-config.json + uvx

@@ -7,7 +7,7 @@ fileMatchPattern: "lab-content/**/*.md"
 
 ## Lab Content Location
 
-All workshop content lives in `lab-content/workshop/` (2-hour) and `lab-content/builders/` (1-hour).
+All lab content lives in `lab-content/builders/` (the 60-min Builder's Session).
 
 ## Writing Style
 

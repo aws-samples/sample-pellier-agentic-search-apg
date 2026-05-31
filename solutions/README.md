@@ -1,16 +1,14 @@
 # Solutions — drop-in replacements
 
 Copy a solution file over its runtime counterpart and the backend
-auto-restarts. Two formats consume this directory:
-
-- **60-min Builder's Session (DC Summit)** — two mandatory builds, two optional fast-finishers.
-- **120-min Workshop (re:Invent)** — three modules, multiple challenges.
+auto-restarts. These are the reference implementations and "⏩ out of
+time" escape hatches for the 60-min Builder's Session.
 
 ```
 solutions/
-├── the-quiet-search/   → Workshop Module 1 (semantic search)
-├── closing-marcos-gap/ → Workshop Module 2 + Builder's Exercise 1
-└── the-ledger/         → Workshop Module 3 + Builder's Exercise 2
+├── the-quiet-search/   → semantic search reference (observe-only)
+├── closing-marcos-gap/ → floor_check + Stock Keeper (Exercise 1)
+└── the-ledger/         → AgentCore production + audit ledger (Exercise 2)
 ```
 
 ---
@@ -70,31 +68,30 @@ cp solutions/the-ledger/services/agentcore_runtime_with_invoke_log.py \
 
 ---
 
-## Workshop Module 1 — *The Quiet Search*
+## What bootstrap pre-applies (reference)
+
+The Builder's Session ships with everything **already wired except** the
+`floor_check` tool body — participants edit only that one function.
+Bootstrap copies these reference files into place at provision time; they
+are listed here for transparency and manual recovery, not as in-room steps.
+
+Retrieval + business logic:
 
 ```bash
 cp solutions/the-quiet-search/services/hybrid_search.py    pellier/backend/services/hybrid_search.py
 cp solutions/the-quiet-search/services/business_logic.py   pellier/backend/services/business_logic.py
 ```
 
-## Workshop Module 2 — *Closing Marco's Gap*
+Dispatcher + specialists (the agents Marco's turns 2/5 use):
 
 ```bash
-# Current agent-tools file (every @tool, including a finished floor_check)
-cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py    pellier/backend/services/agent_tools.py
-
-# The dispatcher + the two specialists turns 2/5 use
 cp solutions/closing-marcos-gap/agents/orchestrator.py     pellier/backend/agents/orchestrator.py
 cp solutions/closing-marcos-gap/agents/curator.py          pellier/backend/agents/curator.py
 cp solutions/closing-marcos-gap/agents/experience_guide.py pellier/backend/agents/experience_guide.py
 cp solutions/closing-marcos-gap/agents/stock_keeper.py     pellier/backend/agents/stock_keeper.py
 ```
 
-The 60-min Builder's Session pre-applies everything **except** the
-`floor_check` tool body in `agent_tools.py`. Participants edit only
-that one function.
-
-## Workshop Module 3 — *The Ledger*
+AgentCore production services (Runtime, Memory, Gateway, policy, identity):
 
 ```bash
 cp solutions/the-ledger/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
@@ -107,6 +104,6 @@ cp solutions/the-ledger/services/otel_trace_extractor.py     pellier/backend/ser
 cp solutions/the-ledger/frontend/agentIdentity.ts            pellier/frontend/src/utils/agentIdentity.ts
 ```
 
-For the 60-min Builder's Session, only `agentcore_runtime_with_invoke_log.py`
-(see Exercise 2 above) is copied — the rest of these files ship
-pre-applied by bootstrap.
+The only file participants change in-room is the `floor_check` body in
+`pellier/backend/services/agent_tools.py` (Exercise 1, with the
+`agent_tools_floor_check_solution.py` escape hatch above).
