@@ -138,9 +138,10 @@ PGDATABASE='${DB_NAME}'
 AWS_REGION='${AWS_REGION}'
 AWS_DEFAULT_REGION='${AWS_REGION}'
 BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v3}'
+BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-us.cohere.rerank-v3-5:0}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 WORKSHOP_ID='${WORKSHOP_ID:-}'
-WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-workshop}'
+WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-builders}'
 AUTH_MODE='${AUTH_MODE:-demo}'
 EOF
 
@@ -579,7 +580,7 @@ fi
 EOF
 
 # Format-specific aliases (builders: no sudo; workshop: systemctl — passwordless via STEP 14 sudoers)
-if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
 cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
 # --- Pellier aliases (Builder's Session: uvicorn via nohup, not systemd) ---
 alias start-backend='bash /workshop/sample-pellier-agentic-search-apg/scripts/start-backend-builders.sh'
@@ -706,7 +707,7 @@ chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/pellier
 # launch uvicorn with --reload directly so participants see live restarts.
 systemctl daemon-reload
 systemctl enable pellier
-if [ "${WORKSHOP_FORMAT:-workshop}" != "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" != "builders" ]; then
     systemctl start pellier
 
     # Verify it started
@@ -753,7 +754,7 @@ log "✅ Status marker created"
 #
 # Files we explicitly do NOT copy (participants build these):
 #   inside agent_tools.py — the floor_check tool body only
-if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     log "=========================================="
     log "Builders Session: pre-applying reference files"
     log "=========================================="
@@ -933,7 +934,7 @@ if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
     log "✅ Builders solutions applied, uvicorn running with --reload"
 fi
 
-if [ "${WORKSHOP_FORMAT:-workshop}" != "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" != "builders" ]; then
     write_status_json "complete" "not_applicable" ""
 fi
 
@@ -972,7 +973,7 @@ echo "✅ Pellier Frontend (React) dependencies installed"
 echo "✅ Database setup complete (40 products + warehouse inventory)"
 echo "✅ MCP server config written to pellier/config/mcp-server-config.json"
 echo "✅ Bash environment configured (psql ready)"
-if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     echo "✅ Builder's Session: uvicorn --reload on :8000 (systemd unit not used)"
 else
     echo "✅ pellier systemd service enabled (single process on :8000)"
@@ -981,7 +982,7 @@ echo ""
 echo "🌐 App is live at: https://<cloudfront>/ports/8000/"
 echo "   Frontend + API both served by one uvicorn process."
 echo "   Edits to pellier/frontend/src/ require a rebuild:"
-if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     echo "     rebuild-frontend    # npm run build + restart uvicorn (no sudo)"
 else
     echo "     rebuild-frontend    # npm run build + sudo systemctl restart pellier (passwordless)"
@@ -989,7 +990,7 @@ fi
 echo ""
 echo "Quick Commands:"
 echo "  psql                             # Connect to database"
-if [ "${WORKSHOP_FORMAT:-workshop}" = "builders" ]; then
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     echo "  tail -f /tmp/pellier/uvicorn.log   # Backend log (builders)"
 else
     echo "  journalctl -fu pellier           # Service logs (workshop)"

@@ -693,6 +693,7 @@ if [ ! -z "${STAGE2_SCRIPT_URL}" ]; then
         export DB_NAME='${DB_NAME:-pellier}' && \
         export AWS_REGION='$AWS_REGION' && \
         export BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v3}' && \
+        export BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-us.cohere.rerank-v3-5:0}' && \
         export BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}' && \
         export ASSETS_BUCKET_NAME='${ASSETS_BUCKET_NAME:-}' && \
         export ASSETS_BUCKET_PREFIX='${ASSETS_BUCKET_PREFIX:-}' && \
