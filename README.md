@@ -103,7 +103,8 @@ for migration in \
   004_anna_hybrid_search.sql \
   005_theo_returns.sql \
   006_warehouse_inventory.sql \
-  007_chat_session_tables.sql
+  007_chat_session_tables.sql \
+  008_search_performance_indexes.sql
 do
   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" \
@@ -174,12 +175,11 @@ The session source of truth lives in
 
 | Section | Time | What attendees do |
 |---|---|---|
-| Framing | 3 min | Title slide + RAG-with-agents shape |
-| [Setup](lab-content/builders/00-setup/) | 2 min | Open the workspace and land in Boutique + Atelier (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger). Optional [pgvector primer](lab-content/builders/90-appendix/05-pgvector-primer/) |
-| [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 28 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank for Anna's anchor query |
-| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 11 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then `SELECT` from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability hook |
-| [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 7 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases |
-| Close | 4 min | [What this maps to in your stack](lab-content/builders/90-appendix/04-your-stack/) + Q&A |
+| [Introduction](lab-content/builders/00-introduction/) | 5 min | Open the workspace, land in Boutique + Atelier, and frame the architecture (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger) |
+| [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 30 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank / agentic for Anna's anchor query |
+| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then `SELECT` from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability hook |
+| [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 8 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases (read-only, take-home friendly) |
+| [Close](lab-content/builders/40-close/) | 3 min | [What this maps to in your stack](lab-content/builders/90-appendix/03-your-stack/) + Q&A |
 
 Make canonical edits in [`lab-content/builders/`](lab-content/builders/)
 and `lab-content/builders/static/`.
@@ -275,19 +275,15 @@ sample-pellier-agentic-search-apg/
 │   └── the-ledger/                     AgentCore production + audit ledger (Exercise 2)
 │
 ├── scripts/
-│   ├── migrations/                         Ordered fresh-cluster SQL (001-007)
+│   ├── migrations/                         Ordered fresh-cluster SQL (001-008)
 │   ├── seed_boutique_catalog.py             40 products with Cohere embeddings
 │   ├── bootstrap-environment.sh             Code Editor + nginx + systemd
 │   └── bootstrap-labs.sh                    DB seed + frontend build + service start
 │
 └── lab-content/                           Workshop Studio content + CFN
     └── builders/                            60-min Builder's Session bundle
-        ├── index.en.md                        Title · arc · stack table
-        ├── 00-setup/                          IDE · Boutique tour · pre-flight · pgvector primer
-        │   ├── 01-open-code-editor/
-        │   ├── 02-meet-the-boutique/
-        │   ├── 03-pre-flight-checklist/
-        │   └── 04-pgvector-primer/
+        ├── index.en.md                        Landing · learning outcomes · module map
+        ├── 00-introduction/                   Enter the environment · surfaces · architecture frame
         ├── 10-act-1-the-boutique/             Act I — observe Marco, wire floor_check, prove rerank
         │   ├── 01-meet-marco/
         │   ├── 02-wire-floor-check/             Exercise 1
@@ -295,16 +291,17 @@ sample-pellier-agentic-search-apg/
         ├── 20-act-2-the-ledger/               Act II — Memory substrates (AgentCore STM) + managed Runtime + audit ledger
         │   ├── 01-memory-substrates/
         │   └── 02-agentcore-runtime/            Exercise 2 (SELECT from pellier.tool_audit; optional logger.info hook)
-        ├── 30-act-3-the-concierge/            Act III — routing + MCP + Knowledge Bases
+        ├── 30-act-3-the-concierge/            Act III (take-home) — routing + MCP + Knowledge Bases
         │   ├── 01-routing-patterns/
         │   └── 02-mcp-and-knowledge-bases/      reads pellier/config/mcp-server-config.json + uvx
-        ├── 90-appendix/                       Cast · SQL · runbook · your-stack · quick-start
-        │   ├── 01-the-cast/
-        │   ├── 02-shipment-sql/
-        │   ├── 03-when-things-misbehave/
-        │   ├── 04-your-stack/
-        │   └── quick-start.en.md
-        └── static/                            Builder CloudFormation source
+        ├── 40-close/                          Summary · seams to carry back · expansion path
+        ├── 90-appendix/                       Reference · runbook · your-stack · facilitator notes
+        │   ├── 01-reference/                    Cast, memory substrates, pgvector primer, quick start
+        │   ├── 02-when-things-misbehave/
+        │   ├── 03-your-stack/
+        │   └── 04-facilitator-notes/
+        ├── assets/                            Builder CloudFormation source (CFN templates)
+        └── static/                            Diagrams + prereq images
 ```
 
 ---
