@@ -389,6 +389,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "security.workspace.trust.emptyWindow": false,
     "workbench.startupEditor": "none",
     "terminal.integrated.defaultProfile.linux": "bash",
+    "task.allowAutomaticTasks": "on",
     "python.defaultInterpreterPath": "/usr/bin/python3.13",
     "python.testing.pytestEnabled": true,
     "files.autoSave": "afterDelay",
@@ -406,17 +407,11 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$SETTINGS_DIR"
 
 log "✅ VS Code user settings configured"
 
-# Create Python environment file for workspace
-log "Creating Python environment configuration..."
-mkdir -p "$HOME_FOLDER/.vscode"
-cat > "$HOME_FOLDER/.vscode/settings.json" << 'WORKSPACE_SETTINGS'
-{
-    "python.defaultInterpreterPath": "/usr/bin/python3.13"
-}
-WORKSPACE_SETTINGS
-
-chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/.vscode"
-log "✅ VS Code settings configured"
+# NOTE: workspace (.vscode) settings + tasks.json are written below into
+# the REPO folder code-editor actually opens ($HOME_FOLDER/$REPO_NAME),
+# not $HOME_FOLDER. A folderOpen task only fires from the opened folder's
+# .vscode/, so writing them here (the unopened parent) had no effect.
+log "✅ VS Code user settings configured"
 
 # ============================================================================
 # AUTO-OPEN TERMINAL CONFIGURATION
@@ -439,28 +434,25 @@ cat << 'EOF'
 ║      Agentic AI-Powered Search with Aurora PostgreSQL             ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
-Your environment is ready. The storefront is running on port 8000.
+Your environment is ready. The app is already running — you don't start
+anything. Just open the URL below, edit Python, and refresh.
 
-URLS
+OPEN THE APP
   Storefront:  https://<cloudfront>/ports/8000/
   Atelier:     https://<cloudfront>/ports/8000/atelier
-  (Find your CloudFront domain in Workshop Studio Outputs tab)
+  (Find your CloudFront domain in the Workshop Studio "Outputs" tab)
 
-COMMANDS
-  start-backend        Start uvicorn with --reload (auto-restarts on .py save)
-  rebuild-frontend     Rebuild the React SPA (only needed for frontend edits)
-  psql                 Connect to Aurora PostgreSQL
-  python3 scripts/check_model_access.py   Verify Bedrock model access
+HOW IT WORKS
+  The backend runs automatically (systemd) and reloads when you save a
+  .py file. No terminals to start, no servers to run, no split panes —
+  edit, save, refresh the browser.
 
-NAVIGATION
-  workshop             cd to workshop root
-  backend              cd to pellier/backend
-  frontend             cd to pellier/frontend
-
-PROJECT LAYOUT
-  pellier/backend/agents/       One file per specialist agent (you edit here)
-  pellier/backend/services/     Tools, search, embeddings, AgentCore
-  solutions/                    Drop-in files if short on time
+WORKFLOW
+  1. Open pellier/backend/services/agent_tools.py  (opened for you)
+  2. Find:  CHALLENGE · Stock Keeper · floor_check
+  3. Implement between the markers
+  4. Save — the backend reloads on its own (~2s)
+  5. Refresh the app and test Marco Turn 4 in the storefront + Atelier
 
 THE FIVE AGENTS
   Style Advisor    agents/style_advisor.py      Semantic search
@@ -469,16 +461,16 @@ THE FIVE AGENTS
   Stock Keeper     agents/stock_keeper.py       Inventory
   Experience Guide agents/experience_guide.py   Returns + support
 
-WORKFLOW
-  1. Open pellier/backend/services/agent_tools.py
-  2. Search for CHALLENGE · Stock Keeper · floor_check
-  3. Implement between the markers
-  4. Save - uvicorn restarts automatically
-  5. Test Marco Turn 4 in the storefront and Atelier
+HANDY (you rarely need these)
+  psql                 Connect to Aurora PostgreSQL
+  journalctl -fu pellier   Watch the backend log live
+  rebuild-frontend     Rebuild the React SPA (only after editing frontend/src)
+  python3 scripts/check_model_access.py   Verify Bedrock model access
 
 SHORT ON TIME?
   cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
      pellier/backend/services/agent_tools.py
+  (save — the backend reloads automatically)
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -494,8 +486,18 @@ WELCOME_EOF
 chmod +x "$HOME_FOLDER/scripts/welcome.sh"
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/scripts/welcome.sh"
 
-# Create VS Code tasks.json for auto-open terminal
-cat > "$HOME_FOLDER/.vscode/tasks.json" << 'TASKS_EOF'
+# Create VS Code tasks.json for auto-open terminal.
+#
+# CRITICAL: a `folderOpen` task only fires from the .vscode/ of the
+# folder code-editor actually OPENS, which is $HOME_FOLDER/$REPO_NAME
+# (see --default-folder in the systemd ExecStart), NOT $HOME_FOLDER.
+# A prior revision wrote this to $HOME_FOLDER/.vscode and the task
+# silently never ran on fresh accounts. Write it to the repo's .vscode/.
+# (Pairs with "task.allowAutomaticTasks": "on" in user settings above,
+# without which code-editor PROMPTS instead of auto-running.)
+REPO_VSCODE="$HOME_FOLDER/$REPO_NAME/.vscode"
+sudo -u "$CODE_EDITOR_USER" mkdir -p "$REPO_VSCODE"
+cat > "$REPO_VSCODE/tasks.json" << 'TASKS_EOF'
 {
     "version": "2.0.0",
     "tasks": [
@@ -507,7 +509,7 @@ cat > "$HOME_FOLDER/.vscode/tasks.json" << 'TASKS_EOF'
             "presentation": {
                 "echo": false,
                 "reveal": "always",
-                "focus": false,
+                "focus": true,
                 "panel": "dedicated",
                 "showReuseMessage": false,
                 "clear": true,
@@ -523,24 +525,28 @@ cat > "$HOME_FOLDER/.vscode/tasks.json" << 'TASKS_EOF'
 }
 TASKS_EOF
 
-# Update workspace settings to enable auto-task detection
-cat > "$HOME_FOLDER/.vscode/settings.json" << 'WORKSPACE_SETTINGS'
+# Workspace settings live in the SAME folder code-editor opens (the repo),
+# alongside tasks.json — so task.autoDetect applies to the folder whose
+# folderOpen task we want to fire. (Earlier this was written to
+# $HOME_FOLDER/.vscode, the unopened parent, so it had no effect.)
+cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
 {
     "workbench.colorTheme": "Default Dark Modern",
     "editor.fontSize": 13,
     "terminal.integrated.fontSize": 13,
     "python.defaultInterpreterPath": "/usr/bin/python3.13",
     "task.autoDetect": "on",
+    "task.allowAutomaticTasks": "on",
     "task.problemMatchers.neverPrompt": true,
     "explorer.autoReveal": true,
     "explorer.expandSingleFolderWorkspaces": true
 }
 WORKSPACE_SETTINGS
 
-chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/.vscode"
+chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_VSCODE"
 chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/scripts"
 
-log "✅ Auto-open terminal configured"
+log "✅ Auto-open terminal configured (repo .vscode/, auto-tasks enabled)"
 
 # ============================================================================
 # STEP 10: PYTHON SETUP (~10 sec)

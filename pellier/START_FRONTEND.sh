@@ -4,13 +4,13 @@
 # =============================================================================
 # In the current architecture, FastAPI on port 8000 serves BOTH the
 # built SPA and /api. There's no longer a separate Vite/http-server
-# process on port 5173. This script is kept as a convenience wrapper
-# that builds the frontend once and then points the user at
-# workshop-autostart.sh (which runs the single uvicorn process).
+# process on port 5173. This script just builds the frontend once; the
+# backend (which serves the bundle) is started separately.
 #
 # If you're coming here expecting to start something on port 5173,
-# that's the old two-process model — see workshop-autostart.sh or
-# systemctl start pellier instead.
+# that's the old two-process model — start the backend instead
+# (START_BACKEND.sh for local dev, or `systemctl start pellier` on a
+# provisioned instance).
 # =============================================================================
 
 set -euo pipefail
@@ -36,11 +36,9 @@ echo "The built bundle lives in pellier/frontend/dist/ and is"
 echo "served by FastAPI on port 8000 alongside /api. To actually run"
 echo "the app, start the backend:"
 echo ""
-echo "  ./pellier/START_BACKEND.sh           # interactive dev"
+echo "  ./pellier/START_BACKEND.sh           # interactive local dev (uvicorn --reload)"
 echo "  or"
-echo "  scripts/workshop-autostart.sh              # workshop-style"
-echo "  or"
-echo "  systemctl start pellier              # Workshop Studio"
+echo "  sudo systemctl start pellier         # provisioned instance (Workshop Studio)"
 echo ""
 if [ -n "${CLOUDFRONT_URL:-}" ]; then
     echo "🌐 App URL: ${CLOUDFRONT_URL}/ports/8000/"

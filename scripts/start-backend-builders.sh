@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
-# Foreground uvicorn with --reload for Builder's Session (stops prior nohup uvicorn first).
-set -euo pipefail
+# Restart the Pellier backend and tail its log.
+#
+# The backend runs as the `pellier` systemd unit (uvicorn --reload for
+# builders format), so it is ALWAYS running after bootstrap and reloads
+# on .py save — participants normally never need this. It exists for a
+# clean manual bounce. systemd owns the process: no nohup, no PID file,
+# no second uvicorn fighting for :8000.
+set -uo pipefail
 
-REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
-export PATH="${HOME}/.local/bin:${PATH}"
-
-if [[ -f /tmp/pellier/uvicorn.pid ]]; then
-  pid="$(tr -d '[:space:]' </tmp/pellier/uvicorn.pid || true)"
-  if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-    kill "${pid}" || true
-    sleep 2
-  fi
-fi
-
-cd "${REPO}/pellier/backend"
-set -a
-# shellcheck source=/dev/null
-source "${REPO}/.env"
-set +a
-
-exec uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+echo "Restarting pellier service..."
+sudo systemctl restart pellier || {
+    echo "restart failed — check: journalctl -u pellier" >&2
+    exit 1
+}
+exec journalctl -fu pellier --no-pager

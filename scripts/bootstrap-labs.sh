@@ -580,19 +580,17 @@ fi
 EOF
 
 # Format-specific aliases (builders: no sudo; workshop: systemctl — passwordless via STEP 14 sudoers)
-if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
+# Both formats run the backend via the pellier systemd unit (builders gets
+# --reload baked into ExecStart). The backend is ALWAYS running, so
+# `start-backend` is really "restart" and most participants never need it.
+# `rebuild-frontend` is only for the rare .tsx edit (the lab is backend Python).
 cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
-# --- Pellier aliases (Builder's Session: uvicorn via nohup, not systemd) ---
-alias start-backend='bash /workshop/sample-pellier-agentic-search-apg/scripts/start-backend-builders.sh'
-alias rebuild-frontend='bash /workshop/sample-pellier-agentic-search-apg/scripts/rebuild-frontend-builders.sh'
-ALS
-else
-cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
-# --- Pellier aliases (Workshop: systemd unit ``pellier``) ---
-alias start-backend='sudo systemctl stop pellier 2>/dev/null; cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && source ../../.env && export PATH="$HOME/.local/bin:$PATH" && uvicorn app:app --host 0.0.0.0 --port 8000 --reload'
+# --- Pellier aliases (systemd unit ``pellier``, serves SPA + /api on :8000) ---
+# Backend runs automatically and (builders) reloads on .py save — you normally
+# never run these. Restart only if you want a clean bounce.
+alias start-backend='sudo systemctl restart pellier && journalctl -fu pellier --no-pager'
 alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && VITE_BASE_PATH=/ports/8000/ npm run build && cd - >/dev/null && sudo systemctl restart pellier'
 ALS
-fi
 
 log "✅ Bash environment configured (.bashrc updated with psql support)"
 
@@ -648,7 +646,22 @@ rm -f /etc/systemd/system/pellier-backend.service \
       /etc/systemd/system/pellier-frontend.service \
       /etc/systemd/system/pellier-frontend-watcher.service
 
-# --- pellier.service: build frontend once, then run uvicorn ---
+# --- pellier.service: build frontend (best-effort), then run uvicorn ---
+#
+# ONE unit for BOTH formats. The only per-format difference is whether
+# uvicorn carries --reload: builders participants edit .py files and want
+# live restarts on save; workshop format runs static. Everything else —
+# Restart=always, boot-survival, best-effort frontend build — is identical.
+#
+# RELOAD_ARGS is computed here so there is a single heredoc, not two.
+# --reload-dir pins the watch to the backend dir (avoids watching
+# frontend/node_modules and re-triggering on dist/ writes).
+if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
+    UVICORN_RELOAD_ARGS="--reload --reload-dir $REPO_PATH/pellier/backend"
+else
+    UVICORN_RELOAD_ARGS=""
+fi
+
 cat > /etc/systemd/system/pellier.service << EOF
 [Unit]
 Description=Pellier (FastAPI + built SPA on :8000)
@@ -665,12 +678,15 @@ Environment=HOME=/home/$CODE_EDITOR_USER
 # VITE_BASE_PATH is baked into the built bundle so asset URLs match
 # the CloudFront /ports/8000/* reverse-proxy prefix.
 Environment=VITE_BASE_PATH=/ports/8000/
-# ExecStartPre runs every restart: regenerate MCP config (cheap) and
-# rebuild the frontend bundle so the latest /src/ lands in dist/. The
-# build is a one-shot vite run — no watcher, no second process.
-ExecStartPre=/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3 generate_mcp_config.py 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build'
-ExecStart=/home/$CODE_EDITOR_USER/.local/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+# ExecStartPre is BEST-EFFORT (leading '-' tells systemd to ignore a
+# non-zero exit; '|| true' keeps the bash -c itself at 0). A frontend
+# build failure must NEVER block the backend: app.py serves /api/* even
+# when dist/ is absent (the SPA 404s with a clear log line). This is the
+# fix for the prior failure mode where an unguarded `npm run build` under
+# `set -e` aborted bootstrap before uvicorn ever started.
+ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3 generate_mcp_config.py 2>/dev/null || true'
+ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
+ExecStart=/home/$CODE_EDITOR_USER/.local/bin/uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
 Restart=always
 RestartSec=3
 StandardOutput=append:/tmp/pellier/uvicorn.log
@@ -702,23 +718,21 @@ fi
 mkdir -p /tmp/pellier
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/pellier
 
-# Enable + start the single service (workshop format only)
-# For builders format, we skip the systemd start here — STEP 16 will
-# launch uvicorn with --reload directly so participants see live restarts.
+# Enable + start the single service for BOTH formats. builders gets
+# --reload (baked into ExecStart above); workshop runs static. The
+# frontend build is best-effort inside ExecStartPre, so the backend
+# always comes up on :8000 even if the build or AgentCore provisioning
+# fails. No format branch, no separate nohup path.
 systemctl daemon-reload
 systemctl enable pellier
-if [ "${WORKSHOP_FORMAT:-builders}" != "builders" ]; then
-    systemctl start pellier
+systemctl start pellier
 
-    # Verify it started
-    sleep 8
-    if systemctl is-active --quiet pellier; then
-        log "✅ pellier service running (port 8000, serves SPA + /api)"
-    else
-        warn "pellier service failed to start — check: journalctl -u pellier"
-    fi
+# Verify it started
+sleep 8
+if systemctl is-active --quiet pellier; then
+    log "✅ pellier service running (port 8000, serves SPA + /api)"
 else
-    log "ℹ️  Builders format: skipping systemd start (uvicorn --reload will be launched in STEP 16)"
+    warn "pellier service failed to start — check: journalctl -u pellier"
 fi
 
 log "✅ Auto-start service configured"
@@ -900,38 +914,23 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
 
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
 
-    # Builders format: run uvicorn with --reload instead of the systemd
-    # service. Participants edit .py files → save → uvicorn auto-restarts.
-    # Zero friction, no split terminals, no manual commands.
-    systemctl stop pellier 2>/dev/null || true
+    # The pellier.service unit (STEP 14) already runs uvicorn with --reload
+    # for builders format and rebuilds the frontend in ExecStartPre. Now
+    # that the solution files + AgentCore env are in place, restart the unit
+    # once so it picks them up. systemd owns the process — no nohup, no PID
+    # file, no second backend fighting for :8000. A restart failure is
+    # non-fatal (the health gate reports it); --reload keeps the live-edit DX.
+    log "Restarting pellier service to pick up builders solutions + AgentCore env..."
+    systemctl restart pellier || warn "pellier restart failed — check: journalctl -u pellier"
 
-    # Build frontend once (same as ExecStartPre in the systemd unit)
-    log "Building frontend SPA for builders format..."
-    cd "$REPO_PATH/pellier/backend" && sudo -u "$CODE_EDITOR_USER" python3 generate_mcp_config.py 2>/dev/null || true
-    cd "$REPO_PATH/pellier/frontend" && VITE_BASE_PATH=/ports/8000/ sudo -u "$CODE_EDITOR_USER" npm run build
-    cd "$REPO_PATH"
-
-    # Start uvicorn with --reload as the workshop user. This runs in the
-    # background and logs to /tmp/pellier/uvicorn.log. The terminal auto-open
-    # (welcome script) will tail this log so participants see it live.
-    log "Starting uvicorn with --reload (builders mode)..."
-    sudo -u "$CODE_EDITOR_USER" bash -c "
-        cd $REPO_PATH/pellier/backend
-        source $REPO_PATH/.env
-        export PATH=/home/$CODE_EDITOR_USER/.local/bin:\$PATH
-        nohup uvicorn app:app --host 0.0.0.0 --port 8000 --reload \
-            >> /tmp/pellier/uvicorn.log 2>&1 &
-        echo \$! > /tmp/pellier/uvicorn.pid
-    "
-
-    sleep 5
-    if [ -f /tmp/pellier/uvicorn.pid ] && kill -0 "$(cat /tmp/pellier/uvicorn.pid)" 2>/dev/null; then
-        log "✅ Builders: uvicorn running with --reload (PID $(cat /tmp/pellier/uvicorn.pid))"
+    sleep 8
+    if systemctl is-active --quiet pellier; then
+        log "✅ Builders: pellier service running with --reload (systemd)"
     else
-        warn "uvicorn --reload failed to start — check /tmp/pellier/uvicorn.log"
+        warn "pellier service not active after restart — check: journalctl -u pellier"
     fi
 
-    log "✅ Builders solutions applied, uvicorn running with --reload"
+    log "✅ Builders solutions applied, pellier service restarted"
 fi
 
 if [ "${WORKSHOP_FORMAT:-builders}" != "builders" ]; then
@@ -974,27 +973,19 @@ echo "✅ Database setup complete (40 products + warehouse inventory)"
 echo "✅ MCP server config written to pellier/config/mcp-server-config.json"
 echo "✅ Bash environment configured (psql ready)"
 if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
-    echo "✅ Builder's Session: uvicorn --reload on :8000 (systemd unit not used)"
+    echo "✅ pellier systemd service enabled — uvicorn --reload on :8000 (live .py edits)"
 else
     echo "✅ pellier systemd service enabled (single process on :8000)"
 fi
 echo ""
 echo "🌐 App is live at: https://<cloudfront>/ports/8000/"
-echo "   Frontend + API both served by one uvicorn process."
-echo "   Edits to pellier/frontend/src/ require a rebuild:"
-if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
-    echo "     rebuild-frontend    # npm run build + restart uvicorn (no sudo)"
-else
-    echo "     rebuild-frontend    # npm run build + sudo systemctl restart pellier (passwordless)"
-fi
+echo "   Frontend + API both served by one uvicorn process (systemd)."
+echo "   Edits to pellier/backend/*.py reload automatically (builders)."
+echo "   Edits to pellier/frontend/src/ require: rebuild-frontend"
 echo ""
 echo "Quick Commands:"
 echo "  psql                             # Connect to database"
-if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
-    echo "  tail -f /tmp/pellier/uvicorn.log   # Backend log (builders)"
-else
-    echo "  journalctl -fu pellier           # Service logs (workshop)"
-fi
+echo "  journalctl -fu pellier           # Backend service log (both formats)"
 echo "  cat /var/log/pellier-agentcore.log # AgentCore deploy log (Gateway + Runtime)"
 echo "  rebuild-frontend                 # Rebuild SPA + restart app"
 echo "  health                           # One-shot readiness check (catalog/memory/runtime)"
