@@ -266,7 +266,7 @@ def main() -> int:
         lambda_arns: dict[str, str] = {}
         for surface, cfg in EXPECTED_TARGETS.items():
             cmd = [
-                "python3.13",
+                "python3",
                 str(deploy_dir / "deploy_lambda.py"),
                 "--region",
                 required["AWS_REGION"],
@@ -306,7 +306,7 @@ def main() -> int:
             result["lambdas"][surface] = {"function_arn": arn, "function_name": cfg["target_name"]}
 
         gateway_cmd = [
-            "python3.13",
+            "python3",
             str(deploy_dir / "deploy_gateway.py"),
             "--region",
             required["AWS_REGION"],

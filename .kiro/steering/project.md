@@ -47,7 +47,7 @@ Three Acts. Two mandatory builds, two optional fast-finishers.
 
 ## Database
 
-- Amazon Aurora PostgreSQL (latest available at session time; currently 17.7) Serverless v2 (0–16 ACU, scale-to-zero)
+- Amazon Aurora PostgreSQL (latest available at session time; currently 17.9) Serverless v2 (0–16 ACU, scale-to-zero)
 - Schema: `pellier` (product_catalog, warehouse_inventory, customers, customer_episodic_seed, tool_audit, and supporting tables)
 - pgvector 0.8.0 with HNSW indexes for 1024-dim Cohere Embed English v3 vectors
 - 40 curated products (10 signed-out baseline + 10 per persona) with pre-generated embeddings

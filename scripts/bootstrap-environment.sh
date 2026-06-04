@@ -50,12 +50,6 @@ dnf install --skip-broken -y -q \
     jq \
     git \
     wget \
-    python3.13 \
-    python3.13-pip \
-    python3.13-setuptools \
-    python3.13-devel \
-    python3.13-wheel \
-    python3.13-tkinter \
     gcc \
     gcc-c++ \
     make \
@@ -63,6 +57,38 @@ dnf install --skip-broken -y -q \
     nodejs
 
 log "✅ System packages installed"
+
+# ----------------------------------------------------------------------------
+# Python: prefer 3.14, fall back to 3.13 if AL2023 doesn't yet package it.
+#
+# We probe with `dnf install` for each candidate in order and take the first
+# that succeeds. PY_VER (e.g. "3.14") is then used for update-alternatives so
+# /usr/bin/python3 points at the chosen interpreter. Downstream scripts call
+# `python3` (the alternative), never a pinned python3.X, so they follow this
+# choice automatically. Rationale: a fresh CPython minor can lag on AL2023
+# packaging and on C-extension wheels (psycopg, pydantic-core); the fallback
+# guarantees provisioning never bricks on a missing python3.14 package.
+# ----------------------------------------------------------------------------
+log "Installing Python (prefer 3.14, fall back to 3.13)..."
+PY_VER=""
+for cand in 3.14 3.13; do
+    if dnf install --skip-broken -y -q \
+        "python${cand}" \
+        "python${cand}-pip" \
+        "python${cand}-setuptools" \
+        "python${cand}-devel" \
+        "python${cand}-wheel" \
+        "python${cand}-tkinter" 2>/dev/null \
+        && command -v "python${cand}" >/dev/null 2>&1; then
+        PY_VER="$cand"
+        break
+    fi
+    warn "python${cand} not available — trying next candidate"
+done
+if [ -z "$PY_VER" ]; then
+    error "No supported Python (3.14 or 3.13) could be installed — backend cannot start"
+fi
+log "✅ Python ${PY_VER} installed"
 
 # ============================================================================
 # STEP 2: AWS CLI V2 (~1 min)
@@ -82,11 +108,11 @@ cd - > /dev/null
 
 log "✅ AWS CLI installed: $(aws --version)"
 
-# Set Python 3.13 as default
-log "Setting Python 3.13 as default..."
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
-update-alternatives --set python3 /usr/bin/python3.13
-log "✅ Python 3.13 set as default"
+# Set the chosen Python ($PY_VER, from STEP 1) as the default python3.
+log "Setting Python ${PY_VER} as default..."
+update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python${PY_VER}" 1
+update-alternatives --set python3 "/usr/bin/python${PY_VER}"
+log "✅ Python ${PY_VER} set as default (python3 → python${PY_VER})"
 
 # ============================================================================
 # STEP 3: USER SETUP (~10 sec)
@@ -390,7 +416,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "workbench.startupEditor": "none",
     "terminal.integrated.defaultProfile.linux": "bash",
     "task.allowAutomaticTasks": "on",
-    "python.defaultInterpreterPath": "/usr/bin/python3.13",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
     "python.testing.pytestEnabled": true,
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
@@ -534,7 +560,7 @@ cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
     "workbench.colorTheme": "Default Dark Modern",
     "editor.fontSize": 13,
     "terminal.integrated.fontSize": 13,
-    "python.defaultInterpreterPath": "/usr/bin/python3.13",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
     "task.autoDetect": "on",
     "task.allowAutomaticTasks": "on",
     "task.problemMatchers.neverPrompt": true,
@@ -554,7 +580,7 @@ log "✅ Auto-open terminal configured (repo .vscode/, auto-tasks enabled)"
 
 log "Upgrading pip and installing workshop dependencies..."
 # Upgrade pip
-sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user --upgrade pip -q
+sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user --upgrade pip -q
 
 # Install backend dependencies from requirements.txt — boto3, FastAPI,
 # Strands SDK, psycopg, etc. The Builder's Session needs all of these
@@ -563,7 +589,7 @@ sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user --upgrade pip -q
 REQUIREMENTS="$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.txt"
 if [ -f "$REQUIREMENTS" ]; then
     log "Installing backend dependencies from requirements.txt..."
-    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user -r "$REQUIREMENTS" 2>&1 \
+    sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user -r "$REQUIREMENTS" 2>&1 \
         | tee /var/log/pellier-pip-install.log
     PIP_EXIT=${PIPESTATUS[0]}
     if [ "$PIP_EXIT" -ne 0 ]; then

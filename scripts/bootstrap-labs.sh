@@ -182,15 +182,15 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH"
 # we want to catch it here before the seeder runs and hits
 # ModuleNotFoundError.
 log "Verifying Python dependencies..."
-if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
+if sudo -u "$CODE_EDITOR_USER" python3 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
     log "✅ Backend dependencies verified"
 else
     warn "Some backend dependencies are missing — re-running pip install"
     if [ -f "$REPO_PATH/pellier/backend/requirements.txt" ]; then
-        sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user \
+        sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user \
             -r "$REPO_PATH/pellier/backend/requirements.txt" 2>&1 \
             | tee -a /var/log/pellier-pip-install.log >/dev/null
-        if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
+        if sudo -u "$CODE_EDITOR_USER" python3 -c "import boto3, fastapi, uvicorn, psycopg, strands" 2>/dev/null; then
             log "✅ Backend dependencies recovered"
         else
             warn "Backend dependencies still missing after retry — pellier service will fail to start"
@@ -205,7 +205,7 @@ fi
 log "Installing uv..."
 if ! sudo -u "$CODE_EDITOR_USER" bash -c 'export PATH="$HOME/.local/bin:$PATH" && command -v uv' &>/dev/null; then
     sudo -u "$CODE_EDITOR_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh' &>/dev/null || \
-    sudo -u "$CODE_EDITOR_USER" python3.13 -m pip install --user uv &>/dev/null
+    sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user uv &>/dev/null
     log "✅ uv installed"
 else
     log "✅ uv already installed"
@@ -238,7 +238,7 @@ if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/pellier/backend/generate_mcp_config.py"
             export DB_CLUSTER_ARN='$DB_CLUSTER_ARN' && \
             export DB_NAME='$DB_NAME' && \
             export AWS_REGION='$AWS_REGION' && \
-            python3.13 generate_mcp_config.py" 2>&1 | tee /var/log/mcp-config-generation.log
+            python3 generate_mcp_config.py" 2>&1 | tee /var/log/mcp-config-generation.log
         
         if [ -f "$REPO_PATH/pellier/config/mcp-server-config.json" ]; then
             log "✅ MCP config generated at pellier/config/mcp-server-config.json"
@@ -265,7 +265,7 @@ if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
         export AWS_REGION='${AWS_REGION:-us-west-2}'
         cd '$REPO_PATH'
-        python3.13 scripts/check_model_access.py
+        python3 scripts/check_model_access.py
     " 2>&1 | tee /var/log/model-access-preflight.log; then
         log "✅ Bedrock model-access preflight passed"
     else
@@ -363,7 +363,7 @@ setup_database() {
             export ASSETS_BUCKET_PREFIX='${ASSETS_BUCKET_PREFIX:-}'
             export DATABASE_URL='$DATABASE_URL'
             cd '$REPO_PATH'
-            python3.13 scripts/seed_boutique_catalog.py --from-cache
+            python3 scripts/seed_boutique_catalog.py --from-cache
         " 2>&1 | tee /var/log/database-setup.log
         local seed_rc=${PIPESTATUS[0]}
         if [ "$seed_rc" -ne 0 ]; then
@@ -419,7 +419,7 @@ setup_database() {
                 export AWS_REGION='$AWS_REGION'
                 export DATABASE_URL='$DATABASE_URL'
                 cd '$REPO_PATH'
-                python3.13 scripts/seed_tool_registry.py
+                python3 scripts/seed_tool_registry.py
             " 2>&1 | tee -a /var/log/database-setup.log
             local tool_rc=${PIPESTATUS[0]}
             if [ "$tool_rc" -ne 0 ]; then
@@ -447,11 +447,11 @@ fi
 log "Provisioning AgentCore Memory (STM)..."
 
 AGENTCORE_MEMORY_ID=""
-if command -v python3.13 &>/dev/null; then
+if command -v python3 &>/dev/null; then
     AGENTCORE_MEMORY_ID=$(sudo -u "$CODE_EDITOR_USER" bash -c "
         export PATH=\"\$HOME/.local/bin:\$PATH\"
         export AWS_REGION=$AWS_REGION
-        python3.13 -c '
+        python3 -c '
 import boto3
 import time
 import sys
@@ -617,7 +617,7 @@ if [ -n "$DB_HOST" ]; then
 fi
 
 # Verify Python packages
-if sudo -u "$CODE_EDITOR_USER" python3.13 -c "import fastapi, uvicorn, strands" 2>/dev/null; then
+if sudo -u "$CODE_EDITOR_USER" python3 -c "import fastapi, uvicorn, strands" 2>/dev/null; then
     log "✅ Pellier Backend dependencies verified"
 else
     warn "⚠️  Some Pellier Backend dependencies may be missing"
@@ -849,8 +849,8 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     export COGNITO_POOL="${COGNITO_POOL:-${COGNITO_POOL_ID:-${COGNITO_USER_POOL_ID:-}}}"
     export COGNITO_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
 
-    if ! command -v npx &>/dev/null || ! command -v python3.13 &>/dev/null; then
-        warn "Missing npx or python3.13 — skipping managed AgentCore provisioning (backend will still start)"
+    if ! command -v npx &>/dev/null || ! command -v python3 &>/dev/null; then
+        warn "Missing npx or python3 — skipping managed AgentCore provisioning (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
         AGENTCORE_OK=false
     fi
@@ -858,7 +858,7 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     # Tee the full provisioning run (incl. `agentcore deploy` stdout/stderr) to
     # a dedicated log so a failed run has a single, predictable place to look —
     # /var/log/pellier-agentcore.log — instead of grepping the master bootstrap
-    # log. pipefail propagates the python3.13 exit status through the pipe.
+    # log. pipefail propagates the python3 exit status through the pipe.
     AGENTCORE_LOG="/var/log/pellier-agentcore.log"
     if [ "$AGENTCORE_OK" = true ] && ! sudo -u "$CODE_EDITOR_USER" bash -c "
         export PATH=\"\$HOME/.local/bin:\$PATH\"
@@ -873,7 +873,7 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
         export AGENTCORE_ROLE_ARN='${AGENTCORE_ROLE_ARN:-}'
         export COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}'
         export COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
-        python3.13 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
+        python3 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
             --repo-path '$REPO_PATH' \
             --output-json '$MANAGED_OUTPUT_JSON'
     " 2>&1 | tee "$AGENTCORE_LOG"; then

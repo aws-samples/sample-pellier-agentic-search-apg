@@ -237,7 +237,7 @@ shape voice and handling without changing product selection:
 
 | Layer            | Technology                                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Database         | **Aurora PostgreSQL Serverless v2** (engine 17.7) in this lab; same pgvector primitives run unchanged on **Amazon RDS for PostgreSQL** — choose Aurora for elastic ACU scaling, RDS for predictable instance-class workloads |
+| Database         | **Aurora PostgreSQL Serverless v2** (engine 17.9) in this lab; same pgvector primitives run unchanged on **Amazon RDS for PostgreSQL** — choose Aurora for elastic ACU scaling, RDS for predictable instance-class workloads |
 | Vector retrieval | pgvector 0.8.0 · `vector(1024)` column · HNSW (m=16, ef_construction=64, `vector_cosine_ops`) · `<=>` cosine operator |
 | Lexical retrieval | Postgres FTS — `tsvector` + GIN + `ts_rank_cd` (no native BM25; `pg_trgm` for fuzzy match) |
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) — fuses pgvector + FTS rank lists without normalizing raw scores |
