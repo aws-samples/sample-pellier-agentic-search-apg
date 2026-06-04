@@ -2,10 +2,19 @@
 
 <div align="center">
 
-[![AWS Workshop](https://img.shields.io/badge/AWS-Workshop-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://github.com/aws-samples/sample-pellier-agentic-search-apg)
-[![Level 400](https://img.shields.io/badge/Level-400%20Expert-red?style=for-the-badge)](https://github.com/aws-samples/sample-pellier-agentic-search-apg)
-[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT--0-00b300?style=for-the-badge)](LICENSE)
+_Agentic RAG on Aurora PostgreSQL · Bedrock AgentCore · Strands Agents · MCP_
+
+<br/>
+
+[![Aurora PostgreSQL 17.9](https://img.shields.io/badge/Aurora_PostgreSQL-17.9_·_pgvector-2D72D9?style=flat-square&logo=postgresql&logoColor=white)](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.VectorDB.html)
+[![Bedrock AgentCore](https://img.shields.io/badge/Bedrock-AgentCore-FF9900?style=flat-square&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/bedrock/agentcore/)
+[![Strands Agents](https://img.shields.io/badge/Strands-Agents_SDK-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white)](https://strandsagents.com)
+[![MCP](https://img.shields.io/badge/MCP-postgres--mcp--server-4A154B?style=flat-square)](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+
+[![License: MIT-0](https://img.shields.io/github/license/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=00b300&label=License)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=informational)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/commits/main)
+[![Stars](https://img.shields.io/github/stars/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=yellow)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/stargazers)
 
 </div>
 
@@ -245,7 +254,7 @@ shape voice and handling without changing product selection:
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
 | Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP tool catalog, Cognito-JWT auth with shopper identity passthrough) · Identity     |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN with `--readonly True`; `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
-| Backend          | FastAPI · Python 3.13 · psycopg3 · boto3 · SSE streaming                                                                 |
+| Backend          | FastAPI · Python 3.14 (3.13 fallback) · psycopg3 · boto3 · SSE streaming                                                  |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
 | Editorial system | Fraunces Variable (display) · Inter (body) · JetBrains Mono (code) · cream / espresso / terracotta palette               |
 
