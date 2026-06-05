@@ -3,9 +3,15 @@
 -- The lab content promises Marco gets a real warehouse breakdown when he
 -- asks "Is the Hadley shirt at the Brooklyn warehouse?" (Pellier Linen Shirt in ecru):
 --
---   "Yes — Brooklyn (BK-01) has 8 of the Pellier Linen Shirt in ecru on
---    the floor right now. Also 4 at Austin (ATX-02) and 12 at Portland
---    (PDX-01). Ship window from Brooklyn to your zip is 1–2 business days."
+--   "Yes — Brooklyn (BK-01) has the most of the Pellier Linen Shirt in
+--    ecru on the floor right now, with smaller counts at Austin (ATX-02)
+--    and Portland (PDX-01). Ship window from Brooklyn to your zip is
+--    1–2 business days."
+--
+-- Exact per-warehouse counts are derived from the 40/30/30 split below,
+-- so Brooklyn always holds the largest share; Austin and Portland are
+-- equal at 30% each. Don't hard-code a specific number in narration —
+-- read it from the seeded rows (the split + FLOOR rounding decide it).
 --
 -- 001_schema.sql creates aggregate product_catalog.quantity. This
 -- migration adds the per-warehouse structure Stock Keeper needs.

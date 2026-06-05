@@ -189,3 +189,11 @@ never touches them.
   check: `psql` the seeded DB for BK-01 Beeswax quantity pre- and
   post-shipment-UPDATE, and make the run-of-show metric match observed data
   (see content fix note).
+- [ ] **Confirm the pg_trgm index claim** in migration `008`: run
+  `EXPLAIN (ANALYZE, BUFFERS)` on the actual `floor_check` ILIKE query and
+  verify it uses `product_catalog_name_trgm_idx` rather than a seq scan. At
+  40 rows the planner will seq-scan regardless (correct + cheap), so the
+  point is to confirm the index *shape* matches the query *shape* for the
+  production-scale story — if the ILIKE is a prefix (`'Hadley%'`) or
+  tokenized, soften the migration comment's "prevents sequential scans"
+  claim to match reality.
