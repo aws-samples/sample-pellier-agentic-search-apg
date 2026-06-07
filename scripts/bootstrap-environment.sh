@@ -463,10 +463,21 @@ cat << 'EOF'
 Your environment is ready. The app is already running — you don't start
 anything. Just open the URL below, edit Python, and refresh.
 
-OPEN THE APP
-  Storefront:  https://<cloudfront>/ports/8000/
-  Atelier:     https://<cloudfront>/ports/8000/atelier
-  (Find your CloudFront domain in the Workshop Studio "Outputs" tab)
+OPEN THE APP  (open these in a NEW browser tab)
+  You are already viewing this Code Editor through your CloudFront domain.
+  Look at your browser's address bar — it looks like:
+
+      https://d1234abcd.cloudfront.net/...
+
+  Copy just the domain (the https://....cloudfront.net part, NOT the
+  /?tkn=... after it), open a NEW tab, and add the path:
+
+    Storefront:  https://<your-domain>.cloudfront.net/ports/8000/
+    Atelier:     https://<your-domain>.cloudfront.net/ports/8000/atelier
+
+  (The same domain is also in the Workshop Studio "Outputs" tab as
+   CodeEditorURL — copy only up to ".cloudfront.net", drop the ?tkn part.)
+  Tip: the trailing /ports/8000/ slash matters — keep it.
 
 HOW IT WORKS
   The backend runs automatically (systemd) and reloads when you save a
