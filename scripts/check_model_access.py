@@ -20,7 +20,25 @@ MODELS = [
     {
         "name": "Claude Opus 4.6",
         "model_id": "global.anthropic.claude-opus-4-6-v1",
-        "required": True,  # editorial specialists at runtime
+        # Editorial specialists (Style Advisor, Curator, Experience Guide).
+        # NOT hard-required: if Opus is denied but the Sonnet 4.6 fallback
+        # below passes, the session still runs (editorial agents fall back to
+        # Sonnet via BEDROCK_OPUS_MODEL). main() enforces "Opus OR Sonnet".
+        "required": False,
+        "role": "editorial",  # consumed by the fallback logic in main()
+        "body": {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 16,
+            "messages": [{"role": "user", "content": "Say hi."}],
+        },
+    },
+    {
+        "name": "Claude Sonnet 4.6 (Opus fallback)",
+        "model_id": "global.anthropic.claude-sonnet-4-6",
+        # Fallback for the editorial agents when Opus 4.6 is unavailable.
+        # Not independently required; it only needs to work IF Opus doesn't.
+        "required": False,
+        "role": "editorial_fallback",
         "body": {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 16,
@@ -162,42 +180,87 @@ def check_model(client, model: dict) -> bool:
     return False
 
 
+def _upsert_env(env_path: str, key: str, value: str) -> None:
+    """Set KEY=value in a .env file (replace existing line or append)."""
+    import os
+    line = f"{key}={value}\n"
+    if os.path.exists(env_path):
+        lines = open(env_path).read().splitlines(keepends=True)
+        for i, l in enumerate(lines):
+            if l.split("=", 1)[0].strip() == key:
+                lines[i] = line
+                break
+        else:
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            lines.append(line)
+        open(env_path, "w").write("".join(lines))
+    else:
+        open(env_path, "w").write(line)
+
+
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    # When set, write the resolved editorial model (Opus, or Sonnet fallback)
+    # to this .env so the backend picks up whichever is actually accessible.
+    parser.add_argument("--write-env", default=None,
+                        help="Path to .env to update BEDROCK_OPUS_MODEL if Opus falls back to Sonnet")
+    args = parser.parse_args()
+
     client = boto3.client("bedrock-runtime", region_name=REGION)
     print(f"Checking Bedrock model access in {REGION}...\n")
 
-    required_ok = True
-    optional_missing = []
+    results = {}  # name -> (passed, role, resolved_id)
     for model in MODELS:
         passed = check_model(client, model)
-        req = model.get("required", True)
+        role = model.get("role")
+        shown_id = model.get("_resolved_id") or model.get("model_id") \
+            or (model.get("model_id_variants") or ["?"])[0]
+        results[model["name"]] = (passed, role, shown_id)
+        # Tag: editorial pair is conditionally-required; others use `required`.
         if passed:
             tag = "\033[32m✓ PASS\033[0m"
-        elif req:
+        elif role in ("editorial", "editorial_fallback"):
+            tag = "\033[33m• ----\033[0m"  # resolved together below
+        elif model.get("required", True):
             tag = "\033[31m✗ FAIL\033[0m"
         else:
             tag = "\033[33m• SKIP\033[0m"
-        label = model["name"] + ("" if req else "  (optional)")
-        shown_id = model.get("_resolved_id") or model.get("model_id") \
-            or (model.get("model_id_variants") or ["?"])[0]
-        print(f"  {tag}  {label:<40} ({shown_id})")
-        if not passed:
-            if req:
-                required_ok = False
-            else:
-                optional_missing.append(model["name"])
+        print(f"  {tag}  {model['name']:<42} ({shown_id})")
+
+    # --- Editorial resolution: Opus OR Sonnet must work ---
+    opus_ok = results.get("Claude Opus 4.6", (False,))[0]
+    sonnet_name = "Claude Sonnet 4.6 (Opus fallback)"
+    sonnet_ok = results.get(sonnet_name, (False,))[0]
+    sonnet_id = results.get(sonnet_name, (False, None, ""))[2]
+
+    editorial_ok = opus_ok or sonnet_ok
+    print()
+    if opus_ok:
+        print("Editorial agents: \033[32mOpus 4.6\033[0m (primary).")
+    elif sonnet_ok:
+        print("Editorial agents: \033[33mOpus 4.6 unavailable → falling back to Sonnet 4.6\033[0m.")
+        if args.write_env:
+            _upsert_env(args.write_env, "BEDROCK_OPUS_MODEL", sonnet_id)
+            print(f"  → wrote BEDROCK_OPUS_MODEL={sonnet_id} to {args.write_env}")
+        else:
+            print(f"  → set BEDROCK_OPUS_MODEL={sonnet_id} in pellier/backend/.env")
+    else:
+        print("\033[31mEditorial agents: NEITHER Opus 4.6 nor Sonnet 4.6 is accessible.\033[0m")
+
+    # --- Hard-required models (Haiku, Rerank, Embed) ---
+    hard = [m["name"] for m in MODELS if m.get("required", True)]
+    hard_missing = [n for n in hard if not results.get(n, (False,))[0]]
 
     print()
-    if optional_missing:
-        print(
-            "Note: optional model(s) not accessible: "
-            + ", ".join(optional_missing)
-            + "."
-        )
-    if required_ok:
+    if editorial_ok and not hard_missing:
         print("All required models accessible. Workshop is ready.")
     else:
-        print("\033[31mRequired model access is missing — the session WILL fail.\033[0m")
+        if hard_missing:
+            print("\033[31mMissing required model(s): " + ", ".join(hard_missing) + "\033[0m")
+        if not editorial_ok:
+            print("\033[31mNo editorial model (Opus or Sonnet) — chat WILL fail.\033[0m")
         print("Enable them at: https://console.aws.amazon.com/bedrock/home#/modelaccess")
         sys.exit(1)
 

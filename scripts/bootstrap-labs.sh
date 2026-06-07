@@ -265,7 +265,7 @@ if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
         export AWS_REGION='${AWS_REGION:-us-west-2}'
         cd '$REPO_PATH'
-        python3 scripts/check_model_access.py
+        python3 scripts/check_model_access.py --write-env '$REPO_PATH/pellier/backend/.env'
     " 2>&1 | tee /var/log/model-access-preflight.log; then
         log "✅ Bedrock model-access preflight passed"
     else

@@ -70,10 +70,15 @@ class Settings(BaseSettings):
     #                 speed + determinism.
     #
     # Model IDs follow Bedrock cross-region inference profile naming.
-    # Editorial agents (Style Advisor, Curator, Experience Guide) use
-    # BEDROCK_OPUS_MODEL. The `BEDROCK_SONNET_MODEL` name is legacy only:
-    # it defaults to the same Opus profile for older `.env` / scripts.
-    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+    # Editorial agents (Style Advisor, Curator, Experience Guide) read
+    # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
+    # preflight (scripts/check_model_access.py, run in bootstrap) detects
+    # whether Opus 4.6 is reachable on the account, and if it is NOT, writes
+    #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-4-6
+    # into .env so editorial agents fall back to Sonnet 4.6 cleanly — no code
+    # path change, no per-request retry. BEDROCK_SONNET_MODEL is the canonical
+    # fallback target (real Sonnet 4.6, not an Opus alias).
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
     BEDROCK_HAIKU_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
     BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
 
