@@ -424,7 +424,25 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "**/.git": true,
         "**/.github": true,
         "**/.vscode": true,
-        "**/scripts": true
+        "**/scripts": true,
+        "**/.venv": true,
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/node_modules": true,
+        "**/dist": true,
+        ".kiro": true,
+        "tests": true,
+        "archive": true,
+        "docs": true,
+        "infrastructure": true,
+        "lab-content": true,
+        "lab-content-audit.md": true,
+        "logs": true,
+        "tmp": true,
+        "WORKSHOP_HARDENING_TODO.md": true,
+        "CHANGELOG.md": true,
+        "package.json": true,
+        "package-lock.json": true
     }
 }
 VSCODE_SETTINGS
