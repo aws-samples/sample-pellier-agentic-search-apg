@@ -27,7 +27,13 @@ REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"
 TOOLS="${REPO}/pellier/backend/services/agent_tools.py"
-SOLUTION="${REPO}/solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py"
+# The participant fills ONLY the floor_check body between the START/END markers
+# in the already-in-place agent_tools.py (the builders pre-apply variant, which
+# defines process_return, escalate_to_stylist, etc.). The dry-run mirrors that
+# exactly — it patches the body in place rather than swapping the whole file,
+# so it can't drift from the live participant artifact. BODY is the canonical
+# reference body (same one Module 02's paste-only escape hatch uses).
+BODY="${REPO}/solutions/closing-marcos-gap/services/floor_check_tool_body.py"
 KEEP=false
 [[ "${1:-}" == "--keep" ]] && KEEP=true
 
@@ -72,13 +78,40 @@ else
 fi
 
 # --- 2. Apply the solution (simulate the participant's build) ---------------
-echo "[2/6] Wire floor_check (apply reference solution)"
-if [[ ! -f "$SOLUTION" ]]; then
-  fail "Solution file missing: $SOLUTION"; exit 1
+# Fill ONLY the floor_check body between the START/END markers in the live
+# agent_tools.py — exactly what a participant does. This keeps every other tool
+# (process_return, escalate_to_stylist, ...) intact, so the import graph the
+# Experience Guide relies on is never broken. (A prior version swapped the whole
+# file for a separate "solution" copy that had drifted — it was missing
+# process_return, which crashed experience_guide.py's module-load import.)
+echo "[2/6] Wire floor_check (fill the body between the markers)"
+if [[ ! -f "$BODY" ]]; then
+  fail "Reference body file missing: $BODY"; exit 1
 fi
-cp "$TOOLS" "${TOOLS}.dryrun.bak"
-cp "$SOLUTION" "$TOOLS"
-pass "Applied agent_tools_floor_check_solution.py"
+if ! grep -q "WORKSHOP_EXERCISE_STUB" "$TOOLS"; then
+  info "floor_check already wired (no stub marker) — leaving agent_tools.py as-is"
+else
+  cp "$TOOLS" "${TOOLS}.dryrun.bak"
+  python3 - "$TOOLS" "$BODY" <<'PYEOF'
+import sys, re
+tools_path, body_path = sys.argv[1], sys.argv[2]
+src = open(tools_path).read()
+# Body file has a 2-line "# Paste inside ..." comment header; keep only the code.
+body_lines = open(body_path).read().splitlines()
+body = "\n".join(l for l in body_lines if not l.lstrip().startswith("# Paste"))
+body = body.strip("\n")
+start = "# === CHALLENGE · Stock Keeper · floor_check: START ==="
+end   = "# === CHALLENGE · Stock Keeper · floor_check: END ==="
+pat = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
+repl = start + "\n" + body + "\n    " + end
+new, n = pat.subn(repl, src)
+if n != 1:
+    sys.stderr.write(f"expected 1 marker block, replaced {n}\n"); sys.exit(1)
+open(tools_path, "w").write(new)
+PYEOF
+  if [[ $? -ne 0 ]]; then fail "Could not patch floor_check body into agent_tools.py"; exit 1; fi
+  pass "Filled floor_check body in agent_tools.py (other tools untouched)"
+fi
 info "Waiting 4s for uvicorn --reload to pick up the change…"
 sleep 4
 
