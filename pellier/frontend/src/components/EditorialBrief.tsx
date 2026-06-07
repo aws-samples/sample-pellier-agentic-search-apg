@@ -132,7 +132,7 @@ export default function EditorialBrief() {
                   'AgentCore',
                   'Strands SDK',
                   'Claude',
-                  'Cohere Embed English v3',
+                  'Cohere Embed v4',
                   'Amazon Transcribe',
                   'Cedar',
                 ].map((tech) => (

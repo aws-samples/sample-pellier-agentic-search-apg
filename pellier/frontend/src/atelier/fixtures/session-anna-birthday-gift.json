@@ -136,7 +136,7 @@
       "index": 5,
       "category": "both",
       "title": "vector branch",
-      "description": "pgvector cosine over product_catalog (k=20); query embedding via cohere.embed-english-v3",
+      "description": "pgvector cosine over product_catalog (k=20); query embedding via us.cohere.embed-v4:0",
       "status": "complete",
       "durationMs": 305,
       "sql": "WITH query_embedding AS (\n  SELECT $1::vector AS embedding\n)\nSELECT\n  p.product_id,\n  p.name,\n  p.brand,\n  p.price,\n  1 - (p.embedding <=> q.embedding) AS similarity\nFROM product_catalog p\nCROSS JOIN query_embedding q\nWHERE p.quantity > 0\nORDER BY p.embedding <=> q.embedding\nLIMIT 20;",

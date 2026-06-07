@@ -193,7 +193,7 @@ async def storefront_search(
     Pipeline (Req 3.3.6 and Design "Sequence Diagram 1 — Vector search"):
 
       1. Embed the query via ``EmbeddingService.embed_query``
-         (Cohere Embed English v3 ``input_type=search_query``).
+         (Cohere Embed v4 ``input_type=search_query``).
       2. Call ``VectorSearch.vector_search`` with the pre-computed
          vector. ``vector_search`` is the C1 method from Task 2.1 — it
          owns ``SET LOCAL hnsw.ef_search``, the ``iterative_scan``

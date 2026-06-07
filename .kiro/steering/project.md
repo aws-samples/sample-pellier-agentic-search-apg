@@ -41,7 +41,7 @@ Three Acts. Two mandatory builds, two optional fast-finishers.
   - `solutions/the-quiet-search/` (semantic search), `solutions/closing-marcos-gap/` (floor_check + specialists), `solutions/the-ledger/` (AgentCore production)
 - `scripts/` — Bootstrap and seed scripts for the session environment
 - `lab-content/builders/` — 60-min Builder's Session Workshop Studio content
-- `data/` — Product catalog CSV with pre-generated Cohere Embed English v3 embeddings
+- `data/` — Product catalog CSV with pre-generated Cohere Embed v4 embeddings
 - `.kiro/specs/` — Feature specs (requirements, design, tasks)
 - `.claude/prompts/` — Claude Code prompt playbooks
 
@@ -49,7 +49,7 @@ Three Acts. Two mandatory builds, two optional fast-finishers.
 
 - Amazon Aurora PostgreSQL (latest available at session time; currently 17.9) Serverless v2 (0–16 ACU, scale-to-zero)
 - Schema: `pellier` (product_catalog, warehouse_inventory, customers, customer_episodic_seed, tool_audit, and supporting tables)
-- pgvector 0.8.0 with HNSW indexes for 1024-dim Cohere Embed English v3 vectors
+- pgvector 0.8.0 with HNSW indexes for 1024-dim Cohere Embed v4 vectors
 - 40 curated products (10 signed-out baseline + 10 per persona) with pre-generated embeddings
 - Session management: AgentCore Memory (STM) via `agentcore_memory.py`
 - User preferences stored in AgentCore Memory keyed by verified Cognito user_id

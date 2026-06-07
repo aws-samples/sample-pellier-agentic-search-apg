@@ -253,7 +253,7 @@ def test_bedrock_model_ids_have_spec_defaults(
 ) -> None:
     """The IN-CODE Bedrock model defaults SHALL match the spec:
 
-      - Cohere Embed English v3 (cohere.embed-english-v3)
+      - Cohere Embed v4 (us.cohere.embed-v4:0)
       - Cohere Rerank v3.5 (us.cohere.rerank-v3-5:0)
       - Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) for the
         legacy BEDROCK_CHAT_MODEL alias and editorial-agent default
@@ -280,7 +280,7 @@ def test_bedrock_model_ids_have_spec_defaults(
     nonexistent_env = str(tmp_path / "no-such-file.env")
     s = Settings(_env_file=nonexistent_env)
 
-    assert s.BEDROCK_EMBEDDING_MODEL == "cohere.embed-english-v3"
+    assert s.BEDROCK_EMBEDDING_MODEL == "us.cohere.embed-v4:0"
     assert s.BEDROCK_RERANK_MODEL == "us.cohere.rerank-v3-5:0"
     assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-4-6-v1"
     # Per-agent model mix should also default cleanly.

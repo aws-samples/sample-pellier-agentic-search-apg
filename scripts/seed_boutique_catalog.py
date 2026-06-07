@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Seed the boutique catalog — 36 curated products with real Cohere Embed English v3 embeddings.
+Seed the boutique catalog — 36 curated products with real Cohere Embed v4 embeddings.
 
 10 products per persona (Marco / Anna / Theo / Fresh), zero overlap.
 Each persona: 1 hero + 1 weekend edit featured + 8 grid = 10 total.
-Each product gets a 1024-dim embedding via Bedrock's Cohere Embed English v3,
+Each product gets a 1024-dim embedding via Bedrock's Cohere Embed v4,
 stored in Aurora's pgvector column for HNSW-indexed similarity search.
 
 Usage:
@@ -29,7 +29,7 @@ Workshop note:
     The catalog embeddings never change between runs, so we generate them
     ONCE (committing data/embeddings_cache.json) and every participant
     account seeds from that cache via --from-cache. This removes the
-    Cohere Embed English v3 Bedrock call from the bootstrap critical path — the
+    Cohere Embed v4 Bedrock call from the bootstrap critical path — the
     slowest, most throttle-prone step — turning the seed into a
     deterministic SQL load. Runtime models (Cohere Rerank, Claude) are
     still required and checked by the model-access preflight.
@@ -340,17 +340,24 @@ ALL_PRODUCTS = FRESH_PRODUCTS + MARCO_PRODUCTS + ANNA_PRODUCTS + THEO_PRODUCTS
 # =========================================================================
 
 def generate_embeddings(products: List[Product], region: str) -> None:
-    """Generate Cohere Embed English v3 embeddings via Bedrock for all products.
+    """Generate Cohere Embed v4 embeddings via Bedrock for all products.
 
-    Cohere Embed English v3 is enabled by default in AWS Workshop Studio
-    accounts and supports on-demand invocation by its bare model ID
-    (``cohere.embed-english-v3``) — no cross-region inference profile is
-    required. Overridable via BEDROCK_EMBED_MODEL_ID for an explicit ID/ARN.
+    Cohere Embed v4 is enabled in AWS Workshop Studio. Like Rerank v3.5, v4
+    has no on-demand throughput by bare model ID — invoke via a cross-region
+    inference profile (us.* / eu.* / apac.*), derived from the region here.
+    Overridable via BEDROCK_EMBED_MODEL_ID for an explicit ID/ARN.
+
+    output_dimension is pinned to EMBED_DIM (1024) so generated vectors match
+    the vector(1024) schema and the runtime query embeddings (which also
+    request 1024). Keep this in lockstep with services/embeddings.py.
     """
     import boto3
 
-    # Embed English v3 invokes on-demand by bare model ID; no profile prefix.
-    default_model = "cohere.embed-english-v3"
+    # Region-derived cross-region inference profile prefix (us. / eu. / apac.).
+    group = (region or "us-east-1").split("-")[0]
+    if group not in ("us", "eu", "apac"):
+        group = "us"
+    default_model = f"{group}.cohere.embed-v4:0"
     model_id = os.getenv("BEDROCK_EMBED_MODEL_ID", default_model)
 
     client = boto3.client("bedrock-runtime", region_name=region)
@@ -362,12 +369,12 @@ def generate_embeddings(products: List[Product], region: str) -> None:
     for i, product in enumerate(products):
         text = product.search_text
         try:
-            # Embed English v3 does NOT accept output_dimension — it returns a
-            # fixed 1024-dim vector natively.
+            # v4 accepts output_dimension; pin 1024 to match schema + cache.
             payload = json.dumps({
                 "texts": [text],
                 "input_type": "search_document",
                 "embedding_types": ["float"],
+                "output_dimension": EMBED_DIM,
             })
             response = client.invoke_model(
                 body=payload,
@@ -412,7 +419,7 @@ def write_embeddings_cache(products: List[Product], path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         json.dump(
-            {"model": "cohere.embed-english-v3", "dim": EMBED_DIM, "embeddings": cache},
+            {"model": "us.cohere.embed-v4:0", "dim": EMBED_DIM, "embeddings": cache},
             f,
         )
     logger.info("Wrote %d cached embeddings to %s", len(cache), path)
@@ -427,6 +434,24 @@ def load_embeddings_cache(products: List[Product], path: str) -> int:
         )
     with open(path) as f:
         payload = json.load(f)
+
+    # Guard: the cached vectors MUST come from the same embedding model the
+    # backend uses at query time. A v3 cache + v4 runtime (or vice-versa)
+    # silently returns nonsense — different latent spaces. Warn loudly so a
+    # stale cache is caught at seed, not by a participant mid-search.
+    cache_model = payload.get("model", "<unstamped>")
+    expected_model = os.getenv("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
+    if cache_model != expected_model:
+        logger.warning(
+            "⚠️  Embeddings cache model mismatch: cache was built with '%s' but "
+            "runtime expects '%s'. Vectors from different models are NOT "
+            "comparable — regenerate the cache with "
+            "`python scripts/seed_boutique_catalog.py --csv-only` against an "
+            "account that has the expected model enabled, then commit "
+            "data/embeddings_cache.json.",
+            cache_model, expected_model,
+        )
+
     cache = payload.get("embeddings", {})
     applied = 0
     missing: List[int] = []

@@ -149,7 +149,7 @@ class FakeEmbeddingService:
     def embed_query(self, query: str) -> List[float]:
         self.last_query = query
         self.calls += 1
-        # 1024 floats matches Cohere Embed English v3's output dimension. The
+        # 1024 floats matches Cohere Embed v4's output dimension. The
         # specific values don't matter — the fake ``_vector_search``
         # below ignores them.
         return [0.0] * 1024

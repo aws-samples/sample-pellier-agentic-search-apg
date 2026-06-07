@@ -175,7 +175,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
         }}
       >
         Type a natural-language query. The registry finds the closest tools
-        using cosine similarity over Cohere Embed English v3 embeddings — the same
+        using cosine similarity over Cohere Embed v4 embeddings — the same
         primitive that powers product search. Click a result to jump to that tool
         in the registry below.
       </p>
@@ -982,7 +982,7 @@ const RelatedCard: React.FC = () => (
             tool_registry
           </code>{' '}
           table stores each tool's name, description, and a 1024-dim Cohere
-          Embed English v3 embedding. Discovery is a single pgvector cosine query — the
+          Embed v4 embedding. Discovery is a single pgvector cosine query — the
           same primitive that powers product search, applied to capabilities.
         </p>
         <Link

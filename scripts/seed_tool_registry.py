@@ -5,7 +5,7 @@ Loads the 13 canonical tool names from
 ``pellier/backend/services/agentcore_gateway.py:GATEWAY_TOOL_NAMES``,
 pulls each tool's docstring as the description (single source of truth —
 the Gateway uses the same docstring for its MCP ``description`` field),
-embeds the description via Cohere Embed English v3, and UPSERTs into the
+embeds the description via Cohere Embed v4, and UPSERTs into the
 ``pellier.tools`` table created in migration 002.
 
 Idempotent: rerunning replaces descriptions + embeddings in place
@@ -53,7 +53,10 @@ logging.basicConfig(
 logger = logging.getLogger("seed_tool_registry")
 
 
-COHERE_MODEL_ID = "cohere.embed-english-v3"
+# Cohere Embed v4 via cross-region inference profile (no on-demand by bare
+# ID). Overridable via BEDROCK_EMBED_MODEL_ID. output_dimension is pinned to
+# EMBEDDING_DIMENSION in the request body so vectors match the catalog.
+COHERE_MODEL_ID = os.getenv("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
 EMBEDDING_DIMENSION = 1024
 
 
@@ -132,18 +135,20 @@ def _load_tool_specs() -> List[Dict[str, Any]]:
 
 
 def _embed(bedrock: Any, text: str) -> List[float]:
-    """Cohere Embed English v3 via Bedrock — single-text, search_document input type.
+    """Cohere Embed v4 via Bedrock — single-text, search_document input type.
 
     search_document (not search_query) because this is the *indexed*
     side — the agent's runtime query embedding is the search_query side.
     Cohere's asymmetric retrieval doc calls for this split.
     """
-    # Embed English v3 does NOT accept output_dimension (returns 1024-dim natively).
+    # Cohere Embed v4: pin output_dimension to EMBEDDING_DIMENSION (1024) so
+    # tool-registry vectors match catalog vectors + the vector(1024) schema.
     payload = json.dumps(
         {
             "texts": [text],
             "input_type": "search_document",
             "embedding_types": ["float"],
+            "output_dimension": EMBEDDING_DIMENSION,
         }
     )
     resp = bedrock.invoke_model(

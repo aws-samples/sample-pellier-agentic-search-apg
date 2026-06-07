@@ -79,7 +79,7 @@ const GroundingDetail: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <SourceCard
               name="product_catalog"
-              description="Products with names, brands, prices, descriptions, tags, quantities, and 1024-dim Cohere Embed English v3 vectors."
+              description="Products with names, brands, prices, descriptions, tags, quantities, and 1024-dim Cohere Embed v4 vectors."
               query="SELECT product_id, name, brand, price, quantity FROM product_catalog WHERE product_id = $1;"
             />
             <SourceCard

@@ -55,7 +55,7 @@ class VectorSearch:
         call Bedrock Embed itself (Req 2.3.5).
 
         Args:
-            embedding: Query embedding vector (1024 floats from Cohere Embed English v3)
+            embedding: Query embedding vector (1024 floats from Cohere Embed v4)
             limit: Maximum number of results
             ef_search: HNSW search parameter (higher = better recall, slower)
             iterative_scan: Enable pgvector 0.8.0 iterative scanning (default: True)

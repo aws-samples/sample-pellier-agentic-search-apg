@@ -1,7 +1,7 @@
 """
 Embeddings service for Pellier
 
-Generates vector embeddings using Cohere Embed English v3 via Amazon Bedrock.
+Generates vector embeddings using Cohere Embed v4 via Amazon Bedrock.
 Provides embedding generation for search queries and documents with
 asymmetric input types for improved retrieval quality.
 """
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 _TOTAL_EMBEDDING_COST = 0.0
-_EMBEDDING_COST_PER_CALL = 0.00001  # ~$0.01 per 1K Cohere Embed English v3 calls
+_EMBEDDING_COST_PER_CALL = 0.00001  # ~$0.01 per 1K Cohere Embed v4 calls
 
 
 def get_cache_stats() -> dict:
@@ -35,9 +35,9 @@ def get_cache_stats() -> dict:
 
 class EmbeddingService:
     """
-    Service for generating text embeddings using Cohere Embed English v3 via Bedrock.
+    Service for generating text embeddings using Cohere Embed v4 via Bedrock.
 
-    Cohere Embed English v3 generates 1024-dimensional vectors with asymmetric
+    Cohere Embed v4 generates 1024-dimensional vectors with asymmetric
     input types (search_query vs search_document) for improved retrieval.
     """
 
@@ -153,14 +153,17 @@ class EmbeddingService:
                 return cached
 
         try:
-            # Prepare request body for Cohere Embed English v3.
-            # v3 does NOT accept an output_dimension parameter — it returns a
-            # fixed 1024-dim vector natively. (Embed v4 used output_dimension;
-            # passing it to v3 raises a ValidationException.)
+            # Prepare request body for Cohere Embed v4.
+            # v4 accepts output_dimension and natively supports 256/1024/1536.
+            # We pin 1024 so the existing vector(1024) schema + HNSW index and
+            # the committed embeddings cache all stay aligned — no migration,
+            # no reshape. (Omitting output_dimension would default to 1536 and
+            # break the dimension check below + the schema.)
             request_body = {
                 "texts": [text],
                 "input_type": input_type,
                 "embedding_types": ["float"],
+                "output_dimension": self.embedding_dimension,
             }
 
             # Call Bedrock API with retry logic
@@ -171,7 +174,7 @@ class EmbeddingService:
             float_embeddings = embeddings_data.get("float", [])
 
             if not float_embeddings or len(float_embeddings) == 0:
-                raise ValueError("No embeddings returned from Cohere Embed English v3")
+                raise ValueError("No embeddings returned from Cohere Embed v4")
 
             embedding = float_embeddings[0]
 

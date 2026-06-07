@@ -137,7 +137,7 @@ PGPASSWORD='${DB_PASSWORD}'
 PGDATABASE='${DB_NAME}'
 AWS_REGION='${AWS_REGION}'
 AWS_DEFAULT_REGION='${AWS_REGION}'
-BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-cohere.embed-english-v3}'
+BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
 BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-us.cohere.rerank-v3-5:0}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 WORKSHOP_ID='${WORKSHOP_ID:-}'
@@ -258,7 +258,7 @@ fi
 # Fail fast and loud if the runtime models aren't enabled in this account.
 # Without this, a missing grant surfaces much later as an empty storefront
 # or a dead chat turn mid-session. All four models are required at runtime —
-# Cohere Embed English v3 included, because every shopper query is embedded
+# Cohere Embed v4 included, because every shopper query is embedded
 # live before the pgvector search (the cache only covers the catalog corpus).
 log "Preflight: checking Bedrock model access (us-west-2)..."
 if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
@@ -343,7 +343,7 @@ setup_database() {
         #
         # Embeddings come from the COMMITTED cache (data/embeddings_cache.json)
         # via --from-cache. The catalog never changes between runs, so we
-        # generate Cohere Embed English v3 vectors once (committed) instead of calling
+        # generate Cohere Embed v4 vectors once (committed) instead of calling
         # Bedrock on every account. This removes the slowest, most
         # throttle-prone step from the bootstrap critical path and makes the
         # seed a deterministic SQL load. To regenerate the cache after a
@@ -407,7 +407,7 @@ setup_database() {
 
         # ---- 4. Tool registry seed — populates pellier.tools (created
         # empty by migration 002) with the 9 canonical Gateway tool names
-        # plus their Cohere Embed English v3 descriptions. The Atelier
+        # plus their Cohere Embed v4 descriptions. The Atelier
         # Observatory's tool-registry tab and the pgvector
         # tool-discovery card both read from this table and silently
         # render zero rows if the seed is skipped. ----

@@ -55,72 +55,111 @@ MODELS = [
         # corpus; it does NOT cover runtime query embedding. If this model is
         # inaccessible, /api/health reports bedrock:inaccessible and search fails.
         #
-        # Cohere Embed English v3 is enabled by default in AWS Workshop Studio
-        # accounts and invokes on-demand by bare model ID (no inference profile).
-        # Note: v3 does NOT accept output_dimension — it returns 1024-dim natively.
-        "name": "Cohere Embed English v3",
-        "model_id": "cohere.embed-english-v3",
+        # Cohere Embed v4 (enabled in Workshop Studio). v4 has no on-demand
+        # throughput by bare model ID, so the accessible form is usually a
+        # cross-region inference profile (us./eu./apac.). We don't assume which
+        # prefix the account exposes — `model_id_variants` lists every form and
+        # the check passes on the FIRST that works, reporting which one. The
+        # backend default (config.BEDROCK_EMBEDDING_MODEL) is us.cohere.embed-v4:0;
+        # if a different variant wins here, set BEDROCK_EMBEDDING_MODEL to it.
+        #
+        # output_dimension=1024 keeps vectors aligned with the vector(1024)
+        # schema + committed cache.
+        "name": "Cohere Embed v4",
+        "model_id_variants": [
+            "us.cohere.embed-v4:0",
+            "eu.cohere.embed-v4:0",
+            "apac.cohere.embed-v4:0",
+            "global.cohere.embed-v4:0",
+            "cohere.embed-v4:0",
+        ],
         "required": True,
         "body": {
             "texts": ["test"],
             "input_type": "search_query",
             "embedding_types": ["float"],
+            "output_dimension": 1024,
         },
     },
 ]
 
 
-def check_model(client, model: dict) -> bool:
+def _invoke_one(client, model_id: str, body: dict):
+    """Try one model ID. Returns (status, detail) where status is one of:
+    ok | reachable | denied | denied_marketplace | no_ondemand | bad_dim | error."""
     try:
         response = client.invoke_model(
-            modelId=model["model_id"],
-            body=json.dumps(model["body"]),
+            modelId=model_id,
+            body=json.dumps(body),
             contentType="application/json",
             accept="application/json",
         )
         # Read the body to confirm a valid response
         response["body"].read()
-        return True
+        return ("ok", "")
     except client.exceptions.AccessDeniedException as e:
-        msg = str(e)
-        if "private marketplace" in msg.lower() or "marketplace subscription" in msg.lower():
-            # The account is behind an AWS Private Marketplace (common for
-            # Workshop Studio / event accounts) that has NOT allow-listed this
-            # third-party model. IAM permission is irrelevant — governance wins.
-            print(
-                "    Access denied (Private Marketplace): this model is not on the\n"
-                "      account's approved-products list. The org/event admin must add it\n"
-                "      to the Private Marketplace, or switch to a model enabled by default\n"
-                "      in Workshop Studio (e.g. cohere.embed-english-v3 for embeddings)."
-            )
-        else:
-            print("    Access denied — enable this model in the Bedrock console (Model access).")
-        return False
+        msg = str(e).lower()
+        if "private marketplace" in msg or "marketplace subscription" in msg:
+            return ("denied_marketplace", str(e))
+        return ("denied", str(e))
     except Exception as e:
-        error_str = str(e)
-        if "ValidationException" in error_str:
-            low = error_str.lower()
-            # A ValidationException is NOT proof of access. Two cases that look
-            # like "access works" but are real failures:
-            if "on-demand throughput isn't supported" in low or "on-demand throughput is not supported" in low:
-                print(
-                    "    FAIL: this model has no on-demand throughput by bare model ID.\n"
-                    "      Invoke it through a cross-region inference profile instead\n"
-                    "      (e.g. us.<model-id>)."
-                )
-                return False
+        low = str(e).lower()
+        if "validationexception" in low:
+            # A ValidationException is NOT proof of access. Distinguish the
+            # "looks reachable but actually unusable" cases from a benign
+            # payload-shape rejection (which DOES imply access).
+            if "on-demand throughput is" in low and "supported" in low:
+                return ("no_ondemand", str(e))
             if "output_dimension" in low:
-                print(
-                    "    FAIL: the request includes output_dimension, which this model\n"
-                    "      rejects (Embed English v3 returns 1024-dim natively — drop it)."
-                )
-                return False
-            # Any other ValidationException is a genuine payload-shape issue and
-            # does imply the model is reachable. Treat as a pass for ACCESS only.
-            print(f"    Note: model reachable; test payload rejected ({e.__class__.__name__}). Access OK.")
+                return ("bad_dim", str(e))
+            return ("reachable", str(e))  # payload quibble → access OK
+        return ("error", str(e))
+
+
+def check_model(client, model: dict) -> bool:
+    """Check one model. Supports a single `model_id` or a `model_id_variants`
+    list — for the latter, tries each in order and passes on the FIRST that
+    works, printing which variant won so config can be set to match."""
+    variants = model.get("model_id_variants") or [model["model_id"]]
+    body = model["body"]
+    multi = len(variants) > 1
+
+    results = []  # (variant, status, detail) for diagnostics if all fail
+    for mid in variants:
+        status, detail = _invoke_one(client, mid, body)
+        if status in ("ok", "reachable"):
+            if multi:
+                note = "" if status == "ok" else " (reachable; test payload rejected — access OK)"
+                print(f"    Accessible via: {mid}{note}")
+                model["_resolved_id"] = mid
+            elif status == "reachable":
+                print(f"    Note: model reachable; test payload rejected. Access OK.")
             return True
-        print(f"    Error: {e}")
-        return False
+        results.append((mid, status, detail))
+
+    # Nothing worked — print the most actionable reason.
+    if any(s == "denied_marketplace" for _, s, _ in results):
+        print(
+            "    Access denied (Private Marketplace): not on the account's\n"
+            "      approved-products list. The org/event admin must add Cohere\n"
+            "      Embed v4 to the Private Marketplace for this account."
+        )
+    elif all(s in ("no_ondemand", "denied") for _, s, _ in results) and multi:
+        print(
+            "    None of the tried IDs are accessible. Variants attempted:\n"
+            + "\n".join(f"        - {mid} → {s}" for mid, s, _ in results)
+            + "\n      Enable Cohere Embed v4 (Model access) or check the inference-profile prefix."
+        )
+    elif any(s == "no_ondemand" for _, s, _ in results):
+        print(
+            "    FAIL: no on-demand throughput by bare model ID — use a\n"
+            "      cross-region inference profile (us./eu./apac.)."
+        )
+    elif any(s == "bad_dim" for _, s, _ in results):
+        print("    FAIL: output_dimension rejected by this model.")
+    else:
+        print(f"    Access denied / error. Last: {results[-1][2] if results else 'unknown'}")
+    return False
 
 
 def main():
@@ -139,7 +178,9 @@ def main():
         else:
             tag = "\033[33m• SKIP\033[0m"
         label = model["name"] + ("" if req else "  (optional)")
-        print(f"  {tag}  {label:<40} ({model['model_id']})")
+        shown_id = model.get("_resolved_id") or model.get("model_id") \
+            or (model.get("model_id_variants") or ["?"])[0]
+        print(f"  {tag}  {label:<40} ({shown_id})")
         if not passed:
             if req:
                 required_ok = False
