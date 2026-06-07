@@ -58,7 +58,7 @@ maps to something runnable in this repo:
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN · `pellier/config/mcp-server-config.json` is the literal contract · any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
 | **Managed tool catalog (AgentCore Gateway)** | `services/agentcore_gateway.py` discovers tools at runtime via `MCPClient.list_tools_sync()` over a Cognito-JWT-gated Gateway · the shopper's JWT is passed through (`Authorization: Bearer`) so tool calls carry the caller's identity · in-process tools stay the default; Gateway is the demonstrable side-path (Atelier Card 7) |
 | **Personalization** | Long-term taste in `pellier.customers` + `pellier.customer_episodic_seed` · session-scoped working memory (AgentCore STM) via Bedrock AgentCore Memory |
-| **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeRuntime` from `services/agentcore_runtime.py` · deploy path uses `npx -y @aws/agentcore@latest deploy -y --json` |
+| **Managed agent runtime** | `@app.entrypoint` in `pellier/backend/agentcore_runtime.py` · `bedrock-agentcore:InvokeAgentRuntime` from `services/agentcore_runtime.py` · deploy path uses `npx -y @aws/agentcore@latest deploy -y --json` |
 
 ---
 
@@ -252,7 +252,7 @@ shape voice and handling without changing product selection:
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) — fuses pgvector + FTS rank lists without normalizing raw scores |
 | Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile) · Cohere Rerank v3.5 (`us.cohere.rerank-v3-5:0`, inference profile) |
 | Agent framework  | Strands Agents SDK — `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
-| Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeRuntime`) · Memory (STM, 30-day) · Gateway (MCP tool catalog, Cognito-JWT auth with shopper identity passthrough) · Identity     |
+| Agent infra      | Bedrock AgentCore — Runtime (`@app.entrypoint` → `InvokeAgentRuntime`) · Memory (STM, 30-day) · Gateway (MCP tool catalog, Cognito-JWT auth with shopper identity passthrough) · Identity     |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN with `--readonly True`; `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI · Python 3.14 (3.13 fallback) · psycopg3 · boto3 · SSE streaming                                                  |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
