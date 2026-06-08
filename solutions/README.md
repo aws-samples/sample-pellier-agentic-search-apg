@@ -15,9 +15,9 @@ solutions/
 
 ## Builder's Session — 60 min
 
-**Two mandatory builds, two optional fast-finishers.** The cp commands
-below are the "⏩ out of time" escape hatches referenced from each lab
-page.
+**One mandatory code build, one mandatory SQL proof, two optional
+fast-finishers.** The cp commands below are the "⏩ out of time" escape
+hatches referenced from each lab page.
 
 ### Exercise 1 (mandatory) — `floor_check` body (Act I)
 
@@ -33,19 +33,21 @@ cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
 Paste-only option (just the 9-line body, between `START` / `END`
 markers): `solutions/closing-marcos-gap/services/floor_check_tool_body.py`.
 
-### Exercise 2 (mandatory) — `SELECT` from `pellier.tool_audit` (Act II)
+### Exercise 2 (mandatory) — SQL proof from `pellier.tool_audit` (Act II)
 
 Generate a tool call, then read the Aurora ledger path by querying
-`pellier.tool_audit`. This is a `SELECT`, not a code drop — there is no
-file to copy over a runtime counterpart. The "⏩ out of time" escape
-hatch is a canned recap query a facilitator can run live:
+`pellier.tool_audit`: raw row, JSONB extraction, and ALLOW-vs-DENY
+evidence. This is SQL, not a code drop — there is no file to copy over a
+runtime counterpart. The "⏩ out of time" escape hatch is a canned recap
+query a facilitator can run live:
 
 ```bash
 psql "$PG_URL" -f solutions/the-ledger/sql/tool_audit_recap.sql
 ```
 
-It prints the most recent audited session, the raw rows, and a
-JSONB-extracted view.
+It prints the most recent allowed `process_return` session, the raw
+rows, a JSONB-extracted view, and instructions for checking a DENYed
+session with `-v denied_session=...`.
 
 ### Optional fast-finisher A — Anna skill edit (Act I)
 
