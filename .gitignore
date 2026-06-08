@@ -74,9 +74,6 @@ lab1/**/*.ipynb
 data/amazon-products-sample-with-embeddings.csv
 data/amazon-products-sample.csv
 
-# Large demo video (97MB, exceeds GitHub's 50MB warning threshold)
-lab-content/builders/static/introduction/pellier-demo.webp
-
 # Test environment
 tmp/
 .env
@@ -85,9 +82,9 @@ tmp/
 archive/
 
 # Embedded git repos (separate content repos)
-# lab-content/ previously tracked in a separate repo; now authored here
-# for the DC Summit Builder's Session + re:Invent Workshop (see
-# /Users/shayons/.claude/plans/cheeky-dreaming-sloth.md).
+# Lab manual / CloudFormation / prereq images live in the Workshop Studio
+# repo (build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders),
+# which is the source of truth for all session content.
 reference/
 
 # Playwright artifacts

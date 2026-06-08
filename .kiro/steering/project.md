@@ -12,7 +12,9 @@ Pellier is a hands-on workshop application that teaches developers how to build 
 
 - **60-min Builder's Session (AWS Summit)** — the storefront ships fully wired except one tool body. Participants do two mandatory builds and two optional fast-finishers; everything else is observe / measure / read.
 
-Lab guide content lives in `lab-content/builders/`.
+Lab guide content lives in the separate Workshop Studio repo
+(`build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders`),
+the source of truth for all session content. This repo is the running app.
 
 ## Session Structure
 
@@ -40,7 +42,6 @@ Three Acts. Two mandatory builds, two optional fast-finishers.
 - `solutions/` — Drop-in reference files / escape hatches (cp and restart)
   - `solutions/the-quiet-search/` (semantic search), `solutions/closing-marcos-gap/` (floor_check + specialists), `solutions/the-ledger/` (AgentCore production)
 - `scripts/` — Bootstrap and seed scripts for the session environment
-- `lab-content/builders/` — 60-min Builder's Session Workshop Studio content
 - `data/` — Product catalog CSV with pre-generated Cohere Embed v4 embeddings
 - `.kiro/specs/` — Feature specs (requirements, design, tasks)
 - `.claude/prompts/` — Claude Code prompt playbooks

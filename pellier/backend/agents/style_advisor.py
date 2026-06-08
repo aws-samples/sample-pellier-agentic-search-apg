@@ -90,8 +90,8 @@ def build_search_agent() -> Agent:
     construction time. Callers set those ContextVars before invoking.
     """
     # Style Advisor — Claude Opus 4.6 at 0.4. Editorial voice + fit/fabric
-    # description. Model choice is an architectural decision; see
-    # lab-content/shared/model-mix-sidebar.en.md.
+    # description. Model choice is an architectural decision; see the
+    # Workshop Studio repo's content/ model-mix sidebar.
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_OPUS_MODEL,

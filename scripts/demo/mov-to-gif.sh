@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mov-to-gif.sh — convert a QuickTime .mov to lab-content/builders/static/imgs/chatui.gif
+# mov-to-gif.sh — convert a QuickTime .mov to docs/demo-assets/chatui.gif
 #
 # Usage:
 #   scripts/demo/mov-to-gif.sh ~/Desktop/pellier-demo.mov
@@ -20,7 +20,7 @@ if [[ ! -f "$INPUT" ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OUT="$REPO_ROOT/lab-content/builders/static/imgs/chatui.gif"
+OUT="$REPO_ROOT/docs/demo-assets/chatui.gif"
 PALETTE="$(mktemp -t chatui-palette).png"
 # Apple Silicon QuickTime tags screen recordings with Display P3 primaries
 # even though the content is plain SDR. Without an explicit colorspace

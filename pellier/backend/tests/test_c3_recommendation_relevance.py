@@ -161,8 +161,8 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 def test_curator_is_constructed_with_per_agent_model_mix_and_five_tools(
     stubbed_specialist,
 ) -> None:
-    """Building the Curator SHALL match the per-agent model mix from
-    ``lab-content/shared/model-mix-sidebar.en.md``:
+    """Building the Curator SHALL match the per-agent model mix
+    documented in the Workshop Studio repo's content/ model-mix sidebar:
 
       - Claude Opus 4.6 (BEDROCK_OPUS_MODEL)
       - temperature 0.4 (warm — recommendations carry "taste")

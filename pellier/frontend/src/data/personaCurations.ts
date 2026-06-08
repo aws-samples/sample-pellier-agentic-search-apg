@@ -304,7 +304,7 @@ export function editorialForPersona(
 export const PERSONA_HERO_PILLS: Record<string, string[]> = {
   marco: [
     // Marco's canonical 4-turn workshop demo sequence (+ capstone Turn 5).
-    // See lab-content/shared/marco-arc-overview.en.md — these pill
+    // See the Workshop Studio repo's content/ for Marco's arc — these pill
     // strings must match the demo-conversation fixtures exactly.
     // Turn 4 clicks twice per session: once during the opening demo
     // (Stock Keeper stubbed → graceful non-answer), once during the

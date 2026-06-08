@@ -37,7 +37,7 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
   // session IDs from sessions.json.
   'session-7f5a': () => import('../fixtures/session-7f5a.json'),
   // Marco's canonical workshop arc — three session-detail fixtures.
-  // See lab-content/shared/marco-arc-overview.en.md.
+  // See the Workshop Studio repo's content/ for Marco's arc narrative.
   'session-marco-opening-demo': () => import('../fixtures/session-marco-opening-demo.json'),
   'session-marco-midpoint-checkpoint': () => import('../fixtures/session-marco-midpoint-checkpoint.json'),
   'session-marco-capstone': () => import('../fixtures/session-marco-capstone.json'),

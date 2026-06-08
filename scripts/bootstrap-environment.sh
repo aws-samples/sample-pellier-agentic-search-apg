@@ -435,7 +435,6 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "archive": true,
         "docs": true,
         "infrastructure": true,
-        "lab-content": true,
         "lab-content-audit.md": true,
         "logs": true,
         "tmp": true,

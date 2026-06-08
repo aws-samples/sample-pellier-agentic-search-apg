@@ -2,7 +2,8 @@
 // capture-chatui-gif.mjs
 //
 // Captures a 12–15 s demo of the Pellier Boutique (Marco signed in) and
-// encodes it into lab-content/builders/static/imgs/chatui.gif.
+// encodes it into docs/demo-assets/chatui.gif. Copy that file into the
+// Workshop Studio repo's static/imgs/ to publish it in the lab manual.
 //
 // Run from the repo root:
 //   node scripts/demo/capture-chatui-gif.mjs
@@ -27,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
 const FRAMES_DIR = resolve(REPO_ROOT, 'tmp', 'chatui-frames');
-const OUT_GIF = resolve(REPO_ROOT, 'lab-content/builders/static/imgs/chatui.gif');
+const OUT_GIF = resolve(REPO_ROOT, 'docs/demo-assets/chatui.gif');
 const SYSTEM_CHROME =
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 

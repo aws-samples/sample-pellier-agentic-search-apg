@@ -48,7 +48,7 @@ the same atoms in both places.
 
 ### What it demonstrates
 
-Every claim in the [Builder's Session abstract](lab-content/builders/index.en.md)
+Every claim in the Builder's Session abstract
 maps to something runnable in this repo:
 
 | Claim | Where it lives |
@@ -173,25 +173,29 @@ under the mount.
 ## Builder's Session (60 min)
 
 This repo is the source of truth for the **60-minute Builder's Session**
-(AWS Summit). Two mandatory builds plus two optional fast-finishers:
-`floor_check` tool body (Act I) and a `SELECT` from `pellier.tool_audit`
-(Act II); the optional skill-edit and `logger.info` observability hook
-round out tables that finish early. Everything else is observe / measure
-/ read.
+(AWS Summit), framed as a **400-level guided build + evidence
+walkthrough**: small code surface, deep production proof. The mandatory
+path is the `floor_check` tool body (Act I) plus a deliberate SQL proof
+from `pellier.tool_audit` (Act II): raw row, JSONB extraction, and
+ALLOW-vs-DENY evidence. The optional skill-edit and `logger.info`
+observability hook round out tables that finish early. Everything else
+is observe / measure / read.
 
-The session source of truth lives in
-[`lab-content/builders/`](lab-content/builders/). It is structured as:
+The session content (lab manual, CloudFormation, prereq images) lives in
+the Workshop Studio repository — `build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders`
+— which is the single source of truth for everything under its `content/`,
+`assets/`, and `static/` trees. This repo holds the running application the
+session is built on. The session is structured as:
 
 | Section | Time | What attendees do |
 |---|---|---|
-| [Introduction](lab-content/builders/00-introduction/) | 5 min | Open the workspace, land in Boutique + Atelier, and frame the architecture (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger) |
-| [Act I: The Boutique](lab-content/builders/10-act-1-the-boutique/) | 30 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank / agentic for Anna's anchor query |
-| [Act II: The Ledger](lab-content/builders/20-act-2-the-ledger/) | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then `SELECT` from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability hook |
-| [Act III: The Concierge](lab-content/builders/30-act-3-the-concierge/) | 8 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases (read-only, take-home friendly) |
-| [Close](lab-content/builders/40-close/) | 3 min | [What this maps to in your stack](lab-content/builders/90-appendix/03-your-stack/) + Q&A |
+| Introduction | 5 min | Open the workspace, land in Boutique + Atelier, and frame the architecture (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger) |
+| Act I: The Boutique | 30 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank / agentic for Anna's anchor query |
+| Act II: The Ledger | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then prove raw row + JSONB extraction + DENY absence from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability hook |
+| Act III: The Concierge | 8 min | Read dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from terminal, compare to Bedrock Knowledge Bases (read-only, take-home friendly) |
+| Close | 3 min | What this maps to in your stack + Q&A |
 
-Make canonical edits in [`lab-content/builders/`](lab-content/builders/)
-and `lab-content/builders/static/`.
+Make canonical edits to the lab manual in the Workshop Studio repo, not here.
 
 ---
 
@@ -283,35 +287,17 @@ sample-pellier-agentic-search-apg/
 │   ├── closing-marcos-gap/                  floor_check + Stock Keeper (Exercise 1)
 │   └── the-ledger/                     AgentCore production + audit ledger (Exercise 2)
 │
-├── scripts/
-│   ├── migrations/                         Ordered fresh-cluster SQL (001-008)
-│   ├── seed_boutique_catalog.py             40 products with Cohere embeddings
-│   ├── bootstrap-environment.sh             Code Editor + nginx + systemd
-│   └── bootstrap-labs.sh                    DB seed + frontend build + service start
-│
-└── lab-content/                           Workshop Studio content + CFN
-    └── builders/                            60-min Builder's Session bundle
-        ├── index.en.md                        Landing · learning outcomes · module map
-        ├── 00-introduction/                   Enter the environment · surfaces · architecture frame
-        ├── 10-act-1-the-boutique/             Act I — observe Marco, wire floor_check, prove rerank
-        │   ├── 01-meet-marco/
-        │   ├── 02-wire-floor-check/             Exercise 1
-        │   └── 03-prove-rerank/
-        ├── 20-act-2-the-ledger/               Act II — Memory substrates (AgentCore STM) + managed Runtime + audit ledger
-        │   ├── 01-memory-substrates/
-        │   └── 02-agentcore-runtime/            Exercise 2 (SELECT from pellier.tool_audit; optional logger.info hook)
-        ├── 30-act-3-the-concierge/            Act III (take-home) — routing + MCP + Knowledge Bases
-        │   ├── 01-routing-patterns/
-        │   └── 02-mcp-and-knowledge-bases/      reads pellier/config/mcp-server-config.json + uvx
-        ├── 40-close/                          Summary · seams to carry back · expansion path
-        ├── 90-appendix/                       Reference · runbook · your-stack · facilitator notes
-        │   ├── 01-reference/                    Cast, memory substrates, pgvector primer, quick start
-        │   ├── 02-when-things-misbehave/
-        │   ├── 03-your-stack/
-        │   └── 04-facilitator-notes/
-        ├── assets/                            Builder CloudFormation source (CFN templates)
-        └── static/                            Diagrams + prereq images
+└── scripts/
+    ├── migrations/                         Ordered fresh-cluster SQL (001-008)
+    ├── seed_boutique_catalog.py             40 products with Cohere embeddings
+    ├── bootstrap-environment.sh             Code Editor + nginx + systemd
+    └── bootstrap-labs.sh                    DB seed + frontend build + service start
 ```
+
+The lab manual, CloudFormation templates, and prereq images live in the
+separate Workshop Studio repository
+(`build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders`),
+which is the source of truth for all session content.
 
 ---
 
