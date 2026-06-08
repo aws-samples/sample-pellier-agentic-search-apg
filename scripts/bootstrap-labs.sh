@@ -550,6 +550,12 @@ cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'EOF'
 # Pellier Workshop Environment
 # ============================================================================
 
+# Readable colored prompt (matches the dat403 workshop look): bold-green
+# user, bold-blue path, then reset to default (light) for the $ and
+# everything you type. The green/white contrast makes the active command
+# line easy to find when scrolling back through output during the lab.
+export PS1='\[\033[01;32m\]\u:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
 if [ -f /workshop/sample-pellier-agentic-search-apg/.env ]; then
     set -a
     source /workshop/sample-pellier-agentic-search-apg/.env

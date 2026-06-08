@@ -397,7 +397,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
 {
     "workbench.colorTheme": "Default Dark Modern",
     "editor.fontSize": 13,
-    "terminal.integrated.fontSize": 13,
+    "terminal.integrated.fontSize": 18,
     "explorer.compactFolders": false,
     "explorer.autoReveal": true,
     "git.enabled": false,
@@ -587,7 +587,7 @@ cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
 {
     "workbench.colorTheme": "Default Dark Modern",
     "editor.fontSize": 13,
-    "terminal.integrated.fontSize": 13,
+    "terminal.integrated.fontSize": 18,
     "python.defaultInterpreterPath": "/usr/bin/python3",
     "task.autoDetect": "on",
     "task.allowAutomaticTasks": "on",
