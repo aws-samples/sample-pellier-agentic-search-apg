@@ -285,13 +285,19 @@ def main() -> int:
             ]
             _run(cmd, cwd=repo)
 
+            # deploy_lambda.py creates the function as f"{server_name}-function"
+            # (e.g. pellier-search-server-function), NOT target_name (which is
+            # the Gateway *target* alias, e.g. pellier-discovery-search-target).
+            # Look it up by its real function name or get-function 404s and the
+            # whole provision marks failed.
+            function_name = f"{cfg['server_name']}-function"
             get_fn = _run(
                 [
                     "aws",
                     "lambda",
                     "get-function",
                     "--function-name",
-                    cfg["target_name"],
+                    function_name,
                     "--region",
                     required["AWS_REGION"],
                     "--query",
