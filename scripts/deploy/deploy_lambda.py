@@ -193,6 +193,9 @@ def main():
   iam_client = session.client('iam')
 
   try:
+    # Account id for scoping the Bedrock inference-profile ARNs below.
+    account_id = session.client('sts').get_caller_identity()['Account']
+
     # Lambda function execution role
     lambda_role_name = args.server_name + '-role'
     lambda_trust_policy = {
@@ -218,10 +221,32 @@ def main():
               "logs:PutLogEvents"
           ],
           "Resource": "*"
+        },
+        {
+          # The MCP server Lambdas embed queries (Cohere Embed v4) and the
+          # search server reranks (Cohere Rerank v3.5) via bedrock-runtime
+          # invoke_model. Without this the Gateway-routed tool calls deploy
+          # fine but fail at the FIRST embedding with AccessDenied — a failure
+          # that only surfaces at invoke time, not at provisioning. Scoped to
+          # the foundation-model + inference-profile ARN families (NOT region-
+          # conditioned: Cohere v4 is a us.* inference profile and the editorial
+          # path uses global.* profiles that route as RequestedRegion=unspecified,
+          # so a region StringEquals would wrongly deny them). Mirrors the
+          # InstanceRole BedrockModelInvoke statement.
+          "Effect": "Allow",
+          "Action": [
+              "bedrock:InvokeModel",
+              "bedrock:InvokeModelWithResponseStream"
+          ],
+          "Resource": [
+              "arn:aws:bedrock:*::foundation-model/*",
+              f"arn:aws:bedrock:*:{account_id}:inference-profile/*",
+              f"arn:aws:bedrock:*:{account_id}:application-inference-profile/*"
+          ]
         }
       ]
     }
-    
+
     # Add RDS Data API permissions only if database ARNs are provided
     if args.db_cluster_arn:
       lambda_permissions_policy["Statement"].append({

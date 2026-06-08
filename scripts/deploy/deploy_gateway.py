@@ -24,6 +24,35 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
+# AgentCore create_gateway_target accepts only this JSON-Schema keyword subset
+# per (sub)property. Anything else (default, enum, minimum, maximum, format, …)
+# triggers a botocore ParamValidationError before the request is even sent.
+_ALLOWED_SCHEMA_KEYS = {"type", "properties", "required", "items", "description"}
+
+
+def _sanitize_tool_schema(node):
+    """Recursively drop JSON-Schema keywords AgentCore's gateway target API does
+    not accept, keeping only _ALLOWED_SCHEMA_KEYS. Recurses into `properties`
+    (per-field dicts) and `items` (array element schema). Returns a new object;
+    the source TOOL_SCHEMAS are left intact for readability."""
+    if not isinstance(node, dict):
+        return node
+    cleaned = {}
+    for key, value in node.items():
+        if key not in _ALLOWED_SCHEMA_KEYS:
+            continue
+        if key == "properties" and isinstance(value, dict):
+            cleaned[key] = {
+                prop_name: _sanitize_tool_schema(prop_schema)
+                for prop_name, prop_schema in value.items()
+            }
+        elif key == "items":
+            cleaned[key] = _sanitize_tool_schema(value)
+        else:
+            cleaned[key] = value
+    return cleaned
+
+
 # Tool schemas for Pellier MCP servers
 TOOL_SCHEMAS = {
     "search": {
@@ -365,11 +394,27 @@ class BazaarGatewayDeployer:
         except Exception:
             pass
 
+        # AgentCore's create_gateway_target validates each tool inputSchema
+        # against a RESTRICTED JSON-Schema subset — only {type, properties,
+        # required, items, description} are accepted per property. Common
+        # keywords like "default" and "enum" are rejected with a botocore
+        # ParamValidationError. We keep those keys in TOOL_SCHEMAS above for
+        # human readability / source-of-truth, and strip them HERE, at the API
+        # boundary, with a recursive sanitizer. This is comprehensive (any
+        # disallowed keyword at any depth is dropped), so it won't regress if a
+        # new tool adds minimum/maximum/format/etc. Runtime behavior is
+        # unaffected: the MCP Lambdas apply their own defaults and validate
+        # enums server-side; the gateway schema is only the tool advertisement.
+        sanitized_tools = [
+            {**tool, "inputSchema": _sanitize_tool_schema(tool["inputSchema"])}
+            for tool in schema["tools"]
+        ]
+
         self.agentcore.create_gateway_target(
             gatewayIdentifier=gateway_id,
             name=target_name,
             description=schema["description"],
-            targetConfiguration={"mcp": {"lambda": {"lambdaArn": target.lambda_arn, "toolSchema": {"inlinePayload": schema["tools"]}}}},
+            targetConfiguration={"mcp": {"lambda": {"lambdaArn": target.lambda_arn, "toolSchema": {"inlinePayload": sanitized_tools}}}},
             credentialProviderConfigurations=[{"credentialProviderType": "GATEWAY_IAM_ROLE"}],
         )
         logger.info(f"Added target '{target_name}'")
