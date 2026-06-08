@@ -242,9 +242,15 @@ def agent_calls(monkeypatch: pytest.MonkeyPatch) -> List[Dict[str, Any]]:
         message: str,
         session_id: str,
         user_id: Optional[str] = None,
+        auth_token: Optional[str] = None,
     ) -> str:
         calls.append(
-            {"message": message, "session_id": session_id, "user_id": user_id}
+            {
+                "message": message,
+                "session_id": session_id,
+                "user_id": user_id,
+                "auth_token": auth_token,
+            }
         )
         return f"stubbed response for '{message}' in {session_id}"
 
@@ -325,6 +331,7 @@ def test_chat_emits_session_then_chunk_then_done_events(
             "message": "show me linen",
             "session_id": auto_session_id,
             "user_id": "user-one",
+            "auth_token": token,
         }
     ]
 
@@ -463,9 +470,15 @@ def test_mid_stream_token_expiry_does_not_abort_the_stream(
         message: str,
         session_id: str,
         user_id: Optional[str] = None,
+        auth_token: Optional[str] = None,
     ) -> str:
         agent_calls.append(
-            {"message": message, "session_id": session_id, "user_id": user_id}
+            {
+                "message": message,
+                "session_id": session_id,
+                "user_id": user_id,
+                "auth_token": auth_token,
+            }
         )
         # Advance the clock past the token's exp. Any JWT re-check
         # after this point would raise ``ExpiredSignatureError``.

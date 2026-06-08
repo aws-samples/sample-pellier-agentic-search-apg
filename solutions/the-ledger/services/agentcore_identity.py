@@ -65,6 +65,7 @@ class UserContext:
     user_id: Optional[str]
     session_id: str
     namespace: str
+    access_token: Optional[str] = None
 
 
 class AgentCoreIdentityService:
@@ -176,6 +177,7 @@ class AgentCoreIdentityService:
             user_id=user_id,
             session_id=session_id,
             namespace=namespace,
+            access_token=getattr(user, "access_token", None),
         )
 
 

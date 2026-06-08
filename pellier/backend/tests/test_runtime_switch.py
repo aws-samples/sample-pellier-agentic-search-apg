@@ -28,6 +28,8 @@ Runnable from the repo root per ``pytest.ini``:
 
 from __future__ import annotations
 
+import sys
+import types
 from typing import Any
 
 import pytest
@@ -86,12 +88,14 @@ def stub_runtime_call(monkeypatch: pytest.MonkeyPatch):
         message: str,
         session_id: str,
         user_id: Any = None,
+        auth_token: Any = None,
     ) -> str:
         calls.append(
             {
                 "message": message,
                 "session_id": session_id,
                 "user_id": user_id,
+                "auth_token": auth_token,
             }
         )
         return f"[stub-runtime] {message}"
@@ -205,15 +209,17 @@ def test_run_agent_dispatches_to_runtime_when_flag_true(
             message="something for warm evenings out",
             session_id="sess-runtime",
             user_id="cognito-sub-xyz",
+            auth_token="jwt-123",
         )
     )
 
-    # Runtime path fired exactly once with the full triple.
+    # Runtime path fired exactly once with the full invocation context.
     assert stub_runtime_call == [
         {
             "message": "something for warm evenings out",
             "session_id": "sess-runtime",
             "user_id": "cognito-sub-xyz",
+            "auth_token": "jwt-123",
         }
     ]
     assert result == "[stub-runtime] something for warm evenings out"
@@ -239,7 +245,12 @@ def test_run_agent_runtime_passes_none_user_id_through(
     asyncio.run(rt.run_agent(message="hi", session_id="sess-none"))
 
     assert stub_runtime_call == [
-        {"message": "hi", "session_id": "sess-none", "user_id": None}
+        {
+            "message": "hi",
+            "session_id": "sess-none",
+            "user_id": None,
+            "auth_token": None,
+        }
     ]
 
 
@@ -274,3 +285,83 @@ def test_run_agent_on_runtime_falls_back_when_endpoint_missing(
     assert len(_StubOrchestrator.instances) == 1
     assert _StubOrchestrator.instances[0].calls == ["fallback case"]
     assert result == "[stub-inprocess] fallback case"
+
+
+def test_run_agent_on_runtime_falls_back_when_auth_token_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    stub_create_orchestrator,
+) -> None:
+    """The managed Runtime is Cognito JWT-protected. Anonymous calls keep
+    the route usable by falling back to the in-process orchestrator."""
+    import asyncio
+
+    import services.agentcore_runtime as rt
+
+    monkeypatch.setattr(rt.settings, "AGENTCORE_RUNTIME_ENDPOINT", "runtime-id-123")
+
+    result = asyncio.run(
+        rt.run_agent_on_runtime(
+            message="anonymous fallback",
+            session_id="sess-anon",
+            user_id=None,
+            auth_token=None,
+        )
+    )
+
+    assert len(_StubOrchestrator.instances) == 1
+    assert _StubOrchestrator.instances[0].calls == ["anonymous fallback"]
+    assert result == "[stub-inprocess] anonymous fallback"
+
+
+def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
+    monkeypatch: pytest.MonkeyPatch,
+    stub_create_orchestrator,
+) -> None:
+    """The live Runtime path SHALL use the AgentCore Runtime client,
+    runtime id, and caller JWT shape validated by the provisioning smoke test."""
+    import asyncio
+
+    import services.agentcore_runtime as rt
+
+    calls: list[dict[str, Any]] = []
+
+    class _Body:
+        def read(self) -> bytes:
+            return b'{"response":"runtime ok"}'
+
+    class _RuntimeClient:
+        def invoke_agent_runtime(self, **kwargs: Any) -> dict[str, Any]:
+            calls.append(kwargs)
+            return {"body": _Body()}
+
+    def _client(service_name: str, region_name: str) -> _RuntimeClient:
+        calls.append({"service_name": service_name, "region_name": region_name})
+        return _RuntimeClient()
+
+    monkeypatch.setitem(sys.modules, "boto3", types.SimpleNamespace(client=_client))
+    monkeypatch.setattr(
+        rt.settings,
+        "AGENTCORE_RUNTIME_ENDPOINT",
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:agent-runtime/pellier-abc",
+    )
+    monkeypatch.setattr(rt.settings, "AWS_REGION", "us-east-1", raising=False)
+
+    result = asyncio.run(
+        rt.run_agent_on_runtime(
+            message="runtime invoke",
+            session_id="sess-runtime",
+            user_id="user-123",
+            auth_token="jwt-abc",
+        )
+    )
+
+    assert result == "runtime ok"
+    assert calls[0] == {
+        "service_name": "bedrock-agentcore-runtime",
+        "region_name": "us-east-1",
+    }
+    assert calls[1] == {
+        "agentRuntimeId": "pellier-abc",
+        "payload": '{"prompt": "runtime invoke", "session_id": "sess-runtime", "user_id": "user-123"}',
+        "authToken": "jwt-abc",
+    }

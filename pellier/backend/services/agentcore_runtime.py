@@ -11,13 +11,13 @@ on the flag (see Design "Runtime selection switch").
 
 Two public entry points:
 
-    run_agent(message, session_id, user_id)
+    run_agent(message, session_id, user_id, auth_token)
         Dispatcher called by the ``/api/agent/chat`` route (Task 3.5).
         Branches on ``settings.USE_AGENTCORE_RUNTIME``.
 
-    run_agent_on_runtime(message, session_id, user_id)
+    run_agent_on_runtime(message, session_id, user_id, auth_token)
         Challenge 5 implementation. Invokes AgentCore Runtime via the
-        ``bedrock-agentcore`` SDK and streams/returns the response.
+        ``bedrock-agentcore-runtime`` SDK and streams/returns the response.
 
 The in-process path stays routed through Challenge 4's
 ``create_orchestrator`` so participants can watch the request move
@@ -120,6 +120,7 @@ async def run_agent_on_runtime(
     message: str,
     session_id: str,
     user_id: Optional[str] = None,
+    auth_token: Optional[str] = None,
 ) -> str:
     """Invoke the AgentCore Runtime with ``message`` and return the
     response text.
@@ -129,6 +130,9 @@ async def run_agent_on_runtime(
         session_id: Session identifier for STM continuity (C6).
         user_id: Verified Cognito ``sub`` when the caller is signed
             in; ``None`` for anonymous shoppers.
+        auth_token: Raw Cognito access token forwarded to the Runtime
+            authorizer. Anonymous requests fall back to the in-process
+            orchestrator because the managed Runtime is JWT-protected.
 
     Returns:
         The orchestrator's reply as a string. Errors are logged and
@@ -142,6 +146,13 @@ async def run_agent_on_runtime(
         )
         return await _run_orchestrator_inprocess(message, session_id, user_id)
 
+    if not auth_token:
+        logger.warning(
+            "USE_AGENTCORE_RUNTIME=true but no Cognito access token was "
+            "available; falling back to in-process orchestrator"
+        )
+        return await _run_orchestrator_inprocess(message, session_id, user_id)
+
     payload = {
         "prompt": message,
         "session_id": session_id,
@@ -152,20 +163,21 @@ async def run_agent_on_runtime(
         import boto3
 
         client = boto3.client(
-            "bedrock-agentcore",
+            "bedrock-agentcore-runtime",
             region_name=settings.aws_region_resolved,
         )
+        runtime_id = endpoint.rsplit("/", 1)[-1] if endpoint.startswith("arn:") else endpoint
 
         def _invoke() -> dict[str, Any]:
             return client.invoke_agent_runtime(
-                agentRuntimeArn=endpoint,
-                payload=json.dumps(payload).encode("utf-8"),
-                runtimeSessionId=session_id,
+                agentRuntimeId=runtime_id,
+                payload=json.dumps(payload),
+                authToken=auth_token,
             )
 
         response = await asyncio.to_thread(_invoke)
 
-        body = response.get("response") or response.get("payload")
+        body = response.get("body") or response.get("response") or response.get("payload")
         if hasattr(body, "read"):
             body = body.read()
         if isinstance(body, (bytes, bytearray)):
@@ -182,7 +194,7 @@ async def run_agent_on_runtime(
 
     except ImportError:
         logger.warning(
-            "bedrock-agentcore / boto3 not installed — falling back to "
+            "bedrock-agentcore-runtime / boto3 not installed — falling back to "
             "in-process orchestrator"
         )
         return await _run_orchestrator_inprocess(message, session_id, user_id)
@@ -196,6 +208,7 @@ async def run_agent(
     message: str,
     session_id: str,
     user_id: Optional[str] = None,
+    auth_token: Optional[str] = None,
 ) -> str:
     """Route a chat request through either the in-process Strands
     orchestrator or the AgentCore Runtime, based on
@@ -207,5 +220,5 @@ async def run_agent(
     need to make to migrate from local execution to managed runtime.
     """
     if settings.USE_AGENTCORE_RUNTIME:
-        return await run_agent_on_runtime(message, session_id, user_id)
+        return await run_agent_on_runtime(message, session_id, user_id, auth_token)
     return await _run_orchestrator_inprocess(message, session_id, user_id)

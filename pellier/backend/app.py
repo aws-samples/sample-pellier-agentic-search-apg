@@ -2015,6 +2015,16 @@ async def agentcore_runtime_status():
     """Get AgentCore Runtime execution status"""
     runtime_endpoint = settings.AGENTCORE_RUNTIME_ENDPOINT
     if runtime_endpoint:
+        if runtime_endpoint.startswith("arn:"):
+            runtime_id = runtime_endpoint.rsplit("/", 1)[-1]
+            return {
+                "mode": "agentcore",
+                "endpoint": runtime_endpoint,
+                "runtime_id": runtime_id,
+                "healthy": True,
+                "status": "configured",
+            }
+
         # Check health of remote runtime
         try:
             import requests as req

@@ -135,7 +135,7 @@ class ApiClient {
 
   // Health Check
   async healthCheck(): Promise<HealthCheck> {
-    const response = await this.client.get<HealthCheck>('/health')
+    const response = await this.client.get<HealthCheck>('/api/health')
     return response.data
   }
 

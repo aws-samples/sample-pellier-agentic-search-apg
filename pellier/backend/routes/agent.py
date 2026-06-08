@@ -152,6 +152,7 @@ async def _stream_agent_response(
             message=message,
             session_id=context.session_id,
             user_id=context.user_id,
+            auth_token=context.access_token,
         )
     except Exception as exc:  # pragma: no cover - defensive
         logger.error(
@@ -246,6 +247,7 @@ async def chat(
             namespace=AgentCoreIdentityService.build_namespace(
                 context.user_id, payload.session_id
             ),
+            access_token=context.access_token,
         )
 
     return StreamingResponse(

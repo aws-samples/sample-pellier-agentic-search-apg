@@ -81,11 +81,12 @@ else
   ok=false
 fi
 
-# 5. AgentCore Runtime endpoint (optional — Act II invoke still demos w/o it)
+# 5. AgentCore Runtime endpoint (required for Act II managed Runtime evidence)
 if [[ -n "${AGENTCORE_RUNTIME_ENDPOINT:-}" ]]; then
   pass "AGENTCORE_RUNTIME_ENDPOINT set"
 else
-  warn "AGENTCORE_RUNTIME_ENDPOINT empty — Runtime invoke falls back to in-process"
+  fail "AGENTCORE_RUNTIME_ENDPOINT empty — Act II Runtime invoke cannot run"
+  ok=false
 fi
 
 echo "------------------------------------------------------------"
