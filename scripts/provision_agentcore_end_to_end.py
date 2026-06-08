@@ -411,7 +411,12 @@ def main() -> int:
                     "get-gateway-target",
                     "--gateway-identifier",
                     gateway_id,
-                    "--target-identifier",
+                    # NOTE: get-gateway-target uses the SHORT form --target-id
+                    # (not --target-identifier like the gateway arg). The AWS
+                    # CLI is inconsistent here; --target-identifier raises
+                    # "ParamValidation: the following arguments are required:
+                    # --target-id" and aborts after targets are already attached.
+                    "--target-id",
                     target_id,
                     "--region",
                     required["AWS_REGION"],
