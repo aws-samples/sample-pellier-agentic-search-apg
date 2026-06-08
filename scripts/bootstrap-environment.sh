@@ -477,49 +477,29 @@ cat << 'EOF'
 ║      Agentic AI-Powered Search with Aurora PostgreSQL             ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
-Your environment is ready. The app is already running — you don't start
-anything. Just open the URL below, edit Python, and refresh.
+Ready. The app is already running; no servers to start.
 
-OPEN THE APP  (open these in a NEW browser tab)
-  You are already viewing this Code Editor through your CloudFront domain.
-  Look at your browser's address bar — it looks like:
-
-      https://d1234abcd.cloudfront.net/...
-
-  Copy just the domain (the https://....cloudfront.net part, NOT the
-  /?tkn=... after it), open a NEW tab, and add the path:
+OPEN THE APP  (new browser tab)
+  Copy your Code Editor CloudFront domain only, drop any /?tkn=... part,
+  then add one of these paths:
 
     Storefront:  https://<your-domain>.cloudfront.net/ports/8000/
     Atelier:     https://<your-domain>.cloudfront.net/ports/8000/atelier
 
-  (The same domain is also in the Workshop Studio "Outputs" tab as
-   CodeEditorURL — copy only up to ".cloudfront.net", drop the ?tkn part.)
-  Tip: the trailing /ports/8000/ slash matters — keep it.
-
-HOW IT WORKS
-  The backend runs automatically (systemd) and reloads when you save a
-  .py file. No terminals to start, no servers to run, no split panes —
-  edit, save, refresh the browser.
+  You can also find the domain in Workshop Studio Outputs: CodeEditorURL.
+  Keep the trailing slash on /ports/8000/.
 
 WORKFLOW
   1. Open pellier/backend/services/agent_tools.py  (opened for you)
   2. Find:  CHALLENGE · Stock Keeper · floor_check
   3. Implement between the markers
-  4. Save — the backend reloads on its own (~2s)
-  5. Refresh the app and test Marco Turn 4 in the storefront + Atelier
+  4. Save; the backend reloads automatically (~2s)
+  5. Refresh the app and test Marco Turn 4
 
-THE FIVE AGENTS
-  Style Advisor    agents/style_advisor.py      Semantic search
-  Curator          agents/curator.py            Recommendations + hybrid
-  Value Analyst    agents/value_analyst.py      Pricing
-  Stock Keeper     agents/stock_keeper.py       Inventory
-  Experience Guide agents/experience_guide.py   Returns + support
-
-HANDY (you rarely need these)
-  psql                 Connect to Aurora PostgreSQL
-  journalctl -fu pellier   Watch the backend log live
-  rebuild-frontend     Rebuild the React SPA (only after editing frontend/src)
-  python3 scripts/check_model_access.py   Verify Bedrock model access
+HANDY
+  psql                      Connect to Aurora PostgreSQL
+  journalctl -fu pellier    Watch backend logs
+  rebuild-frontend          Only after editing pellier/frontend/src
 
 SHORT ON TIME?
   cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
