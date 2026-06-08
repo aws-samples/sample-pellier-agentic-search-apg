@@ -21,6 +21,9 @@ REGION = os.environ.get("REGION", "us-east-1")
 DB_CLUSTER_ARN = os.environ.get("DB_CLUSTER_ARN", "")
 SECRET_ARN = os.environ.get("SECRET_ARN", "")
 DATABASE = os.environ.get("DATABASE", "postgres")
+# Cohere Embed v4 — MUST match the catalog seed + in-process path so the
+# managed Gateway vector search shares the same embedding space.
+EMBED_MODEL_ID = os.environ.get("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
 SCHEMA = "pellier"
 
 # Module-level clients for Lambda warm start reuse
@@ -61,12 +64,19 @@ def _execute_sql(sql: str, parameters: list = None) -> list[dict]:
 
 
 def _get_embedding(text: str) -> list[float]:
-    """Generate embedding via Bedrock Titan v2."""
+    """Generate a query embedding via Cohere Embed v4.
+
+    Must match the catalog seed + in-process path (Cohere Embed v4,
+    output_dimension=1024). Titan v2 would be a different vector space and
+    break pgvector cosine ranking even at matching dimension.
+    """
     response = bedrock_client.invoke_model(
-        modelId="amazon.titan-embed-text-v2:0",
-        body=json.dumps({"inputText": text, "dimensions": 1024}),
+        modelId=EMBED_MODEL_ID,
+        body=json.dumps(
+            {"texts": [text], "input_type": "search_query", "output_dimension": 1024}
+        ),
     )
-    return json.loads(response["body"].read())["embedding"]
+    return json.loads(response["body"].read())["embeddings"]["float"][0]
 
 
 # --- Tool implementations ---

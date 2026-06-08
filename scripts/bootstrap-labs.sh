@@ -97,11 +97,17 @@ log "Creating environment files..."
 # VITE_BASE_PATH is the asset URL prefix baked into the built bundle
 # so CloudFront's /ports/8000/* reverse proxy matches what code-server
 # forwards. Override to "/" for a pure-local prod-build test.
+# VITE_COGNITO_* drive the real sign-in (no demo mode). They come from
+# .pellier-env, which CloudFormation populated with the live pool/client.
+# The redirect URI resolves from window.location.origin at runtime
+# (AuthContext.tsx), so it is intentionally not baked in here.
 [ -d "$REPO_PATH/pellier/frontend" ] && cat > "$REPO_PATH/pellier/frontend/.env" << EOF
 VITE_API_URL=
 VITE_BASE_PATH=/ports/8000/
 VITE_AWS_REGION=$AWS_REGION
 VITE_ENABLE_LAB2=true
+VITE_COGNITO_DOMAIN=${VITE_COGNITO_DOMAIN:-}
+VITE_COGNITO_CLIENT_ID=${VITE_COGNITO_CLIENT_ID:-}
 EOF
 
 # Backend/Root .env (if DB available)
@@ -142,7 +148,11 @@ BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-us.cohere.rerank-v3-5:0}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 WORKSHOP_ID='${WORKSHOP_ID:-}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-builders}'
-AUTH_MODE='${AUTH_MODE:-demo}'
+AUTH_MODE='${AUTH_MODE:-cognito}'
+COGNITO_USER_POOL_ID='${COGNITO_USER_POOL_ID:-}'
+COGNITO_POOL_ID='${COGNITO_USER_POOL_ID:-}'
+COGNITO_CLIENT_ID='${COGNITO_CLIENT_ID:-}'
+COGNITO_DOMAIN='${VITE_COGNITO_DOMAIN:-}'
 EOF
 
     chmod 600 "$REPO_PATH/.env"
@@ -823,11 +833,11 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
 
     # ---- Frontend agent-identity hook ----
-    # The Boutique chat drawer reads this to attach an identity claim
-    # to every agent call. The auth.ts + AuthModal/PreferencesModal
-    # solutions also live in solutions/the-ledger/frontend/ but
-    # the 60-min Builder's Session runs in demo mode (AUTH_MODE=demo)
-    # so we skip them.
+    # The Boutique chat drawer reads this to attach an identity claim to
+    # every agent call. auth.ts + AuthModal + PreferencesModal +
+    # AuthContext already ship complete in the live frontend tree (real
+    # Cognito sign-in, no demo mode), so only the agent-identity hook is
+    # dropped in here; the rest are not overwritten.
     copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
 

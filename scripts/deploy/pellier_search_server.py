@@ -36,6 +36,9 @@ REGION = os.environ.get("REGION", "us-east-1")
 DB_CLUSTER_ARN = os.environ.get("DB_CLUSTER_ARN", "")
 SECRET_ARN = os.environ.get("SECRET_ARN", "")
 DATABASE = os.environ.get("DATABASE", "postgres")
+# Cohere Embed v4 — MUST match the catalog seed + in-process path so the
+# managed Gateway vector search shares the same embedding space.
+EMBED_MODEL_ID = os.environ.get("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
 SCHEMA = "pellier"
 
 # Module-level clients for Lambda warm start reuse
@@ -77,13 +80,23 @@ def _execute_sql(sql: str, parameters: list = None) -> list[dict]:
 
 
 def _get_embedding(text: str) -> list[float]:
-    """Generate embedding via Bedrock Titan v2."""
+    """Generate a query embedding via Cohere Embed v4.
+
+    Must match the in-process path (pellier/backend/services/embeddings.py):
+    the catalog was seeded with Cohere Embed v4 at output_dimension=1024, so the
+    managed Gateway path has to embed in the SAME vector space — Titan v2 vectors
+    are a different space and would make pgvector cosine search return wrong
+    rankings even though the dimension (1024) happens to match. input_type is
+    "search_query" because these are live shopper queries, not catalog docs.
+    """
     response = bedrock_client.invoke_model(
-        modelId="amazon.titan-embed-text-v2:0",
-        body=json.dumps({"inputText": text, "dimensions": 1024}),
+        modelId=EMBED_MODEL_ID,
+        body=json.dumps(
+            {"texts": [text], "input_type": "search_query", "output_dimension": 1024}
+        ),
     )
     result = json.loads(response["body"].read())
-    return result["embedding"]
+    return result["embeddings"]["float"][0]
 
 
 # --- MCP Tool implementations ---

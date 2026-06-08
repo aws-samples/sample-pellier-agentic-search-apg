@@ -254,6 +254,12 @@ def main():
       env_vars['SECRET_ARN'] = args.secret_arn
     if args.database:
       env_vars['DATABASE'] = args.database
+    # Propagate the embedding model id so the MCP Lambdas embed queries in the
+    # SAME space as the seeded catalog (Cohere Embed v4). The servers default
+    # to us.cohere.embed-v4:0; this just lets an operator override it centrally.
+    embed_model_id = os.environ.get('BEDROCK_EMBED_MODEL_ID')
+    if embed_model_id:
+      env_vars['BEDROCK_EMBED_MODEL_ID'] = embed_model_id
 
     # Determine the target filename from handler
     target_filename = args.handler.split('.')[0] + '.py'
