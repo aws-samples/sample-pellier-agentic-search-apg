@@ -73,22 +73,21 @@ MODELS = [
         # corpus; it does NOT cover runtime query embedding. If this model is
         # inaccessible, /api/health reports bedrock:inaccessible and search fails.
         #
-        # Cohere Embed v4 (enabled in Workshop Studio). v4 has no on-demand
-        # throughput by bare model ID, so the accessible form is usually a
-        # cross-region inference profile (us./eu./apac.). We don't assume which
-        # prefix the account exposes — `model_id_variants` lists every form and
-        # the check passes on the FIRST that works, reporting which one. The
-        # backend default (config.BEDROCK_EMBEDDING_MODEL) is us.cohere.embed-v4:0;
-        # if a different variant wins here, set BEDROCK_EMBEDDING_MODEL to it.
+        # Cohere Embed v4 (enabled in Workshop Studio). The backend calls this in
+        # us-west-2 via config.BEDROCK_EMBEDDING_MODEL = "us.cohere.embed-v4:0",
+        # so the probe must only accept forms that MATCH that config: the US
+        # cross-region inference profile and (if the account exposes it) the bare
+        # on-demand id. We deliberately do NOT probe eu./apac./global. — a non-US
+        # profile "passing" would be a FALSE GREEN: it would report embeddings
+        # healthy while the id the backend actually invokes (us.*) is still denied,
+        # and it would route workshop data cross-region (e.g. to the EU). If us.*
+        # is still provisioning, this check should FAIL loudly, matching reality.
         #
         # output_dimension=1024 keeps vectors aligned with the vector(1024)
         # schema + committed cache.
         "name": "Cohere Embed v4",
         "model_id_variants": [
             "us.cohere.embed-v4:0",
-            "eu.cohere.embed-v4:0",
-            "apac.cohere.embed-v4:0",
-            "global.cohere.embed-v4:0",
             "cohere.embed-v4:0",
         ],
         "required": True,
@@ -157,10 +156,19 @@ def check_model(client, model: dict) -> bool:
 
     # Nothing worked — print the most actionable reason.
     if any(s == "denied_marketplace" for _, s, _ in results):
+        # NOTE: name the ACTUAL model that was denied. A new account's Bedrock
+        # Marketplace subscriptions provision asynchronously; AWS returns
+        # "subscription ... still being processed. Try again after 15 minutes."
+        # This is account/event-side and usually self-resolves — it is NOT an
+        # IAM or app bug. (Earlier this message hardcoded "Cohere Embed v4",
+        # which made Claude denials look like a Cohere problem.)
         print(
-            "    Access denied (Private Marketplace): not on the account's\n"
-            "      approved-products list. The org/event admin must add Cohere\n"
-            "      Embed v4 to the Private Marketplace for this account."
+            f"    Access denied (AWS Marketplace): the subscription for\n"
+            f"      '{model['name']}' is not yet active on this account. New\n"
+            f"      accounts provision asynchronously — if the error says\n"
+            f"      'still being processed', wait ~15 min and re-run. If it\n"
+            f"      persists, the org/event admin must approve this model in\n"
+            f"      the account's Bedrock model access / Private Marketplace."
         )
     elif all(s in ("no_ondemand", "denied") for _, s, _ in results) and multi:
         print(
