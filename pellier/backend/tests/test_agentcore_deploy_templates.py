@@ -1,26 +1,26 @@
-"""Tests for the AgentCore CLI deploy templates (Batch 3 — CLI migration).
+"""Tests for the AgentCore Runtime deploy contract (@aws/agentcore 0.18, CDK).
 
-The new ``@aws/agentcore`` CLI (https://github.com/aws/agentcore-cli)
-has no flag overrides for region / role ARN / JWT config / env vars —
-every dynamic value must be present in ``agentcore.json`` /
-``aws-targets.json`` before ``agentcore deploy`` runs. The deploy
-script (``scripts/deploy/deploy_all.sh``) renders those files from
-``*.template`` siblings via ``envsubst``.
+The 0.18 CLI replaced the old flat-config deploy (a bare ``agentcore.json`` +
+``aws-targets.json`` rendered via ``envsubst``, then ``agentcore deploy``) with
+a STATEFUL, CDK-based project model:
 
-A typo or rename in either side (a placeholder in the template that
-``deploy_all.sh`` never exports, or vice versa) would silently leave
-``${UNSET_VAR}`` in the rendered JSON — the agentcore CLI would then
-either reject the file or, worse, deploy a runtime that points at the
-literal string ``${MCP_GATEWAY_URL}``. These tests pin the contract:
+    agentcore create   -> scaffold <root>/<proj>/agentcore/
+    agentcore add agent -> register a runtime (BYO points at our entrypoint)
+    agentcore deploy    -> CDK synth + deploy from the PROJECT ROOT
 
-  1. Both templates are valid JSON once ``envsubst`` is run with the
-     full set of env vars that ``deploy_all.sh`` exports.
-  2. After substitution there are no leftover ``${...}`` placeholders.
-  3. Every placeholder named in the template is exported by the deploy
-     script (so the script never falls back to an empty string).
+``add agent`` sets name/entrypoint/protocol/CUSTOM_JWT via flags, but has NO
+flags for ``executionRoleArn`` or ``envVars`` — those are JSON-patched into
+``agentcore/agentcore.json`` afterward. ``aws-targets.json`` is now an ARRAY.
 
-Skipped when ``envsubst`` is not on PATH (e.g. minimal CI images that
-strip gettext).
+These tests pin that contract STATICALLY (no AWS calls, no Node, no CLI) so a
+drift between ``deploy_all.sh`` and ``provision_agentcore_end_to_end.py`` — or a
+regression back to the dead flat-template path — trips here. They assert:
+
+  1. The obsolete flat templates are gone (no resurrection of the old path).
+  2. Both deploy paths pin the SAME CLI version (no @latest in production).
+  3. Both paths use the create -> add agent --type byo -> deploy verbs and the
+     in-repo orchestrator entrypoint (agentcore_runtime.py), not the adapter.
+  4. The JSON-patch step sets executionRoleArn + envVars + runtimeVersion.
 
 Runnable from the repo root per ``pytest.ini``:
 
@@ -29,11 +29,6 @@ Runnable from the repo root per ``pytest.ini``:
 """
 from __future__ import annotations
 
-import json
-import os
-import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -42,147 +37,99 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_DIR = REPO_ROOT / "pellier" / "backend"
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "deploy_all.sh"
+PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
+ENTRYPOINT = BACKEND_DIR / "agentcore_runtime.py"
+PYPROJECT = BACKEND_DIR / "pyproject.toml"
 
-AGENTCORE_TEMPLATE = BACKEND_DIR / "agentcore.json.template"
-AWS_TARGETS_TEMPLATE = BACKEND_DIR / "aws-targets.json.template"
-
-PLACEHOLDER_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
-UNRESOLVED_RE = re.compile(r"\$\{[A-Z_][A-Z0-9_]*\}")
-
-# Smoke values for every variable the templates reference. Intentionally
-# distinguishable so the JSON-shape assertions can confirm the right value
-# landed in the right slot.
-SMOKE_ENV = {
-    "AGENTCORE_ROLE_ARN": "arn:aws:iam::123456789012:role/test-agentcore-role",
-    "OAUTH_ISSUER_URL": "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_TESTPOOL",
-    "COGNITO_CLIENT": "test-client-id",
-    "MCP_GATEWAY_URL": "https://gateway.test.example.com/mcp",
-    "AGENT_MODEL_ID": "global.anthropic.claude-opus-4-6-v1",
-    "AWS_ACCOUNT": "123456789012",
-    "AWS_REGION": "us-west-2",
-}
-
-
-def _envsubst_or_skip() -> str:
-    """Locate ``envsubst`` on PATH or skip — same gate the deploy script
-    relies on at runtime."""
-    binary = shutil.which("envsubst")
-    if not binary:
-        pytest.skip("envsubst not installed (gettext); deploy templates can't be rendered")
-    return binary
-
-
-def _render(template_path: Path, env: dict) -> str:
-    binary = _envsubst_or_skip()
-    # Pass a clean env so the test never accidentally inherits a host
-    # variable that happens to share a name with a placeholder.
-    proc = subprocess.run(
-        [binary],
-        input=template_path.read_text(),
-        capture_output=True,
-        text=True,
-        env={**env, "PATH": os.environ.get("PATH", "")},
-        check=True,
-    )
-    return proc.stdout
-
-
-def _placeholders_in(template_path: Path) -> set[str]:
-    return set(PLACEHOLDER_RE.findall(template_path.read_text()))
+PINNED_CLI = "@aws/agentcore@0.18.0"
+RUNTIME_NAME = "pellier_orchestrator"
 
 
 # ---------------------------------------------------------------------------
-# Both templates exist
+# The obsolete flat-config path is gone (must not be resurrected)
 # ---------------------------------------------------------------------------
 
 
-def test_agentcore_json_template_exists() -> None:
-    assert AGENTCORE_TEMPLATE.is_file(), (
-        f"agentcore.json.template missing at {AGENTCORE_TEMPLATE}"
-    )
+def test_flat_templates_removed() -> None:
+    """The old envsubst templates are incompatible with 0.18 — they must not
+    exist (their presence would imply the dead deploy path is back)."""
+    for stale in ("agentcore.json.template", "aws-targets.json.template"):
+        assert not (BACKEND_DIR / stale).exists(), (
+            f"{stale} should have been removed in the 0.18 CLI migration — "
+            "the stateful create/add/deploy path replaces it."
+        )
 
 
-def test_aws_targets_template_exists() -> None:
-    assert AWS_TARGETS_TEMPLATE.is_file(), (
-        f"aws-targets.json.template missing at {AWS_TARGETS_TEMPLATE}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Render with the full env → valid JSON, no leftover placeholders
-# ---------------------------------------------------------------------------
-
-
-def test_agentcore_json_template_renders_clean() -> None:
-    rendered = _render(AGENTCORE_TEMPLATE, SMOKE_ENV)
-    leftover = UNRESOLVED_RE.findall(rendered)
-    assert not leftover, (
-        f"agentcore.json still has unresolved placeholders after envsubst: {leftover}\n"
-        f"Either the template references a variable deploy_all.sh does not "
-        f"export, or the smoke env in this test is stale."
-    )
-    parsed = json.loads(rendered)
-    runtimes = parsed.get("runtimes", [])
-    assert len(runtimes) == 1
-    runtime = runtimes[0]
-    assert runtime["name"] == "pellier_orchestrator"
-    assert runtime["executionRoleArn"] == SMOKE_ENV["AGENTCORE_ROLE_ARN"]
-    auth = runtime["authorizerConfiguration"]["customJwtAuthorizer"]
-    assert SMOKE_ENV["OAUTH_ISSUER_URL"] in auth["discoveryUrl"]
-    assert SMOKE_ENV["COGNITO_CLIENT"] in auth["allowedClients"]
-    env_vars = {ev["name"]: ev["value"] for ev in runtime["envVars"]}
-    assert env_vars["MCP_GATEWAY_URL"] == SMOKE_ENV["MCP_GATEWAY_URL"]
-    assert env_vars["AGENT_MODEL_ID"] == SMOKE_ENV["AGENT_MODEL_ID"]
-
-
-def test_aws_targets_template_renders_clean() -> None:
-    rendered = _render(AWS_TARGETS_TEMPLATE, SMOKE_ENV)
-    leftover = UNRESOLVED_RE.findall(rendered)
-    assert not leftover, (
-        f"aws-targets.json still has unresolved placeholders after envsubst: {leftover}"
-    )
-    parsed = json.loads(rendered)
-    assert parsed["account"] == SMOKE_ENV["AWS_ACCOUNT"]
-    assert parsed["region"] == SMOKE_ENV["AWS_REGION"]
+def test_no_latest_pin_in_deploy_paths() -> None:
+    """@latest re-resolves per run and drifted contracts mid-development. Both
+    deploy paths must pin an explicit version."""
+    for path in (DEPLOY_SCRIPT, PROVISIONER):
+        text = path.read_text()
+        assert "@aws/agentcore@latest" not in text, (
+            f"{path.name} still references @aws/agentcore@latest — pin a version."
+        )
+        assert PINNED_CLI in text, (
+            f"{path.name} does not pin {PINNED_CLI}."
+        )
 
 
 # ---------------------------------------------------------------------------
-# Every placeholder is exported by deploy_all.sh
+# Both paths use the new verbs + the in-repo BYO entrypoint
 # ---------------------------------------------------------------------------
 
 
-def test_every_template_placeholder_is_exported_by_deploy_script() -> None:
-    """If a template references ``${X}`` but ``deploy_all.sh`` never exports
-    or sources ``X``, ``envsubst`` silently substitutes an empty string.
-    Catch that drift here so a rename on either side trips the test."""
-    assert DEPLOY_SCRIPT.is_file(), f"deploy_all.sh missing at {DEPLOY_SCRIPT}"
-    script = DEPLOY_SCRIPT.read_text()
-
-    template_vars = _placeholders_in(AGENTCORE_TEMPLATE) | _placeholders_in(
-        AWS_TARGETS_TEMPLATE
+@pytest.mark.parametrize("path", [DEPLOY_SCRIPT, PROVISIONER], ids=lambda p: p.name)
+def test_uses_create_add_deploy_sequence(path: Path) -> None:
+    text = path.read_text()
+    for verb in ("create", "add", "deploy"):
+        assert verb in text, f"{path.name} is missing the '{verb}' CLI verb"
+    assert "--type" in text and "byo" in text, (
+        f"{path.name} must register a BYO agent (--type byo)"
     )
-
-    # ``deploy_all.sh`` either exports the variable directly (``export FOO=...``)
-    # or relies on its caller having sourced CFN outputs into the env. Caller-
-    # exported vars (PGHOSTARN, AGENTCORE_ROLE_ARN, etc.) are documented in the
-    # script's prerequisites comment block, so we accept either pattern.
-    missing = []
-    for var in sorted(template_vars):
-        # ``\b`` doesn't apply inside ``${...}`` so we anchor explicitly.
-        # Bash supports several ways to reference a variable; accept any of
-        # them — including the ``${VAR:?msg}`` "fail fast if unset" guard.
-        if (
-            f"export {var}=" in script
-            or f"${{{var}}}" in script
-            or f"${{{var}:" in script
-            or f"${var}" in script
-            or f"{var}=" in script
-        ):
-            continue
-        missing.append(var)
-
-    assert not missing, (
-        f"Template placeholders not referenced anywhere in deploy_all.sh: {missing}. "
-        f"Either the script needs to export them (via CFN outputs / aws CLI), or "
-        f"the template should drop the placeholder."
+    assert "agentcore_runtime.py" in text, (
+        f"{path.name} must deploy the in-repo orchestrator entrypoint "
+        "agentcore_runtime.py (not the Gateway adapter)"
     )
+    assert RUNTIME_NAME in text, f"{path.name} must name the runtime {RUNTIME_NAME}"
+    assert "CUSTOM_JWT" in text, f"{path.name} must set the CUSTOM_JWT authorizer"
+
+
+# ---------------------------------------------------------------------------
+# The JSON-patch step sets what add agent's flags can't
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("path", [DEPLOY_SCRIPT, PROVISIONER], ids=lambda p: p.name)
+def test_patches_role_envvars_runtimeversion(path: Path) -> None:
+    text = path.read_text()
+    for field in ("executionRoleArn", "envVars", "runtimeVersion"):
+        assert field in text, (
+            f"{path.name} must patch '{field}' into agentcore.json "
+            "(add agent has no flag for it)"
+        )
+    for env_key in ("MCP_GATEWAY_URL", "AGENT_MODEL_ID"):
+        assert env_key in text, f"{path.name} must set the {env_key} env var"
+
+
+# ---------------------------------------------------------------------------
+# The BYO code-location ships its deps as pyproject.toml (0.18 uses uv)
+# ---------------------------------------------------------------------------
+
+
+def test_pyproject_carries_runtime_imports() -> None:
+    assert PYPROJECT.is_file(), (
+        f"pyproject.toml missing at {PYPROJECT} — 0.18 CodeZip builds use uv + "
+        "pyproject.toml, not requirements.txt."
+    )
+    deps = PYPROJECT.read_text()
+    # The orchestrator entrypoint transitively imports these; if any is absent
+    # the CodeZip would ImportError at microVM load.
+    for pkg in ("strands-agents", "bedrock-agentcore", "pydantic-settings", "boto3"):
+        assert pkg in deps, f"pyproject.toml is missing the '{pkg}' dependency"
+
+
+def test_entrypoint_is_byo_app() -> None:
+    """The deployed entrypoint must expose the BedrockAgentCoreApp @entrypoint."""
+    text = ENTRYPOINT.read_text()
+    assert "BedrockAgentCoreApp" in text
+    assert "@app.entrypoint" in text

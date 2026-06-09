@@ -901,6 +901,7 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     if [ "$AGENTCORE_OK" = true ]; then
         RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        POLICY_ENGINE_ID="$(jq -r '.policy.policy_engine_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         if [ -z "$RUNTIME_ARN" ] || [ -z "$GATEWAY_URL" ] || [ "$MANAGED_STATUS" != "ready" ]; then
             warn "Managed provisioning output missing runtime/gateway readiness (backend will still start)"
@@ -921,6 +922,15 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
         # invoke needs a bearer token, not the placeholder x-api-key.
         upsert_env "AGENTCORE_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
         upsert_env "USE_AGENTCORE_RUNTIME" "true" "$REPO_PATH/.env"
+        # Managed AgentCore Policy engine (4th pillar). Best-effort: provisioning
+        # marks status=ready even if policy attach failed, so guard on non-empty.
+        # The Act II policy exercise + Atelier Policy surface read this id.
+        if [ -n "$POLICY_ENGINE_ID" ]; then
+            upsert_env "AGENTCORE_POLICY_ENGINE_ID" "$POLICY_ENGINE_ID" "$REPO_PATH/.env"
+            log "✅ Managed AgentCore Policy engine: $POLICY_ENGINE_ID"
+        else
+            warn "Managed Policy engine id absent — Gateway runs without ENFORCE; see $AGENTCORE_LOG"
+        fi
         chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
         write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
         log "✅ AgentCore managed path ready"

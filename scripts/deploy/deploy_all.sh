@@ -166,92 +166,146 @@ uv run "$SCRIPT_DIR/deploy_gateway.py" \
   --cognito-client-id "$COGNITO_CLIENT" \
   --region "$AWS_REGION"
 
-export MCP_GATEWAY_URL=$(aws bedrock-agentcore-control list-gateways \
+export GATEWAY_ID=$(aws bedrock-agentcore-control list-gateways \
   --region "$AWS_REGION" \
-  --query "items[?name=='pellier-gateway'].gatewayId | [0]" --output text \
-  | xargs -I {} aws bedrock-agentcore-control get-gateway \
-    --gateway-identifier {} --region "$AWS_REGION" \
-    --query 'gatewayUrl' --output text)
+  --query "items[?name=='pellier-gateway'].gatewayId | [0]" --output text)
+export GATEWAY_ARN=$(aws bedrock-agentcore-control get-gateway \
+  --gateway-identifier "$GATEWAY_ID" --region "$AWS_REGION" \
+  --query 'gatewayArn' --output text)
+export MCP_GATEWAY_URL=$(aws bedrock-agentcore-control get-gateway \
+  --gateway-identifier "$GATEWAY_ID" --region "$AWS_REGION" \
+  --query 'gatewayUrl' --output text)
+echo "  GATEWAY_ID=$GATEWAY_ID"
 echo "  MCP_GATEWAY_URL=$MCP_GATEWAY_URL"
 
 # ------------------------------------------------------------------
-# 6. Render AgentCore CLI configs (agentcore.json + aws-targets.json)
+# 5b. Managed AgentCore Policy — the 4th pillar (Cedar at the Gateway)
+# ------------------------------------------------------------------
+# Create a managed Cedar policy engine, gate process_return to damaged-only,
+# and attach to the gateway in ENFORCE mode. From here, the Gateway evaluates
+# every tool call against Cedar BEFORE the Lambda runs (default-deny,
+# forbid-wins) — the managed replacement for the old local BeforeToolCall hook.
+#   https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html
+echo ""
+echo "=== [5b/8] Attaching managed AgentCore Policy (Cedar, ENFORCE) ==="
+uv run "$SCRIPT_DIR/deploy_policy.py" \
+  --gateway-id "$GATEWAY_ID" \
+  --gateway-arn "$GATEWAY_ARN" \
+  --region "$AWS_REGION" \
+  --mode ENFORCE
+
+# ------------------------------------------------------------------
+# 6. Scaffold the AgentCore project (create + add BYO agent)
 # ------------------------------------------------------------------
 #
-# The @aws/agentcore CLI (Node) is the canonical deploy tool for
-# AgentCore Runtime. It replaces the older Python
-# `bedrock-agentcore-starter-toolkit` (which exposed `agentcore configure`
-# + `agentcore launch` as two flag-driven verbs). The Node CLI takes a
-# single `agentcore deploy` verb and reads ALL configuration from two
-# JSON files in the current directory:
+# The @aws/agentcore CLI (Node) is the canonical deploy tool for AgentCore
+# Runtime. As of 0.18 it is a STATEFUL, CDK-based project model — NOT the
+# old flat-config `deploy` that read a bare agentcore.json. The verbs are:
 #
-#   agentcore.json    — runtime definition, JWT auth, env vars
-#   aws-targets.json  — target account + region
+#   agentcore create   — scaffold a project (writes <root>/<proj>/agentcore/)
+#   agentcore add agent — register a runtime (BYO points at our entrypoint)
+#   agentcore deploy    — CDK synth + deploy from the PROJECT ROOT
 #
-# There is no flag for region / role ARN / JWT config / env vars; if it
-# isn't in those files it doesn't reach AgentCore. We ship both as
-# `.template` files with `${VAR}` placeholders, then use envsubst to
-# splice in CloudFormation outputs at deploy time. This keeps the
-# templates committable (no secrets) while the rendered files reflect
-# the live workshop account.
+# `add agent` sets name/entrypoint/protocol/CUSTOM_JWT via flags, but has NO
+# flags for executionRoleArn or envVars — those are JSON-patched into
+# agentcore/agentcore.json after. aws-targets.json is now an ARRAY
+# ([{name,account,region}]) and no longer carries the role.
 #
-# CLI repo:    https://github.com/aws/agentcore-cli
-# Run latest:  npx -y @aws/agentcore@latest <command>
+# Pin the version: @latest drifted contracts mid-development; pinning keeps
+# every participant account on identical, tested behavior.
 #
-echo ""
-echo "=== [6/8] Rendering AgentCore CLI config ==="
+# CLI repo: https://github.com/aws/agentcore-cli
+#
+AGENTCORE_CLI="@aws/agentcore@0.18.0"
+RUNTIME_NAME="pellier_orchestrator"
+RUNTIME_PYTHON_VERSION="PYTHON_3_12"   # CLI defaults to PYTHON_3_14 (unsupported by the build)
 
-# Fail fast if a caller-set prerequisite is missing — envsubst would
-# otherwise substitute an empty string and `agentcore deploy` would only
-# error at the AWS-call stage, which is much harder to triage. The
-# `${VAR:?message}` form makes bash exit immediately with the message.
+echo ""
+echo "=== [6/8] Scaffolding AgentCore project (create + add BYO agent) ==="
+
+# Fail fast if a caller-set prerequisite is missing.
 : "${AGENTCORE_ROLE_ARN:?AGENTCORE_ROLE_ARN must be set (CFN output)}"
 : "${COGNITO_POOL:?COGNITO_POOL must be set (CFN output)}"
 : "${COGNITO_CLIENT:?COGNITO_CLIENT must be set (CFN output)}"
 : "${AWS_REGION:?AWS_REGION must be set}"
 
-# Cognito's OIDC discovery URL is derived from the pool id. The Runtime's
-# JWT authorizer fetches `/.well-known/openid-configuration` from this
-# URL on every cold start to validate incoming tokens.
+# Cognito's OIDC discovery URL — the Runtime's JWT authorizer fetches
+# /.well-known/openid-configuration from here to validate incoming tokens.
 export OAUTH_ISSUER_URL="https://cognito-idp.${AWS_REGION}.amazonaws.com/${COGNITO_POOL}"
+DISCOVERY_URL="${OAUTH_ISSUER_URL}/.well-known/openid-configuration"
 
-# Default model the orchestrator uses inside the Runtime. Override via
-# the env before sourcing this script if you want to test a different
-# model — the value flows into agentcore.json:envVars.AGENT_MODEL_ID.
-export AGENT_MODEL_ID="global.anthropic.claude-opus-4-6-v1"
-
-# AgentCore deploy needs the account id in `aws-targets.json`. STS
-# `GetCallerIdentity` is the canonical way to read it without hardcoding.
+# Default model the orchestrator uses inside the Runtime.
+export AGENT_MODEL_ID="${AGENT_MODEL_ID:-global.anthropic.claude-opus-4-6-v1}"
 export AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
-BACKEND_DIR="$SCRIPT_DIR/../../pellier/backend"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/../../pellier/backend" && pwd)"   # absolute (code-location)
+PROJECT_ROOT="$BACKEND_DIR/.agentcore-project/pellier"          # dir that CONTAINS agentcore/
+CONFIG_PATH="$PROJECT_ROOT/agentcore/agentcore.json"
+mkdir -p "$BACKEND_DIR/.agentcore-project"
 
-envsubst < "$BACKEND_DIR/agentcore.json.template" > "$BACKEND_DIR/agentcore.json"
-envsubst < "$BACKEND_DIR/aws-targets.json.template" > "$BACKEND_DIR/aws-targets.json"
+# 6a. create (idempotent — skip if the project already exists)
+if [ ! -f "$CONFIG_PATH" ]; then
+  npx -y "$AGENTCORE_CLI" create \
+    --project-name pellier --no-agent --defaults \
+    --build CodeZip --language Python --framework Strands \
+    --model-provider Bedrock --protocol HTTP \
+    --skip-git --skip-python-setup --skip-install \
+    --output-dir "$BACKEND_DIR/.agentcore-project" --json
+fi
 
-echo "  Rendered $BACKEND_DIR/agentcore.json"
-echo "  Rendered $BACKEND_DIR/aws-targets.json"
+# 6b. add our in-repo orchestrator as a BYO agent (clean re-add for re-runs)
+npx -y "$AGENTCORE_CLI" remove agent --name "$RUNTIME_NAME" --yes 2>/dev/null || true
+( cd "$PROJECT_ROOT" && npx -y "$AGENTCORE_CLI" add agent \
+    --name "$RUNTIME_NAME" --type byo \
+    --build CodeZip --language Python --framework Strands \
+    --model-provider Bedrock --protocol HTTP \
+    --code-location "$BACKEND_DIR" --entrypoint agentcore_runtime.py \
+    --authorizer-type CUSTOM_JWT \
+    --discovery-url "$DISCOVERY_URL" \
+    --allowed-clients "$COGNITO_CLIENT" --json )
+
+# 6c. patch executionRoleArn + envVars + runtimeVersion (no CLI flags), and
+#     write aws-targets.json in the 0.18 ARRAY shape.
+python3 - "$CONFIG_PATH" "$RUNTIME_NAME" "$AGENTCORE_ROLE_ARN" \
+  "$RUNTIME_PYTHON_VERSION" "$MCP_GATEWAY_URL" "$AGENT_MODEL_ID" \
+  "$AWS_ACCOUNT" "$AWS_REGION" <<'PYEOF'
+import json, sys
+cfg_path, name, role, pyver, gw_url, model_id, account, region = sys.argv[1:9]
+cfg = json.load(open(cfg_path))
+runtimes = cfg.get("runtimes") or []
+target = next((r for r in runtimes if isinstance(r, dict) and r.get("name") == name), None)
+if target is None and len(runtimes) == 1 and isinstance(runtimes[0], dict):
+    target = runtimes[0]
+if target is None:
+    sys.exit(f"Could not find runtime '{name}' to patch in {[r.get('name') for r in runtimes]}")
+target["executionRoleArn"] = role
+target["runtimeVersion"] = pyver
+target["envVars"] = [
+    {"name": "MCP_GATEWAY_URL", "value": gw_url},
+    {"name": "AGENT_MODEL_ID", "value": model_id},
+]
+json.dump(cfg, open(cfg_path, "w"), indent=2)
+import os
+targets_path = os.path.join(os.path.dirname(cfg_path), "aws-targets.json")
+json.dump([{"name": "default", "account": account, "region": region}],
+          open(targets_path, "w"), indent=2)
+print(f"  Patched {cfg_path} + wrote {targets_path}")
+PYEOF
+
+echo "  Project ready at $PROJECT_ROOT"
 
 # ------------------------------------------------------------------
-# 7. Deploy AgentCore Runtime via @aws/agentcore CLI (~5 min)
+# 7. Deploy AgentCore Runtime via @aws/agentcore CLI (CDK, ~5 min)
 # ------------------------------------------------------------------
 echo ""
-echo "=== [7/8] Deploying AgentCore Runtime (this takes ~5 minutes) ==="
+echo "=== [7/8] Deploying AgentCore Runtime (CDK; this takes ~5 minutes) ==="
 
-pushd "$BACKEND_DIR" > /dev/null
-
-# `agentcore deploy` reads agentcore.json + aws-targets.json from the
-# current working directory — that's why we pushd into pellier/backend.
-#   -y      skips the interactive confirmation prompt
-#   --json  emits a machine-readable result envelope on stdout, useful
-#           if a CI pipeline wants to capture the runtime ARN with jq
-#
-# Behind the scenes this calls bedrock-agentcore-control:CreateAgentRuntime
-# which packages our Python entrypoint, uploads it to AgentCore-managed
-# infrastructure, and registers it under the JWT authorizer in our config.
-#   https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateAgentRuntime.html
-npx -y @aws/agentcore@latest deploy -y --json
-
+# `deploy` MUST run from the PROJECT ROOT (the dir containing agentcore/),
+# not from inside agentcore/. It CDK-synths and deploys the runtime stack.
+#   -y      auto-confirm prompts, read credentials from env
+#   --json  machine-readable result envelope on stdout
+pushd "$PROJECT_ROOT" > /dev/null
+npx -y "$AGENTCORE_CLI" deploy -y --json
 popd > /dev/null
 
 echo "  ✅ Agent deployed!"

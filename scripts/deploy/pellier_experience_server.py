@@ -21,6 +21,7 @@ References:
 import json
 import logging
 import os
+import time
 from typing import Any
 
 import boto3
@@ -78,6 +79,52 @@ def _execute_in_transaction(transaction_id: str, sql: str, parameters: list = No
     response = rds_client.execute_statement(**params)
     columns = [col["name"] for col in response.get("columnMetadata", [])]
     return [_row_to_dict(record, columns) for record in response.get("records", [])]
+
+
+def _write_tool_audit(tool: str, args: dict, result: dict, latency_ms: int) -> None:
+    """Reconstruct the pellier.tool_audit evidence row on the GATEWAY rail.
+
+    On the in-process rail the FastAPI PolicyEnforcementHook writes this row;
+    behind the Gateway the tool runs in THIS Lambda, so we write it here. This
+    is what makes the Act II SQL proof work on the managed-Policy path: every
+    tool call that REACHES this Lambda was already ALLOWed by managed AgentCore
+    Policy at the Gateway (a DENY never executes the Lambda, so no row is
+    written — that absence is the proof).
+
+    Keying note: the Gateway → Lambda event is ``{name, arguments}`` only — it
+    carries NO session_id. So we key by the real identity that IS present
+    (``customer_id``, surfaced in ``args``) and use ``session_id =
+    'gateway-<customer_id>'`` as a stable, queryable handle. The Act II query
+    therefore filters on ``args->>'customer_id'`` rather than session_id.
+
+    Schema (scripts/migrations/002_workshop_telemetry.sql):
+      tool_audit(session_id, tool, caller, args JSONB, result JSONB, latency_ms)
+
+    Fire-and-forget: a telemetry write must NEVER fail the actual return, so
+    every error here is swallowed (the tool result is already committed).
+    """
+    try:
+        customer_id = str(args.get("customer_id", "")) or "unknown"
+        rds_client.execute_statement(
+            resourceArn=DB_CLUSTER_ARN,
+            secretArn=SECRET_ARN,
+            database=DATABASE,
+            sql=(
+                f"INSERT INTO {SCHEMA}.tool_audit "
+                "(session_id, tool, caller, args, result, latency_ms) "
+                "VALUES (:sid, :tool, :caller, :args::jsonb, :result::jsonb, :ms)"
+            ),
+            parameters=[
+                {"name": "sid", "value": {"stringValue": f"gateway-{customer_id}"}},
+                {"name": "tool", "value": {"stringValue": tool}},
+                {"name": "caller", "value": {"stringValue": "gateway"}},
+                {"name": "args", "value": {"stringValue": json.dumps(args, default=str)}},
+                {"name": "result", "value": {"stringValue": json.dumps(result, default=str)}},
+                {"name": "ms", "value": {"longValue": int(latency_ms)}},
+            ],
+        )
+    except Exception as exc:  # never let audit failure break the tool
+        logger.warning("tool_audit write failed (non-fatal): %s", exc)
 
 
 def process_return(customer_id: str, product_id: int, reason: str) -> dict:
@@ -292,7 +339,15 @@ def lambda_handler(event: dict, context: Any) -> dict:
         return {"error": f"Unknown tool: {tool_name}"}
 
     try:
+        started = time.monotonic()
         result = TOOLS[tool_name]["fn"](**arguments)
+        latency_ms = int((time.monotonic() - started) * 1000)
+        # Evidence ledger for the audited write tool. Reaching this point means
+        # managed AgentCore Policy ALLOWed the call at the Gateway; a DENY would
+        # have blocked it before the Lambda ran, leaving no row (the Act II
+        # absence proof). Mirrors the in-process hook's record_allow.
+        if tool_name == "process_return":
+            _write_tool_audit(tool_name, arguments, result, latency_ms)
         return {"content": [{"type": "text", "text": json.dumps(result, default=str)}]}
     except Exception as e:
         logger.error("Tool %s failed: %s", tool_name, e)

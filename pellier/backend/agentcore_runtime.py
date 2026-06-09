@@ -2,17 +2,21 @@
 AgentCore Runtime — deployment entrypoint (Builder's Session + Workshop C5).
 
 Wraps the pre-applied Strands orchestrator for execution in an AgentCore
-Runtime container. Bootstrap renders ``agentcore.json`` from
-``agentcore.json.template`` and runs ``agentcore deploy`` (the new
-@aws/agentcore Node CLI — https://github.com/aws/agentcore-cli) before
-participants arrive; in-room they read this file and invoke via
-``POST /api/agent/chat`` with ``USE_AGENTCORE_RUNTIME=true``.
+Runtime container. This file is the BYO entrypoint deployed by the new
+@aws/agentcore Node CLI (0.18, CDK-based — https://github.com/aws/agentcore-cli):
+bootstrap scaffolds a project, registers this file as a BYO agent, patches in
+the execution role + env vars, and `agentcore deploy`s it before participants
+arrive; in-room they read this file and invoke via ``POST /api/agent/chat``
+with ``USE_AGENTCORE_RUNTIME=true``.
 
-Deploy (bootstrap / instructor):
-    cd pellier/backend
-    envsubst < agentcore.json.template > agentcore.json
-    envsubst < aws-targets.json.template > aws-targets.json
-    agentcore deploy -y --json
+Deploy (bootstrap / instructor) — see scripts/deploy/deploy_all.sh steps 6-7
+and scripts/provision_agentcore_end_to_end.py:_deploy_runtime_via_cli:
+    npx -y @aws/agentcore@0.18.0 create --project-name pellier --no-agent ...
+    agentcore add agent --name pellier_orchestrator --type byo \\
+        --code-location pellier/backend --entrypoint agentcore_runtime.py \\
+        --authorizer-type CUSTOM_JWT --discovery-url <cognito> --allowed-clients <client>
+    # patch executionRoleArn + envVars into agentcore/agentcore.json, then:
+    agentcore deploy -y --json   # from the project root (dir containing agentcore/)
 """
 from __future__ import annotations
 

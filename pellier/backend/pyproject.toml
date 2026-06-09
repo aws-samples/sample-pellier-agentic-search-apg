@@ -1,0 +1,35 @@
+[project]
+name = "pellier-backend"
+version = "0.1.0"
+description = "Pellier agentic search backend — also the AgentCore Runtime BYO code-location."
+requires-python = ">=3.12"
+
+# Dependencies for the AgentCore Runtime CodeZip build (@aws/agentcore 0.18 uses
+# uv + pyproject.toml, NOT requirements.txt). This MUST stay a superset of every
+# import reachable from agentcore_runtime.py — the BYO entrypoint imports
+# agents.orchestrator, which transitively pulls in config (pydantic-settings),
+# skills (pydantic), and the Strands stack. Kept in sync with
+# pellier/backend/requirements.txt (the FastAPI app's deps); the microVM does
+# not serve HTTP itself but importing fastapi/uvicorn is harmless and keeps the
+# two dependency sources from drifting. If you add a backend dep that the
+# orchestrator import graph touches, add it here too.
+dependencies = [
+    "boto3>=1.35.0",
+    "botocore>=1.35.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.22.0,<2.0.0",
+    "tenacity>=8.0.0",
+    "tiktoken>=0.5.0",
+    "strands-agents[otel]",
+    "strands-agents-tools",
+    "mcp>=1.0.0",
+    "bedrock-agentcore>=1.4.3",
+    "psycopg[binary,pool]>=3.2.0",
+    "pgvector>=0.2.5",
+    "PyJWT>=2.8.0",
+    "cryptography>=41.0.0",
+    "requests>=2.31.0",
+    "python-json-logger>=3.0.0",
+]

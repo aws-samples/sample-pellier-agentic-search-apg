@@ -11,13 +11,22 @@ Our job here is to:
   3. Hand them to a Strands `Agent` that runs the orchestrator prompt.
   4. Return a JSON response the client can render.
 
-This file is registered as the `entrypoint` of the `pellier_orchestrator`
-runtime in `pellier/backend/agentcore.json.template`. To deploy:
+NOTE: This Gateway-aware adapter is the ALTERNATE entrypoint. The path that
+bootstrap actually deploys is the in-process orchestrator at
+`pellier/backend/agentcore_runtime.py` (it runs tools in-process, so it does not
+need to authenticate to the Gateway). This adapter remains for the advanced
+"managed Gateway egress" track; if you deploy it, note that it currently calls
+the Gateway over plain HTTP and would need a bearer token to satisfy the
+Gateway's CUSTOM_JWT authorizer.
 
-    cd pellier/backend
-    envsubst < agentcore.json.template > agentcore.json
-    envsubst < aws-targets.json.template > aws-targets.json
-    agentcore deploy -y --json
+To deploy a BYO agent with the @aws/agentcore 0.18 CLI (CDK-based) — see
+`scripts/deploy/deploy_all.sh` steps 6-7:
+
+    npx -y @aws/agentcore@0.18.0 create --project-name pellier --no-agent ...
+    agentcore add agent --name pellier_orchestrator --type byo \
+        --code-location <dir> --entrypoint <this_file> \
+        --authorizer-type CUSTOM_JWT --discovery-url <cognito> --allowed-clients <client>
+    agentcore deploy -y --json   # from the project root (dir containing agentcore/)
 
 The end-to-end bootstrap (Lambdas + Gateway + Runtime) is in
 `scripts/deploy/deploy_all.sh`.
@@ -56,8 +65,8 @@ try:
     # and `app.run()` starts the local dev server.
     app = BedrockAgentCoreApp()
 
-    # Both env vars are populated by `envVars` in agentcore.json.template
-    # (rendered from CFN outputs by deploy_all.sh step 5). If GATEWAY_URL
+    # Both env vars are patched into the runtime's `envVars` in
+    # agentcore/agentcore.json (deploy_all.sh step 6c). If GATEWAY_URL
     # is empty we surface a clear error rather than letting MCPClient
     # crash on an empty URL.
     GATEWAY_URL = os.environ.get("MCP_GATEWAY_URL", "")

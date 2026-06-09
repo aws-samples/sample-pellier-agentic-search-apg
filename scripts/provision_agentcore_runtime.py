@@ -1,39 +1,26 @@
 #!/usr/bin/env python3
 """
-Provision AgentCore Runtime for Builder's Session bootstrap.
+DEPRECATED — do not run. Superseded by ``scripts/provision_agentcore_end_to_end.py``.
 
-This is the bootstrap hook invoked from ``scripts/bootstrap-labs.sh`` when
-the Workshop Studio AMI starts up. It pre-launches just the AgentCore
-Runtime (the Gateway + Lambdas get wired during the workshop itself), so
-participants land in a working environment without waiting on a 5-minute
-deploy.
+This script targeted an OLD deploy contract: render flat ``agentcore.json`` /
+``aws-targets.json`` files from ``.template`` siblings via env substitution,
+then ``npx @aws/agentcore@latest deploy``. That contract no longer exists:
 
-Why a Python driver around a Node CLI?
-    The new ``@aws/agentcore`` Node CLI (https://github.com/aws/agentcore-cli)
-    is the canonical deploy tool, but it takes ZERO config flags — region,
-    role ARN, JWT auth, env vars all live in ``agentcore.json`` and
-    ``aws-targets.json`` next to the Python source. This wrapper:
-        1. Ensures the IAM execution role exists (creating it if needed).
-        2. Renders both JSON files from their ``.template`` siblings,
-           splicing in CloudFormation outputs read from env vars.
-        3. Invokes ``agentcore deploy -y --json`` and parses the runtime
-           ARN out of the JSON envelope.
+  * The ``.template`` files it rendered have been DELETED (the @aws/agentcore
+    0.18 CLI is a stateful, CDK-based project model — create -> add agent ->
+    deploy — not a flat-config deploy). So step 2 below would fail outright.
+  * Nothing invokes this file. ``bootstrap-labs.sh`` calls
+    ``provision_agentcore_end_to_end.py`` (Lambdas + Gateway + Runtime in one
+    pass), which contains the live 0.18 ``create -> add -> patch -> deploy``
+    logic in ``_deploy_runtime_via_cli``.
 
-Replaces the older Python ``bedrock-agentcore-starter-toolkit``, which
-exposed two flag-driven verbs (``agentcore configure`` + ``agentcore
-launch``) and is being retired.
+Kept only as a historical reference for the IAM execution-role recipe
+(``_ensure_execution_role_arn``). For the real deploy path see:
+    scripts/provision_agentcore_end_to_end.py  (bootstrap entry)
+    scripts/deploy/deploy_all.sh               (manual / documented path)
 
-Best-effort by design: logs to stderr and exits 0 on any failure so the
-AMI bootstrap continues even if the IAM role can't be created or the
-deploy times out. The Runtime demo simply falls back to in-process
-fallback in that case (controlled by ``USE_AGENTCORE_RUNTIME=false``).
-On success, prints the runtime ARN on stdout so ``bootstrap-labs.sh``
-can write it into ``.env``.
-
-References:
-    AgentCore CLI:           https://github.com/aws/agentcore-cli
-    CreateAgentRuntime API:  https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateAgentRuntime.html
-    End-to-end deploy:       scripts/deploy/deploy_all.sh
+A hard guard in ``main()`` refuses to run so a stale invocation fails loudly
+instead of silently deploying a broken flat config.
 """
 from __future__ import annotations
 
@@ -268,13 +255,21 @@ def _render_templates(role_arn: str) -> bool:
 
 
 def main() -> int:
-    """Bootstrap entrypoint — orchestrates the four pre-launch steps.
+    """DEPRECATED entrypoint — refuses to run (see module docstring).
 
-    Each step returns 0 (continue bootstrap) on a recoverable failure so
-    the AMI doesn't get bricked by a Runtime that couldn't be deployed.
-    The caller in ``bootstrap-labs.sh`` flips ``USE_AGENTCORE_RUNTIME``
-    to ``true`` only when this script prints an ARN on stdout.
+    This drove the old flat-template deploy contract, whose ``.template``
+    files no longer exist and whose CLI verb (flat ``deploy``) was removed in
+    @aws/agentcore 0.18. Running it would render empty configs and fail at the
+    AWS call. Fail loudly here instead, and point at the live path.
     """
+    sys.stderr.write(
+        "provision_agentcore_runtime.py is DEPRECATED and disabled.\n"
+        "Use scripts/provision_agentcore_end_to_end.py (bootstrap entry) or\n"
+        "scripts/deploy/deploy_all.sh (manual). See the module docstring.\n"
+    )
+    return 2
+
+    # --- unreachable: retained only as a reference for _ensure_execution_role_arn ---
     if not BACKEND.is_dir():
         _log(f"Backend path missing: {BACKEND}")
         return 0

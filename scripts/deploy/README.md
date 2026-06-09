@@ -65,14 +65,26 @@ uv run deploy_gateway.py --gateway-name pellier-gateway \
   --cognito-user-pool-id $COGNITO_POOL \
   --cognito-client-id $COGNITO_CLIENT
 
-# 3. Render config + deploy via the @aws/agentcore Node CLI.
-#    The CLI takes ZERO config flags — region, role ARN, JWT auth, env
-#    vars must all live in agentcore.json + aws-targets.json before
-#    `agentcore deploy` runs. We splice in CFN outputs with envsubst.
-cd ../../pellier/backend
-envsubst < agentcore.json.template > agentcore.json
-envsubst < aws-targets.json.template > aws-targets.json
-agentcore deploy -y --json
+# 3. Scaffold + deploy via the @aws/agentcore Node CLI (0.18, CDK-based).
+#    0.18 is a STATEFUL project model: create -> add agent -> deploy.
+#    `add agent` sets entrypoint/protocol/CUSTOM_JWT via flags; executionRoleArn
+#    + envVars have no flags, so we JSON-patch agentcore/agentcore.json after.
+#    `deploy` runs from the PROJECT ROOT (dir containing agentcore/) and is
+#    CDK-based, so the account must be `cdk bootstrap`-ed first.
+#    deploy_all.sh automates all of this (steps 6-7); the manual gist:
+ROOT=../../pellier/backend/.agentcore-project/pellier
+npx -y @aws/agentcore@0.18.0 create --project-name pellier --no-agent --defaults \
+  --build CodeZip --language Python --framework Strands --model-provider Bedrock \
+  --protocol HTTP --skip-git --skip-python-setup --skip-install \
+  --output-dir ../../pellier/backend/.agentcore-project --json
+( cd "$ROOT" && npx -y @aws/agentcore@0.18.0 add agent --name pellier_orchestrator \
+  --type byo --build CodeZip --language Python --framework Strands \
+  --model-provider Bedrock --protocol HTTP \
+  --code-location ../../.. --entrypoint agentcore_runtime.py \
+  --authorizer-type CUSTOM_JWT --discovery-url "$OAUTH_ISSUER_URL/.well-known/openid-configuration" \
+  --allowed-clients "$COGNITO_CLIENT" --json )
+# patch executionRoleArn + envVars + runtimeVersion into agentcore/agentcore.json, then:
+( cd "$ROOT" && npx -y @aws/agentcore@0.18.0 deploy -y --json )
 
 # 4. Test the deployed Runtime
 uv run test_runtime.py --prompt "Find me running shoes under $50"
@@ -87,9 +99,9 @@ uv run test_runtime.py --prompt "Find me running shoes under $50"
 | `pellier_recommend_server.py` | Lambda MCP server for recommendations          |
 | `deploy_lambda.py`                | Lambda deployment script (adapted from DAT403) |
 | `deploy_gateway.py`               | AgentCore Gateway deployment                   |
-| `agentcore_runtime_adapter.py`    | Runtime entrypoint for AgentCore               |
-| `../../pellier/backend/agentcore.json.template` | @aws/agentcore CLI config (envsubst-rendered) |
-| `../../pellier/backend/aws-targets.json.template` | Account+region targets for `agentcore deploy` |
+| `agentcore_runtime_adapter.py`    | Gateway-aware runtime entrypoint (alternate; not the deployed one) |
+| `../../pellier/backend/agentcore_runtime.py` | **Deployed** BYO runtime entrypoint (in-process orchestrator) |
+| `../../pellier/backend/pyproject.toml` | CodeZip deps for the BYO agent (0.18 uses uv, not requirements.txt) |
 | `deploy_all.sh`                   | End-to-end deployment script                   |
 | `test_runtime.py`                 | Smoke tests for deployed agent                 |
 | `requirements.txt`                | Runtime dependencies                           |
@@ -98,7 +110,8 @@ uv run test_runtime.py --prompt "Find me running shoes under $50"
 
 - **`agentcore deploy` fails with `AccessDenied` on `iam:PassRole`** — the calling principal needs permission to pass the AgentCore execution role. Workshop Studio CFN grants this; outside Workshop Studio, attach a policy that allows `iam:PassRole` on the role ARN in `agentcore.json`.
 - **Gateway returns `401`** — Cognito access token expired (1-hour default). Re-run the `cognito-idp initiate-auth` block from `deploy_all.sh` step 7.
-- **Runtime says `MCP_GATEWAY_URL not configured`** — `agentcore.json` was rendered before `MCP_GATEWAY_URL` was exported. Re-export it and re-run the `envsubst` + `agentcore deploy` steps.
+- **Runtime says `MCP_GATEWAY_URL not configured`** — the env-var patch into `agentcore/agentcore.json` ran before `MCP_GATEWAY_URL` was set. Re-export it and re-run the patch + `agentcore deploy` (deploy_all.sh step 6c-7).
+- **`agentcore deploy` fails on a missing CDKToolkit / `cdk-hnb659fds` stack** — the account isn't CDK-bootstrapped. Run `npx -y aws-cdk@2 bootstrap aws://<account>/<region>` (bootstrap-environment.sh does this automatically on fresh accounts).
 - **CloudWatch logs** — runtime invocations land in `/aws/bedrock-agentcore/runtimes/<runtime-id>`. Search by `session.id` to follow a single multi-step turn.
 
 For the full step-by-step workshop testing guide (Runtime + Gateway + Memory), see `lab-content-audit.md` §20.

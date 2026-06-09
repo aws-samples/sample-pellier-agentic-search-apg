@@ -211,18 +211,240 @@ def _authenticated_runtime_smoke(
     }
 
 
-def _render_runtime_templates(backend_dir: Path, substitutions: dict[str, str]) -> None:
-    pattern = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
-    templates = [
-        (backend_dir / "agentcore.json.template", backend_dir / "agentcore.json"),
-        (backend_dir / "aws-targets.json.template", backend_dir / "aws-targets.json"),
-    ]
-    for src, dst in templates:
-        if not src.is_file():
-            raise RuntimeError(f"Template missing: {src}")
-        body = src.read_text()
-        rendered = pattern.sub(lambda m: substitutions.get(m.group(1), ""), body)
-        dst.write_text(rendered)
+# The @aws/agentcore CLI is pinned. @latest drifted from a flat-config
+# `deploy` (which read agentcore.json + aws-targets.json directly) to a
+# stateful, CDK-based project model (create -> add -> deploy). Pinning a
+# known-good version keeps every fresh participant account on identical,
+# tested CLI behavior instead of whatever @latest resolves to mid-event.
+AGENTCORE_CLI = "@aws/agentcore@0.18.0"
+
+# Allowed JSON-Schema-ish runtimeVersion values the CLI accepts. The CLI
+# defaults to PYTHON_3_14, which the CodeZip build / Lambda runtime may not
+# support yet — pin to a known-supported line.
+RUNTIME_PYTHON_VERSION = "PYTHON_3_12"
+
+
+def _agentcore_project_paths(backend_dir: Path) -> tuple[Path, Path]:
+    """Return (project_root, agentcore_config_path) for the scaffolded 0.18
+    project. We root the project under backend_dir/.agentcore-project so the
+    generated agentcore/ tree never collides with the existing backend files,
+    and so `deploy` (which must run from the dir CONTAINING agentcore/) has an
+    unambiguous cwd."""
+    project_root = backend_dir / ".agentcore-project" / "pellier"
+    config_path = project_root / "agentcore" / "agentcore.json"
+    return project_root, config_path
+
+
+def _patch_agentcore_config(
+    config_path: Path,
+    *,
+    runtime_name: str,
+    execution_role_arn: str,
+    env_vars: dict[str, str],
+    account_id: str,
+    region: str,
+) -> None:
+    """Inject the fields the 0.18 CLI has NO flags for — executionRoleArn,
+    envVars, and a pinned runtimeVersion — into runtimes[<our agent>], and
+    write aws-targets.json in the new ARRAY shape. `agentcore add agent`
+    sets name/entrypoint/protocol/CUSTOM_JWT via flags; everything here is
+    the gap.
+
+    Defensive by design: the CLI was probed at 0.16 (changelog-identical to
+    0.18) but not 0.18 itself in this environment, so we (a) match the runtime
+    object by name with a single-runtime fallback, and (b) only SET our fields,
+    never strip unknown ones the CLI may have added."""
+    if not config_path.is_file():
+        raise RuntimeError(
+            f"agentcore.json not found at {config_path} — `agentcore create`/`add agent` did not scaffold it"
+        )
+    config = json.loads(config_path.read_text())
+    runtimes = config.get("runtimes")
+    if not isinstance(runtimes, list) or not runtimes:
+        raise RuntimeError(
+            f"agentcore.json has no runtimes[] to patch (found: {type(runtimes).__name__}); "
+            "`agentcore add agent` likely failed"
+        )
+
+    target = None
+    for rt in runtimes:
+        if isinstance(rt, dict) and rt.get("name") == runtime_name:
+            target = rt
+            break
+    if target is None:
+        if len(runtimes) == 1 and isinstance(runtimes[0], dict):
+            target = runtimes[0]  # single-runtime project: unambiguous
+        else:
+            names = [rt.get("name") for rt in runtimes if isinstance(rt, dict)]
+            raise RuntimeError(
+                f"Could not find runtime '{runtime_name}' to patch in {names}"
+            )
+
+    target["executionRoleArn"] = execution_role_arn
+    target["runtimeVersion"] = RUNTIME_PYTHON_VERSION
+    target["envVars"] = [{"name": k, "value": v} for k, v in env_vars.items()]
+    config_path.write_text(json.dumps(config, indent=2))
+
+    # aws-targets.json is an ARRAY in 0.18 ([{name,account,region}]) and no
+    # longer carries the execution role (that conflation is gone).
+    targets_path = config_path.parent / "aws-targets.json"
+    targets_path.write_text(
+        json.dumps(
+            [{"name": "default", "account": account_id, "region": region}],
+            indent=2,
+        )
+    )
+
+
+def _extract_runtime_arn_from_state(project_root: Path) -> str | None:
+    """Prefer the authoritative deployed-state file over scraping stdout.
+    The 0.18 CLI records the deployed runtime ARN in agentcore/.cli/
+    deployed-state.json. Returns None if absent/unparseable so the caller can
+    fall back to _parse_runtime_arn."""
+    state_path = project_root / "agentcore" / ".cli" / "deployed-state.json"
+    if not state_path.is_file():
+        return None
+    try:
+        state = json.loads(state_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    # Field name is agentRuntimeArn per the probed schema; search defensively
+    # for any runtime ARN-shaped value in case the key differs across minors.
+    def _find_arn(node: Any) -> str | None:
+        if isinstance(node, str):
+            if re.fullmatch(
+                r"arn:aws[a-z-]*:bedrock-agentcore:[^:\s]+:\d+:runtime/[A-Za-z0-9_-]+",
+                node,
+            ):
+                return node
+            return None
+        if isinstance(node, dict):
+            # Prefer the documented key first.
+            for key in ("agentRuntimeArn", "runtimeArn", "arn"):
+                val = node.get(key)
+                if isinstance(val, str) and val.startswith("arn:"):
+                    return val
+            for val in node.values():
+                found = _find_arn(val)
+                if found:
+                    return found
+        if isinstance(node, list):
+            for item in node:
+                found = _find_arn(item)
+                if found:
+                    return found
+        return None
+
+    return _find_arn(state)
+
+
+def _deploy_runtime_via_cli(
+    *,
+    backend_dir: Path,
+    runtime_name: str,
+    region: str,
+    account_id: str,
+    cognito_pool: str,
+    cognito_client: str,
+    execution_role_arn: str,
+    gateway_url: str,
+    model_id: str,
+    deploy_env: dict[str, str],
+) -> str:
+    """Scaffold a 0.18 AgentCore project, register our in-repo orchestrator as
+    a BYO agent (HTTP + CUSTOM_JWT), patch in the role/envVars the CLI can't set
+    via flags, and `agentcore deploy` (CDK). Returns the deployed runtime ARN.
+
+    Idempotent: skips `create` if the project exists, and re-adds the agent
+    cleanly so a re-run (facilitator recovery) doesn't error on a duplicate."""
+    project_root, config_path = _agentcore_project_paths(backend_dir)
+    project_root.mkdir(parents=True, exist_ok=True)
+    output_dir = project_root.parent  # `create` writes <output_dir>/<project>/
+
+    discovery_url = (
+        f"https://cognito-idp.{region}.amazonaws.com/{cognito_pool}/.well-known/openid-configuration"
+    )
+
+    # 1. Scaffold an EMPTY project (no agent) so we can BYO ours. Skip if the
+    #    project already exists (re-run safety).
+    if not config_path.is_file():
+        _run(
+            [
+                "npx", "-y", AGENTCORE_CLI, "create",
+                "--project-name", "pellier",
+                "--no-agent",
+                "--defaults",
+                "--build", "CodeZip",
+                "--language", "Python",
+                "--framework", "Strands",
+                "--model-provider", "Bedrock",
+                "--protocol", "HTTP",
+                "--skip-git",
+                "--skip-python-setup",
+                "--skip-install",
+                "--output-dir", str(output_dir),
+                "--json",
+            ],
+            cwd=output_dir,
+            env=deploy_env,
+        )
+
+    # 2. Register our existing orchestrator entrypoint as a BYO agent with the
+    #    real CUSTOM_JWT authorizer. Remove first so a re-run is clean (the CLI
+    #    errors on a duplicate agent name); ignore remove failure when absent.
+    try:
+        _run(
+            ["npx", "-y", AGENTCORE_CLI, "remove", "agent", "--name", runtime_name, "--yes"],
+            cwd=project_root,
+            env=deploy_env,
+        )
+    except RuntimeError:
+        pass  # agent not present yet — expected on first run
+
+    _run(
+        [
+            "npx", "-y", AGENTCORE_CLI, "add", "agent",
+            "--name", runtime_name,
+            "--type", "byo",
+            "--build", "CodeZip",
+            "--language", "Python",
+            "--framework", "Strands",
+            "--model-provider", "Bedrock",
+            "--protocol", "HTTP",
+            "--code-location", str(backend_dir),
+            "--entrypoint", "agentcore_runtime.py",
+            "--authorizer-type", "CUSTOM_JWT",
+            "--discovery-url", discovery_url,
+            "--allowed-clients", cognito_client,
+            "--json",
+        ],
+        cwd=project_root,
+        env=deploy_env,
+    )
+
+    # 3. Patch in executionRoleArn + envVars + runtimeVersion (no CLI flags),
+    #    and write aws-targets.json (array shape).
+    _patch_agentcore_config(
+        config_path,
+        runtime_name=runtime_name,
+        execution_role_arn=execution_role_arn,
+        env_vars={"MCP_GATEWAY_URL": gateway_url, "AGENT_MODEL_ID": model_id},
+        account_id=account_id,
+        region=region,
+    )
+
+    # 4. Deploy (CDK) from the PROJECT ROOT (the dir containing agentcore/).
+    runtime_deploy = _run(
+        ["npx", "-y", AGENTCORE_CLI, "deploy", "-y", "--json"],
+        cwd=project_root,
+        env=deploy_env,
+    )
+
+    # 5. Prefer the authoritative deployed-state file; fall back to scraping.
+    return _extract_runtime_arn_from_state(project_root) or _parse_runtime_arn(
+        runtime_deploy.stdout, runtime_deploy.stderr
+    )
 
 
 def main() -> int:
@@ -453,29 +675,68 @@ def main() -> int:
         )
         account_id = account_proc.stdout.strip()
 
-        substitutions = {
-            "AGENTCORE_ROLE_ARN": required["AGENTCORE_ROLE_ARN"],
-            "OAUTH_ISSUER_URL": (
-                f"https://cognito-idp.{required['AWS_REGION']}.amazonaws.com/{required['COGNITO_POOL']}"
-            ),
-            "COGNITO_CLIENT": required["COGNITO_CLIENT"],
-            "MCP_GATEWAY_URL": gateway_url,
-            "AGENT_MODEL_ID": model_id,
-            "AWS_ACCOUNT": account_id,
-            "AWS_REGION": required["AWS_REGION"],
-        }
-        _render_runtime_templates(backend_dir, substitutions)
-
         deploy_env = os.environ.copy()
         deploy_env["AWS_REGION"] = required["AWS_REGION"]
         deploy_env["AWS_DEFAULT_REGION"] = required["AWS_REGION"]
 
-        runtime_deploy = _run(
-            ["npx", "-y", "@aws/agentcore@latest", "deploy", "-y", "--json"],
-            cwd=backend_dir,
-            env=deploy_env,
+        # Managed AgentCore Policy (the 4th pillar): create a Cedar policy
+        # engine, gate process_return to damaged-only, and attach to THIS
+        # gateway in ENFORCE mode. Policy enforces at the Gateway boundary, so
+        # it gates the agents_as_tools rail (process_return runs in the
+        # experience Lambda). Best-effort: a policy failure must not nuke the
+        # rest of provisioning, but the dry-run/health gate surfaces it.
+        try:
+            gateway_arn_proc = _run(
+                [
+                    "aws", "bedrock-agentcore-control", "get-gateway",
+                    "--gateway-identifier", gateway_id,
+                    "--region", required["AWS_REGION"],
+                    "--query", "gatewayArn", "--output", "text",
+                ],
+                cwd=repo,
+            )
+            gateway_arn = gateway_arn_proc.stdout.strip()
+            policy_proc = _run(
+                [
+                    "python3", str(deploy_dir / "deploy_policy.py"),
+                    "--gateway-id", gateway_id,
+                    "--gateway-arn", gateway_arn,
+                    "--region", required["AWS_REGION"],
+                    "--mode", "ENFORCE",
+                ],
+                cwd=repo,
+                env=deploy_env,
+            )
+            policy_engine_id = ""
+            for line in policy_proc.stdout.splitlines():
+                if line.startswith("POLICY_ENGINE_ID="):
+                    policy_engine_id = line.split("=", 1)[1].strip()
+            result["policy"] = {
+                "policy_engine_id": policy_engine_id,
+                "mode": "ENFORCE",
+                "gated_tool": "process_return",
+            }
+            result["verification"]["managed_policy_attached"] = bool(policy_engine_id)
+        except RuntimeError as exc:
+            # Surface but don't abort — Runtime/Memory/Gateway still provision.
+            result["policy"] = {"error": str(exc)}
+            result["verification"]["managed_policy_attached"] = False
+
+        # Scaffold the 0.18 project, register our in-repo orchestrator as a BYO
+        # agent (HTTP + CUSTOM_JWT), patch in the role/envVars the CLI has no
+        # flags for, and CDK-deploy. Returns the deployed runtime ARN.
+        runtime_arn = _deploy_runtime_via_cli(
+            backend_dir=backend_dir,
+            runtime_name=args.runtime_name,
+            region=required["AWS_REGION"],
+            account_id=account_id,
+            cognito_pool=required["COGNITO_POOL"],
+            cognito_client=required["COGNITO_CLIENT"],
+            execution_role_arn=required["AGENTCORE_ROLE_ARN"],
+            gateway_url=gateway_url,
+            model_id=model_id,
+            deploy_env=deploy_env,
         )
-        runtime_arn = _parse_runtime_arn(runtime_deploy.stdout, runtime_deploy.stderr)
 
         runtime_lookup_proc = _run(
             [

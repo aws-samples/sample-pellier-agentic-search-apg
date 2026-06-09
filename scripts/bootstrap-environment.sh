@@ -53,10 +53,33 @@ dnf install --skip-broken -y -q \
     gcc \
     gcc-c++ \
     make \
-    postgresql17 \
-    nodejs
+    postgresql17
 
 log "✅ System packages installed"
+
+# ----------------------------------------------------------------------------
+# Node.js 20+ (required by the @aws/agentcore CLI).
+#
+# AL2023's default `nodejs` package is Node 18, but @aws/agentcore (>=0.18)
+# declares `engines.node: ">=20"` and its bundled code uses the regex `v`
+# (unicodeSets) flag, which Node 18 does NOT parse — `npx @aws/agentcore deploy`
+# crashes at module load with "SyntaxError: Invalid regular expression flags"
+# BEFORE doing any work, so the managed Runtime never deploys. We therefore
+# install Node 20 from NodeSource (the supported path for a pinned major on
+# AL2023). Falls back to the distro nodejs only if NodeSource is unreachable,
+# so provisioning still gets a Node for the frontend build even if Runtime
+# deploy can't run. Everything downstream calls `node`/`npx` on PATH, so it
+# follows whichever got installed.
+# ----------------------------------------------------------------------------
+log "Installing Node.js 20 (required by @aws/agentcore CLI; AL2023 default is 18)..."
+if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 \
+    && dnf install -y -q nodejs; then
+    log "✅ Node.js installed: $(node --version 2>/dev/null)"
+else
+    warn "NodeSource Node 20 install failed — falling back to AL2023 default nodejs (Node 18). The @aws/agentcore Runtime deploy will NOT work on Node 18; the frontend build still will."
+    dnf install --skip-broken -y -q nodejs
+    warn "Node version: $(node --version 2>/dev/null || echo 'none')"
+fi
 
 # ----------------------------------------------------------------------------
 # Python: prefer 3.14, fall back to 3.13 if AL2023 doesn't yet package it.
@@ -247,6 +270,32 @@ rm -rf "/home/$CODE_EDITOR_USER/.code-editor-server" 2>/dev/null || true
 # Get AWS region from environment or EC2 metadata
 AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || echo 'us-west-2')}"
 log "AWS Region: $AWS_REGION"
+
+# ----------------------------------------------------------------------------
+# CDK bootstrap (required by @aws/agentcore 0.18 `deploy`, which is CDK-based).
+#
+# `agentcore deploy` synthesizes a CloudFormation stack and deploys it via the
+# CDK toolkit. CDK requires the account/region to be "bootstrapped" first — a
+# one-time CDKToolkit stack that provisions the assets S3 bucket, the
+# cdk-hnb659fds-* execution roles, and the SSM version parameter the deploy
+# reads. Without it, `agentcore deploy` fails on the missing toolkit. This is
+# idempotent (re-running is a no-op if already bootstrapped), runs as root in
+# UserData with the instance-profile credentials, and is best-effort: a failure
+# is logged but does not abort the box (the AgentCore provisioning step later
+# surfaces it via the health gate). Requires Node 20 (installed above).
+# ----------------------------------------------------------------------------
+log "Bootstrapping CDK for AgentCore Runtime deploy (region $AWS_REGION)..."
+CDK_ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo '')"
+if [ -n "$CDK_ACCOUNT" ]; then
+    if AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
+        npx -y aws-cdk@2 bootstrap "aws://${CDK_ACCOUNT}/${AWS_REGION}" >/dev/null 2>&1; then
+        log "✅ CDK bootstrapped for aws://${CDK_ACCOUNT}/${AWS_REGION}"
+    else
+        warn "CDK bootstrap failed — @aws/agentcore Runtime deploy may fail until 'npx aws-cdk@2 bootstrap' succeeds for aws://${CDK_ACCOUNT}/${AWS_REGION}"
+    fi
+else
+    warn "Could not resolve account id (sts get-caller-identity) — skipping CDK bootstrap; AgentCore Runtime deploy will need it run manually"
+fi
 
 cat > /etc/systemd/system/code-editor@.service << EOF
 [Unit]
