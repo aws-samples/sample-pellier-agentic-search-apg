@@ -148,10 +148,8 @@ def search(query: str) -> str:
         # orchestrator level; this surfaces the layer below.
         from agents.specialist_hooks import (
             append_escalation_marker,
-            attach_policy_hook,
             extract_escalation_payload,
         )
-        attach_policy_hook(agent)
 
         result = agent(query)
         text = str(result)

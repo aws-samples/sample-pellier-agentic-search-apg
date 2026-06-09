@@ -2,13 +2,14 @@
  * Write-path — Theo's third Aurora capability surface.
  *
  * Shows how mutating tools (process_return, restock_shelf) flow through
- * a two-layer enforcement gate (Cedar BeforeToolCallEvent + SQL ownership)
- * and leave a paper trail in pellier.tool_audit that's reconstructible
- * from a single SELECT.
+ * a two-layer enforcement gate (managed AgentCore Policy at the Gateway
+ * + SQL ownership) and leave a paper trail in pellier.tool_audit that's
+ * reconstructible from a single SELECT.
  *
  * Three sections:
  *   1. Two-layer enforcement diagram — conceptual
- *   2. Cedar policies — live list from /api/atelier/policies
+ *   2. Cedar policies — live list of the managed engine's policies from
+ *      /api/atelier/policies
  *   3. Recent tool_audit rows — live from /api/atelier/tool-audit/recent
  *
  * Pedagogical role: anchors Aurora's third capability (system-of-record)
@@ -75,7 +76,7 @@ const DARK_INLINE_CODE: React.CSSProperties = {
  *
  * Visualizes the chain:
  *   Agent calls process_return
- *     → Cedar (BeforeToolCallEvent) — gates on reason ∈ {damaged,...}
+ *     → Cedar (managed Policy at the Gateway) — gates on reason == 'damaged'
  *     → SQL (BusinessLogic) — gates on customer ownership
  *     → 3 writes in one transaction
  *     → tool_audit row (AfterToolCallEvent updates result + latency)
@@ -131,9 +132,10 @@ const EnforcementDiagram: React.FC = () => {
       >
         Mutating tools (the ones with the burgundy WRITE badge on the
         Tools page) pass through two enforcement layers before any row
-        gets written. The first is Cedar, declarative and static. The
-        second is SQL, dynamic and live. Removing either layer breaks
-        the contract.
+        gets written. The first is Cedar, declarative and static,
+        enforced by the managed AgentCore Policy engine at the Gateway.
+        The second is SQL, dynamic and live. Removing either layer
+        breaks the contract.
       </p>
 
       <div
@@ -149,7 +151,7 @@ const EnforcementDiagram: React.FC = () => {
         <div style={arrowStyle}>↓</div>
 
         <div style={{ ...layerLabel, color: 'var(--at-burgundy)' }}>
-          Layer 1 · Cedar (BeforeToolCallEvent)
+          Layer 1 · Cedar (managed Policy · Gateway · ENFORCE)
         </div>
         <div style={stepStyle}>
           forbid when reason ∉ {`{damaged, wrong_size, ...}`}
@@ -193,7 +195,8 @@ const EnforcementDiagram: React.FC = () => {
 };
 
 /* -----------------------------------------------------------------------
- * Cedar policies — fetched live from /api/atelier/policies
+ * Cedar policies — fetched live from /api/atelier/policies (the managed
+ * AgentCore Policy engine attached to the Gateway in ENFORCE mode)
  * ----------------------------------------------------------------------- */
 
 const PoliciesCard: React.FC = () => {
@@ -209,7 +212,7 @@ const PoliciesCard: React.FC = () => {
 
   return (
     <ExpCard>
-      <Eyebrow label={`Cedar policies · ${policies?.length ?? '—'} registered`} />
+      <Eyebrow label={`Cedar policies · ${policies?.length ?? '—'} on the managed engine`} />
       <h3
         style={{
           fontFamily: 'var(--at-serif)',
@@ -230,13 +233,16 @@ const PoliciesCard: React.FC = () => {
           marginBottom: '20px',
         }}
       >
-        Each policy is a Cedar block evaluated in BeforeToolCallEvent.
-        New mutating tools get protection by adding one entry to
+        Each policy is a Cedar block on the managed AgentCore Policy
+        engine, enforced at the Gateway in{' '}
         <code style={{ fontFamily: 'var(--at-mono)', color: 'var(--at-ink-1)' }}>
-          {' '}_TOOL_TO_POLICY_ACTION{' '}
-        </code>
-        in <code style={{ fontFamily: 'var(--at-mono)' }}>services/policy_hook.py</code>{' '}
-        plus a Cedar block here.
+          ENFORCE
+        </code>{' '}
+        mode — argument-aware, default-deny, forbid-wins, evaluated
+        before the tool's Lambda ever runs. New rules are added at
+        provisioning time via{' '}
+        <code style={{ fontFamily: 'var(--at-mono)' }}>scripts/deploy/deploy_policy.py</code>,
+        not in application code.
       </p>
 
       {error && (
@@ -357,12 +363,14 @@ const ToolAuditCard: React.FC = () => {
           marginBottom: '20px',
         }}
       >
-        The policy hook fires <code style={{ fontFamily: 'var(--at-mono)' }}>BeforeToolCallEvent</code>{' '}
-        with a placeholder INSERT (latency_ms = 0, result = NULL), then
-        the matching <code style={{ fontFamily: 'var(--at-mono)' }}>AfterToolCallEvent</code>{' '}
-        UPDATEs the row with the actual result + measured latency. The
-        whole turn lives in <code style={{ fontFamily: 'var(--at-mono)' }}>args</code>{' '}
+        Once the Gateway's managed Cedar policy ALLOWs a tool call, the
+        tool runs and a row lands in <code style={{ fontFamily: 'var(--at-mono)' }}>tool_audit</code>{' '}
+        with the placeholder fields, then the result + measured latency
+        are written back when the call returns. The whole turn lives in{' '}
+        <code style={{ fontFamily: 'var(--at-mono)' }}>args</code>{' '}
         (input) and <code style={{ fontFamily: 'var(--at-mono)' }}>result</code> (output).
+        A call the Gateway DENIES never runs, so it leaves no row — the
+        absence is the signal.
       </p>
 
       {error && (

@@ -1887,35 +1887,12 @@ CURRENT REQUEST: {message}"""
             except (ImportError, AttributeError) as e:
                 logger.warning(f"Strands hooks not available, falling back: {e}")
 
-            # Cedar policy enforcement — registered alongside the
-            # telemetry hooks so the policy's ``cancel_tool`` write
-            # fires before Strands actually invokes the tool. The
-            # enforcement hook consults PolicyService; DENY decisions
-            # short-circuit the call with a synthetic tool result
-            # explaining the violation, which the agent paraphrases
-            # to the user.
-            #
-            # Agent.add_hook() takes an individual callback; we register
-            # the provider through the lower-level registry so the
-            # provider's ``register_hooks`` runs once and sets up all
-            # its callbacks in one shot. GraphAdapter forwards
-            # ``add_hook`` per-specialist, so this still propagates to
-            # every specialist when pattern=="graph".
-            try:
-                from services.policy_hook import PolicyEnforcementHook
-                policy_provider = PolicyEnforcementHook(session_id=session_id)
-                hooks_registry = getattr(agent, "hooks", None)
-                if hooks_registry is not None and hasattr(hooks_registry, "add_hook"):
-                    hooks_registry.add_hook(policy_provider)
-                else:
-                    # GraphAdapter / non-Strands shim: fall through to
-                    # the callback-style registration so the policy
-                    # still fires. PolicyEnforcementHook._on_before_tool
-                    # is the exact callback Strands would register via
-                    # ``register_hooks``.
-                    agent.add_hook(policy_provider._on_before_tool)
-            except Exception as exc:
-                logger.warning("PolicyEnforcementHook attach failed: %s", exc)
+            # Policy enforcement is no longer an in-process hook. The
+            # boutique's tool-call gate is the managed AgentCore Policy
+            # engine (Cedar, ENFORCE mode) attached to the Gateway —
+            # it evaluates every tool call argument-aware, default-deny,
+            # forbid-wins, BEFORE the tool's Lambda runs. There is one
+            # gate now (managed), not a local/managed hybrid.
 
         # For Pattern I (``agents_as_tools``) the orchestrator is
         # already constructed at this point; attach the streaming and
@@ -2009,15 +1986,16 @@ CURRENT REQUEST: {message}"""
                     logger.warning("Persona ContextVar reset failed: %s", exc)
                 persona_token = None
 
-        # --- Session ContextVar (Pattern I inner-specialist audit) ----
+        # --- Session ContextVar (Pattern I inner-specialist context) ---
         # Pattern I builds a fresh inner specialist Agent inside each
         # @tool wrapper (style_advisor.search, curator.recommendation,
-        # …). Those wrappers don't take session_id as a parameter, so
-        # we stash it here and let agents/specialist_hooks.attach_policy_hook
-        # read it when registering the audit hook on the inner agent.
-        # Without this, only the wrapper-level tool call audits;
-        # find_pieces / style_match / etc. inside the specialist
-        # never reach pellier.tool_audit.
+        # …). Those wrappers don't take session_id as a parameter, so we
+        # stash it here on a ContextVar for any inner-agent code that
+        # needs the current session id without plumbing it through the
+        # LLM-facing @tool signature. (The in-process policy/audit hook
+        # that used to read this was removed when enforcement moved to
+        # the managed AgentCore Policy engine at the Gateway; the var is
+        # kept as the shared session handle for future inner-agent use.)
         session_token = None
         try:
             from services.session_context import session_id_var

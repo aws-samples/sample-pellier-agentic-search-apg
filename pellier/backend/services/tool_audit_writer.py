@@ -9,17 +9,18 @@ single SELECT, and procedural memory has the full per-tool signal
 
 Why a separate writer module:
 
-* policy_hook.py stays focused on Cedar enforcement (one concern, one
-  file). The audit writer is its own thing because audit ≠ enforcement
-  — failing to audit shouldn't fail the tool call, and failing the
-  tool call shouldn't fail the audit.
+* Audit ≠ enforcement. Enforcement now lives entirely in the managed
+  AgentCore Policy engine at the Gateway (Cedar, ENFORCE mode); this
+  writer is its own concern so that failing to audit can't fail a tool
+  call, and a failing tool call can't fail the audit.
 * The ALLOW-side INSERT happens BEFORE the tool body runs, so we have
   a row to UPDATE with the result + latency in AfterToolCallEvent. If
   the tool raises, the row remains with result=NULL — which is itself
   a real signal (a tool that started but didn't finish).
-* DENY decisions live in the in-memory deque (``policy_hook.record_decision``)
-  rather than pellier.tool_audit. Audit is for what *happened*; deque is for
-  what *was prevented*. Two different teaching surfaces.
+* DENY decisions never reach pellier.tool_audit: a call the managed
+  Gateway policy denies never runs the tool, so it never writes a row.
+  Audit is for what *happened*; the absence of a row for a denied call
+  is the "what was prevented" signal. Two different teaching surfaces.
 
 The writes go through ``DatabaseService.execute_query`` so they share
 the same connection pool + per-cursor logging the rest of the backend
@@ -101,9 +102,10 @@ def record_allow(
 ) -> None:
     """INSERT a row into ``pellier.tool_audit`` for an ALLOW decision.
 
-    Called from policy_hook's BeforeToolCallEvent right after Cedar
-    returns ALLOW. The row's ``result`` and ``latency_ms`` start NULL
-    and get UPDATEd in AfterToolCallEvent (record_after).
+    Called from an in-process AfterToolCall telemetry path right after a
+    tool the Gateway ALLOWED begins running. The row's ``result`` and
+    ``latency_ms`` start NULL and get UPDATEd in AfterToolCallEvent
+    (record_after).
 
     If the INSERT fails, we log at DEBUG and move on — audit is
     decoration; the tool call must still proceed.

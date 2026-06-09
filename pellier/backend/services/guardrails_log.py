@@ -1,8 +1,9 @@
 """Guardrails decision log — per-session ring buffer.
 
-Mirrors ``policy_hook``'s recording shape so the Atelier Grounding
-page can plot guardrail outcomes alongside Cedar policy decisions with
-the same row format.
+A small per-session ring buffer of guardrail outcomes so the Atelier
+Grounding page can plot guardrail decisions in a stable row format,
+alongside the Cedar policy view sourced from the managed AgentCore
+Policy engine at the Gateway.
 
 Populated from two places:
 
@@ -13,10 +14,10 @@ Populated from two places:
      also record a synthetic PASS entry so the lane shows activity
      even on turns that didn't trip a filter.
 
-Keeping this separate from ``policy_hook`` so the two lanes (Cedar
-policy vs. Bedrock Guardrails) stay independently observable. A joint
-buffer would conflate very different check types and make later
-drift-debugging harder.
+This is the Bedrock Guardrails lane and stays its own buffer: the Cedar
+policy gate lives at the managed Gateway, a different check type. A
+joint buffer would conflate the two and make later drift-debugging
+harder.
 """
 from __future__ import annotations
 

@@ -61,7 +61,7 @@
               "table": "tool_audit",
               "operation": "INSERT",
               "rowId": 158,
-              "via": "BeforeToolCallEvent ALLOW + AfterToolCallEvent latency capture"
+              "via": "Gateway managed-policy ALLOW + AfterToolCall latency capture"
             }
           ]
         }
@@ -151,17 +151,17 @@
     {
       "index": 6,
       "category": "managed",
-      "title": "Cedar policy: process-return-allowed-reasons",
-      "description": "reason='damaged' is in {damaged, wrong_size, not_as_described, changed_mind, other} \u2192 ALLOW",
+      "title": "Cedar policy: process_return_damaged_only",
+      "description": "reason == 'damaged' satisfies the managed Cedar forbid-unless-damaged rule \u2192 Gateway ALLOW",
       "status": "complete",
       "durationMs": 4,
-      "agent": "policy_hook"
+      "agent": "AgentCore Policy (Gateway)"
     },
     {
       "index": 7,
       "category": "managed",
       "title": "Audit row INSERTed (placeholder)",
-      "description": "BeforeToolCallEvent \u2192 tool_audit row 158 with result=NULL, latency=NULL",
+      "description": "Gateway ALLOWed the call \u2192 tool_audit row 158 with result=NULL, latency=NULL",
       "status": "complete",
       "durationMs": 7,
       "agent": "tool_audit_writer"
@@ -220,7 +220,7 @@
         "numeral": "ii.",
         "title": "Two enforcement layers, one transaction",
         "paragraphs": [
-          "Cedar gated the call before SQL ran. The reason field \u2014 'damaged' \u2014 was checked against the canonical set {damaged, wrong_size, not_as_described, changed_mind, other}. A free-form reason would have been DENIED with a synthetic tool result, and the Atelier Policy panel would show the violation.",
+          "The managed AgentCore Policy engine gated the call at the Gateway before SQL ran. The reason field \u2014 'damaged' \u2014 satisfied the Cedar forbid-unless-damaged rule, so the Gateway ALLOWed the call through to the tool's Lambda. Any other reason would have been DENIED at the Gateway and the tool would never have run \u2014 so no tool_audit row, the absence being the signal.",
           "SQL then gated ownership inside the transaction: the customer must have ordered the product. Cedar can't enforce this because it requires a JOIN against live order data \u2014 a static policy doesn't know what Theo bought. Two layers, two roles: Cedar guards what the agent can do; SQL guards whose state the agent can mutate."
         ]
       },
@@ -246,7 +246,7 @@
       "stats": [
         {
           "label": "Cedar decisions",
-          "value": "1 ALLOW (process-return-allowed-reasons)"
+          "value": "1 ALLOW (process_return_damaged_only · Gateway)"
         },
         {
           "label": "Aurora writes",

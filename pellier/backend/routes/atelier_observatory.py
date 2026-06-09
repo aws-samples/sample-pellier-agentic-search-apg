@@ -798,22 +798,31 @@ async def route_skills_endpoint(payload: AtelierSkillRouteRequest):
 
 @router.get("/policies")
 async def get_cedar_policies():
-    """Return the registered Cedar policies powering the BeforeToolCallEvent
-    enforcement layer. Used by the Atelier's Write-path surface to show
-    "policy is code, code is enforcement".
+    """Return the Cedar policies attached to the managed AgentCore Policy
+    engine (Gateway-enforced, ENFORCE mode). Used by the Atelier's
+    Write-path surface to show "policy is code, code is enforcement".
+
+    Reads the managed engine via boto3 ``bedrock-agentcore-control``
+    keyed on ``AGENTCORE_POLICY_ENGINE_ID``. The old local fake-Cedar
+    ``PolicyService`` was removed — the Gateway is the one gate now.
+    ``cedar`` carries the managed policy's Cedar statement; managed
+    policies have no ``applies_to`` sidecar (the gated action is encoded
+    inside the Cedar statement itself), so it is reported as null.
     """
     try:
-        from services.agentcore_policy import get_policy_service
-        ps = get_policy_service()
-        policies = ps.list_policies()
+        from services.managed_policy import list_managed_policies
+        result = list_managed_policies()
+        policies = result.get("policies", [])
         return {
             "count": len(policies),
+            "source": result.get("source"),
+            "policy_engine_id": result.get("policy_engine_id", ""),
             "policies": [
                 {
                     "id": p.get("id"),
                     "name": p.get("name"),
                     "description": p.get("description"),
-                    "applies_to": p.get("applies_to"),
+                    "applies_to": None,
                     "cedar": p.get("cedar"),
                 }
                 for p in policies

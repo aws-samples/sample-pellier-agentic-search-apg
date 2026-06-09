@@ -829,8 +829,11 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
                   "pellier/backend/services/agentcore_memory.py" "AgentCore memory"
     copy_solution "solutions/the-ledger/services/agentcore_gateway.py" \
                   "pellier/backend/services/agentcore_gateway.py" "AgentCore gateway"
-    copy_solution "solutions/the-ledger/services/agentcore_policy.py" \
-                  "pellier/backend/services/agentcore_policy.py" "AgentCore policy (Cedar)"
+    # Policy is now MANAGED (Cedar at the Gateway, provisioned by
+    # scripts/deploy/deploy_policy.py). The old local fake-Cedar
+    # services/agentcore_policy.py was removed; the backend ships
+    # services/managed_policy.py (reads the managed engine for the Atelier
+    # Policy surface) directly in the repo, so there is nothing to copy here.
     copy_solution "solutions/the-ledger/services/agentcore_identity.py" \
                   "pellier/backend/services/agentcore_identity.py" "AgentCore identity"
     copy_solution "solutions/the-ledger/services/cognito_auth.py" \

@@ -146,8 +146,8 @@ class RerankService:
 
 
 # -----------------------------------------------------------------
-# Singleton accessor — mirrors the get_policy_service / get_db_service
-# pattern used elsewhere in services/.
+# Singleton accessor — mirrors the get_db_service pattern used
+# elsewhere in services/.
 # -----------------------------------------------------------------
 _rerank_service: Optional[RerankService] = None
 

@@ -311,11 +311,12 @@ class BusinessLogic:
         """Theo's anchor write. Atomic: ownership check → INSERT into
         ``returns`` → (if reason='damaged') decrement product_catalog.quantity.
 
-        Cedar policy ``process-return-allowed-reasons`` (in
-        agentcore_policy.py) gates the *reason value* before this method
-        is ever called. We still validate inside the SQL CHECK and as
-        a defense-in-depth guard here so a misbehaving agent that
-        bypasses Cedar can't write garbage.
+        The managed AgentCore Policy engine (Cedar, ENFORCE mode,
+        attached to the Gateway by scripts/deploy/deploy_policy.py)
+        gates the *reason value* at the Gateway before the tool's Lambda
+        ever runs. We still validate inside the SQL CHECK and as a
+        defense-in-depth guard here so a misbehaving agent that bypasses
+        the Gateway can't write garbage.
 
         Ownership is gated *here*, not in Cedar — the principal/resource
         relationship is a SQL JOIN (``orders ⋈ customer + product``),

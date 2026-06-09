@@ -1812,30 +1812,29 @@ async def get_agent_graph():
 
 @app.get("/api/agentcore/policy/list")
 async def list_policies():
-    """List all Cedar policies"""
+    """List the Cedar policies attached to the managed AgentCore Policy
+    engine (Gateway-enforced, ENFORCE mode).
+
+    Reads the managed engine via boto3 ``bedrock-agentcore-control``
+    ``list_policies`` keyed on ``AGENTCORE_POLICY_ENGINE_ID``. The old
+    local fake-Cedar ``PolicyService`` was removed — enforcement is now
+    entirely at the Gateway, so this is a pure read of the managed
+    engine's Cedar statements.
+    """
     try:
-        from services.agentcore_policy import get_policy_service
-        svc = get_policy_service()
-        return {"policies": svc.list_policies()}
+        from services.managed_policy import list_managed_policies
+        result = list_managed_policies()
+        return {"policies": result.get("policies", []), "source": result.get("source")}
     except Exception as e:
         logger.warning(f"Failed to list policies: {e}")
         return {"policies": [], "error": str(e)}
 
 
-@app.post("/api/agentcore/policy/check")
-async def check_policy(request: Request):
-    """Evaluate an action against Cedar policies"""
-    try:
-        from services.agentcore_policy import get_policy_service
-        body = await request.json()
-        action = body.get("action", "")
-        parameters = body.get("parameters", {})
-        svc = get_policy_service()
-        result = svc.evaluate(action, parameters)
-        return result
-    except Exception as e:
-        logger.error(f"Policy check failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# NOTE: the former POST /api/agentcore/policy/check route was removed.
+# It evaluated actions against the local fake-Cedar engine (also removed).
+# The managed AgentCore Policy engine evaluates Cedar at the Gateway at
+# tool-call time and exposes no client-side "evaluate this action" API,
+# so there is nothing for a runtime check endpoint to call.
 
 
 @app.get("/api/agentcore/memory/ltm")
@@ -1959,16 +1958,18 @@ async def gateway_status():
 
 @app.get("/api/agentcore/policy/decisions")
 async def policy_decisions(session_id: str = "", limit: int = 50):
-    """Return the recent per-tool enforcement decisions for a session.
+    """Return recent managed-rail policy decisions for a session.
 
-    Feeds the Atelier Policy tab so it can show live DENY/ALLOW
-    outcomes per turn instead of a static policy list. Bounded by the
-    in-memory PolicyEnforcementHook buffer (oldest decisions evicted
-    automatically)."""
+    The gate is now the managed AgentCore Policy engine at the Gateway,
+    which emits ALLOW/DENY decisions to CloudWatch rather than a
+    queryable API. Instead of fabricating a decisions store, we surface
+    the ``pellier.tool_audit`` ALLOW rows — those rows ARE the managed
+    rail's ALLOW evidence (the experience Lambda writes one per tool the
+    Gateway let through). A DENY produces no row because the tool never
+    ran. See ``services/managed_policy.recent_decisions``."""
     try:
-        from services.policy_hook import get_decisions
-        decisions = get_decisions(session_id or None, limit=max(1, min(500, int(limit))))
-        return {"session_id": session_id or "_anonymous", "decisions": decisions, "count": len(decisions)}
+        from services.managed_policy import recent_decisions
+        return await recent_decisions(db_service, session_id or None, limit=limit)
     except Exception as e:
         logger.warning(f"Policy decisions fetch failed: {e}")
         return {"session_id": session_id, "decisions": [], "count": 0, "error": str(e)}
@@ -2066,21 +2067,11 @@ async def get_episodic_memories(query: str, user=Depends(get_current_user)):
         return {"episodes": [], "error": str(e)}
 
 
-@app.post("/api/agentcore/policy/create")
-async def create_nl_policy(request: Request):
-    """Create a Cedar policy from natural language description"""
-    try:
-        from services.agentcore_policy import create_policy_from_natural_language
-        body = await request.json()
-        result = create_policy_from_natural_language(
-            gateway_id=body.get("gateway_id", ""),
-            policy_name=body.get("policy_name", ""),
-            natural_language_rule=body.get("rule", ""),
-        )
-        return result
-    except Exception as e:
-        logger.error(f"NL policy creation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# NOTE: the former POST /api/agentcore/policy/create route was removed.
+# Cedar policy creation is now a provisioning-time concern handled by
+# scripts/deploy/deploy_policy.py (managed AgentCore Policy engine),
+# not a runtime endpoint. The natural-language policy helper it called
+# used a preview-era boto3 shape and has been deleted.
 
 
 @app.post("/api/agentcore/analytics")

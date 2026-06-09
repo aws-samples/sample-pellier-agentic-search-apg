@@ -99,7 +99,8 @@ AgentCore production services (Runtime, Memory, Gateway, policy, identity):
 cp solutions/the-ledger/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
 cp solutions/the-ledger/services/agentcore_memory.py         pellier/backend/services/agentcore_memory.py
 cp solutions/the-ledger/services/agentcore_gateway.py        pellier/backend/services/agentcore_gateway.py
-cp solutions/the-ledger/services/agentcore_policy.py         pellier/backend/services/agentcore_policy.py
+# Policy is managed (Cedar at the Gateway, provisioned by scripts/deploy/deploy_policy.py).
+# The backend ships services/managed_policy.py in-tree — there is no local policy file to copy.
 cp solutions/the-ledger/services/agentcore_identity.py       pellier/backend/services/agentcore_identity.py
 cp solutions/the-ledger/services/cognito_auth.py             pellier/backend/services/cognito_auth.py
 cp solutions/the-ledger/services/otel_trace_extractor.py     pellier/backend/services/otel_trace_extractor.py
