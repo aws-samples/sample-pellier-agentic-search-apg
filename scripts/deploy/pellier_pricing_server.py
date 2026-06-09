@@ -15,6 +15,8 @@ from typing import Any
 
 import boto3
 
+from common.types import resolve_invocation
+
 logger = logging.getLogger(__name__)
 
 REGION = os.environ.get("REGION", "us-east-1")
@@ -195,8 +197,9 @@ TOOLS = {
 
 def lambda_handler(event: dict, context: Any) -> dict:
     """Lambda handler for MCP tool invocation via AgentCore Gateway."""
-    tool_name = event.get("name", "")
-    arguments = event.get("arguments", {})
+    # Resolve BOTH invocation shapes (Gateway client_context-prefixed vs direct
+    # {name,arguments}); shared helper in common/types.py, packaged into the zip.
+    tool_name, arguments = resolve_invocation(event, context)
 
     if tool_name == "list_tools":
         return {

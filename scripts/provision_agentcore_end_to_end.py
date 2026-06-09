@@ -243,17 +243,32 @@ def _patch_agentcore_config(
     env_vars: dict[str, str],
     account_id: str,
     region: str,
+    discovery_url: str = "",
+    allowed_client: str = "",
 ) -> None:
-    """Inject the fields the 0.18 CLI has NO flags for — executionRoleArn,
-    envVars, and a pinned runtimeVersion — into runtimes[<our agent>], and
-    write aws-targets.json in the new ARRAY shape. `agentcore add agent`
-    sets name/entrypoint/protocol/CUSTOM_JWT via flags; everything here is
-    the gap.
+    """Inject the fields the 0.18 CLI has NO flags for — the execution role,
+    envVars, a pinned runtimeVersion, networkMode, and the JWT header
+    allowlist — into runtimes[<our agent>], and write aws-targets.json in the
+    new ARRAY shape. `agentcore add agent` sets name/entrypoint/protocol via
+    flags; everything here is the gap.
 
-    Defensive by design: the CLI was probed at 0.16 (changelog-identical to
-    0.18) but not 0.18 itself in this environment, so we (a) match the runtime
-    object by name with a single-runtime fallback, and (b) only SET our fields,
-    never strip unknown ones the CLI may have added."""
+    Field spellings are taken from the WORKING dat403 reference
+    (`modules/05/strands/deploy/setup_deploy.sh:90-113`), which hand-writes the
+    full runtime object that `agentcore deploy` consumes:
+      * ``roleArn`` — NOT ``executionRoleArn``. This is the single most
+        important key: ``add agent`` has no role flag, so this patch is the
+        ONLY thing that sets the runtime's execution role. dat403's working
+        config uses ``roleArn``; a wrong key deploys a runtime with no role and
+        every Bedrock call fails at invoke.
+      * ``networkMode: "PUBLIC"`` — dat403 sets it explicitly; don't rely on a
+        CLI default.
+      * ``requestHeaderAllowlist: ["Authorization"]`` — required for the runtime
+        to forward the Cognito JWT inward.
+
+    Defensive by design: match the runtime object by name with a single-runtime
+    fallback, and only SET our fields (never strip what the CLI added). We also
+    re-assert the CUSTOM_JWT authorizer block in dat403's proven shape if the
+    add-agent flags didn't populate it."""
     if not config_path.is_file():
         raise RuntimeError(
             f"agentcore.json not found at {config_path} — `agentcore create`/`add agent` did not scaffold it"
@@ -280,9 +295,26 @@ def _patch_agentcore_config(
                 f"Could not find runtime '{runtime_name}' to patch in {names}"
             )
 
-    target["executionRoleArn"] = execution_role_arn
+    # roleArn (NOT executionRoleArn) — matches dat403's working config.
+    target["roleArn"] = execution_role_arn
     target["runtimeVersion"] = RUNTIME_PYTHON_VERSION
+    target["networkMode"] = "PUBLIC"
+    target["requestHeaderAllowlist"] = ["Authorization"]
     target["envVars"] = [{"name": k, "value": v} for k, v in env_vars.items()]
+
+    # Re-assert the CUSTOM_JWT authorizer in dat403's proven shape if add-agent
+    # didn't populate it (the flag→JSON translation is the one thing dat403
+    # can't confirm). Note the runtime SDK uses lowercase-j `customJwtAuthorizer`
+    # (the Gateway API uses caps `customJWTAuthorizer` — different surfaces).
+    if discovery_url and allowed_client and not target.get("authorizerConfiguration"):
+        target["authorizerType"] = "CUSTOM_JWT"
+        target["authorizerConfiguration"] = {
+            "customJwtAuthorizer": {
+                "discoveryUrl": discovery_url,
+                "allowedClients": [allowed_client],
+            }
+        }
+
     config_path.write_text(json.dumps(config, indent=2))
 
     # aws-targets.json is an ARRAY in 0.18 ([{name,account,region}]) and no
@@ -423,8 +455,9 @@ def _deploy_runtime_via_cli(
         env=deploy_env,
     )
 
-    # 3. Patch in executionRoleArn + envVars + runtimeVersion (no CLI flags),
-    #    and write aws-targets.json (array shape).
+    # 3. Patch in roleArn + envVars + runtimeVersion + networkMode +
+    #    requestHeaderAllowlist (no CLI flags for these), re-assert the JWT
+    #    authorizer if needed, and write aws-targets.json (array shape).
     _patch_agentcore_config(
         config_path,
         runtime_name=runtime_name,
@@ -432,6 +465,8 @@ def _deploy_runtime_via_cli(
         env_vars={"MCP_GATEWAY_URL": gateway_url, "AGENT_MODEL_ID": model_id},
         account_id=account_id,
         region=region,
+        discovery_url=discovery_url,
+        allowed_client=cognito_client,
     )
 
     # 4. Deploy (CDK) from the PROJECT ROOT (the dir containing agentcore/).
@@ -752,7 +787,18 @@ def main() -> int:
         )
         runtime_lookup = json.loads(runtime_lookup_proc.stdout)
         runtime_items = runtime_lookup.get("agentRuntimes", [])
-        matched = [item for item in runtime_items if item.get("agentRuntimeName") == args.runtime_name]
+        # The Node CLI prefixes the deployed runtime name with the project name
+        # (dat403 changelog: e.g. "pellier_pellier_orchestrator-…"), so an exact
+        # match can miss a successful deploy. Match exact first, then fall back
+        # to substring. (The authoritative ARN already came from
+        # deployed-state.json; this lookup is only a control-plane visibility
+        # gate, so a too-strict match would hard-fail an otherwise-good deploy.)
+        matched = [i for i in runtime_items if i.get("agentRuntimeName") == args.runtime_name]
+        if not matched:
+            matched = [
+                i for i in runtime_items
+                if args.runtime_name in (i.get("agentRuntimeName") or "")
+            ]
         if not matched:
             raise RuntimeError(f"Runtime {args.runtime_name} not found in list-agent-runtimes")
         runtime_status = matched[0].get("status") or matched[0].get("agentRuntimeStatus") or "UNKNOWN"

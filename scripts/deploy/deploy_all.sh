@@ -264,13 +264,16 @@ npx -y "$AGENTCORE_CLI" remove agent --name "$RUNTIME_NAME" --yes 2>/dev/null ||
     --discovery-url "$DISCOVERY_URL" \
     --allowed-clients "$COGNITO_CLIENT" --json )
 
-# 6c. patch executionRoleArn + envVars + runtimeVersion (no CLI flags), and
-#     write aws-targets.json in the 0.18 ARRAY shape.
+# 6c. patch the fields `add agent` has no flags for, and write aws-targets.json
+#     in the 0.18 ARRAY shape. Field spellings match the WORKING dat403 config
+#     (modules/05/strands/deploy/setup_deploy.sh:90-113): roleArn (NOT
+#     executionRoleArn — add agent has no role flag, so this is the only role
+#     setter), networkMode PUBLIC, requestHeaderAllowlist ["Authorization"].
 python3 - "$CONFIG_PATH" "$RUNTIME_NAME" "$AGENTCORE_ROLE_ARN" \
   "$RUNTIME_PYTHON_VERSION" "$MCP_GATEWAY_URL" "$AGENT_MODEL_ID" \
-  "$AWS_ACCOUNT" "$AWS_REGION" <<'PYEOF'
+  "$AWS_ACCOUNT" "$AWS_REGION" "$DISCOVERY_URL" "$COGNITO_CLIENT" <<'PYEOF'
 import json, sys
-cfg_path, name, role, pyver, gw_url, model_id, account, region = sys.argv[1:9]
+cfg_path, name, role, pyver, gw_url, model_id, account, region, discovery, client = sys.argv[1:11]
 cfg = json.load(open(cfg_path))
 runtimes = cfg.get("runtimes") or []
 target = next((r for r in runtimes if isinstance(r, dict) and r.get("name") == name), None)
@@ -278,12 +281,20 @@ if target is None and len(runtimes) == 1 and isinstance(runtimes[0], dict):
     target = runtimes[0]
 if target is None:
     sys.exit(f"Could not find runtime '{name}' to patch in {[r.get('name') for r in runtimes]}")
-target["executionRoleArn"] = role
+target["roleArn"] = role                       # NOT executionRoleArn (dat403-proven key)
 target["runtimeVersion"] = pyver
+target["networkMode"] = "PUBLIC"
+target["requestHeaderAllowlist"] = ["Authorization"]
 target["envVars"] = [
     {"name": "MCP_GATEWAY_URL", "value": gw_url},
     {"name": "AGENT_MODEL_ID", "value": model_id},
 ]
+# Re-assert CUSTOM_JWT authorizer in dat403's proven shape if add-agent didn't.
+if discovery and client and not target.get("authorizerConfiguration"):
+    target["authorizerType"] = "CUSTOM_JWT"
+    target["authorizerConfiguration"] = {
+        "customJwtAuthorizer": {"discoveryUrl": discovery, "allowedClients": [client]}
+    }
 json.dump(cfg, open(cfg_path, "w"), indent=2)
 import os
 targets_path = os.path.join(os.path.dirname(cfg_path), "aws-targets.json")

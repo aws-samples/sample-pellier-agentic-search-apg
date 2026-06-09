@@ -102,11 +102,18 @@ def test_uses_create_add_deploy_sequence(path: Path) -> None:
 @pytest.mark.parametrize("path", [DEPLOY_SCRIPT, PROVISIONER], ids=lambda p: p.name)
 def test_patches_role_envvars_runtimeversion(path: Path) -> None:
     text = path.read_text()
-    for field in ("executionRoleArn", "envVars", "runtimeVersion"):
+    # Field spellings match dat403's working config. roleArn (NOT
+    # executionRoleArn) is load-bearing: add agent has no role flag, so the
+    # patch is the only role setter, and the working reference uses roleArn.
+    for field in ("roleArn", "envVars", "runtimeVersion",
+                  "networkMode", "requestHeaderAllowlist"):
         assert field in text, (
             f"{path.name} must patch '{field}' into agentcore.json "
             "(add agent has no flag for it)"
         )
+    assert "executionRoleArn" not in text or "NOT executionRoleArn" in text, (
+        f"{path.name} must use roleArn, not executionRoleArn (dat403-proven key)"
+    )
     for env_key in ("MCP_GATEWAY_URL", "AGENT_MODEL_ID"):
         assert env_key in text, f"{path.name} must set the {env_key} env var"
 

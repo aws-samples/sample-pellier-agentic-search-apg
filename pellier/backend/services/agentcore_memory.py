@@ -175,6 +175,25 @@ class AgentCoreMemory:
             logger.warning("AgentCore MemorySessionManager init failed: %s", exc)
             return None
 
+    @staticmethod
+    def _to_conversational(turn: Dict[str, Any]):
+        """Map a ``{"role","content"}`` dict to the SDK's ConversationalMessage.
+
+        The installed bedrock-agentcore SDK's ``add_turns`` requires
+        ``ConversationalMessage(text, MessageRole)`` objects and RAISES
+        ValueError on a raw dict — passing dicts (the old bug) meant every
+        AgentCore write threw and silently fell back to the in-process store, so
+        the Memory pillar never actually exercised AgentCore. Roles map to
+        USER/ASSISTANT; anything else (e.g. "system") → OTHER."""
+        from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+        role_str = str(turn.get("role", "user")).lower()
+        role = {
+            "user": MessageRole.USER,
+            "assistant": MessageRole.ASSISTANT,
+        }.get(role_str, MessageRole.OTHER)
+        return ConversationalMessage(str(turn.get("content", "")), role)
+
     # ------------------------------------------------------------------
     # Session history (STM)
     # ------------------------------------------------------------------
@@ -202,7 +221,7 @@ class AgentCoreMemory:
                     actor_id=session_ns,
                     session_id=session_ns,
                 )
-                session.add_turns(turns=[turn])
+                session.add_turns(messages=[self._to_conversational(turn)])
                 return
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
@@ -256,15 +275,28 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
+                # SDK param is `namespace_prefix` (NOT `namespace`); returns a
+                # List[MemoryRecord] whose `content` is {"text": "<json>"}.
+                # NOTE: long-term records only exist if the memory was created
+                # WITH an extraction strategy. Pellier provisions STM-only (no
+                # strategies), so this returns [] in practice and prefs round-trip
+                # through the in-process store below. The call is kept correct so
+                # it works unchanged if a USER_PREFERENCE strategy is added later.
                 records = mgr.list_long_term_memory_records(
-                    namespace=key,
+                    namespace_prefix=key,
                     max_results=1,
                 )
                 if records:
-                    payload = records[0].get("content", {})
-                    if isinstance(payload, dict) and payload:
-                        return Preferences.model_validate(payload)
-                return None
+                    content = records[0].get("content", {})
+                    text = content.get("text") if isinstance(content, dict) else None
+                    if text:
+                        import json as _json
+                        try:
+                            payload = _json.loads(text)
+                        except (ValueError, TypeError):
+                            payload = None
+                        if isinstance(payload, dict) and payload:
+                            return Preferences.model_validate(payload)
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
                     "AgentCore get_user_preferences failed for %s: %s — "
@@ -299,12 +331,19 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
+                import json as _json
                 session = mgr.create_memory_session(
                     actor_id=user_id,
                     session_id="preferences",
                 )
+                # add_turns requires ConversationalMessage objects (not dicts).
+                # Serialize the prefs payload to JSON text so get_user_preferences
+                # can json.loads(content.text) symmetrically. Role "system" maps
+                # to MessageRole.OTHER.
                 session.add_turns(
-                    turns=[{"role": "system", "content": payload, "namespace": key}]
+                    messages=[self._to_conversational(
+                        {"role": "system", "content": _json.dumps(payload)}
+                    )]
                 )
                 _PREFS_STORE[key] = payload
                 return prefs_obj
@@ -387,18 +426,23 @@ def get_user_memories(user_id: str) -> List[Dict[str, Any]]:
     try:
         import boto3
 
+        # Data-plane op is `list_memory_records` (keyed by memoryId + namespace);
+        # there is NO `retrieve_memories` op (the prior spelling silently failed
+        # to []). Long-term records only exist on a memory created WITH an
+        # extraction strategy; Pellier's is STM-only, so this returns [] in
+        # practice — kept correct for when a strategy is added.
         client = boto3.client("bedrock-agentcore", region_name=settings.AWS_REGION)
-        response = client.retrieve_memories(
+        response = client.list_memory_records(
             memoryId=settings.AGENTCORE_MEMORY_ID,
-            actorId=user_id,
+            namespace=f"user-{user_id}",
             maxResults=20,
         )
         memories = []
-        for item in response.get("memories", []):
+        for item in response.get("memoryRecordSummaries", response.get("memoryRecords", [])):
             memories.append(
                 {
-                    "id": item.get("memoryId", ""),
-                    "type": item.get("memoryType", "unknown"),
+                    "id": item.get("memoryRecordId", ""),
+                    "type": item.get("memoryStrategyId", "unknown"),
                     "content": item.get("content", ""),
                     "created_at": str(item.get("createdAt", "")),
                     "metadata": item.get("metadata", {}),

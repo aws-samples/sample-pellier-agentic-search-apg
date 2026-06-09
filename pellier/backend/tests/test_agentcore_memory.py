@@ -235,22 +235,27 @@ def test_session_history_scoped_per_user(memory) -> None:
 
 
 def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
-    """The bedrock-agentcore SDK's ``MemorySessionManager.list_long_term_memory_records``
-    takes ``namespace`` (exact-match keyword) + ``max_results`` (keyword)
-    and returns a ``List[MemoryRecord]``. The historic ``namespace_prefix``
-    kwarg is now deprecated in favor of ``namespace`` (exact-match) /
-    ``namespace_path`` (hierarchical prefix); ``memoryId`` and ``maxResults``
-    were never the right names. Pin the call shape so a future SDK bump
-    that changes the signature trips this test instead of warning silently
-    in prod.
+    """Pin the REAL installed-SDK contract for
+    ``MemorySessionManager.list_long_term_memory_records``:
+      * kwarg is ``namespace_prefix`` (NOT ``namespace``) + ``max_results``;
+      * returns a ``List[MemoryRecord]`` whose ``content`` is ``{"text": "<json>"}``.
+
+    This test previously asserted the OPPOSITE (``namespace=``, and that
+    ``namespace_prefix`` was "deprecated") — which was wrong and let the real
+    bug (a ``TypeError`` that silently fell back to the in-process dict) pass CI.
+    Verified against bedrock-agentcore 1.6.3 (session.py:929) and dat403's
+    working 1.8.0 usage. A future SDK bump that changes the signature should
+    trip THIS test, not warn silently in prod.
     """
+    import json
     from services.agentcore_memory import AgentCoreMemory
 
     captured: dict = {}
 
     class _FakeRecord:
-        def __init__(self, content: dict) -> None:
-            self._content = content
+        """Mirrors MemoryRecord: .get('content') -> {'text': '<json string>'}."""
+        def __init__(self, prefs: dict) -> None:
+            self._content = {"text": json.dumps(prefs)}
 
         def get(self, key: str, default=None):
             return {"content": self._content}.get(key, default)
@@ -258,13 +263,11 @@ def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
     class _FakeManager:
         def list_long_term_memory_records(self, **kwargs):
             captured.update(kwargs)
-            # Reject the deprecated / historic kwargs so a regression is loud.
-            assert "memoryId" not in kwargs, "drifted SDK kwarg memoryId"
-            assert "namespace_prefix" not in kwargs, "deprecated SDK kwarg namespace_prefix"
-            assert "maxResults" not in kwargs, "drifted SDK kwarg maxResults"
-            return [
-                _FakeRecord({"vibe": ["minimal"], "colors": ["warm"]}),
-            ]
+            # Reject the wrong kwargs so a regression to them is loud.
+            assert "namespace" not in kwargs, "wrong SDK kwarg 'namespace' (use namespace_prefix)"
+            assert "memoryId" not in kwargs, "wrong SDK kwarg 'memoryId'"
+            assert "maxResults" not in kwargs, "wrong SDK kwarg 'maxResults' (use max_results)"
+            return [_FakeRecord({"vibe": ["minimal"], "colors": ["warm"]})]
 
     mem = AgentCoreMemory(memory_id="mem-test")
     mem._sdk_manager = _FakeManager()
@@ -273,5 +276,5 @@ def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
 
     assert loaded is not None
     assert loaded.vibe == ["minimal"]
-    assert captured["namespace"] == "user:alice:preferences"
+    assert captured["namespace_prefix"] == "user:alice:preferences"
     assert captured["max_results"] == 1

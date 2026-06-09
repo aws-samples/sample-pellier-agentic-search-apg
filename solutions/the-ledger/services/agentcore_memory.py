@@ -165,7 +165,20 @@ class AgentCoreMemory:
                     actor_id=session_ns,
                     session_id=session_ns,
                 )
-                session.add_turns(turns=[turn])
+                # SDK requires ConversationalMessage objects, NOT raw dicts, and
+                # the kwarg is `messages` (not `turns`). Passing dicts raises
+                # ValueError -> silent fallback, so AgentCore STM never persists.
+                from bedrock_agentcore.memory.constants import (
+                    ConversationalMessage,
+                    MessageRole,
+                )
+                _role = {
+                    "user": MessageRole.USER,
+                    "assistant": MessageRole.ASSISTANT,
+                }.get(str(turn.get("role", "user")).lower(), MessageRole.OTHER)
+                session.add_turns(
+                    messages=[ConversationalMessage(str(turn.get("content", "")), _role)]
+                )
                 return
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
@@ -219,17 +232,27 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
+                # SDK signature is (namespace_prefix, strategy_id, max_results)
+                # and returns a List[MemoryRecord] (NOT a dict). The prior
+                # memoryId=/namespace=/maxResults= kwargs raise TypeError.
+                # NOTE: LTM records require an extraction strategy; Pellier's
+                # memory is STM-only, so this returns [] and prefs round-trip via
+                # the in-process store below. Kept correct for a future strategy.
                 records = mgr.list_long_term_memory_records(
-                    memoryId=self._memory_id,
-                    namespace=key,
-                    maxResults=1,
+                    namespace_prefix=key,
+                    max_results=1,
                 )
-                items = records.get("memoryRecords") or records.get("records") or []
-                if items:
-                    payload = items[0].get("content", {})
-                    if isinstance(payload, dict) and payload:
-                        return Preferences.model_validate(payload)
-                return None
+                if records:
+                    content = records[0].get("content", {})
+                    text = content.get("text") if isinstance(content, dict) else None
+                    if text:
+                        import json as _json
+                        try:
+                            payload = _json.loads(text)
+                        except (ValueError, TypeError):
+                            payload = None
+                        if isinstance(payload, dict) and payload:
+                            return Preferences.model_validate(payload)
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
                     "AgentCore get_user_preferences failed for %s: %s — "
@@ -264,12 +287,20 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
+                import json as _json
+                from bedrock_agentcore.memory.constants import (
+                    ConversationalMessage,
+                    MessageRole,
+                )
                 session = mgr.create_memory_session(
                     actor_id=user_id,
                     session_id="preferences",
                 )
+                # ConversationalMessage objects + `messages=` (not dict + `turns=`).
+                # Serialize prefs to JSON text so get_user_preferences can parse
+                # content.text symmetrically.
                 session.add_turns(
-                    turns=[{"role": "system", "content": payload, "namespace": key}]
+                    messages=[ConversationalMessage(_json.dumps(payload), MessageRole.OTHER)]
                 )
                 _PREFS_STORE[key] = payload
                 return prefs_obj
@@ -352,18 +383,22 @@ def get_user_memories(user_id: str) -> List[Dict[str, Any]]:
     try:
         import boto3
 
+        # Real data-plane op is `list_memory_records` (keyed by memoryId +
+        # namespace); there is NO `retrieve_memories` op. LTM records require an
+        # extraction strategy (Pellier is STM-only) so this returns [] in
+        # practice — kept correct for when a strategy is added.
         client = boto3.client("bedrock-agentcore", region_name=settings.AWS_REGION)
-        response = client.retrieve_memories(
+        response = client.list_memory_records(
             memoryId=settings.AGENTCORE_MEMORY_ID,
-            actorId=user_id,
+            namespace=f"user-{user_id}",
             maxResults=20,
         )
         memories = []
-        for item in response.get("memories", []):
+        for item in response.get("memoryRecordSummaries", response.get("memoryRecords", [])):
             memories.append(
                 {
-                    "id": item.get("memoryId", ""),
-                    "type": item.get("memoryType", "unknown"),
+                    "id": item.get("memoryRecordId", ""),
+                    "type": item.get("memoryStrategyId", "unknown"),
                     "content": item.get("content", ""),
                     "created_at": str(item.get("createdAt", "")),
                     "metadata": item.get("metadata", {}),
