@@ -10,8 +10,10 @@
 #   1. Backend /api/health is green (DB connected)
 #   2. Catalog row count == expected (40)
 #   3. Warehouse inventory present (~120 rows)
-#   4. AGENTCORE_MEMORY_ID set in .env
-#   5. AGENTCORE_RUNTIME_ENDPOINT set in .env (optional — warns, doesn't fail)
+#   4. AGENTCORE_MEMORY_ID set in .env            (required — Memory pillar)
+#   5. AGENTCORE_RUNTIME_ENDPOINT set in .env     (required — Runtime pillar)
+#   6. AGENTCORE_POLICY_ENGINE_ID set in .env     (warn — Policy pillar; the
+#      Act II managed-Cedar exercise won't enforce at the Gateway without it)
 #
 # Exit 0 only if all REQUIRED checks pass.
 # =============================================================================
@@ -87,6 +89,16 @@ if [[ -n "${AGENTCORE_RUNTIME_ENDPOINT:-}" ]]; then
 else
   fail "AGENTCORE_RUNTIME_ENDPOINT empty — Act II Runtime invoke cannot run"
   ok=false
+fi
+
+# 6. Managed AgentCore Policy engine (4th pillar). WARN, not fail: the backend
+# and storefront run fine without it, but the Act II managed-Cedar exercise
+# (process_return gated to reason=damaged at the Gateway) won't ENFORCE — so
+# surface it loudly rather than report a false-green "READY".
+if [[ -n "${AGENTCORE_POLICY_ENGINE_ID:-}" ]]; then
+  pass "AGENTCORE_POLICY_ENGINE_ID set (managed Cedar policy attached)"
+else
+  warn "AGENTCORE_POLICY_ENGINE_ID empty — Gateway runs WITHOUT Cedar ENFORCE; the Act II policy ALLOW/DENY beat will not demonstrate. See /var/log/pellier-agentcore.log."
 fi
 
 echo "------------------------------------------------------------"

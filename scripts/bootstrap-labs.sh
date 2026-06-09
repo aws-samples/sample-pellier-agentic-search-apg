@@ -978,6 +978,48 @@ if [ -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ] && [ -x "$REPO_PATH/scripts
 fi
 
 # ============================================================================
+# STEP 17b: PRE-BAKE THE ACT II BEARER TOKEN HELPER
+# ============================================================================
+# The Act II managed-Policy exercise runs on the AUTHENTICATED Gateway rail and
+# needs a Cognito access token. In a self-paced room (no facilitator to unblock
+# a failed `admin-initiate-auth`), typing that command is the #1 friction +
+# failure mode. So we pre-bake a one-command helper that mints a FRESH token
+# (tokens expire ~1h, so we generate on demand rather than bake a stale one):
+#
+#     source ~/pellier-token.sh      # sets $PELLIER_TOKEN for the curl below
+#
+# The participant never types Cognito plumbing — they get the learning (managed
+# Cedar gates at the Gateway), not the auth ceremony. Identity is still REAL:
+# the token is a genuine Cognito JWT the Gateway validates.
+if [ -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ] && [ -n "${COGNITO_POOL:-${COGNITO_POOL_ID:-}}" ]; then
+    log "Writing Act II token helper (~/pellier-token.sh)..."
+    _TOKEN_POOL="${COGNITO_POOL:-${COGNITO_POOL_ID}}"
+    _TOKEN_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
+    cat > "$HOME_FOLDER/pellier-token.sh" <<TOKENEOF
+#!/usr/bin/env bash
+# Mint a fresh Cognito access token for the Act II managed-Policy exercise.
+# Usage:  source ~/pellier-token.sh   (then use \$PELLIER_TOKEN in curl)
+_creds=\$(aws secretsmanager get-secret-value \\
+  --secret-id "$COGNITO_TEST_CREDENTIALS_SECRET_ARN" --region "$AWS_REGION" \\
+  --query SecretString --output text 2>/dev/null)
+_u=\$(echo "\$_creds" | python3 -c 'import sys,json;print(json.load(sys.stdin)["users"][0]["username"])' 2>/dev/null)
+_p=\$(echo "\$_creds" | python3 -c 'import sys,json;print(json.load(sys.stdin)["users"][0]["password"])' 2>/dev/null)
+export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
+  --user-pool-id "$_TOKEN_POOL" --client-id "$_TOKEN_CLIENT" \\
+  --auth-flow ADMIN_USER_PASSWORD_AUTH \\
+  --auth-parameters "USERNAME=\$_u,PASSWORD=\$_p" \\
+  --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null)
+if [ -n "\$PELLIER_TOKEN" ] && [ "\$PELLIER_TOKEN" != "None" ]; then
+  echo "✅ \$PELLIER_TOKEN minted for \$_u (use: -H \"Authorization: Bearer \\\$PELLIER_TOKEN\")"
+else
+  echo "✗ Token mint failed — check Cognito provisioning (/var/log/pellier-agentcore.log)"
+fi
+TOKENEOF
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/pellier-token.sh" 2>/dev/null || true
+    log "✅ Act II token helper ready: source ~/pellier-token.sh"
+fi
+
+# ============================================================================
 # STEP 18: SEED SAMPLE PREFERENCES (users 1-3)
 # ============================================================================
 if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-preferences.sh" ]; then
