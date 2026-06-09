@@ -71,12 +71,38 @@ log "✅ System packages installed"
 # deploy can't run. Everything downstream calls `node`/`npx` on PATH, so it
 # follows whichever got installed.
 # ----------------------------------------------------------------------------
+# This step is intentionally NON-fatal: a NodeSource hiccup must not abort the
+# whole box (the Boutique still works on Node 18; only the managed-Runtime deploy
+# needs 20). We retry NodeSource, and if Node 20 lands we pin it ahead of any
+# distro Node 18 via update-alternatives so downstream `node`/`npx` resolve to
+# 20 deterministically. The hard "is this actually 20?" guard lives at the
+# provisioning call site (bootstrap-labs STEP 16), where aborting just the
+# already-best-effort AgentCore step is the right blast radius. The health gate
+# surfaces an empty AGENTCORE_RUNTIME_ENDPOINT if 20 never arrived.
 log "Installing Node.js 20 (required by @aws/agentcore CLI; AL2023 default is 18)..."
-if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 \
-    && dnf install -y -q nodejs; then
-    log "✅ Node.js installed: $(node --version 2>/dev/null)"
+_node20_ok=false
+for attempt in 1 2; do
+    if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 \
+        && dnf install -y -q nodejs; then
+        _node20_ok=true
+        break
+    fi
+    warn "NodeSource Node 20 install attempt $attempt failed; retrying..."
+    sleep 3
+done
+
+if [ "$_node20_ok" = true ]; then
+    # Pin this node ahead of any distro Node 18 so `node`/`npx` resolve to 20.
+    _node_bin="$(command -v node 2>/dev/null || true)"
+    [ -n "$_node_bin" ] && update-alternatives --install /usr/bin/node node "$_node_bin" 100 >/dev/null 2>&1 || true
+    _node_major="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+    if echo "$_node_major" | grep -qE '^[0-9]+$' && [ "$_node_major" -ge 20 ]; then
+        log "✅ Node.js installed and pinned: $(node --version 2>/dev/null)"
+    else
+        warn "NodeSource reported success but node is $(node --version 2>/dev/null || echo none) (<20). @aws/agentcore Runtime deploy will fail until Node 20 is on PATH."
+    fi
 else
-    warn "NodeSource Node 20 install failed — falling back to AL2023 default nodejs (Node 18). The @aws/agentcore Runtime deploy will NOT work on Node 18; the frontend build still will."
+    warn "NodeSource Node 20 install failed after retries — falling back to AL2023 default nodejs (Node 18). The @aws/agentcore Runtime deploy will NOT work on Node 18; the Boutique + frontend build still will. Re-run 'curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y nodejs' then re-provision."
     dnf install --skip-broken -y -q nodejs
     warn "Node version: $(node --version 2>/dev/null || echo 'none')"
 fi

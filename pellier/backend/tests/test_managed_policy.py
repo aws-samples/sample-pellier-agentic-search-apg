@@ -34,8 +34,14 @@ DEPLOY_GATEWAY = DEPLOY / "deploy_gateway.py"
 PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
 DEPLOY_ALL = DEPLOY / "deploy_all.sh"
 
-# Cedar action spelling is <lambda-function-name>___<tool-name> (triple _).
-EXPECTED_ACTION = "pellier-experience-server-function___process_return"
+# Cedar action spelling is keyed on the Gateway TARGET name (what the Gateway
+# registers tools under), NOT the Lambda function name. The live GA engine
+# rejected the function-name form on a fresh account; the verified dat403
+# contract is <gateway-target-name>___<tool-name> (triple _). deploy_policy.py
+# tries that first, then <target>__<tool>, then defers to the engine's own
+# "did you mean" hint — so the action prefix below must be the TARGET name.
+EXPERIENCE_TARGET = "pellier-concierge-experience-target"
+EXPECTED_ACTION = f"{EXPERIENCE_TARGET}___process_return"
 
 
 # ---------------------------------------------------------------------------
@@ -94,10 +100,32 @@ def test_deploy_policy_exists_and_uses_ga_contract() -> None:
 
 def test_deploy_policy_gates_process_return_to_damaged() -> None:
     src = DEPLOY_POLICY.read_text()
-    assert EXPECTED_ACTION in src, f"Cedar action must be {EXPECTED_ACTION}"
+    # The action prefix is the Gateway TARGET name (the dat403-verified contract),
+    # not the Lambda function name. The literal action string is now assembled at
+    # runtime from candidate_actions, so assert the target-name default is present.
+    assert EXPERIENCE_TARGET in src, (
+        f"Cedar action prefix must be the Gateway target name {EXPERIENCE_TARGET}"
+    )
+    assert "___process_return" in src, "primary candidate must be target___tool (triple _)"
+    # Must NOT regress to the Lambda-function-name action that the live engine rejected.
+    assert "pellier-experience-server-function___process_return" not in src, (
+        "must not use the Lambda function name as the Cedar action prefix — "
+        "the GA engine rejects it; key on the Gateway target name"
+    )
     assert "forbid(" in src and 'reason != "damaged"' in src, (
         "must FORBID process_return unless reason == 'damaged'"
     )
+
+
+def test_deploy_policy_self_corrects_action_identifier() -> None:
+    """The action identifier the GA engine accepts has drifted across API
+    revisions, so deploy_policy.py must self-correct: try candidates, then parse
+    the engine's 'did you mean' hint and retry with the exact token."""
+    src = DEPLOY_POLICY.read_text()
+    assert "_extract_suggested_action" in src, (
+        "must parse the engine's 'did you mean' hint to recover the accepted action"
+    )
+    assert "candidate_actions" in src, "must try multiple candidate action formats"
 
 
 def test_deploy_policy_compiles_and_exposes_helpers() -> None:
@@ -108,7 +136,8 @@ def test_deploy_policy_compiles_and_exposes_helpers() -> None:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     for fn in ("create_or_reuse_engine", "create_or_reuse_policy",
-               "create_pellier_policies", "attach_engine_to_gateway"):
+               "create_pellier_policies", "attach_engine_to_gateway",
+               "create_action_policy_with_fallback", "_extract_suggested_action"):
         assert hasattr(mod, fn), f"deploy_policy.py must define {fn}"
 
 

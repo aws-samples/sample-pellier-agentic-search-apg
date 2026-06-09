@@ -263,3 +263,49 @@ def test_orchestrator_constructed_only_for_agents_as_tools() -> None:
         "create_orchestrator() is called before pattern normalization — "
         "dispatcher turns would construct an unused orchestrator"
     )
+
+
+# ---------------------------------------------------------------------------
+# In-process Aurora tool_audit wiring — the decoupled Act II evidence proof
+# ---------------------------------------------------------------------------
+#
+# The mandatory Act II proof ("Aurora as agent system-of-record") reads a
+# pellier.tool_audit row. That row must populate on the ORDINARY in-process
+# storefront turn — no token, no Gateway, no managed Policy engine — so the
+# proof is robust to the managed path failing to provision. The audit write
+# lives in the streaming hook (_attach_streaming_and_hooks). These tests pin
+# that wiring so a future hook refactor can't silently re-empty the ledger.
+#
+# chat_module_source has comments + docstrings STRIPPED, so a match here is a
+# real code reference (record_allow/record_after actually invoked), not a
+# mention in prose.
+
+
+def test_inprocess_hook_writes_tool_audit(chat_module_source: str) -> None:
+    """The streaming hooks must invoke the tool_audit writer on both the
+    Before (INSERT) and After (UPDATE) tool events — this is what makes the
+    Act II SQL proof populate on the default storefront rail."""
+    assert "tool_audit_writer" in chat_module_source, (
+        "chat.py no longer references tool_audit_writer — the in-process "
+        "audit write was removed; the Act II tool_audit proof would return "
+        "zero rows on the default (non-Gateway) turn."
+    )
+    assert "record_allow(" in chat_module_source, (
+        "BeforeToolCall hook must call tool_audit_writer.record_allow to "
+        "INSERT the placeholder audit row before the tool runs."
+    )
+    assert "record_after(" in chat_module_source, (
+        "AfterToolCall hook must call tool_audit_writer.record_after to "
+        "UPDATE the audit row with result + latency."
+    )
+
+
+def test_dispatcher_path_attaches_audit_hooks(chat_module_source: str) -> None:
+    """All three patterns route through _attach_streaming_and_hooks, which is
+    where the audit write lives — so the dispatcher (storefront default,
+    where Marco's floor_check runs) audits too, not just agents_as_tools."""
+    # The helper is defined once and attached on each pattern branch.
+    assert chat_module_source.count("_attach_streaming_and_hooks(orchestrator)") >= 2, (
+        "the audit-bearing hook helper must be attached on the dispatcher and "
+        "graph branches, not only agents_as_tools"
+    )

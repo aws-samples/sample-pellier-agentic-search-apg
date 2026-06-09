@@ -868,10 +868,56 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     export COGNITO_POOL="${COGNITO_POOL:-${COGNITO_POOL_ID:-${COGNITO_USER_POOL_ID:-}}}"
     export COGNITO_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
 
+    # Persist every provisioning INPUT to a recovery file so an operator can
+    # re-run scripts/deploy/deploy_all.sh by hand if STEP 16 fails. These come
+    # from CFN outputs and are in scope only here in UserData — they are NOT in
+    # backend/.env (which holds runtime config, not provisioning inputs) and
+    # vanish from an interactive shell. deploy_all.sh auto-sources this file.
+    # Written BEFORE provisioning runs so it exists even on a failed deploy.
+    PROVISION_ENV="$REPO_PATH/.provision.env"
+    cat > "$PROVISION_ENV" << EOF
+# Pellier provisioning inputs (CFN outputs) — auto-sourced by scripts/deploy/deploy_all.sh.
+# Written by bootstrap-labs.sh STEP 16. Safe to re-source; contains no secrets
+# beyond ARNs (the actual DB password lives in Secrets Manager, referenced by ARN).
+export AWS_REGION='${AWS_REGION}'
+export AWS_DEFAULT_REGION='${AWS_REGION}'
+export STACKNAME='${STACKNAME:-${WORKSHOP_STACK_NAME:-}}'
+export PGHOSTARN='${DB_CLUSTER_ARN:-}'
+export PGSECRET='${DB_SECRET_ARN:-}'
+export PGDATABASE='${DB_NAME:-pellier}'
+export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
+export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+export DB_NAME='${DB_NAME:-pellier}'
+export COGNITO_POOL='${COGNITO_POOL:-}'
+export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
+export AGENTCORE_ROLE_ARN='${AGENTCORE_ROLE_ARN:-}'
+export COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}'
+export COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
+EOF
+    chmod 600 "$PROVISION_ENV" 2>/dev/null || true
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PROVISION_ENV" 2>/dev/null || true
+    log "Wrote provisioning recovery file: $PROVISION_ENV"
+
     if ! command -v npx &>/dev/null || ! command -v python3 &>/dev/null; then
         warn "Missing npx or python3 — skipping managed AgentCore provisioning (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
         AGENTCORE_OK=false
+    fi
+
+    # Hard Node-20 guard. @aws/agentcore@0.18 uses the regex `v` flag, which
+    # Node 18 cannot parse — the CLI dies with "SyntaxError: Invalid regular
+    # expression flags" at module load, BEFORE doing anything, so the Runtime
+    # never deploys and AGENTCORE_RUNTIME_ENDPOINT stays empty. If the
+    # NodeSource install in bootstrap-environment.sh fell back to Node 18, skip
+    # provisioning cleanly here (the box + Boutique still work; the health gate
+    # flags the missing Runtime) instead of writing a misleading half-failure.
+    if [ "$AGENTCORE_OK" = true ]; then
+        _ac_node_major="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+        if ! echo "$_ac_node_major" | grep -qE '^[0-9]+$' || [ "$_ac_node_major" -lt 20 ]; then
+            warn "Node $(node --version 2>/dev/null || echo 'none') (<20) — @aws/agentcore Runtime deploy cannot run. Skipping managed AgentCore provisioning; Boutique still starts. Fix: install Node 20 (see bootstrap-environment.sh) and re-run scripts/deploy/deploy_all.sh."
+            write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
+            AGENTCORE_OK=false
+        fi
     fi
 
     # Tee the full provisioning run (incl. `agentcore deploy` stdout/stderr) to
@@ -880,7 +926,8 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     # log. pipefail propagates the python3 exit status through the pipe.
     AGENTCORE_LOG="/var/log/pellier-agentcore.log"
     if [ "$AGENTCORE_OK" = true ] && ! sudo -u "$CODE_EDITOR_USER" bash -c "
-        export PATH=\"\$HOME/.local/bin:\$PATH\"
+        export PATH=\"/usr/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH\"
+        node --version  # log the node the CLI will actually use
         export AWS_REGION='$AWS_REGION'
         export AWS_DEFAULT_REGION='$AWS_REGION'
         export REPO_PATH='$REPO_PATH'

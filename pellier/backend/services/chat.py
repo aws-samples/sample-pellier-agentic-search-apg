@@ -1847,11 +1847,36 @@ CURRENT REQUEST: {message}"""
             agent.callback_handler = streaming_callback
             try:
                 from strands.hooks.events import BeforeToolCallEvent, AfterToolCallEvent
+                from services import tool_audit_writer
+
+                # Per-toolUseId start times so the After hook can compute
+                # latency_ms. Bounded implicitly by the audit writer's own
+                # pending-map cap; entries are popped in the After hook.
+                _tool_t0: Dict[str, float] = {}
 
                 def on_before_tool(event: BeforeToolCallEvent):
-                    tool_name = ""
-                    if hasattr(event, 'tool_use') and isinstance(event.tool_use, dict):
-                        tool_name = event.tool_use.get("name", "")
+                    tool_use = getattr(event, "tool_use", None) or {}
+                    tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
+                    tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
+                    tool_args = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+                    # Aurora system-of-record write: INSERT a placeholder
+                    # tool_audit row BEFORE the tool body runs (result/latency
+                    # filled in by the After hook). This is the in-process rail's
+                    # own audit — independent of the managed Gateway/Policy path,
+                    # so the Act II SQL proof works on the default (anonymous)
+                    # storefront turn with no token and no Gateway.
+                    if tool_use_id and tool_name:
+                        _tool_t0[tool_use_id] = time.perf_counter()
+                        try:
+                            tool_audit_writer.record_allow(
+                                tool_use_id=tool_use_id,
+                                tool_name=tool_name,
+                                caller="agent",
+                                args=tool_args if isinstance(tool_args, dict) else {"_raw": str(tool_args)},
+                                session_id=session_id,
+                            )
+                        except Exception as exc:  # audit is decoration, never fatal
+                            logger.debug("in-process tool_audit record_allow failed: %s", exc)
                     if tool_name:
                         try:
                             asyncio.run_coroutine_threadsafe(
@@ -1861,13 +1886,13 @@ CURRENT REQUEST: {message}"""
                             pass
 
                 def on_after_tool(event: AfterToolCallEvent):
-                    tool_name = ""
-                    if hasattr(event, 'tool_use') and isinstance(event.tool_use, dict):
-                        tool_name = event.tool_use.get("name", "")
+                    tool_use = getattr(event, "tool_use", None) or {}
+                    tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
+                    tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
                     # Extract the actual tool result text from the Strands SDK result structure
                     result_str = ""
-                    if hasattr(event, 'result') and event.result is not None:
-                        raw = event.result
+                    raw = getattr(event, "result", None)
+                    if raw is not None:
                         if isinstance(raw, dict) and 'content' in raw:
                             for block in raw.get('content', []):
                                 if isinstance(block, dict) and 'text' in block:
@@ -1875,6 +1900,27 @@ CURRENT REQUEST: {message}"""
                                     break
                         if not result_str:
                             result_str = str(raw)
+                    # Aurora system-of-record write: UPDATE the placeholder row
+                    # with the tool's result + latency. The stored result is the
+                    # parsed text (JSON for tools like process_return), so
+                    # result->>'return_id' is queryable in the Act II proof.
+                    if tool_use_id:
+                        t0 = _tool_t0.pop(tool_use_id, None)
+                        latency_ms = int((time.perf_counter() - t0) * 1000) if t0 else 0
+                        audited_result: Any = result_str
+                        if isinstance(result_str, str) and result_str.strip().startswith("{"):
+                            try:
+                                audited_result = json.loads(result_str)
+                            except Exception:
+                                audited_result = result_str
+                        try:
+                            tool_audit_writer.record_after(
+                                tool_use_id=tool_use_id,
+                                result=audited_result,
+                                latency_ms=latency_ms,
+                            )
+                        except Exception as exc:
+                            logger.debug("in-process tool_audit record_after failed: %s", exc)
                     try:
                         asyncio.run_coroutine_threadsafe(
                             queue.put({"_tool_done": tool_name, "_result": result_str}), loop
@@ -1887,12 +1933,15 @@ CURRENT REQUEST: {message}"""
             except (ImportError, AttributeError) as e:
                 logger.warning(f"Strands hooks not available, falling back: {e}")
 
-            # Policy enforcement is no longer an in-process hook. The
-            # boutique's tool-call gate is the managed AgentCore Policy
-            # engine (Cedar, ENFORCE mode) attached to the Gateway —
-            # it evaluates every tool call argument-aware, default-deny,
-            # forbid-wins, BEFORE the tool's Lambda runs. There is one
-            # gate now (managed), not a local/managed hybrid.
+            # Policy ENFORCEMENT is not an in-process hook: the managed
+            # AgentCore Policy engine (Cedar, ENFORCE) at the Gateway is the
+            # single gate. What the hooks above DO write is the Aurora
+            # ``tool_audit`` evidence row for every tool the in-process rail
+            # runs — audit, not enforcement. This is deliberately decoupled so
+            # the Act II "Aurora as system-of-record" SQL proof populates on the
+            # ordinary storefront turn, independent of whether the managed
+            # Gateway/Policy path provisioned. The Gateway Lambda writes its own
+            # row on the authenticated rail; both rails feed the same ledger.
 
         # For Pattern I (``agents_as_tools``) the orchestrator is
         # already constructed at this point; attach the streaming and

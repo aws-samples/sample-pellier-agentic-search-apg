@@ -55,6 +55,51 @@ echo "=============================================="
 echo ""
 
 # ------------------------------------------------------------------
+# 0. Resolve provisioning inputs (operator-friendly recovery)
+# ------------------------------------------------------------------
+# This script needs 8 CFN-output vars that bootstrap had in scope but that are
+# NOT in an interactive operator's shell. bootstrap-labs.sh STEP 16 writes them
+# to ../../.provision.env; auto-source it so a manual re-run "just works" after
+# a failed unattended deploy. Then validate and, if anything is still missing,
+# print precise guidance and exit cleanly instead of crashing on `set -u` with
+# an opaque "PGHOSTARN: unbound variable".
+_REPO_ROOT="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd || echo "")"
+if [ -n "$_REPO_ROOT" ] && [ -f "$_REPO_ROOT/.provision.env" ]; then
+    echo "Sourcing provisioning inputs from $_REPO_ROOT/.provision.env ..."
+    # shellcheck disable=SC1091
+    set +u; . "$_REPO_ROOT/.provision.env"; set -u
+fi
+
+_missing=()
+for _v in PGHOSTARN PGSECRET PGDATABASE AWS_REGION COGNITO_POOL COGNITO_CLIENT AGENTCORE_ROLE_ARN; do
+    # `set -u` is active, so test via indirect default-expansion (no crash).
+    if [ -z "$(eval "printf '%s' \"\${$_v:-}\"")" ]; then
+        _missing+=("$_v")
+    fi
+done
+
+if [ "${#_missing[@]}" -gt 0 ]; then
+    echo ""
+    echo "❌ Missing required provisioning inputs: ${_missing[*]}"
+    echo ""
+    echo "These come from the workshop CloudFormation outputs. On a Workshop"
+    echo "Studio box bootstrap writes them to ${_REPO_ROOT:-<repo>}/.provision.env"
+    echo "automatically — if that file is absent, provisioning never reached"
+    echo "STEP 16. Recover by exporting them, then re-run 'source deploy_all.sh':"
+    echo ""
+    for _v in "${_missing[@]}"; do
+        echo "  export $_v=<value-from-CloudFormation-Outputs>"
+    done
+    echo ""
+    echo "(PGHOSTARN = Aurora cluster ARN, PGSECRET = master-secret ARN,"
+    echo " AGENTCORE_ROLE_ARN = the bedrock-agentcore execution role.)"
+    # Return (sourced) or exit (executed) without the ugly unbound-variable trap.
+    return 1 2>/dev/null || exit 1
+fi
+echo "✅ Provisioning inputs validated."
+echo ""
+
+# ------------------------------------------------------------------
 # 1. Deploy Search Lambda MCP Server
 # ------------------------------------------------------------------
 # `deploy_lambda.py` zips the MCP server + dependencies, creates (or
