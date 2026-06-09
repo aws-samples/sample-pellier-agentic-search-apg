@@ -307,6 +307,36 @@ class BazaarGatewayDeployer:
             pass
         return None
 
+    def _role_policy_doc(self, lambda_arns: List[str]) -> dict:
+        """Inline policy for the gateway execution role.
+
+        Beyond invoking the target Lambdas + logging, the gateway role needs the
+        managed-Policy EVALUATION permissions so it can enforce Cedar on every
+        tool call (the 4th pillar). Per the AgentCore Policy docs + the dat403
+        reference, these four must be on Resource:"*" — the eval resource path is
+        ``policy-engines/<id>/target-resource/<encoded-gw-arn>``, which a narrow
+        ARN pattern does NOT match (the call then fails AccessDenied, and a
+        missing GetPolicyEngine fails silently even in MONITOR mode).
+        """
+        return {
+            "Version": "2012-10-17",
+            "Statement": [
+                {"Effect": "Allow", "Action": ["lambda:InvokeFunction"], "Resource": lambda_arns},
+                {"Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*"},
+                {
+                    "Sid": "ManagedPolicyEvaluation",
+                    "Effect": "Allow",
+                    "Action": [
+                        "bedrock-agentcore:AuthorizeAction",
+                        "bedrock-agentcore:GetPolicyEngine",
+                        "bedrock-agentcore:CheckAuthorizePermissions",
+                        "bedrock-agentcore:PartiallyAuthorizeActions",
+                    ],
+                    "Resource": "*",
+                },
+            ],
+        }
+
     def _ensure_role(self, lambda_arns: List[str]) -> str:
         role_name = self.config.role_name
         trust = {
@@ -315,13 +345,7 @@ class BazaarGatewayDeployer:
                 {"Effect": "Allow", "Principal": {"Service": "bedrock-agentcore.amazonaws.com"}, "Action": "sts:AssumeRole"}
             ],
         }
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Action": ["lambda:InvokeFunction"], "Resource": lambda_arns},
-                {"Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*"},
-            ],
-        }
+        policy = self._role_policy_doc(lambda_arns)
         try:
             resp = self.iam.create_role(RoleName=role_name, AssumeRolePolicyDocument=json.dumps(trust))
             role_arn = resp["Role"]["Arn"]
@@ -336,14 +360,11 @@ class BazaarGatewayDeployer:
         return role_arn
 
     def _update_role_policy(self, lambda_arns: List[str]):
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Action": ["lambda:InvokeFunction"], "Resource": lambda_arns},
-                {"Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*"},
-            ],
-        }
-        self.iam.put_role_policy(RoleName=self.config.role_name, PolicyName=f"{self.config.role_name}-policy", PolicyDocument=json.dumps(policy))
+        self.iam.put_role_policy(
+            RoleName=self.config.role_name,
+            PolicyName=f"{self.config.role_name}-policy",
+            PolicyDocument=json.dumps(self._role_policy_doc(lambda_arns)),
+        )
 
     def _create_gateway(self, role_arn: str) -> str:
         params = {
