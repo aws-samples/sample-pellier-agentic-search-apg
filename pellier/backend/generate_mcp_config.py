@@ -11,7 +11,7 @@ Environment Variables Required (set by bootstrap-labs.sh):
 - DB_CLUSTER_ARN: Aurora cluster ARN
 - DB_SECRET_ARN: Secrets Manager ARN for database credentials
 - DB_NAME: Database name (default: postgres)
-- AWS_REGION: AWS region (default: us-west-2)
+- AWS_REGION: AWS region (default: us-east-1)
 """
 
 import json
@@ -27,7 +27,7 @@ def generate_mcp_config():
     db_cluster_arn = os.environ.get('DB_CLUSTER_ARN')
     db_secret_arn = os.environ.get('DB_SECRET_ARN')
     db_name = os.environ.get('DB_NAME', 'postgres')
-    aws_region = os.environ.get('AWS_REGION', 'us-west-2')
+    aws_region = os.environ.get('AWS_REGION', 'us-east-1')
     
     # Validate required variables
     if not db_cluster_arn:

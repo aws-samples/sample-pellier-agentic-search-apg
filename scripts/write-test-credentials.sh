@@ -13,7 +13,7 @@
 
 set -uo pipefail
 
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 CODE_EDITOR_USER="${CODE_EDITOR_USER:-workshop}"
 HOME_FOLDER="${HOME_FOLDER:-/home/$CODE_EDITOR_USER}"
 OUT_FILE="${OUT_FILE:-$HOME_FOLDER/test-credentials.txt}"

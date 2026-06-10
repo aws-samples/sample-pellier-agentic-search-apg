@@ -168,7 +168,7 @@ def main() -> int:
         )
         return 1
 
-    region = os.environ.get("AWS_REGION", "us-west-2")
+    region = os.environ.get("AWS_REGION", "us-east-1")
     plan = {
         "samples": args.samples,
         "cooldown_seconds": args.cooldown_seconds,

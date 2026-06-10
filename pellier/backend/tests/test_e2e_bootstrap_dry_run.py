@@ -83,11 +83,11 @@ def teardown():
 def valid_env(monkeypatch):
     """A full set of env vars that satisfies both scripts."""
     values = {
-        "E2E_COGNITO_POOL_ID": "us-west-2_devPool123",
+        "E2E_COGNITO_POOL_ID": "us-east-1_devPool123",
         "E2E_COGNITO_CLIENT_ID": "dev-client-abc",
         "E2E_TEST_USER_EMAIL": "e2e+runner@example.com",
         "E2E_TEST_USER_PASSWORD": "C0rrectH0rse!Battery",
-        "E2E_AWS_REGION": "us-west-2",
+        "E2E_AWS_REGION": "us-east-1",
     }
     # Clear any lingering values from the host environment so tests are
     # deterministic, then install the fixture values.
@@ -175,11 +175,11 @@ def test_teardown_exits_on_missing_env(teardown, monkeypatch, capsys):
 @pytest.mark.parametrize(
     "pool_id",
     [
-        "us-west-2_prodPool",
-        "us-west-2_PRODpool",
-        "us-west-2_production-users",
-        "us-west-2_PRD_pool",
-        "us-west-2_appPrdPool",
+        "us-east-1_prodPool",
+        "us-east-1_PRODpool",
+        "us-east-1_production-users",
+        "us-east-1_PRD_pool",
+        "us-east-1_appPrdPool",
     ],
 )
 def test_prod_guard_rejects_denylisted_pool(bootstrap, pool_id, capsys):
@@ -194,10 +194,10 @@ def test_prod_guard_rejects_denylisted_pool(bootstrap, pool_id, capsys):
 @pytest.mark.parametrize(
     "pool_id",
     [
-        "us-west-2_devPool",
+        "us-east-1_devPool",
         "us-east-1_StagingPool",
         "eu-west-1_sandbox",
-        "us-west-2_testPool42",
+        "us-east-1_testPool42",
     ],
 )
 def test_prod_guard_allows_non_production_pools(bootstrap, pool_id):
@@ -274,11 +274,11 @@ def test_bootstrap_dry_run_writes_out_file(
 def test_bootstrap_dry_run_respects_prod_guard(
     bootstrap, monkeypatch, capsys
 ):
-    monkeypatch.setenv("E2E_COGNITO_POOL_ID", "us-west-2_prodUsers")
+    monkeypatch.setenv("E2E_COGNITO_POOL_ID", "us-east-1_prodUsers")
     monkeypatch.setenv("E2E_COGNITO_CLIENT_ID", "client")
     monkeypatch.setenv("E2E_TEST_USER_EMAIL", "x@example.com")
     monkeypatch.setenv("E2E_TEST_USER_PASSWORD", "pw")
-    monkeypatch.setenv("E2E_AWS_REGION", "us-west-2")
+    monkeypatch.setenv("E2E_AWS_REGION", "us-east-1")
 
     with pytest.raises(SystemExit) as exc_info:
         bootstrap.main(["--dry-run"])
@@ -303,9 +303,9 @@ def test_teardown_dry_run_does_not_touch_boto3(
 def test_teardown_dry_run_respects_prod_guard(
     teardown, monkeypatch, capsys
 ):
-    monkeypatch.setenv("E2E_COGNITO_POOL_ID", "us-west-2_ProductionUsers")
+    monkeypatch.setenv("E2E_COGNITO_POOL_ID", "us-east-1_ProductionUsers")
     monkeypatch.setenv("E2E_TEST_USER_EMAIL", "x@example.com")
-    monkeypatch.setenv("E2E_AWS_REGION", "us-west-2")
+    monkeypatch.setenv("E2E_AWS_REGION", "us-east-1")
 
     with pytest.raises(SystemExit) as exc_info:
         teardown.main(["--dry-run"])

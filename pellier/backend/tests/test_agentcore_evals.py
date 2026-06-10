@@ -65,7 +65,7 @@ def test_describe_configuration_envelope_shape(
     monkeypatch.setattr(
         settings,
         "AGENTCORE_EVALS_DATASET_ARN",
-        "arn:aws:bedrock:us-west-2:123456789012:agent-evaluation-dataset/demo",
+        "arn:aws:bedrock:us-east-1:123456789012:agent-evaluation-dataset/demo",
         raising=False,
     )
     monkeypatch.setattr(
@@ -91,7 +91,7 @@ def test_error_when_runtime_arn_missing(
     monkeypatch.setattr(
         settings,
         "AGENTCORE_EVALS_DATASET_ARN",
-        "arn:aws:bedrock:us-west-2:123456789012:agent-evaluation-dataset/demo",
+        "arn:aws:bedrock:us-east-1:123456789012:agent-evaluation-dataset/demo",
         raising=False,
     )
     monkeypatch.setattr(
@@ -112,7 +112,7 @@ class _FakeClient:
         self.calls.append(kwargs)
         return {
             "evaluationJobArn": (
-                "arn:aws:bedrock:us-west-2:123456789012:evaluation-job/demo-1"
+                "arn:aws:bedrock:us-east-1:123456789012:evaluation-job/demo-1"
             )
         }
 
@@ -127,7 +127,7 @@ def test_submit_calls_create_evaluation_job_once(
     monkeypatch.setattr(
         settings,
         "AGENTCORE_EVALS_DATASET_ARN",
-        "arn:aws:bedrock:us-west-2:123456789012:agent-evaluation-dataset/demo",
+        "arn:aws:bedrock:us-east-1:123456789012:agent-evaluation-dataset/demo",
         raising=False,
     )
     monkeypatch.setattr(
@@ -139,7 +139,7 @@ def test_submit_calls_create_evaluation_job_once(
     monkeypatch.setattr(
         settings,
         "AGENTCORE_RUNTIME_ENDPOINT",
-        "arn:aws:bedrock:us-west-2:123456789012:agent-runtime/pellier",
+        "arn:aws:bedrock:us-east-1:123456789012:agent-runtime/pellier",
         raising=False,
     )
 

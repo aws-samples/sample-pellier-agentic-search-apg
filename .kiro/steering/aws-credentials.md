@@ -16,7 +16,7 @@ Once set up, you never see `ExpiredTokenException` again — every AWS SDK call 
 
    ```ini
    [profile dat4]
-   region = us-west-2
+   region = us-east-1
    credential_process = /Users/<you>/bin/ada-credentials-json
    ```
 

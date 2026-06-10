@@ -51,7 +51,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize Bedrock client
-bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REGION', 'us-west-2'))
+bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
 
 
 def generate_embedding(text: str) -> Optional[list]:
@@ -245,7 +245,7 @@ def main():
                        help='Batch size for database inserts')
     parser.add_argument('--limit', type=int, default=None, 
                        help='Limit number of products to process (for testing)')
-    parser.add_argument('--region', type=str, default='us-west-2', 
+    parser.add_argument('--region', type=str, default='us-east-1', 
                        help='AWS region for Bedrock')
     parser.add_argument('--skip-generate', action='store_true',
                        help='Skip embedding generation (only store existing embeddings)')

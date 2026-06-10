@@ -14,7 +14,7 @@ import sys
 
 import boto3
 
-REGION = "us-west-2"
+REGION = "us-east-1"
 
 MODELS = [
     {
@@ -74,7 +74,7 @@ MODELS = [
         # inaccessible, /api/health reports bedrock:inaccessible and search fails.
         #
         # Cohere Embed v4 (enabled in Workshop Studio). The backend calls this in
-        # us-west-2 via config.BEDROCK_EMBEDDING_MODEL = "us.cohere.embed-v4:0",
+        # us-east-1 via config.BEDROCK_EMBEDDING_MODEL = "us.cohere.embed-v4:0",
         # so the probe must only accept forms that MATCH that config: the US
         # cross-region inference profile and (if the account exposes it) the bare
         # on-demand id. We deliberately do NOT probe eu./apac./global. — a non-US

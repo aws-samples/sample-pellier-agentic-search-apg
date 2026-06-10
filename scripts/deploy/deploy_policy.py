@@ -35,7 +35,7 @@ Usage:
     uv run scripts/deploy/deploy_policy.py \
         --gateway-id <gateway-id> \
         --gateway-arn <gateway-arn> \
-        --region us-west-2 \
+        --region us-east-1 \
         [--experience-target-name pellier-concierge-experience-target] \
         [--mode ENFORCE]
 
@@ -333,7 +333,7 @@ def main():
     parser = argparse.ArgumentParser(description="Deploy the managed AgentCore Policy Engine for Pellier")
     parser.add_argument("--gateway-id", required=True, help="AgentCore Gateway ID")
     parser.add_argument("--gateway-arn", required=True, help="AgentCore Gateway ARN")
-    parser.add_argument("--region", default="us-west-2", help="AWS region")
+    parser.add_argument("--region", default="us-east-1", help="AWS region")
     parser.add_argument("--mode", default="ENFORCE", choices=["ENFORCE", "MONITOR"],
                         help="ENFORCE blocks denied calls; MONITOR only logs")
     parser.add_argument("--experience-target-name", default=EXPERIENCE_TARGET,

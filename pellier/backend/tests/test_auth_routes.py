@@ -64,11 +64,11 @@ from routes.auth import (
 # Test pool identity — mirrors test_cognito_auth.py
 # ---------------------------------------------------------------------------
 
-POOL_ID = "us-west-2_TESTPOOL"
-REGION = "us-west-2"
+POOL_ID = "us-east-1_TESTPOOL"
+REGION = "us-east-1"
 CLIENT_ID = "test-client-id"
 CLIENT_SECRET = "test-client-secret"
-COGNITO_DOMAIN = "test.auth.us-west-2.amazoncognito.com"
+COGNITO_DOMAIN = "test.auth.us-east-1.amazoncognito.com"
 APP_BASE_URL = "https://storefront.test"
 OAUTH_REDIRECT_URI = "https://api.test/api/auth/callback"
 ISSUER = f"https://cognito-idp.{REGION}.amazonaws.com/{POOL_ID}"

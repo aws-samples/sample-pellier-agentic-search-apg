@@ -20,7 +20,7 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 MEMORY_NAME = "pellier_local"
-REGION = "us-west-2"
+REGION = "us-east-1"
 ENV_FILE = _BACKEND_ROOT / ".env"
 
 

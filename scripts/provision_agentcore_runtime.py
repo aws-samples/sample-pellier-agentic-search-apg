@@ -32,7 +32,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REGION = os.environ.get("AWS_REGION", "us-west-2")
+REGION = os.environ.get("AWS_REGION", "us-east-1")
 REPO = Path(os.environ.get("REPO_PATH", ".")).resolve()
 BACKEND = REPO / "pellier" / "backend"
 ROLE_NAME = "pellier-agentcore-runtime-execution"

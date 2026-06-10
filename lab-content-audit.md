@@ -572,7 +572,7 @@ The new `@aws/agentcore` Node CLI changed the deploy ergonomics enough that the 
 | Aurora cluster ARN + secret | CFN outputs `PGHOSTARN`, `PGSECRET`, `PGDATABASE` |
 | AgentCore execution role | CFN output `AGENTCORE_ROLE_ARN` (trust policy: `bedrock-agentcore.amazonaws.com`) |
 | Stack name | CFN output `STACKNAME` (used for the smoke-test user lookup) |
-| Region | `us-west-2` (AgentCore GA region) |
+| Region | `us-east-1` (AgentCore GA region) |
 
 The Workshop Studio AMI ships with `agentcore` (Node CLI) preinstalled. Verify before starting:
 
@@ -599,10 +599,10 @@ npm install -g @aws/agentcore
 `AGENTCORE_MEMORY_ID` is read at backend boot time (`config.py:178`); when unset, `AgentCoreMemoryService` falls back to in-process dicts and the four-substrate panels show `fixture` provenance. To test the live path:
 
 ```bash
-# us-west-2; one memory per workshop account is enough.
+# us-east-1; one memory per workshop account is enough.
 python3.13 - <<'PY'
 import boto3, sys
-client = boto3.client("bedrock-agentcore-control", region_name="us-west-2")
+client = boto3.client("bedrock-agentcore-control", region_name="us-east-1")
 
 # Idempotent: reuse if a PellierSTM memory already exists.
 for mem in client.list_memories(maxResults=20).get("memories", []):
@@ -647,7 +647,7 @@ export COGNITO_CLIENT=$(aws cloudformation describe-stacks --stack-name "$STACKN
   --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text)
 export AGENTCORE_ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "$STACKNAME" \
   --query 'Stacks[0].Outputs[?OutputKey==`AgentCoreExecutionRoleArn`].OutputValue' --output text)
-export AWS_REGION=us-west-2
+export AWS_REGION=us-east-1
 
 source ./deploy_all.sh
 ```
@@ -750,12 +750,12 @@ This is the teaching moment for *"taking it to production."* Today's Boutique ca
 # Delete the runtime (reads agentcore.json from cwd)
 cd $REPO_PATH/pellier/backend && agentcore delete -y
 # Delete the gateway
-aws bedrock-agentcore-control delete-gateway --gateway-identifier <gw-id> --region us-west-2
+aws bedrock-agentcore-control delete-gateway --gateway-identifier <gw-id> --region us-east-1
 # Delete the memory
-aws bedrock-agentcore-control delete-memory --memory-id <mem-id> --region us-west-2
+aws bedrock-agentcore-control delete-memory --memory-id <mem-id> --region us-east-1
 # Delete the 4 Lambdas
 for fn in pellier-search-server pellier-pricing-server pellier-recommend-server pellier-experience-server; do
-  aws lambda delete-function --function-name ${fn}-function --region us-west-2
+  aws lambda delete-function --function-name ${fn}-function --region us-east-1
 done
 ```
 
@@ -766,7 +766,7 @@ Workshop Studio accounts are time-boxed, so cleanup is mostly to verify the dele
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `agentcore deploy` errors with `AccessDenied` on `iam:PassRole` | Workshop role lacks `iam:PassRole` for the AgentCore execution role | CFN should grant it; if testing outside the lab, attach `IAMFullAccess` to your test principal |
-| `agentcore deploy` succeeds but `list-agent-runtimes` returns nothing | Different region between deploy and list | Both must use `us-west-2`; check `aws-targets.json` and the `--region` flag |
+| `agentcore deploy` succeeds but `list-agent-runtimes` returns nothing | Different region between deploy and list | Both must use `us-east-1`; check `aws-targets.json` and the `--region` flag |
 | Gateway returns `401` on tool list | Cognito token expired (1-hour default) or wrong client id | Re-run the `cognito-idp initiate-auth` block; verify `COGNITO_CLIENT` matches the Gateway's allowed-clients |
 | Runtime returns `MCP_GATEWAY_URL not configured` | `agentcore.json.template` rendered before `MCP_GATEWAY_URL` was exported (step 4 of `deploy_all.sh` exports it; manual reorder breaks this) | Re-export `MCP_GATEWAY_URL`, re-run step 5 (`envsubst`) and step 6 (`agentcore deploy`) |
 | `mem_id` from Step 1 was created but `/api/agentcore/memory/status` still says `configured: false` | Backend wasn't restarted after the `.env` edit | `pkill -HUP -f 'uvicorn app:app'` (or wait for `--reload`) |
@@ -776,7 +776,7 @@ Workshop Studio accounts are time-boxed, so cleanup is mostly to verify the dele
 
 - **AgentCore Identity** — Cognito hosted UI is separate from the Runtime/Gateway/Memory loop. Builder's Session uses Cognito for the Boutique frontend's auth; the Identity-as-resource-credential flow (3rd-party API tokens vaulted in Identity) is mentioned in the Atelier Identity card but not exercised in this workshop.
 - **AgentCore Code Interpreter / Browser** — out of scope for Pellier; the agent-tools surface mentions them as available primitives but doesn't deploy them.
-- **Multi-region / DR** — workshop deploys to `us-west-2` only.
+- **Multi-region / DR** — workshop deploys to `us-east-1` only.
 
 ---
 

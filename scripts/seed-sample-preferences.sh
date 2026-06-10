@@ -15,7 +15,7 @@
 
 set -uo pipefail
 
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
 
 log() { echo "[seed-sample-preferences] $*"; }

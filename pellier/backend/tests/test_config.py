@@ -166,13 +166,13 @@ def test_auth_env_vars_load_from_env(
     from config import Settings
 
     _clear_env(monkeypatch, "COGNITO_USER_POOL_ID")
-    monkeypatch.setenv("COGNITO_POOL_ID", "us-west-2_ABC123")
+    monkeypatch.setenv("COGNITO_POOL_ID", "us-east-1_ABC123")
     monkeypatch.setenv("COGNITO_REGION", "us-east-1")
     monkeypatch.setenv("COGNITO_CLIENT_ID", "client-xyz")
     monkeypatch.setenv("COGNITO_CLIENT_SECRET", "secret-xyz")
     monkeypatch.setenv(
         "COGNITO_DOMAIN",
-        "pellier.auth.us-west-2.amazoncognito.com",
+        "pellier.auth.us-east-1.amazoncognito.com",
     )
     monkeypatch.setenv("APP_BASE_URL", "http://localhost:5173")
     monkeypatch.setenv(
@@ -182,11 +182,11 @@ def test_auth_env_vars_load_from_env(
 
     s = Settings()
 
-    assert s.COGNITO_POOL_ID == "us-west-2_ABC123"
+    assert s.COGNITO_POOL_ID == "us-east-1_ABC123"
     assert s.COGNITO_REGION == "us-east-1"
     assert s.COGNITO_CLIENT_ID == "client-xyz"
     assert s.COGNITO_CLIENT_SECRET == "secret-xyz"
-    assert s.COGNITO_DOMAIN == "pellier.auth.us-west-2.amazoncognito.com"
+    assert s.COGNITO_DOMAIN == "pellier.auth.us-east-1.amazoncognito.com"
     assert s.APP_BASE_URL == "http://localhost:5173"
     assert s.OAUTH_REDIRECT_URI == "http://localhost:8000/api/auth/callback"
 
@@ -218,12 +218,12 @@ def test_cognito_pool_id_resolved_prefers_new_name(
     files keep working through the rename."""
     from config import Settings
 
-    monkeypatch.setenv("COGNITO_POOL_ID", "us-west-2_NEW")
-    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-west-2_OLD")
+    monkeypatch.setenv("COGNITO_POOL_ID", "us-east-1_NEW")
+    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-east-1_OLD")
 
     s = Settings()
 
-    assert s.cognito_pool_id_resolved == "us-west-2_NEW"
+    assert s.cognito_pool_id_resolved == "us-east-1_NEW"
 
 
 def test_cognito_pool_id_resolved_falls_back_to_legacy_name(
@@ -235,11 +235,11 @@ def test_cognito_pool_id_resolved_falls_back_to_legacy_name(
     from config import Settings
 
     _clear_env(monkeypatch, "COGNITO_POOL_ID")
-    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-west-2_LEGACY")
+    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-east-1_LEGACY")
 
     s = Settings()
 
-    assert s.cognito_pool_id_resolved == "us-west-2_LEGACY"
+    assert s.cognito_pool_id_resolved == "us-east-1_LEGACY"
 
 
 # ---------------------------------------------------------------------------

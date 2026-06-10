@@ -45,7 +45,7 @@ async def _transcribe_stream(
         from amazon_transcribe.handlers import TranscriptResultStreamHandler
         from amazon_transcribe.model import TranscriptEvent
 
-        client = TranscribeStreamingClient(region="us-west-2")
+        client = TranscribeStreamingClient(region="us-east-1")
 
         stream = await client.start_stream_transcription(
             language_code=LANGUAGE_CODE,

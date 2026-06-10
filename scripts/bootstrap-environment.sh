@@ -294,7 +294,7 @@ fi
 rm -rf "/home/$CODE_EDITOR_USER/.code-editor-server" 2>/dev/null || true
 
 # Get AWS region from environment or EC2 metadata
-AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || echo 'us-west-2')}"
+AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null || echo 'us-east-1')}"
 log "AWS Region: $AWS_REGION"
 
 # ----------------------------------------------------------------------------

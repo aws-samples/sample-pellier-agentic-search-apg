@@ -60,8 +60,8 @@ def _run(coro: Coroutine[Any, Any, T]) -> T:
     return asyncio.run(coro)
 
 
-POOL_ID = "us-west-2_TESTPOOL"
-REGION = "us-west-2"
+POOL_ID = "us-east-1_TESTPOOL"
+REGION = "us-east-1"
 CLIENT_ID = "test-client-id"
 ISSUER = f"https://cognito-idp.{REGION}.amazonaws.com/{POOL_ID}"
 

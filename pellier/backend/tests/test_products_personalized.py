@@ -56,8 +56,8 @@ from services.cognito_auth import (
 # Test pool identity — matches test_auth_routes.py / test_preferences_api.py
 # ---------------------------------------------------------------------------
 
-POOL_ID = "us-west-2_TESTPOOL"
-REGION = "us-west-2"
+POOL_ID = "us-east-1_TESTPOOL"
+REGION = "us-east-1"
 CLIENT_ID = "test-client-id"
 ISSUER = f"https://cognito-idp.{REGION}.amazonaws.com/{POOL_ID}"
 

@@ -12,7 +12,7 @@ CODE_EDITOR_USER="${CODE_EDITOR_USER:-participant}"
 HOME_FOLDER="${HOME_FOLDER:-/workshop}"
 REPO_NAME="sample-pellier-agentic-search-apg"
 REPO_PATH="$HOME_FOLDER/$REPO_NAME"
-AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
@@ -270,10 +270,10 @@ fi
 # or a dead chat turn mid-session. All four models are required at runtime —
 # Cohere Embed v4 included, because every shopper query is embedded
 # live before the pgvector search (the cache only covers the catalog corpus).
-log "Preflight: checking Bedrock model access (us-west-2)..."
+log "Preflight: checking Bedrock model access (us-east-1)..."
 if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
-        export AWS_REGION='${AWS_REGION:-us-west-2}'
+        export AWS_REGION='${AWS_REGION:-us-east-1}'
         cd '$REPO_PATH'
         python3 scripts/check_model_access.py --write-env '$REPO_PATH/pellier/backend/.env'
     " 2>&1 | tee /var/log/model-access-preflight.log; then
@@ -601,7 +601,7 @@ agentcore() {
 alias psql='psql'
 
 # AWS Region for boto3
-export AWS_DEFAULT_REGION=${AWS_REGION:-us-west-2}
+export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 
 # Ensure uv is in PATH (required for MCP)
 export PATH="$HOME/.local/bin:$PATH"

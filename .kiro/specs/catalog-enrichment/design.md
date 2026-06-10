@@ -197,7 +197,7 @@ Uses the same Bedrock API pattern as `scripts/generate_and_store_embeddings.py`:
 ```python
 def generate_embedding(text: str) -> list:
     """Generate 1024-dim embedding via Cohere Embed v4."""
-    bedrock = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REGION', 'us-west-2'))
+    bedrock = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
     response = bedrock.invoke_model(
         modelId='us.cohere.embed-v4:0',
         contentType='application/json',
@@ -507,7 +507,7 @@ All scripts use the identical Bedrock invocation pattern established in `scripts
 - Input type: `search_document` (for product descriptions being indexed)
 - Embedding types: `['float']`
 - Output dimension: `1024`
-- Region: from `AWS_REGION` env var (default `us-west-2`)
+- Region: from `AWS_REGION` env var (default `us-east-1`)
 
 This ensures new/modified embeddings are in the same vector space as existing ones and compatible with the HNSW index and the runtime `embed_query()` calls that use `input_type: 'search_query'`.
 

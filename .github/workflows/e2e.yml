@@ -14,7 +14,7 @@
 #   E2E_COGNITO_CLIENT_ID     - email-only app client id
 #   E2E_TEST_USER_EMAIL       - email for the test user
 #   E2E_TEST_USER_PASSWORD    - password meeting the pool's policy
-#   E2E_AWS_REGION            - region of the pool (e.g. us-west-2)
+#   E2E_AWS_REGION            - region of the pool (e.g. us-east-1)
 #   E2E_AWS_ROLE_ARN          - CI-scoped admin role assumed via OIDC;
 #                               has least-privilege cognito-idp permissions
 #                               (AdminCreateUser, AdminSetUserPassword,

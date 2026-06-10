@@ -17,7 +17,7 @@ Usage:
 
 Environment (same as ``scripts/generate-embeddings.py``):
     DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD — Aurora connection
-    AWS_REGION — defaults to us-west-2
+    AWS_REGION — defaults to us-east-1
 
 Exit codes:
     0  — all 13 tools seeded (or already in place with no drift)
@@ -194,8 +194,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--region",
-        default=os.getenv("AWS_REGION", "us-west-2"),
-        help="AWS region for Bedrock (default: $AWS_REGION or us-west-2)",
+        default=os.getenv("AWS_REGION", "us-east-1"),
+        help="AWS region for Bedrock (default: $AWS_REGION or us-east-1)",
     )
     args = parser.parse_args()
 
