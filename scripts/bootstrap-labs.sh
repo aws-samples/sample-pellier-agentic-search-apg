@@ -1083,13 +1083,20 @@ if [ -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ] && [ -n "${COGNITO_POOL:-${
     _TOKEN_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
     cat > "$HOME_FOLDER/pellier-token.sh" <<TOKENEOF
 #!/usr/bin/env bash
-# Mint a fresh Cognito access token for the Act II managed-Policy exercise.
-# Usage:  source ~/pellier-token.sh   (then use \$PELLIER_TOKEN in curl)
+# Mint a fresh Cognito access token for the optional authenticated beat.
+# Usage:  source ~/pellier-token.sh          # default persona (Marco)
+#         source ~/pellier-token.sh anna     # mint Anna's token instead
+#         source ~/pellier-token.sh theo     # mint Theo's
+# The Cognito users are named after the personas, so the access token carries
+# the chosen name (cognito:username) as the verified identity through the
+# JWT-gated Gateway – identity passthrough you can see. Case-insensitive match;
+# an unknown/no arg falls back to the first user (Marco). Sets \$PELLIER_TOKEN.
+_want="\${1:-}"
 _creds=\$(aws secretsmanager get-secret-value \\
   --secret-id "$COGNITO_TEST_CREDENTIALS_SECRET_ARN" --region "$AWS_REGION" \\
   --query SecretString --output text 2>/dev/null)
-_u=\$(echo "\$_creds" | python3 -c 'import sys,json;print(json.load(sys.stdin)["users"][0]["username"])' 2>/dev/null)
-_p=\$(echo "\$_creds" | python3 -c 'import sys,json;print(json.load(sys.stdin)["users"][0]["password"])' 2>/dev/null)
+_u=\$(echo "\$_creds" | python3 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=json.load(sys.stdin)["users"];print(next((x for x in us if x["username"].lower()==w), us[0])["username"])' "\$_want" 2>/dev/null)
+_p=\$(echo "\$_creds" | python3 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=json.load(sys.stdin)["users"];print(next((x for x in us if x["username"].lower()==w), us[0])["password"])' "\$_want" 2>/dev/null)
 export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
   --user-pool-id "$_TOKEN_POOL" --client-id "$_TOKEN_CLIENT" \\
   --auth-flow ADMIN_USER_PASSWORD_AUTH \\
@@ -1098,7 +1105,7 @@ export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
 if [ -n "\$PELLIER_TOKEN" ] && [ "\$PELLIER_TOKEN" != "None" ]; then
   echo "✅ \$PELLIER_TOKEN minted for \$_u (use: -H \"Authorization: Bearer \\\$PELLIER_TOKEN\")"
 else
-  echo "✗ Token mint failed — check Cognito provisioning (/var/log/pellier-agentcore.log)"
+  echo "✗ Token mint failed – check Cognito provisioning (/var/log/pellier-agentcore.log)"
 fi
 TOKENEOF
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/pellier-token.sh" 2>/dev/null || true
