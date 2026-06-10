@@ -36,16 +36,13 @@ if [ -z "$CREDS_JSON" ]; then
     exit 1
 fi
 
-# Illustrative personalization preferences seeded onto each sign-in account
-# (users 1/2/3 = Marco/Anna/Theo) - kept in sync with seed-sample-preferences.sh.
-# These are a demo signal for signed-in personalization and are deliberately
-# INDEPENDENT of the persona's editorial profile: the persona (picked by the
-# in-app switch) answers "whose data"; this account preference answers "how to
-# rank for this login". They need not match, by design.
+# Personalization preferences seeded onto each sign-in account (users 1/2/3 =
+# Marco/Anna/Theo), matched to the persona's editorial profile and deliberately
+# disjoint per persona - kept in sync with seed-sample-preferences.sh.
 declare -A PREF_LABEL
-PREF_LABEL[1]="minimal, serene, neutral, linen, slow"
+PREF_LABEL[1]="neutral, linen, travel, everyday, classic"
 PREF_LABEL[2]="bold, creative, warm, evening, dresses"
-PREF_LABEL[3]="adventurous, earth, outdoor, outerwear, travel"
+PREF_LABEL[3]="minimal, serene, earth, slow, home"
 
 HOSTED_UI="${COGNITO_HOSTED_UI_URL:-<hosted-ui-url>}"
 
@@ -67,7 +64,7 @@ HOSTED_UI="${COGNITO_HOSTED_UI_URL:-<hosted-ui-url>}"
         echo "Username: $username"
         echo "Password: $password"
         if [ -n "${PREF_LABEL[$n]:-}" ]; then
-            echo "Seeded personalization signal (illustrative): ${PREF_LABEL[$n]}"
+            echo "Pre-configured preferences: ${PREF_LABEL[$n]}"
         fi
         echo ""
     done
