@@ -578,6 +578,23 @@ alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 # One-shot readiness check (catalog / warehouse / memory id / runtime / health)
 alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-gate.sh'
 
+# AgentCore CLI (pinned 0.18.0) — READ-ONLY inspection of the managed Runtime
+# your agent is deployed to. `agentcore status` / `agentcore logs` read the
+# managed control plane via THIS box's IAM role, so they never need a Cognito
+# JWT and never 401. A FUNCTION (not an alias) so typed args like `status`
+# land correctly — an alias can't position "$@" before the closing subshell.
+# It cd's into the deployed project root so the CLI finds
+# agentcore/.cli/deployed-state.json from wherever you are, prefers the
+# global binary warmed at bootstrap (no registry call), and falls back to the
+# pinned npx form if the global install is missing. (deploy/create/invoke are
+# deliberately NOT exposed: deploy ran at bootstrap; CLI invoke can't satisfy
+# the runtime's CUSTOM_JWT gate — invoke from the app via /api/agent/chat with
+# a token instead.)
+agentcore() {
+    ( cd /workshop/sample-pellier-agentic-search-apg/pellier/backend/.agentcore-project/pellier 2>/dev/null \
+        && if command -v agentcore >/dev/null 2>&1; then command agentcore "$@"; else npx -y @aws/agentcore@0.18.0 "$@"; fi )
+}
+
 # Pellier service shortcuts — see FORMAT_ALIASES below (workshop vs builders).
 
 # Database Shortcut (psql uses PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE from .env)
@@ -988,7 +1005,29 @@ EOF
         warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; see $AGENTCORE_LOG, then re-run provisioning to recover the Runtime/Gateway path."
     fi
 
+    # Recursively re-own the app tree as the participant. This INCLUDES
+    # pellier/backend/.agentcore-project/ (scaffolded during provisioning above),
+    # so the `agentcore` alias can read agentcore/.cli/deployed-state.json — the
+    # file `agentcore status` needs. If you ever narrow this chown, keep the
+    # .agentcore-project subtree participant-owned or the cloud-inspection beat breaks.
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
+
+    # Install the pinned AgentCore CLI GLOBALLY for the participant's read-only
+    # cloud-inspection beat (Act II: `agentcore status` / `agentcore logs`). We
+    # install at bootstrap — not via npx-on-demand — so the command never touches
+    # the npm registry at session time (Summit venue networking is not a
+    # dependency the live beat can afford). Pinned 0.18.0 to MATCH
+    # provision_agentcore_end_to_end.py:AGENTCORE_CLI and deploy_all.sh:AGENTCORE_CLI
+    # — @latest is already 0.19.0 with a 1.0.0-preview train, which may reorganize
+    # the command surface. If you bump the pin, bump all three. Best-effort: a
+    # failed global install just means the alias falls back to npx (the CLI still
+    # works, just slower on first call); never abort the box for it.
+    if [ "$AGENTCORE_OK" = true ] && command -v npm &>/dev/null; then
+        log "Installing pinned AgentCore CLI globally (@aws/agentcore@0.18.0) for the cloud-inspection beat..."
+        npm install -g @aws/agentcore@0.18.0 >/dev/null 2>&1 \
+            && log "✅ agentcore CLI installed globally ($(command agentcore --version 2>/dev/null || echo 'version check skipped'))" \
+            || warn "Global @aws/agentcore@0.18.0 install failed — the 'agentcore' alias will fall back to npx (slower first call); see npm logs."
+    fi
 
     # The pellier.service unit (STEP 14) already runs uvicorn with --reload
     # for builders format and rebuilds the frontend in ExecStartPre. Now
