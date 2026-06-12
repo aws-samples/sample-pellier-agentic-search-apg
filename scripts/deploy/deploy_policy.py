@@ -244,17 +244,27 @@ def create_action_policy_with_fallback(
 def create_pellier_policies(client, engine_id, gateway_arn, experience_target):
     """Create Pellier's Cedar policies.
 
-    The headline rule is a single ``forbid`` on process_return unless the return
-    reason is 'damaged' — Cedar default-deny + forbid-wins means this is the
-    whole gate. We ALSO add an explicit ``permit`` for the damaged path so the
-    Atelier Policy surface can show both halves of the decision (and so the
-    intent reads clearly to a 400-level attendee inspecting the engine).
+    THREE policies, and the baseline is load-bearing: Cedar is default-deny,
+    and an ENFORCE-mode Gateway hides every tool without a permit from
+    tools/list (box-verified 2026-06-12: only process_return — the one tool
+    with a permit — was discoverable; the other 12 vanished). So:
+
+      1. ``baseline_permit_gateway_tools`` — permit ALL actions on THIS gateway
+         (resource-scoped; the engine rejects a wildcard resource). This
+         restores the full catalog. Forbid-wins keeps the gate intact.
+      2. ``process_return_damaged_only`` — the headline forbid: process_return
+         unless reason == 'damaged'.
+      3. ``process_return_allow_damaged`` — explicit permit for the damaged
+         path (redundant under the baseline, but the Atelier Policy surface
+         shows both halves of the decision).
 
     ``experience_target`` is the Gateway TARGET name (e.g.
     ``pellier-concierge-experience-target``), which is what the Gateway
     registers tools under. We try the dat403-verified ``target___tool`` (triple
     underscore) form first, then ``target__tool`` (double), and finally defer to
     whatever exact token the engine suggests via its ``did you mean`` hint.
+    (Box-confirmed 2026-06-12: the engine accepted the triple-underscore form,
+    and tools/list returns triple-underscore names on the data plane.)
     """
     gw = f'AgentCore::Gateway::"{gateway_arn}"'
 
@@ -282,6 +292,18 @@ def create_pellier_policies(client, engine_id, gateway_arn, experience_target):
         )
 
     created = []
+
+    # baseline permit: all tools on THIS gateway are allowed unless a forbid
+    # says otherwise. Without this, default-deny empties tools/list down to
+    # the single permitted tool. Resource-scoped because the engine rejects
+    # wildcard resources outright (ValidationException, box-verified).
+    print("  Creating policy: baseline_permit_gateway_tools (permit all on gateway)")
+    baseline_id = create_or_reuse_policy(
+        client, engine_id, "baseline_permit_gateway_tools",
+        "Baseline: permit all tools on the Pellier gateway (forbid still wins)",
+        f"permit(principal, action, resource == {gw});",
+    )
+    created.append(baseline_id)
 
     # forbid: anything other than a damaged return is denied at the Gateway.
     print("  Creating policy: process_return_damaged_only (forbid)")

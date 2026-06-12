@@ -21,24 +21,27 @@ def resolve_invocation(event: dict, context: Any) -> Tuple[str, dict]:
 
     * Gateway path: the tool name arrives in
       ``context.client_context.custom['bedrockAgentCoreToolName']`` PREFIXED with
-      ``<lambda-function-name>___`` (triple underscore), and the tool arguments
-      ARE the event dict itself. The bare ``event['name']`` is NOT set here, so a
-      naive ``event.get('name')`` returns "" and the call falls through to
-      "Unknown tool". (dat403-proven contract:
-      modules/05/strands/electrify_server.py:368-395.)
+      ``<gateway-TARGET-name>___`` (triple underscore — e.g.
+      ``pellier-concierge-experience-target___process_return``), and the tool
+      arguments ARE the event dict itself. The bare ``event['name']`` is NOT set
+      here, so a naive ``event.get('name')`` returns "" and the call falls
+      through to "Unknown tool". NOTE the prefix is the Gateway target name,
+      NOT the Lambda function name — dat403's electrify server stripped
+      ``<function>___`` and got away with it only because its target and
+      function shared a name; ours differ, so a function-name guess misses and
+      the full prefixed string leaks through (box-verified 2026-06-12).
     * Direct / test invoke (and the ``list_tools`` probe): ``{"name","arguments"}``.
 
-    Strategy: check the Gateway client_context first, strip the ``<function>___``
-    prefix, treat the event as the argument payload; otherwise fall back to the
-    flat ``{name, arguments}`` shape.
+    Strategy: check the Gateway client_context first, strip everything up to
+    the last ``___`` (robust to whatever prefix convention the Gateway uses),
+    treat the event as the argument payload; otherwise fall back to the flat
+    ``{name, arguments}`` shape.
     """
     if getattr(context, "client_context", None):
         custom = getattr(context.client_context, "custom", {}) or {}
         prefixed = custom.get("bedrockAgentCoreToolName")
         if prefixed:
-            fn = getattr(context, "function_name", "") or ""
-            prefix = f"{fn}___"
-            tool = prefixed[len(prefix):] if prefixed.startswith(prefix) else prefixed
+            tool = prefixed.rsplit("___", 1)[-1]
             args = {k: v for k, v in event.items() if k not in ("name", "arguments")}
             if not args and isinstance(event.get("arguments"), dict):
                 args = event["arguments"]
