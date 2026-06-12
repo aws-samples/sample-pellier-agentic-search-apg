@@ -489,6 +489,16 @@ def _deploy_runtime_via_cli(
         allowed_client=cognito_client,
     )
 
+    # 3.5 Self-heal the CDK app's node_modules. `deploy` compiles agentcore/cdk
+    #     with `npm run build` (tsc) but NEVER installs its deps — only `create`
+    #     does. A project scaffolded by an older script version (which passed
+    #     --skip-install) is skipped by the create-guard above and would fail
+    #     tsc forever with TS2307 "Cannot find module 'aws-cdk-lib'". Detect the
+    #     missing install and run it ourselves so re-runs recover in place.
+    cdk_dir = project_root / "agentcore" / "cdk"
+    if cdk_dir.is_dir() and not (cdk_dir / "node_modules" / "aws-cdk-lib").is_dir():
+        _run(["npm", "install"], cwd=cdk_dir, env=deploy_env)
+
     # 4. Deploy (CDK) from the PROJECT ROOT (the dir containing agentcore/).
     runtime_deploy = _run(
         ["npx", "-y", AGENTCORE_CLI, "deploy", "-y", "--json"],
