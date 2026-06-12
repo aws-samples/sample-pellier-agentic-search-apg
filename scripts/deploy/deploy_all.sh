@@ -284,9 +284,17 @@ export AGENT_MODEL_ID="${AGENT_MODEL_ID:-global.anthropic.claude-opus-4-6-v1}"
 export AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 BACKEND_DIR="$(cd "$SCRIPT_DIR/../../pellier/backend" && pwd)"   # absolute (code-location)
-PROJECT_ROOT="$BACKEND_DIR/.agentcore-project/pellier"          # dir that CONTAINS agentcore/
+# Project root lives at REPO level — NEVER inside BACKEND_DIR. The CodeZip
+# packager copies the whole code-location into the project's staging dir at
+# synth time; a project rooted inside the code-location copies ITSELF
+# recursively until mkdir dies with ENAMETOOLONG (box-verified 2026-06-12).
+REPO_ROOT_DIR="$(cd "$BACKEND_DIR/../.." && pwd)"               # <repo>/pellier/backend -> <repo>
+PROJECT_ROOT="$REPO_ROOT_DIR/.agentcore-project/pellier"        # dir that CONTAINS agentcore/
 CONFIG_PATH="$PROJECT_ROOT/agentcore/agentcore.json"
-mkdir -p "$BACKEND_DIR/.agentcore-project"
+mkdir -p "$REPO_ROOT_DIR/.agentcore-project"
+# Purge any legacy project an older script rooted inside the code-location —
+# a stale tree there would be packaged into every zip or re-trigger the bug.
+rm -rf "$BACKEND_DIR/.agentcore-project"
 
 # 6a. create (idempotent — skip if the project already exists)
 if [ ! -f "$CONFIG_PATH" ]; then
@@ -300,7 +308,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
     --build CodeZip --language Python --framework Strands \
     --model-provider Bedrock --protocol HTTP \
     --skip-git --skip-python-setup \
-    --output-dir "$BACKEND_DIR/.agentcore-project" --json
+    --output-dir "$REPO_ROOT_DIR/.agentcore-project" --json
 fi
 
 # 6b. add our in-repo orchestrator as a BYO agent (clean re-add for re-runs)

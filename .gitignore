@@ -66,6 +66,11 @@ lab2/frontend/dist/
 # MCP Config (auto-generated with account-specific ARNs)
 lab2/config/mcp-server-config.json
 
+# AgentCore 0.18 scaffolded project (repo-level on purpose — the CodeZip
+# packager copies the whole code-location, so the project must live OUTSIDE
+# pellier/backend or it packages itself recursively). Account-specific state.
+.agentcore-project/
+
 # Participant changes (notebooks will be modified during workshop)
 lab1/*.ipynb
 lab1/**/*.ipynb

@@ -71,16 +71,19 @@ uv run deploy_gateway.py --gateway-name pellier-gateway \
 #    + envVars have no flags, so we JSON-patch agentcore/agentcore.json after.
 #    `deploy` runs from the PROJECT ROOT (dir containing agentcore/) and is
 #    CDK-based, so the account must be `cdk bootstrap`-ed first.
+#    The project roots at REPO level (../../.agentcore-project), NEVER inside
+#    pellier/backend: the CodeZip packager copies the whole code-location, so a
+#    project inside it copies itself recursively until ENAMETOOLONG.
 #    deploy_all.sh automates all of this (steps 6-7); the manual gist:
-ROOT=../../pellier/backend/.agentcore-project/pellier
+ROOT=../../.agentcore-project/pellier
 npx -y @aws/agentcore@0.18.0 create --project-name pellier --no-agent --defaults \
   --build CodeZip --language Python --framework Strands --model-provider Bedrock \
   --protocol HTTP --skip-git --skip-python-setup --skip-install \
-  --output-dir ../../pellier/backend/.agentcore-project --json
+  --output-dir ../../.agentcore-project --json
 ( cd "$ROOT" && npx -y @aws/agentcore@0.18.0 add agent --name pellier_orchestrator \
   --type byo --build CodeZip --language Python --framework Strands \
   --model-provider Bedrock --protocol HTTP \
-  --code-location ../../.. --entrypoint agentcore_runtime.py \
+  --code-location ../../pellier/backend --entrypoint agentcore_runtime.py \
   --authorizer-type CUSTOM_JWT --discovery-url "$OAUTH_ISSUER_URL/.well-known/openid-configuration" \
   --allowed-clients "$COGNITO_CLIENT" --json )
 # patch executionRoleArn + envVars + runtimeVersion into agentcore/agentcore.json, then:

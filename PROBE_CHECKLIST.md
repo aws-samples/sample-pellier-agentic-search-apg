@@ -96,8 +96,8 @@ is expected; **verify it exists on the pinned 0.18.0** before making it primary.
 ## 3. Cloud Runtime beat — Act II §5 (Gate #3 cont.)
 
 ```bash
-# Project dir readable by participant? (chown at bootstrap-labs.sh ~line 1002 covers it)
-ls -la pellier/backend/.agentcore-project/pellier/agentcore/.cli/deployed-state.json
+# Project dir readable by participant? (repo-level chown in bootstrap-labs.sh covers it)
+ls -la .agentcore-project/pellier/agentcore/.cli/deployed-state.json
 
 agentcore status               # CAPTURE field labels + runtime ARN -> reconcile §5 "Expected" (SANITIZE arn)
 agentcore status               # run again from ~ : `cd ~ && agentcore status` confirms the function's cd works anywhere

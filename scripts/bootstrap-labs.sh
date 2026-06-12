@@ -592,7 +592,7 @@ alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-ga
 # the runtime's CUSTOM_JWT gate — invoke from the app via /api/agent/chat with
 # a token instead.)
 agentcore() {
-    ( cd /workshop/sample-pellier-agentic-search-apg/pellier/backend/.agentcore-project/pellier 2>/dev/null \
+    ( cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
         && if command -v agentcore >/dev/null 2>&1; then command agentcore "$@"; else npx -y @aws/agentcore@0.18.0 "$@"; fi )
 }
 
@@ -1006,12 +1006,19 @@ EOF
         warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; see $AGENTCORE_LOG, then re-run provisioning to recover the Runtime/Gateway path."
     fi
 
-    # Recursively re-own the app tree as the participant. This INCLUDES
-    # pellier/backend/.agentcore-project/ (scaffolded during provisioning above),
-    # so the `agentcore` alias can read agentcore/.cli/deployed-state.json — the
-    # file `agentcore status` needs. If you ever narrow this chown, keep the
-    # .agentcore-project subtree participant-owned or the cloud-inspection beat breaks.
+    # Recursively re-own the app tree as the participant.
     chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/pellier/"
+
+    # The AgentCore project lives at REPO level (.agentcore-project/), OUTSIDE
+    # backend_dir — the CodeZip packager copies the whole code-location, so a
+    # project rooted inside it copied itself recursively (ENAMETOOLONG,
+    # box-verified 2026-06-12). Own it for the participant so the `agentcore`
+    # function can read agentcore/.cli/deployed-state.json — the file
+    # `agentcore status` needs. If you ever narrow this chown, keep the
+    # .agentcore-project subtree participant-owned or the cloud-inspection beat breaks.
+    if [ -d "$REPO_PATH/.agentcore-project" ]; then
+        chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.agentcore-project/"
+    fi
 
     # Install the pinned AgentCore CLI GLOBALLY for the participant's read-only
     # cloud-inspection beat (Act II: `agentcore status` / `agentcore logs`). We

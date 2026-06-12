@@ -227,11 +227,16 @@ RUNTIME_PYTHON_VERSION = "PYTHON_3_12"
 
 def _agentcore_project_paths(backend_dir: Path) -> tuple[Path, Path]:
     """Return (project_root, agentcore_config_path) for the scaffolded 0.18
-    project. We root the project under backend_dir/.agentcore-project so the
-    generated agentcore/ tree never collides with the existing backend files,
-    and so `deploy` (which must run from the dir CONTAINING agentcore/) has an
-    unambiguous cwd."""
-    project_root = backend_dir / ".agentcore-project" / "pellier"
+    project, rooted at REPO level — NEVER inside backend_dir. The CodeZip
+    packager copies the whole code-location (backend_dir) into
+    <project>/agentcore/.cache/<agent>/staging at synth time; a project rooted
+    inside the code-location therefore copies ITSELF recursively until mkdir
+    dies with ENAMETOOLONG (box-verified 2026-06-12). The packager's exclusion
+    list is hard-coded (.git/.venv/__pycache__/.pytest_cache/.DS_Store/
+    node_modules — @aws/agentcore-cdk packaging/helpers.js), so the only fix is
+    rooting the project outside the tree being packaged."""
+    repo_root = backend_dir.parent.parent  # <repo>/pellier/backend -> <repo>
+    project_root = repo_root / ".agentcore-project" / "pellier"
     config_path = project_root / "agentcore" / "agentcore.json"
     return project_root, config_path
 
@@ -401,6 +406,16 @@ def _deploy_runtime_via_cli(
     # below: the empty dir had no agentcore.json, so the guard said "create"
     # while the CLI refused the existing folder → Runtime never deployed.
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Purge any LEGACY project an older script version rooted INSIDE the
+    # code-location (backend_dir/.agentcore-project). The CodeZip packager
+    # copies backend_dir wholesale, so a stale tree there — possibly holding
+    # a deep recursive .cache from the self-copy bug — would be packaged into
+    # every zip or re-trigger ENAMETOOLONG at staging. Re-runs on a box
+    # provisioned by the old version must recover in place.
+    legacy_root = backend_dir / ".agentcore-project"
+    if legacy_root.exists():
+        shutil.rmtree(legacy_root, ignore_errors=True)
 
     discovery_url = (
         f"https://cognito-idp.{region}.amazonaws.com/{cognito_pool}/.well-known/openid-configuration"
