@@ -247,11 +247,21 @@ def main():
       ]
     }
 
-    # Add RDS Data API permissions only if database ARNs are provided
+    # Add RDS Data API permissions only if database ARNs are provided.
+    # Transaction actions matter: process_return (experience server) wraps
+    # ownership-check + INSERT + decrement in a single Data API transaction,
+    # and ExecuteStatement alone 403s on BeginTransaction (box-verified
+    # 2026-06-12 — the ONLY transactional tool, so nothing else tripped it).
     if args.db_cluster_arn:
       lambda_permissions_policy["Statement"].append({
         "Effect": "Allow",
-        "Action": ["rds-data:ExecuteStatement"],
+        "Action": [
+          "rds-data:ExecuteStatement",
+          "rds-data:BatchExecuteStatement",
+          "rds-data:BeginTransaction",
+          "rds-data:CommitTransaction",
+          "rds-data:RollbackTransaction",
+        ],
         "Resource": args.db_cluster_arn
       })
     if args.secret_arn:
