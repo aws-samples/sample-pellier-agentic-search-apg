@@ -98,13 +98,16 @@ def find_deals(query: str, max_price: float = None, limit: int = 5) -> dict:
 
     # Single statement only: Data API execute_statement rejects a prepended
     # SET ("Multistatements aren't supported", box-verified 2026-06-12).
+    # Column names follow the seeded schema (description/category/rating —
+    # 001_schema.sql), aliased to the keys downstream code expects.
     sql = f"""
-        SELECT "productId", product_description, price, stars, reviews,
-               category_name, quantity, "imgUrl",
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, reviews,
+               category AS category_name, quantity, "imgUrl",
                1 - (embedding <=> :embedding::vector) AS similarity,
-               CASE WHEN price > 0 THEN stars / price * 100 ELSE 0 END AS value_score
+               CASE WHEN price > 0 THEN rating / price * 100 ELSE 0 END AS value_score
         FROM {SCHEMA}.product_catalog
-        WHERE quantity > 0 AND stars >= 3.5 {price_filter}
+        WHERE quantity > 0 AND rating >= 3.5 {price_filter}
         ORDER BY embedding <=> :embedding::vector
         LIMIT :lim;
     """
@@ -114,13 +117,13 @@ def find_deals(query: str, max_price: float = None, limit: int = 5) -> dict:
 
 def get_price_analysis(category: str = None) -> dict:
     """Get price statistics (min, max, avg, median) by category."""
-    where = "WHERE category_name = :cat" if category else ""
+    where = "WHERE category = :cat" if category else ""
     parameters = []
     if category:
         parameters.append({"name": "cat", "value": {"stringValue": str(category)}})
 
     sql = f"""
-        SELECT category_name,
+        SELECT category AS category_name,
                COUNT(*) AS product_count,
                MIN(price)::numeric(10,2) AS min_price,
                MAX(price)::numeric(10,2) AS max_price,
@@ -128,7 +131,7 @@ def get_price_analysis(category: str = None) -> dict:
                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price)::numeric(10,2) AS median_price
         FROM {SCHEMA}.product_catalog
         {where}
-        GROUP BY category_name
+        GROUP BY category
         ORDER BY avg_price DESC
         LIMIT 15;
     """
@@ -139,8 +142,9 @@ def get_price_analysis(category: str = None) -> dict:
 def compare_products(product_id_1: str, product_id_2: str) -> dict:
     """Compare two products side by side."""
     sql = f"""
-        SELECT "productId", product_description, price, stars, reviews,
-               category_name, quantity, "isBestSeller"
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, reviews,
+               category AS category_name, quantity, badge
         FROM {SCHEMA}.product_catalog
         WHERE "productId" IN (:pid1, :pid2);
     """

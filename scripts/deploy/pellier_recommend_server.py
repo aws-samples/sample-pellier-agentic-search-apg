@@ -93,7 +93,7 @@ def get_recommendations(query: str, category: str = None, max_price: float = Non
         {"name": "lim", "value": {"longValue": int(limit)}},
     ]
     if category:
-        where_clauses.append("category_name = :cat")
+        where_clauses.append("category = :cat")
         parameters.append({"name": "cat", "value": {"stringValue": str(category)}})
     if max_price:
         where_clauses.append("price <= :max_price")
@@ -102,9 +102,12 @@ def get_recommendations(query: str, category: str = None, max_price: float = Non
 
     # Single statement only: Data API execute_statement rejects a prepended
     # SET ("Multistatements aren't supported", box-verified 2026-06-12).
+    # Column names follow the seeded schema (description/category/rating/badge
+    # — 001_schema.sql), aliased to the keys downstream code expects.
     sql = f"""
-        SELECT "productId", product_description, price, stars, reviews,
-               category_name, quantity, "imgUrl", "isBestSeller",
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, reviews,
+               category AS category_name, quantity, "imgUrl", badge,
                1 - (embedding <=> :embedding::vector) AS similarity
         FROM {SCHEMA}.product_catalog
         WHERE {where_sql}
@@ -117,17 +120,22 @@ def get_recommendations(query: str, category: str = None, max_price: float = Non
 
 def get_trending_products(limit: int = 10, category: str = None) -> dict:
     """Get trending products by recent purchase volume."""
-    where = "WHERE category_name = :cat" if category else ""
+    where = "WHERE category = :cat" if category else ""
     parameters = [{"name": "lim", "value": {"longValue": int(limit)}}]
     if category:
         parameters.append({"name": "cat", "value": {"stringValue": str(category)}})
 
+    # The seeded catalog has no boughtInLastMonth column; trending is
+    # rating × reviews, mirroring the in-process whats_trending
+    # (business_logic.py) so both rails rank identically.
     sql = f"""
-        SELECT "productId", product_description, price, stars, reviews,
-               category_name, quantity, "imgUrl", "boughtInLastMonth"
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, reviews,
+               category AS category_name, quantity, "imgUrl",
+               (reviews::int * rating) AS trending_score
         FROM {SCHEMA}.product_catalog
         {where}
-        ORDER BY "boughtInLastMonth" DESC NULLS LAST
+        ORDER BY trending_score DESC NULLS LAST
         LIMIT :lim;
     """
     rows = _execute_sql(sql, parameters)

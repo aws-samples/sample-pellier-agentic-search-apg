@@ -118,7 +118,7 @@ def semantic_search(query: str, limit: int = 5, max_price: float = None, min_rat
         where_clauses.append("price <= :max_price")
         parameters.append({"name": "max_price", "value": {"doubleValue": float(max_price)}})
     if min_rating:
-        where_clauses.append("stars >= :min_rating")
+        where_clauses.append("rating >= :min_rating")
         parameters.append({"name": "min_rating", "value": {"doubleValue": float(min_rating)}})
     where_sql = " AND ".join(where_clauses)
 
@@ -127,9 +127,15 @@ def semantic_search(query: str, limit: int = 5, max_price: float = None, min_rat
     # prepended SET killed EVERY read tool on the Gateway path). The
     # hnsw.iterative_scan tuning stays on the in-process rail (psycopg);
     # at this catalog's scale it doesn't change recall anyway.
+    #
+    # Column names: the seeded schema (001_schema.sql) is description/
+    # category/rating/badge — NOT the Amazon-dataset names these servers
+    # were first written against (box-verified 2026-06-12: 42703). Aliases
+    # keep the response keys the downstream Python already expects.
     sql = f"""
-        SELECT "productId", product_description, price, stars, reviews,
-               category_name, quantity, "imgUrl",
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, reviews,
+               category AS category_name, quantity, "imgUrl",
                1 - (embedding <=> :embedding::vector) AS similarity
         FROM {SCHEMA}.product_catalog
         WHERE {where_sql}
@@ -143,12 +149,12 @@ def semantic_search(query: str, limit: int = 5, max_price: float = None, min_rat
 def get_inventory_health() -> dict:
     """Get inventory health summary across categories."""
     sql = f"""
-        SELECT category_name,
+        SELECT category AS category_name,
                COUNT(*) AS total_products,
                SUM(CASE WHEN quantity < 10 THEN 1 ELSE 0 END) AS low_stock,
                AVG(quantity)::int AS avg_quantity
         FROM {SCHEMA}.product_catalog
-        GROUP BY category_name
+        GROUP BY category
         ORDER BY low_stock DESC
         LIMIT 10;
     """
@@ -159,7 +165,8 @@ def get_inventory_health() -> dict:
 def get_low_stock_products(limit: int = 5) -> dict:
     """Get products with lowest stock levels."""
     sql = f"""
-        SELECT "productId", product_description, price, stars, quantity, category_name
+        SELECT "productId", description AS product_description, price,
+               rating AS stars, quantity, category AS category_name
         FROM {SCHEMA}.product_catalog
         WHERE quantity > 0 AND quantity < 10
         ORDER BY quantity ASC
@@ -229,8 +236,9 @@ def find_pieces_hybrid(
           FROM vector_results v
           FULL OUTER JOIN fts_results f USING (pid)
         )
-        SELECT pc."productId", pc.product_description, pc.price, pc.stars,
-               pc.reviews, pc.category_name, pc.quantity, pc."imgUrl",
+        SELECT pc."productId", pc.description AS product_description, pc.price,
+               pc.rating AS stars,
+               pc.reviews, pc.category AS category_name, pc.quantity, pc."imgUrl",
                rrf.rrf_score
         FROM rrf
         JOIN {SCHEMA}.product_catalog pc ON pc."productId" = rrf.pid
@@ -334,7 +342,7 @@ def restock_product(product_id: str, quantity: int) -> dict:
         UPDATE {SCHEMA}.product_catalog
         SET quantity = quantity + :qty
         WHERE "productId" = :pid
-        RETURNING "productId", product_description, quantity;
+        RETURNING "productId", description AS product_description, quantity;
     """
     parameters = [
         {"name": "pid", "value": {"stringValue": str(product_id)}},
