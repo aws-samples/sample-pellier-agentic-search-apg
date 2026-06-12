@@ -169,17 +169,41 @@ else
     curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 fi
 unzip -q awscliv2.zip
-./aws/install --update
+./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
 rm -rf awscliv2.zip aws/
 cd - > /dev/null
 
-log "✅ AWS CLI installed: $(aws --version)"
+# CRITICAL ordering fix: AL2023 preinstalls AWS CLI **v1** at /usr/bin/aws – a
+# Python script whose shebang runs the SYSTEM python3 and does `import awscli`.
+# The official v2 bundle we just installed is self-contained (its own embedded
+# python, no `import awscli`) and lands at /usr/local/bin/aws. But /usr/bin
+# precedes /usr/local/bin on the provisioning PATH, so `aws` would still resolve
+# to the v1 shim – and the moment we repoint python3 -> 3.14 below, that v1 shim
+# breaks with "ModuleNotFoundError: No module named 'awscli'" (awscli was
+# installed for 3.9, not 3.14). That silently kills every `aws` subprocess in
+# AgentCore provisioning (observed: `aws lambda get-function` → ModuleNotFound →
+# no Lambdas/Gateway/Runtime/Policy deploy). Force /usr/bin/aws to point at the
+# python-independent v2 binary so it survives the python switch and wins on PATH.
+if [ -x /usr/local/bin/aws ]; then
+    ln -sf /usr/local/bin/aws /usr/bin/aws
+    ln -sf /usr/local/bin/aws_completer /usr/bin/aws_completer 2>/dev/null || true
+fi
 
 # Set the chosen Python ($PY_VER, from STEP 1) as the default python3.
 log "Setting Python ${PY_VER} as default..."
 update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python${PY_VER}" 1
 update-alternatives --set python3 "/usr/bin/python${PY_VER}"
 log "✅ Python ${PY_VER} set as default (python3 → python${PY_VER})"
+
+# Verify AWS CLI AFTER the python switch – this is the check that would have
+# caught the v1/python3.14 breakage. Must report aws-cli/2.x; v1 (aws-cli/1.x)
+# or a ModuleNotFoundError here means the symlink above didn't take.
+_aws_ver="$(aws --version 2>&1 || true)"
+if echo "$_aws_ver" | grep -q 'aws-cli/2'; then
+    log "✅ AWS CLI v2 active after python switch: $_aws_ver"
+else
+    warn "AWS CLI is NOT v2 after the python switch (got: ${_aws_ver:-no output}). AgentCore provisioning shells out to 'aws' and will fail. Recover: 'sudo ln -sf /usr/local/bin/aws /usr/bin/aws' then re-run scripts/deploy/deploy_all.sh."
+fi
 
 # ============================================================================
 # STEP 3: USER SETUP (~10 sec)

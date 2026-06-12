@@ -63,25 +63,90 @@ def _load_local_server(config_path: Path) -> Optional[dict]:
     return None
 
 
-def _pick_readonly_tool(tool_names: list[str]) -> Optional[tuple[str, dict]]:
+def _launch_args_map(server: dict) -> dict[str, str]:
+    """Parse the server's launch ``args`` (``--flag value`` pairs) into a dict,
+    so a tool that re-declares connection params as PER-CALL arguments can be
+    fed the same values the server was configured with. Example keys:
+    ``connection_method``, ``db_cluster_arn``, ``secret_arn``, ``database``,
+    ``region``.
+    """
+    out: dict[str, str] = {}
+    args = server.get("args", [])
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if isinstance(a, str) and a.startswith("--"):
+            flag = a[2:]
+            if i + 1 < len(args) and not str(args[i + 1]).startswith("--"):
+                out[flag] = str(args[i + 1])
+                i += 2
+                continue
+            out[flag] = "true"  # bare boolean flag
+        i += 1
+    return out
+
+
+def _fill_required_connection_args(
+    input_schema: dict, launch: dict[str, str]
+) -> dict:
+    """Some postgres-mcp-server versions declare the connection params
+    (``connection_method``, ``cluster_identifier``, ``db_endpoint``,
+    ``database``, ``secret_arn``, ``region``) as REQUIRED per-call tool inputs,
+    not just server-launch flags. Populate exactly the required ones the live
+    ``inputSchema`` asks for, mapping from the launch flags we started the
+    server with. Schema-driven so it survives version drift: we only add a key
+    if the schema lists it as required AND we have a value for it.
+    """
+    props = (input_schema or {}).get("properties", {}) or {}
+    required = (input_schema or {}).get("required", []) or []
+    # Map the tool's per-call field name -> the launch-flag value to use.
+    # `cluster_identifier` is the cluster ARN (our --db_cluster_arn);
+    # `db_endpoint` is unused on the rdsapi path (empty string is accepted).
+    resolvers = {
+        "connection_method": launch.get("connection_method", "rdsapi"),
+        "cluster_identifier": launch.get("db_cluster_arn", ""),
+        "db_cluster_arn": launch.get("db_cluster_arn", ""),
+        "db_endpoint": launch.get("db_endpoint", ""),
+        "database": launch.get("database", ""),
+        "secret_arn": launch.get("secret_arn", ""),
+        "region": launch.get("region", ""),
+    }
+    extra: dict[str, Any] = {}
+    for field in required:
+        if field in resolvers and field in props:
+            extra[field] = resolvers[field]
+    return extra
+
+
+def _pick_readonly_tool(
+    tools: list, launch: dict[str, str]
+) -> Optional[tuple[str, dict]]:
     """Choose ONE safe read-only tool from the live list, by pattern — never a
     hardcoded name (tool names drift across MCP-server versions). Prefer a
     raw-SQL runner so we can issue a trivial ``SELECT 1``; otherwise fall back
     to a schema/table-listing tool that needs no arguments.
 
-    Returns (tool_name, arguments) or None if nothing safe is recognized.
+    ``tools`` is the live list of Tool objects (so we can read each one's
+    ``inputSchema`` and satisfy any required per-call connection args from the
+    launch flags). Returns (tool_name, arguments) or None.
     """
-    lowered = {t.lower(): t for t in tool_names}
+    by_lower = {t.name.lower(): t for t in tools}
 
-    # 1) A SQL runner — issue a harmless read-only query.
-    for key, real in lowered.items():
+    def _schema(tool) -> dict:
+        return getattr(tool, "inputSchema", None) or {}
+
+    # 1) A SQL runner – issue a harmless read-only query, plus whatever
+    #    connection args this version declares as required per call.
+    for key, tool in by_lower.items():
         if "query" in key or key in ("run_query", "readonly_query", "execute_query"):
-            return real, {"sql": "SELECT 1 AS mcp_live"}
+            args: dict[str, Any] = {"sql": "SELECT 1 AS mcp_live"}
+            args.update(_fill_required_connection_args(_schema(tool), launch))
+            return tool.name, args
 
-    # 2) A no-arg schema/listing tool.
-    for key, real in lowered.items():
+    # 2) A no-arg (or connection-arg-only) schema/listing tool.
+    for key, tool in by_lower.items():
         if any(tok in key for tok in ("list_tables", "get_table", "schema", "list_schemas")):
-            return real, {}
+            return tool.name, _fill_required_connection_args(_schema(tool), launch)
 
     return None
 
@@ -129,13 +194,16 @@ async def _run(server: dict) -> int:
 
                 print("=== tools/list — what this server advertises ===")
                 tools_result = await session.list_tools()
-                tool_names = [t.name for t in tools_result.tools]
                 for t in tools_result.tools:
                     desc = (t.description or "").splitlines()[0] if t.description else ""
                     print(f"  • {t.name}: {desc}")
                 print()
 
-                pick = _pick_readonly_tool(tool_names)
+                # Some server versions want the connection params as per-call
+                # tool args; feed them from the same flags the server launched
+                # with (parsed from the config), driven by each tool's schema.
+                launch = _launch_args_map(server)
+                pick = _pick_readonly_tool(tools_result.tools, launch)
                 if not pick:
                     print("  (No recognizably-safe read-only tool to call; the")
                     print("   tools/list above is itself the proof you spoke MCP.)")
