@@ -22,6 +22,7 @@ import hmac
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -391,16 +392,28 @@ def _deploy_runtime_via_cli(
     Idempotent: skips `create` if the project exists, and re-adds the agent
     cleanly so a re-run (facilitator recovery) doesn't error on a duplicate."""
     project_root, config_path = _agentcore_project_paths(backend_dir)
-    project_root.mkdir(parents=True, exist_ok=True)
     output_dir = project_root.parent  # `create` writes <output_dir>/<project>/
+    # Only ensure the PARENT (.agentcore-project) exists – do NOT pre-create
+    # project_root (.agentcore-project/pellier). `agentcore create` scaffolds
+    # that folder itself and ABORTS if it already exists ("A folder named
+    # 'pellier' already exists in this directory"). Pre-creating it here (the
+    # old `project_root.mkdir`) defeated the `config_path.is_file()` skip-guard
+    # below: the empty dir had no agentcore.json, so the guard said "create"
+    # while the CLI refused the existing folder → Runtime never deployed.
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     discovery_url = (
         f"https://cognito-idp.{region}.amazonaws.com/{cognito_pool}/.well-known/openid-configuration"
     )
 
     # 1. Scaffold an EMPTY project (no agent) so we can BYO ours. Skip if the
-    #    project already exists (re-run safety).
+    #    project already exists AND is complete (re-run safety). If project_root
+    #    exists but has no agentcore.json, a prior `create` died partway (or
+    #    something pre-created the dir): the CLI would abort with "folder already
+    #    exists", so clear the incomplete dir first and let create scaffold clean.
     if not config_path.is_file():
+        if project_root.exists():
+            shutil.rmtree(project_root, ignore_errors=True)
         _run(
             [
                 "npx", "-y", AGENTCORE_CLI, "create",
