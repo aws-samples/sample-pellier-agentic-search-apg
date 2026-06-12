@@ -106,11 +106,13 @@ source ~/pellier-token.sh marco   # must print "✅ … minted for Marco" + set 
 #   CAPTURE: confirm the print names "Marco" (not a UUID / email). Then confirm the
 #   token literally CARRIES that identity — decode the access-token payload:
 echo "$PELLIER_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool | grep -E 'username|client_id|token_use'
-#   KEY CLAIM (Act II §5 identity-passthrough expand + Act III §2a): the username
-#   claim must read "Marco". CONFIRM the exact field name — `username` vs
-#   `cognito:username` — and reconcile the content `grep` + probe note to it.
-#   Also try: `source ~/pellier-token.sh anna` -> payload username == "Anna"
-#   (proves the persona arg selects the user). DO NOT paste a real token anywhere.
+#   KEY CLAIM (Act II §5 identity-passthrough expand + Act III §2a): RESOLVED
+#   on-box 2026-06-12 — the access token's field is `username` (NOT
+#   `cognito:username`, that's the ID token) and the value is LOWERCASED
+#   ("marco"/"anna" — Cognito normalizes case-insensitive usernames). Content
+#   reconciled. Also try: `source ~/pellier-token.sh anna` -> payload
+#   username == "anna" (proves the persona arg selects the user).
+#   DO NOT paste a real token anywhere.
 
 # PRIMARY (Movement B): the dat403-style CLI invoke — IF step-2 probe confirmed the flag.
 agentcore invoke --bearer-token "$PELLIER_TOKEN" \

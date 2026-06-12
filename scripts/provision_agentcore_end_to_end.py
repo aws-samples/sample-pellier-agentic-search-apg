@@ -25,6 +25,9 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -155,7 +158,6 @@ def _authenticated_runtime_smoke(
 ) -> dict[str, Any]:
     sm = boto3.client("secretsmanager", region_name=region)
     cognito = boto3.client("cognito-idp", region_name=region)
-    runtime = boto3.client("bedrock-agentcore-runtime", region_name=region)
 
     creds_raw = sm.get_secret_value(SecretId=creds_secret_arn).get("SecretString", "")
     creds = json.loads(creds_raw) if creds_raw else {}
@@ -187,6 +189,13 @@ def _authenticated_runtime_smoke(
     if not access_token:
         raise RuntimeError("Failed to obtain Cognito access token for runtime smoke")
 
+    # CUSTOM_JWT runtimes are invoked over the raw HTTPS data plane with the
+    # Cognito token as a Bearer header (the transport behind dat403's
+    # `agentcore invoke --bearer-token`). boto3 is the WRONG door here:
+    # there is no "bedrock-agentcore-runtime" service name (box-verified
+    # 2026-06-12 — provisioning died on it AFTER everything deployed), and the
+    # real client's invoke_agent_runtime has no authToken param at all (it
+    # SigV4-signs, which a JWT-gated runtime rejects).
     runtime_id = runtime_arn.rsplit("/", 1)[-1]
     payload = json.dumps(
         {
@@ -194,13 +203,35 @@ def _authenticated_runtime_smoke(
             "session_id": "builders-smoke-session",
         }
     )
-    invoke = runtime.invoke_agent_runtime(
-        agentRuntimeId=runtime_id,
-        payload=payload,
-        authToken=access_token,
+    escaped_arn = urllib.parse.quote(runtime_arn, safe="")
+    url = (
+        f"https://bedrock-agentcore.{region}.amazonaws.com"
+        f"/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
     )
-    body = invoke.get("body")
-    decoded = json.loads(body.read()) if hasattr(body, "read") else {}
+    request = urllib.request.Request(
+        url,
+        data=payload.encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            # The runtime keys its session off this header; reuse one id so
+            # re-runs don't fan out sessions. Must be >= 33 chars.
+            "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": "builders-smoke-session-0000000000000001",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as err:
+        detail = err.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(
+            f"Runtime smoke invoke HTTP {err.code}: {detail}"
+        ) from err
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        decoded = {"response": raw}
     response_text = str(decoded.get("response", "")).strip()
     if not response_text:
         raise RuntimeError("Runtime smoke invoke returned empty response payload")

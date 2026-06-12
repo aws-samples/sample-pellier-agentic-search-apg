@@ -593,7 +593,11 @@ alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-ga
 # a token instead.)
 agentcore() {
     ( cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
-        && if command -v agentcore >/dev/null 2>&1; then command agentcore "$@"; else npx -y @aws/agentcore@0.18.0 "$@"; fi )
+        && if _ac_bin="$(type -P agentcore)"; then "$_ac_bin" "$@"; else npx -y @aws/agentcore@0.18.0 "$@"; fi )
+        # type -P, NOT command -v: command -v matches THIS function (always
+        # true), then `command agentcore` finds no binary when the global npm
+        # install was skipped -> "command not found" instead of the npx
+        # fallback (box-verified 2026-06-12). type -P searches PATH only.
 }
 
 # Pellier service shortcuts — see FORMAT_ALIASES below (workshop vs builders).
@@ -1004,6 +1008,25 @@ EOF
         log "✅ AgentCore managed path ready"
     else
         warn "AgentCore managed path NOT ready — continuing so the backend launches. The health gate will flag this; see $AGENTCORE_LOG, then re-run provisioning to recover the Runtime/Gateway path."
+        # Partial-success salvage: Gateway and Policy deploy BEFORE the
+        # Runtime in provisioning, so a Runtime-only failure (e.g. the smoke
+        # gate) still leaves them live — record what exists so the Atelier
+        # Gateway/Policy surfaces work and only the Runtime beat stays dark
+        # (box-verified cascade 2026-06-12: all-or-nothing .env left live
+        # Gateway+Policy invisible). AGENTCORE_RUNTIME_ENDPOINT stays unset
+        # on purpose — the health gate keys the Runtime pillar off it.
+        PARTIAL_GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        PARTIAL_POLICY_ID="$(jq -r '.policy.policy_engine_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        if [ -n "$PARTIAL_GATEWAY_URL" ]; then
+            upsert_env "MCP_GATEWAY_URL" "$PARTIAL_GATEWAY_URL" "$REPO_PATH/.env"
+            upsert_env "AGENTCORE_GATEWAY_URL" "$PARTIAL_GATEWAY_URL" "$REPO_PATH/.env"
+            log "Salvaged live Gateway endpoint into .env despite failed provisioning"
+        fi
+        if [ -n "$PARTIAL_POLICY_ID" ]; then
+            upsert_env "AGENTCORE_POLICY_ENGINE_ID" "$PARTIAL_POLICY_ID" "$REPO_PATH/.env"
+            log "Salvaged live Policy engine id into .env despite failed provisioning"
+        fi
+        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env" 2>/dev/null || true
     fi
 
     # Recursively re-own the app tree as the participant.
@@ -1030,7 +1053,11 @@ EOF
     # the command surface. If you bump the pin, bump all three. Best-effort: a
     # failed global install just means the alias falls back to npx (the CLI still
     # works, just slower on first call); never abort the box for it.
-    if [ "$AGENTCORE_OK" = true ] && command -v npm &>/dev/null; then
+    # NOT gated on AGENTCORE_OK: a Runtime-only failure still leaves Gateway +
+    # Policy independently usable, and `agentcore status` is exactly the tool
+    # for diagnosing the failed beat (box-verified cascade 2026-06-12: gating
+    # this on AGENTCORE_OK left the participant with no CLI at all).
+    if command -v npm &>/dev/null; then
         log "Installing pinned AgentCore CLI globally (@aws/agentcore@0.18.0) for the cloud-inspection beat..."
         npm install -g @aws/agentcore@0.18.0 >/dev/null 2>&1 \
             && log "✅ agentcore CLI installed globally ($(command agentcore --version 2>/dev/null || echo 'version check skipped'))" \
@@ -1089,14 +1116,20 @@ if [ -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ] && [ -n "${COGNITO_POOL:-${
     log "Writing Act II token helper (~/pellier-token.sh)..."
     _TOKEN_POOL="${COGNITO_POOL:-${COGNITO_POOL_ID}}"
     _TOKEN_CLIENT="${COGNITO_CLIENT:-${COGNITO_CLIENT_ID:-}}"
-    cat > "$HOME_FOLDER/pellier-token.sh" <<TOKENEOF
+    # The participant's ~ is /home/$CODE_EDITOR_USER, NOT $HOME_FOLDER
+    # (/workshop) — writing only to $HOME_FOLDER made `source
+    # ~/pellier-token.sh` a No-such-file (box-verified 2026-06-12). Write to
+    # the real home; symlink at $HOME_FOLDER for any content that used it.
+    _TOKEN_HELPER="/home/$CODE_EDITOR_USER/pellier-token.sh"
+    cat > "$_TOKEN_HELPER" <<TOKENEOF
 #!/usr/bin/env bash
 # Mint a fresh Cognito access token for the optional authenticated beat.
 # Usage:  source ~/pellier-token.sh          # default persona (Marco)
 #         source ~/pellier-token.sh anna     # mint Anna's token instead
 #         source ~/pellier-token.sh theo     # mint Theo's
 # The Cognito users are named after the personas, so the access token carries
-# the chosen name (cognito:username) as the verified identity through the
+# the chosen name (the access token's \`username\` claim, lowercased — NOT
+# cognito:username, that's the ID token; box-verified 2026-06-12) through the
 # JWT-gated Gateway – identity passthrough you can see. Case-insensitive match;
 # an unknown/no arg falls back to the first user (Marco). Sets \$PELLIER_TOKEN.
 _want="\${1:-}"
@@ -1105,10 +1138,21 @@ _creds=\$(aws secretsmanager get-secret-value \\
   --query SecretString --output text 2>/dev/null)
 _u=\$(echo "\$_creds" | python3 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=json.load(sys.stdin)["users"];print(next((x for x in us if x["username"].lower()==w), us[0])["username"])' "\$_want" 2>/dev/null)
 _p=\$(echo "\$_creds" | python3 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=json.load(sys.stdin)["users"];print(next((x for x in us if x["username"].lower()==w), us[0])["password"])' "\$_want" 2>/dev/null)
+# The app client is configured WITH a secret, so admin-initiate-auth must
+# send SECRET_HASH = b64(hmac-sha256(client_secret, username+client_id)) or
+# Cognito rejects with NotAuthorizedException (box-verified 2026-06-12).
+_ap="USERNAME=\$_u,PASSWORD=\$_p"
+_csarn='${COGNITO_CLIENT_SECRET_ARN:-}'
+if [ -n "\$_csarn" ]; then
+  _csec=\$(aws secretsmanager get-secret-value --secret-id "\$_csarn" --region "$AWS_REGION" --query SecretString --output text 2>/dev/null)
+  _csec=\$(echo "\$_csec" | python3 -c 'import sys,json;s=sys.stdin.read().strip();print(json.loads(s).get("client_secret",s) if s.startswith("{") else s)' 2>/dev/null)
+  _sh=\$(python3 -c 'import sys,hmac,hashlib,base64;u,c,k=sys.argv[1:4];print(base64.b64encode(hmac.new(k.encode(),(u+c).encode(),hashlib.sha256).digest()).decode())' "\$_u" "$_TOKEN_CLIENT" "\$_csec" 2>/dev/null)
+  [ -n "\$_sh" ] && _ap="\$_ap,SECRET_HASH=\$_sh"
+fi
 export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
   --user-pool-id "$_TOKEN_POOL" --client-id "$_TOKEN_CLIENT" \\
   --auth-flow ADMIN_USER_PASSWORD_AUTH \\
-  --auth-parameters "USERNAME=\$_u,PASSWORD=\$_p" \\
+  --auth-parameters "\$_ap" \\
   --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null)
 if [ -n "\$PELLIER_TOKEN" ] && [ "\$PELLIER_TOKEN" != "None" ]; then
   echo "✅ \$PELLIER_TOKEN minted for \$_u (use: -H \"Authorization: Bearer \\\$PELLIER_TOKEN\")"
@@ -1116,7 +1160,8 @@ else
   echo "✗ Token mint failed – check Cognito provisioning (/var/log/pellier-agentcore.log)"
 fi
 TOKENEOF
-    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/pellier-token.sh" 2>/dev/null || true
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$_TOKEN_HELPER" 2>/dev/null || true
+    ln -sf "$_TOKEN_HELPER" "$HOME_FOLDER/pellier-token.sh" 2>/dev/null || true
     log "✅ Act II token helper ready: source ~/pellier-token.sh"
 fi
 
