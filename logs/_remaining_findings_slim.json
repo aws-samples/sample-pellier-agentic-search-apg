@@ -1,0 +1,650 @@
+[
+{
+"i": 0,
+"repo": "pellier",
+"sev": "high",
+"title": "floor_check and running_low tools are stubs but _INVENTORY_AGENT_STUBBED=False, causing the dispatcher to route inventory queries into a broken agent",
+"file": "pellier/backend/agents/stock_keeper.py:82",
+"evidence": "_INVENTORY_AGENT_STUBBED = False  # stock_keeper.py:82\n\nreturn json.dumps({\n    \"error\": \"floor_check is in stub state\",  # agent_tools.py:152-158\n    ...\n})\n\n_stub_flag = getattr(inventory_agent_module, \"_INVENTORY_AGENT_STUBBED\", False)  # chat.py:2139\nif _stub_flag:  # always False, stub fallback never triggers",
+"fix": "Either (a) make chat.py's dispatcher call `_floor_check_is_workshop_stub()` (already implemented in atelier_observatory.py) to detect the real stub state, or (b) set `_INVENTORY_AGENT_STUBBED = True` in the workshop starter version of stock_keeper.py so the flag truthfully reflects the tool state. O"
+},
+{
+"i": 1,
+"repo": "pellier",
+"sev": "low",
+"title": "graph_orchestrator.py uses a stale import path (strands.agent.graph) that does not exist in the installed Strands SDK, causing GRAPH_AVAILABLE to always be False",
+"file": "pellier/backend/agents/graph_orchestrator.py:18",
+"evidence": "from strands.agent.graph import GraphBuilder  # type: ignore  # graph_orchestrator.py:18\n# ModuleNotFoundError: No module named 'strands.agent.graph'  (verified at runtime)\n\nGRAPH_AVAILABLE = False  # stays False, always\n'graph_builder_available': GRAPH_AVAILABLE,  # line 87",
+"fix": "Change the import in graph_orchestrator.py to match the working import in graph_pattern.py:\n```python\nfrom strands.multiagent import GraphBuilder  # type: ignore\n```\nThis will cause GRAPH_AVAILABLE to be set correctly and the Atelier visualization panel will report the true status."
+},
+{
+"i": 2,
+"repo": "pellier",
+"sev": "low",
+"title": "GraphAgentAdapter: when the router node fails (NodeResult contains an Exception), all five conditional edges evaluate to False silently with no logged warning",
+"file": "pellier/backend/agents/graph_pattern.py:227",
+"evidence": "def condition(state) -> bool:\n    router_result = state.results.get(\"router\")\n    if router_result is None:\n        return False\n    agent_results = router_result.get_agent_results()\n    if not agent_results:\n        return False  # router Exception case: silently returns False, no log\n    token = _extract_route(str(agent_results[0]))\n    return token == key",
+"fix": "Add a check inside the condition closure: if `router_result.status == Status.FAILED` (or `isinstance(router_result.result, Exception)`), log a warning at WARNING level and return False. Alternatively, check `node_result.status` in the `__call__` loop and emit a warning before returning `_EmptyResult"
+},
+{
+"i": 3,
+"repo": "pellier",
+"sev": "low",
+"title": "Pattern I (agents_as_tools): specialist @tool wrappers swallow all exceptions and return error JSON, but the orchestrator's Haiku router may include the error text as its own reply to the user",
+"file": "pellier/backend/agents/curator.py:158",
+"evidence": "    except Exception as e:\n        return json.dumps({\"error\": f\"Recommendation agent error: {str(e)}\"})\n        # curator.py:158-159 \u2014 same pattern in all 5 specialists",
+"fix": "Return a user-friendly, intent-neutral error string instead of exposing internal exception details. For example: `return json.dumps({\"error\": \"I ran into a problem searching right now. Try again in a moment.\", \"internal_detail\": str(e)})`. Add `\"internal_detail\"` for telemetry but keep `\"error\"` gen"
+},
+{
+"i": 4,
+"repo": "pellier",
+"sev": "low",
+"title": "graph_orchestrator.py node metadata shows incorrect model labels (Opus 4.6 for support/search/recommendation) that contradict actual agent configuration which is env-overridable",
+"file": "pellier/backend/agents/graph_orchestrator.py:45",
+"evidence": "{\n    \"id\": \"recommendation\",\n    \"model\": \"Claude Opus 4.6\",  # hardcoded \u2014 graph_orchestrator.py:45\n}\n# but config.py:77: BEDROCK_OPUS_MODEL is intentionally env-OVERRIDABLE",
+"fix": "Replace hardcoded strings with values derived from `settings.BEDROCK_OPUS_MODEL` / `settings.BEDROCK_HAIKU_MODEL` at call time, e.g., `\"model\": settings.BEDROCK_OPUS_MODEL`. Import `settings` from `config` at the top of graph_orchestrator.py."
+},
+{
+"i": 5,
+"repo": "pellier",
+"sev": "low",
+"title": "agentcore_evals.py uses wrong boto3 service \u2014 bedrock-agentcore has no create_evaluation_job",
+"file": "pellier/backend/services/agentcore_evals.py:109-122",
+"evidence": "client = boto3.client(\n    \"bedrock-agentcore\",\n    region_name=getattr(settings, \"aws_region_resolved\", settings.AWS_REGION),\n)\n...\nreturn client.create_evaluation_job(**payload)",
+"fix": "Change the client to boto3.client(\"bedrock\", ...) and rewrite the payload to match the bedrock CreateEvaluationJob schema: jobName, roleArn (not jobRoleArn), evaluationConfig (with automated or human branch), inferenceConfig (with models or ragConfigs), and outputDataConfig."
+},
+{
+"i": 6,
+"repo": "pellier",
+"sev": "low",
+"title": "managed_policy._region() calls settings.get_aws_region() which does not exist \u2014 always falls back",
+"file": "pellier/backend/services/managed_policy.py:63",
+"evidence": "try:\n    from config import settings\n    return settings.get_aws_region()\nexcept Exception:\n    return os.environ.get(\"AWS_REGION\") or os.environ.get(\"AWS_DEFAULT_REGION\") or \"us-east-1\"",
+"fix": "Replace settings.get_aws_region() with settings.aws_region_resolved (the actual property name defined at config.py:261)."
+},
+{
+"i": 7,
+"repo": "pellier",
+"sev": "low",
+"title": "IndexPerformanceService uses blocking psycopg.connect inside async route handlers \u2014 event loop stalls",
+"file": "pellier/backend/services/index_performance.py:58",
+"evidence": "async def compare_index_performance(...):\n    ...\n    with psycopg.connect(self.conn_string) as conn:  # blocking connect on event loop\n        results[\"dataset_size\"] = await self._get_dataset_size(conn)  # awaits sync code\n        results[\"hnsw\"] = await self._test_hnsw_index(conn, ...)     # 4 blocking queries\n        results[\"sequential\"] = await self._test_sequential_scan(conn, ...)  # 2 bloc",
+"fix": "Either (a) switch to `psycopg.AsyncConnection` and `async with` cursor throughout the service, or (b) wrap the entire blocking body in `asyncio.to_thread(lambda: self._run_sync_benchmark(...))` and move the inner logic to a synchronous method."
+},
+{
+"i": 8,
+"repo": "pellier",
+"sev": "low",
+"title": "vector_search.py vector_search_filtered: first bind construction (line 208) is immediately overwritten \u2014 dead code",
+"file": "pellier/backend/services/vector_search.py:208",
+"evidence": "bind: List[Any] = [embedding] + params[1:] + [limit]   # built on line 208\n# Recreate ``params[0]`` was the embedding placeholder for clause\n# accounting; the actual SQL has the embedding twice (once in the\n# CTE, once in the SELECT/ORDER BY through the CTE alias). Simpler\n# to rebuild ``bind`` cleanly:\nbind = [embedding]   # overwrites line 208 completely on line 213",
+"fix": "Delete lines 208\u2013212 (the first bind construction and its misleading comment). Keep only the second construction starting at line 213. Optionally correct the comment to clarify that the CTE is referenced by alias, requiring only one embedding binding."
+},
+{
+"i": 9,
+"repo": "pellier",
+"sev": "info",
+"title": "business_logic.py module docstring lists non-existent column image_verified",
+"file": "pellier/backend/services/business_logic.py:8",
+"evidence": "Aligned to the boutique catalog schema:\n    productId, name, brand, color, price, description, category, tags,\n    rating, reviews (TEXT), \"imgUrl\", badge, tier, image_verified,\n    quantity, embedding, created_at, updated_at\n\n# 001_schema.sql actual columns: no image_verified; reviews integer",
+"fix": "Remove `image_verified` from the docstring column list. Change `reviews (TEXT)` to `reviews integer` to match the DDL."
+},
+{
+"i": 10,
+"repo": "pellier",
+"sev": "low",
+"title": "Process-global `ContextManager` mixes messages from all concurrent sessions",
+"file": "pellier/backend/services/context_manager.py:577-585",
+"evidence": "`get_context_manager()` lines 580-585: global `_context_manager` singleton, no session key. `clear_context` in app.py line 972 calls `context_manager.clear_context()` ignoring the `session_id` query param.",
+"fix": "Either (a) key the context manager by `session_id` (a dict of `ContextManager` instances), or (b) document explicitly that this is a process-level aggregate counter only, and fix the `clear_context` endpoint to not accept a misleading `session_id` parameter."
+},
+{
+"i": 11,
+"repo": "pellier",
+"sev": "low",
+"title": "Client-controlled `conversation_history[].role` field flows unsanitized into LLM prompt",
+"file": "pellier/backend/services/chat.py:625-630",
+"evidence": "chat.py lines 626-630: `role = msg.get('role', 'user')` then `conversation_context += f\"{role.upper()}: {content}\\n\\n\"`. models/search.py line 89: `role: str` (no validation).",
+"fix": "Add a Literal validator to `ChatMessage.role` (e.g., `Literal[\"user\", \"assistant\"]`) so Pydantic rejects arbitrary values at the request boundary. Alternatively, normalize `role` to the safe set before concatenation."
+},
+{
+"i": 12,
+"repo": "pellier",
+"sev": "low",
+"title": "User email logged at INFO level on every chat turn",
+"file": "pellier/backend/services/chat.py:534",
+"evidence": "Line 534: `logger.info(f\"\ud83d\udcac Enhanced chat processing: '...' (mode={workshop_mode or 'agentic'}, user={user.get('email') if user else 'anonymous'})\")`. Line 608: `\"session.user\": user.get(\"email\", \"anonymous\")` set as an OTEL trace attribute.",
+"fix": "Replace email with a privacy-safe identifier (e.g., Cognito `sub` or a hash of the email) in log lines and OTEL attributes."
+},
+{
+"i": 13,
+"repo": "pellier",
+"sev": "info",
+"title": "`tool_audit_writer.record_allow` docstring incorrectly describes caller",
+"file": "pellier/backend/services/tool_audit_writer.py:106-107",
+"evidence": "tool_audit_writer.py lines 106-107: `\"\"\"INSERT a row into pellier.tool_audit for an ALLOW decision. Called from an in-process AfterToolCall telemetry path...\"\"\"`. chat.py line 1871: `tool_audit_writer.record_allow(...)` called inside `on_before_tool`.",
+"fix": "Update the docstring to say 'Called from the BeforeToolCallEvent handler in chat.py.'"
+},
+{
+"i": 14,
+"repo": "pellier",
+"sev": "low",
+"title": "CORS wildcard + allow_credentials=True is invalid and rejected by browsers",
+"file": "pellier/backend/app.py:300-306",
+"evidence": "allow_origins=[\"*\"],  # In enterprise deployments, specify actual origins\nallow_credentials=True,",
+"fix": "Replace the wildcard with settings.cors_origins_list (already defined in config.py). If workshop attendees need to add their own origin, they extend CORS_ORIGINS in .env."
+},
+{
+"i": 15,
+"repo": "pellier",
+"sev": "medium",
+"title": "POST /api/tools/restock is an unauthenticated DB write endpoint",
+"file": "pellier/backend/app.py:650-665",
+"evidence": "@app.post(\"/api/tools/restock\")\nasync def restock_shelf_endpoint(\n    request: dict,\n    db: DatabaseService = Depends(get_db_service)\n):",
+"fix": "Add `user=Depends(get_current_user)` and gate on `user is not None`, or remove the endpoint if it is only needed via the agent path. Replace `request: dict` with a Pydantic model that enforces `product_id: int` and `quantity: int` with bounds, so missing/invalid fields return a 422 instead of a 500."
+},
+{
+"i": 16,
+"repo": "pellier",
+"sev": "low",
+"title": "services/auth.py verify_cognito_token leaks internal JWT parse error details to the caller",
+"file": "pellier/backend/services/auth.py:96-97",
+"evidence": "except jwt.InvalidTokenError as e:\n    raise HTTPException(status_code=401, detail=f\"Invalid token: {e}\")",
+"fix": "Change the detail to the same opaque string the rest of the codebase uses: `detail=\"auth_failed\"`. Log the raw exception message at DEBUG level instead."
+},
+{
+"i": 17,
+"repo": "pellier",
+"sev": "medium",
+"title": "config.py CORS_ORIGINS list is defined but never applied; app.py hardcodes wildcard",
+"file": "pellier/backend/config.py:105-110 and pellier/backend/app.py:302",
+"evidence": "CORS_ORIGINS: list[str] = [\n    \"http://localhost:5173\",\n    \"http://localhost:3000\",\n    ...\n]\n# in app.py:\nallow_origins=[\"*\"],",
+"fix": "Replace the hardcoded wildcard with `settings.cors_origins_list` so the .env file controls the allowed origins."
+},
+{
+"i": 18,
+"repo": "pellier",
+"sev": "low",
+"title": "delete_cookie() in auth.py does not pass secure/samesite attributes \u2014 cookie may not be cleared in some browsers",
+"file": "pellier/backend/routes/auth.py:296-303",
+"evidence": "def _clear_session_cookies(response: Response) -> None:\n    for cookie in (...):\n        response.delete_cookie(cookie, path=\"/\")",
+"fix": "Pass the same attributes used during set_cookie: `response.delete_cookie(cookie, path=\"/\", secure=True, samesite=\"lax\")`. FastAPI's delete_cookie accepts these kwargs."
+},
+{
+"i": 19,
+"repo": "pellier",
+"sev": "low",
+"title": "Many app.py exception handlers pass raw str(e) as the HTTP detail to the caller",
+"file": "pellier/backend/app.py:563,618,632,647,665,694,831,843,892,924,1011",
+"evidence": "raise HTTPException(status_code=500, detail=str(e))\n# e.g. at lines 563, 618, 632, 647, 665, 694, 831, 843, 892, 924, 1011",
+"fix": "Replace detail=str(e) with a generic message (e.g. \"search_failed\", \"restock_failed\") and log the real exception at ERROR level. The routes/search.py already follows this pattern (raises HTTPException 500, detail=\"search_failed\")."
+},
+{
+"i": 20,
+"repo": "pellier",
+"sev": "low",
+"title": "Backend SKILL.md copies (pellier/backend/skills/*/SKILL.md) diverge from canonical skills/ copies loaded at runtime",
+"file": "pellier/backend/skills/the-gift-table/SKILL.md",
+"evidence": "diff pellier/backend/skills/the-gift-table/SKILL.md vs skills/the-gift-table/SKILL.md shows missing display_name field and entirely different body text. loader.py line 24: _DEFAULT_SKILLS_DIR = Path(__file__).resolve().parents[3] / 'skills' resolves to repo-root /skills/, not pellier/backend/skills/.",
+"fix": "Either (a) remove the pellier/backend/skills/*/SKILL.md sub-folders entirely (keeping only the Python modules in pellier/backend/skills/) and rely solely on /skills/*/SKILL.md, or (b) keep them as intentional starter-code stubs and add a clear comment at the top of each saying 'Starter stub \u2014 runtim"
+},
+{
+"i": 21,
+"repo": "pellier",
+"sev": "low",
+"title": "SkillRouter instantiated fresh per-request \u2014 agent cache on the instance is never reused across requests",
+"file": "pellier/backend/services/chat.py:1799-1800",
+"evidence": "chat.py line 1800: `router = SkillRouter(get_registry())` inside the per-request generator. router.py line 74: `self._agent = None` and line 94-109: lazy Agent construction with BedrockModel. strands/models/bedrock.py line 176: `self.client = session.client('bedrock-runtime', ...)` created in __init__.",
+"fix": "Cache the SkillRouter as a module-level or app-level singleton, similar to how the SkillRegistry is cached via get_registry(). Add a get_skill_router() function in skills/loader.py (or a new module) that lazily initializes and caches a SkillRouter wrapping the singleton registry. This reuses the Bed"
+},
+{
+"i": 22,
+"repo": "pellier",
+"sev": "info",
+"title": "SKILL.md example in models.py docstring references a non-existent skill name",
+"file": "pellier/backend/skills/models.py:31",
+"evidence": "models.py line 31: `description=\"Canonical name from frontmatter, e.g. 'style-advisor'.\"`. Actual skill names: the-gift-table, the-makers-shelf, the-packing-list.",
+"fix": "Change the example to `e.g. 'the-gift-table'` to match the current naming convention."
+},
+{
+"i": 23,
+"repo": "pellier",
+"sev": "low",
+"title": "deploy_gateway.py header claims 13 tools reach Gateway but TOOL_SCHEMAS registers only 12",
+"file": "scripts/deploy/deploy_gateway.py:9-10",
+"evidence": "# Header: \"Together these surface every backend ``@tool`` (13 of 13) over Gateway\"\n# Actual count in TOOL_SCHEMAS:\n#   search: semantic_search, find_pieces_hybrid, get_inventory_health, get_low_stock_products, restock_product (5)\n#   pricing: find_deals, get_price_analysis, compare_products (3)\n#   recommendation: get_recommendations, get_trending_products (2)\n#   experience: process_return, escal",
+"fix": "Either identify and add the 13th tool to TOOL_SCHEMAS and its corresponding Lambda server, or update the header comment to '12 of 12' (or '12 of 13 \u2014 <tool> stays in-process because <reason>')."
+},
+{
+"i": 24,
+"repo": "pellier",
+"sev": "low",
+"title": "STACKNAME omitted from prereq validation loop; empty value causes opaque failure at step 8",
+"file": "scripts/deploy/deploy_all.sh:74",
+"evidence": "for _v in PGHOSTARN PGSECRET PGDATABASE AWS_REGION COGNITO_POOL COGNITO_CLIENT AGENTCORE_ROLE_ARN; do\n    # STACKNAME is absent from this list\n    ...\ndone\n# later at line 386:\n  --stack-name \"$STACKNAME\"  # empty string causes AWS CLI error",
+"fix": "Add STACKNAME to the for-loop on line 74: for _v in PGHOSTARN PGSECRET PGDATABASE AWS_REGION COGNITO_POOL COGNITO_CLIENT AGENTCORE_ROLE_ARN STACKNAME; do"
+},
+{
+"i": 25,
+"repo": "pellier",
+"sev": "low",
+"title": "deploy_lambda.py leaves package.zip artifact in the caller's working directory on every invocation",
+"file": "scripts/deploy/deploy_lambda.py:90-91",
+"evidence": "with open('package.zip', 'wb') as z:\n    z.write(zip_content)\n\nzip_size_mb = len(zip_content) / (1024 * 1024)\n...\nos.remove(zip_path)  # removes the tmp file, NOT package.zip",
+"fix": "Remove the package.zip write entirely (the zip_content is already in memory for the Lambda API call), or write it to the tempdir with a function-name prefix: open(os.path.join(temp_dir, f'{function_name}.zip'), 'wb'). If it is intentionally kept for debugging, add a comment and ensure it is gitignor"
+},
+{
+"i": 26,
+"repo": "pellier",
+"sev": "low",
+"title": "Aurora cluster parameter group does not set search_path \u2014 unqualified table names fail in ad-hoc psql sessions",
+"file": ".claude/worktrees/stoic-mestorf-4810b5/lab-content/builders/static/pellier-database.yml:55",
+"evidence": "ClusterParameterGroup:\n    Type: AWS::RDS::DBClusterParameterGroup\n    Properties:\n      Parameters:\n        shared_preload_libraries: vector\n        rds.force_ssl: \"1\"",
+"fix": "Add `search_path: '\"$user\", pellier, public'` to the ClusterParameterGroup Parameters block. This makes unqualified names resolve to `pellier.*` first while keeping backward compatibility."
+},
+{
+"i": 27,
+"repo": "pellier",
+"sev": "low",
+"title": "check_model_access.py hardcodes REGION='us-east-1' with no env-var override",
+"file": "scripts/check_model_access.py:17",
+"evidence": "REGION = \"us-east-1\"\n...\nclient = boto3.client(\"bedrock-runtime\", region_name=REGION)\nprint(f\"Checking Bedrock model access in {REGION}...\\n\")",
+"fix": "Replace the constant with `REGION = os.environ.get('AWS_REGION', 'us-east-1')` and add a CLI `--region` argument. If the us-east-1 constraint is load-bearing (the comment explains it), keep it but add an assertion or clear warning when `AWS_REGION != 'us-east-1'`."
+},
+{
+"i": 28,
+"repo": "pellier",
+"sev": "low",
+"title": "dry-run-builders.sh missing `set -e` \u2014 non-pipeline command failures are silently swallowed",
+"file": "scripts/dry-run-builders.sh:24",
+"evidence": "set -uo pipefail\n...\nrestore() {\n  if ! $KEEP && [[ -f \"${TOOLS}.dryrun.bak\" ]]; then\n    mv \"${TOOLS}.dryrun.bak\" \"$TOOLS\"\n    info \"Restored original agent_tools.py (stub). Backend will reload.\"\n  fi\n}",
+"fix": "Change line 24 to `set -euo pipefail`. Review any commands that are intentionally allowed to fail and add `|| true` to those specific lines."
+},
+{
+"i": 29,
+"repo": "pellier",
+"sev": "low",
+"title": "bootstrap-environment.sh .bashrc heredoc writes literal `$AWS_REGION` string (single-quoted EOF), resulting in a self-referencing no-op export",
+"file": "scripts/bootstrap-environment.sh:690",
+"evidence": "cat >> \"/home/$CODE_EDITOR_USER/.bashrc\" << 'EOF'\n# AWS Configuration\nexport AWS_REGION=\"$AWS_REGION\"\nexport AWS_DEFAULT_REGION=\"$AWS_REGION\"",
+"fix": "Either use an unquoted heredoc (`<< EOF`) so `$AWS_REGION` expands to the actual value, or remove the two export lines entirely since the `.env` source block immediately below already sets the region."
+},
+{
+"i": 30,
+"repo": "pellier",
+"sev": "low",
+"title": "bootstrap-environment.sh logs 'Python 3.13 configured' regardless of which version was actually installed",
+"file": "scripts/bootstrap-environment.sh:713",
+"evidence": "log \"\u2705 Python 3.13 configured\"  # line 713\necho \"\u2705 Python 3.13 configured\"  # line 836",
+"fix": "Replace both hardcoded strings with `log \"\u2705 Python ${PY_VER} configured\"` and `echo \"\u2705 Python ${PY_VER} configured\"` to match the version actually installed."
+},
+{
+"i": 31,
+"repo": "pellier",
+"sev": "medium",
+"title": "Module-level response cache in useAgentChat ignores persona/customer_id, serving one persona's personalized results to another",
+"file": "pellier/frontend/src/hooks/useAgentChat.ts:168",
+"evidence": "Lines 157-170: `const responseCache = new Map<...>()` at module level; `function cacheKey(query: string) { return query.trim().toLowerCase() }`. Line 699: `persona?.customer_id ?? null` is passed to the backend but not included in the cache key.",
+"fix": "Include the customer_id in the cache key: `function cacheKey(query: string, customerId: string | null | undefined) { return `${customerId ?? 'anon'}:${query.trim().toLowerCase()}` }`. Also clear the cache on persona sign-out as well as in clearChat."
+},
+{
+"i": 32,
+"repo": "pellier",
+"sev": "low",
+"title": "STM hydration guard in useAgentChat reads stale `messages` via closure \u2014 could overwrite active conversation",
+"file": "pellier/frontend/src/hooks/useAgentChat.ts:297",
+"evidence": "useAgentChat.ts lines 286-313, especially line 297: `if (messages.length > 1) return` \u2014 `messages` is declared in outer scope but not listed in `}, [sessionId])` at line 313.",
+"fix": "Replace the direct `messages.length` read with the ref that is always in sync: `if (messagesRef.current.length > 1) return`. messagesRef is kept current by a separate useEffect (lines 326-328) and is safe to read asynchronously."
+},
+{
+"i": 33,
+"repo": "pellier",
+"sev": "low",
+"title": "LayoutContext auto-start-tour useEffect has empty dependency array but closes over stale showOnboarding and workshopMode",
+"file": "pellier/frontend/src/contexts/LayoutContext.tsx:72",
+"evidence": "LayoutContext.tsx lines 72-82: `useEffect(() => { if (showOnboarding) return; ... }, [])` \u2014 empty deps array captures showOnboarding at mount-time only.",
+"fix": "Add `showOnboarding` to the dependency array: `}, [showOnboarding])`. Also guard the timer launch with a ref to prevent re-triggering on subsequent showOnboarding changes after the initial transition. Alternatively, trigger startTour from the onboarding completion handler directly."
+},
+{
+"i": 34,
+"repo": "pellier",
+"sev": "low",
+"title": "chat.ts SSE streaming fetch calls omit credentials: 'include', breaking cookie-based auth",
+"file": "pellier/frontend/src/services/chat.ts:93",
+"evidence": "chat.ts lines 93-108: `await fetch(..., { method: 'POST', headers: getAuthHeaders(), body: ... })` \u2014 no `credentials: 'include'`.\napi.ts line 78: `withCredentials: true` in the Axios client that is NOT used for streaming.",
+"fix": "Add `credentials: 'include'` to the fetch options in sendChatMessageStreaming (line 93) and sendChatMessage (line 176). The cookie will then be sent alongside the Bearer token (which may be absent in the C9 flow), and the backend can use whichever auth mechanism it finds."
+},
+{
+"i": 35,
+"repo": "pellier",
+"sev": "low",
+"title": "useScrollAndFlash pending flash timeouts accumulate without cleanup on unmount",
+"file": "pellier/frontend/src/hooks/useScrollAndFlash.ts:48",
+"evidence": "useScrollAndFlash.ts lines 36-51: `const pendingTimeouts = useRef<number[]>([])` declared, timers pushed via `.push(timer)`, but no useEffect with `return () => pendingTimeouts.current.forEach(clearTimeout)` exists.",
+"fix": "Add a cleanup useEffect: `useEffect(() => () => { pendingTimeouts.current.forEach(clearTimeout); pendingTimeouts.current = [] }, [])`. Also clear handled timers after they fire to prevent unbounded growth."
+},
+{
+"i": 36,
+"repo": "pellier",
+"sev": "high",
+"title": "AtelierErrorBoundary never resets on intra-atelier navigation",
+"file": "pellier/frontend/src/atelier/shell/AtelierFrame.tsx:26-29",
+"evidence": "AtelierFrame.tsx line 26-29: `<AtelierErrorBoundary><Outlet /></AtelierErrorBoundary>` \u2014 no key or location prop. AtelierErrorBoundary.tsx: `handleReset` is only called from the 'Return to Sessions' Link onClick.",
+"fix": "Key the boundary on the current location pathname so React remounts it on navigation: wrap AtelierErrorBoundary in a component that reads `useLocation().pathname` and passes it as the `key` prop, e.g. `<AtelierErrorBoundary key={location.pathname}>`. Alternatively, implement `componentDidUpdate(prev"
+},
+{
+"i": 37,
+"repo": "pellier",
+"sev": "medium",
+"title": "PERSONA_TURN_TRACES[marco][0] incorrectly labels the-packing-list skill for Turn 1",
+"file": "pellier/frontend/src/data/personaCurations.ts:396-401",
+"evidence": "personaCurations.ts line 397: `{ skill: 'the-packing-list', tools: ['find_pieces'] }` for index 0. session-marco-opening-demo.json Turn 1 meta has no `skill` field; Turn 2 meta line 142: `\"skill\": \"the-packing-list\"`.",
+"fix": "Change PERSONA_TURN_TRACES[marco][0] to `{ tools: ['find_pieces'] }` (no skill). Index 1 is correct with `{ skill: 'the-packing-list', tools: ['find_pieces', 'style_match'] }`."
+},
+{
+"i": 38,
+"repo": "pellier",
+"sev": "low",
+"title": "elapsedMs mismatch between sessions.json index and session-detail fixtures \u2014 visible in Brief tab",
+"file": "pellier/frontend/src/atelier/fixtures/session-theo-ceramics-return.json:5",
+"evidence": "sessions.json line 127: `\"elapsedMs\": 2140` for theo-ceramics-return. session-theo-ceramics-return.json line 5: `\"elapsedMs\": 5840`. BriefTab.tsx line 583: `{ label: 'Elapsed', value: formatElapsed(session.elapsedMs) }`.",
+"fix": "Reconcile the elapsedMs values: either update sessions.json to match the detail fixtures (5840 for theo-ceramics-return, 6231 for anna-birthday-gift) or vice versa. The detail fixture is the more authoritative source since it contains the full trace."
+},
+{
+"i": 39,
+"repo": "pellier",
+"sev": "low",
+"title": "sortSessionsByRecency function name and file-level JSDoc contradict the implementation",
+"file": "pellier/frontend/src/atelier/surfaces/observe/SessionsList.tsx:5-34",
+"evidence": "Line 5 JSDoc: 'sorted by most recent first'. Line 30: function `sortSessionsByRecency`. Line 32: `(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()` (ascending = oldest first).",
+"fix": "Rename the function to `sortSessionsChronologically` (or `sortSessionsAscending`) and update the file-level JSDoc to read 'sorted chronologically (earliest first)' to match the implementation and the correct inner comment."
+},
+{
+"i": 40,
+"repo": "pellier",
+"sev": "low",
+"title": "ChatTab AGENTS_LIST hardcodes Experience Guide as 'idle', contradicting agents.json 'shipped' status",
+"file": "pellier/frontend/src/atelier/surfaces/observe/ChatTab.tsx:1577-1583",
+"evidence": "ChatTab.tsx line 1582: `{ name: 'Experience Guide', status: 'idle' as const }`. agents.json line 41-47: `\"name\": \"Experience Guide\"`, `\"status\": \"shipped\"`.",
+"fix": "Change `status: 'idle'` to `status: 'live'` for Experience Guide in AGENTS_LIST to match agents.json. Alternatively, derive the agent list from the `useAtelierData('agents')` fixture instead of hardcoding it, so status stays in sync."
+},
+{
+"i": 41,
+"repo": "pellier",
+"sev": "low",
+"title": "evaluations.json uses generic agentName aliases ('Search', 'Recommendation', 'Pricing', 'Inventory') that do not match the canonical agent names in agents.json",
+"file": "pellier/frontend/src/atelier/fixtures/evaluations.json:3-49",
+"evidence": "evaluations.json lines 3, 15, 27, 39: `\"agentName\": \"Search\"`, `\"Recommendation\"`, `\"Pricing\"`, `\"Inventory\"`. agents.json: `\"Style Advisor\"`, `\"Curator\"`, `\"Value Analyst\"`, `\"Stock Keeper\"`, `\"Experience Guide\"`.",
+"fix": "Align evaluations.json agentName values with agents.json canonical names: 'Search' \u2192 'Style Advisor', 'Recommendation' \u2192 'Curator', 'Pricing' \u2192 'Value Analyst', 'Inventory' \u2192 'Stock Keeper'. Add the missing 'Experience Guide' scorecard. This makes cross-surface navigation coherent for workshop atten"
+},
+{
+"i": 42,
+"repo": "pellier",
+"sev": "low",
+"title": "PersonaStrip in ChatTab.tsx declares openingQuery prop but never uses it",
+"file": "pellier/frontend/src/atelier/surfaces/observe/ChatTab.tsx:83-145",
+"evidence": "Line 85: `openingQuery: string;` in prop type. Line 86: `= ({ personaId }) => {` \u2014 openingQuery destructured out. Lines 90-145: no reference to openingQuery.",
+"fix": "Either remove `openingQuery` from the prop type and the call site, or actually render it (e.g. as a subtitle under the persona name in the strip)."
+},
+{
+"i": 43,
+"repo": "pellier",
+"sev": "info",
+"title": "AtelierFrame does not wrap AtelierFrame's own route with AuthGate despite the comment claiming it does",
+"file": "pellier/frontend/src/App.tsx:182",
+"evidence": "App.tsx line 172 comment: 'gated by AuthGate'. Line 182: `<Route path=\"/atelier\" element={<AtelierFrame />}>` \u2014 no AuthGate wrapper in JSX.",
+"fix": "Either wrap the Atelier route: `<Route path=\"/atelier\" element={<AuthGate><AtelierFrame /></AuthGate>}>` or update the comment to accurately reflect the current behavior (Cognito-gated only when env vars are set; otherwise open)."
+},
+{
+"i": 44,
+"repo": "pellier",
+"sev": "low",
+"title": "ToolChip uses dangerouslySetInnerHTML with un-sanitized backend HTML in panel.meta",
+"file": "pellier/frontend/src/components/atelier-chat/ToolChip.tsx:140",
+"evidence": "<span\\n  className=\\\"italic\\\"\\n  style={{ color: c.muted }}\\n  dangerouslySetInnerHTML={{ __html: panel.meta }}\\n/>",
+"fix": "Strip tags on the frontend before rendering: use `stripTags(panel.meta)` (same helper already defined in ConfidenceSummary.tsx) and render as plain text, or use DOMPurify to allowlist only `<span>` with safe style attributes."
+},
+{
+"i": 45,
+"repo": "pellier",
+"sev": "low",
+"title": "workshop.ts: non-null assertion on res.body will throw on environments where body can be null",
+"file": "pellier/frontend/src/services/workshop.ts:286",
+"evidence": "const reader = res.body!.getReader()",
+"fix": "Guard explicitly: `if (!res.body) throw new Error('Response body is null \u2014 server may not support streaming');` before calling `getReader()`, so the `catch` block in the caller can surface a meaningful error message."
+},
+{
+"i": 46,
+"repo": "pellier",
+"sev": "low",
+"title": "clearCart uses browser confirm() \u2014 blocks React render thread and breaks in SSR/test environments",
+"file": "pellier/frontend/src/contexts/CartContext.tsx:259",
+"evidence": "const clearCart = useCallback(() => {\\n    if (confirm('Are you sure you want to clear your cart?')) {",
+"fix": "Replace with an in-UI confirmation step: set a `pendingClear` boolean state, render a confirmation pill inline in CartPanel, and only call `setItems([])` when the user clicks the confirm pill. This keeps the interaction async and consistent with the rest of the component."
+},
+{
+"i": 47,
+"repo": "pellier",
+"sev": "medium",
+"title": "blurbForProduct uses a lookbehind assertion (?<=) that crashes on Safari < 16.4",
+"file": "pellier/frontend/src/atelier/surfaces/observe/telemetryTrace.ts:110",
+"evidence": "const sentences = turn.content.split(/(?<=[.!?])\\s+/);",
+"fix": "Replace with a lookahead-based split that is universally supported: `turn.content.split(/(?=[.!?]\\s)/).map(s => s.trim()).filter(Boolean)` or a manual sentence splitter using `indexOf`."
+},
+{
+"i": 48,
+"repo": "pellier",
+"sev": "low",
+"title": "ConciergeModal: role=\"dialog\" without aria-modal=\"true\" \u2014 screen readers may not trap virtual focus",
+"file": "pellier/frontend/src/components/ConciergeModal.tsx:423-424",
+"evidence": "role=\"dialog\"\\naria-label=\"Ask Pellier\"\\n// no aria-modal",
+"fix": "Add `aria-modal=\"true\"` to both the ConciergeModal and ChatDrawer dialog containers."
+},
+{
+"i": 49,
+"repo": "pellier",
+"sev": "low",
+"title": "ConciergeModal: onKeyPress is deprecated in React 17+ / DOM spec and silently dropped in some browsers",
+"file": "pellier/frontend/src/components/ConciergeModal.tsx:697",
+"evidence": "onKeyPress={handleKeyPress}  // ConciergeModal.tsx:697",
+"fix": "Replace `onKeyPress` with `onKeyDown` and add a check for `e.nativeEvent.isComposing` to guard against IME composition: `if (e.nativeEvent.isComposing) return`."
+},
+{
+"i": 50,
+"repo": "pellier",
+"sev": "medium",
+"title": "solutions/closing-marcos-gap/agents/orchestrator.py hardcodes model IDs and token limits instead of reading from settings",
+"file": "solutions/closing-marcos-gap/agents/orchestrator.py:32-33",
+"evidence": "Solution orchestrator.py line 32: `model_id=\"global.anthropic.claude-haiku-4-5-20251001-v1:0\"`. Backend orchestrator.py line 53: `model_id=settings.BEDROCK_HAIKU_MODEL`. Solution line 33: `max_tokens=4096`. Backend line 54: `max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU` (= 320).",
+"fix": "Replace hardcoded model_id and max_tokens values in both `create_orchestrator` and `create_guarded_orchestrator` with `settings.BEDROCK_HAIKU_MODEL` and `settings.ROUTER_MAX_TOKENS_HAIKU`. Also add `from config import settings` import."
+},
+{
+"i": 51,
+"repo": "pellier",
+"sev": "low",
+"title": "solutions/closing-marcos-gap/agents/stock_keeper.py hardcodes max_tokens=2048 instead of settings.AGENT_MAX_TOKENS_HAIKU (800)",
+"file": "solutions/closing-marcos-gap/agents/stock_keeper.py:110",
+"evidence": "Solution stock_keeper.py line 110: `max_tokens=2048`. Backend stock_keeper.py line 120: `max_tokens=settings.AGENT_MAX_TOKENS_HAIKU`.",
+"fix": "Change `max_tokens=2048` to `max_tokens=settings.AGENT_MAX_TOKENS_HAIKU` in the solution."
+},
+{
+"i": 52,
+"repo": "pellier",
+"sev": "low",
+"title": "solutions/the-ledger/services/agentcore_memory.py missing _SDK_AVAILABLE module-level cache causing repeated warning spam",
+"file": "solutions/the-ledger/services/agentcore_memory.py:111-140",
+"evidence": "Backend agentcore_memory.py lines 99-176 define `_SDK_AVAILABLE` and the guard logic in `_get_sdk_manager`. Solution has no `_SDK_AVAILABLE` variable; its `_get_sdk_manager` retries the import unconditionally.",
+"fix": "Add the `_SDK_AVAILABLE` module-level cache to the solution, matching the backend pattern."
+},
+{
+"i": 53,
+"repo": "pellier",
+"sev": "low",
+"title": "solutions/the-quiet-search/services/hybrid_search_with_rerank.py inherits from HybridSearchService but backend class is HybridSearch",
+"file": "solutions/the-quiet-search/services/hybrid_search_with_rerank.py:27-57",
+"evidence": "solutions/the-quiet-search/services/hybrid_search_with_rerank.py line 27: `from services.hybrid_search import HybridSearchService` (class does not exist in current backend). Line 57: `super().search(query, embedding, limit, vector_weight, fulltext_weight, ef_search)` \u2014 6-arg call incompatible with the backend's 6-kwarg signature.",
+"fix": "This file is likely an archive from the pre-refactor module and should be retired or updated to extend the current `HybridSearch` class with the current `search()` signature."
+},
+{
+"i": 54,
+"repo": "builders",
+"sev": "medium",
+"title": "Facilitator cleanup guide uses a wrong Aurora cluster identifier",
+"file": "content/90-appendix/04-facilitator-notes/index.en.md:218",
+"evidence": "aws rds delete-db-cluster \\\n  --db-cluster-identifier pellier-workshop  # <-- wrong\n\n# pellier-database.yml line 106:\nDBClusterIdentifier: !Sub pellier-cluster-${WorkshopId}",
+"fix": "Replace with a dynamic lookup:\nCLUSTER_ID=$(aws rds describe-db-clusters --query \"DBClusters[?starts_with(DBClusterIdentifier,'pellier-cluster-')].DBClusterIdentifier\" --output text)\naws rds delete-db-cluster --db-cluster-identifier \"$CLUSTER_ID\" --skip-final-snapshot --delete-automated-backups\nOr a"
+},
+{
+"i": 55,
+"repo": "builders",
+"sev": "low",
+"title": "Facilitator cleanup guide uses a placeholder CloudFormation stack name",
+"file": "content/90-appendix/04-facilitator-notes/index.en.md:203",
+"evidence": "aws cloudformation delete-stack --stack-name pellier-workshop-instances",
+"fix": "Note that Workshop Studio teardown should be performed via the Workshop Studio event console, or instruct the facilitator to find the actual stack name from the AWS CloudFormation console first. Remove or annotate the command as illustrative only."
+},
+{
+"i": 56,
+"repo": "builders",
+"sev": "low",
+"title": "Participant IAM policy PassRole resource scope does not match the actual AgentCore runtime role name",
+"file": "static/iam_policy.json:54-63",
+"evidence": "# static/iam_policy.json lines 59-63:\n\"Resource\": [\n  \"arn:aws:iam::*:role/pellier-agentcore-runtime-execution\"\n]\n\n# assets/pellier-code-editor.yml line 601:\nRoleName: !Sub pellier-agentcore-runtime-${WorkshopId}",
+"fix": "Update the Resource ARN in iam_policy.json to use a wildcard suffix:\n`arn:aws:iam::*:role/pellier-agentcore-runtime-*`\nThis covers every WorkshopId variant without broadening scope further."
+},
+{
+"i": 57,
+"repo": "builders",
+"sev": "info",
+"title": "AgentCoreControl Sid in participant IAM policy is entirely redundant with the AgentCoreRuntime wildcard Sid",
+"file": "static/iam_policy.json:32-49",
+"evidence": "# static/iam_policy.json Sid AgentCoreRuntime (lines 26-30):\n\"Action\": \"bedrock-agentcore:*\",\n\"Resource\": \"*\"\n\n# static/iam_policy.json Sid AgentCoreControl (lines 32-49):\n\"Action\": [\n  \"bedrock-agentcore:CreateAgentRuntime\",\n  \"bedrock-agentcore:GetAgentRuntime\",\n  ...13 actions...\n],\n\"Resource\": \"*\"",
+"fix": "Remove the `AgentCoreControl` Sid entirely. The wildcard in `AgentCoreRuntime` already covers all those actions. If the policy is ever tightened, replace the wildcard with the enumerated list at that time."
+},
+{
+"i": 58,
+"repo": "builders",
+"sev": "high",
+"title": "Act II \u00a72 directs learner to open wrong file for @app.entrypoint",
+"file": "content/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:99",
+"evidence": "Line 99: \"Open `pellier/backend/services/agentcore_runtime.py`.\"\nThen shows:\n```python\n@app.entrypoint\ndef invoke(payload):\n```\nBut grep confirms @app.entrypoint is only at pellier/backend/agentcore_runtime.py:33, not in services/agentcore_runtime.py.",
+"fix": "Change 'Open `pellier/backend/services/agentcore_runtime.py`.' to 'Open `pellier/backend/agentcore_runtime.py`.' (drop the `services/` prefix). The optional logger.info edit later in the page correctly targets services/agentcore_runtime.py for run_agent_on_runtime() \u2014 that part is correct and should"
+},
+{
+"i": 59,
+"repo": "builders",
+"sev": "medium",
+"title": "$PG_URL undefined in bootstrap \u2014 psql shortcut command fails",
+"file": "content/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:204",
+"evidence": "content/...02-agentcore-runtime/index.en.md line 204: `psql \"$PG_URL\" -f solutions/the-ledger/sql/tool_audit_recap.sql`\nGrep across all .sh and .py files in scripts/ returns zero results for 'PG_URL'. bootstrap-labs.sh defines DATABASE_URL (line 138) but not PG_URL.",
+"fix": "Replace `psql \"$PG_URL\"` with bare `psql` (which picks up PGHOST/PGUSER/PGPASSWORD/PGDATABASE set by bootstrap) or `psql \"$DATABASE_URL\"`. Update the matching run-instruction comment in solutions/the-ledger/sql/tool_audit_recap.sql as well."
+},
+{
+"i": 60,
+"repo": "builders",
+"sev": "low",
+"title": "warehouse_inventory schema described as 'three columns' \u2014 it has four",
+"file": "content/10-act-1-the-boutique/02-wire-floor-check/index.en.md:55",
+"evidence": "Line 55 of 02-wire-floor-check: 'Three columns: `warehouse_id`, `product_id`, `quantity`'\nMigration 006 line 120: `updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()`",
+"fix": "Change 'Three columns: warehouse_id, product_id, quantity' to 'Four columns: warehouse_id, product_id, quantity, updated_at' (or simply drop the column count claim and say 'Composite primary key on (warehouse_id, product_id)' without listing columns)."
+},
+{
+"i": 61,
+"repo": "builders",
+"sev": "medium",
+"title": "Expected-output sample shows product_id:7 for Wabi-Sabi Bowl \u2014 actual ID is 37",
+"file": "content/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:178",
+"evidence": "Line 178: `{\"customer_id\":\"theo\",\"product_id\":7,\"reason\":\"damaged\"}`\nboutique_catalog_40.csv: productId 7 = jute placemat set; productId 37 = 'Stoneware bowl...Wabi-Sabi Bowl'.\n003_persona_seed.sql line 103: theo's order uses 'Wabi-Sabi Bowl' by name lookup (not a hardcoded 7).",
+"fix": "Change product_id:7 to product_id:37 in the expected-shape example. Also correct return_id:42 if it is not the real value \u2014 or add a note that the row values are illustrative and the participant's actual row will show product_id:37."
+},
+{
+"i": 62,
+"repo": "builders",
+"sev": "medium",
+"title": "Unresolved author/probe-note TODOs visible to workshop participants",
+"file": "content/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:329",
+"evidence": "Act II line 329: '> **Facilitator/probe note (resolve on-box before publishing):** confirm the exact 0.18.0 verb + flags'\nLine 364: '> **Probe note (resolve on-box):** confirm 0.18.0\\'s `invoke` flags'\nLine 410: '> **Probe note (resolve on-box):** capture the real decoded claims'\nLine 432: '> **Probe note:** confirm verbs/flags on 0.18.0'\nAct III line 180, 216: two more probe notes",
+"fix": "Resolve each probe note on a live environment before publishing: verify the exact agentcore CLI verb/flag surface, capture real output with ARN/account values replaced by placeholders, and remove all '(resolve on-box)' notes from participant-facing content. If the CLI surface cannot be verified befo"
+},
+{
+"i": 63,
+"repo": "builders",
+"sev": "medium",
+"title": "Reference appendix project layout shows backend/skills/ as SKILL.md location \u2014 actual editable files are at root /skills/",
+"file": "content/90-appendix/01-reference/index.en.md:213",
+"evidence": "Reference appendix line 213: '\u2502   \u251c\u2500\u2500 skills/        # SKILL.md prompt overlays'\nskills/loader.py line 24: `_DEFAULT_SKILLS_DIR = Path(__file__).resolve().parents[3] / \"skills\"`\ndiff of skills/the-gift-table/SKILL.md vs pellier/backend/skills/the-gift-table/SKILL.md shows significant differences.\nThe exercise instruction in 03-prove-rerank correctly says 'Open: skills/the-gift-table/SKILL.md' (roo",
+"fix": "Update the project layout diagram to show /skills/ at the repo root level (alongside /pellier/) and annotate it as the editable SKILL.md overlay directory. Annotate pellier/backend/skills/ more precisely as 'Python skill system (loader, router, models)'."
+},
+{
+"i": 64,
+"repo": "builders",
+"sev": "low",
+"title": "Facilitator cleanup command uses wrong runtime name ('pellier-agent' vs 'pellier_orchestrator')",
+"file": "content/90-appendix/04-facilitator-notes/index.en.md:207",
+"evidence": "Facilitator notes line 207: `agentcore delete --agent pellier-agent --region us-east-1`\nprovision_agentcore_end_to_end.py line 489: `parser.add_argument(\"--runtime-name\", default=\"pellier_orchestrator\")`\ndeploy_all.sh line 265: `RUNTIME_NAME=\"pellier_orchestrator\"`",
+"fix": "Change 'pellier-agent' to 'pellier_orchestrator' in the cleanup command. Also verify the exact `agentcore delete` subcommand and flags against the @aws/agentcore 0.18.0 CLI since this is in facilitator-only notes."
+},
+{
+"i": 65,
+"repo": "builders",
+"sev": "low",
+"title": "Shell alias commands ('backend', 'workshop') in multi-line bash blocks may mislead copy-paste users",
+"file": "content/20-act-2-the-ledger/02-agentcore-runtime/index.en.md:315",
+"evidence": "Act II line 315: ```bash\\nbackend\\ngrep AGENTCORE_RUNTIME_ENDPOINT .env\\n```\nAct III line 165: ```bash\\nworkshop\\npython3 solutions/the-concierge/mcp_handshake.py\\n```\nbootstrap-labs.sh line 575: `alias backend='cd /workshop/sample-pellier-agentic-search-apg/pellier/backend'`",
+"fix": "Expand the aliases to their full cd paths in multi-line bash blocks, e.g.: 'cd /workshop/sample-pellier-agentic-search-apg/pellier/backend && grep AGENTCORE_RUNTIME_ENDPOINT .env'. Alternatively add a comment noting these are shell aliases requiring an interactive session."
+},
+{
+"i": 66,
+"repo": "builders",
+"sev": "medium",
+"title": "gen_placeholders.py: OUT path hard-coded to a dead session mount",
+"file": "scripts/gen_placeholders.py:35",
+"evidence": "OUT = Path(\"/sessions/laughing-relaxed-ramanujan/mnt/build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders/static\")",
+"fix": "Replace with a runtime-computed or configurable path, e.g. `OUT = Path(__file__).parent.parent / 'static'` (the repo-relative location that the README describes), or accept `--output` via argparse and default to the repo root's `static/`."
+},
+{
+"i": 67,
+"repo": "builders",
+"sev": "low",
+"title": "gen_placeholders.py: Linux-only DejaVu font paths crash on macOS/Windows",
+"file": "scripts/gen_placeholders.py:30-33",
+"evidence": "SERIF_ITALIC = \"/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf\"\nSANS = \"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf\"\nSANS_BOLD = \"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf\"\nMONO = \"/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf\"",
+"fix": "Add a platform-aware font resolver that tries the Debian path, then the AL2023/RPM path (`/usr/share/fonts/dejavu-sans-fonts/`), then falls back to PIL's built-in `ImageFont.load_default()` with a warning. Alternatively, bundle a copy of DejaVu into `scripts/fonts/` and reference it relatively."
+},
+{
+"i": 68,
+"repo": "builders",
+"sev": "medium",
+"title": "BOOT_PATH.md: schema migration filename is stale \u2014 references '000_pellier_schema.sql', actual file is '001_schema.sql'",
+"file": "BOOT_PATH.md:108,195,201",
+"evidence": "BOOT_PATH.md line 108: `1. Apply scripts/migrations/000_pellier_schema.sql via psql:`\nActual file: `scripts/migrations/001_schema.sql`\nbootstrap-labs.sh line 333: `if [ -f \"$REPO_PATH/scripts/migrations/001_schema.sql\" ]; then`",
+"fix": "Replace all four occurrences of `000_pellier_schema.sql` in BOOT_PATH.md with `001_schema.sql`."
+},
+{
+"i": 69,
+"repo": "builders",
+"sev": "low",
+"title": "EXERCISE_INVENTORY.md: pre-apply filename has spurious double underscore",
+"file": "EXERCISE_INVENTORY.md:70",
+"evidence": "EXERCISE_INVENTORY.md line 70: `solutions/closing-marcos-gap/services/agent_tools__builders_preapply.py`,\nActual filename: `solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py`\nbootstrap-labs.sh line 834: `copy_solution \"solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py\"`",
+"fix": "Remove the extra underscore: change `agent_tools__builders_preapply.py` to `agent_tools_builders_preapply.py` on line 70 of EXERCISE_INVENTORY.md."
+},
+{
+"i": 70,
+"repo": "builders",
+"sev": "medium",
+"title": "FACILITATOR_RUN_OF_SHOW.md: Act II/02 section describes optional Gateway/token path as the mandatory primary path, contradicting the content page",
+"file": "FACILITATOR_RUN_OF_SHOW.md:133-155",
+"evidence": "FACILITATOR_RUN_OF_SHOW.md line 133-136: 'This is Exercise 2: a managed-policy + SQL proof \u2026 It runs on the authenticated Gateway rail. Participants get a token with one command \u2014 source ~/pellier-token.sh \u2026 then POST to /api/chat/stream with \"pattern\": \"agents_as_tools\" and Authorization: Bearer $PELLIER_TOKEN'\ncontent/20-act-2-the-ledger/index.en.md: 'The mandatory proof runs on the ordinary in-",
+"fix": "Rewrite the run-of-show 00:46-00:53 section to lead with the mandatory in-process path: fire Theo's damaged return with pattern=dispatcher (no token), query tool_audit, prove the raw row + JSONB extraction. Then present the Gateway/Policy ALLOW/DENY beat as an optional fast-table extension \u2014 matchin"
+},
+{
+"i": 71,
+"repo": "builders",
+"sev": "low",
+"title": "gen_placeholders.py: `import math` repeated inside for-loops",
+"file": "scripts/gen_placeholders.py:269,277,289",
+"evidence": "Line 269: `        import math` (inside `for ang_step in range(0, 360, 4):` loop)\nLine 277: `        import math` (inside `for ang_step in range(0, 360, 6):` loop)\nLine 289: `    import math` (function body, before STM/LTM dot rendering)",
+"fix": "Add `import math` at the top of the file alongside the existing `from pathlib import Path` and `from PIL import \u2026` imports, then remove all three in-function occurrences."
+}
+]

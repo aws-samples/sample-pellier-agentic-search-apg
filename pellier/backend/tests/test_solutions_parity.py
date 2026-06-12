@@ -80,6 +80,83 @@ _PAIRS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Bootstrap auto-applied files (bootstrap-labs.sh ``copy_solution`` block).
+#
+# These are NOT participant-edited "drop-in" solutions — bootstrap copies
+# each one OVER its backend twin at provision time (``cp solution backend``),
+# so the app the participant lands on IS the solution copy. The contract is
+# therefore stricter than the _PAIRS contract above: the solution file MUST
+# be byte-identical to the live backend file, or a freshly-provisioned box
+# silently boots stale code (e.g. a curator.py missing
+# ``build_recommendation_agent`` → ImportError on the dispatcher path).
+#
+# ``agent_tools_builders_preapply.py`` is deliberately EXCLUDED here — it is
+# the one auto-applied file that must differ from the backend (it ships the
+# floor_check stub for the participant to wire). Its contract lives in the
+# _PAIRS tests + ``test_floor_check_builder_contract`` above.
+#
+# Direction of truth: the BACKEND file is canonical (the full test suite runs
+# against it). If this test fails, re-sync with:
+#     cp pellier/backend/<path> solutions/<module>/<path>
+# ---------------------------------------------------------------------------
+
+_AUTO_APPLIED_IDENTICAL = [
+    ("curator", _BACKEND / "agents" / "curator.py",
+     _SOLUTIONS / "closing-marcos-gap" / "agents" / "curator.py"),
+    ("experience_guide", _BACKEND / "agents" / "experience_guide.py",
+     _SOLUTIONS / "closing-marcos-gap" / "agents" / "experience_guide.py"),
+    ("orchestrator", _BACKEND / "agents" / "orchestrator.py",
+     _SOLUTIONS / "closing-marcos-gap" / "agents" / "orchestrator.py"),
+    ("agentcore_runtime", _BACKEND / "services" / "agentcore_runtime.py",
+     _SOLUTIONS / "the-ledger" / "services" / "agentcore_runtime.py"),
+    ("agentcore_memory", _BACKEND / "services" / "agentcore_memory.py",
+     _SOLUTIONS / "the-ledger" / "services" / "agentcore_memory.py"),
+    ("agentcore_gateway", _BACKEND / "services" / "agentcore_gateway.py",
+     _SOLUTIONS / "the-ledger" / "services" / "agentcore_gateway.py"),
+    ("agentcore_identity", _BACKEND / "services" / "agentcore_identity.py",
+     _SOLUTIONS / "the-ledger" / "services" / "agentcore_identity.py"),
+    ("cognito_auth", _BACKEND / "services" / "cognito_auth.py",
+     _SOLUTIONS / "the-ledger" / "services" / "cognito_auth.py"),
+    ("otel_trace_extractor", _BACKEND / "services" / "otel_trace_extractor.py",
+     _SOLUTIONS / "the-ledger" / "services" / "otel_trace_extractor.py"),
+    ("frontend_agent_identity", _REPO_ROOT / "pellier" / "frontend" / "src" / "utils" / "agentIdentity.ts",
+     _SOLUTIONS / "the-ledger" / "frontend" / "agentIdentity.ts"),
+]
+
+
+@pytest.mark.parametrize(
+    "label, backend_path, solution_path",
+    _AUTO_APPLIED_IDENTICAL,
+    ids=[p[0] for p in _AUTO_APPLIED_IDENTICAL],
+)
+def test_auto_applied_solution_matches_backend(
+    label: str, backend_path: Path, solution_path: Path
+) -> None:
+    """Bootstrap cp's each of these solution files over its backend twin.
+
+    They MUST be byte-identical, or a freshly-provisioned environment boots
+    stale code that the full test suite (which runs against the backend copy)
+    never exercises. This is the CI tripwire for solutions-parity drift on
+    the auto-applied set.
+    """
+    assert backend_path.exists(), (
+        f"[{label}] backend file missing: {backend_path.relative_to(_REPO_ROOT)}"
+    )
+    assert solution_path.exists(), (
+        f"[{label}] solution file missing: {solution_path.relative_to(_REPO_ROOT)}"
+    )
+    backend_src = backend_path.read_text()
+    solution_src = solution_path.read_text()
+    assert solution_src == backend_src, (
+        f"[{label}] bootstrap auto-applies this solution over the backend, but "
+        f"the two have DRIFTED. A fresh-provisioned box would boot the stale "
+        f"solution copy. Re-sync with:\n"
+        f"    cp {backend_path.relative_to(_REPO_ROOT)} "
+        f"{solution_path.relative_to(_REPO_ROOT)}"
+    )
+
+
 @pytest.mark.parametrize(
     "label, live_path, solution_path, flag_name",
     _PAIRS,

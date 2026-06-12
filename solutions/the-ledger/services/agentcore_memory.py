@@ -2,6 +2,13 @@
 AgentCore Memory — Short-Term Memory (STM) for session history and
 persistent user preferences.
 
+AgentCore Memory (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/memory.html)
+is the managed memory primitive for AgentCore. We use the short-term
+side here (event log per session) plus a key-value namespace for
+durable preferences. Episodic and procedural memory live elsewhere
+(Aurora `pellier.customer_episodic_seed` and `pellier.tool_audit`
+respectively) — see the four-substrate model in lab-content-audit.md §1.
+
 Challenge 6 (Requirements 2.5.2, 4.3.2, 4.4.1, 6.2.1). Exposes a single
 ``AgentCoreMemory`` class with four async methods:
 
@@ -79,6 +86,18 @@ logger = logging.getLogger(__name__)
 _SESSION_STORE: Dict[str, List[Dict[str, Any]]] = {}
 _PREFS_STORE: Dict[str, Dict[str, Any]] = {}
 
+# Module-level SDK import status. The Atelier memory route constructs a
+# fresh ``AgentCoreMemory`` on every request (see
+# ``routes/atelier_observatory.py::_load_live_semantic``), so a per-instance
+# cache for the SDK handle is useless — every new instance would retry the
+# import and log "bedrock-agentcore not installed" again. Caching the
+# success/failure at module level means the warning fires once per process.
+#
+# ``None``  → not yet probed
+# ``False`` → probed and failed (SDK not installed); use in-memory fallback
+# ``True``  → probed and succeeded; SDK is importable
+_SDK_AVAILABLE: Optional[bool] = None
+
 
 def _prefs_key(user_id: str) -> str:
     """Return the canonical preferences key for ``user_id``.
@@ -115,28 +134,65 @@ class AgentCoreMemory:
         Returns ``None`` (not raises) when the SDK is unavailable or
         ``AGENTCORE_MEMORY_ID`` is unset so the in-memory fallback path
         takes over without any try/except gymnastics at call sites.
+
+        The "SDK installed?" probe is cached at module scope (not
+        per-instance) because the Atelier memory route builds a fresh
+        ``AgentCoreMemory`` per request — without this the warning would
+        fire on every page load when ``bedrock-agentcore`` isn't
+        importable in the running interpreter (e.g. uvicorn launched
+        outside the venv).
         """
         if not self._memory_id:
             return None
         if self._sdk_manager is not None:
             return self._sdk_manager
+
+        global _SDK_AVAILABLE
+        if _SDK_AVAILABLE is False:
+            return None
+
         try:
             from bedrock_agentcore.memory import MemorySessionManager
 
+            _SDK_AVAILABLE = True
             self._sdk_manager = MemorySessionManager(
                 memory_id=self._memory_id,
                 region_name=self._region,
             )
             return self._sdk_manager
         except ImportError:
-            logger.warning(
-                "bedrock-agentcore not installed — AgentCoreMemory using "
-                "in-memory fallback"
-            )
+            if _SDK_AVAILABLE is None:
+                logger.warning(
+                    "bedrock-agentcore not installed — AgentCoreMemory using "
+                    "in-memory fallback. If you provisioned an AgentCore Memory "
+                    "resource, make sure uvicorn is launched from the venv where "
+                    "``pip install -e .`` ran (e.g. "
+                    "``pellier/backend/.venv/bin/uvicorn app:app``)."
+                )
+            _SDK_AVAILABLE = False
             return None
         except Exception as exc:  # pragma: no cover - SDK init path
             logger.warning("AgentCore MemorySessionManager init failed: %s", exc)
             return None
+
+    @staticmethod
+    def _to_conversational(turn: Dict[str, Any]):
+        """Map a ``{"role","content"}`` dict to the SDK's ConversationalMessage.
+
+        The installed bedrock-agentcore SDK's ``add_turns`` requires
+        ``ConversationalMessage(text, MessageRole)`` objects and RAISES
+        ValueError on a raw dict — passing dicts (the old bug) meant every
+        AgentCore write threw and silently fell back to the in-process store, so
+        the Memory pillar never actually exercised AgentCore. Roles map to
+        USER/ASSISTANT; anything else (e.g. "system") → OTHER."""
+        from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+        role_str = str(turn.get("role", "user")).lower()
+        role = {
+            "user": MessageRole.USER,
+            "assistant": MessageRole.ASSISTANT,
+        }.get(role_str, MessageRole.OTHER)
+        return ConversationalMessage(str(turn.get("content", "")), role)
 
     # ------------------------------------------------------------------
     # Session history (STM)
@@ -165,20 +221,7 @@ class AgentCoreMemory:
                     actor_id=session_ns,
                     session_id=session_ns,
                 )
-                # SDK requires ConversationalMessage objects, NOT raw dicts, and
-                # the kwarg is `messages` (not `turns`). Passing dicts raises
-                # ValueError -> silent fallback, so AgentCore STM never persists.
-                from bedrock_agentcore.memory.constants import (
-                    ConversationalMessage,
-                    MessageRole,
-                )
-                _role = {
-                    "user": MessageRole.USER,
-                    "assistant": MessageRole.ASSISTANT,
-                }.get(str(turn.get("role", "user")).lower(), MessageRole.OTHER)
-                session.add_turns(
-                    messages=[ConversationalMessage(str(turn.get("content", "")), _role)]
-                )
+                session.add_turns(messages=[self._to_conversational(turn)])
                 return
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
@@ -232,12 +275,13 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
-                # SDK signature is (namespace_prefix, strategy_id, max_results)
-                # and returns a List[MemoryRecord] (NOT a dict). The prior
-                # memoryId=/namespace=/maxResults= kwargs raise TypeError.
-                # NOTE: LTM records require an extraction strategy; Pellier's
-                # memory is STM-only, so this returns [] and prefs round-trip via
-                # the in-process store below. Kept correct for a future strategy.
+                # SDK param is `namespace_prefix` (NOT `namespace`); returns a
+                # List[MemoryRecord] whose `content` is {"text": "<json>"}.
+                # NOTE: long-term records only exist if the memory was created
+                # WITH an extraction strategy. Pellier provisions STM-only (no
+                # strategies), so this returns [] in practice and prefs round-trip
+                # through the in-process store below. The call is kept correct so
+                # it works unchanged if a USER_PREFERENCE strategy is added later.
                 records = mgr.list_long_term_memory_records(
                     namespace_prefix=key,
                     max_results=1,
@@ -288,19 +332,18 @@ class AgentCoreMemory:
         if mgr is not None:
             try:
                 import json as _json
-                from bedrock_agentcore.memory.constants import (
-                    ConversationalMessage,
-                    MessageRole,
-                )
                 session = mgr.create_memory_session(
                     actor_id=user_id,
                     session_id="preferences",
                 )
-                # ConversationalMessage objects + `messages=` (not dict + `turns=`).
-                # Serialize prefs to JSON text so get_user_preferences can parse
-                # content.text symmetrically.
+                # add_turns requires ConversationalMessage objects (not dicts).
+                # Serialize the prefs payload to JSON text so get_user_preferences
+                # can json.loads(content.text) symmetrically. Role "system" maps
+                # to MessageRole.OTHER.
                 session.add_turns(
-                    messages=[ConversationalMessage(_json.dumps(payload), MessageRole.OTHER)]
+                    messages=[self._to_conversational(
+                        {"role": "system", "content": _json.dumps(payload)}
+                    )]
                 )
                 _PREFS_STORE[key] = payload
                 return prefs_obj
@@ -319,7 +362,7 @@ class AgentCoreMemory:
 
 
 # ---------------------------------------------------------------------------
-# Legacy helpers (pre-C9 "Wire It Live" surface)
+# Legacy helpers
 # ---------------------------------------------------------------------------
 #
 # These are NOT part of Challenge 6. ``app.py`` and ``services/chat.py``
@@ -383,9 +426,10 @@ def get_user_memories(user_id: str) -> List[Dict[str, Any]]:
     try:
         import boto3
 
-        # Real data-plane op is `list_memory_records` (keyed by memoryId +
-        # namespace); there is NO `retrieve_memories` op. LTM records require an
-        # extraction strategy (Pellier is STM-only) so this returns [] in
+        # Data-plane op is `list_memory_records` (keyed by memoryId + namespace);
+        # there is NO `retrieve_memories` op (the prior spelling silently failed
+        # to []). Long-term records only exist on a memory created WITH an
+        # extraction strategy; Pellier's is STM-only, so this returns [] in
         # practice — kept correct for when a strategy is added.
         client = boto3.client("bedrock-agentcore", region_name=settings.AWS_REGION)
         response = client.list_memory_records(

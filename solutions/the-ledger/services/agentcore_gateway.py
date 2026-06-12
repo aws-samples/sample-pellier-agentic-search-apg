@@ -1,17 +1,29 @@
 """
-AgentCore Gateway — MCP Tool Discovery via Bedrock AgentCore Gateway.
+AgentCore Gateway — MCP tool discovery via Bedrock AgentCore Gateway.
+
+AgentCore Gateway (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html)
+is a managed MCP front-door for tool catalogs. It enforces Cognito JWT
+auth on every tool call, then proxies to registered Lambda or HTTP
+targets. From the orchestrator's perspective, "having a Gateway" means
+tool definitions stop living in Python imports and start being
+discovered dynamically over the wire.
 
 This module has two sides:
 
-1. **Server side (Challenge 7)** — exposes the 9 `agent_tools.py` tools via
-   the MCP streamable HTTP transport so external agent clients can discover
-   and invoke them over the wire. Signatures and JSON envelopes are
-   identical to the in-process `@tool` functions.
+1. **Server side (Challenge 7)** — exposes the 13 `agent_tools.py`
+   tools via the MCP streamable HTTP transport so external agent
+   clients (or AgentCore Gateway itself) can discover and invoke them.
+   Signatures and JSON envelopes are identical to the in-process
+   `@tool` functions, so the orchestrator can switch between the two
+   transports without changing how it calls them.
 
-2. **Client side** — creates a Strands `Agent` that connects *back* to a
-   Gateway URL and discovers tools dynamically via `MCPClient`. Used when
-   migrating the orchestrator from hard-coded tool imports to MCP-based
-   discovery.
+2. **Client side** — creates a Strands `Agent` that connects *back* to
+   a Gateway URL and pulls its tool list at agent-construction time
+   via `MCPClient.list_tools_sync()`. This is the production wiring:
+   the agent prompt no longer carries a hard-coded tool list; the
+   Gateway is the source of truth.
+
+MCP (Model Context Protocol) docs: https://modelcontextprotocol.io
 """
 import logging
 from typing import Optional, List, Dict, Any
@@ -22,23 +34,25 @@ logger = logging.getLogger(__name__)
 
 
 # === CHALLENGE 7: START ===
-# Expose the 9 Strands @tool functions via MCP streamable HTTP so an external
+# Expose the 13 Strands @tool functions via MCP streamable HTTP so an external
 # agent client (or the AgentCore Gateway) can discover and invoke them with
 # the same signatures and JSON envelopes used by the in-process orchestrator.
 #
-# The 9 tools come from the boutique agent_tools module and MUST be registered
-# under these exact names (matching the @tool function names):
-#   find_pieces, whats_trending, price_intelligence,
-#   explore_collection, floor_check, running_low,
-#   restock_shelf, side_by_side, returns_and_care
+# The 13 tools come from workshop-content.md steering and MUST be registered
+# under these exact names (Req 2.2.3):
+#   find_pieces, find_pieces_hybrid, whats_trending, price_intelligence,
+#   explore_collection, floor_check, running_low, restock_shelf,
+#   side_by_side, returns_and_care, style_match, process_return,
+#   escalate_to_stylist
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
-# The 9 tool names exposed by the gateway, in stable order. Tests assert
+# The 13 tool names exposed by the gateway, in stable order. Tests assert
 # discovery returns exactly this set by exact name (workshop-content.md).
 GATEWAY_TOOL_NAMES: List[str] = [
     "find_pieces",
+    "find_pieces_hybrid",
     "whats_trending",
     "price_intelligence",
     "explore_collection",
@@ -47,6 +61,9 @@ GATEWAY_TOOL_NAMES: List[str] = [
     "restock_shelf",
     "side_by_side",
     "returns_and_care",
+    "style_match",
+    "process_return",
+    "escalate_to_stylist",
 ]
 
 
@@ -62,7 +79,7 @@ def _unwrap_strands_tool(strands_tool: Any) -> Any:
 
 
 def build_mcp_server(name: str = "pellier-gateway") -> Any:
-    """Build a FastMCP server registering the 9 agent tools.
+    """Build a FastMCP server registering the 13 agent tools.
 
     Each registered MCP tool is a thin wrapper that delegates to the
     corresponding `@tool` function in `services.agent_tools`. Wrappers
@@ -77,7 +94,7 @@ def build_mcp_server(name: str = "pellier-gateway") -> Any:
 
     mcp_server = FastMCP(name=name)
 
-    # Register each of the 9 tools by name. We pass the unwrapped function
+    # Register each of the 13 tools by name. We pass the unwrapped function
     # (not the Strands DecoratedFunctionTool) so FastMCP can introspect the
     # signature and docstring to generate the MCP input schema.
     for tool_name in GATEWAY_TOOL_NAMES:
@@ -102,7 +119,26 @@ def get_streamable_http_app(name: str = "pellier-gateway") -> Any:
     return mcp_server.streamable_http_app()
 
 
-def create_gateway_orchestrator():
+def _gateway_headers(access_token: Optional[str] = None) -> Dict[str, str]:
+    """Build the auth headers for an MCP call to the AgentCore Gateway.
+
+    The Gateway is deployed with a Cognito CUSTOM_JWT authorizer, so the
+    production path is **JWT passthrough**: the caller's raw Cognito access
+    token is sent as ``Authorization: Bearer <token>`` and the Gateway
+    validates it against the Cognito discovery URL, so every tool call
+    carries the user's identity end to end.
+
+    When no token is provided (anonymous/Fresh turns, or local dev against a
+    Gateway deployed with ``authorizerType=NONE``), we fall back to the
+    placeholder ``x-api-key`` header. A JWT-protected Gateway will reject
+    that with 401, which the caller treats as "fall back to in-process".
+    """
+    if access_token:
+        return {"Authorization": f"Bearer {access_token}"}
+    return {"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY}
+
+
+def create_gateway_orchestrator(access_token: Optional[str] = None):
     """Create a Strands Agent that discovers tools via an MCP Gateway URL.
 
     When `settings.AGENTCORE_GATEWAY_URL` is unset, returns None so callers
@@ -110,6 +146,10 @@ def create_gateway_orchestrator():
     agent pulls tools from the remote Gateway using streamable HTTP, which
     is how the orchestrator migrates from hard-coded tool lists to
     managed, discoverable tools.
+
+    ``access_token`` is the caller's raw Cognito JWT. When supplied it is
+    forwarded to the Gateway as a Bearer token (identity passthrough); the
+    tool calls then run under the user's identity, not a shared service key.
     """
     if not settings.AGENTCORE_GATEWAY_URL:
         logger.info("AGENTCORE_GATEWAY_URL not set — gateway disabled")
@@ -124,7 +164,7 @@ def create_gateway_orchestrator():
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)
@@ -159,7 +199,7 @@ def create_gateway_orchestrator():
 # === CHALLENGE 7: END ===
 
 
-def create_gateway_orchestrator_with_semantic_search():
+def create_gateway_orchestrator_with_semantic_search(access_token: Optional[str] = None):
     """
     Create an orchestrator that discovers tools via Gateway semantic search.
 
@@ -167,6 +207,9 @@ def create_gateway_orchestrator_with_semantic_search():
     this uses the x_amz_bedrock_agentcore_search tool to find relevant
     tools by natural language description at query time. This scales to
     hundreds or thousands of tools without bloating the agent's prompt.
+
+    ``access_token`` is forwarded as a Bearer token (JWT passthrough) when
+    supplied, so semantic discovery also runs under the caller's identity.
 
     Returns:
         Strands Agent with semantic tool discovery, or None if not configured
@@ -184,7 +227,7 @@ def create_gateway_orchestrator_with_semantic_search():
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)
@@ -223,9 +266,14 @@ def create_gateway_orchestrator_with_semantic_search():
         return None
 
 
-def list_gateway_tools() -> List[Dict[str, Any]]:
+def list_gateway_tools(access_token: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List all tools registered in the AgentCore Gateway MCP server.
+
+    ``access_token`` is forwarded as a Bearer token (JWT passthrough) when
+    supplied. Against a JWT-protected Gateway, calling without a token returns
+    [] (the call is rejected with 401) — which the Atelier panel renders as a
+    "skipped / needs identity" state rather than failing the turn.
 
     Returns a list of tool descriptors with name, description, and input schema.
     """
@@ -239,7 +287,7 @@ def list_gateway_tools() -> List[Dict[str, Any]]:
         def _create_transport():
             return streamablehttp_client(
                 settings.AGENTCORE_GATEWAY_URL,
-                headers={"x-api-key": settings.AGENTCORE_GATEWAY_API_KEY},
+                headers=_gateway_headers(access_token),
             )
 
         mcp_client = MCPClient(_create_transport)

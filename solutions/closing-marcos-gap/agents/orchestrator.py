@@ -1,5 +1,26 @@
 """
-Orchestrator Agent - Routes queries to specialized agents with interleaved thinking
+Orchestrator — Pellier's Pattern I (Agents-as-Tools) routing agent.
+
+This is **not** the Dispatcher. The codebase has two routing patterns:
+
+  * **Dispatcher (Pattern III)** — the Boutique's production path.
+    Implemented inline in ``services/chat.py`` as a deterministic
+    intent-keyword classifier that picks one specialist directly.
+    One LLM call per turn (the specialist's). No separate Agent
+    object — the Dispatcher *is* the routing function.
+
+  * **Orchestrator (Pattern I)** — the Atelier's "Agents as Tools"
+    teaching surface (this file). A Haiku 4.5 Agent that sees each
+    specialist as a ``@tool`` (search, recommendation, pricing,
+    inventory, support) and picks one to call. Two LLM calls per turn
+    (router + specialist). Useful for teaching the AaT pattern;
+    intentionally NOT the Boutique's path because the second LLM call
+    adds latency and a paraphrase cycle the production storefront
+    doesn't want.
+
+If you're looking for the Boutique's routing logic, see
+``services/chat.py``'s ``_run_dispatcher_pattern`` branch and the
+intent classifier at ``classify_intent``.
 """
 from strands import Agent
 from strands.models import BedrockModel
@@ -9,6 +30,7 @@ from .value_analyst import pricing
 from .experience_guide import support
 from .style_advisor import search
 from boutique_copy import ORCHESTRATOR_SYSTEM_PROMPT
+from config import settings
 
 
 # === CHALLENGE 4: Multi-Agent Orchestrator — START ===
@@ -28,8 +50,8 @@ def create_orchestrator():
     """Create the orchestrator agent with all specialized agents as tools"""
     return Agent(
         model=BedrockModel(
-            model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
-            max_tokens=4096,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU,
             temperature=0.0,
         ),
         system_prompt=ORCHESTRATOR_PROMPT,
@@ -44,7 +66,6 @@ def create_orchestrator():
 # === CHALLENGE 4: Multi-Agent Orchestrator — END ===
 
 
-# === WIRE IT LIVE (Lab 3) ===
 GUARDRAILS_PROMPT_SUFFIX = """
 
 GUARDRAILS (ACTIVE):
@@ -61,8 +82,8 @@ def create_guarded_orchestrator():
     rules to the system prompt and can filter responses through Bedrock Guardrails."""
     return Agent(
         model=BedrockModel(
-            model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
-            max_tokens=4096,
+            model_id=settings.BEDROCK_HAIKU_MODEL,
+            max_tokens=settings.ROUTER_MAX_TOKENS_HAIKU,
             temperature=0.0,
         ),
         system_prompt=ORCHESTRATOR_PROMPT + GUARDRAILS_PROMPT_SUFFIX,
@@ -74,4 +95,3 @@ def create_guarded_orchestrator():
             support,
         ],
     )
-# === END WIRE IT LIVE ===

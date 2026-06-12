@@ -139,9 +139,9 @@ class IndexPerformanceService:
                 query_sql = """
                     SELECT 
                         "productId",
-                        product_description,
+                        description,
                         price,
-                        stars,
+                        rating,
                         1 - (embedding <=> %s::vector) as similarity_score
                     FROM pellier.product_catalog
                     WHERE embedding IS NOT NULL
@@ -237,9 +237,9 @@ class IndexPerformanceService:
                 query_sql = """
                     SELECT 
                         "productId",
-                        product_description,
+                        description,
                         price,
-                        stars,
+                        rating,
                         1 - (embedding <=> %s::vector) as similarity_score
                     FROM pellier.product_catalog
                     WHERE embedding IS NOT NULL
@@ -564,7 +564,7 @@ class IndexPerformanceService:
 
         filtered_sql = """
             SELECT
-                "productId", product_description, price, stars, category,
+                "productId", description, price, rating, category,
                 1 - (embedding <=> %s::vector) as similarity_score
             FROM pellier.product_catalog
             WHERE embedding IS NOT NULL
@@ -658,7 +658,7 @@ class IndexPerformanceService:
                 for _ in range(num_runs):
                     start = time.perf_counter()
                     cur.execute("""
-                        SELECT "productId", product_description, price, stars,
+                        SELECT "productId", description, price, rating,
                                1 - (embedding <=> %s::vector) as similarity_score
                         FROM pellier.product_catalog
                         WHERE embedding IS NOT NULL
@@ -683,7 +683,7 @@ class IndexPerformanceService:
                     for _ in range(num_runs):
                         start = time.perf_counter()
                         cur.execute("""
-                            SELECT "productId", product_description, price, stars,
+                            SELECT "productId", description, price, rating,
                                    1 - ((embedding::halfvec(1024)) <=> %s::halfvec(1024)) as similarity_score
                             FROM pellier.product_catalog
                             WHERE embedding IS NOT NULL
@@ -713,7 +713,7 @@ class IndexPerformanceService:
                     for _ in range(num_runs):
                         start = time.perf_counter()
                         cur.execute("""
-                            SELECT "productId", product_description, price, stars
+                            SELECT "productId", description, price, rating
                             FROM pellier.product_catalog
                             WHERE embedding IS NOT NULL
                             ORDER BY (binary_quantize(embedding)::bit(1024)) <#> binary_quantize(%s::vector)::bit(1024)

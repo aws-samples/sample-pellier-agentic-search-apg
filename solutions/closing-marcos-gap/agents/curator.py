@@ -1,5 +1,23 @@
 """
-Product Recommendation Agent - Suggests products based on user preferences
+Curator — Pellier's recommendation agent. Suggests pieces based on
+the shopper's preferences and, when a persona is active, their LTM +
+past orders.
+
+Exposes two surfaces that share one agent construction path:
+
+1. ``build_recommendation_agent()`` — factory returning a configured
+   ``Agent`` instance. Used by the Storefront dispatcher (Pattern III)
+   and the Atelier Graph pattern (Pattern II). Reads the persona
+   preamble and skill ContextVars at construction time, same as the
+   ``@tool`` path does.
+
+2. ``recommendation(query)`` — ``@tool``-decorated wrapper used by the
+   Atelier's Agents-as-Tools orchestrator (Pattern I). Delegates to
+   the factory so both surfaces produce identical agents.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'recommendation' as a
+keyword.
 """
 import json
 import re
@@ -8,11 +26,14 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
 from services.agent_tools import (
-    find_pieces,
+    find_pieces_hybrid,
     whats_trending,
     side_by_side,
     explore_collection,
+    escalate_to_stylist,
 )
+from skills import inject_skills
+from services.persona_context import inject_persona_preamble
 from boutique_copy import RECOMMENDATION_SYSTEM_PROMPT
 
 
@@ -37,6 +58,53 @@ def _ensure_products_in_output(text: str, tool_results: list) -> str:
     return text
 
 
+def build_recommendation_agent() -> Agent:
+    """Return a configured Recommendation specialist Agent.
+
+    Reads the current turn's persona preamble and loaded skills from
+    their ContextVars at construction time. Callers are responsible
+    for setting those ContextVars before invoking this factory — the
+    chat pipeline in ``services/chat.py`` does so on every turn.
+
+    === CHALLENGE 3: START ===
+    inject_skills() and inject_persona_preamble() are no-ops when
+    their ContextVars are empty (the common case in atelier smoke
+    tests and anonymous sessions), so this factory produces the same
+    agent as before in those scenarios.
+    === CHALLENGE 3: END ===
+    """
+    # Curator — Claude Opus 4.6 at 0.4. Recommendations carry "taste";
+    # skills shape voice. Warm model, warm temperature.
+    #
+    # Tool-grant note: the Curator gets ``find_pieces_hybrid`` (Anna's
+    # anchor capability — pgvector + Postgres FTS + Cohere Rerank). Other
+    # specialists (Style Advisor, Value Analyst, Experience Guide)
+    # stay on plain ``find_pieces``: they need the simpler tool for
+    # fall-through on price / availability / support queries where
+    # FTS + rerank don't earn their cost. The Curator is uniquely
+    # the right home for the hybrid pipeline because recommendation
+    # queries blend soft semantic intent ("something beautiful") with
+    # literal constraints ("under $100", "for a home office") — the
+    # exact regime where vector-alone wears thin.
+    return Agent(
+        model=BedrockModel(
+            model_id=settings.BEDROCK_OPUS_MODEL,
+            max_tokens=settings.AGENT_MAX_TOKENS_OPUS,
+            temperature=0.4,
+        ),
+        system_prompt=inject_persona_preamble(
+            inject_skills(RECOMMENDATION_SYSTEM_PROMPT)
+        ),
+        tools=[
+            find_pieces_hybrid,
+            whats_trending,
+            side_by_side,
+            explore_collection,
+            escalate_to_stylist,
+        ],
+    )
+
+
 @tool
 def recommendation(query: str) -> str:
     """
@@ -53,23 +121,7 @@ def recommendation(query: str) -> str:
     """
     try:
         tool_results = []
-
-        # === CHALLENGE 3: START ===
-        agent = Agent(
-            model=BedrockModel(
-                model_id=settings.BEDROCK_CHAT_MODEL,
-                max_tokens=4096,
-                temperature=0.2,
-            ),
-            system_prompt=RECOMMENDATION_SYSTEM_PROMPT,
-            tools=[
-                find_pieces,
-                whats_trending,
-                side_by_side,
-                explore_collection,
-            ],
-        )
-        # === CHALLENGE 3: END ===
+        agent = build_recommendation_agent()
 
         # Capture inner tool results so we can guarantee product data in output
         try:
@@ -87,8 +139,21 @@ def recommendation(query: str) -> str:
         except ImportError:
             pass
 
+        from agents.specialist_hooks import (
+            append_escalation_marker,
+            extract_escalation_payload,
+        )
+
         result = agent(query)
         text = str(result)
+        # Forward any inner escalate_to_stylist payload up so chat.py
+        # can render the StylistHandoffCard. The Curator gets the
+        # escalation tool too because some recommendation asks (e.g.
+        # sympathy gifting, sentimental milestones) belong with a
+        # human, not a search.
+        escalation = extract_escalation_payload(tool_results)
+        if escalation is not None:
+            return append_escalation_marker(text, escalation)
         return _ensure_products_in_output(text, tool_results)
     except Exception as e:
         return json.dumps({"error": f"Recommendation agent error: {str(e)}"})

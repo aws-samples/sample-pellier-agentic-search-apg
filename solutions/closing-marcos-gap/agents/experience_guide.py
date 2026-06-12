@@ -1,6 +1,6 @@
 """
-Customer Support Agent — return policies, troubleshooting, and
-general post-purchase questions.
+Experience Guide — Pellier's customer support agent. Handles return
+policies, troubleshooting, and general post-purchase questions.
 
 Exposes two surfaces that share one agent construction path:
 
@@ -8,6 +8,9 @@ Exposes two surfaces that share one agent construction path:
    used by the Storefront dispatcher and the Atelier Graph pattern.
 2. ``support(query)`` — ``@tool`` wrapper used by the Atelier's
    Agents-as-Tools orchestrator. Delegates to the factory.
+
+Note on naming: the factory and tool keep generic names because the
+Storefront dispatcher's intent classifier emits 'support' as a keyword.
 
 Exa MCP integration was removed in the three-patterns refactor. It
 was unset in every workshop environment (EXA_API_KEY blank in
@@ -21,7 +24,12 @@ import re
 from strands import Agent, tool
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import returns_and_care, find_pieces, process_return
+from services.agent_tools import (
+    escalate_to_stylist,
+    find_pieces,
+    process_return,
+    returns_and_care,
+)
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 
@@ -46,6 +54,12 @@ _SUPPORT_SYSTEM_PROMPT = (
     "Cedar policy enforces that exact set; SQL enforces that the customer "
     "must have ordered the product. If reason='damaged', the catalog "
     "quantity decrements by 1 in the same transaction.\n"
+    "  - escalate_to_stylist: the honest escape hatch. Use ONLY when "
+    "process_return cannot handle the case — Cedar rejected the reason, "
+    "the customer doesn't own the product, the window has closed, or the "
+    "shopper is in distress and deserves a real person. Always try "
+    "returns_and_care + process_return first. Pass a one-sentence reason "
+    "explaining what's being routed and why.\n"
     "\n"
     "Output discipline:\n"
     "  - ALWAYS call a tool before writing prose. No greeting, no preamble.\n"
@@ -59,8 +73,8 @@ _SUPPORT_SYSTEM_PROMPT = (
     "knows the write actually happened.\n"
 )
 
-# Solution state — the challenge is complete; flip the flag so the
-# Atelier renders Experience Guide as a shipped agent.
+# ``_SUPPORT_AGENT_STUBBED`` — legacy flag still read by chat routing; Atelier
+# lists Experience Guide as shipped in ``agents.json``.
 _SUPPORT_AGENT_STUBBED = False
 
 
@@ -112,17 +126,18 @@ def build_support_agent() -> Agent:
     sessions.
     """
     # Experience Guide — Claude Opus 4.6 at 0.2. Empathy + concrete policy.
-    # Steady temperature — policy is policy.
+    # Opus for tone when handling a return; steady temperature because
+    # policy is policy.
     return Agent(
         model=BedrockModel(
             model_id=settings.BEDROCK_OPUS_MODEL,
-            max_tokens=4096,
+            max_tokens=settings.AGENT_MAX_TOKENS_OPUS,
             temperature=0.2,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(_SUPPORT_SYSTEM_PROMPT)
         ),
-        tools=[returns_and_care, find_pieces, process_return],
+        tools=[returns_and_care, find_pieces, process_return, escalate_to_stylist],
     )
 
 
@@ -157,8 +172,21 @@ def support(query: str) -> str:
         except ImportError:
             pass
 
+        from agents.specialist_hooks import (
+            append_escalation_marker,
+            extract_escalation_payload,
+        )
+
         result = agent(query)
         text = str(result)
+        # Surface any inner escalate_to_stylist payload back to the
+        # orchestrator-facing string so chat.py can render the stylist
+        # handoff card. Without this the inner tool result gets buried
+        # inside the inner Agent and the outer SSE stream never sees
+        # the {"type": "escalation"} envelope.
+        escalation = extract_escalation_payload(tool_results)
+        if escalation is not None:
+            return append_escalation_marker(text, escalation)
         return _ensure_products_in_output(text, tool_results)
     except Exception as e:
         return json.dumps({"error": f"Support agent error: {str(e)}"})

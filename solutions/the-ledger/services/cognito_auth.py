@@ -1,15 +1,32 @@
 """
 CognitoAuthService — JWT validation middleware for the storefront backend.
 
-Challenge 9.1 solution drop-in (Requirements 4.2.1–4.2.4, 5.3.1–5.3.3).
-Copy over ``pellier/backend/services/cognito_auth.py`` and restart
-the backend:
+Challenge 9.1 (Requirements 4.2.1–4.2.4, 5.3.1–5.3.3). Verifies Amazon
+Cognito access tokens against the pool's JWKS endpoint and exposes a
+FastAPI dependency ``require_user`` that populates ``request.state.user``
+with a ``VerifiedUser``.
 
-    cp solutions/the-ledger/services/cognito_auth.py \
-       pellier/backend/services/cognito_auth.py
+This is the backend half of Challenge 9's four-file capstone:
 
-The CHALLENGE 9.1 block below matches the one in the in-tree file
-byte-for-byte (enforced by Task 7.4).
+    9.1  services/cognito_auth.py          ← this file
+    9.2  services/agentcore_identity.py
+    9.3  frontend/src/utils/auth.ts
+    9.4  frontend/src/components/{AuthModal,PreferencesModal}.tsx
+
+Key design choices (Req 4.2):
+
+  * JWKS is fetched once per ``CognitoAuthService`` instance and cached
+    for 1 hour. A single ``asyncio.Lock`` guards the refresh so N
+    concurrent validations trigger exactly one HTTP fetch (Req 4.2.1).
+  * The validator enforces signature (RS256), ``iss``, ``aud``, ``exp``,
+    and ``token_use == "access"`` per Req 4.2.2 and 2.6.3.
+  * ``extract_user`` checks the ``Authorization: Bearer`` header first
+    and only falls back to the ``access_token`` cookie (spec priority).
+  * Tokens never appear in logs (Req 5.3.3). The service logs validation
+    failures with the exception class only.
+
+The workshop ``solutions/the-ledger/services/cognito_auth.py`` file mirrors
+the CHALLENGE 9.1 block here byte-for-byte (enforced by Task 7.4).
 """
 from __future__ import annotations
 
@@ -188,6 +205,10 @@ class CognitoAuthService:
             user_id=claims.get("sub", ""),
             email=claims.get("email", ""),
             given_name=claims.get("given_name") or claims.get("username", ""),
+            # Preserve the raw bearer token so the request path can pass the
+            # caller's identity through to the AgentCore Gateway (JWT
+            # passthrough). Excluded from serialization in the model.
+            access_token=token,
         )
 
     # ------------------------------------------------------------------

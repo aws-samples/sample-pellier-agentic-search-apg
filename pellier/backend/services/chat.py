@@ -571,6 +571,10 @@ class EnhancedChatService:
             # Create session manager if session_id provided
             session_manager = None
             if session_id:
+                # ``settings`` is imported function-locally in this class's
+                # other methods (e.g. chat_stream); mirror that here so the
+                # non-streaming path doesn't NameError on the first session.
+                from config import settings
                 # Use AgentCore Memory for managed session persistence
                 if user and settings.AGENTCORE_MEMORY_ID:
                     from services.agentcore_memory import create_agentcore_session_manager
