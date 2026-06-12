@@ -96,8 +96,9 @@ def find_deals(query: str, max_price: float = None, limit: int = 5) -> dict:
     if max_price:
         parameters.append({"name": "max_price", "value": {"doubleValue": float(max_price)}})
 
+    # Single statement only: Data API execute_statement rejects a prepended
+    # SET ("Multistatements aren't supported", box-verified 2026-06-12).
     sql = f"""
-        SET hnsw.iterative_scan = 'relaxed_order';
         SELECT "productId", product_description, price, stars, reviews,
                category_name, quantity, "imgUrl",
                1 - (embedding <=> :embedding::vector) AS similarity,

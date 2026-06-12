@@ -122,8 +122,12 @@ def semantic_search(query: str, limit: int = 5, max_price: float = None, min_rat
         parameters.append({"name": "min_rating", "value": {"doubleValue": float(min_rating)}})
     where_sql = " AND ".join(where_clauses)
 
+    # NO session GUCs here: Data API execute_statement is single-statement
+    # ("Multistatements aren't supported", box-verified 2026-06-12 — a
+    # prepended SET killed EVERY read tool on the Gateway path). The
+    # hnsw.iterative_scan tuning stays on the in-process rail (psycopg);
+    # at this catalog's scale it doesn't change recall anyway.
     sql = f"""
-        SET hnsw.iterative_scan = 'relaxed_order';
         SELECT "productId", product_description, price, stars, reviews,
                category_name, quantity, "imgUrl",
                1 - (embedding <=> :embedding::vector) AS similarity
@@ -200,8 +204,9 @@ def find_pieces_hybrid(
     # ranked lists by `1/(60 + rank)` — the same constant the
     # in-process implementation uses, so participants get a one-to-one
     # comparison between paths.
+    # Single statement only — Data API rejects a prepended SET (see
+    # semantic_search). The CTE shape already folds everything into one query.
     sql = f"""
-        SET hnsw.iterative_scan = 'relaxed_order';
         WITH vector_results AS (
           SELECT "productId" AS pid,
                  row_number() OVER (ORDER BY embedding <=> :embedding::vector) AS vrank

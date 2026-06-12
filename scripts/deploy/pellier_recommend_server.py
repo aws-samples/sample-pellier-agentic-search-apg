@@ -100,8 +100,9 @@ def get_recommendations(query: str, category: str = None, max_price: float = Non
         parameters.append({"name": "max_price", "value": {"doubleValue": float(max_price)}})
     where_sql = " AND ".join(where_clauses)
 
+    # Single statement only: Data API execute_statement rejects a prepended
+    # SET ("Multistatements aren't supported", box-verified 2026-06-12).
     sql = f"""
-        SET hnsw.iterative_scan = 'relaxed_order';
         SELECT "productId", product_description, price, stars, reviews,
                category_name, quantity, "imgUrl", "isBestSeller",
                1 - (embedding <=> :embedding::vector) AS similarity
