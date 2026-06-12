@@ -818,9 +818,9 @@ if [ "${WORKSHOP_FORMAT:-builders}" = "builders" ]; then
     }
 
     # ---- Specialist agents that aren't Stock Keeper ----
-    # Curator handles turn 2 (pairing.score, palette.match). Experience
-    # Guide handles turn 5 (cart.holds, process_return). Orchestrator
-    # is the dispatcher that routes between them.
+    # Curator handles recommendation turns (find_pieces_hybrid, style_match).
+    # Experience Guide handles returns/care (returns_and_care, process_return,
+    # escalate_to_stylist). Orchestrator is the dispatcher that routes between them.
     copy_solution "solutions/closing-marcos-gap/agents/curator.py" \
                   "pellier/backend/agents/curator.py" "Curator agent"
     copy_solution "solutions/closing-marcos-gap/agents/experience_guide.py" \
