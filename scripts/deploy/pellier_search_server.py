@@ -55,6 +55,10 @@ def _execute_sql(sql: str, parameters: list = None) -> list[dict]:
         "secretArn": SECRET_ARN,
         "database": DATABASE,
         "sql": sql,
+        # Without this the Data API omits columnMetadata entirely, columns
+        # is [] and the first returned row IndexErrors (box-verified
+        # 2026-06-12 — "list index out of range" on every successful SELECT).
+        "includeResultMetadata": True,
     }
     if parameters:
         params["parameters"] = parameters

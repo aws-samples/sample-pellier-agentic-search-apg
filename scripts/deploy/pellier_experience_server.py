@@ -75,6 +75,11 @@ def _execute_in_transaction(transaction_id: str, sql: str, parameters: list = No
         "database": DATABASE,
         "sql": sql,
         "transactionId": transaction_id,
+        # Without this the Data API omits columnMetadata entirely, columns
+        # is [] and the first returned row IndexErrors (box-verified
+        # 2026-06-12). The ALLOW beat only passed before because the
+        # ownership check returned ZERO rows — nothing reached the parser.
+        "includeResultMetadata": True,
     }
     if parameters:
         params["parameters"] = parameters
