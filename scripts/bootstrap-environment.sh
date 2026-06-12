@@ -116,6 +116,31 @@ if [ "$_node20_ok" = true ]; then
     _node_bin="$(command -v node 2>/dev/null || true)"
     [ -n "$_node_bin" ] && update-alternatives --install /usr/bin/node node "$_node_bin" 100 >/dev/null 2>&1 || true
     log "✅ Node.js installed and pinned: $(node --version 2>/dev/null)"
+
+    # TypeScript compiler (tsc), global. The @aws/agentcore CLI is itself a
+    # TypeScript/Node tool, and its `deploy` build step shells out to `tsc`
+    # (`sh: line 1: tsc: command not found` aborts the Runtime deploy on a box
+    # that only has Node). AL2023 doesn't preinstall it. Our agent is Python,
+    # but the CLI's own build needs tsc regardless. Pinned major to avoid a
+    # surprise tsc behavior change. Non-fatal: only the managed-Runtime deploy
+    # needs it; Boutique + frontend build don't.
+    if command -v npm >/dev/null 2>&1; then
+        log "Installing TypeScript compiler globally (tsc – required by @aws/agentcore deploy)..."
+        if npm install -g typescript@5 >/dev/null 2>&1; then
+            # The CLI's deploy build runs `sh -c tsc` as the PARTICIPANT user
+            # (provisioning is `sudo -u $CODE_EDITOR_USER`). npm's global prefix
+            # may not be on that user's PATH, so symlink tsc into /usr/bin
+            # (always on PATH) rather than trust the prefix location – same
+            # defensive pattern as the aws-v2 symlink above.
+            _tsc_bin="$(command -v tsc 2>/dev/null || true)"
+            if [ -n "$_tsc_bin" ] && [ "$_tsc_bin" != "/usr/bin/tsc" ]; then
+                ln -sf "$_tsc_bin" /usr/bin/tsc 2>/dev/null || true
+            fi
+            log "✅ tsc installed: $(tsc --version 2>/dev/null || echo 'version check skipped') ($(command -v tsc 2>/dev/null))"
+        else
+            warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript' then re-run scripts/deploy/deploy_all.sh."
+        fi
+    fi
 else
     # Last resort: ensure SOME node exists for the frontend build. Managed
     # Runtime/Gateway/Policy deploy will be skipped (STEP 16 guards on Node>=20).
