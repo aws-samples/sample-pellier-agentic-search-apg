@@ -80,31 +80,49 @@ log "✅ System packages installed"
 # already-best-effort AgentCore step is the right blast radius. The health gate
 # surfaces an empty AGENTCORE_RUNTIME_ENDPOINT if 20 never arrived.
 log "Installing Node.js 20 (required by @aws/agentcore CLI; AL2023 default is 18)..."
+
+# Why this is more than "dnf install nodejs":
+#   On a fresh AL2023 box the distro `nodejs` (18) is often ALREADY installed
+#   (it satisfies build deps). In that state, adding the NodeSource repo and
+#   running `dnf install nodejs` is a NO-OP — dnf sees nodejs as already
+#   present and exits 0 WITHOUT upgrading to 20. The previous logic trusted
+#   that exit 0 and left the box on Node 18 (observed on a fresh-account run:
+#   `node --version` → v18.20.8, every `agentcore` command silently empty).
+#   Fix: (1) remove the distro nodejs first so NodeSource's package is the
+#   only candidate, (2) verify success by the ACTUAL major version, never by
+#   dnf's exit code.
+_node_major() { node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1; }
 _node20_ok=false
 for attempt in 1 2; do
-    if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 \
-        && dnf install -y -q nodejs; then
+    # Drop any distro Node (18) so the NodeSource module installs clean rather
+    # than being short-circuited as "already satisfied". Non-fatal if absent.
+    dnf remove -y -q nodejs npm >/dev/null 2>&1 || true
+    if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1; then
+        # NodeSource ships nodejs-20 as the `nodejs` package once its repo is
+        # enabled; --allowerasing lets it replace any lingering distro bits.
+        dnf install -y -q --allowerasing nodejs >/dev/null 2>&1 || true
+    fi
+    _maj="$(_node_major)"
+    if echo "$_maj" | grep -qE '^[0-9]+$' && [ "$_maj" -ge 20 ]; then
         _node20_ok=true
         break
     fi
-    warn "NodeSource Node 20 install attempt $attempt failed; retrying..."
+    warn "Node 20 not active after attempt $attempt (node=$(node --version 2>/dev/null || echo none)); retrying..."
     sleep 3
 done
 
 if [ "$_node20_ok" = true ]; then
-    # Pin this node ahead of any distro Node 18 so `node`/`npx` resolve to 20.
+    # Pin this node ahead of anything else so `node`/`npx` resolve to 20.
     _node_bin="$(command -v node 2>/dev/null || true)"
     [ -n "$_node_bin" ] && update-alternatives --install /usr/bin/node node "$_node_bin" 100 >/dev/null 2>&1 || true
-    _node_major="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
-    if echo "$_node_major" | grep -qE '^[0-9]+$' && [ "$_node_major" -ge 20 ]; then
-        log "✅ Node.js installed and pinned: $(node --version 2>/dev/null)"
-    else
-        warn "NodeSource reported success but node is $(node --version 2>/dev/null || echo none) (<20). @aws/agentcore Runtime deploy will fail until Node 20 is on PATH."
-    fi
+    log "✅ Node.js installed and pinned: $(node --version 2>/dev/null)"
 else
-    warn "NodeSource Node 20 install failed after retries — falling back to AL2023 default nodejs (Node 18). The @aws/agentcore Runtime deploy will NOT work on Node 18; the Boutique + frontend build still will. Re-run 'curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y nodejs' then re-provision."
-    dnf install --skip-broken -y -q nodejs
-    warn "Node version: $(node --version 2>/dev/null || echo 'none')"
+    # Last resort: ensure SOME node exists for the frontend build. Managed
+    # Runtime/Gateway/Policy deploy will be skipped (STEP 16 guards on Node>=20).
+    if ! command -v node >/dev/null 2>&1; then
+        dnf install --skip-broken -y -q nodejs >/dev/null 2>&1 || true
+    fi
+    warn "Node 20 install failed after retries — node is $(node --version 2>/dev/null || echo 'none') (<20). The @aws/agentcore Runtime/Gateway/Policy deploy will be SKIPPED (Boutique + frontend build still work). Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run scripts/deploy/deploy_all.sh."
 fi
 
 # ----------------------------------------------------------------------------

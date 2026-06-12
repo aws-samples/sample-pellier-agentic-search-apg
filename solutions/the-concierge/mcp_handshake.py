@@ -118,7 +118,7 @@ async def _run(server: dict) -> int:
     )
 
     print(f"→ launching local MCP server: {server['name']}")
-    print(f"  ({server['command']} {' '.join(server.get('args', [])[:1])} … --readonly True)\n")
+    print(f"  ({server['command']} {' '.join(server.get('args', [])[:1])} … read-only by default)\n")
 
     try:
         async with stdio_client(params) as (read_stream, write_stream):

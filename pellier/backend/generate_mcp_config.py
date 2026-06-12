@@ -40,16 +40,24 @@ def generate_mcp_config():
         print("This should be passed from CloudFormation outputs", file=sys.stderr)
         return 1
     
-    # MCP server configuration (same for both files)
+    # MCP server configuration (same for both files).
+    #
+    # Flag names track the current awslabs.postgres-mcp-server CLI:
+    #   --db_cluster_arn   (NOT the older --resource_arn)
+    #   --connection_method rdsapi   (RDS Data API path — uses the cluster ARN
+    #                                 + secret, no host/port needed)
+    #   read-only is the DEFAULT; you opt INTO writes with --allow_write_query.
+    #   So we simply omit that flag (the older "--readonly True" value-flag is
+    #   gone and the server rejects it as an unrecognized argument).
     mcp_server_config = {
         "command": "uvx",
         "args": [
             "awslabs.postgres-mcp-server@latest",
-            "--resource_arn", db_cluster_arn,
+            "--connection_method", "rdsapi",
+            "--db_cluster_arn", db_cluster_arn,
             "--secret_arn", db_secret_arn,
             "--database", db_name,
-            "--region", aws_region,
-            "--readonly", "True"
+            "--region", aws_region
         ],
         "env": {
             "AWS_REGION": aws_region,
@@ -98,7 +106,8 @@ def generate_mcp_config():
     print(f"   • Secret ARN: {db_secret_arn}")
     print(f"   • Database: {db_name}")
     print(f"   • Region: {aws_region}")
-    print(f"   • Read-only: True")
+    print(f"   • Connection: rdsapi (RDS Data API)")
+    print(f"   • Read-only: default (no --allow_write_query)")
     print()
     print("🎯 Usage:")
     print("   • Any MCP host (VS Code chat extension, Claude Code,")

@@ -10,12 +10,19 @@
 #   1. Backend /api/health is green (DB connected)
 #   2. Catalog row count == expected (40)
 #   3. Warehouse inventory present (~120 rows)
-#   4. AGENTCORE_MEMORY_ID set in .env            (required — Memory pillar)
-#   5. AGENTCORE_RUNTIME_ENDPOINT set in .env     (required — Runtime pillar)
-#   6. AGENTCORE_POLICY_ENGINE_ID set in .env     (warn — Policy pillar; the
+#   4. node --version >= 20                       (warn — ROOT CAUSE diagnostic:
+#      the @aws/agentcore CLI needs Node 20; on Node 18 every agentcore command
+#      silently no-ops, so Runtime/Gateway/Policy never deploy and checks 6-7
+#      below read empty. Surfacing the Node version turns "endpoints empty, why?"
+#      into a named cause.)
+#   5. AGENTCORE_MEMORY_ID set in .env            (required — Memory pillar)
+#   6. AGENTCORE_RUNTIME_ENDPOINT set in .env     (required — Runtime pillar)
+#   7. AGENTCORE_POLICY_ENGINE_ID set in .env     (warn — Policy pillar; the
 #      Act II managed-Cedar exercise won't enforce at the Gateway without it)
 #
-# Exit 0 only if all REQUIRED checks pass.
+# Exit 0 only if all REQUIRED checks pass. The Node check is a WARN (not a
+# fail): the Boutique + the mandatory in-process path run fine on Node 18; only
+# the optional managed beats need 20. It's a diagnostic, not a blocker.
 # =============================================================================
 set -uo pipefail
 
@@ -75,7 +82,21 @@ else
   ok=false
 fi
 
-# 4. AgentCore Memory id (required)
+# 4. Node version (warn — root-cause diagnostic for the managed pillars below).
+# The @aws/agentcore CLI is Node-based and requires Node >= 20; on Node 18 it
+# crashes at module load (regex `v`/unicodeSets flag) BEFORE doing any work, so
+# `agentcore deploy` silently produces nothing and the Runtime/Gateway/Policy
+# endpoints below stay empty. We surface the version here so an empty
+# AGENTCORE_RUNTIME_ENDPOINT (check 6) reads as a consequence, not a mystery.
+node_ver="$(node --version 2>/dev/null || true)"
+node_major="$(echo "$node_ver" | sed 's/^v//' | cut -d. -f1)"
+if [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 20 )); then
+  pass "Node $node_ver (>= 20 — @aws/agentcore CLI can run)"
+else
+  warn "Node ${node_ver:-not found} (< 20) — the @aws/agentcore CLI cannot run, so the managed Runtime/Gateway/Policy never deploy and checks below read empty. This is the ROOT CAUSE if those are FAIL. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run scripts/deploy/deploy_all.sh."
+fi
+
+# 5. AgentCore Memory id (required)
 if [[ -n "${AGENTCORE_MEMORY_ID:-}" ]]; then
   pass "AGENTCORE_MEMORY_ID set"
 else
