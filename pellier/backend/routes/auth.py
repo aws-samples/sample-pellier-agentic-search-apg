@@ -300,7 +300,9 @@ def _clear_session_cookies(response: Response) -> None:
         REFRESH_TOKEN_COOKIE,
         JUST_SIGNED_IN_COOKIE,
     ):
-        response.delete_cookie(cookie, path="/")
+        # Match the attributes used at set_cookie time; some browsers retain
+        # cookies whose deletion attributes don't match the originals.
+        response.delete_cookie(cookie, path="/", secure=True, samesite="lax")
 
 
 # ---- Cognito token exchange -----------------------------------------------

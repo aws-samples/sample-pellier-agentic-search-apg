@@ -85,8 +85,9 @@ class HealthResponse(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    """Chat message"""
-    role: str
+    """Chat message. ``role`` is constrained so a client cannot inject an
+    arbitrary role label that gets concatenated into the LLM prompt."""
+    role: Literal["user", "assistant"]
     content: str
 
 

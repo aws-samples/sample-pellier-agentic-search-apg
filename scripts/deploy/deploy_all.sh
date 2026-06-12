@@ -71,7 +71,7 @@ if [ -n "$_REPO_ROOT" ] && [ -f "$_REPO_ROOT/.provision.env" ]; then
 fi
 
 _missing=()
-for _v in PGHOSTARN PGSECRET PGDATABASE AWS_REGION COGNITO_POOL COGNITO_CLIENT AGENTCORE_ROLE_ARN; do
+for _v in PGHOSTARN PGSECRET PGDATABASE AWS_REGION COGNITO_POOL COGNITO_CLIENT AGENTCORE_ROLE_ARN STACKNAME; do
     # `set -u` is active, so test via indirect default-expansion (no crash).
     if [ -z "$(eval "printf '%s' \"\${$_v:-}\"")" ]; then
         _missing+=("$_v")
@@ -390,11 +390,25 @@ export PASSWORD=$(aws cloudformation describe-stacks \
   --stack-name "$STACKNAME" --region "$AWS_REGION" \
   --query 'Stacks[0].Outputs[?OutputKey==`ApplicationUserPassword`].OutputValue' --output text)
 
+# Cognito app clients with a secret require SECRET_HASH =
+# base64(HMAC-SHA256(client_secret, username + client_id)) on every auth
+# call. Without it, initiate-auth rejects with "Unable to verify secret
+# hash" and TOKEN comes back "null" – the smoke test then silently passes
+# nothing. Compute it so the auth actually succeeds, and guard the result.
+SECRET_HASH=$(printf '%s' "${USER}${COGNITO_CLIENT}" \
+  | openssl dgst -sha256 -hmac "$CLIENT_SECRET" -binary | base64)
+
 export TOKEN=$(aws cognito-idp initiate-auth \
   --client-id "$COGNITO_CLIENT" \
   --auth-flow USER_PASSWORD_AUTH \
-  --auth-parameters "{\"USERNAME\":\"$USER\",\"PASSWORD\":\"$PASSWORD\"}" \
+  --auth-parameters "{\"USERNAME\":\"$USER\",\"PASSWORD\":\"$PASSWORD\",\"SECRET_HASH\":\"$SECRET_HASH\"}" \
   --region "$AWS_REGION" | jq -r '.AuthenticationResult.AccessToken')
+
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+  echo "ERROR: Failed to obtain a Cognito access token for the smoke test." >&2
+  echo "       Check COGNITO_CLIENT / CLIENT_SECRET and the ApplicationUser* stack outputs." >&2
+  exit 1
+fi
 
 export AGENT_RUNTIME_ID=$(aws bedrock-agentcore-control list-agent-runtimes \
   --region "$AWS_REGION" \

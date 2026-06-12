@@ -165,18 +165,21 @@ const responseCache = new Map<
   }
 >()
 
-function cacheKey(query: string) {
-  return query.trim().toLowerCase()
+// Cache key includes the persona's customer_id: responses are personalized,
+// so persona A's answer must never be served to persona B for the same query.
+function cacheKey(query: string, customerId: string | null) {
+  return `${customerId ?? 'anon'}:${query.trim().toLowerCase()}`
 }
 
-function getCachedResponse(query: string) {
-  const cached = responseCache.get(cacheKey(query))
+function getCachedResponse(query: string, customerId: string | null) {
+  const cached = responseCache.get(cacheKey(query, customerId))
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached
   return null
 }
 
 function setCachedResponse(
   query: string,
+  customerId: string | null,
   data: {
     response: string
     products?: ChatProduct[]
@@ -184,7 +187,7 @@ function setCachedResponse(
     agent: AgentBadge
   },
 ) {
-  responseCache.set(cacheKey(query), { ...data, timestamp: Date.now() })
+  responseCache.set(cacheKey(query, customerId), { ...data, timestamp: Date.now() })
 }
 
 function mapProduct(p: any): ChatProduct {
@@ -419,8 +422,8 @@ export function useAgentChat(
         })
       }
 
-      // Cache check
-      const cached = getCachedResponse(text)
+      // Cache check (keyed by persona so personalized answers don't leak)
+      const cached = getCachedResponse(text, persona?.customer_id ?? null)
       if (cached) {
         setMessages(prev => [
           ...prev,
@@ -766,14 +769,14 @@ export function useAgentChat(
         setBackendOnline(true)
 
         if (agentType) {
-          setCachedResponse(text, {
+          setCachedResponse(text, persona?.customer_id ?? null, {
             response: response.response,
             products: response.products,
             suggestions: response.suggestions,
             agent: agentType,
           })
         } else {
-          setCachedResponse(text, {
+          setCachedResponse(text, persona?.customer_id ?? null, {
             response: response.response,
             products: response.products,
             suggestions: response.suggestions,
@@ -801,7 +804,10 @@ export function useAgentChat(
     (resetTo?: AgentChatMessage[]) => {
       if (persistKey) {
         localStorage.removeItem(persistKey)
-        localStorage.removeItem('pellier-session-id')
+        // NOTE: do NOT remove 'pellier-session-id' here — PersonaContext
+        // owns the backend session-id lifecycle (it sets it on persona
+        // switch). Clearing it here would orphan the AgentCore STM session
+        // and force a new random id the backend doesn't know.
       }
       responseCache.clear()
       setMessages(resetTo ?? initialMessages)

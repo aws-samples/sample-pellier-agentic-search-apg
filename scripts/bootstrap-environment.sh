@@ -687,11 +687,17 @@ fi
 
 # Set AWS region and workshop shortcuts for user environment
 log "Configuring AWS region and workshop shortcuts..."
-cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'EOF'
+# Write the resolved region literally (the prior single-quoted heredoc wrote
+# the string "$AWS_REGION" verbatim → a self-referential, empty export). The
+# aliases below stay literal, so emit the AWS block separately (unquoted) then
+# the shortcuts block (quoted).
+cat >> "/home/$CODE_EDITOR_USER/.bashrc" << EOF
 
 # AWS Configuration
 export AWS_REGION="$AWS_REGION"
 export AWS_DEFAULT_REGION="$AWS_REGION"
+EOF
+cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'EOF'
 
 # Workshop shortcuts
 alias workshop='cd /workshop'

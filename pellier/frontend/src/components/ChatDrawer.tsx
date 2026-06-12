@@ -271,6 +271,7 @@ export default function ChatDrawer() {
             className="cd-drawer"
             data-testid="chat-drawer"
             role="dialog"
+            aria-modal="true"
             aria-label="Chat with Pellier"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}

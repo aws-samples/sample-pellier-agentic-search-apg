@@ -94,7 +94,8 @@ def verify_cognito_token(token: str) -> Dict[str, Any]:
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+        logger.debug(f"JWT validation failed: {e}")
+        raise HTTPException(status_code=401, detail="auth_failed")
     except requests.RequestException as e:
         logger.error(f"Failed to fetch JWKS: {e}")
         raise HTTPException(status_code=503, detail="Cannot verify token")

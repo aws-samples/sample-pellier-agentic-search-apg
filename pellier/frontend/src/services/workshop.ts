@@ -283,7 +283,10 @@ export async function queryWorkshopStream(
     throw new Error(`workshop query failed (${res.status}): ${body || res.statusText}`)
   }
 
-  const reader = res.body!.getReader()
+  if (!res.body) {
+    throw new Error('workshop query failed: response body is null (streaming not supported)')
+  }
+  const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
   let sessionId = ''

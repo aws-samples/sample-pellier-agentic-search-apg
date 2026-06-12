@@ -560,7 +560,7 @@ async def explore_collection(
         }
     except Exception as e:
         logger.error(f"❌ Category browse failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 
@@ -615,7 +615,7 @@ async def get_trending(
         return await logic.whats_trending(limit, category)
     except Exception as e:
         logger.error(f"Failed to get trending products: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.get("/api/tools/inventory-health")
@@ -629,7 +629,7 @@ async def floor_check_endpoint(
         return await logic.floor_check()
     except Exception as e:
         logger.error(f"Failed to get inventory health: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.get("/api/tools/price-stats")
@@ -644,25 +644,34 @@ async def get_price_stats(
         return await logic.price_intelligence(category)
     except Exception as e:
         logger.error(f"Failed to get price statistics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.post("/api/tools/restock")
 async def restock_shelf_endpoint(
     request: dict,
+    user=Depends(get_current_user),
     db: DatabaseService = Depends(get_db_service)
 ):
-    """Restock a product using business logic"""
+    """Restock a product using business logic. Auth-gated like every other
+    write path so the inventory mutation carries a caller identity."""
+    product_id = request.get("product_id")
+    quantity = request.get("quantity")
+    if product_id is None or quantity is None:
+        raise HTTPException(
+            status_code=422,
+            detail="product_id and quantity are required",
+        )
     try:
         from services.business_logic import BusinessLogic
         logic = BusinessLogic(db)
         return await logic.restock_shelf(
-            product_id=request["product_id"],
-            quantity=request["quantity"]
+            product_id=product_id,
+            quantity=quantity,
         )
     except Exception as e:
         logger.error(f"Failed to restock product: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="restock_failed")
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -828,7 +837,7 @@ async def get_recent_queries(limit: int = Query(default=10, ge=1, le=50)):
         }
     except Exception as e:
         logger.error(f"Failed to get recent queries: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.post("/api/queries/clear")
@@ -840,7 +849,7 @@ async def clear_query_logs():
         return {"status": "success", "message": "Query logs cleared"}
     except Exception as e:
         logger.error(f"Failed to clear logs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 # ============================================================================
@@ -889,7 +898,7 @@ async def compare_index_performance(
         raise
     except Exception as e:
         logger.error(f"Performance comparison failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.get("/api/performance/runtime")
@@ -921,7 +930,7 @@ async def get_index_stats():
         return stats
     except Exception as e:
         logger.error(f"Failed to get index stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 # ============================================================================
@@ -951,7 +960,7 @@ async def get_context_stats(session_id: Optional[str] = Query(default=None)):
         
     except Exception as e:
         logger.error(f"Failed to get context stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.post("/api/context/clear")
@@ -981,7 +990,7 @@ async def clear_context(session_id: str = Query(...)):
         
     except Exception as e:
         logger.error(f"Failed to clear context: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 @app.get("/api/context/prompts")
@@ -1008,7 +1017,7 @@ async def list_prompts():
         
     except Exception as e:
         logger.error(f"Failed to list prompts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 # ============================================================================
@@ -2095,7 +2104,7 @@ async def analytics_query(request: Request):
         raise
     except Exception as e:
         logger.error(f"Analytics query failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="internal_error")
 
 
 # ============================================================================

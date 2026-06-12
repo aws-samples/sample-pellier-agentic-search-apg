@@ -60,7 +60,7 @@ def _region() -> str:
     from routes that may run in a stripped env)."""
     try:
         from config import settings
-        return settings.get_aws_region()
+        return settings.aws_region_resolved
     except Exception:
         return os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 

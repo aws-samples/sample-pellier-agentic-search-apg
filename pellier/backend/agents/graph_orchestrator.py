@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Try importing Strands graph support
 GRAPH_AVAILABLE = False
 try:
-    from strands.agent.graph import GraphBuilder  # type: ignore
+    from strands.multiagent import GraphBuilder  # type: ignore
     GRAPH_AVAILABLE = True
     logger.info("Strands GraphBuilder available — graph orchestrator enabled")
 except ImportError:

@@ -9,13 +9,17 @@
  */
 
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import AtelierErrorBoundary from './AtelierErrorBoundary';
 import '../styles/base.css';
 
 const AtelierFrame: React.FC = () => {
+  // Key the error boundary on the pathname so a crash on one surface doesn't
+  // strand the operator on every other surface — navigating remounts it,
+  // clearing stale error state.
+  const { pathname } = useLocation();
   return (
     <div className="atelier-root">
       <div className="atelier-frame">
@@ -23,7 +27,7 @@ const AtelierFrame: React.FC = () => {
         <div className="atelier-canvas">
           <TopBar />
           <main className="atelier-surface">
-            <AtelierErrorBoundary>
+            <AtelierErrorBoundary key={pathname}>
               <Outlet />
             </AtelierErrorBoundary>
           </main>

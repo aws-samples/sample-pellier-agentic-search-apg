@@ -531,7 +531,7 @@ class EnhancedChatService:
                     "model": self.model_id
                 }
 
-            logger.info(f"💬 Enhanced chat processing: '{message[:60]}...' (mode={workshop_mode or 'agentic'}, user={user.get('email') if user else 'anonymous'})")
+            logger.info(f"💬 Enhanced chat processing: '{message[:60]}...' (mode={workshop_mode or 'agentic'}, user={user.get('sub', 'anonymous') if user else 'anonymous'})")
 
             # Require Strands
             if not self.strands_available:
@@ -583,7 +583,7 @@ class EnhancedChatService:
                         user_id=user.get("sub", "anonymous"),
                     )
                     if session_manager:
-                        logger.info(f"🧠 AgentCore Memory session created for user={user.get('email')}")
+                        logger.info(f"🧠 AgentCore Memory session created for user={user.get('sub', 'anonymous')}")
 
                 # No fallback — AgentCore Memory is the only session manager.
                 # If AGENTCORE_MEMORY_ID is not set, the agent runs without session memory.
@@ -609,7 +609,7 @@ class EnhancedChatService:
             # Add OpenTelemetry trace attributes
             orchestrator.trace_attributes = {
                 "session.id": session_id or "anonymous",
-                "session.user": user.get("email", "anonymous") if user else "anonymous",
+                "session.user": user.get("sub", "anonymous") if user else "anonymous",
                 "user.query": message[:100],
                 "workshop": "pellier",
                 "service": "pellier"
@@ -1649,7 +1649,7 @@ CURRENT REQUEST: {message}"""
         # after the specialist factory call below.
         trace_attributes = {
             "session.id": session_id or "anonymous",
-            "session.user": user.get("email", "anonymous") if user else "anonymous",
+            "session.user": user.get("sub", "anonymous") if user else "anonymous",
             "user.query": message[:100],
             "workshop": "pellier",
             "service": "pellier",

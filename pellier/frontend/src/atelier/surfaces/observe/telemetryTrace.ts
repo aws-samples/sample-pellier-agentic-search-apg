@@ -107,7 +107,10 @@ export function blurbForProduct(turn: ChatTurn | undefined, product: ProductCard
   if (!turn) {
     return `${product.name} from ${product.brand}.`;
   }
-  const sentences = turn.content.split(/(?<=[.!?])\s+/);
+  // Split into sentences without a lookbehind assertion — lookbehind throws
+  // a SyntaxError at module-load on Safari < 16.4 (older iPads/iPhones),
+  // which would crash the whole TelemetryTab surface.
+  const sentences = turn.content.match(/[^.!?]+[.!?]*/g) ?? [turn.content];
   const hit = sentences.find((s) => s.includes(product.name));
   return hit ?? turn.content;
 }

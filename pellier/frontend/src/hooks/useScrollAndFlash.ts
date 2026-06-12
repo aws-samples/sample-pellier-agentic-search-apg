@@ -20,7 +20,7 @@
  * If the reference can't be resolved, the call is a no-op — the
  * citation pill still renders and the click doesn't crash.
  */
-import { useCallback, useRef, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 
 const FLASH_MS = 800
 
@@ -46,6 +46,16 @@ export function useScrollAndFlash(): UseScrollAndFlash {
       target.removeAttribute('data-flash')
     }, FLASH_MS)
     pendingTimeouts.current.push(timer)
+  }, [])
+
+  // Cancel any still-pending flash timers on unmount so they don't fire
+  // against a removed node or leak across session/navigation cycles.
+  useEffect(() => {
+    const timeouts = pendingTimeouts
+    return () => {
+      timeouts.current.forEach(clearTimeout)
+      timeouts.current = []
+    }
   }, [])
 
   return { containerRef, scrollToTrace }

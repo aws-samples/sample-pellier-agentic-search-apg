@@ -80,7 +80,7 @@ function hydrateItems(): CartItem[] {
     // new tab), start with an empty cart rather than resurfacing
     // phantom items from a prior persona or demo run. Items added
     // during the current session will re-persist normally.
-    const currentSession = sessionStorage.getItem('pellier-session-id') || ''
+    const currentSession = localStorage.getItem('pellier-session-id') || ''
     const cartSession = localStorage.getItem(CART_SESSION_KEY) || ''
     if (!currentSession || currentSession !== cartSession) {
       // Stale or first load — clear the persisted cart and record
@@ -160,7 +160,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
     try {
-      const sid = sessionStorage.getItem('pellier-session-id')
+      const sid = localStorage.getItem('pellier-session-id')
       if (sid) localStorage.setItem(CART_SESSION_KEY, sid)
     } catch { /* ignore */ }
   }, [items])

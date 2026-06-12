@@ -91,7 +91,14 @@ fi
 if ! grep -q "WORKSHOP_EXERCISE_STUB" "$TOOLS"; then
   info "floor_check already wired (no stub marker) — leaving agent_tools.py as-is"
 else
-  cp "$TOOLS" "${TOOLS}.dryrun.bak"
+  # Guard the backup explicitly: if it fails we must NOT patch the file in
+  # place, or restore() (which keys on the .bak existing) would leave
+  # agent_tools.py permanently in the patched state. (This script runs with
+  # `set -uo pipefail`, not `-e`, by design – it accumulates FAILED and
+  # reports a summary – so a bare cp failure would otherwise pass silently.)
+  if ! cp "$TOOLS" "${TOOLS}.dryrun.bak"; then
+    fail "Could not back up agent_tools.py (cp failed) – refusing to patch in place"; exit 1
+  fi
   python3 - "$TOOLS" "$BODY" <<'PYEOF'
 import sys, re
 tools_path, body_path = sys.argv[1], sys.argv[2]

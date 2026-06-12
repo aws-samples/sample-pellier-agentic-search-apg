@@ -202,15 +202,11 @@ class VectorSearch:
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
         """
-        # ``WITH ... %s::vector`` consumed the embedding param above; the
-        # filter params follow positionally; ``LIMIT %s`` closes the list.
-        # Reorder into the final binding sequence.
-        bind: List[Any] = [embedding] + params[1:] + [limit]
-        # Recreate ``params[0]`` was the embedding placeholder for clause
-        # accounting; the actual SQL has the embedding twice (once in the
-        # CTE, once in the SELECT/ORDER BY through the CTE alias). Simpler
-        # to rebuild ``bind`` cleanly:
-        bind = [embedding]
+        # Build the final binding sequence. The embedding is bound once (the
+        # CTE computes similarity; the SELECT/ORDER BY reference the CTE alias,
+        # so the vector param appears a single time). Optional category/tag
+        # filters and the LIMIT follow positionally.
+        bind: List[Any] = [embedding]
         if categories:
             bind.append(list(categories))
         if tags:

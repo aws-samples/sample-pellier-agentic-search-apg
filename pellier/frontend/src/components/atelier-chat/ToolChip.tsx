@@ -134,11 +134,9 @@ export default function ToolChip({
           )}
           <div className="flex justify-between items-center text-[11px]">
             {panel.meta ? (
-              <span
-                className="italic"
-                style={{ color: c.muted }}
-                dangerouslySetInnerHTML={{ __html: panel.meta }}
-              />
+              <span className="italic" style={{ color: c.muted }}>
+                {panel.meta.replace(/<[^>]+>/g, '')}
+              </span>
             ) : (
               <span />
             )}

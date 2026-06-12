@@ -395,7 +395,8 @@ setup_database() {
             005_theo_returns.sql \
             006_warehouse_inventory.sql \
             007_chat_session_tables.sql \
-            008_search_performance_indexes.sql
+            008_search_performance_indexes.sql \
+            009_return_policies.sql
         do
             if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
                 log "Applying migration $migration..."

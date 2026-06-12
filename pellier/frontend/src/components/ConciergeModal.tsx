@@ -398,6 +398,9 @@ export default function ConciergeModal() {
   }, [isOpen, consumePendingQuery, sendMessage])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    // Ignore Enter while an IME composition is active (CJK keyboards), or it
+    // double-fires and submits a half-composed character.
+    if (e.nativeEvent.isComposing) return
     if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault()
       sendMessage()
@@ -421,6 +424,7 @@ export default function ConciergeModal() {
         >
           <motion.div
             role="dialog"
+            aria-modal="true"
             aria-label="Ask Pellier"
             data-testid="concierge-modal"
             className="relative flex flex-col w-full max-w-[560px] h-[min(680px,calc(100vh-4rem))] rounded-3xl overflow-hidden shadow-2xl"
@@ -694,7 +698,7 @@ export default function ConciergeModal() {
                   type="text"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder={
                     isLoading
                       ? 'Thinking...'

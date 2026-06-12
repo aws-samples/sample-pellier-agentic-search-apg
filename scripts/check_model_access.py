@@ -12,9 +12,22 @@ Prints a clear pass/fail for each.
 import json
 import sys
 
+import os
+
 import boto3
 
-REGION = "us-east-1"
+# The workshop's models are cross-region inference profiles (us.* / global.*)
+# that resolve through us-east-1. The region is intentionally pinned, but honor
+# an AWS_REGION override and warn loudly if it points elsewhere, so a future
+# region move doesn't get a false "all-green" from a check that silently ran
+# against the wrong endpoint.
+REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+if REGION != "us-east-1":
+    print(
+        f"⚠️  AWS_REGION={REGION} – this workshop's model access is validated in "
+        f"us-east-1 (us.*/global.* inference profiles). Results may not reflect "
+        f"the actual deploy region.\n"
+    )
 
 MODELS = [
     {
