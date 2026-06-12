@@ -427,7 +427,14 @@ def _deploy_runtime_via_cli(
                 "--protocol", "HTTP",
                 "--skip-git",
                 "--skip-python-setup",
-                "--skip-install",
+                # NOTE: do NOT pass --skip-install. The 0.18 CLI scaffolds a
+                # TypeScript CDK app (agentcore-cdk-app) and `deploy` compiles
+                # it with `tsc`, which needs that app's node_modules
+                # (aws-cdk-lib, constructs, @aws/agentcore-cdk, @types/node).
+                # --skip-install skips the npm install for it → deploy fails
+                # with TS2307 "Cannot find module 'aws-cdk-lib'" etc. We keep
+                # --skip-python-setup because the agent is BYO Python (our own
+                # backend venv); only the CDK app's Node deps must install.
                 "--output-dir", str(output_dir),
                 "--json",
             ],

@@ -290,11 +290,16 @@ mkdir -p "$BACKEND_DIR/.agentcore-project"
 
 # 6a. create (idempotent — skip if the project already exists)
 if [ ! -f "$CONFIG_PATH" ]; then
+  # NOTE: no --skip-install. The 0.18 CLI scaffolds a TypeScript CDK app and
+  # `deploy` compiles it with tsc, which needs that app's node_modules
+  # (aws-cdk-lib, constructs, @aws/agentcore-cdk, @types/node). Skipping the
+  # install makes deploy fail with TS2307 "Cannot find module 'aws-cdk-lib'".
+  # --skip-python-setup stays (agent is BYO Python, our own venv).
   npx -y "$AGENTCORE_CLI" create \
     --project-name pellier --no-agent --defaults \
     --build CodeZip --language Python --framework Strands \
     --model-provider Bedrock --protocol HTTP \
-    --skip-git --skip-python-setup --skip-install \
+    --skip-git --skip-python-setup \
     --output-dir "$BACKEND_DIR/.agentcore-project" --json
 fi
 
