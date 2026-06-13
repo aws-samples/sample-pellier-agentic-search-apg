@@ -614,41 +614,13 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 # Display welcome message once and exit
 clear
 cat << 'EOF'
-╔═══════════════════════════════════════════════════════════════════╗
-║              Pellier Workshop · Quick Start                       ║
-║      Agentic AI-Powered Search with Aurora PostgreSQL             ║
-╚═══════════════════════════════════════════════════════════════════╝
+  Pellier Workshop · ready. The app is running; no servers to start.
 
-Ready. The app is already running; no servers to start.
+  OPEN THE APP   Click BoutiqueURL (and AtelierURL) in Workshop Studio Outputs.
+  EDIT           pellier/backend/services/agent_tools.py is open - find the
+                 floor_check CHALLENGE markers, implement, save (reloads ~2s).
 
-OPEN THE APP  (new browser tab)
-  Copy your Code Editor CloudFront domain only, drop any /?tkn=... part,
-  then add one of these paths:
-
-    Storefront:  https://<your-domain>.cloudfront.net/ports/8000/
-    Atelier:     https://<your-domain>.cloudfront.net/ports/8000/atelier
-
-  You can also find the domain in Workshop Studio Outputs: CodeEditorURL.
-  Keep the trailing slash on /ports/8000/.
-
-WORKFLOW
-  1. Open pellier/backend/services/agent_tools.py  (opened for you)
-  2. Find:  CHALLENGE · Stock Keeper · floor_check
-  3. Implement between the markers
-  4. Save; the backend reloads automatically (~2s)
-  5. Refresh the app and test Marco Turn 4
-
-HANDY
-  psql                      Connect to Aurora PostgreSQL
-  journalctl -fu pellier    Watch backend logs
-  rebuild-frontend          Only after editing pellier/frontend/src
-
-SHORT ON TIME?
-  cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
-     pellier/backend/services/agent_tools.py
-  (save — the backend reloads automatically)
-
-═══════════════════════════════════════════════════════════════════
+  Full guide, exercises, and the time-saver shortcut are in the lab manual.
 
 EOF
 
