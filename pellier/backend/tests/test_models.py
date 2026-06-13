@@ -254,3 +254,13 @@ def test_verified_user_rejects_malformed_email() -> None:
                 "given_name": "Kai",
             }
         )
+
+
+def test_verified_user_accepts_empty_email_for_access_tokens() -> None:
+    # Cognito ACCESS tokens carry no ``email`` claim (only ID tokens do), so a
+    # username-pool access-token caller legitimately has ``email=""``. The
+    # validator must accept that - rejecting it silently demotes an
+    # authenticated caller to anonymous (the username-pool regression).
+    user = VerifiedUser(user_id="cognito-sub-789", email="", given_name="marco")
+    assert user.email == ""
+    assert user.given_name == "marco"

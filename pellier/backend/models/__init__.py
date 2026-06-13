@@ -83,7 +83,11 @@ class VerifiedUser(BaseModel):
     @field_validator("email")
     @classmethod
     def _email_format(cls, v: str) -> str:
-        if not _EMAIL_RE.match(v):
+        # Cognito ACCESS tokens carry no ``email`` claim (only ID tokens do),
+        # so an authenticated access-token caller legitimately has an empty
+        # email. Accept "" (mirrors the ``given_name``→``username`` fallback at
+        # the call site); validate the shape only when an address is present.
+        if v and not _EMAIL_RE.match(v):
             raise ValueError("email is not a well-formed address")
         return v
 
