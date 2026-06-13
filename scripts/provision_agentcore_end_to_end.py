@@ -148,6 +148,49 @@ def _compute_secret_hash(username: str, client_id: str, client_secret: str) -> s
     return base64.b64encode(digest).decode("utf-8")
 
 
+def _ensure_data_api_enabled(region: str, db_cluster_arn: str) -> None:
+    """Pre-flight: the four MCP Lambdas reach Aurora EXCLUSIVELY through
+    rds-data, so a cluster without the Data API deploys everything green and
+    then dies at the FIRST tool SQL with HttpEndpointNotEnabledException —
+    surfaced to participants only as the agent's vague "temporary database
+    issue" (box-verified 2026-06-12). The WS template now sets
+    EnableHttpEndpoint: true on the DBCluster; this guard heals older stacks
+    and fails LOUDLY instead of letting the gap hide behind polite prose.
+
+    The enable flip is ASYNC: enable-http-endpoint returns success while
+    describe keeps reporting false for ~15s — so poll, never fire-and-check.
+    """
+    import time
+
+    rds = boto3.client("rds", region_name=region)
+    cluster_id = db_cluster_arn.rsplit(":", 1)[-1]
+
+    def _enabled() -> bool:
+        out = rds.describe_db_clusters(DBClusterIdentifier=cluster_id)
+        return bool(out["DBClusters"][0].get("HttpEndpointEnabled"))
+
+    if _enabled():
+        return
+
+    print(f"Data API disabled on {cluster_id} — enabling (template drift heal)...")
+    rds.enable_http_endpoint(ResourceArn=db_cluster_arn)
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        time.sleep(5)
+        if _enabled():
+            # Settle margin: the describe flip precedes full data-plane
+            # readiness by a few seconds on a cold cluster.
+            time.sleep(10)
+            return
+    raise RuntimeError(
+        f"Aurora Data API still disabled on {cluster_id} 120s after "
+        "enable-http-endpoint. Every Gateway tool call would fail with "
+        "HttpEndpointNotEnabledException. Check EnableHttpEndpoint: true on "
+        "the DBCluster in pellier-database.yml and the instance role's "
+        "rds:EnableHttpEndpoint/rds:DescribeDBClusters grant."
+    )
+
+
 def _authenticated_runtime_smoke(
     region: str,
     runtime_arn: str,
@@ -606,6 +649,8 @@ def main() -> int:
     }
 
     try:
+        _ensure_data_api_enabled(required["AWS_REGION"], required["DB_CLUSTER_ARN"])
+
         lambda_arns: dict[str, str] = {}
         for surface, cfg in EXPECTED_TARGETS.items():
             cmd = [
