@@ -345,6 +345,10 @@ target["networkMode"] = "PUBLIC"
 target["requestHeaderAllowlist"] = ["Authorization"]
 target["envVars"] = [
     {"name": "MCP_GATEWAY_URL", "value": gw_url},
+    # config.py reads AGENTCORE_GATEWAY_URL; without it the container's
+    # settings never see the Gateway and the entrypoint silently falls back
+    # to the in-process orchestrator (no DB service in the microVM).
+    {"name": "AGENTCORE_GATEWAY_URL", "value": gw_url},
     {"name": "AGENT_MODEL_ID", "value": model_id},
 ]
 # Re-assert CUSTOM_JWT authorizer in dat403's proven shape if add-agent didn't.

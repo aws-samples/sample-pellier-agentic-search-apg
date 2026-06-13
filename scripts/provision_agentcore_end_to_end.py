@@ -528,7 +528,17 @@ def _deploy_runtime_via_cli(
         config_path,
         runtime_name=runtime_name,
         execution_role_arn=execution_role_arn,
-        env_vars={"MCP_GATEWAY_URL": gateway_url, "AGENT_MODEL_ID": model_id},
+        # Both names on purpose: config.py reads AGENTCORE_GATEWAY_URL (the
+        # name the backend/tests standardize on); MCP_GATEWAY_URL is the
+        # legacy/deploy-script name the entrypoint also bridges. Without the
+        # config-visible name the Runtime container silently falls back to the
+        # in-process orchestrator, whose tools have no DB service in the
+        # microVM (box-verified 2026-06-12).
+        env_vars={
+            "MCP_GATEWAY_URL": gateway_url,
+            "AGENTCORE_GATEWAY_URL": gateway_url,
+            "AGENT_MODEL_ID": model_id,
+        },
         account_id=account_id,
         region=region,
         discovery_url=discovery_url,
