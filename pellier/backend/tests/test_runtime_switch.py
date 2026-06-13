@@ -28,6 +28,7 @@ Runnable from the repo root per ``pytest.ini``:
 
 from __future__ import annotations
 
+import json
 import sys
 import types
 from typing import Any
@@ -317,33 +318,38 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
     monkeypatch: pytest.MonkeyPatch,
     stub_create_orchestrator,
 ) -> None:
-    """The live Runtime path SHALL use the AgentCore Runtime client,
-    runtime id, and caller JWT shape validated by the provisioning smoke test."""
+    """The live Runtime path SHALL invoke over the RAW HTTPS data plane with
+    the Cognito token as a Bearer header - the transport the provisioning smoke
+    proved. There is NO ``bedrock-agentcore-runtime`` boto3 client, and the real
+    SDK invoke has no ``authToken`` (it SigV4-signs, which a JWT-gated runtime
+    rejects). This guards against regressing to the boto3 shape."""
     import asyncio
+    import urllib.request
 
     import services.agentcore_runtime as rt
 
-    calls: list[dict[str, Any]] = []
+    captured: dict[str, Any] = {}
 
-    class _Body:
+    class _Resp:
+        def __enter__(self) -> "_Resp":
+            return self
+
+        def __exit__(self, *a: Any) -> None:
+            return None
+
         def read(self) -> bytes:
             return b'{"response":"runtime ok"}'
 
-    class _RuntimeClient:
-        def invoke_agent_runtime(self, **kwargs: Any) -> dict[str, Any]:
-            calls.append(kwargs)
-            return {"body": _Body()}
+    def _fake_urlopen(request: Any, timeout: int = 0) -> _Resp:
+        captured["url"] = request.full_url
+        captured["data"] = request.data
+        captured["headers"] = dict(request.header_items())
+        captured["method"] = request.get_method()
+        return _Resp()
 
-    def _client(service_name: str, region_name: str) -> _RuntimeClient:
-        calls.append({"service_name": service_name, "region_name": region_name})
-        return _RuntimeClient()
-
-    monkeypatch.setitem(sys.modules, "boto3", types.SimpleNamespace(client=_client))
-    monkeypatch.setattr(
-        rt.settings,
-        "AGENTCORE_RUNTIME_ENDPOINT",
-        "arn:aws:bedrock-agentcore:us-east-1:123456789012:agent-runtime/pellier-abc",
-    )
+    monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
+    arn = "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier-abc"
+    monkeypatch.setattr(rt.settings, "AGENTCORE_RUNTIME_ENDPOINT", arn)
     monkeypatch.setattr(rt.settings, "AWS_REGION", "us-east-1", raising=False)
 
     result = asyncio.run(
@@ -355,13 +361,25 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
         )
     )
 
+    # The JSON ``response`` field is unwrapped to plain text.
     assert result == "runtime ok"
-    assert calls[0] == {
-        "service_name": "bedrock-agentcore-runtime",
-        "region_name": "us-east-1",
-    }
-    assert calls[1] == {
-        "agentRuntimeId": "pellier-abc",
-        "payload": '{"prompt": "runtime invoke", "session_id": "sess-runtime", "user_id": "user-123"}',
-        "authToken": "jwt-abc",
+    # Raw data-plane URL: bedrock-agentcore host, URL-escaped ARN, DEFAULT qualifier.
+    assert captured["method"] == "POST"
+    assert captured["url"] == (
+        "https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/"
+        "arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A123456789012%3Aruntime%2Fpellier-abc"
+        "/invocations?qualifier=DEFAULT"
+    )
+    # Bearer header carries the caller's JWT (header keys are title-cased by urllib).
+    headers = {k.lower(): v for k, v in captured["headers"].items()}
+    assert headers["authorization"] == "Bearer jwt-abc"
+    # STM session header is present and >= 33 chars (runtime requirement).
+    sess_hdr = headers["x-amzn-bedrock-agentcore-runtime-session-id"]
+    assert sess_hdr.startswith("sess-runtime")
+    assert len(sess_hdr) >= 33
+    # Payload carries the turn fields.
+    assert json.loads(captured["data"]) == {
+        "prompt": "runtime invoke",
+        "session_id": "sess-runtime",
+        "user_id": "user-123",
     }

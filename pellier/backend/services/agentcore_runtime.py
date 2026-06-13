@@ -153,51 +153,63 @@ async def run_agent_on_runtime(
         )
         return await _run_orchestrator_inprocess(message, session_id, user_id)
 
-    payload = {
-        "prompt": message,
-        "session_id": session_id,
-        "user_id": user_id or "anonymous",
-    }
+    payload = json.dumps(
+        {
+            "prompt": message,
+            "session_id": session_id,
+            "user_id": user_id or "anonymous",
+        }
+    )
+
+    # CUSTOM_JWT runtimes are invoked over the RAW HTTPS data plane with the
+    # Cognito token as a Bearer header - NOT via boto3. There is no
+    # "bedrock-agentcore-runtime" service name, and the real SDK's
+    # invoke_agent_runtime has no authToken param (it SigV4-signs, which a
+    # JWT-gated runtime rejects). This mirrors the provisioner's proven
+    # `_authenticated_runtime_smoke` transport (provision_agentcore_end_to_end.py)
+    # and the dat403 `agentcore invoke --bearer-token` path.
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    runtime_arn = endpoint
+    escaped_arn = urllib.parse.quote(runtime_arn, safe="")
+    url = (
+        f"https://bedrock-agentcore.{settings.aws_region_resolved}.amazonaws.com"
+        f"/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
+    )
+    # The runtime keys STM off this header and requires >= 33 chars; reuse the
+    # caller's session_id (right-padded if short) so a turn lands in the same
+    # managed session as its history.
+    runtime_session_id = (session_id or "pellier-session").ljust(33, "0")
+
+    def _invoke() -> str:
+        request = urllib.request.Request(
+            url,
+            data=payload.encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {auth_token}",
+                "Content-Type": "application/json",
+                "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": runtime_session_id,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=120) as resp:
+            return resp.read().decode("utf-8", errors="replace")
 
     try:
-        import boto3
-
-        client = boto3.client(
-            "bedrock-agentcore-runtime",
-            region_name=settings.aws_region_resolved,
-        )
-        runtime_id = endpoint.rsplit("/", 1)[-1] if endpoint.startswith("arn:") else endpoint
-
-        def _invoke() -> dict[str, Any]:
-            return client.invoke_agent_runtime(
-                agentRuntimeId=runtime_id,
-                payload=json.dumps(payload),
-                authToken=auth_token,
-            )
-
-        response = await asyncio.to_thread(_invoke)
-
-        body = response.get("body") or response.get("response") or response.get("payload")
-        if hasattr(body, "read"):
-            body = body.read()
-        if isinstance(body, (bytes, bytearray)):
-            body = body.decode("utf-8")
-        if isinstance(body, str):
-            try:
-                parsed = json.loads(body)
-                if isinstance(parsed, dict) and "response" in parsed:
-                    return str(parsed["response"])
-                return body
-            except json.JSONDecodeError:
-                return body
-        return str(body)
-
-    except ImportError:
-        logger.warning(
-            "bedrock-agentcore-runtime / boto3 not installed — falling back to "
-            "in-process orchestrator"
-        )
-        return await _run_orchestrator_inprocess(message, session_id, user_id)
+        raw = await asyncio.to_thread(_invoke)
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and "response" in parsed:
+                return str(parsed["response"])
+            return raw
+        except json.JSONDecodeError:
+            return raw
+    except urllib.error.HTTPError as exc:  # pragma: no cover - SDK error path
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        logger.error("AgentCore Runtime invoke HTTP %s: %s", exc.code, detail)
+        return json.dumps({"error": "runtime_unavailable"})
     except Exception as exc:  # pragma: no cover - SDK error path
         logger.error("AgentCore Runtime invocation failed: %s", exc)
         return json.dumps({"error": "runtime_unavailable"})
