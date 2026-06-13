@@ -168,7 +168,7 @@ FRESH_PRODUCTS: List[Product] = [
     Product(2, "Hadley Linen Shirt", "Hadley", "Ivory", 248,
             "Airy, textured, and endlessly versatile. Cut from pure European linen with a relaxed silhouette and mother of pearl buttons.",
             CAT_APPAREL, ["linen", "minimal", "resort", "warm", "neutral", "everyday"],
-            4.8, 312, "fresh-hadley-linen-shirt.png", persona="fresh", badge="EDITORS_PICK"),
+            4.8, 312, "fresh-pellier-linen-shirt.png", persona="fresh", badge="EDITORS_PICK"),
     Product(3, "Nocturne Leather Weekender", "Pellier Travel", "Espresso", 425,
             "Full-grain leather weekend bag with canvas lining. Burnished brass hardware. The quiet kind of heft.",
             CAT_ACCESSORIES, ["leather", "travel", "classic", "warm", "earth", "accessories"],
