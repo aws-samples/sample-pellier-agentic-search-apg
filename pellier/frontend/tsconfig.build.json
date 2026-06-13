@@ -1,0 +1,24 @@
+{
+  /*
+   * Production-build type-check config.
+   *
+   * `npm run build` runs `tsc -p tsconfig.build.json && vite build`. This
+   * config extends the editor/test tsconfig but EXCLUDES test files and test
+   * scaffolding, so a type slip in a *.test.ts (e.g. a vitest mock annotation)
+   * can never block the shippable SPA (test files are never bundled anyway).
+   * Test type-checking still happens via `npm test` (vitest), which uses the
+   * base tsconfig.json that includes them.
+   *
+   * Why this exists: the storefront SPA must build on every fresh workshop box.
+   * The old `tsc && vite build` type-checked all 48 test files as a build gate,
+   * so one test-only error left `dist/` unbuilt and the Boutique/Atelier blank.
+   */
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "src/stories/**",
+    ".storybook/**",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/test-setup.ts"
+  ]
+}

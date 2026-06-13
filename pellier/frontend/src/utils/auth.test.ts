@@ -101,7 +101,10 @@ describe('services/api 401 interceptor', () => {
     // Stub fetch for /api/auth/refresh. We return Response objects the
     // refreshAuthTokens helper recognizes via `.ok`.
     fetchMock = vi.fn()
-    global.fetch = fetchMock
+    // vi.fn() is an untyped mock; fetch has overloaded call signatures the bare
+    // Mock type doesn't structurally satisfy. Cast at the assignment (standard
+    // vitest idiom) so the global stub type-checks without weakening the mock.
+    global.fetch = fetchMock as unknown as typeof fetch
   })
 
   afterEach(() => {

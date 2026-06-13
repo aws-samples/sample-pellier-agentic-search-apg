@@ -627,7 +627,7 @@ cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'ALS'
 # Backend runs automatically and (builders) reloads on .py save — you normally
 # never run these. Restart only if you want a clean bounce.
 alias start-backend='sudo systemctl restart pellier && journalctl -fu pellier --no-pager'
-alias rebuild-frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend && VITE_BASE_PATH=/ports/8000/ npm run build && cd - >/dev/null && sudo systemctl restart pellier'
+alias rebuild-frontend='bash /workshop/sample-pellier-agentic-search-apg/scripts/rebuild-frontend-builders.sh'
 ALS
 
 log "✅ Bash environment configured (.bashrc updated with psql support)"

@@ -8,7 +8,11 @@ REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 export PATH="${HOME}/.local/bin:${PATH}"
 
 cd "${REPO}/pellier/frontend"
-VITE_BASE_PATH=/ports/8000/ npm run build
+# `export` (not inline `VAR=… npm`) so the value reliably reaches the `vite
+# build` child across npm versions: the built bundle's asset URLs must carry
+# the /ports/8000/ prefix CloudFront forwards, or they 404 behind the proxy.
+export VITE_BASE_PATH=/ports/8000/
+npm run build
 
 # systemd owns the backend. A restart re-runs ExecStartPre (which also
 # builds), but we build here too so a failed build surfaces directly to
