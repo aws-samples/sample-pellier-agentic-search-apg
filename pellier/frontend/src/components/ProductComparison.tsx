@@ -4,6 +4,7 @@
  */
 import { X, Trophy, Star } from 'lucide-react'
 import { type ChatProduct } from '../services/chat'
+import { imageSrc } from '../utils/assetPath'
 
 interface ProductComparisonProps {
   products: ChatProduct[]
@@ -53,7 +54,7 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
         <div className={`grid gap-3`} style={{ gridTemplateColumns: `repeat(${compareProducts.length}, minmax(0, 1fr))` }}>
           {compareProducts.map((product, idx) => {
             const badges = getWinnerBadges(product)
-            const isImageUrl = product.image && (product.image.startsWith('http') || product.image.startsWith('data:'))
+            const isImageUrl = product.image && (product.image.startsWith('http') || product.image.startsWith('data:') || product.image.startsWith('/'))
 
             return (
               <div key={idx} className="flex flex-col gap-2 p-3 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -71,7 +72,7 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                 {/* Image */}
                 <div className="w-full h-16 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
                   {isImageUrl ? (
-                    <img src={product.image} alt={product.name} className="h-full object-contain p-1" />
+                    <img src={imageSrc(product.image)} alt={product.name} className="h-full object-contain p-1" />
                   ) : (
                     <span className="text-2xl">{product.image || ''}</span>
                   )}

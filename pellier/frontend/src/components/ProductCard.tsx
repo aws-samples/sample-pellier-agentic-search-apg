@@ -38,6 +38,7 @@ import { Star } from 'lucide-react'
 import type { BoutiqueBadge, BoutiqueProduct } from '../services/types'
 import ReasoningChip from './ReasoningChip'
 import { TraceChip } from '../shared'
+import { imageSrc } from '../utils/assetPath'
 
 const BADGE_LABEL: Record<BoutiqueBadge, string> = {
   EDITORS_PICK: "EDITOR'S PICK",
@@ -219,7 +220,7 @@ export default function ProductCard({
       {/* --- Image panel --------------------------------------------- */}
       <div className="relative aspect-[4/5] bg-sand overflow-hidden">
         <img
-          src={product.imageUrl}
+          src={imageSrc(product.imageUrl)}
           alt={product.name}
           loading="lazy"
           className="w-full h-full object-cover transition-transform ease-out"

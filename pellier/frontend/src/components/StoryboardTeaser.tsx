@@ -25,6 +25,7 @@ import { useState } from 'react'
 
 import { STORYBOARD_TEASERS, type StoryboardTeaser as StoryboardTeaserCard } from '../copy'
 import { cssVar as c } from '../design/cssVars'
+import { imageSrc } from '../utils/assetPath'
 
 // --- Design tokens (storefront.md) ---------------------------------------
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
@@ -138,7 +139,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
       >
         <img
           data-testid={`storyboard-card-image-${index}`}
-          src={card.imageUrl}
+          src={imageSrc(card.imageUrl)}
           alt={card.imageAlt}
           loading="lazy"
           style={{

@@ -13,6 +13,7 @@ import { Lightbulb, ShoppingCart } from 'lucide-react'
 import { addRecentlyViewed } from '../utils/recentlyViewed'
 import { type AgentType } from '../utils/agentIdentity'
 import { cssVar as c } from '../design/cssVars'
+import { imageSrc as resolveImageSrc } from '../utils/assetPath'
 
 interface Product {
   id: number
@@ -50,9 +51,19 @@ const ProductCardConcierge = ({
 }: ProductCardConciergeProps) => {
   const [showReasons, setShowReasons] = useState(false)
   const href = product.url || ''
+  // Accept absolute URLs, data URIs, AND root-relative public-dir paths
+  // (e.g. "/products/marco-linen.png" from the seed's imgurl). The sibling
+  // ProductArtifactCard already accepts the "/" form; this card had only
+  // http/data:, so seeded products fell through to the 📦 placeholder.
   const isImageUrl =
-    product.image &&
-    (product.image.startsWith('http') || product.image.startsWith('data:'))
+    !!product.image &&
+    (product.image.startsWith('http') ||
+      product.image.startsWith('data:') ||
+      product.image.startsWith('/'))
+  // Root-relative paths must carry the Vite base ("/ports/8000/") to resolve
+  // through the CloudFront proxy; resolveImageSrc() prefixes those and passes
+  // http/data: through unchanged.
+  const imageSrc = resolveImageSrc(product.image)
 
   const displayName = (() => {
     const name = product.name || ''
@@ -112,7 +123,7 @@ const ProductCardConcierge = ({
       >
         {isImageUrl ? (
           <img
-            src={product.image}
+            src={imageSrc}
             alt={displayName}
             className="w-full h-full object-cover"
             onError={(e) => {

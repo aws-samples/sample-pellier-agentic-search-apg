@@ -12,6 +12,7 @@
 import { X, ShoppingBag, Plus, Minus, ChevronRight, Package, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '../contexts/CartContext'
+import { imageSrc } from '../utils/assetPath'
 
 // Re-export CartItem for backward compatibility with existing import paths
 export type { CartItem } from '../contexts/CartContext'
@@ -231,7 +232,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                               >
                                 {item.image ? (
                                   <img
-                                    src={item.image}
+                                    src={imageSrc(item.image)}
                                     alt={item.name}
                                     className="w-full h-full object-cover"
                                   />

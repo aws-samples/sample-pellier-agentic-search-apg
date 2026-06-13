@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ShoppingCart, Star, ExternalLink, Lightbulb } from 'lucide-react'
 import { addRecentlyViewed } from '../utils/recentlyViewed'
 import { type AgentType } from '../utils/agentIdentity'
+import { imageSrc } from '../utils/assetPath'
 
 interface Product {
   id: number
@@ -57,7 +58,7 @@ const ProductCardCompact = ({ product, onAddToCart, similarityScore, recommendat
   const amazonUrl = product.url || ''
 
   // Check if image is a valid URL or emoji
-  const isImageUrl = product.image && (product.image.startsWith('http') || product.image.startsWith('data:'))
+  const isImageUrl = product.image && (product.image.startsWith('http') || product.image.startsWith('data:') || product.image.startsWith('/'))
   const displayRating = product.rating || product.stars
   const score = similarityScore || product.similarityScore
 
@@ -89,7 +90,7 @@ const ProductCardCompact = ({ product, onAddToCart, similarityScore, recommendat
       >
         {isImageUrl ? (
           <img
-            src={product.image}
+            src={imageSrc(product.image)}
             alt={displayName}
             className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
             onError={(e) => {

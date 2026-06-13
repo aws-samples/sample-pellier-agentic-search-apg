@@ -25,6 +25,7 @@ import {
 } from '../data/personaCurations'
 import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import type { BoutiqueProduct } from '../services/types'
+import { imageSrc } from '../utils/assetPath'
 
 interface BoutiqueWelcomeProps {
   onSend: (text: string) => void
@@ -289,7 +290,7 @@ export default function BoutiqueWelcome({ onSend, persona }: BoutiqueWelcomeProp
       {/* Cover image — real product photo from the catalog */}
       <div className="sf-cover">
         <img
-          src={coverProduct.imageUrl}
+          src={imageSrc(coverProduct.imageUrl)}
           alt={coverProduct.name}
           className="sf-cover-img"
         />

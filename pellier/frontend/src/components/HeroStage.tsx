@@ -28,6 +28,7 @@ import {
 } from '../copy'
 import { SHOWCASE_PRODUCTS } from '../data/showcaseProducts'
 import { useUI } from '../contexts/UIContext'
+import { imageSrc } from '../utils/assetPath'
 
 // Rotation cadence (Req 1.3.1).
 const INTENT_INTERVAL_MS = 7500
@@ -457,7 +458,7 @@ export default function HeroStage({ intents = INTENTS }: HeroStageProps) {
               the src is swapped at the midpoint via `displayedIndex`. */}
           <img
             data-testid="hero-image"
-            src={displayedProduct.imageUrl}
+            src={imageSrc(displayedProduct.imageUrl)}
             alt={displayedProduct.name}
             className="hero-stage-image h-full w-full object-cover"
             style={{

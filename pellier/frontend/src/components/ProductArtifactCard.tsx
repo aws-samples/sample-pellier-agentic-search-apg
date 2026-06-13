@@ -11,6 +11,7 @@
  */
 import { Heart } from 'lucide-react'
 import type { ChatProduct } from '../services/chat'
+import { imageSrc } from '../utils/assetPath'
 import '../styles/product-artifact.css'
 
 interface ProductArtifactCardProps {
@@ -90,7 +91,7 @@ export default function ProductArtifactCard({
       <div className="pa-image">
         {hasImage ? (
           <img
-            src={product.image}
+            src={imageSrc(product.image)}
             alt={displayName}
             className="pa-image-img"
             onError={(e) => {

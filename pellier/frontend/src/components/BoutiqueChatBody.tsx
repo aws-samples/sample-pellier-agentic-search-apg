@@ -24,6 +24,7 @@ import { resolveCover } from './BoutiqueWelcome'
 import { PERSONA_HERO_PILLS, MARCO_BUILDER_SESSION_QUERY } from '../data/personaCurations'
 import { useFloorCheckWorkshopCue } from '../hooks/useFloorCheckWorkshopCue'
 import { useCatalogStats } from '../hooks/useCatalogStats'
+import { imageSrc } from '../utils/assetPath'
 import '../styles/boutique-chat.css'
 import '../styles/boutique-welcome.css'
 
@@ -186,7 +187,7 @@ function PersonaCoverBanner({ persona }: { persona: PersonaSnapshot | null }) {
 
   return (
     <div className="ec-persona-cover">
-      <img src={product.imageUrl} alt={product.name} className="ec-persona-cover-img" />
+      <img src={imageSrc(product.imageUrl)} alt={product.name} className="ec-persona-cover-img" />
       <div className="ec-persona-cover-overlay">
         <div className="ec-persona-cover-eyebrow">
           <span className="ec-persona-cover-dot" />
