@@ -17,7 +17,6 @@ import {
   assignReasoningChipsCyclic,
   findAdjacentDuplicateStyleIndex,
 } from '../components/ReasoningChip'
-import { asset } from '../utils/assetPath'
 
 // 40 reasoning chips — cycles picked→matched→pricing→context (10 full rotations)
 const AUTHORED: ReasoningChip[] = [
@@ -119,9 +118,14 @@ export const SHOWCASE_PRODUCTS: BoutiqueProduct[] = [
   { id: 39, brand: 'Pellier Home', name: 'Linen Table Runner', color: 'Flax', price: 85, rating: 4.7, reviewCount: 178, category: 'Home Decor', imageUrl: '/products/theo-linen-table-runner.png', badge: 'JUST_IN', tags: ['linen', 'home', 'slow', 'neutral', 'artisanal'], reasoning: CHIPS[35] },
 ]
 
-// Resolve image paths against the Vite base path so they work through
-// CloudFront's /ports/8000/* reverse proxy in Workshop Studio.
-SHOWCASE_PRODUCTS.forEach(p => { p.imageUrl = asset(p.imageUrl) })
+// NOTE: imageUrl values are stored RAW ("/products/x.png"). Base-path
+// resolution for the CloudFront /ports/8000/* proxy happens once, at the
+// render site, via imageSrc() (utils/assetPath) - the same single-authority
+// pattern ProductArtifactCard uses. Do NOT asset()/imageSrc() here too: a
+// prior eager `forEach(p => p.imageUrl = asset(p.imageUrl))` here combined
+// with the render-time imageSrc() to DOUBLE-prefix ("/ports/8000/ports/8000/
+// products/x.png"), which 404'd behind the proxy while passing in local dev
+// (where BASE_URL="/" makes double-prefix a no-op).
 
 // Per-persona subsets — zero overlap between personas
 export const FRESH_PRODUCTS = SHOWCASE_PRODUCTS.filter(p => p.id >= 1 && p.id <= 9)
