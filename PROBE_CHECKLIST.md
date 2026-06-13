@@ -99,7 +99,13 @@ is expected; **verify it exists on the pinned 0.18.0** before making it primary.
 # Project dir readable by participant? (repo-level chown in bootstrap-labs.sh covers it)
 ls -la .agentcore-project/pellier/agentcore/.cli/deployed-state.json
 
-agentcore status               # CAPTURE field labels + runtime ARN -> reconcile §5 "Expected" (SANITIZE arn)
+agentcore status --json        # RESOLVED 2026-06-13 (box-captured, reconciled into §5): top-level
+                               # {success, projectName, targetName, targetRegion, resources[],
+                               # deployedState{}, logPath}; the agent resource carries
+                               # deploymentState:"deployed" + detail:"READY" + identifier (runtime
+                               # ARN) + invocationUrl (URL-encoded ARN — same data plane the raw
+                               # curl uses). NOTE: CUSTOM_JWT does NOT appear in status output —
+                               # it's in agentcore/agentcore.json; §5 "Expected" no longer claims it.
 agentcore status               # run again from ~ : `cd ~ && agentcore status` confirms the function's cd works anywhere
 
 source ~/pellier-token.sh marco   # must print "✅ … minted for Marco" + set non-empty $PELLIER_TOKEN
