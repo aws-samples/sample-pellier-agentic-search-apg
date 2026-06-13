@@ -52,6 +52,7 @@ import {
   weekendEditForPersona,
 } from '../data/personaCurations'
 import { splitHeadlineAtRe } from '../utils/headlineAccent'
+import { imageSrc } from '../utils/assetPath'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -186,7 +187,7 @@ export default function BoutiquePage() {
               {/* Left: featured image */}
               <div className="relative aspect-[4/5] rounded-2xl overflow-hidden shadow-warm-md">
                 <img
-                  src={featuredProduct.imageUrl}
+                  src={imageSrc(featuredProduct.imageUrl)}
                   alt={featuredProduct.name}
                   className="w-full h-full object-cover"
                   loading="lazy"
