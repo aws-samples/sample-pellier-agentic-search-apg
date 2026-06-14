@@ -323,6 +323,33 @@ server {
         gzip off;
     }
 
+    # /ports/8000/* – the canonical participant URL. It matches the baked
+    # SPA base path (VITE_BASE_PATH=/ports/8000/) and the BoutiqueURL /
+    # AtelierURL CFN outputs. Serve it DIRECTLY here (nginx then FastAPI),
+    # bypassing code-server's port-forward proxy.
+    #
+    # WHY this block exists: code-server only forwards a port that has been
+    # REGISTERED in an authenticated, live IDE session. A cold or incognito
+    # hit to /ports/8000/ has no such registration, so when it falls to the
+    # catch-all `location /` (which proxies to code-server :8080) code-server
+    # rejects it with HTTP 400 ("This page isn't working"). That made the
+    # storefront reachable only from inside an open, authenticated IDE tab –
+    # fragile, and the first thing a participant trips on. Owning the prefix
+    # here makes the Boutique/Atelier load token-free, in any browser, with
+    # no dependency on the IDE. Trailing slashes on both location and
+    # proxy_pass strip the prefix: /ports/8000/assets/x serves /assets/x,
+    # /ports/8000/api/... serves /api/... (SSE-safe: buffering + gzip off).
+    location /ports/8000/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 300;
+        gzip off;
+    }
+
     # Frontend/IDE proxy (Code Editor)
     location / {
         proxy_pass http://127.0.0.1:8080/;
