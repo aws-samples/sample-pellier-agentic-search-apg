@@ -83,6 +83,23 @@ class TestRecordAllow:
         # tool_use_id → audit_id mapping captured for the After event.
         assert tool_audit_writer._pending_audits["abc-123"] == 12345
 
+    def test_insert_records_gateway_caller(self, mock_db_with_loop: MagicMock) -> None:
+        # The managed Gateway rail (experience Lambda) writes caller="gateway";
+        # the in-process rail writes caller="agent". `caller` is the rail
+        # discriminator in pellier.tool_audit, so prove the writer threads a
+        # non-"agent" value straight through to the INSERT binding unchanged.
+        tool_audit_writer.record_allow(
+            tool_use_id="gw-1",
+            tool_name="process_return",
+            caller="gateway",
+            args={"customer_id": "theo", "product_id": 37, "reason": "damaged"},
+            session_id="gateway-theo",
+        )
+        assert mock_db_with_loop.fetch_one.call_count == 1
+        positional = mock_db_with_loop.fetch_one.call_args.args[1:]
+        assert positional[1] == "process_return"
+        assert positional[2] == "gateway"  # NOT defaulted to "agent"
+
     def test_no_op_when_db_not_initialized(self) -> None:
         # _db_service stays None (autouse fixture).
         tool_audit_writer.record_allow(

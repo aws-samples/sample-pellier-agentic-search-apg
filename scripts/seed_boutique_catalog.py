@@ -507,7 +507,7 @@ def seed_database(products: List[Product]) -> None:
             cur.execute(
                 'DELETE FROM pellier.product_catalog WHERE "productId"::int BETWEEN 1 AND 40'
             )
-            logger.info("Cleared existing boutique products (IDs 1-39)")
+            logger.info("Cleared existing boutique products (IDs 1-40)")
 
             for p in products:
                 tags_json = json.dumps(p.tags)
@@ -573,7 +573,7 @@ def print_summary(products: List[Product]) -> None:
 
     total = len(products)
     print("\n" + "=" * 72)
-    print(f"BOUTIQUE CATALOG — {total} PRODUCTS (9 per persona)")
+    print(f"BOUTIQUE CATALOG — {total} PRODUCTS (10 per persona)")
     print("=" * 72)
 
     for persona_id in ["fresh", "marco", "anna", "theo"]:

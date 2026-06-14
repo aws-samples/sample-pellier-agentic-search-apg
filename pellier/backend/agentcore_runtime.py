@@ -27,7 +27,7 @@ and scripts/provision_agentcore_end_to_end.py:_deploy_runtime_via_cli:
     agentcore add agent --name pellier_orchestrator --type byo \\
         --code-location pellier/backend --entrypoint agentcore_runtime.py \\
         --authorizer-type CUSTOM_JWT --discovery-url <cognito> --allowed-clients <client>
-    # patch executionRoleArn + envVars into agentcore/agentcore.json, then:
+    # patch roleArn + envVars into agentcore/agentcore.json, then:
     agentcore deploy -y --json   # from the project root (dir containing agentcore/)
 """
 from __future__ import annotations

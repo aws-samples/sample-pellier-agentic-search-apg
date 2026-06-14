@@ -154,6 +154,12 @@ def test_experience_lambda_writes_tool_audit() -> None:
     assert "::jsonb" in src
     # Only the audited write tool gets a row.
     assert 'tool_name == "process_return"' in src
+    # The Gateway-rail row MUST carry caller="gateway" — it's the discriminator
+    # that separates managed-rail writes from the in-process caller="agent"
+    # rows. Guard against a silent regression to "agent" or a blank caller.
+    assert '"gateway"' in src or "'gateway'" in src, (
+        "experience Lambda must write caller='gateway' on the managed rail"
+    )
 
 
 # ---------------------------------------------------------------------------

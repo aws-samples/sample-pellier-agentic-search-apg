@@ -769,10 +769,14 @@ cat >> "/home/$CODE_EDITOR_USER/.bashrc" << 'EOF'
 alias workshop='cd /workshop'
 alias pellier='cd /workshop/sample-pellier-agentic-search-apg/pellier'
 
-# Load .env file if it exists
-if [ -f /workshop/.env ]; then
+# Load .env file if it exists. The repo .env is written by the labs stage
+# (bootstrap-labs.sh) at REPO_PATH/.env, NOT /workshop/.env — match that path
+# so this stage-1 block isn't a dead no-op. bootstrap-labs.sh appends its own
+# (richer, PG*-exporting) source block after this one; this is the defensive
+# floor if that stage doesn't run.
+if [ -f /workshop/sample-pellier-agentic-search-apg/.env ]; then
     set -a
-    source /workshop/.env
+    source /workshop/sample-pellier-agentic-search-apg/.env
     set +a
 fi
 
