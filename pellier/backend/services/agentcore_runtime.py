@@ -16,8 +16,10 @@ Two public entry points:
         Branches on ``settings.USE_AGENTCORE_RUNTIME``.
 
     run_agent_on_runtime(message, session_id, user_id, auth_token)
-        Challenge 5 implementation. Invokes AgentCore Runtime via the
-        ``bedrock-agentcore-runtime`` SDK and streams/returns the response.
+        Challenge 5 implementation. Invokes the CUSTOM_JWT AgentCore
+        Runtime over the raw HTTPS data plane with the Cognito token as a
+        Bearer header (there is no ``bedrock-agentcore-runtime`` boto3
+        client) and returns the response.
 
 The in-process path stays routed through Challenge 4's
 ``create_orchestrator`` so participants can watch the request move
