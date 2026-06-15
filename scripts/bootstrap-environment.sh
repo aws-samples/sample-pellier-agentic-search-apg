@@ -545,12 +545,17 @@ install_extension() {
 # No Amazon Q extension — the MCP demo runs from the integrated terminal
 # (the Q extension is being retired, and Act III §02 reads the config +
 # verifies `awslabs.postgres-mcp-server` via uvx instead).
+# No AWS Toolkit extension — it is the source of the Amazon Q "end-of-support",
+# "Dismiss", and "Sign-In" first-run pop-ups participants had to clear, and no
+# lab step opens the AWS Explorer panel (every "sign in" in the content refers
+# to pellier-token.sh / the storefront, never the Toolkit UI). Leaving it
+# uninstalled removes the pop-ups at the source; the amazonQ.*/aws.suppressPrompts
+# settings below are kept as defense-in-depth in case it's ever re-enabled.
 install_extension "ms-python.python" "Python"
 install_extension "ms-python.vscode-pylance" "Pylance"
 install_extension "dbaeumer.vscode-eslint" "ESLint"
 install_extension "esbenp.prettier-vscode" "Prettier"
 install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
-install_extension "amazonwebservices.aws-toolkit-vscode" "AWS Toolkit"
 
 log "✅ VS Code extensions installed"
 
@@ -575,14 +580,40 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "git.autofetch": false,
     "scm.diffDecorations": "none",
     "aws.telemetry": false,
+    "aws.suppressPrompts": {
+        "minIdeVersion": true,
+        "ssoCacheError": true,
+        "createCredentialsProfile": true,
+        "remoteConnected": true,
+        "codeCatalystConnectionExpired": true,
+        "yamlExtPrompt": true,
+        "regionAddAutomatically": true
+    },
+    "amazonQ.telemetry": false,
+    "amazonQ.shareContentWithAWS": false,
+    "amazonQ.disableNotifications": true,
+    "amazonQ.suppressPrompts": {
+        "codeWhispererNewWelcomeMessage": true,
+        "amazonQWelcomePage": true,
+        "codeWhispererConnectionExpired": true,
+        "createCredentialsProfile": true,
+        "amazonQSessionConfigurationMessage": true,
+        "minIdeVersion": true,
+        "ssoCacheError": true
+    },
     "extensions.autoUpdate": false,
     "extensions.autoCheckUpdates": false,
+    "extensions.ignoreRecommendations": true,
+    "redhat.telemetry.enabled": false,
     "telemetry.telemetryLevel": "off",
     "security.workspace.trust.startupPrompt": "never",
     "security.workspace.trust.enabled": false,
     "security.workspace.trust.banner": "never",
     "security.workspace.trust.emptyWindow": false,
     "workbench.startupEditor": "none",
+    "workbench.welcomePage.walkthroughs.openOnInstall": false,
+    "workbench.tips.enabled": false,
+    "update.showReleaseNotes": false,
     "terminal.integrated.defaultProfile.linux": "bash",
     "task.allowAutomaticTasks": "on",
     "python.defaultInterpreterPath": "/usr/bin/python3",
