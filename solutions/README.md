@@ -42,12 +42,14 @@ runtime counterpart. The "⏩ out of time" escape hatch is a canned recap
 query a facilitator can run live:
 
 ```bash
-psql "$PG_URL" -f solutions/the-ledger/sql/tool_audit_recap.sql
+psql -f solutions/the-ledger/sql/tool_audit_recap.sql
 ```
 
-It prints the most recent allowed `process_return` session, the raw
-rows, a JSONB-extracted view, and instructions for checking a DENYed
-session with `-v denied_session=...`.
+Bare `psql` picks up the `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` /
+`PGDATABASE` variables bootstrap already exports, so no connection string
+is needed. It prints the most recent allowed `process_return` session, the
+raw rows, and a JSONB-extracted view; pass an optional customer override
+with `-v customer=<customer_id>` (e.g. `-v customer=theo`).
 
 ### Optional fast-finisher A — Anna skill edit (Act I)
 

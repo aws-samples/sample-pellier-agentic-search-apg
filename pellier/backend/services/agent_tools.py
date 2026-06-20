@@ -143,17 +143,14 @@ def floor_check(product_query: str = "") -> str:
     #
     # Verify locally:
     #   cd pellier/backend
-    #   pytest tests/test_agent_tools.py::test_floor_check -v
+    #   pytest tests/test_solutions_parity.py::test_floor_check_builder_contract -v
     #
     # Verify live:
     #   Click Marco Turn 4 pill in the Boutique — Stock Keeper answers
     #   with the Brooklyn warehouse breakdown.
     return json.dumps({
         "error": "floor_check is in stub state",
-        "hint": (
-            "This is the Builder exercise. Implement the tool body or run "
-            "the cp command from lab 12."
-        ),
+        "hint": "Implement the tool body or run the cp command.",
         "received_product_query": product_query,
     })
     # === CHALLENGE · Stock Keeper · floor_check: END ===

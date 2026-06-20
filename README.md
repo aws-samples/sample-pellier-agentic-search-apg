@@ -14,7 +14,7 @@ _Agentic search on Aurora PostgreSQL · Bedrock AgentCore · Strands Agents · M
 
 [![Builder's Session](https://img.shields.io/badge/AWS_Summit-Builder%27s_Session-FF9900?style=flat-square)](https://aws.amazon.com/events/summits/)
 [![Level 400](https://img.shields.io/badge/Level-400_·_Expert-A8423A?style=flat-square)](#builders-session-60-min)
-[![License: MIT-0](https://img.shields.io/github/license/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=00b300&label=License)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=00b300&label=License)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=informational)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/commits/main)
 [![Stars](https://img.shields.io/github/stars/aws-samples/sample-pellier-agentic-search-apg?style=flat-square&color=yellow)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/stargazers)
 
@@ -23,7 +23,24 @@ _Agentic search on Aurora PostgreSQL · Bedrock AgentCore · Strands Agents · M
 > Educational reference implementation for the AWS Summit Builder's Session.
 > Not intended for production deployment without security hardening.
 
-**Contents:** [What this is](#what-this-is) · [Personas](#personas-reshape-everything) · [Quick start](#quick-start-local-dev) · [Builder's Session](#builders-session-60-min) · [Architecture](#architecture) · [Repository layout](#repository-layout) · [Resources](#resources)
+**Contents:** [Who this is for](#who-this-is-for) · [What this is](#what-this-is) · [Personas](#personas-reshape-everything) · [Quick start](#quick-start-local-dev) · [Builder's Session](#builders-session-60-min) · [Architecture](#architecture) · [Repository layout](#repository-layout) · [Resources](#resources)
+
+---
+
+## Who this is for
+
+This is a **400-level (expert)** Builder's Session. "Level 400" is the AWS depth scale — 100 is introductory, 400 is the deepest expert tier. That refers to the **concepts on screen** (agentic orchestration, pgvector retrieval, AgentCore, MCP), not the amount of code you write.
+
+**You will be comfortable here if you:**
+- Read Python and SQL (you don't need to write much of either)
+- Have used a REST API and a terminal before
+- Know, at a high level, what an LLM and a vector embedding are
+
+**You do *not* need to:** build a search system from scratch, know Strands/AgentCore/MCP in advance, or have prior agentic-AI experience. We teach those during the session.
+
+**What you'll actually do — this is the important part.** The application is **already built and running** when you arrive. You are *not* assembling it from nothing. Your hands-on path is small and focused: you implement **one function** (`floor_check`), then run a series of **observe / measure / read** steps that prove how the production system behaves. The five agents, 13 tools, database, and managed runtime are pre-wired *on purpose* — so your attention goes to the agentic pattern, not the plumbing.
+
+> **If it feels deep, that's by design — the depth is there to learn from, not to rebuild.** You only need to complete the one guided exercise to succeed. Everything else is there to explore at your own pace.
 
 ---
 
@@ -147,7 +164,7 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 
 | Section | Time | What attendees do |
 |---|---|---|
-| Introduction | 5 min | Open the workspace, land in Boutique + Atelier, and frame the architecture (the bootstrap pre-verifies backend, catalog, warehouse, memory, and audit ledger) |
+| Introduction | 5 min | Open the workspace and land in Boutique + Atelier — both already running, nothing to set up or start. Frame the architecture and the single function you'll implement. **What 400-level means here:** depth of concepts, not volume of code — the app is pre-built; you implement one function, then observe / measure / read |
 | Act I: The Boutique | 30 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank / agentic for Anna's anchor query |
 | Act II: The Ledger | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then prove raw row + JSONB extraction + DENY absence from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability beat |
 | Act III: The Concierge | 8 min | Read the dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from the terminal, compare to Bedrock Knowledge Bases (read-only, take-home friendly) |
@@ -252,8 +269,16 @@ The lab manual, CloudFormation templates, and prereq images live in the separate
 
 ## Credits
 
-Built and curated by **Shayon Sanyal**.
+Built and curated by **Shayon Sanyal** (<shayons@amazon.com>).
 
-## License
+## License & attribution
 
-MIT-0. See [LICENSE](LICENSE).
+Licensed under the **MIT License** — © 2026 Amazon Web Services. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+**If you reuse this code, attribution is required — not optional.** MIT is deliberately chosen over MIT-0 for exactly this reason: copying any substantial portion obligates you to keep the copyright and permission notice intact. Concretely, when you fork, vendor, adapt, or build on this work:
+
+- **Retain** the `LICENSE` and `NOTICE` files (or reproduce their text) in your distribution.
+- **Credit the source** — cite the original author, *Shayon Sanyal*, and link back to <https://github.com/aws-samples/sample-pellier-agentic-search-apg>.
+- **Keep this notice** in copies or substantial portions of the software, per the MIT terms.
+
+This applies to talks, blog posts, derived workshops, and internal forks alike: take the code, but carry the credit with it. See [NOTICE](NOTICE) for the canonical attribution text to copy.

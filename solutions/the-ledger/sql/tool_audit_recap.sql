@@ -13,11 +13,12 @@
 --                            Gateway, so no row is written; the decision lives
 --                            in CloudWatch, not tool_audit.
 --
--- Run:
---   psql "$PG_URL" -f solutions/the-ledger/sql/tool_audit_recap.sql
+-- Run (bare psql picks up the PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE
+-- vars bootstrap exports — no connection string needed):
+--   psql -f solutions/the-ledger/sql/tool_audit_recap.sql
 --
 -- Optional: override the customer (defaults to 'theo'):
---   psql "$PG_URL" -v customer=theo -f solutions/the-ledger/sql/tool_audit_recap.sql
+--   psql -v customer=theo -f solutions/the-ledger/sql/tool_audit_recap.sql
 
 \if :{?customer}
 \else
