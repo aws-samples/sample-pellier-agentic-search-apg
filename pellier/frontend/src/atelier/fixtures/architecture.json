@@ -13,8 +13,8 @@
     "category": "live",
     "title": "Memory",
     "role": "Four substrates: working, semantic, episodic, procedural",
-    "description": "Memory is not one tier - it is four substrates with different storage and lifetimes. AgentCore Memory owns working memory (session turns) and semantic memory (durable preferences) under namespaced keys. Aurora owns episodic memory (per-customer events) and procedural memory (tool patterns from tool_audit). The Boutique reads all four; only working memory writes on every turn.",
-    "codeSnippet": "# Working - AgentCore Memory, per-turn append\nawait memory.append_session_turn(session_ns, turn)\n\n# Semantic - AgentCore Memory KV, durable preferences\nprefs = await memory.get_user_preferences(user_id)\n\n# Episodic - Aurora customer_episodic_seed\nseed = await fetch_episodic_seed(customer_id)\n\n# Procedural - Aurora tool_audit cohort patterns\nawait emit_memory_procedural_panel(ctx, customer_id)",
+    "description": "Memory is not one tier - it is four substrates with different storage and lifetimes. AgentCore Memory owns working memory (session turns) and semantic memory (durable preferences a USER_PREFERENCE strategy extracts from conversation). Aurora owns episodic memory (per-customer events) and procedural memory (tool patterns from tool_audit). The Boutique reads all four; only working memory writes on every turn.",
+    "codeSnippet": "# Working - AgentCore Memory, per-turn append\nawait memory.append_session_turn(session_ns, turn)\n\n# Semantic - AgentCore Memory, USER_PREFERENCE extraction\nprefs = await memory.get_semantic_memories(actor_id)\n\n# Episodic - Aurora customer_episodic_seed\nseed = await fetch_episodic_seed(customer_id)\n\n# Procedural - Aurora tool_audit cohort patterns\nawait emit_memory_procedural_panel(ctx, customer_id)",
     "slug": "memory"
   },
   {

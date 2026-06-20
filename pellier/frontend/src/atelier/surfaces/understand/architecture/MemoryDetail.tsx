@@ -370,7 +370,7 @@ const MemoryDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'Semantic - durable preference facts in AgentCore Memory KV under user:{id}:preferences. Set once when the customer tells you something stable; read on every turn the specialist needs context.',
+          text: 'Semantic - durable preference facts a USER_PREFERENCE strategy extracts from conversation, stored as AgentCore Memory records under /pellier/preferences/{actorId}/. Learned asynchronously from turns (pre-baked at deploy); read when the specialist needs durable persona context.',
         },
         {
           numeral: 'iii.',
@@ -425,17 +425,15 @@ history = await memory.get_session_history(ns)`}
             <TierCard
               tierName="Semantic - AgentCore Memory"
               category="live"
-              title="Durable preferences"
-              role="Set once, read on every relevant turn"
-              prose={`Stable facts the customer tells you - fabric, sizing, brand affinity - stored as a Preferences blob under user:{user_id}:preferences. Read whenever the specialist needs persona context; written when intake captures something durable.`}
-              codeSnippet={`# Semantic - AgentCore Memory KV
-prefs = await memory.get_user_preferences(
-    user_id
+              title="Extracted preferences"
+              role="Learned from turns, read on every relevant turn"
+              prose={`Stable taste signals - fabric, palette, occasion - a USER_PREFERENCE strategy extracts from conversation into durable AgentCore Memory records under /pellier/preferences/{actorId}/. Because extraction is asynchronous, each shopper's preferences are pre-seeded so they read instantly; the panel reads the learned preference strings, falling back to a fixture until they land.`}
+              codeSnippet={`# Semantic - AgentCore Memory (USER_PREFERENCE)
+prefs = await memory.get_semantic_memories(
+    actor_id  # e.g. "CUST-MARCO"
 )
-
-await memory.set_user_preferences(
-    user_id, new_prefs
-)`}
+# → ["Prefers lightweight linen in warm neutrals", ...]
+# records live under /pellier/preferences/{actor_id}/`}
             />
             <TierCard
               tierName="Episodic - Aurora"

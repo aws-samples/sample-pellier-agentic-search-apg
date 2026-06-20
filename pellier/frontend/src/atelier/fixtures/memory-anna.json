@@ -32,8 +32,8 @@
     ]
   },
   "semantic": {
-    "label": "Semantic - AgentCore Memory KV",
-    "store": "user:CUST-ANNA:preferences",
+    "label": "Semantic - AgentCore Memory",
+    "store": "/pellier/preferences/CUST-ANNA/",
     "source": "fixture",
     "items": [
       {

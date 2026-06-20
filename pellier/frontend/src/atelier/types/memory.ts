@@ -5,7 +5,7 @@
  * own storage, lifetime, and write contract:
  *
  *   working    — AgentCore Memory session turns
- *   semantic   — AgentCore Memory KV preferences
+ *   semantic   — AgentCore Memory records extracted by a USER_PREFERENCE strategy
  *   episodic   — Aurora customer_episodic_seed / orders / returns
  *   procedural — Aurora tool_audit aggregate patterns
  *

@@ -35,6 +35,7 @@ from typing import Any
 import pytest
 
 from models import Preferences
+from services.agentcore_memory import AgentCoreMemory
 
 
 def _run(coro: Any) -> Any:
@@ -278,3 +279,107 @@ def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
     assert loaded.vibe == ["minimal"]
     assert captured["namespace_prefix"] == "user:alice:preferences"
     assert captured["max_results"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Semantic memory (USER_PREFERENCE extraction) — get_semantic_memories
+# ---------------------------------------------------------------------------
+#
+# These pin the LIVE semantic substrate the Atelier panel flips to. The
+# USER_PREFERENCE strategy writes long-term records whose ``content.text`` is
+# a JSON string ``{"context","preference","categories"[]}`` — LEARNED prose,
+# distinct from the typed onboarding ``Preferences`` blob that
+# ``get_user_preferences`` serves. get_semantic_memories returns the bare
+# ``preference`` strings, reads via ``namespace_prefix`` against
+# ``/pellier/preferences/{actor_id}/``, and degrades to ``[]`` (never raises,
+# never fabricates) so the route can fall back to the honest fixture.
+
+
+class _SemRecord:
+    """Mirrors MemoryRecord: .get('content') -> {'text': '<json string>'}."""
+
+    def __init__(self, text: str) -> None:
+        self._content = {"text": text}
+
+    def get(self, key: str, default=None):
+        return {"content": self._content}.get(key, default)
+
+
+def test_get_semantic_memories_returns_empty_without_sdk(memory) -> None:
+    """With no ``AGENTCORE_MEMORY_ID`` (autouse fixture nulls it), the
+    method SHALL return ``[]`` so the route falls back to the fixture —
+    never a fabricated ``live`` panel."""
+    assert _run(memory.get_semantic_memories("CUST-MARCO")) == []
+
+
+def test_get_semantic_memories_extracts_preference_strings_and_namespace() -> None:
+    """SDK path: each record's ``content.text`` JSON SHALL be parsed and
+    its ``preference`` field collected; the read SHALL use
+    ``namespace_prefix='/pellier/preferences/{actor}/'`` + ``max_results``."""
+    import json
+
+    captured: dict = {}
+
+    class _FakeManager:
+        def list_long_term_memory_records(self, **kwargs):
+            captured.update(kwargs)
+            assert "namespace" not in kwargs, "use namespace_prefix, not namespace"
+            assert "maxResults" not in kwargs, "use max_results, not maxResults"
+            return [
+                _SemRecord(json.dumps({
+                    "context": "Goa trip planning",
+                    "preference": "Prefers lightweight linen in warm neutrals",
+                    "categories": ["linen", "travel"],
+                })),
+                _SemRecord(json.dumps({
+                    "context": "fabric talk",
+                    "preference": "Favors natural fibers over synthetics",
+                    "categories": ["fabric"],
+                })),
+            ]
+
+    mem = AgentCoreMemory(memory_id="mem-test")
+    mem._sdk_manager = _FakeManager()
+
+    prefs = _run(mem.get_semantic_memories("CUST-MARCO"))
+
+    assert prefs == [
+        "Prefers lightweight linen in warm neutrals",
+        "Favors natural fibers over synthetics",
+    ]
+    assert captured["namespace_prefix"] == "/pellier/preferences/CUST-MARCO/"
+    assert captured["max_results"] == 20
+
+
+def test_get_semantic_memories_skips_malformed_and_empty_records() -> None:
+    """Malformed JSON, missing ``preference``, and blank text SHALL be
+    skipped silently — a single bad record never breaks the panel."""
+    import json
+
+    class _FakeManager:
+        def list_long_term_memory_records(self, **kwargs):
+            return [
+                _SemRecord("not valid json {{{"),
+                _SemRecord(json.dumps({"context": "x", "categories": []})),  # no preference
+                _SemRecord(json.dumps({"preference": ""})),  # empty preference
+                _SemRecord(json.dumps({"preference": "Keeps it minimal"})),  # the one good one
+            ]
+
+    mem = AgentCoreMemory(memory_id="mem-test")
+    mem._sdk_manager = _FakeManager()
+
+    assert _run(mem.get_semantic_memories("CUST-THEO")) == ["Keeps it minimal"]
+
+
+def test_get_semantic_memories_returns_empty_on_sdk_error() -> None:
+    """An SDK exception SHALL be swallowed into ``[]`` (honest fallback),
+    never propagated — the route must not 500 because extraction is flaky."""
+
+    class _BoomManager:
+        def list_long_term_memory_records(self, **kwargs):
+            raise RuntimeError("data plane unavailable")
+
+    mem = AgentCoreMemory(memory_id="mem-test")
+    mem._sdk_manager = _BoomManager()
+
+    assert _run(mem.get_semantic_memories("CUST-ANNA")) == []

@@ -32,8 +32,8 @@
     ]
   },
   "semantic": {
-    "label": "Semantic - AgentCore Memory KV",
-    "store": "user:CUST-MARCO:preferences",
+    "label": "Semantic - AgentCore Memory",
+    "store": "/pellier/preferences/CUST-MARCO/",
     "source": "fixture",
     "items": [
       {

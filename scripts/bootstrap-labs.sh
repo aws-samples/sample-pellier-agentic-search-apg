@@ -453,63 +453,241 @@ else
 fi
 
 # ============================================================================
-# STEP 10b: PROVISION AGENTCORE MEMORY (STM) (~15 sec)
+# STEP 10b: PROVISION AGENTCORE MEMORY + USER_PREFERENCE STRATEGY (~1-2 min)
 # ============================================================================
-log "Provisioning AgentCore Memory (STM)..."
+# Memory carries STM (working memory) PLUS a USER_PREFERENCE extraction
+# strategy that promotes conversation turns into durable semantic records
+# under /pellier/preferences/{actorId}/. We then pre-bake preference-
+# expressing turns for the three personas so async extraction (~150s) has
+# produced durable records by the time participants open the Atelier — the
+# Semantic panel reads them live instead of serving a fixture.
+#
+# Why a temp script (not python3 -c): the seed copy contains apostrophes and
+# nested dicts; a quoted heredoc keeps the body literal and avoids the
+# escaping minefield of inline -c. Only the memory id reaches stdout; all
+# diagnostics go to the log file so command substitution stays clean.
+log "Provisioning AgentCore Memory + USER_PREFERENCE strategy..."
 
+AGENTCORE_MEMORY_LOG="/tmp/agentcore-memory.log"
 AGENTCORE_MEMORY_ID=""
 if command -v python3 &>/dev/null; then
-    AGENTCORE_MEMORY_ID=$(sudo -u "$CODE_EDITOR_USER" bash -c "
-        export PATH=\"\$HOME/.local/bin:\$PATH\"
-        export AWS_REGION=$AWS_REGION
-        python3 -c '
-import boto3
-import time
+    _MEM_SCRIPT="$(mktemp /tmp/pellier-memory-XXXXXX.py)"
+    cat > "$_MEM_SCRIPT" <<'PYEOF'
+"""Provision PellierSTM with a USER_PREFERENCE strategy and pre-bake
+persona preference turns. Prints ONLY the memory id to stdout on success;
+everything else goes to stderr."""
+import os
 import sys
+import time
+from datetime import datetime, timezone
+
+import boto3
+
+REGION = os.environ["AWS_REGION"]
+MEMORY_NAME = os.environ.get("PELLIER_MEMORY_NAME", "PellierSTM")
+STRATEGY_NAME = "PellierUserPreferences"
+STRATEGY_NAMESPACE = "/pellier/preferences/{actorId}/"
+
+# 2 turn-pairs per persona; actor_id == customer_id the Atelier panel reads.
+# Copy expresses DURABLE taste the USER_PREFERENCE strategy should extract.
+SEED_TURNS = {
+    "CUST-MARCO": [
+        ("I'm heading to Goa for ten days and want lightweight linen I can layer.",
+         "Linen is a great call for that heat - I'll focus on breathable natural "
+         "fibers in warm neutrals you can mix and match."),
+        ("I prefer earthy tones - sand, olive, terracotta - nothing flashy.",
+         "Noted: warm, muted neutrals in natural fibers, travel-ready pieces that "
+         "pack light."),
+    ],
+    "CUST-ANNA": [
+        ("I'm shopping for a thoughtful gift for my sister, ideally something handmade.",
+         "Lovely - I'll look for artisan pieces with a personal feel rather than "
+         "generic items."),
+        ("Let's keep it under $150, and I'd rather it feel special than expensive.",
+         "Got it: a considered, artisan gift under $150 that feels personal."),
+    ],
+    "CUST-THEO": [
+        ("I'm slowly building a home - hand-thrown ceramics, stoneware, linen throws.",
+         "Lovely - I'll lean into slow-craft home pieces: hand-thrown ceramics, "
+         "stoneware, and natural-fiber textiles."),
+        ("I'd rather buy one quiet, tactile piece I'll keep than a set I won't.",
+         "Noted: quality over quantity - tactile, well-made objects in muted "
+         "tones, the kind you finish slowly."),
+    ],
+}
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def find_memory_by_name(ctrl, name):
+    """ListMemories summaries DO NOT carry `name` (only id/status), so we
+    resolve each id via GetMemory. Returns the full memory dict or None."""
+    token = None
+    while True:
+        kwargs = {"maxResults": 100}
+        if token:
+            kwargs["nextToken"] = token
+        page = ctrl.list_memories(**kwargs)
+        for summ in page.get("memories", []):
+            mem_id = summ.get("id")
+            if not mem_id:
+                continue
+            try:
+                mem = ctrl.get_memory(memoryId=mem_id)["memory"]
+            except Exception as exc:  # noqa: BLE001
+                log(f"  get_memory({mem_id}) failed: {exc}")
+                continue
+            if mem.get("name") == name:
+                return mem
+        token = page.get("nextToken")
+        if not token:
+            return None
+
+
+def has_user_pref_strategy(mem):
+    for s in mem.get("strategies", []):
+        if s.get("type") == "USER_PREFERENCE":
+            return s
+    return None
+
+
+def wait_memory_active(ctrl, mem_id, timeout_s=120):
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        mem = ctrl.get_memory(memoryId=mem_id)["memory"]
+        status = mem.get("status")
+        if status == "ACTIVE":
+            return mem
+        if status == "FAILED":
+            log(f"  memory {mem_id} FAILED: {mem.get('failureReason')}")
+            return None
+        time.sleep(5)
+    log(f"  memory {mem_id} not ACTIVE within {timeout_s}s")
+    return ctrl.get_memory(memoryId=mem_id)["memory"]
+
+
+def wait_strategy_active(ctrl, mem_id, timeout_s=150):
+    """Poll until a USER_PREFERENCE strategy reports ACTIVE. Returns True if
+    so (events created after this point are eligible for extraction)."""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        mem = ctrl.get_memory(memoryId=mem_id)["memory"]
+        strat = has_user_pref_strategy(mem)
+        if strat and strat.get("status") == "ACTIVE":
+            return True
+        if strat and strat.get("status") == "FAILED":
+            log("  USER_PREFERENCE strategy FAILED")
+            return False
+        time.sleep(5)
+    log(f"  USER_PREFERENCE strategy not ACTIVE within {timeout_s}s")
+    return False
+
+
+def prebake(data_client, mem_id):
+    """Create persona preference events. Fixed clientTokens make this
+    idempotent across bootstrap re-runs (no duplicate events / extraction)."""
+    baked = 0
+    for actor_id, pairs in SEED_TURNS.items():
+        for idx, (user_msg, asst_msg) in enumerate(pairs):
+            try:
+                data_client.create_event(
+                    memoryId=mem_id,
+                    actorId=actor_id,
+                    sessionId="prefseed",
+                    eventTimestamp=datetime.now(timezone.utc),
+                    clientToken=f"pellier-prefseed-{actor_id}-{idx}",
+                    payload=[
+                        {"conversational": {"content": {"text": user_msg}, "role": "USER"}},
+                        {"conversational": {"content": {"text": asst_msg}, "role": "ASSISTANT"}},
+                    ],
+                )
+                baked += 1
+            except Exception as exc:  # noqa: BLE001
+                log(f"  create_event({actor_id}#{idx}) failed: {exc}")
+    log(f"  pre-baked {baked} preference events across {len(SEED_TURNS)} personas")
+
+
+def main():
+    ctrl = boto3.client("bedrock-agentcore-control", region_name=REGION)
+    strategy_input = {
+        "userPreferenceMemoryStrategy": {
+            "name": STRATEGY_NAME,
+            "description": "Extracts durable shopper preferences into semantic memory",
+            "namespaces": [STRATEGY_NAMESPACE],
+        }
+    }
+
+    mem = find_memory_by_name(ctrl, MEMORY_NAME)
+
+    if mem is None:
+        # Fresh: create WITH the strategy in one shot.
+        log("Creating PellierSTM with USER_PREFERENCE strategy...")
+        resp = ctrl.create_memory(
+            name=MEMORY_NAME,
+            description="Pellier workshop memory - STM plus USER_PREFERENCE semantic extraction",
+            eventExpiryDuration=30,
+            memoryStrategies=[strategy_input],
+        )
+        mem_id = resp["memory"]["id"]
+    else:
+        mem_id = mem["id"]
+        log(f"PellierSTM exists ({mem_id}).")
+        if has_user_pref_strategy(mem) is None:
+            # Existing STM-only memory: attach the strategy.
+            log("  adding USER_PREFERENCE strategy via update_memory...")
+            try:
+                ctrl.update_memory(
+                    memoryId=mem_id,
+                    memoryStrategies={"addMemoryStrategies": [strategy_input]},
+                )
+            except Exception as exc:  # noqa: BLE001
+                log(f"  update_memory failed: {exc}")
+        else:
+            log("  USER_PREFERENCE strategy already present.")
+
+    # Memory must be ACTIVE before anything else.
+    if wait_memory_active(ctrl, mem_id) is None:
+        # No usable memory id -> let bootstrap fall back.
+        sys.exit(1)
+
+    # Pre-bake only once the strategy is ACTIVE, so events are extraction-
+    # eligible. If it never activates, skip pre-bake (panel stays on the
+    # honest fixture) but still hand back the id so STM works.
+    if wait_strategy_active(ctrl, mem_id):
+        data_client = boto3.client("bedrock-agentcore", region_name=REGION)
+        prebake(data_client, mem_id)
+    else:
+        log("  skipping pre-bake (strategy not ACTIVE); semantic panel will use fixture")
+
+    # ONLY the id on stdout.
+    print(mem_id)
+
 
 try:
-    client = boto3.client(\"bedrock-agentcore-control\", region_name=\"$AWS_REGION\")
-
-    # Check if memory already exists
-    existing = client.list_memories(maxResults=10)
-    for mem in existing.get(\"memories\", []):
-        if mem.get(\"name\") == \"PellierSTM\":
-            mem_id = mem[\"id\"]
-            print(mem_id)
-            sys.exit(0)
-
-    # Create new STM-only memory (no strategies = short-term only)
-    response = client.create_memory(
-        name=\"PellierSTM\",
-        description=\"Short-term memory for Pellier workshop — conversation context within sessions\",
-        eventExpiryDuration=30
-    )
-    mem_id = response[\"memory\"][\"id\"]
-
-    # Wait for ACTIVE status (usually <10 seconds for STM-only)
-    for i in range(12):
-        status = client.get_memory(memoryId=mem_id)[\"memory\"][\"status\"]
-        if status == \"ACTIVE\":
-            print(mem_id)
-            sys.exit(0)
-        if status == \"FAILED\":
-            print(\"\", file=sys.stderr)
-            sys.exit(1)
-        time.sleep(5)
-
-    # Timeout — print ID anyway, it may activate later
-    print(mem_id)
-except Exception as e:
-    print(f\"Memory provisioning failed: {e}\", file=sys.stderr)
+    main()
+except Exception as exc:  # noqa: BLE001
+    print(f"Memory provisioning failed: {exc}", file=sys.stderr)
     sys.exit(1)
-' 2>/dev/null
-    " 2>/dev/null)
+PYEOF
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$_MEM_SCRIPT"
+    AGENTCORE_MEMORY_ID=$(sudo -u "$CODE_EDITOR_USER" bash -c "
+        export PATH=\"\$HOME/.local/bin:\$PATH\"
+        export AWS_REGION='$AWS_REGION'
+        export PELLIER_MEMORY_NAME='PellierSTM'
+        python3 '$_MEM_SCRIPT' 2>>'$AGENTCORE_MEMORY_LOG'
+    ") || AGENTCORE_MEMORY_ID=""
+    rm -f "$_MEM_SCRIPT"
+    [ -f "$AGENTCORE_MEMORY_LOG" ] && log "  (memory provisioning log: $AGENTCORE_MEMORY_LOG)"
 fi
 
 if [ -n "$AGENTCORE_MEMORY_ID" ]; then
     log "✅ AgentCore Memory provisioned: $AGENTCORE_MEMORY_ID"
-    # Append to .env
-    echo "AGENTCORE_MEMORY_ID=$AGENTCORE_MEMORY_ID" >> "$REPO_PATH/.env"
+    log "   USER_PREFERENCE strategy attached; persona preference turns pre-baked."
+    log "   Semantic extraction is async (~150s) — the Atelier Semantic panel"
+    log "   reads 'fixture' until the first records land, then flips to 'live'."
+    upsert_env "AGENTCORE_MEMORY_ID" "$AGENTCORE_MEMORY_ID" "$REPO_PATH/.env"
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
 else
     warn "AgentCore Memory provisioning skipped — STM will fall back to Aurora session tables"

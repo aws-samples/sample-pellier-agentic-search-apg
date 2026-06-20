@@ -497,11 +497,20 @@ async def _load_live_working(persona: str) -> Optional[list]:
 
 
 async def _load_live_semantic(persona: str) -> Optional[list]:
-    """Read durable preferences from AgentCore Memory KV.
+    """Read durable, *extracted* preferences from AgentCore Memory.
 
-    Returns one item per non-empty preference field in the stored
-    Preferences blob, or None when nothing is persisted for the
-    persona. Falls back to fixture in the route when None.
+    These are the semantic records a ``USER_PREFERENCE`` extraction
+    strategy learns from conversation and writes under
+    ``/pellier/preferences/{customer_id}/`` — learned prose, not the
+    typed onboarding ``Preferences`` blob. We read them with the
+    dedicated ``get_semantic_memories`` method (NOT
+    ``get_user_preferences``, which serves storefront personalization).
+
+    Returns one item per extracted preference string, or None when the
+    strategy has not produced records yet (SDK absent, extraction still
+    settling, or memory unprovisioned). The route falls back to the
+    fixture on None, so the panel reads ``fixture`` — never a fake
+    ``live`` — until real extraction lands.
     """
     customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
     if not customer_id:
@@ -509,28 +518,22 @@ async def _load_live_semantic(persona: str) -> Optional[list]:
     try:
         from services.agentcore_memory import AgentCoreMemory
         memory = AgentCoreMemory()
-        prefs = await memory.get_user_preferences(customer_id)
+        preferences = await memory.get_semantic_memories(customer_id)
     except Exception as exc:
         logger.warning("Live semantic read failed for %s: %s", persona, exc)
         return None
-    if prefs is None:
+    if not preferences:
         return None
-    payload = prefs.model_dump(mode="json", by_alias=False)
     items = []
-    idx = 0
-    for key, value in payload.items():
-        if value in (None, "", [], {}):
+    for idx, pref in enumerate(preferences):
+        text = str(pref).strip()
+        if not text:
             continue
-        if isinstance(value, list):
-            text = f"{key}: {', '.join(str(v) for v in value)}"
-        else:
-            text = f"{key}: {value}"
         items.append({
             "id": f"sem-live-{idx}",
             "content": text[:200],
             "substrate": "semantic",
         })
-        idx += 1
     return items or None
 
 
@@ -551,9 +554,10 @@ async def get_memory(persona: str):
       working    — AgentCore Memory session turns under
                    user-{customer_id}-session-{sid}; live when any
                    namespace exists, otherwise the fixture.
-      semantic   — AgentCore Memory KV under user:{customer_id}:preferences;
-                   live when a Preferences blob is persisted, otherwise
-                   the fixture.
+      semantic   — AgentCore Memory long-term records under
+                   /pellier/preferences/{customer_id}/, extracted by a
+                   USER_PREFERENCE strategy; live when the strategy has
+                   produced records, otherwise the fixture.
       episodic   — pellier.customer_episodic_seed rows; live when the
                    DB is reachable and the persona has rows, otherwise
                    the fixture (used by personas with no seed data).
@@ -566,6 +570,14 @@ async def get_memory(persona: str):
     Read-only.
     """
     try:
+        # Real semantic namespace = the USER_PREFERENCE strategy's
+        # custom template resolved for this persona's customer_id
+        # (e.g. /pellier/preferences/CUST-MARCO/). Falls back to the
+        # raw persona for unknown personas so the store string is never
+        # blank.
+        _sem_customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower(), persona)
+        _sem_store = f"/pellier/preferences/{_sem_customer_id}/"
+
         data = _load_fixture(f"memory-{persona.lower()}")
         if data is None:
             data = {
@@ -575,8 +587,8 @@ async def get_memory(persona: str):
                     f"user-{persona}-session-{{sid}}",
                 ),
                 "semantic": _empty_substrate(
-                    "Semantic - AgentCore Memory KV",
-                    f"user:{persona}:preferences",
+                    "Semantic - AgentCore Memory",
+                    _sem_store,
                 ),
                 "episodic": _empty_substrate(
                     "Episodic - Aurora",
@@ -603,8 +615,8 @@ async def get_memory(persona: str):
             for key, label, store in (
                 ("working", "Working - AgentCore Memory",
                  f"user-{persona}-session-{{sid}}"),
-                ("semantic", "Semantic - AgentCore Memory KV",
-                 f"user:{persona}:preferences"),
+                ("semantic", "Semantic - AgentCore Memory",
+                 _sem_store),
                 ("episodic", "Episodic - Aurora",
                  "pellier.customer_episodic_seed"),
                 ("procedural", "Procedural - Aurora",

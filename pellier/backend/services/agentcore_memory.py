@@ -357,6 +357,73 @@ class AgentCoreMemory:
 
         _PREFS_STORE[key] = payload
         return prefs_obj
+
+    # ------------------------------------------------------------------
+    # Semantic memory (durable, extracted by a USER_PREFERENCE strategy)
+    # ------------------------------------------------------------------
+
+    async def get_semantic_memories(self, actor_id: str) -> List[str]:
+        """Return AgentCore-*extracted* preference strings for ``actor_id``.
+
+        This is the **semantic** substrate — durable taste signals the
+        ``USER_PREFERENCE`` extraction strategy *learns* from conversation
+        and writes as long-term records under
+        ``/pellier/preferences/{actor_id}/``. Each record's ``content.text``
+        is a JSON string ``{"context", "preference", "categories"[]}``; we
+        surface the ``preference`` field.
+
+        This is deliberately NOT ``get_user_preferences`` — that method
+        returns the *typed onboarding* ``Preferences`` blob the shopper
+        explicitly entered (used for storefront personalization). Learned
+        semantic memory and typed preferences are two different concepts on
+        two different namespaces; never conflate them.
+
+        Returns ``[]`` (never raises, never fabricates) when the SDK or
+        ``AGENTCORE_MEMORY_ID`` is unavailable, the strategy has not
+        extracted yet, or no records exist — the Atelier route treats an
+        empty list as "fall back to the fixture", so the panel stays honest
+        (``fixture``, not a fake ``live``).
+        """
+        import json as _json
+
+        mgr = self._get_sdk_manager()
+        if mgr is None:
+            return []
+
+        # Custom namespace registered at create time as
+        # "/pellier/preferences/{actorId}/"; resolve {actorId} ourselves so
+        # the read needs no strategy-id threading. Leading slash MUST match
+        # the create-time template.
+        namespace = f"/pellier/preferences/{actor_id}/"
+        try:
+            # 1.6.3 param is ``namespace_prefix`` (NOT ``namespace``).
+            records = mgr.list_long_term_memory_records(
+                namespace_prefix=namespace,
+                max_results=20,
+            )
+        except Exception as exc:  # pragma: no cover - SDK error path
+            logger.warning(
+                "AgentCore get_semantic_memories failed for %s: %s — "
+                "panel will fall back to fixture",
+                actor_id,
+                exc,
+            )
+            return []
+
+        preferences: List[str] = []
+        for record in records:
+            content = record.get("content", {})
+            text = content.get("text") if isinstance(content, dict) else None
+            if not text:
+                continue
+            try:
+                payload = _json.loads(text)
+            except (ValueError, TypeError):
+                continue
+            pref = payload.get("preference") if isinstance(payload, dict) else None
+            if pref:
+                preferences.append(str(pref))
+        return preferences
 # === CHALLENGE 6: AgentCore Memory (STM) — END ===
 
 
