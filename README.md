@@ -145,7 +145,7 @@ The workshop bootstrap installs the same pinned version globally and provides an
 
 ### Facilitator note: `SPA_MOUNT_PATH`
 
-By default the SPA is served at `/`. The nginx layer ([`scripts/bootstrap-environment.sh:173-182`](scripts/bootstrap-environment.sh#L173-L182)) rewrites `/app/*` → `/` before forwarding to FastAPI, so root-mount works behind both Workshop Studio's `/ports/8000/*` proxy and the `/app/*` shortcut. If you ever deploy behind a proxy that forwards `/app/*` verbatim (no prefix-stripping), set:
+By default the SPA is served at `/`. The nginx layer ([`scripts/bootstrap-environment.sh:315-324`](scripts/bootstrap-environment.sh#L315-L324)) strips the `/app/` prefix (`proxy_pass http://127.0.0.1:8000/`) before forwarding to FastAPI, so root-mount works behind both Workshop Studio's `/ports/8000/*` proxy and the `/app/*` shortcut. If you ever deploy behind a proxy that forwards `/app/*` verbatim (no prefix-stripping), set:
 
 ```bash
 SPA_MOUNT_PATH=/app
@@ -215,7 +215,7 @@ Three persona-scoped skills loaded per turn by the SkillRouter to shape voice an
 | Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial · `T=0.2–0.4`) · Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, reporting · `T=0.0–0.1`) · Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile) · Cohere Rerank v3.5 (`us.cohere.rerank-v3-5:0`, inference profile) |
 | Agent framework  | Strands Agents SDK – `Agent`, `@tool`, `GraphBuilder`, `BeforeToolCallEvent` hooks                                       |
 | Agent infra      | Bedrock AgentCore – Runtime (`@app.entrypoint` → `InvokeAgentRuntime`) · Memory (STM, 30-day) · Gateway (MCP tool catalog, Cognito-JWT auth with shopper identity passthrough) · Identity     |
-| MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN with `--readonly True`; `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
+| MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, registered against the Aurora cluster ARN over `--connection_method rdsapi` (read-only by default — writes require opting in via `--allow_write_query`); `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI · Python 3.14 (3.13 fallback) · psycopg3 · boto3 · SSE streaming                                                  |
 | Frontend         | React 18 · TypeScript 5 · Vite · Tailwind · Framer Motion 12                                                             |
 | Editorial system | Fraunces Variable (display) · Inter (body) · JetBrains Mono (code) · cream / espresso / terracotta palette               |
@@ -243,7 +243,8 @@ sample-pellier-agentic-search-apg/
 ├── solutions/                             Reference implementations (drop-in escape hatches)
 │   ├── the-quiet-search/                    Semantic search reference (observe-only)
 │   ├── closing-marcos-gap/                  floor_check + Stock Keeper (Exercise 1)
-│   └── the-ledger/                          AgentCore production + audit ledger (Exercise 2)
+│   ├── the-ledger/                          AgentCore production + audit ledger (Exercise 2)
+│   └── the-concierge/                       MCP on the wire (Act III): local stdio vs managed Gateway
 │
 └── scripts/
     ├── migrations/                         Ordered fresh-cluster SQL (001-009)
