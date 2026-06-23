@@ -140,6 +140,27 @@ if [ "$_node20_ok" = true ]; then
         else
             warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript' then re-run scripts/deploy/deploy_all.sh."
         fi
+
+        # Claude Code CLI (global), for the OPTIONAL "Direct an AI agent" lane in
+        # Exercise 1. It runs entirely against Bedrock via the box's instance
+        # role (CLAUDE_CODE_USE_BEDROCK=1 + ANTHROPIC_MODEL are exported in the
+        # participant .bashrc by bootstrap-labs), so there is NO per-participant
+        # login — the same ambient-credential model the rest of the lab uses.
+        # Intentionally NON-fatal: the mandatory path is hand-paste / cp, which
+        # needs none of this. If the install fails, the lab guide's manual tab
+        # still completes the exercise; only the optional agent lane is absent.
+        log "Installing Claude Code CLI globally (optional agent lane for Exercise 1)..."
+        if npm install -g @anthropic-ai/claude-code >/dev/null 2>&1; then
+            # Same /usr/bin symlink defense as tsc above: the CLI runs as the
+            # PARTICIPANT user, whose PATH may not include npm's global prefix.
+            _claude_bin="$(command -v claude 2>/dev/null || true)"
+            if [ -n "$_claude_bin" ] && [ "$_claude_bin" != "/usr/bin/claude" ]; then
+                ln -sf "$_claude_bin" /usr/bin/claude 2>/dev/null || true
+            fi
+            log "✅ Claude Code CLI installed: $(claude --version 2>/dev/null || echo 'version check skipped') ($(command -v claude 2>/dev/null))"
+        else
+            warn "Claude Code CLI install failed – the OPTIONAL agent lane in Exercise 1 will be unavailable (the mandatory hand-paste / cp path is unaffected). Recover: 'sudo npm install -g @anthropic-ai/claude-code'."
+        fi
     fi
 else
     # Last resort: ensure SOME node exists for the frontend build. Managed

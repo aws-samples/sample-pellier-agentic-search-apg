@@ -786,6 +786,19 @@ alias psql='psql'
 # AWS Region for boto3
 export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 
+# Claude Code CLI → Amazon Bedrock (optional "Direct an AI agent" lane, Ex 1).
+# CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
+# instance role (the same ambient-credential chain psql/boto3/agentcore already
+# use) — no Anthropic API key, no per-participant login, nothing to paste.
+# Model: Haiku 4.5 is the only Claude model the bootstrap preflight HARD-requires
+# on every account (Opus 4.6 vs Sonnet 4.6 is an either/or fallback, so neither
+# is guaranteed) — and it is more than enough to write a six-line tool body.
+# A facilitator can point the lane at a stronger model by exporting a different
+# ANTHROPIC_MODEL before launching `claude`.
+export CLAUDE_CODE_USE_BEDROCK=1
+export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}
+export AWS_REGION=${AWS_REGION:-us-east-1}
+
 # Ensure uv is in PATH (required for MCP)
 export PATH="$HOME/.local/bin:$PATH"
 
