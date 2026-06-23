@@ -86,12 +86,14 @@ class Settings(BaseSettings):
     # Prefer BEDROCK_OPUS_MODEL / BEDROCK_HAIKU_MODEL in agent factories.
     BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
 
-    # Token budgets tuned for short-form concierge replies (1-2 sentences).
-    # Keep generous enough for tool reasoning, but avoid over-allocation that
-    # increases latency/cost with restricted model access.
-    AGENT_MAX_TOKENS_OPUS: int = 1200
-    AGENT_MAX_TOKENS_HAIKU: int = 800
-    ROUTER_MAX_TOKENS_HAIKU: int = 320
+    # max_tokens is a safety ceiling, not a target — billing and latency track
+    # tokens actually generated, so a higher cap costs nothing unless a reply
+    # truly runs that long. Replies stay short because the system prompts ask
+    # for 2-4 sentences; these values just guard against a runaway response and
+    # must clear the longest expected reply so it never truncates mid-sentence.
+    AGENT_MAX_TOKENS_OPUS: int = 1200       # editorial agents (Style, Experience, Curator)
+    AGENT_MAX_TOKENS_HAIKU: int = 2048      # Stock Keeper + Value Analyst (richer reveals)
+    ROUTER_MAX_TOKENS_HAIKU: int = 320      # router/classifier — tiny structured output
     
     # ========================================
     # Application Configuration
