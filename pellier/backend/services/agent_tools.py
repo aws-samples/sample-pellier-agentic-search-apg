@@ -167,7 +167,6 @@ def whats_trending(limit: int = 5, category: str = None) -> str:
         JSON string with trending products
 
     """
-    # === CHALLENGE 2: START ===
     if not _db_service:
         return json.dumps({"error": "Database service not initialized"})
 
@@ -178,7 +177,6 @@ def whats_trending(limit: int = 5, category: str = None) -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
-    # === CHALLENGE 2: END ===
 
 @tool
 def price_intelligence(category: str = None) -> str:
@@ -203,12 +201,6 @@ def restock_shelf(product_id: int, quantity: int) -> str:
         quantity: Units to add to current stock.
 
     """
-    # === CHALLENGE · Stock Keeper · restock_shelf: START ===
-    # Workshop format ships with this block as a stub (see the original
-    # `return json.dumps({"error": "...stub state"})` body below in the
-    # commented-out reference). Builder's Session format and the
-    # shipped solution path call BusinessLogic.restock_shelf live.
-    #
     # Cedar policy `max-restock-quantity` enforces the 500-unit ceiling
     # via BeforeToolCallEvent — we don't need to enforce it here.
     if not _db_service:
@@ -220,16 +212,6 @@ def restock_shelf(product_id: int, quantity: int) -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
-
-    # Workshop stub reference (kept as a teaching artifact — participants
-    # see this exact block in the workshop format and replace it with
-    # the live wiring above):
-    #
-    # return json.dumps({
-    #     "error": "restock_shelf is in stub state",
-    #     "hint": "Workshop build — implement or run the cp command above.",
-    # })
-    # === CHALLENGE · Stock Keeper · restock_shelf: END ===
 
 
 @tool
@@ -668,19 +650,17 @@ def running_low(limit: int = 5) -> str:
 
     Args:
         limit: Number of results (default: 5)
-
     """
-    # === CHALLENGE · Stock Keeper · running_low: START ===
-    # WORKSHOP_EXERCISE_STUB (Workshop format only — Builder's session
-    # pre-applies this via CloudFormation UserData.)
-    #
-    # Wire this tool to BusinessLogic.running_low(limit). Returns
-    # products with quantity <= 5 ranked by rating.
-    return json.dumps({
-        "error": "running_low is in stub state",
-        "hint": "Workshop build — implement or run the cp command above.",
-    })
-    # === CHALLENGE · Stock Keeper · running_low: END ===
+    if not _db_service:
+        return json.dumps({"error": "Database service not initialized"})
+
+    try:
+        from services.business_logic import BusinessLogic
+        logic = BusinessLogic(_db_service)
+        result = _run_async(logic.running_low(limit))
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 
 @tool
