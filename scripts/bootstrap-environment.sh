@@ -672,34 +672,23 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 # Display welcome message once and exit
 clear
 
-# Readiness: Stage 2 writes /tmp/workshop-ready.json with "status":"ready" when
-# the backend, catalog, and data are fully seeded. The IDE can open BEFORE that
-# finishes (~12-15 min), so tell the participant plainly rather than letting them
-# hit a half-built app and conclude it's broken.
-if grep -q '"status": "ready"' /tmp/workshop-ready.json 2>/dev/null; then
-  READY_LINE='  STATUS         Environment is fully ready. The app is live - no servers to start.'
-else
-  READY_LINE='  STATUS         Still finishing setup (~10-15 min on a fresh account). The IDE is
-                 ready now; the app goes live shortly. Re-run "welcome" to recheck,
-                 or run "health" any time for a full status report.'
-fi
-
 cat << EOF
-  Pellier - Build Agentic AI-Powered Search · AWS Summit Builder's Session
+  Pellier – Build Agentic AI-Powered Search
+  OPS402 · AWS Summit Washington, DC · Builder's Session · Level 400
 
-$READY_LINE
+  LEVEL       400 (expert) refers to the CONCEPTS, not the code. The app is
+              already built. You do two things, then observe / measure / read
+              to see how it works. That's the whole job.
 
-  LEVEL          400 (expert) refers to the CONCEPTS, not the code. The app is
-                 already built. You implement ONE function (floor_check), then
-                 observe / measure / read to see how it works. That's the whole job.
+  EXERCISES   1. Implement floor_check so the agent reads live Aurora inventory.
+              2. Query pellier.tool_audit to prove what the agent did.
 
-  LAB GUIDE      Open the lab guide in the Workshop Studio panel on the LEFT of
-                 your screen - it's the step-by-step source of truth. Keep it open
-                 next to the IDE.
+  LAB GUIDE   Open the lab guide in the Workshop Studio panel on the LEFT – your
+              step-by-step source of truth. Keep it open next to the IDE.
 
-  OPEN THE APP   Click BoutiqueURL (and AtelierURL) in Workshop Studio Outputs.
-  EDIT           pellier/backend/services/agent_tools.py is open - find the
-                 floor_check CHALLENGE markers, implement, save (reloads ~2s).
+  OPEN/EDIT   Click BoutiqueURL and AtelierURL in Workshop Studio Outputs.
+              pellier/backend/services/agent_tools.py is open – find the
+              floor_check CHALLENGE markers, implement, save (reloads ~2s).
 
 EOF
 
