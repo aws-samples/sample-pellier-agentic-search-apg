@@ -82,7 +82,7 @@ const Sidebar: React.FC = () => {
       //   system remembers between turns) → Write-path (how mutations are
       //   gated and audited; Theo's third Aurora capability).
       items: [
-        { label: 'Architecture', path: 'architecture', badge: '6' },
+        { label: 'Architecture', path: 'architecture', badge: '8' },
         {
           label: 'Agents',
           path: 'agents',

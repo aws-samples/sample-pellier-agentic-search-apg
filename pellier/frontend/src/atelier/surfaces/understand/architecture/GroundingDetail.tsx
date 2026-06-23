@@ -24,7 +24,7 @@ const GroundingDetail: React.FC = () => {
 
   const concept = data?.find((c) => c.slug === 'grounding');
   const productCount =
-    catalogStats?.product_count != null ? String(catalogStats.product_count) : '—';
+    catalogStats?.product_count != null ? String(catalogStats.product_count) : '–';
 
   return (
     <DetailPageShell

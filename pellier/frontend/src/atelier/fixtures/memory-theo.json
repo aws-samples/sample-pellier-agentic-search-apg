@@ -2,7 +2,7 @@
   "persona": "theo",
   "working": {
     "label": "Working - AgentCore Memory",
-    "store": "user:CUST-THEO:session:{sid}",
+    "store": "user-CUST-THEO-session-{sid}",
     "source": "fixture",
     "items": [
       {

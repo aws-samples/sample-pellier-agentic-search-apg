@@ -643,7 +643,7 @@ const ToolPublishingCard: React.FC<{ pattern: ToolPublishingPattern }> = ({
                 marginTop: '6px',
               }}
             >
-              Tradeoff — {s.tradeoff}
+              Tradeoff – {s.tradeoff}
             </p>
           </div>
         ))}
@@ -767,7 +767,7 @@ const ProductionPatterns: React.FC = () => {
         title="What you reach for once it's real."
         summary={
           data?.summary ??
-          'Four production patterns sit underneath every shipped agent. The default builder path runs without any of them — they are the seams you reach for once the prototype is real.'
+          'Four production patterns sit underneath every shipped agent. The default builder path runs without any of them – they are the seams you reach for once the prototype is real.'
         }
       />
 

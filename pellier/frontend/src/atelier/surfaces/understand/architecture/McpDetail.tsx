@@ -31,7 +31,7 @@ const McpDetail: React.FC = () => {
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'When configured, the agent asks the Gateway for the tool catalog — names, signatures, descriptions. This is MCP discovery.',
+          text: 'When configured, the agent asks the Gateway for the tool catalog – names, signatures, descriptions. This is MCP discovery.',
         },
         {
           numeral: 'ii.',

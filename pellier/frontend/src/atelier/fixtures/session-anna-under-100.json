@@ -90,7 +90,7 @@
     {
       "index": 3,
       "category": "owned",
-      "title": "Memory Recall — Semantic",
+      "title": "Memory Recall – Semantic",
       "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: explicit budgets, gift-ready artisanal palette. Used to weight under-$100 candidates.",
       "status": "complete",
       "durationMs": 34
@@ -138,7 +138,7 @@
       "index": 8,
       "category": "both",
       "title": "editorial composition",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 price-aware gifting voice",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2013 price-aware gifting voice",
       "status": "complete",
       "durationMs": 623,
       "agent": "Curator"
@@ -146,7 +146,7 @@
     {
       "index": 9,
       "category": "owned",
-      "title": "Memory Write \u2014 Working",
+      "title": "Memory Write \u2013 Working",
       "description": "Wrote turn-scoped context to AgentCore Memory: looking for something beautiful under $100.",
       "status": "complete",
       "durationMs": 22

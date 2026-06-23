@@ -160,7 +160,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
           color: 'var(--at-ink-1)',
         }}
       >
-        Type a query — see which skill the router would load.
+        Type a query – see which skill the router would load.
       </h3>
       <p
         style={{
@@ -172,7 +172,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
         }}
       >
         The same call shape that fires before every chat turn. Haiku at
-        temperature 0.0 is deterministic — try the same query twice and
+        temperature 0.0 is deterministic – try the same query twice and
         get the same routing.
       </p>
 
@@ -356,7 +356,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
             marginTop: '10px',
           }}
         >
-          Offline workshop routing — live endpoint unavailable; decisions are illustrative.
+          Offline workshop routing – live endpoint unavailable; decisions are illustrative.
         </p>
       )}
     </ExpCard>
@@ -750,7 +750,7 @@ const Skills: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Skills · three persona-tied files"
         title="Persona-specific knowledge the agents load."
-        summary="Three Markdown files. One per persona. Loaded per turn by the SkillRouter — Haiku 4.5 at 0.0, deterministic classification — and injected into the specialist's system prompt. Skills change voice and handling, not product selection."
+        summary="Three Markdown files. One per persona. Loaded per turn by the SkillRouter – Haiku 4.5 at 0.0, deterministic classification – and injected into the specialist's system prompt. Skills change voice and handling, not product selection."
       />
       <ExpCard>
         <Eyebrow label="Two routers · different jobs" />

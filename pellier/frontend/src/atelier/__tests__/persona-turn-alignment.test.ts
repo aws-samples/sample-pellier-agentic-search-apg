@@ -23,7 +23,7 @@ const EXPECTED_TURNS = {
     'What would go with the Hadley shirt?',
     "What's the price range for linen shirts?",
     'Is the Hadley shirt at the Brooklyn warehouse?',
-    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
+    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
   ],
   anna: [
     'A thoughtful gift for someone who loves morning rituals',
@@ -36,8 +36,8 @@ const EXPECTED_TURNS = {
     'Hand-thrown ceramics for a slower morning routine',
     'What goes well with the pour-over set?',
     'Linen pieces that soften over seasons',
-    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",
-    'The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
+    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return – my customer id is 'theo'.",
+    'The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
 } satisfies Record<(typeof CANONICAL_PERSONAS)[number], string[]>
 

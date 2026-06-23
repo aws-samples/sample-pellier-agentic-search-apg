@@ -42,18 +42,33 @@ def generate_mcp_config():
     
     # MCP server configuration (same for both files).
     #
-    # Flag names track the current awslabs.postgres-mcp-server CLI:
-    #   --db_cluster_arn   (NOT the older --resource_arn)
-    #   --connection_method rdsapi   (RDS Data API path — uses the cluster ARN
-    #                                 + secret, no host/port needed)
-    #   read-only is the DEFAULT; you opt INTO writes with --allow_write_query.
-    #   So we simply omit that flag (the older "--readonly True" value-flag is
-    #   gone and the server rejects it as an unrecognized argument).
+    # PINNED to ==1.1.6 (not @latest). awslabs.postgres-mcp-server is a
+    # moving target; this workshop is a fixed artifact, so we freeze the
+    # version the lab content and Gateway target were validated against.
+    #
+    # Flag contract for 1.1.x (verified against the 1.1.6 source):
+    #   --connection_method RDS_API   RDS Data API path. Must be the enum
+    #                                 NAME, not the value "rdsapi" — the
+    #                                 server resolves it via
+    #                                 ConnectionMethod[arg] (by name), so
+    #                                 "rdsapi" raises KeyError at startup.
+    #   --db_type APG                 Aurora Postgres. REQUIRED: the 1.0.11+
+    #                                 servers only register the DB connection
+    #                                 at startup inside `if args.db_type:`.
+    #                                 Omit it and the server still answers
+    #                                 initialize/tools-list, but every
+    #                                 run_query returns "No database
+    #                                 connection available".
+    #   --db_cluster_arn              Aurora cluster ARN (NOT --resource_arn,
+    #                                 which was removed after 1.0.9).
+    #   read-only is the DEFAULT; you opt INTO writes with --allow_write_query,
+    #   so we omit that flag.
     mcp_server_config = {
         "command": "uvx",
         "args": [
-            "awslabs.postgres-mcp-server@latest",
-            "--connection_method", "rdsapi",
+            "awslabs.postgres-mcp-server==1.1.6",
+            "--connection_method", "RDS_API",
+            "--db_type", "APG",
             "--db_cluster_arn", db_cluster_arn,
             "--secret_arn", db_secret_arn,
             "--database", db_name,
@@ -101,12 +116,12 @@ def generate_mcp_config():
     print(f"   {workshop_file}")
     print()
     print("🔧 Server Configuration:")
-    print(f"   • Server: awslabs.postgres-mcp-server (uvx)")
+    print(f"   • Server: awslabs.postgres-mcp-server==1.1.6 (uvx, pinned)")
     print(f"   • Database Cluster: {db_cluster_arn}")
     print(f"   • Secret ARN: {db_secret_arn}")
     print(f"   • Database: {db_name}")
     print(f"   • Region: {aws_region}")
-    print(f"   • Connection: rdsapi (RDS Data API)")
+    print(f"   • Connection: RDS_API + db_type APG (RDS Data API)")
     print(f"   • Read-only: default (no --allow_write_query)")
     print()
     print("🎯 Usage:")
@@ -116,7 +131,7 @@ def generate_mcp_config():
     print()
     print("💡 Verification (Act III §02):")
     print("   • cat pellier/config/mcp-server-config.json | python3 -m json.tool")
-    print("   • uvx awslabs.postgres-mcp-server@latest --help")
+    print("   • uvx awslabs.postgres-mcp-server==1.1.6 --help")
     print("=" * 70)
 
     return 0

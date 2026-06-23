@@ -175,7 +175,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
         }}
       >
         Type a natural-language query. The registry finds the closest tools
-        using cosine similarity over Cohere Embed v4 embeddings — the same
+        using cosine similarity over Cohere Embed v4 embeddings – the same
         primitive that powers product search. Click a result to jump to that tool
         in the registry below.
       </p>
@@ -388,7 +388,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
               >
                 {typeof result.similarity === 'number'
                   ? result.similarity.toFixed(4)
-                  : '—'}
+                  : '–'}
               </span>
             </button>
           );
@@ -405,7 +405,7 @@ const DiscoveryDemoCard: React.FC<DiscoveryDemoCardProps> = ({
             margin: '0 0 8px',
           }}
         >
-          Offline workshop ranking — live endpoint unavailable; scores are illustrative.
+          Offline workshop ranking – live endpoint unavailable; scores are illustrative.
         </p>
       )}
 
@@ -907,7 +907,7 @@ const RelatedCard: React.FC = () => (
           }}
         >
           Five specialist agents invoke these tools. Each agent has a curated
-          tool set — Style Advisor uses find_pieces and explore_collection;
+          tool set – Style Advisor uses find_pieces and explore_collection;
           Curator uses find_pieces_hybrid and side_by_side. The registry lets
           agents discover tools they weren't explicitly given.
         </p>
@@ -982,7 +982,7 @@ const RelatedCard: React.FC = () => (
             tool_registry
           </code>{' '}
           table stores each tool's name, description, and a 1024-dim Cohere
-          Embed v4 embedding. Discovery is a single pgvector cosine query — the
+          Embed v4 embedding. Discovery is a single pgvector cosine query – the
           same primitive that powers product search, applied to capabilities.
         </p>
         <Link
@@ -1234,7 +1234,7 @@ const Tools: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Tools · thirteen functions · pgvector-discoverable"
         title="The toolkit, by what each does."
-        summary="Thirteen tools in the registry. Twelve ship as reference in the Builder's Session image; floor_check is the sole hands-on wire in Part I. Each tool has an embedding — discovery ranks by cosine similarity. Replacing the stub updates GET /api/atelier/build-state so Stock Keeper and floor_check read as shipped."
+        summary="Thirteen tools in the registry. Twelve ship as reference in the Builder's Session image; floor_check is the sole hands-on wire in Part I. Each tool has an embedding – discovery ranks by cosine similarity. Replacing the stub updates GET /api/atelier/build-state so Stock Keeper and floor_check read as shipped."
       />
 
       {loading && <LoadingState />}

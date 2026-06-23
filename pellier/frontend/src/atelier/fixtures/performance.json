@@ -18,8 +18,8 @@
     { "panel": "Trending Lookup", "type": "tool", "p50Ms": 180, "maxMs": 350 },
     { "panel": "Recommendation Scoring", "type": "llm", "p50Ms": 420, "maxMs": 890 },
     { "panel": "Price Analysis", "type": "tool", "p50Ms": 95, "maxMs": 180 },
-    { "panel": "Memory Write (STM)", "type": "memory", "p50Ms": 45, "maxMs": 120 },
-    { "panel": "Memory Recall (LTM)", "type": "memory", "p50Ms": 62, "maxMs": 150 },
+    { "panel": "Memory Write (working)", "type": "memory", "p50Ms": 45, "maxMs": 120 },
+    { "panel": "Memory Recall (semantic)", "type": "memory", "p50Ms": 62, "maxMs": 150 },
     { "panel": "Response Composition", "type": "llm", "p50Ms": 520, "maxMs": 1100 }
   ],
   "pgvectorComparison": [

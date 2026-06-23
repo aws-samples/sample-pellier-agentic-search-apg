@@ -212,7 +212,7 @@ const PoliciesCard: React.FC = () => {
 
   return (
     <ExpCard>
-      <Eyebrow label={`Cedar policies · ${policies?.length ?? '—'} on the managed engine`} />
+      <Eyebrow label={`Cedar policies · ${policies?.length ?? '–'} on the managed engine`} />
       <h3
         style={{
           fontFamily: 'var(--at-serif)',
@@ -238,7 +238,7 @@ const PoliciesCard: React.FC = () => {
         <code style={{ fontFamily: 'var(--at-mono)', color: 'var(--at-ink-1)' }}>
           ENFORCE
         </code>{' '}
-        mode — argument-aware, default-deny, forbid-wins, evaluated
+        mode – argument-aware, default-deny, forbid-wins, evaluated
         before the tool's Lambda ever runs. New rules are added at
         provisioning time via{' '}
         <code style={{ fontFamily: 'var(--at-mono)' }}>scripts/deploy/deploy_policy.py</code>,
@@ -342,7 +342,7 @@ const ToolAuditCard: React.FC = () => {
 
   return (
     <ExpCard>
-      <Eyebrow label={`tool_audit · last ${rows?.length ?? '—'} rows`} />
+      <Eyebrow label={`tool_audit · last ${rows?.length ?? '–'} rows`} />
       <h3
         style={{
           fontFamily: 'var(--at-serif)',
@@ -369,7 +369,7 @@ const ToolAuditCard: React.FC = () => {
         are written back when the call returns. The whole turn lives in{' '}
         <code style={{ fontFamily: 'var(--at-mono)' }}>args</code>{' '}
         (input) and <code style={{ fontFamily: 'var(--at-mono)' }}>result</code> (output).
-        A call the Gateway DENIES never runs, so it leaves no row — the
+        A call the Gateway DENIES never runs, so it leaves no row – the
         absence is the signal.
       </p>
 
@@ -381,7 +381,7 @@ const ToolAuditCard: React.FC = () => {
 
       {rows && rows.length === 0 && (
         <div style={{ fontFamily: 'var(--at-mono)', fontSize: '13px', color: 'var(--at-ink-3)' }}>
-          No tool_audit rows yet — fire a process_return turn or restock_shelf to populate.
+          No tool_audit rows yet – fire a process_return turn or restock_shelf to populate.
         </div>
       )}
 
@@ -443,7 +443,7 @@ const ToolAuditCard: React.FC = () => {
                     <code style={DARK_INLINE_CODE}>{JSON.stringify(r.args)}</code>
                   </td>
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--at-card-border)' }}>
-                    {r.latency_ms ?? '—'}
+                    {r.latency_ms ?? '–'}
                   </td>
                   <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--at-card-border)' }}>
                     {r.created_at?.replace('T', ' ').slice(0, 19)}
@@ -468,7 +468,7 @@ const WritePath: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Write-path · Aurora as system-of-record"
         title="Theo's third Aurora capability."
-        summary="Marco read. Anna read harder. Theo writes — and every write leaves a paper trail. The agent calls a mutating tool; Cedar gates on what; SQL gates on whose; Aurora records the turn in tool_audit. Replayable from a single SELECT."
+        summary="Marco read. Anna read harder. Theo writes – and every write leaves a paper trail. The agent calls a mutating tool; Cedar gates on what; SQL gates on whose; Aurora records the turn in tool_audit. Replayable from a single SELECT."
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

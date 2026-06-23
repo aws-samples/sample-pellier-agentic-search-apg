@@ -13,7 +13,7 @@
   {
     "numeral": 2,
     "functionName": "find_pieces_hybrid",
-    "description": "Hybrid pgvector + Postgres FTS + Cohere Rerank v3.5. Anna's anchor capability — vector and tsvector/ts_rank_cd run in parallel, RRF merges, Cohere reranks the top 30 to top 5.",
+    "description": "Hybrid pgvector + Postgres FTS + Cohere Rerank v3.5. Anna's anchor capability – vector and tsvector/ts_rank_cd run in parallel, RRF merges, Cohere reranks the top 30 to top 5.",
     "status": "shipped",
     "mutationType": "read",
     "signature": "find_pieces_hybrid(query, max_price, min_rating, category, limit) -> str",
@@ -35,7 +35,7 @@
   {
     "numeral": 4,
     "functionName": "side_by_side",
-    "description": "Compare two products side by side — specs, price, rating.",
+    "description": "Compare two products side by side – specs, price, rating.",
     "status": "shipped",
     "mutationType": "read",
     "signature": "side_by_side(product_id_1, product_id_2) -> str",
@@ -68,7 +68,7 @@
   {
     "numeral": 7,
     "functionName": "price_intelligence",
-    "description": "Price distribution — percentiles, averages, value picks.",
+    "description": "Price distribution – percentiles, averages, value picks.",
     "status": "shipped",
     "mutationType": "read",
     "signature": "price_intelligence(category) -> str",
@@ -79,7 +79,7 @@
   {
     "numeral": 8,
     "functionName": "floor_check",
-    "description": "Warehouse health — total stock, low-stock alerts.",
+    "description": "Warehouse health – total stock, low-stock alerts.",
     "status": "exercise",
     "mutationType": "read",
     "signature": "floor_check() -> str",
@@ -134,7 +134,7 @@
   {
     "numeral": 13,
     "functionName": "escalate_to_stylist",
-    "description": "Honest escape hatch — agent calls this when the ask is outside what the catalog tools or policy can answer (deep personal-style coaching, out-of-policy returns, catalog misses). Emits a structured handoff payload that the chat renders as a stylist contact card. Pure UI, no DB write, no real human on the other end for the workshop. Builder's Session teaches this as 'when the agent shouldn't try to answer.'",
+    "description": "Honest escape hatch – agent calls this when the ask is outside what the catalog tools or policy can answer (deep personal-style coaching, out-of-policy returns, catalog misses). Emits a structured handoff payload that the chat renders as a stylist contact card. Pure UI, no DB write, no real human on the other end for the workshop. Builder's Session teaches this as 'when the agent shouldn't try to answer.'",
     "status": "shipped",
     "mutationType": "read",
     "signature": "escalate_to_stylist(reason, customer_id) -> str",

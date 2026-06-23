@@ -29,7 +29,7 @@ const SkillsDetail: React.FC = () => {
       conceptName="Skills"
       category="live"
       title="Skills, persona-routed."
-      prose="Three skills — the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) — load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
+      prose="Three skills – the-packing-list (Marco), the-gift-table (Anna), the-makers-shelf (Theo) – load when the SkillRouter (Claude Haiku 4.5) binds a turn to persona arc. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -63,19 +63,19 @@ const SkillsDetail: React.FC = () => {
             <SkillCard
               name="the-packing-list"
               trigger="Travel wardrobes, pack-flat pieces, natural fibers, weekender bags"
-              description="Marco's capsule logic — tight palette, linen-forward, pieces that earn suitcase space."
+              description="Marco's capsule logic – tight palette, linen-forward, pieces that earn suitcase space."
               example='"I need a Goa trip wardrobe that still feels like me."'
             />
             <SkillCard
               name="the-gift-table"
               trigger="Gifts, milestones, wrap-ready pieces, housewarmings, birthdays"
-              description="Anna's giving register — price bands, pairing, tissue-and-ribbon presentation."
+              description="Anna's giving register – price bands, pairing, tissue-and-ribbon presentation."
               example='"A thoughtful gift for someone who loves morning rituals."'
             />
             <SkillCard
               name="the-makers-shelf"
               trigger="Hand-thrown ceramics, kiln language, slow craft, patina, studio provenance"
-              description="Theo's slow-craft framing — imperfect glazes as feature, care that honors the object."
+              description="Theo's slow-craft framing – imperfect glazes as feature, care that honors the object."
               example='"Hand-thrown ceramics for a slower morning routine."'
             />
           </div>

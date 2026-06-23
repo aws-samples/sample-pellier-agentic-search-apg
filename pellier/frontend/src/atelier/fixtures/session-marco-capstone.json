@@ -1,7 +1,7 @@
 {
   "id": "marco-capstone",
   "personaId": "marco",
-  "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
+  "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
   "elapsedMs": 3680,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
@@ -10,12 +10,12 @@
   "chat": [
     {
       "role": "user",
-      "content": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
+      "content": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
       "timestamp": "2026-05-25T17:34:00Z"
     },
     {
       "role": "assistant",
-      "content": "I've routed your note to a Pellier stylist. They'll reach out within one business day with personal styling for the wedding — silhouette, palette, and how the moment feels — beyond what our catalog tools can answer alone. Keep browsing in the meantime; we'll pick up where you left off.",
+      "content": "I've routed your note to a Pellier stylist. They'll reach out within one business day with personal styling for the wedding – silhouette, palette, and how the moment feels – beyond what our catalog tools can answer alone. Keep browsing in the meantime; we'll pick up where you left off.",
       "timestamp": "2026-05-25T17:34:03Z",
       "plan": {
         "flowSummary": "Dispatcher → Style Advisor → escalate_to_stylist (honest fallback)",
@@ -33,7 +33,7 @@
       "memoryPills": [
         {
           "tier": "working",
-          "content": "Asked for a real stylist for brother's wedding — escalated"
+          "content": "Asked for a real stylist for brother's wedding – escalated"
         },
         {
           "tier": "skill",
@@ -63,7 +63,7 @@
       "index": 2,
       "category": "owned",
       "title": "Skill loaded",
-      "description": "the-packing-list bound for persona: marco — preserves voice even on the handoff path",
+      "description": "the-packing-list bound for persona: marco – preserves voice even on the handoff path",
       "status": "complete",
       "durationMs": 38,
       "agent": "SkillRouter"
@@ -80,7 +80,7 @@
     {
       "index": 4,
       "category": "owned",
-      "title": "Memory Write — Working",
+      "title": "Memory Write – Working",
       "description": "Recorded escalation context to AgentCore Memory: stylist handoff queued for brother's-wedding ask.",
       "status": "complete",
       "durationMs": 18
@@ -107,7 +107,7 @@
       "index": 7,
       "category": "both",
       "title": "Editorial acknowledgement",
-      "description": "Claude Opus 4.6 · 0.4 — empathetic one-paragraph confirmation; tool result is the load-bearing artifact, not the prose",
+      "description": "Claude Opus 4.6 · 0.4 – empathetic one-paragraph confirmation; tool result is the load-bearing artifact, not the prose",
       "status": "complete",
       "durationMs": 1244,
       "agent": "Style Advisor"
@@ -122,7 +122,7 @@
         "numeral": "i.",
         "title": "Why escalate, not search",
         "paragraphs": [
-          "Marco asked for a stylist by name — to dress him for his brother's wedding. Pellier's catalog tools (find_pieces, style_match, side_by_side) are designed for piece-level questions: silhouette, fabric, fit-as-described. They cannot judge how a body looks in motion at an event, or read the shopper's relationship to the day.",
+          "Marco asked for a stylist by name – to dress him for his brother's wedding. Pellier's catalog tools (find_pieces, style_match, side_by_side) are designed for piece-level questions: silhouette, fabric, fit-as-described. They cannot judge how a body looks in motion at an event, or read the shopper's relationship to the day.",
           "The Style Advisor recognizes the gap and calls escalate_to_stylist with a one-sentence reason. The orchestrator's stylist-handoff branch routes the explicit request to search instead of refusing as 'outside shopping.'"
         ]
       },
@@ -130,7 +130,7 @@
         "numeral": "ii.",
         "title": "Honest fallback, not lazy fallback",
         "paragraphs": [
-          "Every specialist has escalate_to_stylist in its toolset. Every system prompt instructs the agent to ALWAYS try catalog tools first; escalate_to_stylist is the honest exit when the ask genuinely sits outside what the tools can answer. The orchestrator routes by topic — search for wardrobe, recommendation for sentiment, support for exception returns — and the inner specialist makes the final call.",
+          "Every specialist has escalate_to_stylist in its toolset. Every system prompt instructs the agent to ALWAYS try catalog tools first; escalate_to_stylist is the honest exit when the ask genuinely sits outside what the tools can answer. The orchestrator routes by topic – search for wardrobe, recommendation for sentiment, support for exception returns – and the inner specialist makes the final call.",
           "The handoff payload includes a stylist contact, a 1-business-day response window, and next steps. The shopper is not stranded; they are routed."
         ]
       }

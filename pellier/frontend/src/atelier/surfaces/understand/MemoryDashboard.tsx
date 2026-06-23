@@ -364,7 +364,7 @@ const MemoryDashboard: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Memory · four substrates · persona-scoped"
         title="What the system remembers."
-        summary="Memory has four substrates, each with its own storage and lifetime. AgentCore Memory owns working (session turns) and semantic (durable preferences). Aurora owns episodic (per-customer events) and procedural (tool patterns). Each panel below names the real backing store and tells you whether it read live on this request."
+        summary="Memory has four substrates, each with its own storage and lifetime. AgentCore Memory owns working (session turns) and semantic (durable preferences a USER_PREFERENCE strategy extracts from conversation). Aurora owns episodic (per-customer events) and procedural (tool patterns). Each panel below names the real backing store and tells you whether it read live on this request."
       />
 
       {loading && <LoadingState />}

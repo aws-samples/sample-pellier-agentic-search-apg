@@ -19,18 +19,18 @@
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-25T17:24:00Z",
     "status": "complete",
-    "tagline": "Stock check \u2014 after the build"
+    "tagline": "Stock check \u2013 after the build"
   },
   {
     "id": "marco-capstone",
     "personaId": "marco",
-    "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding \u2014 not product cards.",
+    "openingQuery": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding \u2013 not product cards.",
     "elapsedMs": 3680,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-25T17:34:00Z",
     "status": "complete",
-    "tagline": "Honest fallback \u2014 stylist handoff"
+    "tagline": "Honest fallback \u2013 stylist handoff"
   },
   {
     "id": "anna-morning-ritual",
@@ -85,7 +85,7 @@
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-25T17:58:00Z",
     "status": "complete",
-    "tagline": "Sympathy gift — stylist handoff"
+    "tagline": "Sympathy gift – stylist handoff"
   },
   {
     "id": "theo-pour-over",
@@ -123,7 +123,7 @@
   {
     "id": "theo-ceramics-return",
     "personaId": "theo",
-    "openingQuery": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2014 my customer id is 'theo'.",
+    "openingQuery": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2013 my customer id is 'theo'.",
     "elapsedMs": 2140,
     "agentCount": 1,
     "routingPattern": "Dispatcher",
@@ -134,12 +134,12 @@
   {
     "id": "theo-home-not-wardrobe",
     "personaId": "theo",
-    "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
+    "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
     "elapsedMs": 4280,
     "agentCount": 2,
     "routingPattern": "Dispatcher",
     "timestamp": "2026-05-25T18:28:00Z",
     "status": "complete",
-    "tagline": "Exception return — stylist handoff"
+    "tagline": "Exception return – stylist handoff"
   }
 ]

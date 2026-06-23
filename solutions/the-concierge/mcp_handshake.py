@@ -86,40 +86,97 @@ def _launch_args_map(server: dict) -> dict[str, str]:
     return out
 
 
+# ConnectionMethod is a ``str``-Enum whose NAME (e.g. ``RDS_API``) is what the
+# server's launch flag ``--connection_method`` takes, but whose VALUE
+# (``rdsapi``) is what a per-call tool argument coerces to through pydantic.
+# The two halves disagree on casing, so map name -> value here.
+_CONNECTION_METHOD_VALUE = {
+    "RDS_API": "rdsapi",
+    "PG_WIRE_PROTOCOL": "pgwire",
+    "PG_WIRE_IAM_PROTOCOL": "pgwire_iam",
+}
+
+
 def _fill_required_connection_args(
-    input_schema: dict, launch: dict[str, str]
+    input_schema: dict,
+    launch: dict[str, str],
+    discovered: Optional[dict] = None,
 ) -> dict:
-    """Some postgres-mcp-server versions declare the connection params
-    (``connection_method``, ``cluster_identifier``, ``db_endpoint``,
-    ``database``, ``secret_arn``, ``region``) as REQUIRED per-call tool inputs,
-    not just server-launch flags. Populate exactly the required ones the live
-    ``inputSchema`` asks for, mapping from the launch flags we started the
-    server with. Schema-driven so it survives version drift: we only add a key
-    if the schema lists it as required AND we have a value for it.
+    """The 1.0.11+ postgres-mcp-server declares the connection params
+    (``connection_method``, ``database_type``, ``cluster_identifier``,
+    ``db_endpoint``, ``database``, ``region``, ``port``) as PER-CALL tool
+    inputs, not just server-launch flags. Populate the ones this tool's live
+    ``inputSchema`` actually advertises. Schema-driven so it survives version
+    drift: we only add a key the schema lists as a property AND we have a
+    value for.
+
+    A per-call ``run_query`` only succeeds if its
+    ``(method, cluster_identifier, db_endpoint, database, port)`` arguments
+    reproduce the EXACT key the server stored the connection under. On the RDS
+    Data API path the server rewrites ``db_endpoint`` to the cluster's
+    AWS-resolved writer hostname before keying the map (server.py
+    ``internal_create_connection``), so that value is NOT reconstructable from
+    the launch flags. ``discovered`` carries the real key fields read back from
+    the ``get_database_connection_info`` tool and is therefore authoritative;
+    the launch flags are only a fallback for fields the introspection didn't
+    return. ``connection_method`` is the enum VALUE (``rdsapi``), not the
+    launch NAME (``RDS_API``) — a per-call argument coerces by value.
     """
     props = (input_schema or {}).get("properties", {}) or {}
-    required = (input_schema or {}).get("required", []) or []
-    # Map the tool's per-call field name -> the launch-flag value to use.
-    # `cluster_identifier` is the cluster ARN (our --db_cluster_arn);
-    # `db_endpoint` is unused on the rdsapi path (empty string is accepted).
-    resolvers = {
-        "connection_method": launch.get("connection_method", "rdsapi"),
-        "cluster_identifier": launch.get("db_cluster_arn", ""),
-        "db_cluster_arn": launch.get("db_cluster_arn", ""),
-        "db_endpoint": launch.get("db_endpoint", ""),
-        "database": launch.get("database", ""),
+    discovered = discovered or {}
+    arn = launch.get("db_cluster_arn", "") or ""
+    cluster_identifier = arn.split(":")[-1] if arn else ""
+    cm_launch = launch.get("connection_method", "RDS_API")
+    cm_value = _CONNECTION_METHOD_VALUE.get(cm_launch, cm_launch.lower())
+    resolvers: dict[str, Any] = {
+        "connection_method": discovered.get("connection_method", cm_value),
+        "database_type": launch.get("db_type", "APG"),
+        "cluster_identifier": discovered.get("cluster_identifier", cluster_identifier),
+        "db_cluster_arn": arn,
+        "db_endpoint": discovered.get("db_endpoint", "") or "",
+        "database": discovered.get("database") or launch.get("database", "postgres"),
         "secret_arn": launch.get("secret_arn", ""),
         "region": launch.get("region", ""),
+        "port": int(discovered.get("port", launch.get("port", "5432")) or 5432),
     }
     extra: dict[str, Any] = {}
-    for field in required:
-        if field in resolvers and field in props:
-            extra[field] = resolvers[field]
+    for field, value in resolvers.items():
+        if field in props:
+            extra[field] = value
     return extra
 
 
+def _find_tool(tools: list, *name_substrings: str):
+    """Return the first live tool whose lowercased name contains any of the
+    given substrings, or None. Pattern-matched (never a hardcoded name) so it
+    survives tool-name drift across MCP-server versions."""
+    for tool in tools:
+        low = tool.name.lower()
+        if any(sub in low for sub in name_substrings):
+            return tool
+    return None
+
+
+def _parse_discovered_key(text: str) -> Optional[dict]:
+    """Parse the JSON returned by ``get_database_connection_info`` and return
+    the first registered connection's key fields, or None. The server
+    serializes each key as ``{connection_method, cluster_identifier,
+    db_endpoint, database, port}`` (the enum is rendered as its VALUE,
+    e.g. ``rdsapi``), which is exactly what a per-call ``run_query`` needs to
+    reproduce the lookup key."""
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict) and data.get("cluster_identifier"):
+        return data
+    return None
+
+
 def _pick_readonly_tool(
-    tools: list, launch: dict[str, str]
+    tools: list, launch: dict[str, str], discovered: Optional[dict] = None
 ) -> Optional[tuple[str, dict]]:
     """Choose ONE safe read-only tool from the live list, by pattern — never a
     hardcoded name (tool names drift across MCP-server versions). Prefer a
@@ -127,8 +184,10 @@ def _pick_readonly_tool(
     to a schema/table-listing tool that needs no arguments.
 
     ``tools`` is the live list of Tool objects (so we can read each one's
-    ``inputSchema`` and satisfy any required per-call connection args from the
-    launch flags). Returns (tool_name, arguments) or None.
+    ``inputSchema`` and satisfy any required per-call connection args).
+    ``discovered`` is the real registered connection key (from
+    ``get_database_connection_info``) and is authoritative for the per-call
+    connection arguments. Returns (tool_name, arguments) or None.
     """
     by_lower = {t.name.lower(): t for t in tools}
 
@@ -140,29 +199,38 @@ def _pick_readonly_tool(
     for key, tool in by_lower.items():
         if "query" in key or key in ("run_query", "readonly_query", "execute_query"):
             args: dict[str, Any] = {"sql": "SELECT 1 AS mcp_live"}
-            args.update(_fill_required_connection_args(_schema(tool), launch))
+            args.update(_fill_required_connection_args(_schema(tool), launch, discovered))
             return tool.name, args
 
     # 2) A no-arg (or connection-arg-only) schema/listing tool.
     for key, tool in by_lower.items():
         if any(tok in key for tok in ("list_tables", "get_table", "schema", "list_schemas")):
-            return tool.name, _fill_required_connection_args(_schema(tool), launch)
+            return tool.name, _fill_required_connection_args(_schema(tool), launch, discovered)
 
     return None
 
 
-def _print_result(result: Any) -> None:
-    """Best-effort pretty-print of a CallToolResult's content."""
+def _result_text(result: Any) -> Optional[str]:
+    """Pull the first text block out of a CallToolResult, or None. Used both to
+    print a tool result and to parse the introspection tool's JSON."""
     try:
         content = getattr(result, "content", None) or []
         for block in content:
             text = getattr(block, "text", None)
             if text is not None:
-                print(f"    {text}")
-                return
-        print(f"    {result}")
+                return text
     except Exception:  # noqa: BLE001
-        print(f"    {result!r}")
+        return None
+    return None
+
+
+def _print_result(result: Any) -> None:
+    """Best-effort pretty-print of a CallToolResult's content."""
+    text = _result_text(result)
+    if text is not None:
+        print(f"    {text}")
+        return
+    print(f"    {result}")
 
 
 async def _run(server: dict) -> int:
@@ -199,11 +267,28 @@ async def _run(server: dict) -> int:
                     print(f"  • {t.name}: {desc}")
                 print()
 
-                # Some server versions want the connection params as per-call
-                # tool args; feed them from the same flags the server launched
-                # with (parsed from the config), driven by each tool's schema.
+                # The 1.0.11+ servers declare the connection params as per-call
+                # tool args AND key the live connection under the cluster's
+                # AWS-resolved writer endpoint (which we can't reconstruct from
+                # the launch flags). So ask the server for its own registered
+                # key via get_database_connection_info, and feed those exact
+                # values to run_query. Falls back to the launch flags if the
+                # tool isn't advertised (older servers).
                 launch = _launch_args_map(server)
-                pick = _pick_readonly_tool(tools_result.tools, launch)
+                discovered: Optional[dict] = None
+                info_tool = _find_tool(tools_result.tools, "connection_info", "database_connection")
+                if info_tool is not None:
+                    try:
+                        info_result = await session.call_tool(info_tool.name, {})
+                        info_text = _result_text(info_result)
+                        discovered = _parse_discovered_key(info_text or "")
+                        if discovered:
+                            print(f"✓ {info_tool.name} → registered connection:")
+                            print(f"    {json.dumps(discovered)}\n")
+                    except Exception as exc:  # noqa: BLE001 — introspection is best-effort
+                        print(f"  ({info_tool.name} unavailable: {exc}; using launch flags)\n")
+
+                pick = _pick_readonly_tool(tools_result.tools, launch, discovered)
                 if not pick:
                     print("  (No recognizably-safe read-only tool to call; the")
                     print("   tools/list above is itself the proof you spoke MCP.)")

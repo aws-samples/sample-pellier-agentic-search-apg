@@ -22,7 +22,7 @@
     "category": "live",
     "title": "Skills",
     "role": "Persona-specific instructions loaded per turn",
-    "description": "Three persona skills — the-packing-list, the-gift-table, and the-makers-shelf — are loaded by the SkillRouter when a turn needs persona-specific handling. They shape voice and handling, not the database contract.",
+    "description": "Three persona skills – the-packing-list, the-gift-table, and the-makers-shelf – are loaded by the SkillRouter when a turn needs persona-specific handling. They shape voice and handling, not the database contract.",
     "codeSnippet": "# SkillRouter may load one persona skill per turn\nskills = route_skills(query, persona)\nprompt += inject_loaded_skills(skills)",
     "slug": "skills"
   },

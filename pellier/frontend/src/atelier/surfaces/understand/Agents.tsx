@@ -316,7 +316,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, rowRef, onSelect
               margin: '0 0 10px',
             }}
           >
-            Routed via <code style={CODE_INLINE}>Dispatcher</code> in the boutique — no agent
+            Routed via <code style={CODE_INLINE}>Dispatcher</code> in the boutique – no agent
             is a lead. {agent.tools.length} tool
             {agent.tools.length === 1 ? '' : 's'} registered; see the Tools surface for
             pgvector discovery.
@@ -441,7 +441,7 @@ const RelatedCard: React.FC = () => (
           <code style={CODE_INLINE}>the-gift-table</code>, and{' '}
           <code style={CODE_INLINE}>the-makers-shelf</code>. Loaded per-turn by
           SkillRouter (Haiku 4.5 · 0.0). Injected into the specialist&apos;s system
-          prompt — they change voice and handling, not routing.
+          prompt – they change voice and handling, not routing.
         </p>
         <Link
           to="/atelier/architecture/skills"
@@ -505,7 +505,7 @@ const RelatedCard: React.FC = () => (
           <code style={CODE_INLINE}>Agents-as-Tools</code>,{' '}
           <code style={CODE_INLINE}>Graph</code>. The first classifies intent
           ahead of each turn; the other two re-shape how specialists collaborate.
-          None of the five specialists is a lead — that's the routing layer's job.
+          None of the five specialists is a lead – that's the routing layer's job.
         </p>
         <Link
           to="/atelier/routing"
@@ -729,7 +729,7 @@ const Agents: React.FC = () => {
       <EditorialTitle
         eyebrow="Understand · Agents · five peers · Opus 4.6 + Haiku 4.5 · T 0.0–0.4"
         title="The cast of five."
-        summary="Five peer specialists — routing sits in Dispatcher (classify_intent) ahead of each turn. Four are shipped reference in the workshop image (including Experience Guide for Theo's write path). Stock Keeper stays exercise until you wire floor_check in Part I; saving the tool body updates build-state and promotes Stock Keeper to shipped."
+        summary="Five peer specialists – routing sits in Dispatcher (classify_intent) ahead of each turn. Four are shipped reference in the workshop image (including Experience Guide for Theo's write path). Stock Keeper stays exercise until you wire floor_check in Part I; saving the tool body updates build-state and promotes Stock Keeper to shipped."
       />
 
       {loading && <LoadingState />}

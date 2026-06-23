@@ -94,7 +94,7 @@
     {
       "index": 3,
       "category": "owned",
-      "title": "Memory Recall — Semantic",
+      "title": "Memory Recall – Semantic",
       "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: gift-ready, artisanal, warm-neutral palette. Used to weight companion candidates.",
       "status": "complete",
       "durationMs": 38
@@ -102,7 +102,7 @@
     {
       "index": 4,
       "category": "owned",
-      "title": "Memory Recall — Episodic",
+      "title": "Memory Recall – Episodic",
       "description": "Read Aurora episodic memory: recent 'for my mother' searches and last month's birthday-gift sundress purchase. Strengthens gift framing.",
       "status": "complete",
       "durationMs": 52,
@@ -151,7 +151,7 @@
       "index": 9,
       "category": "both",
       "title": "editorial composition",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 paired gift framing",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2013 paired gift framing",
       "status": "complete",
       "durationMs": 651,
       "agent": "Curator"
@@ -159,7 +159,7 @@
     {
       "index": 10,
       "category": "owned",
-      "title": "Memory Write \u2014 Working",
+      "title": "Memory Write \u2013 Working",
       "description": "Wrote turn-scoped context to AgentCore Memory: pairing the candle with a companion gift.",
       "status": "complete",
       "durationMs": 23

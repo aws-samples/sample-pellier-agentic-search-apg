@@ -80,12 +80,26 @@ function highlightSQL(sql: string): React.ReactNode[] {
  * Persona strip
  * ======================================================================= */
 
+// Per-persona strip metadata. Labels track the PersonaJourneys blurbs and
+// order counts mirror personas-config.json stats.orders (marco 7, anna 5,
+// theo 4) so the replay strip never asserts Marco's profile for another
+// persona's session.
+const PERSONA_STRIP_META: Record<string, { label: string; orders: number }> = {
+  marco: { label: 'Returning customer', orders: 7 },
+  anna: { label: 'Gift-giver', orders: 5 },
+  theo: { label: 'Slow-craft buyer', orders: 4 },
+};
+
 const PersonaStrip: React.FC<{
   personaId: string;
   openingQuery: string;
 }> = ({ personaId }) => {
   // Derive persona display info from the session's personaId
   const name = personaId.charAt(0).toUpperCase() + personaId.slice(1);
+  const meta = PERSONA_STRIP_META[personaId.toLowerCase()] ?? {
+    label: 'Customer',
+    orders: 0,
+  };
 
   return (
     <div
@@ -137,7 +151,7 @@ const PersonaStrip: React.FC<{
             marginTop: '2px',
           }}
         >
-          Returning customer · 3 prior orders · CUST-{personaId.toUpperCase()}
+          {meta.label} · {meta.orders} prior order{meta.orders === 1 ? '' : 's'} · CUST-{personaId.toUpperCase()}
         </div>
       </div>
     </div>
@@ -1426,13 +1440,13 @@ const MEMORY_SUBSTRATES: {
     tier: 'working',
     label: 'Working',
     store: 'AgentCore Memory · session turns',
-    gloss: "This session's last K turns — read first, written every turn.",
+    gloss: "This session's last K turns – read first, written every turn.",
   },
   {
     tier: 'semantic',
     label: 'Semantic',
     store: 'AgentCore Memory · durable preferences',
-    gloss: 'Stable facts about this customer — fabric, sizing, palette.',
+    gloss: 'Stable facts about this customer – fabric, sizing, palette.',
   },
   {
     tier: 'episodic',
@@ -1444,7 +1458,7 @@ const MEMORY_SUBSTRATES: {
     tier: 'procedural',
     label: 'Procedural',
     store: 'Aurora · tool patterns',
-    gloss: 'Which tool tends to win — derived from tool_audit.',
+    gloss: 'Which tool tends to win – derived from tool_audit.',
   },
 ];
 

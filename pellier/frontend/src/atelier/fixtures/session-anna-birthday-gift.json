@@ -16,7 +16,7 @@
     },
     {
       "role": "assistant",
-      "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) \u2014 wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
+      "content": "A few gift-table mainstays worth considering: the Beeswax Taper Candles ($48) \u2013 wrap-ready, burn for eight hours, no fussy preamble. The Ceramic Ring Dish ($35) if she tends to leave things on her bedside table. And if you want something that arrives with more occasion, the Botanical Silk Scarf ($128) reads as a proper gift without being obvious.",
       "timestamp": "2026-05-25T17:48:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Curator + the-gift-table \u2192 find_pieces_hybrid (vector + Postgres FTS \u2192 RRF \u2192 cohere.rerank-v3-5:0)",
@@ -118,7 +118,7 @@
     {
       "index": 3,
       "category": "owned",
-      "title": "Memory Recall — Semantic",
+      "title": "Memory Recall – Semantic",
       "description": "Loaded Anna's gift-buyer profile from AgentCore Memory: ships-flat, wrap-ready, warm-neutral palette. Used to weight gift-band candidates.",
       "status": "complete",
       "durationMs": 36
@@ -126,7 +126,7 @@
     {
       "index": 4,
       "category": "owned",
-      "title": "Memory Recall — Episodic",
+      "title": "Memory Recall – Episodic",
       "description": "Read Aurora episodic memory: last month's birthday-gift sundress purchase reinforces the wrap-ready intent.",
       "status": "complete",
       "durationMs": 48,
@@ -166,7 +166,7 @@
       "index": 8,
       "category": "both",
       "title": "cohere.rerank-v3-5:0",
-      "description": "Cohere Rerank v3.5 \u2014 Bedrock cohere.rerank-v3-5:0 reranks 30 candidates",
+      "description": "Cohere Rerank v3.5 \u2013 Bedrock cohere.rerank-v3-5:0 reranks 30 candidates",
       "status": "complete",
       "durationMs": 281,
       "agent": "Curator \u00b7 find_pieces_hybrid"
@@ -175,7 +175,7 @@
       "index": 9,
       "category": "both",
       "title": "editorial composition",
-      "description": "Claude Opus 4.6 \u00b7 0.4 \u2014 gift-band framing across three price tiers",
+      "description": "Claude Opus 4.6 \u00b7 0.4 \u2013 gift-band framing across three price tiers",
       "status": "complete",
       "durationMs": 1244,
       "agent": "Curator"
@@ -183,7 +183,7 @@
     {
       "index": 10,
       "category": "owned",
-      "title": "Memory Write \u2014 Working",
+      "title": "Memory Write \u2013 Working",
       "description": "Wrote turn-scoped context to AgentCore Memory: wants wrap-ready gifts that need no extra effort.",
       "status": "complete",
       "durationMs": 22

@@ -216,6 +216,7 @@ const PersonaTurnCard: React.FC<PersonaTurnCardProps> = ({
   onOpenReplay,
 }) => {
   const trace = PERSONA_TURN_TRACES[personaId][turnIndex];
+  const [replayHover, setReplayHover] = useState(false);
   return (
     <ExpCard>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -241,21 +242,46 @@ const PersonaTurnCard: React.FC<PersonaTurnCardProps> = ({
           <button
             type="button"
             onClick={() => onOpenReplay(replayId)}
+            onMouseEnter={() => setReplayHover(true)}
+            onMouseLeave={() => setReplayHover(false)}
+            onFocus={() => setReplayHover(true)}
+            onBlur={() => setReplayHover(false)}
             aria-label={`Open replay for ${PERSONA_LABELS[personaId]} turn ${turnIndex + 1}`}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
               fontFamily: 'var(--at-mono)',
               fontSize: '11px',
+              fontWeight: 600,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
-              color: 'var(--at-red-1)',
-              background: 'transparent',
-              border: '1px solid var(--at-card-border)',
+              color: '#fff',
+              background: 'var(--at-red-1)',
+              border: '1px solid var(--at-red-1)',
               borderRadius: '999px',
-              padding: '5px 10px',
+              padding: '7px 16px',
               cursor: 'pointer',
+              boxShadow: replayHover
+                ? '0 4px 12px rgba(0, 0, 0, 0.16)'
+                : '0 1px 3px rgba(0, 0, 0, 0.10)',
+              transform: replayHover ? 'translateY(-1px)' : 'translateY(0)',
+              transition: 'transform 120ms ease, box-shadow 120ms ease, filter 120ms ease',
+              filter: replayHover ? 'brightness(1.06)' : 'none',
             }}
           >
             Open replay
+            <span
+              aria-hidden="true"
+              style={{
+                fontSize: '13px',
+                lineHeight: 1,
+                transform: replayHover ? 'translateX(2px)' : 'translateX(0)',
+                transition: 'transform 120ms ease',
+              }}
+            >
+              →
+            </span>
           </button>
         </div>
 

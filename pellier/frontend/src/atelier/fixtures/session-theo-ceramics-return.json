@@ -1,7 +1,7 @@
 {
   "id": "theo-ceramics-return",
   "personaId": "theo",
-  "openingQuery": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2014 my customer id is 'theo'.",
+  "openingQuery": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2013 my customer id is 'theo'.",
   "elapsedMs": 5840,
   "agentCount": 1,
   "routingPattern": "Dispatcher",
@@ -11,12 +11,12 @@
   "chat": [
     {
       "role": "user",
-      "content": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2014 my customer id is 'theo'.",
+      "content": "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return \u2013 my customer id is 'theo'.",
       "timestamp": "2026-05-25T18:22:00Z"
     },
     {
       "role": "assistant",
-      "content": "I'm sorry \u2014 that shouldn't have happened. I've filed the return for the Wabi-Sabi Bowl under reason 'damaged'. Aurora dropped its on-floor count by one and tagged your return as pending; you'll see a refund confirmation once the warehouse logs the package. The bowl has a 30-day return window for this category, so you're well inside it.",
+      "content": "I'm sorry \u2013 that shouldn't have happened. I've filed the return for the Wabi-Sabi Bowl under reason 'damaged'. Aurora dropped its on-floor count by one and tagged your return as pending; you'll see a refund confirmation once the warehouse logs the package. The bowl has a 30-day return window for this category, so you're well inside it.",
       "timestamp": "2026-05-25T18:22:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 support intent \u2192 Experience Guide \u2192 find_pieces (resolve productId) \u2192 returns_and_care (window/care) \u2192 process_return (Cedar-gated write + audit)",
@@ -81,7 +81,7 @@
         },
         {
           "tier": "episodic",
-          "content": "Bought Wabi-Sabi Bowl ($64) 9d ago \u2014 within 30-day window"
+          "content": "Bought Wabi-Sabi Bowl ($64) 9d ago \u2013 within 30-day window"
         },
         {
           "tier": "procedural",
@@ -122,7 +122,7 @@
     {
       "index": 3,
       "category": "owned",
-      "title": "Memory Recall — Episodic",
+      "title": "Memory Recall – Episodic",
       "description": "Read Aurora episodic memory: Wabi-Sabi Bowl purchased 9d ago. Confirms ownership and 30-day return window before write path opens.",
       "status": "complete",
       "durationMs": 46,
@@ -189,7 +189,7 @@
       "index": 10,
       "category": "both",
       "title": "Response composition",
-      "description": "Claude Opus 4.6 \u00b7 0.2 \u2014 empathy + concrete write confirmation",
+      "description": "Claude Opus 4.6 \u00b7 0.2 \u2013 empathy + concrete write confirmation",
       "status": "complete",
       "durationMs": 1177,
       "agent": "Experience Guide"
@@ -197,7 +197,7 @@
     {
       "index": 11,
       "category": "owned",
-      "title": "Memory Write \u2014 Working",
+      "title": "Memory Write \u2013 Working",
       "description": "Wrote turn-scoped result to AgentCore Memory: Wabi-Sabi Bowl return filed (return_id=42, status=pending).",
       "status": "complete",
       "durationMs": 24
@@ -213,22 +213,22 @@
         "title": "What happened",
         "paragraphs": [
           "Theo's bowl arrived chipped and the Experience Guide moved through the call in three concrete steps: find_pieces resolved the catalog id, returns_and_care confirmed the 30-day window, and process_return wrote the return row to Aurora.",
-          "The voice stayed empathetic and specific. The action \u2014 'I've filed the return for the Wabi-Sabi Bowl' \u2014 names the table the agent wrote to, in customer-readable terms."
+          "The voice stayed empathetic and specific. The action \u2013 'I've filed the return for the Wabi-Sabi Bowl' \u2013 names the table the agent wrote to, in customer-readable terms."
         ]
       },
       {
         "numeral": "ii.",
         "title": "Two enforcement layers, one transaction",
         "paragraphs": [
-          "The managed AgentCore Policy engine gated the call at the Gateway before SQL ran. The reason field \u2014 'damaged' \u2014 satisfied the Cedar forbid-unless-damaged rule, so the Gateway ALLOWed the call through to the tool's Lambda. Any other reason would have been DENIED at the Gateway and the tool would never have run \u2014 so no tool_audit row, the absence being the signal.",
-          "SQL then gated ownership inside the transaction: the customer must have ordered the product. Cedar can't enforce this because it requires a JOIN against live order data \u2014 a static policy doesn't know what Theo bought. Two layers, two roles: Cedar guards what the agent can do; SQL guards whose state the agent can mutate."
+          "The managed AgentCore Policy engine gated the call at the Gateway before SQL ran. The reason field \u2013 'damaged' \u2013 satisfied the Cedar forbid-unless-damaged rule, so the Gateway ALLOWed the call through to the tool's Lambda. Any other reason would have been DENIED at the Gateway and the tool would never have run \u2013 so no tool_audit row, the absence being the signal.",
+          "SQL then gated ownership inside the transaction: the customer must have ordered the product. Cedar can't enforce this because it requires a JOIN against live order data \u2013 a static policy doesn't know what Theo bought. Two layers, two roles: Cedar guards what the agent can do; SQL guards whose state the agent can mutate."
         ]
       },
       {
         "numeral": "iii.",
         "title": "Aurora as the system of record",
         "paragraphs": [
-          "Three tables changed in one transaction. The returns row gives Theo's customer support flow a queryable history. The product_catalog quantity decrement reflects an honest fact about inventory \u2014 that bowl is no longer on the floor. The tool_audit row records the agent's action with timing, args, and result, so a later operator can replay the turn from a single SELECT.",
+          "Three tables changed in one transaction. The returns row gives Theo's customer support flow a queryable history. The product_catalog quantity decrement reflects an honest fact about inventory \u2013 that bowl is no longer on the floor. The tool_audit row records the agent's action with timing, args, and result, so a later operator can replay the turn from a single SELECT.",
           "This is the workshop's pivot: Marco read from Aurora, Anna read harder, Theo wrote. The same database is the index, the search target, and the system of record. One source of truth, three teaching surfaces."
         ]
       }

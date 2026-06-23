@@ -2,7 +2,7 @@
   "persona": "marco",
   "working": {
     "label": "Working - AgentCore Memory",
-    "store": "user:CUST-MARCO:session:{sid}",
+    "store": "user-CUST-MARCO-session-{sid}",
     "source": "fixture",
     "items": [
       {

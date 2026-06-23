@@ -24,17 +24,17 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'LLM rubric (any model)',
     tagline: 'A second model scores turns against a rubric you define.',
     bestFor: [
-      'Subjective quality — tone, helpfulness, gift-wrap guidance',
+      'Subjective quality – tone, helpfulness, gift-wrap guidance',
       'Per-turn pass/fail with natural-language criteria',
       'Fast iteration before you have labeled golden sets',
     ],
     watchOuts: [
-      'Judge bias and position bias — calibrate against human samples',
+      'Judge bias and position bias – calibrate against human samples',
       'Cost scales with eval volume (every turn = extra model call)',
     ],
     pellierFit: 'strong',
     workshopNote:
-      'Strong fit for Style Advisor and Experience Guide — score whether the agent cited inventory, respected budget, and stayed on-brand without building a full harness first.',
+      'Strong fit for Style Advisor and Experience Guide – score whether the agent cited inventory, respected budget, and stayed on-brand without building a full harness first.',
   },
   {
     id: 'agentcore-evals',
@@ -42,23 +42,23 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'AWS',
     tagline: 'Managed eval runs tied to agents deployed on AgentCore Runtime.',
     bestFor: [
-      'Prod-cutover graduation — score a deployed runtime against a curated dataset',
+      'Prod-cutover graduation – score a deployed runtime against a curated dataset',
       'Regression gates before promoting agent versions',
       'Operational evals in the same account as production',
     ],
     watchOuts: [
-      'Most valuable once agents are on AgentCore — less about local FastAPI dev',
+      'Most valuable once agents are on AgentCore – less about local FastAPI dev',
       'Define datasets and success metrics up front',
     ],
     pellierFit: 'workshop',
     workshopNote:
-      'Wired in `services/agentcore_evals.py`, env-flag-gated by `AGENTCORE_EVALS_ENABLED` (off by default). Single `create_evaluation_job` call against the Runtime ARN you already deploy — runs at prod cutover, not on every PR.',
+      'Wired in `services/agentcore_evals.py`, env-flag-gated by `AGENTCORE_EVALS_ENABLED` (off by default). Single `create_evaluation_job` call against the Runtime ARN you already deploy – runs at prod cutover, not on every PR.',
   },
   {
     id: 'ragas',
     name: 'RAGAS',
     vendor: 'Open source',
-    tagline: 'RAG-focused metrics — faithfulness, answer relevance, context precision.',
+    tagline: 'RAG-focused metrics – faithfulness, answer relevance, context precision.',
     bestFor: [
       'Retrieval + generation pipelines (hybrid search, rerank)',
       'Quantifying whether answers stay grounded in catalog hits',
@@ -70,7 +70,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     ],
     pellierFit: 'strong',
     workshopNote:
-      'Ideal for Anna\'s anchor capability — measure whether hybrid+rerank actually improves grounded recommendations vs vector-only.',
+      'Ideal for Anna\'s anchor capability – measure whether hybrid+rerank actually improves grounded recommendations vs vector-only.',
   },
   {
     id: 'langsmith',
@@ -83,7 +83,7 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
       'A/B comparing prompts and retrieval configs',
     ],
     watchOuts: [
-      'Another SaaS dependency — export and retention policies matter',
+      'Another SaaS dependency – export and retention policies matter',
       'Instrument your stack early or migration is painful',
     ],
     pellierFit: 'partial',
@@ -96,17 +96,17 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
     vendor: 'Your CI pipeline',
     tagline: 'Fixed queries with expected products, tools, or JSON shapes.',
     bestFor: [
-      'Non-negotiable regressions — "Marco Turn 2 must surface the Hadley Camp Shirt"',
+      'Non-negotiable regressions – "Marco Turn 2 must surface the Hadley Camp Shirt"',
       'Tool routing and pgvector discover smoke tests',
       'Cheap, deterministic gates that run on every PR',
     ],
     watchOuts: [
-      'Brittle if overfit to fixture SKUs — refresh when catalog changes',
+      'Brittle if overfit to fixture SKUs – refresh when catalog changes',
       'Does not catch novel failure modes',
     ],
     pellierFit: 'strong',
     workshopNote:
-      'Wired in `tests/test_golden_journeys.py` against `tests/golden/journeys.json` — four pinned persona turns assert tool order, products, and routing. Runs every PR, no AWS calls. The day-1 gate; AgentCore Evals is the prod-cutover graduation.',
+      'Wired in `tests/test_golden_journeys.py` against `tests/golden/journeys.json` – four pinned persona turns assert tool order, products, and routing. Runs every PR, no AWS calls. The day-1 gate; AgentCore Evals is the prod-cutover graduation.',
   },
   {
     id: 'human-eval',
@@ -129,4 +129,4 @@ export const EVALUATION_METHODS: EvaluationMethod[] = [
 ];
 
 export const PELLIER_EVAL_STACK_NOTE =
-  'Two gates, two cadences. Golden-set regression (`tests/test_golden_journeys.py`) runs every PR — deterministic, fixture-driven, no AWS. AgentCore Evals (`services/agentcore_evals.py`, env-flag-gated) runs at prod cutover against a deployed Runtime ARN. RAGAS quantifies retrieval+grounding when you need it; an LLM judge covers tone; LangSmith is optional if you already live there. Measure retrieval first (Recall@K, MRR, context relevance), then generation faithfulness, then end-to-end accuracy and citation rate.';
+  'Two gates, two cadences. Golden-set regression (`tests/test_golden_journeys.py`) runs every PR – deterministic, fixture-driven, no AWS. AgentCore Evals (`services/agentcore_evals.py`, env-flag-gated) runs at prod cutover against a deployed Runtime ARN. RAGAS quantifies retrieval+grounding when you need it; an LLM judge covers tone; LangSmith is optional if you already live there. Measure retrieval first (Recall@K, MRR, context relevance), then generation faithfulness, then end-to-end accuracy and citation rate.';

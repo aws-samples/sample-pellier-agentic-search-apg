@@ -152,6 +152,81 @@ def test_session_history_returns_empty_list_for_unknown_ns(memory) -> None:
     assert _run(memory.get_session_history("user-ghost-session-nope")) == []
 
 
+# ---------------------------------------------------------------------------
+# SDK turn normalization (the /api/agent/session/{id} 500 regression)
+# ---------------------------------------------------------------------------
+#
+# The in-memory fallback above already returns plain ``{role, content}``
+# dicts, so the route serialized fine in dev. On a provisioned account the
+# SDK path runs instead, and ``get_last_k_turns`` returns grouped turns of
+# uppercase-role messages with nested ``content.text`` and ``datetime``
+# fields — NOT JSON serializable, so ``JSONResponse`` 500'd at render time.
+# These tests pin the normalizer that closes that gap.
+
+
+def test_normalize_sdk_turns_flattens_grouped_messages() -> None:
+    """SDK groups messages into turns (list-of-lists); the normalizer
+    SHALL flatten them into the route's ``{role, content, timestamp}``
+    shape with lowercased roles and unwrapped ``content.text``.
+    """
+    import datetime as _dt
+
+    raw = [
+        [{"role": "USER", "content": {"text": "a milestone gift"}}],
+        [{"role": "ASSISTANT", "content": {"text": "Here are three pieces"},
+          "timestamp": _dt.datetime(2026, 6, 23, 12, 0, 0)}],
+    ]
+
+    out = AgentCoreMemory._normalize_sdk_turns(raw)
+
+    assert out == [
+        {"role": "user", "content": "a milestone gift", "timestamp": ""},
+        {"role": "assistant", "content": "Here are three pieces",
+         "timestamp": "2026-06-23 12:00:00"},
+    ]
+
+
+def test_normalize_sdk_turns_output_is_json_serializable() -> None:
+    """Whatever the SDK hands back, the normalized result SHALL survive
+    ``json.dumps`` — this is the exact property whose absence produced
+    the 500 (a datetime in the payload).
+    """
+    import datetime as _dt
+    import json
+
+    raw = [
+        [{"role": "USER", "content": {"text": "hi"},
+          "createdAt": _dt.datetime(2026, 6, 23, 9, 30, 0)}],
+    ]
+
+    out = AgentCoreMemory._normalize_sdk_turns(raw)
+    # Would raise TypeError on a datetime / SDK object; must not.
+    json.dumps(out)
+
+
+def test_normalize_sdk_turns_tolerates_string_content_and_bare_turn() -> None:
+    """A bare message dict (not wrapped in a turn list) and a string
+    ``content`` SHALL both normalize cleanly rather than crash."""
+    raw = [
+        {"role": "user", "content": "bare string content"},
+        [{"role": "system", "content": {"text": "context"}}],
+    ]
+
+    out = AgentCoreMemory._normalize_sdk_turns(raw)
+
+    assert out == [
+        {"role": "user", "content": "bare string content", "timestamp": ""},
+        # non user/assistant roles collapse to assistant
+        {"role": "assistant", "content": "context", "timestamp": ""},
+    ]
+
+
+def test_normalize_sdk_turns_handles_none_and_empty() -> None:
+    """``None`` (SDK returned nothing) and ``[]`` SHALL both yield ``[]``."""
+    assert AgentCoreMemory._normalize_sdk_turns(None) == []
+    assert AgentCoreMemory._normalize_sdk_turns([]) == []
+
+
 def test_append_session_turn_copies_input(memory) -> None:
     """Mutating the caller's turn dict after appending SHALL NOT
     mutate the stored history — callers often reuse dicts."""

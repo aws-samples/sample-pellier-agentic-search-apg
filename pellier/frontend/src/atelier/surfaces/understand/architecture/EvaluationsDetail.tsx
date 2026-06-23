@@ -39,7 +39,7 @@ const EvaluationsDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Evaluation recipes are specific test cases. Each recipe tests one capability — search accuracy, recommendation relevance, pricing correctness.',
+          text: 'Evaluation recipes are specific test cases. Each recipe tests one capability – search accuracy, recommendation relevance, pricing correctness.',
         },
       ]}
       liveState={{

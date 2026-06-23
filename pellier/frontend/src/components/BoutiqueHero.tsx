@@ -693,13 +693,13 @@ export default function BoutiqueHero() {
                       style={{
                         fontSize: '15px',
                         lineHeight: 1.55,
-                        color: 'rgba(31, 20, 16, 0.58)',
+                        color: 'rgba(31, 20, 16, 0.82)',
                       }}
                     >
                       {persona?.id === 'anna' ? (
                         <>
                           Observe &amp; learn — hybrid + rerank demo.{' '}
-                          <strong style={{ color: 'rgba(31, 20, 16, 0.72)', fontWeight: 600 }}>
+                          <strong style={{ color: '#1f1410', fontWeight: 600 }}>
                             No participant exercise
                           </strong>{' '}
                           on this persona.
@@ -707,7 +707,7 @@ export default function BoutiqueHero() {
                       ) : (
                         <>
                           Observe &amp; learn — write path + audit trail demo.{' '}
-                          <strong style={{ color: 'rgba(31, 20, 16, 0.72)', fontWeight: 600 }}>
+                          <strong style={{ color: '#1f1410', fontWeight: 600 }}>
                             No participant exercise
                           </strong>{' '}
                           on this persona.

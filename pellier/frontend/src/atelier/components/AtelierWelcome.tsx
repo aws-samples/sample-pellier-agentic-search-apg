@@ -199,7 +199,7 @@ export const AtelierWelcome: React.FC = () => {
       >
         The Boutique is where shoppers ask. The Atelier is where you watch.
         Every agent decision, tool call, memory read, and routing hop shows
-        up here in editorial detail — so the magic has a paper trail.
+        up here in editorial detail – so the magic has a paper trail.
       </p>
 
       {/* Pillar cards */}

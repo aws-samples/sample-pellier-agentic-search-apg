@@ -1,7 +1,7 @@
 {
   "id": "theo-home-not-wardrobe",
   "personaId": "theo",
-  "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
+  "openingQuery": "The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
   "elapsedMs": 4280,
   "agentCount": 2,
   "routingPattern": "Dispatcher",
@@ -10,12 +10,12 @@
   "chat": [
     {
       "role": "user",
-      "content": "The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
+      "content": "The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?",
       "timestamp": "2026-05-25T18:28:00Z"
     },
     {
       "role": "assistant",
-      "content": "You're right — slow-craft linen shouldn't fail at the seam after four months. The standard return path can't accept an exception this far past the window, so I've routed your note to a Pellier stylist with the full context. They'll reach out within one business day to take it from here. Keep the throw; we'll tell you what to do with it.",
+      "content": "You're right – slow-craft linen shouldn't fail at the seam after four months. The standard return path can't accept an exception this far past the window, so I've routed your note to a Pellier stylist with the full context. They'll reach out within one business day to take it from here. Keep the throw; we'll tell you what to do with it.",
       "timestamp": "2026-05-25T18:28:04Z",
       "plan": {
         "flowSummary": "Dispatcher → Experience Guide → escalate_to_stylist (exception beyond Cedar policy)",
@@ -33,11 +33,11 @@
       "memoryPills": [
         {
           "tier": "working",
-          "content": "Out-of-window seam-tear exception — escalated"
+          "content": "Out-of-window seam-tear exception – escalated"
         },
         {
           "tier": "episodic",
-          "content": "Bought Linen Throw, Oat ($118) 47d ago — purchase confirmed but past window"
+          "content": "Bought Linen Throw, Oat ($118) 47d ago – purchase confirmed but past window"
         },
         {
           "tier": "procedural",
@@ -71,7 +71,7 @@
       "index": 2,
       "category": "owned",
       "title": "Skill loaded",
-      "description": "the-makers-shelf bound for persona: theo — durability + slow-craft framing applies",
+      "description": "the-makers-shelf bound for persona: theo – durability + slow-craft framing applies",
       "status": "complete",
       "durationMs": 40,
       "agent": "SkillRouter"
@@ -79,7 +79,7 @@
     {
       "index": 3,
       "category": "owned",
-      "title": "Memory Recall — Episodic",
+      "title": "Memory Recall – Episodic",
       "description": "Read Aurora episodic memory: Linen Throw, Oat purchased 47d ago. Confirms ownership but places the request outside the standard window.",
       "status": "complete",
       "durationMs": 48,
@@ -97,7 +97,7 @@
     {
       "index": 5,
       "category": "owned",
-      "title": "Memory Write — Working",
+      "title": "Memory Write – Working",
       "description": "Recorded escalation context to AgentCore Memory: stylist handoff queued for out-of-window durability exception.",
       "status": "complete",
       "durationMs": 22
@@ -124,7 +124,7 @@
       "index": 8,
       "category": "both",
       "title": "Empathetic acknowledgement",
-      "description": "Claude Opus 4.6 · 0.2 — empathy for the durability claim; concrete next step",
+      "description": "Claude Opus 4.6 · 0.2 – empathy for the durability claim; concrete next step",
       "status": "complete",
       "durationMs": 1238,
       "agent": "Experience Guide"
@@ -139,7 +139,7 @@
         "numeral": "i.",
         "title": "Why process_return refuses",
         "paragraphs": [
-          "Theo's prior turn (the chipped Wabi-Sabi Bowl) ran cleanly through process_return because Cedar's policy allows the 'damaged' reason inside the standard window. Here, four months have passed — the same Cedar policy refuses the write, and SQL would refuse it too. The automated path is closed.",
+          "Theo's prior turn (the chipped Wabi-Sabi Bowl) ran cleanly through process_return because Cedar's policy allows the 'damaged' reason inside the standard window. Here, four months have passed – the same Cedar policy refuses the write, and SQL would refuse it too. The automated path is closed.",
           "But the case isn't closed. A linen throw with a seam failure at four months is a durability claim, not a buyer's remorse. That's a judgment call, and judgment calls belong with a person."
         ]
       },
@@ -147,8 +147,8 @@
         "numeral": "ii.",
         "title": "Honest fallback over silent failure",
         "paragraphs": [
-          "The Experience Guide's system prompt names this exact case: 'Use ONLY when process_return cannot handle the case — Cedar rejected the reason, the customer doesn't own the product, the window has closed, or the shopper is in distress and deserves a real person.'",
-          "escalate_to_stylist emits an envelope with the customer's framing intact. The stylist sees the full context — purchase date, durability expectation, shopper's tone — and decides. The customer is not stranded with a refusal; they are routed to a person who can say yes or no."
+          "The Experience Guide's system prompt names this exact case: 'Use ONLY when process_return cannot handle the case – Cedar rejected the reason, the customer doesn't own the product, the window has closed, or the shopper is in distress and deserves a real person.'",
+          "escalate_to_stylist emits an envelope with the customer's framing intact. The stylist sees the full context – purchase date, durability expectation, shopper's tone – and decides. The customer is not stranded with a refusal; they are routed to a person who can say yes or no."
         ]
       }
     ],

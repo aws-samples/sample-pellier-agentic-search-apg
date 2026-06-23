@@ -15,7 +15,7 @@
     },
     {
       "role": "assistant",
-      "content": "I'm so sorry for your friend's loss. I've passed your note to a Pellier stylist who'll reach out within one business day to help you choose something thoughtful — they'll consider your friend's relationship, the moment, and what arrives well. The catalog couldn't read this room; a stylist can.",
+      "content": "I'm so sorry for your friend's loss. I've passed your note to a Pellier stylist who'll reach out within one business day to help you choose something thoughtful – they'll consider your friend's relationship, the moment, and what arrives well. The catalog couldn't read this room; a stylist can.",
       "timestamp": "2026-05-25T17:58:04Z",
       "plan": {
         "flowSummary": "Dispatcher → Curator → escalate_to_stylist (sympathy framing, honest fallback)",
@@ -33,7 +33,7 @@
       "memoryPills": [
         {
           "tier": "working",
-          "content": "Asked for a real stylist for sympathy gift — escalated"
+          "content": "Asked for a real stylist for sympathy gift – escalated"
         },
         {
           "tier": "semantic",
@@ -49,7 +49,7 @@
         "model": "Claude Opus 4.6 · 0.4",
         "skill": "the-gift-table",
         "latencyMs": 1480,
-        "note": "Curator's hybrid retrieval can find candles all day — but the right sympathy gift depends on the friendship, not the catalog. Escalation is the honest answer."
+        "note": "Curator's hybrid retrieval can find candles all day – but the right sympathy gift depends on the friendship, not the catalog. Escalation is the honest answer."
       }
     }
   ],
@@ -67,7 +67,7 @@
       "index": 2,
       "category": "owned",
       "title": "Skill loaded",
-      "description": "the-gift-table bound for persona: anna — voice + gifting heuristics carry through the handoff",
+      "description": "the-gift-table bound for persona: anna – voice + gifting heuristics carry through the handoff",
       "status": "complete",
       "durationMs": 42,
       "agent": "SkillRouter"
@@ -84,7 +84,7 @@
     {
       "index": 4,
       "category": "owned",
-      "title": "Memory Write — Working",
+      "title": "Memory Write – Working",
       "description": "Recorded escalation context to AgentCore Memory: stylist handoff queued for sympathy-gift ask.",
       "status": "complete",
       "durationMs": 21
@@ -111,7 +111,7 @@
       "index": 7,
       "category": "both",
       "title": "Editorial acknowledgement",
-      "description": "Claude Opus 4.6 · 0.4 — empathy first, concrete next step second",
+      "description": "Claude Opus 4.6 · 0.4 – empathy first, concrete next step second",
       "status": "complete",
       "durationMs": 1248,
       "agent": "Curator"
@@ -126,7 +126,7 @@
         "numeral": "i.",
         "title": "Why hybrid + rerank is the wrong tool here",
         "paragraphs": [
-          "Anna's other four turns lean on hybrid + Cohere Rerank because gifting queries blend vibe with literal constraints, and rerank scores both. But sympathy gifting isn't a vibe — it's a relationship. The right object depends on whether her friend is a colleague or a sister, on whether the loss was sudden or expected, on what the friend has loved before.",
+          "Anna's other four turns lean on hybrid + Cohere Rerank because gifting queries blend vibe with literal constraints, and rerank scores both. But sympathy gifting isn't a vibe – it's a relationship. The right object depends on whether her friend is a colleague or a sister, on whether the loss was sudden or expected, on what the friend has loved before.",
           "No retrieval pipeline holds that context. The catalog can return tasteful candles; only a person can read the room."
         ]
       },
@@ -134,8 +134,8 @@
         "numeral": "ii.",
         "title": "Escalation as architecture, not failure",
         "paragraphs": [
-          "Every specialist ships with escalate_to_stylist. The Curator's system prompt names the cases — sympathy, sentimental milestones, deep style coaching — and instructs the agent to always try catalog tools first.",
-          "Here, the explicit ask ('a real stylist') tripped the orchestrator's stylist-handoff branch, which routed Anna to recommendation rather than refusing as 'outside shopping.' The Curator chose escalation immediately. That decision is the architecture working — not failing."
+          "Every specialist ships with escalate_to_stylist. The Curator's system prompt names the cases – sympathy, sentimental milestones, deep style coaching – and instructs the agent to always try catalog tools first.",
+          "Here, the explicit ask ('a real stylist') tripped the orchestrator's stylist-handoff branch, which routed Anna to recommendation rather than refusing as 'outside shopping.' The Curator chose escalation immediately. That decision is the architecture working – not failing."
         ]
       }
     ],

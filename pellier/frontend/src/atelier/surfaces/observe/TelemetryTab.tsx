@@ -1061,7 +1061,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'managed',
       title: 'Intent → specialist',
       description:
-        'Dispatcher scores the utterance and hands the turn to one owning agent (Curator, Style Advisor, …). One hop per decision — the shape the Boutique storefront runs in production.',
+        'Dispatcher scores the utterance and hands the turn to one owning agent (Curator, Style Advisor, …). One hop per decision – the shape the Boutique storefront runs in production.',
       status: 'complete',
       durationMs: 58,
       agent: 'Dispatcher',
@@ -1093,7 +1093,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'both',
       title: 'Rerank',
       description:
-        'Cohere Rerank v3.5 over the fused pool — Bedrock inference profile matches workshop stack.',
+        'Cohere Rerank v3.5 over the fused pool – Bedrock inference profile matches workshop stack.',
       status: 'complete',
       durationMs: 265,
       agent: 'Curator · find_pieces_hybrid',
@@ -1103,7 +1103,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'managed',
       title: 'Concierge reply',
       description:
-        'Single visible assistant turn after the specialist returns — easy to narrate in demos and in shopper-facing UX.',
+        'Single visible assistant turn after the specialist returns – easy to narrate in demos and in shopper-facing UX.',
       status: 'complete',
       durationMs: 980,
       agent: 'Curator',
@@ -1125,7 +1125,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'owned',
       title: 'Tools registered',
       description:
-        'Specialists are exposed as first-class tools (e.g. curator_agent, value_analyst_agent) with schemas — same contract style as find_pieces, but nested under the parent agent.',
+        'Specialists are exposed as first-class tools (e.g. curator_agent, value_analyst_agent) with schemas – same contract style as find_pieces, but nested under the parent agent.',
       status: 'complete',
       durationMs: 11,
       agent: 'Gateway',
@@ -1135,7 +1135,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'both',
       title: 'Tool: curator_agent',
       description:
-        'Parent invokes Curator as a tool; Curator runs its own retrieval + Opus composition and returns structured JSON to the parent — no second shopper message.',
+        'Parent invokes Curator as a tool; Curator runs its own retrieval + Opus composition and returns structured JSON to the parent – no second shopper message.',
       status: 'complete',
       durationMs: 428,
       agent: 'Orchestrator → Curator',
@@ -1145,7 +1145,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'both',
       title: 'Tool: value_analyst_agent',
       description:
-        'Parallel or follow-up tool call in the same orchestrator turn for price/stock narrative — composition without extra microservices per hop.',
+        'Parallel or follow-up tool call in the same orchestrator turn for price/stock narrative – composition without extra microservices per hop.',
       status: 'complete',
       durationMs: 119,
       agent: 'Orchestrator → Value Analyst',
@@ -1199,7 +1199,7 @@ const ILLUSTRATIVE_TELEMETRY: Record<RoutingPattern, TelemetryPanel[]> = {
       category: 'managed',
       title: 'Edge: IF high_confidence',
       description:
-        'Conditional edge skips rerank when cosine ceiling clears threshold; otherwise routes to rerank node — auditable control flow.',
+        'Conditional edge skips rerank when cosine ceiling clears threshold; otherwise routes to rerank node – auditable control flow.',
       status: 'complete',
       durationMs: 6,
       agent: 'Graph runtime',
@@ -1239,12 +1239,12 @@ const RoutingPatternIntro: React.FC = () => (
     <p style={{ ...introParagraphStyle, marginTop: '12px' }}>
       <strong style={{ color: 'var(--at-ink-1)' }}>Agents-as-Tools</strong> fits when a{' '}
       single orchestrator turn should call several specialist-shaped tools (serial or parallel)
-      without standing up a new service for every hop — specialists return structured payloads into the
+      without standing up a new service for every hop – specialists return structured payloads into the
       parent frame.
     </p>
     <p style={{ ...introParagraphStyle, marginTop: '12px' }}>
       <strong style={{ color: 'var(--at-ink-1)' }}>Graph</strong> fits when the workflow should read as
-      an explicit DAG: named nodes, conditional edges, skippable steps, and parallel merge points — more
+      an explicit DAG: named nodes, conditional edges, skippable steps, and parallel merge points – more
       authoring ceremony, highest clarity when policy must look like an auditable state machine.
     </p>
   </ExpCard>
@@ -1490,7 +1490,7 @@ const TelemetryTab: React.FC = () => {
             ) : (
               <>
                 Illustrative <span style={{ color: 'var(--at-ink-2)' }}>{activePattern}</span> steps
-                — not this session&apos;s backend trace. This session was recorded as{' '}
+                – not this session&apos;s backend trace. This session was recorded as{' '}
                 <span style={{ color: 'var(--at-ink-2)' }}>{sessionCanonical}</span>.
               </>
             )}

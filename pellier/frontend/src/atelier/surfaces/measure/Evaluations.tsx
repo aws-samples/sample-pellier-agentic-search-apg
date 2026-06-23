@@ -865,7 +865,7 @@ const Evaluations: React.FC = () => {
       <EditorialTitle
         eyebrow="Measure · Evaluations · accuracy · latency · citations"
         title="How good is good enough."
-        summary="Scorecards for accuracy, latency, and citations — plus teaching panels on eval methods (LLM-as-judge, RAGAS, AgentCore) and retrieval metrics (Recall@K, MRR, context relevance, faithfulness)."
+        summary="Scorecards for accuracy, latency, and citations – plus teaching panels on eval methods (LLM-as-judge, RAGAS, AgentCore) and retrieval metrics (Recall@K, MRR, context relevance, faithfulness)."
       />
 
       {loading && <LoadingState />}
@@ -963,7 +963,7 @@ const Evaluations: React.FC = () => {
                           .reduce((sum, c) => sum + c.accuracy, 0) /
                           scorecards.filter(isActive).length,
                       )
-                    : '—'}
+                    : '–'}
                 </div>
               </div>
               <div>
@@ -996,7 +996,7 @@ const Evaluations: React.FC = () => {
                           .reduce((sum, c) => sum + c.citationRate, 0) /
                           scorecards.filter(isActive).length,
                       )
-                    : '—'}
+                    : '–'}
                 </div>
               </div>
             </div>

@@ -43,7 +43,7 @@ const ToolRegistryDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Fixture labels on the Understand · Tools surface: twelve shipped baseline; floor_check is the Builder\'s Session exercise until its stub is replaced — then /api/atelier/build-state reflects shipped.',
+          text: 'Fixture labels on the Understand · Tools surface: twelve shipped baseline; floor_check is the Builder\'s Session exercise until its stub is replaced – then /api/atelier/build-state reflects shipped.',
         },
       ]}
       liveState={{

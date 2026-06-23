@@ -74,7 +74,7 @@ const StateDetail: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <StateKeyCard
               keyName="intent"
-              description="Classified user intent — pricing, inventory, support, search, or recommendation."
+              description="Classified user intent – pricing, inventory, support, search, or recommendation."
               example='classified_intent = "search"'
             />
             <StateKeyCard
@@ -89,7 +89,7 @@ const StateDetail: React.FC = () => {
             />
             <StateKeyCard
               keyName="routing"
-              description="Active routing strategy — Dispatcher (default), Agents-as-Tools, or Graph."
+              description="Active routing strategy – Dispatcher (default), Agents-as-Tools, or Graph."
               example='routing = "dispatcher"'
             />
           </div>

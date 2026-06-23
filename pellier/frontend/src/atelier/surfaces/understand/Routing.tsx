@@ -90,11 +90,11 @@ const ROUTING_SCENARIOS: Array<{ label: string; hint: string }> = [
   },
   {
     label: 'Anna · gift search',
-    hint: 'Hybrid retrieval + gift-table skill — latency-sensitive',
+    hint: 'Hybrid retrieval + gift-table skill – latency-sensitive',
   },
   {
     label: 'Theo · return',
-    hint: 'Write-path tools — Graph or Agents-as-Tools for multi-step audit',
+    hint: 'Write-path tools – Graph or Agents-as-Tools for multi-step audit',
   },
 ];
 
@@ -423,7 +423,7 @@ const EmptyState: React.FC = () => (
 /* -----------------------------------------------------------------------
  * Dispatcher Intent Map
  *
- * Active routing pattern (Pattern III · Dispatcher) is keyword-based,
+ * Active routing pattern (Pattern I · Dispatcher) is keyword-based,
  * deterministic, no LLM call. This card shows the literal keyword sets
  * from services/chat.py — "what do I type to land on which specialist?".
  * Workshop participants reading the dispatcher's intent classifier in
@@ -514,7 +514,7 @@ const StorefrontProductionCard: React.FC = () => (
     >
       High-traffic commerce assistants optimize for predictability, latency, and
       cost. Pellier&apos;s Boutique keeps{' '}
-      <Emphasis>Dispatcher + specialists</Emphasis> on the hot path — not an LLM
+      <Emphasis>Dispatcher + specialists</Emphasis> on the hot path – not an LLM
       intent resolver at temperature&nbsp;0 (still drifts with model updates).
     </p>
     <ul
@@ -528,15 +528,15 @@ const StorefrontProductionCard: React.FC = () => (
       }}
     >
       <li>
-        <Emphasis>Rules / classifier first</Emphasis> — triage + keyword intent
+        <Emphasis>Rules / classifier first</Emphasis> – triage + keyword intent
         before any Bedrock call
       </li>
       <li>
-        <Emphasis>Single owning agent</Emphasis> per turn — Style Advisor, Stock
+        <Emphasis>Single owning agent</Emphasis> per turn – Style Advisor, Stock
         Keeper, etc.
       </li>
       <li>
-        <Emphasis>LLM router elsewhere</Emphasis> — Agents-as-Tools and Graph in
+        <Emphasis>LLM router elsewhere</Emphasis> – Agents-as-Tools and Graph in
         the Atelier; AgentCore Runtime on{' '}
         <code
           style={{
@@ -552,8 +552,8 @@ const StorefrontProductionCard: React.FC = () => (
         </code>
       </li>
       <li>
-        <Emphasis>Semantic tool discovery</Emphasis> at scale — Tools panel /
-        Gateway — not the default router for Marco&apos;s five pills
+        <Emphasis>Semantic tool discovery</Emphasis> at scale – Tools panel /
+        Gateway – not the default router for Marco&apos;s five pills
       </li>
     </ul>
     <pre style={SNIPPET_STYLE}>
@@ -594,7 +594,7 @@ const DispatcherIntentCard: React.FC = () => (
       <code style={{ fontFamily: 'var(--at-mono)' }}>classify_intent</code>).
       It checks the customer's query against five sets of token phrases
       and dispatches to one specialist. No LLM call. Order of evaluation
-      is intentional — pricing wins over inventory for ambiguous
+      is intentional – pricing wins over inventory for ambiguous
       product-mention queries.
     </p>
 
@@ -725,7 +725,7 @@ const LANGGRAPH_MAPPINGS: LangGraphMapping[] = [
     pellier: 'Dispatcher (rules → specialist)',
     langgraph: 'Conditional edges from a router node',
     difference:
-      'No graph object. The router is a Python function in services/chat.py — keyword rules, no LLM, ~60–120 ms.',
+      'No graph object. The router is a Python function in services/chat.py – keyword rules, no LLM, ~60–120 ms.',
   },
   {
     pellier: 'Agents-as-Tools (orchestrator + @tool)',
@@ -765,13 +765,13 @@ const LangGraphComparisonCard: React.FC = () => (
       }}
     >
       LangGraph asks you to{' '}
-      <Emphasis>commit to a StateGraph from turn one</Emphasis> — every flow is
+      <Emphasis>commit to a StateGraph from turn one</Emphasis> – every flow is
       nodes, edges, and a compiled state machine. Strands lets you start with{' '}
       <Emphasis>Dispatcher</Emphasis> (a Python function), graduate to{' '}
       <Emphasis>Agents-as-Tools</Emphasis> when one orchestrator needs to call
       specialists, and reach for <Emphasis>Graph</Emphasis> only when you
       genuinely need conditional multi-step topology. The patterns are
-      progressive — you don&apos;t pay for a graph runtime until you actually
+      progressive – you don&apos;t pay for a graph runtime until you actually
       need one.
     </p>
 
@@ -872,7 +872,7 @@ const LangGraphComparisonCard: React.FC = () => (
       stateful workflows that need durable checkpointing, human-in-the-loop
       pause/resume, or cycle-heavy graphs (planner ↔ critic ↔ executor) where
       the topology itself is the design. Pellier&apos;s e-commerce concierge
-      hot path is none of those — a keyword classifier plus one specialist
+      hot path is none of those – a keyword classifier plus one specialist
       call wins on latency every time.
     </p>
   </ExpCard>
@@ -911,7 +911,7 @@ const Routing: React.FC = () => {
         title="How requests find their specialist."
         summary={
           activePattern
-            ? `Three orchestration strategies. ${activePattern.name} is the active pattern for boutique sessions — it classifies intent and dispatches to the best-fit specialist. The other two are alternative patterns you can explore.`
+            ? `Three orchestration strategies. ${activePattern.name} is the active pattern for boutique sessions – it classifies intent and dispatches to the best-fit specialist. The other two are alternative patterns you can explore.`
             : 'Three orchestration strategies for routing requests to specialist agents. Each pattern takes a different approach to intent classification and agent coordination.'
         }
       />
@@ -942,7 +942,7 @@ const Routing: React.FC = () => {
               }}
             >
               Pick a pattern to compare orchestration styles. Boutique sessions use{' '}
-              <Emphasis>Dispatcher</Emphasis> today — the others are alternatives you
+              <Emphasis>Dispatcher</Emphasis> today – the others are alternatives you
               can trace in Observatory telemetry.
             </p>
             <ModeStrip
@@ -1001,7 +1001,7 @@ const Routing: React.FC = () => {
             />
           ))}
           <StorefrontProductionCard />
-          {/* Dispatcher (Pattern III) is the active path; the intent
+          {/* Dispatcher (Pattern I) is the active path; the intent
               table makes the keyword-to-specialist mapping concrete. */}
           <DispatcherIntentCard />
           {/* LangGraph comparison — for operators arriving from LangChain.

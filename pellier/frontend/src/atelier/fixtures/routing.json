@@ -10,7 +10,7 @@
   {
     "name": "Agents-as-Tools",
     "slug": "agents-as-tools",
-    "description": "Haiku orchestrator + specialists as @tool. Two LLM calls per turn. Atelier teaching path and in-process /api/agent/chat — not the Boutique hot path.",
+    "description": "Haiku orchestrator + specialists as @tool. Two LLM calls per turn. Atelier teaching path and in-process /api/agent/chat – not the Boutique hot path.",
     "isActive": false,
     "agents": ["Style Advisor", "Curator", "Value Analyst", "Stock Keeper", "Experience Guide"],
     "codeSnippet": "@tool\ndef stock_keeper(query: str) -> str:\n    return Agent(..., tools=[floor_check])(query)\n\norchestrator = Agent(model=haiku, tools=[stock_keeper, ...])"
@@ -18,7 +18,7 @@
   {
     "name": "Graph",
     "slug": "graph",
-    "description": "Strands GraphBuilder DAG: router node + specialist nodes with conditional edges. Multi-step ops and Atelier telemetry — not default for Marco pills.",
+    "description": "Strands GraphBuilder DAG: router node + specialist nodes with conditional edges. Multi-step ops and Atelier telemetry – not default for Marco pills.",
     "isActive": false,
     "agents": ["Style Advisor", "Curator", "Value Analyst"],
     "codeSnippet": "builder.add_router(router_fn)\nbuilder.add_agent(specialist_node)\nbuilder.set_entry_point('router')\ngraph = builder.build()"

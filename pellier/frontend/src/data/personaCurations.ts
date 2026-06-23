@@ -319,7 +319,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // branch to route to search instead of refusing as "outside
     // shopping," and it teaches the Style Advisor that catalog tools
     // can't satisfy the ask.
-    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding — not product cards.",
+    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
   ],
   anna: [
     'A thoughtful gift for someone who loves morning rituals',  // Turn 1
@@ -337,12 +337,12 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     'Hand-thrown ceramics for a slower morning routine',  // Turn 1
     'What goes well with the pour-over set?',              // Turn 2
     'Linen pieces that soften over seasons',               // Turn 3
-    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return — my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
+    "My Wabi-Sabi Bowl arrived chipped. Please file a damaged return – my customer id is 'theo'.",  // Turn 4 (Experience Guide payoff)
     // Turn 5 (capstone) → Experience Guide · escalate_to_stylist.
     // Durability-expectation framing past the standard return window —
     // process_return refuses, escalate_to_stylist is the honest
     // fallback for an exception that needs a human.
-    'The linen throw I bought 4 months ago developed a tear at the seam — I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
+    'The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
   fresh: [
     'A thoughtful gift for someone who runs',
@@ -519,7 +519,11 @@ export const PERSONA_BECAUSE_CHIPS: Record<string, BecauseChip[]> = {
     {
       kind: 'memory',
       text: 'you were shopping for a milestone gift',
-      query: 'Thoughtful gifts for a new homeowner',
+      // Fires Anna's canonical rerank anchor verbatim so the lab guide's
+      // "click, don't type" path matches memory-anna.json and the
+      // search-strategies comparison. Keep this string in sync with the
+      // Performance card's pre-filled query.
+      query: 'A milestone gift for a new homeowner',
     },
     {
       kind: 'trend',

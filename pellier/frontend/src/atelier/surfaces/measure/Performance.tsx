@@ -627,7 +627,7 @@ const PgvectorTuning: React.FC<PgvectorTuningProps> = ({ tuning }) => {
           borderRadius: '4px',
         }}
       >
-        <Eyebrow label="Why this is not a fourth exercise" variant="muted" />
+        <Eyebrow label="Why this is not a third exercise" variant="muted" />
         <p
           style={{
             fontFamily: 'var(--at-sans)',
@@ -778,7 +778,7 @@ const ExtractedFiltersStrip: React.FC<ExtractedFiltersStripProps> = ({
               color: 'var(--at-ink-3)',
             }}
           >
-            no structured signal — degenerates to plain vector + rerank
+            no structured signal – degenerates to plain vector + rerank
           </span>
         )}
       </div>
@@ -832,7 +832,7 @@ const ExtractedFiltersStrip: React.FC<ExtractedFiltersStripProps> = ({
               color: 'var(--at-ink-2)',
             }}
           >
-            — strict filter returned too few candidates; pipeline relaxed
+            – strict filter returned too few candidates; pipeline relaxed
             gracefully
           </span>
         )}
@@ -848,7 +848,10 @@ interface SearchStrategyComparisonProps {
 const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
   strategies,
 }) => {
-  const [query, setQuery] = useState('');
+  // Pre-filled with Anna's canonical rerank anchor so participants press
+  // Run instead of typing — matches the Boutique memory chip and the lab
+  // guide's "click, don't type" path. Editable for the optional turns.
+  const [query, setQuery] = useState('A milestone gift for a new homeowner');
   const [liveStrategies, setLiveStrategies] =
     useState<PerformanceData['searchStrategies'] | null>(null);
   const [running, setRunning] = useState(false);
@@ -937,7 +940,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           hnsw.iterative_scan = relaxed_order
         </code>{' '}
         so a strict filter doesn't silently drop recall. Each row is a real
-        choice — recall vs latency vs cost vs filter respect — and the
+        choice – recall vs latency vs cost vs filter respect – and the
         workshop teaches that the right answer depends on the query class,
         not the database.
       </p>
@@ -1171,7 +1174,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
         >
           The first three rows (vector-only, hybrid RRF, hybrid + rerank) rank, but they never filter.
           A "$100 milestone gift" query running through hybrid+rerank can
-          still surface a $185 candle in the top-5 — the price ceiling is
+          still surface a $185 candle in the top-5 – the price ceiling is
           a string the embedding never quite respects. The agentic row
           turns "$100" into a real{' '}
           <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
@@ -1179,7 +1182,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           </code>{' '}
           predicate, runs cosine over only the rows that pass, and lets
           Cohere Rerank score against the residual taste phrase ("milestone
-          gift for a homeowner"). The chips above are the receipt — you
+          gift for a homeowner"). The chips above are the receipt – you
           can see exactly what Haiku extracted, which filter-degradation
           step ran when the strict filter was too tight, and what soft
           signal the reranker actually scored.
@@ -1221,7 +1224,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           AND-join every stem. A six-stem conversational query
           ("thoughtful gift for someone who loves morning rituals")
           matches zero products if no description contains all six stems
-          together — exactly the shape of query a boutique shopper asks.
+          together – exactly the shape of query a boutique shopper asks.
           Pellier OR-joins content tokens via{' '}
           <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
             HybridSearch._build_or_tsquery
@@ -1421,7 +1424,7 @@ const MeasureControls: React.FC<MeasureControlsProps> = ({
       <button
         type="button"
         disabled
-        aria-label="Run benchmark — coming soon"
+        aria-label="Run benchmark – coming soon"
         title="Benchmark runner is wired in a later workshop step."
         style={{
           fontFamily: 'var(--at-sans)',
