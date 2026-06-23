@@ -158,7 +158,7 @@ The app moves to `/app/`, `GET /app` 307-redirects to `/app/`, and the real API 
 
 ## Builder's Session (60 min)
 
-This repo is the source of truth for the application behind the **60-minute Builder's Session** (AWS Summit), framed as a **400-level guided build + evidence walkthrough**: small code surface, deep production proof. The mandatory path is the `floor_check` tool body (Act I) plus a deliberate SQL proof from `pellier.tool_audit` (Act II): raw row, JSONB extraction, and ALLOW-vs-DENY evidence. Optional skill-edit and `logger.info` observability beats round out tables that finish early. Everything else is observe / measure / read.
+This repo is the source of truth for the application behind the **60-minute Builder's Session** (AWS Summit), framed as a **400-level guided build + evidence walkthrough**: small code surface, deep production proof. The mandatory path is the `floor_check` tool body (Act I) plus three participant-authored SQL queries against `pellier.tool_audit` (Act II): raw row, JSONB extraction, and the DENY-absence proof. Optional skill-edit and `logger.info` observability beats round out tables that finish early. Everything else is observe / measure / read.
 
 The session content (lab manual, CloudFormation, prereq images) lives in the separate Workshop Studio repository, which is the single source of truth for everything under its `content/`, `assets/`, and `static/` trees. This repo holds the running application the session is built on. The session is structured as:
 
@@ -166,7 +166,7 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 |---|---|---|
 | Introduction | 5 min | Open the workspace and land in Boutique + Atelier — both already running, nothing to set up or start. Frame the architecture and the single function you'll implement. **What 400-level means here:** depth of concepts, not volume of code — the app is pre-built; you implement one function, then observe / measure / read |
 | Act I: The Boutique | 30 min | Observe Marco's broken Turn 4 → wire `floor_check` (Exercise 1) → measure vector / hybrid / hybrid+rerank / agentic for Anna's anchor query |
-| Act II: The Ledger | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then prove raw row + JSONB extraction + DENY absence from `pellier.tool_audit` (Exercise 2); optional `logger.info` observability beat |
+| Act II: The Ledger | 12 min | Read memory substrates (AgentCore STM) via `/api/agent/session/{id}` + inspect long-term taste in Aurora → invoke managed Runtime, then author three queries against `pellier.tool_audit` – raw row → JSONB extraction → DENY-absence proof (Exercise 2); optional `logger.info` observability beat |
 | Act III: The Concierge | 8 min | Read the dispatcher + specialists pattern → read the `awslabs.postgres-mcp-server` config + verify from the terminal, compare to Bedrock Knowledge Bases (read-only, take-home friendly) |
 | Close | 5 min | What this maps to in your stack, wrap-up, and Q&A |
 

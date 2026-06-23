@@ -33,13 +33,18 @@ cp solutions/closing-marcos-gap/services/agent_tools_floor_check_solution.py \
 Paste-only option (just the 9-line body, between `START` / `END`
 markers): `solutions/closing-marcos-gap/services/floor_check_tool_body.py`.
 
-### Exercise 2 (mandatory) — SQL proof from `pellier.tool_audit` (Act II)
+### Exercise 2 (mandatory) — author three queries against `pellier.tool_audit` (Act II)
 
-Generate a tool call, then read the Aurora ledger path by querying
-`pellier.tool_audit`: raw row, JSONB extraction, and ALLOW-vs-DENY
-evidence. This is SQL, not a code drop — there is no file to copy over a
-runtime counterpart. The "⏩ out of time" escape hatch is a canned recap
-query a facilitator can run live:
+Generate a tool call, then **author** three queries that interrogate the
+Aurora ledger, building in difficulty: the raw row (`SELECT`), JSONB
+extraction (`->>` pulls `reason`/`return_id` out as columns), and the
+DENY-absence proof (`COUNT` per reason → reason through why a
+Gateway-denied call leaves no row). This is SQL the participant writes,
+not a code drop — there is no file to copy over a runtime counterpart.
+The DENY-absence is a Gateway-rail/Cedar property; the in-process default
+has no policy gate, so a denied reason only leaves no row on the Gateway
+rail (the optional Section 4 live fire). The "⏩ stuck on the SQL"
+escape hatch is a canned recap query a facilitator can run live:
 
 ```bash
 psql -f solutions/the-ledger/sql/tool_audit_recap.sql
@@ -75,27 +80,33 @@ cp solutions/the-ledger/services/agentcore_runtime_with_invoke_log.py \
 ## What bootstrap pre-applies (reference)
 
 The Builder's Session ships with everything **already wired except** the
-`floor_check` tool body — participants edit only that one function.
-Bootstrap copies these reference files into place at provision time; they
-are listed here for transparency and manual recovery, not as in-room steps.
+`floor_check` tool body — participants edit only that one function. At
+provision time `scripts/bootstrap-labs.sh` (the `WORKSHOP_FORMAT=builders`
+block) copies the reference files below into place. This list mirrors the
+actual `copy_solution` calls in that script — it is for transparency and
+manual recovery, not an in-room step. (Keep it in sync if you add a
+pre-apply.)
 
-Retrieval + business logic:
-
-```bash
-cp solutions/the-quiet-search/services/hybrid_search.py    pellier/backend/services/hybrid_search.py
-cp solutions/the-quiet-search/services/business_logic.py   pellier/backend/services/business_logic.py
-```
-
-Dispatcher + specialists (the agents Marco's turns 2/5 use):
+Dispatcher + specialists (the agents Marco's turns 2/5 use) — note Stock
+Keeper is **not** copied here; it ships live in the repo:
 
 ```bash
-cp solutions/closing-marcos-gap/agents/orchestrator.py     pellier/backend/agents/orchestrator.py
 cp solutions/closing-marcos-gap/agents/curator.py          pellier/backend/agents/curator.py
 cp solutions/closing-marcos-gap/agents/experience_guide.py pellier/backend/agents/experience_guide.py
-cp solutions/closing-marcos-gap/agents/stock_keeper.py     pellier/backend/agents/stock_keeper.py
+cp solutions/closing-marcos-gap/agents/orchestrator.py     pellier/backend/agents/orchestrator.py
 ```
 
-AgentCore production services (Runtime, Memory, Gateway, policy, identity):
+The builders variant of `agent_tools.py` — wires everything Stock
+Keeper-adjacent (`restock_shelf`, `running_low`) **except** the
+`floor_check` body, which participants add in Exercise 1:
+
+```bash
+cp solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py \
+   pellier/backend/services/agent_tools.py
+```
+
+AgentCore production services (Runtime, Memory, Gateway, identity, auth,
+OTEL) plus the frontend identity hook:
 
 ```bash
 cp solutions/the-ledger/services/agentcore_runtime.py        pellier/backend/services/agentcore_runtime.py
@@ -108,6 +119,13 @@ cp solutions/the-ledger/services/cognito_auth.py             pellier/backend/ser
 cp solutions/the-ledger/services/otel_trace_extractor.py     pellier/backend/services/otel_trace_extractor.py
 cp solutions/the-ledger/frontend/agentIdentity.ts            pellier/frontend/src/utils/agentIdentity.ts
 ```
+
+The `the-quiet-search/` retrieval references (`hybrid_search.py`,
+`business_logic.py`, `hybrid_search_with_rerank.py`) and the
+`the-concierge/` MCP references are **observe-only** — bootstrap does not
+copy them, because those files already ship live in the repo. They are
+here as readable reference implementations for the Act I rerank
+comparison and the Act III MCP read.
 
 The only file participants change in-room is the `floor_check` body in
 `pellier/backend/services/agent_tools.py` (Exercise 1, with the
