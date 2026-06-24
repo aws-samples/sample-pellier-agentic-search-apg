@@ -1221,17 +1221,18 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({
           <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
             websearch_to_tsquery
           </code>{' '}
-          AND-join every stem. A six-stem conversational query
+          AND-join plain text by default. A six-stem conversational query
           ("thoughtful gift for someone who loves morning rituals")
-          matches zero products if no description contains all six stems
-          together – exactly the shape of query a boutique shopper asks.
+          matches zero products if no product's indexed text (name, brand,
+          category, color, tags, and description combined) contains all six
+          stems together – exactly the shape of query a boutique shopper asks.
           Pellier OR-joins content tokens via{' '}
           <code style={{ fontFamily: 'var(--at-mono)', fontSize: '13px' }}>
             HybridSearch._build_or_tsquery
           </code>{' '}
           to keep the row alive for comparison, but Anna's production
-          path is the agentic row above: Haiku owns the structured
-          decomposition, and FTS doesn't have to guess.
+          path is the agentic row (bottom of the table above): Haiku owns
+          the structured decomposition, and FTS doesn't have to guess.
         </p>
       </div>
     </ExpCard>
