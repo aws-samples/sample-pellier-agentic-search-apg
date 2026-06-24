@@ -249,7 +249,15 @@ class AgentCoreMemory:
                 )
                 # get_last_k_turns with a generous k stands in for "all
                 # turns" — the workshop sessions are short (<20 turns).
-                return list(session.get_last_k_turns(k=100))
+                # The SDK returns turn objects (uppercase roles, nested
+                # ``content.text``, datetime fields) that are NOT JSON
+                # serializable as-is — normalize to the plain
+                # ``{role, content, timestamp}`` shape the route returns
+                # and the frontend hydrates from. Without this the SDK
+                # path 500s at JSONResponse render time (the in-memory
+                # fallback below already returns plain dicts, which is
+                # why it only breaks on a provisioned account).
+                return self._normalize_sdk_turns(session.get_last_k_turns(k=100))
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
                     "AgentCore get_session_history failed for %s: %s — "
@@ -258,6 +266,45 @@ class AgentCoreMemory:
                     exc,
                 )
         return list(_SESSION_STORE.get(session_ns, []))
+
+    @staticmethod
+    def _normalize_sdk_turns(raw: Any) -> List[Dict[str, Any]]:
+        """Flatten ``get_last_k_turns`` output into JSON-safe turn dicts.
+
+        The SDK groups messages into turns, so the return is a list of
+        turns where each turn is itself a list of message dicts shaped
+        like ``{"role": "USER", "content": {"text": "..."}}`` (roles are
+        uppercase; ``content`` may be a nested dict or a bare string;
+        timestamps arrive as ``datetime``). This collapses that into the
+        flat ``{"role": "user"|"assistant", "content": <str>,
+        "timestamp": <str>}`` list the route serializes and the Boutique
+        chat hydrates from.
+        """
+        def _text(content: Any) -> str:
+            if isinstance(content, str):
+                return content
+            if isinstance(content, dict):
+                return str(content.get("text", ""))
+            return str(content) if content is not None else ""
+
+        def _role(role: Any) -> str:
+            return "user" if str(role).lower() == "user" else "assistant"
+
+        turns: List[Dict[str, Any]] = []
+        for turn in (raw or []):
+            # A turn is normally a list of messages; tolerate a bare
+            # message dict in case the SDK shape ever changes.
+            messages = turn if isinstance(turn, (list, tuple)) else [turn]
+            for msg in messages:
+                if not isinstance(msg, dict):
+                    continue
+                ts = msg.get("timestamp", msg.get("createdAt", ""))
+                turns.append({
+                    "role": _role(msg.get("role", "assistant")),
+                    "content": _text(msg.get("content", "")),
+                    "timestamp": str(ts) if ts else "",
+                })
+        return turns
 
     # ------------------------------------------------------------------
     # User preferences (persistent)
