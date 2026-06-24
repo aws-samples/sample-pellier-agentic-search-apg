@@ -39,3 +39,6 @@ bedrock-agentcore>=1.4.3
 # Caching — Valkey (ElastiCache)
 valkey>=6.0.0
 amazon-transcribe>=0.6.0
+
+# Testing — Exercise 1 floor_check contract test (test_solutions_parity.py)
+pytest>=8.0.0
