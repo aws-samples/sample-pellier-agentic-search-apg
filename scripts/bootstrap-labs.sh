@@ -798,6 +798,13 @@ export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 export CLAUDE_CODE_USE_BEDROCK=1
 export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}
 export AWS_REGION=${AWS_REGION:-us-east-1}
+# The CLI is installed globally as root (/usr/bin/claude) but runs as the
+# participant user, so its auto-updater can't write the root-owned npm prefix
+# and warns once at startup ("Auto-update failed: no write permission..."). The
+# warning is harmless, but this composite flag suppresses it at the source by
+# disabling all non-essential phone-home (auto-updater + telemetry + error
+# reporting + feedback) — the right posture for a pinned, locked-down lab box.
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 
 # Ensure uv is in PATH (required for MCP)
 export PATH="$HOME/.local/bin:$PATH"
