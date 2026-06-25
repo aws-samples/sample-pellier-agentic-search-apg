@@ -227,6 +227,42 @@ def test_normalize_sdk_turns_handles_none_and_empty() -> None:
     assert AgentCoreMemory._normalize_sdk_turns([]) == []
 
 
+def test_normalize_sdk_turns_flattens_eventmessage_objects() -> None:
+    """On a provisioned account ``get_last_k_turns`` returns SDK
+    ``EventMessage`` objects, NOT plain dicts. They are dict-LIKE (they
+    expose ``.role``/``.content`` and even a ``.get`` method) but
+    ``isinstance(msg, dict)`` is False — so a dict-only reader silently
+    drops every real turn and the route returns ``turns: []`` despite the
+    data being durably stored. The normalizer SHALL read these by
+    attribute and flatten them like dict messages.
+    """
+
+    class _EventMessage:
+        """Minimal stand-in for the SDK's dict-like EventMessage."""
+
+        def __init__(self, role: str, text: str) -> None:
+            self.role = role
+            self.content = {"text": text}
+
+        # The real EventMessage exposes .get; presence of this attribute
+        # must NOT trick the reader into a dict code path.
+        def get(self, key, default=None):  # pragma: no cover - shape probe
+            return getattr(self, key, default)
+
+    raw = [
+        [_EventMessage("USER", "a milestone gift")],
+        [_EventMessage("ASSISTANT", "Here are three pieces")],
+    ]
+
+    out = AgentCoreMemory._normalize_sdk_turns(raw)
+
+    assert out == [
+        {"role": "user", "content": "a milestone gift", "timestamp": ""},
+        {"role": "assistant", "content": "Here are three pieces",
+         "timestamp": ""},
+    ]
+
+
 def test_append_session_turn_copies_input(memory) -> None:
     """Mutating the caller's turn dict after appending SHALL NOT
     mutate the stored history — callers often reuse dicts."""

@@ -257,7 +257,14 @@ class AgentCoreMemory:
                 # path 500s at JSONResponse render time (the in-memory
                 # fallback below already returns plain dicts, which is
                 # why it only breaks on a provisioned account).
-                return self._normalize_sdk_turns(session.get_last_k_turns(k=100))
+                #
+                # ``get_last_k_turns`` returns most-recent-first; the route
+                # and the frontend expect a chronological timeline, so
+                # reverse after flattening. The in-memory fallback below
+                # already stores in insertion (chronological) order.
+                flat = self._normalize_sdk_turns(session.get_last_k_turns(k=100))
+                flat.reverse()
+                return flat
             except Exception as exc:  # pragma: no cover - SDK error path
                 logger.warning(
                     "AgentCore get_session_history failed for %s: %s — "
@@ -280,11 +287,30 @@ class AgentCoreMemory:
         "timestamp": <str>}`` list the route serializes and the Boutique
         chat hydrates from.
         """
+        def _attr(obj: Any, key: str, default: Any = None) -> Any:
+            # Messages arrive as plain dicts (in-memory fallback + tests) OR
+            # as SDK ``EventMessage`` objects on a provisioned account. The
+            # latter are dict-LIKE (they even expose ``.get``) but are NOT
+            # ``dict`` instances, so ``isinstance(msg, dict)`` is False and a
+            # dict-only reader silently drops every real turn. Read by
+            # attribute, falling back to dict access.
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            val = getattr(obj, key, None)
+            return val if val is not None else default
+
         def _text(content: Any) -> str:
             if isinstance(content, str):
                 return content
             if isinstance(content, dict):
                 return str(content.get("text", ""))
+            # SDK content block exposing ``.text``.
+            text_attr = getattr(content, "text", None)
+            if text_attr is not None:
+                return str(text_attr)
+            # A list of content blocks: join their text.
+            if isinstance(content, (list, tuple)):
+                return " ".join(_text(b) for b in content if b is not None)
             return str(content) if content is not None else ""
 
         def _role(role: Any) -> str:
@@ -293,15 +319,18 @@ class AgentCoreMemory:
         turns: List[Dict[str, Any]] = []
         for turn in (raw or []):
             # A turn is normally a list of messages; tolerate a bare
-            # message dict in case the SDK shape ever changes.
+            # message (dict or SDK object) in case the shape ever changes.
             messages = turn if isinstance(turn, (list, tuple)) else [turn]
             for msg in messages:
-                if not isinstance(msg, dict):
+                # Accept dict OR SDK object; only skip genuinely empty slots.
+                if msg is None:
                     continue
-                ts = msg.get("timestamp", msg.get("createdAt", ""))
+                ts = _attr(msg, "timestamp", None)
+                if ts is None:
+                    ts = _attr(msg, "createdAt", "")
                 turns.append({
-                    "role": _role(msg.get("role", "assistant")),
-                    "content": _text(msg.get("content", "")),
+                    "role": _role(_attr(msg, "role", "assistant")),
+                    "content": _text(_attr(msg, "content", "")),
                     "timestamp": str(ts) if ts else "",
                 })
         return turns
