@@ -461,28 +461,61 @@ async def _load_live_procedural() -> Optional[list]:
 
 
 async def _load_live_working(persona: str) -> Optional[list]:
-    """Read recent working-memory turns from AgentCore Memory.
+    """Read the persona's most recent storefront working-memory turns.
 
-    Atelier doesn't carry a session_ns into this read-only endpoint,
-    so we probe the in-memory fallback store for any namespace whose
-    user_id matches the persona's customer_id. When AgentCore is
-    provisioned the SDK path is queried with the same actor_id; both
-    return [] for a fresh persona, in which case we fall back to the
-    fixture so the panel always has something to teach.
+    This panel is persona-scoped and carries no session id, so we
+    resolve the persona's latest Boutique session the same way the
+    lab's section-3 readback does: every allowed tool call stamps its
+    ``session_id`` in ``pellier.tool_audit`` (shaped
+    ``persona-{persona}-{uuid}``), so we take the most recent one for
+    this persona, rebuild the anonymous namespace the storefront wrote
+    under (``anon-{session_id}``), and read it back through
+    ``AgentCoreMemory.get_session_history`` — which transparently serves
+    the live AgentCore SDK on a provisioned box and the in-memory
+    fallback otherwise. This is the SAME data ``GET
+    /api/agent/session/{id}`` returns, so the panel and that API agree.
+
+    Returns ``None`` (panel falls back to its fixture) when the persona
+    has no storefront session yet or the read comes back empty — an
+    honest ``fixture`` pill, never a fabricated ``live`` one.
     """
-    customer_id = _PERSONA_TO_CUSTOMER_ID.get(persona.lower())
-    if not customer_id:
+    if persona.lower() not in _PERSONA_TO_CUSTOMER_ID:
         return None
     try:
-        from services.agentcore_memory import _SESSION_STORE  # type: ignore[attr-defined]
-    except Exception:
+        from app import db_service
+        if db_service is None:
+            return None
+        # Scope to this persona so a different persona's later tool call
+        # (e.g. Anna carrying over) can't shadow Marco's session — the
+        # same guard the section-3 psql query uses.
+        row = await db_service.fetch_one(
+            """
+            SELECT session_id
+              FROM pellier.tool_audit
+             WHERE session_id LIKE %s
+             ORDER BY audit_id DESC
+             LIMIT 1
+            """,
+            f"persona-{persona.lower()}-%",
+        )
+        if not row:
+            return None
+        session_id = dict(row).get("session_id")
+        if not session_id:
+            return None
+
+        from services.agentcore_identity import AgentCoreIdentityService
+        from services.agentcore_memory import AgentCoreMemory
+
+        # Storefront turns are anonymous, so they live under
+        # anon-{session_id} — the exact namespace an unauthenticated
+        # GET /api/agent/session/{id} reads.
+        namespace = AgentCoreIdentityService.build_namespace(None, session_id)
+        memory = AgentCoreMemory()
+        turns = await memory.get_session_history(namespace)
+    except Exception as exc:
+        logger.warning("Live working read failed for %s: %s", persona, exc)
         return None
-    prefix = f"user-{customer_id}-session-"
-    turns: list[dict] = []
-    for ns, ns_turns in _SESSION_STORE.items():
-        if not ns.startswith(prefix):
-            continue
-        turns.extend(ns_turns)
     if not turns:
         return None
     items = []
@@ -551,9 +584,11 @@ async def get_memory(persona: str):
     """Return the 4-substrate memory state for a persona.
 
     Each substrate is sourced honestly:
-      working    — AgentCore Memory session turns under
-                   user-{customer_id}-session-{sid}; live when any
-                   namespace exists, otherwise the fixture.
+      working    — AgentCore Memory session turns for the persona's
+                   latest storefront session (resolved from
+                   pellier.tool_audit, read back under anon-{sid} via
+                   the same path as GET /api/agent/session/{id}); live
+                   when that session has turns, otherwise the fixture.
       semantic   — AgentCore Memory long-term records under
                    /pellier/preferences/{customer_id}/, extracted by a
                    USER_PREFERENCE strategy; live when the strategy has
@@ -584,7 +619,7 @@ async def get_memory(persona: str):
                 "persona": persona,
                 "working": _empty_substrate(
                     "Working - AgentCore Memory",
-                    f"user-{persona}-session-{{sid}}",
+                    f"anon-persona-{persona}-{{sid}}",
                 ),
                 "semantic": _empty_substrate(
                     "Semantic - AgentCore Memory",
@@ -614,7 +649,7 @@ async def get_memory(persona: str):
             # 4-substrate shell so downstream overlays don't KeyError.
             for key, label, store in (
                 ("working", "Working - AgentCore Memory",
-                 f"user-{persona}-session-{{sid}}"),
+                 f"anon-persona-{persona}-{{sid}}"),
                 ("semantic", "Semantic - AgentCore Memory",
                  _sem_store),
                 ("episodic", "Episodic - Aurora",

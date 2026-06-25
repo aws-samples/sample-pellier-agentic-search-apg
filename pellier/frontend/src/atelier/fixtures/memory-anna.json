@@ -2,7 +2,7 @@
   "persona": "anna",
   "working": {
     "label": "Working - AgentCore Memory",
-    "store": "user-CUST-ANNA-session-{sid}",
+    "store": "anon-persona-anna-{sid}",
     "source": "fixture",
     "items": [
       {
