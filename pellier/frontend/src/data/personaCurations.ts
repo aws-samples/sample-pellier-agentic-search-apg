@@ -310,7 +310,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // (Stock Keeper stubbed → graceful non-answer), once during the
     // midpoint checkpoint (Stock Keeper wired → real warehouse data).
     'What linen do you have for 10 days in Goa?',            // Turn 1 → Style Advisor · find_pieces
-    'What would go with the Hadley shirt?',                  // Turn 2 → Curator + the-packing-list · style_match
+    'What would go with the Hadley shirt?',                  // Turn 2 → Style Advisor + the-packing-list · find_pieces → style_match
     "What's the price range for linen shirts?",              // Turn 3 → Value Analyst · price_intelligence
     'Is the Hadley shirt at the Brooklyn warehouse?',        // Turn 4 → Stock Keeper (stub/wired)
     // Turn 5 (capstone) → Style Advisor · escalate_to_stylist. The
