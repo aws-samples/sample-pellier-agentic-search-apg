@@ -141,13 +141,15 @@ def floor_check(product_query: str = "") -> str:
     #      indent=2).
     #   5. Catch exceptions and return a JSON error envelope.
     #
-    # Verify locally:
-    #   cd pellier/backend
-    #   pytest tests/test_solutions_parity.py::test_floor_check_builder_contract -v
+    # Verify (live, the real check):
+    #   Click Marco's Turn 4 pill in the Boutique — Stock Keeper answers
+    #   with the Brooklyn (BK-01) warehouse breakdown — and watch the
+    #   Atelier Tools strip flip from 12/13 to 13/13 shipped.
     #
-    # Verify live:
-    #   Click Marco Turn 4 pill in the Boutique — Stock Keeper answers
-    #   with the Brooklyn warehouse breakdown.
+    # Note: tests/test_solutions_parity.py is a repo guard, NOT your wire
+    # check — it asserts this starter file still carries the stub, so it
+    # PASSES while stubbed and FAILS once you wire it. Don't use it to
+    # verify your edit.
     return json.dumps({
         "error": "floor_check is in stub state",
         "hint": "Implement the tool body or run the cp command.",

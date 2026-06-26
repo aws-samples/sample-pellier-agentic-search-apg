@@ -76,16 +76,18 @@ fetch them from `solutions/`.
 
 ## How the participant verifies (tell them to do this, don't do it for them)
 
-After they save, the body is checked three ways — all already covered in the lab
+After they save, the body is verified two ways — both already covered in the lab
 guide, identical to the manual path:
 
-- Local contract test, run from `pellier/backend/`:
-  ```
-  pytest tests/test_solutions_parity.py::test_floor_check_builder_contract -v
-  ```
 - Atelier → **UNDERSTAND → Tools** strip flips from **12/13** to **13/13 shipped**.
 - Boutique → Marco's **Turn 4** pill ("Is the Hadley shirt at the Brooklyn
   warehouse?") returns a real Brooklyn (`BK-01`) quantity instead of the stub
   envelope.
+
+Do **not** point them at `pytest tests/test_solutions_parity.py::test_floor_check_builder_contract`
+to verify the wire. That test is a **repo guard**, not a build check: it asserts
+the starter file still carries the stub, so it **passes while `floor_check` is
+stubbed and fails once it is wired correctly** — the opposite of what a verify
+step should do. The two checks above are the real verification.
 
 If a save fails, the traceback lands in `tail -f /tmp/pellier/uvicorn.log` first.
