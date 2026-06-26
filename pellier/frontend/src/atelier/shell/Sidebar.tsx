@@ -78,9 +78,10 @@ const Sidebar: React.FC = () => {
       // Order maps to the learning arc:
       //   Architecture (the map) → Agents (the characters) →
       //   Skills (persona-specific knowledge they load) → Tools (what they
-      //   reach for) → Routing (how requests find them) → Memory (what the
-      //   system remembers between turns) → Write-path (how mutations are
-      //   gated and audited; Theo's third Aurora capability).
+      //   reach for) → Search (how a query becomes a ranking) → Routing
+      //   (how requests find them) → Memory (what the system remembers
+      //   between turns) → Write-path (how mutations are gated and audited;
+      //   Theo's third Aurora capability).
       items: [
         { label: 'Architecture', path: 'architecture', badge: '8' },
         {
@@ -98,6 +99,7 @@ const Sidebar: React.FC = () => {
             ? `${buildState.toolShipped}/${buildState.toolTotal}`
             : '12/13',
         },
+        { label: 'Search', path: 'search' },
         { label: 'Routing', path: 'routing', badge: '3' },
         { label: 'Memory', path: 'memory' },
         { label: 'Write-path', path: 'write-path' },

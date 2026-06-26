@@ -48,6 +48,14 @@ export type { ArchitectureConcept } from './architecture';
 export type { Skill } from './skill';
 
 export type {
+  SearchExplainResponse,
+  SearchExplainParams,
+  SearchStage,
+  SearchStageName,
+  SearchTagClass,
+} from './search';
+
+export type {
   ProductionPattern,
   ProductionPatternsData,
   IdentityPattern,

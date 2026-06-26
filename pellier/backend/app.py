@@ -1355,6 +1355,227 @@ async def compare_search_strategies(query: str):
     }
 
 
+@app.get("/api/atelier/search/explain")
+async def explain_search(query: str):
+    """Run one hybrid query and return every *intermediate* stage so the
+    Atelier "Search" surface can show the mechanism, not just the outcome.
+
+    This is the mechanism counterpart to ``/search-strategies/compare``
+    (which shows the *outcome* — which products win, how fast, at what
+    cost). Here the payload walks the pipeline a single query takes:
+
+        EMBED → VECTOR → LEXICAL → FUSION → RERANK
+
+    Every stage carries the real artifact a participant should read:
+    the literal branch SQL for VECTOR/LEXICAL (the same string the live
+    path executes — see ``hybrid_search._VECTOR_BRANCH_SQL`` /
+    ``_FTS_BRANCH_SQL``), the per-branch ranks the FUSION stage merges,
+    and the position delta the RERANK stage produces. The reordering
+    between FUSION and RERANK *is* the teaching moment, and it is live
+    data — nothing here is fabricated.
+
+    The response is shaped as panel-shaped stages
+    (``tag``/``title``/``sql``/``columns``/``rows``/``meta``/``tagClass``)
+    so the frontend reuses the existing telemetry-panel renderer. Rows
+    are pre-stringified.
+
+    On a Bedrock rerank outage the RERANK stage degrades honestly: it
+    reports the failure in ``meta`` and shows the RRF order unchanged
+    (``rrf_pos == reranked_pos``) rather than inventing scores.
+    """
+    import time
+    from services.embeddings import EmbeddingService
+    from services.hybrid_search import HybridSearch
+    from services.rerank import get_rerank_service
+
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="query parameter required")
+    q = query.strip()
+
+    if db_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="DB not initialized — wait for backend startup to complete",
+        )
+
+    # ---- helpers -------------------------------------------------------
+    def _label(row: Dict[str, Any]) -> str:
+        name = row.get("name", "") or "(unnamed)"
+        brand = row.get("brand", "")
+        return f"{name} · {brand}" if brand else name
+
+    def _num(v: Any, places: int = 4) -> str:
+        try:
+            return f"{float(v):.{places}f}"
+        except (TypeError, ValueError):
+            return "—"
+
+    DISPLAY = 8  # rows shown per branch/fusion table
+
+    # ---- EMBED ---------------------------------------------------------
+    embed = EmbeddingService()
+    t0 = time.time()
+    query_embedding = embed.embed_query(q)
+    embed_ms = int((time.time() - t0) * 1000)
+    head = ", ".join(_num(x, 4) for x in query_embedding[:4])
+    embed_stage = {
+        "stage": "embed",
+        "tag": "SEARCH · EMBED",
+        "title": "Query → 1024-d vector · Cohere Embed v4",
+        "sql": "",
+        "columns": ["field", "value"],
+        "rows": [
+            ["model", settings.BEDROCK_EMBEDDING_MODEL],
+            ["input_type", "search_query"],
+            ["output_dimension", "1024"],
+            ["normalized", "L2 (unit length)"],
+            ["vector[:4]", f"[{head}, … (1024 dims)]"],
+        ],
+        "meta": "Asymmetric retrieval: the query is embedded as search_query, "
+                "the catalog was embedded as search_document. L2-normalized so "
+                "cosine distance is well-behaved.",
+        "tagClass": "amber",
+        "durationMs": embed_ms,
+    }
+
+    # ---- VECTOR + LEXICAL + FUSION (one live hybrid pass) --------------
+    hybrid = HybridSearch(db_service)
+    t0 = time.time()
+    explained = await hybrid.search_explained(query=q, query_embedding=query_embedding)
+    hybrid_ms = int((time.time() - t0) * 1000)
+    vector_rows = explained["vector_rows"]
+    bm25_rows = explained["bm25_rows"]
+    merged = explained["merged"]
+    params = explained["params"]
+
+    vector_stage = {
+        "stage": "vector",
+        "tag": "SEARCH · VECTOR",
+        "title": "HNSW cosine · pgvector",
+        "sql": explained["vector_sql"].strip(),
+        "columns": ["rank", "product", "similarity"],
+        "rows": [
+            [str(i + 1), _label(r), _num(r.get("similarity"))]
+            for i, r in enumerate(vector_rows[:DISPLAY])
+        ],
+        "meta": f"Top {params['k_vector']} by cosine over the HNSW index "
+                f"(<=> operator). similarity = 1 − distance; higher is closer.",
+        "tagClass": "cyan",
+    }
+
+    lexical_stage = {
+        "stage": "lexical",
+        "tag": "SEARCH · LEXICAL",
+        "title": "Full-text · ts_rank_cd",
+        "sql": explained["fts_sql"].strip(),
+        "columns": ["rank", "product", "ts_rank_cd"],
+        "rows": [
+            [str(i + 1), _label(r), _num(r.get("bm25_score"), 5)]
+            for i, r in enumerate(bm25_rows[:DISPLAY])
+        ],
+        "meta": "to_tsquery('english', …) with OR-joined stems over the "
+                "description_tsv GIN index. ts_rank_cd is cover-density rank "
+                "(matched terms close together rank higher). Empty here means "
+                "the query had no lexical anchors — vector carries the recall.",
+        "tagClass": "cyan",
+    }
+
+    fusion_stage = {
+        "stage": "fusion",
+        "tag": "SEARCH · FUSION",
+        "title": f"Reciprocal Rank Fusion (k={params['rrf_k']})",
+        "sql": "",
+        "columns": ["product", "vec_rank", "fts_rank", "rrf_score"],
+        "rows": [
+            [
+                _label(r),
+                str(r.get("vec_rank")) if r.get("vec_rank") is not None else "—",
+                str(r.get("fts_rank")) if r.get("fts_rank") is not None else "—",
+                _num(r.get("rrf_score"), 5),
+            ]
+            for r in merged[:DISPLAY]
+        ],
+        "meta": f"score(d) = Σ 1 / (k + rank) over each branch d appears in, "
+                f"k={params['rrf_k']}. A row ranked in BOTH branches outscores "
+                f"a row ranked in only one — that consensus is the point. "
+                f"'—' means the row never surfaced in that branch.",
+        "tagClass": "cyan",
+        "durationMs": hybrid_ms,
+    }
+
+    # ---- RERANK --------------------------------------------------------
+    # Rerank the fused pool. The reordering between FUSION order (rrf_pos)
+    # and RERANK order (reranked_pos) is the headline of the whole surface.
+    documents = [
+        f"{r.get('name','')} — {(r.get('description','') or '')[:200]} ({r.get('category','')})"
+        for r in merged
+    ]
+    rerank_top = min(DISPLAY, len(merged))
+    t0 = time.time()
+    rerank_results = get_rerank_service().rerank(
+        query=q, documents=documents, top_n=rerank_top,
+    )
+    rerank_ms = int((time.time() - t0) * 1000)
+
+    if rerank_results:
+        rerank_rows = []
+        for new_pos, res in enumerate(rerank_results, start=1):
+            idx = res.get("index")
+            if idx is None or idx >= len(merged):
+                continue
+            prod = merged[idx]
+            rrf_pos = idx + 1  # merged is in RRF order
+            delta = rrf_pos - new_pos
+            arrow = "▲" if delta > 0 else ("▼" if delta < 0 else "—")
+            rerank_rows.append([
+                _label(prod),
+                str(rrf_pos),
+                f"{new_pos} {arrow}",
+                _num(res.get("relevance_score"), 4),
+            ])
+        rerank_meta = (
+            "Cohere Rerank v3.5 reads the query + each candidate and assigns a "
+            "calibrated relevance score in [0,1]. ▲/▼ shows how far a product "
+            "moved from its RRF position — that movement is what the rerank "
+            "spend buys you."
+        )
+    else:
+        # Honest degrade — no fabricated scores; show RRF order unchanged.
+        rerank_rows = [
+            [_label(r), str(i + 1), f"{i + 1} —", "n/a"]
+            for i, r in enumerate(merged[:rerank_top])
+        ]
+        rerank_meta = (
+            "Rerank unavailable (Bedrock error) — falling back to RRF order, "
+            "positions unchanged. This is the documented degrade path: a rerank "
+            "outage drops Anna to plain hybrid, it does not take search down."
+        )
+
+    rerank_stage = {
+        "stage": "rerank",
+        "tag": "SEARCH · RERANK",
+        "title": "Cohere Rerank v3.5",
+        "sql": "",
+        "columns": ["product", "rrf_pos", "reranked_pos", "relevance_score"],
+        "rows": rerank_rows,
+        "meta": rerank_meta,
+        "tagClass": "amber",
+        "durationMs": rerank_ms,
+    }
+
+    return {
+        "query": q,
+        "params": params,
+        "stages": [
+            embed_stage,
+            vector_stage,
+            lexical_stage,
+            fusion_stage,
+            rerank_stage,
+        ],
+    }
+
+
 @app.get("/api/atelier/catalog")
 async def atelier_catalog():
     """

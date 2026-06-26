@@ -437,8 +437,10 @@ def _compose_resume_text(
     """Build the welcome-back assistant text deterministically.
 
     No LLM call — this is the teaching moment about continuity, not
-    about generation. The text quotes the three memory reads so the
-    attendee can map each clause to the panel that sourced it.
+    about generation. The text quotes the episodic + preference reads so
+    the attendee can map each clause to the panel that sourced it.
+    ``cohort_top_product`` is retained for callers that still pass a
+    cohort suggestion; the resume turn passes ``None``.
     """
     first_name = customer_name.split(" ", 1)[0] if customer_name else "there"
     parts = [f"Welcome back, {first_name}."]
@@ -454,14 +456,45 @@ def _compose_resume_text(
     return " ".join(parts)
 
 
+async def _resolve_customer_identity(
+    db_service: Any, customer_id: str
+) -> Optional[dict]:
+    """Read ``{name, preferences_summary}`` for the welcome-back text.
+
+    This is a NON-emitting read — it feeds the composed prose only. The
+    four substrate panels each own their own emit; the resume turn no
+    longer shows a separate stated-preferences panel (that blurred the
+    "four owners" model the MemoryDashboard teaches). Returns ``None`` on
+    any DB error so the text degrades to a bare welcome line.
+    """
+    try:
+        row = await db_service.fetch_one(
+            "SELECT name, preferences_summary FROM pellier.customers WHERE id = %s",
+            customer_id,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("resume identity read failed for %s: %s", customer_id, exc)
+        return None
+    return dict(row) if row else None
+
+
 @router.post("/resume", response_model=WorkshopQueryResponse)
 async def resume(payload: WorkshopResumeRequest) -> WorkshopQueryResponse:
-    """Replay the three MEMORY panels + emit a welcome-back response.
+    """Replay the four MEMORY substrate panels + emit a welcome-back response.
 
-    Panel order mirrors the teaching flow — EPISODIC first ("who are
-    you?"), PREFERENCES next ("what do we know?"), PROCEDURAL last
-    ("what might we suggest?"). The composed response text references
-    all three so the trace reads end-to-end.
+    Panel order mirrors the MemoryDashboard's "four owners" model so the
+    resume turn and the standalone Memory surface tell the same story:
+
+      WORKING    — AgentCore STM, the persona's latest storefront session
+      SEMANTIC   — AgentCore long-term, durable preferences we extracted
+      EPISODIC   — Aurora, past events for this customer
+      PROCEDURAL — Aurora tool_audit aggregate (which tools fire, how fast)
+
+    PROCEDURAL reads the SAME tool_audit aggregate the standalone Atelier
+    Procedural panel reads — not the cohort-overlap JOIN, which is a
+    recommendation signal mislabeled as procedural. The composed response
+    quotes the episodic + preference reads so the trace reads end-to-end;
+    the operational panels (working/procedural) are shown, not narrated.
     """
     customer_id = payload.customer_id.strip()
     if customer_id == "anonymous" or not customer_id:
@@ -486,39 +519,61 @@ async def resume(payload: WorkshopResumeRequest) -> WorkshopQueryResponse:
 
     try:
         from services.episodic_memory import (
+            emit_memory_working_panel,
+            emit_memory_semantic_panel,
             emit_memory_episodic_panel,
-            emit_memory_preferences_panel,
-            emit_memory_procedural_panel,
+            emit_memory_tool_audit_panel,
         )
         from app import db_service  # populated by lifespan startup
 
         if db_service is None:
             raise RuntimeError("Database service not initialised")
 
+        # Reverse the persona→customer_id map so the WORKING panel can
+        # resolve this customer's latest storefront session the same way
+        # the standalone Atelier panel does. Unknown customers → no
+        # persona → the panel reads this turn's own session instead.
+        persona: Optional[str] = None
+        try:
+            from routes.atelier_observatory import _PERSONA_TO_CUSTOMER_ID
+
+            persona = next(
+                (p for p, c in _PERSONA_TO_CUSTOMER_ID.items() if c == customer_id),
+                None,
+            )
+        except Exception:  # pragma: no cover - import guard
+            persona = None
+
+        # Four substrate panels, in MemoryDashboard order.
+        await emit_memory_working_panel(
+            ctx, db_service=db_service, persona=persona
+        )
+        semantic = await emit_memory_semantic_panel(ctx, db_service=db_service)
         episodes = await emit_memory_episodic_panel(ctx, db_service=db_service)
+        await emit_memory_tool_audit_panel(ctx, db_service=db_service)
         ctx.step_done(0)
         ctx.step_active(1)
 
-        prefs_row = await emit_memory_preferences_panel(ctx, db_service=db_service)
-        cohort = await emit_memory_procedural_panel(ctx, db_service=db_service)
-        ctx.step_done(1)
-        ctx.step_active(2)
-
+        identity = await _resolve_customer_identity(db_service, customer_id)
         latest_episode = (
             episodes[0]["summary_text"].rstrip(".") if episodes else None
         )
-        preferences_summary = (
-            (prefs_row or {}).get("preferences_summary") if prefs_row else None
+        # Prefer a learned (semantic) preference; fall back to the stated
+        # onboarding blurb so the welcome line still has something to say
+        # offline, where semantic extraction returns nothing.
+        preferences_summary = semantic[0] if semantic else (
+            (identity or {}).get("preferences_summary")
         )
-        customer_name = (prefs_row or {}).get("name", customer_id) if prefs_row else customer_id
-        cohort_top_product = cohort[0].get("name") if cohort else None
+        customer_name = (identity or {}).get("name") or customer_id
 
         text = _compose_resume_text(
             customer_name=customer_name,
             preferences_summary=preferences_summary,
             latest_episode=latest_episode,
-            cohort_top_product=cohort_top_product,
+            cohort_top_product=None,
         )
+        ctx.step_done(1)
+        ctx.step_active(2)
         ctx.emit_response(text=text, confidence=None)
         ctx.step_done(2)
 

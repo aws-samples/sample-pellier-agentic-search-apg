@@ -2,15 +2,20 @@
 
 Validates:
 - 400 on anonymous / empty customer_id.
-- 200 with three MEMORY panels (EPISODIC → PREFERENCES → PROCEDURAL)
-  and a composed response text that mentions the customer's first
-  name when seed rows are present.
-- DB failure does not 500 — the turn still returns a response event
-  with the error text, matching ``/api/atelier/query`` semantics.
+- 200 with the four MEMORY substrate panels in the MemoryDashboard's
+  "four owners" order (WORKING → SEMANTIC → EPISODIC → PROCEDURAL) and a
+  composed response text that mentions the customer's first name + most
+  recent episode + a preference blurb when seed rows are present.
+- PROCEDURAL reads the tool_audit aggregate (not the cohort-overlap
+  JOIN) — the same source the standalone Atelier Procedural panel uses.
+- DB failure does not 500 — every emitter swallows its read error and
+  emits an empty panel, so the turn still composes a response event.
 
-Uses a stub ``db_service`` installed via ``monkeypatch.setattr`` on
-the ``app`` module, since the route imports ``from app import
-db_service`` at call time.
+Uses a stub ``db_service`` installed via ``monkeypatch.setattr`` on the
+``app`` module, since the route imports ``from app import db_service`` at
+call time. Working + Semantic read AgentCore Memory directly, which is
+offline-safe (in-memory fallback → empty) without a provisioned account,
+so those two panels render empty in these tests — the honest degrade.
 """
 
 from __future__ import annotations
@@ -25,40 +30,45 @@ from routes.workshop import router as workshop_router
 
 
 class _StubDB:
-    """Minimal stub: fetch_all / fetch_one both return queued results."""
+    """Minimal stub routing fetch_all / fetch_one by SQL keyword."""
 
     def __init__(
         self,
-        fetch_all_result: List[dict] | None = None,
-        fetch_one_result: dict | None = None,
+        episodic_rows: List[dict] | None = None,
+        identity_row: dict | None = None,
         raise_exc: Exception | None = None,
     ) -> None:
-        # Queue fetch_all results — the resume route calls fetch_all twice
-        # (episodic + procedural). If only one result is given we reuse it.
-        self._fetch_all = fetch_all_result or []
-        self._fetch_one = fetch_one_result
+        self._episodic = episodic_rows or []
+        self._identity = identity_row
         self._raise = raise_exc
         self.fetch_all_calls: list[tuple] = []
+        self.fetch_one_calls: list[tuple] = []
 
     async def fetch_all(self, query: str, *params: Any) -> List[dict]:
         self.fetch_all_calls.append((query, params))
         if self._raise:
             raise self._raise
-        # Route queries by which SQL keywords appear — simple but keeps
-        # the stub honest about which call is which.
         if "customer_episodic_seed" in query:
-            return self._fetch_all
-        if "orders o" in query:
+            return self._episodic
+        if "tool_audit" in query:
+            # Procedural aggregate: tool / calls / avg_ms.
             return [
-                {"name": "Sage-Green Camp Shirt", "bought": 3},
-                {"name": "Linen Wide-Leg Trouser", "bought": 2},
+                {"tool": "find_pieces", "calls": 7, "avg_ms": 240},
+                {"tool": "floor_check", "calls": 3, "avg_ms": 95},
             ]
         return []
 
     async def fetch_one(self, query: str, *params: Any) -> dict | None:
+        self.fetch_one_calls.append((query, params))
         if self._raise:
             raise self._raise
-        return self._fetch_one
+        # Working panel resolves the persona's latest session from
+        # tool_audit; identity read hits pellier.customers.
+        if "tool_audit" in query:
+            return {"session_id": "persona-marco-abc123"}
+        if "customers" in query:
+            return self._identity
+        return None
 
 
 def _make_client(stub_db: _StubDB) -> TestClient:
@@ -75,19 +85,18 @@ def _make_client(stub_db: _StubDB) -> TestClient:
 def test_resume_rejects_anonymous_customer() -> None:
     db = _StubDB()
     client = _make_client(db)
-    # The Pydantic field uses min_length=1 so an empty string is 422,
-    # and "anonymous" triggers the 400 in the handler body.
+    # "anonymous" triggers the 400 in the handler body.
     r = client.post("/api/atelier/resume", json={"customer_id": "anonymous"})
     assert r.status_code == 400
 
 
-def test_resume_emits_three_memory_panels_in_order() -> None:
+def test_resume_emits_four_substrate_panels_in_owner_order() -> None:
     db = _StubDB(
-        fetch_all_result=[
+        episodic_rows=[
             {"summary_text": "Browsed mens linen shirts for Lisbon.", "ts_offset_days": -3},
             {"summary_text": "Asked about travel fabric.", "ts_offset_days": -9},
         ],
-        fetch_one_result={
+        identity_row={
             "name": "Marco Ferraro",
             "preferences_summary": "Linen & summer staples.",
         },
@@ -102,10 +111,19 @@ def test_resume_emits_three_memory_panels_in_order() -> None:
 
     tags = [e["tag"] for e in body["events"] if e["type"] == "panel"]
     assert tags == [
+        "MEMORY · WORKING",
+        "MEMORY · SEMANTIC",
         "MEMORY · EPISODIC",
-        "MEMORY · PREFERENCES",
         "MEMORY · PROCEDURAL",
     ]
+
+    # PROCEDURAL panel reads the tool_audit aggregate, not the cohort JOIN.
+    procedural = next(
+        e for e in body["events"] if e.get("tag") == "MEMORY · PROCEDURAL"
+    )
+    assert "tool_audit" in procedural["sql"]
+    assert procedural["columns"] == ["tool", "calls", "avg_latency"]
+    assert any("find_pieces" in row[0] for row in procedural["rows"])
 
     # Plan present with the three expected steps.
     plans = [e for e in body["events"] if e["type"] == "plan"]
@@ -113,7 +131,7 @@ def test_resume_emits_three_memory_panels_in_order() -> None:
     assert plans[0]["steps"] == ["Recall", "Summarize", "Offer"]
 
     # Response text references the customer's first name + most recent
-    # episode + a preferences blurb.
+    # episode + a preference blurb (falls back to stated prefs offline).
     responses = [e for e in body["events"] if e["type"] == "response"]
     assert len(responses) == 1
     text = responses[0]["text"]
@@ -122,11 +140,25 @@ def test_resume_emits_three_memory_panels_in_order() -> None:
     assert "Linen" in text
 
 
+def test_resume_procedural_is_not_customer_scoped() -> None:
+    """The procedural aggregate query carries no customer_id param — it
+    aggregates over every ALLOWed call, matching the standalone panel."""
+    db = _StubDB(episodic_rows=[], identity_row={"name": "Marco", "preferences_summary": "linen"})
+    client = _make_client(db)
+
+    r = client.post("/api/atelier/resume", json={"customer_id": "CUST-MARCO"})
+    assert r.status_code == 200
+
+    audit_calls = [c for c in db.fetch_all_calls if "tool_audit" in c[0]]
+    assert len(audit_calls) == 1
+    # Single param: the LIMIT. No customer_id threaded in.
+    assert audit_calls[0][1] == (6,)
+
+
 def test_resume_db_failure_emits_empty_panels_and_graceful_response() -> None:
-    """DB failures inside the episodic/prefs/procedural emitters are
-    swallowed — each emits a panel with zero rows rather than raising,
-    so the turn still composes a welcome-back response. The attendee
-    sees three empty panels, which is informative on its own."""
+    """DB failures inside the emitters are swallowed — each emits a panel
+    with zero rows rather than raising, so the turn still composes a
+    welcome-back response. The attendee sees four empty panels."""
     db = _StubDB(raise_exc=RuntimeError("connection reset"))
     client = _make_client(db)
 
@@ -134,18 +166,18 @@ def test_resume_db_failure_emits_empty_panels_and_graceful_response() -> None:
     assert r.status_code == 200
     body = r.json()
 
-    # All three memory panels present, all with empty rows.
     panels = [e for e in body["events"] if e["type"] == "panel"]
     assert [p["tag"] for p in panels] == [
+        "MEMORY · WORKING",
+        "MEMORY · SEMANTIC",
         "MEMORY · EPISODIC",
-        "MEMORY · PREFERENCES",
         "MEMORY · PROCEDURAL",
     ]
     for p in panels:
         assert p["rows"] == []
 
-    # Response still composed — no latest episode / prefs / cohort to
-    # quote, so the text falls back to a bare welcome line.
+    # Response still composed — no episode / prefs to quote, so the text
+    # falls back to a bare welcome line.
     responses = [e for e in body["events"] if e["type"] == "response"]
     assert len(responses) == 1
     assert "Welcome back" in responses[0]["text"]
@@ -153,8 +185,8 @@ def test_resume_db_failure_emits_empty_panels_and_graceful_response() -> None:
 
 def test_resume_session_id_roundtrips_when_supplied() -> None:
     db = _StubDB(
-        fetch_all_result=[],
-        fetch_one_result={"name": "Marco", "preferences_summary": "linen"},
+        episodic_rows=[],
+        identity_row={"name": "Marco", "preferences_summary": "linen"},
     )
     client = _make_client(db)
 

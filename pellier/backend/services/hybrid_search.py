@@ -52,6 +52,63 @@ logger = logging.getLogger(__name__)
 _RRF_K_DEFAULT = 60
 
 
+# The two branch queries are kept as module-level constants so the live
+# retrieval path (``_vector_search`` / ``_bm25_search``) and the Atelier
+# "explain" surface (``search_explained``) read from the *same* string.
+# That guarantees the SQL a workshop participant sees on the Search page
+# is byte-identical to the SQL that actually ran — no drift, no separate
+# "display copy" to keep in sync.
+_VECTOR_BRANCH_SQL = """
+            WITH query_embedding AS (
+                SELECT %s::vector AS emb
+            )
+            SELECT
+                "productId" AS product_id,
+                name,
+                brand,
+                color,
+                description,
+                "imgUrl"   AS img_url,
+                category,
+                price,
+                rating,
+                reviews,
+                badge,
+                tags,
+                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
+            FROM pellier.product_catalog
+            WHERE "imgUrl" IS NOT NULL
+            ORDER BY embedding <=> (SELECT emb FROM query_embedding)
+            LIMIT %s
+        """
+
+_FTS_BRANCH_SQL = """
+            WITH q AS (
+                SELECT to_tsquery('english', %s) AS ts_q
+            )
+            SELECT
+                "productId" AS product_id,
+                name,
+                brand,
+                color,
+                description,
+                "imgUrl"   AS img_url,
+                category,
+                price,
+                rating,
+                reviews,
+                badge,
+                tags,
+                ts_rank_cd(description_tsv, q.ts_q) AS bm25_score
+            FROM pellier.product_catalog
+            CROSS JOIN q
+            WHERE "imgUrl" IS NOT NULL
+              AND description_tsv @@ q.ts_q
+            ORDER BY bm25_score DESC
+            LIMIT %s
+        """
+
+
 class HybridSearch:
     """Hybrid pgvector + Postgres tsvector retrieval with RRF merge."""
 
@@ -133,6 +190,86 @@ class HybridSearch:
         return results
 
     # -----------------------------------------------------------------
+    # Teaching surface — explain the merge with per-branch ranks
+    # -----------------------------------------------------------------
+    async def search_explained(
+        self,
+        query: str,
+        query_embedding: List[float],
+        k_vector: int = 0,
+        k_bm25: int = 0,
+        rrf_k: int = 0,
+        top_n: int = 0,
+    ) -> Dict[str, Any]:
+        """Run the same hybrid retrieval as :meth:`search`, but return the
+        *intermediate* state instead of just the final ranking.
+
+        This exists purely for the Atelier "Search" teaching surface. It
+        re-uses the exact same branch queries and the exact same
+        :meth:`_rrf_merge` as the shipped path, so what a participant sees
+        is what actually runs — there is no parallel "demo" pipeline.
+
+        The one thing :meth:`search` throws away that the teaching view
+        needs is the *per-branch rank* of each row: ``_rrf_merge`` consumes
+        the ordered branch lists and only emits the fused ``rrf_score``.
+        Here we capture each branch's 1-based rank by enumerating the
+        ordered lists ourselves (the same enumeration ``_rrf_merge`` does
+        internally), so the FUSION panel can show ``vec_rank`` and
+        ``fts_rank`` side by side with the ``rrf_score`` they produce.
+
+        Returns a dict with:
+          - ``vector_rows``  — ordered vector-branch rows (carry ``similarity``)
+          - ``bm25_rows``    — ordered FTS-branch rows (carry ``bm25_score``)
+          - ``merged``       — RRF-merged rows, each annotated with
+            ``vec_rank`` / ``fts_rank`` (1-based, or ``None`` when the row
+            did not appear in that branch) and ``rrf_score``
+          - ``params``       — the resolved ``{k_vector, k_bm25, rrf_k, top_n}``
+            so the surface can label the knobs honestly
+          - ``vector_sql`` / ``fts_sql`` — the literal branch SQL strings
+        """
+        k_vector = int(k_vector or settings.HYBRID_VECTOR_K)
+        k_bm25 = int(k_bm25 or settings.HYBRID_FTS_K)
+        rrf_k = int(rrf_k or settings.HYBRID_RRF_K or _RRF_K_DEFAULT)
+        top_n = int(top_n or settings.HYBRID_TOP_N)
+        k_vector = max(5, min(k_vector, 100))
+        k_bm25 = max(5, min(k_bm25, 100))
+        top_n = max(5, min(top_n, 100))
+
+        vector_rows, bm25_rows = await asyncio.gather(
+            self._vector_search(query_embedding, k_vector),
+            self._bm25_search(query, k_bm25),
+        )
+
+        # Per-branch 1-based ranks, keyed by product_id. This mirrors the
+        # enumeration inside _rrf_merge exactly (rank_zero + 1).
+        vec_rank_by_id = {
+            row["product_id"]: i + 1 for i, row in enumerate(vector_rows)
+        }
+        fts_rank_by_id = {
+            row["product_id"]: i + 1 for i, row in enumerate(bm25_rows)
+        }
+
+        merged = self._rrf_merge(vector_rows, bm25_rows, rrf_k)
+        for row in merged:
+            pid = row["product_id"]
+            row["vec_rank"] = vec_rank_by_id.get(pid)
+            row["fts_rank"] = fts_rank_by_id.get(pid)
+
+        return {
+            "vector_rows": vector_rows,
+            "bm25_rows": bm25_rows,
+            "merged": merged[:top_n],
+            "params": {
+                "k_vector": k_vector,
+                "k_bm25": k_bm25,
+                "rrf_k": rrf_k,
+                "top_n": top_n,
+            },
+            "vector_sql": _VECTOR_BRANCH_SQL,
+            "fts_sql": _FTS_BRANCH_SQL,
+        }
+
+    # -----------------------------------------------------------------
     # Internal — vector branch
     # -----------------------------------------------------------------
     async def _vector_search(
@@ -145,29 +282,7 @@ class HybridSearch:
         iterative_scan was designed to protect, and a smaller HNSW pool
         keeps this stage fast (the reranker is the recall amplifier).
         """
-        sql = """
-            WITH query_embedding AS (
-                SELECT %s::vector AS emb
-            )
-            SELECT
-                "productId" AS product_id,
-                name,
-                brand,
-                color,
-                description,
-                "imgUrl"   AS img_url,
-                category,
-                price,
-                rating,
-                reviews,
-                badge,
-                tags,
-                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
-            FROM pellier.product_catalog
-            WHERE "imgUrl" IS NOT NULL
-            ORDER BY embedding <=> (SELECT emb FROM query_embedding)
-            LIMIT %s
-        """
+        sql = _VECTOR_BRANCH_SQL
         params: List[Any] = [embedding, k]
         start = time.time()
         async with self.db.get_connection() as conn:
@@ -284,31 +399,7 @@ class HybridSearch:
             # Pure stop-word query (rare). Return empty so RRF falls
             # back to vector-only ranking.
             return []
-        sql = """
-            WITH q AS (
-                SELECT to_tsquery('english', %s) AS ts_q
-            )
-            SELECT
-                "productId" AS product_id,
-                name,
-                brand,
-                color,
-                description,
-                "imgUrl"   AS img_url,
-                category,
-                price,
-                rating,
-                reviews,
-                badge,
-                tags,
-                ts_rank_cd(description_tsv, q.ts_q) AS bm25_score
-            FROM pellier.product_catalog
-            CROSS JOIN q
-            WHERE "imgUrl" IS NOT NULL
-              AND description_tsv @@ q.ts_q
-            ORDER BY bm25_score DESC
-            LIMIT %s
-        """
+        sql = _FTS_BRANCH_SQL
         params: List[Any] = [or_query, k]
         start = time.time()
         async with self.db.get_connection() as conn:
