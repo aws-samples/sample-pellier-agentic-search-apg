@@ -31,24 +31,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // --- fetch mock ---------------------------------------------------------
 // Return 401 for auth/preferences (unauthenticated) and empty-ok for
 // everything else. This lets AuthProvider resolve `loading=false` fast
-// and keeps unrelated polling hooks (workshop status, inventory) from
+// and keeps unrelated polling hooks (build state, inventory) from
 // logging jsdom network errors.
 const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
   const url = typeof input === 'string' ? input : input.toString()
   if (url.includes('/api/auth/me') || url.includes('/api/user/preferences')) {
     return new Response(null, { status: 401 })
   }
-  if (url.includes('/api/atelier/status')) {
-    // useWorkshopStatus reads `data.modules.module{1,2,3}.complete`. Return
-    // a well-shaped "nothing complete yet" payload so the hook's useMemo
-    // doesn't blow up on missing keys.
+  if (url.includes('/api/atelier/build-state')) {
+    // useBuildState reads `{ agents: {name: status}, tools: {fn: status} }`
+    // (see routes/atelier_observatory.py::get_build_state). Return a
+    // well-shaped starter payload (floor_check still an exercise) so the
+    // Sidebar progress badges resolve without a jsdom network error.
     return new Response(
       JSON.stringify({
-        modules: {
-          module1: { complete: false, label: 'Smart Search', stubs: {} },
-          module2: { complete: false, label: 'Agentic AI', stubs: {} },
-          module3: { complete: false, label: 'Production', stubs: {} },
-        },
+        agents: { 'Stock Keeper': 'exercise' },
+        tools: { floor_check: 'exercise' },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     )

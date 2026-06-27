@@ -247,7 +247,7 @@ const PoliciesCard: React.FC = () => {
 
       {error && (
         <div style={{ fontFamily: 'var(--at-mono)', fontSize: '13px', color: 'var(--at-red-1)' }}>
-          Failed to load policies: {error}
+          Managed policy list unavailable here: {error}
         </div>
       )}
 
@@ -375,7 +375,7 @@ const ToolAuditCard: React.FC = () => {
 
       {error && (
         <div style={{ fontFamily: 'var(--at-mono)', fontSize: '13px', color: 'var(--at-red-1)' }}>
-          Failed to load tool_audit: {error}
+          Live tool_audit read unavailable here: {error}
         </div>
       )}
 

@@ -1102,30 +1102,35 @@ async def personalized_search(
 @app.get("/api/atelier/skills")
 async def list_skills():
     """
-    List all skills in the registry for the Atelier Architecture tab.
+    List all skills in the registry for the Atelier surfaces.
 
-    Returns shape that matches the frontend's expectations — name,
-    description, version, display_name, token_estimate, and the full
-    markdown body so the "Open SKILL.md →" link can render it inline
-    without a second request.
+    Returns a bare JSON array, matching the sibling list endpoints
+    (``/api/atelier/agents``, ``/api/atelier/tools/list``) and the
+    ``skills.json`` fixture shape. ``useAtelierData`` stores the response
+    verbatim, so a bare array keeps ``data ?? []`` an array even if a
+    surface is ever switched from fixture mode to ``source: 'api'`` for the
+    ``skills`` key — a wrapper object would break the downstream ``.map``.
+
+    Each item carries name, description, version, display_name,
+    token_estimate, and the full markdown body so the "Open SKILL.md →"
+    link can render it inline without a second request. (Curated UI-only
+    fields — persona, loadedBy, signals, status — live in the fixture; the
+    registry does not own them.)
     """
     from skills import get_registry
     registry = get_registry()
-    return {
-        "skills": [
-            {
-                "name": s.name,
-                "display_name": s.display_name_resolved,
-                "description": s.description,
-                "version": s.version,
-                "token_estimate": s.token_estimate,
-                "body": s.body,
-                "path": s.path,
-            }
-            for s in registry.get_all()
-        ],
-        "count": len(registry),
-    }
+    return [
+        {
+            "name": s.name,
+            "display_name": s.display_name_resolved,
+            "description": s.description,
+            "version": s.version,
+            "token_estimate": s.token_estimate,
+            "body": s.body,
+            "path": s.path,
+        }
+        for s in registry.get_all()
+    ]
 
 
 @app.get("/api/atelier/search-strategies/compare")

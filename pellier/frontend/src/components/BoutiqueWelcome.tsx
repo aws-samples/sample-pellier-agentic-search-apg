@@ -162,9 +162,8 @@ const FRESH_COPY: PersonaCopy = {
     if (!stats || stats.product_count === 0) {
       return (
         <>
-          Welcome to Pellier. I'm Pellier — your personal shopping
-          concierge. Tell me what you're looking for and I'll find the
-          right pieces.
+          Welcome to Pellier. I'm your personal shopping concierge. Tell
+          me what you're looking for and I'll find the right pieces.
         </>
       )
     }

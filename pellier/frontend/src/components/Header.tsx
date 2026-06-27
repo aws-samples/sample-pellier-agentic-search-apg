@@ -262,6 +262,15 @@ function PersonaDropdown() {
           role="menu"
           aria-label="Persona menu"
         >
+          {!fetched && personas.length === 0 && (
+            <div
+              className="px-4 py-2.5 text-ink-soft text-[12px]"
+              style={{ fontFamily: 'var(--sans)' }}
+              aria-live="polite"
+            >
+              Loading personas…
+            </div>
+          )}
           {personas.map((p) => {
             const isActive = persona?.id === p.id
             return (

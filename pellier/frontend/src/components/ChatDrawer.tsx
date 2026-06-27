@@ -51,7 +51,7 @@ const PERSONA_GREETINGS: Record<string, string> = {
 }
 
 const FRESH_GREETING =
-  "Welcome to Pellier. I'm Pellier — your personal shopping concierge. Tell me what you're looking for and I'll find the right pieces for you."
+  "Welcome to Pellier. I'm your personal shopping concierge. Tell me what you're looking for and I'll find the right pieces for you."
 
 // ---------------------------------------------------------------------------
 // Platform detection for keyboard hint

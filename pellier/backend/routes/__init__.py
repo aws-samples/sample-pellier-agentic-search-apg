@@ -11,8 +11,8 @@ rather than declaring every endpoint inline.
                               ``/api/products/{id}``, ``/api/inventory``.
   * ``search``   (Task 3.7) — ``POST /api/search`` boutique vector search
                               wrapping the C1 ``vector_search`` method.
-  * ``workshop``  (Week 1)   — ``POST /api/workshop/query`` flat replay payload
-                               for the DAT406 /workshop telemetry surface.
+  * ``workshop``  (Week 1)   — ``POST /api/atelier/query`` + ``/api/atelier/resume``
+                               flat replay payloads for the Atelier telemetry surface.
   * ``boutique`` (pre-W3)    — ``GET /api/storefront/briefing`` + ``/pulse``
                                for the homepage ambient agent chrome.
 """

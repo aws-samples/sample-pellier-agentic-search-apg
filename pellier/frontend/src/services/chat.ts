@@ -141,12 +141,12 @@ export async function sendChatMessageStreaming(
 
               if (data.type === 'complete') {
                 finalResponse = {
-                  response: data.response.response,
-                  products: data.response.products || [],
-                  suggestions: data.response.suggestions || [],
-                  agent_execution: data.response.agent_execution,
-                  token_count: data.response.token_count,
-                  estimated_cost_usd: data.response.estimated_cost_usd
+                  response: data.response?.response,
+                  products: data.response?.products || [],
+                  suggestions: data.response?.suggestions || [],
+                  agent_execution: data.response?.agent_execution,
+                  token_count: data.response?.token_count,
+                  estimated_cost_usd: data.response?.estimated_cost_usd
                 }
               }
             } catch {

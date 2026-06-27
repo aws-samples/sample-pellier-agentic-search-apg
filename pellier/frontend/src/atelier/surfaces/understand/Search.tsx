@@ -406,6 +406,12 @@ const Search: React.FC = () => {
   const { stages, params, query, loading, error, durationMs, explain } =
     useSearchExplain();
   const [input, setInput] = useState(DEFAULT_QUERY);
+  // Tracks whether the participant has run a query themselves. We auto-fire
+  // the default query on mount so the surface is never empty, but if that
+  // auto-run fails (e.g. the backend is still warming up at page-open) we
+  // show a calm "press Run on Aurora" prompt rather than a loud red banner
+  // for something the participant did not trigger.
+  const [hasRunManually, setHasRunManually] = useState(false);
 
   // Run the default query once on mount so the surface is never empty.
   useEffect(() => {
@@ -416,13 +422,17 @@ const Search: React.FC = () => {
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (input.trim()) explain(input.trim());
+      if (input.trim()) {
+        setHasRunManually(true);
+        explain(input.trim());
+      }
     },
     [input, explain],
   );
 
   const runExample = useCallback(
     (q: string) => {
+      setHasRunManually(true);
       setInput(q);
       explain(q);
     },
@@ -566,7 +576,7 @@ const Search: React.FC = () => {
       )}
 
       {/* Error state — honest, no fabricated ranking */}
-      {error && (
+      {error && hasRunManually && (
         <div
           style={{
             fontFamily: 'var(--at-mono)',
@@ -582,6 +592,26 @@ const Search: React.FC = () => {
           Live search-explain endpoint unavailable ({error}). This surface
           shows real per-stage SQL and live rankings only — it does not
           fabricate a ranking offline. Start the backend and run again.
+        </div>
+      )}
+
+      {error && !hasRunManually && !loading && (
+        <div
+          style={{
+            fontFamily: 'var(--at-mono)',
+            fontSize: '13px',
+            color: 'var(--at-ink-2)',
+            padding: '12px 14px',
+            background: 'var(--at-cream-elev)',
+            border: '1px solid var(--at-rule-1)',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            lineHeight: 1.55,
+          }}
+        >
+          Edit the query and press <strong>Run on Aurora</strong> to trace the
+          live pipeline. (The surface runs real per-stage SQL against the
+          catalog, so it waits for your run rather than fabricating a ranking.)
         </div>
       )}
 

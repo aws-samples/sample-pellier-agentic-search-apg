@@ -327,7 +327,19 @@ def _function_source(path: Path, function_name: str) -> str:
 
 
 def test_floor_check_builder_contract() -> None:
-    """The live Builder file stays stubbed; the copy solution is wired."""
+    """Repo guard: the *shipped* starter file ships stubbed, and the copy
+    solution is fully wired.
+
+    POLARITY NOTE (read before debugging a red run): this is a guard on the
+    committed starter state, not a build check. It is expected to pass on a
+    clean checkout (floor_check still stubbed) and is **deliberately skipped**
+    once a participant wires floor_check — wiring it is the exercise, not a
+    regression. A participant who completes the exercise and runs the full
+    suite should therefore see this as ``SKIPPED``, never as a failure. The
+    real verification of a correct wire is the Atelier Tools strip flipping
+    12/13 -> 13/13 and Marco's Brooklyn turn returning a real quantity, both
+    in the lab guide. See CLAUDE.md ("How the participant verifies").
+    """
     live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "floor_check")
     preapply_src = _function_source(
         _SOLUTIONS
@@ -341,11 +353,25 @@ def test_floor_check_builder_contract() -> None:
         "floor_check",
     )
 
+    # The drop-in solution invariants always hold, regardless of whether the
+    # participant has wired the live file yet — these protect the `cp` path.
+    assert "product_query: str = \"\"" in solution_src
+    assert "floor_check is in stub state" not in solution_src
+    assert "logic.floor_check(product_query=query)" in solution_src
+
+    # If the participant has wired the live file (the exercise is done), the
+    # starter-stub assertions below would fail on something they were told to
+    # change. Skip with a clear reason instead of emitting a confusing red.
+    if "floor_check is in stub state" not in live_src:
+        pytest.skip(
+            "floor_check has been wired in services/agent_tools.py — this is "
+            "the expected end state of the exercise, not a regression. The "
+            "starter-stub guard only applies to the shipped repo. Verify your "
+            "wire via the Atelier Tools 13/13 strip and Marco's Brooklyn turn."
+        )
+
+    # Shipped starter state: the live + preapply builder files carry the stub.
     assert "product_query: str = \"\"" in live_src
     assert "floor_check is in stub state" in live_src
     assert "product_query: str = \"\"" in preapply_src
     assert "floor_check is in stub state" in preapply_src
-
-    assert "product_query: str = \"\"" in solution_src
-    assert "floor_check is in stub state" not in solution_src
-    assert "logic.floor_check(product_query=query)" in solution_src

@@ -67,6 +67,13 @@ const fixtureImporters: Record<string, () => Promise<{ default: unknown }>> = {
 };
 
 /**
+ * The complete set of fixture keys this hook can load. Exported so the
+ * fixture-integrity property test can assert it covers every key (rather
+ * than a hard-coded subset that silently drifts when a key is added here).
+ */
+export const FIXTURE_KEYS: readonly string[] = Object.keys(fixtureImporters);
+
+/**
  * Map of data keys to their API endpoint paths.
  *
  * Note: `production-patterns` is intentionally fixture-only (no backend

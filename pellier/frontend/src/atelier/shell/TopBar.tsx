@@ -33,6 +33,7 @@ function prettifySegment(segment: string): string {
     agents: 'Agents',
     skills: 'Skills',
     tools: 'Tools',
+    search: 'Search',
     routing: 'Routing',
     memory: 'Memory',
     'write-path': 'Write-path',
@@ -43,6 +44,11 @@ function prettifySegment(segment: string): string {
     chat: 'Chat',
     telemetry: 'Telemetry',
     brief: 'Brief',
+    mcp: 'MCP',
+    runtime: 'Runtime',
+    grounding: 'Grounding',
+    'state-management': 'State Management',
+    'tool-registry': 'Tool Registry',
   };
 
   return labels[segment.toLowerCase()] ?? segment;
