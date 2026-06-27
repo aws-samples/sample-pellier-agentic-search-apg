@@ -5,7 +5,7 @@
  */
 import { act, render, renderHook, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { UIProvider, useUI } from './UIContext'
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -135,7 +135,15 @@ describe('UIContext hook ergonomics', () => {
   it('useUI throws a clear error when used outside UIProvider', () => {
     // renderHook without a wrapper — useContext returns undefined and the
     // hook must throw rather than silently return an empty shape.
-    expect(() => renderHook(() => useUI())).toThrow(/UIProvider/)
+    const preventJSDOMError = (event: ErrorEvent) => event.preventDefault()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    window.addEventListener('error', preventJSDOMError)
+    try {
+      expect(() => renderHook(() => useUI())).toThrow(/UIProvider/)
+    } finally {
+      window.removeEventListener('error', preventJSDOMError)
+      consoleError.mockRestore()
+    }
   })
 
   it('toggleConcierge() respects current state', () => {

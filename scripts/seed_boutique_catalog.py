@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed the boutique catalog — 36 curated products with real Cohere Embed v4 embeddings.
+Seed the boutique catalog — 40 curated products with real Cohere Embed v4 embeddings.
 
 10 products per persona (Marco / Anna / Theo / Fresh), zero overlap.
 Each persona: 1 hero + 1 weekend edit featured + 8 grid = 10 total.

@@ -786,7 +786,7 @@ alias psql='psql'
 # AWS Region for boto3
 export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 
-# Claude Code CLI → Amazon Bedrock (optional "Direct an AI agent" lane, Ex 1).
+# Claude Code CLI → Amazon Bedrock (Claude Code lane, Ex 1).
 # CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
 # instance role (the same ambient-credential chain psql/boto3/agentcore already
 # use) — no Anthropic API key, no per-participant login, nothing to paste.

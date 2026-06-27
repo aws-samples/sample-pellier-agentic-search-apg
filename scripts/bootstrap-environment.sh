@@ -141,7 +141,7 @@ if [ "$_node20_ok" = true ]; then
             warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript' then re-run scripts/deploy/deploy_all.sh."
         fi
 
-        # Claude Code CLI (global), for the OPTIONAL "Direct an AI agent" lane in
+        # Claude Code CLI (global), for the Claude Code lane in
         # Exercise 1. It runs entirely against Bedrock via the box's instance
         # role (CLAUDE_CODE_USE_BEDROCK=1 + ANTHROPIC_MODEL are exported in the
         # participant .bashrc by bootstrap-labs), so there is NO per-participant
@@ -694,22 +694,24 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 clear
 
 cat << EOF
-  Pellier – Build Agentic AI-Powered Search
-  OPS402 · AWS Summit Washington, DC · Builder's Session · Level 400
+  Pellier Builder's Session
+  Build agentic AI-powered search with Aurora PostgreSQL
 
-  LEVEL       400 (expert) refers to the CONCEPTS, not the code. The app is
-              already built. You do two things, then observe / measure / read
-              to see how it works. That's the whole job.
+  START       Keep the lab guide open. Work primarily in this terminal and
+              the Boutique shopper view.
 
-  EXERCISES   1. Implement floor_check so the agent reads live Aurora inventory.
-              2. Query pellier.tool_audit to prove what the agent did.
+  BUILD       Exercise 1: wire floor_check in
+              pellier/backend/services/agent_tools.py.
 
-  LAB GUIDE   Open the lab guide in the Workshop Studio panel on the LEFT – your
-              step-by-step source of truth. Keep it open next to the IDE.
+  MEASURE     Compare retrieval strategies for Anna's query.
 
-  OPEN/EDIT   Click BoutiqueURL and AtelierURL in Workshop Studio Outputs.
-              pellier/backend/services/agent_tools.py is open – find the
-              floor_check CHALLENGE markers, implement, save (reloads ~2s).
+  PROVE       Exercise 2: query pellier.tool_audit from psql.
+
+  ATELIER     Use Atelier only when a step names a specific verification or
+              comparison view.
+
+  FILE        agent_tools.py is open. Find the floor_check CHALLENGE markers,
+              implement, save, then test in Boutique.
 
 EOF
 

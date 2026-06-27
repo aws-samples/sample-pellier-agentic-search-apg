@@ -125,8 +125,6 @@ def floor_check(product_query: str = "") -> str:
             for. Empty string falls back to the aggregate summary mode.
     """
     # === CHALLENGE · Stock Keeper · floor_check: START ===
-# pellier/backend/services/agent_tools.py, replacing the stub return block.
-
     if not _db_service:
         return json.dumps({"error": "Database service not initialized"})
 

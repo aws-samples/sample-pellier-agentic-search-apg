@@ -10,7 +10,7 @@ _Agentic search on Aurora PostgreSQL · Bedrock AgentCore · Strands Agents · M
 [![Bedrock AgentCore](https://img.shields.io/badge/Bedrock-AgentCore-FF9900?style=flat-square)](https://aws.amazon.com/bedrock/agentcore/)
 [![Strands Agents](https://img.shields.io/badge/Strands-Agents_SDK-232F3E?style=flat-square)](https://strandsagents.com)
 [![MCP](https://img.shields.io/badge/MCP-postgres--mcp--server-4A154B?style=flat-square)](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server)
-[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.14 / 3.13 fallback](https://img.shields.io/badge/Python-3.14_%2F_3.13_fallback-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 
 [![Builder's Session](https://img.shields.io/badge/AWS_Summit-Builder%27s_Session-FF9900?style=flat-square)](https://aws.amazon.com/events/summits/)
 [![Level 400](https://img.shields.io/badge/Level-400_·_Expert-A8423A?style=flat-square)](#builders-session-60-min)
