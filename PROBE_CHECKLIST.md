@@ -122,19 +122,22 @@ echo "$PELLIER_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.to
 
 # PRIMARY (Movement B): the dat403-style CLI invoke — IF step-2 probe confirmed the flag.
 agentcore invoke --bearer-token "$PELLIER_TOKEN" \
-  "Is the Hadley shirt at the Brooklyn warehouse?"
+  "Find linen travel pieces for a warm-weather trip."
 #   CAPTURE the streamed output VERBATIM -> reconcile §5 Movement B "Expected".
-#   Answer should name Brooklyn / BK-01. (CLI cd's to the deploy dir via the
-#   agentcore function, so it finds deployed-state.json automatically.)
+#   Answer should use the managed Gateway catalog/search path and return rail
+#   "gateway-mcp". Marco's Brooklyn warehouse prompt belongs to the in-process
+#   Act I floor_check path, not this Runtime smoke test. (CLI cd's to the deploy
+#   dir via the agentcore function, so it finds deployed-state.json automatically.)
 
 # FALLBACK (also valid; primary if 0.18 invoke lacks --bearer-token): app-side curl.
 SESSION="probe-$(date +%s)"
 curl -sN -X POST http://localhost:8000/api/agent/chat \
   -H "Authorization: Bearer ${PELLIER_TOKEN}" -H 'Content-Type: application/json' \
-  -d "{\"message\":\"Is the Hadley shirt at the Brooklyn warehouse?\",\"session_id\":\"${SESSION}\"}"
+  -d "{\"message\":\"Find linen travel pieces for a warm-weather trip.\",\"session_id\":\"${SESSION}\"}"
 #   CAPTURE the token'd SSE sequence (session->chunk->done was observed on the
 #   in-process fallback; the Runtime branch may differ) -> reconcile the curl block.
 
+# OPTIONAL: run only if the Code Editor role has logs:FilterLogEvents.
 agentcore logs -n 20 --since 30m   # CAPTURE: does the platform-side record show the invoke?
 
 # DEGRADATION (the "by design" runbook row): the curl with NO Authorization header
@@ -145,10 +148,11 @@ curl -sN -X POST http://localhost:8000/api/agent/chat \
 ```
 
 **Pass:** `agentcore status` shows a cloud ARN; `agentcore invoke --bearer-token`
-(or the curl fallback) returns the Brooklyn answer; `agentcore logs` shows a
-platform-side record; anonymous curl falls back cleanly. If 0.18's `invoke` has
-no bearer flag, the curl is primary and the content's `agentcore invoke` block
-should be demoted to the alternative.
+(or the curl fallback) returns a catalog/search answer on the Gateway rail;
+`agentcore logs` shows a platform-side record if permissions allow it; anonymous
+curl falls back cleanly. If 0.18's `invoke` has no bearer flag, the curl is
+primary and the content's `agentcore invoke` block should be demoted to the
+alternative.
 
 ---
 

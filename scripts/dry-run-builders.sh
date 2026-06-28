@@ -149,10 +149,10 @@ fi
 # --- 4. Managed Runtime invoke (optional) -----------------------------------
 echo "[4/6] AgentCore Runtime invoke — POST /api/agent/chat"
 if [[ -n "${AGENTCORE_RUNTIME_ENDPOINT:-}" && "${USE_AGENTCORE_RUNTIME:-false}" == "true" ]]; then
-  rt='{"message":"Is the Hadley shirt at the Brooklyn warehouse?","session_id":"'"$SESSION"'-rt"}'
+  rt='{"message":"Find linen travel pieces for a warm-weather trip.","session_id":"'"$SESSION"'-rt"}'
   rtreply="$(curl -fsN --max-time 90 -X POST "${BASE}/api/agent/chat" \
     -H 'Content-Type: application/json' -d "$rt" 2>/dev/null || true)"
-  if echo "$rtreply" | grep -qiE 'brooklyn|BK-01|event:|chunk'; then
+  if echo "$rtreply" | grep -qiE 'linen|travel|gateway-mcp|event:|chunk'; then
     pass "Managed Runtime returned a traceable response"
   else
     fail "Runtime invoke returned nothing usable (first 200: ${rtreply:0:200})"
