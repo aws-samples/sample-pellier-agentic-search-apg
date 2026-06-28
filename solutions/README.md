@@ -38,12 +38,12 @@ markers): `solutions/closing-marcos-gap/services/floor_check_tool_body.py`.
 Generate a tool call, then **author** three queries that interrogate the
 Aurora ledger, building in difficulty: the raw row (`SELECT`), JSONB
 extraction (`->>` pulls `reason`/`return_id` out as columns), and
-rail-boundary reasoning (`COUNT` by caller and reason → explain where a
-Gateway-denied call would stop before a row exists). This is SQL the
+rail-label reasoning (`caller='agent'` proves the required in-process
+rail; Gateway DENY would stop before a row exists). This is SQL the
 participant writes, not a code drop — there is no file to copy over a
 runtime counterpart. The required path is in-process (`caller='agent'`);
-no-row behavior is a Gateway-rail/Cedar property. The "⏩ stuck on the SQL"
-escape hatch is a canned recap query a facilitator can run live:
+no-row behavior is a Gateway-rail/Cedar property. The reference recap is
+a canned query a facilitator can run live:
 
 ```bash
 psql -f solutions/the-ledger/sql/tool_audit_recap.sql
