@@ -221,9 +221,10 @@ def process_return(customer_id: str, product_id: int, reason: str) -> str:
     """Process a customer return. Theo's Experience Guide uses this.
 
     Two enforcement layers:
-      - Cedar policy ``process-return-allowed-reasons`` gates the
-        reason value before this tool is invoked (BeforeToolCallEvent).
-        Free-form reasons are rejected without ever reaching SQL.
+      - On the managed Gateway rail, AgentCore Policy can gate the call
+        before the Lambda-backed tool target runs. In this workshop that
+        managed rail permits the damaged-return path; the in-process
+        storefront rail reaches this function directly.
       - SQL gates ownership inside the transaction. The customer must
         have an order row for this product. Cedar can't enforce
         ownership because it requires a JOIN against live data.
@@ -238,8 +239,8 @@ def process_return(customer_id: str, product_id: int, reason: str) -> str:
             and must have an order for this product_id).
         product_id: INTEGER productId (1-40 in the boutique catalog).
         reason: One of 'damaged', 'wrong_size', 'not_as_described',
-            'changed_mind', 'other'. Cedar enforces this set before
-            the tool runs.
+            'changed_mind', 'other'. The tool validates this canonical set;
+            the managed Gateway policy can narrow which calls execute.
     """
     if not _db_service:
         return json.dumps({"error": "Database service not initialized"})

@@ -313,10 +313,9 @@ class BusinessLogic:
 
         The managed AgentCore Policy engine (Cedar, ENFORCE mode,
         attached to the Gateway by scripts/deploy/deploy_policy.py)
-        gates the *reason value* at the Gateway before the tool's Lambda
-        ever runs. We still validate inside the SQL CHECK and as a
-        defense-in-depth guard here so a misbehaving agent that bypasses
-        the Gateway can't write garbage.
+        can gate a Gateway-rail call before the tool's Lambda ever runs.
+        The required storefront rail is in-process, so we still validate
+        the canonical reason set here as a defense-in-depth guard.
 
         Ownership is gated *here*, not in Cedar — the principal/resource
         relationship is a SQL JOIN (``orders ⋈ customer + product``),

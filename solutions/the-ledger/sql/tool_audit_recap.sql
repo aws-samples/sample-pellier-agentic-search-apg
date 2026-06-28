@@ -1,17 +1,16 @@
--- tool_audit_recap.sql — Act II: Exercise 2 (managed Policy + Aurora proof)
+-- tool_audit_recap.sql — Act II: Exercise 2 (Aurora ledger proof)
 --
 -- Drops in for the in-room SQL proof when a participant runs out of time.
--- On the managed Gateway rail, process_return runs in the experience Lambda
--- ONLY after managed AgentCore Policy (Cedar, ENFORCE) permits it. The Lambda
--- receives the tool arguments but NOT a session_id, so the ledger row is keyed
--- by the customer the agent acted for (args->>'customer_id'). This script
--- pulls the most recent ALLOWed process_return for 'theo' and prints:
+-- The required workshop path uses the in-process storefront rail:
+-- /api/chat/stream, no bearer token, caller='agent'. The same table can also
+-- receive caller='gateway' rows from the optional managed Gateway rail when
+-- Policy permits a Lambda-backed MCP tool call. This script pulls the most
+-- recent executed process_return for 'theo' and prints:
 --
---   1) raw row            — tool, caller (= 'gateway'), args, result, latency_ms
+--   1) raw row            — tool, caller, args, result, latency_ms
 --   2) JSONB extraction   — args->>'reason', result->>'return_id', etc.
---   3) DENY absence note   — a managed-Policy DENY blocks the call at the
---                            Gateway, so no row is written; the decision lives
---                            in CloudWatch, not tool_audit.
+--   3) rail grouping      — caller + reason counts, then the boundary note:
+--                            Gateway DENY happens before a tool row exists.
 --
 -- Run (bare psql picks up the PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE
 -- vars bootstrap exports — no connection string needed):
@@ -26,7 +25,7 @@
 \endif
 
 \echo ''
-\echo '== Most recent ALLOWed process_return (customer-keyed) =========='
+\echo '== Most recent executed process_return (customer-keyed) ========='
 \echo ''
 
 SELECT :'customer' AS customer, MAX(created_at) AS last_seen
@@ -68,24 +67,24 @@ SELECT tool,
  LIMIT 1;
 
 \echo ''
-\echo '== DENY absence check =========================================='
+\echo '== Rail grouping ==============================================='
 \echo ''
 
--- A managed-Policy DENY never writes a row. Run this count BEFORE and AFTER
--- firing a non-damaged return: it does NOT increase, because the Gateway
--- blocked process_return before the Lambda ran.
-SELECT :'customer' AS customer,
-       count(*)    AS process_return_rows
+SELECT caller,
+       args->>'reason' AS reason,
+       count(*)        AS calls
   FROM pellier.tool_audit
  WHERE tool = 'process_return'
-   AND args->>'customer_id' = :'customer';
+   AND args->>'customer_id' = :'customer'
+ GROUP BY caller, args->>'reason'
+ ORDER BY caller, calls DESC;
 
 \echo ''
 \echo 'Notes:'
 \echo '  - args / result are JSONB. ->> returns text; -> returns JSONB.'
-\echo '  - ALLOW: managed Policy permitted the call at the Gateway, the'
-\echo '    experience Lambda ran and wrote this tool_audit row (caller=gateway).'
-\echo '  - DENY: managed Policy blocked it at the Gateway; no row is written.'
-\echo '    The deny decision is in CloudWatch (managed control plane), not here.'
-\echo '  - latency_ms is the tool round-trip measured in the Lambda, not the'
-\echo '    LLM call.'
+\echo '  - Required path: /api/chat/stream uses in-process tools, so caller=agent.'
+\echo '  - Optional Gateway path: allowed Lambda-backed calls write caller=gateway.'
+\echo '  - Gateway DENY: managed Policy blocks before Lambda execution, so no'
+\echo '    tool_audit row exists. In-process changed_mind is valid and would log.'
+\echo '  - latency_ms is the tool round-trip measured by the active rail, not'
+\echo '    the LLM call.'

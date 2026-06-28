@@ -142,9 +142,10 @@ def process_return(customer_id: str, product_id: int, reason: str) -> dict:
     ownership check, the INSERT, and the conditional UPDATE either all
     succeed or all roll back together.
 
-    Cedar gates the reason value upstream; ownership is gated here
-    because the principal/resource relationship is a SQL JOIN, not a
-    static policy.
+    Managed Policy gates the call upstream on the Gateway rail; the
+    canonical reason set is still validated here as defense in depth.
+    Ownership is gated here because the principal/resource relationship
+    is a SQL JOIN, not a static policy.
     """
     if reason not in ALLOWED_RETURN_REASONS:
         return {
@@ -352,8 +353,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
         latency_ms = int((time.monotonic() - started) * 1000)
         # Evidence ledger for the audited write tool. Reaching this point means
         # managed AgentCore Policy ALLOWed the call at the Gateway; a DENY would
-        # have blocked it before the Lambda ran, leaving no row (the Act II
-        # absence proof). Mirrors the in-process hook's record_allow.
+        # have blocked it before the Lambda ran, leaving no row. Mirrors the
+        # in-process hook's record_allow.
         if tool_name == "process_return":
             _write_tool_audit(tool_name, arguments, result, latency_ms)
         return {"content": [{"type": "text", "text": json.dumps(result, default=str)}]}
