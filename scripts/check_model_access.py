@@ -17,10 +17,8 @@ import os
 import boto3
 
 # The workshop's models are cross-region inference profiles (us.* / global.*)
-# that resolve through us-east-1. The region is intentionally pinned, but honor
-# an AWS_REGION override and warn loudly if it points elsewhere, so a future
-# region move doesn't get a false "all-green" from a check that silently ran
-# against the wrong endpoint.
+# that are validated from us-east-1. Default there, but honor an AWS_REGION
+# override and warn loudly if it points elsewhere so a region mismatch is visible.
 REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 if REGION != "us-east-1":
     print(

@@ -17,12 +17,10 @@ where content `> probe note:` markers get reconciled to real captured output.
 
 ---
 
-> **Region: us-east-1.** The workshop's default region moved from us-west-2 to
-> **us-east-1** (us-west-2 had a Bedrock model-access outage). Confirm the stack
-> launched in us-east-1 and that `.env` reads `AWS_REGION=us-east-1` before you
-> start. The commands below are region-agnostic (they read `$AWS_REGION` / `.env`),
-> so no region is hardcoded here — but the *Bedrock access* gate (step 1) and the
-> *AgentCore availability* assumption are both now being tested in us-east-1.
+> **Region: us-east-1.** Confirm the stack launched in us-east-1 and that `.env`
+> reads `AWS_REGION=us-east-1` before you start. The commands below read
+> `$AWS_REGION` / `.env`, and the Bedrock access gate plus AgentCore availability
+> assumption are both validated in us-east-1.
 
 ## 0. Prereqs (fail fast here)
 
