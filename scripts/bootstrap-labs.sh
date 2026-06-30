@@ -267,9 +267,10 @@ fi
 # ============================================================================
 # Fail fast and loud if the runtime models aren't enabled in this account.
 # Without this, a missing grant surfaces much later as an empty storefront
-# or a dead chat turn mid-session. All four models are required at runtime —
-# Cohere Embed v4 included, because every shopper query is embedded
-# live before the pgvector search (the cache only covers the catalog corpus).
+# or a dead chat turn mid-session. Cohere Embed v4 is hard-required because
+# every shopper query is embedded live before the pgvector search (the cache
+# only covers the catalog corpus). The same preflight also resolves the
+# independent Claude Code CLI model for Exercise 1.
 log "Preflight: checking Bedrock model access (us-east-1)..."
 if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
@@ -790,13 +791,12 @@ export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 # CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
 # instance role (the same ambient-credential chain psql/boto3/agentcore already
 # use) — no Anthropic API key, no per-participant login, nothing to paste.
-# Model: Haiku 4.5 is the only Claude model the bootstrap preflight HARD-requires
-# on every account (Opus 4.6 vs Sonnet 4.6 is an either/or fallback, so neither
-# is guaranteed) — and it is more than enough to write a six-line tool body.
-# A facilitator can point the lane at a stronger model by exporting a different
-# ANTHROPIC_MODEL before launching `claude`.
+# Model: the model-access preflight writes CLAUDE_CODE_MODEL into the backend
+# .env. Claude Code uses Sonnet 4.6 first and falls back to Haiku 4.5 only if
+# Sonnet is not available. This lane is independent of the app's Opus/Sonnet
+# editorial model resolution.
 export CLAUDE_CODE_USE_BEDROCK=1
-export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}
+export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-${CLAUDE_CODE_MODEL:-global.anthropic.claude-sonnet-4-6}}
 export AWS_REGION=${AWS_REGION:-us-east-1}
 # The CLI is installed globally as root (/usr/bin/claude) but runs as the
 # participant user, so its auto-updater can't write the root-owned npm prefix

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Check Bedrock model access for the four models Pellier requires.
+Check Bedrock model access for Pellier's runtime and Claude Code models.
 
 Usage:
     python3 scripts/check_model_access.py
@@ -222,9 +222,9 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     # When set, write the resolved editorial model (Opus, or Sonnet fallback)
-    # to this .env so the backend picks up whichever is actually accessible.
+    # and the independent Claude Code CLI model to this .env.
     parser.add_argument("--write-env", default=None,
-                        help="Path to .env to update BEDROCK_OPUS_MODEL if Opus falls back to Sonnet")
+                        help="Path to .env to update BEDROCK_OPUS_MODEL and CLAUDE_CODE_MODEL")
     args = parser.parse_args()
 
     client = boto3.client("bedrock-runtime", region_name=REGION)
@@ -267,6 +267,24 @@ def main():
             print(f"  → set BEDROCK_OPUS_MODEL={sonnet_id} in pellier/backend/.env")
     else:
         print("\033[31mEditorial agents: NEITHER Opus 4.6 nor Sonnet 4.6 is accessible.\033[0m")
+
+    # --- Claude Code CLI resolution: independent of the app's editorial model ---
+    haiku_name = "Claude Haiku 4.5"
+    haiku_ok = results.get(haiku_name, (False,))[0]
+    haiku_id = results.get(haiku_name, (False, None, ""))[2]
+    print()
+    if sonnet_ok:
+        print("Claude Code CLI: \033[32mSonnet 4.6\033[0m (primary).")
+        if args.write_env:
+            _upsert_env(args.write_env, "CLAUDE_CODE_MODEL", sonnet_id)
+            print(f"  → wrote CLAUDE_CODE_MODEL={sonnet_id} to {args.write_env}")
+    elif haiku_ok:
+        print("Claude Code CLI: \033[33mSonnet 4.6 unavailable → falling back to Haiku 4.5\033[0m.")
+        if args.write_env:
+            _upsert_env(args.write_env, "CLAUDE_CODE_MODEL", haiku_id)
+            print(f"  → wrote CLAUDE_CODE_MODEL={haiku_id} to {args.write_env}")
+    else:
+        print("\033[31mClaude Code CLI: neither Sonnet 4.6 nor Haiku 4.5 is accessible.\033[0m")
 
     # --- Hard-required models (Haiku, Rerank, Embed) ---
     hard = [m["name"] for m in MODELS if m.get("required", True)]
