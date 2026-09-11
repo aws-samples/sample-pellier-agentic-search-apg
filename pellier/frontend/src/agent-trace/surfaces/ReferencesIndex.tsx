@@ -139,8 +139,8 @@ export default function ReferencesIndex() {
       <header className="pellier-labs-references-header">
         <h1>Optional Deep Dives</h1>
         <p>
-          Keep the Live Workbench as your primary surface. Open a deep dive when
-          a lab step, facilitator, or investigation sends you further.
+          Follow the lab guide for the required steps. Open a deep dive when
+          a lab links here or you want to explore the implementation.
         </p>
       </header>
 

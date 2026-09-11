@@ -54,7 +54,7 @@ authorization, and commerce transaction controls.
 | | `main` — Builders' Session | `governed` — comprehensive edition |
 |---|---|---|
 | Intended use | A focused, 60-minute hands-on build | A deeper implementation and workshop covering the full governed request and transaction path |
-| Learning path | Implement and verify `floor_check`, compare four retrieval strategies, grant the tool, and inspect its receipt | Follow identity, managed execution, tool authorization, business-state invariants, and transaction evidence across service boundaries |
+| Learning path | Compare four retrieval strategies, then implement and verify `floor_check`, grant the tool, and inspect its receipt | Follow identity, managed execution, tool authorization, business-state invariants, and transaction evidence across service boundaries |
 | Agent execution | FastAPI and in-process Strands specialists with explicit tool grants | AgentCore Runtime, Gateway, and Policy with shopper identity carried through the managed path |
 | Memory and data | AgentCore session turns and preferences; Aurora catalog, inventory, and tool receipts | Extends the shared foundation with broader state, policy, and transaction controls |
 | Commerce depth | A workshop storefront and bounded inventory proof; additional scenarios are optional | Quotes, explicit consent, reservations, sandbox payment events, outbox records, and immutable receipts |
@@ -71,23 +71,24 @@ matching branch, lab guide, and deployment revision for each edition.
 
 Use the guide in `build-agentic-ai-powered-search-with-amazon-aurora-and-amazon-rds-builders`.
 Your Workshop Studio environment is already provisioned. Open `CodeEditorURL`
-and `PellierURL` from Event outputs, then follow the guide's readiness check.
+and `PellierURL` from Event outputs, then start with Introduction. Work at your
+own pace and use each page's result checks and troubleshooting. Workshop support
+is available for issues you cannot resolve with those steps.
 
-| Room clock | Guide section | Participant outcome |
+| Estimated time | Guide section | Participant outcome |
 |---|---|---|
-| 0–10 | Facilitator framing | Understand the PostgreSQL and agent request paths |
-| 10–15 | Set Up Your Environment | Open both tabs and verify the starter gaps |
-| 15–30 | Lab 1: From pgvector to Agentic Retrieval | Run a pgvector SQL query, compare four retrieval paths, inspect filters, and explain your choice |
-| 30–55 | Lab 2: Extend Your Agent with a Tool That Reads PostgreSQL | Build and test `floor_check`, grant it to Stock Keeper, then inspect Marco’s answer and audit receipt |
-| 55–60 | Wrap-Up | Explain the design and save your edits and evidence |
+| 15 minutes | Introduction | Understand the PostgreSQL and agent request paths and open both tabs |
+| 15 minutes | Lab 1: Compare PostgreSQL Retrieval Strategies | Run a pgvector SQL query, compare four retrieval paths, inspect filters, and explain your choice |
+| 25 minutes | Lab 2: Extend a Strands Agent with a Python Tool | Build and test `floor_check`, grant it to Stock Keeper, then inspect Marco’s answer and audit receipt |
+| 5 minutes | Review Results and Next Steps | Explain the design and save your edits and evidence |
 
-The guide's **Explore PostgreSQL and Agent Architecture** reference provides
+The guide's **PostgreSQL and Agent Architecture Reference** provides
 commands, recovery steps, and further reading after the required path.
 
 The deployed starter has two intentional gaps: the tool body and its agent
 grant. This `main` checkout is the reference application; provisioning installs
 the participant starter. A `shipped` label checks wiring; the direct tool check
-and receipt prove execution. Keep the guide's proof gates separate.
+and receipt prove execution. Check these results separately.
 
 For the optional visual retrieval comparison, open **Pellier Labs → Optional
 Deep Dives → Performance**. **Search** explains one hybrid pipeline, and

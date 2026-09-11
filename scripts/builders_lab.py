@@ -243,9 +243,15 @@ def compare(args: argparse.Namespace) -> int:
         )
         components = ", ".join(strategy.get("costComponents", []))
         order_source = strategy.get("productOrderSource")
+        rerank_status = (
+            json.dumps(strategy["rerankExecuted"])
+            if "rerankExecuted" in strategy
+            else "not used"
+        )
         print(
             f"\n{strategy.get('strategy')}\n"
             f"  observed once: {strategy.get('observedMs')} ms\n"
+            f"  rerankExecuted: {rerank_status}\n"
             f"  modeled cost/1K: "
             f"${strategy.get('modeledCostPerThousandUsd')}\n"
             f"  components: {components}\n"
@@ -303,7 +309,8 @@ def compare(args: argparse.Namespace) -> int:
                 + ", ".join(str(name) for name in degraded)
                 + ". The rows shown are fusion order, not reranked order, so "
                 "this comparison is not evidence about reranking. Use the "
-                "lab's recovery path and flag a facilitator to check model access.",
+                "lab's recovery path. If the issue continues, show this error "
+                "to workshop support.",
                 file=sys.stderr,
             )
         print("Comparison did not satisfy the Lab 1 evidence contract.", file=sys.stderr)

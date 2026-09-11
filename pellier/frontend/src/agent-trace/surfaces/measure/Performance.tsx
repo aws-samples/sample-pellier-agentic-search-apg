@@ -916,7 +916,7 @@ const SearchStrategyComparison: React.FC<SearchStrategyComparisonProps> = ({ str
     } catch (failure) {
       if (requestRef.current !== controller) return;
       setError(controller.signal.aborted
-        ? 'The comparison reached the 75-second limit. Use your saved response or a facilitator’s completed comparison; do not start another full wait.'
+        ? 'The comparison reached the 75-second limit. Use your saved response or the reference comparison to review the strategies. Mark the live check incomplete and continue with the guide.'
         : `${failure instanceof Error ? failure.message : 'The comparison could not finish.'} Check readiness and retry once, or use the lab’s recovery path.`);
     } finally {
       window.clearTimeout(timeout);
