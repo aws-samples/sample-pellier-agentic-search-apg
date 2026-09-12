@@ -77,18 +77,21 @@ is available for issues you cannot resolve with those steps.
 
 | Estimated time | Guide section | Participant outcome |
 |---|---|---|
-| 15 minutes | Introduction | Understand the PostgreSQL and agent request paths and open both tabs |
-| 15 minutes | Lab 1: Compare PostgreSQL Retrieval Strategies | Run a pgvector SQL query, compare four retrieval paths, inspect filters, and explain your choice |
-| 25 minutes | Lab 2: Extend a Strands Agent with a Python Tool | Build and test `floor_check`, grant it to Stock Keeper, then inspect Marco’s answer and audit receipt |
-| 5 minutes | Review Results and Next Steps | Explain the design and save your edits and evidence |
+| 10 minutes | Introduction | Understand the PostgreSQL and agent request paths and open both tabs |
+| 20 minutes | Lab 1: Compare PostgreSQL Retrieval Strategies | Write SQL eligibility filters and rank fusion, test empty results, then compare four retrieval paths |
+| 20 minutes | Lab 2: Extend a Strands Agent with a Python Tool | Write and test warehouse SQL, grant `floor_check` to Stock Keeper, then verify the new request’s record |
+| 10 minutes | Review Results and Next Steps | Explain the design and save your edits and evidence |
 
 The guide's **PostgreSQL and Agent Architecture Reference** provides
 commands, recovery steps, and further reading after the required path.
 
-The deployed starter has two intentional gaps: the tool body and its agent
-grant. This `main` checkout is the reference application; provisioning installs
-the participant starter. A `shipped` label checks wiring; the direct tool check
-and receipt prove execution. Check these results separately.
+The deployed starter includes two SQL tasks and an agent tool-list edit.
+`workshop/retrieval.sql` contains the eligibility and rank-fusion scaffold.
+Provisioning also replaces the marked warehouse SQL body in
+`pellier/backend/services/inventory_sql.py` and removes the agent grant.
+This `main` checkout retains the working application implementation.
+A `shipped` label checks wiring; direct tests and the session-specific
+`agent-check` command verify execution. Check these results separately.
 
 For the optional visual retrieval comparison, open **Pellier Labs → Optional
 Deep Dives → Performance**. **Search** explains one hybrid pipeline, and

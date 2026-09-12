@@ -166,16 +166,20 @@ def _tool_discovery_status(tool_name: str) -> str:
 
 
 def _floor_check_is_workshop_stub() -> bool:
-    """True when the live ``floor_check`` body still returns the starter stub."""
+    """Check the tool wrapper and the participant's warehouse query."""
     try:
         from services import agent_tools
+        from services.inventory_sql import warehouse_inventory_query
 
         src = inspect.getsource(agent_tools.floor_check)
+        query_src = inspect.getsource(warehouse_inventory_query)
     except Exception:
         return True
     if "floor_check is in stub state" in src:
         return True
     if "received_product_query" in src:
+        return True
+    if "WORKSHOP_INVENTORY_SQL_STUB" in query_src:
         return True
     return False
 

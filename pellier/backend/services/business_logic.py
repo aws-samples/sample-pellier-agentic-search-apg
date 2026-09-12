@@ -222,22 +222,11 @@ class BusinessLogic:
         product = candidates[0]
         product_id = product["productId"]
 
-        # Per-warehouse breakdown
-        wh_rows = await self.db.fetch_all(
-            """
-            SELECT w.id              AS warehouse_id,
-                   w.display_name    AS warehouse_name,
-                   w.city,
-                   w.ship_window_min,
-                   w.ship_window_max,
-                   wi.quantity
-              FROM pellier.warehouse_inventory wi
-              JOIN pellier.warehouses w ON w.id = wi.warehouse_id
-             WHERE wi.product_id = %s
-             ORDER BY wi.quantity DESC, w.id ASC
-            """,
-            product_id,
-        )
+        # The workshop edits this bounded query contract, not product resolution.
+        from services.inventory_sql import warehouse_inventory_query
+
+        warehouse_sql, warehouse_params = warehouse_inventory_query(product_id)
+        wh_rows = await self.db.fetch_all(warehouse_sql, *warehouse_params)
         warehouses = [convert_decimals(dict(r)) for r in wh_rows]
         total_units = sum(w.get("quantity", 0) or 0 for w in warehouses)
 

@@ -13,7 +13,7 @@
 #   6. SQL claims    — Beeswax warehouse split and pg_trgm index/plan
 #
 # This applies the floor_check solution and agent grant temporarily and creates
-# the same floor_check audit evidence as a participant. It backs both edited
+# the same floor_check audit evidence as a participant. It backs all three edited
 # files up and restores them on exit unless --keep is passed. Run it on a
 # workshop environment, not a production database.
 #
@@ -26,15 +26,9 @@ set -uo pipefail
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"
-TOOLS="${REPO}/pellier/backend/services/agent_tools.py"
+TOOLS="${REPO}/pellier/backend/services/inventory_sql.py"
+RETRIEVAL="${REPO}/workshop/retrieval.sql"
 STOCK_KEEPER="${REPO}/pellier/backend/agents/stock_keeper.py"
-# The participant fills ONLY the floor_check body between the START/END markers
-# in the already-in-place agent_tools.py (the builders pre-apply variant, which
-# also defines shared application tools). The dry-run mirrors that exactly - it
-# patches the body in place rather than swapping the whole file,
-# so it can't drift from the live participant artifact. BODY is the canonical
-# reference body (same one the required-path's paste-only escape hatch uses).
-BODY="${REPO}/solutions/closing-marcos-gap/services/floor_check_tool_body.py"
 KEEP=false
 [[ "${1:-}" == "--keep" ]] && KEEP=true
 
@@ -45,6 +39,7 @@ info() { printf "  ${YEL}…${NC} %s\n" "$1"; }
 # warn: review-worthy but non-fatal (does NOT set FAILED / block the gate).
 warn() { printf "  ${YEL}•${NC} %s\n" "$1"; }
 FAILED=false
+BACKUP_DIR=""
 
 # Load env (safe source)
 [[ -f "$ENV_FILE" ]] && { set -a; source "$ENV_FILE"; set +a; }
@@ -56,14 +51,14 @@ _psql() {
 }
 
 restore() {
-  if ! $KEEP && [[ -f "${TOOLS}.dryrun.bak" ]]; then
-    mv "${TOOLS}.dryrun.bak" "$TOOLS"
-  fi
-  if ! $KEEP && [[ -f "${STOCK_KEEPER}.dryrun.bak" ]]; then
-    mv "${STOCK_KEEPER}.dryrun.bak" "$STOCK_KEEPER"
-  fi
+  if [[ -z "$BACKUP_DIR" ]]; then return; fi
   if ! $KEEP; then
-    info "Restored the original tool and Stock Keeper starter files."
+    cp "$BACKUP_DIR/inventory_sql.py" "$TOOLS"
+    cp "$BACKUP_DIR/retrieval.sql" "$RETRIEVAL"
+    cp "$BACKUP_DIR/stock_keeper.py" "$STOCK_KEEPER"
+    info "Restored all three original exercise files. Backups: $BACKUP_DIR"
+  else
+    info "Kept exercise changes. Original files: $BACKUP_DIR"
   fi
 }
 trap restore EXIT
@@ -109,10 +104,26 @@ fi
 
 if python3 "${REPO}/scripts/builders_starter.py" \
     --repo "$REPO" verify --expect starter >/tmp/dryrun-starter-state.json; then
-  pass "Both intentional starter gaps are installed"
+  pass "Warehouse SQL and agent grant are in starter state"
 else
   fail "Dry run must start from the verified tool + agent starter state"
   exit 1
+fi
+
+# Use a unique directory so retries cannot overwrite earlier backups.
+pending_backup="$(mktemp -d /tmp/pellier-builders-dryrun.XXXXXX)" || exit 1
+cp "$TOOLS" "$pending_backup/inventory_sql.py" || exit 1
+cp "$RETRIEVAL" "$pending_backup/retrieval.sql" || exit 1
+cp "$STOCK_KEEPER" "$pending_backup/stock_keeper.py" || exit 1
+BACKUP_DIR="$pending_backup"
+python3 "${REPO}/scripts/builders_starter.py" --repo "$REPO" complete-retrieval || exit 1
+export PGHOST="${DB_HOST:?}" PGPORT="${DB_PORT:-5432}"
+export PGUSER="${DB_USER:?}" PGDATABASE="${DB_NAME:?}" PGPASSWORD="${DB_PASSWORD:?}"
+if uv run "${REPO}/scripts/builders_lab.py" retrieval --reference-vector >/tmp/dryrun-sql.log \
+    && uv run "${REPO}/scripts/builders_lab.py" retrieval --reference-vector --max-price 0 >>/tmp/dryrun-sql.log; then
+  pass "Participant SQL passes normal and empty-result checks"
+else
+  fail "Participant retrieval SQL failed"; exit 1
 fi
 
 # --- 2. Lab 1: PostgreSQL similarity and retrieval comparison --------------
@@ -162,6 +173,9 @@ if uv run "${REPO}/scripts/builders_lab.py" --base-url "$BASE" compare \
       and (.measurementAssumptions.latency | contains("not a percentile"))
     ' >/dev/null 2>&1; then
     pass "Four retrieval rows returned with observed latency and modeled cost"
+    if ! uv run "${REPO}/scripts/builders_lab.py" retrieval >/tmp/dryrun-shared-vector.log; then
+      fail "Participant SQL failed with the shared request vector"
+    fi
   else
     fail "Retrieval comparison response contract is incomplete"
     info "First 300 chars: ${retrieval:0:300}"
@@ -171,20 +185,14 @@ else
 fi
 
 # --- 3. Lab 2: apply and directly verify the tool ----------------------
-# Fill ONLY the floor_check body between the START/END markers in the live
-# agent_tools.py — exactly what the checked-in participant recovery does.
+# Fill ONLY the warehouse SQL body between the START/END markers in the live
+# inventory_sql.py — exactly what the checked-in participant recovery does.
 echo "[3/6] Lab 2 - wire and directly verify floor_check"
-if [[ ! -f "$BODY" ]]; then
-  fail "Reference body file missing: $BODY"; exit 1
-fi
-if ! cp "$TOOLS" "${TOOLS}.dryrun.bak"; then
-  fail "Could not back up agent_tools.py - refusing to patch in place"; exit 1
-fi
 if ! python3 "${REPO}/scripts/builders_starter.py" \
     --repo "$REPO" complete-tool >/tmp/dryrun-tool-solution.json; then
-  fail "Could not patch floor_check body into agent_tools.py"; exit 1
+  fail "Could not patch warehouse SQL body into inventory_sql.py"; exit 1
 fi
-pass "Filled floor_check body in agent_tools.py (other tools untouched)"
+pass "Filled warehouse SQL body in inventory_sql.py (other tools untouched)"
 
 info "Waiting 4s for uvicorn --reload to pick up the tool change..."
 sleep 4
@@ -193,6 +201,10 @@ if uv run "${REPO}/scripts/builders_lab.py" \
   pass "Direct tool check returned Brooklyn quantity and ship window"
 else
   fail "Direct floor_check verification failed"; exit 1
+fi
+if ! uv run "${REPO}/scripts/builders_lab.py" --base-url "$BASE" tool-check \
+    --query definitely-no-such-product --expect-status not_found >/tmp/dryrun-unknown-product.json; then
+  fail "Unknown-product check failed"; exit 1
 fi
 if uv run "${REPO}/scripts/builders_lab.py" \
     --base-url "$BASE" build-state \
@@ -205,9 +217,6 @@ fi
 
 # --- 4. Grant the tool and observe the Strands path -------------------------
 echo "[4/6] Lab 2 agent grant - grant floor_check and invoke Stock Keeper"
-if ! cp "$STOCK_KEEPER" "${STOCK_KEEPER}.dryrun.bak"; then
-  fail "Could not back up stock_keeper.py - refusing to edit the agent grant"; exit 1
-fi
 if python3 "${REPO}/scripts/builders_starter.py" \
     --repo "$REPO" complete-agent >/tmp/dryrun-agent-grant.json; then
   pass "Granted floor_check to the Strands Stock Keeper"
@@ -271,6 +280,14 @@ if [[ "${n:-0}" =~ ^[0-9]+$ ]] && (( n > 0 )); then
   pass "Session-specific SQL found $n floor_check row(s) for this dry run"
 else
   fail "No tool_audit row for floor_check — audit writer not firing"
+fi
+
+# Exercise the required client, which creates and checks its own new session.
+if uv run "${REPO}/scripts/builders_lab.py" --base-url "$BASE" agent-check \
+    >/tmp/dryrun-agent-client.log; then
+  pass "Required agent-check verified its own session"
+else
+  fail "Required agent-check failed; see /tmp/dryrun-agent-client.log"
 fi
 
 # --- 6. SQL-claim checks (pin run-of-show numbers + verify pg_trgm) ----------

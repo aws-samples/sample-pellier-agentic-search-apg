@@ -1,22 +1,54 @@
 #!/usr/bin/env python3
-"""Install and verify the two intentional builders-session starter gaps."""
+"""Prepare the retrieval SQL, warehouse SQL, and agent-grant exercises."""
 
 from __future__ import annotations
 
 import argparse
 import ast
 import json
-import shutil
 import sys
 from pathlib import Path
 
 
 AGENT_GRANT_START = "# === WORKSHOP: Stock Keeper agent grant: START ==="
 AGENT_GRANT_END = "# === WORKSHOP: Stock Keeper agent grant: END ==="
-TOOL_BODY_START = "# === WORKSHOP · Stock Keeper · floor_check: START ==="
-TOOL_BODY_END = "# === WORKSHOP · Stock Keeper · floor_check: END ==="
-TOOL_STUB_MARKER = "WORKSHOP_EXERCISE_STUB"
-TOOL_STUB_RESPONSE = "floor_check is in stub state"
+TOOL_BODY_START = "# === WORKSHOP: warehouse inventory SQL: START ==="
+TOOL_BODY_END = "# === WORKSHOP: warehouse inventory SQL: END ==="
+TOOL_STUB_MARKER = "WORKSHOP_INVENTORY_SQL_STUB"
+RETRIEVAL_BLOCKS = {
+    "eligibility": (
+        "      -- WORKSHOP_RETRIEVAL_FILTER_STUB\n"
+        "      -- Require price at or below :'max_price'::numeric and quantity above zero.\n"
+        "      AND TRUE",
+        "      AND price <= :'max_price'::numeric\n      AND quantity > 0",
+    ),
+    "rank fusion": (
+        "           -- WORKSHOP_RETRIEVAL_RANK_STUB\n"
+        "           -- Sum 1 / (60 + rank) for each branch. Use decimal division.\n"
+        "           0.0::numeric AS rrf_score",
+        "           sum(1.0 / (60 + rank)) AS rrf_score",
+    ),
+}
+INVENTORY_STARTER = '''    # WORKSHOP_INVENTORY_SQL_STUB
+    # Return (query, arguments). Keep the function signature and docstring.
+    # Join wi to w, select the six fields above, and filter with wi.product_id = %s.
+    # Sort by quantity descending, then warehouse ID. Bind (product_id,).
+    raise NotImplementedError("Complete the warehouse inventory SQL")
+'''
+INVENTORY_RECOVERY = '''    query = """
+        SELECT w.id AS warehouse_id,
+               w.display_name AS warehouse_name,
+               w.city,
+               w.ship_window_min,
+               w.ship_window_max,
+               wi.quantity
+        FROM pellier.warehouse_inventory wi
+        JOIN pellier.warehouses w ON w.id = wi.warehouse_id
+        WHERE wi.product_id = %s
+        ORDER BY wi.quantity DESC, w.id ASC
+    """
+    return query, (product_id,)
+'''
 
 STARTER_AGENT_GRANT = """# === WORKSHOP: Stock Keeper agent grant: START ===
 # WORKSHOP_AGENT_GRANT_STUB
@@ -31,17 +63,8 @@ INVENTORY_AGENT_TOOLS = [floor_check, restock_shelf, running_low]
 
 def _paths(repo: Path) -> dict[str, Path]:
     return {
-        "live_tools": repo / "pellier/backend/services/agent_tools.py",
-        "starter_tools": (
-            repo
-            / "solutions/closing-marcos-gap/services/"
-            "agent_tools_builders_preapply.py"
-        ),
-        "solution_body": (
-            repo
-            / "solutions/closing-marcos-gap/services/"
-            "floor_check_tool_body.py"
-        ),
+        "inventory_sql": repo / "pellier/backend/services/inventory_sql.py",
+        "retrieval_sql": repo / "workshop/retrieval.sql",
         "stock_keeper": repo / "pellier/backend/agents/stock_keeper.py",
     }
 
@@ -92,11 +115,8 @@ def inspect_state(repo: Path) -> dict[str, object]:
         if not path.is_file():
             raise RuntimeError(f"Missing {label}: {path}")
 
-    tool_source = paths["live_tools"].read_text(encoding="utf-8")
-    tool_is_stub = (
-        TOOL_STUB_MARKER in tool_source
-        and TOOL_STUB_RESPONSE in tool_source
-    )
+    tool_source = paths["inventory_sql"].read_text(encoding="utf-8")
+    tool_is_stub = TOOL_STUB_MARKER in tool_source
     inventory_tools = _inventory_tool_names(paths["stock_keeper"])
     return {
         "floor_check": "exercise" if tool_is_stub else "shipped",
@@ -106,47 +126,60 @@ def inspect_state(repo: Path) -> dict[str, object]:
             else "exercise"
         ),
         "inventoryTools": sorted(inventory_tools),
+        "retrieval": (
+            "exercise" if "WORKSHOP_RETRIEVAL_" in
+            paths["retrieval_sql"].read_text(encoding="utf-8") else "shipped"
+        ),
     }
 
 
 def apply_starter(repo: Path) -> dict[str, object]:
     paths = _paths(repo)
-    for label in ("starter_tools", "stock_keeper"):
+    for label in ("inventory_sql", "retrieval_sql", "stock_keeper"):
         if not paths[label].is_file():
             raise RuntimeError(f"Missing {label}: {paths[label]}")
 
-    shutil.copyfile(paths["starter_tools"], paths["live_tools"])
+    _replace_inventory_body(paths["inventory_sql"], INVENTORY_STARTER)
+    _replace_retrieval_blocks(paths["retrieval_sql"], complete=False)
     _replace_marked_block(paths["stock_keeper"], STARTER_AGENT_GRANT)
     return verify_state(repo, "starter")
 
 
-def complete_tool(repo: Path) -> dict[str, object]:
-    paths = _paths(repo)
-    for label in ("live_tools", "solution_body"):
-        if not paths[label].is_file():
-            raise RuntimeError(f"Missing {label}: {paths[label]}")
-
-    source = paths["live_tools"].read_text(encoding="utf-8")
+def _replace_inventory_body(path: Path, body: str) -> None:
+    source = path.read_text(encoding="utf-8")
     if source.count(TOOL_BODY_START) != 1 or source.count(TOOL_BODY_END) != 1:
         raise RuntimeError(
-            f"{paths['live_tools']} must contain exactly one floor_check block"
+            f"{path} must contain exactly one warehouse SQL block"
         )
-
-    body_lines = paths["solution_body"].read_text(encoding="utf-8").splitlines()
-    while body_lines and (
-        not body_lines[0].strip()
-        or body_lines[0].lstrip().startswith("#")
-    ):
-        body_lines.pop(0)
-    body = "\n".join(body_lines).rstrip()
-    if not body:
-        raise RuntimeError(f"Solution body is empty: {paths['solution_body']}")
     before, remainder = source.split(TOOL_BODY_START, 1)
     _current, after = remainder.split(TOOL_BODY_END, 1)
-    paths["live_tools"].write_text(
-        f"{before}{TOOL_BODY_START}\n{body}\n    {TOOL_BODY_END}{after}",
+    path.write_text(
+        f"{before}{TOOL_BODY_START}\n{body.rstrip()}\n    {TOOL_BODY_END}{after}",
         encoding="utf-8",
     )
+
+
+def _replace_retrieval_blocks(path: Path, *, complete: bool) -> None:
+    source = path.read_text(encoding="utf-8")
+    for label, alternatives in RETRIEVAL_BLOCKS.items():
+        start = f"-- === WORKSHOP: {label}: START ==="
+        end = f"-- === WORKSHOP: {label}: END ==="
+        if source.count(start) != 1 or source.count(end) != 1:
+            raise RuntimeError(f"{path} must contain one {label} block")
+        before, rest = source.split(start, 1)
+        _, after = rest.split(end, 1)
+        indent = "      " if label == "eligibility" else "           "
+        source = f"{before}{start}\n{alternatives[int(complete)]}\n{indent}{end}{after}"
+    path.write_text(source, encoding="utf-8")
+
+
+def complete_retrieval(repo: Path) -> dict[str, object]:
+    _replace_retrieval_blocks(_paths(repo)["retrieval_sql"], complete=True)
+    return inspect_state(repo)
+
+
+def complete_tool(repo: Path) -> dict[str, object]:
+    _replace_inventory_body(_paths(repo)["inventory_sql"], INVENTORY_RECOVERY)
     return verify_state(repo, "tool-wired")
 
 
@@ -183,6 +216,7 @@ def parser() -> argparse.ArgumentParser:
 
     commands.add_parser("apply")
     commands.add_parser("complete-tool")
+    commands.add_parser("complete-retrieval")
 
     verify = commands.add_parser("verify")
     verify.add_argument(
@@ -203,6 +237,8 @@ def main() -> int:
             state = apply_starter(repo)
         elif args.command == "complete-tool":
             state = complete_tool(repo)
+        elif args.command == "complete-retrieval":
+            state = complete_retrieval(repo)
         elif args.command == "complete-agent":
             state = complete_agent(repo)
         else:

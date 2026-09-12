@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import io
 import subprocess
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -22,6 +24,91 @@ def _load_client():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_retrieval_rejects_wrong_math_ineligible_and_missing_results():
+    client = _load_client()
+    row = {"productId": "4", "price": 20, "quantity": 8,
+           "vectorRank": 1, "keywordRank": 2, "rrfScore": 1 / 61 + 1 / 62}
+    assert client.retrieval_errors({"eligibleCount": 1, "rows": [row]}, 100) == []
+    assert client.retrieval_errors({"eligibleCount": 0, "rows": []}, 0) == []
+    assert client.retrieval_errors({"eligibleCount": 1, "rows": []}, 100)
+    for changes in ({"rrfScore": 0}, {"price": 101}, {"quantity": 0}):
+        assert client.retrieval_errors({"eligibleCount": 1, "rows": [row | changes]}, 100)
+
+
+def test_agent_check_scopes_receipt_to_its_own_turn(monkeypatch, tmp_path):
+    client = _load_client()
+    seen = {}
+
+    def stream(_base, payload, **kwargs):
+        seen["session"] = payload["session_id"]
+        return [{"type": "complete", "response": {"message": "Inventory result"}}]
+
+    def check(args):
+        assert args.session == seen["session"]
+        assert args.within_minutes == 5
+        return 0
+
+    monkeypatch.setattr(client, "_stream_chat", stream)
+    monkeypatch.setattr(client, "receipt", check)
+    assert client.agent_check(argparse.Namespace(
+        base_url="http://example", output=tmp_path / "turn.sse",
+    )) == 0
+
+
+def test_inventory_sql_binds_hostile_input_and_keeps_zero_stock():
+    from services.inventory_sql import warehouse_inventory_query
+
+    hostile = "4' OR 1=1 --"
+    query, parameters = warehouse_inventory_query(hostile)
+    assert hostile not in query
+    assert parameters == (hostile,)
+    assert "wi.product_id = %s" in query
+    assert "quantity >" not in query
+    assert "JOIN pellier.warehouses" in query
+
+
+@pytest.mark.parametrize("status,expected", [(401, 0), (403, 0), (404, 1), (500, 1)])
+def test_runtime_negative_auth_check_rejects_unrelated_errors(monkeypatch, status, expected):
+    client = _load_client()
+    monkeypatch.setattr(client, "_repo_env", lambda: {"AGENTCORE_RUNTIME_ENDPOINT": "test-runtime"})
+
+    def refuse(*_args, **_kwargs):
+        raise urllib.error.HTTPError("https://example.invalid", status, "test", {}, io.BytesIO(b"test"))
+
+    monkeypatch.setattr(client.urllib.request, "urlopen", refuse)
+    assert client.runtime(argparse.Namespace(
+        without_token=True, timeout=5, query="test", user_id="test",
+    )) == expected
+
+
+def test_retrieval_uses_read_only_sql_and_rejects_bad_embedding(monkeypatch, tmp_path):
+    client = _load_client()
+    comparison = tmp_path / "comparison.json"
+    comparison.write_text(client.json.dumps({
+        "query": client.DEFAULT_QUERY, "queryEmbedding": [0.5] * 1024,
+    }))
+    args = argparse.Namespace(
+        max_price=0, reference_vector=False, comparison=comparison,
+        sql=tmp_path / "retrieval.sql", terms="housewarming | gift",
+        output=tmp_path / "result.json",
+    )
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert "default_transaction_read_only=on" in kwargs["env"]["PGOPTIONS"]
+        assert "statement_timeout=15000" in kwargs["env"]["PGOPTIONS"]
+        assert command[-2:] == ["-f", str(args.sql)]
+        return subprocess.CompletedProcess(command, 0, '{"eligibleCount":0,"rows":[]}', "")
+
+    monkeypatch.setattr(client.subprocess, "run", run)
+    assert client.retrieval(args) == 0
+    comparison.write_text('{"queryEmbedding":[0.5]}')
+    with pytest.raises(RuntimeError):
+        client.retrieval(args)
+    assert len(calls) == 1
 
 
 def _comparison_payload(rerank_executed: bool = True) -> dict[str, Any]:

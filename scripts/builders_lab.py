@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import secrets
 import subprocess
@@ -199,6 +200,8 @@ def tool_check(args: argparse.Namespace) -> int:
         timeout=30,
     )
     print(json.dumps(payload, indent=2))
+    if getattr(args, "expect_status", "success") != "success":
+        return 0 if payload.get("status") == args.expect_status else 1
     brooklyn = next(
         (
             warehouse
@@ -222,6 +225,101 @@ def tool_check(args: argparse.Namespace) -> int:
         )
         return 1
     return 0
+
+
+def retrieval_errors(payload: dict[str, Any], max_price: float) -> list[str]:
+    """Check results independently of the participant's SQL expressions."""
+    errors: list[str] = []
+    rows = payload.get("rows")
+    eligible = payload.get("eligibleCount")
+    if not isinstance(rows, list) or not isinstance(eligible, int):
+        return ["Expected rows and eligibleCount in the SQL output."]
+    if len(rows) != min(5, eligible):
+        errors.append("Return up to five eligible products; do not fill with ineligible rows.")
+    if len({row["productId"] for row in rows}) != len(rows):
+        errors.append("A product appears more than once after fusion.")
+    previous = float("inf")
+    for row in rows:
+        if float(row["price"]) > max_price or int(row["quantity"]) <= 0:
+            errors.append(f'{row["productId"]}: price or stock requirement failed.')
+        ranks = [row.get(key) for key in ("vectorRank", "keywordRank")]
+        if not any(isinstance(rank, int) and rank > 0 for rank in ranks):
+            errors.append("Every result needs at least one positive branch rank.")
+            continue
+        if any(rank is not None and (not isinstance(rank, int) or rank < 1) for rank in ranks):
+            errors.append("Branch ranks must be positive integers or null.")
+            continue
+        expected = sum(1.0 / (60 + rank) for rank in ranks if rank is not None)
+        score = float(row["rrfScore"])
+        if not math.isclose(score, expected, rel_tol=1e-8, abs_tol=1e-10):
+            errors.append(f'{row["productId"]}: RRF score does not match its branch ranks.')
+        if score > previous:
+            errors.append("Results must be sorted by descending fused score.")
+        previous = score
+    return errors
+
+
+def retrieval(args: argparse.Namespace) -> int:
+    if not math.isfinite(args.max_price) or args.max_price < 0:
+        raise RuntimeError("--max-price must be a finite, nonnegative number.")
+    vector = ""
+    source = "stored candle vector (SQL practice only; not the request embedding)"
+    if not args.reference_vector:
+        if not args.comparison.is_file():
+            raise RuntimeError("Run compare first, or use --reference-vector for SQL practice.")
+        comparison = json.loads(args.comparison.read_text(encoding="utf-8"))
+        embedding = comparison.get("queryEmbedding")
+        if comparison.get("query") != DEFAULT_QUERY:
+            raise RuntimeError("Use the default compare request for this exercise.")
+        if (
+            not isinstance(embedding, list) or len(embedding) != 1024
+            or any(isinstance(n, bool) or not isinstance(n, (int, float))
+                   or not math.isfinite(n) for n in embedding)
+        ):
+            raise RuntimeError("Comparison has no valid 1024-dimensional query embedding.")
+        vector = json.dumps(embedding)
+        source = "the same query embedding used by compare"
+    environment = os.environ.copy()
+    environment["PGOPTIONS"] = (
+        environment.get("PGOPTIONS", "")
+        + " -c default_transaction_read_only=on -c statement_timeout=15000"
+    ).strip()
+    environment["PGCONNECT_TIMEOUT"] = "5"
+    result = subprocess.run(
+        ["psql", "-X", "-Atq", "-v", "ON_ERROR_STOP=1",
+         "-v", f"embedding={vector}", "-v", f"terms={args.terms}",
+         "-v", f"max_price={args.max_price}", "-f", str(args.sql)],
+        env=environment, capture_output=True, text=True, timeout=30, check=False,
+    )
+    if result.returncode:
+        raise RuntimeError(f"SQL failed:\n{result.stderr.strip()}")
+    payload = json.loads(result.stdout)
+    args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Vector source: {source}")
+    print(json.dumps(payload, indent=2))
+    errors = retrieval_errors(payload, args.max_price)
+    for error in errors:
+        print(f"FAIL: {error}", file=sys.stderr)
+    print("FAIL: repair the marked SQL blocks." if errors else
+          "PASS: eligibility, unique products, fused scores, and ordering.")
+    return 1 if errors else 0
+
+
+def agent_check(args: argparse.Namespace) -> int:
+    """Create one turn, then verify only that turn's persisted tool evidence."""
+    session_id = f"builders-floor-{int(time.time())}-{secrets.token_hex(8)}"
+    events = _stream_chat(
+        args.base_url,
+        {"message": "Is the Hadley shirt at the Brooklyn warehouse?",
+         "customer_id": "CUST-MARCO", "session_id": session_id, "pattern": "dispatcher"},
+        session_token=secrets.token_hex(32), output_path=args.output,
+    )
+    response = _last_complete(events)
+    print(json.dumps(response, indent=2))
+    print(f"Checking the new request's session: {session_id}")
+    return receipt(argparse.Namespace(
+        base_url=args.base_url, session=session_id, within_minutes=5,
+    ))
 
 
 def compare(args: argparse.Namespace) -> int:
@@ -388,6 +486,7 @@ def receipt(args: argparse.Namespace) -> int:
         proof["source"] == "pellier.tool_audit"
         and isinstance(proof["auditId"], int)
         and bool(proof["sessionId"])
+        and (not args.session or proof["sessionId"] == args.session)
         and proof["tool"] == "floor_check"
         and proof["caller"] == "agent"
         and isinstance(proof["latencyMs"], int)
@@ -552,11 +651,11 @@ def runtime(args: argparse.Namespace) -> int:
             raw = response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:400]
-        if args.without_token:
+        if args.without_token and exc.code in (401, 403):
             print(
                 f"Refused, as expected: HTTP {exc.code}.\n{detail}\n\n"
-                "The managed Runtime enforces the Cognito authorizer before "
-                "any agent code runs. Identity is a gate here, not a label."
+                "The endpoint rejected this unauthenticated request. Compare "
+                "with a successful authenticated request to assess its access control."
             )
             return 0
         print(f"ERROR: Runtime refused the call: HTTP {exc.code}\n{detail}",
@@ -628,6 +727,7 @@ def parser() -> argparse.ArgumentParser:
 
     tool_parser = commands.add_parser("tool-check")
     tool_parser.add_argument("--query", default="Hadley shirt")
+    tool_parser.add_argument("--expect-status", choices=("success", "not_found", "ambiguous"), default="success")
     tool_parser.set_defaults(handler=tool_check)
 
     compare_parser = commands.add_parser("compare")
@@ -638,6 +738,19 @@ def parser() -> argparse.ArgumentParser:
         default=Path("/tmp/retrieval-comparison.json"),
     )
     compare_parser.set_defaults(handler=compare)
+
+    retrieval_parser = commands.add_parser("retrieval")
+    retrieval_parser.add_argument("--sql", type=Path, default=Path(__file__).resolve().parents[1] / "workshop/retrieval.sql")
+    retrieval_parser.add_argument("--comparison", type=Path, default=Path("/tmp/retrieval-comparison.json"))
+    retrieval_parser.add_argument("--output", type=Path, default=Path("/tmp/retrieval-sql-result.json"))
+    retrieval_parser.add_argument("--reference-vector", action="store_true")
+    retrieval_parser.add_argument("--max-price", type=float, default=100)
+    retrieval_parser.add_argument("--terms", default="housewarming | gift")
+    retrieval_parser.set_defaults(handler=retrieval)
+
+    agent_parser = commands.add_parser("agent-check")
+    agent_parser.add_argument("--output", type=Path, default=Path("/tmp/pellier-floor-turn.sse"))
+    agent_parser.set_defaults(handler=agent_check)
 
     receipt_parser = commands.add_parser("receipt")
     receipt_parser.add_argument(
@@ -698,7 +811,7 @@ def main() -> int:
     args = parser().parse_args()
     try:
         return int(args.handler(args))
-    except (OSError, RuntimeError) as exc:
+    except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 

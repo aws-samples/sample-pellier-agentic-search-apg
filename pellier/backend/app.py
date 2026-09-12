@@ -1694,6 +1694,7 @@ async def compare_search_strategies(query: str):
 
     return {
         "query": q,
+        "queryEmbedding": query_embedding,
         "sharedQueryEmbeddingObservedMs": shared_embedding_ms,
         "measurementAssumptions": {
             "latency": (

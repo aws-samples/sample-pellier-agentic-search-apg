@@ -750,23 +750,21 @@ cat << EOF
   START       Keep the lab guide open. Work primarily in this terminal and
               Pellier shopper view.
 
-  BUILD       Required path: wire floor_check in
-              pellier/backend/services/agent_tools.py.
+  BUILD       Lab 1: workshop/retrieval.sql.
+              Lab 2: pellier/backend/services/inventory_sql.py,
+              then pellier/backend/agents/stock_keeper.py.
 
-  MEASURE     Compare retrieval strategies for Anna's query.
+  MEASURE     Check eligibility and rank fusion for Anna's request.
 
-  PROVE       Lab 3: query pellier.tool_audit from psql.
+  PROVE       Verify the agent's inventory lookup in pellier.tool_audit.
 
-  AGENT_TRACE     Use Pellier Labs only when a step names a specific verification or
-              comparison view.
-
-  FILE        agent_tools.py is open. Find the floor_check WORKSHOP markers,
-              implement, save, then test in Pellier.
+  FILE        retrieval.sql is open. Change only the WORKSHOP blocks.
+              The lab guide gives the commands and expected results.
 
 EOF
 
-# Auto-open the one file participants edit in the workshop.
-code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/agent_tools.py 2>/dev/null || true
+# Open the first exercise.
+code /workshop/sample-pellier-agentic-search-apg/workshop/retrieval.sql 2>/dev/null || true
 
 # Exit cleanly so task completes
 exit 0

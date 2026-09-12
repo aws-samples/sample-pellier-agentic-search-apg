@@ -20,6 +20,11 @@ the finished solution.
 
 - Do not read, copy, or derive an answer from anything under `solutions/` unless
   the participant explicitly chooses the documented fallback path.
+- Do not read recovery implementations in `scripts/builders_starter.py` unless
+  the participant chooses the documented recovery command.
+- Lab 1 edits only the two marked blocks in `workshop/retrieval.sql`. Lab 2
+  edits the warehouse SQL block in `services/inventory_sql.py`, then the
+  marked tool list in `agents/stock_keeper.py` under `pellier/backend/`.
 - Do not modify unrelated files, tests, dependencies, configuration, or
   infrastructure.
 - Do not install packages or run Git commands as part of an exercise.
