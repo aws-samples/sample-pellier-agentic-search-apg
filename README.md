@@ -89,6 +89,8 @@ The deployed starter includes two SQL tasks and an agent tool-list edit.
 `workshop/retrieval.sql` contains the eligibility and rank-fusion scaffold.
 Provisioning also replaces the marked warehouse SQL body in
 `pellier/backend/services/inventory_sql.py` and removes the agent grant.
+Participants restore that grant in `INVENTORY_AGENT_TOOLS` inside
+`pellier/backend/agents/stock_keeper.py` after the direct tool test passes.
 This `main` checkout retains the working application implementation.
 A `shipped` label checks wiring; direct tests and the session-specific
 `agent-check` command verify execution. Check these results separately.

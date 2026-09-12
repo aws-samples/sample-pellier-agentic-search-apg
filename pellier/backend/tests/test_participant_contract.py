@@ -1,15 +1,8 @@
-"""The participant contract has exactly one definition, and it is enforced.
+"""Keep the current README, SQL exercises, and agent-grant contract aligned.
 
-Three artifacts describe what an attendee edits: ``solutions/README.md``
-(the prose contract), ``scripts/builders_starter.py`` (which installs the
-gaps), and the Workshop Studio guide (which asks attendees to close them).
-They drifted: the README promised one code build and named the tool body as
-"the only file participants change", while the starter installs two gaps and
-the guide walks attendees through both. An attendee following the README
-would have finished with an ungranted agent and a failing proof gate.
-
-These tests pin the two gaps to the code that installs them, so the prose
-cannot claim a different workshop than the one the machine provisions.
+The root README describes the required path. Legacy recovery documentation
+does not define the current participant edits. The tool must remain directly
+testable before its separate agent grant is completed.
 """
 
 from __future__ import annotations
@@ -21,7 +14,7 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-README = REPO / "solutions/README.md"
+README = REPO / "README.md"
 STARTER = REPO / "scripts/builders_starter.py"
 
 
@@ -35,8 +28,8 @@ def _starter():
 
 def _contract_section() -> str:
     text = README.read_text(encoding="utf-8")
-    start = text.index("## Workshop required path")
-    return text[start : text.index("### Optional fast-finisher A")]
+    start = text.index("### Joining the 60-minute Builders' Session")
+    return text[start : text.index("For the optional visual retrieval comparison", start)]
 
 
 def _granted_tools(block: str) -> list[str]:
@@ -49,8 +42,8 @@ def _granted_tools(block: str) -> list[str]:
     return [element.id for element in assignment.value.elts]
 
 
-def test_starter_installs_two_independent_gaps() -> None:
-    """The tool body and the agent grant are separate gaps.
+def test_starter_preserves_sql_exercises_and_independent_agent_grant() -> None:
+    """Warehouse SQL and the agent grant remain separate steps.
 
     The middle state — a working tool the agent still cannot select — is
     the lesson, so it must survive as its own position on the path.
@@ -66,22 +59,25 @@ def test_starter_installs_two_independent_gaps() -> None:
         "restock_shelf",
         "running_low",
     ]
-    starter_tools = starter._paths(REPO)["starter_tools"]
-    assert starter.TOOL_STUB_MARKER in starter_tools.read_text(encoding="utf-8")
+    assert starter.TOOL_STUB_MARKER in starter.INVENTORY_STARTER
+    assert set(starter.RETRIEVAL_BLOCKS) == {"eligibility", "rank fusion"}
+    inventory_source = starter._paths(REPO)["inventory_sql"].read_text(encoding="utf-8")
+    assert starter.TOOL_BODY_START in inventory_source
+    assert starter.TOOL_BODY_END in inventory_source
 
     verify = inspect.getsource(starter.verify_state)
     for state in ("starter", "tool-wired", "complete"):
         assert f'"{state}"' in verify
 
 
-def test_readme_names_both_files_the_participant_edits() -> None:
-    """The prose contract must name both gaps, not just the tool body."""
+def test_readme_names_all_three_files_the_participant_edits() -> None:
+    """The guide must name both SQL exercises and the separate tool list."""
     section = _contract_section()
 
-    assert "pellier/backend/services/agent_tools.py" in section
+    assert "workshop/retrieval.sql" in section
+    assert "pellier/backend/services/inventory_sql.py" in section
     assert "pellier/backend/agents/stock_keeper.py" in section
     assert "INVENTORY_AGENT_TOOLS" in section
-    assert "Two participant code edits" in section
 
 
 def test_readme_does_not_claim_a_single_edited_file() -> None:
@@ -98,5 +94,5 @@ def test_readme_edited_paths_all_exist() -> None:
     """Every path the contract tells a participant to edit must be real."""
     section = _contract_section()
 
-    for match in re.findall(r"`(pellier/[\w/]+\.py)`", section):
+    for match in re.findall(r"`((?:pellier/[\w/]+\.py|workshop/[\w/]+\.sql))`", section):
         assert (REPO / match).is_file(), f"contract names a missing file: {match}"
