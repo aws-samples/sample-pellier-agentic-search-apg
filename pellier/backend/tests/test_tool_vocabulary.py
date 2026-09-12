@@ -86,6 +86,9 @@ ALLOWED_HISTORY = {
     # `process_return` value because the constraint deliberately keeps admitting
     # it: pre-rename evidence rows stay valid rather than being rewritten.
     "scripts/migrations/022_write_operation_vocabulary.sql",
+    # Extends that same CHECK for replacement operations without invalidating
+    # historical receipt rows that migration 022 deliberately retained.
+    "scripts/migrations/052_replacement_recovery.sql",
     # Asserts that the retired names do NOT appear in the desired Gateway
     # schema, which requires naming them.
     "pellier/backend/tests/test_governed_execution.py",

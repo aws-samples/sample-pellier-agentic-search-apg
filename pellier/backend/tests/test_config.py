@@ -66,7 +66,49 @@ _DB_ENV_VARS = (
     "DB_USER",
     "DB_PASSWORD",
     "DATABASE_URL",
+    "DB_TUNNEL_REMOTE_HOST",
+    "DB_SSLROOTCERT",
 )
+
+
+def test_ssm_connection_verifies_remote_identity_but_routes_only_to_loopback(tmp_path):
+    from config import Settings
+    from urllib.parse import parse_qs, urlsplit
+
+    certificate = tmp_path / "rds bundle.pem"
+    certificate.write_text("test certificate")
+    settings = Settings(
+        DB_HOST="127.0.0.1", DB_TUNNEL_REMOTE_HOST="test.cluster.example",
+        DB_PORT=15432, DB_NAME="postgres", DB_USER="operator", DB_PASSWORD="test-password",
+        DB_SSLROOTCERT=str(certificate), DATABASE_URL="postgresql://unused?sslmode=disable",
+    )
+    parsed = urlsplit(settings.database_url)
+    query = parse_qs(parsed.query)
+    assert parsed.hostname == "test.cluster.example"
+    assert parsed.port == 15432
+    assert query["hostaddr"] == ["127.0.0.1"]
+    assert query["sslmode"] == ["verify-full"]
+    assert query["sslrootcert"] == [str(certificate)]
+    assert query["ssl_min_protocol_version"] == ["TLSv1.2"]
+
+
+def test_ssm_connection_refuses_a_missing_ca_bundle(tmp_path):
+    from config import Settings
+
+    settings = Settings(
+        DB_HOST="127.0.0.1", DB_TUNNEL_REMOTE_HOST="test.cluster.example",
+        DB_SSLROOTCERT=str(tmp_path / "missing.pem"),
+    )
+    with pytest.raises(ValueError, match="CA bundle is missing"):
+        _ = settings.database_url
+
+
+def test_ssm_connection_refuses_a_non_loopback_destination():
+    from config import Settings
+
+    settings = Settings(DB_HOST="10.0.0.4", DB_TUNNEL_REMOTE_HOST="test.cluster.example")
+    with pytest.raises(ValueError, match="loopback"):
+        _ = settings.database_url
 
 
 @pytest.fixture

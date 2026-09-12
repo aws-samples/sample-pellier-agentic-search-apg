@@ -258,7 +258,7 @@ def test_no_retired_tool_name_appears_in_the_desired_gateway_vocabulary() -> Non
     assert not (published & retired), (
         f"retired names in the desired Gateway schema: {sorted(published & retired)}"
     )
-    assert len(published) == 17
+    assert len(published) == 18
 
 
 def test_the_cedar_action_id_is_target_qualified() -> None:
@@ -938,7 +938,7 @@ def test_one_operation_writes_one_audit_identity() -> None:
         r'_write_tool_audit_independently\(\s*\n\s*tool="([^"]+)"', source
     )
     assert literals, "no receipt writer found"
-    assert set(literals) == {"initiate_return", "issue_credit"}, (
+    assert set(literals) == {"initiate_return", "issue_credit", "replace_damaged_item"}, (
         f"receipt tool literals drifted: {literals}"
     )
     # And the invoked name is never used as the audit identity.

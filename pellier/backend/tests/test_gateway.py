@@ -458,12 +458,13 @@ def test_gateway_tool_names_are_read_through_the_strands_tool_interface() -> Non
         assert "tool.tool_name" in source
 
 
-def test_a_shopper_specialist_may_not_bind_a_staff_only_gateway_tool() -> None:
-    """The Gateway publishes issue_credit for the desk; binding it to a shopper agent is refused."""
+@pytest.mark.parametrize("staff_tool", ["issue_credit", "replace_damaged_item"])
+def test_a_shopper_specialist_may_not_bind_a_staff_only_gateway_tool(staff_tool: str) -> None:
+    """A tool published for human-approved remedies cannot be bound to a shopper agent."""
     from services import agentcore_gateway as gateway_module
 
     gateway_module.assert_no_staff_only_binding("search", ["search_products", "compare_products"])
-    with pytest.raises(RuntimeError, match="staff-only Gateway tools: issue_credit"):
-        gateway_module.assert_no_staff_only_binding("support", ["get_return_policy", "issue_credit"])
-    assert "issue_credit" not in gateway_module.SUPPORT_CALLER_BOUND_TOOLS
-    assert gateway_module.STAFF_ONLY_GATEWAY_TOOLS == frozenset({"issue_credit"})
+    with pytest.raises(RuntimeError, match=f"staff-only Gateway tools: {staff_tool}"):
+        gateway_module.assert_no_staff_only_binding("support", ["get_return_policy", staff_tool])
+    assert staff_tool not in gateway_module.SUPPORT_CALLER_BOUND_TOOLS
+    assert gateway_module.STAFF_ONLY_GATEWAY_TOOLS == frozenset({"issue_credit", "replace_damaged_item"})

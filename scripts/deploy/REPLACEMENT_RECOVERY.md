@@ -4,12 +4,22 @@
 builds, but the new recovery path has not been activated or verified against
 Aurora and the managed Gateway. Final browser review is also pending.
 
-The last full backend run reported 2,809 passed, 64 skipped, and six failed
-contract assertions. The remaining assertions name the former staff-only tool
-set, Gateway migration additions, 17-tool count, two mutation audit literals, an
-exact `initiate_return` branch string, and the migration-history vocabulary
-allowlist. Review these contracts deliberately when resuming; a green build is
-not proof that the new deployment is ready.
+The six earlier backend contract failures have been reconciled. The focused
+run passed 251 tests with one skipped. The subsequent full run was interrupted
+at the user's next pause, so it does not establish a complete regression pass.
+The new local TLS configuration tests still need their focused run.
+
+The local SSM path now requires `verify-full`, the remote Aurora hostname, and
+the AWS RDS CA bundle while connecting through loopback. A direct connection
+negotiated TLS 1.3 with certificate verification. Read-only AWS inspection found
+the instance private and database ingress restricted to one security-group
+source, with no world-open database rule. No security groups were changed.
+A follow-up verification stopped at an unsupported `rds.force_ssl` query before
+checking the app pool or the negative hostname case; those checks remain open.
+
+Theo's labelled browser fixture was inspected at 1440px and 1024px with no
+horizontal overflow; the exact replacement evidence link and return path worked.
+This fixture review does not prove live authorization or replacement execution.
 
 Frontend type checking, lint, build, and production dependency audit passed.
 The full frontend run had three expectation failures; those expectations were

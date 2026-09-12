@@ -500,7 +500,7 @@ RESTRICTED_REQUEST_HEADERS = ("x-amzn-bedrock-agentcore-policy-session-id",)
 # to their own approval. `phase_states()` is what caught this: with the full
 # canonical set, the unquiesce row reported issue_credit callable, permitted, and
 # covered by no forbid.
-DEFERRED_NEW_TOOLS = ("issue_credit", "get_ticket_history")
+DEFERRED_NEW_TOOLS = ("issue_credit", "get_ticket_history", "replace_damaged_item")
 # Two different enums that both contain the token "ACTIVE", which is exactly why
 # they must never be read from one variable:
 #   Policy.status          CREATING | ACTIVE | UPDATING | DELETING | *_FAILED

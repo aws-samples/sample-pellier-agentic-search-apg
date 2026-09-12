@@ -167,6 +167,28 @@ if [[ -n "${TUNNEL_TARGET}" ]]; then
   export DB_USER="$(jq -r '.username' <<<"${secret_json}")"
   export DB_PASSWORD="$(jq -r '.password' <<<"${secret_json}")"
   export DATABASE_URL=""
+  # The SSM leg is encrypted, and PostgreSQL must verify the Aurora endpoint
+  # on the remaining leg too. Cache only the public AWS CA bundle, no secrets.
+  "${BACKEND_PYTHON}" - <<'PY'
+from pathlib import Path
+import os
+import urllib.request
+
+certificate = Path(os.environ["DB_SSLROOTCERT"]).expanduser() if os.environ.get("DB_SSLROOTCERT") else (
+    Path.home() / ".cache" / "pellier" / "rds-global-bundle.pem"
+)
+if not certificate.is_file():
+    certificate.parent.mkdir(parents=True, exist_ok=True)
+    data = urllib.request.urlopen(
+        "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem", timeout=20
+    ).read()
+    if b"-----BEGIN CERTIFICATE-----" not in data:
+        raise SystemExit("The AWS RDS CA download did not contain a certificate bundle.")
+    temporary = certificate.with_suffix(".tmp")
+    temporary.write_bytes(data)
+    temporary.chmod(0o600)
+    temporary.replace(certificate)
+PY
 fi
 
 if command -v lsof >/dev/null 2>&1 \

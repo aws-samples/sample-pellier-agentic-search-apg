@@ -353,7 +353,7 @@ def test_experience_lambda_writes_gateway_tool_audit() -> None:
         "the experience surface went back to auditing inside the mutation; a "
         "rolled-back write would take its receipt with it"
     )
-    assert 'tool_name == "initiate_return"' in source
+    assert 'tool_name in ("initiate_return", "replace_damaged_item")' in source
     # Keyed on the real identity, which this tool's arguments carry.
     assert 'f"gateway-{customer_id}"' in source
 

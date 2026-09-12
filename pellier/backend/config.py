@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     # ========================================
     DB_HOST: str
     # The dev launcher preserves the remote host when opening an SSM tunnel.
-    # This identifies the data source; connections still use DB_HOST/DB_PORT.
+    # Keep the remote hostname for TLS verification while routing through loopback.
     DB_TUNNEL_REMOTE_HOST: Optional[str] = None
+    DB_SSLROOTCERT: Optional[str] = None
     DB_PORT: int = 5432
     DB_NAME: str
     DB_USER: str
@@ -371,10 +372,33 @@ class Settings(BaseSettings):
         Returns:
             str: Full database connection URL
         """
+        from pathlib import Path
+        from urllib.parse import quote_plus, urlencode
+
+        if self.DB_TUNNEL_REMOTE_HOST:
+            if self.DB_HOST not in ("127.0.0.1", "::1", "localhost"):
+                raise ValueError("An SSM database tunnel must use a loopback DB_HOST")
+            certificate = Path(self.DB_SSLROOTCERT).expanduser() if self.DB_SSLROOTCERT else (
+                Path.home() / ".cache" / "pellier" / "rds-global-bundle.pem"
+            )
+            if not certificate.is_file():
+                raise ValueError("The RDS CA bundle is missing. Start the app with the local Pellier launcher.")
+            query = urlencode({
+                "hostaddr": "127.0.0.1" if self.DB_HOST == "localhost" else self.DB_HOST,
+                "sslmode": "verify-full",
+                "sslrootcert": str(certificate),
+                "ssl_min_protocol_version": "TLSv1.2",
+                "application_name": "pellier-local-secure",
+            })
+            # host supplies the certificate identity; hostaddr supplies the local
+            # socket destination. A DATABASE_URL override cannot bypass this rail.
+            return (
+                f"postgresql://{quote_plus(self.DB_USER)}:{quote_plus(self.DB_PASSWORD)}"
+                f"@{self.DB_TUNNEL_REMOTE_HOST}:{self.DB_PORT}/{self.DB_NAME}?{query}"
+            )
         if self.DATABASE_URL:
             return self.DATABASE_URL
-        
-        from urllib.parse import quote_plus
+
         return (
             f"postgresql://{self.DB_USER}:{quote_plus(self.DB_PASSWORD)}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
