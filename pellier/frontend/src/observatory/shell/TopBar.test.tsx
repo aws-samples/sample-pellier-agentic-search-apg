@@ -11,6 +11,7 @@ vi.mock('../../shared', () => ({
 }))
 
 import TopBar from './TopBar'
+import SurfaceNavigation from '../../components/SurfaceNavigation'
 
 function LocationProbe() {
   const { pathname } = useLocation()
@@ -30,25 +31,17 @@ describe('Pellier Observatory TopBar', () => {
     expect(current[0]).toHaveAccessibleName(label)
   })
 
-  it('makes the Storefront the only top-bar exit', () => {
+  it('uses the shared navigation for all three surface destinations', () => {
     render(
       <MemoryRouter initialEntries={['/observatory/proof-board']}>
+        <SurfaceNavigation />
         <TopBar />
       </MemoryRouter>,
     )
-
-    const backLink = screen.getByRole('link', {
-      name: 'Back to Pellier',
-    })
-    expect(backLink).toHaveAttribute('href', '/')
-    expect(backLink).toHaveTextContent('Pellier')
-    expect(backLink).not.toHaveTextContent('Storefront')
-    expect(backLink).toHaveClass('pellier-home-link')
-    expect(backLink.querySelector('.pellier-home-chip')).toHaveTextContent('P')
-    expect(backLink.querySelector('.pellier-home-wordmark')).toHaveTextContent(
-      'Pellier',
-    )
-    expect(screen.queryByRole('link', { name: /github/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Storefront' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Operator' })).toHaveAttribute('href', '/operator/reviews')
+    expect(screen.getByRole('link', { name: 'Observatory' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('link', { name: 'Back to Pellier' })).not.toBeInTheDocument()
   })
 
   it('keeps supporting routes inside the one Observatory workspace', () => {

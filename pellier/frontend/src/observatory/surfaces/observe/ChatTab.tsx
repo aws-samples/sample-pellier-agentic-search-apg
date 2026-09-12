@@ -368,6 +368,7 @@ const ProductTile: React.FC<{ product: ProductCard }> = ({ product }) => {
       <div
         style={{
           height: '100px',
+          borderRadius: 'var(--pellier-image-radius-md)',
           background: 'var(--obs-cream-2)',
           overflow: 'hidden',
         }}

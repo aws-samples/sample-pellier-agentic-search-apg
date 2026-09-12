@@ -85,7 +85,7 @@ const ProductCardCompact = ({ product, onAddToCart, similarityScore, recommendat
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => addRecentlyViewed({ id: product.id, name: product.name, price: product.price, image: product.image })}
-        className="w-[88px] h-[88px] rounded-xl flex-shrink-0 overflow-hidden transition-all flex items-center justify-center"
+        className="w-[88px] h-[88px] rounded-[var(--pellier-image-radius-sm)] flex-shrink-0 overflow-hidden transition-all flex items-center justify-center"
         style={{ background: 'rgba(255,255,255,0.09)' }}
       >
         {isImageUrl ? (

@@ -168,6 +168,7 @@ export interface ActionAssurance {
     | 'PERMITTED'
     | 'DENIED'
     | 'NOT_ENFORCED'
+    | 'OUTCOME_UNKNOWN'
   evidence:
     | 'PENDING'
     | 'NO_EXECUTION'
@@ -322,6 +323,42 @@ export interface OperatorReviewQueue {
   reviews: OperatorReview[]
   total: number
   pendingCount: number
+}
+
+export interface OperatorReplacement {
+  replacementId: string
+  reviewId: number
+  orderId: number
+  productId: string
+  productName: string
+  quantity: number
+  disposition: string
+  state: 'reserved' | 'awaiting_fulfillment' | 'outcome_unknown' | 'accepted' | 'shipped'
+  providerOperationId: string | null
+  executionArn: string | null
+  idempotencyKey: string
+  approvalHash: string
+  outbox: { eventId: string; attempts: number; publishedAt: string | null } | null
+  provider: 'workshop-simulator'
+  createdAt: string
+  updatedAt: string
+  events: { type: string; at: string; details: Record<string, unknown> }[]
+}
+
+export interface ReplacementRecovery {
+  available: boolean
+  replacements: OperatorReplacement[]
+}
+
+export function fetchReplacements(customerId: string, replacementId?: string): Promise<ReplacementRecovery> {
+  const query = replacementId ? `?replacement_id=${encodeURIComponent(replacementId)}` : ''
+  return request(`/api/operator/clients/${encodeURIComponent(customerId)}/replacements${query}`)
+}
+
+export function prepareReplacement(customerId: string, orderId: number, quantity: number, issue: string): Promise<{ reviewId: number }> {
+  return request(`/api/operator/clients/${encodeURIComponent(customerId)}/replacements/prepare`, {
+    method: 'POST', body: JSON.stringify({ orderId, quantity, issue }),
+  })
 }
 
 export interface OperatorReviewDetail {

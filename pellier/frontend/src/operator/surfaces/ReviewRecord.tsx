@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { MEMBERSHIP } from '../../data/membership'
+import { imageSrc } from '../../utils/assetPath'
 import {
   confirmReview,
   declineReview,
@@ -56,11 +57,15 @@ const PARAMETER_LABELS: Record<string, string> = {
   product_id: 'Product',
   reason: 'Reason',
   amount_cents: 'Amount',
+  order_id: 'Order',
+  quantity: 'Quantity',
+  disposition: 'Damaged item handling',
 }
 
 const ACTION_TITLES: Record<string, string> = {
   initiate_return: 'File a return',
   issue_credit: 'Issue a goodwill credit',
+  replace_damaged_item: 'Replace a damaged piece',
 }
 
 /**
@@ -93,7 +98,7 @@ function formatParameter(
   if (key === 'product_id' && order && String(order.productId) === String(value)) {
     return `${String(value)} · ${order.productName}`
   }
-  if (key === 'reason' && typeof value === 'string') {
+  if ((key === 'reason' || key === 'disposition') && typeof value === 'string') {
     return value.replace(/_/g, ' ')
   }
   return String(value)
@@ -372,7 +377,7 @@ const ReviewRecordPage: React.FC = () => {
     : executing
       ? 'Evaluating'
       : completed
-        ? 'Completed'
+        ? review.action === 'replace_damaged_item' ? 'Replacement reserved' : 'Completed'
         : blocked
           ? 'Not applied'
           : refused
@@ -408,9 +413,11 @@ const ReviewRecordPage: React.FC = () => {
         <span aria-hidden="true">/</span>
         <span>{client.name}</span>
       </nav>
+      <div className="operator-review-case-workspace">
+      <div className="operator-review-context-stack">
       <div className="operator-review-overview">
-        <p>{actionTitle(review.action, review.parameters)} · {actionStateLabel}</p>
-        <a href="#operator-review-decision" className="operator-back">Review decision</a>
+        <p>{actionTitle(review.action, review.parameters)}</p>
+        <a href="#operator-review-decision" className="pellier-action-quiet">Review decision</a>
       </div>
 
       {/* Origin, stated once and early. The issue is joined rather than interpolated
@@ -446,6 +453,14 @@ const ReviewRecordPage: React.FC = () => {
               {money(client.spend12mo)} in 12 months
             </span>
           </p>
+          <div className="operator-review-client-actions">
+          <Link
+            to={`/operator/clients/${encodeURIComponent(client.customerId)}#operator-concierge`}
+            className="operator-client-chat-link"
+            data-testid="operator-review-chat-link"
+          >
+            Open client chat
+          </Link>
           <Link
             to={`/operator/clients/${client.customerId}`}
             className="operator-filter-clear"
@@ -453,13 +468,7 @@ const ReviewRecordPage: React.FC = () => {
           >
             Open the full client record
           </Link>
-        </div>
-        <div
-          className="operator-review-head-state"
-          data-state={actionState}
-        >
-          <span className="operator-review-cell-label">Action state</span>
-          <span>{actionStateLabel}</span>
+          </div>
         </div>
       </header>
 
@@ -517,12 +526,17 @@ const ReviewRecordPage: React.FC = () => {
               <tr>
                 <td className="operator-table-id">{order.orderId}</td>
                 <td>
+                  <div className="operator-review-order-piece">
+                  {order.imageUrl ? <img src={imageSrc(order.imageUrl)} alt="" width={64} height={80} loading="lazy" /> : null}
+                  <div>
                   {order.productName}
                   {/* A div, not a span: `operator-cell-note` carries no display
                       rule, so inline rendering ran the brand straight onto the
                       piece name — "Coral Lacquer CatchallPellier Maison". The
                       client record already stacks them this way. */}
                   <div className="operator-cell-note">{order.brand}</div>
+                  </div>
+                  </div>
                 </td>
                 <td>
                   {order.placedAt
@@ -590,12 +604,18 @@ const ReviewRecordPage: React.FC = () => {
         ) : null}
       </section>
 
+      </div>
+      <aside className="operator-review-decision-stack" aria-label="Proposed action and decision">
+        <div className="operator-review-head-state" data-state={actionState}>
+          <span className="operator-review-cell-label">Action state</span>
+          <span>{actionStateLabel}</span>
+        </div>
       {/* PROPOSED ACTION */}
       <section
         className="operator-card operator-review-action-card"
         data-testid="operator-review-action"
       >
-        <h2 className="operator-card-title">Proposed action</h2>
+        <h2 className="operator-card-title"><span className="operator-decision-step" aria-hidden="true">1</span>Proposed action</h2>
         <p className="operator-table-id operator-review-action-name">
           {review.action}
         </p>
@@ -616,8 +636,8 @@ const ReviewRecordPage: React.FC = () => {
           </tbody>
         </table></div>
         <p className="operator-cell-note">
-          Confirming binds to exactly these values. If any of them changes, the
-          confirmation stops being valid and this returns to needing a person.
+          Confirming binds to exactly these values. Changed terms require a new
+          confirmation.
         </p>
       </section>
 
@@ -627,7 +647,7 @@ const ReviewRecordPage: React.FC = () => {
         id="operator-review-decision"
         data-testid="operator-review-decision"
       >
-        <h2 className="operator-card-title">Your decision</h2>
+        <h2 className="operator-card-title"><span className="operator-decision-step" aria-hidden="true">2</span>Your decision</h2>
         {deciding ? (
           <p
             className="operator-review-live-status"
@@ -800,6 +820,16 @@ const ReviewRecordPage: React.FC = () => {
           </>
         )}
         {unresolved && !attempted ? <p role="status">Execution was requested. A durable outcome is not yet available; refresh the record to check it.</p> : null}
+        {review.action === 'replace_damaged_item' ? <>
+          <p className="operator-cell-note">This action records the return and reserves replacement stock. Fulfillment and shipment are recorded separately.</p>
+          <Link className="operator-client-chat-link" to={`/operator/clients/${encodeURIComponent(review.customerId)}#operator-replacement-care`}>Check replacement care</Link>
+          {review.humanState === 'confirmed' && unresolved && !refreshNeeded ? <div className="operator-review-actions">
+            <button type="button" className="operator-button operator-button-inline" onClick={execute} disabled={executing || refreshing}>
+              {executing ? 'Checking approved action…' : 'Recover this approved action'}
+            </button>
+            <p className="operator-cell-note">Uses the same approval and operation key. A committed result is replayed; if nothing committed, the approved terms are checked again before execution.</p>
+          </div> : null}
+        </> : null}
         {refreshNote ? <p role="status">{refreshNote}</p> : null}
         {refreshNeeded || unresolved ? <button type="button" className="operator-button operator-button-inline" disabled={refreshing} onClick={() => void reconcile()}>{refreshing ? 'Refreshing…' : 'Refresh record'}</button> : null}
         {decisionError ? (
@@ -811,6 +841,8 @@ const ReviewRecordPage: React.FC = () => {
           </p>
         ) : null}
       </section>
+      </aside>
+      </div>
 
       <ActionAssurance
         assurance={axes}
@@ -887,16 +919,16 @@ const ReviewRecordPage: React.FC = () => {
 
       {/* The evidence link, where the raw identifiers belong. */}
       {review.sourceTurnId ? (
-        <p className="operator-cell-note">
+        <p className="operator-review-proof-link">
           <Link
+            className="pellier-action-quiet"
             to={`/observatory/operator-lineage?customer=${encodeURIComponent(
               review.customerId,
             )}&review=${encodeURIComponent(String(review.reviewId))}`}
             data-testid="operator-review-observatory-link"
           >
             Inspect this governed handoff in Pellier Observatory
-          </Link>{' '}
-          <span className="operator-receipt-key">{review.sourceTurnId}</span>
+          </Link>
         </p>
       ) : null}
     </div>

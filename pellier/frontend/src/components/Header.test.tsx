@@ -93,13 +93,14 @@ const LIVE_PERSONAS = [
 
 // Import Header AFTER mocks so the mocked hooks are bound inside the module.
 import Header from './Header'
+import SurfaceNavigation from './SurfaceNavigation'
 
 // --- Helpers -----------------------------------------------------------
 
 function renderHeader(ui: ReactElement = <Header />) {
   return render(
     <UIProvider>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <MemoryRouter><SurfaceNavigation />{ui}</MemoryRouter>
     </UIProvider>,
   )
 }
@@ -158,10 +159,11 @@ describe('Header — nav items', () => {
     ])
   })
 
-  it('renders the Pellier wordmark centered', () => {
+  it('renders one shared Pellier wordmark above the storefront controls', () => {
     renderHeader()
-    const wordmark = screen.getByTestId('wordmark')
-    expect(wordmark).toHaveTextContent('Pellier')
+    const wordmark = screen.getByRole('link', { name: 'Pellier home' })
+    expect(wordmark).toHaveTextContent('pellier')
+    expect(screen.queryByTestId('wordmark')).not.toBeInTheDocument()
   })
 
   it('has no legacy Home/Storyboard/Discover/Account nav items', () => {
@@ -190,24 +192,24 @@ describe('Header — nav items', () => {
     expect(stories).toHaveAttribute('data-current', 'false')
   })
 
-  it('keeps the centered wordmark visible', () => {
+  it('keeps the shared navigation outside the mobile menu', () => {
     renderHeader()
-    const wordmarkWrapper = screen.getByTestId('wordmark-wrapper')
-    expect(wordmarkWrapper.className).not.toMatch(/\bhidden\b/)
+    expect(screen.getByRole('navigation', { name: 'Pellier surfaces' })).toBeInTheDocument()
+    expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument()
   })
 
   it('links directly to Pellier Observatory without repeating the storefront name', () => {
     renderHeader()
-    const labsLink = screen.getByTestId('observatory-link')
-    expect(labsLink).toHaveTextContent('Pellier Observatory')
+    const labsLink = screen.getByRole('link', { name: 'Observatory' })
+    expect(labsLink).toHaveTextContent('Observatory')
     expect(labsLink).toHaveAttribute('href', '/observatory')
   })
 
-  it('includes Pellier Observatory in the mobile navigation', () => {
+  it('keeps one Observatory destination when the mobile menu opens', () => {
     renderHeader()
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
-    const labsLink = screen.getByTestId('observatory-link-mobile')
-    expect(labsLink).toHaveTextContent('Pellier Observatory')
+    const labsLink = screen.getByRole('link', { name: 'Observatory' })
+    expect(labsLink).toHaveTextContent('Observatory')
     expect(labsLink).toHaveAttribute('href', '/observatory')
   })
 })

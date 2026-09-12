@@ -76,7 +76,8 @@ LOCAL_MCP_TOOL_NAMES: List[str] = [
 # call, so the boundary that matters here is the binding: a specialist that
 # names one of these would hand the model a money-moving tool and rely on a
 # policy denial to catch it. The dispatcher refuses to build such a specialist.
-STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit"})
+GATEWAY_ONLY_OPERATOR_TOOLS: frozenset[str] = frozenset({"replace_damaged_item"})
+STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit"}) | GATEWAY_ONLY_OPERATOR_TOOLS
 
 
 def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) -> None:
@@ -287,6 +288,7 @@ GATEWAY_TARGET_FOR_TOOL: Dict[str, str] = {
     "get_related_products": "pellier-curation-recommendation-target",
     "initiate_return": "pellier-concierge-experience-target",
     "issue_credit": "pellier-concierge-experience-target",
+    "replace_damaged_item": "pellier-concierge-experience-target",
     "get_ticket_history": "pellier-concierge-experience-target",
     "escalate_to_human": "pellier-concierge-experience-target",
 }

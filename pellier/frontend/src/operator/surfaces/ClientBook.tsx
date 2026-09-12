@@ -7,17 +7,13 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   MEMBERSHIP,
   MEMBERSHIP_RUNGS,
   type Membership,
 } from '../../data/membership'
-import {
-  fetchClientBook,
-  OperatorApiError,
-  type OperatorBook,
-} from '../../services/operator'
+import { useClientBook } from '../hooks/useClientBook'
 import ServiceSource from '../components/ServiceSource'
 import ClientAvatar from '../components/ClientAvatar'
 import MembershipRung from '../components/MembershipRung'
@@ -43,9 +39,9 @@ function money(value: number): string {
 }
 
 const BOOK_VIEW_KEY = 'pellier-operator-book-view'
-function savedBookView(): { query?: string; rung?: Membership | null; scroll?: number } {
+function savedBookView(key = BOOK_VIEW_KEY): { query?: string; rung?: Membership | null; scroll?: number } {
   try {
-    const value = JSON.parse(sessionStorage.getItem(BOOK_VIEW_KEY) || '{}')
+    const value = JSON.parse(sessionStorage.getItem(key) || '{}')
     if (!value || typeof value !== 'object') return {}
     return {
       query: typeof value.query === 'string' ? value.query : '',
@@ -55,47 +51,47 @@ function savedBookView(): { query?: string; rung?: Membership | null; scroll?: n
   } catch { return {} }
 }
 
-const ClientBook: React.FC = () => {
+const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record' }) => {
   const navigate = useNavigate()
-  const [book, setBook] = useState<OperatorBook | null>(null)
+  const { book, error, refresh } = useClientBook()
+  const [params, setParams] = useSearchParams()
+  const chatEntry = intent === 'chat'
+  const viewKey = chatEntry ? 'pellier-operator-chat-view' : BOOK_VIEW_KEY
+  const [initialView] = useState(() => savedBookView(viewKey))
   // Client-side: the whole book is already loaded, so filtering needs no
   // round trip. Null means "no filter", not "registered".
-  const [rungFilter, setRungFilter] = useState<Membership | null>(() => { const rung = savedBookView().rung; return rung && MEMBERSHIP_RUNGS.includes(rung) ? rung : null })
+  const requestedRung = params.get('membership')
+  const rungFilter: Membership | null = requestedRung == null
+    ? initialView.rung ?? null
+    : MEMBERSHIP_RUNGS.includes(requestedRung as Membership) ? requestedRung as Membership : null
+  const setRungFilter = (rung: Membership | null) => {
+    setParams(current => {
+      const next = new URLSearchParams(current)
+      next.set('membership', rung ?? 'all')
+      return next
+    })
+  }
   // Typed name filter. Fifteen clients fit on one screen; forty do not, and an
   // associate who knows the name should not have to scan the ladder for it.
-  const [query, setQuery] = useState(() => savedBookView().query ?? '')
-  const [retryVersion, setRetryVersion] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState(() => initialView.query ?? '')
 
   useEffect(() => {
-    let active = true
-    setError(null)
-    setBook(null)
-    fetchClientBook()
-      .then((data) => {
-        if (active) setBook(data)
-      })
-      .catch((err: unknown) => {
-        if (!active) return
-        setError(
-          err instanceof OperatorApiError
-            ? err.code
-            : 'operator_unavailable',
-        )
-      })
-    return () => {
-      active = false
-    }
-  }, [retryVersion])
+    if (params.has('membership') || !initialView.rung) return
+    setParams(current => {
+      const next = new URLSearchParams(current)
+      next.set('membership', initialView.rung!)
+      return next
+    }, { replace: true })
+  }, [initialView.rung, params, setParams])
 
   const rememberPosition = () => {
-    try { sessionStorage.setItem(BOOK_VIEW_KEY, JSON.stringify({ query, rung: rungFilter, scroll: window.scrollY })) } catch { /* Storage can be disabled. */ }
+    try { sessionStorage.setItem(viewKey, JSON.stringify({ query, rung: rungFilter, scroll: window.scrollY })) } catch { /* Storage can be disabled. */ }
   }
   useEffect(() => {
     if (!book) return
-    const scroll = savedBookView().scroll
+    const scroll = savedBookView(viewKey).scroll
     if (typeof scroll === 'number' && scroll > 0) window.scrollTo({ top: scroll, behavior: 'instant' })
-  }, [book])
+  }, [book, viewKey])
 
   if (error) {
     const authenticationRequired =
@@ -142,7 +138,7 @@ const ClientBook: React.FC = () => {
           )
         }
         reason={unavailable ? undefined : error}
-        action={authenticationRequired ? <OperatorSignInAction unlocks="read the client book" /> : !operatorRequired ? <button type="button" className="operator-button operator-button-inline" onClick={() => setRetryVersion(v => v + 1)}>Try again</button> : undefined}
+        action={authenticationRequired ? <OperatorSignInAction unlocks="read the client book" /> : !operatorRequired ? <button type="button" className="operator-button operator-button-inline" onClick={refresh}>Try again</button> : undefined}
       />
     )
   }
@@ -172,6 +168,7 @@ const ClientBook: React.FC = () => {
       client.slug === 'jessica' &&
       /return|dispute|service/i.test(client.note),
   )
+  const theo = book.clients.find(client => client.personaId === 'theo')
 
   // The entrance stagger walks the rendered order, so it has to be counted
   // where the rows are emitted rather than derived from an array index: a
@@ -209,12 +206,14 @@ const ClientBook: React.FC = () => {
   }
 
   return (
-    <div data-testid="operator-book">
+    <div data-testid="operator-book" data-intent={intent}>
       {/* An introduction to the surface rather than a label for it: an advisor
           arriving here needs to know what they can do, not what the list is
           called. No kicker above the heading. */}
-      <h1 className="operator-title">Every client the house knows</h1>
-      <p className="operator-lede">Open a client, investigate the evidence, and prepare a resolution for human review.</p>
+      <h1 className="operator-title">{chatEntry ? 'Operator chat' : 'Every client the house knows'}</h1>
+      <p className="operator-lede">{chatEntry
+        ? 'Choose a client to ask questions, examine the source records, and work toward a fair resolution.'
+        : 'Open a client, investigate the evidence, and prepare a resolution for human review.'}</p>
       <details className="operator-source-details">
         <summary>How the desk works</summary>
         <div className="operator-service-sources">
@@ -249,21 +248,47 @@ const ClientBook: React.FC = () => {
             ) : null}
             <p className="operator-case-entry-brief">{jessicaCase.note}</p>
           </div>
-          <button
-            type="button"
-            className="operator-case-entry-action"
-            onClick={() => {
-              rememberPosition()
-              navigate(
-                `/operator/clients/${jessicaCase.customerId}` +
-                  '?guided=service-recovery#operator-concierge-title',
-              )
-            }}
-          >
-            Review case
-          </button>
+          <div className="operator-case-entry-actions">
+            <Link
+              to={`/operator/clients/${encodeURIComponent(jessicaCase.customerId)}#operator-concierge`}
+              className="operator-case-entry-action"
+              onClick={rememberPosition}
+              aria-label={`Open chat for ${jessicaCase.name}`}
+            >
+              Open chat
+            </Link>
+            <button
+              type="button"
+              className="operator-case-entry-guided"
+              onClick={() => {
+                rememberPosition()
+                navigate(
+                  `/operator/clients/${jessicaCase.customerId}` +
+                    '?guided=service-recovery#operator-concierge-title',
+                )
+              }}
+            >
+              Start guided review
+            </button>
+            <span>A guided review starts a new investigation.</span>
+          </div>
         </section>
       ) : null}
+
+      {theo ? <section className="operator-case-entry" aria-labelledby="operator-theo-care-title">
+        <ClientAvatar customerId={theo.customerId} name={theo.name} personaId={theo.personaId} />
+        <div className="operator-case-entry-copy">
+          <div className="operator-case-entry-headline">
+            <h2 id="operator-theo-care-title">{theo.name}</h2>
+            <span className="operator-case-entry-kicker">Replacement care</span>
+          </div>
+          <p className="operator-case-entry-brief">Review the exact order, discuss the remedy, and follow any approved replacement through fulfillment.</p>
+        </div>
+        <div className="operator-case-entry-actions">
+          <Link className="operator-case-entry-action" onClick={rememberPosition} to={`/operator/clients/${encodeURIComponent(theo.customerId)}#operator-concierge`}>Open Theo’s chat</Link>
+          <Link className="operator-case-entry-guided" onClick={rememberPosition} to={`/operator/clients/${encodeURIComponent(theo.customerId)}#operator-replacement-care`}>Open replacement care</Link>
+        </div>
+      </section> : null}
 
       <label className="operator-search" htmlFor="operator-book-search">
         <span>Find a client</span>
@@ -374,8 +399,8 @@ const ClientBook: React.FC = () => {
             {clients.map((client) => (
           <Link
             key={client.customerId}
-            to={`/operator/clients/${client.customerId}`}
-            className="operator-book-row"
+            to={`/operator/clients/${encodeURIComponent(client.customerId)}${chatEntry ? '#operator-concierge' : ''}`}
+            className={`operator-book-row${chatEntry ? ' operator-chat-client-row' : ''}`}
             data-testid={`operator-client-${client.slug}`}
             style={{ '--op-row-index': entranceIndex() } as React.CSSProperties}
             onClick={rememberPosition}
@@ -389,6 +414,9 @@ const ClientBook: React.FC = () => {
               <span className="operator-client-name">{client.name}</span>
               <span className="operator-client-note">{client.note}</span>
             </span>
+            {chatEntry ? (
+              <span className="operator-client-chat-label">Open chat</span>
+            ) : <>
             <span className="operator-figure">
               <span className="operator-figure-label">12-month spend</span>
               {money(client.spend12mo)}
@@ -397,6 +425,7 @@ const ClientBook: React.FC = () => {
               <span className="operator-figure-label">Orders</span>
               {client.orderCount}
             </span>
+            </>}
           </Link>
             ))}
           </React.Fragment>

@@ -331,7 +331,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                             <div className="flex gap-4 py-4">
                               {/* Product Image */}
                               <div
-                                className="w-[72px] h-[72px] rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center"
+                                className="w-[72px] h-[72px] rounded-[var(--pellier-image-radius-sm)] flex-shrink-0 overflow-hidden flex items-center justify-center"
                                 style={{ background: BG_CARD }}
                               >
                                 {item.image ? (

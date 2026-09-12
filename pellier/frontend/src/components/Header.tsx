@@ -1,11 +1,10 @@
 /**
  * Header — Pellier sticky header.
  *
- * Centered "Pellier" wordmark — Fraunces (`font-display`) + circular P
- * chip; word one step above footer (`text-2xl` vs `text-xl`). Four left
- * nav items (Shop, Stories, Ask Pellier, About), and right cluster: search
- * IconButton, persona Avatar dropdown, bag IconButton with count badge, and
- * a direct link to Pellier Observatory.
+ * Storefront navigation beneath the shared SurfaceNavigation. Collection,
+ * Stories, Ask Pellier, and About remain local; the global bar owns the
+ * wordmark and the three surface destinations. Persona and bag controls
+ * preserve their existing interaction and identity boundaries.
  *
  * Visitors without a scenario see a "Select scenario" pill. Once a persona is
  * active, the same header pill opens the shared portrait-led PersonaModal
@@ -66,31 +65,6 @@ const NAV_ITEMS: Array<{ item: NavItem; label: string }> = [
 const MENU_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
 // ---------------------------------------------------------------------------
-// Wordmark
-// ---------------------------------------------------------------------------
-
-function Wordmark() {
-  return (
-    <Link
-      to="/"
-      data-testid="wordmark"
-      aria-label={NAV.WORDMARK}
-      className="flex min-h-[44px] items-center gap-2.5 select-none"
-    >
-      <span
-        aria-hidden="true"
-        className="pellier-logo-chip bg-espresso text-cream-50"
-      >
-        P
-      </span>
-      <span className="font-display text-2xl font-medium tracking-tight text-espresso">
-        {NAV.WORDMARK}
-      </span>
-    </Link>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // NavLink
 // ---------------------------------------------------------------------------
 
@@ -121,76 +95,6 @@ function NavLink({ item, label, current, onClick }: NavLinkProps) {
         onClick(item)
       }
     }}>{label}</Link>
-  )
-}
-
-function ObservatoryLink({
-  mobile = false,
-  onClick,
-}: {
-  mobile?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <Link
-      to="/observatory"
-      data-testid={mobile ? 'observatory-link-mobile' : 'observatory-link'}
-      onClick={onClick}
-      className={[
-        'items-center gap-1.5 text-[14px] font-medium text-ink-quiet',
-        'transition-colors duration-fade ease-out hover:text-accent',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2',
-        mobile
-          ? 'flex min-h-[44px] w-full px-1 py-2'
-          : 'inline-flex min-h-[44px] border-l border-sand pl-3',
-      ].join(' ')}
-      style={{ fontFamily: 'var(--sans)' }}
-    >
-      <span>{NAV.OBSERVATORY}</span>
-      {/* The badge is part of the link's accessible name on purpose: a screen
-          reader should hear "Pellier Observatory, Optional" rather than a bare
-          destination, since optionality is the thing a participant most needs
-          before deciding to spend time here. */}
-      <span
-        data-testid={mobile ? 'observatory-optional-mobile' : 'observatory-optional'}
-        className={[
-          'rounded-full border border-sand bg-cream-warm px-1.5 py-0.5',
-          'text-[11px] font-medium uppercase tracking-[0.08em] text-ink-quiet',
-        ].join(' ')}
-      >
-        {NAV.OBSERVATORY_OPTIONAL}
-      </span>
-    </Link>
-  )
-}
-
-function OperatorLink({
-  mobile = false,
-  onClick,
-}: {
-  mobile?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <Link
-      to="/operator"
-      data-testid={mobile ? 'operator-link-mobile' : 'operator-link'}
-      onClick={onClick}
-      className={[
-        'items-center gap-1.5 text-[14px] font-medium text-ink-quiet',
-        'transition-colors duration-fade ease-out hover:text-accent',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2',
-        mobile
-          ? 'flex min-h-[44px] w-full px-1 py-2'
-          : 'inline-flex min-h-[44px] border-l border-sand pl-3',
-      ].join(' ')}
-      style={{ fontFamily: 'var(--sans)' }}
-    >
-      <span>{NAV.OPERATOR}</span>
-      {/* Deliberately no "Optional" badge. The Observatory carries one because
-          it is an inspection surface nothing depends on; the operator desk is
-          a working surface, and labelling it optional would misdescribe it. */}
-    </Link>
   )
 }
 
@@ -380,7 +284,7 @@ export default function Header({
       ref={headerRef}
       role="banner"
       data-testid="sticky-header"
-      className="sticky top-0 z-40 w-full border-b border-sand/50"
+      className="pellier-storefront-header sticky z-40 w-full border-b border-sand/50"
       style={{
         background: 'var(--header-bg)',
         WebkitBackdropFilter: 'blur(12px)',
@@ -389,18 +293,10 @@ export default function Header({
     >
       <nav
         aria-label="Primary"
-        className="relative h-[60px]"
+        className="relative h-[var(--pellier-storefront-nav-height,60px)]"
         style={{ padding: '0 clamp(16px, 4vw, 48px)' }}
       >
-        {/*
-         * Three-column grid:
-         *   1fr  | auto | 1fr
-         *   left | mark | right
-         *
-         * The center column hugs the wordmark's intrinsic width; the 1fr
-         * left/right columns split remaining space evenly at desktop widths.
-         */}
-        <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-5">
+        <div className="mx-auto flex h-full items-center justify-between gap-4">
           {/* Left: four text nav items */}
           <div className="hidden min-w-0 items-center gap-5 lg:flex">
             {navItems.map(({ item, label }) => (
@@ -414,10 +310,7 @@ export default function Header({
             ))}
           </div>
 
-          {/* Center: wordmark — its own grid track, no absolute positioning */}
-          <div data-testid="wordmark-wrapper" className="flex items-center">
-            <Wordmark />
-          </div>
+          <Link to="/#shop" className="pellier-nav-link lg:hidden">The collection</Link>
 
           {/* Right: search, persona dropdown, wishlist, bag, surface toggle */}
           <div className="flex items-center gap-1.5 justify-end min-w-0">
@@ -449,14 +342,6 @@ export default function Header({
                   {cartItemCount}
                 </span>
               )}
-            </div>
-
-            <div className="hidden lg:block ml-1">
-              <OperatorLink />
-            </div>
-
-            <div className="hidden lg:block ml-1">
-              <ObservatoryLink />
             </div>
 
             <button
@@ -513,16 +398,6 @@ export default function Header({
                     onClick={handleNavigate}
                   />
                 ))}
-              </div>
-              <div className="mt-3 border-t border-sand pt-3">
-                <OperatorLink
-                  mobile
-                  onClick={() => setMobileMenuOpen(false)}
-                />
-                <ObservatoryLink
-                  mobile
-                  onClick={() => setMobileMenuOpen(false)}
-                />
               </div>
             </motion.div>
           ) : null}

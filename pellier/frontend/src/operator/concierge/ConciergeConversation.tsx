@@ -7,6 +7,8 @@
  */
 
 import React from 'react'
+import { Link } from 'react-router-dom'
+import ServiceIdentity from '../../shared/ServiceIdentity'
 
 import ConciergeInvestigation from './ConciergeInvestigation'
 import ConciergeEvidence from './ConciergeEvidence'
@@ -29,11 +31,13 @@ const TURN_STATE_COPY: Record<string, { label: string; detail: string }> = {
 
 interface Props {
   messages: ConciergeMessage[]
+  customerId?: string
+  sessionId?: string | null
   nextStep?: React.ReactNode
   onRetry?: (request: string) => void
 }
 
-const ConciergeConversation: React.FC<Props> = ({ messages, nextStep, onRetry }) => {
+const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionId, nextStep, onRetry }) => {
   // Which turns received an answer. The operator message's own `turnState` is
   // written once as `incomplete` and never updated, because history is append-only
   // and editing what was said would be rewriting the transcript. So completion is
@@ -163,7 +167,7 @@ const ConciergeConversation: React.FC<Props> = ({ messages, nextStep, onRetry })
             />
           ) : null}
           {artifact.evidence?.length ? (
-            <ConciergeEvidence items={artifact.evidence} />
+            <ConciergeEvidence items={artifact.evidence} customerId={customerId} />
           ) : null}
           {artifact.sources?.length ? (
             <section className="operator-concierge-sources"
@@ -172,12 +176,24 @@ const ConciergeConversation: React.FC<Props> = ({ messages, nextStep, onRetry })
               <ul className="operator-concierge-source-list">
                 {artifact.sources.map((s) => (
                   <li key={s.source}>
-                    <span className="operator-concierge-source-name">{s.source}</span>
+                    <ServiceIdentity source={s.source} />
                     <span className="operator-concierge-source-detail">{s.detail}</span>
                   </li>
                 ))}
               </ul>
             </section>
+          ) : null}
+          {customerId && sessionId && message.turnId ? (
+            <div className="operator-concierge-evidence-link">
+              <Link
+                className="pellier-action-quiet"
+                to={`/observatory/operator-turn?${new URLSearchParams({
+                  customer: customerId, session: sessionId, turn: message.turnId,
+                })}`}
+              >
+                Inspect this turn in Observatory
+              </Link>
+            </div>
           ) : null}
         </li>
       )

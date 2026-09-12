@@ -32,11 +32,11 @@ describe('WorkbenchResources', () => {
       .toHaveAttribute('href', '/observatory/write-path');
   });
 
-  it('keeps all eight destinations and their source details available', async () => {
+  it('keeps all nine destinations and their source details available', async () => {
     const user = userEvent.setup();
     const { container } = render(<MemoryRouter><WorkbenchResources /></MemoryRouter>);
-    expect(container.querySelectorAll('.workbench-resource-view a')).toHaveLength(8);
-    expect(screen.getByText('8 reference views')).toBeVisible();
+    expect(container.querySelectorAll('.workbench-resource-view a')).toHaveLength(9);
+    expect(screen.getByText('9 reference views')).toBeVisible();
     const sources = container.querySelector('.workbench-source-disclosure')!;
     expect(sources).not.toHaveAttribute('open');
     await user.click(sources.querySelector('summary')!);
@@ -89,6 +89,7 @@ describe('WorkbenchResources', () => {
     expect(cells).toEqual([
       'governed_turn_receipts, evidence_ledger_event_refs',
       'policy, tool_audit and write receipts per lab',
+      'approvals, replacements, replacement_outbox, replacement_events',
       'governed_receipts (Cedar), tool_audit',
       'tool registry, MCP schemas',
       'retrieval_receipts, live EXPLAIN',

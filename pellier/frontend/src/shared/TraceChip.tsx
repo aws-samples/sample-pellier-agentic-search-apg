@@ -15,7 +15,6 @@
  * explains this concept (the "how this works" handoff).
  */
 import React from 'react'
-import { ArrowUpRight } from 'lucide-react'
 import { lookupVocab } from './agentVocabulary'
 import { routePath } from '../utils/assetPath'
 
@@ -94,7 +93,7 @@ export const TraceChip: React.FC<TraceChipProps> = ({
     border: isProvenance
       ? `1px solid color-mix(in srgb, ${accent} 18%, transparent)`
       : '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
-    borderRadius: isProvenance ? 999 : 6,
+    borderRadius: 999,
     padding: isProvenance
       ? compact ? '4px 8px' : '5px 11px'
       : compact ? '4px 8px' : '5px 10px',
@@ -124,14 +123,6 @@ export const TraceChip: React.FC<TraceChipProps> = ({
         <span style={{ color: 'color-mix(in srgb, var(--accent) 48%, var(--ink))' }}>
           · {duration}
         </span>
-      ) : null}
-      {isProvenance && linkToObservatory ? (
-        <ArrowUpRight
-          aria-hidden="true"
-          size={11}
-          strokeWidth={2}
-          style={{ opacity: 0.62, flexShrink: 0 }}
-        />
       ) : null}
     </>
   )

@@ -18,7 +18,7 @@
   flex-shrink: 0;
   background: linear-gradient(180deg, #ead4b1 0%, #d4b48a 100%);
   margin: 0 0 18px;
-  border-radius: 12px;
+  border-radius: var(--pellier-image-radius-md);
 }
 .ec-persona-cover-img {
   position: absolute;

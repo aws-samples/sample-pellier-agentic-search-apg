@@ -1,0 +1,134 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Pellier replacement outbox, recovery workflow, and explicitly simulated warehouse. Deploy after migration 052 and the Gateway target update.",
+  "Parameters": {
+    "ResourcePrefix": {"Type": "String", "Default": "pellier-recovery", "AllowedPattern": "[a-z][a-z0-9-]{2,39}"},
+    "ArtifactBucket": {"Type": "String"},
+    "ArtifactKey": {"Type": "String"},
+    "ClusterArn": {"Type": "String"},
+    "SecretArn": {"Type": "String"},
+    "DatabaseName": {"Type": "String", "Default": "postgres"},
+    "SimulateLostResponse": {"Type": "String", "Default": "false", "AllowedValues": ["true", "false"]}
+  },
+  "Resources": {
+    "WorkerLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {"LogGroupName": {"Fn::Sub": "/aws/lambda/${ResourcePrefix}-worker"}, "RetentionInDays": 14}
+    },
+    "WorkflowLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {"LogGroupName": {"Fn::Sub": "/aws/vendedlogs/states/${ResourcePrefix}"}, "RetentionInDays": 14}
+    },
+    "WorkerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]},
+        "Policies": [{
+          "PolicyName": "RecoveryWorker",
+          "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+            {"Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": {"Fn::GetAtt": ["WorkerLogs", "Arn"]}},
+            {"Effect": "Allow", "Action": ["rds-data:ExecuteStatement", "rds-data:BeginTransaction", "rds-data:CommitTransaction", "rds-data:RollbackTransaction"], "Resource": {"Ref": "ClusterArn"}},
+            {"Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": {"Ref": "SecretArn"}},
+            {"Effect": "Allow", "Action": "states:StartExecution", "Resource": {"Fn::Sub": "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefix}-fulfillment"}},
+            {"Effect": "Allow", "Action": "states:DescribeExecution", "Resource": {"Fn::Sub": "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${ResourcePrefix}-fulfillment:*"}},
+            {"Effect": "Allow", "Action": "states:SendTaskSuccess", "Resource": "*"}
+          ]}
+        }]
+      }
+    },
+    "Worker": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": {"Fn::Sub": "${ResourcePrefix}-worker"},
+        "Runtime": "python3.13",
+        "Handler": "replacement_worker.lambda_handler",
+        "Role": {"Fn::GetAtt": ["WorkerRole", "Arn"]},
+        "Code": {"S3Bucket": {"Ref": "ArtifactBucket"}, "S3Key": {"Ref": "ArtifactKey"}},
+        "Timeout": 60,
+        "MemorySize": 256,
+        "Environment": {"Variables": {
+          "REGION": {"Ref": "AWS::Region"},
+          "DB_REGION": {"Ref": "AWS::Region"},
+          "DB_CLUSTER_ARN": {"Ref": "ClusterArn"},
+          "SECRET_ARN": {"Ref": "SecretArn"},
+          "DATABASE": {"Ref": "DatabaseName"},
+          "SIMULATE_LOST_RESPONSE": {"Ref": "SimulateLostResponse"},
+          "REPLACEMENT_STATE_MACHINE_ARN": {"Fn::Sub": "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ResourcePrefix}-fulfillment"}
+        }}
+      }
+    },
+    "WorkflowRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "states.amazonaws.com"}, "Action": "sts:AssumeRole"}]},
+        "Policies": [{
+          "PolicyName": "InvokeRecoveryWorker",
+          "PolicyDocument": {"Version": "2012-10-17", "Statement": [
+            {"Effect": "Allow", "Action": "lambda:InvokeFunction", "Resource": {"Fn::GetAtt": ["Worker", "Arn"]}},
+            {"Effect": "Allow", "Action": ["logs:CreateLogDelivery", "logs:GetLogDelivery", "logs:UpdateLogDelivery", "logs:DeleteLogDelivery", "logs:ListLogDeliveries", "logs:PutResourcePolicy", "logs:DescribeResourcePolicies", "logs:DescribeLogGroups"], "Resource": "*"}
+          ]}
+        }]
+      }
+    },
+    "Workflow": {
+      "Type": "AWS::StepFunctions::StateMachine",
+      "Properties": {
+        "StateMachineName": {"Fn::Sub": "${ResourcePrefix}-fulfillment"},
+        "StateMachineType": "STANDARD",
+        "RoleArn": {"Fn::GetAtt": ["WorkflowRole", "Arn"]},
+        "LoggingConfiguration": {"Level": "ERROR", "IncludeExecutionData": false, "Destinations": [{"CloudWatchLogsLogGroup": {"LogGroupArn": {"Fn::GetAtt": ["WorkflowLogs", "Arn"]}}}]},
+        "Definition": {
+          "Comment": "Persist provider acceptance, reconcile an ambiguous response, then wait for an IAM-authenticated simulated shipment callback.",
+          "StartAt": "Dispatch",
+          "TimeoutSeconds": 90000,
+          "States": {
+            "Dispatch": {
+              "Type": "Task", "Resource": {"Fn::GetAtt": ["Worker", "Arn"]},
+              "Parameters": {"action": "dispatch", "replacementId.$": "$.replacementId"},
+              "ResultPath": "$.outcome", "Next": "CheckOutcome",
+              "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.interruption", "Next": "WaitBeforeReconcile"}]
+            },
+            "WaitBeforeReconcile": {"Type": "Wait", "Seconds": 3, "Next": "Reconcile"},
+            "Reconcile": {
+              "Type": "Task", "Resource": {"Fn::GetAtt": ["Worker", "Arn"]},
+              "Parameters": {"action": "reconcile", "replacementId.$": "$.replacementId"},
+              "ResultPath": "$.outcome", "Next": "CheckOutcome",
+              "Retry": [{"ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "BackoffRate": 2, "MaxAttempts": 2}],
+              "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.interruption", "Next": "NeedsReview"}]
+            },
+            "CheckOutcome": {
+              "Type": "Choice",
+              "Choices": [
+                {"Variable": "$.outcome.state", "StringEquals": "shipped", "Next": "ShipmentRecorded"},
+                {"Variable": "$.outcome.state", "StringEquals": "accepted", "Next": "AwaitShipment"}
+              ],
+              "Default": "NeedsReview"
+            },
+            "AwaitShipment": {
+              "Type": "Task",
+              "Resource": {"Fn::Sub": "arn:${AWS::Partition}:states:::lambda:invoke.waitForTaskToken"},
+              "Parameters": {"FunctionName": {"Fn::GetAtt": ["Worker", "Arn"]}, "Payload": {"action": "wait_for_shipment", "replacementId.$": "$.replacementId", "taskToken.$": "$$.Task.Token"}},
+              "TimeoutSeconds": 86400, "ResultPath": "$.shipment", "Next": "ShipmentRecorded",
+              "Catch": [{"ErrorEquals": ["States.ALL"], "ResultPath": "$.interruption", "Next": "NeedsReview"}]
+            },
+            "NeedsReview": {"Type": "Pass", "Result": {"resolution": "operator_review_required"}, "ResultPath": "$.resolution", "End": true},
+            "ShipmentRecorded": {"Type": "Succeed"}
+          }
+        }
+      }
+    },
+    "PollOutbox": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {"ScheduleExpression": "rate(1 minute)", "State": "ENABLED", "Targets": [{"Id": "RecoveryRelay", "Arn": {"Fn::GetAtt": ["Worker", "Arn"]}, "Input": "{\"action\":\"relay\"}"}]}
+    },
+    "AllowScheduledRelay": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {"FunctionName": {"Ref": "Worker"}, "Action": "lambda:InvokeFunction", "Principal": "events.amazonaws.com", "SourceArn": {"Fn::GetAtt": ["PollOutbox", "Arn"]}}
+    }
+  },
+  "Outputs": {
+    "WorkerName": {"Value": {"Ref": "Worker"}},
+    "StateMachineArn": {"Value": {"Ref": "Workflow"}},
+    "FulfillmentProvider": {"Value": "workshop-simulator"}
+  }
+}

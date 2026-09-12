@@ -677,9 +677,8 @@ def test_theos_canonical_damaged_wording_is_unchanged() -> None:
         "The client owns this piece and reported it damaged on arrival, "
         "which is a canonical return reason."
     )
-    # And the courtesy-credit suggestion, with its Theo-specific history claim.
-    assert rec["secondarySuggestion"]["amountCents"] == 2500
-    assert "one previous damaged piece" in rec["secondarySuggestion"]["rationale"]
+    # Damage alone proves no previous incident or discretionary credit amount.
+    assert "secondarySuggestion" not in rec
 
 
 def test_a_non_damaged_return_never_claims_damage() -> None:

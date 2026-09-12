@@ -24,7 +24,7 @@ import {
   type ReactNode,
 } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Database, Wrench } from 'lucide-react'
+import { Database, Wrench } from 'lucide-react'
 import { useOptionalAuth } from '../contexts/AuthContext'
 import {
   GovernedSeal,
@@ -214,24 +214,10 @@ export const GovernedTurnReceipt: React.FC<GovernedTurnReceiptProps> = ({
           behind the Workshop Studio /ports/8000/ proxy. */}
       <Link
         to={receiptRoute({ sessionId, turnId })}
-        className="gov-focusable"
+        className="pellier-action-quiet gov-focusable"
         data-testid="governed-receipt-link"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '5px',
-          fontFamily: 'var(--dl-font-sans)',
-          fontSize: '13px',
-          fontWeight: 500,
-          color: 'var(--gov-terracotta)',
-          textDecoration: 'none',
-          // 44px-tall target on touch without inflating the desktop row.
-          minHeight: '32px',
-          padding: '4px 2px',
-        }}
       >
         Why this answer?
-        <ArrowUpRight size={14} aria-hidden="true" />
       </Link>
     </div>
   )

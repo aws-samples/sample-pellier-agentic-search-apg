@@ -5,7 +5,7 @@
  * one changes, change both: two different numbers for the same policy is the
  * kind of quiet contradiction a participant notices.
  */
-import { ArrowRight, Gift, Headset, RotateCcw, Truck } from 'lucide-react'
+import { Gift, Headset, RotateCcw, Truck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { SERVICE_STRIP } from '../copy'
@@ -46,7 +46,6 @@ export default function PellierServiceStrip() {
             <span>{SERVICE_STRIP.LABS.body}</span>
           </span>
           <span className="pellier-service-labs-arrow" aria-hidden="true">
-            <ArrowRight size={16} />
           </span>
         </Link>
       </div>

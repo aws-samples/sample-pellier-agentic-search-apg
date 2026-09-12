@@ -27,7 +27,7 @@ the full vocabulary to compute what it is deliberately not publishing.
 
 ## Baseline authorization on a fresh stack
 
-6 policies, all permits, no forbid. `scripts/deploy/render_agentcore_project.py` is
+7 policies, all permits, no forbid. `scripts/deploy/render_agentcore_project.py` is
 the source; this table is checked against it by
 `pellier/backend/tests/test_fresh_policy_set.py`. Every statement types the
 principal as `AgentCore::OAuthUser` and pins `resource ==` to the deployed
@@ -41,6 +41,7 @@ Gateway ARN, which is why policies render only in the second deploy phase.
 | `initiate_return_shopper_damaged` | permit | a principal carrying `custom:customer_id`, with `context.input.reason == "damaged"`; no ownership binding |
 | `initiate_return_staff_scope` | permit | a principal whose `custom:staff_scope` is `returns`; no reason condition |
 | `issue_credit_staff_scope` | permit | the same staff condition on `issue_credit`; no shopper permit names that action |
+| `replace_damaged_item_staff_scope` | permit | staff scope `returns`, damaged reason; the target and Aurora separately validate the exact approved terms |
 
 Identity reaches Cedar as a claim. The Cognito pre-token trigger
 (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` from

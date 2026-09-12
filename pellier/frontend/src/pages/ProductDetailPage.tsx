@@ -312,7 +312,7 @@ export default function ProductDetailPage() {
         <div className="mx-auto max-w-[1200px] px-container-x pb-16 pt-8 md:pb-24">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-16 xl:gap-20">
             {/* --- Piece ------------------------------------------------ */}
-            <div className="overflow-hidden rounded-[8px] border border-sand bg-sand">
+            <div className="overflow-hidden rounded-[var(--pellier-image-radius-lg)] border border-sand bg-sand">
               {/* One photograph per piece today. A zoom is the honest version
                   of a gallery until more angles exist: the shopper can still
                   look closely at the weave before paying for it. */}
@@ -348,7 +348,7 @@ export default function ProductDetailPage() {
                 <img
                   src={asset(view.imageUrl)}
                   alt={view.name}
-                  className="max-h-[92vh] max-w-[92vw] rounded-[6px] object-contain shadow-warm-md"
+                  className="max-h-[92vh] max-w-[92vw] rounded-[var(--pellier-image-radius-lg)] object-contain shadow-warm-md"
                   onClick={(event) => event.stopPropagation()}
                 />
                 <button

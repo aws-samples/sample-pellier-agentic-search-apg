@@ -6,7 +6,6 @@
  * locally authored recommendation.
  */
 import { useEffect, useState } from 'react'
-import { ArrowRight } from 'lucide-react'
 import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { PellierProduct } from '../services/types'
 import { imageSrc } from '../utils/assetPath'
@@ -174,7 +173,6 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
                   onClick={() => onSend(scenario.prompt)}
                 >
                   {scenario.prompt}
-                  <ArrowRight className="sf-action-arrow" size={16} aria-hidden="true" />
                 </button>
               ))}
             </div>

@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { imageSrc } from '../utils/assetPath'
 import { LAB_EXERCISES } from '../observatory/labs/labCatalog'
 
@@ -282,7 +282,7 @@ export default function PellierSpotlight() {
                   aria-label={`The four people each lab follows: ${LAB_EXERCISES.map(
                     (lab) => `${lab.anchorName}, lab ${Number(lab.number)}, ${lab.shortTitle}`,
                   ).join('; ')}`}
-                  className="grid h-full w-full grid-cols-4"
+                  className="grid h-full w-full grid-cols-4 gap-2 p-2"
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
@@ -294,7 +294,7 @@ export default function PellierSpotlight() {
                   {LAB_EXERCISES.map((lab) => (
                     <div
                       key={lab.id}
-                      className="relative overflow-hidden border-r border-cream-warm/40 last:border-r-0"
+                      className="relative overflow-hidden rounded-[var(--pellier-image-radius-sm)]"
                     >
                       <img
                         src={imageSrc(lab.image)}
@@ -420,7 +420,6 @@ export default function PellierSpotlight() {
                 className="inline-flex min-h-12 items-center gap-2 rounded-[8px] bg-accent px-4 font-sans text-[13px] font-semibold text-white transition-colors hover:bg-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 {isLast ? 'Explore Pellier' : 'Continue'}
-                <ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
           </div>

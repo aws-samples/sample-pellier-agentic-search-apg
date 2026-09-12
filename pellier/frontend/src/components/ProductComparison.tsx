@@ -70,7 +70,7 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                 )}
 
                 {/* Image */}
-                <div className="w-full h-16 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
+                <div className="w-full h-16 rounded-[var(--pellier-image-radius-sm)] flex items-center justify-center overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
                   {isImageUrl ? (
                     <img src={imageSrc(product.image)} alt={product.name} className="h-full object-contain p-1" />
                   ) : (

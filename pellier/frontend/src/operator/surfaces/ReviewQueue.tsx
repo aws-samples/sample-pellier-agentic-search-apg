@@ -12,7 +12,7 @@
  */
 
 import React, { useState } from 'react'
-import { ArrowUpRight, CircleCheck, CircleDashed, CircleMinus, Clock3, ShieldAlert, ShieldX } from 'lucide-react'
+import { CircleCheck, CircleDashed, CircleMinus, Clock3, ShieldAlert, ShieldX } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   type OperatorReview,
@@ -28,6 +28,7 @@ import OperatorState from '../components/OperatorState'
 const ACTION_LABELS: Record<string, string> = {
   initiate_return: 'Return',
   issue_credit: 'Goodwill credit',
+  replace_damaged_item: 'Replacement',
 }
 
 function actionLabel(action: string): string {
@@ -221,7 +222,6 @@ const ReviewCard: React.FC<{ review: OperatorReview }> = ({ review }) => {
           {humanState}
         </span>
       </span>
-      <ArrowUpRight className="operator-review-open" aria-hidden />
     </Link>
   )
 }

@@ -1,4 +1,3 @@
-import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -27,7 +26,6 @@ export default function LabsCatalog() {
           </p>
           <Link to={resumePoint ? resumeHref(resumePoint) : '/observatory/workbench?lab=grounded-inventory'}>
             {resumeLab ? `Resume Lab ${Number(resumeLab.number)}` : 'Start Lab 1'}
-            <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
           </Link>
         </div>
       </header>
@@ -56,7 +54,7 @@ export default function LabsCatalog() {
                   <p>{exercise.summary}</p>
                   <LabStatusMark status={statusForExercise(exercise, data)} loading={loading} discloseDetails />
                   <Link className="labs-catalog-card-open" to={to} aria-label={`Open Lab ${Number(exercise.number)} in workbench`}>
-                    Open Lab {Number(exercise.number)} <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
+                    Open Lab {Number(exercise.number)}
                   </Link>
                 </div>
               </article>

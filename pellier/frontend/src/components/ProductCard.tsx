@@ -37,7 +37,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ChevronDown, Star } from 'lucide-react'
+import { ChevronDown, Star } from 'lucide-react'
 
 import type { PellierBadge, PellierProduct } from '../services/types'
 import ReasoningChip from './ReasoningChip'
@@ -219,8 +219,7 @@ export default function ProductCard({
         aria-hidden="true"
         tabIndex={-1}
         className={`
-          product-card-media relative block aspect-[4/5] overflow-hidden bg-sand
-          ${editorial ? 'rounded-[4px]' : ''}
+          product-card-media relative block aspect-[4/5] overflow-hidden rounded-[var(--pellier-image-radius-md)] bg-sand
         `}
       >
         <ResponsiveImage
@@ -243,7 +242,6 @@ export default function ProductCard({
         {editorial ? (
           <span className="product-card-view">
             View piece
-            <ArrowRight size={16} strokeWidth={1.7} aria-hidden="true" />
           </span>
         ) : null}
       </Link>

@@ -314,6 +314,35 @@ async def load_client_evidence(
             ),
         ))
 
+    if client.get("personaId") == "theo":
+        from services.replacement_recovery import read_replacements
+        try:
+            care = await read_replacements(db, customer_id)
+        except Exception:
+            care = {"available": False, "replacements": []}
+        if care["available"]:
+            steps.append(Step("replacement", "Replacement records checked", SOURCE_AURORA,
+                              result=f"{len(care['replacements'])} recorded operations"))
+            for replacement in care["replacements"]:
+                evidence.append(Evidence(
+                    kind="replacement_operation", role=ROLE_FACT, status="verified",
+                    source=SOURCE_AURORA, label="Replacement recovery",
+                    record_id=replacement["replacementId"],
+                    detail=(
+                        f"Order #{replacement['orderId']}, {replacement['productName']}, "
+                        f"quantity {replacement['quantity']}. Recorded state: {replacement['state']}. "
+                        f"Approval #{replacement['reviewId']}. Fulfillment uses a workshop simulator, "
+                        "not a real carrier. Reconcile this operation before proposing another remedy."
+                    ),
+                    data=replacement,
+                ))
+        else:
+            evidence.append(Evidence(
+                kind="replacement_operation", role=ROLE_FACT, status="unavailable",
+                source=SOURCE_AURORA, label="Replacement recovery",
+                detail="Replacement records are unavailable. Do not infer reservation, approval, or shipment from conversation memory.",
+            ))
+
     return record, steps, evidence
 
 

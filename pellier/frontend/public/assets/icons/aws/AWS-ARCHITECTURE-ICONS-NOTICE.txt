@@ -22,3 +22,10 @@ the tinted circle rather than sitting inside it.
 
 Source and terms: https://aws.amazon.com/architecture/icons/
 Do not recolour, distort, or redraw these marks. Scale them only.
+
+Recovery services use the unmodified flat service artwork from AWS's
+July 31, 2026 architecture icon package (64pt artwork on an 80x80 viewBox):
+  aws-step-functions.svg       Arch_AWS-Step-Functions_64
+  aws-lambda.svg               Arch_AWS-Lambda_64
+  amazon-cloudwatch.svg        Arch_Amazon-CloudWatch_64
+The same 22px source slot scales these marks without changing their proportions.

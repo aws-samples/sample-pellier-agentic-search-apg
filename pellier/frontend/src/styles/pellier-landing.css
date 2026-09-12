@@ -21,8 +21,8 @@
  *   neutral     not evaluated.
  * Burgundy is never a status and terracotta is never a brand mark.
  *
- * SHAPE: images and tiles 8px, elevated panels 14px, interactive controls
- * pill. One rule, applied everywhere on this surface.
+ * SHAPE: photography uses shared thumbnail, card and hero corner tokens.
+ * Portraits stay circular; interactive controls stay pill-shaped.
  *
  * TYPE REGISTERS:
  *   --display  Fraunces. Editorial statements, hero, section anchors.
@@ -53,12 +53,13 @@
 
   /* Editorial rhythm for the landing bands. */
   --pellier-band-y: clamp(48px, 5.5vw, 88px);
-  /* Announcement (44px) + navigation (61px) + a 48px editorial interlude.
-     The hero remains the opening statement, but it does not consume the full
-     viewport or run directly into the Weekend Edit. */
-  --pellier-hero-min: clamp(520px, calc(100dvh - 153px), 860px);
   /* Matches the `container-x` spacing token in tailwind.config.js. */
   --pellier-gutter: clamp(16px, 4vw, 48px);
+  /* Shared photography corners across Storefront, Operator and Observatory.
+     These do not apply to service marks, diagrams or circular avatars. */
+  --pellier-image-radius-sm: 12px;
+  --pellier-image-radius-md: 20px;
+  --pellier-image-radius-lg: 28px;
 }
 
 /* -----------------------------------------------------------------------
@@ -142,8 +143,10 @@
   min-height: 44px;
   align-items: center;
   gap: 8px;
-  border: 0;
-  background: none;
+  padding: 0 20px;
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  background: transparent;
   color: var(--ink);
   font-family: var(--sans);
   font-size: 13px;
@@ -162,231 +165,149 @@
   border-radius: 4px;
 }
 
-/* -----------------------------------------------------------------------
- * Hero. Three zones: editorial copy, the product image, the concierge.
- *
- * The image is not a panel beside the type: it runs the full width of the copy
- * and image columns and the type sits directly on it, which is the whole
- * difference between an editorial hero and a card with a picture next to it.
- * Both sides of the hero keep the same gutter, so the extra width comes from a
- * wider container rather than from bleeding off one edge.
- *
- * This works because of the assets, not the CSS: every hero photograph is
- * composed with its subject in the right two-thirds and an empty sunlit wall
- * in the left third, so the type has light ground at full contrast. Keep that
- * contract when replacing them.
- * ----------------------------------------------------------------------- */
+/* The request and photograph share a frame, with an uncluttered paper
+   ground for the existing Fraunces headline and rounded chat controls. */
 .pellier-hero {
-  position: relative;
   width: 100%;
-  padding-bottom: clamp(32px, 3vw, 48px);
-  overflow: clip;
+  /* Finish the opening viewport before the next editorial photograph.
+     The local navigation adds a one-pixel border beneath its fixed height. */
+  min-height: calc(100svh - var(--pellier-surface-bar-height, 64px) - var(--pellier-storefront-nav-height, 60px) - 1px);
+  padding-bottom: 36px;
   background: var(--cream);
 }
-
 .pellier-hero-inner {
-  position: relative;
-  isolation: isolate;
   display: grid;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: none;
-  min-height: var(--pellier-hero-min);
-  margin: 0 auto;
-  padding-block: clamp(24px, 3vh, 44px);
-  padding-inline: var(--pellier-gutter);
-  gap: clamp(20px, 2.4vw, 40px);
-  grid-template-columns: minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  min-height: 570px;
+  padding: 16px var(--pellier-gutter) 28px 0;
+  border-bottom: 1px solid var(--rule-1);
 }
-
 .pellier-hero-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
-  gap: 18px;
-  padding-block: 8px;
+  justify-content: center;
+  gap: 22px;
+  padding: clamp(32px, 4vw, 64px) var(--pellier-gutter);
 }
-
-/* The hero eyebrow is the wordmark, so it takes the brand burgundy. Scoped to
-   the hero on purpose: the section eyebrows further down the page are labels,
-   not brand marks, and keeping them neutral stops burgundy from becoming
-   decoration. */
-.pellier-hero-copy .pellier-eyebrow {
-  color: var(--pellier-burgundy);
+.pellier-hero[data-persona='fresh'] .pellier-hero-copy {
+  gap: 14px;
+  padding-block: 24px;
 }
-
-.pellier-hero-copy .pellier-statement {
-  /* Capped at 50px: the copy column is ~335px once the photograph spans the
-     wide zone, and 60px pushed Theo's three-word statement onto three lines. */
-  font-size: clamp(34px, 3.4vw, 50px);
-}
-
+.pellier-hero-copy .pellier-eyebrow { color: var(--pellier-burgundy); }
+.pellier-hero-copy .pellier-statement { max-width: 13ch; font-size: clamp(34px, 3.4vw, 50px); }
 .pellier-hero-lede {
-  /* Narrower than the copy column on purpose: this keeps the lede inside the
-     photograph's empty left zone. The headline is large and dark enough to
-     cross onto the shadow; this is not. */
-  max-width: 26ch;
+  max-width: 40ch;
   margin: 0;
-  color: var(--ink);
+  color: var(--ink-soft);
   font-family: var(--sans);
   font-size: clamp(14px, 1.05vw, 16px);
-  line-height: 1.62;
+  line-height: 1.65;
 }
-
-/* The suggestion row scrolls rather than wrapping, because the labels are full
-   questions and wrapping them stacks three tall rows under the search field.
-   The right edge fades so a cut-off pill reads as "scroll for more" instead of
-   as a clipped element. The end padding matches the fade width so that when
-   the pills fit (or the row is scrolled to its end) the fade covers empty
-   space, not the last pill. */
-.pellier-hero-pills {
-  scrollbar-width: none;
-  padding-inline-end: 32px;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    #000 0,
-    #000 calc(100% - 32px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    #000 0,
-    #000 calc(100% - 32px),
-    transparent 100%
-  );
-}
-
-.pellier-hero-pills::-webkit-scrollbar {
-  display: none;
-}
-
 .pellier-hero-media {
   position: relative;
+  width: 100%;
   min-width: 0;
-  aspect-ratio: 16 / 10;
-  border-radius: 8px;
+  /* A shared frame keeps persona copy and the unsigned chooser from
+     stretching the photograph into a different crop on each visit. */
+  height: clamp(540px, 47vw, 680px);
+  align-self: start;
+  margin: 0;
   overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--pellier-image-radius-lg);
+  background: var(--sand);
 }
-
-.pellier-hero-media picture,
+.pellier-hero-media picture { display: block; height: 100%; }
 .pellier-hero-media img {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 46%;
+  object-position: 65% bottom;
+  transform: scale(1);
 }
-
-@media (min-width: 1024px) {
-  .pellier-hero-inner {
-    grid-template-columns:
-      minmax(0, 0.86fr)
-      minmax(0, 1.62fr)
-      minmax(370px, 0.9fr);
-    gap: clamp(14px, 1.4vw, 26px);
-  }
-
-  /* The photograph runs from the container's left edge across to the concierge.
-
-     No mask. The hero assets are composed with an empty sunlit wall in their
-     left third precisely so the type can sit on the photograph at full
-     contrast. Fading the left edge here would throw away the part of the frame
-     the composition exists to provide. If a future asset puts its subject on
-     the left, replace the asset rather than re-adding a fade.
-
-     The image is NOT bled off-canvas: equal space on both sides of the hero
-     matters more than the extra 150px, so the width comes from a wider
-     container instead.
-
-     The photograph is removed from grid sizing so its intrinsic 16:9 ratio
-     cannot make the first viewport taller than the viewport-aware row. */
-  .pellier-hero-media {
-    position: absolute;
-    inset: 0;
-    aspect-ratio: auto;
-    height: auto;
-    margin-inline: 0;
-    border-radius: 0;
-  }
-
-  /* The source composition places the weekender on the stone ledge. Keep that
-     lower edge present while leaving enough of the upper frame for the olive
-     tree. A slight right-edge scale nudges the bag left without opening a gap
-     at the edge of the full-bleed image. */
-  .pellier-hero[data-persona='fresh'] .pellier-hero-media img {
-    object-position: center 74%;
-    transform: scale(1.02);
-    transform-origin: right bottom;
-  }
-
-  /* Named persona masters reserve expendable wall above the composition.
-     Anchor the approved PNGs to the lower edge so a wide viewport crops that
-     wall instead of cutting through the plinth and product arrangement. */
-  .pellier-hero:not([data-persona='fresh']) .pellier-hero-media img {
-    object-position: center bottom;
-  }
-
-  /* Named profiles carry distinct editorial registers. Marco keeps the
-     default oxblood accent; Anna shifts toward the rose-garnet in her ribbon
-     and silk palette while retaining dark text on the brighter copy zone. */
-  .pellier-hero[data-persona='anna'] .pellier-hero-copy .pellier-eyebrow,
-  .pellier-hero[data-persona='anna'] .pellier-statement em,
-  .pellier-hero[data-persona='anna'] .pellier-action-quiet:hover {
-    color: #84344d;
-  }
-
-  .pellier-hero[data-persona='anna'] .pellier-statement,
-  .pellier-hero[data-persona='anna'] .pellier-hero-lede,
-  .pellier-hero[data-persona='anna'] .pellier-action-quiet {
-    color: #2f2025;
-  }
-
-  /* Theo's approved master intentionally uses a dark earthen copy zone, so
-     its register moves to cream and beeswax for contrast and material warmth. */
-  .pellier-hero[data-persona='theo'] .pellier-hero-copy .pellier-eyebrow {
-    color: #e6bd79;
-  }
-
-  .pellier-hero[data-persona='theo'] .pellier-statement,
-  .pellier-hero[data-persona='theo'] .pellier-hero-lede,
-  .pellier-hero[data-persona='theo'] .pellier-action-quiet {
-    color: var(--cream);
-    text-shadow: 0 1px 2px rgb(20 12 8 / 0.2);
-  }
-
-  .pellier-hero[data-persona='theo'] .pellier-statement em {
-    color: #edc47e;
-  }
-
-  .pellier-hero[data-persona='theo'] .pellier-action-quiet:hover {
-    color: #edc47e;
-  }
-
-  .pellier-hero-copy {
-    position: relative;
-    z-index: 1;
-    grid-row: 1;
-    grid-column: 1;
-    /* Inset the type off the photograph's left edge. Flush against the gutter
-       the words start exactly where the image starts, which reads as crowded;
-       a small indent gives the block air without moving it out of the column. */
-    margin-inline-start: 18px;
-  }
-
-  .pellier-hero:not([data-persona='fresh']) .pellier-hero-inner {
-    grid-template-columns: minmax(420px, 560px) minmax(0, 1fr);
-  }
-
-  .pellier-concierge {
-    position: relative;
-    z-index: 1;
-    grid-row: 1;
-    grid-column: 3;
-    align-self: center;
-  }
-
+.pellier-hero-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgb(31 20 16 / .76), rgb(31 20 16 / .28) 28%, transparent 58%);
+  pointer-events: none;
+}
+.pellier-hero-caption {
+  position: absolute;
+  z-index: 1;
+  left: clamp(24px, 3vw, 42px);
+  right: clamp(24px, 3vw, 42px);
+  bottom: clamp(28px, 3vw, 42px);
+  color: var(--cream-elev);
+  pointer-events: none;
+}
+.pellier-hero-caption span {
+  font: 500 11px/1.5 var(--sans);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.pellier-hero-caption p {
+  max-width: 19ch;
+  margin: 10px 0 0;
+  font: 400 clamp(28px, 3.1vw, 44px)/1.14 var(--display);
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .pellier-hero-media img { transition: transform 1.8s cubic-bezier(.2, .65, .3, 1); }
+  .pellier-hero-media:hover img { transform: scale(1.025); }
+}
+.pellier-hero-suggestions { margin-block: 20px 15px; }
+.pellier-hero-suggestions-label { margin: 0 0 10px; color: var(--ink-soft); font-size: 12px; }
+.pellier-hero-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pellier-prompt-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 10px 17px;
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  background: var(--cream-elev);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.pellier-prompt-pill:hover { border-color: var(--pellier-burgundy); background: var(--cream-warm); }
+.pellier-prompt-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pellier-hero-copy .pellier-concierge {
+  width: 100%;
+  gap: 10px;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--rule-1);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pellier-hero-copy .pellier-concierge-heading .pellier-eyebrow { display: none; }
+.pellier-hero-copy .pellier-concierge-heading h2 { font-family: var(--sans); font-size: 16px; font-weight: 500; }
+.pellier-hero-copy .pellier-concierge-heading p { max-width: none; font-size: 12px; }
+.pellier-hero-copy .pellier-profile { padding: 8px 6px; border-radius: 24px; gap: 8px; }
+.pellier-hero-copy .pellier-profile-portrait { width: clamp(68px, 6vw, 84px); height: clamp(68px, 6vw, 84px); }
+.pellier-hero-copy .pellier-profile-name { font-family: var(--sans); font-size: 15px; }
+.pellier-hero-copy .pellier-profile-note { font-size: 12px; }
+.pellier-hero-copy .pellier-concierge-ask { min-height: 40px; }
+.pellier-hero-copy .pellier-concierge-requirement { display: none; }
+.pellier-hero-copy .pellier-concierge-identity-note { font-size: 11px; }
+@media (max-width: 899px) {
+  .pellier-hero-inner { grid-template-columns: minmax(0, 1fr); padding: 0 var(--pellier-gutter) 24px; }
+  .pellier-hero-copy { padding: 32px 0; }
+  .pellier-hero-copy .pellier-statement { max-width: 16ch; }
+  .pellier-hero-media { height: auto; min-height: 300px; aspect-ratio: 16 / 10; }
 }
 
 /* -----------------------------------------------------------------------
@@ -438,6 +359,7 @@
   align-items: center;
   gap: 18px;
   padding: 0 16px;
+  border-radius: 999px;
   background: rgb(250 248 241 / 0.95);
   color: var(--ink);
   font-family: var(--sans);
@@ -768,7 +690,7 @@
   overflow: hidden;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--pellier-image-radius-md);
   background: var(--ink);
   text-align: left;
   cursor: pointer;
@@ -930,7 +852,7 @@
   min-width: 0;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--pellier-image-radius-lg);
   background: var(--cream-2);
 }
 
@@ -1182,11 +1104,4 @@
   }
 }
 
-/* Explicit controls make the full suggested questions discoverable. */
-.pellier-suggestions-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pellier-suggestions-row .pellier-hero-pills { min-width: 0; flex: 1; scroll-snap-type: x proximity; padding-inline-end: 8px; mask-image: none; -webkit-mask-image: none; }
-.pellier-hero-pills > button { scroll-snap-align: start; max-width: 100%; min-height: 44px; }
-.pellier-suggestions-controls { display: flex; flex-shrink: 0; gap: 4px; margin-top: 8px; }
-.pellier-suggestions-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--cream); color: var(--ink); }
-.pellier-suggestions-controls button:disabled { opacity: 0.5; cursor: default; }
-.pellier-suggestions-controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pellier-hero-pills > button { max-width: 100%; min-height: 44px; }

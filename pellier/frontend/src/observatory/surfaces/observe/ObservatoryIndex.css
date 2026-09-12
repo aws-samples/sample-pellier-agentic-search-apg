@@ -208,7 +208,7 @@
   place-items: center;
   overflow: hidden;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--pellier-image-radius-sm);
   background: var(--pl-paper-muted);
 }
 

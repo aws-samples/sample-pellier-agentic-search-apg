@@ -1014,6 +1014,46 @@ def _review_order(order: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     }
 
 
+class ReplacementRequest(BaseModel):
+    orderId: int = Field(ge=1)
+    quantity: int = Field(default=1, ge=1, le=100)
+    issue: str = Field(min_length=1, max_length=500)
+
+
+@router.get("/clients/{client_id}/replacements")
+async def client_replacements(
+    client_id: str,
+    replacement_id: uuid.UUID | None = None,
+    db: Any = Depends(get_db_service),
+) -> Dict[str, Any]:
+    from services.replacement_recovery import read_replacements
+
+    try:
+        return await read_replacements(db, client_id, str(replacement_id) if replacement_id else None)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="replacement_evidence_unavailable") from exc
+
+
+@router.post("/clients/{client_id}/replacements/prepare")
+async def prepare_replacement(
+    client_id: str, request: ReplacementRequest,
+    operator: Dict[str, Any] = Depends(require_operator),
+    db: Any = Depends(get_db_service),
+) -> Dict[str, Any]:
+    from services import operator_review as rv
+    from services.replacement_recovery import prepare
+
+    try:
+        review_id = await prepare(
+            db, customer_id=client_id, order_id=request.orderId,
+            quantity=request.quantity, issue=request.issue.strip(),
+            operator_sub=str(operator["sub"]),
+        )
+    except rv.ReviewError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+    return {"reviewId": review_id}
+
+
 class ReviewDecisionRequest(BaseModel):
     """A human decision on a prepared request.
 

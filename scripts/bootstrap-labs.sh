@@ -716,7 +716,8 @@ setup_database() {
             048_policy_decisions.sql \
             049_workshop_runs.sql \
             050_refine_guided_questions.sql \
-            051_review_requester.sql
+            051_review_requester.sql \
+            052_replacement_recovery.sql
         do
             if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
                 log "Applying migration $migration..."

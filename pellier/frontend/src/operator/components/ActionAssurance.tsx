@@ -33,6 +33,7 @@ const STATE_LABELS: Record<string, string> = {
   PENDING: 'Pending',
   NOT_EVALUATED: 'Not evaluated',
   NOT_REACHED: 'Not reached',
+  OUTCOME_UNKNOWN: 'Outcome needs checking',
   NO_EXECUTION: 'No execution',
   ALLOW: 'Allow',
   DENY: 'Deny',
@@ -66,6 +67,7 @@ const AXIS_NOTES: Record<keyof Assurance, Record<string, string>> = {
       'Inferred from policy text, not a decision. No engine evaluated this action.',
   },
   aurora: {
+    OUTCOME_UNKNOWN: 'The commit response was interrupted. Recover the stored result before deciding what happened.',
     NOT_EVALUATED: 'No statement has reached the database.',
     NOT_REACHED: 'The database was never asked to change anything.',
     PERMITTED: 'Row-Level Security was in scope and the transaction committed.',
@@ -77,7 +79,7 @@ const AXIS_NOTES: Record<keyof Assurance, Record<string, string>> = {
     NO_EXECUTION: 'Nothing ran, so there is no receipt. That is the proof.',
     RECEIPTED: 'A durable write event and an execution receipt exist.',
     POLICY_PROOF: 'The policy decision is the artifact; there is no tool receipt.',
-    ATTEMPT_RECEIPT: 'The tool ran and Aurora refused. The attempt survived the rollback.',
+    ATTEMPT_RECEIPT: 'An execution attempt was recorded. Read the Aurora outcome separately.',
   },
 }
 

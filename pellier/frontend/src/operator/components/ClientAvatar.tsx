@@ -25,26 +25,34 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+/** Visual identity only. This never selects a shopper or grants account access. */
+const HERO_CLIENT_PORTRAITS: Record<string, string> = {
+  'CUST-MARCO': 'marco',
+  'CUST-ANNA': 'anna',
+  'CUST-THEO': 'theo',
+}
+
 const ClientAvatar: React.FC<ClientAvatarProps> = ({
   customerId,
   name,
   personaId,
   size = 'sm',
 }) => {
-  const [failed, setFailed] = useState(false)
+  const [failedSource, setFailedSource] = useState<string | null>(null)
 
   // Heroes resolve through the persona maps; everyone else through the client
   // maps. Keeping them separate stops a client id from ever resolving as a
   // signed-in shopper.
-  const src = personaId
+  const portraitPersona = personaId || HERO_CLIENT_PORTRAITS[customerId]
+  const src = portraitPersona
     ? size === 'lg'
-      ? getPersonaPortrait(personaId)
-      : getPersonaPhoto(personaId)
+      ? getPersonaPortrait(portraitPersona)
+      : getPersonaPhoto(portraitPersona)
     : size === 'lg'
       ? getClientPortrait(customerId)
       : getClientPhoto(customerId)
 
-  if (!src || failed) {
+  if (!src || failedSource === src) {
     return (
       <span
         className={size === 'lg' ? 'operator-monogram-lg' : 'operator-monogram'}
@@ -64,7 +72,7 @@ const ClientAvatar: React.FC<ClientAvatarProps> = ({
       className={size === 'lg' ? 'operator-portrait' : 'operator-avatar'}
       loading="lazy"
       decoding="async"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSource(src)}
     />
   )
 }

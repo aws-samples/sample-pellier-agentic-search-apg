@@ -15,6 +15,8 @@
   height: 200px;
   overflow: hidden;
   flex-shrink: 0;
+  margin: 16px 16px 0;
+  border-radius: var(--pellier-image-radius-md);
   background: linear-gradient(180deg, #ead4b1 0%, #d4b48a 100%);
 }
 .sf-cover-img {

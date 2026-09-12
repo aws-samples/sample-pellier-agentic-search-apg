@@ -11,7 +11,7 @@
  * contract with a contradictory guest path.
  */
 import { useEffect, useState } from 'react'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 import { getPersonaPortrait } from '../data/personaPhotos'
@@ -123,7 +123,6 @@ export default function PersonaConcierge() {
           aria-hidden="true"
         />
         {HERO_CONCIERGE.ASK_ACTION}
-        <ArrowRight size={14} aria-hidden="true" />
       </button>
 
       <p

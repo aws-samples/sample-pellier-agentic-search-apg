@@ -10,7 +10,7 @@
  *      (Auth -> Cart -> UI -> Routes) is preserved as a subsequence.
  *   2. The default route (path "*") renders the home-page shell. No
  *      dedicated HomePage component exists yet - `AppContent` serves as
- *      the home surface - so we assert on the Header wordmark testid,
+ *      the home surface - so we assert on the storefront header testid,
  *      which is the stable home-page marker rendered at the top of
  *      `AppContent`.
  *   3. The modal singleton slots are mounted at the App root:
@@ -108,7 +108,7 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     // Wait for AuthProvider hydration to settle - the home-page shell
     // only renders after `loading=false`.
     await waitFor(() => {
-      expect(screen.getByTestId('wordmark')).toBeInTheDocument()
+      expect(screen.getByTestId('sticky-header')).toBeInTheDocument()
     })
 
     // Filter to only the context-provider violations we care about.
@@ -126,12 +126,12 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
   it('renders the home-page shell on the default route', async () => {
     render(<App />)
 
-    // The Header wordmark is the stable anchor for the home-page shell.
+    // The storefront header is the stable anchor for the home-page shell.
     // It's rendered at the top of `AppContent` (which the `*` route
     // resolves to via <AuthGate/>) and is never rendered by the
     // /storyboard or /discover routes.
-    const wordmark = await screen.findByTestId('wordmark')
-    expect(wordmark).toHaveTextContent(/Pellier/i)
+    await screen.findByTestId('sticky-header')
+    expect(screen.getByRole('link', { name: 'Pellier home' })).toHaveTextContent(/pellier/i)
 
     // Persona pill is the other canonical home-page marker; confirms
     // the persona-dependent branch of the header mounted.
@@ -144,7 +144,7 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     // Every modal reads `activeModal` from UIContext. With no opener
     // fired they must render nothing, but the components themselves
     // must be in the tree so opening a modal later surfaces them.
-    await screen.findByTestId('wordmark')
+    await screen.findByTestId('sticky-header')
     expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument()
     expect(screen.queryByTestId('operator-signin-modal')).not.toBeInTheDocument()
     expect(screen.queryByTestId('prefs-modal')).not.toBeInTheDocument()

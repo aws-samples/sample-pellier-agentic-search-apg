@@ -1,19 +1,19 @@
 /**
  * PellierHero - the storefront's editorial first viewport.
  *
- * Three zones rather than one framed photograph:
+ * Two connected zones: the shopper request and the editorial photograph.
  *
- *   left    the editorial statement, the lede, and the primary action
- *   centre  the product photograph, masked into the page rather than boxed
- *   right   PersonaConcierge, the only thing here a shopper acts on first
+ * The existing type scale, scenario choice, and drawer contract are retained.
+ * Suggestions come from the current persona's live scenarios; submitted
+ * requests continue in the same Ask Pellier drawer.
  *
  * The interaction layer is unchanged from the framed version: choose a
  * workshop profile, then submit a query once a profile is active. A query
  * still needs a profile because the floor is ranked per persona, so the
  * search affordance appears with the profile rather than before it.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ChevronLeft, ChevronRight, Send, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Send, Sparkles } from 'lucide-react'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 import { asset } from '../utils/assetPath'
@@ -39,31 +39,39 @@ type StatementId = 'fresh' | 'marco' | 'anna' | 'theo'
  */
 const PERSONA_HEROES: Record<
   StatementId,
-  { image: string; alt: string; subheadline: string }
+  { image: string; alt: string; subheadline: string; captionLabel: string; caption: string }
 > = {
   fresh: {
     image: '/products/landing-hero-weekender.webp',
     alt: 'Leather weekender on a travertine bench beside linen and an olive branch',
     subheadline:
       'Choose who is shopping, then browse a floor arranged around them.',
+    captionLabel: 'The weekend edit',
+    caption: 'Take the long way.',
   },
   marco: {
     image: '/products/hero-marco.png',
     alt: 'Leather weekender with folded linen and brass travel details in warm daylight',
     subheadline:
       'Travel-ready linen, leather, and natural fibers for a considered edit.',
+    captionLabel: 'The weekend edit',
+    caption: 'Take the long way.',
   },
   anna: {
     image: '/products/hero-anna.png',
     alt: 'Ribbon-wrapped gift beside an amber candle, ceramic bud vase, and blank card',
     subheadline:
       'Thoughtful gifts and warm home objects, considered within your budget.',
+    captionLabel: 'The gifting edit',
+    caption: 'A little thought goes a long way.',
   },
   theo: {
     image: '/products/hero-theo.png',
     alt: 'Charcoal stoneware bowl beside natural linen, a beeswax candle, and olive branches',
     subheadline:
       'Quiet craft, ceramics, and lasting pieces for a slower home rhythm.',
+    captionLabel: 'The everyday ritual',
+    caption: 'Make room for a slower moment.',
   },
 }
 
@@ -88,29 +96,6 @@ export default function PellierHero({
   const { persona } = usePersona()
   const [searchValue, setSearchValue] = useState('')
   const [suggestions, setSuggestions] = useState<LiveScenario[]>([])
-  const suggestionsRef = useRef<HTMLDivElement>(null)
-  const [suggestionEdges, setSuggestionEdges] = useState({ before: false, after: false })
-  const updateSuggestionEdges = useCallback(() => {
-    const row = suggestionsRef.current
-    if (row) setSuggestionEdges({ before: row.scrollLeft > 4, after: row.scrollWidth - row.clientWidth - row.scrollLeft > 4 })
-  }, [])
-
-  useEffect(() => {
-    const row = suggestionsRef.current
-    if (!row) return
-    row.scrollLeft = 0
-    updateSuggestionEdges()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(updateSuggestionEdges)
-    observer.observe(row)
-    return () => observer.disconnect()
-  }, [suggestions, updateSuggestionEdges])
-
-  const scrollSuggestions = (direction: number) => {
-    const row = suggestionsRef.current
-    row?.scrollBy({ left: direction * row.clientWidth * 0.8, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-  }
-
   const personaId = persona?.id ?? 'fresh'
   const hero = PERSONA_HEROES[
     personaId in PERSONA_HEROES ? personaId as StatementId : 'fresh'
@@ -260,39 +245,28 @@ export default function PellierHero({
                 ) : null}
               </form>
 
-              <div className="pellier-suggestions-row">
-              <div
-                ref={suggestionsRef}
-                onScroll={updateSuggestionEdges}
-                data-testid="pellier-hero-pills"
-                className="pellier-hero-pills mt-3 flex w-full gap-2 overflow-x-auto pb-1"
-                aria-label="Suggested queries"
-              >
-                {suggestions.map((scenario) => (
-                  <button
-                    key={scenario.id}
-                    type="button"
-                    onClick={() => submitQuery(scenario.prompt)}
-                    className="
-                      min-h-10 shrink-0 rounded-full border
-                      border-[rgba(24,26,31,0.16)] bg-[rgba(255,255,255,0.84)]
-                      px-4 py-2 text-left font-sans text-[12px] leading-4
-                      text-espresso transition hover:border-accent hover:bg-cream
-                      focus-visible:outline-none focus-visible:ring-2
-                      focus-visible:ring-espresso
-                    "
+              {suggestions.length > 0 ? (
+                <div className="pellier-hero-suggestions">
+                  <p className="pellier-hero-suggestions-label">A place to start for {persona.display_name}</p>
+                  <div
+                    data-testid="pellier-hero-pills"
+                    className="pellier-hero-pills"
+                    role="group"
+                    aria-label="Suggested queries"
                   >
-                    {scenario.prompt}
-                  </button>
-                ))}
-              </div>
-              {suggestionEdges.before || suggestionEdges.after ? (
-                <div className="pellier-suggestions-controls">
-                  <button type="button" aria-label="Previous suggestions" disabled={!suggestionEdges.before} onClick={() => scrollSuggestions(-1)}><ChevronLeft size={16} aria-hidden="true" /></button>
-                  <button type="button" aria-label="More suggestions" disabled={!suggestionEdges.after} onClick={() => scrollSuggestions(1)}><ChevronRight size={16} aria-hidden="true" /></button>
+                    {suggestions.map(scenario => (
+                      <button
+                        key={scenario.id}
+                        type="button"
+                        onClick={() => submitQuery(scenario.prompt)}
+                        className="pellier-prompt-pill"
+                      >
+                        {scenario.prompt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : null}
-              </div>
 
               {/* Browsing stays available with a profile active, but as the
                   quiet action: asking is the primary one here. */}
@@ -302,7 +276,6 @@ export default function PellierHero({
                 onClick={browseCollection}
               >
                 {HERO_STATEMENT.CTA}
-                <ArrowRight size={15} aria-hidden="true" />
               </button>
             </div>
           ) : (
@@ -315,15 +288,16 @@ export default function PellierHero({
               {HERO_STATEMENT.CTA}
             </button>
           )}
+          {spotlightSeen ? <PersonaConcierge /> : null}
         </div>
 
-        <div className="pellier-hero-media">
+        <figure className="pellier-hero-media">
           {personaId === 'fresh' ? (
             <ResponsiveImage
               src={hero.image}
               alt={hero.alt}
               widths={[480, 960, 1600]}
-              sizes="100vw"
+              sizes="(min-width: 900px) 55vw, 100vw"
               loading="eager"
               pictureClassName="block h-full w-full"
             />
@@ -338,16 +312,12 @@ export default function PellierHero({
               decoding="async"
             />
           )}
-        </div>
+          <figcaption className="pellier-hero-caption">
+            <span>{hero.captionLabel}</span>
+            <p>{hero.caption}</p>
+          </figcaption>
+        </figure>
 
-        {/* The chooser waits for the tour to finish, then takes over.
-            While the spotlight is open it owns the "choose a point of view"
-            ask, and this card rendered underneath it was unreachable behind a
-            modal; it then retired on dismissal, which is the one moment a
-            shopper could have acted on it. Shown after, it is the hero's
-            single next step, and `PersonaConcierge` returns null once a
-            profile is active so it never asks twice. */}
-        {spotlightSeen ? <PersonaConcierge /> : null}
       </div>
     </section>
   )

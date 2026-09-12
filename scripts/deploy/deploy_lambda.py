@@ -324,7 +324,7 @@ def main():
     # first Gateway call, long after the deploy reported success.
     shared_dir = os.path.dirname(args.mcp_server_path)
     shared_modules = {}
-    for module in ('common/types.py', 'common/dataapi.py', 'common/handler.py'):
+    for module in ('common/types.py', 'common/dataapi.py', 'common/handler.py', 'common/replacement_contract.py'):
         module_path = os.path.join(shared_dir, module)
         if not os.path.exists(module_path):
             raise FileNotFoundError(f"Shared module not found: {module_path}")

@@ -39,7 +39,7 @@ export default function EditorialBrief() {
         <div className="max-w-[1440px] mx-auto px-container-x py-20 md:py-28">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.3fr_1fr] gap-x-12 lg:gap-x-16 gap-y-6 items-start">
             <div
-              className="relative rounded-2xl overflow-hidden shadow-warm-md lg:col-start-1 lg:row-start-2 lg:mt-[5px]"
+              className="relative rounded-[var(--pellier-image-radius-lg)] overflow-hidden shadow-warm-md lg:col-start-1 lg:row-start-2 lg:mt-[5px]"
               style={{ aspectRatio: '4 / 3' }}
             >
               <ResponsiveImage

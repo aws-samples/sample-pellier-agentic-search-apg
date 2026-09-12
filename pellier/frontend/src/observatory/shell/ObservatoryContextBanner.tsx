@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, ArrowDown } from 'lucide-react';
 import { lookupVocab } from '../../shared';
 
 const PROOF_ANCHOR_LABELS: Record<string, string> = {
@@ -50,12 +49,10 @@ const ObservatoryContextBanner: React.FC = () => {
         </span>
       </div>
       <div className="observatory-context-actions">
-        <Link to="/" className="observatory-context-link">
-          <ArrowLeft size={13} aria-hidden="true" />
+        <Link to="/" className="pellier-action-quiet">
           Return to Storefront
         </Link>
-        <Link to={cleanPath} className="observatory-context-link">
-          <ArrowDown size={13} aria-hidden="true" />
+        <Link to={cleanPath} className="pellier-action-quiet">
           Keep proof
         </Link>
       </div>

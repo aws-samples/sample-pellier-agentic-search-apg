@@ -364,8 +364,11 @@ describe('ClientBook', () => {
     expect(entry).toHaveTextContent('Jessica Nakamura')
     expect(entry).toHaveTextContent('Open return dispute')
     expect(
-      screen.getByRole('button', { name: /Review case/i }),
+      screen.getByRole('button', { name: /Start guided review/i }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open chat for Jessica Nakamura' })).toHaveAttribute(
+      'href', '/operator/clients/CUST-JESSICA#operator-concierge',
+    )
   })
 
   it('opens Jessica on a fresh guided service-recovery run', async () => {
@@ -408,7 +411,7 @@ describe('ClientBook', () => {
     )
 
     fireEvent.click(
-      await screen.findByRole('button', { name: /Review case/i }),
+      await screen.findByRole('button', { name: /Start guided review/i }),
     )
 
     expect(await screen.findByTestId('operator-location')).toHaveTextContent(
@@ -418,6 +421,15 @@ describe('ClientBook', () => {
 })
 
 describe('ClientAvatar', () => {
+  it.each(['marco', 'anna', 'theo'])('keeps %s recognizable when a review omits persona metadata', (persona) => {
+    const { container } = render(
+      <ClientAvatar customerId={`CUST-${persona.toUpperCase()}`} name={persona} />,
+    )
+    expect(container.querySelector('img')?.getAttribute('src')).toContain(
+      `/assets/personas/${persona}-720.webp`,
+    )
+  })
+
   it('renders a designed monogram, not a grey box, for an unknown client', () => {
     render(<ClientAvatar customerId="CUST-NOBODY" name="Nadia Weber" />)
     const monogram = screen.getByTestId('operator-monogram')

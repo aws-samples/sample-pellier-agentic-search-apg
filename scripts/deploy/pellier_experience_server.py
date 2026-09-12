@@ -30,6 +30,7 @@ from typing import Any
 import boto3
 
 from common.types import resolve_invocation
+from common.replacement_contract import REPLACEMENT_TOOL
 from common.dataapi import (
     execute_sql as _execute_sql,
     begin_transaction as _begin_transaction,
@@ -208,6 +209,82 @@ def initiate_return(
         },
         result=result,
         latency_ms=int((time.monotonic() - started) * 1000),
+        session_id=f"gateway-{customer_id}",
+    )
+    return result
+
+
+def replace_damaged_item(
+    customer_id: str, order_id: int, product_id: int, quantity: int, reason: str,
+    disposition: str, review_id: int, idempotency_key: str,
+    *, audit_arguments: dict | None = None, customer_subject: str | None = None,
+) -> dict:
+    """Commit the approved remedy; an ambiguous commit stays recoverable."""
+    material = {
+        "customer_id": customer_id, "order_id": order_id, "product_id": product_id,
+        "quantity": quantity, "reason": reason, "disposition": disposition,
+    }
+    if (reason != "damaged" or disposition != "inspection_required"
+            or any(type(value) is not int or value < 1
+                   for value in (order_id, product_id, quantity, review_id))
+            or quantity > 100 or not idempotency_key or len(idempotency_key) > 128):
+        return {"status": "error", "message": "invalid_replacement_terms"}
+    request_hash = _write_request_hash("replace_damaged_item", material)
+    started = time.monotonic()
+    transaction_id = _begin_transaction()
+    commit_started = False
+    try:
+        _bind_runtime_principal(transaction_id, customer_subject=customer_subject)
+        bindings = [
+            {"name": name, "value": {"longValue" if type(value) is int else "stringValue": value}}
+            for name, value in {
+                "review_id": review_id, "key": idempotency_key, "hash": request_hash,
+                "customer": customer_id, "order_id": order_id, "product": str(product_id),
+                "quantity": quantity, "disposition": disposition,
+            }.items()
+        ]
+        rows = _execute_in_transaction(
+            transaction_id,
+            "SELECT pellier.replace_damaged_item(:review_id::bigint, :key::text, "
+            ":hash::text, :customer::text, :order_id::bigint, :product::text, "
+            ":quantity::integer, :disposition::text) AS result", bindings,
+        )
+        raw = rows[0]["result"] if rows else None
+        result = json.loads(raw) if isinstance(raw, str) else raw
+        if not isinstance(result, dict):
+            raise ValueError("replacement_result_missing")
+        commit_started = True
+        _commit_transaction(transaction_id)
+    except Exception as exc:
+        if not commit_started:
+            try:
+                _rollback_transaction(transaction_id)
+            except Exception:
+                logger.warning("Replacement rollback could not be confirmed")
+        # A CommitTransaction transport error can occur after Aurora committed.
+        # Preserve ambiguity instead of claiming that a rollback undid the write.
+        result = {
+            "status": "outcome_unknown" if commit_started else "error",
+            "message": (
+                "The commit response was interrupted. Check the recorded replacement "
+                "or retry the same approved action to recover its result."
+                if commit_started else str(exc)
+            ),
+        }
+        if not commit_started:
+            message = str(exc)
+            if "replacement_order_out_of_scope" in message or "replacement_approval_out_of_scope" in message:
+                result["denied_by"] = "database_row_level_security"
+            elif "replacement_approval_" in message:
+                result["denied_by"] = "database_approval_guard"
+            elif any(code in message for code in ("replacement_stock_changed", "replacement_quantity_exceeds_order")):
+                result["sqlstate"] = "23514"
+            elif "replacement_idempotency_conflict" in message:
+                result["status"] = "idempotency_conflict"
+    _write_tool_audit_independently(
+        tool="replace_damaged_item",
+        args=audit_arguments or {**material, "review_id": review_id, "idempotency_key": idempotency_key},
+        result=result, latency_ms=int((time.monotonic() - started) * 1000),
         session_id=f"gateway-{customer_id}",
     )
     return result
@@ -474,6 +551,9 @@ TOOLS = {
 }
 
 
+TOOLS["replace_damaged_item"] = {**REPLACEMENT_TOOL, "fn": replace_damaged_item}
+
+
 def _resolve_customer_subject(customer_id: str) -> str | None:
     """The RLS subject for a customer, from the authorization mapping table.
 
@@ -550,8 +630,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
             for key, value in arguments.items()
             if key not in ("turn_id", "customer_subject")
         }
-        if tool_name == "initiate_return":
-            result = initiate_return(
+        if tool_name in ("initiate_return", "replace_damaged_item"):
+            result = TOOLS[tool_name]["fn"](
                 **execution_arguments,
                 audit_arguments=audit_arguments,
                 customer_subject=_resolve_customer_subject(

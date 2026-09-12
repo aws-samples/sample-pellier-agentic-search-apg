@@ -225,7 +225,7 @@
   background-repeat: no-repeat;
   background-size: cover;
   border: 1px solid var(--pl-line);
-  border-radius: 11px;
+  border-radius: var(--pellier-image-radius-sm);
   transition: transform 180ms ease;
 }
 
@@ -1757,7 +1757,7 @@
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--pl-line);
-  border-radius: var(--pl-r-md);
+  border-radius: var(--pellier-image-radius-md);
   background: var(--pl-paper-muted);
   color: var(--pl-accent);
   font-size: 28px;
@@ -1856,7 +1856,7 @@
   min-height: 236px;
   border: 0;
   border-right: 1px solid var(--pl-line);
-  border-radius: 0;
+  border-radius: var(--pellier-image-radius-md);
 }
 
 .observatory-products[data-layout='feature'] .observatory-product-copy {
@@ -2766,7 +2766,7 @@
 /* Keep the complete lab names legible without changing the four-card navigation. */
 @media (max-width: 560px) {
   .observatory-lab-rail-card { grid-template-columns: 40px minmax(0, 1fr); gap: 8px; padding: 10px 8px; }
-  .observatory-lab-rail-portrait { width: 40px; min-width: 40px; max-width: 40px; height: 52px; min-height: 52px; max-height: 52px; border-radius: 8px; }
+  .observatory-lab-rail-portrait { width: 40px; min-width: 40px; max-width: 40px; height: 52px; min-height: 52px; max-height: 52px; border-radius: var(--pellier-image-radius-sm); }
   .observatory-lab-rail-card strong { display: block; overflow: visible; font-size: 13px; line-height: 1.35; }
   .observatory-lab-rail-card small { white-space: nowrap; }
 }

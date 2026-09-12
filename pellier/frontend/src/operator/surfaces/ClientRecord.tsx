@@ -23,6 +23,7 @@ import OperatorConcierge from '../concierge/OperatorConcierge'
 import MembershipRung from '../components/MembershipRung'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState from '../components/OperatorState'
+import ReplacementCare from '../components/ReplacementCare'
 
 function money(value: number): string {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -106,6 +107,16 @@ const ClientRecordPage: React.FC = () => {
     navigate,
   ])
 
+  // Client data arrives after the route mounts. Reveal the existing chat once
+  // its target exists; opening it still resumes history without submitting.
+  useEffect(() => {
+    if (!record || !['#operator-concierge', '#operator-concierge-title'].includes(location.hash)) return
+    const target = window.matchMedia('(min-width: 1081px)').matches
+      ? 'operator-client-record'
+      : 'operator-concierge'
+    document.getElementById(target)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [record, location.hash])
+
   if (error) {
     const authenticationRequired =
       error === 'authentication_required' || error === 'invalid_credentials'
@@ -119,7 +130,7 @@ const ClientRecordPage: React.FC = () => {
         eyebrow="Client record"
         lead={
           <Link to="/operator" className="operator-back">
-            ← Clients
+            Clients
           </Link>
         }
         headline={
@@ -197,7 +208,7 @@ const ClientRecordPage: React.FC = () => {
           opened on different content and read as misaligned. */}
       <nav className="operator-crumb" aria-label="Breadcrumb">
         <Link to="/operator" className="operator-back">
-          ← Clients
+          Clients
         </Link>
         <span className="operator-crumb-sep" aria-hidden="true">
           /
@@ -206,7 +217,7 @@ const ClientRecordPage: React.FC = () => {
       </nav>
       <nav className="operator-record-jumps" aria-label="Client record sections">
         <a href="#operator-client-record">Record</a>
-        <a href="#operator-concierge-title">Concierge</a>
+        <a href="#operator-concierge">Operator chat</a>
         <a href="#operator-client-activity">Activity</a>
       </nav>
       <div className="operator-workbench-record" id="operator-client-record">
@@ -355,6 +366,8 @@ const ClientRecordPage: React.FC = () => {
           </div>
         </section>
       ) : null}
+
+      {client.personaId === 'theo' ? <ReplacementCare key={client.customerId} record={record} /> : null}
 
       {/* Four figures an advisor needs before speaking. */}
       <div className="operator-quad" data-testid="operator-quad">

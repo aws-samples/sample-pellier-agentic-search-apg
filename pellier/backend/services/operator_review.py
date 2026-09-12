@@ -76,10 +76,10 @@ def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
     global _main_loop
     _main_loop = loop
 
-# The proposed actions a review may carry. Both are governed mutations that the
-# shopper rail refuses; anything else has no human-review workflow behind it and
+# The proposed actions a review may carry. These are governed mutations with a
+# human-review workflow; anything else has no review workflow behind it and
 # would be a review nobody can act on.
-REVIEWABLE_ACTIONS = ("initiate_return", "issue_credit")
+REVIEWABLE_ACTIONS = ("initiate_return", "issue_credit", "replace_damaged_item")
 
 # Workflow states, mirroring the CHECK constraint on pellier.approvals.
 STATUS_PENDING = "pending"
@@ -92,6 +92,9 @@ STATUS_DECLINED = "rejected"
 MATERIAL_PARAMETERS: Dict[str, tuple[str, ...]] = {
     "initiate_return": ("customer_id", "product_id", "reason"),
     "issue_credit": ("customer_id", "amount_cents", "reason"),
+    "replace_damaged_item": (
+        "customer_id", "product_id", "order_id", "quantity", "reason", "disposition",
+    ),
 }
 
 
@@ -125,8 +128,11 @@ def _coerce_material(action: str, args: Mapping[str, Any]) -> Dict[str, Any]:
         if name not in args:
             raise ReviewError(f"missing_parameter:{name}", 422)
         value = args[name]
-        if name in ("product_id", "amount_cents"):
-            material[name] = int(value)
+        if name in ("product_id", "amount_cents", "order_id", "quantity"):
+            try:
+                material[name] = int(value)
+            except (TypeError, ValueError, OverflowError):
+                raise ReviewError(f"invalid_parameter:{name}", 422) from None
         else:
             material[name] = str(value)
     return material
@@ -294,6 +300,8 @@ async def propose_review(
     order_id = None
     if action == "initiate_return":
         order_id = await resolve_order_id(db, customer_id, material["product_id"])
+    elif action == "replace_damaged_item":
+        order_id = material["order_id"]
 
     try:
         row = await db.fetch_one(
@@ -444,9 +452,8 @@ def _default_recommendation(action: str, args: Mapping[str, Any]) -> Dict[str, A
 
     Deliberately thin. It names the action and the reason the agent had for it;
     it does not assert availability or entitlement. Whether a replacement can
-    actually be sent is a live inventory question resolved at render time, and
-    whether a courtesy credit is warranted is the human's call - which is the
-    entire point of Theo being on the lowest rung.
+    actually be sent is checked again during execution. A courtesy credit needs
+    a separate, evidence-backed proposal and an explicit human decision.
 
     The rationale is derived from the return reason in ``args``. An unrecognised or
     absent reason gets the neutral clause rather than a borrowed one: stating the
@@ -462,20 +469,8 @@ def _default_recommendation(action: str, args: Mapping[str, Any]) -> Dict[str, A
                 "which is a canonical return reason."
             ),
         }
-        if reason == "damaged":
-            # Scoped to the damaged case, because the claim inside it is: "this
-            # client ... has had one previous damaged piece". That is Theo's
-            # canonical story and it does not generalise — offering it under a
-            # wrong-size return would assert a history that is not established.
-            recommendation["secondarySuggestion"] = {
-                "action": "issue_credit",
-                "amountCents": 2500,
-                "rationale": (
-                    "A courtesy credit is available as service recovery. It is a "
-                    "judgment call, not an entitlement: this client is on the "
-                    "Registered rung and has had one previous damaged piece."
-                ),
-            }
+        # A return reason establishes neither previous damage nor a credit
+        # entitlement. Any discretionary credit needs its own grounded proposal.
         return recommendation
     if action == "issue_credit":
         return {

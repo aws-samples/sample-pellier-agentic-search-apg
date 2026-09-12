@@ -17,7 +17,6 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import AnnouncementBar from '../components/AnnouncementBar'
 import Header, { type NavItem } from '../components/Header'
 import PellierHero from '../components/PellierHero'
 import PellierApproach from '../components/PellierApproach'
@@ -213,9 +212,6 @@ export default function PellierPage() {
 
   return (
     <div className="pellier-page-surface min-h-dvh bg-cream-50">
-      {/* Announcement bar — full-width above the header */}
-      <AnnouncementBar />
-
       <Header current="home" onNavigate={handleNavigate} />
 
       <main className="bg-cream">
@@ -281,7 +277,7 @@ export default function PellierPage() {
                     to={`/product/${featuredProduct.id}`}
                     aria-hidden="true"
                     tabIndex={-1}
-                    className="relative block aspect-[4/5] overflow-hidden rounded-[8px] shadow-warm-md"
+                    className="relative block aspect-[4/5] overflow-hidden rounded-[var(--pellier-image-radius-lg)] shadow-warm-md"
                   >
                     <ResponsiveImage
                       src={featuredProduct.imageUrl}

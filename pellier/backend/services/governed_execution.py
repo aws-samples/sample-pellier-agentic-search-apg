@@ -95,6 +95,7 @@ AURORA_PERMITTED = "PERMITTED"
 AURORA_DENIED = "DENIED"
 AURORA_NOT_REACHED = "NOT_REACHED"
 AURORA_NOT_ENFORCED = "NOT_ENFORCED"
+AURORA_OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
 
 # Evidence axis. Each value names what actually exists.
 EVIDENCE_RECEIPTED = "RECEIPTED"
@@ -940,6 +941,13 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     status = str(result.get("status") or "")
     denied_by = str(result.get("denied_by") or "")
 
+    if status == "outcome_unknown":
+        return AURORA_OUTCOME_UNKNOWN, (
+            "The commit response was interrupted. Read the durable replacement "
+            "or retry the same approved operation before deciding what happened."
+        )
+    if denied_by == "database_approval_guard":
+        return AURORA_DENIED, "Aurora refused the missing, stale, or mismatched approval. Nothing changed."
     if denied_by == "database_row_level_security":
         return AURORA_DENIED, (
             "Row-Level Security refused the read the write depends on, so "
@@ -1027,6 +1035,8 @@ def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -
         # sentence named an artifact nothing wrote.
         return EVIDENCE_POLICY_PROOF
     if aurora == AURORA_DENIED:
+        return EVIDENCE_ATTEMPT_RECEIPT
+    if aurora == AURORA_OUTCOME_UNKNOWN:
         return EVIDENCE_ATTEMPT_RECEIPT
     if aurora == AURORA_PERMITTED and str(result.get("status")) in (
         "success",
@@ -1504,6 +1514,9 @@ async def execute_confirmed_review(
     review_id = int(review["review_id"])
     action_hash = str(review["action_hash"])
     customer_id = str(args["customer_id"])
+    if tool == "replace_damaged_item":
+        # Execution metadata comes from the persisted review, never the caller.
+        args = {**args, "review_id": review_id}
 
     customer_subject = await resolve_customer_subject(db, customer_id)
     execution_turn_id = await claim_execution_turn(db, review_id)

@@ -24,6 +24,7 @@ import PreferencesModal from './components/PreferencesModal'
 import ChatDrawer from './components/ChatDrawer'
 import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
+import SurfaceNavigation from './components/SurfaceNavigation'
 import { routerBasename } from './utils/assetPath'
 import './styles/premium-heading-styles.css'
 import RouteExperience from './shared/RouteExperience'
@@ -45,6 +46,12 @@ const WorkshopMap = lazy(() => import('./observatory/surfaces/observe/WorkshopMa
 const ProofBoard = lazy(() => import('./observatory/surfaces/observe/ProofBoard'))
 const OperatorLineage = lazy(
   () => import('./observatory/surfaces/observe/OperatorLineage'),
+)
+const OperatorTurnEvidence = lazy(
+  () => import('./observatory/surfaces/observe/OperatorTurnEvidence'),
+)
+const ReplacementEvidence = lazy(
+  () => import('./observatory/surfaces/observe/ReplacementEvidence'),
 )
 const ObservatoryWorkbench = lazy(
   () => import('./observatory/surfaces/observe/ObservatoryWorkbench'),
@@ -247,7 +254,8 @@ export function AppRoutes() {
             including client and review reads, inherits require_operator from
             the backend router. */}
         <Route path="/operator" element={<OperatorFrame />}>
-          <Route index element={<ClientBook />} />
+          <Route index element={<ClientBook key="records" />} />
+          <Route path="chat" element={<ClientBook key="chat" intent="chat" />} />
           <Route path="clients/:customerId" element={<ClientRecord />} />
           {/* Prepared requests handed off from Pellier. The queue is the desk's
               entry point for storefront work, so an operator finds a waiting
@@ -269,6 +277,8 @@ export function AppRoutes() {
           />
           <Route path="proof-board" element={<ProofBoard />} />
           <Route path="operator-lineage" element={<OperatorLineage />} />
+          <Route path="operator-turn" element={<OperatorTurnEvidence />} />
+          <Route path="replacement" element={<ReplacementEvidence />} />
           <Route
             path="audit-proof"
             element={<ProofBoard focusCardId="audit-ledger" />}
@@ -348,6 +358,7 @@ function App() {
             <CartPanelSlot />
             <ToastSlot />
               <BrowserRouter basename={routerBasename()}>
+                <SurfaceNavigation />
                 <RouteExperience />
                 <ModalRouteGuard />
                 <ShopperChatSlot />

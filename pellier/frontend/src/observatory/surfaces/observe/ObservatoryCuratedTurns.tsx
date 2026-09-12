@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowUpRight, Loader2, Play, Wrench } from 'lucide-react';
+import { AlertCircle, Loader2, Play, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResponsiveImage from '../../../components/ResponsiveImage';
 import {
@@ -183,9 +183,6 @@ export default function ObservatoryCuratedTurns({
       return (
         <article className="labs-turn labs-turn-static">
           {content}
-          <span className="labs-turn-action" aria-hidden="true">
-            <ArrowUpRight size={15} />
-          </span>
         </article>
       );
     }
@@ -235,7 +232,6 @@ export default function ObservatoryCuratedTurns({
             <strong>Open Jessica in Operator</strong>
             <small>Continue with the separately authenticated staff desk.</small>
           </span>
-          <ArrowUpRight size={17} aria-hidden="true" />
         </Link>
       ) : null}
 

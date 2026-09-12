@@ -1,0 +1,4 @@
+.service-identity { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-family: var(--sans); font-size: 12px; line-height: 1.4; }
+.service-identity>img,.service-identity>svg { flex-shrink: 0; }
+.service-identity-copy { display: grid; gap: 2px; overflow-wrap: anywhere; }
+.service-identity-copy small { color: var(--ink-soft); font-size: 11px; font-weight: 400; }

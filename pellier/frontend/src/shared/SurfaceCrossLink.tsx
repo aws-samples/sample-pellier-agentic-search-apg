@@ -1,17 +1,16 @@
 /**
- * SurfaceCrossLink — small inline anchor that bridges the two surfaces.
+ * SurfaceCrossLink — pill link that connects the shopper and evidence surfaces.
  *
  * Two preset modes:
  *   - "to-pellier" - used on Observatory surfaces. Reads "See this in
- *      Pellier →" and links back to the storefront, optionally
+ *      Pellier" and links back to the storefront, optionally
  *      with an `?ask=` query that opens the chat drawer with a
  *      pre-filled prompt that exercises this concept.
  *   - "to-observatory" — used on Pellier surfaces. Reads "How this works
- *      →" and deep-links to the Observatory route that explains the
+ *      " and deep-links to the Observatory route that explains the
  *      concept (memory, tools, agents, etc).
  *
- * Visual: Instrument Serif / Fraunces italic, 15px, terracotta accent,
- * subtle dotted underline - reads as editorial caption, not a banner CTA.
+ * Uses the existing rounded Pellier control and sans typography.
  * Consistent vocabulary (`See this in Pellier`) on every Observatory
  * surface keeps the round trip predictable.
  */
@@ -34,55 +33,12 @@ export interface SurfaceCrossLinkProps {
   italic?: boolean
 }
 
-const ACCENT = 'var(--accent)'
-
-export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({
-  direction,
-  href,
-  label,
-  italic = true,
-}) => {
-  const defaultLabel =
-    direction === 'to-pellier'
-      ? 'See this in Pellier'
-      : 'How this works'
-
-  const targetHref =
-    href ??
-    (direction === 'to-pellier' ? '/' : '/observatory')
-
-  const arrow = direction === 'to-pellier' ? '→' : '→'
-
-  return (
-    <Link
-      to={targetHref}
-      data-testid={`surface-cross-link-${direction}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontFamily: 'var(--serif)',
-        fontStyle: italic ? 'italic' : 'normal',
-        fontSize: 15,
-        fontWeight: 400,
-        letterSpacing: '-0.01em',
-        color: ACCENT,
-        textDecoration: 'none',
-        borderBottom: '1px dotted color-mix(in srgb, var(--accent) 42%, transparent)',
-        paddingBottom: 2,
-        transition: 'border-color 0.15s, color 0.15s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderBottomColor =
-          'color-mix(in srgb, var(--accent) 78%, transparent)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderBottomColor =
-          'color-mix(in srgb, var(--accent) 42%, transparent)'
-      }}
-    >
-      <span>{label ?? defaultLabel}</span>
-      <span aria-hidden="true">{arrow}</span>
-    </Link>
-  )
-}
+export const SurfaceCrossLink: React.FC<SurfaceCrossLinkProps> = ({ direction, href, label }) => (
+  <Link
+    to={href ?? (direction === 'to-pellier' ? '/' : '/observatory')}
+    data-testid={`surface-cross-link-${direction}`}
+    className="pellier-action-quiet"
+  >
+    {label ?? (direction === 'to-pellier' ? 'See this in Pellier' : 'How this works')}
+  </Link>
+)

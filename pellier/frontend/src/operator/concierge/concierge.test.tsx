@@ -382,6 +382,14 @@ describe('submitting a turn', () => {
     ).toBe(false)
   })
 
+  it('opens the chat entry on saved history without starting another investigation', async () => {
+    const fetchMock = wire({ latestSessionId: 'sess-1', messages: ANSWERED })
+    renderRecord('/operator/clients/CUST-JESSICA#operator-concierge')
+    await screen.findByText('Thank you for your patience while we review your return.')
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    expect(screen.queryByTestId('operator-concierge-pending')).not.toBeInTheDocument()
+  })
+
   it('offers the exact second guided turn after the investigation completes', async () => {
     const firstTurn = [
       {

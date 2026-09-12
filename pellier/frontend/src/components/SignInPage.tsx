@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
 import { asset } from '../utils/assetPath'
 import { passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
@@ -95,7 +95,9 @@ export default function SignInPage() {
     <main className="pellier-signin" data-testid="pellier-signin">
       <div className="pellier-signin-shell">
         <div className="pellier-signin-form-panel">
-          <a href={asset('/')} className="pellier-signin-wordmark" aria-label="Pellier home">Pellier</a>
+          <a href={asset('/')} className="pellier-signin-wordmark" aria-label="Pellier home">
+            pellier<span aria-hidden="true">.</span>
+          </a>
           <div className="pellier-signin-content">
             <h1 ref={heading} tabIndex={-1}>{title}</h1>
             <p className="pellier-signin-description">{description}</p>
@@ -114,12 +116,12 @@ export default function SignInPage() {
               {mode === 'reset' ? <div className="pellier-signin-field"><label htmlFor="pellier-password-confirmation">Confirm new password</label><input id="pellier-password-confirmation" name="passwordConfirmation" type={visible ? 'text' : 'password'} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" required maxLength={256} readOnly={working} /></div> : null}
               {error ? <p className="pellier-signin-feedback" data-tone="error" role="alert">{error}</p> : null}
               {notice ? <p className="pellier-signin-feedback" role="status">{notice}</p> : null}
-              <button className="pellier-signin-submit" type="submit" disabled={working}>{working ? <><LoaderCircle size={18} className="spin" aria-hidden="true" />{mode === 'sign-in' ? 'Signing in…' : 'Please wait…'}</> : <>{mode === 'sign-in' ? 'Sign in' : mode === 'forgot' ? 'Send recovery code' : 'Update password'}<ArrowRight size={18} aria-hidden="true" /></>}</button>
+              <button className="pellier-signin-submit" type="submit" disabled={working}>{working ? <><LoaderCircle size={18} className="spin" aria-hidden="true" />{mode === 'sign-in' ? 'Signing in…' : 'Please wait…'}</> : mode === 'sign-in' ? 'Sign in' : mode === 'forgot' ? 'Send recovery code' : 'Update password'}</button>
             </form>
-            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}><ArrowLeft size={16} aria-hidden="true" />Back to sign in</button> : <a className="pellier-signin-alternative" href={hosted}>{error === ERROR_COPY.verification_required ? 'Continue secure verification' : 'Use another sign-in method'}</a>}
+            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}>Back to sign in</button> : <a className="pellier-signin-alternative" href={hosted}>{error === ERROR_COPY.verification_required ? 'Continue secure verification' : 'Use another sign-in method'}</a>}
             {mode === 'reset' ? <button type="button" className="pellier-signin-alternative" disabled={working} onClick={() => changeMode('forgot')}>Request a new code</button> : null}
           </div>
-          <a href={asset('/')} className="pellier-signin-home"><ArrowLeft size={15} aria-hidden="true" />Back to Pellier</a>
+          <a href={asset('/')} className="pellier-signin-home">Back to Pellier</a>
         </div>
         <div className="pellier-signin-portrait" aria-hidden="true"><ResponsiveImage src="/products/hero-fresh-2.png" widths={[960, 1600]} sizes="(min-width: 900px) 50vw, 1px" alt="" /><div><span>Pellier</span><p>Considered pieces.<br />Personal attention.</p></div></div>
       </div>

@@ -449,7 +449,7 @@ async def test_the_source_turn_id_is_preserved_and_no_new_identifier_is_minted()
 
 def test_only_governed_mutations_are_reviewable() -> None:
     """A review for a read would be a card no operator can act on."""
-    assert set(rv.REVIEWABLE_ACTIONS) == {"initiate_return", "issue_credit"}
+    assert set(rv.REVIEWABLE_ACTIONS) == {"initiate_return", "issue_credit", "replace_damaged_item"}
     assert "check_inventory" not in rv.REVIEWABLE_ACTIONS
     assert "search_products" not in rv.REVIEWABLE_ACTIONS
 

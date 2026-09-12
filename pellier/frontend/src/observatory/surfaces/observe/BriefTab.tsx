@@ -311,6 +311,7 @@ const BriefProductCard: React.FC<{ product: ProductCard }> = ({ product }) => {
           height: '140px',
           backgroundColor: 'var(--obs-cream-2)',
           borderBottom: '1px solid var(--obs-rule-1)',
+          borderRadius: 'var(--pellier-image-radius-md)',
           overflow: 'hidden',
         }}
       >

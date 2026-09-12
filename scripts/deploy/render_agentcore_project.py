@@ -325,6 +325,19 @@ def baseline_policies(
             "enforcementMode": "ACTIVE",
         },
     ])
+    policies.append({
+        "name": "replace_damaged_item_staff_scope",
+        "description": "Permit returns staff to execute an approved order-bound replacement",
+        "statement": (
+            f'permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::"{EXPERIENCE_TARGET}___replace_damaged_item", '
+            f"{gateway})\nwhen {{\n"
+            f'  principal.hasTag("{STAFF_CLAIM}") &&\n'
+            f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}" &&\n'
+            '  context.input.reason == "damaged"\n};'
+        ),
+        "validationMode": "FAIL_ON_ANY_FINDINGS",
+        "enforcementMode": "ACTIVE",
+    })
     return policies
 
 

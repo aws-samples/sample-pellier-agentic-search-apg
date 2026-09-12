@@ -1,33 +1,37 @@
-.pellier-signin { min-height: 100dvh; display: grid; place-items: center; padding: 40px 28px; background: var(--dl-bg, #f7f3ec); color: var(--dl-ink, #1f1410); font-family: var(--sans); }
-.pellier-signin-shell { width: min(1100px, 100%); display: grid; grid-template-columns: 1fr 0.94fr; min-height: 680px; background: var(--dl-paper, #fbf8f2); border-radius: 16px; overflow: clip; box-shadow: 0 14px 48px rgb(31 20 16 / 0.07); }
-.pellier-signin-form-panel { display: flex; flex-direction: column; padding: 36px 56px 28px; }
-.pellier-signin-wordmark { align-self: flex-start; font: 500 32px/1.2 var(--display); letter-spacing: -0.025em; color: #7a263a; text-decoration: none; padding-block: 4px; }
-.pellier-signin-content { width: 100%; margin-block: auto; padding-block: 40px; }
+.pellier-signin { min-height: calc(100dvh - var(--pellier-surface-bar-height, 64px)); display: grid; place-items: center; padding: 32px 28px; background: var(--dl-bg, #f7f3ec); color: var(--dl-ink, #1f1410); font-family: var(--sans); }
+.pellier-signin-shell { width: min(1100px, 100%); display: grid; grid-template-columns: 1fr 0.94fr; min-height: min(680px, calc(100dvh - var(--pellier-surface-bar-height, 64px) - 64px)); background: var(--dl-paper, #fbf8f2); border: 1px solid var(--rule-1); border-radius: 28px; overflow: clip; box-shadow: 0 16px 48px rgb(31 20 16 / 0.07); }
+.pellier-signin-form-panel { display: flex; flex-direction: column; padding: 32px 48px 28px; }
+.pellier-signin-wordmark { align-self: flex-start; font: 400 34px/1.2 var(--display); letter-spacing: -1.8px; color: var(--dl-ink); text-decoration: none; padding-block: 4px; }
+.pellier-signin-wordmark span { color: var(--pellier-burgundy); }
+.pellier-signin-content { width: 100%; margin-block: auto; padding-block: 34px; }
 .pellier-signin-content h1 { margin: 0; font: 500 clamp(28px, 3vw, 36px)/1.16 var(--display); letter-spacing: -0.03em; text-wrap: balance; }
 .pellier-signin-content h1:focus { outline: none; }
 .pellier-signin-description { margin: 14px 0 30px; color: var(--dl-muted, #6b665d); font-size: 16px; line-height: 1.55; max-width: 34ch; }
 .pellier-signin form { display: grid; gap: 20px; }
 .pellier-signin-field { display: grid; gap: 8px; }
-.pellier-signin-field label { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.pellier-signin-field label { padding-inline: 4px; font-size: 14px; font-weight: 600; line-height: 1.5; }
 .pellier-signin-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: -10px -6px; }
-.pellier-signin-label-row button { min-height: 44px; color: #7a263a; font-size: 13px; text-underline-offset: 4px; }
-.pellier-signin-label-row button:hover { text-decoration: underline; }
-.pellier-signin-field input { width: 100%; min-width: 0; min-height: 50px; border: 1px solid var(--dl-rule-strong, #cbc1ad); border-radius: 8px; background: var(--dl-paper, #fbf8f2); color: var(--dl-ink, #1f1410); font: 400 16px/1.5 var(--sans); padding: 12px 14px; caret-color: #7a263a; transition: border-color 160ms ease-out; }
-.pellier-signin-field input:focus-visible { outline: 2px solid #7a263a; outline-offset: 2px; border-color: transparent; }
+.pellier-signin-label-row button { min-height: 44px; padding-inline: 10px; margin-right: -6px; border-radius: 999px; color: var(--pellier-burgundy); font-size: 13px; }
+.pellier-signin-label-row button:hover { background: var(--cream); }
+.pellier-signin-field input { width: 100%; min-width: 0; min-height: 54px; border: 1px solid var(--dl-rule-strong, #cbc1ad); border-radius: 999px; background: var(--cream-elev); color: var(--dl-ink, #1f1410); font: 400 16px/1.5 var(--sans); padding: 14px 20px; caret-color: var(--pellier-burgundy); transition: border-color 160ms ease-out; }
+.pellier-signin-field input:focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 3px; border-color: transparent; }
+.pellier-signin-field input:-webkit-autofill { -webkit-text-fill-color: var(--dl-ink); box-shadow: 0 0 0 1000px var(--cream-elev) inset; }
 .pellier-signin-field input[readonly] { opacity: 0.75; }
 .pellier-signin-password { position: relative; }
-.pellier-signin-password input { padding-right: 52px; }
-.pellier-signin-password button { position: absolute; right: 4px; top: 3px; display: grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--dl-muted, #6b665d); border-radius: 6px; }
-.pellier-signin-submit { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 50px; border-radius: 8px; border: 0; background: #7a263a; color: #fbf8f2; font: 600 15px/1.4 var(--sans); margin-top: 4px; padding: 12px 18px; transition: background-color 180ms ease-out; }
-.pellier-signin-submit:hover:not(:disabled) { background: #651f31; }
+.pellier-signin-password input { padding-right: 58px; }
+.pellier-signin-password button { position: absolute; right: 6px; top: 5px; display: grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--dl-muted, #6b665d); border-radius: 50%; }
+.pellier-signin-password button:hover { background: var(--cream); color: var(--pellier-burgundy); }
+.pellier-signin-submit { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 54px; border-radius: 999px; border: 1px solid var(--pellier-burgundy); background: var(--pellier-burgundy); color: var(--dl-paper); font: 600 15px/1.4 var(--sans); margin-top: 4px; padding: 14px 20px; box-shadow: 0 3px 10px rgba(var(--pellier-burgundy-rgb), .12); transition: background-color 180ms ease-out; }
+.pellier-signin-submit:hover:not(:disabled) { background: var(--pellier-burgundy-deep); border-color: var(--pellier-burgundy-deep); }
 .pellier-signin-submit:disabled { opacity: 0.65; cursor: wait; }
-.pellier-signin-feedback { font-size: 14px; line-height: 1.55; margin: 0; }
+.pellier-signin-feedback { padding: 12px 16px; border: 1px solid var(--rule-2); border-radius: 16px; background: var(--cream); font-size: 14px; line-height: 1.55; margin: 0; }
 .pellier-signin-feedback[data-tone='error'] { color: #991b1b; }
-.pellier-signin-alternative, .pellier-signin-back { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; width: 100%; margin-top: 14px; font-size: 13px; color: var(--dl-muted, #6b665d); text-underline-offset: 4px; }
-.pellier-signin-alternative:hover, .pellier-signin-back:hover { color: #7a263a; text-decoration: underline; }
-.pellier-signin-home { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; align-self: flex-start; font-size: 13px; color: var(--dl-muted, #6b665d); text-decoration: none; }
-.pellier-signin a:focus-visible, .pellier-signin button:focus-visible { outline: 2px solid #7a263a; outline-offset: 4px; }
-.pellier-signin-portrait { position: relative; isolation: isolate; min-width: 0; }
+.pellier-signin-alternative, .pellier-signin-back { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; margin-top: 12px; padding: 11px 18px; border: 1px solid var(--rule-2); border-radius: 999px; font: 400 13px/1.5 var(--sans); color: var(--dl-ink); text-align: center; text-decoration: none; }
+.pellier-signin-alternative:hover, .pellier-signin-back:hover { border-color: var(--pellier-burgundy); color: var(--pellier-burgundy); background: var(--cream); }
+.pellier-signin-home { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; align-self: flex-start; padding: 10px 16px; border: 1px solid var(--rule-2); border-radius: 999px; font-size: 13px; color: var(--dl-muted, #6b665d); text-decoration: none; }
+.pellier-signin-home:hover { border-color: var(--pellier-burgundy); color: var(--pellier-burgundy); }
+.pellier-signin a:focus-visible, .pellier-signin button:focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 4px; }
+.pellier-signin-portrait { position: relative; isolation: isolate; min-width: 0; margin: 12px 12px 12px 0; overflow: hidden; border-radius: var(--pellier-image-radius-lg); }
 .pellier-signin-portrait picture, .pellier-signin-portrait img { position: absolute; inset: 0; height: 100%; width: 100%; object-fit: cover; }
 .pellier-signin-portrait::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(31 20 16 / 0.78)); }
 .pellier-signin-portrait > div { position: absolute; z-index: 1; bottom: 40px; left: 36px; right: 30px; color: #fbf8f2; }
@@ -35,15 +39,15 @@
 .pellier-signin-portrait p { font: 400 34px/1.2 var(--display); letter-spacing: -0.02em; margin-top: 12px; }
 @media (max-width: 899px) {
   .pellier-signin { padding: 24px; }
-  .pellier-signin-shell { grid-template-columns: 1fr; width: min(480px, 100%); min-height: min(680px, calc(100dvh - 48px)); }
+  .pellier-signin-shell { grid-template-columns: 1fr; width: min(480px, 100%); min-height: min(680px, calc(100dvh - var(--pellier-surface-bar-height, 64px) - 48px)); }
   .pellier-signin-portrait { display: none; }
-  .pellier-signin-form-panel { padding: 28px 32px 20px; }
+  .pellier-signin-form-panel { padding: 28px 32px 24px; }
 }
 @media (max-width: 480px) {
-  .pellier-signin { padding: 0; place-items: stretch; }
-  .pellier-signin-shell { width: 100%; border-radius: 0; box-shadow: none; min-height: 100dvh; }
-  .pellier-signin-form-panel { padding: 28px 24px 18px; }
-  .pellier-signin-content { padding-block: 32px; }
+  .pellier-signin { padding: 16px 12px; place-items: stretch; }
+  .pellier-signin-shell { width: 100%; border-radius: 24px; min-height: calc(100dvh - var(--pellier-surface-bar-height, 56px) - 32px); }
+  .pellier-signin-form-panel { padding: 24px 20px 20px; }
+  .pellier-signin-content { padding-block: 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pellier-signin-submit, .pellier-signin-field input { transition: none; }

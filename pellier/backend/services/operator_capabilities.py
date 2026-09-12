@@ -88,11 +88,12 @@ GOVERNED_WRITE_TOOLS: Tuple[str, ...] = (
     "initiate_return",
     "escalate_to_human",
     "issue_credit",
+    "replace_damaged_item",
 )
 
 # Governed writes that additionally require a human decision before execution, via
 # the existing review rail. Being in this set does not make a tool available.
-REVIEW_GATED_TOOLS: Tuple[str, ...] = ("initiate_return", "issue_credit")
+REVIEW_GATED_TOOLS: Tuple[str, ...] = ("initiate_return", "issue_credit", "replace_damaged_item")
 
 # Local read paths the Concierge depends on. These do not traverse the Gateway.
 READ_CAPABILITIES: Tuple[str, ...] = (

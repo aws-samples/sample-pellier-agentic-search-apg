@@ -62,7 +62,7 @@ EXPECTED_PUBLISHED: Set[str] = {
     "get_customer_preferences", "get_audit_trail", "get_trending_products",
     "get_return_policy", "get_related_products",
     "initiate_return", "escalate_to_human",
-    "issue_credit",
+    "issue_credit", "replace_damaged_item",
 }
 
 EXPECTED_TARGETS: Dict[str, Set[str]] = {
@@ -75,7 +75,7 @@ EXPECTED_TARGETS: Dict[str, Set[str]] = {
         "get_customer_preferences", "get_audit_trail", "get_trending_products",
         "get_return_policy", "get_related_products",
     },
-    "pellier-concierge-experience-target": {"initiate_return", "escalate_to_human", "issue_credit"},
+    "pellier-concierge-experience-target": {"initiate_return", "escalate_to_human", "issue_credit", "replace_damaged_item"},
 }
 
 RETIRED = {
@@ -119,8 +119,8 @@ def test_the_deferred_set_is_restock_and_the_lab_three_read() -> None:
 def test_the_published_set_is_derived_not_hand_copied() -> None:
     """Catalogue minus deferred. A second literal list would drift on the next tool."""
     assert workshop_published_tools() == canonical_tool_names() - WORKSHOP_DEFERRED_TOOLS
-    assert len(canonical_tool_names()) == 17
-    assert len(workshop_published_tools()) == 15
+    assert len(canonical_tool_names()) == 18
+    assert len(workshop_published_tools()) == 16
 
 
 def test_every_published_name_is_unique() -> None:
@@ -143,7 +143,7 @@ def test_no_deferred_name_is_published() -> None:
 def test_the_experience_target_publishes_the_three_governed_actions() -> None:
     """`get_ticket_history` lives on this target and must not ship before Lab 3a."""
     served = [t["name"] for t in schema_for("experience", workshop=True)]
-    assert served == ["initiate_return", "issue_credit", "escalate_to_human"]
+    assert served == ["initiate_return", "issue_credit", "escalate_to_human", "replace_damaged_item"]
     full = [t["name"] for t in schema_for("experience", workshop=False)]
     assert set(full) - set(served) == {"get_ticket_history"}
 
@@ -161,6 +161,7 @@ def test_the_fresh_policy_set_is_exactly_the_named_baseline_and_scoped_reads() -
         "initiate_return_shopper_damaged",
         "initiate_return_staff_scope",
         "issue_credit_staff_scope",
+        "replace_damaged_item_staff_scope",
     }
 
 
@@ -289,7 +290,7 @@ def test_the_baseline_permits_exactly_the_eleven_catalogue_reads() -> None:
         for target, tools in EXPECTED_TARGETS.items()
         for tool in tools
         if tool not in {
-            "initiate_return", "restock_inventory", "issue_credit",
+            "initiate_return", "restock_inventory", "issue_credit", "replace_damaged_item",
             "get_customer_preferences", "get_audit_trail",
         }
     }
@@ -655,15 +656,15 @@ def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> No
     backend = _os.path.abspath(".")
     if backend not in _sys.path:
         _sys.path.insert(0, backend)
-    from services.agentcore_gateway import LOCAL_MCP_TOOL_NAMES
+    from services.agentcore_gateway import LOCAL_MCP_TOOL_NAMES, GATEWAY_ONLY_OPERATOR_TOOLS
 
-    catalogue = set(LOCAL_MCP_TOOL_NAMES)
+    catalogue = set(LOCAL_MCP_TOOL_NAMES) | GATEWAY_ONLY_OPERATOR_TOOLS
     assert catalogue == canonical_tool_names(), (
         "the application catalogue and the Gateway schemas disagree: "
         f"{sorted(catalogue ^ canonical_tool_names())}"
     )
     assert catalogue - WORKSHOP_DEFERRED_TOOLS == workshop_published_tools()
-    assert len(LOCAL_MCP_TOOL_NAMES) == len(catalogue), "a name is listed twice"
+    assert len(LOCAL_MCP_TOOL_NAMES) == len(set(LOCAL_MCP_TOOL_NAMES)), "a name is listed twice"
 
 def test_the_handoff_contract_names_every_baseline_policy() -> None:
     """The doc that tells a facilitator what ships must not drift from what ships.

@@ -985,6 +985,34 @@ const CONFIRMED_DETAIL = {
 }
 
 describe('ReviewRecord execution', () => {
+  it('recovers an uncertain replacement using the same review and fingerprint after an explicit click', async () => {
+    const posted: unknown[] = []
+    const uncertain = {
+      ...CONFIRMED_DETAIL,
+      review: {
+        ...CONFIRMED_DETAIL.review, action: 'replace_damaged_item',
+        executionTurnId: 'turn-' + 'b'.repeat(32),
+        assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'OUTCOME_UNKNOWN', evidence: 'ATTEMPT_RECEIPT' },
+      },
+    }
+    mockFetch((url, init) => {
+      if (init?.method === 'POST' && url.endsWith('/execute')) {
+        posted.push({ url, body: JSON.parse(String(init.body)) })
+        return { status: 503, body: { detail: 'operator_unavailable' } }
+      }
+      return { body: uncertain }
+    })
+    renderRecord()
+    const recover = await screen.findByRole('button', { name: 'Recover this approved action' })
+    expect(posted).toHaveLength(0)
+    expect(screen.getByTestId('operator-assurance-aurora')).toHaveTextContent('Outcome needs checking')
+    fireEvent.click(recover)
+    await waitFor(() => expect(posted).toEqual([{
+      url: '/api/operator/reviews/12/execute', body: { expectedActionHash: THEO_HASH },
+    }]))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recover this approved action' })).not.toBeInTheDocument())
+  })
+
   it('offers execute only after a human has confirmed', async () => {
     mockFetch(() => ({ body: REVIEW_DETAIL }))
     renderRecord()
@@ -1133,7 +1161,7 @@ describe('ReviewRecord execution', () => {
     fireEvent.click(await screen.findByTestId('operator-review-execute'))
 
     expect(await screen.findByTestId('operator-review-receipt')).toHaveTextContent('pellier-policy')
-    expect(screen.getByTestId('operator-review-client')).toHaveTextContent('Completed')
+    expect(screen.getByRole('complementary', { name: 'Proposed action and decision' })).toHaveTextContent('Completed')
   })
 
   it('renders the allowed outcome from the execution, not from the confirmation', async () => {

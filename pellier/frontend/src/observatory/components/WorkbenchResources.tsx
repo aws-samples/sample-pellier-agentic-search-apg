@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { ArrowUpRight, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import './WorkbenchResources.css';
@@ -37,6 +37,12 @@ const RESOURCE_QUESTIONS: readonly ResourceQuestion[] = [
         path: '/observatory/proof-board',
 
         source: 'policy, tool_audit and write receipts per lab',
+      },
+      {
+        label: 'Replacement recovery',
+        description: 'An exact approval, reservation, outbox, and fulfillment history.',
+        path: '/observatory/replacement',
+        source: 'approvals, replacements, replacement_outbox, replacement_events',
       },
     ],
   },
@@ -192,7 +198,7 @@ export default function WorkbenchResources({
         <div className="workbench-resources-canonical">
           <span>{VIEW_COUNT} reference views</span>
           <a href={GITHUB_REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
-            Workshop source <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden="true" />
+            Workshop source
           </a>
         </div>
       </header>
@@ -212,7 +218,7 @@ export default function WorkbenchResources({
               {group.links.map((resource) => (
                 <li key={resource.path}>
                   <div className="workbench-resource-view">
-                    <Link to={resource.path}>{resource.label}<ArrowUpRight size={16} aria-hidden="true" /></Link>
+                    <Link to={resource.path}>{resource.label}</Link>
                   </div>
                   <p className="workbench-resource-shows">{resource.description}</p>
                   <details className="workbench-source-disclosure">

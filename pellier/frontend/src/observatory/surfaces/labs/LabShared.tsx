@@ -258,7 +258,6 @@ export function LabActionBar({ exercise }: { exercise: LabExercise }) {
       {exercise.primaryAction ? (
         <Link to={exercise.primaryAction.to} className="lab-action-primary">
           {exercise.primaryAction.label}
-          <ArrowRight size={16} strokeWidth={1.8} aria-hidden="true" />
         </Link>
       ) : (
         <span className="lab-action-unavailable" role="status">

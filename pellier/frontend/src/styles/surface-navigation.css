@@ -1,0 +1,97 @@
+:root {
+  --pellier-surface-bar-height: 64px;
+  --pellier-storefront-nav-height: 60px;
+}
+
+.pellier-surface-bar {
+  position: sticky;
+  top: 0;
+  z-index: 55;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  height: var(--pellier-surface-bar-height);
+  padding-inline: var(--pellier-gutter);
+  background: var(--dl-ink);
+  color: var(--dl-paper);
+  font-family: var(--sans);
+}
+
+.pellier-brand {
+  display: inline-flex;
+  align-items: baseline;
+  justify-self: start;
+  color: var(--dl-paper);
+  font-family: var(--display);
+  font-size: 31px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -1.8px;
+  text-decoration: none;
+}
+
+.pellier-brand-dot { color: var(--pellier-burgundy-on-dark); }
+.pellier-brand-small { display: none; }
+.pellier-surface-links { display: flex; align-items: center; gap: 6px; }
+.pellier-surface-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 9px 20px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--dl-paper);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pellier-surface-number {
+  color: var(--pellier-burgundy-on-dark);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.pellier-surface-link:hover {
+  border-color: var(--pellier-burgundy-soft);
+  background: var(--pellier-burgundy-deep);
+}
+.pellier-surface-link[aria-current='page'] {
+  border-color: var(--cream-warm);
+  background: var(--cream-elev);
+  color: var(--pellier-burgundy);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .14), inset 0 0 0 2px var(--cream);
+}
+.pellier-surface-link[aria-current='page'] .pellier-surface-number {
+  color: var(--pellier-burgundy);
+}
+.pellier-surface-bar a:focus-visible {
+  outline: 2px solid var(--dl-paper);
+  outline-offset: 3px;
+}
+
+/* The local bars stay directly beneath the shared navigation. */
+.pellier-storefront-header,
+.operator-root .operator-topbar,
+.observatory-root .observatory-topbar {
+  top: var(--pellier-surface-bar-height);
+}
+
+@media (max-width: 760px) {
+  :root { --pellier-surface-bar-height: 56px; }
+  .pellier-surface-bar { grid-template-columns: auto 1fr; gap: 12px; padding-inline: 16px; }
+  .pellier-brand { font-size: 30px; letter-spacing: -1px; }
+  .pellier-brand-full { display: none; }
+  .pellier-brand-small { display: inline; }
+  .pellier-surface-links { justify-content: flex-end; gap: 3px; }
+  .pellier-surface-link { gap: 6px; min-height: 40px; padding: 9px 12px; font-size: 12px; }
+  .pellier-surface-number { font-size: 10px; }
+}
+@media (max-width: 380px) {
+  .pellier-surface-bar { padding-inline: 10px; gap: 8px; }
+  .pellier-surface-link { padding-inline: 8px; gap: 5px; }
+}

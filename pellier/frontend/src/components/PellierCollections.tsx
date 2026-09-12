@@ -6,7 +6,6 @@
  * category pages the router does not serve would be a dead end for a shopper
  * and a false claim in a workshop about grounded answers.
  */
-import { ArrowRight } from 'lucide-react'
 import { COLLECTIONS } from '../copy'
 import ResponsiveImage from './ResponsiveImage'
 
@@ -40,7 +39,6 @@ export default function PellierCollections({
             onClick={onOpenCatalog}
           >
             {COLLECTIONS.VIEW_ALL}
-            <ArrowRight size={16} aria-hidden="true" />
           </button>
         </header>
 
@@ -66,9 +64,6 @@ export default function PellierCollections({
               <div className="pellier-mood-copy">
                 <h3>{collection.title}</h3>
                 <p>{collection.description}</p>
-                <span className="pellier-mood-arrow" aria-hidden="true">
-                  <ArrowRight size={15} />
-                </span>
               </div>
               <button
                 type="button"

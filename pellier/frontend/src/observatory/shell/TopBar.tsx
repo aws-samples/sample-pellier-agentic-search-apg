@@ -9,7 +9,6 @@
 import React from 'react';
 import { LibraryBig, ScanLine } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import PellierHomeLink from '../../components/PellierHomeLink';
 import { usePersona } from '../../contexts/PersonaContext';
 import { PresencePill } from '../../shared';
 import { NAV } from '../../copy';
@@ -72,7 +71,6 @@ const TopBar: React.FC = () => {
           <PresencePill surface="observatory" personaId={persona?.id} />
         </div>
 
-        <PellierHomeLink testId="back-to-pellier" />
       </div>
     </header>
   );

@@ -200,6 +200,7 @@ const OperatorConcierge: React.FC<Props> = ({
   return (
     <section
       className="operator-concierge"
+      id="operator-concierge"
       aria-labelledby="operator-concierge-title"
       data-testid="operator-concierge"
     >
@@ -272,6 +273,8 @@ const OperatorConcierge: React.FC<Props> = ({
           <>
             <ConciergeConversation
               messages={concierge.messages}
+              customerId={clientId}
+              sessionId={concierge.sessionId}
               nextStep={nextStep}
               onRetry={!inFlight && concierge.composerEnabled
                 ? (request) => void concierge.submit(request) : undefined}
@@ -315,7 +318,6 @@ const OperatorConcierge: React.FC<Props> = ({
           {hasNextStep ? (
             <button type="button" className="operator-concierge-latest" onClick={focusNextStep}>
               {nextGuidedPrompt ? 'View optional follow-up' : 'Choose return details'}
-              <ArrowRight size={16} aria-hidden="true" />
             </button>
           ) : null}
         </nav>

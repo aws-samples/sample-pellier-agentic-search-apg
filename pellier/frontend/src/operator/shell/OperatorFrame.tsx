@@ -1,9 +1,9 @@
 /**
  * Pellier Operator shell.
  *
- * A slim top bar and an outlet. Deliberately NOT a left admin rail: the desk
- * has two destinations, the book and one client record, and a nav rail for two
- * destinations is furniture.
+ * A compact work-area rail beneath the shared three-surface navigation.
+ * An open review keeps the authenticated queue beside the case, so inspecting
+ * one request does not lose the rest of the desk.
  *
  * Mounted on `.operator-root`, which is intentionally not nested inside
  * `.pellier-page-surface` or `.observatory-root`. Both of those force headings
@@ -17,13 +17,16 @@ import React, {
   useContext,
   useEffect,
 } from 'react'
-import { ClipboardCheck, LogOut, User, UsersRound } from 'lucide-react'
+import { ClipboardCheck, LogOut, MessageCircle, User } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import PellierHomeLink from '../../components/PellierHomeLink'
+import ReviewQueuePanel from '../components/ReviewQueuePanel'
+import ClientBookNavigation from '../components/ClientBookNavigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { ReviewQueueContext, useQueueResource, useReviewQueue } from '../hooks/useReviewQueue'
+import { ClientBookContext, useClientBookResource } from '../hooks/useClientBook'
 import { redirectToSignIn } from '../../utils/auth'
 import '../styles/operator.css'
+import '../styles/operator-desk.css'
 
 const OperatorQueueRefreshContext = createContext<() => void>(() => undefined)
 
@@ -33,6 +36,7 @@ const OperatorQueueRefreshContext = createContext<() => void>(() => undefined)
  * storefront, the desk and the Observatory open could not tell the tabs apart.
  */
 const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
+  ['/operator/chat', 'Operator chat'],
   ['/operator/clients/', 'Client'],
   ['/operator/reviews/', 'Review'],
   ['/operator/reviews', 'Action Queue'],
@@ -111,7 +115,7 @@ const PendingReviewLink: React.FC = () => {
               : 'No prepared request is waiting'
           }
         >
-          {pending} pending
+          {pending}<span className="sr-only"> pending</span>
         </span>
       )}
     </NavLink>
@@ -176,8 +180,11 @@ function presentIdentity(value: string): string {
 }
 
 const OperatorFrame: React.FC = () => {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
+  const onClient = pathname.startsWith('/operator/clients/')
+  const chatActive = pathname === '/operator/chat' || (onClient && hash.startsWith('#operator-concierge'))
   const resource = useQueueResource()
+  const clientBook = useClientBookResource()
   useEffect(() => {
     const previous = document.title
     document.title = operatorTitleForPath(pathname)
@@ -187,9 +194,29 @@ const OperatorFrame: React.FC = () => {
   }, [pathname])
 
   return (
+    <ClientBookContext.Provider value={clientBook}>
     <ReviewQueueContext.Provider value={resource}>
     <OperatorQueueRefreshContext.Provider value={resource.refresh}>
       <div className="operator-root" data-testid="operator-root">
+        <div className="operator-workspace-layout">
+          <aside className="operator-sidebar">
+            <p className="operator-sidebar-label">Operator workspace</p>
+              <nav className="operator-topbar-nav" aria-label="Operator sections">
+                <ClientBookNavigation />
+                <Link
+                  to={onClient ? `${pathname}#operator-concierge` : '/operator/chat?membership=all'}
+                  className={`operator-topbar-link operator-chat-nav-link${chatActive ? ' operator-topbar-link-active' : ''}`}
+                  aria-current={chatActive ? 'page' : undefined}
+                  data-testid="operator-chat-link"
+                >
+                  <MessageCircle className="operator-topbar-icon" aria-hidden />
+                  <span className="operator-topbar-label">Operator chat</span>
+                </Link>
+                <PendingReviewLink />
+              </nav>
+            <p className="operator-sidebar-note">The client, the request, and the evidence for a considered decision.</p>
+          </aside>
+          <div className="operator-workspace-content">
         <header className="operator-topbar" data-testid="operator-topbar">
           <div className="operator-topbar-inner">
             <div className="operator-topbar-start">
@@ -201,31 +228,24 @@ const OperatorFrame: React.FC = () => {
               </span>
             </div>
             <div className="operator-topbar-end">
-              <nav className="operator-topbar-nav" aria-label="Operator sections">
-                <NavLink
-                  to="/operator"
-                  end
-                  className={({ isActive }) =>
-                    `operator-topbar-link${isActive ? ' operator-topbar-link-active' : ''}`
-                  }
-                  title="Clients"
-                >
-                  <UsersRound className="operator-topbar-icon" aria-hidden />
-                  <span className="operator-topbar-label">Clients</span>
-                </NavLink>
-                <PendingReviewLink />
-              </nav>
               <OperatorAuthControl />
-              <PellierHomeLink testId="operator-exit" />
             </div>
           </div>
         </header>
         <main className="operator-shell">
-          <Outlet />
+          {pathname.startsWith('/operator/reviews/') ? (
+            <div className="operator-desk-layout">
+              <ReviewQueuePanel />
+              <div className="operator-desk-case"><Outlet /></div>
+            </div>
+          ) : <Outlet />}
         </main>
+          </div>
+        </div>
       </div>
     </OperatorQueueRefreshContext.Provider>
     </ReviewQueueContext.Provider>
+    </ClientBookContext.Provider>
   )
 }
 

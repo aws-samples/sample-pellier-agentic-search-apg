@@ -1374,7 +1374,7 @@
   position: relative;
   overflow: hidden;
   margin-bottom: 18px;
-  border-radius: var(--op-radius);
+  border-radius: var(--pellier-image-radius-lg);
   background: var(--op-band-ground);
   box-shadow: var(--op-shadow-paper);
 
@@ -1678,13 +1678,13 @@
    list icon: a client row shows a 72px portrait, so an order row showing the
    same piece at 36px read as a different, lesser surface. 4:5 because that is
    the catalog's committed aspect ratio — a square crop cuts the pieces.
-   88px at 8px corners: the order history is a ledger of PIECES, and the piece
+   88px with thumbnail corners: the order history is a ledger of PIECES, and the piece
    has to be the largest thing in its own row. */
 .operator-thumb {
   width: 88px;
   height: 110px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--pellier-image-radius-sm);
   background: var(--op-paper-2);
   display: block;
 }
@@ -1697,7 +1697,7 @@
   place-items: center;
   width: 88px;
   height: 110px;
-  border-radius: 8px;
+  border-radius: var(--pellier-image-radius-sm);
   background: linear-gradient(
     160deg,
     color-mix(in srgb, var(--op-authority) 16%, var(--op-paper-2)),
@@ -1946,6 +1946,7 @@
   justify-content: center;
   border-color: rgb(31 20 16 / 0.5);
   background: var(--op-ink);
+  border-radius: var(--pellier-image-radius-lg);
   /* EmptyState sets its colours inline, so they are unreachable from here by
      any selector. They resolve through these three custom properties, which
      are not: redefining them on the container retones the primitive without a
@@ -2241,7 +2242,7 @@
   display: grid;
   grid-template-columns:
     56px minmax(240px, 1.35fr) minmax(170px, 0.85fr)
-    minmax(150px, 0.65fr) 18px;
+    minmax(150px, 0.65fr);
   align-items: center;
   gap: 20px;
   width: 100%;
@@ -2381,60 +2382,18 @@
   grid-column: 1 / -1;
 }
 
-.operator-review-record-layout > .operator-review-context-card {
-  grid-column: 1;
-  grid-row: 4;
+/* Follow the document order. Fixed grid rows placed new requester and
+   overview blocks after the proposal, leaving the client identity below the
+   decision. Full-width evidence can now grow without displacing the header. */
+.operator-review-record-layout > .operator-review-context-card,
+.operator-review-record-layout > .operator-review-recommendation-card,
+.operator-review-record-layout > .operator-review-action-card,
+.operator-review-record-layout > .operator-review-decision-card {
+  grid-column: auto;
 }
-
-.operator-review-record-layout > .operator-review-handoff-card {
-  grid-column: 1 / -1;
-  grid-row: 4;
-}
-
-/* Desktop-only row assignments. The `:has()` selectors below carry more
-   specificity than the single-column reset in the 860px media block, so
-   without this guard they survived into the phone layout and stacked the
-   action and decision cards on the same grid row: the proposed action's
-   parameter table rendered underneath the decision buttons. */
-@media (min-width: 861px) {
-  .operator-review-record-layout:has(.operator-review-handoff-card)
-    > .operator-review-context-card,
-  .operator-review-record-layout:has(.operator-review-handoff-card)
-    > .operator-review-recommendation-card {
-    grid-row: 5;
-  }
-
-  .operator-review-record-layout:has(.operator-review-handoff-card)
-    > .operator-review-order-card {
-    grid-row: 6;
-  }
-
-  .operator-review-record-layout:has(.operator-review-handoff-card)
-    > .operator-review-action-card,
-  .operator-review-record-layout:has(.operator-review-handoff-card)
-    > .operator-review-decision-card {
-    grid-row: 7;
-  }
-}
-
-.operator-review-record-layout > .operator-review-recommendation-card {
-  grid-column: 2;
-  grid-row: 4;
-}
-
+.operator-review-record-layout > .operator-review-handoff-card,
 .operator-review-record-layout > .operator-review-order-card {
   grid-column: 1 / -1;
-  grid-row: 5;
-}
-
-.operator-review-record-layout > .operator-review-action-card {
-  grid-column: 1;
-  grid-row: 6;
-}
-
-.operator-review-record-layout > .operator-review-decision-card {
-  grid-column: 2;
-  grid-row: 6;
 }
 
 .operator-review-record-layout > .operator-card,
@@ -2975,7 +2934,7 @@
   }
 
   .operator-review-row {
-    grid-template-columns: 56px minmax(0, 1fr) 18px;
+    grid-template-columns: 56px minmax(0, 1fr);
     align-items: start;
     gap: 12px 16px;
   }
@@ -4937,7 +4896,7 @@
      reflow the card once it lands. */
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--pellier-image-radius-sm);
   background: var(--op-paper-2);
 }
 

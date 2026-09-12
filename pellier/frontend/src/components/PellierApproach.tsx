@@ -10,7 +10,7 @@
  * substantiates it.
  */
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, Compass, FileCheck2, Hand, ShieldCheck } from 'lucide-react'
+import { Compass, FileCheck2, Hand, Heart } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PELLIER_APPROACH } from '../copy'
@@ -18,7 +18,7 @@ import { splitHeadlineAtAccent } from '../utils/headlineAccent'
 import ResponsiveImage from './ResponsiveImage'
 
 /** Icons are positional, matching `PELLIER_APPROACH.PILLARS` order. */
-const PILLAR_ICONS: LucideIcon[] = [FileCheck2, Compass, Hand, ShieldCheck]
+const PILLAR_ICONS: LucideIcon[] = [FileCheck2, Compass, Hand, Heart]
 
 export default function PellierApproach() {
   const reduceMotion = useReducedMotion()
@@ -69,7 +69,6 @@ export default function PellierApproach() {
             data-testid="pellier-approach-cta"
           >
             {PELLIER_APPROACH.CTA_LABEL}
-            <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
 

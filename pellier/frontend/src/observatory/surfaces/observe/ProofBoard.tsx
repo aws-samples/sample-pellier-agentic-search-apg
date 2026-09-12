@@ -9,7 +9,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
-  ArrowRight,
   Cpu,
   Database,
   ExternalLink,
@@ -481,7 +480,6 @@ const GovernedProofRail: React.FC<{ cards: ProofCard[]; receipt: ManagedReceipt 
           {activeCard ? (
             <a href={`#${activeCard.id}`}>
               Open checkpoint
-              <ArrowRight size={15} aria-hidden="true" />
             </a>
           ) : (
             <p className="pellier-governed-proof-unavailable" role="status">

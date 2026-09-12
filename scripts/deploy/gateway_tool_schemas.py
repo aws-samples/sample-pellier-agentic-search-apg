@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Canonical AgentCore Gateway tool schemas for Pellier's four MCP targets."""
 
+from common.replacement_contract import REPLACEMENT_TOOL
 
 # AgentCore Gateway targets accept only this JSON-Schema keyword subset per
 # (sub)property. The CLI owns target deployment; this sanitizer keeps its
@@ -329,6 +330,8 @@ TOOL_SCHEMAS = {
     },
 }
 
+TOOL_SCHEMAS["experience"]["tools"].append(REPLACEMENT_TOOL)
+
 # ``turn_id`` is a route-minted correlation value. It is optional in the
 # Gateway schema so direct/instructor invocations remain valid, but the managed
 # Runtime dispatcher requires it on every shopper tool call and each Lambda
@@ -413,7 +416,7 @@ WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
 #
 # These two sets name why a tool can be missing from one caller's listing. They are
 # claim shapes, not a second catalogue: every name here is published.
-STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit"})
+STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit", "replace_damaged_item"})
 OWNER_SCOPED_GATEWAY_TOOLS: frozenset[str] = frozenset({
     "get_customer_preferences",
     "get_audit_trail",

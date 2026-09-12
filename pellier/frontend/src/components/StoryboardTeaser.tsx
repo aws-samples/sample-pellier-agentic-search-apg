@@ -133,7 +133,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           width: '100%',
           aspectRatio: '4 / 5',
           overflow: 'hidden',
-          borderRadius: 2,
+          borderRadius: 'var(--pellier-image-radius-md)',
           background: '#e8d8bc',
         }}
       >

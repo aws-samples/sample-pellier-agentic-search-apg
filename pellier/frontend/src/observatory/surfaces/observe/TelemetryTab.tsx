@@ -605,7 +605,7 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
     <div
       style={{
         height: '160px',
-        borderRadius: '8px',
+        borderRadius: 'var(--pellier-image-radius-md)',
         overflow: 'hidden',
         marginTop: '14px',
         marginBottom: '14px',

@@ -70,7 +70,7 @@
   position: relative;
   height: 160px;
   margin: 8px 12px 0;
-  border-radius: 8px;
+  border-radius: var(--pellier-image-radius-md);
   overflow: hidden;
   background:
     radial-gradient(ellipse 200px 120px at 70% 30%, rgba(250, 243, 232, 0.6), transparent 70%),
