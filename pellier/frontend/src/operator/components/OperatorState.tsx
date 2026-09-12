@@ -85,6 +85,7 @@ const OperatorState: React.FC<OperatorStateProps> = ({
         reason={reason ? <details className="operator-state-details"><summary>Technical details</summary><code>{reason}</code></details> : undefined}
         action={action}
         level={level}
+        size="page"
       />
     </div>
   </div>

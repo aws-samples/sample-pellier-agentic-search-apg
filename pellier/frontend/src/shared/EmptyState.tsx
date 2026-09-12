@@ -51,6 +51,8 @@ export interface EmptyStateProps {
   action?: React.ReactNode
   /** Heading rank for the headline. `1` when this state replaces the page. */
   level?: 1 | 2 | 3
+  /** Editorial scale for a state replacing the page, rather than a small panel. */
+  size?: 'panel' | 'page'
   align?: 'start' | 'center'
   className?: string
   'data-testid'?: string
@@ -63,11 +65,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   reason,
   action,
   level = 2,
+  size = 'panel',
   align = 'start',
   className,
   'data-testid': testId,
 }) => {
   const centered = align === 'center'
+  const pageSize = size === 'page'
   const Headline = `h${level}` as 'h1' | 'h2' | 'h3'
 
   return (
@@ -89,9 +93,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         className="font-display"
         style={{
           margin: 0,
-          maxWidth: '46ch',
+          maxWidth: pageSize ? '28ch' : '46ch',
           fontFamily: 'var(--display)',
-          fontSize: 'clamp(22px, 2vw, 24px)',
+          fontSize: pageSize ? 'clamp(26px, 2.5vw, 32px)' : 'clamp(22px, 2vw, 24px)',
           fontWeight: 400,
           lineHeight: 1.25,
           letterSpacing: '-0.012em',
@@ -106,9 +110,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           style={{
             margin: 0,
             maxWidth: '52ch',
-            fontFamily: 'var(--obs-sans)',
-            fontSize: '15px',
-            lineHeight: 1.55,
+            fontFamily: pageSize ? 'var(--sans)' : 'var(--obs-sans)',
+            fontSize: pageSize ? '16px' : '15px',
+            lineHeight: pageSize ? 1.65 : 1.55,
             color: 'var(--obs-ink-3)',
           }}
         >

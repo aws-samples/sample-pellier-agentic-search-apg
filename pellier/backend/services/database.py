@@ -421,6 +421,18 @@ class DatabaseService:
             await self._pool.close()
             self._is_connected = False
             logger.info("✅ Database pool closed")
+
+    async def check_health(self) -> None:
+        """Check a pooled connection without running business-query setup.
+
+        The pool's checkout callback performs a live PostgreSQL protocol probe.
+        Registering vector types and setting query options adds several network
+        round trips and is unnecessary for this connectivity check.
+        """
+        if not self._is_connected or not self._pool:
+            raise RuntimeError("Database service not connected.")
+        async with self._pool.connection(timeout=3):
+            pass
     
     @asynccontextmanager
     async def get_connection(self) -> AsyncIterator[AsyncConnection]:
@@ -450,9 +462,13 @@ class DatabaseService:
         
         async with self._pool.connection() as conn:
             try:
-                # Register pgvector for this connection (async version)
-                from pgvector.psycopg import register_vector_async
-                await register_vector_async(conn)
+                # Adapters belong to the physical connection. Re-registering
+                # on every borrow repeats four type-catalog round trips, which
+                # can exhaust a request deadline over a remote SSM tunnel.
+                if not getattr(conn, "_pellier_vector_registered", False):
+                    from pgvector.psycopg import register_vector_async
+                    await register_vector_async(conn)
+                    conn._pellier_vector_registered = True
                 # Defense in depth: re-assert iterative_scan on every acquire
                 # in case the pool configure callback didn't run (invalidated
                 # connection replay, future refactor, etc.)

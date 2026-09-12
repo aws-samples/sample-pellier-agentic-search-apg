@@ -64,18 +64,9 @@ export const NAV = {
   ACCOUNT: "Account",
   ASK_PELLIER: "Ask Pellier",
   WORDMARK: "Pellier",
-  /** The inspection surface. Renamed from "Pellier Labs": participants read
-   *  "Labs" as a fifth lab they still owed, on top of the four required ones. */
+  /** The core participant surface for labs and connected system evidence. */
   OBSERVATORY: "Pellier Observatory",
-  /** Sits beside every entry point into the Observatory. The surface is worth
-   *  exploring and is not required to finish the workshop, and a participant
-   *  watching the clock deserves to know which of those is true before they
-   *  click rather than after. */
-  OBSERVATORY_OPTIONAL: "Optional",
-  /** The clienteling desk. Staff-facing, so it sits beside the Observatory
-   *  rather than among the shopper destinations. Unlike the Observatory it
-   *  carries no "Optional" badge: it is a working surface, not an inspection
-   *  one. */
+  /** The clienteling desk, connected to Storefront conversations and Observatory evidence. */
   OPERATOR: "Pellier Operator",
 } as const;
 
@@ -468,10 +459,6 @@ export const CATEGORY_CHIPS = [
 
 // Refinement panel (Requirement 1.8.1)
 export const REFINEMENT = {
-  // Single-letter mark inside the brand circle. "P" matches the
-  // header wordmark - the refinement chip and the header speak with
-  // the same brand voice.
-  B_MARK_PREFIX: "P",
   PROMPT: "Pellier here, want me to narrow this down?",
   CHIPS: [
     "Under $100",

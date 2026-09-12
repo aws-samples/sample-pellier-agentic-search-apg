@@ -25,6 +25,7 @@ const CANONICAL_PERSONA_PORTRAITS: Record<string, string> = {
 
 /** Avatar-sized crops for interface chrome. */
 export const PERSONA_PHOTOS: Record<string, string> = {
+  fresh: '/favicon.svg',
   ...CANONICAL_PERSONA_PORTRAITS,
 }
 
@@ -37,6 +38,7 @@ export const PERSONA_PORTRAITS: Record<string, string> = {
  * Edge-to-edge crops for the portrait-led persona modal.
  */
 export const PERSONA_MODAL_PORTRAITS: Record<string, string> = {
+  fresh: '/favicon.svg',
   ...CANONICAL_PERSONA_PORTRAITS,
 }
 

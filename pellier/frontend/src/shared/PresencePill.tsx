@@ -14,9 +14,8 @@
  *               indistinguishable from a measurement.
  *
  * Used on the Pellier capability strip (cream-tinted, glass background)
- * and on the Observatory TopBar. Both bars are light, so both variants
- * use dark text: Pellier keeps the editorial ink family, Observatory uses
- * the green "live surface" family.
+ * and on the Observatory TopBar. Both use Pellier's warm paper and ink.
+ * Only a verified online Observatory dot uses the positive-status color.
  *
  * Pass `sessionLabel=""` explicitly to force-hide the fragment.
  */
@@ -286,20 +285,22 @@ export const PresencePill: React.FC<PresencePillProps> = ({
         display: 'inline-flex',
         alignItems: 'center',
         gap: 10,
-        padding: '6px 12px',
+        padding: isObservatory ? '8px 14px' : '6px 12px',
         borderRadius: 999,
         border: isObservatory
-          ? '1px solid rgba(63, 98, 18, 0.2)'
+          ? '1px solid color-mix(in srgb, var(--pellier-burgundy) 18%, var(--rule-1))'
           : '1px solid color-mix(in srgb, var(--dl-ink) 16%, transparent)',
         background: isObservatory
-          ? 'rgba(63, 98, 18, 0.08)'
+          ? 'var(--cream-elev)'
           : 'color-mix(in srgb, var(--cream-warm) 72%, transparent)',
         backdropFilter: isObservatory ? 'none' : 'blur(6px)',
+        boxShadow: isObservatory ? 'inset 0 1px 0 rgb(255 255 255 / 65%), 0 3px 10px rgb(60 40 10 / 4%)' : undefined,
         fontFamily: 'var(--sans), system-ui, sans-serif',
-        fontSize: '11px',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color: isObservatory ? '#334f13' : 'var(--ink)',
+        fontSize: isObservatory ? '13px' : '11px',
+        letterSpacing: isObservatory ? '0.01em' : '0.12em',
+        textTransform: isObservatory ? 'none' : 'uppercase',
+        lineHeight: 1.3,
+        color: isObservatory ? 'var(--pellier-burgundy)' : 'var(--ink)',
         fontWeight: 500,
       }}
     >
@@ -310,7 +311,9 @@ export const PresencePill: React.FC<PresencePillProps> = ({
           width: 7,
           height: 7,
           borderRadius: 999,
-          background: isObservatory ? 'var(--obs-green-1)' : ACCENT,
+          background: isObservatory
+            ? reachable === true ? 'var(--gov-allow-fg)' : 'var(--pellier-burgundy)'
+            : ACCENT,
           animation,
           flexShrink: 0,
         }}
@@ -322,12 +325,12 @@ export const PresencePill: React.FC<PresencePillProps> = ({
             fontFamily: 'var(--mono)',
             fontSize: 11,
             letterSpacing: '0.06em',
-            color: isObservatory ? 'rgba(51, 79, 19, 0.72)' : 'var(--ink-soft)',
+            color: 'var(--ink-soft)',
             textTransform: 'none',
             marginLeft: 4,
             paddingLeft: 10,
             borderLeft: isObservatory
-              ? '1px solid rgba(63, 98, 18, 0.25)'
+              ? '1px solid var(--rule-2)'
               : '1px solid color-mix(in srgb, var(--dl-ink) 18%, transparent)',
           }}
         >

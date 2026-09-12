@@ -43,6 +43,7 @@ import { nextJourneyPrompt } from '../data/workshopJourneys'
 import { CHAT_TRUST, SCENARIO } from '../copy'
 import '../styles/pellier-chat.css'
 import '../styles/pellier-welcome.css'
+import PellierMark from './PellierMark'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -447,7 +448,7 @@ function AgentMessage({
     >
       {/* Eyebrow */}
       <div className="ec-msg-agent-eyebrow">
-        <span className="ec-b-mini">P</span>
+        <PellierMark size={18} />
         Pellier
       </div>
 

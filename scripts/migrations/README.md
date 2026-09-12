@@ -125,6 +125,16 @@ FKs.
 51. **`051_review_requester.sql`** binds each review to the verified subject
     whose turn opened it, or records that none was present, so an anonymous
     persona session can never read as the customer it named.
+52. **`052_replacement_recovery.sql`** adds an approval-bound replacement
+    transaction, durable result, outbox, and a separate fulfillment worker role.
+    It does not seed a damage report or reserve any stock.
+53. **`053_replacement_follow_up.sql`** records workflow follow-up separately
+    from provider state and supports bounded observation of terminal executions.
+
+The replacement path also needs its Gateway target, Cedar policy, and worker.
+Follow `scripts/deploy/REPLACEMENT_RECOVERY.md` for that activation order.
+The local workshop reset refuses when replacement records exist, because it
+cannot quiesce their scheduled worker or Step Functions executions.
 
 ## Run
 
@@ -187,7 +197,9 @@ for migration in \
     048_policy_decisions.sql \
     049_workshop_runs.sql \
     050_refine_guided_questions.sql \
-    051_review_requester.sql
+    051_review_requester.sql \
+    052_replacement_recovery.sql \
+    053_replacement_follow_up.sql
 do
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
         -U "$DB_USER" -d "$DB_NAME" \

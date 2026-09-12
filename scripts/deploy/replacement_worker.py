@@ -67,23 +67,97 @@ def record_state(replacement: str, state: str, *, key: str) -> dict:
         raise ValueError("invalid_replacement_transition")
     with _transaction() as tx:
         current = _sql(tx, """
-            SELECT status FROM pellier.replacements
+            SELECT status, workflow_resolution FROM pellier.replacements
              WHERE replacement_id = :replacement::uuid FOR UPDATE
         """, replacement=replacement)
         if not current:
             raise ValueError("replacement_not_found")
         previous = current[0]["status"]
+        resolution = current[0].get("workflow_resolution")
         # Delayed retries cannot undo a confirmed acceptance or shipment.
         if previous == "shipped" or (previous == "accepted" and state == "outcome_unknown"):
-            return {"replacementId": replacement, "state": previous}
+            return {"replacementId": replacement, "state": previous, "workflowResolution": resolution}
         _sql(tx, """
             UPDATE pellier.replacements SET status = :state::text, updated_at = now(),
                 provider_operation_id = CASE WHEN :state::text IN ('accepted', 'shipped')
-                    THEN 'simulator:' || replacement_id::text ELSE provider_operation_id END
+                    THEN 'simulator:' || replacement_id::text ELSE provider_operation_id END,
+                workflow_resolution = CASE WHEN :state::text = 'shipped'
+                    THEN 'shipment_recorded' ELSE workflow_resolution END
              WHERE replacement_id = :replacement::uuid
         """, replacement=replacement, state=state)
         _event(tx, replacement, key, state, provider="workshop-simulator")
-    return {"replacementId": replacement, "state": state}
+    return {
+        "replacementId": replacement, "state": state,
+        "workflowResolution": "shipment_recorded" if state == "shipped" else resolution,
+    }
+
+
+def request_operator_review(replacement: str, *, reason: str = "fulfillment_unresolved") -> dict:
+    # Keep raw Step Functions Cause payloads and callback tokens out of evidence.
+    if reason not in {
+        "fulfillment_unresolved", "workflow_failed", "workflow_timed_out",
+        "workflow_aborted", "workflow_ended_without_shipment",
+    }:
+        raise ValueError("invalid_follow_up_reason")
+    with _transaction() as tx:
+        current = _sql(tx, """
+            SELECT status, workflow_resolution FROM pellier.replacements
+             WHERE replacement_id = :replacement::uuid FOR UPDATE
+        """, replacement=replacement)
+        if not current:
+            raise ValueError("replacement_not_found")
+        row = current[0]
+        resolution = row.get("workflow_resolution")
+        # Shares the shipment row lock: either shipment closes this follow-up,
+        # or the late timeout observes shipment and leaves it closed.
+        if row["status"] != "shipped" and resolution != "operator_review_required":
+            _sql(tx, """
+                UPDATE pellier.replacements
+                   SET workflow_resolution = 'operator_review_required', updated_at = now()
+                 WHERE replacement_id = :replacement::uuid
+            """, replacement=replacement)
+            _event(tx, replacement, "operator-follow-up", "operator_review_required", reason=reason)
+            resolution = "operator_review_required"
+    return {"replacementId": replacement, "state": row["status"], "workflowResolution": resolution}
+
+
+def inspect_workflows() -> dict:
+    # A whole-execution timeout, abort, or uncatchable error cannot run its own
+    # Catch handler. The existing scheduled worker observes terminal executions.
+    # Rotate bounded batches so one long-running callback cannot starve later rows.
+    with _transaction() as tx:
+        rows = _sql(tx, """
+            WITH candidate AS (
+                SELECT replacement_id FROM pellier.replacements
+                 WHERE workflow_execution_arn IS NOT NULL
+                   AND workflow_resolution IS NULL AND status <> 'shipped'
+                 ORDER BY workflow_checked_at NULLS FIRST, created_at
+                 LIMIT 10 FOR UPDATE SKIP LOCKED
+            )
+            UPDATE pellier.replacements r SET workflow_checked_at = now()
+              FROM candidate c WHERE r.replacement_id = c.replacement_id
+            RETURNING r.replacement_id::text, r.workflow_execution_arn
+        """)
+    reasons = {
+        "FAILED": "workflow_failed", "TIMED_OUT": "workflow_timed_out",
+        "ABORTED": "workflow_aborted", "SUCCEEDED": "workflow_ended_without_shipment",
+    }
+    follow_ups = 0
+    failures = []
+    for row in rows:
+        try:
+            execution = _states().describe_execution(executionArn=row["workflow_execution_arn"])
+            reason = reasons.get(execution["status"])
+            if reason:
+                outcome = request_operator_review(row["replacement_id"], reason=reason)
+                follow_ups += outcome["workflowResolution"] == "operator_review_required"
+        except Exception as error:
+            failures.append(error)
+    # One unreadable execution cannot repeatedly strand the rest of its batch.
+    # Still fail the invocation so operational monitoring sees the incomplete work.
+    if failures:
+        raise failures[0]
+    return {"checked": len(rows), "followUps": follow_ups}
 
 
 def relay() -> dict:
@@ -102,37 +176,47 @@ def relay() -> dict:
             RETURNING o.event_id::text, o.replacement_id::text, o.lease_token::text
         """)
     published = 0
+    failures = []
     for row in rows:
-        # Stable name AND byte-identical input make an uncertain StartExecution
-        # retry refer to the same Standard execution.
-        name = f"replacement-{row['event_id']}"
-        payload = json.dumps({
-            "replacementId": row["replacement_id"], "eventId": row["event_id"],
-        }, sort_keys=True, separators=(",", ":"))
-        states = _states()
         try:
-            execution = states.start_execution(stateMachineArn=machine, name=name, input=payload)["executionArn"]
-        except states.exceptions.ExecutionAlreadyExists:
-            execution = machine.replace(":stateMachine:", ":execution:") + ":" + name
-            existing = states.describe_execution(executionArn=execution)
-            if existing["input"] != payload:
-                raise ValueError("replacement_execution_input_conflict")
-        with _transaction() as tx:
-            saved = _sql(tx, """
-                UPDATE pellier.replacement_outbox
-                   SET published_at = now(), execution_arn = :execution::text, lease_until = NULL
-                 WHERE event_id = :event::uuid AND lease_token = :lease::uuid
-                   AND published_at IS NULL RETURNING replacement_id::text
-            """, event=row["event_id"], lease=row["lease_token"], execution=execution)
-            if saved:
-                _sql(tx, """
-                    UPDATE pellier.replacements SET workflow_execution_arn = :execution::text,
-                        status = CASE WHEN status = 'reserved' THEN 'awaiting_fulfillment' ELSE status END,
-                        updated_at = now() WHERE replacement_id = :replacement::uuid
-                """, replacement=row["replacement_id"], execution=execution)
-                _event(tx, row["replacement_id"], "workflow-started", "awaiting_fulfillment", executionArn=execution)
-                published += 1
+            published += _publish_outbox(row, machine)
+        except Exception as error:
+            failures.append(error)
+    if failures:
+        raise failures[0]
     return {"published": published}
+
+
+def _publish_outbox(row: dict, machine: str) -> int:
+    # Stable name AND byte-identical input make an uncertain StartExecution
+    # retry refer to the same Standard execution.
+    name = f"replacement-{row['event_id']}"
+    payload = json.dumps({
+        "replacementId": row["replacement_id"], "eventId": row["event_id"],
+    }, sort_keys=True, separators=(",", ":"))
+    states = _states()
+    try:
+        execution = states.start_execution(stateMachineArn=machine, name=name, input=payload)["executionArn"]
+    except states.exceptions.ExecutionAlreadyExists:
+        execution = machine.replace(":stateMachine:", ":execution:") + ":" + name
+        existing = states.describe_execution(executionArn=execution)
+        if existing["input"] != payload:
+            raise ValueError("replacement_execution_input_conflict")
+    with _transaction() as tx:
+        saved = _sql(tx, """
+            UPDATE pellier.replacement_outbox
+               SET published_at = now(), execution_arn = :execution::text, lease_until = NULL
+             WHERE event_id = :event::uuid AND lease_token = :lease::uuid
+               AND published_at IS NULL RETURNING replacement_id::text
+        """, event=row["event_id"], lease=row["lease_token"], execution=execution)
+        if saved:
+            _sql(tx, """
+                UPDATE pellier.replacements SET workflow_execution_arn = :execution::text,
+                    status = CASE WHEN status = 'reserved' THEN 'awaiting_fulfillment' ELSE status END,
+                    updated_at = now() WHERE replacement_id = :replacement::uuid
+            """, replacement=row["replacement_id"], execution=execution)
+            _event(tx, row["replacement_id"], "workflow-started", "awaiting_fulfillment", executionArn=execution)
+    return int(bool(saved))
 
 
 def dispatch(replacement: str) -> dict:
@@ -213,6 +297,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
     action = event.get("action")
     if action == "relay":
         return relay()
+    if action == "inspect_workflows":
+        return inspect_workflows()
     replacement = str(UUID(str(event["replacementId"])))
     if action == "dispatch":
         return dispatch(replacement)
@@ -222,4 +308,6 @@ def lambda_handler(event: dict, context: Any) -> dict:
         return register_callback(replacement, str(event.get("taskToken") or ""))
     if action == "record_shipment":
         return record_shipment(replacement)
+    if action == "request_operator_review":
+        return request_operator_review(replacement)
     raise ValueError("unknown_replacement_worker_action")

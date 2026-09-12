@@ -1,6 +1,7 @@
 :root {
   --pellier-surface-bar-height: 64px;
   --pellier-storefront-nav-height: 60px;
+  --pellier-nav-font-size: 14px;
 }
 
 .pellier-surface-bar {
@@ -31,7 +32,9 @@
   text-decoration: none;
 }
 
-.pellier-brand-dot { color: var(--pellier-burgundy-on-dark); }
+.pellier-brand-dot { color: var(--pellier-copper-on-dark); }
+.pellier-brand.pellier-brand-footer { color: var(--ink); font-size: 36px; }
+.pellier-brand-footer .pellier-brand-dot { color: var(--pellier-copper); }
 .pellier-brand-small { display: none; }
 .pellier-surface-links { display: flex; align-items: center; gap: 6px; }
 .pellier-surface-link {
@@ -44,7 +47,7 @@
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--dl-paper);
-  font-size: 14px;
+  font-size: var(--pellier-nav-font-size);
   font-weight: 500;
   letter-spacing: .01em;
   line-height: 1.2;
@@ -52,7 +55,7 @@
   white-space: nowrap;
 }
 .pellier-surface-number {
-  color: var(--pellier-burgundy-on-dark);
+  color: var(--pellier-copper-on-dark);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -67,7 +70,7 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / .14), inset 0 0 0 2px var(--cream);
 }
 .pellier-surface-link[aria-current='page'] .pellier-surface-number {
-  color: var(--pellier-burgundy);
+  color: var(--pellier-copper);
 }
 .pellier-surface-bar a:focus-visible {
   outline: 2px solid var(--dl-paper);
@@ -82,13 +85,13 @@
 }
 
 @media (max-width: 760px) {
-  :root { --pellier-surface-bar-height: 56px; }
+  :root { --pellier-surface-bar-height: 56px; --pellier-nav-font-size: 12px; }
   .pellier-surface-bar { grid-template-columns: auto 1fr; gap: 12px; padding-inline: 16px; }
   .pellier-brand { font-size: 30px; letter-spacing: -1px; }
   .pellier-brand-full { display: none; }
   .pellier-brand-small { display: inline; }
   .pellier-surface-links { justify-content: flex-end; gap: 3px; }
-  .pellier-surface-link { gap: 6px; min-height: 40px; padding: 9px 12px; font-size: 12px; }
+  .pellier-surface-link { gap: 6px; min-height: 40px; padding: 9px 12px; }
   .pellier-surface-number { font-size: 10px; }
 }
 @media (max-width: 380px) {

@@ -67,6 +67,9 @@ def _expected_policy_mode() -> str:
 def validate_receipt(payload: dict[str, Any]) -> list[str]:
     """Return human-readable contract violations; an empty list means ready."""
     errors: list[str] = []
+    content_redacted = _value(
+        payload, "observability.unified_trace.content_redacted"
+    ) is True
 
     expected_values = {
         "status": "ready",
@@ -82,6 +85,10 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         ),
         "observability.unified_trace.provenance": "agentcore-unified-telemetry",
         "verification.runtime_invoke_smoke.rail": "gateway-mcp",
+        "operator_runtime.authentication": "AWS_IAM",
+        "verification.operator_runtime_invoke_smoke.fixture": True,
+        "verification.operator_runtime_invoke_smoke.build_fingerprint_match": True,
+        "verification.runtime_invoke_smoke.build_fingerprint_match": True,
     }
     for path, expected in expected_values.items():
         actual = _value(payload, path)
@@ -90,6 +97,7 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
 
     for path in (
         "runtime.runtime_arn",
+        "operator_runtime.runtime_arn",
         "memory.memory_id",
         "gateway.gateway_id",
         "gateway.gateway_arn",
@@ -102,6 +110,8 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         "observability.control_plane_audit.resource_type",
         "observability.runtime_log_group.name",
         "observability.runtime_log_group.kms_key_arn",
+        "observability.operator_runtime_log_group.name",
+        "observability.operator_runtime_log_group.kms_key_arn",
         "observability.trace_log_groups.kms_key_arn",
         "observability.unified_trace.trace_id",
         "observability.unified_trace.session_id",
@@ -109,18 +119,25 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         "observability.unified_trace.runtime_log_group",
         "verification.runtime_invoke_smoke.session_id",
         "verification.runtime_invoke_smoke.response_preview",
+        "verification.runtime_invoke_smoke.build_fingerprint",
+        "verification.runtime_invoke_smoke.build_fingerprint_expected",
+        "verification.operator_runtime_invoke_smoke.runtime_arn",
+        "verification.operator_runtime_invoke_smoke.session_id",
+        "verification.operator_runtime_invoke_smoke.build_fingerprint",
     ):
         actual = _value(payload, path)
         if not isinstance(actual, str) or not actual.strip():
             errors.append(f"{path} must be a non-empty string")
 
-    for path in (
+    required_checks = (
         "verification.targets_attached",
         "verification.gateway_tools_discovered",
         "verification.memory_seeded",
         "verification.live_policy_allow",
         "verification.live_policy_deny",
         "verification.authenticated_runtime_invoke_smoke",
+        "verification.runtime_build_fingerprint_match",
+        "verification.operator_runtime_build_fingerprint_match",
         "verification.transaction_search_ready",
         "verification.trace_log_groups_encrypted",
         "verification.trace_log_groups_retention_bounded",
@@ -131,14 +148,49 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         "verification.unified_trace_agent_span",
         "verification.unified_trace_model_span",
         "verification.unified_trace_tool_span",
-        "verification.unified_trace_agent_input",
-        "verification.unified_trace_agent_output",
-        "verification.unified_trace_tool_io_structured",
         "verification.unified_trace_tool_io_sanitized",
         "verification.unified_trace_step_latency",
-    ):
+    )
+    if content_redacted:
+        required_checks += ("verification.unified_trace_content_redacted",)
+        for path, expected in {
+            "verification.unified_trace_agent_input": False,
+            "verification.unified_trace_agent_output": False,
+            "verification.unified_trace_tool_io_structured": None,
+            "observability.unified_trace.agent_input_observed": False,
+            "observability.unified_trace.agent_output_observed": False,
+            "observability.unified_trace.tool_input_output_observed": False,
+            "observability.unified_trace.tool_input_output_structured": None,
+        }.items():
+            if _value(payload, path) is not expected:
+                errors.append(f"{path} must be {expected!r} under content redaction")
+    else:
+        required_checks += (
+            "verification.unified_trace_agent_input",
+            "verification.unified_trace_agent_output",
+            "verification.unified_trace_tool_io_structured",
+        )
+        if _value(payload, "verification.unified_trace_content_redacted") is True:
+            errors.append("Content redaction verification must match the observed trace")
+    for path in required_checks:
         if _value(payload, path) is not True:
             errors.append(f"{path} must be true")
+
+    expected_build = _value(
+        payload, "verification.runtime_invoke_smoke.build_fingerprint_expected"
+    )
+    for runtime in ("runtime", "operator_runtime"):
+        if _value(payload, f"verification.{runtime}_invoke_smoke.build_fingerprint") != expected_build:
+            errors.append(f"{runtime} smoke must match the expected package fingerprint")
+    operator_arn = _value(payload, "operator_runtime.runtime_arn")
+    if operator_arn == _value(payload, "runtime.runtime_arn"):
+        errors.append("Operator must use a separate Runtime endpoint")
+    if _value(payload, "verification.operator_runtime_invoke_smoke.runtime_arn") != operator_arn:
+        errors.append("Operator smoke must match operator_runtime.runtime_arn")
+    if _value(payload, "verification.operator_runtime_invoke_smoke.executed_nodes") != [
+        "case-investigator", "resolution-planner"
+    ]:
+        errors.append("Operator smoke must prove both graph nodes in order")
 
     expected_counts = {
         "verification.local_tool_schema.count": 15,
@@ -180,17 +232,21 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         errors.append(
             "observability.unified_trace.span_count must include agent, model, and tool spans"
         )
-    for path in (
+    trace_checks = (
         "observability.unified_trace.agent_span",
         "observability.unified_trace.model_span",
         "observability.unified_trace.tool_span",
-        "observability.unified_trace.agent_input_observed",
-        "observability.unified_trace.agent_output_observed",
-        "observability.unified_trace.tool_input_output_observed",
-        "observability.unified_trace.tool_input_output_structured",
         "observability.unified_trace.tool_input_output_sanitized",
         "observability.unified_trace.step_latency_observed",
-    ):
+    )
+    if not content_redacted:
+        trace_checks += (
+            "observability.unified_trace.agent_input_observed",
+            "observability.unified_trace.agent_output_observed",
+            "observability.unified_trace.tool_input_output_observed",
+            "observability.unified_trace.tool_input_output_structured",
+        )
+    for path in trace_checks:
         if _value(payload, path) is not True:
             errors.append(f"{path} must be true")
 
@@ -204,28 +260,29 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
     else:
         for role, allowed in TRACE_ATTRIBUTE_ALLOWLISTS.items():
             observed = attribute_contract.get(role)
-            if observed not in allowed:
+            if content_redacted and observed is not None:
+                errors.append(
+                    f"observability.unified_trace.attribute_contract.{role} "
+                    "must be null under content redaction"
+                )
+            elif not content_redacted and observed not in allowed:
                 errors.append(
                     "observability.unified_trace.attribute_contract."
                     f"{role}={observed!r} is not allowlisted"
                 )
 
-    retention_days = _value(payload, "observability.runtime_log_group.retention_days")
-    if type(retention_days) is not int or retention_days <= 0:
-        errors.append(
-            "observability.runtime_log_group.retention_days must be a positive integer"
-        )
-    runtime_cleanup = _value(
-        payload, "observability.runtime_log_group.cleanup"
-    )
-    if (
-        not isinstance(runtime_cleanup, dict)
-        or type(runtime_cleanup.get("created_by_workshop")) is not bool
-        or runtime_cleanup.get("creation_pending") is True
-    ):
-        errors.append(
-            "observability.runtime_log_group.cleanup must capture ownership"
-        )
+    for runtime in ("runtime", "operator_runtime"):
+        log_path = f"observability.{runtime}_log_group"
+        retention_days = _value(payload, f"{log_path}.retention_days")
+        if type(retention_days) is not int or retention_days <= 0:
+            errors.append(f"{log_path}.retention_days must be a positive integer")
+        runtime_cleanup = _value(payload, f"{log_path}.cleanup")
+        if (
+            not isinstance(runtime_cleanup, dict)
+            or type(runtime_cleanup.get("created_by_workshop")) is not bool
+            or runtime_cleanup.get("creation_pending") is True
+        ):
+            errors.append(f"{log_path}.cleanup must capture ownership")
 
     trace_groups = _value(payload, "observability.trace_log_groups.groups")
     expected_trace_groups = {"aws/spans", "/aws/application-signals/data"}

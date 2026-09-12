@@ -62,8 +62,7 @@ describe('CommandPill - render (Req 1.11.1)', () => {
     const pill = screen.getByTestId('command-pill')
     expect(pill).toBeInTheDocument()
 
-    // B mark is present and fixed.
-    expect(screen.getByTestId('command-pill-pmark')).toHaveTextContent('P')
+    expect(screen.getByTestId('command-pill-pmark')).toHaveAttribute('src', '/favicon.svg')
 
     // Ask Pellier label from copy.ts.
     expect(screen.getByTestId('command-pill-label')).toHaveTextContent(

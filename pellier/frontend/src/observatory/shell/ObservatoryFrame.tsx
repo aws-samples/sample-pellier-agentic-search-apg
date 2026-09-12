@@ -21,6 +21,7 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
   ['/observatory/audit-proof', 'Audit proof'],
   ['/observatory/operator-lineage', 'Operator lineage'],
   ['/observatory/operator-turn', 'Operator turn evidence'],
+  ['/observatory/replacement', 'Replacement recovery'],
   ['/observatory/workbench', 'Workbench'],
   ['/observatory/labs', 'Lab'],
   ['/observatory/sessions', 'Sessions'],

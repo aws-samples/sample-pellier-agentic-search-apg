@@ -295,6 +295,7 @@ class Settings(BaseSettings):
 
     # 4e — Runtime
     AGENTCORE_RUNTIME_ENDPOINT: Optional[str] = None
+    AGENTCORE_OPERATOR_RUNTIME_ENDPOINT: Optional[str] = None
 
     # Runtime feature flag. When False (default) the `/api/agent/chat`
     # endpoint runs the in-process Strands orchestrator.

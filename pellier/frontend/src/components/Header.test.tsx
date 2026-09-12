@@ -5,7 +5,7 @@
  *
  * Design goals:
  *  - renders four nav items (Shop, Stories, Ask Pellier, About)
- *  - centered "Pellier" wordmark with circular P logo
+ *  - shared lowercase Pellier wordmark above the storefront controls
  *  - signed-out visitors open the same three-card persona chooser as the pill
  *  - signed-in visitors open the shared portrait-led PersonaModal
  *  - bag icon with live count badge

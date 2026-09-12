@@ -154,10 +154,29 @@ def _run(db: Any, *, plan: Any, limit: int = 5, rerank: Any = None, **kwargs: An
     )
 
 
+def test_candidate_budget_edit_changes_what_the_live_reranker_receives(monkeypatch) -> None:
+    from services import planned_hybrid_retrieval as retrieval
+
+    db = _FakeDB([_row(i) for i in range(1, 7)])
+    before_reranker = _RecordingReranker()
+    monkeypatch.setattr(retrieval, "DEFAULT_RERANK_POOL_K", 3)
+    before = _run(db, plan=_plan(), rerank=before_reranker)
+    after_reranker = _RecordingReranker()
+    monkeypatch.setattr(retrieval, "DEFAULT_RERANK_POOL_K", 20)
+    after = _run(db, plan=_plan(), rerank=after_reranker)
+
+    assert len(before_reranker.calls[0]["documents"]) == 3
+    assert len(after_reranker.calls[0]["documents"]) == 6
+    assert "6" not in {row["product_id"] for row in before.returned}
+    assert "6" in {row["product_id"] for row in after.returned}
+    assert all(row["price"] <= 100 and row["quantity"] > 0 for row in after.returned)
+    assert retrieval.resolve_rerank_pool_k({"rerank_pool_k": 3}) == 3
+
+
 def test_execution_runs_embed_hybrid_rerank_then_eligibility_in_order() -> None:
     db = _FakeDB([_row(1), _row(2), _row(3), _row(4)])
 
-    execution = _run(db, plan=_plan(), limit=3)
+    execution = _run(db, plan=_plan(), limit=3, config={"rerank_pool_k": 20})
 
     assert isinstance(execution, SearchExecution)
     assert [stage.name for stage in execution.stages] == [
@@ -205,7 +224,7 @@ def test_out_of_stock_and_excluded_rows_are_dropped_after_rerank() -> None:
 def test_returned_never_exceeds_limit() -> None:
     db = _FakeDB([_row(index) for index in range(1, 9)])
 
-    execution = _run(db, plan=_plan(), limit=2)
+    execution = _run(db, plan=_plan(), limit=2, config={"rerank_pool_k": 20})
 
     assert len(execution.returned) == 2
     assert len(execution.ordered) == 8

@@ -717,7 +717,8 @@ setup_database() {
             049_workshop_runs.sql \
             050_refine_guided_questions.sql \
             051_review_requester.sql \
-            052_replacement_recovery.sql
+            052_replacement_recovery.sql \
+            053_replacement_follow_up.sql
         do
             if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
                 log "Applying migration $migration..."
@@ -1481,17 +1482,18 @@ EOF
 
     if [ "$AGENTCORE_OK" = true ]; then
         RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        OPERATOR_RUNTIME_ARN="$(jq -r '.operator_runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MEMORY_ID="$(jq -r '.memory.memory_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ID="$(jq -r '.gateway.gateway_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ARN="$(jq -r '.gateway.gateway_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         POLICY_ENGINE_ID="$(jq -r '.policy.policy_engine_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-        if [ -z "$RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
+        if [ -z "$RUNTIME_ARN" ] || [ -z "$OPERATOR_RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
             || [ -z "$GATEWAY_ID" ] || [ -z "$GATEWAY_URL" ] \
             || [ -z "$GATEWAY_ARN" ] || [ -z "$POLICY_ENGINE_ID" ] \
             || [ "$MANAGED_STATUS" != "ready" ]; then
-            warn "Managed provisioning output missing Runtime/Memory/Gateway/Policy readiness (backend will still start)"
+            warn "Managed provisioning output missing shopper Runtime/Operator Runtime/Memory/Gateway/Policy readiness (backend will still start)"
             write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
             AGENTCORE_OK=false
         fi
@@ -1499,6 +1501,7 @@ EOF
 
     if [ "$AGENTCORE_OK" = true ]; then
         upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
+        upsert_env "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT" "$OPERATOR_RUNTIME_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_MEMORY_ID" "$MEMORY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ID" "$GATEWAY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ARN" "$GATEWAY_ARN" "$REPO_PATH/.env"

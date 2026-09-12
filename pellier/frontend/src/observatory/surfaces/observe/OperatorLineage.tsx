@@ -376,6 +376,16 @@ const OperatorLineage: React.FC = () => {
                   : ''}
               </span>
             </div>
+            {data.orchestration?.execution === 'agentcore-runtime' ? (
+              <dl className="observatory-lineage-runtime" aria-label="Operator Runtime evidence">
+                <dt>Executed build</dt>
+                <dd><code>{data.orchestration.buildFingerprint ?? 'Not recorded'}</code></dd>
+                <dt>Matches this checkout</dt>
+                <dd>{data.orchestration.fingerprintMatches === true ? 'Verified' : 'Not established'}</dd>
+                <dt>Runtime session</dt>
+                <dd><code>{data.orchestration.runtimeSessionId ?? 'Not recorded'}</code></dd>
+              </dl>
+            ) : null}
             <ol>
               {stages.map((stage) => (
                 <li

@@ -63,11 +63,13 @@ __all__ = [
 # manifests below) and the digest covers exactly these.
 RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
     Path("agentcore_runtime.py"),
+    Path("operator_agentcore_runtime.py"),
     Path("services/__init__.py"),
     Path("services/agentcore_gateway.py"),
     Path("services/conversation_context.py"),
     Path("services/intent_router.py"),
     Path("services/otel_content_redaction.py"),
+    Path("services/operator_graph.py"),
     Path("services/product_envelope.py"),
     Path("services/response_mode.py"),
     Path("services/runtime_env.py"),

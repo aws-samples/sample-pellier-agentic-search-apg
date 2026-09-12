@@ -32,17 +32,6 @@ const TopBar: React.FC = () => {
         <Link to="/observatory" className="observatory-wordmark">
           {NAV.OBSERVATORY}
         </Link>
-        {/* Stated on the surface, not only at the door. A participant who
-            arrives by deep link, screenshot, or the workshop guide never sees
-            the storefront badge, and they are the ones most likely to assume
-            this is a fifth lab they still owe. */}
-        <span
-          className="observatory-optional"
-          data-testid="observatory-optional-badge"
-          title="Explore freely. Finishing the workshop does not depend on this surface."
-        >
-          {NAV.OBSERVATORY_OPTIONAL}
-        </span>
       </div>
 
       <nav className="observatory-tabs" aria-label="Pellier Observatory views">
@@ -59,7 +48,7 @@ const TopBar: React.FC = () => {
               data-active={isActive ? 'true' : undefined}
               aria-current={isActive ? 'page' : undefined}
             >
-              <TabIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+              <TabIcon size={17} strokeWidth={1.6} aria-hidden="true" />
               <span>{tab.label}</span>
             </Link>
           );

@@ -56,7 +56,7 @@ export default function SurfaceNavigation() {
             aria-current={active === surface.id ? 'page' : undefined}
             data-surface={surface.id}
             title={surface.id === 'observatory'
-              ? 'Optional inspection. Return to your last Observatory view.'
+              ? 'Labs and evidence. Return to your last Observatory view.'
               : `Return to your ${surface.label.toLowerCase()} view`}
           >
             <span className="pellier-surface-number" aria-hidden="true">{surface.number}</span>

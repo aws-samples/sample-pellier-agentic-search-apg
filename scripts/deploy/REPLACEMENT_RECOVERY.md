@@ -1,33 +1,64 @@
 # Theo replacement recovery
 
-**Paused checkpoint, September 12, 2026.** This is work in progress. The source
-builds, but the new recovery path has not been activated or verified against
-Aurora and the managed Gateway. Final browser review is also pending.
+**Local product review, September 12, 2026.** The source and labelled browser
+review are ready for user review. The replacement migrations, managed tool
+update, Cedar permit, worker, and workflow have not been activated on Aurora.
+No Workshop Studio content or hosted app has been published by this pass.
 
-The six earlier backend contract failures have been reconciled. The focused
-run passed 251 tests with one skipped. The subsequent full run was interrupted
-at the user's next pause, so it does not establish a complete regression pass.
-The new local TLS configuration tests still need their focused run.
+The local SSM path requires `verify-full`, the remote Aurora hostname, and the
+AWS RDS CA bundle while connecting through loopback. Direct connections and
+the observed app-pool sessions negotiated TLS 1.3. A deliberately incorrect
+hostname was rejected. On the later connection pass, a stalled SSM child was
+stopped after checking ownership; the existing launcher reopened it, and the
+backend pool was refreshed. AWS confirmed `dat4xx-labs-test` was available,
+with no public instance, one database security-group source, and no IPv4 or
+IPv6 CIDR sources. No security groups changed.
 
-The local SSM path now requires `verify-full`, the remote Aurora hostname, and
-the AWS RDS CA bundle while connecting through loopback. A direct connection
-negotiated TLS 1.3 with certificate verification. Read-only AWS inspection found
-the instance private and database ingress restricted to one security-group
-source, with no world-open database rule. No security groups were changed.
-A follow-up verification stopped at an unsupported `rds.force_ssl` query before
-checking the app pool or the negative hostname case; those checks remain open.
+The health route now uses the pool's live checkout probe without business-query
+setup, runs its synchronous Bedrock check off the API event loop, and returns
+503 for a degraded dependency. Vector adapters register once per physical
+connection; every business checkout still reasserts strict iterative scanning.
+Live health checks returned healthy in about one second. The live storefront
+read returned 60 products; a repeated read took 6.82 seconds compared with
+24.21 seconds before the adapter reuse change. Cold reads can still take over
+20 seconds on the flight connection. These checks do not establish server-wide
+`rds.force_ssl` or sustained network availability.
 
-Theo's labelled browser fixture was inspected at 1440px and 1024px with no
-horizontal overflow; the exact replacement evidence link and return path worked.
-This fixture review does not prove live authorization or replacement execution.
+A fresh browser tab without fixtures showed Concierge online. Operator showed
+the expected sign-in requirement, not an unavailable state; authenticated
+Operator records still require the user's Cognito session.
 
-Frontend type checking, lint, build, and production dependency audit passed.
-The full frontend run had three expectation failures; those expectations were
-corrected, and all 92 tests in the two affected files passed on recheck.
+The labelled Theo fixture was inspected at 1440, 1024, 768, and 390 pixels with
+no horizontal overflow or clipped controls. The care form posts only a proposal;
+explicit recovery sends the persisted review ID and expected fingerprint.
+An interrupted response requires a refresh. Opening the client or its saved
+chat submits no action. Care and chat link to the exact customer/replacement
+record in Observatory, with a working return path. All fixture POSTs are
+intercepted and refused. This does not prove live authorization or execution.
+
+The latest backend suite passed 2,847 tests with 64 skipped. The frontend suite passed
+1,016 tests. Type checking, lint, production build,
+and production dependency audit passed; the audit found zero vulnerabilities.
+The later footer and navigation checks passed 37 focused tests. The Operator
+account refinement passed 102 focused tests, type checking, lint, and build;
+its layout was inspected at 1440, 1024, 768, and 390 pixels. TLS config checks
+passed 18 tests, and the recovery boundaries passed 36 focused tests.
+The later connection changes passed 30 focused backend checks. Navigation and
+presence passed 20 focused frontend tests, type checking, lint, and build.
+Both navigation rows now share 14px labels on desktop and 12px at mobile widths.
+
+The connected product keeps Storefront typography, pill controls, and service
+icons. Observatory is a core participant surface, with no whole-surface
+`Optional` badge. Copper marks the Pellier dot, numbered surface navigation,
+and Operator workspace and Membership labels. Burgundy remains the primary
+action color. The footer uses the same wordmark. The Operator identity sits
+beside a separate Sign out pill.
 
 This is the application implementation and activation contract. The 100-minute
 L400 lab design follows the product review. Its per-persona component tables,
-participant builds, timing, and evaluation instructions are deliberately deferred.
+participant builds, timing, and retrieval checks are deliberately deferred.
+The revised search-first scope is recorded in `docs/L400-SEARCH-RETRIEVAL-BRIEF.md`;
+building an evaluation framework is not part of this workshop.
 
 The operator records reported damage against an exact order and quantity. A
 separate human decision approves the terms. The managed Gateway authorizes
@@ -60,6 +91,11 @@ sequenceDiagram
     Flow->>Provider: Reconcile the existing operation
     Flow->>DB: Persist observed provider state and register callback
     Provider->>Flow: IAM-authorized simulator shipment callback
+    opt Callback timeout or unrecoverable execution
+        Flow->>DB: Persist operator follow-up without changing provider state
+        Relay->>Flow: Observe terminal executions outside the failed workflow
+        Relay->>DB: Persist any missing follow-up
+    end
 ```
 
 AgentCore Memory supplies conversation context. It cannot prove approval,
@@ -88,30 +124,46 @@ API; it does not infer shipment from workflow success or a model answer.
 - The relay commits its lease before calling Step Functions. A lost start
   response is recovered using the same execution name and byte-identical input.
   `ExecutionAlreadyExists` requires an input check against the existing run.
+- Delivery and observation failures are isolated per record within each batch.
+  Healthy records still progress, and the invocation fails after the batch so
+  monitoring retains visibility of the incomplete work.
 - The provider operation ID is stable. A duplicate dispatch does not create a
   second simulated fulfillment. Late attempts cannot regress accepted or shipped
   state to unknown.
 - Callback registration and shipment publication lock the same replacement row.
   Shipment before registration and registration before shipment both work. Task
   tokens remain in a worker-only table and never enter UI evidence or logs.
+- `workflow_resolution` is separate from provider `status`. A timeout or failed
+  reconciliation records `operator_review_required` without erasing acceptance.
+  A recorded shipment closes it as `shipment_recorded`. Both update paths lock
+  the same row; a late timeout cannot reopen a shipped operation, and a late
+  acceptance cannot silently close a follow-up.
+- A separate scheduled observation runs in bounded, rotating batches of ten.
+  It covers terminal failure, timeout, abort, and an execution that ended
+  successfully without a matching shipment record. It never derives shipment
+  from workflow success. If AWS or Aurora remains unavailable, follow-up
+  persistence waits for a later successful observation; the failed worker
+  invocation remains visible in CloudWatch.
 - `OUTCOME_UNKNOWN` means the commit response was interrupted. It is neither a
   rollback claim nor a success claim. “Recover this approved action” reuses the
   same review and key; it may execute the still-valid action if nothing committed.
 
 The fulfillment adapter is explicitly a simulator. The implementation has no
 real carrier, automatic cancellation, stock-release flow, or promise of a
-shipping date. `NeedsReview` ends with an operator-review resolution and is not
-shipment proof. The worker role has no stock or approval write privileges.
+shipping date. `NeedsReview` persists follow-up in Aurora with bounded retries.
+The worker role has no stock or approval write privileges.
 
 ## Activation order
 
 Source and UI checks do not activate this path. Apply changes only after the
 local product review and approval to update the chosen AWS deployment.
 
-1. Apply `scripts/migrations/052_replacement_recovery.sql` using the existing
-   migration procedure. It adds tables, a worker role, functions, and two
-   constraint extensions. It does not seed a claim that Theo already reported
-   damage or modify existing orders and stock.
+1. Apply `scripts/migrations/052_replacement_recovery.sql`, then
+   `053_replacement_follow_up.sql`, using the existing migration procedure.
+   They add tables, a worker role, functions, constraint extensions, and the
+   separate workflow resolution. They do not seed a damage claim or change
+   existing orders and stock. Bootstrap and the documented apply list include
+   both migrations.
 2. Package and update the experience target Lambda with the existing
    `deploy_lambda.py` workflow. The package includes
    `common/replacement_contract.py`.
@@ -134,6 +186,12 @@ local product review and approval to update the chosen AWS deployment.
 7. Verify the integration gates below with isolated, clearly labelled test
    orders. Then review Theo's live path without substituting fixture evidence.
 
+The local workshop reset refuses when replacement records exist, or their
+presence cannot be established. Stopping the local app does not quiesce the
+scheduled worker or a waiting Standard execution. Preserve those records and
+use a fresh workshop deployment; this pass does not implement a cloud recovery
+reset or remove its deduplication history.
+
 The template defaults `SimulateLostResponse` to `false`. Setting it to `true`
 loses the simulator response **after provider acceptance commits**; the workflow
 then reconciles. The target's lost Aurora commit-response path is exercised by
@@ -150,7 +208,8 @@ a new operation or accepts a callback token from the shopper.
 Hermetic tests cover proposal-only behavior, exact scope, approval fingerprint
 parity, role binding before SQL, ambiguous commit classification, rollback and
 attempt recording, input validation, stable outbox retries, monotonic provider
-state, and shipment-before-registration handling.
+state, shipment-before-registration handling, independent batch progress,
+and timeout/shipment ordering for the follow-up state.
 
 AWS `ValidateTemplate` and `ValidateStateMachineDefinition` validate the
 CloudFormation and ASL shapes without deploying anything. They do not establish

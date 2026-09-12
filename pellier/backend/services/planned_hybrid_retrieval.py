@@ -54,44 +54,19 @@ from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
-# === WORKSHOP · Retrieval eval · golden set: START ===
-# WORKSHOP_EXERCISE_STUB
-#
-# Lab 2b. Lab 2a built the fusion. This is the half that tells you whether the
-# fusion is any good, and it cannot be computed: relevance is a labeling
-# decision a person makes, and every retrieval metric is a ratio against it.
-#
-# `micro_eval_variant` scores each rerank pool size against these ids:
-#   candidate_coverage  golden ids that reached the rerank pool / golden ids
-#   context_precision   returned ids that are golden / returned ids
-#   mrr                 1 / rank of the first golden id
-#
-# With an empty set every one of those is 0.0 and the comparison is unreadable.
-#
-# Label the relevant rows for CANONICAL_ANNA_QUERY. Relevance needs a stated
-# rule, and this is the rule: the in-stock Home Decor pieces tagged both
-# `gift` and `home` at or under $100. Price and stock are eligibility, which
-# SQL already enforces; the two tags are the judgment. Derive the rows in the
-# Code Editor, do not guess:
-#
-#   psql -X -P pager=off -c "
-#     SELECT \"productId\", name, price
-#       FROM pellier.product_catalog
-#      WHERE category = 'Home Decor'
-#        AND price <= 100
-#        AND quantity > 0
-#        AND tags @> '["gift","home"]'::jsonb
-#      ORDER BY \"productId\";"
-#
-# Pin the ids it returns, as strings, in ascending order.
-#
-# Verify (live, the real check): the Observatory Performance view's rerank pool
-# micro-eval reports non-zero candidate coverage and precision, and pool 20
-# separates from pool 3.
-CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ()
-# === WORKSHOP · Retrieval eval · golden set: END ===
+# Provided labels support the optional diagnostic comparison; participants do not
+# build an evaluation framework or label a golden set in this workshop.
+CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
 
-# The held-out checks. Lab 2b's labels tune one knob, the rerank pool size;
+# === WORKSHOP · Hybrid retrieval · candidate budget: START ===
+# WORKSHOP_EXERCISE_STUB
+# Lab 2b: the starter discards all but three fused candidates before reranking.
+# Choose a bounded default after comparing the candidate IDs with SQL evidence.
+# Keep explicit per-request overrides and the service ceiling in the resolver.
+DEFAULT_RERANK_POOL_K = 3
+# === WORKSHOP · Hybrid retrieval · candidate budget: END ===
+
+# Optional provided diagnostics for the rerank pool size;
 # these check the choice on requests the labels never described. They are
 # provided rather than authored. A pool size chosen on Anna's labels has to
 # hold here, or it is a hypothesis rather than a decision.
@@ -294,7 +269,7 @@ def catalog_document(row: Dict[str, Any]) -> str:
 
 def resolve_rerank_pool_k(config: Dict[str, Any]) -> int:
     """Bound the rerank pool between the floor and the reranker's own cap."""
-    requested = config.get("rerank_pool_k") or settings.RERANK_MAX_DOCUMENTS
+    requested = config.get("rerank_pool_k") or DEFAULT_RERANK_POOL_K
     ceiling = max(RERANK_POOL_MIN, int(settings.RERANK_MAX_DOCUMENTS))
     return max(RERANK_POOL_MIN, min(int(requested), ceiling))
 

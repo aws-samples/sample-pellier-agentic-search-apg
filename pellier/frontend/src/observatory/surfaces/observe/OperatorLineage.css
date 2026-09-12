@@ -4,6 +4,27 @@
   color: var(--obs-ink-1);
 }
 
+.observatory-lineage-runtime {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 3fr);
+  gap: 10px 20px;
+  margin: 20px 0;
+  font-family: var(--obs-sans);
+  font-size: 13px;
+  color: var(--obs-ink-2);
+}
+
+.observatory-lineage-runtime dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.observatory-lineage-runtime code {
+  font-family: var(--obs-mono);
+  font-size: 12px;
+}
+
 .observatory-lineage-head {
   display: flex;
   align-items: flex-start;

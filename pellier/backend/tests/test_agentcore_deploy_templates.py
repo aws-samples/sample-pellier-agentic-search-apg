@@ -97,6 +97,26 @@ def test_agentcore_cli_is_pinned_once() -> None:
     assert "@aws/agentcore@latest" not in source
 
 
+def test_operator_runtime_is_separate_from_the_shopper_jwt_endpoint(tmp_path: Path) -> None:
+    root, project = _render(tmp_path, include_policies=False)
+    shopper, operator = project["runtimes"]
+    assert shopper["authorizerType"] == "CUSTOM_JWT"
+    assert operator["name"] == renderer.OPERATOR_RUNTIME_NAME
+    # IAM is the Runtime default; no shopper JWT authorizer or forwarded token.
+    assert "authorizerType" not in operator
+    assert "authorizerConfiguration" not in operator
+    assert "requestHeaderAllowlist" not in operator
+    assert operator["entrypoint"] == "operator_agentcore_runtime.py"
+    assert (root / "runtime-src" / operator["entrypoint"]).is_file()
+    assert (root / "runtime-src/services/operator_graph.py").is_file()
+    fingerprints = [
+        next(value["value"] for value in runtime["envVars"]
+             if value["name"] == renderer.FINGERPRINT_ENV_VAR)
+        for runtime in project["runtimes"]
+    ]
+    assert fingerprints[0] == fingerprints[1]
+
+
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
     root, project = _render(tmp_path, include_policies=False)
 

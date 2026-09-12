@@ -40,7 +40,7 @@ describe('RefinementPanel — static copy (Req 1.8.1)', () => {
     expect(screen.getByTestId('refinement-prompt')).toHaveTextContent(
       'Pellier here, want me to narrow this down?',
     )
-    expect(screen.getByTestId('refinement-b-mark')).toHaveTextContent('P')
+    expect(screen.getByTestId('refinement-b-mark')).toHaveAttribute('src', '/favicon.svg')
 
     const chips = screen.getAllByRole('button')
     expect(chips).toHaveLength(REFINEMENT.CHIPS.length)

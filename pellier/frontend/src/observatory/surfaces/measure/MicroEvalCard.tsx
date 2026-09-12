@@ -320,8 +320,8 @@ const MicroEvalCard: React.FC = () => {
         >
           No rows are labelled relevant for this query yet, so coverage,
           precision and MRR below read 0.0 for want of a denominator, not
-          because retrieval failed. Latency is measured either way. Lab 2b
-          pins the labels.
+          because retrieval failed. Latency is measured either way. Inspect the
+          provided label configuration before interpreting these diagnostics.
         </p>
       ) : null}
 
@@ -388,7 +388,7 @@ const MicroEvalCard: React.FC = () => {
               color: 'var(--obs-ink-2)',
             }}
           >
-            {`Held-out check: the same pools scored on ${heldOut.golden_set_size} provided labels for "${heldOut.query}". Your labels choose the pool; these check the choice.`}
+            {`Held-out check: the same pools scored on ${heldOut.golden_set_size} provided labels for "${heldOut.query}". These provided labels support an optional diagnostic comparison.`}
           </p>
           <div style={{ overflowX: 'auto' }}>
             <table

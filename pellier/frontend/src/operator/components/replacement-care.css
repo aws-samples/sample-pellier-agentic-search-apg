@@ -1,6 +1,6 @@
 .operator-replacement-care { min-width: 0; border-radius: 20px; }
 .operator-replacement-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 12px; }
-.operator-replacement-heading h2 { margin: 0; font: 500 25px/1.25 var(--serif); }
+.operator-replacement-heading h2 { margin: 0; font: 400 25px/1.25 var(--display); letter-spacing: var(--op-display-track); }
 .operator-replacement-heading h3 { margin: 0; font: 500 17px/1.35 var(--sans); }
 .operator-replacement-care p { color: var(--op-muted); font: 400 13px/1.65 var(--sans); }
 .operator-replacement-heading p { margin: 6px 0 0; }
@@ -12,6 +12,9 @@
 .operator-replacement-events li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 9px 0; font: 400 12px/1.5 var(--sans); border-bottom: 1px solid var(--op-rule); }
 .operator-replacement-events time { color: var(--op-muted); }
 .operator-replacement-sources { display: flex; flex-wrap: wrap; gap: 16px; }
+.operator-replacement-follow-up { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--op-rule-strong); border-radius: 16px; background: var(--op-paper-2); }
+.operator-replacement-follow-up strong { color: var(--op-authority); font: 500 13px/1.5 var(--sans); }
+.operator-replacement-follow-up p { margin: 5px 0 0; }
 .operator-replacement-prepare { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--op-rule-strong); }
 .operator-replacement-prepare summary { cursor: pointer; color: var(--op-authority); font: 500 14px/1.5 var(--sans); }
 .operator-replacement-prepare form { display: grid; gap: 9px; }

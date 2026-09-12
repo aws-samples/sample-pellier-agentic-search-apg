@@ -154,6 +154,9 @@ def cleanup_plan(
         )
 
     groups: list[dict[str, Any]] = []
+    operator_runtime = observability.get("operator_runtime_log_group")
+    if isinstance(operator_runtime, dict):
+        groups.append(operator_runtime)
     trace_log_groups = observability.get("trace_log_groups")
     if isinstance(trace_log_groups, dict):
         groups.extend(

@@ -97,21 +97,21 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     title: 'Build and Measure PostgreSQL Hybrid Retrieval',
     shortTitle: 'PostgreSQL retrieval',
     summary:
-      'Author the RRF expression, reconstruct vector, FTS, fusion, and rerank evidence, then verify PostgreSQL enforced eligibility.',
+      'Inspect a PostgreSQL query plan, verify RRF in SQL, and repair a narrow candidate budget without relaxing eligibility.',
     image: '/assets/personas/anna-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
     proofCardIds: ['retrieval-comparison'],
     objective:
-      'With Anna selected, author the PostgreSQL RRF expression, then separate model proposals from SQL enforcement.',
+      'Trace Anna’s eligible candidates through lexical search, vector retrieval, fusion, and reranking.',
     participantTodo:
-      'Complete the PostgreSQL RRF worksheet, run Anna\'s bounded request, and prove the fused ranks and returned product IDs satisfy the SQL contract.',
+      'Complete the RRF worksheet and candidate-budget build. Compare the same request before and after, then verify exact product IDs against Aurora.',
     command:
       'psql -X -v ON_ERROR_STOP=1 -P pager=off -c "\nSELECT receipt_id, hard_constraints, retrieval_config,\n       latency_breakdown, modeled_cost_usd\n  FROM pellier.retrieval_receipts\n ORDER BY receipt_id DESC\n LIMIT 1;"',
     measurements: {
       before: {
         label: 'Before',
-        value: 'Strategy choice is based on an unmeasured result or inconsistent corpus filters.',
+        value: 'The live rerank stage receives only three fused candidates, even when more eligible products were retrieved.',
       },
       after: {
         label: 'Acceptance target',

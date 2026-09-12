@@ -311,7 +311,7 @@ describe('an unlabelled golden set', () => {
     await runWith(zeroed);
     const notice = await screen.findByTestId('micro-eval-unlabelled');
     expect(notice.textContent).toMatch(/labelled relevant/i);
-    expect(notice.textContent).toMatch(/Lab 2b/);
+    expect(notice.textContent).toMatch(/provided label configuration/);
   });
 
   it('stays out of the way once the labels are pinned', async () => {

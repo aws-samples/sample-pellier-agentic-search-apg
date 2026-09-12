@@ -77,12 +77,12 @@ LAB1_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 # ---------------------------------------------------------------------------
 
 LAB2_STARTER = "workshop/lab-2-rrf.sql"
-LAB2_GOLDEN_REGION = (
+LAB2_BUDGET_REGION = (
     "pellier/backend/services/planned_hybrid_retrieval.py",
-    "WORKSHOP · Retrieval eval · golden set",
+    "WORKSHOP · Hybrid retrieval · candidate budget",
 )
-LAB2_GOLDEN_REFERENCE = (
-    "solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py"
+LAB2_BUDGET_REFERENCE = (
+    "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py"
 )
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home Decor at or under $100 tagged both `gift` and `home`.
@@ -176,8 +176,8 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-2-rrf.sql",
         LAB2_STARTER,
     ),
-    "lab-2-golden-set": (
-        "workshop/starters/lab-2/anna-golden-set.pyfrag",
+    "lab-2-candidate-budget": (
+        "workshop/starters/lab-2/candidate-budget.pyfrag",
         "pellier/backend/services/planned_hybrid_retrieval.py",
     ),
     "lab-3-gateway-catalogue": (
@@ -363,26 +363,21 @@ def test_the_trace_contract_is_a_provided_check_not_a_build() -> None:
 
 
 def test_lab2_golden_set_region_has_exactly_one_marker_pair() -> None:
-    rel, label = LAB2_GOLDEN_REGION
+    rel, label = LAB2_BUDGET_REGION
     text = _read(rel)
     assert text.count(f"# === {label}: START ===") == 1
     assert text.count(f"# === {label}: END ===") == 1
 
 
-def test_lab2_starter_ships_no_labels() -> None:
-    """Every retrieval metric is a ratio against these ids. Unbuilt means empty."""
-    rel, _ = LAB2_GOLDEN_REGION
-    tree = ast.parse(_read(rel))
-    value = _module_constant(tree, "CANONICAL_ANNA_GOLDEN_IDS")
-    assert value == (), (
-        "the starter must ship an empty golden set; a pre-labeled one hands the "
-        "participant the answer and makes the before/after unreadable"
-    )
-
-
-def test_lab2_reference_labels_the_rows_the_predicate_yields() -> None:
-    tree = ast.parse(_read(LAB2_GOLDEN_REFERENCE))
+def test_lab2_starter_limits_the_live_candidate_pool() -> None:
+    tree = ast.parse(_read(LAB2_BUDGET_REGION[0]))
+    assert _module_constant(tree, "DEFAULT_RERANK_POOL_K") == 3
     assert _module_constant(tree, "CANONICAL_ANNA_GOLDEN_IDS") == LAB2_GOLDEN_IDS
+
+
+def test_lab2_reference_widens_the_live_candidate_pool() -> None:
+    tree = ast.parse(_read(LAB2_BUDGET_REFERENCE))
+    assert _module_constant(tree, "DEFAULT_RERANK_POOL_K") == 20
 
 
 def test_lab2_golden_set_is_stated_once() -> None:
@@ -642,8 +637,8 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
     anchors += [
         LAB2_STARTER,
         LAB2_REFERENCE,
-        LAB2_GOLDEN_REFERENCE,
-        LAB2_GOLDEN_REGION[0],
+        LAB2_BUDGET_REFERENCE,
+        LAB2_BUDGET_REGION[0],
         LAB3_TRACE_CONTRACT,
         LAB4_ABSENCE_STARTER,
         LAB4_ABSENCE_REFERENCE,
@@ -834,7 +829,7 @@ def test_the_retired_and_canonical_title_lists_do_not_overlap() -> None:
 # ---------------------------------------------------------------------------
 
 _BUILD_STATE_DETECTORS = (
-    ("2b", "_lab2_golden_set_is_workshop_stub"),
+    ("2b", "_lab2_candidate_budget_is_workshop_stub"),
     ("3a", "_lab3_gateway_catalogue_is_workshop_stub"),
     ("3b", "_lab3_support_contract_is_workshop_stub"),
 )
@@ -868,7 +863,7 @@ def test_build_state_detects_each_reference_solution_as_built(
     live_for_step = {
         "2b": (
             "pellier/backend/services/planned_hybrid_retrieval.py",
-            "solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py",
+            "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py",
         ),
         "3a": (
             "scripts/deploy/gateway_tool_schemas.py",

@@ -222,8 +222,8 @@ class TestSourceState:
                 "agent_tools_check_inventory_solution.py",
             "2a_rrf_expression_authored":
                 "solutions/the-quiet-search/sql/lab-2-rrf-solution.sql",
-            "2b_golden_set_labeled":
-                "solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py",
+            "2b_candidate_budget_authored":
+                "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py",
             "3a_gateway_tool_published":
                 "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
             "3b_runtime_catalogue_reconciled":

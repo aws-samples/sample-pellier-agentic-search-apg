@@ -13,6 +13,7 @@ const STATES = {
   outcome_unknown: 'Outcome needs checking',
   accepted: 'Accepted by fulfillment',
   shipped: 'Shipment recorded',
+  operator_review_required: 'Operator follow-up required',
 }
 
 const ERRORS: Record<string, string> = {
@@ -84,6 +85,10 @@ export default function ReplacementCare({ record }: { record: OperatorClientReco
                   </li>,
                 )}</ol>
                 {replacement.state === 'outcome_unknown' ? <p role="status">An interrupted response does not establish whether fulfillment accepted this request. Reconcile the existing operation before preparing another.</p> : null}
+                {replacement.workflowResolution === 'operator_review_required' ? <div className="operator-replacement-follow-up" role="status">
+                  <strong>Operator follow-up required</strong>
+                  <p>Automatic fulfillment needs attention. The recorded provider state still applies. Check this operation’s evidence before agreeing another remedy.</p>
+                </div> : null}
                 <div className="operator-replacement-sources">
                   <ServiceIdentity source="Amazon Aurora" />
                   {replacement.executionArn ? <ServiceIdentity source="AWS Step Functions" /> : null}

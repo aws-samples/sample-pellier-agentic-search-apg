@@ -1,7 +1,10 @@
 # Theo: the replacement, interrupted
 
-Status: proposed product extension, reviewed against the governed source on 2026-09-12.
-This document does not change the running return workflow or the Workshop Studio labs.
+Status: product design with local implementation under review on 2026-09-12.
+See `scripts/deploy/REPLACEMENT_RECOVERY.md` for current validation, activation
+order, and the remaining live integration gates. AWS activation and the
+100-minute Workshop Studio exercise redesign remain deferred. The updated
+participant scope is in `docs/L400-SEARCH-RETRIEVAL-BRIEF.md`.
 
 ## The case
 
@@ -10,7 +13,7 @@ replaced, if possible, and asks whether he needs to send the damaged bowl back.
 The operator must verify the purchase, establish the available remedy, obtain
 agreement, and follow the outcome through to fulfillment.
 
-The proposed exercise adds a controlled failure: Aurora commits the approved
+The product scenario adds a controlled failure: Aurora commits the approved
 replacement and its fulfillment request, but the response is lost. The operator
 sees an interrupted request and Theo asks again. Recover the committed outcome
 without creating another return, reservation, or fulfillment request.
@@ -145,13 +148,14 @@ no-return remedy, before the agent can explain what Theo should do with the bowl
 Do not add a fourth top-level surface or a dashboard of technical fields to the
 shopper's experience.
 
-## Evaluation cases for the later L400 exercise design
+## Product checks and optional recovery extension
 
-Build one end-to-end recovery scenario and a reusable evaluator around its
-invariants. This is a candidate for the later 100-minute workshop redesign,
-not a new mandatory lab sequence.
+The required 100-minute workshop focuses on Aurora PostgreSQL search and
+retrieval with AgentCore. Building an evaluation framework belongs to
+AgentEats and is not a requirement here. The recovery cases below remain
+product checks and possible extension material after the core retrieval path.
 
-| Scenario | Participant challenge | Objective pass condition |
+| Scenario | Engineering check | Objective pass condition |
 | --- | --- | --- |
 | Response lost after commit | Identify the ambiguous boundary and recover using the durable operation | Exactly one remedy, return, reservation, and outbox intent for the approved terms; retry returns the original result. |
 | Two callers compete for the last replacement | Implement and test conditional allocation against concurrent requests | At most one reservation wins; inventory never becomes negative; the losing request cannot claim a replacement or consume a successful approval. |
@@ -159,12 +163,11 @@ not a new mandatory lab sequence.
 | Duplicate event or callback | Inject repeated deliveries through the workflow adapter | One fulfillment operation is accepted; repeated callbacks do not duplicate stock movements or regress state. |
 | Memory claims approval, ledger does not | Supply conflicting conversation context | The assistant attributes the claim, requires authoritative approval, and never promises shipment. |
 
-Measure invariant pass rates, ungrounded action claims, recovery time, and trace
-completeness per run. Keep deterministic database assertions separate from an
-evaluation of the assistant's explanation. A fluent answer cannot compensate for
-two reservations.
+Use direct SQL assertions and exact operation identifiers when validating
+these product invariants. They do not require participants to build a reusable
+evaluator. A fluent answer cannot compensate for two reservations.
 
-For the first implementation, center the exercise on response loss after commit.
+For the first implementation, center the recovery demo on response loss after commit.
 Use the stock race as a second test of the same design. An actual Aurora failover
 can be an isolated advanced rehearsal; it is not necessary to inject failure into
 the shared preview cluster.

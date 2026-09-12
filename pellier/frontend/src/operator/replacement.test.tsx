@@ -16,6 +16,7 @@ const replacement: OperatorReplacement = {
   replacementId: '2e8e1191-caa8-4f88-a9cc-186c9572276c', reviewId: 91,
   orderId: 7, productId: '37', productName: 'Wabi-Sabi Bowl', quantity: 1,
   disposition: 'inspection_required', state: 'outcome_unknown',
+  workflowResolution: null,
   providerOperationId: null, executionArn: null, provider: 'workshop-simulator',
   idempotencyKey: 'approved-operation-key', approvalHash: 'a'.repeat(64),
   outbox: { eventId: 'event-7', attempts: 2, publishedAt: null },
@@ -67,6 +68,32 @@ describe('Replacement care', () => {
     expect(screen.queryByRole('button', { name: 'Prepare for review' })).not.toBeInTheDocument()
   })
 
+  it('shows operator follow-up beside accepted fulfillment without inventing a shipment', async () => {
+    api.read.mockResolvedValue({ available: true, replacements: [{
+      ...replacement, state: 'accepted', workflowResolution: 'operator_review_required',
+    }] })
+    open()
+    await screen.findByText('Operator follow-up required')
+    expect(screen.getByText('Accepted by fulfillment')).toBeInTheDocument()
+    expect(screen.queryByText('Shipment recorded')).not.toBeInTheDocument()
+    expect(api.prepare).not.toHaveBeenCalled()
+  })
+
+  it('closes the follow-up only when the refreshed record reports its resolution', async () => {
+    api.read.mockResolvedValue({ available: true, replacements: [{
+      ...replacement, state: 'accepted', workflowResolution: 'operator_review_required',
+    }] })
+    open()
+    await screen.findByText('Operator follow-up required')
+    api.read.mockResolvedValue({ available: true, replacements: [{
+      ...replacement, state: 'shipped', workflowResolution: 'shipment_recorded',
+    }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Check outcome' }))
+    await screen.findByText('Shipment recorded')
+    expect(screen.queryByText('Operator follow-up required')).not.toBeInTheDocument()
+    expect(api.prepare).not.toHaveBeenCalled()
+  })
+
   it('does not present stale evidence after a failed refresh', async () => {
     open()
     await screen.findByText('Outcome needs checking')
@@ -94,6 +121,18 @@ describe('Replacement Observatory evidence', () => {
     open('?customer=CUST-THEO&replacement=missing')
     await screen.findByText(/No other operation has been substituted/)
     expect(screen.queryByText('Wabi-Sabi Bowl')).not.toBeInTheDocument()
+  })
+
+  it('keeps an unresolved workflow separate from the recorded provider state', async () => {
+    api.read.mockResolvedValue({ available: true, replacements: [{
+      ...replacement, state: 'accepted', workflowResolution: 'operator_review_required',
+    }] })
+    open()
+    await screen.findByText('Operator follow-up required')
+    expect(screen.getByText('Recorded state: accepted')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Return to client' })).toHaveAttribute(
+      'href', '/operator/clients/CUST-THEO#operator-replacement-care',
+    )
   })
 
   it('does not fetch a record without a complete selection', async () => {

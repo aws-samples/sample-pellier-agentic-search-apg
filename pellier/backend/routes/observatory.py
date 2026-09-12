@@ -147,12 +147,12 @@ def _inventory_agent_definition_is_workshop_stub() -> bool:
         return True
 
 
-def _lab2_golden_set_is_workshop_stub() -> bool:
-    """True while no rows are labelled relevant for Anna's canonical query."""
+def _lab2_candidate_budget_is_workshop_stub() -> bool:
+    """True while the live rerank pool still has the deliberately narrow starter budget."""
     try:
-        from services.planned_hybrid_retrieval import CANONICAL_ANNA_GOLDEN_IDS
+        from services.planned_hybrid_retrieval import DEFAULT_RERANK_POOL_K
 
-        return not CANONICAL_ANNA_GOLDEN_IDS
+        return DEFAULT_RERANK_POOL_K == 3
     except Exception:
         return True
 
@@ -2382,7 +2382,7 @@ async def get_build_state():
             "1a": "exercise" if inventory == "exercise" else "shipped",
             "1b": "exercise" if check_inventory == "exercise" else "shipped",
             "2b": (
-                "exercise" if _lab2_golden_set_is_workshop_stub() else "shipped"
+                "exercise" if _lab2_candidate_budget_is_workshop_stub() else "shipped"
             ),
             "3a": (
                 "exercise"

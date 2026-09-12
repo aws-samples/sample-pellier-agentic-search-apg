@@ -85,9 +85,6 @@ ALLOWED: Dict[str, str] = {
     # ends up with one table rather than two.
     "scripts/migrations/002_workshop_telemetry.sql":
         "ALTER TABLE converges an existing cluster to observatory_spans",
-    # Explains the rename to the next reader.
-    "pellier/frontend/src/copy.ts":
-        "one comment recording why the surface was renamed",
     # The invariant has to name what it retires to be actionable.
     "CLAUDE.md":
         "states the one-name rule by naming both retired names",

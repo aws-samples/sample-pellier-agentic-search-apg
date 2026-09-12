@@ -1,0 +1,57 @@
+{
+  "sourceDeck": "AWS-Architecture-Icons-Deck_For-Dark-BG_07312026.pptx",
+  "sourceSha256": "fb13f35d94652450582908ba4678485192c39fac72cf27c90af2962be10d69da",
+  "icons": {
+    "bedrock": {
+      "media": "image214.svg",
+      "slide": 49,
+      "label": "Amazon Bedrock",
+      "sha256": "fbcf41312608842435355311a63b163c256f0084bfba8bb629bb2cb8759c937d"
+    },
+    "agentcore": {
+      "media": "image215.svg",
+      "slide": 49,
+      "label": "Amazon Bedrock AgentCore",
+      "sha256": "42ea5441a3324f5c2f49cf316d1b404384084238dd40696ad9438c5faaaab751"
+    },
+    "ec2": {
+      "media": "image6.svg",
+      "slide": 61,
+      "label": "Amazon EC2",
+      "sha256": "9b7094a39d5f6af57c440bd9269141b902832d227def520481b7d836ea6deeaa"
+    },
+    "lambda": {
+      "media": "image18.svg",
+      "slide": 62,
+      "label": "AWS Lambda",
+      "sha256": "1b578f573fc6c838869be11307a1e96e34ce700a51b473f663e8a7953f9eb347"
+    },
+    "aurora": {
+      "media": "image307.svg",
+      "slide": 77,
+      "label": "Amazon Aurora",
+      "sha256": "5619a2b54ab44f579894468d1a5c3e6e5573c57691c9022241a23219bc55ae9e"
+    },
+    "cognito": {
+      "media": "image680.svg",
+      "slide": 136,
+      "label": "Amazon Cognito",
+      "sha256": "e97cc72fbf57af3aadc929e945d8e3ec5b6d936ec7cb6cbbc67fef3a14139f66"
+    },
+    "cloudwatch": {
+      "media": "image476.svg",
+      "slide": 101,
+      "label": "Amazon CloudWatch",
+      "sha256": "2e10be3a79aa8a43380edc885107b67aedb8ff6e44dc7b64bf066e74e668d2ed"
+    },
+    "cloud": {
+      "media": "image5.svg",
+      "slide": 23,
+      "label": "AWS Cloud",
+      "sha256": "4a3529b7cfa8854b2a9456838f25c0f997f788a6a8104b1954c88787e9005df2"
+    }
+  },
+  "iconSize": "Service icons 80 px (0.833333 in); group icon 40 px; original colors and SVG bytes retained.",
+  "labels": "Arial. Service labels 16 px (12 pt at 96 dpi).",
+  "scope": "Logical governed architecture. No activation or deployment proof is implied."
+}

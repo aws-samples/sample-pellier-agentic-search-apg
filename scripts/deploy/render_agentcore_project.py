@@ -56,6 +56,7 @@ _DASH = f"-{DEPLOYMENT_SUFFIX}" if DEPLOYMENT_SUFFIX else ""
 _UNDER = f"_{DEPLOYMENT_SUFFIX}" if DEPLOYMENT_SUFFIX else ""
 PROJECT_NAME = f"pellier{DEPLOYMENT_SUFFIX}"
 RUNTIME_NAME = f"pellier{_UNDER}_orchestrator"
+OPERATOR_RUNTIME_NAME = f"pellier{_UNDER}_operator"
 MEMORY_NAME = f"Pellier{DEPLOYMENT_SUFFIX.capitalize()}Memory"
 GATEWAY_NAME = f"pellier{_DASH}-gateway"
 POLICY_ENGINE_NAME = f"pellier{_UNDER}_policy_engine"
@@ -529,6 +530,26 @@ def render_project(
         ],
     }
 
+    # A separate IAM-authenticated endpoint accepts evidence only from the
+    # backend role. Shopper JWTs cannot invoke the Operator graph.
+    project["runtimes"].append({
+        "name": OPERATOR_RUNTIME_NAME,
+        "description": "Pellier read-only Operator investigation and resolution graph",
+        "build": "CodeZip",
+        "entrypoint": "operator_agentcore_runtime.py",
+        "codeLocation": str(runtime_dir),
+        "runtimeVersion": "PYTHON_3_12",
+        "envVars": [
+            {"name": "AGENT_MODEL_ID", "value": runtime_sonnet_model},
+            {"name": "BEDROCK_SONNET_MODEL", "value": runtime_sonnet_model},
+            {"name": "UNIFIED_TRACES_DESTINATION_ENABLED", "value": "true"},
+            {"name": FINGERPRINT_ENV_VAR, "value": build_fingerprint},
+        ],
+        "networkMode": "PUBLIC",
+        "instrumentation": {"enableOtel": True},
+        "protocol": "HTTP",
+        "tags": tags,
+    })
     _write_json(config_dir / "agentcore.json", project)
     _write_json(
         config_dir / "aws-targets.json",

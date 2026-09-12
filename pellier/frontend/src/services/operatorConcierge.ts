@@ -60,6 +60,11 @@ export interface ConciergeOrchestration {
   pattern?: string
   execution?: string
   deploymentTarget?: string
+  runtimeArn?: string
+  runtimeSessionId?: string
+  buildFingerprint?: string
+  fingerprintMatches?: boolean
+  requestId?: string
   agents?: string[]
   executedNodes?: ConciergeGraphNode[]
   durationMs?: number | null

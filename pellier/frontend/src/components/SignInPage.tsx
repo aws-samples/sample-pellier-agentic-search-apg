@@ -123,7 +123,7 @@ export default function SignInPage() {
           </div>
           <a href={asset('/')} className="pellier-signin-home">Back to Pellier</a>
         </div>
-        <div className="pellier-signin-portrait" aria-hidden="true"><ResponsiveImage src="/products/hero-fresh-2.png" widths={[960, 1600]} sizes="(min-width: 900px) 50vw, 1px" alt="" /><div><span>Pellier</span><p>Considered pieces.<br />Personal attention.</p></div></div>
+        <div className="pellier-signin-portrait" aria-hidden="true"><ResponsiveImage src="/products/hero-fresh-2.png" widths={[960, 1600]} sizes="(min-width: 900px) 50vw, 1px" alt="" /><div><span className="pellier-signin-image-wordmark">pellier<span>.</span></span><p>Considered pieces.<br />Personal attention.</p></div></div>
       </div>
     </main>
   )

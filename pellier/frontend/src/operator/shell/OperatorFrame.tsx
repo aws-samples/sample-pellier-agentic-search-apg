@@ -17,7 +17,7 @@ import React, {
   useContext,
   useEffect,
 } from 'react'
-import { ClipboardCheck, LogOut, MessageCircle, User } from 'lucide-react'
+import { ClipboardCheck, MessageCircle, User } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import ReviewQueuePanel from '../components/ReviewQueuePanel'
 import ClientBookNavigation from '../components/ClientBookNavigation'
@@ -136,18 +136,21 @@ const OperatorAuthControl: React.FC = () => {
 
   if (isAuthenticated && user) {
     return (
-      <button
-        type="button"
-        className="pellier-account-pill operator-auth-control"
-        onClick={logout}
-        title={`Signed in as ${user.email}`}
-      >
-        <span className="operator-auth-identity">
+      <div className="operator-auth-account">
+        <span
+          className="operator-auth-identity"
+          title={`Signed in as ${user.email}`}
+        >
           {presentIdentity(user.givenName || user.email)}
         </span>
-        <LogOut className="operator-topbar-icon" aria-hidden />
-        <span>Sign out</span>
-      </button>
+        <button
+          type="button"
+          className="pellier-account-pill operator-auth-control"
+          onClick={logout}
+        >
+          Sign out
+        </button>
+      </div>
     )
   }
 

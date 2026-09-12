@@ -157,6 +157,11 @@ class _EmptyPoolHybridSearch(_HybridSearch):
 
 @pytest.fixture(autouse=True)
 def _stub_services(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services import planned_hybrid_retrieval
+
+    # Mechanism contracts use a completed budget. The starter comparison below
+    # separately verifies the narrow lab default and its observable repair.
+    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 30)
     monkeypatch.setattr(app_module, "db_service", object())
     monkeypatch.setattr(embeddings_module, "EmbeddingService", _Embedding)
     monkeypatch.setattr(vector_module, "VectorSearch", _VectorSearch)
@@ -280,7 +285,10 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
     # An unconfigured pool resolves to the reranker's own document cap, which
     # is the value the fallback disclosure must report: the pool the reranker
     # was offered, not the zero documents it came back with.
-    assert hybrid_rerank == {
+    assert {
+        key: value for key, value in hybrid_rerank.items()
+        if key not in {"candidateIds", "fusedCandidates"}
+    } == {
         "status": "fallback",
         "model": "cohere.rerank-v3-5:0",
         "candidates": 6,
@@ -288,10 +296,30 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
         "poolK": 30,
         "fallbackOrder": "rrf",
     }
+    assert len(hybrid_rerank["candidateIds"]) == hybrid_rerank["candidates"]
+    assert hybrid_rerank["candidateIds"] == [
+        row["productId"] for row in hybrid_rerank["fusedCandidates"]
+    ]
     assert settings.RERANK_MAX_DOCUMENTS == 30
     agentic_rerank = body["strategies"][3]["rerank"]
     assert agentic_rerank["status"] == "fallback"
     assert agentic_rerank["fallbackOrder"] == "planned-hybrid-rrf"
+
+
+def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch) -> None:
+    from services import planned_hybrid_retrieval
+
+    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 3)
+    before = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 20)
+    after = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+    narrow = before["strategies"][3]
+    wide = after["strategies"][3]
+    assert len(narrow["rerank"]["candidateIds"]) == 3
+    assert len(wide["rerank"]["candidateIds"]) > 3
+    assert narrow["extractedFilters"]["priceMaxUsd"] == wide["extractedFilters"]["priceMaxUsd"]
+    assert narrow["extractedFilters"]["filterUsed"] == "drop_tags"
+    assert wide["extractedFilters"]["filterUsed"] == "strict"
 
 
 def test_exhausted_ladder_never_drops_a_hard_constraint(

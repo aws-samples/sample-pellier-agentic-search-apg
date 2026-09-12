@@ -50,11 +50,8 @@
 
 @layer components {
   /**
-   * Return-to-storefront mark for the working surfaces (Operator,
-   * Observatory). Kept separate from `.pellier-logo-chip` on purpose: that
-   * class is forced to the sans stack under `.pellier-page-surface` below, and
-   * these two surfaces sit on opposite sides of that boundary. Styling the
-   * mark here keeps it identical in both.
+   * Return-to-storefront link for the working surfaces. The outlined icon
+   * comes from PellierMark; the wordmark retains the storefront display face.
    */
   .pellier-home-link {
     display: inline-flex;
@@ -71,23 +68,6 @@
     opacity: 0.72;
   }
 
-  .pellier-home-chip {
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 9999px;
-    flex-shrink: 0;
-    background: var(--dl-ink);
-    color: var(--dl-paper);
-    font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
-    font-weight: 600;
-    font-size: 13px;
-    line-height: 1;
-  }
-
   .pellier-home-wordmark {
     font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
     font-weight: 500;
@@ -96,24 +76,8 @@
     color: var(--dl-ink);
   }
 
-  /**
-   * Circular “P” — Fraunces (same `font-display` stack as footer wordmark)
-   * so the chip matches the fuller weight next to “Pellier”.
-   */
-  .pellier-logo-chip {
-    box-sizing: border-box;
-    font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
-    font-weight: 600;
-    font-style: normal;
-    font-size: 15px;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9999px;
-    flex-shrink: 0;
+  .pellier-home-wordmark-dot {
+    color: var(--pellier-copper);
   }
 }
 
@@ -198,7 +162,7 @@
    * `.operator-root` joins this list so the desk inherits the storefront's
    * exact surface palette rather than a second copy of it. It is deliberately
    * NOT given `.pellier-page-surface`: that class also forces `.font-display`
-   * and `.pellier-logo-chip` to the sans stack (see below), and the desk needs
+   * to the sans stack (see below), and the desk needs
    * its Fraunces headings.
    */
   :where(
@@ -248,10 +212,8 @@
 
   .pellier-surface .font-display,
   .pellier-surface .product-name,
-  .pellier-surface .pellier-logo-chip,
   .pellier-page-surface .font-display,
-  .pellier-page-surface .product-name,
-  .pellier-page-surface .pellier-logo-chip {
+  .pellier-page-surface .product-name {
     font-family: var(--sans);
     font-style: normal;
     letter-spacing: 0;

@@ -1,5 +1,5 @@
 /**
- * Which governed Labs surfaces are primary and which are optional depth.
+ * Which governed Labs surfaces run requests and which inspect recorded evidence.
  *
  * The collection is the visual entry to one participant-facing workbench.
  * Deeper system pages remain reference views.
@@ -39,14 +39,9 @@ const INTERACTIVE_COPY: Record<string, ObservatoryModeCopy> = {
 /**
  * Every non-Workbench surface gets this.
  *
- * It used to read "Optional deep dive — use this deep dive only when a lab step
- * or your investigation sends you here", which made optionality the third thing
- * on screen saying so: the top bar badge, this banner, and the page's own
- * intro. Optionality is the badge's job now, and it says it once, everywhere.
- *
- * What this banner is actually for is the distinction the badge cannot make:
- * this is a read of recorded evidence, not the live workbench, and it is not
- * the canonical proof either.
+ * Observatory is part of the core participant experience. This banner names
+ * the interaction boundary: reading recorded evidence does not start a live
+ * request. The lab guide determines which deeper exercises are optional.
  */
 const REFERENCE_COPY: ObservatoryModeCopy = {
   label: 'Reference view',

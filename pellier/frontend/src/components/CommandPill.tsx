@@ -17,7 +17,8 @@
  */
 import { useEffect, useState } from 'react'
 
-import { COMMAND_PILL, REFINEMENT } from '../copy'
+import { COMMAND_PILL } from '../copy'
+import PellierMark from './PellierMark'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 
@@ -67,17 +68,7 @@ export default function CommandPill() {
         e.currentTarget.style.transform = 'translateY(0)'
       }}
     >
-      <span
-        aria-hidden="true"
-        data-testid="command-pill-pmark"
-        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-cream-50 font-sans font-semibold text-xs leading-none"
-        style={{
-          background: '#2a2724',
-          boxShadow: 'inset 0 0 0 1px rgba(251, 248, 242, 0.12)',
-        }}
-      >
-        {REFINEMENT.B_MARK_PREFIX}
-      </span>
+      <PellierMark size={22} data-testid="command-pill-pmark" />
       <span
         data-testid="command-pill-label"
         className="font-sans whitespace-nowrap"

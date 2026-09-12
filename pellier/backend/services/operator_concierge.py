@@ -324,6 +324,10 @@ async def load_client_evidence(
             steps.append(Step("replacement", "Replacement records checked", SOURCE_AURORA,
                               result=f"{len(care['replacements'])} recorded operations"))
             for replacement in care["replacements"]:
+                follow_up = (
+                    "Operator follow-up is required. "
+                    if replacement.get("workflowResolution") == "operator_review_required" else ""
+                )
                 evidence.append(Evidence(
                     kind="replacement_operation", role=ROLE_FACT, status="verified",
                     source=SOURCE_AURORA, label="Replacement recovery",
@@ -331,6 +335,7 @@ async def load_client_evidence(
                     detail=(
                         f"Order #{replacement['orderId']}, {replacement['productName']}, "
                         f"quantity {replacement['quantity']}. Recorded state: {replacement['state']}. "
+                        f"{follow_up}"
                         f"Approval #{replacement['reviewId']}. Fulfillment uses a workshop simulator, "
                         "not a real carrier. Reconcile this operation before proposing another remedy."
                     ),

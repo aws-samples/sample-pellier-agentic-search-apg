@@ -3,13 +3,7 @@
  *
  * The Operator desk and the Observatory both need an unmistakable way back to
  * Pellier. A text link reads as one more nav item; the mark reads as home, so
- * both surfaces use the storefront's own chip-plus-wordmark.
- *
- * It deliberately does NOT reuse `.pellier-logo-chip`. That class is forced to
- * the sans stack under `.pellier-page-surface` (see `index.css`), which the
- * Observatory sits inside and the Operator does not — the same component would
- * render in two different faces across the two surfaces. `.pellier-home-chip`
- * is unaffected by that override, so the mark is identical in both places.
+ * both surfaces use the shared outlined mark and lowercase wordmark.
  *
  * Sized a step down from the storefront's own wordmark: this is navigation
  * back, not the current surface's identity, and it must not compete with the
@@ -19,6 +13,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { NAV } from '../copy'
+import PellierMark from './PellierMark'
 
 interface PellierHomeLinkProps {
   /** Preserved per surface so existing tests keep their handle. */
@@ -42,11 +37,9 @@ const PellierHomeLink: React.FC<PellierHomeLinkProps> = ({
     title={ariaLabel}
     className={['pellier-home-link', className].filter(Boolean).join(' ')}
   >
-    <span aria-hidden="true" className="pellier-home-chip">
-      P
-    </span>
+    <PellierMark size={26} />
     <span aria-hidden="true" className="pellier-home-wordmark">
-      {label}
+      {label === NAV.WORDMARK ? <>pellier<span className="pellier-home-wordmark-dot">.</span></> : label}
     </span>
   </Link>
 )

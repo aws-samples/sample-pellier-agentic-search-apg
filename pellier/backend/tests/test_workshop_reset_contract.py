@@ -153,6 +153,24 @@ def test_every_migration_in_the_chain_is_reachable_from_bootstrap() -> None:
     assert not missing, f"migrations not registered in bootstrap: {missing}"
 
 
+def test_recovery_reset_keeps_foreign_keys_complete_and_refuses_existing_operations() -> None:
+    body = _reset_body()
+    assert {
+        "replacements", "replacement_outbox", "replacement_events",
+        "replacement_callbacks", "replacement_simulator_operations",
+    } <= _truncate_list()
+    for migration in ("052_replacement_recovery.sql", "053_replacement_follow_up.sql"):
+        assert migration in body
+    # The guard must run before catalog reseeding or any truncate. A database
+    # activity snapshot alone cannot establish that a callback workflow is idle.
+    guard = body[body.index("_assert_no_active_execution()"):body.index("# Restore the STARTING")]
+    assert "SELECT count(*) FROM pellier.replacements" in guard
+    assert 'if [[ "$recovery_records" != "0" ]]' in guard
+    assert "cannot quiesce the recovery worker and Step Functions" in guard
+    calls = body[body.index('echo "Pellier governed reset'): ]
+    assert calls.index("_assert_no_active_execution") < calls.index("seed_pellier_catalog.py")
+
+
 NEW_EVIDENCE_MIGRATIONS = (
     "047_evidence_immutability.sql",
     "048_policy_decisions.sql",

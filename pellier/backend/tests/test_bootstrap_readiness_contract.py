@@ -213,6 +213,10 @@ def _valid_managed_receipt() -> dict[str, object]:
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.26.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/test"},
+        "operator_runtime": {
+            "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
+            "authentication": "AWS_IAM",
+        },
         "memory": {
             "memory_id": "memory-123",
             "seed": {"status": "ready"},
@@ -261,6 +265,12 @@ def _valid_managed_receipt() -> dict[str, object]:
                     "previous_kms_key_arn": None,
                     "previous_retention_days": None,
                 },
+            },
+            "operator_runtime_log_group": {
+                "name": "/aws/bedrock-agentcore/runtimes/pellier_operator-fixture-DEFAULT",
+                "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/fixture",
+                "retention_days": 30,
+                "cleanup": {"created_by_workshop": True},
             },
             "trace_log_groups": {
                 "groups": [
@@ -388,7 +398,20 @@ def _valid_managed_receipt() -> dict[str, object]:
                 "rail": "gateway-mcp",
                 "session_id": "builders-smoke-session-0000000000000001",
                 "response_preview": "A live managed response.",
+                "build_fingerprint": "fixture-package",
+                "build_fingerprint_expected": "fixture-package",
+                "build_fingerprint_match": True,
             },
+            "operator_runtime_invoke_smoke": {
+                "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
+                "session_id": "operator-proof-000000000000000000001",
+                "build_fingerprint": "fixture-package",
+                "build_fingerprint_match": True,
+                "executed_nodes": ["case-investigator", "resolution-planner"],
+                "fixture": True,
+            },
+            "runtime_build_fingerprint_match": True,
+            "operator_runtime_build_fingerprint_match": True,
         },
     }
 
@@ -1341,6 +1364,8 @@ def _run_reset(
     policy_exit: int = 0,
     quarantine_seed: str | None = None,
     backend_listening: bool = False,
+    recovery_installed: str = "f",
+    recovery_records: str = "0",
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the real reset against a sandbox repo with every external binary faked.
 
@@ -1396,8 +1421,10 @@ exit 0
     # one row each for the migration 010 forensic incident.
     _write_executable(
         fake_bin / "psql",
-        """#!/bin/bash
+        f"""#!/bin/bash
 case "$*" in
+  *"to_regclass('pellier.replacements')"*) printf '%s\\n' '{recovery_installed}' ;;
+  *"FROM pellier.replacements;"*) printf '%s\\n' '{recovery_records}' ;;
   *CUST-JESSICA*) printf '0\\n' ;;
   *"FROM pellier.returns;"*) printf '1\\n' ;;
   *"FROM pellier.tool_audit;"*) printf '1\\n' ;;
@@ -1443,6 +1470,17 @@ exit 0
         check=False,
     )
     return proc, quarantine_file
+
+
+@pytest.mark.parametrize(("installed", "records"), [("t", "1"), ("t", ""), ("", "0")])
+def test_reset_refuses_owned_or_unknown_recovery_records_before_reseeding(
+    tmp_path: Path, installed: str, records: str,
+) -> None:
+    proc, _ = _run_reset(tmp_path, recovery_installed=installed, recovery_records=records)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "replacement recovery" in proc.stdout.lower() or "replacement recovery records" in proc.stdout.lower()
+    assert "Catalog quantities restored" not in proc.stdout
+    assert "Cleared:" not in proc.stdout
 
 
 @pytest.mark.parametrize(

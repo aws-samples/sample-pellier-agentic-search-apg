@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Mapping, Optional
@@ -22,12 +23,8 @@ logger = logging.getLogger(__name__)
 
 GRAPH_ID = "operator-concierge-v1"
 GRAPH_PATTERN = "strands-graph"
-# Where this graph actually runs. The Operator Concierge is orchestrated by the
-# application: Strands GraphBuilder executes inside the Pellier backend process,
-# and nothing here is invoked through AgentCore Runtime, which hosts the
-# storefront path. The label says so, because an evidence surface that named
-# the managed runtime as the target would be claiming an execution boundary
-# the desk does not cross.
+# Labs 1 and 2 use the backend process. Managed mode invokes the separate
+# Operator Runtime; the metadata below records the boundary actually crossed.
 DEPLOYMENT_TARGET = "Pellier backend process (application-orchestrated)"
 INVESTIGATOR_NODE = "case-investigator"
 PLANNER_NODE = "resolution-planner"
@@ -142,6 +139,23 @@ def run_operator_graph(
     action_hash: str = "",
 ) -> OperatorGraphResult:
     """Run the two-agent graph and return the planner's raw structured output."""
+    managed = os.environ.get("PELLIER_OPERATOR_RUNTIME") == "true"
+    if not managed:
+        from config import settings
+
+        if settings.USE_AGENTCORE_RUNTIME:
+            from services.operator_runtime import invoke_operator_runtime
+
+            return invoke_operator_runtime(
+                request=request, evidence_text=evidence_text, memory_text=memory_text,
+                contract=contract, context_block=context_block,
+                shopper_handoff=shopper_handoff, checkpoint_state=checkpoint_state,
+                review_id=review_id, action_hash=action_hash,
+            )
+    execution = "agentcore-runtime" if managed else "application-orchestrated"
+    deployment_target = (
+        "Amazon Bedrock AgentCore Runtime (Operator)" if managed else DEPLOYMENT_TARGET
+    )
     from strands import Agent
     from strands.models import BedrockModel
     from strands.multiagent import GraphBuilder
@@ -211,8 +225,8 @@ def run_operator_graph(
             metadata={
                 "graphId": GRAPH_ID,
                 "pattern": GRAPH_PATTERN,
-                "execution": "application-orchestrated",
-                "deploymentTarget": DEPLOYMENT_TARGET,
+                "execution": execution,
+                "deploymentTarget": deployment_target,
                 "agents": [INVESTIGATOR_NODE, PLANNER_NODE],
                 "executedNodes": [],
                 "durationMs": duration,
@@ -233,8 +247,8 @@ def run_operator_graph(
         metadata={
             "graphId": GRAPH_ID,
             "pattern": GRAPH_PATTERN,
-            "execution": "application-orchestrated",
-            "deploymentTarget": DEPLOYMENT_TARGET,
+            "execution": execution,
+            "deploymentTarget": deployment_target,
             "agents": [INVESTIGATOR_NODE, PLANNER_NODE],
             "executedNodes": nodes,
             "durationMs": duration,

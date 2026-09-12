@@ -2,7 +2,9 @@
 .pellier-signin-shell { width: min(1100px, 100%); display: grid; grid-template-columns: 1fr 0.94fr; min-height: min(680px, calc(100dvh - var(--pellier-surface-bar-height, 64px) - 64px)); background: var(--dl-paper, #fbf8f2); border: 1px solid var(--rule-1); border-radius: 28px; overflow: clip; box-shadow: 0 16px 48px rgb(31 20 16 / 0.07); }
 .pellier-signin-form-panel { display: flex; flex-direction: column; padding: 32px 48px 28px; }
 .pellier-signin-wordmark { align-self: flex-start; font: 400 34px/1.2 var(--display); letter-spacing: -1.8px; color: var(--dl-ink); text-decoration: none; padding-block: 4px; }
-.pellier-signin-wordmark span { color: var(--pellier-burgundy); }
+.pellier-signin-wordmark span { color: var(--pellier-copper); }
+.pellier-signin-image-wordmark { letter-spacing: -.04em; }
+.pellier-signin-image-wordmark>span { color: var(--pellier-copper-on-dark); }
 .pellier-signin-content { width: 100%; margin-block: auto; padding-block: 34px; }
 .pellier-signin-content h1 { margin: 0; font: 500 clamp(28px, 3vw, 36px)/1.16 var(--display); letter-spacing: -0.03em; text-wrap: balance; }
 .pellier-signin-content h1:focus { outline: none; }

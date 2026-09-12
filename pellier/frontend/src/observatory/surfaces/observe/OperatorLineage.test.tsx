@@ -91,6 +91,29 @@ afterEach(() => {
 })
 
 describe('OperatorLineage', () => {
+  it('shows managed build evidence without implying a human approved the remedy', async () => {
+    mockResponse({
+      ...PENDING,
+      orchestration: {
+        ...PENDING.orchestration,
+        execution: 'agentcore-runtime',
+        deploymentTarget: 'Amazon Bedrock AgentCore Runtime (Operator)',
+        buildFingerprint: 'b'.repeat(64),
+        fingerprintMatches: true,
+        runtimeSessionId: 'operator-runtime-session-fixture',
+      },
+    })
+    renderPage()
+    expect(await screen.findByLabelText('Operator Runtime evidence'))
+      .toHaveTextContent('Verified')
+    expect(screen.getByText('b'.repeat(64))).toBeInTheDocument()
+    expect(screen.getByText('operator-runtime-session-fixture')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-lineage-human-decision'))
+      .toHaveAttribute('data-stage-state', 'waiting')
+    expect(screen.getByTestId('operator-lineage-execution'))
+      .toHaveAttribute('data-stage-state', 'waiting')
+  })
+
   it('renders the handoff, two graph agents, and later human checkpoint', async () => {
     mockResponse(PENDING)
     renderPage()

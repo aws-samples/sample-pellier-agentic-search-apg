@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Depends, Request
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -553,7 +553,7 @@ else:
 
 
 @app.get("/api/health", response_model=HealthResponse)
-async def health_check():
+async def health_check(response: Response):
     """
     Health check endpoint
     Returns status of all services
@@ -574,7 +574,7 @@ async def health_check():
 
     # Check database connection
     try:
-        await db_service.execute_query("SELECT 1")
+        await asyncio.wait_for(db_service.check_health(), timeout=4)
         health_status["database"] = "connected"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -583,13 +583,15 @@ async def health_check():
 
     # Check Bedrock access
     try:
-        embedding_service.generate_embedding("test")
+        await asyncio.to_thread(embedding_service.generate_embedding, "test")
         health_status["bedrock"] = "accessible"
     except Exception as e:
         logger.error(f"Bedrock health check failed: {e}")
         health_status["bedrock"] = "inaccessible"
         health_status["status"] = "degraded"
 
+    if health_status["status"] != "healthy":
+        response.status_code = 503
     return HealthResponse(**health_status)
 
 
@@ -2043,6 +2045,18 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
         "candidates": len(execution.rerank_pool),
         "returned": returned,
         "poolK": execution.rerank_pool_k,
+        "candidateIds": [
+            str(row["product_id"]) for row in execution.rerank_pool
+        ],
+        "fusedCandidates": [
+            {
+                "productId": str(row["product_id"]),
+                "vectorRank": row.get("vec_rank"),
+                "lexicalRank": row.get("fts_rank"),
+                "rrfScore": row.get("rrf_score"),
+            }
+            for row in execution.candidates
+        ],
         "fallbackOrder": None if returned else fallback_order,
     }
 

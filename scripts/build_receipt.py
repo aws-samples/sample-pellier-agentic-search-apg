@@ -145,10 +145,10 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
         "PostgreSQL RRF \u00b7 fusion expression", ("0::numeric AS recomputed_rrf",),
     ),
     (
-        "02_measure_hybrid_retrieval", "2b_golden_set_labeled",
+        "02_measure_hybrid_retrieval", "2b_candidate_budget_authored",
         BACKEND / "services" / "planned_hybrid_retrieval.py",
-        "Retrieval eval \u00b7 golden set",
-        ("CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ()",),
+        "Hybrid retrieval \u00b7 candidate budget",
+        ("DEFAULT_RERANK_POOL_K = 3",),
     ),
     (
         "03_operate_the_managed_path", "3a_gateway_tool_published",

@@ -6,9 +6,9 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
 ## Product boundaries
 
 - Pellier is a fast, editorial shopping experience.
-- Pellier Observatory is a quiet, optional inspection surface. **It has no
+- Pellier Observatory is a core participant surface for labs and evidence. **It has no
   sidebar.** `ObservatoryFrame` renders the top bar and an outlet, so the whole
-  navigation is two tabs (Live Workbench, Proof & References) plus the
+  navigation is two tabs (Lab Collection, Workbench) plus the
   `ReferencesIndex` directory. A `Sidebar` component with its own group names
   and its own labels for the same routes rendered nowhere for six days while
   its tests passed against a directly-mounted copy; it has been deleted. Do not
@@ -16,21 +16,17 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
 - `ReferencesIndex` is that navigation, grouped by task: Proof views, Replay a
   turn, Inspect the build, Measure. One label per destination, title case. A new
   surface needs an entry here or it is unreachable.
-- The Observatory is not a fifth lab and must never present itself as one. Do
-  not add "required", "complete the workshop path", progress, or completion
-  vocabulary: there is no honest completion signal for optional work, and a
-  "Required proof" heading under an `Optional` badge contradicts itself in one
-  viewport. The canonical proof is curl and SQL in the Code Editor; say so
-  rather than implying these views are it.
+- Observatory connects Storefront conversations, Operator decisions, and system
+  evidence. Do not label the whole surface optional or invent completion from
+  visiting it. Individual extension exercises can be optional in the lab guide.
+  Code Editor, curl, and SQL remain the canonical workshop proof.
 - The one real build-state number (shipped tools, e.g. `16/17`) belongs beside
   the Tool Registry entry, where it is a fact that changes when the guided
   exercise lands. Never hardcode it: show an em dash when build state is
   unavailable, because a stale literal reads as a confident "not wired yet".
-- Every entry point into the Observatory carries the `Optional` badge
-  (`NAV.OBSERVATORY_OPTIONAL`), including inside the surface itself, because
-  participants arrive by deep link and screenshot as often as by the nav. State
-  it once per screen: the badge owns it, so page copy and the mode banner must
-  not repeat it.
+- The user made Observatory part of the core participant experience on
+  September 12, 2026. Its top bar and global navigation carry no `Optional`
+  badge. Mode labels distinguish running a request from reading evidence.
 - **Application copy is self-paced; the lab guide is not.** No copy shipped in
   this app may route a participant through a facilitator, because the app also
   runs for anyone who clones the repo with no room around them. The Workshop

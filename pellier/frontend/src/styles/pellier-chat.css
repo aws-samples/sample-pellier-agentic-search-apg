@@ -323,22 +323,6 @@
   gap: 8px;
   margin-bottom: -4px;
 }
-.ec-b-mini {
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: var(--ink-1);
-  color: var(--cream-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 600;
-  font-style: normal;
-  letter-spacing: -0.04em;
-  flex-shrink: 0;
-}
-
 /* Thinking inline — premium concierge feel.
  *
  * Three staggered dots with a soft pulse, plus a "Considering" label

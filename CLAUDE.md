@@ -1,6 +1,6 @@
 # Pellier - Claude Code project guidance
 
-This repository is the application behind the flagship two-hour governed
+This repository is the application behind the flagship 100-minute governed
 agentic search workshop. Read this file before editing.
 
 ## Instruction map
@@ -23,7 +23,7 @@ or runtime skills.
 
 ## Branch and source contract
 
-- `governed` is the flagship two-hour re:Invent workshop application.
+- `governed` is the flagship 100-minute re:Invent workshop application.
 - `main` supports the shorter one-hour builders session. Do not backport,
   merge, or simplify `governed` changes into `main` unless explicitly asked.
 - The application repository is the source of truth for code and runtime
@@ -94,7 +94,7 @@ anchored to one person, in climbing order of difficulty:
 | Lab | Person | a | b |
 |---|---|---|---|
 | 1. Build a PostgreSQL-Grounded Agent | Marco | Inventory Agent definition | `check_inventory` body |
-| 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | RRF fusion expression | the labelled golden set |
+| 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | RRF fusion expression | the live candidate budget |
 | 3. Deploy and Operate the Managed Agent Path | Theo | publish the Gateway tool | reconcile the Runtime catalogue, then deploy |
 | 4. Govern and Prove Agent Actions | Jessica | the Cedar identity rule | the keyed absence query |
 
@@ -105,9 +105,9 @@ is the point. Lab 3b edits a file inside `RUNTIME_SOURCE_FILES`, so completing
 it changes the deployed build fingerprint; that is the lab's proof and must not
 be broken by moving the exercise to an unpackaged file.
 
-Budgets, for a two-hour room: 10 minutes orientation, 20 for Lab 1, 20 for
-Lab 2, 30 for Lab 3, 30 for Lab 4, 10 to close. Labs 3 and 4 carry the extra
-time because each waits on something real, a deploy and a policy evaluation.
+Budgets: 5 minutes orientation, 20 for Lab 1, 25 for Lab 2, 25 for Lab 3,
+20 for Lab 4, and 5 to close. Reading, deployment waits, and ten minutes of
+recovery are included in these allocations. Rehearse the complete path before release.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.

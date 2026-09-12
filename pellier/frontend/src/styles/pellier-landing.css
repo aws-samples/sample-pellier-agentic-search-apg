@@ -16,6 +16,7 @@
  *
  * COLOUR ROLES (the whole product speaks one language):
  *   burgundy    brand and authority. Wordmark, accent word, primary action.
+ *   copper      the signature dot and numbered surface navigation.
  *   terracotta  active or in flight. Focus, hover, a running step.
  *   olive       verified. A claim with evidence behind it.
  *   neutral     not evaluated.
@@ -50,6 +51,9 @@
      This is that hue carried up until it clears AA: 5.6:1 on #1f1410. Use it
      wherever burgundy has to speak on a dark surface; never gray. */
   --pellier-burgundy-on-dark: #c17c83;
+  /* Signature copper: light on chocolate, deeper on the selected ivory pill. */
+  --pellier-copper-on-dark: #da9562;
+  --pellier-copper: #9a4d20;
 
   /* Editorial rhythm for the landing bands. */
   --pellier-band-y: clamp(48px, 5.5vw, 88px);

@@ -3,7 +3,7 @@
  *
  * Validates Requirements 1.8.1, 1.8.2, and 1.8.3.
  *
- * Renders a white card with a small P mark in an espresso disc, the
+ * Renders a white card with the shared Pellier p. mark, the
  * narrow this down?` prompt, and four toggleable chips from `copy.ts`:
  *   - Under $100
  *   - Ships by Friday
@@ -24,6 +24,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { REFINEMENT } from '../copy'
 import { usePersona } from '../contexts/PersonaContext'
 import { cssVar as c } from '../design/cssVars'
+import PellierMark from './PellierMark'
 
 // Persona-tailored prompt. Fresh (and null) keep the default from
 // copy.ts so the scanner stays happy. Returning personas get a
@@ -117,22 +118,7 @@ export default function RefinementPanel({
     >
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <span
-            data-testid="refinement-b-mark"
-            aria-hidden="true"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-            style={{
-              background: c.ink,
-              color: c.bg,
-              fontFamily: 'var(--sans)',
-              fontStyle: 'normal',
-              fontWeight: 600,
-              fontSize: '13px',
-              lineHeight: 1,
-            }}
-          >
-            {REFINEMENT.B_MARK_PREFIX}
-          </span>
+          <PellierMark size={32} data-testid="refinement-b-mark" />
           <span
             data-testid="refinement-prompt"
             style={{

@@ -2,7 +2,7 @@
 
 **Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
-Level 400. Two hours. Four labs, eight bounded builds, two participant workflows.
+Level 400. 100 minutes. Four labs, eight bounded builds, two participant workflows.
 
 This brief explains the teaching plan. Workshop Studio contains the participant
 commands, marked exercises, hints, and recovery steps. The schedule is a target
@@ -33,29 +33,14 @@ Times are elapsed minutes from the beginning of the session.
 
 | Workshop minutes | Activity | Duration |
 |---|---|---|
-| 0-10 | Opening talk | 10 minutes |
-| 10-20 | Introduction and Theo's first conversation | 10 minutes |
-| 20-40 | Lab 1: Build a PostgreSQL-Grounded Agent | 20 minutes |
-| 40-60 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | 20 minutes |
-| 60-90 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 30 minutes |
-| 90-115 | Lab 4: Build Governed Agent Actions with Cedar | 25 minutes |
-| 115-120 | Summary and policy cleanup | 5 minutes |
+| 0-5 | Introduction and Theo's first conversation | 5 minutes |
+| 5-25 | Lab 1: Build a PostgreSQL-Grounded Agent | 20 minutes |
+| 25-50 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | 25 minutes |
+| 50-75 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 25 minutes |
+| 75-95 | Lab 4: Build Governed Agent Actions with Cedar | 20 minutes |
+| 95-100 | Summary and policy cleanup | 5 minutes |
 
-Two speakers open the session. After minute 10, every participant follows the
-complete guide with facilitators available. Every participant also signs in to
-Operator; a staff demonstration does not replace that step.
-
-There is no unallocated buffer. Use catch-up deadlines of minute 30 for Lab 1,
-minute 50 for Lab 2, minute 70 to start the Lab 3 deployment, minute 95 to start
-policy deployment, and minute 110 for the absence query. Escalate a deployment
-still running at minute 80 or a policy still unavailable at minute 100. A catch-up
-solution restores an edit; participants still run its checks.
-
-Start Memory extraction during Introduction. Participants can read the service
-ownership diagram during the Lab 3 deployment, inspect the absence-query task
-during policy deployment, and discuss their evidence during Summary.
-Required checks remain visible in the guide. Optional material must not become an
-undeclared requirement to finish on time.
+Opening context and orientation share minutes 0-5. Participants follow the complete guide and all three app surfaces. Use catch-up by minute 15 for Lab 1 and minute 40 for Lab 2; start managed deployment by minute 55 and policy deployment by minute 80. Reading, explanation, and recovery share the lab allocations. Rehearse the full path with a clock before release.
 
 ## Introduction
 
@@ -170,22 +155,11 @@ Ranking cannot make an ineligible product eligible.
 **Build 2a:** reconstruct the reciprocal rank fusion expression in a SQL worksheet
 and compare it with recorded ranks and scores. This verifies the calculation; it
 does not replace the application's live search implementation.
-**Build 2b:** derive and label relevant products with a stated catalog query.
+**Build 2b:** change `DEFAULT_RERANK_POOL_K` inside the candidate-budget markers. The starter sends only three fused candidates to reranking. Keep explicit overrides and the configured ceiling.
 
-**Check:** hold the request and labels fixed. Compare two rerank pools, inspect
-vector and lexical ranks, and verify price and stock constraints. Check the
-choice against five frozen cases, including an exclusion, a tight budget, a
-sold-out product, and a request whose correct result is empty. Write one sentence
-explaining which pool to ship, or why more evidence is needed.
+**Check:** save the before/after comparison for one fixed request. Read `EXPLAIN (ANALYZE, BUFFERS)`, locate a candidate removed before reranking, and trace its exact ID after the edit. Recompute the receipt’s RRF scores and check price, stock, and archive predicates. A sequential scan can be appropriate on the small catalog; a single timing is not a production benchmark.
 
-Coverage divides relevant returned products by the label count; precision divides
-by the returned count. For this single query, reciprocal rank uses the first
-relevant result. A single timed sample is not a latency distribution, and a
-held-out check requiring some relevant result is not a production quality target.
-
-**Explain:** relevance needs explicit judgments and controlled comparisons.
-PostgreSQL enforces eligibility. A reranker cannot recover a useful candidate
-that never entered its pool.
+**Explain:** retrieval budgets and eligibility solve different problems. A reranker cannot recover a candidate outside its input pool. No evaluation-framework build is required.
 
 ### Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
 
@@ -201,7 +175,7 @@ staff-only.
 **Build 3b:** reconcile the support specialist's managed tool list and bind the
 read to the authenticated customer.
 
-**Check:** deploy by minute 70. Complete the new-session Memory experiment, then
+**Check:** start deployment by minute 55. Complete the new-session Memory experiment, then
 run Theo's signed-in Storefront thread against the deployed path. Read its Memory
 events from a separate Python process. Compare the executed and expected build
 fingerprints, and run the supplied trace contract on the thread's downloaded

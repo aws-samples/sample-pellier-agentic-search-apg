@@ -341,7 +341,7 @@ _clear_quarantine() {
 # it, the only sessions left are ones this script does not control, and an unfinished
 # claim is residue that the TRUNCATE correctly clears.
 _assert_no_active_execution() {
-  local active claims
+  local active claims recovery_installed recovery_records
   active="$(_psql_scalar "
     SELECT count(*) FROM pg_stat_activity
      WHERE datname = current_database()
@@ -377,6 +377,26 @@ _assert_no_active_execution() {
     warn "${claims} idempotency claim(s) never completed. They are interrupted residue and the reset clears them."
   else
     pass "No unfinished idempotency claim"
+  fi
+
+  # A quiet database does not quiesce a scheduled Lambda or a waiting Standard
+  # execution. This local reset cannot retire their durable operation identity.
+  recovery_installed="$(_psql_scalar "
+    SELECT to_regclass('pellier.replacements') IS NOT NULL;
+  " 2>/dev/null | tr -d '[:space:]')" || recovery_installed=""
+  if [[ "$recovery_installed" == "t" ]]; then
+    recovery_records="$(_psql_scalar "
+      SELECT count(*) FROM pellier.replacements;
+    " 2>/dev/null | tr -d '[:space:]')" || recovery_records=""
+    if [[ "$recovery_records" != "0" ]]; then
+      fail "Replacement recovery records exist or could not be counted."
+      fail "This reset cannot quiesce the recovery worker and Step Functions executions."
+      fail "Preserve their records and use a fresh workshop deployment."
+      exit 1
+    fi
+  elif [[ "$recovery_installed" != "f" ]]; then
+    fail "Could not establish whether replacement recovery is installed; reset refused."
+    exit 1
   fi
 }
 
@@ -530,7 +550,9 @@ for migration in \
   048_policy_decisions.sql \
   049_workshop_runs.sql \
   050_refine_guided_questions.sql \
-  051_review_requester.sql
+  051_review_requester.sql \
+  052_replacement_recovery.sql \
+  053_replacement_follow_up.sql
 do
   if [[ ! -f "$REPO/scripts/migrations/$migration" ]]; then
     fail "Missing scripts/migrations/$migration"
@@ -543,6 +565,13 @@ pass "Exactly three warehouse rows per curated product reseeded"
 
 _psql_exec "
 TRUNCATE TABLE
+    -- The guard above requires these to be empty. Naming every child keeps
+    -- TRUNCATE referentially complete without CASCADE or a cloud-workflow reset.
+    pellier.replacement_callbacks,
+    pellier.replacement_simulator_operations,
+    pellier.replacement_events,
+    pellier.replacement_outbox,
+    pellier.replacements,
     pellier.commerce_payment_events,
     pellier.commerce_receipts,
     pellier.commerce_outbox,

@@ -334,6 +334,7 @@ export interface OperatorReplacement {
   quantity: number
   disposition: string
   state: 'reserved' | 'awaiting_fulfillment' | 'outcome_unknown' | 'accepted' | 'shipped'
+  workflowResolution: 'operator_review_required' | 'shipment_recorded' | null
   providerOperationId: string | null
   executionArn: string | null
   idempotencyKey: string

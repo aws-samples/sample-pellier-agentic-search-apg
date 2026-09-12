@@ -26,7 +26,7 @@
  * providers are mounted live so a runtime context error would surface
  * here rather than only at dev-server boot.
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- fetch mock ---------------------------------------------------------
@@ -131,7 +131,7 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     // resolves to via <AuthGate/>) and is never rendered by the
     // /storyboard or /discover routes.
     await screen.findByTestId('sticky-header')
-    expect(screen.getByRole('link', { name: 'Pellier home' })).toHaveTextContent(/pellier/i)
+    expect(within(screen.getByTestId('surface-navigation')).getByRole('link', { name: 'Pellier home' })).toHaveTextContent(/pellier/i)
 
     // Persona pill is the other canonical home-page marker; confirms
     // the persona-dependent branch of the header mounted.

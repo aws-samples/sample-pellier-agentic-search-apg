@@ -94,6 +94,7 @@ async def read_replacements(db: Any, customer_id: str, replacement_id: str | Non
             "orderId": int(r["order_id"]), "productId": str(r["product_id"]),
             "productName": r["product_name"], "quantity": int(r["quantity"]),
             "disposition": r["disposition"], "state": r["status"],
+            "workflowResolution": r.get("workflow_resolution"),
             "providerOperationId": r["provider_operation_id"],
             "executionArn": r["workflow_execution_arn"],
             "idempotencyKey": r["idempotency_key"], "approvalHash": r["request_hash"],

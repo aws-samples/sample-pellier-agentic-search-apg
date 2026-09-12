@@ -27,7 +27,7 @@ _A retail search workshop where every answer has evidence and every sensitive ac
 
 Start with the [four-lab teaching map](WORKSHOP.md). It connects each person,
 question, and build to the evidence you should inspect. The **`governed` branch**
-is the two-hour workshop; `main` serves the shorter builders session.
+is the 100-minute workshop; `main` serves the shorter builders session.
 
 The quality badge reports GitHub's branch checks. Deployment E2E is a separate,
 manually triggered check against a real Workshop Studio environment. Neither
@@ -71,7 +71,7 @@ test authorization boundaries, and prove whether an action reached the database.
 | **1a** | the Inventory Agent definition | `pellier/backend/agents/inventory_agent.py` |
 | **1b** | the `check_inventory` tool body | `pellier/backend/services/agent_tools.py` |
 | **2a** | the Reciprocal Rank Fusion expression | `workshop/lab-2-rrf.sql` |
-| **2b** | the labelled golden set the eval divides by | `pellier/backend/services/planned_hybrid_retrieval.py` |
+| **2b** | the live pre-rerank candidate budget | `pellier/backend/services/planned_hybrid_retrieval.py` |
 | **3a** | publishing the Gateway tool the specialist needs | `scripts/deploy/gateway_tool_schemas.py` |
 | **3b** | reconciling the Runtime catalogue with the Gateway | `pellier/backend/services/agentcore_gateway.py` |
 | **4a** | the identity-to-customer Cedar rule | `policies/workshop_identity_match_forbid.cedar` |
@@ -517,7 +517,7 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 |---|---|
 | Introduction | Open Code Editor and Pellier, record a run ID, check Aurora and the predeployed Runtime, and save Theo's first conversation for AgentCore Memory extraction. |
 | Lab 1: Build a PostgreSQL-Grounded Agent | Complete Inventory Agent and `check_inventory`, then prove Marco's answer against live inventory and `tool_audit`. |
-| Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Reconstruct the RRF expression and label relevant rows for Anna's query. Compare two rerank pools against fixed labels and five held-out cases, check eligibility, and justify a choice. |
+| Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Read the SQL query plan, reconstruct RRF, and widen the live candidate budget. Compare exact candidate IDs before and after, retain SQL eligibility, and justify the tradeoff. |
 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | Publish a customer-scoped read, reconcile the Runtime tool list, and deploy. Use Theo's extracted preferences in a new conversation, verify current products in Aurora, inspect Memory from a separate process, compare build fingerprints, and run the trace contract. |
 | Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule and keyed absence query. Distinguish denial, business refusal, committed return, and replay; test Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
 | Summary | Export evidence, restore the policy baseline, explain what each boundary establishes, and map the pattern to your application. |

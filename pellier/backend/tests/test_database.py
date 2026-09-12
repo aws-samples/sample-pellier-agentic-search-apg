@@ -175,6 +175,67 @@ def test_get_connection_sets_iterative_scan_on_acquire(
     assert "strict_order" in sql
 
 
+def test_vector_adapters_register_once_per_physical_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pgvector.psycopg as pgvec
+    registered = []
+
+    async def register(conn: Any) -> None:
+        registered.append(conn)
+
+    monkeypatch.setattr(pgvec, "register_vector_async", register)
+    first, second = FakeConnection(), FakeConnection()
+    pool = FakePool(first)
+    svc = DatabaseService()
+    svc._pool = pool
+    svc._is_connected = True
+
+    async def acquire_reused_then_new() -> None:
+        for _ in range(2):
+            async with svc.get_connection():
+                pass
+        pool._conn = second
+        async with svc.get_connection():
+            pass
+
+    _run(acquire_reused_then_new())
+    assert registered == [first, second]
+    # Reuse still reasserts the retrieval invariant for every request.
+    assert sum("strict_order" in sql for sql, _ in first._cursor.calls) == 2
+    assert sum("strict_order" in sql for sql, _ in second._cursor.calls) == 1
+
+
+def test_failed_vector_registration_is_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pgvector.psycopg as pgvec
+    attempts = []
+
+    async def register(conn: Any) -> None:
+        attempts.append(conn)
+        if len(attempts) == 1:
+            raise RuntimeError("interrupted type lookup")
+
+    monkeypatch.setattr(pgvec, "register_vector_async", register)
+    conn = FakeConnection()
+    svc = DatabaseService()
+    svc._pool = FakePool(conn)
+    svc._is_connected = True
+
+    async def retry() -> None:
+        with pytest.raises(RuntimeError, match="interrupted type lookup"):
+            async with svc.get_connection():
+                pytest.fail("failed setup must not yield a connection")
+        assert not getattr(conn, "_pellier_vector_registered", False)
+        async with svc.get_connection():
+            pass
+
+    _run(retry())
+    assert attempts == [conn, conn]
+    assert conn._pellier_vector_registered is True
+
+
 def test_verify_iterative_scan_warns_when_off(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,

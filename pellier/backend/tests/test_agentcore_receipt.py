@@ -6,6 +6,8 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_agentcore_receipt.py"
@@ -27,6 +29,10 @@ def _valid_receipt() -> dict[str, Any]:
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.26.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/example"},
+        "operator_runtime": {
+            "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
+            "authentication": "AWS_IAM",
+        },
         "memory": {"memory_id": "memory-1", "seed": {"status": "ready"}},
         "gateway": {
             "gateway_id": "gateway-1",
@@ -69,6 +75,12 @@ def _valid_receipt() -> dict[str, Any]:
                     "previous_kms_key_arn": None,
                     "previous_retention_days": None,
                 },
+            },
+            "operator_runtime_log_group": {
+                "name": "/aws/bedrock-agentcore/runtimes/pellier_operator-fixture-DEFAULT",
+                "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/fixture",
+                "retention_days": 30,
+                "cleanup": {"created_by_workshop": True},
             },
             "trace_log_groups": {
                 "groups": [
@@ -156,7 +168,20 @@ def _valid_receipt() -> dict[str, Any]:
                 "rail": "gateway-mcp",
                 "session_id": "runtime-proof-000000000000000000001",
                 "response_preview": "A linen shirt is available.",
+                "build_fingerprint": "fixture-package",
+                "build_fingerprint_expected": "fixture-package",
+                "build_fingerprint_match": True,
             },
+            "operator_runtime_invoke_smoke": {
+                "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
+                "session_id": "operator-proof-000000000000000000001",
+                "build_fingerprint": "fixture-package",
+                "build_fingerprint_match": True,
+                "executed_nodes": ["case-investigator", "resolution-planner"],
+                "fixture": True,
+            },
+            "runtime_build_fingerprint_match": True,
+            "operator_runtime_build_fingerprint_match": True,
             "targets_attached": True,
             "gateway_tools_discovered": True,
             "memory_seeded": True,
@@ -197,6 +222,58 @@ def test_ready_receipt_requires_managed_observability_proof() -> None:
     validator = _load_validator()
 
     assert validator.validate_receipt(_valid_receipt()) == []
+
+
+@pytest.mark.parametrize("failure", ["missing", "stale", "partial", "endpoint", "log"])
+def test_ready_receipt_requires_the_matching_operator_package(failure: str) -> None:
+    receipt = _valid_receipt()
+    smoke = receipt["verification"]["operator_runtime_invoke_smoke"]
+    if failure == "missing":
+        receipt.pop("operator_runtime")
+    elif failure == "stale":
+        smoke["build_fingerprint"] = "old-package"
+    elif failure == "partial":
+        smoke["executed_nodes"].pop()
+    elif failure == "endpoint":
+        smoke["runtime_arn"] = receipt["runtime"]["runtime_arn"]
+    else:
+        receipt["observability"]["operator_runtime_log_group"]["retention_days"] = 0
+    assert _load_validator().validate_receipt(receipt)
+
+
+def _redacted_receipt() -> dict[str, Any]:
+    receipt = _valid_receipt()
+    trace = receipt["observability"]["unified_trace"]
+    verification = receipt["verification"]
+    trace["content_redacted"] = True
+    verification["unified_trace_content_redacted"] = True
+    for key in ("agent_input_observed", "agent_output_observed", "tool_input_output_observed"):
+        trace[key] = False
+    trace["tool_input_output_structured"] = None
+    trace["attribute_contract"] = dict.fromkeys(trace["attribute_contract"])
+    verification["unified_trace_agent_input"] = False
+    verification["unified_trace_agent_output"] = False
+    verification["unified_trace_tool_io_structured"] = None
+    return receipt
+
+
+def test_ready_receipt_accepts_verified_redaction_without_requiring_content() -> None:
+    assert _load_validator().validate_receipt(_redacted_receipt()) == []
+
+
+@pytest.mark.parametrize("failure", ["content", "attribute", "unverified", "missing_span"])
+def test_redaction_does_not_bypass_trace_evidence(failure: str) -> None:
+    receipt = _redacted_receipt()
+    trace = receipt["observability"]["unified_trace"]
+    if failure == "content":
+        trace["agent_input_observed"] = True
+    elif failure == "attribute":
+        trace["attribute_contract"]["agent_input"] = "gen_ai.input.messages"
+    elif failure == "unverified":
+        receipt["verification"]["unified_trace_content_redacted"] = False
+    else:
+        trace["tool_span"] = False
+    assert _load_validator().validate_receipt(receipt)
 
 
 def test_ready_receipt_rejects_missing_tool_span_proof() -> None:

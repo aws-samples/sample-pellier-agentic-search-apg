@@ -8,7 +8,7 @@
  *
  *   - Masthead:     brand lockup left, disclosed demo payment marks right.
  *   - Brand column: tagline plus what this storefront is, as badges. The
- *                   P mark now sits in the masthead, not here.
+ *                   shared Pellier wordmark sits in the masthead.
  *   - Explore:      The floor (`/#shop`), Stories, About.
  *   - Storyboard:   Italic blurb + a real link to `/storyboard`.
  *   - Observatory:  Italic blurb + a real link to `/observatory`.
@@ -94,17 +94,10 @@ function Masthead() {
       data-testid="footer-masthead"
       className="flex flex-col gap-5 pb-10 sm:flex-row sm:items-center sm:justify-between"
     >
-      <div className="flex items-center gap-2.5">
-        <span
-          aria-hidden="true"
-          className="pellier-logo-chip bg-espresso text-cream-50"
-        >
-          P
-        </span>
-        <span className="font-display text-xl font-medium tracking-tight">
-          Pellier
-        </span>
-      </div>
+      <Link to="/" className="pellier-brand pellier-brand-footer" aria-label="Pellier home">
+        <span aria-hidden="true">pellier</span>
+        <span className="pellier-brand-dot" aria-hidden="true">.</span>
+      </Link>
       <CheckoutTrust />
     </div>
   )
@@ -247,10 +240,9 @@ function EditorialColumn({
       <Link
         to={ctaHref}
         data-testid={`${testId}-cta`}
-        className="font-sans text-[13px] font-medium tracking-tight text-accent no-underline mt-1 inline-flex min-h-[44px] items-center gap-1.5 py-1 transition-all duration-fade ease-out hover:underline"
+        className="font-sans text-[13px] font-medium tracking-tight text-accent no-underline mt-1 inline-flex min-h-[44px] w-fit items-center rounded-full border border-accent/20 px-4 py-2 transition-colors duration-fade ease-out hover:border-accent/40 hover:bg-accent/5"
       >
         {ctaLabel}
-        <span aria-hidden>&rarr;</span>
       </Link>
     </section>
   )

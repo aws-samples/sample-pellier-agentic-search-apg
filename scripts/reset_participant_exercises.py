@@ -39,10 +39,10 @@ MARKER_EXERCISES = (
         marker="WORKSHOP · Inventory Agent · check_inventory",
     ),
     MarkerExercise(
-        exercise_id="lab-2-golden-set",
-        starter="workshop/starters/lab-2/anna-golden-set.pyfrag",
+        exercise_id="lab-2-candidate-budget",
+        starter="workshop/starters/lab-2/candidate-budget.pyfrag",
         destination="pellier/backend/services/planned_hybrid_retrieval.py",
-        marker="WORKSHOP · Retrieval eval · golden set",
+        marker="WORKSHOP · Hybrid retrieval · candidate budget",
     ),
     MarkerExercise(
         exercise_id="lab-3-gateway-catalogue",

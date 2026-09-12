@@ -6,9 +6,7 @@
  * Four styles (keyed by `chip.style`):
  *
  *   - `picked`  — `Picked because {reason}` in the storefront UI face with a
- *                 small B mark prefix (Req 1.7.2). The `B` mark is a
- *                 circular cream dot with terracotta fill, echoing the
- *                 wordmark logo used elsewhere in the storefront.
+ *                 shared Pellier p. mark prefix (Req 1.7.2).
  *
  *   - `matched` — `Matched on: {attr1} · {attr2} · {attr3}` in the
  *                 10px monospace footnote voice so it reads as a
@@ -36,6 +34,7 @@
  */
 import type { ReasoningChip as ReasoningChipModel } from '../services/types'
 import { cssVar as c } from '../design/cssVars'
+import PellierMark from './PellierMark'
 
 // --- Design tokens (storefront.md) ---------------------------------------
 
@@ -84,7 +83,7 @@ function PickedChip({ chip }: ReasoningChipProps) {
         lineHeight: 1.45,
       }}
     >
-      <PMark />
+      <PellierMark size={16} data-testid="reasoning-chip-pmark" />
       <span>{chip.text}</span>
     </div>
   )
@@ -159,36 +158,6 @@ function ContextChip({ chip }: ReasoningChipProps) {
     >
       <span>{chip.text}</span>
     </div>
-  )
-}
-
-// --- P mark avatar -------------------------------------------------------
-// Pellier wordmark glyph. The test id is retained for compatibility with
-// existing assertions; the rendered content is "P".
-
-function PMark() {
-  return (
-    <span
-      aria-hidden
-      data-testid="reasoning-chip-pmark"
-      style={{
-        display: 'inline-grid',
-        placeItems: 'center',
-        width: 16,
-        height: 16,
-        borderRadius: '50%',
-        background: c.accent,
-        color: c.bg,
-        fontFamily: SANS_STACK,
-        fontStyle: 'normal',
-        fontSize: 10,
-        fontWeight: 600,
-        lineHeight: 1,
-        flexShrink: 0,
-      }}
-    >
-      P
-    </span>
   )
 }
 

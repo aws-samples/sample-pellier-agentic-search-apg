@@ -130,7 +130,9 @@ describe('Footer — masthead and demo payment strip', () => {
   it('renders the brand lockup in the masthead', () => {
     renderFooter()
     const masthead = screen.getByTestId('footer-masthead')
-    expect(within(masthead).getByText('Pellier')).toBeInTheDocument()
+    const wordmark = within(masthead).getByRole('link', { name: 'Pellier home' })
+    expect(wordmark).toHaveTextContent('pellier.')
+    expect(wordmark).toHaveAttribute('href', '/')
   })
 
   it('renders official marks inside the disclosed demo contract', () => {

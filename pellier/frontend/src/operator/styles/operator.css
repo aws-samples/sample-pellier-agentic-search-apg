@@ -288,19 +288,21 @@
   gap: 22px;
 }
 
-/*
- * The signed-in control, in the same slot and the same shape as the signed-out
- * one. It used to be a 4px rectangle at 34px tall while the sign-in beside it
- * was a 999px pill at 44px, so the corner of the account control changed the
- * moment an operator signed in and the topbar appeared to reshape itself.
- *
- * `.pellier-account-pill` (index.css) owns border, radius, colour and hover,
- * exactly as it does for `.operator-auth-signin` below. Only layout lives here
- * so the two states cannot drift apart again.
- */
-.operator-auth-control {
+/* Identity sits beside the action; only the pill signs the operator out. */
+.operator-auth-account {
   display: inline-flex;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* `.pellier-account-pill` owns border, radius, colour and hover in both
+   authentication states. Keep the same 44px target when signed in. */
+.operator-auth-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 44px;
   padding: 7px 14px;
@@ -329,7 +331,8 @@
   height: 16px;
 }
 
-.operator-auth-signin:focus-visible {
+.operator-auth-signin:focus-visible,
+.operator-auth-control:focus-visible {
   outline: 2px solid var(--op-accent);
   outline-offset: 2px;
 }
@@ -337,6 +340,8 @@
 
 .operator-auth-identity {
   max-width: 118px;
+  color: var(--op-muted);
+  font: 400 13px/1.4 var(--sans);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3079,12 +3084,13 @@
     text-overflow: ellipsis;
   }
 
+  .operator-auth-account,
   .operator-auth-control {
     grid-area: auth;
     min-height: 44px;
   }
 
-  .operator-auth-control .operator-auth-identity {
+  .operator-auth-account .operator-auth-identity {
     display: none;
   }
 

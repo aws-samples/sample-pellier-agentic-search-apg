@@ -16,11 +16,9 @@ const ObservatoryModeBanner: React.FC = () => {
   return (
     <div className="labs-mode-banner" data-mode={mode}>
       <span className="labs-mode-banner-label">
-        {mode === 'interactive' ? (
-          <span className="labs-mode-banner-dot" aria-hidden="true" />
-        ) : (
+        {mode === 'reference' ? (
           <BookOpen size={13} strokeWidth={1.8} aria-hidden="true" />
-        )}
+        ) : null}
         {copy.label}
       </span>
       <p className="labs-mode-banner-detail">{copy.detail}</p>

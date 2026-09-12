@@ -61,6 +61,7 @@ def reload_app(fake_dist: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(app_module.DatabaseService, "connect", _noop_connect, raising=True)
         monkeypatch.setattr(app_module.DatabaseService, "disconnect", _noop_disconnect, raising=True)
         monkeypatch.setattr(app_module.DatabaseService, "execute_query", _ok_query, raising=True)
+        monkeypatch.setattr(app_module.DatabaseService, "check_health", _ok_query, raising=True)
         monkeypatch.setattr(app_module.EmbeddingService, "generate_embedding", _ok_embedding, raising=True)
         return app_module
 

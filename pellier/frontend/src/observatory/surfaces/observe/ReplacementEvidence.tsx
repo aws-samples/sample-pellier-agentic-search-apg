@@ -75,6 +75,10 @@ export default function ReplacementEvidence() {
               <p>{record.outbox.attempts} delivery attempts. {record.outbox.publishedAt ? 'Workflow handoff recorded.' : 'Workflow handoff has not been recorded.'}</p>
             </> : <p>No outbox record was returned. Check the database before retrying.</p>}
             <p>Provider operation: <code>{record.providerOperationId ?? 'Not recorded'}</code></p>
+            {record.workflowResolution === 'operator_review_required' ? <div role="status">
+              <h3>Operator follow-up required</h3>
+              <p>Aurora records an unresolved workflow. Keep the existing provider operation and check its outcome before preparing another remedy.</p>
+            </div> : null}
             {record.executionArn ? <details><summary>Workflow execution</summary><code>{record.executionArn}</code></details> : null}
           </div>
         </section>
