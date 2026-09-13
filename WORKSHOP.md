@@ -44,8 +44,8 @@ Opening context and orientation share minutes 0-5. Participants follow the compl
 
 ## Introduction
 
-Participants open Code Editor and Pellier, record a run ID, check Aurora, and
-observe a turn on the predeployed Runtime. They then save Theo's first conversation
+Participants open Code Editor and Pellier, record a run ID and source receipt,
+and attempt a Runtime hello. Facilitators own readiness checks. Participants save Theo's first conversation
 so AgentCore can extract preferences while they complete Labs 1 and 2.
 
 Pellier gives each exercise a concrete reason to exist. Marco needs inventory
@@ -57,12 +57,19 @@ and Jessica needs a governed service decision.
 | Storefront | Marco, Anna, and Theo's shopping conversations | Displays results grounded by tools |
 | Code Editor | Eight marked edits and the supplied proof commands | Source, service responses, SQL results, and saved evidence |
 | Operator | Jessica's investigation under the separate staff account | Staff access and an explicit human decision boundary |
-| Observatory | Optional inspection of the same requests | Projects evidence; an interface badge alone does not prove a claim |
+| Observatory | Required inspection of the same shopper requests and Operator turn | Projects evidence; an interface badge alone does not prove a claim |
 
 Selecting a scenario does not sign in as that customer. Cognito establishes the
 principal. Aurora maps the verified subject to a customer; the token's customer
 claim supports the Cedar ownership check. The `operator` account is separate
 from Jessica's shopper identity.
+
+At each shopper handoff, sign out of the previous account, sign in as the next
+customer, select the matching scenario, and start a fresh conversation. Complete
+that customer's evidence inspection before changing identity. Labs 1 and 2 inspect
+in-process execution and Aurora receipts; Lab 3 adds managed Transaction Search
+traces. Jessica's Operator investigation is a separate staff conversation, not the
+continuation of Theo's shopper session.
 
 Storefront turns follow a deterministic dispatcher and one of five specialists:
 search, recommendation, pricing, inventory, or support. Each specialist receives

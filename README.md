@@ -177,7 +177,7 @@ as one policy engine:
 |---|---|---|
 | Identity | Cognito JWT verified on the managed rail | Which authenticated human initiated the request |
 | Managed execution | AgentCore Runtime with JWT passthrough | Which orchestrator ran and on which managed rail |
-| Tool contract | AgentCore Gateway exposes a 17-tool target-qualified MCP catalog, 15 of them published at the start and 16 after Lab 3a | Which callable capability and input schema the agent received |
+| Tool contract | AgentCore Gateway defines 18 target-qualified MCP tools, 16 published at the start and 17 after Lab 3a; discovery is caller-scoped | Which callable capability and input schema the agent received |
 | Authorization | AgentCore Policy evaluates Cedar before Gateway target execution | Which of five states the call reached: `ALLOW`, `DENY`, `WOULD_DENY` (a real LOG_ONLY decision flip), `EVALUATION_INCOMPLETE` (the engine could not be read), or `POLICY_INFERRED` (a match against policy text, which is never presented as a decision) |
 | Data authorization | Aurora SQL functions validate ownership and write invariants | Which records the permitted tool could actually read or mutate |
 | Row-level authorization | PostgreSQL RLS policies on `orders` and `returns`, enforced against the `pellier_agent` and `pellier_query` roles (neither holds `BYPASSRLS`) and scoped by the `pellier.principal_sub` GUC through `pellier.principal_customers` | That a permitted tool holding a valid token still cannot read another shopper's rows, enforced by the database rather than by application code |
@@ -590,16 +590,14 @@ Per-agent model choice is an architectural decision – Inventory Agent's terse 
 
 ### Tools
 
-17 `@tool` functions form the Gateway catalog, and 17 is also the total in
-`services/agent_tools.py`: every tool that exists is in the catalog. Discovery
-returns all 17 by exact name; this iteration publishes 15 of them at the start
-(16 once Lab 3a publishes `get_ticket_history`), holding back
-`restock_inventory` and `get_ticket_history`. `issue_credit` is published for
-staff only, and `restock_inventory` stays off the shopper Gateway: no
-shopper-facing specialist binds either, and the desk reaches them behind its
-own authorization. The 15 published names are:
+The canonical Gateway catalog defines 18 tools, including the staff replacement
+operation. This iteration publishes 16 at the start and 17 once Lab 3a publishes
+`get_ticket_history`. `restock_inventory` remains deferred. `issue_credit` and
+`replace_damaged_item` are published for staff only; no shopper specialist binds
+them. Discovery returns the subset permitted for the caller's claims, not the
+entire published catalog. The 16 initially published names are:
 
-`search_products`; `search_products_hybrid`; `get_related_products`; `get_trending_products`; `get_price_analysis`; `browse_category`; `compare_products`; `check_inventory`; `get_low_stock`; `get_return_policy`; `initiate_return`; `get_customer_preferences`; `get_audit_trail`; `escalate_to_human`; `issue_credit`
+`search_products`; `search_products_hybrid`; `get_related_products`; `get_trending_products`; `get_price_analysis`; `browse_category`; `compare_products`; `check_inventory`; `get_low_stock`; `get_return_policy`; `initiate_return`; `get_customer_preferences`; `get_audit_trail`; `escalate_to_human`; `issue_credit`; `replace_damaged_item`
 
 #### One search executor
 
@@ -629,10 +627,9 @@ rerank pool, and freeze the cited text, source URI and revision with a SHA-256
 snapshot at retrieval time, so a later catalog edit cannot rewrite what an
 answer was based on.
 
-There is no 18th tool. A governed natural-language query capability was
-implemented and bound to no specialist, so nothing could call it; it was
-deleted rather than carried unreachable. The lane it fronted is still here and
-still exercised, by `scripts/compare_query_lanes.py` and by live tests.
+A separate governed natural-language query capability was removed because no
+specialist could call it. Its underlying query lane remains exercised by
+`scripts/compare_query_lanes.py` and live tests.
 
 The lane is off the Gateway for separate reasons, and not because the Gateway
 path is incapable. The RDS Data API is single-statement
@@ -768,7 +765,7 @@ Claude Code resolves `CLAUDE.md` guidance by scope. The backend separately loads
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) – fuses pgvector + FTS rank lists without normalizing raw scores |
 | Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial); Claude Sonnet 4.6 (`global.anthropic.claude-sonnet-4-6`, routing/reporting, no temperature override); Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, explicit Fast response mode); Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile); Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) |
 | Agent framework  | Strands Agents SDK – `Agent`, `@tool`, deterministic Storefront Dispatcher, bounded Operator Concierge `GraphBuilder`, and before/after tool-call hooks |
-| Agent infra      | Bedrock AgentCore Runtime (CUSTOM_JWT and governed Gateway MCP calls); Memory (conversation events and four configured extraction strategies, with episodic extraction optional); Gateway (15 published tools at baseline, 16 after Lab 3a, from 17 defined schemas; token-scoped discovery); Policy (Cedar ENFORCE); Identity |
+| Agent infra      | Bedrock AgentCore Runtime (CUSTOM_JWT and governed Gateway MCP calls); Memory (conversation events and four configured extraction strategies, with episodic extraction optional); Gateway (16 published tools at baseline, 17 after Lab 3a, from 18 defined schemas; token-scoped discovery); Policy (Cedar ENFORCE); Identity |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) pinned to `==1.1.6` and installed via `uvx`, registered against the Aurora cluster ARN over `--connection_method RDS_API --db_type APG` (enum-name flag, not the lowercase value; read-only by default; writes require opting in via `--allow_write_query`); `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI; Python 3.14; psycopg3; boto3; SSE streaming                                                  |
 | Frontend         | React 18; TypeScript 5; Vite 6; Tailwind CSS 3; Framer Motion 12                                                      |

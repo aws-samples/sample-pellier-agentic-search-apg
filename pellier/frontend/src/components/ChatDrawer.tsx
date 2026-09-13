@@ -364,9 +364,11 @@ export default function ChatDrawer() {
             <details className="cd-session-details">
               <summary>Scenario &amp; account details <ChevronDown size={14} aria-hidden="true" /></summary>
               <StatusLines messages={messages} />
-              {!auth?.isAuthenticated ? (
+              {auth?.isAuthenticated ? (
+                <button type="button" className="cd-session-signin" onClick={auth.logout}>Sign out</button>
+              ) : (
                 <button type="button" className="cd-session-signin" onClick={() => openModal('auth')}>Sign in for account requests</button>
-              ) : null}
+              )}
             </details>
 
             {/* Body */}
