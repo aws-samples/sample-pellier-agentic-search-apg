@@ -29,7 +29,7 @@ from gateway_tool_schemas import (
 )
 
 
-AGENTCORE_CLI = "@aws/agentcore@0.26.0"
+AGENTCORE_CLI = "@aws/agentcore@0.29.0"
 
 
 def _deployment_suffix() -> str:
@@ -395,7 +395,7 @@ def render_project(
         )
 
     project = {
-        "$schema": "https://raw.githubusercontent.com/aws/agentcore-cli/main/schemas/agentcore.schema.v1.json",
+        "$schema": "https://raw.githubusercontent.com/aws/agentcore-cli/v0.29.0/schemas/agentcore.schema.v1.json",
         "name": PROJECT_NAME,
         "version": 1,
         "managedBy": "CDK",

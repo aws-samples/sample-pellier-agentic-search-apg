@@ -7,6 +7,7 @@
  * about live systems, so both now come from those systems or are omitted.
  */
 import { render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_BASE_URL } from '../services/apiBase'
@@ -125,6 +126,19 @@ describe('PresencePill health', () => {
       `${API_BASE_URL}/api/health`,
       expect.objectContaining({ method: 'GET' }),
     )
+  })
+
+  it('updates immediately after the development effect remount', async () => {
+    const signals: AbortSignal[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal)
+      return new Response('{}', { status: 200 })
+    }))
+    render(<StrictMode><PresencePill surface="pellier" /></StrictMode>)
+
+    // A successful response must update the label before the 15-second poll.
+    await waitFor(() => expect(pill()).toHaveTextContent('Concierge online'))
+    expect(signals[0].aborted).toBe(true)
   })
 
   it('falls back to offline when a later poll fails', async () => {

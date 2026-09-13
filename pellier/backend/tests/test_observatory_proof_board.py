@@ -414,7 +414,7 @@ def test_proof_board_returns_cards_receipt_and_fallbacks(monkeypatch) -> None:
     assert cards["runtime-gateway-policy"]["required"] is True
     assert all("act" not in card for card in cards.values())
     assert (
-        "npx -y @aws/agentcore@0.26.0 invoke"
+        "npx -y @aws/agentcore@0.29.0 invoke"
         in cards["managed-rail"]["fallback"]["command"]
     )
     assert "retrieval_receipts" in cards["retrieval-comparison"]["fallback"]["command"]
@@ -441,7 +441,7 @@ def test_proof_board_fallbacks_use_psql_and_agentcore_cli(
     managed = cards["managed-rail"]["fallback"]["command"]
     assert inventory.startswith("psql -X -v ON_ERROR_STOP=1")
     assert "FROM pellier.tool_audit" in inventory
-    assert "npx -y @aws/agentcore@0.26.0 invoke" in managed
+    assert "npx -y @aws/agentcore@0.29.0 invoke" in managed
     assert '--bearer-token "$PELLIER_TOKEN"' in managed
     assert "curl " not in inventory
     assert "curl " not in managed

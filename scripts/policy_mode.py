@@ -257,7 +257,7 @@ def deploy(project_dir: pathlib.Path) -> Tuple[int, str]:
     command = (
         ["agentcore", "deploy", "--yes"]
         if shutil.which("agentcore")
-        else ["npx", "-y", "@aws/agentcore@0.26.0", "deploy", "--yes"]
+        else ["npx", "-y", "@aws/agentcore@0.29.0", "deploy", "--yes"]
     )
     result = subprocess.run(
         command, cwd=str(project_dir), capture_output=True, text=True

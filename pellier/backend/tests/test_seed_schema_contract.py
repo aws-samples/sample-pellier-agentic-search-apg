@@ -82,13 +82,5 @@ def test_the_seeder_still_runs_before_the_migration_loop() -> None:
     )
 
 
-def test_a_failed_database_setup_marks_the_box_failed() -> None:
-    """An empty catalog must not reach E2E_PROVED and signal CloudFormation success."""
-    body = BOOTSTRAP.read_text()
-    start = body.index("if wait $PID_DB; then")
-    branch = body[start : body.index("\nfi", start)]
-    assert "set_provision_state FAILED" in branch, (
-        "setup_database returns early on a failed seed, which also skips the "
-        "migration loop. That box has no catalog and no workshop schema, so the "
-        "provision state must be FAILED rather than a warning."
-    )
+# Failure propagation is exercised under Bash in test_bootstrap_failure_regressions:
+# both dependencies must succeed, or bootstrap exits with its FAILED state intact.

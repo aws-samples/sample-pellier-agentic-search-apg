@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-EXPECTED_CLI = "@aws/agentcore@0.26.0"
+EXPECTED_CLI = "@aws/agentcore@0.29.0"
 TRACE_ATTRIBUTE_ALLOWLISTS = {
     "agent_input": {
         "gen_ai.input.messages",

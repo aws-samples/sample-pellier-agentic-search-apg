@@ -177,7 +177,7 @@ def test_advanced_dogwood_example_teaches_sequence_without_false_enforcement() -
 def test_reset_removes_and_redeploys_participant_policy_through_cli() -> None:
     source = RESET_GOVERNED.read_text()
 
-    assert "@aws/agentcore@0.26.0" in source
+    assert "@aws/agentcore@0.29.0" in source
     assert "remove policy" in source
     assert "--engine \"$POLICY_ENGINE_NAME\"" in source
     assert "_agentcore validate --json" in source

@@ -154,7 +154,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     participantTodo:
       'Publish get_ticket_history, bind the support read to the caller, and deploy. Complete the learned-preference check, then run Theo\'s three-turn thread and read its Memory events from a separate process.',
     command:
-      'cd .agentcore-project/pellier\nnpx -y @aws/agentcore@0.26.0 invoke \\\n  --runtime pellier_orchestrator \\\n  --session-id "$RUNTIME_SESSION" \\\n  --bearer-token "$PELLIER_TOKEN" \\\n  --prompt "Hand-thrown ceramics for a slower morning routine" \\\n  --json',
+      'cd .agentcore-project/pellier\nnpx -y @aws/agentcore@0.29.0 invoke \\\n  --runtime pellier_orchestrator \\\n  --session-id "$RUNTIME_SESSION" \\\n  --bearer-token "$PELLIER_TOKEN" \\\n  --prompt "Hand-thrown ceramics for a slower morning routine" \\\n  --json',
     measurements: {
       before: {
         label: 'Before',

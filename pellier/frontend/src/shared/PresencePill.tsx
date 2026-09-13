@@ -19,7 +19,7 @@
  *
  * Pass `sessionLabel=""` explicitly to force-hide the fragment.
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { API_BASE_URL } from '../services/apiBase'
 import { checkBackendHealth } from '../services/chat'
@@ -124,16 +124,20 @@ function newestMemoryTimestamp(payload: unknown): string | null {
 function useBackendReachable(): boolean | null {
   const [reachable, setReachable] = useState<boolean | null>(null)
   const [freshUntil, setFreshUntil] = useState<number | null>(null)
-  const inFlight = useRef(false)
-
   useEffect(() => {
     let active = true
+    // Each effect owns its request. StrictMode's replacement effect must not
+    // inherit an in-flight flag from the effect that was just cleaned up.
+    let inFlight = false
+    let activeController: AbortController | null = null
+    let deadline: number | undefined
 
     const check = async () => {
-      if (inFlight.current) return
-      inFlight.current = true
+      if (inFlight) return
+      inFlight = true
       const controller = new AbortController()
-      const deadline = window.setTimeout(
+      activeController = controller
+      deadline = window.setTimeout(
         () => controller.abort(),
         HEALTH_TIMEOUT_MS,
       )
@@ -150,7 +154,8 @@ function useBackendReachable(): boolean | null {
         }
       } finally {
         window.clearTimeout(deadline)
-        inFlight.current = false
+        activeController = null
+        inFlight = false
       }
     }
 
@@ -159,6 +164,8 @@ function useBackendReachable(): boolean | null {
     return () => {
       active = false
       window.clearInterval(poll)
+      window.clearTimeout(deadline)
+      activeController?.abort()
     }
   }, [])
 

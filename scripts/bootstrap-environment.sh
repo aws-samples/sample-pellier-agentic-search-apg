@@ -29,6 +29,16 @@ log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ERROR:${NC} $1"; exit 1; }
 
+probe_editor_http() {
+    local url="$1"
+    shift
+    # The token is required even for localhost. A 302 response confirms the
+    # authenticated entry point without following a browser-cookie redirect.
+    curl -s --max-time 5 -o /dev/null -w "%{http_code}" \
+        --get --data-urlencode "tkn=$CODE_EDITOR_PASSWORD" \
+        "$@" "$url" 2>/dev/null || true
+}
+
 log "=========================================="
 log "Pellier Stage 1: Environment Bootstrap"
 log "=========================================="
@@ -446,7 +456,7 @@ fi
 log "AWS Region: $AWS_REGION"
 
 # ----------------------------------------------------------------------------
-# CDK bootstrap (required by @aws/agentcore 0.26.0 `deploy`).
+# CDK bootstrap (required by @aws/agentcore 0.29.0 `deploy`).
 #
 # `agentcore deploy` synthesizes a CloudFormation stack and deploys it via the
 # CDK toolkit. CDK requires the account/region to be "bootstrapped" first — a
@@ -511,62 +521,22 @@ sleep 15
 MAX_RETRIES=30
 RETRY_COUNT=0
 CODE_EDITOR_READY=false
-RESTART_ATTEMPTED=false
-FORBIDDEN_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ 2>/dev/null || echo "000")
+    HTTP_CODE=$(probe_editor_http http://127.0.0.1:8080/)
     
-    # Success codes - Code Editor is ready
-    if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "405" ]; then
+    if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
         log "✅ Code Editor is responding (HTTP $HTTP_CODE)"
         CODE_EDITOR_READY=true
-        sleep 2
         break
-    
-    # HTTP 403 - Code Editor is starting but not ready yet
-    elif [ "$HTTP_CODE" = "403" ]; then
-        FORBIDDEN_COUNT=$((FORBIDDEN_COUNT + 1))
-        
-        # After 15 consecutive 403s, try restart once
-        if [ $FORBIDDEN_COUNT -eq 15 ] && [ "$RESTART_ATTEMPTED" = "false" ]; then
-            warn "HTTP 403 persisting - restarting Code Editor service..."
-            systemctl restart "code-editor@$CODE_EDITOR_USER"
-            RESTART_ATTEMPTED=true
-            FORBIDDEN_COUNT=0
-            sleep 10
-        # After 25 total 403s, assume it's working but auth not ready
-        elif [ $FORBIDDEN_COUNT -ge 25 ]; then
-            warn "HTTP 403 persisting but service is running - continuing..."
-            CODE_EDITOR_READY=true
-            break
-        else
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            log "Code Editor starting... ($RETRY_COUNT/$MAX_RETRIES) [HTTP: $HTTP_CODE]"
-            sleep 2
-        fi
-    
-    # Other codes - keep waiting
-    else
-        RETRY_COUNT=$((RETRY_COUNT + 1))
-        if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-            warn "Code Editor verification timeout (HTTP: $HTTP_CODE) - but service is running, continuing..."
-            CODE_EDITOR_READY=true
-            break
-        fi
-        log "Waiting for Code Editor... ($RETRY_COUNT/$MAX_RETRIES) [HTTP: $HTTP_CODE]"
-        sleep 2
     fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    log "Waiting for authenticated Code Editor... ($RETRY_COUNT/$MAX_RETRIES) [HTTP: $HTTP_CODE]"
+    sleep 2
 done
 
-# If service is running, consider it ready even if HTTP check failed
 if [ "$CODE_EDITOR_READY" = "false" ]; then
-    if systemctl is-active --quiet "code-editor@$CODE_EDITOR_USER"; then
-        warn "Code Editor HTTP check failed but service is running - continuing..."
-        CODE_EDITOR_READY=true
-    else
-        error "Code Editor did not become ready"
-    fi
+    error "Code Editor did not pass its authenticated HTTP check"
 fi
 
 # ============================================================================
@@ -914,11 +884,11 @@ else
 fi
 
 # Verify Code Editor responding
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ 2>/dev/null || echo "000")
-if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "405" ]; then
+HTTP_CODE=$(probe_editor_http http://127.0.0.1:8080/)
+if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
     log "✅ Code Editor verified running (HTTP $HTTP_CODE)"
 else
-    warn "Code Editor HTTP check returned $HTTP_CODE (service may still be starting)"
+    error "Code Editor authenticated HTTP check returned $HTTP_CODE"
 fi
 
 # Verify Nginx
@@ -929,14 +899,13 @@ else
 fi
 
 # Verify Nginx proxy
-NGINX_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+NGINX_CODE=$(probe_editor_http http://127.0.0.1:80/ \
     -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN" \
-    -H "X-Forwarded-Proto: https" \
-    http://127.0.0.1:80/ 2>/dev/null || echo "000")
-if [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "200" ] || [ "$NGINX_CODE" = "405" ]; then
+    -H "X-Forwarded-Proto: https")
+if [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "200" ]; then
     log "✅ Nginx proxy verified (HTTP $NGINX_CODE)"
 else
-    warn "Nginx proxy HTTP check returned $NGINX_CODE (service may still be starting)"
+    error "Nginx authenticated proxy HTTP check returned $NGINX_CODE"
 fi
 
 # ============================================================================
@@ -1012,8 +981,14 @@ signal_cloudformation() {
 }
 
 if [ -z "${STAGE2_SCRIPT_URL}" ]; then
-    signal_cloudformation "FAILURE" "Stage 2 bootstrap URL missing" "Pellier workshop did not reach readiness" || true
-    error "STAGE2_SCRIPT_URL is required; refusing to report a partial workshop as ready"
+    if [ -n "${CFN_WAIT_HANDLE}" ]; then
+        signal_cloudformation "FAILURE" "Stage 2 bootstrap URL missing" "Pellier workshop did not reach readiness" || true
+        error "STAGE2_SCRIPT_URL is required when Stage 1 owns the CloudFormation signal"
+    fi
+    # The governed CloudFormation UserData runs both checked-out scripts and
+    # its own final health gate. Return control without sending any signal.
+    log "Environment ready; the calling UserData must run bootstrap-labs.sh and the governed health gate"
+    exit 0
 fi
 
 log "Running Stage 2: Labs Bootstrap and governed readiness gate..."
@@ -1090,8 +1065,7 @@ echo "✅ Python ${PY_VER} configured"
 echo "✅ Stage 2 application and governed readiness checks passed"
 echo "✅ CloudFormation signaled after the workshop proved ready"
 echo ""
-echo "Access Code Editor at CloudFront URL"
-echo "Password: $CODE_EDITOR_PASSWORD"
+echo "Use the CloudFormation Code Editor URL and password output to connect."
 echo ""
 log "=========================================="
 

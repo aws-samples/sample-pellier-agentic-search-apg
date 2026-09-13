@@ -38,7 +38,7 @@ def test_the_script_is_executable_and_syntactically_valid() -> None:
 
 def test_it_invokes_the_pinned_cli_against_the_runtime() -> None:
     body = _hello()
-    assert 'AGENTCORE_CLI_PINNED_VERSION:-0.26.0' in body
+    assert 'AGENTCORE_CLI_PINNED_VERSION:-0.29.0' in body
     assert '@aws/agentcore@${AGENTCORE_CLI_PINNED_VERSION}" invoke' in body
     assert '--runtime "$RUNTIME_NAME"' in body
     assert '--bearer-token "$PELLIER_TOKEN"' in body

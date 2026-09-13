@@ -130,6 +130,10 @@ FKs.
     It does not seed a damage report or reserve any stock.
 53. **`053_replacement_follow_up.sql`** records workflow follow-up separately
     from provider state and supports bounded observation of terminal executions.
+54. **`054_query_statistics.sql`** creates the `pg_stat_statements` database
+    extension required by facilitator readiness. Workshop Studio separately
+    preloads the module through its cluster parameter group. This migration
+    does not change that parameter group or restart the cluster.
 
 The replacement path also needs its Gateway target, Cedar policy, and worker.
 Follow `scripts/deploy/REPLACEMENT_RECOVERY.md` for that activation order.
@@ -199,7 +203,8 @@ for migration in \
     050_refine_guided_questions.sql \
     051_review_requester.sql \
     052_replacement_recovery.sql \
-    053_replacement_follow_up.sql
+    053_replacement_follow_up.sql \
+    054_query_statistics.sql
 do
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
         -U "$DB_USER" -d "$DB_NAME" \

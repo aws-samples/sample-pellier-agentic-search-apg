@@ -552,7 +552,8 @@ for migration in \
   050_refine_guided_questions.sql \
   051_review_requester.sql \
   052_replacement_recovery.sql \
-  053_replacement_follow_up.sql
+  053_replacement_follow_up.sql \
+  054_query_statistics.sql
 do
   if [[ ! -f "$REPO/scripts/migrations/$migration" ]]; then
     fail "Missing scripts/migrations/$migration"
@@ -820,7 +821,7 @@ _agentcore() {
     if command -v agentcore >/dev/null 2>&1; then
       command agentcore "$@"
     else
-      npx -y @aws/agentcore@0.26.0 "$@"
+      npx -y @aws/agentcore@0.29.0 "$@"
     fi
   )
 }

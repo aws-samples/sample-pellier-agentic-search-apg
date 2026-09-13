@@ -45,14 +45,14 @@ helpers seed Memory, authenticate test users, and verify the deployed path.
 The Workshop Studio AMI ships with the pinned `@aws/agentcore` Node CLI. Verify before starting:
 
 ```bash
-npx -y @aws/agentcore@0.26.0 --version
+npx -y @aws/agentcore@0.29.0 --version
 node --version  # >= 20.x
 ```
 
 If the CLI is missing (or you're testing a fresh AMI build):
 
 ```bash
-npm install -g @aws/agentcore@0.26.0
+npm install -g @aws/agentcore@0.29.0
 ```
 
 CLI repo: https://github.com/aws/agentcore-cli
@@ -74,7 +74,7 @@ backend environment.
 
 1. Package and deploy the search, pricing, recommendation, and experience
    Lambda functions.
-2. Scaffold one stateful `@aws/agentcore@0.26.0` project with
+2. Scaffold one stateful `@aws/agentcore@0.29.0` project with
    `agentcore create`.
 3. Render Runtime, Memory, Gateway, four Lambda target registrations, and the
    Policy engine into the CLI project. AgentCore role ARNs are intentionally
@@ -119,9 +119,9 @@ value, `30` in the workshop template).
   account is CDK-bootstrapped and the caller can assume/pass the
   `cdk-hnb659fds-*` deployment roles.
 - **Gateway returns `401`** — Cognito access token expired (1-hour default). Re-run the `cognito-idp initiate-auth` block from `deploy_all.sh` step 7.
-- **Runtime returns `managed_gateway_unavailable`** — `AGENTCORE_GATEWAY_URL` was absent or Gateway discovery failed. Repair the generated Runtime environment, redeploy, and rerun `npx -y @aws/agentcore@0.26.0 invoke --runtime pellier_orchestrator --bearer-token "$PELLIER_TOKEN" --prompt "Find linen pieces" --json`; do not enable a local fallback.
+- **Runtime returns `managed_gateway_unavailable`** — `AGENTCORE_GATEWAY_URL` was absent or Gateway discovery failed. Repair the generated Runtime environment, redeploy, and rerun `npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator --bearer-token "$PELLIER_TOKEN" --prompt "Find linen pieces" --json`; do not enable a local fallback.
 - **`agentcore deploy` fails on a missing CDKToolkit / `cdk-hnb659fds` stack** — the account isn't CDK-bootstrapped. Run `npx -y aws-cdk@2 bootstrap aws://<account>/<region>` (bootstrap-environment.sh does this automatically on fresh accounts).
-- **Runtime traces** — run `npx -y @aws/agentcore@0.26.0 traces list --runtime pellier_orchestrator --limit 10 --since 1h --json`, then correlate on the session ID. The provisioner only reports ready after it observes Agent input/output, sanitized tool input/output, and per-step Agent/Model/Tool latency.
+- **Runtime traces** — run `npx -y @aws/agentcore@0.29.0 traces list --runtime pellier_orchestrator --limit 10 --since 1h --json`, then correlate on the session ID. Readiness requires correlated agent, model, and tool spans, per-step latency, matching Runtime builds, and content handling that matches the configured redaction mode. Redacted traces must not expose model or tool payloads.
 
 Run `bash scripts/health-gate.sh` for the governed readiness verdict. It also
 requires active Memory, exactly 180 warehouse rows, Policy `ENFORCE`, and the

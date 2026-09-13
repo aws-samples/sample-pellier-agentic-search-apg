@@ -1,4 +1,4 @@
-"""Static tests for Pellier's AgentCore CLI 0.26 project contract."""
+"""Static tests for Pellier's AgentCore CLI 0.29 project contract."""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ TEST_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/tes
 
 
 def test_agentcore_cli_is_pinned_once() -> None:
-    assert renderer.AGENTCORE_CLI == "@aws/agentcore@0.26.0"
+    assert renderer.AGENTCORE_CLI == "@aws/agentcore@0.29.0"
     source = PROVISIONER_PATH.read_text()
     assert "AGENTCORE_CLI" in source
     assert "@aws/agentcore@latest" not in source

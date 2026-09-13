@@ -106,8 +106,8 @@ it changes the deployed build fingerprint; that is the lab's proof and must not
 be broken by moving the exercise to an unpackaged file.
 
 Budgets: 5 minutes orientation, 20 for Lab 1, 25 for Lab 2, 25 for Lab 3,
-20 for Lab 4, and 5 to close. Reading, deployment waits, and ten minutes of
-recovery are included in these allocations. Rehearse the complete path before release.
+20 for Lab 4, and 5 to close. Reading, deployment waits, explanation, and
+recovery share these allocations. Rehearse the complete path before release.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.

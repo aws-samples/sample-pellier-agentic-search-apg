@@ -44,6 +44,31 @@ ALLOWED_ACCOUNT_IDS: Set[str] = {"123456789012"}
 FABRICATED_RE = re.compile(r"^(\d)\1{3}(\d)\2{3}(\d)\3{3}$")
 
 ACCOUNT_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
+# A public asset digest can contain twelve consecutive decimal digits. Exclude
+# only complete SHA-256 values in explicitly named JSON digest fields, while
+# continuing to inspect the rest of the same provenance document.
+SHA256_FIELD_RE = re.compile(
+    r'"(?:sha256|sourceSha256)"\s*:\s*"([0-9a-fA-F]{64})"'
+)
+
+
+def _account_candidates(text: str):
+    hash_spans = [match.span(1) for match in SHA256_FIELD_RE.finditer(text)]
+    return (
+        match for match in ACCOUNT_RE.finditer(text)
+        if not any(start <= match.start() and match.end() <= end for start, end in hash_spans)
+    )
+
+
+def test_asset_digests_do_not_hide_other_account_fields() -> None:
+    account = "123456789012"
+    digest = "ab" * 13 + account + "cd" * 13
+    text = f'{{"sha256":"{digest}","accountId":"{account}"}}'
+    matches = list(_account_candidates(text))
+    assert len(matches) == 1
+    assert matches[0].start() == text.rindex(account)
+    # A short value masquerading as a checksum is still inspected.
+    assert len(list(_account_candidates(f'{{"sha256":"{account}"}}'))) == 1
 
 SCAN_SUFFIXES = (
     ".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".sql", ".sh", ".md", ".yml",
@@ -92,7 +117,7 @@ def test_no_tracked_file_contains_a_real_account_id() -> None:
     for path in _tracked_text_files():
         rel = path.relative_to(REPO).as_posix()
         text = path.read_text(encoding="utf-8", errors="ignore")
-        for match in ACCOUNT_RE.finditer(text):
+        for match in _account_candidates(text):
             value = match.group(0)
             if value in ALLOWED_ACCOUNT_IDS or FABRICATED_RE.match(value):
                 continue

@@ -264,6 +264,33 @@ def test_agentic_strategy_persists_one_receipt_citing_its_returned_rows(
     assert row["rail"] == "in-process"
     assert row["retrieval_config"]["source"] == "observatory-compare"
     assert row["latency_breakdown"]
+    assert body["receipt"]["persisted"] is True
+    assert body["receipt"]["comparisonId"] == row["turn_id"]
+    assert row["turn_id"].startswith("compare-")
+
+
+def test_comparison_identifies_each_request_even_when_the_query_is_unchanged(
+    receipt_writes: list[Any],
+) -> None:
+    first = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+    second = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+    assert first["receipt"]["comparisonId"] != second["receipt"]["comparisonId"]
+    assert [r.turn_id for r in receipt_writes] == [
+        first["receipt"]["comparisonId"], second["receipt"]["comparisonId"]
+    ]
+
+
+def test_comparison_discloses_missing_durable_evidence_without_failing_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def unavailable(db: Any, receipt: Any) -> bool:
+        return False
+
+    monkeypatch.setattr(receipt_module, "persist_receipt", unavailable)
+    body = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+    assert body["strategies"][-1]["products"]
+    assert body["receipt"]["persisted"] is False
+    assert body["receipt"]["comparisonId"].startswith("compare-")
 
 
 def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(

@@ -1265,6 +1265,8 @@ def _operator_runtime_smoke(
     *, runtime_arn: str, region: str, expected_fingerprint: str,
 ) -> dict[str, Any]:
     """Require the IAM endpoint to execute both graph nodes from this package."""
+    from services.operator_graph import GRAPH_ID
+
     session_id = f"operator-smoke-{int(time.time())}-0000000000000000000001"
     payload = {
         "request": "Summarize the supplied deployment fixture.",
@@ -1297,6 +1299,7 @@ def _operator_runtime_smoke(
         not expected_fingerprint
         or decoded.get("build_fingerprint") != expected_fingerprint
         or decoded.get("error")
+        or metadata.get("graphId") != GRAPH_ID
         or metadata.get("execution") != "agentcore-runtime"
         or metadata.get("status") != "complete"
         or node_ids != ["case-investigator", "resolution-planner"]

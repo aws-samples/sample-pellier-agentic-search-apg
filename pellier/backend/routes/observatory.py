@@ -1222,7 +1222,7 @@ async def _collect_proof_board(
             ],
             "fallback": {
                 "label": "AgentCore validation",
-                "command": "cd .agentcore-project/pellier && npx -y @aws/agentcore@0.26.0 validate --json",
+                "command": "cd .agentcore-project/pellier && npx -y @aws/agentcore@0.29.0 validate --json",
             },
             "links": [
                 {"label": "Write-path", "to": "/observatory/write-path"},
@@ -1285,7 +1285,7 @@ async def _collect_proof_board(
                 "label": "AgentCore Runtime proof",
                 "command": (
                     "cd .agentcore-project/pellier && "
-                    "npx -y @aws/agentcore@0.26.0 invoke "
+                    "npx -y @aws/agentcore@0.29.0 invoke "
                     "--runtime pellier_orchestrator "
                     "--session-id \"$RUNTIME_SESSION\" "
                     "--bearer-token \"$PELLIER_TOKEN\" "

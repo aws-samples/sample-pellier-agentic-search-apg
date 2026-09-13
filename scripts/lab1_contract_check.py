@@ -63,10 +63,18 @@ def judge(envelopes: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         ),
     })
     total = sold_out.get("total_units")
+    warehouses = sold_out.get("warehouses")
     sold_out_ok = (
         sold_out.get("status") == "success"
         and isinstance(total, (int, float)) and not isinstance(total, bool) and total == 0
-        and isinstance(sold_out.get("warehouses"), list)
+        and isinstance(warehouses, list) and bool(warehouses)
+        and all(
+            isinstance(row, dict)
+            and isinstance(row.get("quantity"), (int, float))
+            and not isinstance(row["quantity"], bool)
+            and row["quantity"] == 0
+            for row in warehouses
+        )
     )
     verdicts.append({
         "case": "sold_out",

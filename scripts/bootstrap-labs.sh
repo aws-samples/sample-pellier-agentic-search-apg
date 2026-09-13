@@ -718,7 +718,8 @@ setup_database() {
             050_refine_guided_questions.sql \
             051_review_requester.sql \
             052_replacement_recovery.sql \
-            053_replacement_follow_up.sql
+            053_replacement_follow_up.sql \
+            054_query_statistics.sql
         do
             if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
                 log "Applying migration $migration..."
@@ -734,7 +735,8 @@ setup_database() {
                     return "$migration_rc"
                 fi
             else
-                warn "Migration $migration not found — skipping"
+                warn "Required migration $migration not found"
+                return 1
             fi
         done
 
@@ -769,15 +771,18 @@ setup_database() {
 
 setup_frontend & PID_FE=$!
 setup_database & PID_DB=$!
-wait $PID_FE && log "✅ Frontend dependencies installed" || warn "Frontend install issues"
-if wait $PID_DB; then
+FRONTEND_SETUP_OK=true
+wait "$PID_FE" || FRONTEND_SETUP_OK=false
+if wait "$PID_DB"; then
     log "✅ Database setup complete (expanded catalog, HNSW index, workshop tables)"
 else
-    # setup_database returns early on a failed seed, which also skips the whole
-    # 002-onward migration loop. A box in that state has no catalog and no
-    # workshop schema, so it must never reach E2E_PROVED and signal success.
-    warn "Database setup had issues - check /var/log/database-setup.log"
-    set_provision_state FAILED
+    # Stop before later application/managed milestones can overwrite FAILED.
+    fail "Database setup failed; see /var/log/database-setup.log"
+fi
+if [ "$FRONTEND_SETUP_OK" = "true" ]; then
+    log "✅ Frontend dependencies installed"
+else
+    fail "Frontend dependency installation failed; see /var/log/pellier-npm-install.log"
 fi
 
 # ============================================================================
@@ -887,28 +892,24 @@ alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-ga
 # from "could not look", which are different problems.
 alias receipt='python3 /workshop/sample-pellier-agentic-search-apg/scripts/build_receipt.py'
 
-# AgentCore CLI (pinned 0.26.0). Labs inspect the managed resources, then add,
+# AgentCore CLI (pinned 0.29.0). Labs inspect the managed resources, then add,
 # validate, deploy, and remove one participant Cedar policy in the same
 # declarative project. A FUNCTION (not an alias) ensures every command runs
 # from the project root that owns agentcore/.cli/deployed-state.json.
 # It cd's into the deployed project root so the CLI finds
 # agentcore/.cli/deployed-state.json from wherever you are, prefers the
 # global binary warmed at bootstrap (no registry call), and falls back to the
-# pinned npx form if the global install is missing. Runtime invocation still
-# goes through the app because the CLI invoke command cannot supply the
-# workshop's Cognito bearer-token contract.
+# pinned npx form if the global install is missing. The app and authenticated
+# CLI probes both preserve the workshop's Cognito bearer-token contract.
 # The pinned release contract. A fresh deployment must be reproducible no matter
 # what happens to be installed on the box, so the pin is ENFORCED rather than
 # merely preferred.
-AGENTCORE_CLI_PINNED_VERSION="0.26.0"
+AGENTCORE_CLI_PINNED_VERSION="0.29.0"
 
 # Resolve the AgentCore CLI, honouring the pin.
 #
-# The previous version used a global binary whenever one existed, which made the
-# pin decorative: a box with 0.27.0 installed silently deployed with 0.27.0 while
-# the release contract said 0.26.0. The two differ in ways that matter here — for
-# example 0.27.0 adds `import gateway`, whose behaviour on inline tool schemas is
-# not what this workshop's provisioning assumes.
+# An unrelated global version must not silently replace the workshop's tested
+# CLI. Command and generated-project contracts can change between releases.
 #
 # Order: use a global binary ONLY if its version matches exactly; otherwise fall
 # back to the pinned npx invocation. The effective version is printed into
@@ -1193,8 +1194,8 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # non-zero exit; '|| true' keeps the bash -c itself at 0). A frontend
 # build failure must NEVER block the backend: app.py serves /api/* even
 # when dist/ is absent (the SPA 404s with a clear log line). This is the
-# fix for the prior failure mode where an unguarded `npm run build` under
-# `set -e` aborted bootstrap before uvicorn ever started.
+# fix for the prior failure mode where an unguarded npm run build under
+# set -e aborted bootstrap before uvicorn ever started.
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3 generate_mcp_config.py 2>/dev/null || true'
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
 ExecStart=/usr/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
@@ -1586,10 +1587,10 @@ EOF
     # for diagnosing the failed beat (box-verified cascade 2026-06-12: gating
     # this on AGENTCORE_OK left the participant with no CLI at all).
     if command -v npm &>/dev/null; then
-        log "Installing pinned AgentCore CLI globally (@aws/agentcore@0.26.0)..."
-        npm install -g @aws/agentcore@0.26.0 >/dev/null 2>&1 \
+        log "Installing pinned AgentCore CLI globally (@aws/agentcore@0.29.0)..."
+        npm install -g @aws/agentcore@0.29.0 >/dev/null 2>&1 \
             && log "✅ agentcore CLI installed globally ($(command agentcore --version 2>/dev/null || echo 'version check skipped'))" \
-            || warn "Global @aws/agentcore@0.26.0 install failed — the agentcore function will fall back to npx; see npm logs."
+            || warn "Global @aws/agentcore@0.29.0 install failed — the agentcore function will fall back to npx; see npm logs."
     fi
 
     # The pellier.service unit (STEP 14) already runs uvicorn with --reload

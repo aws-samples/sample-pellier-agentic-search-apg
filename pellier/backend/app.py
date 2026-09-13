@@ -2070,7 +2070,7 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
 OBSERVATORY_COMPARE_RECEIPT_SOURCE = "observatory-compare"
 
 
-async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) -> None:
+async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) -> Dict[str, Any]:
     """Write the agentic strategy's retrieval receipt for Lab 2 to read back.
 
     The receipt comes from the execution that produced the row, so the ranks,
@@ -2080,8 +2080,10 @@ async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) ->
     """
     from services.retrieval_receipt import build_receipt, persist_receipt
 
+    comparison_id = f"compare-{uuid.uuid4().hex}"
     receipt = build_receipt(
         query=query,
+        turn_id=comparison_id,
         plan=execution.plan,
         candidates=execution.candidates,
         ordered=execution.ordered,
@@ -2101,7 +2103,8 @@ async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) ->
         latency_breakdown=execution.latency_breakdown(),
         rail="in-process",
     )
-    await persist_receipt(db, receipt)
+    persisted = await persist_receipt(db, receipt)
+    return {"comparisonId": comparison_id, "persisted": persisted}
 
 
 SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS = {
@@ -2273,7 +2276,7 @@ async def compare_search_strategies(query: str):
         config={},
     )
     agentic_ms = int((time.perf_counter() - t0) * 1000)
-    await _persist_comparison_receipt(db, query=q, execution=agentic)
+    receipt = await _persist_comparison_receipt(db, query=q, execution=agentic)
     strategies.append(
         _agentic_strategy_entry(
             agentic,
@@ -2285,6 +2288,7 @@ async def compare_search_strategies(query: str):
 
     return {
         "query": q,
+        "receipt": receipt,
         "sharedQueryEmbeddingObservedMs": shared_embedding_ms,
         "measurementAssumptions": SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS,
         "strategies": strategies,

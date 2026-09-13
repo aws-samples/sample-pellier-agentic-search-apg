@@ -211,7 +211,7 @@ def _valid_managed_receipt() -> dict[str, object]:
     canonical_names = [f"tool_{index}" for index in range(15)]
     return {
         "status": "ready",
-        "cli": {"package": "@aws/agentcore@0.26.0"},
+        "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/test"},
         "operator_runtime": {
             "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
@@ -973,6 +973,14 @@ def test_bootstrap_applies_the_rls_migration() -> None:
         "bootstrap must apply migration 016, or pellier_agent, pellier_query, "
         "and the RLS policies never exist on a fresh box"
     )
+
+
+def test_query_statistics_extension_is_created_during_bootstrap_and_reset() -> None:
+    name = "054_query_statistics.sql"
+    sql = (REPO / "scripts/migrations" / name).read_text()
+    assert "CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;" in sql
+    assert name in BOOTSTRAP.read_text()
+    assert name in RESET_GOVERNED.read_text()
 
 
 def test_bootstrap_seeds_the_principal_mappings() -> None:

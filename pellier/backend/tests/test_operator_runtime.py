@@ -106,6 +106,62 @@ def test_missing_endpoint_does_not_construct_a_local_graph(managed, monkeypatch)
     assert result.raw == ""
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [None, "stale", "partial", "malformed", "metadata", "node", "failed_node", "wrong_graph"],
+)
+def test_deployment_smoke_requires_the_complete_matching_graph(monkeypatch, failure):
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[3] / "scripts/provision_agentcore_end_to_end.py"
+    spec = importlib.util.spec_from_file_location("operator_smoke_provisioner", path)
+    provisioner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(provisioner)
+    payload = _response(build_fingerprint="expected-package")
+    if failure == "stale":
+        payload["build_fingerprint"] = "previous-package"
+    elif failure == "partial":
+        payload["metadata"]["executedNodes"].pop()
+    elif failure == "malformed":
+        payload = ["unexpected"]
+    elif failure == "metadata":
+        payload["metadata"] = "untyped"
+    elif failure == "node":
+        payload["metadata"]["executedNodes"] = ["untyped"]
+    elif failure == "failed_node":
+        payload["metadata"]["executedNodes"][1]["status"] = "failed"
+    elif failure == "wrong_graph":
+        payload["metadata"]["graphId"] = "another-graph"
+    stream = io.BytesIO(json.dumps(payload).encode())
+    calls = []
+
+    def invoke(**kwargs):
+        calls.append(kwargs)
+        return {"response": stream}
+
+    monkeypatch.setattr(
+        provisioner.boto3, "client",
+        lambda *args, **kwargs: SimpleNamespace(invoke_agent_runtime=invoke),
+    )
+    kwargs = {
+        "runtime_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/operator-fixture",
+        "region": "us-east-1",
+        "expected_fingerprint": "expected-package",
+    }
+    if failure:
+        with pytest.raises(RuntimeError, match="Operator Runtime smoke"):
+            provisioner._operator_runtime_smoke(**kwargs)
+    else:
+        result = provisioner._operator_runtime_smoke(**kwargs)
+        assert result["runtime_arn"] == kwargs["runtime_arn"]
+        assert result["build_fingerprint_match"] is True
+        assert result["fixture"] is True
+        assert result["executed_nodes"] == ["case-investigator", "resolution-planner"]
+    assert stream.closed
+    assert len(calls) == 1
+    assert len(calls[0]["runtimeSessionId"]) >= 33
+
+
 def test_operator_entrypoint_accepts_only_bounded_read_envelopes(monkeypatch):
     import importlib.util
     import sys

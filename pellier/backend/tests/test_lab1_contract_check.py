@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import pytest
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "lab1_contract_check.py"
 
@@ -42,6 +43,18 @@ def test_not_found_for_a_sold_out_piece_fails() -> None:
     report = check.judge({
         "unknown": {"status": "not_found"},
         "sold_out": {"status": "not_found"},
+    })
+    assert report["passed"] is False
+    assert report["cases"][1]["passed"] is False
+
+
+@pytest.mark.parametrize("warehouses", [
+    [], [{}], [{"quantity": 1}], [{"quantity": False}], [{"quantity": None}], [None],
+])
+def test_zero_total_does_not_pass_without_zero_stock_at_each_warehouse(warehouses) -> None:
+    report = _load().judge({
+        "unknown": {"status": "not_found"},
+        "sold_out": {"status": "success", "total_units": 0, "warehouses": warehouses},
     })
     assert report["passed"] is False
     assert report["cases"][1]["passed"] is False

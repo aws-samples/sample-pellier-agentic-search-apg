@@ -124,7 +124,7 @@ const proofBoardPayload = {
       ],
       fallback: {
         label: 'AgentCore Runtime proof',
-        command: 'npx -y @aws/agentcore@0.26.0 invoke --runtime pellier_orchestrator',
+        command: 'npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator',
       },
       links: [{ label: 'Sessions', to: '/observatory/sessions' }],
     },
@@ -140,7 +140,7 @@ const proofBoardPayload = {
       evidence: ['ALLOW receipt linked to tool_audit 303.'],
       fallback: {
         label: 'AgentCore validation',
-        command: 'npx -y @aws/agentcore@0.26.0 validate --json',
+        command: 'npx -y @aws/agentcore@0.29.0 validate --json',
       },
       links: [{ label: 'Gateway & Policy', to: '/observatory/write-path' }],
     },
@@ -297,7 +297,7 @@ describe('ProofBoard', () => {
     expect(screen.queryByText(/^Act (I|II|III)$/)).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        'npx -y @aws/agentcore@0.26.0 invoke --runtime pellier_orchestrator',
+        'npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator',
       ),
     ).toBeInTheDocument();
   });

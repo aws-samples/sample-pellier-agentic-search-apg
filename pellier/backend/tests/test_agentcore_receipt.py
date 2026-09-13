@@ -27,7 +27,7 @@ def _valid_receipt() -> dict[str, Any]:
     names = [f"tool-{index}" for index in range(15)]
     return {
         "status": "ready",
-        "cli": {"package": "@aws/agentcore@0.26.0"},
+        "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/example"},
         "operator_runtime": {
             "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
