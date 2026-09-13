@@ -17,10 +17,7 @@ import json
 import os
 import sys
 
-from test_gateway_tools import discover_gateway_tools
-
-
-EXPECTED_TOOL_COUNT = 15
+from test_gateway_tools import discover_gateway_tools, expected_tools_for_token
 
 
 def get_cognito_token(
@@ -89,10 +86,12 @@ def test_gateway_auth(gateway_url: str, token: str):
         print("JWT token obtained successfully")
         print("Gateway authentication: PASSED")
         print(f"  Tools discovered: {tool_count}")
-        if tool_count != EXPECTED_TOOL_COUNT:
+        expected = expected_tools_for_token(token)
+        observed = {tool.name.rsplit("__", 1)[-1] for tool in tools}
+        if tool_count != len(expected) or observed != expected:
             print(
                 "Gateway authentication: FAILED "
-                f"(expected {EXPECTED_TOOL_COUNT} tools)"
+                f"(expected the caller's {len(expected)}-tool catalogue)"
             )
             sys.exit(1)
     except Exception as e:

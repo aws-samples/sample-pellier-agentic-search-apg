@@ -210,7 +210,12 @@ def _write_executable(path: Path, body: str) -> None:
 
 
 def _valid_managed_receipt() -> dict[str, object]:
-    canonical_names = [f"tool_{index}" for index in range(15)]
+    provisioner = _load_provisioner()
+    local_schema = provisioner._verify_local_schema()
+    canonical_names = sorted(provisioner.discoverable_tools_for_claims(
+        has_staff_scope=False, has_customer_claim=True
+    ))
+    target_names = sorted(config["target_name"] for config in provisioner.TOOL_SCHEMAS.values())
     return {
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
@@ -345,26 +350,19 @@ def _valid_managed_receipt() -> dict[str, object]:
             },
         },
         "verification": {
-            "local_tool_schema": {
-                "count": 15,
-                "canonical_names": canonical_names,
-            },
+            "local_tool_schema": local_schema,
             "gateway_control_plane": {
-                "target_count": 4,
-                "target_names": [
-                    "catalog-target",
-                    "experience-target",
-                    "inventory-target",
-                    "returns-target",
-                ],
+                "target_count": len(target_names),
+                "target_names": target_names,
                 "policy_mode": "ENFORCE",
             },
             "targets_attached": True,
             "gateway_tools_discovered": True,
-            "gateway_tool_count": 15,
+            "gateway_tool_count": len(canonical_names),
             "gateway_tool_names": canonical_names,
             "gateway_prefixed_tool_names": [
-                f"target__{name}" for name in canonical_names
+                f"{local_schema['target_for'][name]}___{name}"
+                for name in canonical_names
             ],
             "memory_seeded": True,
             "live_policy_allow": True,
@@ -1531,6 +1529,43 @@ def test_a_bare_psql_negotiates_tls() -> None:
     """Aurora accepts TLS but does not require it unless rds.force_ssl is on."""
     source = (REPO / "scripts" / "bootstrap-labs.sh").read_text(encoding="utf-8")
     assert "export PGSSLMODE=require" in source
+
+
+@pytest.mark.parametrize("probe_status", [0, 1])
+def test_participant_sql_is_required_after_database_setup(probe_status: int) -> None:
+    source = BOOTSTRAP.read_text(encoding="utf-8")
+    start = source.index("# Verify the participant connection after database setup")
+    end = source.index("# Memory is created once", start)
+    assert source.index('if wait "$PID_DB"; then') < start
+    program = f"""
+set -euo pipefail
+log() {{ :; }}
+warn() {{ :; }}
+fail() {{ printf '%s\\n' "$*" >&2; exit 1; }}
+sudo() {{ return {probe_status}; }}
+{source[start:end]}
+printf 'continue_bootstrap\\n'
+"""
+    result = subprocess.run(
+        ["bash", "-c", program],
+        env={
+            "PATH": os.environ["PATH"],
+            "CODE_EDITOR_USER": "participant",
+            "WORKSHOP_FORMAT": "governed",
+            "PGPASS_DIR": "/nonexistent-participant-home",
+            "DB_HOST": "db.example",
+            "DB_PORT": "5432",
+            "DB_USER": "test",
+            "DB_NAME": "test",
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == probe_status
+    assert ("continue_bootstrap" in result.stdout) == (probe_status == 0)
+    if probe_status:
+        assert "after database setup" in result.stderr
 
 
 def test_the_pgpass_file_is_not_world_readable() -> None:

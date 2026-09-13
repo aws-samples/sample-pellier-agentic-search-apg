@@ -62,7 +62,7 @@ def test_parallel_setup_cannot_advance_after_a_failed_dependency(
 ) -> None:
     source = LABS.read_text()
     start = source.index("setup_frontend & PID_FE=$!")
-    end = source.index("# Memory is created once", start)
+    end = source.index("# Verify the participant connection after database setup", start)
     fail_function = next(line for line in source.splitlines() if line.startswith("fail()"))
     result = run_bash(
         "RED='' NC=''\n"

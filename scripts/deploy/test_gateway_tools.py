@@ -8,6 +8,8 @@ Usage:
       --token "$TOKEN"
 """
 import argparse
+import base64
+import json
 import os
 import sys
 
@@ -16,24 +18,23 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from gateway_tool_schemas import discoverable_tools_for_claims
 
-EXPECTED_TOOLS = {
-    "get_customer_preferences",
-    "get_audit_trail",
-    "check_inventory",
-    "get_trending_products",
-    "get_price_analysis",
-    "restock_inventory",
-    "initiate_return",
-    "escalate_to_human",
-    "search_products",
-    "search_products_hybrid",
-    "browse_category",
-    "get_low_stock",
-    "compare_products",
-    "get_return_policy",
-    "get_related_products",
-}
+
+def expected_tools_for_token(token: str) -> frozenset[str]:
+    """Shape a diagnostic expectation; the Gateway verifies the token itself."""
+    try:
+        encoded = token.split(".")[1]
+        encoded += "=" * (-len(encoded) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(encoded).decode("utf-8"))
+        if not isinstance(claims, dict):
+            claims = {}
+    except (IndexError, ValueError, TypeError):
+        claims = {}
+    return discoverable_tools_for_claims(
+        has_staff_scope=bool(str(claims.get("custom:staff_scope") or "").strip()),
+        has_customer_claim=bool(str(claims.get("custom:customer_id") or "").strip()),
+    )
 
 
 def _canonical_name(name: str) -> str:
@@ -91,11 +92,12 @@ def list_gateway_tools(gateway_url: str, token: str):
         print(f"    {desc}")
 
     observed = {_canonical_name(tool.name) for tool in tools}
-    missing = sorted(EXPECTED_TOOLS - observed)
-    unexpected = sorted(observed - EXPECTED_TOOLS)
+    expected = expected_tools_for_token(token)
+    missing = sorted(expected - observed)
+    unexpected = sorted(observed - expected)
     print(f"\nTotal: {len(tools)} tools")
-    if len(tools) != 15 or missing or unexpected:
-        print("ERROR: Expected the governed 15-tool Gateway subset.")
+    if len(tools) != len(expected) or missing or unexpected:
+        print(f"ERROR: Expected the caller's {len(expected)}-tool Gateway subset.")
         if missing:
             print(f"  Missing: {', '.join(missing)}")
         if unexpected:

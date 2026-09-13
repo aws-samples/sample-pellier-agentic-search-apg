@@ -389,26 +389,6 @@ EOF
 
     log "✅ Environment files created (.env, .pgpass)"
 
-    # Prove the connection a participant will actually make, now, rather than
-    # letting Lab 1 discover it. Deliberately run AS the participant with only
-    # HOME and the PG* variables set: no PGPASSWORD, so a pass means .pgpass was
-    # found, readable at 0600, and correct. Running this as root with the
-    # script's own PGPASSWORD would prove something no participant does.
-    if sudo -u "$CODE_EDITOR_USER" env -i \
-            HOME="$PGPASS_DIR" \
-            PATH="/usr/bin:/bin" \
-            PGHOST="$DB_HOST" PGPORT="$DB_PORT" \
-            PGUSER="$DB_USER" PGDATABASE="$DB_NAME" \
-            PGSSLMODE=require PGCONNECT_TIMEOUT=15 \
-            psql -X -Atc 'SELECT 1' >/dev/null 2>&1; then
-        log "✅ Participant psql reaches Aurora over TLS via .pgpass"
-    else
-        # Not fatal: the labs that matter use the application, and a table lead
-        # can recover a shell. But it must be loud, because every SQL proof in
-        # the guide is typed as a bare `psql`.
-        warn "Participant psql could NOT reach Aurora (checked as $CODE_EDITOR_USER with .pgpass, sslmode=require)"
-        warn "  every bare 'psql' step in the guide will fail until this is fixed"
-    fi
 else
     warn "Database credentials not available - skipping DB configuration"
 fi
@@ -788,6 +768,24 @@ if [ "$FRONTEND_SETUP_OK" = "true" ]; then
     log "✅ Frontend dependencies installed"
 else
     fail "Frontend dependency installation failed; see /var/log/pellier-npm-install.log"
+fi
+
+# Verify the participant connection after database setup has finished and Aurora
+# is accepting SQL. A probe before setup can time out while the cluster wakes.
+# The clean environment deliberately omits PGPASSWORD: this proves .pgpass and
+# the same TLS connection that participants use in every SQL lab.
+if sudo -u "$CODE_EDITOR_USER" env -i \
+        HOME="$PGPASS_DIR" \
+        PATH="/usr/bin:/bin" \
+        PGHOST="$DB_HOST" PGPORT="$DB_PORT" \
+        PGUSER="$DB_USER" PGDATABASE="$DB_NAME" \
+        PGSSLMODE=require PGCONNECT_TIMEOUT=15 \
+        psql -X -Atc 'SELECT 1' >/dev/null 2>&1; then
+    log "✅ Participant psql reaches Aurora over TLS via .pgpass"
+elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
+    fail "Participant psql could not reach Aurora after database setup; check .pgpass and connectivity"
+else
+    warn "Participant psql could not reach Aurora after database setup"
 fi
 
 # ============================================================================

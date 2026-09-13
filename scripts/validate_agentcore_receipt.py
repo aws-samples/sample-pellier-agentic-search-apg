@@ -11,6 +11,16 @@ from pathlib import Path
 from typing import Any
 
 
+DEPLOY_DIR = Path(__file__).resolve().parent / "deploy"
+if str(DEPLOY_DIR) not in sys.path:
+    sys.path.insert(0, str(DEPLOY_DIR))
+
+from gateway_tool_schemas import (  # noqa: E402
+    discoverable_tools_for_claims,
+    workshop_target_tools,
+)
+
+
 EXPECTED_CLI = "@aws/agentcore@0.29.0"
 TRACE_ATTRIBUTE_ALLOWLISTS = {
     "agent_input": {
@@ -192,10 +202,25 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
     ]:
         errors.append("Operator smoke must prove both graph nodes in order")
 
+    # Provisioning publishes the catalogue but proves discovery with a seeded
+    # shopper token. Staff-only tools must remain absent from that listing.
+    # Derive both contracts from the deployed source, including participant
+    # catalogue edits, rather than accepting a receipt's own expected count.
+    target_tools = workshop_target_tools()
+    published_tools = {name for names in target_tools.values() for name in names}
+    shopper_tools = discoverable_tools_for_claims(
+        has_staff_scope=False, has_customer_claim=True
+    )
+    prefixed_tools = {
+        f"{target}___{name}"
+        for target, names in target_tools.items()
+        for name in names
+        if name in shopper_tools
+    }
     expected_counts = {
-        "verification.local_tool_schema.count": 15,
-        "verification.gateway_control_plane.target_count": 4,
-        "verification.gateway_tool_count": 15,
+        "verification.local_tool_schema.count": len(published_tools),
+        "verification.gateway_control_plane.target_count": len(target_tools),
+        "verification.gateway_tool_count": len(shopper_tools),
     }
     for path, expected in expected_counts.items():
         actual = _value(payload, path)
@@ -203,29 +228,22 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
             errors.append(f"{path}={actual!r}, expected {expected}")
 
     expected_lists = {
-        "verification.local_tool_schema.canonical_names": 15,
-        "verification.gateway_control_plane.target_names": 4,
-        "verification.gateway_tool_names": 15,
-        "verification.gateway_prefixed_tool_names": 15,
+        "verification.local_tool_schema.canonical_names": published_tools,
+        "verification.gateway_control_plane.target_names": set(target_tools),
+        "verification.gateway_tool_names": shopper_tools,
+        "verification.gateway_prefixed_tool_names": prefixed_tools,
     }
-    for path, expected_length in expected_lists.items():
+    for path, expected in expected_lists.items():
         actual = _value(payload, path)
         if (
             not isinstance(actual, list)
-            or len(actual) != expected_length
-            or len(set(actual)) != expected_length
+            or not all(isinstance(name, str) for name in actual)
+            or len(actual) != len(expected)
+            or set(actual) != expected
         ):
             errors.append(
-                f"{path} must contain {expected_length} unique entries"
+                f"{path} must match the source catalogue: {sorted(expected)}"
             )
-
-    prefixed_names = _value(payload, "verification.gateway_prefixed_tool_names")
-    if isinstance(prefixed_names, list) and not all(
-        isinstance(name, str) and "__" in name for name in prefixed_names
-    ):
-        errors.append(
-            "verification.gateway_prefixed_tool_names must contain target-prefixed names"
-        )
 
     span_count = _value(payload, "observability.unified_trace.span_count")
     if type(span_count) is not int or span_count < 3:

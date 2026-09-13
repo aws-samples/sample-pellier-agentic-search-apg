@@ -24,7 +24,12 @@ def _load_validator() -> Any:
 
 
 def _valid_receipt() -> dict[str, Any]:
-    names = [f"tool-{index}" for index in range(15)]
+    validator = _load_validator()
+    targets = validator.workshop_target_tools()
+    names = sorted({name for tools in targets.values() for name in tools})
+    shopper_names = sorted(validator.discoverable_tools_for_claims(
+        has_staff_scope=False, has_customer_claim=True
+    ))
     return {
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
@@ -153,16 +158,19 @@ def _valid_receipt() -> dict[str, Any]:
             },
         },
         "verification": {
-            "local_tool_schema": {"count": 15, "canonical_names": names},
+            "local_tool_schema": {"count": len(names), "canonical_names": names},
             "gateway_control_plane": {
-                "target_count": 4,
-                "target_names": ["experience", "pricing", "recommendation", "search"],
+                "target_count": len(targets),
+                "target_names": sorted(targets),
                 "policy_mode": "ENFORCE",
             },
-            "gateway_tool_count": 15,
-            "gateway_tool_names": names,
+            "gateway_tool_count": len(shopper_names),
+            "gateway_tool_names": shopper_names,
             "gateway_prefixed_tool_names": [
-                f"target__{name}" for name in names
+                f"{target}___{name}"
+                for target, tools in targets.items()
+                for name in tools
+                if name in shopper_names
             ],
             "runtime_invoke_smoke": {
                 "rail": "gateway-mcp",
@@ -222,6 +230,61 @@ def test_ready_receipt_requires_managed_observability_proof() -> None:
     validator = _load_validator()
 
     assert validator.validate_receipt(_valid_receipt()) == []
+
+
+def test_receipt_matches_the_real_provisioner_catalogue() -> None:
+    spec = importlib.util.spec_from_file_location(
+        "receipt_provisioner_contract",
+        REPO_ROOT / "scripts/provision_agentcore_end_to_end.py",
+    )
+    assert spec and spec.loader
+    provisioner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(provisioner)
+    receipt = _valid_receipt()
+    receipt["verification"]["local_tool_schema"] = provisioner._verify_local_schema()
+    assert provisioner.INITIATE_RETURN_ACTION in (
+        receipt["verification"]["gateway_prefixed_tool_names"]
+    )
+    assert _load_validator().validate_receipt(receipt) == []
+    assert receipt["verification"]["gateway_tool_count"] < (
+        receipt["verification"]["local_tool_schema"]["count"]
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("local_tool_schema", "canonical_names"),
+        ("gateway_control_plane", "target_names"),
+        ("gateway_tool_names",),
+        ("gateway_prefixed_tool_names",),
+    ],
+)
+@pytest.mark.parametrize("replacement", ["unexpected_tool", {}, None])
+def test_matching_counts_cannot_hide_a_wrong_tool_contract(path, replacement) -> None:
+    receipt = _valid_receipt()
+    values = receipt["verification"]
+    for key in path:
+        values = values[key]
+    values[0] = replacement
+    assert _load_validator().validate_receipt(receipt)
+
+
+def test_staff_tool_cannot_replace_a_shopper_tool_at_the_same_count() -> None:
+    receipt = _valid_receipt()
+    receipt["verification"]["gateway_tool_names"][0] = "issue_credit"
+    assert _load_validator().validate_receipt(receipt)
+
+
+def test_validator_follows_source_catalogue_changes(monkeypatch) -> None:
+    _load_validator()
+    import gateway_tool_schemas as schemas
+
+    config = schemas.TOOL_SCHEMAS["search"]
+    monkeypatch.setitem(
+        config, "tools", [*config["tools"], {"name": "future_catalogue_read"}]
+    )
+    assert _load_validator().validate_receipt(_valid_receipt()) == []
 
 
 @pytest.mark.parametrize("failure", ["missing", "stale", "partial", "endpoint", "log"])
