@@ -778,9 +778,9 @@ async def refresh(
 
     access_token = token_response.get("access_token")
     id_token = token_response.get("id_token")
-    # Cognito rotates the refresh token only when "Refresh token rotation"
-    # is enabled on the app client. When absent, keep the existing one.
-    new_refresh_token = token_response.get("refresh_token") or refresh_token
+    # Only issue refresh cookies from the trusted token response. Without a
+    # replacement, the browser keeps its existing cookie and original expiry.
+    new_refresh_token = token_response.get("refresh_token")
 
     if not access_token:
         return JSONResponse(

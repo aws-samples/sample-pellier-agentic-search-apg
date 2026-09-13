@@ -3173,8 +3173,8 @@ async def get_trace_waterfall(session_id: Optional[str] = Query(None)):
     try:
         from services.otel_trace_extractor import get_waterfall_data
         return get_waterfall_data(session_id=session_id)
-    except Exception as e:
-        logger.error(f"get_waterfall_data raised: {e}")
+    except Exception:
+        logger.exception("get_waterfall_data failed")
         return {
             "spans": [],
             "totalMs": 0,
@@ -3183,8 +3183,7 @@ async def get_trace_waterfall(session_id: Optional[str] = Query(None)):
             "span_count": 0,
             "otel_enabled": False,
             "reason": (
-                f"Telemetry unavailable: extractor raised {type(e).__name__}. "
-                f"See docs/troubleshooting-otel.md."
+                "Telemetry unavailable. See docs/troubleshooting-otel.md."
             ),
         }
 

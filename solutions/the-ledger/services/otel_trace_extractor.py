@@ -28,8 +28,8 @@ _span_exporter: Any = None
 # spans; they MUST surface ``otel_enabled: False`` with the ``reason``.
 OTEL_WORKING: bool = False
 
-# Last initialization failure reason, if any. Mirrors the ERROR log line
-# so the UI can render the exact actionable copy without re-deriving it.
+# Safe initialization failure reason for the UI. Internal exception details
+# remain in the server logs.
 OTEL_FAILURE_REASON: str = (
     "Telemetry not initialized yet — init_span_capture() has not run."
 )
@@ -113,9 +113,9 @@ def init_span_capture() -> None:
         OTEL_WORKING = False
         OTEL_FAILURE_REASON = reason
         _span_exporter = None
-    except Exception as e:  # pragma: no cover - defensive
-        reason = f"Telemetry unavailable: failed to init span capture ({e}). {_INIT_ORDER_HINT}"
-        logger.error(reason)
+    except Exception:
+        reason = f"Telemetry unavailable: failed to initialize span capture. {_INIT_ORDER_HINT}"
+        logger.exception("Failed to initialize span capture")
         OTEL_WORKING = False
         OTEL_FAILURE_REASON = reason
         _span_exporter = None
@@ -321,8 +321,8 @@ def extract_trace(spans: Optional[Iterable[Any]] = None) -> Dict[str, Any]:
             }
         try:
             finished = list(_span_exporter.get_finished_spans())
-        except Exception as e:  # pragma: no cover - defensive
-            logger.error(f"Failed to read finished spans: {e}. {_INIT_ORDER_HINT}")
+        except Exception:
+            logger.exception("Failed to read finished spans")
             return {
                 "spans": [],
                 "totalMs": 0,
@@ -331,7 +331,7 @@ def extract_trace(spans: Optional[Iterable[Any]] = None) -> Dict[str, Any]:
                 "traceIds": [],
                 "usage": _summarize_usage([]),
                 "otel_enabled": False,
-                "reason": f"Failed to read finished spans: {e}. {_INIT_ORDER_HINT}",
+                "reason": f"Failed to read finished spans. {_INIT_ORDER_HINT}",
             }
     else:
         finished = list(spans)
@@ -448,9 +448,9 @@ def extract_agent_execution_from_otel(session_id: Optional[str] = None) -> Dict[
 
     try:
         spans = list(_span_exporter.get_finished_spans())
-    except Exception as e:
-        reason = f"Failed to read finished spans: {e}. {_INIT_ORDER_HINT}"
-        logger.error(reason)
+    except Exception:
+        reason = f"Failed to read finished spans. {_INIT_ORDER_HINT}"
+        logger.exception("Failed to read finished spans")
         return _failed_execution(reason)
 
     spans = _filter_spans_for_session(spans, session_id)
@@ -542,9 +542,9 @@ def get_waterfall_data(session_id: Optional[str] = None) -> Dict[str, Any]:
 
     try:
         finished = list(_span_exporter.get_finished_spans())
-    except Exception as e:  # pragma: no cover - defensive
-        reason = f"Failed to read spans for waterfall: {e}. {_INIT_ORDER_HINT}"
-        logger.error(reason)
+    except Exception:
+        reason = f"Failed to read spans for waterfall. {_INIT_ORDER_HINT}"
+        logger.exception("Failed to read spans for waterfall")
         return {
             "spans": [],
             "totalMs": 0,
