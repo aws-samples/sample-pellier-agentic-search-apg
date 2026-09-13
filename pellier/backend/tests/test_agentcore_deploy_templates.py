@@ -27,6 +27,7 @@ RUNTIME_SOLUTION = (
     REPO_ROOT / "solutions" / "the-ledger" / "services" / "agentcore_runtime.py"
 )
 PYPROJECT = BACKEND_DIR / "pyproject.toml"
+GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/pellier-test"
 
 if str(DEPLOY_DIR) not in sys.path:
     sys.path.insert(0, str(DEPLOY_DIR))
@@ -87,6 +88,7 @@ def _render(tmp_path: Path, *, include_policies: bool) -> tuple[Path, dict[str, 
         model_id="global.anthropic.claude-sonnet-4-6",
         workshop_id="p12345678",
         include_policies=include_policies,
+        gateway_arn=GATEWAY_ARN if include_policies else "",
     )
     config = json.loads((root / "agentcore" / "agentcore.json").read_text())
     return root, config
@@ -295,7 +297,17 @@ def test_second_phase_adds_only_the_baseline_cedar_set(tmp_path: Path) -> None:
     )
     statements = "\n".join(policy["statement"] for policy in policies)
     assert renderer.PROCESS_RETURN_ACTION in statements
-    assert "resource is AgentCore::Gateway" in statements
+    assert "resource is AgentCore::Gateway" not in statements
+    assert all(
+        f'resource == AgentCore::Gateway::"{GATEWAY_ARN}"' in policy["statement"]
+        for policy in policies
+    )
+
+
+@pytest.mark.parametrize("gateway_arn", ["", "gateway-without-arn"])
+def test_policies_require_the_deployed_gateway_arn(gateway_arn: str) -> None:
+    with pytest.raises(ValueError, match="deployed Gateway ARN"):
+        renderer.baseline_policies(gateway_arn=gateway_arn)
 
 
 def test_deployed_state_reads_mcp_gateway_shape() -> None:
@@ -345,7 +357,7 @@ def test_deploy_sequence_validates_both_cli_phases(
     provisioner = _load_provisioner()
     root = tmp_path / "project"
     calls: list[tuple[str, ...]] = []
-    render_phases: list[bool] = []
+    render_phases: list[dict[str, Any]] = []
     state = {
         "targets": {
             "default": {
@@ -354,7 +366,7 @@ def test_deploy_sequence_validates_both_cli_phases(
                         "gateways": {
                             renderer.GATEWAY_NAME: {
                                 "gatewayId": "gateway-1",
-                                "gatewayArn": "arn:gateway",
+                                "gatewayArn": GATEWAY_ARN,
                             }
                         }
                     },
@@ -375,7 +387,7 @@ def test_deploy_sequence_validates_both_cli_phases(
     monkeypatch.setattr(
         provisioner,
         "render_project",
-        lambda **kwargs: render_phases.append(kwargs["include_policies"]),
+        lambda **kwargs: render_phases.append(kwargs),
     )
     monkeypatch.setattr(
         provisioner,
@@ -398,7 +410,8 @@ def test_deploy_sequence_validates_both_cli_phases(
 
     assert returned_root == root
     assert returned_state is state
-    assert render_phases == [False, True]
+    assert [phase["include_policies"] for phase in render_phases] == [False, True]
+    assert render_phases[1]["gateway_arn"] == GATEWAY_ARN
     assert calls == [
         ("validate",),
         ("deploy", "--yes", "--json"),

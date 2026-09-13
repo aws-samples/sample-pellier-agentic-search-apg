@@ -62,15 +62,24 @@ def _render_runtime_source(root: Path, backend_dir: Path) -> Path:
     return runtime_dir
 
 
-def baseline_policies(action_token: str = PROCESS_RETURN_ACTION) -> list[dict[str, Any]]:
+def baseline_policies(
+    action_token: str = PROCESS_RETURN_ACTION,
+    *,
+    gateway_arn: str,
+) -> list[dict[str, Any]]:
     """Return the shipped Cedar set added after the first CLI deployment."""
-    gateway_type = "resource is AgentCore::Gateway"
+    if not gateway_arn or not gateway_arn.startswith("arn:"):
+        raise ValueError(
+            "Cedar policies require the deployed Gateway ARN; "
+            "render policies after the first deploy with --gateway-arn"
+        )
+    gateway_resource = f"resource == AgentCore::Gateway::{json.dumps(gateway_arn)}"
     action = f'action == AgentCore::Action::"{action_token}"'
     return [
         {
             "name": "baseline_permit_gateway_tools",
             "description": "Permit Gateway tools by default; explicit forbids still win",
-            "statement": f"permit (principal, action, {gateway_type});",
+            "statement": f"permit (principal, action, {gateway_resource});",
             "validationMode": "IGNORE_ALL_FINDINGS",
             "enforcementMode": "ACTIVE",
         },
@@ -78,7 +87,7 @@ def baseline_policies(action_token: str = PROCESS_RETURN_ACTION) -> list[dict[st
             "name": "process_return_damaged_only",
             "description": "Forbid process_return unless the item is damaged",
             "statement": (
-                f"forbid (principal, {action}, {gateway_type})\n"
+                f"forbid (principal, {action}, {gateway_resource})\n"
                 "when {\n"
                 '  !(context.input has reason) || context.input.reason != "damaged"\n'
                 "};"
@@ -90,7 +99,7 @@ def baseline_policies(action_token: str = PROCESS_RETURN_ACTION) -> list[dict[st
             "name": "process_return_allow_damaged",
             "description": "Explicitly permit damaged-item returns",
             "statement": (
-                f"permit (principal, {action}, {gateway_type})\n"
+                f"permit (principal, {action}, {gateway_resource})\n"
                 "when {\n"
                 '  context.input has reason && context.input.reason == "damaged"\n'
                 "};"
@@ -113,6 +122,7 @@ def render_project(
     workshop_id: str,
     include_policies: bool,
     action_token: str = PROCESS_RETURN_ACTION,
+    gateway_arn: str = "",
 ) -> Path:
     """Write agentcore.json, aws-targets.json, and four tool-schema files."""
     root = project_root(repo)
@@ -223,7 +233,10 @@ def render_project(
                 "name": POLICY_ENGINE_NAME,
                 "description": "Cedar authorization for Pellier Gateway tools",
                 "tags": tags,
-                "policies": baseline_policies(action_token) if include_policies else [],
+                "policies": (
+                    baseline_policies(action_token, gateway_arn=gateway_arn)
+                    if include_policies else []
+                ),
             }
         ],
         "configBundles": [],
@@ -252,6 +265,7 @@ def main() -> int:
     parser.add_argument("--lambda-arns", type=Path, required=True)
     parser.add_argument("--include-policies", action="store_true")
     parser.add_argument("--action-token", default=PROCESS_RETURN_ACTION)
+    parser.add_argument("--gateway-arn", default="")
     args = parser.parse_args()
 
     lambda_arns = json.loads(args.lambda_arns.read_text())
@@ -266,6 +280,7 @@ def main() -> int:
         workshop_id=args.workshop_id,
         include_policies=args.include_policies,
         action_token=args.action_token,
+        gateway_arn=args.gateway_arn,
     )
     print(root)
     return 0

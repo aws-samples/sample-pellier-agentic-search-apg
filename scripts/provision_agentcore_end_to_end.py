@@ -275,13 +275,14 @@ def _deploy_cli_project(
     _agentcore(root, "deploy", "--yes", "--json", env=env)
 
     state = _read_deployed_state(root)
-    _require_gateway_state(state, GATEWAY_NAME)
+    gateway_state = _require_gateway_state(state, GATEWAY_NAME)
     _require_state_resource(state, "policyEngines", POLICY_ENGINE_NAME)
 
     render_project(
         **common,
         include_policies=True,
         action_token=PROCESS_RETURN_ACTION,
+        gateway_arn=str(gateway_state["gatewayArn"]),
     )
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
