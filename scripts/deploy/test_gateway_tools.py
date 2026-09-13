@@ -59,8 +59,12 @@ async def _discover_gateway_tools(gateway_url: str, token: str):
 
 
 def discover_gateway_tools(gateway_url: str, token: str):
-    """Discover tools through an initialized MCP streamable-HTTP session."""
-    return anyio.run(_discover_gateway_tools, gateway_url, token)
+    """Discover registered target tools, excluding Gateway's search helper."""
+    tools = anyio.run(_discover_gateway_tools, gateway_url, token)
+    return [
+        tool for tool in tools
+        if tool.name != "x_amz_bedrock_agentcore_search"
+    ]
 
 
 def list_gateway_tools(gateway_url: str, token: str):

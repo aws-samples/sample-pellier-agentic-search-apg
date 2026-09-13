@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -90,7 +91,6 @@ AWS_CONFIG = Config(
     read_timeout=60,
 )
 TRANSACTION_SEARCH_POLICY = "TransactionSearchXRayAccess"
-RUNTIME_SMOKE_SESSION = "builders-smoke-session-0000000000000001"
 # Unified traces reach CloudWatch minutes after the invoke: on 2026-09-10 a smoke
 # session's trace was listed only after the first 4-minute wait had expired,
 # although it did arrive. The bound is generous because a false "no trace"
@@ -1345,10 +1345,11 @@ def _authenticated_runtime_smoke(
     that with margin, and costs nothing on the common path where the first
     invoke already carries the expected digest.
     """
-    runtime_session_id = RUNTIME_SMOKE_SESSION
     decoded: dict[str, Any] = {}
     answered_by = ""
     for attempt in range(1, max(1, attempts) + 1):
+        # A prior session may remain attached to an older Runtime sandbox.
+        runtime_session_id = f"builders-smoke-{uuid.uuid4().hex}"
         proc = _agentcore(
             root,
             "invoke",
