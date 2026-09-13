@@ -575,7 +575,8 @@ setup_database() {
                     return "$migration_rc"
                 fi
             else
-                warn "Migration $migration not found — skipping"
+                warn "Required migration $migration not found"
+                return 1
             fi
         done
 
@@ -610,11 +611,17 @@ setup_database() {
 
 setup_frontend & PID_FE=$!
 setup_database & PID_DB=$!
-wait $PID_FE && log "✅ Frontend dependencies installed" || warn "Frontend install issues"
-if wait $PID_DB; then
+FRONTEND_SETUP_OK=true
+wait "$PID_FE" || FRONTEND_SETUP_OK=false
+if wait "$PID_DB"; then
     log "✅ Database setup complete (40 Pellier products, HNSW index, workshop tables)"
 else
-    warn "Database setup had issues - check /var/log/database-setup.log"
+    fail "Database setup failed; see /var/log/database-setup.log"
+fi
+if [ "$FRONTEND_SETUP_OK" = "true" ]; then
+    log "✅ Frontend dependencies installed"
+else
+    fail "Frontend dependency installation failed; see /var/log/pellier-npm-install.log"
 fi
 
 # ============================================================================
@@ -934,8 +941,8 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # non-zero exit; '|| true' keeps the bash -c itself at 0). A frontend
 # build failure must NEVER block the backend: app.py serves /api/* even
 # when dist/ is absent (the SPA 404s with a clear log line). This is the
-# fix for the prior failure mode where an unguarded `npm run build` under
-# `set -e` aborted bootstrap before uvicorn ever started.
+# fix for the prior failure mode where an unguarded npm run build under
+# set -e aborted bootstrap before uvicorn ever started.
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
 ExecStart=/home/$CODE_EDITOR_USER/.local/bin/uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
 Restart=always

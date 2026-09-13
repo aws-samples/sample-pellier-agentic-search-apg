@@ -79,7 +79,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS governed_receipts_seed_incident_uidx
 --
 -- Product is looked up by name so the seed survives product id reshuffles.
 WITH product AS (
-    SELECT product_id
+    SELECT "productId" AS product_id
       FROM pellier.product_catalog
      WHERE name = 'Wabi-Sabi Bowl'
      LIMIT 1

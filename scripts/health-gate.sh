@@ -8,15 +8,17 @@
 #
 # Checks:
 #   1. Backend /api/health is green (DB connected)
-#   2. Catalog row count == expected (40)
-#   3. Warehouse inventory present (~120 rows)
-#   4. Required Bedrock model preflight passed
-#   5. Event-rehearsed Claude Code CLI is installed
-#   6. uv is installed for the participant Python client
-#   7. Required AgentCore Memory exists and reports ACTIVE
+#   2. Frontend SPA is served
+#   3. Catalog row count == expected (40)
+#   4. Warehouse inventory present (~120 rows)
+#   5. Required schema migrations are present
+#   6. Required Bedrock model preflight passed
+#   7. Event-rehearsed Claude Code CLI is installed
+#   8. uv is installed for the participant Python client
+#   9. Required AgentCore Memory exists and reports ACTIVE
 #
 # Exit 0 only if the core one-hour path passes: backend, frontend, catalog,
-# warehouse, and required model access.
+# warehouse, schema, tools, model access, and AgentCore Memory.
 # =============================================================================
 set -uo pipefail
 
@@ -51,7 +53,7 @@ else
   ok=false
 fi
 
-# 1b. Frontend SPA actually built + served. The backend serves /api even when
+# 2. Frontend SPA actually built + served. The backend serves /api even when
 # the Vite bundle is absent (it returns a JSON "bundle not found" note at /),
 # so /api/health alone can read green while the storefront and Pellier Labs are blank.
 # Check that / returns HTML, not that JSON note: this is what a participant
@@ -73,7 +75,7 @@ _psql() {
     -tAc "$1" 2>/dev/null
 }
 
-# 2. Catalog count
+# 3. Catalog count
 catalog_n="$(_psql 'SELECT count(*) FROM pellier.product_catalog;' || echo '')"
 if [[ "$catalog_n" == "$EXPECTED_CATALOG" ]]; then
   pass "Catalog seeded ($catalog_n products)"
@@ -82,7 +84,7 @@ else
   ok=false
 fi
 
-# 3. Warehouse inventory
+# 4. Warehouse inventory
 wh_n="$(_psql 'SELECT count(*) FROM pellier.warehouse_inventory;' || echo '')"
 if [[ "${wh_n:-0}" =~ ^[0-9]+$ ]] && (( wh_n > 0 )); then
   pass "Warehouse inventory present ($wh_n rows)"
@@ -91,7 +93,28 @@ else
   ok=false
 fi
 
-# 4. Required Bedrock model access
+# 5. A healthy connection and seeded products do not prove migrations completed.
+# These relations and functions are required by retrieval receipts, tool audit,
+# and inventory writes, including migrations applied after the catalog seed.
+schema_ready="$(_psql "
+SELECT
+  to_regclass('pellier.tool_audit') IS NOT NULL
+  AND to_regclass('pellier.tools') IS NOT NULL
+  AND to_regclass('pellier.governed_receipts') IS NOT NULL
+  AND to_regclass('pellier.write_operations') IS NOT NULL
+  AND to_regclass('pellier.retrieval_receipts') IS NOT NULL
+  AND to_regclass('pellier.inventory_ledger') IS NOT NULL
+  AND to_regprocedure('pellier.process_return_idempotent(text,text,text,text,text)') IS NOT NULL
+  AND to_regprocedure('pellier.reconcile_inventory()') IS NOT NULL;
+" || echo '')"
+if [[ "$schema_ready" == "t" ]]; then
+  pass "Required schema migrations are present"
+else
+  fail "Required schema migrations are incomplete; see /var/log/database-setup.log"
+  ok=false
+fi
+
+# 6. Required Bedrock model access
 if [[ "${BEDROCK_MODEL_ACCESS_READY:-}" == "true" ]]; then
   pass "Required Bedrock model-access preflight passed"
 else
@@ -99,7 +122,7 @@ else
   ok=false
 fi
 
-# 5. Claude Code CLI used by the recommended Lab 2 path
+# 7. Claude Code CLI used by the recommended Lab 2 path
 claude_version="$(claude --version 2>/dev/null || true)"
 if [[ -n "$claude_version" ]]; then
   pass "Claude Code CLI installed (${claude_version})"
@@ -108,7 +131,7 @@ else
   ok=false
 fi
 
-# 6. uv runs the checked-in participant Python client
+# 8. uv runs the checked-in participant Python client
 uv_version="$(uv --version 2>/dev/null || true)"
 if [[ -n "$uv_version" ]]; then
   pass "uv installed (${uv_version})"
@@ -117,7 +140,7 @@ else
   ok=false
 fi
 
-# 7. Required AgentCore Memory is configured and ACTIVE
+# 9. Required AgentCore Memory is configured and ACTIVE
 memory_json="$(curl -fs --max-time 10 "$MEMORY_STATUS_URL" 2>/dev/null || true)"
 memory_ready="$(
   printf '%s' "$memory_json" | python3 -c '

@@ -124,6 +124,7 @@ def _run_health_gate(
     claude_ready: bool = True,
     uv_ready: bool = True,
     memory_ready: bool = True,
+    schema_ready: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     repo = tmp_path / "repo"
     fake_bin = tmp_path / "bin"
@@ -156,10 +157,11 @@ esac
         fake_bin / "psql",
         """#!/bin/bash
 case "$*" in
+  *to_regclass*) printf '${SCHEMA_READY}\n' ;;
   *product_catalog*) printf '40\n' ;;
   *warehouse_inventory*) printf '120\n' ;;
 esac
-""",
+""".replace("${SCHEMA_READY}", "t" if schema_ready else "f"),
     )
     if claude_ready:
         _write_executable(
@@ -229,6 +231,85 @@ def test_core_health_gate_requires_active_agentcore_memory(tmp_path: Path) -> No
     )
     assert proc.returncode == 1
     assert "AgentCore Memory is not ACTIVE" in proc.stdout
+
+
+def test_core_health_gate_rejects_partial_schema_with_healthy_app(tmp_path: Path) -> None:
+    proc = _run_health_gate(tmp_path, model_ready=True, schema_ready=False)
+    assert proc.returncode == 1
+    assert "Required schema migrations are incomplete" in proc.stdout
+    assert "NOT READY" in proc.stdout
+
+
+@pytest.mark.parametrize("frontend_rc,database_rc", [(0, 1), (1, 0), (1, 1)])
+def test_failed_parallel_setup_stops_before_memory(
+    frontend_rc: int, database_rc: int
+) -> None:
+    source = BUILDERS_BOOTSTRAP.read_text()
+    block = source.split("setup_frontend & PID_FE=$!", 1)[1].split(
+        "# STEP 10b:", 1
+    )[0]
+    process = subprocess.run(
+        [
+            "bash", "-c",
+            "set -euo pipefail\n"
+            "log() { :; }\n"
+            "fail() { echo \"$1\"; exit 1; }\n"
+            f"setup_database() {{ return {database_rc}; }}\n"
+            f"(exit {frontend_rc}) & PID_FE=$!\n"
+            + block + "\necho REACHED_MEMORY\n",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert "REACHED_MEMORY" not in process.stdout
+    expected = "Database setup failed" if database_rc else "Frontend dependency"
+    assert expected in process.stdout
+
+
+def test_editor_probe_sends_token_without_following_redirects(tmp_path: Path) -> None:
+    source = ENVIRONMENT_BOOTSTRAP.read_text()
+    function = re.search(r"^probe_editor_http\(\) \{.*?^\}", source, re.M | re.S)
+    assert function is not None
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_executable(
+        fake_bin / "curl",
+        """#!/bin/bash
+token=false
+origin=false
+while (( $# )); do
+  case "$1" in
+    --data-urlencode)
+      shift
+      [[ "$1" == 'tkn=synthetic token&value' ]] || exit 1
+      token=true ;;
+    -H)
+      shift
+      [[ "$1" == 'X-Pellier-Origin-Verify: synthetic-origin' ]] && origin=true ;;
+    -L|--location) exit 1 ;;
+  esac
+  shift
+done
+$token && $origin && printf '302'
+""",
+    )
+    process = subprocess.run(
+        ["bash", "-c", function[0] + "\n"
+         "probe_editor_http http://127.0.0.1:80/ "
+         "-H 'X-Pellier-Origin-Verify: synthetic-origin'"],
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "CODE_EDITOR_PASSWORD": "synthetic token&value",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.stdout == "302"
+    assert process.stderr == ""
 
 
 def test_builders_requires_memory_but_defaults_other_managed_services_off() -> None:
