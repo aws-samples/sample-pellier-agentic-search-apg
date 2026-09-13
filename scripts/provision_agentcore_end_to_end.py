@@ -423,9 +423,9 @@ def _deploy_claim_trigger(
         allow_empty=True,
     )
     if not mapping:
-        logger.warning(
-            "pellier.principal_customers is empty; the claim trigger deploys with no "
-            "mappings and the governed reset re-runs it after seeding"
+        raise RuntimeError(
+            "pellier.principal_customers is empty; run scripts/seed_principal_mappings.py "
+            "before managed provisioning so shopper tokens carry their customer claim"
         )
     return trigger.deploy_trigger(region=region, pool_id=user_pool_id, mapping=mapping)
 
@@ -2139,8 +2139,8 @@ def main() -> int:
         # Identity reaches Cedar as a claim, so the pool's pre-token trigger is
         # part of the authorization boundary and deploys before any token is
         # minted for a proof. The map is read from the same table RLS keys off;
-        # an unseeded table yields no claims and is reported, not hidden, and
-        # the governed reset re-runs this once the mappings are seeded.
+        # bootstrap seeds the mapping before this deployment. An empty map is
+        # a provisioning failure because no shopper would carry a customer claim.
         claim_trigger = _deploy_claim_trigger(
             region=region,
             user_pool_id=required["cognito_pool"],

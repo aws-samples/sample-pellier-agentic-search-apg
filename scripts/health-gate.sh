@@ -244,8 +244,10 @@ if $managed_required; then
     ok=false
   fi
 
-  retrieval_receipts_table="$(_psql "SELECT to_regclass('pellier.retrieval_receipts');" || echo '')"
-  if [[ "$retrieval_receipts_table" == "pellier.retrieval_receipts" ]]; then
+  # regclass text omits the schema when it is on search_path. Ask PostgreSQL
+  # for existence so both participant and default search paths give one answer.
+  retrieval_receipts_table="$(_psql "SELECT to_regclass('pellier.retrieval_receipts') IS NOT NULL;" || echo '')"
+  if [[ "$retrieval_receipts_table" == "t" ]]; then
     pass "Retrieval receipt schema is installed"
   else
     fail "Retrieval receipt schema missing. Apply scripts/migrations/012_retrieval_receipts.sql."
@@ -261,44 +263,44 @@ if $managed_required; then
     ok=false
   fi
 
-  governed_turn_receipts_table="$(_psql "SELECT to_regclass('pellier.governed_turn_receipts');" || echo '')"
-  if [[ "$governed_turn_receipts_table" == "pellier.governed_turn_receipts" ]]; then
+  governed_turn_receipts_table="$(_psql "SELECT to_regclass('pellier.governed_turn_receipts') IS NOT NULL;" || echo '')"
+  if [[ "$governed_turn_receipts_table" == "t" ]]; then
     pass "Governed turn receipt schema is installed"
   else
     fail "Governed turn receipt schema missing. Apply scripts/migrations/014_governed_turn_receipts.sql."
     ok=false
   fi
 
-  model_invocation_receipts_table="$(_psql "SELECT to_regclass('pellier.model_invocation_receipts');" || echo '')"
-  evidence_ledger_view="$(_psql "SELECT to_regclass('pellier.evidence_ledger_event_refs');" || echo '')"
-  if [[ "$model_invocation_receipts_table" == "pellier.model_invocation_receipts" ]] \
-      && [[ "$evidence_ledger_view" == "pellier.evidence_ledger_event_refs" ]]; then
+  model_invocation_receipts_table="$(_psql "SELECT to_regclass('pellier.model_invocation_receipts') IS NOT NULL;" || echo '')"
+  evidence_ledger_view="$(_psql "SELECT to_regclass('pellier.evidence_ledger_event_refs') IS NOT NULL;" || echo '')"
+  if [[ "$model_invocation_receipts_table" == "t" ]] \
+      && [[ "$evidence_ledger_view" == "t" ]]; then
     pass "Typed Evidence Ledger projection is installed"
   else
     fail "Evidence Ledger schema missing. Apply scripts/migrations/043_evidence_ledger.sql."
     ok=false
   fi
 
-  commerce_receipts_table="$(_psql "SELECT to_regclass('pellier.commerce_receipts');" || echo '')"
-  commerce_payment_events_table="$(_psql "SELECT to_regclass('pellier.commerce_payment_events');" || echo '')"
-  if [[ "$commerce_receipts_table" == "pellier.commerce_receipts" ]] \
-      && [[ "$commerce_payment_events_table" == "pellier.commerce_payment_events" ]]; then
+  commerce_receipts_table="$(_psql "SELECT to_regclass('pellier.commerce_receipts') IS NOT NULL;" || echo '')"
+  commerce_payment_events_table="$(_psql "SELECT to_regclass('pellier.commerce_payment_events') IS NOT NULL;" || echo '')"
+  if [[ "$commerce_receipts_table" == "t" ]] \
+      && [[ "$commerce_payment_events_table" == "t" ]]; then
     pass "Proof-carrying commerce schema is installed"
   else
     fail "Proof-carrying commerce schema missing. Apply scripts/migrations/015_proof_carrying_commerce.sql."
     ok=false
   fi
 
-  policy_decisions_table="$(_psql "SELECT to_regclass('pellier.policy_decisions');" || echo '')"
-  if [[ "$policy_decisions_table" == "pellier.policy_decisions" ]]; then
+  policy_decisions_table="$(_psql "SELECT to_regclass('pellier.policy_decisions') IS NOT NULL;" || echo '')"
+  if [[ "$policy_decisions_table" == "t" ]]; then
     pass "Policy decision schema is installed"
   else
     fail "Policy decision schema missing. Apply scripts/migrations/048_policy_decisions.sql."
     ok=false
   fi
 
-  workshop_runs_table="$(_psql "SELECT to_regclass('pellier.workshop_runs');" || echo '')"
-  if [[ "$workshop_runs_table" == "pellier.workshop_runs" ]]; then
+  workshop_runs_table="$(_psql "SELECT to_regclass('pellier.workshop_runs') IS NOT NULL;" || echo '')"
+  if [[ "$workshop_runs_table" == "t" ]]; then
     pass "Workshop run schema is installed"
   else
     fail "Workshop run schema missing. Apply scripts/migrations/049_workshop_runs.sql."
@@ -451,27 +453,40 @@ if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
   operator_domain="${COGNITO_DOMAIN:-}"
   operator_password="${PELLIER_OPERATOR_PASSWORD:-Pellier-${WORKSHOP_ID:-dat416}-Operator1}"
   in_group() {
-    aws cognito-idp admin-list-groups-for-user \
+    local groups
+    if ! groups="$(aws cognito-idp admin-list-groups-for-user \
       --user-pool-id "$operator_pool" --username "$1" \
       --region "${AWS_REGION:-us-east-1}" \
       --query "Groups[?GroupName=='${operator_group}'].GroupName" \
-      --output text 2>/dev/null | grep -q "$operator_group"
+      --output text 2>/dev/null)"; then
+      return 2
+    fi
+    printf '%s\n' "$groups" | grep -q "$operator_group"
   }
   if in_group "$operator_user"; then
     pass "Operator group ${operator_group} authorizes ${operator_user}"
   else
-    managed_missing "${operator_user} is not in ${operator_group} — the Operator desk refuses every caller with 403"
+    group_status=$?
+    if [[ "$group_status" == "2" ]]; then
+      managed_missing "Could not verify Cognito group membership for ${operator_user}"
+    else
+      managed_missing "${operator_user} is not in ${operator_group} — the Operator desk refuses every caller with 403"
+    fi
   fi
   shopper_in_group=""
+  shopper_groups_verified=true
   for shopper in marco anna theo jessica; do
     if in_group "$shopper"; then
       shopper_in_group="$shopper_in_group $shopper"
+    elif [[ "$?" == "2" ]]; then
+      shopper_groups_verified=false
+      managed_missing "Could not verify Cognito group membership for ${shopper}"
     fi
   done
   if [[ -n "$shopper_in_group" ]]; then
     fail "shopper(s) in ${operator_group}:${shopper_in_group} — a valid shopper token would authorize the desk"
     ok=false
-  else
+  elif $shopper_groups_verified; then
     pass "No shopper is in ${operator_group}"
   fi
 

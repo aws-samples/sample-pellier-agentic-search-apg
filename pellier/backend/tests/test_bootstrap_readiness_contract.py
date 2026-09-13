@@ -6,9 +6,11 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -434,11 +436,15 @@ def _run_health_gate(
     workshop_runs_exists: bool = True,
     managed_receipt: dict[str, object] | None = None,
     shopper_in_operator_group: bool = False,
+    group_lookup_error_for: str | None = None,
     operator_token_ready: bool = True,
     shopper_claim_ready: bool = True,
     quarantine: str | None = None,
     provision_state: str | None = None,
     provision_phase: str | None = None,
+    schema_on_search_path: bool = True,
+    schema_query_error: bool = False,
+    credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
 ) -> subprocess.CompletedProcess[str]:
     repo = tmp_path / "repo"
     fake_bin = tmp_path / "bin"
@@ -487,10 +493,13 @@ def _run_health_gate(
                 "COGNITO_CLIENT_ID=client-123",
                 "COGNITO_CLIENT_SECRET=test-client-secret",
                 "COGNITO_DOMAIN=pellier-example.auth.us-east-1.amazoncognito.com",
-                "COGNITO_TEST_CREDENTIALS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
                 "WORKSHOP_ID=example",
             ]
         )
+        if credential_secret_arn is not None:
+            env_lines.append(
+                f"COGNITO_TEST_CREDENTIALS_SECRET_ARN={credential_secret_arn}"
+            )
         (tmp_path / "managed.json").write_text(
             json.dumps(managed_receipt or _valid_managed_receipt()),
             encoding="utf-8",
@@ -509,6 +518,22 @@ esac
     _write_executable(
         fake_bin / "psql",
         f"""#!/bin/bash
+query="$*"
+relation_result() {{
+  if [[ "{str(schema_query_error).lower()}" == "true" ]]; then
+    exit 1
+  fi
+  if [[ "$query" == *" IS NOT NULL"* ]]; then
+    if [[ "$1" == "true" ]]; then printf 't\\n'; else printf 'f\\n'; fi
+  elif [[ "$1" == "true" ]]; then
+    # PostgreSQL displays an unqualified regclass when its schema is visible.
+    if [[ "{str(schema_on_search_path).lower()}" == "true" ]]; then
+      printf '%s\\n' "${{2#pellier.}}"
+    else
+      printf '%s\\n' "$2"
+    fi
+  fi
+}}
 case "$*" in
   *inventory_consistency_check*) printf '0\n' ;;
   *"principal_customers WHERE principal_sub"*) printf 'CUST-MARCO\n' ;;
@@ -518,15 +543,15 @@ case "$*" in
   *customers*) printf '{customer_count}\n' ;;
   *orders*) printf '{order_count}\n' ;;
   *tool_audit*) printf '{audit_count}\n' ;;
-  *"to_regclass('pellier.retrieval_receipts')"*) printf '{"pellier.retrieval_receipts" if retrieval_receipts_exists else ""}\n' ;;
+  *"to_regclass('pellier.retrieval_receipts')"*) relation_result {str(retrieval_receipts_exists).lower()} pellier.retrieval_receipts ;;
   *"column_name IN ('citation_snapshots', 'citation_snapshot_hash')"*) printf '{"2" if retrieval_citation_snapshot_schema_ready else "0"}\n' ;;
-  *"to_regclass('pellier.governed_turn_receipts')"*) printf '{"pellier.governed_turn_receipts" if governed_turn_receipts_exists else ""}\n' ;;
-  *"to_regclass('pellier.model_invocation_receipts')"*) printf '{"pellier.model_invocation_receipts" if evidence_ledger_schema_exists else ""}\n' ;;
-  *"to_regclass('pellier.evidence_ledger_event_refs')"*) printf '{"pellier.evidence_ledger_event_refs" if evidence_ledger_schema_exists else ""}\n' ;;
-  *"to_regclass('pellier.commerce_receipts')"*) printf '{"pellier.commerce_receipts" if commerce_schema_exists else ""}\n' ;;
-  *"to_regclass('pellier.commerce_payment_events')"*) printf '{"pellier.commerce_payment_events" if commerce_schema_exists else ""}\n' ;;
-  *"to_regclass('pellier.policy_decisions')"*) printf '{"pellier.policy_decisions" if policy_decisions_exists else ""}\n' ;;
-  *"to_regclass('pellier.workshop_runs')"*) printf '{"pellier.workshop_runs" if workshop_runs_exists else ""}\n' ;;
+  *"to_regclass('pellier.governed_turn_receipts')"*) relation_result {str(governed_turn_receipts_exists).lower()} pellier.governed_turn_receipts ;;
+  *"to_regclass('pellier.model_invocation_receipts')"*) relation_result {str(evidence_ledger_schema_exists).lower()} pellier.model_invocation_receipts ;;
+  *"to_regclass('pellier.evidence_ledger_event_refs')"*) relation_result {str(evidence_ledger_schema_exists).lower()} pellier.evidence_ledger_event_refs ;;
+  *"to_regclass('pellier.commerce_receipts')"*) relation_result {str(commerce_schema_exists).lower()} pellier.commerce_receipts ;;
+  *"to_regclass('pellier.commerce_payment_events')"*) relation_result {str(commerce_schema_exists).lower()} pellier.commerce_payment_events ;;
+  *"to_regclass('pellier.policy_decisions')"*) relation_result {str(policy_decisions_exists).lower()} pellier.policy_decisions ;;
+  *"to_regclass('pellier.workshop_runs')"*) relation_result {str(workshop_runs_exists).lower()} pellier.workshop_runs ;;
   *"column_name = 'requester_kind'"*) printf 'requester_kind\n' ;;
 esac
 """,
@@ -541,6 +566,9 @@ esac
 case "$*" in
   *admin-list-groups-for-user*)
     for arg in "$@"; do
+      if [[ "$arg" == "{group_lookup_error_for or ''}" ]]; then
+        exit 254
+      fi
       case "$arg" in
         operator) printf 'pellier-operators\n'; exit 0 ;;
         marco|anna|theo)
@@ -586,6 +614,7 @@ esac
         "AGENTCORE_GATEWAY_ARN",
         "AGENTCORE_POLICY_ENGINE_ID",
         "AGENTCORE_MANAGED_OUTPUT_JSON",
+        "COGNITO_TEST_CREDENTIALS_SECRET_ARN",
     ):
         env.pop(managed_key, None)
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
@@ -652,6 +681,133 @@ def test_governed_health_gate_requires_complete_managed_receipt(
     assert "gateway-mcp Runtime smoke" in proc.stdout
     assert "Labs 1-2 start in-process" in proc.stdout
     assert "READY" in proc.stdout
+
+
+@pytest.mark.parametrize("schema_on_search_path", [True, False])
+def test_schema_readiness_is_independent_of_regclass_display_names(
+    tmp_path: Path, schema_on_search_path: bool
+) -> None:
+    proc = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        schema_on_search_path=schema_on_search_path,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "Retrieval receipt schema is installed" in proc.stdout
+    assert "Typed Evidence Ledger projection is installed" in proc.stdout
+    assert "Workshop run schema is installed" in proc.stdout
+
+
+def test_schema_query_failure_cannot_report_ready(tmp_path: Path) -> None:
+    proc = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        schema_query_error=True,
+    )
+    assert proc.returncode == 1
+    assert "Retrieval receipt schema missing" in proc.stdout
+    assert "NOT READY" in proc.stdout
+
+
+def test_bootstrap_persists_the_secret_reference_for_a_fresh_health_process(
+    tmp_path: Path,
+) -> None:
+    """Exercise the real dotenv writer, without inheriting provisioning exports."""
+    source = BOOTSTRAP.read_text(encoding="utf-8")
+    writer = re.search(
+        r'cat > "\$REPO_PATH/\.env" << EOF\n.*?\nEOF',
+        source,
+        flags=re.DOTALL,
+    )
+    assert writer is not None
+    # The bootstrap runs on AL2023 bash; macOS's system bash predates ${var@Q}.
+    bash = next(
+        (
+            str(path)
+            for path in (
+                Path("/opt/homebrew/bin/bash"),
+                Path("/usr/local/bin/bash"),
+                Path(shutil.which("bash") or "/bin/bash"),
+            )
+            if path.is_file()
+        ),
+        "/bin/bash",
+    )
+    generated = tmp_path / "generated"
+    generated.mkdir()
+    secret_arn = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials"
+    proc = subprocess.run(
+        [bash, "-c", writer.group(0)],
+        env={
+            "PATH": os.environ["PATH"],
+            "REPO_PATH": str(generated),
+            "DB_PASSWORD": "test-password",
+            "COGNITO_CLIENT_SECRET": "test-client-secret",
+            "COGNITO_TEST_CREDENTIALS_SECRET_ARN": secret_arn,
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    loaded = subprocess.run(
+        [
+            bash,
+            "-c",
+            'source "$1"; pellier_load_dotenv "$2"; '
+            'printf "%s" "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}"',
+            "health-config",
+            str(REPO / "scripts/lib/dotenv.sh"),
+            str(generated / ".env"),
+        ],
+        env={"PATH": os.environ["PATH"]},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert loaded.returncode == 0, loaded.stderr
+    assert loaded.stdout == secret_arn
+    health = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        credential_secret_arn=loaded.stdout,
+    )
+    assert health.returncode == 0, health.stdout + health.stderr
+
+
+def test_health_gate_rejects_a_missing_credential_secret_reference(tmp_path: Path) -> None:
+    proc = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        credential_secret_arn=None,
+    )
+    assert proc.returncode == 1
+    assert "No seeded shopper credentials" in proc.stdout
+
+
+@pytest.mark.parametrize("username", ["operator", "marco", "jessica"])
+def test_group_lookup_errors_cannot_prove_authorization(
+    tmp_path: Path, username: str
+) -> None:
+    proc = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        group_lookup_error_for=username,
+    )
+    assert proc.returncode == 1
+    assert f"Could not verify Cognito group membership for {username}" in proc.stdout
+    if username != "operator":
+        assert "No shopper is in pellier-operators" not in proc.stdout
 
 
 def test_governed_health_gate_rejects_incomplete_managed_receipt(
@@ -742,6 +898,87 @@ def _load_provisioner():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_claim_trigger_requires_seeded_customer_identity(
+    monkeypatch: pytest.MonkeyPatch, mapped: bool
+) -> None:
+    provisioner = _load_provisioner()
+    mapping = {"marco-sub": "CUST-MARCO"} if mapped else {}
+    deployed: list[dict] = []
+
+    def deploy(**kwargs):
+        deployed.append(kwargs)
+        return {"mappedSubjects": len(kwargs["mapping"])}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "deploy_customer_claim_trigger",
+        SimpleNamespace(
+            mapping_from_database=lambda *_args, **_kwargs: mapping,
+            deploy_trigger=deploy,
+        ),
+    )
+    kwargs = {
+        "region": "us-east-1",
+        "user_pool_id": "example-pool",
+        "db_cluster_arn": "example-cluster",
+        "db_secret_arn": "example-secret",
+    }
+    if mapped:
+        assert provisioner._deploy_claim_trigger(**kwargs)["mappedSubjects"] == 1
+        assert deployed[0]["mapping"] == mapping
+    else:
+        with pytest.raises(RuntimeError, match="before managed provisioning"):
+            provisioner._deploy_claim_trigger(**kwargs)
+        assert deployed == []
+
+
+@pytest.mark.parametrize("seed_exit_code", [0, 1])
+def test_bootstrap_requires_identity_seed_before_managed_deployment(
+    tmp_path: Path, seed_exit_code: int
+) -> None:
+    source = BOOTSTRAP.read_text(encoding="utf-8")
+    seed_call = source.index('python3 "$REPO_PATH/scripts/seed_principal_mappings.py"')
+    managed_call = source.index("Provisioning full AgentCore managed path")
+    assert seed_call < managed_call
+    start = source.index("# Seed identity before the managed deployment")
+    end = source.index("# STEP 16:", start)
+    seed_block = source[start:end]
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/seed_principal_mappings.py").touch()
+    program = f"""
+set -euo pipefail
+log() {{ :; }}
+warn() {{ :; }}
+fail() {{ printf '%s\\n' "$*" >&2; exit 1; }}
+sudo() {{ printf 'identity_seed\\n'; return {seed_exit_code}; }}
+tee() {{ cat; }}
+{seed_block}
+printf 'managed_deployment\\n'
+"""
+    result = subprocess.run(
+        ["bash", "-c", program],
+        env={
+            "PATH": os.environ["PATH"],
+            "REPO_PATH": str(tmp_path),
+            "CODE_EDITOR_USER": "participant",
+            "WORKSHOP_FORMAT": "governed",
+            "COGNITO_USER_POOL_ID": "example-pool",
+            "AWS_REGION": "us-east-1",
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if seed_exit_code:
+        assert result.returncode == 1
+        assert "Principal mapping seed failed" in result.stderr
+        assert "managed_deployment" not in result.stdout
+    else:
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == ["identity_seed", "managed_deployment"]
 
 
 @pytest.mark.parametrize(

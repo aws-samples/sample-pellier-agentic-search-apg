@@ -217,10 +217,10 @@ export DB_HOST="" DB_PORT="5432" DB_USER="" DB_PASSWORD="" DB_NAME="${DB_NAME:-p
 if [ -n "${DB_SECRET_ARN:-}" ]; then
     DB_SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_ARN" --region "$AWS_REGION" --query SecretString --output text 2>/dev/null || echo "")
     if [ -n "$DB_SECRET" ]; then
-        export DB_HOST=$(echo "$DB_SECRET" | jq -r '.host // empty')
-        export DB_USER=$(echo "$DB_SECRET" | jq -r '.username // empty')
-        export DB_PASSWORD=$(echo "$DB_SECRET" | jq -r '.password // empty')
-        export DB_NAME=$(echo "$DB_SECRET" | jq -r --arg default_db "${DB_NAME:-pellier}" '.dbname // .database // $default_db')
+        DB_HOST=$(echo "$DB_SECRET" | jq -r '.host // empty')
+        DB_USER=$(echo "$DB_SECRET" | jq -r '.username // empty')
+        DB_PASSWORD=$(echo "$DB_SECRET" | jq -r '.password // empty')
+        DB_NAME=$(echo "$DB_SECRET" | jq -r --arg default_db "${DB_NAME:-pellier}" '.dbname // .database // $default_db')
         log "✅ Database credentials retrieved"
     fi
 fi
@@ -350,6 +350,8 @@ COGNITO_USER_POOL_ID='${COGNITO_USER_POOL_ID:-}'
 COGNITO_POOL_ID='${COGNITO_USER_POOL_ID:-}'
 COGNITO_CLIENT_ID='${COGNITO_CLIENT_ID:-}'
 COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET@Q}
+COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
+COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}'
 COGNITO_DOMAIN='${COGNITO_DOMAIN:-${VITE_COGNITO_DOMAIN:-}}'
 APP_BASE_PATH='/ports/8000'
 EOF
@@ -573,10 +575,13 @@ setup_frontend() {
         # for a controlled workshop env. Output goes to a log file, not
         # /dev/null, so install failures aren't invisible.
         if [ -f package-lock.json ]; then
+            # Bootstrap runs as root and owns this log; npm runs as the participant.
+            # shellcheck disable=SC2024
             sudo -u "$CODE_EDITOR_USER" npm ci \
                 >> /var/log/pellier-npm-install.log 2>&1
         else
             warn "package-lock.json missing — falling back to npm install"
+            # shellcheck disable=SC2024
             sudo -u "$CODE_EDITOR_USER" npm install \
                 >> /var/log/pellier-npm-install.log 2>&1
         fi
@@ -1056,7 +1061,6 @@ fi
 # one outcome that is unacceptable.
 log "Verifying CloudWatch Transaction Search..."
 
-TS_LOG_GROUPS="arn:aws:logs:${AWS_REGION}:*:log-group:aws/spans:*"
 TS_DESIRED_SAMPLING=100
 
 ts_account_id="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "")"
@@ -1128,8 +1132,7 @@ else
         else
             warn "⚠️  Could not set span indexing to ${TS_DESIRED_SAMPLING}% — workshop turns may not all be indexed"
             warn "    aws xray update-indexing-rule said: ${idx_err:-<no output>}"
-            warn "    NOTE: the instance role grants xray:Get/UpdateTraceSegmentDestination but"
-            warn "          NOT xray:GetIndexingRules or xray:UpdateIndexingRule."
+            warn "    Check xray:GetIndexingRules and xray:UpdateIndexingRule permissions on the instance role."
         fi
     fi
 fi
@@ -1278,6 +1281,31 @@ log "✅ OAuth callback registration is a CloudFormation readiness dependency"
 # ============================================================================
 write_status_json "in_progress" "pending" ""
 log "✅ Status marker created"
+
+# Seed identity before the managed deployment snapshots these mappings into
+# Cognito's pre-token trigger. Seeding after deployment leaves every shopper
+# token without its customer claim, even when the SQL rows are later correct.
+if [ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ] \
+   && [ -f "$REPO_PATH/scripts/seed_principal_mappings.py" ]; then
+    log "Seeding RLS principal mappings (Cognito subject -> customer scope)..."
+    export COGNITO_POOL_ID="${COGNITO_POOL_ID:-$COGNITO_USER_POOL_ID}"
+    export COGNITO_REGION="${COGNITO_REGION:-$AWS_REGION}"
+    # Dependencies belong to the participant's Python installation.
+    if sudo -u "$CODE_EDITOR_USER" env \
+         PATH="/usr/bin:/usr/local/bin:$PATH" \
+         AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
+         COGNITO_POOL_ID="$COGNITO_POOL_ID" COGNITO_REGION="$COGNITO_REGION" \
+         python3 "$REPO_PATH/scripts/seed_principal_mappings.py" 2>&1 \
+         | tee /var/log/pellier-seed-principal-mappings.log; then
+        log "✅ Principal mappings seeded"
+    elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
+        fail "Principal mapping seed failed; managed deployment requires customer identity mappings"
+    else
+        warn "seed_principal_mappings.py reported issues — RLS will deny signed-in shoppers until it succeeds"
+    fi
+elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
+    fail "Cognito pool and seed_principal_mappings.py are required before managed deployment"
+fi
 
 # ============================================================================
 # STEP 16: WORKSHOP FORMAT — Pre-apply everything participants don't build
@@ -1744,19 +1772,7 @@ if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-pr
 fi
 
 # ============================================================================
-# STEP 18b: SEED RLS PRINCIPAL MAPPINGS
-#
-# Migration 016 keys its Row-Level Security policies on a verified Cognito
-# subject, and Cognito assigns each subject at user-creation time, so no
-# migration can carry them. Until this runs the mapping table is empty — which
-# does not read as "governance", it reads as a broken application: every
-# signed-in shopper is denied their own orders.
-#
-# Runs after Cognito provisioning because it resolves username -> sub against
-# the live pool. Non-fatal: the app connects as the table owner today, so an
-# unseeded mapping degrades the governed exercise rather than the storefront.
-# ============================================================================
-# OPERATOR AUTHORIZATION GROUP
+# STEP 18b: OPERATOR AUTHORIZATION GROUP
 #
 # The Pellier Operator desk is authorized by membership in one Cognito group, not by
 # holding any valid token. Before this existed, `require_operator` stopped at "the token
@@ -1833,29 +1849,6 @@ else
     warn "No Cognito pool id — skipped the $OPERATOR_GROUP seeding; the Operator desk will refuse every caller"
 fi
 export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"
-
-# ============================================================================
-if [ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ] \
-   && [ -f "$REPO_PATH/scripts/seed_principal_mappings.py" ]; then
-    log "Seeding RLS principal mappings (Cognito subject -> customer scope)..."
-    export COGNITO_POOL_ID="${COGNITO_POOL_ID:-$COGNITO_USER_POOL_ID}"
-    export COGNITO_REGION="${COGNITO_REGION:-$AWS_REGION}"
-    # As the PARTICIPANT, not root. Dependencies are installed with `pip install --user`
-    # for that user, so root's python3 has no boto3: measured on a fresh box, this raised
-    # ModuleNotFoundError, the mapping table stayed empty, and Row-Level Security then
-    # denied every signed-in shopper their own orders. That reads as a broken storefront
-    # rather than as governance, and it is the one failure the guide cannot work around.
-    if sudo -u "$CODE_EDITOR_USER" env \
-         PATH="/usr/bin:/usr/local/bin:$PATH" \
-         AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
-         COGNITO_POOL_ID="$COGNITO_POOL_ID" COGNITO_REGION="$COGNITO_REGION" \
-         python3 "$REPO_PATH/scripts/seed_principal_mappings.py" 2>&1 \
-         | tee /var/log/pellier-seed-principal-mappings.log; then
-        log "✅ Principal mappings seeded"
-    else
-        warn "seed_principal_mappings.py reported issues — RLS will deny signed-in shoppers until it succeeds"
-    fi
-fi
 
 # ============================================================================
 # SUMMARY
