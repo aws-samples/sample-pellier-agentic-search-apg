@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -489,13 +490,16 @@ def _authenticated_runtime_smoke(
     username: str,
     env: dict[str, str],
 ) -> dict[str, Any]:
+    # A reused Runtime session can keep executing the sandbox from an earlier
+    # deployment. Each readiness proof must start a fresh session.
+    session_id = f"builders-smoke-{uuid.uuid4().hex}"
     proc = _agentcore(
         root,
         "invoke",
         "--runtime",
         RUNTIME_NAME,
         "--session-id",
-        "builders-smoke-session-0000000000000001",
+        session_id,
         "--bearer-token",
         access_token,
         "--prompt",
@@ -532,6 +536,7 @@ def _authenticated_runtime_smoke(
         )
     return {
         "username": username,
+        "session_id": session_id,
         "rail": decoded["rail"],
         "intent": decoded.get("intent"),
         "specialist": decoded.get("specialist"),

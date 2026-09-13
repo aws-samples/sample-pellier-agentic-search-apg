@@ -87,10 +87,20 @@ TOOL_SCHEMAS = {
             },
             {
                 "name": "floor_check",
-                "description": "Check aggregate inventory or one product across warehouses.",
+                "description": "Check aggregate inventory or one product across all warehouses.",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {"product_query": {"type": "string"}},
+                    "properties": {
+                        "product_query": {
+                            "type": "string",
+                            "description": (
+                                "Product-name words only, for example 'Hadley shirt'. "
+                                "Exclude warehouse names, locations, and question phrasing. "
+                                "The result includes every warehouse for the matching product. "
+                                "Leave empty only for aggregate inventory."
+                            ),
+                        }
+                    },
                     "required": [],
                 },
             },

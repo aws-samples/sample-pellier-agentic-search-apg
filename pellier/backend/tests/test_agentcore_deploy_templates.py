@@ -534,6 +534,29 @@ def test_runtime_smoke_uses_pinned_agentcore_cli() -> None:
     assert "urllib.request" not in provisioner
 
 
+def test_each_runtime_smoke_uses_a_fresh_session(monkeypatch, tmp_path):
+    provisioner = _load_provisioner()
+    sessions = []
+
+    def invoke(_root, *args, **_kwargs):
+        sessions.append(args[args.index("--session-id") + 1])
+        return subprocess.CompletedProcess(
+            [], 0, stdout=json.dumps({
+                "success": True,
+                "response": {"rail": "gateway-mcp", "response": "Verified item"},
+            }),
+        )
+
+    monkeypatch.setattr(provisioner, "_agentcore", invoke)
+    for _ in range(2):
+        result = provisioner._authenticated_runtime_smoke(
+            root=tmp_path, access_token="test-token", username="marco", env={},
+        )
+        assert result["session_id"] == sessions[-1]
+    assert len(set(sessions)) == 2
+    assert all(len(session) >= 33 for session in sessions)
+
+
 def test_bootstrap_runtime_solution_matches_fail_closed_service() -> None:
     assert RUNTIME_SOLUTION.read_text() == RUNTIME_SERVICE.read_text()
 
