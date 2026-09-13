@@ -82,6 +82,63 @@ def test_gateway_client_cleanup_uses_strands_context_exit_contract():
     client.stop.assert_called_once_with(None, None, None)
 
 
+def test_managed_dispatcher_uses_real_strands_mcp_tool_contract(monkeypatch):
+    from mcp.types import Tool
+    from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
+    from services import agentcore_gateway
+
+    monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gw.example/mcp")
+    monkeypatch.setenv("BEDROCK_ROUTER_MODEL", "test-model")
+    client = MagicMock()
+    allowed = agentcore_gateway.MANAGED_SPECIALIST_TOOLS["inventory"]
+    tools = [
+        MCPAgentTool(
+            Tool(
+                name=f"target___{name}",
+                description="Inventory tool",
+                inputSchema={"type": "object", "properties": {}},
+            ),
+            client,
+        )
+        for name in (*allowed, "unexpected_tool")
+    ]
+    client.list_tools_sync.return_value = tools
+    agent = MagicMock(return_value="Verified warehouse answer")
+    with patch("services.intent_router.classify_intent", return_value="inventory"), \
+         patch("strands.tools.mcp.mcp_client.MCPClient", return_value=client), \
+         patch("strands.Agent", return_value=agent) as factory, \
+         patch("strands.models.BedrockModel"):
+        dispatcher = agentcore_gateway.ManagedGatewayDispatcher("test-jwt")
+        assert dispatcher("Is the Hadley shirt in Brooklyn?") == "Verified warehouse answer"
+
+    assert factory.call_args.kwargs["tools"] == tools[:-1]
+    assert dispatcher.last_tool_names == tuple(allowed)
+    client.stop.assert_called_once_with(None, None, None)
+
+
+def test_gateway_descriptors_use_strands_tool_spec(monkeypatch):
+    from mcp.types import Tool
+    from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
+    from services import agentcore_gateway
+
+    monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gw.example/mcp")
+    client = MagicMock()
+    schema = {"type": "object", "properties": {"query": {"type": "string"}}}
+    client.list_tools_sync.return_value = [
+        MCPAgentTool(
+            Tool(name="target___floor_check", description="Look up stock", inputSchema=schema),
+            client,
+        )
+    ]
+    with patch("strands.tools.mcp.mcp_client.MCPClient", return_value=client):
+        assert agentcore_gateway.list_gateway_tools("test-jwt") == [{
+            "name": "target___floor_check",
+            "description": "Look up stock",
+            "input_schema": schema,
+        }]
+    client.stop.assert_called_once_with(None, None, None)
+
+
 def test_chat_explicitly_cleans_up_gateway_tool_provider():
     from pathlib import Path
 

@@ -183,10 +183,10 @@ class ManagedGatewayDispatcher:
             selected = [
                 tool
                 for tool in discovered
-                if _logical_gateway_tool_name(tool.name) in allowed_tools
+                if _logical_gateway_tool_name(tool.tool_name) in allowed_tools
             ]
             selected_names = tuple(
-                _logical_gateway_tool_name(tool.name) for tool in selected
+                _logical_gateway_tool_name(tool.tool_name) for tool in selected
             )
             missing = sorted(set(allowed_tools) - set(selected_names))
             if missing:
@@ -491,9 +491,9 @@ def list_gateway_tools(access_token: Optional[str] = None) -> List[Dict[str, Any
             tools = []
             for tool in mcp_client.list_tools_sync():
                 tools.append({
-                    "name": tool.name,
-                    "description": tool.description or "",
-                    "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                    "name": tool.tool_name,
+                    "description": tool.tool_spec.get("description", ""),
+                    "input_schema": tool.tool_spec.get("inputSchema", {}).get("json", {}),
                 })
             return tools
         finally:
