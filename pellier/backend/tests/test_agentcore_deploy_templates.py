@@ -334,6 +334,46 @@ def test_deployed_state_reads_mcp_gateway_shape() -> None:
     assert gateway["gatewayId"] == "gateway-1"
 
 
+@pytest.mark.parametrize("change", ["none", "missing", "unexpected", "duplicate"])
+def test_gateway_discovery_allows_only_the_builtin_search_extra(
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    from types import SimpleNamespace
+    import test_gateway_tools
+
+    provisioner = _load_provisioner()
+    names = [
+        f'{schema["target_name"]}___{tool["name"]}'
+        for surface, schema in renderer.TOOL_SCHEMAS.items()
+        for tool in renderer.schema_for(surface)
+    ]
+    if change == "missing":
+        names.pop()
+    elif change == "unexpected":
+        names.append("unexpected_target___unexpected_tool")
+    elif change == "duplicate":
+        names.append(names[0])
+    names.append("x_amz_bedrock_agentcore_search")
+    monkeypatch.setattr(
+        test_gateway_tools.anyio,
+        "run",
+        lambda *_: [SimpleNamespace(name=name) for name in names],
+    )
+    kwargs = {
+        "deploy_dir": DEPLOY_DIR,
+        "gateway_url": "https://gateway.example/mcp",
+        "access_token": "test-token",
+    }
+    if change == "none":
+        result = provisioner._discover_live_gateway_tools(**kwargs)
+        assert result["count"] == 15
+        assert "x_amz_bedrock_agentcore_search" not in result["canonical_names"]
+    else:
+        with pytest.raises(RuntimeError, match="Live Gateway discovery mismatch"):
+            provisioner._discover_live_gateway_tools(**kwargs)
+
+
 def test_deployed_state_rejects_obsolete_flat_gateway_shape() -> None:
     provisioner = _load_provisioner()
     state = {

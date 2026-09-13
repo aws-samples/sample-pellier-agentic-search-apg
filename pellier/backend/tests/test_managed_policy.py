@@ -73,7 +73,8 @@ def test_no_dangling_local_policy_imports() -> None:
 
 
 def test_renderer_owns_baseline_cedar_and_enforce_attachment() -> None:
-    policies = renderer.baseline_policies()
+    gateway_arn = "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/pellier-test"
+    policies = renderer.baseline_policies(gateway_arn=gateway_arn)
     names = {policy["name"] for policy in policies}
 
     assert names == {
@@ -85,7 +86,7 @@ def test_renderer_owns_baseline_cedar_and_enforce_attachment() -> None:
     statements = "\n".join(policy["statement"] for policy in policies)
     assert renderer.PROCESS_RETURN_ACTION in statements
     assert 'context.input.reason != "damaged"' in statements
-    assert "resource is AgentCore::Gateway" in statements
+    assert f'resource == AgentCore::Gateway::"{gateway_arn}"' in statements
 
     source = RENDERER_PATH.read_text()
     assert '"mode": "ENFORCE"' in source
