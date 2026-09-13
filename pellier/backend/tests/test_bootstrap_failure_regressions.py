@@ -26,6 +26,40 @@ def run_bash(script: str, **environment: str) -> subprocess.CompletedProcess[str
 
 
 @pytest.mark.parametrize(
+    "destination,status,expect_update",
+    [
+        ("XRay", "ACTIVE", True),
+        ("CloudWatchLogs", "PENDING", False),
+        ("CloudWatchLogs", "ACTIVE", False),
+    ],
+)
+def test_transaction_search_does_not_restart_pending_activation(
+    destination: str, status: str, expect_update: bool, tmp_path: Path
+) -> None:
+    source = LABS.read_text()
+    start = source.index('    if [ "$ts_destination" = "CloudWatchLogs" ]')
+    end = source.index("    # 3. Index every workshop span.", start)
+    result = run_bash(
+        'log() { echo "$1"; }\n'
+        'warn() { echo "$1"; }\n'
+        'aws() { echo called > "$PROBE_UPDATE"; }\n'
+        + source[start:end],
+        ts_destination=destination,
+        ts_status=status,
+        AWS_REGION="us-east-1",
+        PROBE_UPDATE=str(tmp_path / "update"),
+    )
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "update").exists() is expect_update
+    if status == "PENDING":
+        assert "activation in progress" in result.stdout
+        assert "Transaction Search active (" not in result.stdout
+    if expect_update:
+        assert "activation requested" in result.stdout
+        assert "Transaction Search enabled" not in result.stdout
+
+
+@pytest.mark.parametrize(
     "stage2_url,wait_handle,returncode,expected",
     [
         ("", "", 0, "calling UserData"),

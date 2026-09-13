@@ -91,6 +91,11 @@ AWS_CONFIG = Config(
     read_timeout=60,
 )
 TRANSACTION_SEARCH_POLICY = "TransactionSearchXRayAccess"
+# AWS documents up to ten minutes for first-time Transaction Search activation.
+# Allow a propagation margin; PENDING must never count as managed readiness.
+TRANSACTION_SEARCH_ACTIVATION_TIMEOUT_SECONDS = 900
+TRANSACTION_SEARCH_POLL_SECONDS = 5
+TRANSACTION_SEARCH_PROGRESS_SECONDS = 30
 # Unified traces reach CloudWatch minutes after the invoke: on 2026-09-10 a smoke
 # session's trace was listed only after the first 4-minute wait had expired,
 # although it did arrive. The bound is generous because a false "no trace"
@@ -634,13 +639,24 @@ def _configure_transaction_search(
     if previous_destination != "CloudWatchLogs":
         xray.update_trace_segment_destination(Destination="CloudWatchLogs")
 
-    deadline = time.monotonic() + 120
-    while time.monotonic() < deadline:
+    started = time.monotonic()
+    deadline = started + TRANSACTION_SEARCH_ACTIVATION_TIMEOUT_SECONDS
+    next_progress = started
+    last_observed: tuple[str, str] | None = None
+    while True:
         destination = xray.get_trace_segment_destination()
-        if (
-            destination.get("Destination") == "CloudWatchLogs"
-            and destination.get("Status") == "ACTIVE"
-        ):
+        observed = (
+            str(destination.get("Destination") or "UNKNOWN"),
+            str(destination.get("Status") or "UNKNOWN"),
+        )
+        now = time.monotonic()
+        elapsed = int(now - started)
+        if observed == ("CloudWatchLogs", "ACTIVE"):
+            print(
+                f"Transaction Search ACTIVE after {elapsed}s "
+                "(destination=CloudWatchLogs)",
+                flush=True,
+            )
             return {
                 "destination": "CloudWatchLogs",
                 "status": "ACTIVE",
@@ -649,10 +665,39 @@ def _configure_transaction_search(
                 "span_log_group": "aws/spans",
                 "cleanup": cleanup,
             }
-        time.sleep(5)
-    raise RuntimeError(
-        "Transaction Search trace destination did not become CloudWatchLogs/ACTIVE"
-    )
+        if observed != last_observed or now >= next_progress or now >= deadline:
+            waiting_receipt = {
+                **configuring_receipt,
+                "status": (
+                    "PENDING"
+                    if observed == ("CloudWatchLogs", "PENDING")
+                    else "CONFIGURING"
+                ),
+                "observed_destination": observed[0],
+                "observed_status": observed[1],
+                "elapsed_seconds": elapsed,
+                "timeout_seconds": TRANSACTION_SEARCH_ACTIVATION_TIMEOUT_SECONDS,
+            }
+            if on_cleanup_state is not None:
+                on_cleanup_state(waiting_receipt)
+            print(
+                f"Waiting for Transaction Search: destination={observed[0]}, "
+                f"status={observed[1]}, elapsed={elapsed}s, "
+                f"timeout={TRANSACTION_SEARCH_ACTIVATION_TIMEOUT_SECONDS}s",
+                flush=True,
+            )
+            last_observed = observed
+            next_progress = now + TRANSACTION_SEARCH_PROGRESS_SECONDS
+        if now >= deadline:
+            message = (
+                "Transaction Search trace destination did not become "
+                f"CloudWatchLogs/ACTIVE within "
+                f"{TRANSACTION_SEARCH_ACTIVATION_TIMEOUT_SECONDS}s; "
+                f"last observed destination={observed[0]}, status={observed[1]}"
+            )
+            print(message, file=sys.stderr, flush=True)
+            raise RuntimeError(message)
+        time.sleep(min(TRANSACTION_SEARCH_POLL_SECONDS, deadline - now))
 
 
 def _ensure_data_api_enabled(region: str, db_cluster_arn: str) -> None:

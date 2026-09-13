@@ -1053,10 +1053,9 @@ fi
 # Idempotent by design: this checks first and only mutates what is missing, so
 # re-running bootstrap on an account that already has it is a no-op.
 #
-# Deliberately non-fatal. A missing prerequisite degrades the observability
-# exercise, but the required application path still works, so this warns
-# loudly rather than aborting a workshop box. Silent absence of spans is the
-# one outcome that is unacceptable.
+# Start activation here without blocking application setup. The governed
+# managed provisioner later waits for ACTIVE and fails readiness if activation
+# never completes; an accepted update alone does not prove span delivery.
 log "Verifying CloudWatch Transaction Search..."
 
 TS_DESIRED_SAMPLING=100
@@ -1093,18 +1092,20 @@ else
 
     if [ "$ts_destination" = "CloudWatchLogs" ] && [ "$ts_status" = "ACTIVE" ]; then
         log "✅ Transaction Search active (destination=CloudWatchLogs)"
+    elif [ "$ts_destination" = "CloudWatchLogs" ]; then
+        log "Transaction Search activation in progress (status=${ts_status:-UNKNOWN}); managed provisioning will wait for ACTIVE"
     else
         log "Enabling Transaction Search (destination=CloudWatchLogs)..."
         # Capture the API error rather than discarding it. On a fresh account this
         # warned "needs xray:UpdateTraceSegmentDestination" while the instance role
         # already granted that action, so the guessed cause sent the next reader to the
-        # wrong place and the real error was gone. A degraded optional proof is
-        # acceptable; an undiagnosable one is not.
+        # wrong place and the real error was gone. Managed provisioning below
+        # enforces this prerequisite for governed readiness.
         ts_err="$(aws xray update-trace-segment-destination \
             --region "$AWS_REGION" --destination CloudWatchLogs 2>&1 >/dev/null)" \
             && ts_rc=0 || ts_rc=$?
         if [ "${ts_rc:-1}" -eq 0 ]; then
-            log "✅ Transaction Search enabled"
+            log "Transaction Search activation requested; managed provisioning will wait for ACTIVE"
         else
             warn "⚠️  Could not enable Transaction Search; observability proof will read: unavailable"
             warn "    aws xray update-trace-segment-destination said: ${ts_err:-<no output>}"
@@ -1651,7 +1652,11 @@ EOF
         fi
     fi
 
-    log "✅ ${WORKSHOP_FORMAT} managed path processed, pellier service restarted"
+    if [ "$AGENTCORE_OK" = true ]; then
+        log "✅ ${WORKSHOP_FORMAT} managed path ready, pellier service restarted"
+    else
+        warn "${WORKSHOP_FORMAT} managed path incomplete; backend restarted for diagnostics"
+    fi
 fi
 
 if [ "${WORKSHOP_FORMAT}" != "builders" ] && [ "${WORKSHOP_FORMAT}" != "governed" ]; then
@@ -1852,7 +1857,7 @@ export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"
 # SUMMARY
 # ============================================================================
 log "=========================================="
-log "Stage 2: Labs Bootstrap Complete!"
+log "Stage 2: Running final workshop readiness checks"
 log "=========================================="
 echo ""
 echo "✅ Pellier Backend (FastAPI + Strands) installed"
