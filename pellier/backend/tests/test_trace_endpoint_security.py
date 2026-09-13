@@ -78,7 +78,6 @@ def test_waterfall_does_not_echo_internal_exception(monkeypatch) -> None:
     assert response.status_code == 200
     assert payload["otel_enabled"] is False
     assert payload["reason"] == (
-        "Telemetry unavailable: extractor raised RuntimeError. "
-        "See docs/troubleshooting-otel.md."
+        "Telemetry unavailable. See docs/troubleshooting-otel.md."
     )
     assert "private prompt" not in response.text

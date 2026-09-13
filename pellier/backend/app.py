@@ -2391,8 +2391,8 @@ async def get_trace_waterfall(
             session_id=session_id,
             user_id=user.user_id,
         )
-    except Exception as e:
-        logger.error("get_waterfall_data raised: %s", type(e).__name__)
+    except Exception:
+        logger.exception("get_waterfall_data failed")
         return {
             "spans": [],
             "totalMs": 0,
@@ -2401,8 +2401,7 @@ async def get_trace_waterfall(
             "span_count": 0,
             "otel_enabled": False,
             "reason": (
-                f"Telemetry unavailable: extractor raised {type(e).__name__}. "
-                f"See docs/troubleshooting-otel.md."
+                "Telemetry unavailable. See docs/troubleshooting-otel.md."
             ),
         }
 

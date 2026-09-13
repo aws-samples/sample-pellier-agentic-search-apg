@@ -49,6 +49,7 @@ from services.cognito_auth import (
     ACCESS_TOKEN_COOKIE,
     CognitoAuthService,
     decode_token_cookie,
+    encode_token_cookie,
     get_cognito_auth_service,
 )
 from routes import auth as auth_module
@@ -565,10 +566,12 @@ def test_refresh_without_cookie_returns_401(client: TestClient) -> None:
     assert resp.json() == {"error": "refresh_failed"}
 
 
-def test_refresh_happy_path_rotates_cookies(
+@pytest.mark.parametrize("rotated_refresh", [None, "provider-issued-refresh"])
+def test_refresh_sets_only_provider_issued_cookies(
     client: TestClient,
     signer: _Signer,
     token_post_recorder: Dict[str, Any],
+    rotated_refresh: Optional[str],
 ) -> None:
     new_access = signer.sign(_access_claims(sub="rotated-sub"))
     token_post_recorder["responses"].append(
@@ -576,18 +579,21 @@ def test_refresh_happy_path_rotates_cookies(
             {
                 "access_token": new_access,
                 "id_token": "new-id",
-                # No refresh_token in response — Cognito only rotates when
-                # rotation is enabled; router should keep the existing one.
+                "refresh_token": rotated_refresh,
                 "token_type": "Bearer",
                 "expires_in": 3600,
             }
         )
     )
 
-    resp = client.post(
-        "/api/auth/refresh",
-        cookies={REFRESH_TOKEN_COOKIE: "existing-refresh-token"},
+    client.base_url = "https://storefront.test"
+    client.cookies.set(
+        REFRESH_TOKEN_COOKIE,
+        encode_token_cookie("existing-refresh-token"),
+        domain="storefront.test",
+        path="/",
     )
+    resp = client.post("/api/auth/refresh")
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
 
@@ -599,18 +605,16 @@ def test_refresh_happy_path_rotates_cookies(
     cookie_names = {sc.split("=", 1)[0] for sc in set_cookies}
     assert ACCESS_TOKEN_COOKIE in cookie_names
     assert ID_TOKEN_COOKIE in cookie_names
-    assert REFRESH_TOKEN_COOKIE in cookie_names
+    assert (REFRESH_TOKEN_COOKIE in cookie_names) is bool(rotated_refresh)
 
     # Access cookie carries the freshly minted token.
     access_cookie = next(sc for sc in set_cookies if sc.startswith(f"{ACCESS_TOKEN_COOKIE}="))
     access_cookie_value = access_cookie.split(";", 1)[0].split("=", 1)[1]
     assert decode_token_cookie(access_cookie_value) == new_access
-    # Refresh cookie falls back to the incoming value (rotation disabled).
-    refresh_cookie = next(
-        sc for sc in set_cookies if sc.startswith(f"{REFRESH_TOKEN_COOKIE}=")
-    )
-    refresh_cookie_value = refresh_cookie.split(";", 1)[0].split("=", 1)[1]
-    assert decode_token_cookie(refresh_cookie_value) == "existing-refresh-token"
+    # Without rotation, no Set-Cookie reflects the request or extends expiry;
+    # the browser still retains its original usable refresh cookie.
+    expected_refresh = rotated_refresh or "existing-refresh-token"
+    assert decode_token_cookie(client.cookies[REFRESH_TOKEN_COOKIE]) == expected_refresh
 
 
 def test_refresh_cognito_rejection_clears_cookies(
