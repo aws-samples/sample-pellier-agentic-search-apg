@@ -37,8 +37,8 @@ export default function HowPellierWorksPage() {
             <p className="pellier-how-lead">Pellier answers from live product and customer records, checks them before it promises anything, and writes down what it did.</p>
             <p>Follow three recorded requests: Marco’s opening linen request, Jessica’s service investigation, and a cross-customer request Cedar refused. Each one connects the recorded steps to the source detail behind them and the matching workshop exercise.</p>
             <div className="pellier-how-links">
-              <Link to="/observatory/workbench">Inspect a live request <ArrowUpRight size={16} aria-hidden /></Link>
-              <Link to="/#shop">Back to the collection <ArrowUpRight size={16} aria-hidden /></Link>
+              <Link className="pellier-action pellier-action--primary" to="/observatory/workbench">Inspect a live request</Link>
+              <Link className="pellier-action pellier-action--ghost" to="/#shop">Back to the collection</Link>
             </div>
             <p className="pellier-how-caption">Each example identifies when it was recorded. Prices, availability, and policy configuration may have changed since that request.</p>
           </div>

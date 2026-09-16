@@ -5,15 +5,24 @@
 .trace-scenario-tabs button[aria-pressed="true"] { color: var(--pellier-burgundy); border-color: var(--sand); background: var(--cream-elev); }
 .trace-scenario-tabs button:hover { color: var(--pellier-burgundy); }
 .trace-scenario-stage { min-width: 0; }
-.trace-scenario-stage .resolution-trace-request { min-height: 102px; font-size: 23px; line-height: 1.4; }
+.trace-scenario-stage .resolution-trace-request { font-size: 23px; line-height: 1.4; }
 .trace-scenario-stage .resolution-trace-recording { min-height: 58px; }
-.trace-scenario-stage .resolution-trace-list { height: 340px; max-height: 340px; }
-.trace-scenario-stage .resolution-trace-empty { display: grid; align-content: center; min-height: 100%; padding-inline: 0; }
+.trace-scenario-stage .resolution-trace-list { height: 430px; max-height: 430px; }
 .trace-scenario-stage .resolution-trace-outcome { min-height: 130px; }
 .trace-scenario-loop .resolution-trace-head { min-height: 53px; }
 .trace-scenario-loop .resolution-trace-kicker { letter-spacing: .055em; }
 .trace-scenario-loop .resolution-trace-mode { flex-shrink: 0; }
 .trace-scenario-loop .resolution-trace-outcome[data-outcome="blocked"] { color: var(--pellier-burgundy); }
+/* Source excerpt, opened in place by the step it belongs to. Espresso panel on
+   warm paper: the same treatment the evidence panel already used for code, so
+   a SQL excerpt reads as the recessed, quoted thing it is wherever it appears. */
+.trace-step-source { padding-top: 6px; }
+.trace-step-source-panel { min-width: 0; overflow: hidden; border-radius: 8px; background: var(--dl-ink, #221810); color: var(--dl-paper, #f7f3ec); }
+.trace-step-source-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; padding: 10px 15px; border-bottom: 1px solid #ffffff26; font: 500 11px/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #ffffffb8; }
+.trace-step-source-panel pre { max-height: 290px; overflow: auto; overscroll-behavior: contain; margin: 0 !important; padding: 15px; border: 0 !important; border-radius: 0 !important; white-space: pre; tab-size: 2; font: 11px/1.8 var(--mono) !important; color: inherit; }
+.trace-step-source-panel pre:focus-visible { outline: 2px solid var(--dl-paper, #f7f3ec); outline-offset: -4px; }
+.trace-step-source > p { margin: 10px 0 0 !important; font: 11px/1.7 var(--sans); color: var(--ink-soft); }
+
 .trace-scenario-all { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .trace-scenario-all > div { min-width: 0; }
 .trace-scenario-loop .trace-scenario-inspect { display: flex; width: fit-content; gap: 8px; margin: -2px 0 17px; color: var(--pellier-burgundy); font: 12px/1.6 var(--sans); text-decoration: none; }
@@ -24,8 +33,7 @@
 @media (max-width: 640px) {
   .trace-scenario-tabs { gap: 3px; }
   .trace-scenario-tabs button { padding-inline: 10px; font-size: 12px; }
-  .trace-scenario-stage .resolution-trace-request { min-height: 126px; }
   .trace-scenario-stage .resolution-trace-recording { min-height: 76px; padding-inline: 17px; }
-  .trace-scenario-stage .resolution-trace-list { height: 380px; max-height: 380px; }
+  .trace-scenario-stage .resolution-trace-list { height: 440px; max-height: 440px; }
   .trace-scenario-foot { flex-wrap: wrap; gap: 9px; }
 }

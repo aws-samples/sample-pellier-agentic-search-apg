@@ -6,10 +6,12 @@
 .pellier-how h1 em { color: var(--pellier-burgundy); font-weight: 400; }
 .pellier-how-copy > p:not(.pellier-how-eyebrow) { line-height: 1.75; color: var(--ink-soft); margin: 0 0 22px; }
 .pellier-how-copy .pellier-how-lead { font-size: 18px; color: var(--ink); }
-.pellier-how-links { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin: 30px 0; }
-.pellier-how a { display: inline-flex; align-items: center; gap: 9px; color: var(--pellier-burgundy); text-decoration: none; font-size: 14px; font-weight: 500; }
-.pellier-how a:hover { text-decoration: underline; text-underline-offset: 5px; }
-.pellier-how a:focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 5px; }
+.pellier-how-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 32px 0 26px; }
+/* Text links only. `.pellier-action` buttons are excluded rather than
+   over-ridden, so neither rule has to out-specify the other. */
+.pellier-how a:not(.pellier-action) { display: inline-flex; align-items: center; gap: 9px; color: var(--pellier-burgundy); text-decoration: none; font-size: 14px; font-weight: 500; }
+.pellier-how a:not(.pellier-action):hover { text-decoration: underline; text-underline-offset: 5px; }
+.pellier-how a:not(.pellier-action):focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 5px; }
 .pellier-how-copy .pellier-how-caption { font-size: 12px; line-height: 1.65; max-width: 350px; }
 .pellier-how-demo { min-width: 0; }
 .pellier-how-demo .resolution-trace { box-shadow: 0 16px 48px -30px rgb(58 39 22 / 25%); }
@@ -23,7 +25,6 @@
   .pellier-how-intro { grid-template-columns: 1fr; gap: 30px; }
   .pellier-how-copy { max-width: 620px; padding-top: 0; }
   .pellier-how h1 { font-size: clamp(40px, 6vw, 60px); }
-  .pellier-how-links { flex-direction: row; flex-wrap: wrap; gap: 22px; }
   .pellier-how-surfaces { gap: 24px; margin-top: 48px; }
 }
 @media (max-width: 640px) {

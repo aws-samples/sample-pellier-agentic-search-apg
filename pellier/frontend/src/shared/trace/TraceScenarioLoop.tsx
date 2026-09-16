@@ -50,11 +50,29 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
     setShowAll(false)
   }
 
+  /** The excerpt belongs to the step whose work it came from, so it opens in
+   *  place as that step is reached rather than sitting in a separate panel. */
+  function stepsWithSource(example: typeof recordedScenarios[number]): ResolutionStep[] {
+    const { codeStepId, codeLabel, language, code, codeNote } = example.inspection
+    return (example.steps as ResolutionStep[]).map(step => step.id === codeStepId
+      ? {
+        ...step,
+        detail: <div className="trace-step-source">
+          <div className="trace-step-source-panel">
+            <div className="trace-step-source-heading"><span>{codeLabel}</span><span>{language}</span></div>
+            <pre tabIndex={0} aria-label={codeLabel}><code>{code}</code></pre>
+          </div>
+          <p>{codeNote}</p>
+        </div>,
+      }
+      : step)
+  }
+
   function trace(index: number, playback: boolean) {
     const example = recordedScenarios[index]
     return <><ResolutionTrace
-      title={example.title} request={example.request} steps={example.steps as ResolutionStep[]}
-      mode="recorded" autoPlay={playback && !reducedMotion} showPlaybackControls={false}
+      title={example.title} request={example.request} steps={stepsWithSource(example)}
+      mode="recorded" variant="showcase" autoPlay={playback && !reducedMotion} showPlaybackControls={false}
       recordingKey={`${example.id}:${cycle}`} playbackIntervalMs={1600} announce={false}
       recordingLabel={example.provenance}
       onReplayComplete={() => setFinished(true)}

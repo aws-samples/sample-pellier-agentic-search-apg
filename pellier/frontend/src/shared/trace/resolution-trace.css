@@ -39,6 +39,29 @@
 .resolution-trace-outcome { padding: 19px 24px; border-top: 1px solid var(--trace-line); background: color-mix(in srgb, var(--trace-line) 28%, var(--trace-paper)); min-height: 90px; }
 .resolution-trace-outcome p { margin: 8px 0 0 !important; font-size: 13px; color: var(--trace-muted); }
 .resolution-trace-outcome-body { margin-top: 7px; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+/* ---- Showcase: the panel on How Pellier works and the Govern overview ----
+   The whole shape is on screen from the first frame. A step that has not been
+   reached is dimmed and inert, so the reader sees how far the request still
+   has to go instead of an empty box that fills in from nothing. */
+.resolution-trace-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.resolution-trace--showcase .resolution-trace-step[data-reached="false"] { opacity: .34; }
+.resolution-trace--showcase .resolution-trace-step[data-reached="false"] .resolution-trace-step-head { cursor: default; }
+.resolution-trace--showcase .resolution-trace-step[data-reached="false"] .resolution-trace-step-title { font-weight: 400; }
+.resolution-trace--showcase .resolution-trace-step[data-reached="false"] .resolution-trace-chevron { visibility: hidden; }
+.resolution-trace--showcase .resolution-trace-step-head:disabled { color: inherit; }
+.resolution-trace--showcase .resolution-trace-step { transition: opacity .5s ease; }
+.resolution-trace--showcase .resolution-trace-typing { position: relative; display: block; }
+.resolution-trace--showcase .resolution-trace-typed { position: absolute; inset: 0; }
+/* A hidden duplicate of the full request reserves its final height. Without it
+   a 150-character Operator request grows the panel one line at a time. */
+.resolution-trace--showcase .resolution-trace-reserve { visibility: hidden; }
+.resolution-trace-caret { display: inline-block; width: 2px; height: .92em; margin-left: .06em; background: var(--trace-accent); vertical-align: -.1em; animation: resolution-trace-blink 1.06s steps(1, end) infinite; }
+@keyframes resolution-trace-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .resolution-trace-caret { animation: none; }
+  .resolution-trace--showcase .resolution-trace-step { transition: none; }
+}
+
 .resolution-trace--compact .resolution-trace-list { max-height: 360px; }
 .resolution-trace--compact .resolution-trace-head,
 .resolution-trace--compact .resolution-trace-outcome { padding: 14px 17px; }
