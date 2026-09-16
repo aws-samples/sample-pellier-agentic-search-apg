@@ -35,7 +35,7 @@ export default function HowPellierWorksPage() {
             <p className="pellier-how-eyebrow">How Pellier works</p>
             <h1>A considered answer.<br /><em>A clear record.</em></h1>
             <p className="pellier-how-lead">A good recommendation begins with what is actually on the shelf. Follow one request from the question to the evidence behind the answer.</p>
-            <p>Three recorded requests show the boutique, the Operator desk, and a Cedar policy boundary at work. Open a numbered step to inspect its evidence, then try a request of your own.</p>
+            <p>Follow Marco’s opening linen request, Jessica’s service investigation, and a cross-customer Cedar denial. Each example connects the recorded steps to source details and the matching workshop exercise.</p>
             <div className="pellier-how-links">
               <Link to="/observatory/workbench">Inspect a live request <ArrowUpRight size={16} aria-hidden /></Link>
               <Link to="/#shop">Back to the collection <ArrowUpRight size={16} aria-hidden /></Link>
@@ -43,7 +43,7 @@ export default function HowPellierWorksPage() {
             <p className="pellier-how-caption">Each example identifies when it was recorded. Prices, availability, and policy configuration may have changed since that request.</p>
           </div>
           <div className="pellier-how-demo">
-            <TraceScenarioLoop />
+            <TraceScenarioLoop showDetails />
           </div>
         </div>
         <section className="pellier-how-surfaces" aria-label="Three ways to explore Pellier">

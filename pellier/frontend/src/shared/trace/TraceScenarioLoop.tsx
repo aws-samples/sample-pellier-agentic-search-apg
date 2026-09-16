@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import ResolutionTrace, { type ResolutionStep, type TraceOutcome } from './ResolutionTrace'
 import recordedScenarios from '../../data/pellierTraceScenarios.json'
+import TraceScenarioDetails from './TraceScenarioDetails'
 import './trace-scenarios.css'
 
 const HOLD_RESULT_MS = 4800
 
-export default function TraceScenarioLoop() {
+export default function TraceScenarioLoop({ showDetails = false }: { showDetails?: boolean }) {
   const reducedMotion = Boolean(useReducedMotion())
   const root = useRef<HTMLElement>(null)
   const [active, setActive] = useState(0)
@@ -51,7 +52,7 @@ export default function TraceScenarioLoop() {
 
   function trace(index: number, playback: boolean) {
     const example = recordedScenarios[index]
-    return <ResolutionTrace
+    return <><ResolutionTrace
       title={example.title} request={example.request} steps={example.steps as ResolutionStep[]}
       mode="recorded" autoPlay={playback && !reducedMotion} showPlaybackControls={false}
       recordingKey={`${example.id}:${cycle}`} playbackIntervalMs={1600} announce={false}
@@ -59,6 +60,8 @@ export default function TraceScenarioLoop() {
       onReplayComplete={() => setFinished(true)}
       outcome={{ label: example.outcomeLabel, body: example.answer, status: example.outcomeStatus as TraceOutcome['status'] }}
     />
+      {showDetails && <TraceScenarioDetails example={example} />}
+    </>
   }
 
   return (
@@ -77,6 +80,11 @@ export default function TraceScenarioLoop() {
           </button>
         ))}
       </div>
+      {showDetails && !showAll && (
+        <a className="trace-scenario-inspect" href={`#trace-details-${scenario.id}`}>
+          Inspect SQL, source, and exercise details <span aria-hidden>↓</span>
+        </a>
+      )}
       {showAll ? (
         <div className="trace-scenario-all">{recordedScenarios.map((example, index) => <div key={example.id}>{trace(index, false)}</div>)}</div>
       ) : (

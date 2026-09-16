@@ -114,6 +114,38 @@ test('reduced motion shows a complete example and lets the reader choose Cedar d
   await expect(loop.locator('[data-step-id]')).toHaveCount(3)
 })
 
+test('technical details follow the persona, SQL source, and matching exercise', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/how-pellier-works')
+  const loop = page.getByRole('region', { name: 'Recorded Pellier examples', exact: true })
+  const marco = page.getByRole('region', { name: 'Marco · opening linen request technical details' })
+  await expect(marco).toBeVisible()
+  await loop.getByRole('link', { name: /Inspect SQL, source, and exercise details/ }).click()
+  await expect(marco).toBeFocused()
+  await expect(loop.getByText('What linen do you have for 10 days in Goa?', { exact: true })).toBeVisible()
+  await expect(marco.getByLabel('Source SQL excerpt · vector lookup')).toContainText('embedding <=>')
+  await expect(marco.getByText('277 ms · SQL read')).toBeVisible()
+  await expect(marco.getByRole('link', { name: 'Open Marco’s exercise' })).toHaveAttribute('href', '/observatory/workbench?lab=grounded-inventory')
+  await page.screenshot({ path: '/tmp/pellier-how-marco-details.png', fullPage: true, animations: 'disabled' })
+
+  await loop.getByRole('button', { name: 'Operator', exact: true }).click()
+  const jessica = page.getByRole('region', { name: 'Jessica · first Operator investigation technical details' })
+  await expect(jessica.getByText('5 orders · 1 ticket · 1 return · 0 proposed actions')).toBeVisible()
+  await expect(jessica.getByLabel('Source SQL · authoritative returns')).toContainText('WHERE r.customer_id = %s')
+  await expect(jessica.getByRole('link', { name: 'Open the guided Operator turns' })).toHaveAttribute('href', /CUST-JESSICA\?guided=service-recovery/)
+  await page.screenshot({ path: '/tmp/pellier-how-jessica-details.png', fullPage: true, animations: 'disabled' })
+
+  await loop.getByRole('button', { name: 'Cedar blocked', exact: true }).click()
+  const cedar = page.getByRole('region', { name: 'Marco → Jessica · customer boundary technical details' })
+  await expect(cedar.getByLabel('Recorded policy receipt · public fields')).toContainText('"decision": "DENY"')
+  await expect(cedar.getByText('Timing not recorded')).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+  await cedar.getByText('Recording and measurement details').click()
+  await expect(cedar.getByText(/Current policy configuration may differ/)).toBeVisible()
+  await page.screenshot({ path: '/tmp/pellier-how-cedar-details-mobile.png', fullPage: true, animations: 'disabled' })
+})
+
 test('real shopper request persists evidence and replays it in the Observatory', async ({ page }) => {
   test.setTimeout(180000)
   const username = process.env.E2E_GOVERN_USERNAME
