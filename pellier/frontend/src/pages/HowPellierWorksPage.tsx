@@ -33,9 +33,9 @@ export default function HowPellierWorksPage() {
         <div className="pellier-how-intro">
           <div className="pellier-how-copy">
             <p className="pellier-how-eyebrow">How Pellier works</p>
-            <h1>A considered answer.<br /><em>A clear record.</em></h1>
-            <p className="pellier-how-lead">A good recommendation begins with what is actually on the shelf. Follow one request from the question to the evidence behind the answer.</p>
-            <p>Follow Marco’s opening linen request, Jessica’s service investigation, and a cross-customer Cedar denial. Each example connects the recorded steps to source details and the matching workshop exercise.</p>
+            <h1>One request,<br /><em>from question to evidence.</em></h1>
+            <p className="pellier-how-lead">Pellier answers from live product and customer records, checks them before it promises anything, and writes down what it did.</p>
+            <p>Follow three recorded requests: Marco’s opening linen request, Jessica’s service investigation, and a cross-customer request Cedar refused. Each one connects the recorded steps to the source detail behind them and the matching workshop exercise.</p>
             <div className="pellier-how-links">
               <Link to="/observatory/workbench">Inspect a live request <ArrowUpRight size={16} aria-hidden /></Link>
               <Link to="/#shop">Back to the collection <ArrowUpRight size={16} aria-hidden /></Link>
@@ -46,24 +46,24 @@ export default function HowPellierWorksPage() {
             <TraceScenarioLoop showDetails />
           </div>
         </div>
-        <section className="pellier-how-surfaces" aria-label="Three ways to explore Pellier">
+        <section className="pellier-how-surfaces" aria-label="The three Pellier surfaces">
           <article>
             <span className="pellier-how-number">01</span>
-            <h2>The boutique</h2>
-            <p>Ask about a piece, compare options, or check availability. The conversation stays focused on the decision in front of you.</p>
+            <h2>The storefront</h2>
+            <p>A premium storefront you can ask questions in. Ask for a piece, compare options, and see the price and the stock count behind every recommendation before you buy.</p>
             <Link to="/">Visit the storefront <ArrowUpRight size={15} aria-hidden /></Link>
           </article>
           <article>
             <span className="pellier-how-number">02</span>
             <h2>The Operator desk</h2>
-            <p>Follow an investigation as its evidence arrives. Review a proposed action separately, with the person approving it and its eventual result kept on record.</p>
-            <Link to="/operator">Open Operator <ArrowUpRight size={15} aria-hidden /></Link>
+            <p>Where staff work a case. Open a client record, read the orders, tickets, and returns behind it, then approve or decline the action an investigation proposes. Every decision is recorded with the operator who made it.</p>
+            <Link to="/operator">Open the Operator desk <ArrowUpRight size={15} aria-hidden /></Link>
           </article>
           <article>
             <span className="pellier-how-number">03</span>
             <h2>The Observatory</h2>
-            <p>Inspect the route, tool results, identity, and policy boundary behind a request. Replay saved evidence or run a new turn to see the application at work.</p>
-            <Link to="/observatory">Explore the Observatory <ArrowUpRight size={15} aria-hidden /></Link>
+            <p>Where you inspect the work. See the route taken, the tool results, the caller identity, and the policy decision behind a request. Replay saved evidence or run a new request.</p>
+            <Link to="/observatory">Open the Observatory <ArrowUpRight size={15} aria-hidden /></Link>
           </article>
         </section>
       </main>

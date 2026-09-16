@@ -99,7 +99,7 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
         </AnimatePresence>
       )}
       <div className="trace-scenario-foot">
-        <span>{reducedMotion ? 'Choose an example to inspect.' : showAll ? 'All examples remain open for inspection.' : 'Three recorded requests, on repeat. Hover or focus to hold the result.'}</span>
+        <span>{reducedMotion ? 'Choose an example to inspect.' : showAll ? 'All three examples are open.' : 'Three recorded requests, playing in turn. Hover or focus to hold one open.'}</span>
         <button type="button" onClick={() => {
           setShowAll(value => !value)
           setFinished(false)

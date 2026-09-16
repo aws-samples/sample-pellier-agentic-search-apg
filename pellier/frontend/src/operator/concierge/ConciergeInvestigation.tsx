@@ -44,17 +44,17 @@ const ConciergeInvestigation: React.FC<Props> = ({
   const sources = new Set(steps.map((step) => step.source)).size
   const checkpoint = orchestration?.checkpoint?.state
   const outcome: TraceOutcome = checkpoint === 'READ_ONLY_COMPLETE' && orchestration?.status === 'complete'
-    ? { label: 'Read-only investigation complete', status: 'complete', body: 'No business action was proposed by this turn.' }
+    ? { label: 'Read-only investigation complete', status: 'complete', body: 'Nothing was changed. This turn proposed no action to approve.' }
     : checkpoint === 'WAITING_FOR_HUMAN'
-      ? { label: 'Waiting for human review', status: 'waiting', body: 'Review the proposed action separately. Finishing the investigation does not approve it.' }
-      : { label: 'Recorded investigation', status: 'unknown', body: 'Each row preserves its reported status. Action outcomes appear in their own receipts.' }
+      ? { label: 'Waiting for an operator decision', status: 'waiting', body: 'The investigation is finished. Approving the proposed action is a separate step.' }
+      : { label: 'Recorded investigation', status: 'unknown', body: 'Each step keeps the status it reported. Action outcomes are recorded separately.' }
 
   return (
     <section className="operator-concierge-investigation"
              data-testid="operator-concierge-investigation">
       <ResolutionTrace title="Investigation trace" mode="recorded" compact
         steps={operatorTraceSteps(steps)}
-        recordingLabel="Saved application events from this answer."
+        recordingLabel="Saved steps from this investigation."
         outcome={outcome}
       />
       <button

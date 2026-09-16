@@ -19,7 +19,7 @@ describe('Operator trace', () => {
     rerender(<ConciergePendingTurn request="Investigate" steps={steps} answer={answer} />)
     expect(screen.getByText('Read the client record')).toBeInTheDocument()
     expect(screen.getByText('The recorded orders were returned.')).toBeInTheDocument()
-    expect(screen.getByText(/separate review and approval controls/)).toBeInTheDocument()
+    expect(screen.getByText(/needs its own review and approval/)).toBeInTheDocument()
     // An answer does not turn an uncompleted event into a success.
     expect(screen.getByText('In progress')).toBeInTheDocument()
   })
@@ -41,11 +41,11 @@ describe('Operator trace', () => {
     const { rerender } = render(<ConciergeInvestigation steps={steps}
       orchestration={{ status: 'complete', checkpoint: { state: 'READ_ONLY_COMPLETE' } }} />)
     expect(screen.getByText('Read-only investigation complete')).toBeInTheDocument()
-    expect(screen.getByText('No business action was proposed by this turn.')).toBeInTheDocument()
-    expect(screen.queryByText('Waiting for human review')).not.toBeInTheDocument()
+    expect(screen.getByText('Nothing was changed. This turn proposed no action to approve.')).toBeInTheDocument()
+    expect(screen.queryByText('Waiting for an operator decision')).not.toBeInTheDocument()
     rerender(<ConciergeInvestigation steps={steps}
       orchestration={{ status: 'complete', checkpoint: { state: 'WAITING_FOR_HUMAN' } }} />)
-    expect(screen.getByText('Waiting for human review')).toBeInTheDocument()
-    expect(screen.queryByText('No business action was proposed by this turn.')).not.toBeInTheDocument()
+    expect(screen.getByText('Waiting for an operator decision')).toBeInTheDocument()
+    expect(screen.queryByText('Nothing was changed. This turn proposed no action to approve.')).not.toBeInTheDocument()
   })
 })

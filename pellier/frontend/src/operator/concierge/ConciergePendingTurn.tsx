@@ -16,12 +16,12 @@ export default function ConciergePendingTurn({ request, steps, answer }: Props) 
         <p className="operator-concierge-request-body">{request}</p>
       </div>
       <div data-testid="operator-concierge-live-activity">
-        <ResolutionTrace title="How this answer is being built" mode="live" compact
+        <ResolutionTrace title="Investigation" mode="live" compact
           steps={operatorTraceSteps(steps)} busy={!answer}
           outcome={answer ? {
-            label: answer.status === 'failed' ? 'Investigation did not complete' : 'Answer saved to the conversation',
+            label: answer.status === 'failed' ? 'Investigation did not complete' : 'Findings saved to the case',
             status: answer.status === 'failed' ? 'failed' : 'complete',
-            body: 'Any proposed action still follows its separate review and approval controls.',
+            body: 'A proposed action still needs its own review and approval.',
           } : null}
         />
       </div>
