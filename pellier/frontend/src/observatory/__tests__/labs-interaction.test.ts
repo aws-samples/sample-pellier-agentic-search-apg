@@ -32,7 +32,7 @@ describe('governed Labs interaction contract', () => {
       '/observatory/proof-board',
       '/observatory/audit-proof',
       '/observatory/architecture',
-      '/observatory/write-path',
+      '/observatory/govern/policies',
       '/observatory/performance',
       '/observatory/production-patterns',
     ]) {

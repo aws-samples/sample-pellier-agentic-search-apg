@@ -27,7 +27,7 @@
  * Back-compat: the pre-task-4.6 signature `useScrollReveal(0.15)` accepted
  * a `threshold` number and returned `{ ref, scale, opacity, y }`. That
  * legacy hook was unused by any rendered component (replaced by
- * framer-motion `whileInView`) — `App.tsx` has a comment noting as much.
+ * Motion's `whileInView`) — `App.tsx` has a comment noting as much.
  * The new signature takes an options object and returns `{ ref, revealed }`.
  * If future code needs the legacy shape, derive `scale/opacity/y` from
  * `revealed` in the consumer.

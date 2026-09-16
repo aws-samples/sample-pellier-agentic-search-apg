@@ -38,7 +38,6 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
   ['/observatory/skills', 'Skills'],
   ['/observatory/routing', 'Routing'],
   ['/observatory/memory', 'Memory'],
-  ['/observatory/write-path', 'Write-path'],
   ['/observatory/performance', 'Retrieval comparison'],
   ['/observatory/evaluations', 'Evaluations'],
   ['/observatory/production-patterns', 'Production patterns'],

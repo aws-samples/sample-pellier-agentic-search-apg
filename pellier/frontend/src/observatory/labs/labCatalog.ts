@@ -222,8 +222,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     },
     supportingActions: [
       {
-        label: 'Open policy and write path',
-        to: '/observatory/write-path',
+        label: 'Open Cedar policies',
+        to: '/observatory/govern/policies',
       },
       {
         label: 'Inspect policy checkpoint',

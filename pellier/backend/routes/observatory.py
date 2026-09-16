@@ -27,7 +27,7 @@ Endpoints:
     GET  /readiness            - workshop readiness checks for live pillars
     GET  /proof-board          - required-path evidence cards and fallbacks
     POST /skills/route         - Live skill router demo (Sonnet 4.6)
-    GET  /policies             - Cedar policies for the Write-path surface
+    GET  /policies             - Cedar policy catalogue for terminal proof
     GET  /tool-audit/recent    - Recent rows from pellier.tool_audit
     GET  /identity-boundary    - Verified principal vs requested customer,
                                  Cedar decision, and keyed execution presence
@@ -832,7 +832,7 @@ async def _collect_readiness() -> dict[str, Any]:
             else "Policy engine id empty; live Gateway ALLOW/DENY enforcement cannot run."
         ),
         required=governed_format,
-        href="/observatory/write-path",
+        href="/observatory/govern/policies",
     ))
 
     model_ids = {
@@ -1192,7 +1192,7 @@ async def _collect_proof_board(
                 ),
             },
             "links": [
-                {"label": "Write-path", "to": "/observatory/write-path"},
+                {"label": "Cedar policies", "to": "/observatory/govern/policies"},
             ],
         },
         {
@@ -1225,7 +1225,7 @@ async def _collect_proof_board(
                 "command": "cd .agentcore-project/pellier && npx -y @aws/agentcore@0.29.0 validate --json",
             },
             "links": [
-                {"label": "Write-path", "to": "/observatory/write-path"},
+                {"label": "Cedar policies", "to": "/observatory/govern/policies"},
             ],
         },
         {
@@ -2490,8 +2490,10 @@ async def route_skills_endpoint(payload: ObservatorySkillRouteRequest):
 @router.get("/policies")
 async def get_cedar_policies():
     """Return the Cedar policies attached to the managed AgentCore Policy
-    engine (Gateway-enforced, ENFORCE mode). Used by the Observatory's
-    Write-path surface to show "policy is code, code is enforcement".
+    engine (Gateway-enforced, ENFORCE mode). A flat catalogue read, kept for
+    terminal proof (``curl``) alongside the Govern surface's own snapshot at
+    ``/api/observatory/governance/policies``, which additionally reports the
+    Gateway attachment and the observed enforcement modes.
 
     Reads the managed engine via boto3 ``bedrock-agentcore-control``
     keyed on ``AGENTCORE_POLICY_ENGINE_ID``. The old local fake-Cedar
@@ -2723,9 +2725,9 @@ async def get_recent_tool_audit(
     user: Optional[dict[str, Any]] = Depends(get_current_user),
 ):
     """Return the most recent rows from pellier.tool_audit, in reverse
-    chronological order. Used by the Write-path surface to demonstrate
-    that every ALLOWed tool call (read or write) is reconstructible
-    from a single row (args + result + latency_ms).
+    chronological order. Demonstrates that every ALLOWed tool call (read
+    or write) is reconstructible from a single row (args + result +
+    latency_ms).
 
     Read-only and principal-scoped. An audit row must be joined to either an
     explicit policy receipt or a durable governed turn receipt for the

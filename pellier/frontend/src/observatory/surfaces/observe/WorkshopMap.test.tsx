@@ -43,9 +43,9 @@ describe('Observatory workshop map', () => {
       'href',
       '/observatory/proof-board#managed-rail',
     );
-    expect(screen.getByRole('link', { name: /Open Gateway & Policy/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Open Cedar policies/i })).toHaveAttribute(
       'href',
-      '/observatory/write-path',
+      '/observatory/govern/policies',
     );
   });
 });

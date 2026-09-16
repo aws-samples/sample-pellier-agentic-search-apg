@@ -122,8 +122,8 @@ const LABS: LabItem[] = [
     summary:
       'Build the Cedar ownership rule and keyed absence query. Distinguish denial, business refusal, committed return, and replay. Test RLS independently and investigate Jessica\'s case as Operator.',
     primary: {
-      to: '/observatory/write-path',
-      label: 'Open Gateway & Policy',
+      to: '/observatory/govern/policies',
+      label: 'Open Cedar policies',
       detail: 'Pellier Observatory visual',
     },
     secondary: [
