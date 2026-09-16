@@ -71,7 +71,7 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
   function trace(index: number, playback: boolean) {
     const example = recordedScenarios[index]
     return <><ResolutionTrace
-      title={example.title} request={example.request} steps={stepsWithSource(example)}
+      title={`${example.label} · ${example.title}`} request={example.request} steps={stepsWithSource(example)}
       mode="recorded" variant="showcase" autoPlay={playback && !reducedMotion} showPlaybackControls={false}
       recordingKey={`${example.id}:${cycle}`} playbackIntervalMs={1600} announce={false}
       recordingLabel={example.provenance}
@@ -94,10 +94,16 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
         {recordedScenarios.map((example, index) => (
           <button type="button" key={example.id} aria-pressed={!showAll && index === active}
             onClick={() => select(index)}>
-            <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>{example.label}
+            <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>{example.chapter}
           </button>
         ))}
       </div>
+      {!showAll && (
+        <div className="trace-scenario-layer">
+          <p className="trace-scenario-adds">{scenario.adds}</p>
+          {scenario.buildsOn && <p className="trace-scenario-builds">{scenario.buildsOn}</p>}
+        </div>
+      )}
       {showDetails && !showAll && (
         <a className="trace-scenario-inspect" href={`#trace-details-${scenario.id}`}>
           Inspect SQL, source, and exercise details <span aria-hidden>↓</span>
@@ -117,12 +123,12 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
         </AnimatePresence>
       )}
       <div className="trace-scenario-foot">
-        <span>{reducedMotion ? 'Choose an example to inspect.' : showAll ? 'All three examples are open.' : 'Three recorded requests, playing in turn. Hover or focus to hold one open.'}</span>
+        <span>{reducedMotion ? 'Choose a chapter to inspect.' : showAll ? 'All three chapters are open.' : 'Three separate recordings, played in order. Hover or focus to hold one open.'}</span>
         <button type="button" onClick={() => {
           setShowAll(value => !value)
           setFinished(false)
           setCycle(value => value + 1)
-        }}>{showAll ? 'Play examples' : 'View all examples'}</button>
+        }}>{showAll ? 'Play the sequence' : 'View all three'}</button>
       </div>
     </section>
   )

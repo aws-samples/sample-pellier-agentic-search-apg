@@ -108,7 +108,7 @@ test('reduced motion shows a complete example and lets the reader choose Cedar d
   const loop = page.getByRole('region', { name: 'Recorded Pellier examples', exact: true })
   await expect(loop.locator('[data-step-id]')).toHaveCount(3)
   await expect(loop.getByText('A grounded recommendation', { exact: true })).toBeVisible()
-  await loop.getByRole('button', { name: 'Cedar blocked', exact: true }).click()
+  await loop.getByRole('button', { name: 'Refuse the crossing', exact: true }).click()
   await expect(loop).toHaveAttribute('data-active-scenario', 'cedar')
   await expect(loop.getByText('Blocked by Cedar', { exact: true })).toBeVisible()
   await expect(loop.locator('[data-step-id]')).toHaveCount(3)
@@ -135,7 +135,7 @@ test('technical details follow the persona, SQL source, and matching exercise', 
   await expect(jessica.getByRole('link', { name: 'Open the guided Operator turns' })).toHaveAttribute('href', /CUST-JESSICA\?guided=service-recovery/)
   await page.screenshot({ path: '/tmp/pellier-how-jessica-details.png', fullPage: true, animations: 'disabled' })
 
-  await loop.getByRole('button', { name: 'Cedar blocked', exact: true }).click()
+  await loop.getByRole('button', { name: 'Refuse the crossing', exact: true }).click()
   const cedar = page.getByRole('region', { name: 'Marco → Jessica · customer boundary technical details' })
   await expect(cedar.getByLabel('Recorded policy receipt · public fields')).toContainText('"decision": "DENY"')
   await expect(cedar.getByText('Timing not recorded')).toBeVisible()

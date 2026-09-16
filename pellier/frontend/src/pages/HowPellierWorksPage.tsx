@@ -35,7 +35,8 @@ export default function HowPellierWorksPage() {
             <p className="pellier-how-eyebrow">How Pellier works</p>
             <h1>One request,<br /><em>from question to evidence.</em></h1>
             <p className="pellier-how-lead">Pellier answers from live product and customer records, checks them before it promises anything, and writes down what it did.</p>
-            <p>Follow three recorded requests: Marco’s opening linen request, Jessica’s service investigation, and a cross-customer request Cedar refused. Each one connects the recorded steps to the source detail behind them and the matching workshop exercise.</p>
+            <p>One story in three recorded requests, each adding a layer the one before it did not need: ground the answer in live data, bring in a person when the records cannot settle it, then refuse a request the caller is not entitled to make.</p>
+            <p>They are separate recordings, not one session. Each connects its steps to the source behind them and to the matching workshop exercise.</p>
             <div className="pellier-how-links">
               <Link className="pellier-action pellier-action--primary" to="/observatory/workbench">Inspect a live request</Link>
               <Link className="pellier-action pellier-action--ghost" to="/#shop">Back to the collection</Link>

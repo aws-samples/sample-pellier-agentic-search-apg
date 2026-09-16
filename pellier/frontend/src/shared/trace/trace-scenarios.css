@@ -4,6 +4,10 @@
 .trace-scenario-tabs button span { font: 11px var(--mono); }
 .trace-scenario-tabs button[aria-pressed="true"] { color: var(--pellier-burgundy); border-color: var(--sand); background: var(--cream-elev); }
 .trace-scenario-tabs button:hover { color: var(--pellier-burgundy); }
+/* What this chapter adds, and what it is added to. */
+.trace-scenario-layer { margin: 0 0 16px; padding-left: 13px; border-left: 2px solid var(--pellier-burgundy); }
+.trace-scenario-adds { margin: 0 !important; font: 500 13px/1.6 var(--sans); color: var(--ink); }
+.trace-scenario-builds { margin: 5px 0 0 !important; font: 12px/1.6 var(--sans); color: var(--ink-soft); }
 .trace-scenario-stage { min-width: 0; }
 .trace-scenario-stage .resolution-trace-request { font-size: 23px; line-height: 1.4; }
 .trace-scenario-stage .resolution-trace-recording { min-height: 58px; }
