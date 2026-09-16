@@ -1,14 +1,15 @@
 /**
  * Live concierge empty state.
  *
- * The welcome drawer reads its cover and suggested turns from Aurora. A
- * failed data-plane read is visible to the shopper; it never becomes a
- * locally authored recommendation.
+ * Existing editorial photography frames the live catalog and suggested turns.
+ * A failed data-plane read remains visible; the photograph is never a claim
+ * about product availability or a substitute recommendation.
  */
 import { useEffect, useState } from 'react'
 import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { PellierProduct } from '../services/types'
 import { imageSrc } from '../utils/assetPath'
+import { welcomeScene } from '../data/welcomeScenes'
 import '../styles/pellier-welcome.css'
 
 interface PellierWelcomeProps {
@@ -58,6 +59,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [revision, setRevision] = useState(0)
+  const [imageFailed, setImageFailed] = useState(false)
   const profileId = persona?.id ?? 'fresh'
   const tod = timeOfDay()
 
@@ -68,6 +70,8 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
     setScenarios([])
     setError(null)
     setLoading(true)
+    setImageFailed(false)
+    const timeout = window.setTimeout(() => controller.abort(new Error('Edit request timed out')), 20000)
 
     void Promise.all([
       fetch(`/api/products?persona=${encodeURIComponent(profileId)}`, {
@@ -93,19 +97,21 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
         setScenarios(payload.scenarios ?? [])
         setLoading(false)
       })
-      .catch((reason: unknown) => {
-        if (!active || (reason as { name?: string })?.name === 'AbortError') return
+      .catch(() => {
+        if (!active) return
         setError('Your edit is taking a little longer to arrive. Please try again, or ask Pellier below.')
         setLoading(false)
       })
+      .finally(() => window.clearTimeout(timeout))
 
     return () => {
+      window.clearTimeout(timeout)
       active = false
       controller.abort()
     }
   }, [profileId, revision])
 
-  const cover = catalog[0]
+  const scene = welcomeScene(profileId)
   const greeting = composeWelcomeGreeting(
     TIME_GREETING[tod],
     persona && persona.id !== 'fresh' ? `, ${persona.display_name.split(' ')[0]}` : '',
@@ -123,19 +129,15 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
 
   return (
     <div className="sf-welcome">
-      <div className="sf-cover">
-        {cover ? (
-          <img src={imageSrc(cover.imageUrl)} alt={cover.name} className="sf-cover-img" />
-        ) : (
-          <div className="sf-cover-img bg-cream-warm" aria-hidden="true" />
-        )}
-        <div className="sf-cover-overlay">
-          <div className="sf-cover-eyebrow">
-            <span className="sf-cover-dot" />
-            {cover ? 'Your current edit' : error ? 'Edit unavailable' : loading ? 'Opening your edit' : 'Your edit'}
+      {!imageFailed && (
+        <div className="sf-cover">
+          <img src={imageSrc(scene.image)} alt={scene.alt} className="sf-cover-img"
+            width={1672} height={941} decoding="async" onError={() => setImageFailed(true)} />
+          <div className="sf-cover-overlay">
+            <div className="sf-cover-eyebrow">{scene.label}</div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="sf-body">
         <div className="sf-eyebrow-row">

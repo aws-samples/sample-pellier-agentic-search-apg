@@ -1,0 +1,28 @@
+.trace-scenario-loop { min-width: 0; color: var(--ink, #221810); font-family: var(--sans); }
+.trace-scenario-tabs { display: flex; gap: 5px; padding: 0 0 14px; flex-wrap: wrap; }
+.trace-scenario-tabs button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 8px 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; font: 500 12px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; }
+.trace-scenario-tabs button span { font: 11px var(--mono); }
+.trace-scenario-tabs button[aria-pressed="true"] { color: var(--pellier-burgundy); border-color: var(--sand); background: var(--cream-elev); }
+.trace-scenario-tabs button:hover { color: var(--pellier-burgundy); }
+.trace-scenario-stage { min-width: 0; }
+.trace-scenario-stage .resolution-trace-request { min-height: 102px; font-size: 23px; line-height: 1.4; }
+.trace-scenario-stage .resolution-trace-recording { min-height: 58px; }
+.trace-scenario-stage .resolution-trace-list { height: 340px; max-height: 340px; }
+.trace-scenario-stage .resolution-trace-empty { display: grid; align-content: center; min-height: 100%; padding-inline: 0; }
+.trace-scenario-stage .resolution-trace-outcome { min-height: 130px; }
+.trace-scenario-loop .resolution-trace-head { min-height: 53px; }
+.trace-scenario-loop .resolution-trace-kicker { letter-spacing: .055em; }
+.trace-scenario-loop .resolution-trace-mode { flex-shrink: 0; }
+.trace-scenario-loop .resolution-trace-outcome[data-outcome="blocked"] { color: var(--pellier-burgundy); }
+.trace-scenario-all { display: grid; gap: 24px; }
+.trace-scenario-foot { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 15px 3px 0; font: 11px/1.6 var(--sans); color: var(--ink-soft); }
+.trace-scenario-foot button { flex-shrink: 0; background: transparent; border: 0; border-bottom: 1px solid var(--sand); padding: 2px 0; font: 500 12px var(--sans); color: var(--pellier-burgundy); cursor: pointer; }
+.trace-scenario-loop :is(button, a):focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 4px; }
+@media (max-width: 640px) {
+  .trace-scenario-tabs { gap: 3px; }
+  .trace-scenario-tabs button { padding-inline: 10px; font-size: 12px; }
+  .trace-scenario-stage .resolution-trace-request { min-height: 126px; }
+  .trace-scenario-stage .resolution-trace-recording { min-height: 76px; padding-inline: 17px; }
+  .trace-scenario-stage .resolution-trace-list { height: 380px; max-height: 380px; }
+  .trace-scenario-foot { flex-wrap: wrap; gap: 9px; }
+}

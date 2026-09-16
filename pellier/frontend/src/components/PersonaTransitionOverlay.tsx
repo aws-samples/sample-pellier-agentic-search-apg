@@ -17,7 +17,7 @@
  */
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence, MotionConfig, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig, useReducedMotion } from 'motion/react'
 import { usePersona } from '../contexts/PersonaContext'
 import { getPersonaPhoto } from '../data/personaPhotos'
 

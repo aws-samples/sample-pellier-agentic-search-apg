@@ -1,0 +1,134 @@
+[
+  {
+    "recordedAt": "2026-09-16T16:29:22.939395+00:00",
+    "request": "Find an ivory linen shirt under $250.",
+    "provenance": "Recorded 16 Sep 2026 · In-process execution. Cedar was not evaluated.",
+    "answer": "Hadley Linen Shirt in ivory, $248. The answer also offered the Cotton-Linen Crew Tee in cream at $68 as an alternative.",
+    "source": {
+      "turnId": "turn-44df4922582e44bbac0bd48040f22bf5",
+      "toolAuditId": "219",
+      "terminalStatus": "complete",
+      "policyDecision": "NOT_EVALUATED",
+      "projection": "Public catalog fields from the persisted Aurora turn and tool receipt. Caller context omitted."
+    },
+    "steps": [
+      {
+        "id": "route",
+        "title": "Route the request",
+        "status": "completed",
+        "summary": "The catalog specialist handled this request in the application process.",
+        "source": "Aurora turn receipt",
+        "detail": "Execution path: in-process. This request did not evaluate a Cedar policy."
+      },
+      {
+        "id": "catalog",
+        "title": "Look up the catalog",
+        "status": "completed",
+        "summary": "The catalog lookup returned 5 pieces, with a maximum price of $250.",
+        "source": "Aurora PostgreSQL · search_products",
+        "durationMs": 2022,
+        "detail": "Query: ivory linen shirt. Category: Apparel. The Hadley Linen Shirt was returned in Ivory at $248."
+      },
+      {
+        "id": "answer",
+        "title": "Save the response",
+        "status": "completed",
+        "summary": "The response and its tool receipt were saved. The answer offered one closest match and one alternative.",
+        "source": "Aurora terminal receipt",
+        "detail": "The full request took 19.9 seconds. One tool receipt was recorded. No business action was submitted."
+      }
+    ],
+    "id": "storefront",
+    "label": "Storefront",
+    "title": "A catalog request",
+    "outcomeLabel": "A grounded recommendation",
+    "outcomeStatus": "complete"
+  },
+  {
+    "id": "operator",
+    "label": "Operator",
+    "title": "An Operator investigation",
+    "recordedAt": "2026-09-16T17:38:14.759502Z",
+    "request": "Summarize this client’s recorded orders and preferences.",
+    "provenance": "Recorded 16 Sep 2026 · Strands Graph in the Pellier application process.",
+    "answer": "The Operator received a saved summary of the client’s recorded context. No business action was proposed or approved.",
+    "outcomeLabel": "Read-only investigation complete",
+    "outcomeStatus": "complete",
+    "source": {
+      "turnId": "turn-61cd1067422242058bcc58ec8cfe6727",
+      "messageId": 66,
+      "checkpoint": "READ_ONLY_COMPLETE",
+      "projection": "Recorded application steps; customer and authentication payloads omitted."
+    },
+    "steps": [
+      {
+        "id": "context",
+        "title": "Recall the conversation",
+        "status": "completed",
+        "summary": "4 prior turns were returned for this conversation.",
+        "source": "AgentCore Memory",
+        "durationMs": 847
+      },
+      {
+        "id": "history",
+        "title": "Check the recorded history",
+        "status": "completed",
+        "summary": "Seven orders were returned. Service and return records were checked separately.",
+        "source": "Aurora PostgreSQL",
+        "detail": "This example returned 0 service tickets and 0 return records. These are recorded facts from this request."
+      },
+      {
+        "id": "summary",
+        "title": "Prepare the Operator’s summary",
+        "status": "completed",
+        "summary": "The case investigator and resolution planner completed their work.",
+        "source": "Strands Graph",
+        "durationMs": 8302,
+        "detail": "Checkpoint: READ_ONLY_COMPLETE. The saved response proposed no action."
+      }
+    ]
+  },
+  {
+    "id": "cedar",
+    "label": "Cedar blocked",
+    "title": "A request stopped at the policy boundary",
+    "recordedAt": "2026-09-10 17:11:18.442534+00:00",
+    "request": "Start a return with reason changed_mind.",
+    "provenance": "Recorded 10 Sep 2026 · Historical Gateway DENY. Current policies may differ.",
+    "answer": "Cedar denied this tool request. The saved denial has no linked tool-execution audit record.",
+    "outcomeLabel": "Blocked by Cedar",
+    "outcomeStatus": "blocked",
+    "source": {
+      "receiptId": 66,
+      "policyName": "workshop_identity_match_forbid",
+      "decision": "DENY",
+      "auditId": null,
+      "projection": "Persisted managed-policy receipt. Original tool arguments reduced to the action and reason."
+    },
+    "steps": [
+      {
+        "id": "request",
+        "title": "Request a governed return",
+        "status": "recorded",
+        "summary": "initiate_return was requested with reason changed_mind.",
+        "source": "Aurora governed receipt"
+      },
+      {
+        "id": "policy",
+        "title": "Evaluate the Cedar boundary",
+        "status": "denied",
+        "summary": "The managed-policy receipt records DENY.",
+        "source": "AgentCore Gateway · Cedar",
+        "detail": "Recorded policy: workshop_identity_match_forbid. This is the policy observation from 10 September, not a current configuration check."
+      },
+      {
+        "id": "execution",
+        "title": "Inspect the execution record",
+        "status": "recorded",
+        "summary": "No tool-execution audit record is linked to this denial.",
+        "source": "Aurora governed receipt",
+        "detail": "The policy decision and execution evidence are separate fields. This receipt contains decision DENY and audit_id null."
+      }
+    ]
+  }
+]

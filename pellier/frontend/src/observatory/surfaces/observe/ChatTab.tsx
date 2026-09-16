@@ -9,7 +9,8 @@
  *               3.10, 3.11, 3.12, 3.13, 3.14, 3.15
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import ResolutionTrace, { traceStatus } from '../../../shared/trace/ResolutionTrace';
 import { Link, useOutletContext } from 'react-router-dom';
 import { ContextRail, ExpCard, Eyebrow, StatusDot } from '../../components';
 import { resolveProductImageUrl } from '../../../utils/resolveProductImageUrl';
@@ -743,113 +744,6 @@ const ChatTurnDisplay: React.FC<{ turn: ChatTurn; sessionId: string }> = ({
  * Synced replay timeline (chat column + trace rail)
  * ======================================================================= */
 
-type ReplayEntry =
-  | { id: string; kind: 'user'; turn: ChatTurn }
-  | { id: string; kind: 'plan'; plan: PlanRow }
-  | { id: string; kind: 'tool'; tool: ToolCall }
-  | { id: string; kind: 'assistant_tail'; turn: ChatTurn };
-
-function buildReplayTimeline(turns: ChatTurn[]): ReplayEntry[] {
-  const out: ReplayEntry[] = [];
-  turns.forEach((turn, ti) => {
-    if (turn.role === 'user') {
-      out.push({ id: `replay-${ti}-user`, kind: 'user', turn });
-      return;
-    }
-    if (turn.plan) {
-      out.push({ id: `replay-${ti}-plan`, kind: 'plan', plan: turn.plan });
-    }
-    (turn.toolCalls ?? []).forEach((tool, j) => {
-      out.push({ id: `replay-${ti}-tool-${j}`, kind: 'tool', tool });
-    });
-    out.push({ id: `replay-${ti}-tail`, kind: 'assistant_tail', turn });
-  });
-  return out;
-}
-
-function traceVisibleCountFromReplay(
-  replayVisible: number,
-  timeline: ReplayEntry[],
-): number {
-  return timeline
-    .slice(0, replayVisible)
-    .filter((e) => e.kind === 'plan' || e.kind === 'tool').length;
-}
-
-/** One row of the staggered transcript replay */
-const ReplayEntryDisplay: React.FC<{ entry: ReplayEntry; sessionId: string }> = ({
-  entry,
-  sessionId,
-}) => {
-  switch (entry.kind) {
-    case 'user':
-      return (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginBottom: '20px',
-          }}
-        >
-          <div
-            style={{
-              maxWidth: '70%',
-              padding: '14px 18px',
-              backgroundColor: 'var(--obs-ink-1)',
-              color: 'var(--obs-cream-1)',
-              borderRadius: '14px',
-              fontFamily: 'var(--obs-sans)',
-              fontSize: '16px',
-              lineHeight: 'var(--obs-body-leading)',
-            }}
-          >
-            {entry.turn.content}
-          </div>
-        </div>
-      );
-    case 'plan':
-      return <PlanRowDisplay plan={entry.plan} sessionId={sessionId} />;
-    case 'tool':
-      return <ToolCallChip tool={entry.tool} />;
-    case 'assistant_tail': {
-      const turn = entry.turn;
-      return (
-        <div style={{ marginBottom: '24px' }}>
-          <div
-            style={{
-              fontFamily: 'var(--obs-sans)',
-              fontSize: '16px',
-              lineHeight: 'var(--obs-body-leading)',
-              color: 'var(--obs-ink-1)',
-              maxWidth: '85%',
-            }}
-          >
-            {turn.content}
-          </div>
-          {turn.products && turn.products.length > 0 && (
-            <ProductGrid products={turn.products} />
-          )}
-          {turn.confidence && <EvidenceDisplay confidence={turn.confidence} />}
-          {turn.memoryPills && turn.memoryPills.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-                marginTop: '10px',
-              }}
-            >
-              {turn.memoryPills.map((pill, i) => (
-                <MemoryPillDisplay key={i} pill={pill} />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
-};
-
 /* =======================================================================
  * Evidence-only replay guidance and empty state
  * ======================================================================= */
@@ -979,129 +873,6 @@ function collectLiveTraceSteps(
     status: panel.status,
   }));
 }
-
-const RecordedEvidenceReplay: React.FC<{
-  openingQuery: string;
-  steps: LiveTraceStep[];
-  visibleCount: number;
-  replayDone: boolean;
-}> = ({ openingQuery, steps, visibleCount, replayDone }) => {
-  const visible = steps.slice(0, visibleCount);
-  return (
-    <section
-      className="observatory-session-recorded-replay"
-      aria-label="Recorded evidence replay"
-      aria-live="polite"
-    >
-      <div className="observatory-session-recorded-request">
-        <span>Recorded request</span>
-        <p>{openingQuery}</p>
-      </div>
-      <div className="observatory-session-recorded-events">
-        {visible.map((step, index) => {
-          const isLatest = !replayDone && index === visible.length - 1;
-          return (
-            <article
-              key={step.id}
-              className={`observatory-session-recorded-event observatory-replay-enter${isLatest ? ' is-current' : ''}`}
-            >
-              <div className="observatory-session-recorded-index">
-                {String(index + 1).padStart(2, '0')}
-              </div>
-              <div>
-                <div className="observatory-session-recorded-title">
-                  <h2>{step.title}</h2>
-                  {step.durationMs != null && <span>{step.durationMs}ms</span>}
-                </div>
-                <p>{step.subtitle}</p>
-                <div className="observatory-session-recorded-meta">
-                  {step.phase && <span>{step.phase}</span>}
-                  {step.status && <span>{step.status.replace(/_/g, ' ')}</span>}
-                  {step.provenance && (
-                    <span>{step.provenance.replace(/-/g, ' ')}</span>
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-};
-
-/**
- * Routing + tool steps; ``visibleCount`` stays in lockstep with the chat
- * replay timeline (plan/tool rows only). ``emphasizeLatest`` adds the red
- * accent on the newest row while the replay timer is running.
- */
-const LiveTraceRail: React.FC<{
-  steps: LiveTraceStep[];
-  visibleCount: number;
-  emphasizeLatest: boolean;
-}> = ({ steps, visibleCount, emphasizeLatest }) => {
-  if (steps.length === 0) {
-    return (
-      <ExpCard>
-        <Eyebrow label="Live trace" />
-        <p
-          style={{
-            margin: '14px 0 0',
-            fontFamily: 'var(--obs-sans)',
-            fontSize: '14px',
-            color: 'var(--obs-ink-4)',
-            lineHeight: 1.5,
-          }}
-        >
-          No routing or tool steps in this thread yet.
-        </p>
-      </ExpCard>
-    );
-  }
-
-  const cap = Math.min(Math.max(visibleCount, 0), steps.length);
-  const visible = steps.slice(0, cap);
-
-  return (
-    <ExpCard className="observatory-session-trace-card">
-      <div className="observatory-session-card-heading">
-        <Eyebrow label="Evidence replay" />
-        <span>
-          {cap}/{steps.length} events
-        </span>
-      </div>
-      <div className="observatory-session-trace-list" aria-live="polite">
-        {visible.map((step, index) => {
-          const isLatest = emphasizeLatest && index === visible.length - 1;
-          return (
-            <div
-              key={step.id}
-              className={`observatory-session-trace-step${isLatest ? ' is-current' : ''}`}
-            >
-              <span className="observatory-session-trace-marker" aria-hidden="true" />
-              <div className="observatory-session-trace-copy">
-                <div className="observatory-session-trace-title">
-                  <strong>{step.title}</strong>
-                  {step.durationMs != null && (
-                    <span>{step.durationMs}ms</span>
-                  )}
-                </div>
-                {(step.phase || step.status || step.provenance) && (
-                  <div className="observatory-session-trace-meta">
-                    {step.phase && <span>{step.phase}</span>}
-                    {step.status && <span>{step.status.replace(/_/g, ' ')}</span>}
-                    {step.provenance && <span>{step.provenance.replace(/-/g, ' ')}</span>}
-                  </div>
-                )}
-                {step.subtitle && <p>{step.subtitle}</p>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </ExpCard>
-  );
-};
 
 type RecordedMemoryItem = {
   id: string;
@@ -1277,121 +1048,44 @@ const SkillsCard: React.FC<{ session: SessionDetail }> = ({ session }) => {
 
 const ChatTab: React.FC = () => {
   const { session, replayNonce } = useOutletContext<SessionOutletContext>();
+  return <RecordedTurn key={`${session.id}:${replayNonce}`} session={session} />;
+};
+
+function RecordedTurn({ session }: { session: SessionDetail }) {
   const recordedTurns = session.chat ?? [];
-
-  const timeline = useMemo(() => buildReplayTimeline(recordedTurns), [recordedTurns]);
-  const traceSteps = useMemo(
-    () => collectLiveTraceSteps(recordedTurns, session.telemetry ?? []),
-    [recordedTurns, session.telemetry],
-  );
-  const hasInlineTrace = recordedTurns.some(
-    (turn) => Boolean(turn.plan) || Boolean(turn.toolCalls?.length),
-  );
-  const replayLength = Math.max(timeline.length, traceSteps.length);
-  const [replayVisible, setReplayVisible] = useState(0);
+  const traceSteps = useMemo(() => collectLiveTraceSteps(recordedTurns, session.telemetry ?? []).map(step => ({
+    id: step.id, title: step.title, summary: step.subtitle,
+    status: traceStatus(step.status), durationMs: step.durationMs,
+    source: step.provenance?.replace(/-/g, ' '),
+    detail: [step.phase, step.status?.replace(/_/g, ' ')].filter(Boolean).join(' · '),
+  })), [recordedTurns, session.telemetry]);
   const [replayDone, setReplayDone] = useState(false);
-
-  useEffect(() => {
-    if (replayLength === 0) {
-      setReplayVisible(0);
-      setReplayDone(true);
-      return;
-    }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setReplayVisible(replayLength);
-      setReplayDone(true);
-      return;
-    }
-    setReplayVisible(0);
-    setReplayDone(false);
-    let count = 0;
-    const id = window.setInterval(() => {
-      count += 1;
-      setReplayVisible(Math.min(count, replayLength));
-      if (count >= replayLength) {
-        window.clearInterval(id);
-        setReplayDone(true);
-      }
-    }, 480);
-    return () => window.clearInterval(id);
-  }, [replayLength, replayNonce]);
-
-  const visibleTraceCount = hasInlineTrace
-    ? traceVisibleCountFromReplay(replayVisible, timeline)
-    : Math.ceil(
-        (replayVisible / Math.max(replayLength, 1)) * traceSteps.length,
-      );
-  const traceEmphasizeLatest = !replayDone && replayLength > 0;
-
-  const hasRecordedMessages = recordedTurns.length > 0;
-  const hasRecordedEvidence = traceSteps.length > 0;
-
   return (
     <div className="observatory-session-replay-layout">
-      {/* Left column — chat thread */}
       <div className="observatory-session-replay-main">
-        <div
-          className="observatory-session-replay-status"
-          role="status"
-          aria-live="polite"
-        >
-          <span className={replayDone ? 'is-complete' : 'is-running'} />
-          {replayDone
-            ? `${traceSteps.length} recorded evidence events ready to inspect`
-            : `Replaying event ${Math.min(replayVisible + 1, replayLength)} of ${replayLength}`}
-        </div>
-        <PersonaStrip
-          personaId={session.personaId}
-          openingQuery={session.openingQuery}
-        />
-
-        {hasRecordedMessages ? (
-          replayDone ? (
-            <div>
-              {recordedTurns.map((turn, i) => (
-                <ChatTurnDisplay key={`recorded-${i}`} turn={turn} sessionId={session.id} />
-              ))}
-            </div>
-          ) : (
-            <div>
-              {timeline.slice(0, replayVisible).map((entry) => (
-                <div key={entry.id} className="observatory-replay-enter">
-                  <ReplayEntryDisplay entry={entry} sessionId={session.id} />
-                </div>
-              ))}
-            </div>
-          )
-        ) : hasRecordedEvidence ? (
-          <RecordedEvidenceReplay
-            openingQuery={session.openingQuery}
-            steps={traceSteps}
-            visibleCount={replayDone ? traceSteps.length : visibleTraceCount}
-            replayDone={replayDone}
-          />
-        ) : (
-          <EmptyState />
-        )}
-
+        <PersonaStrip personaId={session.personaId} openingQuery={session.openingQuery} />
+        {traceSteps.length > 0 && <ResolutionTrace
+          title="Shopper turn trace" mode="recorded" autoPlay steps={traceSteps}
+          request={session.openingQuery} recordingKey={session.id}
+          recordingLabel="Recorded application events from this Aurora session."
+          onReplayComplete={() => setReplayDone(true)}
+          outcome={{ label: 'Evidence ready to inspect', status: 'unknown', body: `${traceSteps.length} recorded evidence events ready to inspect` }}
+        />}
+        {recordedTurns.length > 0 ? (
+          <details className="observatory-recorded-transcript" open={traceSteps.length === 0 || replayDone}>
+            <summary>Recorded conversation</summary>
+            {recordedTurns.map((turn, i) => <ChatTurnDisplay key={`recorded-${i}`} turn={turn} sessionId={session.id} />)}
+          </details>
+        ) : traceSteps.length === 0 ? <EmptyState /> : null}
         <ReplayOnlyNotice />
       </div>
-
       <ContextRail>
-        {/* The rail animates the trace while a replay runs. Once it is done the
-            recorded request in the centre lists the same tool rows, so the rail
-            copy would be a duplicate and gives way to memory, agents and skills. */}
-        {!replayDone ? (
-          <LiveTraceRail
-            steps={traceSteps}
-            visibleCount={visibleTraceCount}
-            emphasizeLatest={traceEmphasizeLatest}
-          />
-        ) : null}
         <MemoryCard session={session} />
         <AgentsCard session={session} />
         <SkillsCard session={session} />
       </ContextRail>
     </div>
   );
-};
+}
 
 export default ChatTab;

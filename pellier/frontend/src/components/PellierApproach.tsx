@@ -9,7 +9,7 @@
  * Copy lives in `PELLIER_APPROACH`. Do not add a pillar without a route that
  * substantiates it.
  */
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'motion/react'
 import { Compass, FileCheck2, Hand, Heart } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'

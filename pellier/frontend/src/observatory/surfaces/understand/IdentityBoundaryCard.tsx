@@ -215,10 +215,10 @@ function AttemptRow({ attempt }: { attempt: IdentityAttempt }) {
 }
 
 const IdentityBoundaryCard: React.FC = () => {
-  const { data, loading, error } = useObservatoryData<IdentityBoundaryPayload>({
+  const { data, loading, error, errorStatus } = useObservatoryData<IdentityBoundaryPayload>({
     key: 'identity-boundary',
   });
-  const accessRestricted = Boolean(error?.includes(' 401 ') || error?.includes(' 403 '));
+  const accessRestricted = errorStatus === 401 || errorStatus === 403;
 
   return (
     <ExpCard>
@@ -244,12 +244,12 @@ const IdentityBoundaryCard: React.FC = () => {
           margin: '0 0 16px',
         }}
       >
-        Choosing Marco, Anna, or Theo in Pellier selects a workshop scenario and
-        authenticates nobody. The rows below come from Cognito access tokens the
-        Gateway validated, so each one names a real principal. Cedar compares that
-        principal against the <code>customer_id</code> in the request; Aurora
-        Row-Level Security refuses the same crossing on its own. The CLI and SQL
-        remain the proof — this is the reconstruction.
+        Choosing Marco, Anna, or Theo selects a workshop scenario and authenticates
+        nobody. Live proof records bind a validated Cognito principal to the requested
+        <code> customer_id</code>, a policy decision, and keyed execution evidence.
+        Lab 4 tests the ownership policy and Aurora Row-Level Security independently.
+        Read each record’s provenance and measured result; this view does not
+        establish that an untested control is active.
       </p>
 
       {loading && (
@@ -259,7 +259,7 @@ const IdentityBoundaryCard: React.FC = () => {
       {error && (
         <p style={{ ...mono, color: 'var(--obs-terracotta)' }}>
           {accessRestricted
-            ? 'This cross-principal reconstruction is available in Pellier Operator.'
+            ? 'Sign in with an Operator account to inspect this cross-principal reconstruction. Shopper sign-in alone does not grant access.'
             : error}
         </p>
       )}

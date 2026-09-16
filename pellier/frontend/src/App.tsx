@@ -75,7 +75,7 @@ const Routing = lazy(() => import('./observatory/surfaces/understand/Routing'))
 const MemoryDashboard = lazy(
   () => import('./observatory/surfaces/understand/MemoryDashboard'),
 )
-const WritePath = lazy(() => import('./observatory/surfaces/understand/WritePath'))
+const Govern = lazy(() => import('./observatory/surfaces/govern/Govern'))
 const Performance = lazy(() => import('./observatory/surfaces/measure/Performance'))
 const Evaluations = lazy(() => import('./observatory/surfaces/measure/Evaluations'))
 const ProductionPatterns = lazy(
@@ -85,6 +85,7 @@ const ObservatorySettings = lazy(() => import('./observatory/surfaces/Settings')
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'))
 const StoryboardPage = lazy(() => import('./pages/StoryboardPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
+const HowPellierWorksPage = lazy(() => import('./pages/HowPellierWorksPage'))
 
 // ---------------------------------------------------------------------------
 // AuthGate — Cognito-aware auth wrapper. Gates the Pellier Observatory surface when
@@ -301,7 +302,9 @@ export function AppRoutes() {
           <Route path="skills" element={<Skills />} />
           <Route path="routing" element={<Routing />} />
           <Route path="memory" element={<MemoryDashboard />} />
-          <Route path="write-path" element={<WritePath />} />
+          <Route path="govern" element={<Govern />} />
+          <Route path="govern/:section" element={<Govern />} />
+          <Route path="write-path" element={<Navigate to="/observatory/govern/policies" replace />} />
           <Route path="performance" element={<Performance />} />
           <Route path="evaluations" element={<Evaluations />} />
           <Route path="production-patterns" element={<ProductionPatterns />} />
@@ -327,6 +330,7 @@ export function AppRoutes() {
             localStorage evidence that retired /inspector and /discover. */}
         <Route path="/storyboard" element={<StoryboardPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/how-pellier-works" element={<HowPellierWorksPage />} />
         <Route path="/inspector" element={<Navigate to="/" replace />} />
         <Route path="/discover" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

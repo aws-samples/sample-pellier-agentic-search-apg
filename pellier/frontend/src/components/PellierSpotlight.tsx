@@ -13,7 +13,7 @@
  * does not mention promotions or notifications, which are not implemented.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { X } from 'lucide-react'
 import { imageSrc } from '../utils/assetPath'
 import { LAB_EXERCISES } from '../observatory/labs/labCatalog'

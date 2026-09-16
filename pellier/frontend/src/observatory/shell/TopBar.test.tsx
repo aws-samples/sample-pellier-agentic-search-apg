@@ -24,6 +24,9 @@ describe('Pellier Observatory TopBar', () => {
     ['/observatory/labs/grounded-inventory', 'Lab Collection'],
     ['/observatory/workbench', 'Workbench'],
     ['/observatory/proof-board', 'Workbench'],
+    ['/observatory/govern', 'Govern'],
+    ['/observatory/govern/policies', 'Govern'],
+    ['/observatory/write-path', 'Govern'],
   ])('marks exactly one destination current at %s', (route, label) => {
     render(<MemoryRouter initialEntries={[route]}><TopBar /></MemoryRouter>)
     const current = screen.getAllByRole('link', { current: 'page' })

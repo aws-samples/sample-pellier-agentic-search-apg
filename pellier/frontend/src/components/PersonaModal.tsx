@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowRight, Check, X } from 'lucide-react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
 import { SCENARIO } from '../copy'

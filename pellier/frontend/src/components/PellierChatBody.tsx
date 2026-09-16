@@ -10,7 +10,7 @@
  * All styling comes from storefront-chat.css (the ``ec-*`` classes).
  */
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import {
   Brain,

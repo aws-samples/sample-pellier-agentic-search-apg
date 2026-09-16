@@ -23,7 +23,7 @@ import {
   FileCheck2,
   ShieldCheck,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { imageSrc } from '../utils/assetPath'

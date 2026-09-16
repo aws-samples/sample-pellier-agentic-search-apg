@@ -14,7 +14,7 @@
  * verification claims; those belong on a live evidence-bearing surface.
  */
 import { useState, useEffect } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { EDITORIAL_FLOOR_NOTES } from '../copy'
 import { cssVar as c } from '../design/cssVars'
 

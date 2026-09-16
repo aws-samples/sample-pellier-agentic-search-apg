@@ -515,7 +515,7 @@ describe('submitting a turn', () => {
       'operator-concierge-investigation',
     )
     expect(investigation.textContent).toContain('How this answer was built')
-    expect(investigation.textContent).not.toContain('Conversation context checked')
+    expect(investigation.textContent).toContain('Conversation context checked')
     fireEvent.click(
       screen.getByRole('button', { name: /How this answer was built/i }),
     )

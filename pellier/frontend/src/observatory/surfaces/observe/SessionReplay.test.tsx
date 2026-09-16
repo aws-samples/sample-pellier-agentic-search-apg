@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import {
   MemoryRouter,
   Outlet,
@@ -122,7 +122,7 @@ describe('recorded session replay', () => {
       </MemoryRouter>,
     );
 
-    act(() => vi.runAllTimers());
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
 
     expect(screen.getAllByText('get_return_policy').length).toBeGreaterThan(0);
     expect(screen.getAllByText('initiate_return').length).toBeGreaterThan(0);
@@ -160,7 +160,7 @@ describe('recorded session replay', () => {
     const back = screen.getByRole('link', { name: 'Sessions & traces' });
     expect(back).toHaveAttribute('href', '/observatory/sessions');
 
-    act(() => vi.runAllTimers());
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
     expect(
       screen.getByText('2 recorded evidence events ready to inspect'),
     ).toBeInTheDocument();
@@ -169,6 +169,7 @@ describe('recorded session replay', () => {
       screen.getByRole('button', { name: 'Replay evidence' }),
     );
 
-    expect(screen.getByText('Replaying event 1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('0 / 2')).toBeInTheDocument();
+    expect(screen.queryByText('initiate_return')).not.toBeInTheDocument();
   });
 });

@@ -18,6 +18,7 @@
  *                      waterfall on top of it would undo that.
  */
 
+import { upsertInvestigationStep } from './traceSteps'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -225,12 +226,7 @@ export function useOperatorConcierge(
           transportKey(),
           (step) => {
             if (!isCurrentClient()) return false
-            setLiveSteps((prev) => {
-              // A `running` step is replaced by its completed form rather than
-              // duplicated, so the list reflects state instead of history.
-              const next = prev.filter((s) => s.kind !== step.kind)
-              return [...next, step]
-            })
+            setLiveSteps((prev) => upsertInvestigationStep(prev, step))
           },
           (answer) => {
             if (!isCurrentClient()) return false

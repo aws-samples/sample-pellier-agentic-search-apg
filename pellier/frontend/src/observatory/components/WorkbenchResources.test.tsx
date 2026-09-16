@@ -28,8 +28,8 @@ describe('WorkbenchResources', () => {
     expect(screen.getByText(/AgentCore CLI/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Sessions & traces/ }))
       .toHaveAttribute('href', '/observatory/sessions');
-    expect(screen.getByRole('link', { name: /Gateway & policy/ }))
-      .toHaveAttribute('href', '/observatory/write-path');
+    expect(screen.getByRole('link', { name: /Govern: identity, access & policy/ }))
+      .toHaveAttribute('href', '/observatory/govern');
   });
 
   it('keeps all nine destinations and their source details available', async () => {

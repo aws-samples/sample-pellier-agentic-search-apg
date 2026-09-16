@@ -9,7 +9,7 @@
   flex-direction: column;
 }
 
-/* ---- Cover image — real product photo from the catalog ---- */
+/* ---- Cover image: existing editorial photography ---- */
 .sf-cover {
   position: relative;
   height: 200px;
@@ -17,7 +17,7 @@
   flex-shrink: 0;
   margin: 16px 16px 0;
   border-radius: var(--pellier-image-radius-md);
-  background: linear-gradient(180deg, #ead4b1 0%, #d4b48a 100%);
+  background: var(--cream-2, #eee8df);
 }
 .sf-cover-img {
   position: absolute;
@@ -34,8 +34,8 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(31, 20, 16, 0.05) 0%,
-    rgba(31, 20, 16, 0.35) 100%
+    transparent 55%,
+    rgba(31, 20, 16, 0.42) 100%
   );
   z-index: 1;
 }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PellierWelcome, { composeWelcomeGreeting } from './PellierWelcome'
 
@@ -54,5 +54,25 @@ describe('composeWelcomeGreeting', () => {
     expect(required.querySelectorAll('button')).toHaveLength(3)
     expect(screen.getByRole('region', { name: 'Explore further' })
       .querySelectorAll('button')).toHaveLength(2)
+  })
+
+  it('keeps editorial photography available while the live edit is loading', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    render(<PellierWelcome onSend={onSend} persona={{ id: 'marco', display_name: 'Marco' } as never} />)
+    expect(screen.getByRole('img').getAttribute('src')).toMatch(/\/products\/hero-marco(?:-\d+)?\.(?:png|webp)$/)
+    expect(screen.getByText(/Opening your edit and a few ideas/)).toBeInTheDocument()
+    expect(screen.queryByText(/pieces in your current edit/)).not.toBeInTheDocument()
+  })
+
+  it('keeps a failed catalog read explicit without turning the photograph into a recommendation', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 503 }))))
+    render(<PellierWelcome onSend={onSend} />)
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.getByText(/Your edit is taking a little longer/)).toBeInTheDocument()
+    expect(screen.getByRole('img')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Ideas to begin your conversation' })).not.toBeInTheDocument()
+    fireEvent.error(screen.getByRole('img'))
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 })

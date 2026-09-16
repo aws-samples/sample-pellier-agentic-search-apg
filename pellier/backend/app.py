@@ -51,6 +51,7 @@ from services.index_performance import get_index_performance_service
 from services.vector_search import VectorSearch
 from services.cache import init_cache, get_cache
 from routes.password_auth import router as password_auth_router
+from routes.governance import router as governance_router
 from routes import (
     agent_router,
     observatory_router,
@@ -433,6 +434,7 @@ app.include_router(workshop_router)
 # routing, memory, performance, evaluations, observatory dashboard.
 # Additive to workshop_router (same /api/observatory/ prefix, no path conflicts).
 app.include_router(observatory_router)
+app.include_router(governance_router)
 
 # Pellier ambient chrome — briefing (concierge empty state) + pulse
 # (4 live metrics above the hero). Both endpoints are contract-typed

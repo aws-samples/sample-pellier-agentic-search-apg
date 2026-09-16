@@ -52,9 +52,9 @@ const RESOURCE_QUESTIONS: readonly ResourceQuestion[] = [
       'Separate verified identity and policy authorization from tool execution.',
     links: [
       {
-        label: 'Gateway & policy',
-        description: 'Cognito claims, Cedar decisions, and fail-closed writes.',
-        path: '/observatory/write-path',
+        label: 'Govern: identity, access & policy',
+        description: 'Authentication, delegated agent access, Cedar policies, and durable outcomes.',
+        path: '/observatory/govern',
 
         source: 'governed_receipts (Cedar), tool_audit',
       },

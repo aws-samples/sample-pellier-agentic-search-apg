@@ -14,7 +14,7 @@
  * human on the other end. The workshop teaches this as the
  * escape hatch every agent needs but most demos skip.
  */
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'motion/react'
 import { ArrowUpRight, User } from 'lucide-react'
 
 import type { StylistHandoff } from '../hooks/useAgentChat'

@@ -17,7 +17,8 @@ import type {
   ConciergeInvestigationStep,
   ConciergeOrchestration,
 } from '../../services/operatorConcierge'
-import ConciergeStepList from './ConciergeStepList'
+import ResolutionTrace, { type TraceOutcome } from '../../shared/trace/ResolutionTrace'
+import { operatorTraceSteps } from './traceSteps'
 
 interface Props {
   steps: ConciergeInvestigationStep[]
@@ -41,10 +42,21 @@ const ConciergeInvestigation: React.FC<Props> = ({
 
   const measured = durationMs ?? steps.reduce((sum, s) => sum + (s.durationMs ?? 0), 0)
   const sources = new Set(steps.map((step) => step.source)).size
+  const checkpoint = orchestration?.checkpoint?.state
+  const outcome: TraceOutcome = checkpoint === 'READ_ONLY_COMPLETE' && orchestration?.status === 'complete'
+    ? { label: 'Read-only investigation complete', status: 'complete', body: 'No business action was proposed by this turn.' }
+    : checkpoint === 'WAITING_FOR_HUMAN'
+      ? { label: 'Waiting for human review', status: 'waiting', body: 'Review the proposed action separately. Finishing the investigation does not approve it.' }
+      : { label: 'Recorded investigation', status: 'unknown', body: 'Each row preserves its reported status. Action outcomes appear in their own receipts.' }
 
   return (
     <section className="operator-concierge-investigation"
              data-testid="operator-concierge-investigation">
+      <ResolutionTrace title="Investigation trace" mode="recorded" compact
+        steps={operatorTraceSteps(steps)}
+        recordingLabel="Saved application events from this answer."
+        outcome={outcome}
+      />
       <button
         type="button"
         className="operator-concierge-investigation-head"
@@ -99,7 +111,6 @@ const ConciergeInvestigation: React.FC<Props> = ({
               ) : null}
             </div>
           ) : null}
-          <ConciergeStepList steps={steps} />
         </>
       ) : null}
     </section>

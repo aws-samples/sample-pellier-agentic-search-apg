@@ -17,6 +17,13 @@ import '../styles/base.css';
  * with several Observatory tabs open could not tell them apart.
  */
 const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
+  ['/observatory/govern/authentication', 'Authentication & JWTs'],
+  ['/observatory/govern/permissions', 'Roles & permissions'],
+  ['/observatory/govern/agent-access', 'Agent Access'],
+  ['/observatory/govern/policies', 'Cedar policies'],
+  ['/observatory/govern/actions', 'Governed actions'],
+  ['/observatory/govern/verification', 'Evidence & verification'],
+  ['/observatory/govern', 'Govern'],
   ['/observatory/proof-board', 'Proof Board'],
   ['/observatory/audit-proof', 'Audit proof'],
   ['/observatory/operator-lineage', 'Operator lineage'],
