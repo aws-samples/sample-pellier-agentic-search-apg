@@ -357,6 +357,28 @@ describe('submitting a turn', () => {
     })
   })
 
+  it('yields the orientation copy once there is a turn to read', async () => {
+    // Steps only, no completion frame: the turn stays in flight, which is the
+    // state this is about.
+    wire({ stream: STREAM.slice(0, 2), messages: [] })
+    renderRecord()
+
+    // Before there is anything to read, the pane explains itself.
+    const suggestion = await screen.findByTestId(
+      'operator-concierge-suggestion-draft_client_note',
+    )
+    expect(screen.getByText(/Grounded in this client/)).toBeInTheDocument()
+
+    fireEvent.click(suggestion)
+    const pending = await screen.findByTestId('operator-concierge-pending')
+    await waitFor(() => expect(pending.textContent).toContain('Request saved'))
+
+    // While that turn is on screen the explanation stops holding reading space
+    // in a pane the operator is already using.
+    expect(screen.queryByText(/Grounded in this client/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Strands Graph path/)).not.toBeInTheDocument()
+  })
+
   it('starts the guided Jessica case as a fresh streamed investigation', async () => {
     const fetchMock = wire({ stream: STREAM, messages: ANSWERED })
     renderRecord(

@@ -216,9 +216,12 @@ const OperatorConcierge: React.FC<Props> = ({
           * the Concierge is while an operator was trying to read what it
           * found. The evidence block below could then show two lines at a
           * time. They earn their place on arrival and yield once there is a
-          * conversation to read.
+          * conversation to read. An in-flight turn counts: the request is on
+          * screen and its steps are arriving, so the orientation copy was
+          * holding 110px of a 175px reading area to explain a pane the
+          * operator is already using.
           */}
-        {hasConversation ? null : (
+        {hasConversation || inFlight ? null : (
           <>
             <p className="operator-concierge-sub">
               Grounded in this client&rsquo;s orders, preferences, inventory, returns,

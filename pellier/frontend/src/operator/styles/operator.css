@@ -3341,9 +3341,30 @@
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
 }
 
+/*
+ * One header band, not three stacked ones.
+ *
+ * Measured at 1512x950 the pane was 794px tall and gave the conversation
+ * 175px of it: the heading block took 168 and the service row another 65,
+ * so 233px of permanent chrome sat above 175px of the thing an operator
+ * came to read, and everything else was scrolled. The title and the client
+ * it concerns are one line of context, so they share a row, and the service
+ * attribution sits under them as a single line rather than a stacked card.
+ */
 .operator-concierge-head {
   position: relative;
   flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
+/* The orientation copy only appears before there is a conversation; it takes
+   a row of its own rather than competing with the title for one. */
+.operator-concierge-sub,
+.operator-concierge-path {
+  flex: 1 0 100%;
 }
 
 .operator-concierge-title {
@@ -3395,10 +3416,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
-  margin: 16px 0 0;
-  padding-top: 14px;
-  border-top: 1px solid var(--op-rule);
+  gap: 4px 10px;
+  /* Sits beside the title. The rule that used to separate them is now the one
+     under the whole band, so the header carries a single divider, not two. */
+  margin: 0;
+  min-width: 0;
 }
 
 .operator-concierge-scope-name {
@@ -3426,12 +3448,31 @@
 
 /* -------------------------------------------------- capability */
 
+/*
+ * One status row, not a stacked block.
+ *
+ * Eyebrow, sentence and the detail disclosure each took their own line with
+ * 34px of rule and margin above them, so the pane spent 154px saying "Read
+ * only" while the conversation it describes had 245. The facts are unchanged
+ * and the disclosure still opens the per-tool list underneath; they simply
+ * share a line. The rule above is dropped because the service row already
+ * carries one directly above this.
+ */
 .operator-concierge-state {
   position: relative;
   flex: 0 0 auto;
-  margin: 20px 0 0;
-  padding: 14px 0 0;
-  border-top: 1px solid var(--op-rule);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.operator-concierge-state > .operator-concierge-state-eyebrow {
+  display: inline;
+  flex: 0 0 auto;
 }
 
 /* A deliberately closed rail is an operating state, not a fault. Olive for
@@ -3446,7 +3487,9 @@
 }
 
 .operator-concierge-state-copy {
-  margin: 6px 0 0;
+  margin: 0;
+  flex: 1 1 240px;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.6;
   color: var(--op-muted);
@@ -3454,7 +3497,8 @@
 }
 
 .operator-concierge-state-toggle {
-  margin: 10px 0 0;
+  margin: 0;
+  flex: 0 0 auto;
   padding: 0;
   border: 0;
   background: none;
@@ -3472,7 +3516,9 @@
 }
 
 .operator-concierge-capabilities {
-  margin: 12px 0 0;
+  /* The disclosure's own row, full width beneath the status line. */
+  flex: 1 0 100%;
+  margin: 10px 0 0;
   display: grid;
   gap: 0;
 }
@@ -5233,7 +5279,13 @@
 .operator-service-source > span { display: grid; gap: 2px; }
 .operator-service-source strong { font-weight: 600; }
 .operator-service-source > span > span { color: var(--op-ink-2); }
-.operator-concierge-service { padding: 12px 22px; border-bottom: 1px solid var(--op-rule); }
+/* The card already pads itself; the old 22px inset indented this row past the
+   title it belongs under. One line, at the title's left edge. */
+.operator-concierge-service { padding: 9px 0 11px; border-bottom: 1px solid var(--op-rule); }
+.operator-concierge-service .operator-service-source { gap: 8px; font-size: 12px; }
+.operator-concierge-service .operator-service-source img { flex-basis: 18px; width: 18px; height: 18px; }
+.operator-concierge-service .operator-service-source > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
+.operator-concierge-service .operator-service-source > span > span::before { content: '· '; color: var(--op-faint); }
 .operator-record-context .operator-source-details { margin-block: 6px 0; }
 .operator-record-jumps { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: -8px; }
 .operator-record-jumps a,
@@ -5267,7 +5319,7 @@
   .operator-root [id] { scroll-margin-top: 128px; }
   .operator-record-jumps { justify-content: space-between; border-bottom: 1px solid var(--op-rule); }
   .operator-record-jumps a { flex: 1; justify-content: center; }
-  .operator-concierge-service, .operator-concierge-recovery { padding-inline: 16px; }
+  .operator-concierge-recovery { padding-inline: 16px; }
   .operator-service-sources { flex-direction: column; gap: 16px; }
   .operator-review-overview { align-items: flex-start; }
 }
