@@ -90,6 +90,12 @@ describe('EmptyState', () => {
       'Panels appear as the system processes each step.',
     )
     expect(body).toHaveStyle({ fontFamily: 'var(--obs-sans)' })
+
+    // The Operator desk passes a `<details>` disclosure as the reason. Inside a
+    // `<p>` the browser closes the paragraph early, so the disclosure escapes
+    // the styled wrapper and React warns on every render.
+    expect(reason.tagName).not.toBe('P')
+
     expect(body).not.toHaveAttribute('data-empty-reason')
   })
 

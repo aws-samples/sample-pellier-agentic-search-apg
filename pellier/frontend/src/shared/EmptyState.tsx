@@ -121,7 +121,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       ) : null}
 
       {reason ? (
-        <p
+        /*
+         * A div, not a p. `reason` is a ReactNode and the Operator desk passes
+         * a `<details><summary>Technical details</summary>` disclosure through
+         * it. `<details>` is flow content, so inside a `<p>` the browser closes
+         * the paragraph early: the disclosure lands outside it, loses every
+         * style declared here, and React warns about the nesting on each render.
+         */
+        <div
           data-empty-reason="true"
           style={{
             margin: 0,
@@ -135,7 +142,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           }}
         >
           {reason}
-        </p>
+        </div>
       ) : null}
 
       {action ? <div style={{ marginTop: '4px' }}>{action}</div> : null}
