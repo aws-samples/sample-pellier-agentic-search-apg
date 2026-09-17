@@ -15,7 +15,7 @@ export default function LabHandoff({ exercise }: { exercise: LabExercise }) {
       <details>
         <summary>Evidence to keep for Lab {Number(exercise.number)}</summary>
         <p>{exercise.evidenceAssertion}</p>
-        <Link to={`/observatory/proof-board#${exercise.proofCardIds[0]}`}>Inspect Lab {Number(exercise.number)} evidence</Link>
+        <Link to={exercise.evidenceHref ?? `/observatory/proof-board#${exercise.proofCardIds[0]}`}>Inspect Lab {Number(exercise.number)} evidence</Link>
       </details>
     </div>
     <div className="lab-handoff-next">

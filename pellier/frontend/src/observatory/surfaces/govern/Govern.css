@@ -37,6 +37,13 @@
 .govern-page-heading { margin-bottom: 24px; }
 .govern-page-heading h1 { font-family: var(--obs-display); font-size: clamp(32px, 3.6vw, 45px); line-height: 1.14; font-weight: 400; letter-spacing: -.015em; margin: 12px 0 0; scroll-margin-top: 24px; }
 .govern-page-heading h1:focus { outline: none; }
+.govern-title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+/* Cedar's .cedar-green background on cedarpolicy.com. */
+.govern-cedar-link { display: inline-flex; flex: 0 0 auto; flex-direction: column; gap: 5px; padding: 8px 12px; border-radius: 6px; background: #284334; color: #fff; text-decoration: none; }
+.govern-cedar-link img { width: 84px; height: 20px; }
+.govern-content .govern-cedar-link span { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #fff; font-size: 11px; line-height: 1.4; }
+.govern-cedar-link:hover { background: #20362a; }
+.govern-cedar-link:focus-visible { outline: 2px solid #284334; outline-offset: 4px; }
 .govern-lead { font-size: 18px; line-height: 1.65; color: var(--obs-ink-2); margin: 0 0 30px; max-width: 65ch; }
 .govern-content p { margin-top: 0; margin-bottom: 18px; }
 .govern-content code { font-family: var(--obs-mono); font-size: .87em; overflow-wrap: anywhere; }

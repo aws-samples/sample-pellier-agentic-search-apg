@@ -65,7 +65,7 @@ export default function LabsCatalog() {
                   <Link className="labs-catalog-card-open" to={to} aria-label={`Open Lab ${Number(exercise.number)} in Workbench`}>
                     Open Lab {Number(exercise.number)} in Workbench
                   </Link>
-                  <Link className="labs-catalog-workbench-link" to={`/observatory/proof-board#${exercise.proofCardIds[0]}`}>Inspect lab evidence</Link>
+                  <Link className="labs-catalog-workbench-link" to={exercise.evidenceHref ?? `/observatory/proof-board#${exercise.proofCardIds[0]}`}>Inspect lab evidence</Link>
                 </div>
               </article>
             );
@@ -75,7 +75,7 @@ export default function LabsCatalog() {
       <section className="labs-catalog-close" aria-labelledby="labs-close-heading">
         <div>
           <h2 id="labs-close-heading" className="font-display">Finish with a defensible architecture</h2>
-          <p>Use your SQL results, retrieval receipt, managed run, and policy matrix to explain what each layer proves. Return to Workshop Studio for the summary and cleanup instructions.</p>
+          <p>Bring together the warehouse result, retrieval receipt, managed run, and five-outcome proof. Explain which layer owns each fact, which control acted, and what remains unknown. Return to Workshop Studio for the summary and cleanup instructions.</p>
         </div>
         <Link to="/observatory/proof-board">Review the workshop evidence</Link>
       </section>

@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import BoundaryOutcomes, { type BoundaryPayload } from './BoundaryOutcomes';
 
 let state: { data: BoundaryPayload | null; loading: boolean; error: string | null; errorStatus?: number };
@@ -8,7 +9,7 @@ beforeEach(() => { state = { data: null, loading: false, error: null }; });
 
 describe('Lab 4 boundary outcomes', () => {
   it('teaches all five outcomes without manufacturing observed evidence', () => {
-    render(<BoundaryOutcomes />);
+    render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getAllByText('Not yet proved')).toHaveLength(5);
     expect(screen.getByText(/No five-outcome run is recorded/)).toBeInTheDocument();
     expect(screen.queryByText('All five outcomes and controls held.')).not.toBeInTheDocument();
@@ -16,14 +17,15 @@ describe('Lab 4 boundary outcomes', () => {
   it('distinguishes unavailable evidence from a run with no rows', () => {
     state.error = 'unavailable';
     state.errorStatus = 503;
-    render(<BoundaryOutcomes />);
+    render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getByRole('alert')).toHaveTextContent('No outcome can be established');
     expect(screen.queryByText(/No five-outcome run is recorded/)).not.toBeInTheDocument();
   });
   it('keeps the operator boundary explicit', () => {
     state.error = 'forbidden'; state.errorStatus = 403;
-    render(<BoundaryOutcomes />);
+    render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getByRole('alert')).toHaveTextContent('Operator account');
+    expect(screen.getByRole('link', { name: 'Sign in to inspect the five outcomes' })).toHaveAttribute('href', '/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification');
   });
   it('shows a suppressed response beside execution and a committed effect', () => {
     state.data = { source: 'CLI observations + keyed Aurora snapshots', runs: [{
@@ -36,7 +38,7 @@ describe('Lab 4 boundary outcomes', () => {
         database: { executionRows: 1, writeRows: 1, committedRows: 1, domainRows: 1, ledgerRows: 0 },
       }],
     }] };
-    render(<BoundaryOutcomes />);
+    render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     const row = screen.getByRole('row', { name: /suppressed-output/ });
     expect(within(row).getAllByText('Yes')).toHaveLength(2);
     expect(within(row).getByText('Suppressed')).toBeInTheDocument();
@@ -49,7 +51,7 @@ describe('Lab 4 boundary outcomes', () => {
         principal: 'operator', observedAt: '', outcome: 'inconclusive', control: 'Not established', toolExecuted: null,
         dataChanged: null, authentication: 'VERIFIED', authorization: 'UNKNOWN', output: 'UNKNOWN', database: {}, contradiction: null }],
     }] };
-    render(<BoundaryOutcomes />);
+    render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getAllByText('Unknown')).toHaveLength(2);
     expect(screen.getByText('? / ? / ? / ? / ?')).toBeInTheDocument();
   });

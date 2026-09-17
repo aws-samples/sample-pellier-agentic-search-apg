@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { readLabProgress, resumeHref } from '../../shared/labProgress';
 import { LAB_EXERCISES } from '../labs/labCatalog';
 import { GOVERNED_SOURCE, REFERENCES, type ReferenceId } from './referenceCatalog';
+import { REFERENCE_DIAGNOSTICS } from './referenceDiagnostics';
 import './ReferenceBrief.css';
 
 /** Navigation state remembers a place, never a lab result or an identity. */
@@ -21,6 +22,19 @@ export default function ReferenceBrief({ id }: { id: ReferenceId }) {
       <p><strong>Inspect</strong>{reference.inspect}</p>
       <p><strong>Evidence boundary</strong>{reference.limit}</p>
     </div>
+    <details className="reference-diagnostics">
+      <summary>Reason through failure cases</summary>
+      <p className="reference-diagnostics-intro">Use these questions to interpret your lab records. They describe possible cases, not results observed in this deployment.</p>
+      <ol className="reference-diagnostics-list">
+        {REFERENCE_DIAGNOSTICS[id].map(item => <li key={item.observation}>
+          <h3>{item.observation}</h3>
+          <dl>
+            <div><dt>Mechanism</dt><dd>{item.mechanism}</dd></div>
+            <div><dt>Evidence to inspect</dt><dd>{item.evidence}</dd></div>
+          </dl>
+        </li>)}
+      </ol>
+    </details>
     <footer>
       <Link to={saved ? resumeHref(saved) : `/observatory/workbench?lab=${lab.id}`}>
         Return to Lab {Number(lab.number)} in Workbench

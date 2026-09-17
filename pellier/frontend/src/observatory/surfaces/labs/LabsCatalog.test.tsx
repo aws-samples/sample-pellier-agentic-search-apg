@@ -98,11 +98,12 @@ describe('LabsCatalog', () => {
       imageWidth: 720,
       imageHeight: 900,
     });
-    expect(governed?.objective).toContain('Marco and Jessica');
-    expect(governed?.participantTodo).toContain('four-case identity matrix');
+    expect(governed?.objective).toContain('five outcomes');
+    expect(governed?.participantTodo).toContain('combined boundary proof');
     expect(governed?.participantTodo).toContain('RLS read and write');
     expect(governed?.participantTodo).toContain('one Operator investigation');
-    expect(governed?.command).toContain('scripts/prove_identity_boundary.py');
+    expect(governed?.command).toContain('scripts/prove_governance_outcomes.py');
+    expect(governed?.evidenceHref).toBe('/observatory/govern/verification');
     expect(governed?.evidenceAssertion).toContain('human checkpoint');
     expect(governed?.primaryAction).toEqual({
       label: 'Open Jessica in Operator',

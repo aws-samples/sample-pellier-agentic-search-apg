@@ -34,8 +34,17 @@ test.describe('Govern connected reference', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
       await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
       await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+      if (slug === 'agent-access') {
+        const operator = page.getByRole('row').filter({ hasText: 'Operator investigation and action' });
+        await expect(operator).toContainText('separate IAM-authenticated AgentCore Runtime');
+        await expect(operator).toContainText('Operator’s token through Gateway');
+        await expect(operator).toContainText('A managed failure does not fall back to local execution.');
+      }
     }
-    await expect(page.getByText(/Sign in with an Operator account/)).toBeVisible();
+    const boundaryEvidence = page.getByRole('region', { name: 'Which control acted?' });
+    await expect(boundaryEvidence.getByRole('alert')).toContainText('Sign in with an Operator account');
+    await expect(boundaryEvidence.getByRole('link', { name: 'Sign in to inspect the five outcomes' }))
+      .toHaveAttribute('href', '/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification');
     const authenticationLink = page.getByRole('navigation', { name: 'Govern topics' }).getByRole('link', { name: 'Authentication & JWTs', exact: true });
     await authenticationLink.focus();
     await page.keyboard.press('Enter');
@@ -134,6 +143,9 @@ test.describe('Govern real Cognito sign-in', () => {
     await expect(page.getByText('Validated access token', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('region', { name: 'Current caller observation' }).getByText('Not a member', { exact: true })).toBeVisible();
     await page.getByRole('navigation', { name: 'Govern topics' }).getByRole('link', { name: 'Evidence & verification' }).click();
+    await expect(page.getByRole('region', { name: 'Which control acted?' }).getByRole('alert'))
+      .toContainText('Sign in with an Operator account');
+    await page.getByText('Inspect the return and RLS subset', { exact: true }).click();
     await expect(page.getByText(/Shopper sign-in alone does not grant access/)).toBeVisible();
   });
 });

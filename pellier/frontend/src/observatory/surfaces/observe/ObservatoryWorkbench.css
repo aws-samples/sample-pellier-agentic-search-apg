@@ -2648,9 +2648,9 @@
   display: none;
 }
 
-/* A guided turn whose predecessor has not run is not an error state: it is a
-   turn that has not arrived yet. Quiet, legible, and clearly not clickable. */
-.labs-turn[data-waiting='true'] {
+/* Keep the next request readable so its constraint can be understood before
+   execution. The disabled button and waiting label retain the sequence. */
+.labs-turn[data-waiting='true'] :is(.labs-turn-media, .labs-turn-action) {
   opacity: 0.62;
 }
 

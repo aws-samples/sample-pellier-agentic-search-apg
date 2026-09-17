@@ -8,6 +8,7 @@ import type { IdentityObservation, PolicySnapshot } from './governanceTypes';
 import TraceScenarioLoop from '../../../shared/trace/TraceScenarioLoop';
 import './Govern.css';
 import ReferenceBrief from '../../components/ReferenceBrief';
+import { imageSrc } from '../../../utils/assetPath';
 
 const BASE = '/observatory/govern';
 const CHAPTERS = [
@@ -16,7 +17,7 @@ const CHAPTERS = [
   { id: 'agent-access', label: 'Agent Access', group: 'Identity & access', description: 'Follow delegated identity through the agent and its tools.' },
   { id: 'policies', label: 'Cedar policies', group: 'Enforcement & evidence', description: 'Read deployed policy definitions and observed enforcement modes.' },
   { id: 'actions', label: 'Governed actions', group: 'Enforcement & evidence', description: 'Connect human approval, transaction integrity, and safe recovery.' },
-  { id: 'verification', label: 'Evidence & verification', group: 'Enforcement & evidence', description: 'Prove denial, business refusal, commit, and replay independently.' },
+  { id: 'verification', label: 'Evidence & verification', group: 'Enforcement & evidence', description: 'Separate authentication, authorization, execution, commit, and output delivery.' },
 ] as const;
 type Chapter = typeof CHAPTERS[number]['id'];
 
@@ -117,13 +118,14 @@ function Overview() {
         ['Authenticate', 'Cognito establishes the caller.'],
         ['Authorize', 'Gateway evaluates the tool request with Cedar.'],
         ['Validate & commit', 'Aurora checks live state and records the transaction.'],
-        ['Verify', 'Receipts connect the decision, execution, and outcome.'],
+        ['Inspect output & verify', 'Output checks may withhold a response. Reconcile receipts and the durable effect.'],
       ].map(([title, text], i) => <li key={title}><span className="govern-step">{i + 1}</span><strong>{title}</strong><p>{text}</p></li>)}
     </ol>
     </div>
     <TraceScenarioLoop />
     </div>
-    <Notice><strong>Three separate answers.</strong> A valid identity does not guarantee permission. A permitted request does not guarantee a business operation succeeds. A model response does not prove a committed write.</Notice>
+    <Notice><strong>Keep the boundaries separate.</strong> A valid identity does not guarantee permission. A permitted request does not guarantee a commit. Withholding the response does not undo a write. Inspect all five outcomes in Lab 4’s verification view.</Notice>
+    <EvidenceLink to={`${BASE}/verification`}>Inspect the five Lab 4 outcomes</EvidenceLink>
     <Section title="Explore the boundaries">
       <div className="govern-chapters">{CHAPTERS.map((chapter, i) => <Link key={chapter.id} to={`${BASE}/${chapter.id}`}>
         <span className="govern-chapter-number">0{i + 1}</span><div><h3>{chapter.label}</h3><p>{chapter.description}</p></div><ArrowRight size={20} aria-hidden="true" />
@@ -201,7 +203,7 @@ function AgentAccess() {
       <Table label="Agent execution paths" headings={['Path', 'Where it runs', 'What to verify']} rows={[
         ['In-process shopper agent', 'Strands in the Pellier backend.', 'Do not attribute a Gateway decision to a call that stayed in process.'],
         ['Managed shopper agent', 'AgentCore Runtime, using Gateway MCP tools.', 'The exact turn’s Runtime fingerprint, JWT passthrough, tool target, and policy evidence.'],
-        ['Operator investigation and action', 'The investigation graph runs in the Pellier backend. A confirmed governed action uses the managed Gateway boundary.', 'Operator identity, recorded human decision, and the linked execution receipt.'],
+        ['Operator investigation and action', 'In managed mode, the backend invokes a separate IAM-authenticated AgentCore Runtime for the investigation. A confirmed governed action carries the Operator’s token through Gateway.', 'Staff access, the investigation’s Runtime fingerprint and ordered graph nodes, then the separate human decision and action receipt. A managed failure does not fall back to local execution.'],
       ]} />
     </Section>
     <Section title="Discovery, permission, and service credentials">
@@ -384,7 +386,13 @@ export default function Govern() {
     </aside>
     <article className="govern-content">
       <header className="govern-page-heading"><span className="govern-eyebrow">Pellier Observatory / Govern</span>
-        <h1 className="font-display" ref={heading} tabIndex={-1}>{section && !chapter ? 'Topic not found' : chapter?.label || 'Governed agent access'}</h1>
+        <div className="govern-title-row">
+          <h1 className="font-display" ref={heading} tabIndex={-1}>{section && !chapter ? 'Topic not found' : chapter?.label || 'Governed agent access'}</h1>
+          {chapter?.id === 'policies' && <a className="govern-cedar-link" href="https://cedarpolicy.com/en" target="_blank" rel="noopener noreferrer" aria-label="Cedar policy language (opens in a new tab)">
+            <img src={imageSrc('/assets/icons/cedar/cedar-wordmark.svg')} alt="Cedar" width={84} height={20} />
+            <span>Policy language <ArrowRight size={12} aria-hidden="true" /></span>
+          </a>}
+        </div>
       </header>
       {!chapter && <ReferenceBrief id="govern" />}
       {section && !chapter ? <EvidenceLink to={BASE}>Return to Govern</EvidenceLink> : <Page />}

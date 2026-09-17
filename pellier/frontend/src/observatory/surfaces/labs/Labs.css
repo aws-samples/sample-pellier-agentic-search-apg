@@ -35,6 +35,8 @@
    the surrounding padding and the atmosphere image so the band bleeds. */
 .labs-catalog-hero {
   display: grid;
+  width: min(1380px, 100%);
+  margin-inline: auto;
   padding: clamp(28px, 3vw, 44px) clamp(16px, 4vw, 56px) 0;
   background: var(--obs-canvas);
 }

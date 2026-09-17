@@ -30,6 +30,7 @@ export interface LabExercise {
   imageWidth: number;
   imageHeight: number;
   proofCardIds: string[];
+  evidenceHref?: string;
   objective: string;
   participantTodo: string;
   command: string;
@@ -206,6 +207,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     imageWidth: 720,
     imageHeight: 900,
     proofCardIds: ['runtime-gateway-policy'],
+    evidenceHref: '/observatory/govern/verification',
     objective:
       'Prove five outcomes: authentication failure, Cedar denial, business refusal, commit, and output suppression. Verify replay and PostgreSQL RLS, then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
     participantTodo:
@@ -236,8 +238,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
         to: '/observatory/govern/policies',
       },
       {
-        label: 'Inspect policy checkpoint',
-        to: '/observatory/proof-board#runtime-gateway-policy',
+        label: 'Inspect the five outcomes',
+        to: '/observatory/govern/verification',
       },
     ],
   },

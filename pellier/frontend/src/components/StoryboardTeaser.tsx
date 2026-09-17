@@ -38,7 +38,8 @@ const GOLDEN_WASH =
 
 // --- Public component ----------------------------------------------------
 
-export default function StoryboardTeaser() {
+export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 1 | 2 }) {
+  const Heading = headingLevel === 1 ? 'h1' : 'h2'
   return (
     <section
       data-testid="storyboard-teaser"
@@ -64,7 +65,7 @@ export default function StoryboardTeaser() {
           >
             Pellier Stories
           </p>
-          <h2
+          <Heading
             id="storyboard-teaser-heading"
             style={{
               fontFamily: FRAUNCES_STACK,
@@ -77,7 +78,7 @@ export default function StoryboardTeaser() {
             }}
           >
             The Edit, in three volumes.
-          </h2>
+          </Heading>
         </header>
 
         <div

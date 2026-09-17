@@ -24,7 +24,8 @@ export default function ProductionPatterns() {
         <Link to="/observatory/architecture/mcp">Trace the managed Gateway boundary</Link>
       </ExpCard>
       <ExpCard><h2>Prove the effect independently of the response</h2>
-        <p>Lab 4 separates policy denial, database refusal, a committed action, and replay. Retain the caller, run identifier, request identifier, action hash, receipt, and before/after database state.</p>
+        <p>Lab 4 separates authentication failure, Cedar denial, transaction rejection after authorization, a committed operation, and suppressed output. For each outcome, establish which control acted, whether the tool executed, and whether data changed. Retain the caller, run identifier, request identifier, action hash, receipt, and before/after database state.</p>
+        <p>Withholding a response does not undo a committed operation. Reconcile the audit receipt and database state before retrying; use the same request key to inspect the recorded result without repeating the write.</p>
         <p>The required sequential replay check proves the observed replay case. Concurrent duplicates, lost responses, transaction rollback, and renewed requests after a policy change require additional fault tests before a production claim.</p>
         <p>Operator Concierge stores a human review checkpoint in PostgreSQL between requests. A managed shopper return follows its own authorization and business checks; it does not inherit that human approval step.</p>
         <Link to="/observatory/workbench?lab=fail-closed-policy">Open Lab 4: decisions and committed effects</Link>

@@ -12,4 +12,14 @@
 .reference-brief li { margin-bottom: 10px; overflow-wrap: anywhere; font-size: 12px; }
 .reference-brief code { font-family: var(--obs-mono); }
 .reference-brief :is(a, summary):focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 4px; }
+.reference-diagnostics { margin-top: 16px; border-top: 1px solid var(--obs-rule-1); }
+.reference-diagnostics > summary { padding-block: 12px; }
+.reference-brief .reference-diagnostics-intro { max-width: 72ch; margin: 4px 0 20px; color: var(--obs-ink-3); font: 400 13px/1.6 var(--obs-sans); }
+.reference-diagnostics-list { display: grid; gap: 24px; margin: 0 0 16px; padding: 0; list-style: none; }
+.reference-brief .reference-diagnostics-list > li { margin: 0; }
+.reference-diagnostics h3 { margin: 0 0 10px; color: var(--obs-ink-1); font: 600 16px/1.4 var(--obs-sans); }
+.reference-diagnostics dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 0; }
+.reference-diagnostics dt { margin-bottom: 4px; color: var(--obs-ink-1); font: 600 13px/1.5 var(--obs-sans); }
+.reference-diagnostics dd { max-width: 72ch; margin: 0; color: var(--obs-ink-2); font: 400 14px/1.65 var(--obs-sans); }
+@media (max-width: 700px) { .reference-diagnostics dl { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 @media (max-width: 700px) { .reference-brief-reading { grid-template-columns: minmax(0, 1fr); gap: 16px; } }

@@ -158,9 +158,10 @@
   position: relative;
   display: grid;
   width: 100%;
-  grid-template-columns: 74px minmax(0, 1fr) 44px;
-  align-items: center;
-  gap: 14px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: 8px 12px;
   padding: 12px;
   border: 1px solid transparent;
   border-radius: var(--pl-r-lg);
@@ -203,7 +204,9 @@
 
 .labs-turn-media {
   display: grid;
-  width: 74px;
+  grid-column: 1;
+  grid-row: 1;
+  width: 48px;
   aspect-ratio: 74 / 92;
   place-items: center;
   overflow: hidden;
@@ -252,18 +255,20 @@
 
 .labs-turn-copy {
   display: grid;
+  grid-column: 2;
+  grid-row: 1 / 3;
   min-width: 0;
   gap: 0;
 }
 
-/* Turn ordinal from a counter, so no markup carries it. */
+/* The complete request and its constraint must remain readable before a run. */
 .labs-turn-stage {
   color: var(--pl-accent-2);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  line-height: 1.45;
 }
 
 .labs-turn-static {
@@ -327,31 +332,30 @@
 }
 
 .labs-turn-copy strong {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 8px 0 6px;
+  display: block;
+  margin: 6px 0;
   color: var(--pl-ink);
   font-family: var(--pl-sans);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .labs-turn-copy small {
-  overflow: hidden;
   color: var(--pl-muted);
-  font-family: var(--pl-mono);
+  font-family: var(--pl-sans);
   font-size: 12px;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .labs-turn-action {
   display: inline-flex;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -500,23 +504,7 @@
 
 @media (min-width: 1081px) and (max-width: 1320px) {
   .observatory-root .labs-turn {
-    grid-template-columns: 62px minmax(0, 1fr) 32px;
-    gap: 11px;
     padding: 10px;
-  }
-
-  .labs-turn-media {
-    width: 62px;
-  }
-
-  .labs-turn-copy strong {
-    margin: 6px 0 5px;
-    font-size: 15px;
-  }
-
-  .labs-turn-action {
-    width: 32px;
-    height: 32px;
   }
 
   .labs-lens-stages > li {
@@ -551,15 +539,6 @@
 @media (max-width: 560px) {
   .labs-turns-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .observatory-root .labs-turn {
-    grid-template-columns: 66px minmax(0, 1fr) 34px;
-    gap: 12px;
-  }
-
-  .labs-turn-media {
-    width: 66px;
   }
 
   .labs-lens-stages {

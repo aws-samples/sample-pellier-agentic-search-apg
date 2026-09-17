@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import './BoundaryOutcomes.css';
 
@@ -47,6 +48,7 @@ export default function BoundaryOutcomes() {
       <p>{errorStatus === 401 || errorStatus === 403
         ? 'Sign in with an Operator account to inspect cross-principal evidence.'
         : 'Boundary evidence is unavailable. No outcome can be established from this read.'}</p>
+      {(errorStatus === 401 || errorStatus === 403) && <Link className="govern-evidence-link" to="/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification">Sign in to inspect the five outcomes</Link>}
     </div>}
     {!loading && !error && !run && <p role="status">No five-outcome run is recorded. Complete the Workshop Studio Lab 4 proof to populate this view. Deployment configuration alone does not prove enforcement.</p>}
     {run && <>

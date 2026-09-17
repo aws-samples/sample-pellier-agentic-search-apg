@@ -58,7 +58,7 @@ export default function StoryboardPage() {
     >
       <Header current="stories" onNavigate={handleNavigate} />
       <main>
-        <StoryboardTeaser />
+        <StoryboardTeaser headingLevel={1} />
         <FieldNotes />
       </main>
       <Footer />

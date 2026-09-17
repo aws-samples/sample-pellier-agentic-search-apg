@@ -93,6 +93,7 @@ jobs:
           npx playwright test \
             e2e/workshop-smoke.spec.ts \
             e2e/persona-modal.spec.ts \
+            e2e/govern-reference.spec.ts \
             e2e/cognito \
             e2e/operator-client-preview.spec.ts
 
