@@ -3265,14 +3265,30 @@
      crumb's own margin for 52px of air above the fold. */
   gap: 16px 34px;
   align-items: start;
+  /* Named rows so the Concierge can span them. `grid-row: 1 / -1` against an
+     implicit grid resolves to `1 / 1`: the pane lands in row one, its fixed
+     height makes that row 794px tall, and the record is pushed a screen down.
+     Three explicit rows make -1 mean the end of the grid, as intended. */
+  grid-template-rows: auto auto 1fr;
 }
 
-/* The breadcrumb spans both columns so the record band and the Concierge card
-   begin on the same line. The grid's row gap sets the space beneath it, so its
-   own margin would double-count. */
+/* The breadcrumb and the record's section links head the record column; the
+   Concierge is a full-height rail beside all of it.
+
+   They used to span both columns so the two panes began on the same line, but
+   that put 125px above a pane whose height is `100vh - clearance`, so at rest
+   it ran 109px past the bottom of the window and the composer sat off screen
+   until the operator scrolled far enough to pin it. The pane now starts at the
+   top of the grid and fits the window without scrolling first. */
 .operator-workbench > .operator-crumb {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 1;
   margin-bottom: 0;
+}
+
+.operator-workbench > .operator-record-jumps {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .operator-workbench-record,
@@ -3280,7 +3296,14 @@
   min-width: 0;
 }
 
+.operator-workbench-record {
+  grid-column: 1;
+  grid-row: 3;
+}
+
 .operator-workbench-concierge {
+  grid-column: 2;
+  grid-row: 1 / -1;
   /* Sticky at desktop so the composer stays reachable while the long record
      scrolls past it. A fixed height, not just a max: without it the flex column
      collapsed to its content and the composer floated mid-column with dead space
@@ -3559,7 +3582,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  margin-top: 20px;
+  margin-top: 14px;
   padding-right: 4px;
   /* The pane is viewport-height, so content longer than it gets cut at the bottom
      edge — at 1180x920 that landed mid-glyph on a suggestion row and read as a
@@ -4481,8 +4504,8 @@
 
 .operator-concierge-composer {
   flex: 0 0 auto;
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--op-rule);
 }
 
@@ -4583,7 +4606,17 @@
 @media (max-width: 1080px) {
   .operator-workbench {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
     gap: 30px;
+  }
+
+  /* One column: everything back to document order. */
+  .operator-workbench > .operator-crumb,
+  .operator-workbench > .operator-record-jumps,
+  .operator-workbench-record,
+  .operator-workbench-concierge {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .operator-workbench-concierge {

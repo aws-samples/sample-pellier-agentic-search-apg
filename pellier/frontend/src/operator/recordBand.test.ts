@@ -72,12 +72,27 @@ describe('piece name register', () => {
 })
 
 describe('two-pane workbench', () => {
-  it('spans the breadcrumb so both panes open on the same line', () => {
+  it('heads the record column with the crumb and runs the Concierge full height', () => {
+    // The crumb and the record's section links used to span both columns so the
+    // panes opened on the same line. That put 125px above a pane whose height is
+    // `100vh - clearance`, so at rest it ran 109px past the bottom of the window
+    // and the composer sat off screen until the operator scrolled far enough to
+    // pin it. Measured at 1512x950 before and after.
     const crumb = ruleBody('.operator-workbench > .operator-crumb')
-    expect(crumb).toContain('grid-column: 1 / -1')
+    expect(crumb).toContain('grid-column: 1')
+    expect(crumb).not.toContain('grid-column: 1 / -1')
     // The grid's row gap owns the space beneath it. Leaving the crumb's own
     // margin in place stacked 18px on top of the row gap.
     expect(crumb).toContain('margin-bottom: 0')
+
+    const pane = ruleBody('.operator-workbench-concierge {', 1)
+    expect(pane).toContain('grid-row: 1 / -1')
+
+    // `grid-row: 1 / -1` against an implicit grid resolves to `1 / 1`: the pane
+    // takes row one, its own fixed height makes that row 794px tall, and the
+    // record is pushed a screen down. The explicit rows are what make -1 mean
+    // the end of the grid, so they are the load-bearing half of this fix.
+    expect(ruleBody('.operator-workbench {')).toContain('grid-template-rows')
   })
 
   it('separates the row gap from the measure between the panes', () => {
