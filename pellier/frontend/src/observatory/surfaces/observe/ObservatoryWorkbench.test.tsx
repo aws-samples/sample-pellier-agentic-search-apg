@@ -113,29 +113,31 @@ describe('Pellier Observatory live agent workbench', () => {
         /Select Marco in the Storefront scenario switcher before the three-turn journey begins/i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText('Live trace surface')).toBeInTheDocument();
+    // The run state is reported once, by the ledger panel that runs.
+    expect(screen.queryByText('Live trace surface')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Ready')).toHaveLength(1);
     expect(
       screen.getByRole('link', {
         name: 'Lab 1: Build a PostgreSQL-Grounded Agent',
       }),
     ).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByRole('region', { name: 'Lab collection' })).toBeVisible();
-    const labRail = screen.getByRole('region', { name: 'Lab collection' });
+    /*
+     * A switcher, not a second lab gallery. The portraits introduce the four
+     * scenarios on the Lab Collection; repeating them here opened the Workbench
+     * with a copy of that tab. Four named options, the selected one marked, and
+     * still links so deep links and Back/Forward are unchanged.
+     */
+    const labSwitch = screen.getByRole('navigation', { name: 'Select a lab' });
+    expect(labSwitch).toBeVisible();
+    expect(labSwitch.querySelectorAll('[data-lab-portrait]')).toHaveLength(0);
     expect(
-      Array.from(
-        labRail.querySelectorAll<HTMLElement>('[data-lab-portrait]'),
-      ).map(
-        (portrait) => portrait.getAttribute('aria-hidden'),
+      Array.from(labSwitch.querySelectorAll('a')).map((option) =>
+        option.textContent?.trim(),
       ),
-    ).toEqual(['true', 'true', 'true', 'true']);
-    expect(labRail).toHaveTextContent('Marco: Lab 1');
-    expect(labRail).toHaveTextContent('PostgreSQL-grounded agent');
-    expect(labRail).toHaveTextContent('Anna: Lab 2');
-    expect(labRail).toHaveTextContent('PostgreSQL retrieval');
-    expect(labRail).toHaveTextContent('Theo: Lab 3');
-    expect(labRail).toHaveTextContent('AgentCore managed path');
-    expect(labRail).toHaveTextContent('Jessica: Lab 4');
-    expect(labRail).toHaveTextContent('Cedar and governed actions');
+    ).toEqual(['1Marco', '2Anna', '3Theo', '4Jessica']);
+    expect(
+      labSwitch.querySelectorAll('a[data-selected="true"]'),
+    ).toHaveLength(1);
     expect(
       tracePanel(document.body).querySelector('canvas.labs-hero-field'),
     ).not.toBeInTheDocument();
@@ -301,16 +303,29 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(
       screen.queryByRole('heading', { name: 'Execution summary' }),
     ).not.toBeInTheDocument();
+    // The seven rows are evidence categories, not a seven-step checklist a turn
+    // walks in order, and the note now says so.
     expect(
       within(tracePanel(container)).getByText(
-        'Select a guided request to populate the live trace.',
+        /seven categories of evidence this turn can emit/i,
       ),
     ).toBeInTheDocument();
     expect(
       tracePanel(container).querySelector('.observatory-ledger-scroll'),
     ).toHaveAttribute('data-idle', 'true');
+    /*
+     * Seven categories, each stating its own state. They used to carry the
+     * populated row's node glyph and a pulsing bar, which read as a row of
+     * disabled controls that were still loading.
+     */
     expect(
-      container.querySelectorAll('.observatory-trace-node'),
+      container.querySelectorAll('[data-skeleton="true"] .observatory-trace-step'),
+    ).toHaveLength(7);
+    expect(
+      container.querySelectorAll('[data-skeleton="true"] .observatory-trace-node'),
+    ).toHaveLength(0);
+    expect(
+      within(tracePanel(container)).getAllByText('Not run'),
     ).toHaveLength(7);
 
     // Every metric reads "-" rather than 0, so an untouched page claims nothing.

@@ -38,7 +38,6 @@ import {
   ToggleGroupItem,
 } from '../../../components/ui';
 import ResponsiveImage from '../../../components/ResponsiveImage';
-import { imageSrc } from '../../../utils/assetPath';
 import MarkdownMessage from '../../../components/MarkdownMessage';
 import {
   sendChatMessageStreaming,
@@ -591,6 +590,33 @@ function metricValue(status: RunStatus, value: number | string): string {
  * left status encoded by colour alone. Pending is a dashed ring, recorded is a
  * dot, succeeded a check, denied a shield, failed a cross, in flight a loader.
  */
+/**
+ * The ledger's own status, said plainly.
+ *
+ * `succeeded` is the only value that means evidence was recorded. `not_reached`
+ * and `not_enforced` mean the run never got to that category; `failed` and
+ * `unavailable` mean the lookup itself did not come back. Those are different
+ * findings and the raw enum ("not reached", "unavailable") did not say so.
+ *
+ * A category that emitted no event at all is simply absent from the ledger, and
+ * the payload carries no expected-set for the turn, so nothing here can claim
+ * that an absence is normal or that evidence went missing. That distinction
+ * needs the backend to declare what it expected.
+ */
+function evidenceStateLabel(status: string): string {
+  if (status === 'succeeded') return 'Evidence available';
+  if (status === 'denied') return 'Denied';
+  if (status === 'not_reached' || status === 'not_enforced') {
+    return 'Not applicable to this run';
+  }
+  if (status === 'failed' || status === 'unavailable') {
+    return 'Evidence lookup failed';
+  }
+  if (status === 'running') return 'Running';
+  if (status === 'planned') return 'Planned';
+  return status.replace(/_/g, ' ');
+}
+
 function glyphForStatus(status: string) {
   if (status === 'succeeded' || status === 'completed' || status === 'complete') {
     return <Check size={14} strokeWidth={2.2} aria-hidden="true" />;
@@ -1586,6 +1612,26 @@ export default function ObservatoryWorkbench() {
     }
   };
 
+  /*
+   * Resume only when it leads somewhere other than what is already on screen.
+   * It carries a lab AND a step, so it is a real shortcut when either differs;
+   * pointing at the lab you are looking at, it was a button that did nothing.
+   */
+  const shownPanelId = FOCUS_PANELS[focusStep]?.id;
+  const resumeElsewhere =
+    resumePoint !== null &&
+    (resumePoint.lab !== selectedLab.id || resumePoint.step !== shownPanelId);
+
+  /*
+   * Sufficiency and claims are a result, not a promise. Before the first turn
+   * the column says one thing; once a turn has settled they appear even when
+   * they are empty, because "the run produced no linked claim" is the finding.
+   */
+  const turnSettled =
+    runStatus === 'complete' ||
+    runStatus === 'error' ||
+    (runStatus === 'idle' && steps.length > 0);
+
   return (
     <div className="observatory-workbench labs-index">
       <div className="labs-index-inner">
@@ -1594,26 +1640,18 @@ export default function ObservatoryWorkbench() {
             <h1 className="observatory-page-title font-display">
               Labs & Live Workbench
             </h1>
-            <p className="observatory-workbench-purpose">
-              <strong>Lab {Number(selectedLab.number)}:</strong>{' '}
-              {selectedLab.objective}
-            </p>
           </div>
           <div className="observatory-workbench-intro-aside">
-            <span className="observatory-workbench-presence">
-              <span aria-hidden="true" />
-              Live trace surface
-            </span>
-            {resumePoint ? (
+            {resumeElsewhere ? (
               <Link
                 className="observatory-resume"
-                to={resumeHref(resumePoint)}
-                aria-label={`Resume ${resumeLabel(resumePoint)}`}
+                to={resumeHref(resumePoint as LabProgress)}
+                aria-label={`Resume ${resumeLabel(resumePoint as LabProgress)}`}
               >
                 <RotateCcw size={14} aria-hidden="true" />
                 <span>
                   Resume
-                  <small>{resumeLabel(resumePoint)}</small>
+                  <small>{resumeLabel(resumePoint as LabProgress)}</small>
                 </span>
               </Link>
             ) : null}
@@ -1653,47 +1691,32 @@ export default function ObservatoryWorkbench() {
             ))}
           </nav>
         ) : null}
-        <section
-          className="observatory-lab-rail"
-          aria-label="Lab collection"
-        >
+        {/* The portraits introduce the scenarios on the Lab Collection. Here the
+            same four destinations are a switcher, so the Workbench does not
+            open with a second copy of that gallery. Still links: deep links,
+            Back/Forward and keyboard focus behave exactly as before. */}
+        <nav className="observatory-lab-switch" aria-label="Select a lab">
           {LAB_EXERCISES.map((exercise) => {
             const selected = exercise.id === selectedLab.id;
-            const portrait = imageSrc(
-              exercise.id === 'fail-closed-policy'
-                ? '/products/client-jessica-portrait-160.webp'
-                : exercise.image,
-            );
             return (
               <Link
                 key={exercise.id}
                 to={`/observatory/workbench?lab=${exercise.id}`}
-                className="observatory-lab-rail-card"
-                data-lab={exercise.number}
+                className="observatory-lab-switch-option"
                 data-selected={selected ? 'true' : undefined}
                 aria-current={selected ? 'step' : undefined}
                 aria-label={`Lab ${Number(exercise.number)}: ${exercise.title}`}
               >
-                <span
-                  className="observatory-lab-rail-portrait"
-                  style={
-                    portrait
-                      ? { backgroundImage: `url("${portrait}")` }
-                      : undefined
-                  }
-                  aria-hidden="true"
-                  data-lab-portrait
-                />
-                <span>
-                  <small>
-                    {exercise.anchorName}: Lab {Number(exercise.number)}
-                  </small>
-                  <strong>{exercise.shortTitle}</strong>
-                </span>
+                <span aria-hidden="true">{Number(exercise.number)}</span>
+                {exercise.anchorName}
               </Link>
             );
           })}
-        </section>
+        </nav>
+        <p className="observatory-workbench-purpose">
+          <strong>Lab {Number(selectedLab.number)}:</strong>{' '}
+          {selectedLab.objective}
+        </p>
         <div
           className="observatory-workbench-grid"
           data-view={view}
@@ -2122,7 +2145,7 @@ export default function ObservatoryWorkbench() {
                       <div className="observatory-trace-content">
                         <div className="observatory-trace-kicker">
                           <span>{step.eventKind ?? step.kind}</span>
-                          <em>{step.status.replace('_', ' ')}</em>
+                          <em>{evidenceStateLabel(step.status)}</em>
                         </div>
                         <h3 aria-label={step.title}>{step.title}</h3>
                         <p>{step.detail}</p>
@@ -2267,35 +2290,25 @@ export default function ObservatoryWorkbench() {
                   <p className="observatory-trace-skeleton-note">
                     {runStatus === 'running'
                       ? 'Waiting for the first emitted event.'
-                      : 'Select a guided request to populate the live trace.'}
+                      : 'The seven categories of evidence this turn can emit. A turn does not visit them in order, and does not have to reach all of them.'}
                   </p>
                   <ol
                     className="observatory-trace-list"
                     data-skeleton="true"
                     aria-hidden="true"
                   >
-                    {TRACE_SKELETON.map((kind, index) => (
+                    {TRACE_SKELETON.map((kind) => (
                       <li
-                        key={`${kind}-${index}`}
+                        key={kind}
                         className="observatory-trace-step"
                         data-kind={kind}
-                        data-status="pending"
-                        data-pending={runStatus === 'running' ? 'true' : undefined}
+                        data-status="not-run"
                       >
-                        <span className="observatory-trace-index">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <span
-                          className="observatory-trace-node"
-                          aria-hidden="true"
-                        >
-                          {glyphForStatus(runStatus === 'running' ? 'pending' : 'planned')}
-                        </span>
                         <div className="observatory-trace-content">
                           <div className="observatory-trace-kicker">
                             <span>{kind}</span>
+                            <em>{runStatus === 'running' ? 'Waiting' : 'Not run'}</em>
                           </div>
-                          <span className="observatory-trace-ghost" />
                         </div>
                       </li>
                     ))}
@@ -2420,7 +2433,7 @@ export default function ObservatoryWorkbench() {
                   <p>
                     {runStatus === 'running'
                       ? 'The answer will appear here as the agent streams.'
-                      : 'Choose a shopper turn to receive the live answer.'}
+                      : 'Choose a shopper turn to inspect its answer and evidence.'}
                   </p>
                 )}
               </section>
@@ -2490,6 +2503,7 @@ export default function ObservatoryWorkbench() {
                 </p>
               )}
 
+              {turnSettled ? (
               <section
                 className="observatory-evidence-sufficiency"
                 aria-labelledby="evidence-sufficiency-title"
@@ -2513,12 +2527,15 @@ export default function ObservatoryWorkbench() {
                   </ul>
                 ) : (
                   <p className="observatory-results-placeholder">
-                    Sufficiency is calculated only after the durable turn
-                    receipt can be projected under the verified principal.
+                    No sufficiency check was projected for this turn. The
+                    durable receipt must be readable under the verified
+                    principal before one can be.
                   </p>
                 )}
               </section>
+              ) : null}
 
+              {turnSettled ? (
               <section
                 className="observatory-verified-claims"
                 aria-labelledby="verified-claims-title"
@@ -2553,7 +2570,7 @@ export default function ObservatoryWorkbench() {
                   </ul>
                 ) : (
                   <p className="observatory-results-placeholder">
-                    Claims appear only after supporting run evidence is emitted.
+                    This turn linked no claim to an emitted event.
                   </p>
                 )}
                 {linkedClaimCount ? (
@@ -2564,6 +2581,7 @@ export default function ObservatoryWorkbench() {
                   </p>
                 ) : null}
               </section>
+              ) : null}
 
               {rationale.length ? (
                 <section

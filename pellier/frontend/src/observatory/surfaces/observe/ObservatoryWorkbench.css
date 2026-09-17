@@ -142,7 +142,7 @@
 
 .observatory-root .observatory-workbench-purpose {
   max-width: 80ch;
-  margin: 0;
+  margin: 0 2px 16px;
   color: var(--pl-ink-soft);
   font-size: 14px;
   line-height: 1.45;
@@ -153,145 +153,64 @@
   font-weight: 600;
 }
 
-.observatory-workbench-presence {
+.observatory-lab-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 2px 14px;
+}
+
+.observatory-lab-switch-option {
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  color: color-mix(in srgb, var(--pl-olive) 84%, var(--pl-ink));
-  font-size: var(--text-label);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.observatory-workbench-presence > span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--pl-olive);
-}
-
-.observatory-lab-rail {
-  display: grid;
-  margin: 0 2px 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.observatory-lab-rail-card {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  min-height: 86px;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  overflow: hidden;
+  min-height: 40px;
+  padding: 8px 15px;
   border: 1px solid var(--pl-line);
-  border-radius: 14px;
-  background: var(--pl-paper);
-  color: var(--pl-ink) !important;
-  isolation: isolate;
-  padding: 10px;
-  box-shadow: 0 1px 2px rgb(60 40 10 / 0.04);
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-.observatory-lab-rail-card::after {
-  content: none;
-}
-
-.observatory-lab-rail-portrait {
-  display: block;
-  width: 64px;
-  min-width: 64px;
-  max-width: 64px;
-  height: 64px;
-  min-height: 64px;
-  max-height: 64px;
-  aspect-ratio: 1;
-  /*
-   * These source portraits are intentionally tall. Raise the crop so each
-   * person sits lower in the square and their full head remains visible.
-   */
-  background-color: var(--pl-paper-muted);
-  background-position: center 18%;
-  background-repeat: no-repeat;
-  background-size: cover;
-  border: 1px solid var(--pl-line);
-  border-radius: var(--pellier-image-radius-sm);
-  transition: transform 180ms ease;
-}
-
-.observatory-lab-rail-card > span {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-  padding: 0;
-}
-
-.observatory-lab-rail-card small {
-  color: var(--pl-accent);
-  font-family: var(--pl-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.observatory-lab-rail-card strong {
-  display: -webkit-box;
-  overflow: hidden;
-  color: inherit;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pl-ink-soft);
   font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1.3;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color 160ms ease-out,
+    background-color 160ms ease-out,
+    color 160ms ease-out;
 }
 
-.observatory-lab-rail-card:hover .observatory-lab-rail-portrait {
-  transform: scale(1.035);
+.observatory-lab-switch-option > span {
+  font-family: var(--pl-mono);
+  font-size: 12px;
+  color: var(--pl-ink-faint);
 }
 
-.observatory-lab-rail-card:hover {
-  border-color: color-mix(in srgb, var(--pl-accent) 28%, var(--pl-line));
-  box-shadow: 0 10px 26px rgb(60 40 10 / 0.08);
-  transform: translateY(-1px);
+.observatory-lab-switch-option:hover {
+  border-color: var(--pl-accent);
+  color: var(--pl-ink);
 }
 
-.observatory-lab-rail-card[data-selected='true'] {
-  border-color: color-mix(in srgb, var(--pl-accent) 56%, var(--pl-line));
-  background: color-mix(in srgb, var(--obs-red-soft) 64%, var(--pl-paper));
-  box-shadow: 0 10px 28px rgb(72 26 34 / 0.1);
-}
-
-.observatory-trace-action {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 30px;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  color: var(--pl-accent) !important;
-  font-size: var(--text-label);
+.observatory-lab-switch-option[data-selected='true'] {
+  border-color: var(--pl-accent);
+  background: var(--pl-accent);
+  color: var(--pl-paper);
   font-weight: 600;
 }
 
-/* Three columns, reference proportions: a narrow request rail, the ledger as
-   the widest column, and a right column wide enough to carry the answer quote,
-   the verified claims, and a product grid. */
-/* 23 / 49 / 28 at desktop: the ledger is the widest column because it is the
-   thing an attendee reads, the request rail only has to hold five prompts,
-   and the answer needs room for a product card plus its claims. */
+.observatory-lab-switch-option[data-selected='true'] > span {
+  color: color-mix(in srgb, var(--pl-paper) 76%, transparent);
+}
+
+@media (max-width: 720px) {
+  .observatory-lab-switch-option {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding-inline: 10px;
+  }
+}
+
 .observatory-workbench-grid {
   display: grid;
   height: calc(100dvh - 248px);
@@ -1318,32 +1237,57 @@
   line-height: 1.45;
 }
 
-/* Skeleton rows carry no summary, badge, or metadata, so at full step padding
-   they rendered as six tall empty pills. Compacting them keeps the shape of the
-   ledger legible without pretending there is content in it. */
+/*
+ * The seven evidence categories, before any of them has run.
+ *
+ * They had the populated row's numbered index, node glyph and a pulsing grey
+ * bar, which read three wrong things at once: a fixed seven-step sequence, a
+ * row of disabled controls, and something still loading. A turn emits a
+ * variable number of events across these categories and need not reach them
+ * all, so the numbering is gone and each row states its own state instead.
+ */
 .observatory-trace-list[data-skeleton='true'] {
-  opacity: 0.52;
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.observatory-trace-list[data-skeleton='true'] .observatory-trace-index {
-  padding-top: 20px;
+.observatory-trace-list[data-skeleton='true'] .observatory-trace-step {
+  display: block;
+  padding: 7px 2px;
+  border-top: 1px solid var(--pl-line-soft, var(--pl-line));
+}
+
+.observatory-trace-list[data-skeleton='true']
+  .observatory-trace-step:first-child {
+  border-top: 0;
 }
 
 .observatory-trace-list[data-skeleton='true'] .observatory-trace-content {
-  padding: 10px 0 4px 14px;
+  padding: 0;
 }
 
-.observatory-trace-ghost {
-  display: block;
-  width: min(100%, 230px);
-  height: 7px;
-  margin-top: 7px;
-  border-radius: 4px;
-  background: var(--pl-paper-muted);
+.observatory-trace-list[data-skeleton='true'] .observatory-trace-kicker {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.observatory-trace-step[data-pending='true'] .observatory-trace-ghost {
-  animation: observatory-pulse 1200ms ease-in-out infinite;
+.observatory-trace-list[data-skeleton='true'] .observatory-trace-kicker em {
+  /* Plain text. The populated rows badge a real outcome; a pill here read as a
+     disabled control on every category at once. */
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--pl-ink-faint);
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: var(--pl-label-track);
 }
 
 /* Grounded answer */
