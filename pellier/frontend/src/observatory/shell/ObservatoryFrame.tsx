@@ -41,6 +41,7 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
   ['/observatory/performance', 'Retrieval comparison'],
   ['/observatory/evaluations', 'Evaluations'],
   ['/observatory/production-patterns', 'Production patterns'],
+  ['/observatory/workshop-map', 'Workshop map'],
   ['/observatory/settings', 'Settings'],
 ];
 

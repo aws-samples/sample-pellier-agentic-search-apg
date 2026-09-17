@@ -42,6 +42,7 @@ const SessionView = lazy(() => import('./observatory/surfaces/observe/SessionVie
 const ChatTab = lazy(() => import('./observatory/surfaces/observe/ChatTab'))
 const TelemetryTab = lazy(() => import('./observatory/surfaces/observe/TelemetryTab'))
 const BriefTab = lazy(() => import('./observatory/surfaces/observe/BriefTab'))
+const WorkshopMap = lazy(() => import('./observatory/surfaces/observe/WorkshopMap'))
 const ProofBoard = lazy(() => import('./observatory/surfaces/observe/ProofBoard'))
 const OperatorLineage = lazy(
   () => import('./observatory/surfaces/observe/OperatorLineage'),
@@ -307,17 +308,14 @@ export function AppRoutes() {
           <Route path="performance" element={<Performance />} />
           <Route path="evaluations" element={<Evaluations />} />
           <Route path="production-patterns" element={<ProductionPatterns />} />
-          {/* The Workshop map listed the four labs and linked into them, which is
-              the Lab Collection's whole job. The surface is gone; both paths stay
-              so a held link or a screenshot still lands somewhere. */}
-          <Route path="workshop-map" element={<Navigate to="/observatory" replace />} />
+          <Route path="workshop-map" element={<WorkshopMap />} />
           {/* The page was routed at `observatory` while the navigation
               called it "Workshop Map". The shell now owns that name, so the
               old path redirects rather than 404s for anyone holding a link
               or a screenshot of it. */}
           <Route
             path="observatory"
-            element={<Navigate to="/observatory" replace />}
+            element={<Navigate to="/observatory/workshop-map" replace />}
           />
           <Route
             path="persona-journeys"
