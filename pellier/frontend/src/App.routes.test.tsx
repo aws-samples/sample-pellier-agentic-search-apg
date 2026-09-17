@@ -36,10 +36,6 @@ vi.mock('./observatory/surfaces/labs/LabsCatalog', () => ({
   default: () => <div>Governed Lab Collection</div>,
 }))
 
-vi.mock('./observatory/surfaces/labs/LabDetail', () => ({
-  default: () => <div>Governed lab detail</div>,
-}))
-
 vi.mock('./observatory/surfaces/observe/SessionsList', () => ({
   default: () => <div>Live Aurora sessions</div>,
 }))
@@ -87,12 +83,12 @@ describe('canonical application routes', () => {
     )
   })
 
-  it('serves each governed exercise at a stable detail route', async () => {
+  it('redirects old guide bookmarks to the matching Workbench scenario', async () => {
     renderRoute('/observatory/labs/grounded-inventory')
 
-    expect(await screen.findByText('Governed lab detail')).toBeInTheDocument()
+    expect(await screen.findByText('Pellier Observatory workbench')).toBeInTheDocument()
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/observatory/labs/grounded-inventory',
+      '/observatory/workbench?lab=grounded-inventory',
     )
   })
 
@@ -112,6 +108,13 @@ describe('canonical application routes', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/storyboard')
     })
+  })
+
+  it('returns retired supporting guide bookmarks to the Lab Collection', async () => {
+    renderRoute('/observatory/guide/summary#cleanup')
+    expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/observatory')
+    expect(screen.getByTestId('location')).not.toHaveTextContent('/guide/')
   })
 
   it('serves About as a real storefront destination', async () => {

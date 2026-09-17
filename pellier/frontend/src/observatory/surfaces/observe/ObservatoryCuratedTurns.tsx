@@ -4,7 +4,7 @@
  * instead of presenting a convincing but disconnected list.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Loader2, Play, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResponsiveImage from '../../../components/ResponsiveImage';
@@ -41,6 +41,8 @@ export interface ObservatoryCuratedTurnsProps {
    */
   canRunTurn?: (index: number) => boolean;
   anchorError?: string | null;
+  onSelectScenario?: () => void;
+  selectingScenario?: boolean;
   id?: string;
 }
 
@@ -52,15 +54,27 @@ export default function ObservatoryCuratedTurns({
   ready = true,
   canRunTurn = () => true,
   anchorError = null,
+  onSelectScenario,
+  selectingScenario = false,
   id = 'curated-turns',
 }: ObservatoryCuratedTurnsProps) {
   const [scenarios, setScenarios] = useState<LiveScenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [retryVersion, setRetryVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const firstTurn = useRef<HTMLButtonElement>(null);
+  const selectionRequested = useRef(false);
+
+  useEffect(() => {
+    if (ready && selectionRequested.current) {
+      selectionRequested.current = false;
+      firstTurn.current?.focus();
+    }
+  }, [ready]);
 
   useEffect(() => {
     let cancelled = false;
+    selectionRequested.current = false;
     setLoading(true);
     setError(null);
     setScenarios([]);
@@ -189,6 +203,7 @@ export default function ObservatoryCuratedTurns({
 
     return (
       <button
+        ref={index === 0 ? firstTurn : undefined}
         type="button"
         className="labs-turn"
         data-active={isActive ? 'true' : undefined}
@@ -257,10 +272,13 @@ export default function ObservatoryCuratedTurns({
           {`Unable to open ${journey.anchorName}'s guided session: ${anchorError}`}
         </div>
       ) : null}
-      {!loading && !error && !ready && !anchorError ? (
-        <div className="labs-turns-state">
-          <span>Select {journey.anchorName} in the Storefront scenario switcher to open these guided turns.</span>
-          <Link to="/">Open Storefront</Link>
+      {!loading && !error && !ready && journey.surface === 'storefront' ? (
+        <div className="labs-turns-state labs-turns-scenario-setup">
+          <strong>Start with {journey.anchorName}’s scenario</strong>
+          <p>This starts a new shopping session and clears the previous conversation. It does not sign you in as {journey.anchorName}; account access still needs verified sign-in.</p>
+          {onSelectScenario ? <button type="button" className="labs-turns-select-scenario" disabled={selectingScenario || running} onClick={() => { selectionRequested.current = true; onSelectScenario(); }}>
+            {selectingScenario ? 'Opening scenario…' : `Choose ${journey.anchorName}’s scenario`}
+          </button> : <Link to="/">Choose a scenario in Storefront</Link>}
         </div>
       ) : null}
       {!loading && !error && ready && scenarios.length === 0 ? (

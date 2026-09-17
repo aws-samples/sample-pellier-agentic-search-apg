@@ -140,14 +140,14 @@ describe('PellierHero', () => {
     expect(switchPersona).toHaveBeenCalledWith('anna')
   })
 
-  it('requires one of the three profiles before Ask Pellier opens', async () => {
+  it('makes scenario selection the next action without a dead Ask button', async () => {
     render(<PellierHero />)
 
-    const askButton = await screen.findByRole('button', { name: 'Ask Pellier' })
-    expect(askButton).toBeDisabled()
+    expect(await screen.findByTestId('hero-profile-marco')).toBeEnabled()
+    expect(screen.queryByTestId('concierge-ask')).not.toBeInTheDocument()
     expect(screen.queryByText('Continue as guest')).not.toBeInTheDocument()
     expect(
-      screen.getByText('Choose Marco, Anna, or Theo to begin.'),
+      screen.getByText('Select Marco, Anna, or Theo to explore their edit and ask Pellier for help.'),
     ).toBeInTheDocument()
   })
 

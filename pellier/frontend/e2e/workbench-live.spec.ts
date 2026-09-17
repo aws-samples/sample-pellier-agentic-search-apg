@@ -26,7 +26,6 @@ test('a signed-in shopper turn reconciles to a real principal-scoped ledger', as
   expect(session.persona.customer_id).toBe('CUST-MARCO');
   await page.evaluate(sessionId => {
     localStorage.setItem('pellier-session-id', sessionId);
-    localStorage.setItem('pellier-observatory-view', 'expert');
   }, session.session_id);
   await page.reload();
 

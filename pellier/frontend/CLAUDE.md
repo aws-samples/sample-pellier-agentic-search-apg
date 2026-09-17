@@ -8,14 +8,16 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
 - Pellier is a fast, editorial shopping experience.
 - Pellier Observatory is a core participant surface for labs and evidence. **It has no
   sidebar.** `ObservatoryFrame` renders the top bar and an outlet, so the whole
-  navigation is two tabs (Lab Collection, Workbench) plus the
-  `ReferencesIndex` directory. A `Sidebar` component with its own group names
+  navigation is three tabs (Lab Collection, Workbench, Govern) plus the
+  `WorkbenchResources` directory. A `Sidebar` component with its own group names
   and its own labels for the same routes rendered nowhere for six days while
   its tests passed against a directly-mounted copy; it has been deleted. Do not
   reintroduce a second navigation without deleting this one.
-- `ReferencesIndex` is that navigation, grouped by task: Proof views, Replay a
-  turn, Inspect the build, Measure. One label per destination, title case. A new
-  surface needs an entry here or it is unreachable.
+- `WorkbenchResources` is the reference navigation, grouped by Labs 1–4.
+  `referenceCatalog.ts` supplies both the directory and each view's teaching
+  question, evidence boundary, and implementation links. Workbench leads with
+  the selected lab; evaluation and recovery extensions stay behind a disclosure.
+  New references must explain their lab purpose and offer a return to Workbench.
 - Observatory connects Storefront conversations, Operator decisions, and system
   evidence. Do not label the whole surface optional or invent completion from
   visiting it. Individual extension exercises can be optional in the lab guide.

@@ -120,12 +120,14 @@ export default function ProductDetailPage() {
   const { addToCart } = useCart()
   const { openModal, openDrawerWithQuery, setChatSurface } = useUI()
 
-  const numericId = Number.parseInt(productId ?? '', 10)
-  const hasValidId = Number.isSafeInteger(numericId) && numericId > 0
+  const numericId = Number(productId)
+  const hasValidId = /^\d+$/.test(productId ?? '') && Number.isSafeInteger(numericId) && numericId > 0
 
   const [detail, setDetail] = useState<PellierProductDetail | null>(null)
   const [catalog, setCatalog] = useState<PellierProduct[]>([])
   const [loading, setLoading] = useState(hasValidId)
+  const [loadError, setLoadError] = useState(false)
+  const [retryVersion, setRetryVersion] = useState(0)
 
   useEffect(() => {
     setChatSurface('drawer')
@@ -141,6 +143,8 @@ export default function ProductDetailPage() {
   }, [numericId])
 
   useEffect(() => {
+    setLoadError(false)
+    setCatalog([])
     if (!hasValidId) {
       setDetail(null)
       setLoading(false)
@@ -150,44 +154,36 @@ export default function ProductDetailPage() {
     const controller = new AbortController()
     setLoading(true)
     setDetail(null)
-    void Promise.all([
-      fetch(`/api/products/${numericId}`, {
-        credentials: 'include',
-        signal: controller.signal,
-      }),
-      fetch('/api/products', {
-        credentials: 'include',
-        signal: controller.signal,
-      }),
-    ])
-      .then(async ([detailResponse, catalogResponse]) => {
-        if (!detailResponse.ok) return [null, [] as PellierProduct[]] as const
-        if (!catalogResponse.ok) {
-          throw new Error(`Live catalog request failed: ${catalogResponse.status}`)
-        }
-        return [
-          await detailResponse.json() as PellierProductDetail,
-          await catalogResponse.json() as PellierProduct[],
-        ] as const
+    void fetch(`/api/products/${numericId}`, {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.status === 404) return null
+        if (!response.ok) throw new Error('Product read unavailable')
+        return await response.json() as PellierProductDetail
       })
-      .then(([data, products]) => {
-        if (active) {
-          setDetail(data)
-          setCatalog(products)
-          setLoading(false)
-        }
+      .then((data) => { if (active) setDetail(data) })
+      .catch(() => { if (active) setLoadError(true) })
+      .finally(() => { if (active) setLoading(false) })
+
+    // Related pieces are optional. Their read must not block or hide a
+    // successfully loaded product, price, or availability receipt.
+    void fetch('/api/products', {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Related collection unavailable')
+        return await response.json() as PellierProduct[]
       })
-      .catch(() => {
-        if (active) {
-          setDetail(null)
-          setLoading(false)
-        }
-      })
+      .then((products) => { if (active) setCatalog(products) })
+      .catch(() => { if (active) setCatalog([]) })
     return () => {
       active = false
       controller.abort()
     }
-  }, [hasValidId, numericId])
+  }, [hasValidId, numericId, retryVersion])
 
   const view: ProductView | null = useMemo(() => {
     if (detail) return viewFromRemote(detail)
@@ -244,21 +240,28 @@ export default function ProductDetailPage() {
   if (!view) {
     return (
       <div
-        data-testid="product-detail-not-found"
+        data-testid={loadError ? 'product-detail-unavailable' : 'product-detail-not-found'}
         className="pellier-page-surface flex min-h-dvh flex-col bg-cream-50"
       >
         <Header current="shop" onNavigate={handleNavigate} />
         <main className="flex-1 bg-cream">
-          <div className="mx-auto max-w-[720px] px-container-x py-24 text-center">
+          <div className="mx-auto max-w-[720px] px-container-x py-24 text-center" role={loadError ? 'alert' : undefined}>
             <h1
               className="font-display text-espresso"
               style={{ fontSize: 'clamp(28px, 4vw, 44px)', lineHeight: 1.15 }}
             >
-              {PRODUCT_DETAIL.NOT_FOUND_TITLE}
+              {loadError ? PRODUCT_DETAIL.UNAVAILABLE_TITLE : PRODUCT_DETAIL.NOT_FOUND_TITLE}
             </h1>
             <p className="mt-4 font-sans text-ink-soft">
-              {PRODUCT_DETAIL.NOT_FOUND_BODY}
+              {loadError ? PRODUCT_DETAIL.UNAVAILABLE_BODY : PRODUCT_DETAIL.NOT_FOUND_BODY}
             </p>
+            {loadError ? (
+              <div className="mt-6">
+                <button type="button" className="pellier-retry" onClick={() => setRetryVersion(v => v + 1)}>
+                  Try again
+                </button>
+              </div>
+            ) : null}
             <Link
               to="/#shop"
               className="

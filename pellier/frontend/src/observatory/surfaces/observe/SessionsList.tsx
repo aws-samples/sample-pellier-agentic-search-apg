@@ -361,7 +361,7 @@ const SessionsList: React.FC = () => {
       {/* Observatory-wide welcome band lives on Observatory now (the
           default landing surface). Sessions is zoom-in, no need
           to repeat the intro here. */}
-      <EditorialTitle
+      <EditorialTitle referenceId="sessions"
         backToReferences
         eyebrow="Observe · Sessions"
         title={showingScopedSessions ? `${activePersonaLabel}'s recorded sessions` : 'Sessions'}

@@ -304,9 +304,7 @@
 .pellier-hero-copy .pellier-profile-portrait { width: clamp(68px, 6vw, 84px); height: clamp(68px, 6vw, 84px); }
 .pellier-hero-copy .pellier-profile-name { font-family: var(--sans); font-size: 15px; }
 .pellier-hero-copy .pellier-profile-note { font-size: 12px; }
-.pellier-hero-copy .pellier-concierge-ask { min-height: 40px; }
-.pellier-hero-copy .pellier-concierge-requirement { display: none; }
-.pellier-hero-copy .pellier-concierge-identity-note { font-size: 11px; }
+.pellier-hero-copy .pellier-concierge-identity-note { font-size: 12px; }
 @media (max-width: 899px) {
   .pellier-hero-inner { grid-template-columns: minmax(0, 1fr); padding: 0 var(--pellier-gutter) 24px; }
   .pellier-hero-copy { padding: 32px 0; }
@@ -572,59 +570,7 @@
   text-transform: uppercase;
 }
 
-.pellier-concierge-ask {
-  display: inline-flex;
-  width: 100%;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid var(--rule-2);
-  border-radius: 999px;
-  background: var(--cream);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color var(--gov-motion-base, 200ms) ease,
-    color var(--gov-motion-base, 200ms) ease,
-    opacity var(--gov-motion-base, 200ms) ease;
-}
-
-.pellier-concierge-ask:hover:not(:disabled) {
-  border-color: var(--pellier-burgundy);
-  color: var(--pellier-burgundy);
-}
-
-.pellier-concierge-ask:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.pellier-concierge-ask:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.pellier-concierge-sparkle {
-  color: #a36b16;
-}
-
-.pellier-concierge-requirement {
-  margin: -8px 0 0;
-  color: var(--ink-soft);
-  font-family: var(--sans);
-  font-size: 11px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-/* The persona/principal boundary note. Quieter than the requirement line above
-   it — a shopper does not need it, and a participant reads it once — but a rule
-   above it separates it from the shopping copy so it is not mistaken for
-   product guidance. */
+/* Keep the scenario and account distinction legible at the point of choice. */
 .pellier-concierge-identity-note {
   margin: 2px 0 0;
   padding-top: 10px;

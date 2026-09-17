@@ -38,9 +38,9 @@ describe('EditorialTitle', () => {
 
     expect(
       screen.getByRole('link', {
-        name: 'Back to Labs and Workbench resources',
+        name: 'Back to lab references',
       }),
-    ).toHaveAttribute('href', '/observatory/workbench#resources');
+    ).toHaveAttribute('href', '/observatory#resources');
   });
 });
 

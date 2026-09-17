@@ -17,6 +17,8 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Eyebrow } from './Eyebrow';
+import ReferenceBrief, { referenceReturnHref } from './ReferenceBrief';
+import type { ReferenceId } from './referenceCatalog';
 
 export interface EditorialTitleBackLink {
   /** Route to return to. */
@@ -33,6 +35,7 @@ export interface EditorialTitleProps {
   summary?: string;
   className?: string;
   backToReferences?: boolean;
+  referenceId?: ReferenceId;
   /** A back link to somewhere other than the workbench resources index. */
   backTo?: EditorialTitleBackLink;
   /** Rendered inline after the eyebrow. One badge, not a second label. */
@@ -40,9 +43,9 @@ export interface EditorialTitleProps {
 }
 
 const REFERENCES_BACK_LINK: EditorialTitleBackLink = {
-  to: '/observatory/workbench#resources',
-  label: 'Labs & Workbench resources',
-  ariaLabel: 'Back to Labs and Workbench resources',
+  to: '/observatory#resources',
+  label: 'Lab references',
+  ariaLabel: 'Back to lab references',
 };
 
 export const EditorialTitle: React.FC<EditorialTitleProps> = ({
@@ -51,12 +54,14 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
   summary,
   className = '',
   backToReferences = false,
+  referenceId,
   backTo,
   aside,
 }) => {
-  const back = backTo ?? (backToReferences ? REFERENCES_BACK_LINK : undefined);
+  const back = backTo ?? (backToReferences ? { ...REFERENCES_BACK_LINK, to: referenceReturnHref() } : undefined);
 
   return (
+    <>
     <header
       className={className}
       style={{
@@ -118,5 +123,7 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
         </p>
       )}
     </header>
+    {referenceId && <ReferenceBrief id={referenceId} />}
+    </>
   );
 };

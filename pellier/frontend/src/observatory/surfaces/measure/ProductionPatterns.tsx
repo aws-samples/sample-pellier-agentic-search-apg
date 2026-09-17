@@ -4,14 +4,14 @@ import { EditorialTitle, ExpCard } from '../../components';
 /** Source-backed design reference. No synthetic metrics or unavailable API. */
 export default function ProductionPatterns() {
   return <div style={{ padding: '40px clamp(20px, 4vw, 48px)', maxWidth: '1100px' }}>
-    <EditorialTitle backToReferences eyebrow="Design reference · Governed L400"
+    <EditorialTitle referenceId="production" backToReferences eyebrow="Design reference · Governed L400"
       title="Production patterns"
       summary="Follow identity, memory, tool permission, and committed effects across the governed path. These are implementation contracts; use your run evidence to establish what actually happened." />
     <div style={{ display: 'grid', gap: '20px', lineHeight: 1.65 }}>
       <ExpCard><h2>Bind identity at every boundary</h2>
         <p>A verified Cognito principal and session identify the caller. The managed Runtime forwards the caller token to Gateway. Cedar evaluates permission; the target and Aurora must still validate ownership and business conditions.</p>
         <p>Lab 3 tests both an owned ticket-history read and a foreign customer read before the Storefront request. A successful discovery response does not establish permission for every argument.</p>
-        <Link to="/observatory/labs/managed-agent-path">Read Lab 3: managed identity and tools</Link>
+        <Link to="/observatory/workbench?lab=managed-agent-path">Open Lab 3: managed identity and tools</Link>
       </ExpCard>
       <ExpCard><h2>Keep memory scope explicit</h2>
         <p>Ordinary Storefront history uses a session-scoped namespace: <code>user-{'{cognito_sub}'}-session-{'{session_id}'}</code> for a signed-in user, or <code>anon-{'{session_id}'}</code> for an anonymous session. Starting a new session changes that namespace.</p>
@@ -27,7 +27,7 @@ export default function ProductionPatterns() {
         <p>Lab 4 separates policy denial, database refusal, a committed action, and replay. Retain the caller, run identifier, request identifier, action hash, receipt, and before/after database state.</p>
         <p>The required sequential replay check proves the observed replay case. Concurrent duplicates, lost responses, transaction rollback, and renewed requests after a policy change require additional fault tests before a production claim.</p>
         <p>Operator Concierge stores a human review checkpoint in PostgreSQL between requests. A managed shopper return follows its own authorization and business checks; it does not inherit that human approval step.</p>
-        <Link to="/observatory/labs/fail-closed-policy">Read Lab 4: decisions and committed effects</Link>
+        <Link to="/observatory/workbench?lab=fail-closed-policy">Open Lab 4: decisions and committed effects</Link>
       </ExpCard>
     </div>
   </div>;

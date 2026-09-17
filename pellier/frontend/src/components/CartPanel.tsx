@@ -9,7 +9,8 @@
  * Checkout triggers an in-panel confirmation state (no alert())
  * with a checkmark animation and "Continue shopping" reset.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X,
   ShoppingBag,
@@ -23,10 +24,11 @@ import {
   FileCheck2,
   ShieldCheck,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { imageSrc } from '../utils/assetPath'
+import { useFocusTrap } from '../shared/useFocusTrap'
 
 // Re-export CartItem for backward compatibility with existing import paths
 export type { CartItem } from '../contexts/CartContext'
@@ -62,6 +64,16 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
   } = useCart()
   const { isAuthenticated, login } = useAuth()
   const [acknowledged, setAcknowledged] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useReducedMotion()
+  useFocusTrap({ containerRef: panelRef, active: isOpen, onClose })
+
+  useEffect(() => {
+    if (!isOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [isOpen])
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -81,13 +93,13 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
     setAcknowledged(false)
   }, [checkoutQuote?.quoteId])
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-50"
+            className="fixed inset-0 z-[60]"
             style={{
               background: 'rgba(31, 20, 16, 0.35)',
               backdropFilter: 'blur(8px)',
@@ -96,27 +108,32 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: reducedMotion ? 0 : 0.25 }}
             onClick={onClose}
           />
 
           {/* Panel */}
           <motion.div
-            className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col font-sans"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shopping-bag-title"
+            className="fixed right-0 top-0 h-dvh w-full sm:w-[420px] z-[61] flex flex-col font-sans"
             style={{
               background: BG,
               boxShadow: '-4px 0 32px rgba(31, 20, 16, 0.15)',
             }}
-            initial={{ x: '100%' }}
+            initial={reducedMotion ? false : { x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}
           >
             {/* ── Header ── */}
             <div className="px-7 pt-7 pb-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2
+                    id="shopping-bag-title"
                     className="font-display"
                     style={{
                       fontSize: '24px',
@@ -125,7 +142,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    Your Bag
+                    Your bag
                   </h2>
                   {itemCount > 0 && !checkoutComplete && (
                     <motion.span
@@ -313,8 +330,11 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                         Your bag is empty
                       </p>
                       <p style={{ fontSize: '14px', lineHeight: 1.55, color: TEXT_QUIET }}>
-                        Items you add from chat or the grid will appear here
+                        Pieces you add from the collection or a conversation will appear here.
                       </p>
+                      <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-full px-6 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: TEXT, color: BG }}>
+                        Continue browsing
+                      </button>
                     </div>
                   ) : (
                     <div className="px-7 py-5">
@@ -593,7 +613,8 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 

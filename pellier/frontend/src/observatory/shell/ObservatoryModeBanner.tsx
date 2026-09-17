@@ -13,6 +13,9 @@ const ObservatoryModeBanner: React.FC = () => {
   const mode = interactionForPath(pathname);
   const copy = modeCopyForPath(pathname);
 
+  // These retired guide routes redirect to the corresponding workspace.
+  if (pathname.startsWith('/observatory/labs/') || pathname.startsWith('/observatory/guide/')) return null;
+
   return (
     <div className="labs-mode-banner" data-mode={mode}>
       <span className="labs-mode-banner-label">

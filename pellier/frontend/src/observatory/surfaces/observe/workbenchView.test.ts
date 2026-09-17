@@ -1,37 +1,24 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
+import { focusStepIndex, useCompactWorkbench } from './workbenchView';
 
-import {
-  FOCUS_PANELS,
-  WORKBENCH_VIEW_KEY,
-  readWorkbenchView,
-  writeWorkbenchView,
-} from './workbenchView';
-
-describe('workbench view persistence', () => {
-  beforeEach(() => {
-    localStorage.clear();
+describe('responsive Workbench', () => {
+  it('follows viewport changes and ignores the retired expertise preference', () => {
+    localStorage.setItem('pellier-observatory-view', 'focus');
+    const resize = mockWorkbenchWidth(1440);
+    const { result } = renderHook(useCompactWorkbench);
+    expect(result.current).toBe(false);
+    resize(900);
+    expect(result.current).toBe(true);
+    resize(1280);
+    expect(result.current).toBe(false);
   });
 
-  it('defaults to expert mode for a first visit', () => {
-    expect(readWorkbenchView()).toBe('expert');
-  });
-
-  it('preserves an explicit focus choice under the documented key', () => {
-    writeWorkbenchView('focus');
-    expect(localStorage.getItem(WORKBENCH_VIEW_KEY)).toBe('focus');
-    expect(readWorkbenchView()).toBe('focus');
-  });
-
-  it('falls back to expert when the stored value is not a view', () => {
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'dashboard');
-    expect(readWorkbenchView()).toBe('expert');
-  });
-
-  it('steps through Run, Inspect evidence, Reconcile answer in that order', () => {
-    expect(FOCUS_PANELS.map((panel) => panel.label)).toEqual([
-      'Run',
-      'Inspect evidence',
-      'Reconcile answer',
-    ]);
+  it('keeps addressable panel navigation and handles invalid bookmarks', () => {
+    expect(focusStepIndex('run')).toBe(0);
+    expect(focusStepIndex('inspect')).toBe(1);
+    expect(focusStepIndex('reconcile')).toBe(2);
+    expect(focusStepIndex('unknown')).toBe(0);
   });
 });

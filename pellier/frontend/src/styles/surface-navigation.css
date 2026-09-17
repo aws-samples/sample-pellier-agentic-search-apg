@@ -54,11 +54,6 @@
   text-decoration: none;
   white-space: nowrap;
 }
-.pellier-surface-number {
-  color: var(--pellier-copper-on-dark);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
 .pellier-surface-link:hover {
   border-color: var(--pellier-burgundy-soft);
   background: var(--pellier-burgundy-deep);
@@ -68,9 +63,6 @@
   background: var(--cream-elev);
   color: var(--pellier-burgundy);
   box-shadow: 0 2px 8px rgb(0 0 0 / .14), inset 0 0 0 2px var(--cream);
-}
-.pellier-surface-link[aria-current='page'] .pellier-surface-number {
-  color: var(--pellier-copper);
 }
 .pellier-surface-bar a:focus-visible {
   outline: 2px solid var(--dl-paper);
@@ -92,7 +84,6 @@
   .pellier-brand-small { display: inline; }
   .pellier-surface-links { justify-content: flex-end; gap: 3px; }
   .pellier-surface-link { gap: 6px; min-height: 40px; padding: 9px 12px; }
-  .pellier-surface-number { font-size: 10px; }
 }
 @media (max-width: 380px) {
   .pellier-surface-bar { padding-inline: 10px; gap: 8px; }

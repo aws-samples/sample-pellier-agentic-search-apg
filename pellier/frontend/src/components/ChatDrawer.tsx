@@ -42,6 +42,7 @@ import {
 } from '../hooks/useAgentChat'
 import PellierChatBody from './PellierChatBody'
 import PellierWelcome from './PellierWelcome'
+import PersonaModal from './PersonaModal'
 import StatusLines from './StatusLines'
 import '../styles/chat-drawer.css'
 
@@ -74,11 +75,11 @@ function detectMac(): boolean {
 export default function ChatDrawer() {
   const { activeModal, closeModal, openModal, consumePendingQuery } = useUI()
   const { guardrailsEnabled } = useLayout()
-  const { addToCart } = useCart()
+  const { addToCart, cartOpen } = useCart()
   const { persona } = usePersona()
   const auth = useOptionalAuth()
 
-  const isOpen = activeModal === 'drawer'
+  const isOpen = activeModal === 'drawer' && Boolean(persona) && !cartOpen
   const reducedMotion = useReducedMotion()
   const [isMac, setIsMac] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -92,13 +93,6 @@ export default function ChatDrawer() {
   useEffect(() => {
     setIsMac(detectMac())
   }, [])
-
-  // Persona-first workshop flow: when signed out, hide chat surfaces.
-  useEffect(() => {
-    if (!persona && isOpen) {
-      closeModal()
-    }
-  }, [persona, isOpen, closeModal])
 
   // First-turn greeting stays generic. Personal claims belong to the Aurora
   // profile context that the backend loads for a concrete shopper request.
@@ -167,27 +161,22 @@ export default function ChatDrawer() {
 
   // Return focus on close
   useEffect(() => {
-    if (isOpen) return
+    if (isOpen || cartOpen) return
     openerRef.current?.focus()
     openerRef.current = null
-  }, [isOpen])
+  }, [isOpen, cartOpen])
 
-  // Consume pending query (from suggestion pill click).
-  //
-  // Uses useLayoutEffect (not useEffect) so the pending query is
-  // consumed and sendMessage fires BEFORE the browser paints the first
-  // frame. This prevents a one-frame flicker where the empty-state
-  // ("What can Pellier help you find today?") renders before the user
-  // message appears. sendMessage adds the user message to state
-  // synchronously (via setMessages) so the first visible paint already
-  // shows the user bubble + the "thinking" placeholder.
+  // Keep a product question pending while the shopper chooses a scenario.
+  // Run after the persona reset above so it cannot erase the seeded turn.
+  // Closing the chooser cancels the question instead of replaying it later.
   // A pending query adds to the active thread. Storefront suggestions are
   // follow-on shopping questions, so clearing the conversation here silently
   // discarded the shopper's context.
   const hasConsumedRef = useRef(false)
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!isOpen) {
       hasConsumedRef.current = false
+      if (activeModal !== 'drawer') consumePendingQuery()
       return
     }
     if (hasConsumedRef.current) return
@@ -196,7 +185,7 @@ export default function ChatDrawer() {
     if (seeded) {
       void sendMessage(seeded)
     }
-  }, [isOpen, consumePendingQuery, sendMessage])
+  }, [isOpen, activeModal, consumePendingQuery, sendMessage])
 
   // Follow the reply until the shopper scrolls back. A new question resumes
   // following; streamed chunks never pull someone away from earlier text.
@@ -227,7 +216,7 @@ export default function ChatDrawer() {
   }, [isOpen, turnCount, scrollToLatest])
 
   useEffect(() => {
-    if (!isOpen) return
+    if (activeModal !== 'drawer' || cartOpen) return
     const previousOverflow = document.body.style.overflow
     const root = document.getElementById('root')
     const previousInert = root?.inert ?? false
@@ -237,7 +226,7 @@ export default function ChatDrawer() {
       document.body.style.overflow = previousOverflow
       if (root) root.inert = previousInert
     }
-  }, [isOpen])
+  }, [activeModal, cartOpen])
 
   // Focus trap: Tab/Shift+Tab cycle within drawer
   const drawerRef = useRef<HTMLDivElement>(null)
@@ -285,7 +274,9 @@ export default function ChatDrawer() {
     input.style.height = `${Math.min(input.scrollHeight, 104)}px`
   }, [inputValue, isOpen])
 
-  if (!persona) return null
+  if (!persona) {
+    return <PersonaModal open={activeModal === 'drawer' && !cartOpen} onClose={closeModal} closeOnSelect={false} />
+  }
 
   return createPortal(
     <>

@@ -1,9 +1,9 @@
 /**
- * Focus mode: one panel at a time, in the order a participant works.
+ * Narrow screens show one panel at a time, in the order a participant works.
  *
  * Run, then inspect the evidence, then reconcile the answer against it. The
- * three-panel grid stays one toggle away for anyone who wants the whole
- * instrument at once, and the choice survives a reload.
+ * same evidence stays available when the viewport becomes wide enough for
+ * three panels. Resizing must not reset a request.
  */
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -34,7 +34,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 }));
 
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 const PROMPTS = ['First guided turn', 'Second guided turn', 'Third guided turn'];
 
@@ -73,10 +73,11 @@ function activePanel(): string | null {
   return node?.getAttribute('data-motion-panel') ?? null;
 }
 
-describe('Observatory workbench focus mode', () => {
+describe('Observatory workbench responsive layout', () => {
+  let resize: (width: number) => void;
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'focus');
+    resize = mockWorkbenchWidth(900);
     mocks.sendChatMessageStreaming.mockReset();
     mocks.sendChatMessageStreaming.mockResolvedValue({
       response: 'A grounded answer.',
@@ -86,7 +87,7 @@ describe('Observatory workbench focus mode', () => {
     vi.stubGlobal('fetch', vi.fn(async () => scenariosResponse()));
   });
 
-  it('opens a saved focus view on the Run step with the other panels stepped back', async () => {
+  it('opens a narrow screen on Run without an expertise setting', async () => {
     renderWorkbench();
 
     expect(grid()).toHaveAttribute('data-view', 'focus');
@@ -146,24 +147,23 @@ describe('Observatory workbench focus mode', () => {
     expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Completed');
   });
 
-  it('restores the three-panel grid under Expert view and remembers it', async () => {
-    const user = userEvent.setup();
-    const { unmount } = renderWorkbench();
-
-    const toggle = screen.getByRole('button', { name: 'Expert view' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    await user.click(toggle);
-
-    expect(grid()).toHaveAttribute('data-view', 'expert');
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.queryByRole('navigation', { name: 'Workbench steps' }),
-    ).not.toBeInTheDocument();
-    expect(localStorage.getItem(WORKBENCH_VIEW_KEY)).toBe('expert');
-
-    unmount();
+  it('adapts to screen width without losing the current answer or active panel', async () => {
     renderWorkbench();
-    expect(grid()).toHaveAttribute('data-view', 'expert');
+    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` }));
+    await waitFor(() => expect(activePanel()).toBe('trace'));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
+    expect(screen.getByText('A grounded answer.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Expert view' })).toBeNull();
+
+    resize(1440);
+    expect(grid()).toHaveAttribute('data-view', 'wide');
+    expect(screen.queryByRole('navigation', { name: 'Workbench steps' })).toBeNull();
+    expect(screen.getByText('A grounded answer.')).toBeInTheDocument();
+
+    resize(390);
+    expect(activePanel()).toBe('results');
+    expect(screen.getByText('A grounded answer.')).toBeInTheDocument();
+    expect(mocks.sendChatMessageStreaming).toHaveBeenCalledTimes(1);
   });
 
   it('reveals the linked receipt when Open event is used from Reconcile', async () => {

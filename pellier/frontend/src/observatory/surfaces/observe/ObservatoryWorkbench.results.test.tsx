@@ -29,7 +29,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 }));
 
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 const PROMPT = 'First guided turn';
 
@@ -112,7 +112,7 @@ function mount(
 describe('workbench result states', () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    mockWorkbenchWidth(1440);
   });
 
   it('offers one empty state before the first turn, and no result sections', async () => {

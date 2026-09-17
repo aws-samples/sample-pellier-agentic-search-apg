@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import './Performance.css';
 import {
   EditorialTitle,
   ExpCard,
@@ -984,28 +985,17 @@ const Evaluations: React.FC = () => {
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
-      <EditorialTitle
+    <div className="observatory-reading-page">
+      <EditorialTitle referenceId="evaluations"
         backToReferences
         eyebrow="Measure · Evaluations · accuracy · latency · citations"
         title="Evaluations"
-        summary="Scorecards for accuracy, latency, and citations – plus teaching panels on eval methods (LLM-as-judge, RAGAS, AgentCore) and retrieval metrics (Recall@K, MRR, context relevance, faithfulness)."
+        summary="Read evaluation configuration and recorded scorecards with their provenance. Extend the lab acceptance checks into a controlled measurement protocol before making broader quality claims."
       />
 
-      {loading && <LoadingState />}
-
-      {error && <ErrorState message={error} onRetry={refetch} />}
-
-      {!loading && !error && scorecards.length === 0 && <EmptyState />}
-
-      {!loading && !error && envelope && (
-        <div style={{ marginBottom: '16px' }}>
-          <ProvenanceStrip envelope={envelope} />
-        </div>
-      )}
-
-      {!loading && !error && scorecards.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <details className="reference-evaluation-methods">
+        <summary>Extend the lab checks: evaluation methods and metric definitions</summary>
+        <p>Design reference. Choosing a method or metric here does not run an evaluation.</p>
           <EvaluationMethodsPanel
             selectedId={selectedMethodId}
             onSelect={setSelectedMethodId}
@@ -1024,6 +1014,22 @@ const Evaluations: React.FC = () => {
             }}
           />
 
+      </details>
+
+      {loading && <LoadingState />}
+
+      {error && <ErrorState message={error} onRetry={refetch} />}
+
+      {!loading && !error && scorecards.length === 0 && <EmptyState />}
+
+      {!loading && !error && envelope && (
+        <div style={{ marginBottom: '16px' }}>
+          <ProvenanceStrip envelope={envelope} />
+        </div>
+      )}
+
+      {!loading && !error && scorecards.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Summary strip */}
           <ExpCard>
             <div

@@ -1,0 +1,23 @@
+.lab-handoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: 28px 0;
+  margin-top: 32px;
+  border-block: 1px solid var(--obs-rule-1);
+  color: var(--obs-ink-1);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.lab-handoff .lab-handoff-eyebrow { margin: 0 0 8px; color: var(--obs-red-1); font-size: 12px; font-weight: 600; }
+.lab-handoff > div > h2 { margin: 0 0 12px; padding: 0; border: 0; font-family: var(--obs-display); font-size: 24px; font-weight: 400; }
+.lab-handoff p { margin: 0 0 12px; }
+.lab-handoff summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-weight: 600; }
+.lab-handoff a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--obs-red-1); text-decoration: underline; text-underline-offset: 3px; }
+.lab-handoff-next { border-left: 2px solid var(--obs-rule-1); padding-left: 24px; }
+.lab-handoff .lab-handoff-condition { color: var(--obs-ink-3); font-size: 12px; }
+.lab-handoff :focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 3px; }
+@media (max-width: 900px) {
+  .lab-handoff { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .lab-handoff-next { border-left: 0; border-top: 1px solid var(--obs-rule-1); padding: 20px 0 0; }
+}

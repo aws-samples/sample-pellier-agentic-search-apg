@@ -32,7 +32,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 }));
 
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 /** Mirrors the seeded shape: three required turns, then two explore prompts. */
 const REQUIRED = ['First guided turn', 'Second guided turn', 'Third guided turn'];
@@ -81,7 +81,7 @@ const chatBodies: Array<Record<string, unknown>> = [];
 describe('Observatory explore prompts', () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    mockWorkbenchWidth(1440);
     chatBodies.length = 0;
     vi.stubGlobal(
       'fetch',

@@ -49,13 +49,12 @@ function complete(receipt: EvidenceLedger | null = ledger([event()])): string {
 
 async function fixture(
   page: Page,
-  options: { body?: string; status?: number; receipt?: EvidenceLedger | null; hold?: Promise<void>; focus?: boolean } = {},
+  options: { body?: string; status?: number; receipt?: EvidenceLedger | null; hold?: Promise<void> } = {},
 ) {
   const calls: string[] = [];
-  await page.addInitScript(({ focus }) => {
+  await page.addInitScript(() => {
     localStorage.setItem('pellier-session-id', 'browser-fixture-session');
-    localStorage.setItem('pellier-observatory-view', focus ? 'focus' : 'expert');
-  }, { focus: options.focus });
+  });
   await page.route('**/api/**', async request => {
     const path = new URL(request.request().url()).pathname;
     calls.push(`${request.request().method()} ${path}`);
@@ -109,7 +108,9 @@ for (const width of [1440, 1024, 768, 390]) {
     await page.setViewportSize({ width, height: 810 });
     await fixture(page);
     await page.goto(route);
+    if (width <= 1100) await page.getByRole('button', { name: 'Reconcile answer', exact: true }).click();
     await expect(page.getByText('Choose a shopper turn to inspect its answer and evidence.')).toBeVisible();
+    if (width <= 1100) await page.getByRole('button', { name: 'Inspect evidence', exact: true }).click();
     await expect(page.getByRole('status', { name: 'Run proof summary' })).toHaveCount(1);
     await expect(page.getByRole('list', { name: 'Evidence categories' }).locator('li')).toHaveCount(7);
     await expect(page.locator('.observatory-products-empty, .observatory-answer-state')).toHaveCount(0);
@@ -195,8 +196,9 @@ for (const readable of [true, false]) {
   });
 }
 
-test('Resume, history, and Open event reveal the destination panel in Focus view', async ({ page }) => {
-  await fixture(page, { focus: true });
+test('Resume, history, and Open event reveal the destination panel on a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await fixture(page);
   await page.addInitScript(() => localStorage.setItem('pellier-lab-progress', JSON.stringify({
     lab: 'grounded-inventory', step: 'inspect', nextAction: '', updatedAt: '2026-09-17T00:00:00Z',
   })));

@@ -2569,44 +2569,13 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Focus mode: one panel at a time, in the order the work happens.
- * Expert view restores the three-panel grid for anyone who wants the whole
- * instrument at once.
+ * Narrow layout: one panel at a time. Wide screens show all three panels.
  * ------------------------------------------------------------------------- */
 .observatory-workbench-intro-aside {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 12px;
-}
-
-.observatory-root .observatory-view-toggle {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
-  border: 1px solid var(--pl-line-strong);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--pl-muted);
-  font-family: var(--pl-sans);
-  font-size: var(--text-label);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.observatory-root .observatory-view-toggle:hover {
-  color: var(--pl-ink);
-  border-color: var(--pl-accent);
-}
-
-.observatory-root .observatory-view-toggle[aria-pressed='true'] {
-  border-color: var(--pl-accent);
-  background: color-mix(in srgb, var(--pl-accent) 8%, transparent);
-  color: var(--pl-accent);
 }
 
 .observatory-focus-steps {
@@ -2730,6 +2699,12 @@
 
 .labs-turns-state { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px; }
 .labs-turns-state > span { flex: 1 1 220px; }
+.labs-turns-scenario-setup { display: grid; gap: 12px; background: var(--obs-cream-2); border-bottom: 1px solid var(--obs-rule-1); }
+.labs-turns-scenario-setup p { font-size: 13px; line-height: 1.6; color: var(--obs-ink-3); }
+.observatory-root .labs-turns-select-scenario { width: fit-content; min-height: 44px; padding: 10px 18px; border: 1px solid var(--obs-red-1); border-radius: var(--control-radius); background: var(--obs-red-1); color: var(--cream); font-size: 13px; font-weight: 600; cursor: pointer; }
+.observatory-root .labs-turns-select-scenario:hover { background: var(--obs-espresso-2); }
+.observatory-root .labs-turns-select-scenario:focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 3px; }
+.observatory-root .labs-turns-select-scenario:disabled { opacity: .6; cursor: wait; }
 .observatory-focus-steps button { min-height: 44px; transition: background-color 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out; }
 @media (prefers-reduced-motion: no-preference) {
   .observatory-workbench-grid[data-view='focus'] > [data-motion-panel]:not([hidden]) { animation: pellier-panel-arrive 180ms ease-out; }
@@ -2738,7 +2713,6 @@
 
 @media (max-width: 560px) {
   .observatory-workbench-intro-aside { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
-  .observatory-view-toggle { white-space: nowrap; min-height: 44px; }
   .observatory-resume { flex: 1; min-width: 0; border-radius: 10px; }
 }
 
@@ -2749,11 +2723,9 @@
 .labs-evidence-guidance dd { margin: 0; max-width: 72ch; }
 .labs-evidence-guidance dd p { margin-top: 6px; }
 .labs-benchmark-note { max-width: 72ch; padding-top: 12px; border-top: 1px solid var(--rule-1); }
-.observatory-workbench-guide-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--obs-red-1);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.observatory-workbench-studio-note {
+  margin-top: 10px;
+  color: var(--obs-ink-3);
+  font-size: 13px;
+  line-height: 1.5;
 }

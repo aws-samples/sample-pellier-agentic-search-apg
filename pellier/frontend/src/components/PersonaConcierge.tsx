@@ -11,15 +11,12 @@
  * contract with a contradictory guest path.
  */
 import { useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
-import { useUI } from '../contexts/UIContext'
 import { getPersonaPortrait } from '../data/personaPhotos'
 import { HERO_CONCIERGE } from '../copy'
 
 export default function PersonaConcierge() {
   const { persona, switchPersona, switching, switchError } = usePersona()
-  const { openModal } = useUI()
   const [profiles, setProfiles] = useState<PersonaListItem[]>([])
   const [retryVersion, setRetryVersion] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -109,28 +106,6 @@ export default function PersonaConcierge() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="pellier-concierge-ask"
-        data-testid="concierge-ask"
-        disabled
-        aria-describedby="concierge-profile-required"
-        onClick={() => openModal('drawer')}
-      >
-        <Sparkles
-          className="pellier-concierge-sparkle"
-          size={15}
-          aria-hidden="true"
-        />
-        {HERO_CONCIERGE.ASK_ACTION}
-      </button>
-
-      <p
-        id="concierge-profile-required"
-        className="pellier-concierge-requirement"
-      >
-        {HERO_CONCIERGE.CHOOSE_HELPER}
-      </p>
       {/* Stated at the point of choice, not deferred to a lab page: a
           participant who reads this selector as an identity assertion will
           misread every later policy decision. */}

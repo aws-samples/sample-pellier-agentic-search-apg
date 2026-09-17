@@ -231,7 +231,7 @@ export default function PellierPage() {
           className="w-full"
           aria-label="Featured products"
           style={{
-            scrollMarginTop: 84,
+            scrollMarginTop: 'calc(var(--pellier-surface-bar-height, 64px) + var(--pellier-storefront-nav-height, 60px) + 16px)',
             background: 'var(--cream-warm)',
             borderTop: '1px solid var(--rule-1)',
           }}
@@ -262,10 +262,10 @@ export default function PellierPage() {
           {!catalogLoading && !catalogError && !featuredProduct ? (
             <div className="mx-auto max-w-[760px] px-container-x py-24 text-center">
               <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
-                Live catalog empty
+                No pieces to show just now
               </p>
               <p className="mt-4 font-sans text-[14px] text-ink-soft">
-                Aurora has no current edit for this profile.
+                The collection returned no pieces for this edit. Try another scenario or check back shortly.
               </p>
             </div>
           ) : null}

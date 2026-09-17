@@ -109,15 +109,4 @@ describe('LabGrammar', () => {
     expect(screen.queryByText(/Back:/)).toBeNull();
   });
 
-  it('is mounted on the Lab 1 destination', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    const source = readFileSync(
-      resolve(__dirname, '../surfaces/understand/Tools.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('LabGrammar');
-    expect(source).toContain('Lab 1 · Build a PostgreSQL-Grounded Agent');
-  });
 });

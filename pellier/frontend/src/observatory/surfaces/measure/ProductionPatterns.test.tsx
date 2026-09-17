@@ -10,9 +10,11 @@ vi.mock('../../hooks/useObservatoryData', () => ({
 describe('ProductionPatterns design reference', () => {
   it('renders the four contracts without a data endpoint or fixture', () => {
     render(<MemoryRouter><ProductionPatterns /></MemoryRouter>);
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(4);
-    expect(screen.getByRole('link', { name: /Read Lab 3/ })).toHaveAttribute('href', '/observatory/labs/managed-agent-path');
-    expect(screen.getByRole('link', { name: /Read Lab 4/ })).toHaveAttribute('href', '/observatory/labs/fail-closed-policy');
+    for (const name of ['Bind identity at every boundary', 'Keep memory scope explicit', 'Separate discovery, publication, and permission', 'Prove the effect independently of the response']) {
+      expect(screen.getByRole('heading', { name, level: 2 })).toBeVisible();
+    }
+    expect(screen.getByRole('link', { name: /Open Lab 3/ })).toHaveAttribute('href', '/observatory/workbench?lab=managed-agent-path');
+    expect(screen.getByRole('link', { name: /Open Lab 4/ })).toHaveAttribute('href', '/observatory/workbench?lab=fail-closed-policy');
     expect(screen.queryByText('Shipped')).not.toBeInTheDocument();
   });
 

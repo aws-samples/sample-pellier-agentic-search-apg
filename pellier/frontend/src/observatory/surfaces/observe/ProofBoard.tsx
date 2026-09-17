@@ -1545,7 +1545,7 @@ const ProofBoard: React.FC<ProofBoardProps> = ({ focusCardId }) => {
           All checkpoints
         </Link>
       )}
-      <EditorialTitle
+      <EditorialTitle referenceId="proof"
         backToReferences={!isAuditFocus}
         eyebrow={
           isAuditFocus

@@ -34,12 +34,12 @@ export default function HowPellierWorksPage() {
           <div className="pellier-how-copy">
             <p className="pellier-how-eyebrow">How Pellier works</p>
             <h1>One request,<br /><em>from question to evidence.</em></h1>
-            <p className="pellier-how-lead">Pellier answers from live product and customer records, checks them before it promises anything, and writes down what it did.</p>
+            <p className="pellier-how-lead">Pellier connects a shopper’s question to product and customer records. You can inspect the answer, the evidence behind it, and what the system actually did.</p>
             <p>One story in three recorded requests, each adding a layer the one before it did not need: ground the answer in live data, bring in a person when the records cannot settle it, then refuse a request the caller is not entitled to make.</p>
             <p>They are separate recordings, not one session. Each connects its steps to the source behind them and to the matching workshop exercise.</p>
             <div className="pellier-how-links">
-              <Link className="pellier-action pellier-action--primary" to="/observatory/workbench">Inspect a live request</Link>
-              <Link className="pellier-action pellier-action--ghost" to="/#shop">Back to the collection</Link>
+              <Link className="pellier-action pellier-action--primary" to="/observatory">Explore the four labs</Link>
+              <Link className="pellier-action pellier-action--ghost" to="/observatory/workbench">Inspect a live request</Link>
             </div>
             <p className="pellier-how-caption">Each example identifies when it was recorded. Prices, availability, and policy configuration may have changed since that request.</p>
           </div>
@@ -51,7 +51,7 @@ export default function HowPellierWorksPage() {
           <article>
             <span className="pellier-how-number">01</span>
             <h2>The storefront</h2>
-            <p>A premium storefront you can ask questions in. Ask for a piece, compare options, and see the price and the stock count behind every recommendation before you buy.</p>
+            <p>Browse the collection, ask for a piece, and compare options. A warehouse question calls for current stock records; a recommendation calls for relevant products that meet your constraints.</p>
             <Link to="/">Visit the storefront <ArrowUpRight size={15} aria-hidden /></Link>
           </article>
           <article>

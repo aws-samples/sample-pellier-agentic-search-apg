@@ -21,13 +21,15 @@ import '../styles/persona-modal.css'
 interface PersonaModalProps {
   open: boolean
   onClose: () => void
+  /** A conversation handoff stays open as the chosen scenario becomes active. */
+  closeOnSelect?: boolean
 }
 
 const PERSONA_MODAL_EASE: [number, number, number, number] = [
   0.23, 1, 0.32, 1,
 ]
 
-export default function PersonaModal({ open, onClose }: PersonaModalProps) {
+export default function PersonaModal({ open, onClose, closeOnSelect = true }: PersonaModalProps) {
   const { persona, switchPersona, signOut, switching, switchError } = usePersona()
   const [personas, setPersonas] = useState<PersonaListItem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -63,9 +65,9 @@ export default function PersonaModal({ open, onClose }: PersonaModalProps) {
 
   const handleSelect = useCallback(
     async (id: string) => {
-      if (await switchPersona(id)) onClose()
+      if (await switchPersona(id) && closeOnSelect) onClose()
     },
-    [switchPersona, onClose],
+    [switchPersona, onClose, closeOnSelect],
   )
 
   const handleSignOut = useCallback(() => {

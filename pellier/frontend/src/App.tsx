@@ -59,8 +59,8 @@ const ObservatoryWorkbench = lazy(
 const LabsCatalog = lazy(
   () => import('./observatory/surfaces/labs/LabsCatalog'),
 )
-const LabDetail = lazy(
-  () => import('./observatory/surfaces/labs/LabDetail'),
+const LabRedirect = lazy(
+  () => import('./observatory/surfaces/labs/LabRedirect'),
 )
 const ArchitectureIndex = lazy(
   () => import('./observatory/surfaces/understand/ArchitectureIndex'),
@@ -270,8 +270,8 @@ export function AppRoutes() {
               index route. Preserve that deep link instead of falling through
               to the Storefront wildcard. */}
           <Route path="labs" element={<Navigate to="/observatory" replace />} />
-          <Route path="labs/:exerciseId" element={<LabDetail />} />
-          <Route path="guide/:guideId" element={<LabDetail />} />
+          <Route path="labs/:exerciseId" element={<LabRedirect />} />
+          <Route path="guide/:guideId" element={<Navigate to="/observatory" replace />} />
           <Route path="workbench" element={<ObservatoryWorkbench />} />
           <Route
             path="references"

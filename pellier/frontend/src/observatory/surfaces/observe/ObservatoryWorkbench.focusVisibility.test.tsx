@@ -36,7 +36,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MemoryRouter } from 'react-router-dom';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 const mocks = vi.hoisted(() => ({
   sendChatMessageStreaming: vi.fn(),
@@ -171,10 +171,11 @@ function displayUnderShippedCss(
   }
 }
 
-describe('Observatory workbench focus mode really hides the other panels', () => {
+describe('Narrow Workbench layout really hides the other panels', () => {
+  let resize: (width: number) => void;
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'focus');
+    resize = mockWorkbenchWidth(900);
     mocks.sendChatMessageStreaming.mockReset();
     mocks.sendChatMessageStreaming.mockResolvedValue({
       response: 'A grounded answer.',
@@ -202,7 +203,7 @@ describe('Observatory workbench focus mode really hides the other panels', () =>
       ['observatory-results-panel', false],
     ]);
 
-    await user.click(screen.getByRole('button', { name: 'Expert view' }));
+    resize(1440);
 
     expect(panelState()).toEqual([
       ['observatory-input-panel', false],

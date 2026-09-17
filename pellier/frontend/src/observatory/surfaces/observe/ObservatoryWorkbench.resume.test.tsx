@@ -29,7 +29,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 }));
 
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 import {
   LAB_PROGRESS_KEY,
   readLabProgress,
@@ -58,8 +58,8 @@ function renderAt(entry: string) {
 describe('Observatory workbench resume', () => {
   beforeEach(() => {
     localStorage.clear();
-    // These cases exercise Focus navigation; Expert remains the product default.
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'focus');
+    // These cases exercise panel navigation at a narrow viewport.
+    mockWorkbenchWidth(900);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
@@ -149,8 +149,8 @@ describe('Observatory workbench resume', () => {
     expect(screen.getByRole('button', { name: 'Reconcile answer' })).toHaveAttribute('aria-current', 'step');
   });
 
-  it('does not offer a step-only Resume when Expert already shows every panel', () => {
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+  it('does not offer a step-only Resume when a wide viewport already shows every panel', () => {
+    mockWorkbenchWidth(1440);
     writeLabProgress({
       lab: 'grounded-inventory', step: 'reconcile', nextAction: 'Read the answer.',
     });

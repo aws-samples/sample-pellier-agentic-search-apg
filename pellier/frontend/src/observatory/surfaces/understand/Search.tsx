@@ -19,11 +19,12 @@
  * the real files so a participant can read the layering for themselves.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EditorialTitle, ExpCard } from '../../components';
 import { useSearchExplain } from '../../hooks/useSearchExplain';
 import type { SearchStage, SearchTagClass } from '../../types';
+import '../measure/Performance.css';
 
 const DARK_CODE_BLOCK: React.CSSProperties = {
   fontFamily: 'var(--obs-mono)',
@@ -233,7 +234,7 @@ const CODE_READ: Array<{ step: string; path: string; body: string }> = [
   {
     step: 'The baseline: pure pgvector',
     path: 'services/vector_search.py — VectorSearch.vector_search (reference)',
-    body: 'Marco’s path. One CTE binds the query vector once; the <=> operator is HNSW cosine distance; similarity = 1 − distance. SET LOCAL hnsw.ef_search tunes recall per query; iterative_scan protects recall when WHERE clauses are strict.',
+    body: 'Marco’s path. One CTE binds the query vector once; the <=> operator computes cosine distance; similarity = 1 − distance. SET LOCAL hnsw.ef_search tunes recall per query; iterative_scan can scan further when WHERE clauses are strict. Use the lab’s EXPLAIN output to establish the chosen access path; the distance operator alone does not prove index use.',
   },
   {
     step: 'The hybrid branches run in parallel',
@@ -243,7 +244,7 @@ const CODE_READ: Array<{ step: string; path: string; body: string }> = [
   {
     step: 'RRF fuses two rankings without shared scales',
     path: 'services/hybrid_search.py — _rrf_merge (k=60)',
-    body: 'score(d) = Σ 1 / (k + rank) over each branch d appears in. It never compares a cosine similarity to a ts_rank_cd directly — only ranks — so the two scales never need to be reconciled. A row in both branches outscores a row in one. That’s the FUSION panel.',
+    body: 'score(d) = Σ 1 / (k + rank) over each branch d appears in. It never compares a cosine similarity to a ts_rank_cd directly — only ranks — so the two scales never need to be reconciled. Contributions from both branches can lift a candidate; the result depends on its ranks. That’s the FUSION panel.',
   },
   {
     step: 'Rerank reorders the survivors',
@@ -288,7 +289,7 @@ const CodeReadCard: React.FC = () => (
         maxWidth: '680px',
       }}
     >
-      The panels above are live output. These are the files that produced
+      After a run, the panels show live output. These are the files that produce
       them, in the order a query flows through. Open them in the Code Editor
       alongside this surface — the SQL you read here is the SQL that ran.
     </p>
@@ -410,24 +411,10 @@ const Search: React.FC = () => {
   const [searchParams] = useSearchParams();
   const handedQuery = (searchParams.get('q') ?? '').trim();
   const [input, setInput] = useState(handedQuery || DEFAULT_QUERY);
-  // Tracks whether the participant has run a query themselves. We auto-fire
-  // the default query on mount so the surface is never empty, but if that
-  // auto-run fails (e.g. the backend is still warming up at page-open) we
-  // show a calm "press Run on Aurora" prompt rather than a loud red banner
-  // for something the participant did not trigger.
-  const [hasRunManually, setHasRunManually] = useState(false);
-
-  // Run once on mount so the surface is never empty: the handed query when a
-  // turn linked here, the default example otherwise.
-  useEffect(() => {
-    explain(handedQuery || DEFAULT_QUERY);
-  }, []);
-
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
       if (input.trim()) {
-        setHasRunManually(true);
         explain(input.trim());
       }
     },
@@ -436,7 +423,6 @@ const Search: React.FC = () => {
 
   const runExample = useCallback(
     (q: string) => {
-      setHasRunManually(true);
       setInput(q);
       explain(q);
     },
@@ -444,16 +430,16 @@ const Search: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
-      <EditorialTitle
+    <div className="observatory-reading-page reference-search-page">
+      <EditorialTitle referenceId="search"
         backToReferences
         eyebrow="Understand · Search · embed → vector ∥ lexical → RRF → rerank"
-        title="Retrieval"
-        summary="Anna's hybrid-search-and-rerank path runs live but is usually invisible. Type a query and watch the real pipeline: a Cohere Embed v4 vector, a pgvector HNSW cosine branch and a Postgres full-text branch running in parallel, Reciprocal Rank Fusion merging the two, and Cohere Rerank v3.5 reordering the survivors. The SQL is the SQL that ran; the reordering is live. The Proof Board keeps the required checkpoint."
+        title="Search pipeline"
+        summary="Run a new query to inspect the vector and full-text branches, reciprocal rank fusion, and rerank movement. This mechanism view is separate from the constrained shopper execution."
       />
 
       {/* Query form + examples */}
-      <form onSubmit={handleSubmit}>
+      <form className="reference-search-form" onSubmit={handleSubmit}>
         <div
           style={{
             background: 'var(--obs-cream-2)',
@@ -486,6 +472,7 @@ const Search: React.FC = () => {
             aria-label="Search explain query"
             style={{
               flex: 1,
+              minWidth: 0,
               fontFamily: 'var(--obs-sans)',
               fontSize: '17px',
               color: 'var(--obs-ink-1)',
@@ -581,7 +568,7 @@ const Search: React.FC = () => {
       )}
 
       {/* Error state — honest, no fabricated ranking */}
-      {error && hasRunManually && (
+      {error && (
         <div
           style={{
             fontFamily: 'var(--obs-mono)',
@@ -600,7 +587,7 @@ const Search: React.FC = () => {
         </div>
       )}
 
-      {error && !hasRunManually && !loading && (
+      {!error && stages.length === 0 && !loading && (
         <div
           style={{
             fontFamily: 'var(--obs-mono)',

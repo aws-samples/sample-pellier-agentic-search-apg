@@ -2682,15 +2682,16 @@ async def explain_search(query: str):
     vector_stage = {
         "stage": "vector",
         "tag": "SEARCH · VECTOR",
-        "title": "HNSW cosine · pgvector",
+        "title": "Cosine retrieval · pgvector",
         "sql": explained["vector_sql"].strip(),
         "columns": ["rank", "product", "similarity"],
         "rows": [
             [str(i + 1), _label(r), _num(r.get("similarity"))]
             for i, r in enumerate(vector_rows[:DISPLAY])
         ],
-        "meta": f"Top {params['k_vector']} by cosine over the HNSW index "
-                f"(<=> operator). similarity = 1 − distance; higher is closer.",
+        "meta": f"Top {params['k_vector']} by cosine distance "
+                f"(<=> operator). similarity = 1 − distance; higher is closer. "
+                f"Use EXPLAIN to establish whether this execution used the HNSW index.",
         "tagClass": "cyan",
     }
 
@@ -2727,8 +2728,8 @@ async def explain_search(query: str):
             for r in merged[:DISPLAY]
         ],
         "meta": f"score(d) = Σ 1 / (k + rank) over each branch d appears in, "
-                f"k={params['rrf_k']}. A row ranked in BOTH branches outscores "
-                f"a row ranked in only one — that consensus is the point. "
+                f"k={params['rrf_k']}. Presence in both branches adds two contributions; "
+                f"whether that beats a single-branch row depends on the ranks. "
                 f"'—' means the row never surfaced in that branch.",
         "tagClass": "cyan",
         "durationMs": hybrid_ms,

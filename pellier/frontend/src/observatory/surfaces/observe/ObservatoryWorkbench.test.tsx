@@ -30,7 +30,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 import { PERSONA_HERO_PILLS } from '../../../data/personaCurations';
 import { WORKSHOP_JOURNEYS } from '../../../data/workshopJourneys';
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 /**
  * There is no free-text box any more: a run starts by inspecting one of the
@@ -64,7 +64,7 @@ describe('Pellier Observatory live agent workbench', () => {
     // expert view where all three panels are mounted. Focus mode's one-panel
     // stepper is its own behaviour, covered by ObservatoryWorkbench.focus.test.tsx.
     localStorage.clear();
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    mockWorkbenchWidth(1440);
     mocks.sendChatMessageStreaming.mockReset();
     mocks.fetch.mockReset();
     mocks.switchPersona.mockReset();
@@ -105,7 +105,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Labs & Live Workbench',
+        name: 'Workbench',
       }),
     ).toBeInTheDocument();
     expect(
@@ -296,6 +296,28 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(screen.getByRole('link', { name: 'Review the Lab 4 proof' })).toHaveAttribute(
       'href', '/observatory/govern/verification',
     );
+  });
+
+  it('lets the participant explicitly choose a scenario without starting an agent turn', async () => {
+    const user = userEvent.setup();
+    mocks.persona = null;
+    mocks.switchPersona.mockResolvedValue(true);
+    const content = <MemoryRouter initialEntries={['/observatory/workbench?lab=retrieval-acceptance']}><ObservatoryWorkbench /></MemoryRouter>;
+    const { rerender } = render(content);
+    const select = await screen.findByRole('button', { name: 'Choose Anna’s scenario' });
+    expect(mocks.switchPersona).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByText(/It does not sign you in as Anna/)).toBeVisible());
+    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
+    await user.click(select);
+    expect(mocks.switchPersona).toHaveBeenCalledWith('anna');
+    expect(mocks.sendChatMessageStreaming).not.toHaveBeenCalled();
+    // A successful request alone is insufficient: wait for the shared context.
+    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
+    mocks.persona = { id: 'anna', display_name: 'Anna', customer_id: 'CUST-ANNA' };
+    rerender(<MemoryRouter initialEntries={['/observatory/workbench?lab=retrieval-acceptance']}><ObservatoryWorkbench /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeEnabled();
+    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Choose Anna’s scenario' })).toBeNull();
   });
 
   it('keeps the idle ledger and metrics honest before a run', () => {

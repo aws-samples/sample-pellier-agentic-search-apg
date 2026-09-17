@@ -1,0 +1,15 @@
+.reference-brief { margin: 0 0 28px; padding: 20px 0; border-block: 1px solid var(--obs-rule-1); color: var(--obs-ink-2); }
+.reference-brief-role { margin: 0 0 8px; color: var(--obs-red-1); font: 600 12px/1.5 var(--obs-sans); }
+.reference-brief h2 { margin: 0 0 14px; color: var(--obs-ink-1); font: 500 20px/1.4 var(--obs-heading); }
+.reference-brief-reading { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.reference-brief-reading p { margin: 0; font: 400 14px/1.65 var(--obs-sans); }
+.reference-brief-reading strong { display: block; color: var(--obs-ink-1); margin-bottom: 4px; }
+.reference-brief footer { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; margin-top: 14px; }
+.reference-brief footer > a, .reference-brief summary { display: inline-block; min-height: 44px; align-content: center; font: 600 13px/1.5 var(--obs-sans); color: var(--obs-red-1); cursor: pointer; }
+.reference-brief summary { display: list-item; }
+.reference-brief details { min-width: 0; }
+.reference-brief ul { padding-left: 18px; margin: 8px 0; }
+.reference-brief li { margin-bottom: 10px; overflow-wrap: anywhere; font-size: 12px; }
+.reference-brief code { font-family: var(--obs-mono); }
+.reference-brief :is(a, summary):focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 4px; }
+@media (max-width: 700px) { .reference-brief-reading { grid-template-columns: minmax(0, 1fr); gap: 16px; } }

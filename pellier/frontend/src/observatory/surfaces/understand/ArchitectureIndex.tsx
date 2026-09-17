@@ -359,7 +359,7 @@ const ArchitectureIndex: React.FC = () => {
 
   return (
     <div className="observatory-reading-page observatory-architecture-page">
-      <EditorialTitle
+      <EditorialTitle referenceId="architecture"
         backToReferences
         eyebrow="Start Here · Architecture Brief"
         title="Architecture"

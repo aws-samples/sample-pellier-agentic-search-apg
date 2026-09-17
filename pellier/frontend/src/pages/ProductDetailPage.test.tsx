@@ -8,7 +8,7 @@
  *     not paint a browser fixture whose price or stock could be stale.
  *   - Aurora supplies copy, availability, and the related live catalog rows.
  *   - A null availability read renders as an explicit "not read" and NEVER
- *     as zero stock. A failed product read is an explicit not-found state.
+ *     as zero stock. An unavailable read is distinct from a missing product.
  *   - Siblings come from the live catalog response, not the active profile's
  *     browser fixture.
  */
@@ -179,13 +179,13 @@ interface DetailPayload {
  */
 function stubFetch(
   handler: (id: string) => Response | Promise<Response>,
-  catalog = CATALOG,
+  catalog: typeof CATALOG | (() => Response | Promise<Response>) = CATALOG,
 ) {
   const impl = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : String(input)
     const match = /\/api\/products\/(\w+)/.exec(url)
     if (match) return handler(match[1])
-    if (url.endsWith('/api/products')) return jsonResponse(catalog)
+    if (url.endsWith('/api/products')) return typeof catalog === 'function' ? catalog() : jsonResponse(catalog)
     return new Response('[]', { status: 200 })
   })
   vi.stubGlobal('fetch', impl)
@@ -399,9 +399,33 @@ describe('ProductDetailPage — a failed read never fabricates stock', () => {
     renderAt(`/product/${SUBJECT.id}`)
 
     expect(
-      await screen.findByTestId('product-detail-not-found'),
+      await screen.findByTestId('product-detail-unavailable'),
     ).toBeInTheDocument()
     expect(screen.queryByTestId('product-on-hand')).toBeNull()
+  })
+
+  it('offers a retry after a service failure without claiming the product is missing', async () => {
+    const user = userEvent.setup()
+    let available = false
+    stubFetch(() => available ? jsonResponse(detailPayload()) : new Response('', { status: 503 }))
+    renderAt(`/product/${SUBJECT.id}`)
+    expect(await screen.findByTestId('product-detail-unavailable')).toBeInTheDocument()
+    expect(screen.queryByText(PRODUCT_DETAIL.NOT_FOUND_TITLE)).not.toBeInTheDocument()
+    available = true
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByTestId('product-detail-name')).toHaveTextContent(SUBJECT.name)
+    expect(screen.queryByTestId('product-detail-unavailable')).not.toBeInTheDocument()
+  })
+
+  it.each(['failed', 'pending'])('keeps the product usable when the related collection is %s', async (state) => {
+    stubFetch(() => jsonResponse(detailPayload()), () => state === 'failed'
+      ? Promise.reject(new Error('related collection unavailable'))
+      : new Promise<Response>(() => {}))
+    renderAt(`/product/${SUBJECT.id}`)
+    expect(await screen.findByTestId('product-detail-name')).toHaveTextContent(SUBJECT.name)
+    expect(screen.getByTestId('product-detail-add')).toBeEnabled()
+    expect(screen.queryByTestId('product-detail-unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: PRODUCT_DETAIL.MORE_HEADING })).not.toBeInTheDocument()
   })
 
   it('declares inventory unread when availability comes back null', async () => {
@@ -468,10 +492,10 @@ describe('ProductDetailPage — arbitrary live catalog ids', () => {
     expect(screen.getByText(PRODUCT_DETAIL.NOT_FOUND_TITLE)).toBeInTheDocument()
   })
 
-  it('does not attempt a read for a non-numeric id', async () => {
+  it.each(['not-a-number', '11abc', '1e2'])('does not attempt a read for an invalid id: %s', async (id) => {
     const impl = stubFetch(() => jsonResponse(detailPayload()))
 
-    renderAt('/product/not-a-number')
+    renderAt(`/product/${id}`)
 
     expect(
       await screen.findByTestId('product-detail-not-found'),

@@ -24,6 +24,8 @@ export interface LabExercise {
   title: string;
   shortTitle: string;
   summary: string;
+  customerNeed: string;
+  nextBoundary: string;
   image: string;
   imageWidth: number;
   imageHeight: number;
@@ -49,6 +51,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     anchorName: 'Marco',
     title: 'Build a PostgreSQL-Grounded Agent',
     shortTitle: 'PostgreSQL-grounded agent',
+    customerNeed: 'Marco needs a warehouse answer he can trust before his trip.',
+    nextBoundary: 'A correct stock answer is only the start. Next, help Anna find an eligible gift and measure how retrieval changes her options.',
     summary:
       'Complete the Inventory Agent and its Aurora tool, then prove the answer against the exact warehouse rows and execution receipt.',
     image: '/assets/personas/marco-720.webp',
@@ -96,6 +100,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     anchorName: 'Anna',
     title: 'Build and Measure PostgreSQL Hybrid Retrieval',
     shortTitle: 'PostgreSQL retrieval',
+    customerNeed: 'Anna needs a gift under $100, with availability treated as a constraint.',
+    nextBoundary: 'Now that retrieval is inspectable, take Theo’s support journey to a managed runtime and separate remembered preferences from current facts.',
     summary:
       'Inspect a PostgreSQL query plan, verify RRF in SQL, and repair a narrow candidate budget without relaxing eligibility.',
     image: '/assets/personas/anna-720.webp',
@@ -143,6 +149,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     anchorName: 'Theo',
     title: 'Deploy and Operate Agents with Amazon Bedrock AgentCore',
     shortTitle: 'AgentCore managed path',
+    customerNeed: 'Theo needs continuity across conversations without crossing into another customer’s records.',
+    nextBoundary: 'A deployed agent still needs a boundary on what it may do. Next, prove authorization, database scope, and the human review checkpoint.',
     summary:
       'Publish Theo\'s customer-scoped read, reconcile the Runtime tool list, and deploy. Use learned preferences in a new conversation and verify the running build.',
     image: '/assets/personas/theo-720.webp',
@@ -190,6 +198,8 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     anchorName: 'Jessica',
     title: 'Build Governed Agent Actions with Cedar',
     shortTitle: 'Cedar and governed actions',
+    customerNeed: 'Jessica needs a fair resolution, with account access and consequential actions controlled.',
+    nextBoundary: 'Bring the four evidence sets together: defend which layer enforces each boundary, then restore the workshop baseline and follow cleanup.',
     summary:
       'Bind verified identity in Cedar, prove the four-case execution matrix and Aurora RLS backstop, then investigate Jessica\'s case as separately authorized staff.',
     image: '/assets/personas/jessica-720.webp',

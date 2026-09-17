@@ -9,7 +9,6 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
-  Columns3,
   ChevronsDownUp,
   ChevronsUpDown,
   CircleDashed,
@@ -57,6 +56,7 @@ import type {
 } from '../../../shared/evidenceLedger';
 import ObservatoryCuratedTurns from './ObservatoryCuratedTurns';
 import WorkbenchResources from '../../components/WorkbenchResources';
+import LabHandoff from '../labs/LabHandoff';
 import {
   canRunTurn,
   completeTurn,
@@ -67,9 +67,7 @@ import {
   FOCUS_INSPECT_STEP,
   FOCUS_PANELS,
   focusStepIndex,
-  readWorkbenchView,
-  writeWorkbenchView,
-  type WorkbenchView,
+  useCompactWorkbench,
 } from './workbenchView';
 import {
   readLabProgress,
@@ -931,7 +929,7 @@ function whyThisAnswer({
 }
 
 export default function ObservatoryWorkbench() {
-  const { persona, switchError } = usePersona();
+  const { persona, switchPersona, switching, switchError } = usePersona();
   const reduceMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedLab =
@@ -940,7 +938,7 @@ export default function ObservatoryWorkbench() {
   const selectedPersona =
     persona?.id === selectedJourney.anchorId ? persona : null;
   const storefrontJourney = selectedJourney.surface === 'storefront';
-  const profileReady = !storefrontJourney || Boolean(selectedPersona);
+  const profileReady = !storefrontJourney || (Boolean(selectedPersona) && !switching);
   const [activeTurn, setActiveTurn] = useState<number | null>(null);
   const [activeQuery, setActiveQuery] = useState<string | null>(null);
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
@@ -973,12 +971,8 @@ export default function ObservatoryWorkbench() {
     Record<string, boolean>
   >({});
   const [linkedStepId, setLinkedStepId] = useState<string | null>(null);
-  /**
-   * Focus mode walks Run -> Inspect evidence -> Reconcile answer one panel at
-   * a time; expert restores the three-panel grid. The preference is per
-   * browser, so it lives in localStorage and is read once on mount.
-   */
-  const [view, setView] = useState<WorkbenchView>(() => readWorkbenchView());
+  // One workspace adapts to the available width; there is no expertise setting.
+  const compact = useCompactWorkbench();
   // The step is addressable: Resume and a shared link both carry `?step=`.
   const focusStep = focusStepIndex(searchParams.get('step'));
   const showFocusStep = (index: number, replace = false) => {
@@ -1662,7 +1656,7 @@ export default function ObservatoryWorkbench() {
     if (step) {
       setReceiptOverrides((current) => ({ ...current, [stepId]: true }));
     }
-    if (view === 'focus') showFocusStep(FOCUS_INSPECT_STEP);
+    if (compact) showFocusStep(FOCUS_INSPECT_STEP);
     if (linkTimerRef.current !== null) {
       window.clearTimeout(linkTimerRef.current);
     }
@@ -1674,12 +1668,12 @@ export default function ObservatoryWorkbench() {
 
   // Navigation must reveal the ledger before a claim can scroll to its event.
   useEffect(() => {
-    if (!linkedStepId || (view === 'focus' && focusStep !== FOCUS_INSPECT_STEP)) return;
+    if (!linkedStepId || (compact && focusStep !== FOCUS_INSPECT_STEP)) return;
     stepNodesRef.current.get(linkedStepId)?.scrollIntoView?.({
       block: 'center',
       behavior: reduceMotion ? 'auto' : 'smooth',
     });
-  }, [linkedStepId, view, focusStep, reduceMotion]);
+  }, [linkedStepId, compact, focusStep, reduceMotion]);
 
   const proofSummary = runProofSummary(
     runStatus,
@@ -1691,7 +1685,7 @@ export default function ObservatoryWorkbench() {
     products.length,
   );
 
-  const focusMode = storefrontJourney && view === 'focus';
+  const focusMode = storefrontJourney && compact;
   const currentStep = (FOCUS_PANELS[focusStep] ?? FOCUS_PANELS[0]).id;
 
   // Record the position as it changes so a closed tab is recoverable. The
@@ -1713,11 +1707,6 @@ export default function ObservatoryWorkbench() {
           hidden: activeFocusPanel.panel !== panel,
         }
       : {};
-
-  const chooseView = (next: WorkbenchView) => {
-    setView(next);
-    writeWorkbenchView(next);
-  };
 
   const copySql = async (step: JourneyStep) => {
     if (!step.sql || !navigator.clipboard?.writeText) return;
@@ -1790,10 +1779,10 @@ export default function ObservatoryWorkbench() {
         <header className="observatory-workbench-intro">
           <div className="observatory-workbench-intro-copy">
             <h1 className="observatory-page-title font-display">
-              Labs & Live Workbench
+              Workbench
             </h1>
           </div>
-          {storefrontJourney || resumeElsewhere ? <div className="observatory-workbench-intro-aside">
+          {resumeElsewhere ? <div className="observatory-workbench-intro-aside">
             {resumeElsewhere ? (
               <Link
                 className="observatory-resume"
@@ -1807,15 +1796,6 @@ export default function ObservatoryWorkbench() {
                 </span>
               </Link>
             ) : null}
-            {storefrontJourney ? <button
-              type="button"
-              className="observatory-view-toggle"
-              aria-pressed={focusMode ? 'false' : 'true'}
-              onClick={() => chooseView(focusMode ? 'expert' : 'focus')}
-            >
-              <Columns3 size={14} aria-hidden="true" />
-              Expert view
-            </button> : null}
           </div> : null}
         </header>
         {focusMode ? (
@@ -1868,16 +1848,14 @@ export default function ObservatoryWorkbench() {
         <div className="observatory-workbench-task">
           <h2>Lab {Number(selectedLab.number)}: {selectedLab.title}</h2>
           <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
-          <Link className="observatory-workbench-guide-link" to={`/observatory/labs/${selectedLab.id}`}>
-            Read Lab {Number(selectedLab.number)} guide
-          </Link>
+          <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio. Use this workspace to run the scenario and inspect its evidence.</p>
         </div>
         {focusMode ? (
           <div className="observatory-workbench-status">{runSummary}</div>
         ) : null}
         <div
           className="observatory-workbench-grid"
-          data-view={storefrontJourney ? view : 'operator'}
+          data-view={storefrontJourney ? (compact ? 'focus' : 'wide') : 'operator'}
           aria-label={storefrontJourney ? 'Live agent run' : 'Operator investigation handoff'}
         >
           <motion.aside
@@ -1906,6 +1884,8 @@ export default function ObservatoryWorkbench() {
               ready={profileReady}
               canRunTurn={(index) => canRunTurn(turnEntries, index)}
               anchorError={switchError}
+              selectingScenario={switching}
+              onSelectScenario={() => { void switchPersona(selectedJourney.anchorId); }}
               onInspect={(curatedQuery, index) => {
                 void runAgent(curatedQuery, index);
               }}
@@ -1994,7 +1974,7 @@ export default function ObservatoryWorkbench() {
                       <p className="observatory-profile-unavailable">
                         {switchError
                           ? `Unable to open ${selectedJourney.anchorName}'s guided session: ${switchError}`
-                          : `Select ${selectedJourney.anchorName} in the Storefront scenario switcher before running these Aurora-backed turns.`}
+                          : `Choose ${selectedJourney.anchorName} above before running these Aurora-backed turns. Scenario selection does not authenticate the caller.`}
                       </p>
                     )
                   ) : (
@@ -2766,7 +2746,8 @@ export default function ObservatoryWorkbench() {
           </motion.section>
           </> : null}
         </div>
-        <WorkbenchResources compact collapsible defaultExpanded={false} />
+        {(!storefrontJourney || (runStatus === 'complete' && turnEntries.slice(0, 3).filter(Boolean).length === 3)) && <LabHandoff exercise={selectedLab} />}
+        <WorkbenchResources compact collapsible defaultExpanded={false} labId={selectedLab.id} />
       </div>
     </div>
   );

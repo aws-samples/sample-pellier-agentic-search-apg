@@ -45,3 +45,9 @@
   .workbench-source-disclosure > summary { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .workbench-resources-disclosure-button svg { transition: none; } }
+
+.workbench-resource-role { display: block; margin-top: 6px; color: var(--obs-ink-3); font: 500 11px/1.5 var(--obs-sans); }
+.workbench-resource-extension { border-top: 1px solid var(--obs-rule-1); padding-top: 8px; }
+.workbench-resource-extension > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--obs-ink-2); font: 600 14px/1.5 var(--obs-sans); }
+.workbench-resource-extension > p { color: var(--obs-ink-3); font: 400 13px/1.6 var(--obs-sans); }
+.workbench-resource-extension .workbench-resources-index { padding-top: 18px; }

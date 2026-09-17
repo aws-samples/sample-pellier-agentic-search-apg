@@ -31,7 +31,7 @@ vi.mock('../../../contexts/PersonaContext', () => ({
 }));
 
 import ObservatoryWorkbench from './ObservatoryWorkbench';
-import { WORKBENCH_VIEW_KEY } from './workbenchView';
+import { mockWorkbenchWidth } from '../../../test-support/workbenchViewport';
 
 /**
  * Renders past this many times and the surface is not settling. Mount plus
@@ -90,8 +90,8 @@ describe('Observatory workbench persona identity', () => {
   beforeEach(() => {
     renders = 0;
     localStorage.clear();
-    // These cases exercise Focus navigation; Expert remains the product default.
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'focus');
+    // These cases exercise panel navigation at a narrow viewport.
+    mockWorkbenchWidth(900);
     mocks.usePersona.mockReset();
     mocks.usePersona.mockImplementation(unstableMarco);
     mocks.sendChatMessageStreaming.mockReset();
@@ -126,7 +126,7 @@ describe('Observatory workbench persona identity', () => {
   });
 
   it.each(['complete', 'error'])('ignores a previous lab stream that ends with %s', async (outcome) => {
-    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    mockWorkbenchWidth(1440);
     let resolve!: (value: unknown) => void;
     let reject!: (error: Error) => void;
     mocks.sendChatMessageStreaming.mockImplementation(() => new Promise((yes, no) => {

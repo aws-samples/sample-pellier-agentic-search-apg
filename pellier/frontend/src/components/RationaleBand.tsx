@@ -18,16 +18,16 @@ interface PersonaRationale {
 
 const PERSONA_RATIONALE: Record<string, PersonaRationale> = {
   marco: {
-    text: 'Marco ranks linen, travel, leather, and classic tags higher. Each card below shows the reason it made the edit.',
+    text: 'Linen, leather, and pieces for the journey lead Marco’s edit. Open “Why this piece” for a closer look.',
   },
   anna: {
-    text: 'Anna ranks gift, candle, ceramic, and home tags higher. Each card below shows the reason it made the edit.',
+    text: 'Gifts, candles, and ceramics lead Anna’s edit. Open “Why this piece” for a closer look.',
   },
   theo: {
-    text: 'Theo ranks ceramic, slow, artisanal, and home tags higher. Each card below shows the reason it made the edit.',
+    text: 'Ceramics and pieces for a slower home lead Theo’s edit. Open “Why this piece” for a closer look.',
   },
   fresh: {
-    text: 'The floor opens in its authored order. Choose who is shopping and it rearranges around their taste.',
+    text: 'Explore the collection, or choose Marco, Anna, or Theo to see their edit.',
   },
 }
 

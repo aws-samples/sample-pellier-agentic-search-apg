@@ -105,9 +105,7 @@ export const HERO_CONCIERGE = {
   EYEBROW: "Welcome to Pellier",
   TITLE: "Choose who enters Pellier.",
   HELPER:
-    "Get a more personal experience with recommendations tailored to their style.",
-  ASK_ACTION: "Ask Pellier",
-  CHOOSE_HELPER: "Choose Marco, Anna, or Theo to begin.",
+    "Select Marco, Anna, or Theo to explore their edit and ask Pellier for help.",
   /**
    * Persona is scenario, not identity. This distinction is the workshop's
    * central lesson, so it is stated where the choice is made rather than left
@@ -268,7 +266,7 @@ export const SERVICE_STRIP = {
   ],
   LABS: {
     title: "Pellier Observatory",
-    body: "Grounded intelligence behind every recommendation",
+    body: "Explore the evidence behind the experience",
     href: "/observatory",
   },
 } as const;
@@ -302,8 +300,11 @@ export const PRODUCT_DETAIL = {
   shipWindow: (min: number, max: number): string =>
     min === max ? `Ships in ${min} days` : `Ships in ${min} to ${max} days`,
   WHY_HEADING: "Why this piece",
-  SIGNALS_HEADING: "Catalog signals",
-  MORE_HEADING: "More from this edit",
+  SIGNALS_HEADING: "Details at a glance",
+  MORE_HEADING: "More from the collection",
+  UNAVAILABLE_TITLE: "We couldn’t load this piece",
+  UNAVAILABLE_BODY:
+    "Its details are unavailable just now. Try again, or return to the collection.",
   NOT_FOUND_TITLE: "This piece is not in the edit",
   NOT_FOUND_BODY:
     "The catalog has no piece with that number. Browse the current edit instead.",
@@ -658,7 +659,7 @@ export const FOOTER = {
     LICENSE: "Sample code under the MIT License",
     ATTRIBUTION: "Built with the AWS Database Specialists team",
     GITHUB_URL:
-      "https://github.com/aws-samples/sample-pellier-agentic-search-apg",
+      "https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/governed",
     GITHUB_LABEL: "View the source on GitHub",
   },
 } as const;

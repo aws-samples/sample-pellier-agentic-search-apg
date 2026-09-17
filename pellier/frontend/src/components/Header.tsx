@@ -230,26 +230,22 @@ export default function Header({
 
   // The storefront's search is Pellier - the chat drawer. Clicking the
   // Search icon opens the same concierge the pill uses, which keeps the
-  // header honest: one search surface, two entry points. Signed out, both
-  // lead to the chooser first, because the concierge needs a shopper.
+  // header honest: one search surface, two entry points. ChatDrawer handles
+  // the scenario choice before continuing the conversation when needed.
   const handleSearchClick = useCallback(() => {
-    if (!persona) {
-      setChooserOpen(true)
-      return
-    }
     openModal('drawer')
-  }, [persona, openModal])
+  }, [openModal])
 
   const handleNavigate = useCallback(
     (item: NavItem) => {
       setMobileMenuOpen(false)
-      if (item === 'ask-pellier' && !persona) {
-        setChooserOpen(true)
+      if (item === 'ask-pellier') {
+        openModal('drawer')
         return
       }
       onNavigate?.(item)
     },
-    [onNavigate, persona],
+    [onNavigate, openModal],
   )
 
   useEffect(() => {

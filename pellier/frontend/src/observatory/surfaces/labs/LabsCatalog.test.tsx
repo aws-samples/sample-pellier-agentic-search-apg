@@ -38,16 +38,16 @@ describe('LabsCatalog', () => {
         .getAllByRole('link')
         .filter((link) => link.classList.contains('labs-catalog-card-open')),
     ).toHaveLength(4);
-    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/labs/grounded-inventory');
+    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/workbench?lab=grounded-inventory');
     for (const lab of LAB_EXERCISES) {
-      expect(screen.getByRole('link', { name: `Read Lab ${Number(lab.number)} guide` })).toHaveAttribute('href', `/observatory/labs/${lab.id}`);
+      expect(screen.getByRole('link', { name: `Open Lab ${Number(lab.number)} in Workbench` })).toHaveAttribute('href', `/observatory/workbench?lab=${lab.id}`);
     }
     expect(screen.queryByText(/workshop complete/i)).not.toBeInTheDocument();
     const disclosure = screen.getByRole('button', { name: 'Explore reference views' });
     expect(disclosure).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(disclosure);
     expect(screen.getByRole('heading', { name: 'Telemetry & system references' })).toBeVisible();
-    expect(screen.getByText('What reached PostgreSQL?')).toBeInTheDocument();
+    expect(screen.getByText('Which candidates survive, and why?')).toBeInTheDocument();
 
     expect(
       document.querySelectorAll('.labs-catalog-contact-sheet figure'),

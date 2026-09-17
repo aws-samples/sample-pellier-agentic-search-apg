@@ -5,9 +5,9 @@ import '../styles/surface-navigation.css'
 type Surface = 'storefront' | 'operator' | 'observatory'
 
 const SURFACES = [
-  { id: 'storefront', number: '1', label: 'Storefront' },
-  { id: 'operator', number: '2', label: 'Operator' },
-  { id: 'observatory', number: '3', label: 'Observatory' },
+  { id: 'storefront', label: 'Storefront', purpose: 'Shopper conversations and the collection' },
+  { id: 'operator', label: 'Operator', purpose: 'Staff investigations and human review' },
+  { id: 'observatory', label: 'Observatory', purpose: 'Lab scenarios and technical evidence' },
 ] as const
 
 function surfaceFor(path: string): Surface {
@@ -55,11 +55,8 @@ export default function SurfaceNavigation() {
             className="pellier-surface-link"
             aria-current={active === surface.id ? 'page' : undefined}
             data-surface={surface.id}
-            title={surface.id === 'observatory'
-              ? 'Labs and evidence. Return to your last Observatory view.'
-              : `Return to your ${surface.label.toLowerCase()} view`}
+            title={`${surface.purpose}. Return to your last ${surface.label} view.`}
           >
-            <span className="pellier-surface-number" aria-hidden="true">{surface.number}</span>
             <span>{surface.label}</span>
           </Link>
         ))}

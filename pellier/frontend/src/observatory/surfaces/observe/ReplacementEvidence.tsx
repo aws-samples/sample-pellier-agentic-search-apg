@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { fetchReplacements, OperatorApiError, type ReplacementRecovery } from '../../../services/operator'
 import ServiceIdentity from '../../../shared/ServiceIdentity'
 import { redirectToSignIn } from '../../../utils/auth'
+import ReferenceBrief from '../../components/ReferenceBrief'
 import './OperatorTurnEvidence.css'
 
 /** Exact, operator-authorized Aurora record. A navigation parameter is not evidence. */
@@ -34,6 +35,7 @@ export default function ReplacementEvidence() {
       <div><h1>Replacement recovery</h1><p>Follow one approved remedy through its durable records.</p></div>
       <Link className="pellier-action-quiet" to={back}>Return to client</Link>
     </header>
+    <ReferenceBrief id="replacement" />
     {!customer || !replacement ? <p role="status">Open this view from Replacement care in the Operator client record to inspect an exact operation.</p> : null}
     {loading ? <p role="status">Reading the recovery evidence…</p> : null}
     {error ? <div className="observatory-turn-state" role="alert">

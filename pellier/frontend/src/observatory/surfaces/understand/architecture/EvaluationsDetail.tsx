@@ -15,11 +15,11 @@ export default function EvaluationsDetail() {
     <div style={{ display: 'grid', gap: '20px', lineHeight: 1.65 }}>
       <ExpCard><h2>Retrieval: explain the candidate budget</h2>
         <p>Lab 2 records how candidate generation changes the retrieved rows. Use its budget sweep to explain recall, ranking, and query cost. A broader relevance claim needs held-out queries with explicit labels and a fixed corpus.</p>
-        <Link to="/observatory/labs/retrieval-acceptance">Open the Lab 2 measurement steps</Link>
+        <Link to="/observatory/workbench?lab=retrieval-acceptance">Return to Lab 2 in Workbench</Link>
       </ExpCard>
       <ExpCard><h2>Actions: distinguish four outcomes</h2>
         <p>Lab 4 tests policy denial, database refusal, commit, and replay. Compare the receipt with database effects. An HTTP success or a fluent response does not establish that the authorized effect committed exactly once.</p>
-        <Link to="/observatory/labs/fail-closed-policy">Open the Lab 4 outcome matrix</Link>
+        <Link to="/observatory/workbench?lab=fail-closed-policy">Return to Lab 4 in Workbench</Link>
       </ExpCard>
       <ExpCard><h2>Read results with their provenance</h2>
         <p>No accuracy, latency, or citation score is assigned by this reference page. The evidence views identify available records and report unavailable sources explicitly.</p>

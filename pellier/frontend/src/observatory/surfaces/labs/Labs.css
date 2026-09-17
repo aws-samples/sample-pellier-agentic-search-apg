@@ -35,7 +35,7 @@
    the surrounding padding and the atmosphere image so the band bleeds. */
 .labs-catalog-hero {
   display: grid;
-  padding: clamp(38px, 5vw, 68px) clamp(16px, 4vw, 56px) 0;
+  padding: clamp(28px, 3vw, 44px) clamp(16px, 4vw, 56px) 0;
   background: var(--obs-canvas);
 }
 
@@ -45,7 +45,7 @@
   margin: 0 auto;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);
   gap: 16px clamp(34px, 7vw, 110px);
-  align-items: end;
+  align-items: start;
   padding-bottom: clamp(30px, 4vw, 48px);
   color: var(--obs-ink-1);
 }
@@ -73,8 +73,7 @@
    role, different family, so the two read as different products. A radius is a
    family name: pills are things you press, 4px is things you read. This adopts
    `.pellier-action`'s geometry so the shopper and operator sides agree. */
-.labs-catalog-hero-copy > a {
-  grid-column: 2;
+.labs-catalog-primary {
   display: inline-flex;
   min-height: var(--control-height);
   width: fit-content;
@@ -95,7 +94,7 @@
     transform 160ms ease;
 }
 
-.labs-catalog-hero-copy > a svg {
+.labs-catalog-primary svg {
   width: 32px;
   height: 32px;
   padding: 8px;
@@ -105,18 +104,18 @@
   transition: transform 160ms ease;
 }
 
-.labs-catalog-hero-copy > a:hover {
+.labs-catalog-primary:hover {
   border-color: #2c332f;
   background: #2c332f;
   box-shadow: 0 16px 36px rgb(60 40 10 / 0.2);
   transform: translateY(-1px);
 }
 
-.labs-catalog-hero-copy > a:hover svg {
+.labs-catalog-primary:hover svg {
   transform: translateX(2px);
 }
 
-.labs-catalog-hero-copy > a:active {
+.labs-catalog-primary:active {
   transform: translateY(0);
 }
 
@@ -1028,8 +1027,7 @@
     padding-bottom: 32px;
   }
 
-  .labs-catalog-hero-copy > a {
-    grid-column: 1;
+  .labs-catalog-primary {
     margin-top: 4px;
   }
 
@@ -1305,6 +1303,16 @@
 .labs-catalog-contact-sheet .lab-status-mark { padding-top: 18px; }
 .labs-catalog-contact-sheet .lab-status-mark-main { flex-wrap: wrap; gap: 5px; font-size: 11px; }
 .labs-catalog .workbench-resources { margin-inline: clamp(16px, 4vw, 56px); padding-bottom: 36px; }
+.labs-catalog-hero-copy .labs-catalog-eyebrow { margin: 0 0 14px; color: var(--obs-red-1); font-size: 13px; font-weight: 600; }
+.labs-catalog-start { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
+.labs-catalog-start > a:not(.labs-catalog-primary) { display: inline-flex; align-items: center; min-height: 44px; color: var(--obs-red-1); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.labs-catalog-contact-sheet .labs-catalog-card-copy > .labs-catalog-customer-need { color: var(--obs-ink-1); font-weight: 500; padding-bottom: 12px; border-bottom: 1px solid var(--obs-rule-1); }
+.labs-catalog-close { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; margin: 8px clamp(16px, 4vw, 56px) 24px; padding: 28px 0; border-block: 1px solid var(--obs-rule-1); }
+.labs-catalog-close > div { flex: 1 1 480px; }
+.labs-catalog-close h2 { font-size: 24px; font-weight: 400; }
+.labs-catalog-close p { margin-top: 10px; max-width: 75ch; color: var(--obs-ink-3); font-size: 14px; line-height: 1.6; }
+.labs-catalog-close > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--obs-red-1); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.labs-catalog :focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 4px; }
 @media (min-width: 761px) and (max-width: 1100px) {
   .labs-catalog-contact-sheet { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

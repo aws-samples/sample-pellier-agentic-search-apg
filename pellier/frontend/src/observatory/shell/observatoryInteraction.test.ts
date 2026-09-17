@@ -8,7 +8,7 @@ import {
 describe('observatory interaction routing', () => {
   it.each([
     ['/observatory', 'Labs & Workbench'],
-    ['/observatory/labs/grounded-inventory', 'Participant guide'],
+    ['/observatory/labs/grounded-inventory', 'Lab workspace'],
     ['/observatory/workbench', 'Labs & Workbench'],
   ])('treats %s as an interactive %s surface', (path, label) => {
     expect(interactionForPath(path)).toBe('interactive');

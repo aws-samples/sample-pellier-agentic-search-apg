@@ -72,6 +72,30 @@ beforeEach(() => {
 })
 
 describe('CartPanel proof-carrying checkout', () => {
+  it('opens an accessible dialog outside the page, traps focus, and closes with Escape', () => {
+    const onClose = vi.fn()
+    const { container, unmount } = render(<CartPanel isOpen onClose={onClose} />)
+    const dialog = screen.getByRole('dialog', { name: 'Your bag' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(container).not.toContainElement(dialog)
+    expect(dialog).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(screen.getByRole('button', { name: /review order/i })).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+    unmount()
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
+  it('gives an empty bag a direct way back to browsing', () => {
+    cartState.items = []
+    const onClose = vi.fn()
+    render(<CartPanel isOpen onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue browsing' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('does not claim a final total before the server quote', () => {
     render(<CartPanel isOpen onClose={vi.fn()} />)
 

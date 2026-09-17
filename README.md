@@ -51,27 +51,16 @@ prove what each layer did. Bring your laptop to participate.
 
 ---
 
-## Participant guides in Pellier
+## Workshop Studio and Pellier
 
-The governed Lab Collection links to complete guides for Labs 1–4. Each guide
-includes prerequisites, commands, checkpoints, troubleshooting, and a link to
-its Workbench task. Introduction, background, summary, and reference pages are
-also available in the application.
+Workshop Studio owns the participant instructions, commands, checkpoints,
+recovery steps, and cleanup. Pellier's Lab Collection is a concise launchpad
+for the four customer scenarios and their evidence. It opens each lab in
+Workbench; it does not duplicate the Studio guides.
 
-Workshop Studio remains the authoring source. After changing its participant
-Markdown or referenced assets, update and verify the in-app bundle from this
-source checkout:
-
-```bash
-python3 scripts/sync_workshop_guides.py --studio-repo /path/to/governed-studio
-python3 scripts/sync_workshop_guides.py --studio-repo /path/to/governed-studio --check
-```
-
-The exporter preserves command blocks and records each guide's source hash.
-It does not run an exercise. Include this parity check before committing the
-source release; a screenshot or guide page does not certify a completed run.
-Fresh-account rehearsal and Workshop Studio publication remain separate
-validation steps.
+Workbench shows the request, evidence ledger, and answer side by side when
+space allows. On narrower screens it uses panel navigation automatically.
+Both layouts expose the same capabilities and evidence.
 
 ## Who this is for
 
@@ -129,8 +118,8 @@ Both Operator sign-in buttons lead to one dedicated **Pellier sign-in page**
 not contain a second password form. After sign-in, the app returns you to the
 client or review you opened.
 
-The Observatory workbench opens in **Expert** view by default. The Lab Collection
-links the four labs to their build, evidence, and challenge. Guided questions
+The Observatory Workbench adapts to the available screen width. The Lab Collection
+opens each lab’s scenario and evidence; Workshop Studio owns the instructions. Guided questions
 include a prediction to make and a result to inspect; they are prompts to run,
 not prerecorded proof.
 
@@ -545,6 +534,15 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 | Summary | Export evidence, restore the policy baseline, explain what each boundary establishes, and map the pattern to your application. |
 
 Make canonical edits to the lab manual in the Workshop Studio repo, not here.
+
+The app's reference directory follows the same four lab questions. Workbench
+shows the current lab's references first; each view states what to inspect,
+what its evidence can establish, and how to return to the saved lab and step.
+Search pipeline runs an unconstrained mechanism experiment. Retrieval comparison
+runs the four strategies explicitly and exposes the comparison ID and persistence status;
+it does not require existing telemetry or seed results from fixture scores.
+Evaluations, production patterns, and replacement recovery are extensions after
+the labs. They do not add required steps to the Workshop Studio path.
 
 ### Workshop run tooling
 

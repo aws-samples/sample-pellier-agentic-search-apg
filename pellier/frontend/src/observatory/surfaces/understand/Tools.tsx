@@ -18,7 +18,6 @@ import {
   EditorialTitle,
   ExpCard,
   Eyebrow,
-  LabGrammar,
   StatusDot,
   StatusPill,
   WorkshopProgressStrip,
@@ -1277,59 +1276,12 @@ const Tools: React.FC = () => {
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
-      <EditorialTitle
+      <EditorialTitle referenceId="tools"
         backToReferences
         eyebrow="Understand · Tools · five agents · live MCP registry"
-        title="Tool registry"
-        summary="Five specialists own the registered MCP tool catalog. The workshop image ships every reference tool except check_inventory, the hands-on inventory wire in the required path. A separate in-process-only query tool is intentionally outside this registry. The live registry stays the source of truth for the exact count, read/write split, shipped state, signatures, and pgvector discovery."
+        title="Tool Registry"
+        summary="Inspect tool ownership, input schemas, and source build state. Use Gateway discovery and a recorded invocation to establish what the managed caller can actually use."
       />
-
-      {/* One interaction grammar on every required lab destination:
-          Try in Pellier, Build in the Code Editor, Prove with live
-          evidence. The tool count below is read from the live build-state
-          endpoint, so the PASS/FAIL state describes the actual repo. */}
-      <div style={{ marginBottom: '20px' }}>
-        <LabGrammar
-          labLabel="Lab 1 · Build a PostgreSQL-Grounded Agent"
-          provenance="live"
-          proofState={
-            buildState.toolTotal > 0 && buildState.toolShipped >= buildState.toolTotal
-              ? 'pass'
-              : 'pending'
-          }
-          try={
-            <>
-              Ask Marco&rsquo;s Turn 3 in Pellier: &ldquo;How many Hadley Linen Shirts
-              are available at the Brooklyn warehouse, and what ship window is recorded?&rdquo; A
-              stubbed tool answers with an error envelope instead of a BK-01
-              quantity and ship window.
-            </>
-          }
-          build={
-            <>
-              Wire <code>check_inventory</code> in{' '}
-              <code>pellier/backend/services/agent_tools.py</code>, between the{' '}
-              <code>WORKSHOP · Inventory Agent · check_inventory</code> START and END
-              markers. Nothing outside those markers changes.
-            </>
-          }
-          prove={
-            <>
-              The registry strip reads{' '}
-              <strong>
-                {buildState.toolTotal > 0
-                  ? `${buildState.toolShipped}/${buildState.toolTotal}`
-                  : '—'}{' '}
-                shipped
-              </strong>
-              . It reaches full shipped state once the body is wired, and
-              Marco&rsquo;s turn returns a real Brooklyn quantity.
-            </>
-          }
-          nextAction="Re-ask Marco's Turn 3 in Pellier and read the BK-01 quantity."
-          returnAction="Code Editor → pellier/backend/services/agent_tools.py"
-        />
-      </div>
 
       {loading && <LoadingState />}
 

@@ -6,6 +6,7 @@ import IdentityBoundaryCard from '../understand/IdentityBoundaryCard';
 import type { IdentityObservation, PolicySnapshot } from './governanceTypes';
 import TraceScenarioLoop from '../../../shared/trace/TraceScenarioLoop';
 import './Govern.css';
+import ReferenceBrief from '../../components/ReferenceBrief';
 
 const BASE = '/observatory/govern';
 const CHAPTERS = [
@@ -383,6 +384,7 @@ export default function Govern() {
       <header className="govern-page-heading"><span className="govern-eyebrow">Pellier Observatory / Govern</span>
         <h1 className="font-display" ref={heading} tabIndex={-1}>{section && !chapter ? 'Topic not found' : chapter?.label || 'Governed agent access'}</h1>
       </header>
+      {!chapter && <ReferenceBrief id="govern" />}
       {section && !chapter ? <EvidenceLink to={BASE}>Return to Govern</EvidenceLink> : <Page />}
       {next && (!section || chapter) && <footer className="govern-next"><span className="govern-eyebrow">Continue reading</span><EvidenceLink to={`${BASE}/${next.id}`}>{next.label}</EvidenceLink></footer>}
     </article>

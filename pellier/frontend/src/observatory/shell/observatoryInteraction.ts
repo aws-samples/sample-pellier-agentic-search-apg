@@ -22,12 +22,12 @@ const INTERACTIVE_COPY: Record<string, ObservatoryModeCopy> = {
   '/observatory': {
     label: 'Labs & Workbench',
     detail:
-      'Follow the four labs in order, then use Workbench to inspect the evidence for each change.',
+      'Follow the four labs in order. Use Workbench to inspect the evidence as you build.',
   },
   '/observatory/labs': {
-    label: 'Participant guide',
+    label: 'Lab workspace',
     detail:
-      'Follow the steps, check your results, and use the recovery beside each exercise. Open Workbench to inspect live behavior.',
+      'Follow the instructions in Workshop Studio. Use Workbench to run the scenario and inspect its evidence.',
   },
   '/observatory/workbench': {
     label: 'Labs & Workbench',
@@ -68,7 +68,6 @@ export function interactionForPath(pathname: string): LabsInteraction {
 }
 
 export function modeCopyForPath(pathname: string): ObservatoryModeCopy {
-  if (normalize(pathname).startsWith('/observatory/guide/')) return INTERACTIVE_COPY['/observatory/labs'];
   if (!isInteractivePath(pathname)) return REFERENCE_COPY;
 
   const path = normalize(pathname);
