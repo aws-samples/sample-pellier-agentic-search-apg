@@ -722,7 +722,7 @@ const LANGGRAPH_MAPPINGS: LangGraphMapping[] = [
     pellier: 'Dispatcher (rules → specialist)',
     langgraph: 'Conditional edges from a router node',
     difference:
-      'No graph object. The router is a Python function in services/chat.py – keyword rules, no LLM, ~60–120 ms.',
+      'No graph object. The router is a Python function in services/chat.py – keyword rules, no LLM. Inspect the turn for measured duration.',
   },
   {
     pellier: 'Graph (Strands GraphBuilder)',

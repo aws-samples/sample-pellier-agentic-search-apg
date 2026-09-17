@@ -96,6 +96,15 @@ OBSERVATORY_COPY = {
         {
             "numeral": "III",
             "category": "live",
+            "title": "Skills",
+            "role": "Reviewed prompt guidance",
+            "description": "Specialist turns can select skill guidance after intent routing; a skill does not grant permission.",
+            "codeSnippet": "intent classification -> skill selection -> specialist; inspect skill_routing for the actual decision",
+            "slug": "skills",
+        },
+        {
+            "numeral": "IV",
+            "category": "live",
             "title": "Routing and state",
             "role": "Storefront dispatcher and Operator graph",
             "description": (
@@ -106,7 +115,7 @@ OBSERVATORY_COPY = {
             "slug": "state-management",
         },
         {
-            "numeral": "IV",
+            "numeral": "V",
             "category": "live",
             "title": "Governed execution",
             "role": "Human decision, policy, database, receipts",
@@ -116,6 +125,33 @@ OBSERVATORY_COPY = {
             ),
             "codeSnippet": "human decision -> Policy -> Aurora -> receipt",
             "slug": "runtime",
+        },
+        {
+            "numeral": "VI",
+            "category": "quality",
+            "title": "Evaluations",
+            "role": "Measured outcomes and explicit proof limits",
+            "description": "Compare retrieval candidates and governed outcomes using retained run evidence. Configuration alone is not an evaluation result.",
+            "codeSnippet": "hypothesis -> controlled change -> retained result -> decision",
+            "slug": "evaluations",
+        },
+        {
+            "numeral": "VII",
+            "category": "workshop",
+            "title": "Tool Registry",
+            "role": "Discovery is separate from permission",
+            "description": "Aurora ranks tool descriptions; Gateway publication and caller policy determine the managed tool boundary.",
+            "codeSnippet": "description similarity != publication != authorization",
+            "slug": "tool-registry",
+        },
+        {
+            "numeral": "VIII",
+            "category": "workshop",
+            "title": "MCP Gateway",
+            "role": "Managed discovery and invocation",
+            "description": "Labs 1 and 2 establish the in-process baseline. Lab 3 moves the tools behind Runtime, Gateway, and caller-bound policy.",
+            "codeSnippet": "verified caller -> Runtime -> Gateway / Cedar -> target -> Aurora",
+            "slug": "mcp",
         },
     ),
 }

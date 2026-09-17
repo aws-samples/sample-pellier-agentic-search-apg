@@ -56,7 +56,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     imageHeight: 1080,
     proofCardIds: ['marco-floor-check'],
     objective:
-      'Select Marco in the Storefront scenario switcher before the three-turn journey begins.',
+      'Ground Marco’s warehouse answer in current Aurora rows. Reconcile the stock count and recorded ship window with the tool’s execution receipt.',
     participantTodo:
       'Complete the two marked source regions, verify both build markers, and replay Marco\'s warehouse request under a unique session.',
     command:
@@ -72,7 +72,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       },
     },
     evidenceAssertion:
-      'One session-scoped invocation identifies the requested product and warehouse, reports live Aurora values, and links exactly one check_inventory execution row.',
+      'The selected Marco turn and run identify the requested product, report live Aurora values, and link a new check_inventory execution row. Unknown product and zero stock remain distinct.',
     decisionPrompt:
       'Which table owns inventory truth, and what invariant keeps the aggregate and the per-warehouse rows from drifting apart?',
     primaryAction: {
@@ -103,7 +103,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     imageHeight: 1080,
     proofCardIds: ['retrieval-comparison'],
     objective:
-      'Trace Anna’s eligible candidates through lexical search, vector retrieval, fusion, and reranking.',
+      'Keep Anna’s gift under $100 and in stock. Trace eligible candidates through lexical search, vector retrieval, fusion, and reranking.',
     participantTodo:
       'Complete the RRF worksheet and candidate-budget build. Compare the same request before and after, then verify exact product IDs against Aurora.',
     command:
@@ -150,7 +150,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     imageHeight: 1080,
     proofCardIds: ['managed-rail', 'audit-ledger'],
     objective:
-      'Deploy Theo\'s support path, use extracted preferences in a new conversation, and verify current product data in Aurora. Check the build fingerprint, Memory events, and correlated trace separately.',
+      'Deploy Theo’s customer-scoped support path and use learned preferences in a new conversation. Verify the running build, Memory records, and current Aurora facts separately.',
     participantTodo:
       'Publish get_ticket_history, bind the support read to the caller, and deploy. Complete the learned-preference check, then run Theo\'s three-turn thread and read its Memory events from a separate process.',
     command:
@@ -158,11 +158,11 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     measurements: {
       before: {
         label: 'Before',
-        value: 'The Gateway publishes 15 tools. The support specialist requests tools outside the shopper\'s available tool list.',
+        value: 'The Gateway publishes 16 tools. The support specialist requests tools outside the shopper\'s available tool list. Discovery is filtered by the caller\'s policy.',
       },
       after: {
         label: 'Acceptance target',
-        value: 'The Gateway publishes 16 tools, the executed build matches this checkout, and Theo\'s new conversation uses an extracted preference with current product data.',
+        value: 'The Gateway publishes 17 tools, the executed build matches this checkout, and Theo\'s new experiment conversation uses an extracted preference with current product data.',
       },
     },
     evidenceAssertion:
@@ -197,7 +197,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     imageHeight: 900,
     proofCardIds: ['runtime-gateway-policy'],
     objective:
-      'Use Marco and Jessica to test the customer boundary through Cognito, Cedar, execution records, PostgreSQL RLS, and the Operator checkpoint.',
+      'Use Marco and Jessica to prove the customer boundary with the identity matrix and PostgreSQL RLS checks. Then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
     participantTodo:
       'Complete the Cedar rule and keyed absence query. Run the four-case identity matrix and RLS read and write checks, then complete one Operator investigation for Jessica. Stop before a consequential action and reset the policy in Summary.',
     command:

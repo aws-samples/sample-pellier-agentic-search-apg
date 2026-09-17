@@ -271,6 +271,7 @@ export function AppRoutes() {
               to the Storefront wildcard. */}
           <Route path="labs" element={<Navigate to="/observatory" replace />} />
           <Route path="labs/:exerciseId" element={<LabDetail />} />
+          <Route path="guide/:guideId" element={<LabDetail />} />
           <Route path="workbench" element={<ObservatoryWorkbench />} />
           <Route
             path="references"

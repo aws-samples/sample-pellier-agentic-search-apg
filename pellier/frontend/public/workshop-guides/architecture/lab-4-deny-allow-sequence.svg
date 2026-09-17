@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Title: Lab4DenyAllowSequence Pages: 1 -->
+<svg width="1721pt" height="1080pt"
+ viewBox="0.00 0.00 1721.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1.44466 1.44466) rotate(0) translate(20.16 727.42)">
+<title>Lab4DenyAllowSequence</title>
+<polygon fill="#f7f3ec" stroke="none" points="-20.16,20.16 -20.16,-727.42 1171.16,-727.42 1171.16,20.16 -20.16,20.16"/>
+<text xml:space="preserve" text-anchor="middle" x="348.12" y="-682.36" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 4: DENIED AND ALLOWED REQUESTS</text>
+<text xml:space="preserve" text-anchor="middle" x="348.12" y="-656.11" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Compare the same customer and product under two verified callers</text>
+<g id="clust1" class="cluster">
+<title>cluster_deny</title>
+<polygon fill="#fef2f2" stroke="#991b1b" stroke-width="1.8" points="8,-412.04 8,-553.61 1007,-553.61 1007,-412.04 8,-412.04"/>
+<text xml:space="preserve" text-anchor="middle" x="175.75" y="-537.26" font-family="Helvetica Neue" font-size="13.00" fill="#991b1b">DENY LANE: Marco requests CUST&#45;JESSICA</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_allow</title>
+<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="1.8" points="8,-192.6 8,-334.17 1036,-334.17 1036,-192.6 8,-192.6"/>
+<text xml:space="preserve" text-anchor="middle" x="159.25" y="-317.82" font-family="Helvetica Neue" font-size="13.00" fill="#3f6212">ALLOW LANE: Jessica requests CUST&#45;JESSICA</text>
+</g>
+<!-- d1&#45;&gt;d2 -->
+<g id="edge1" class="edge">
+<title>d1&#45;&gt;d2</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M144.58,-458C144.58,-458 175.28,-458 175.28,-458"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="175.28,-460.38 182.08,-458 175.28,-455.62 175.28,-460.38"/>
+</g>
+<!-- d1&#45;&gt;a1 -->
+<!-- d2&#45;&gt;d3 -->
+<g id="edge2" class="edge">
+<title>d2&#45;&gt;d3</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M304.8,-458C304.8,-458 332.28,-458 332.28,-458"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="332.28,-460.38 339.08,-458 332.28,-455.62 332.28,-460.38"/>
+</g>
+<!-- d2&#45;&gt;a2 -->
+<!-- d3&#45;&gt;d4 -->
+<g id="edge3" class="edge">
+<title>d3&#45;&gt;d4</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M461.93,-458C461.93,-458 504.76,-458 504.76,-458"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="507.16,-454.6 507.16,-461.4 505.8,-461.4 505.8,-454.6 507.16,-454.6"/>
+<polyline fill="none" stroke="#991b1b" stroke-width="2" points="507.84,-458 504.44,-458"/>
+</g>
+<!-- d3&#45;&gt;d6 -->
+<g id="edge5" class="edge">
+<title>d3&#45;&gt;d6</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M402,-478.45C402,-489.94 402,-502 402,-502 402,-502 930,-502 930,-502 930,-502 930,-493.68 930,-493.68"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="932.38,-493.68 930,-486.88 927.62,-493.68 932.38,-493.68"/>
+<text xml:space="preserve" text-anchor="middle" x="666" y="-565.65" font-family="Helvetica Neue" font-size="8.00" fill="#991b1b">receipt</text>
+</g>
+<!-- d3&#45;&gt;a3 -->
+<!-- d4&#45;&gt;d5 -->
+<g id="edge4" class="edge">
+<title>d4&#45;&gt;d5</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M627.74,-458C627.74,-458 692.69,-458 692.69,-458"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="695.09,-454.6 695.09,-461.4 693.73,-461.4 693.73,-454.6 695.09,-454.6"/>
+<polyline fill="none" stroke="#991b1b" stroke-width="2" points="695.77,-458 692.37,-458"/>
+</g>
+<!-- d4&#45;&gt;a4 -->
+<!-- d5&#45;&gt;d6 -->
+<g id="edge6" class="edge">
+<title>d5&#45;&gt;d6</title>
+<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M815.88,-458C815.88,-458 860.48,-458 860.48,-458"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="860.48,-460.38 867.28,-458 860.48,-455.62 860.48,-460.38"/>
+</g>
+<!-- d5&#45;&gt;a5 -->
+<!-- d6&#45;&gt;a6 -->
+<!-- a1&#45;&gt;a2 -->
+<g id="edge7" class="edge">
+<title>a1&#45;&gt;a2</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M144.58,-238C144.58,-238 175.28,-238 175.28,-238"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="175.28,-240.38 182.08,-238 175.28,-235.62 175.28,-240.38"/>
+</g>
+<!-- a2&#45;&gt;a3 -->
+<g id="edge8" class="edge">
+<title>a2&#45;&gt;a3</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M304.58,-238C304.58,-238 335.28,-238 335.28,-238"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="335.28,-240.38 342.08,-238 335.28,-235.62 335.28,-240.38"/>
+</g>
+<!-- a3&#45;&gt;a4 -->
+<g id="edge9" class="edge">
+<title>a3&#45;&gt;a4</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M464.58,-238C464.58,-238 495.28,-238 495.28,-238"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="495.28,-240.38 502.08,-238 495.28,-235.62 495.28,-240.38"/>
+</g>
+<!-- a4&#45;&gt;a5 -->
+<g id="edge10" class="edge">
+<title>a4&#45;&gt;a5</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M624.92,-238C624.92,-238 672.43,-238 672.43,-238"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="672.43,-240.38 679.23,-238 672.43,-235.62 672.43,-240.38"/>
+</g>
+<!-- a5&#45;&gt;a6 -->
+<g id="edge11" class="edge">
+<title>a5&#45;&gt;a6</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M813.61,-238C813.61,-238 889.35,-238 889.35,-238"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="889.35,-240.38 896.15,-238 889.35,-235.62 889.35,-240.38"/>
+</g>
+<!-- a6&#45;&gt;checkpoint -->
+<g id="edge18" class="edge">
+<title>a6&#45;&gt;checkpoint</title>
+<path fill="none" stroke="#b45309" stroke-width="1.3" stroke-dasharray="5,2" d="M959,-212.02C959,-167.15 959,-76.22 959,-37.32"/>
+<text xml:space="preserve" text-anchor="middle" x="1055" y="-126.65" font-family="Helvetica Neue" font-size="8.00" fill="#b45309">do not collapse authorization, execution, and approval</text>
+</g>
+<!-- d1 -->
+<g id="node1" class="node">
+<title>d1</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-477.89 25.6,-477.89 25.6,-438.11 144.4,-438.11 144.4,-477.89"/>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-460.7" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1: COGNITO</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-449.45" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified Marco</text>
+</g>
+<!-- d2 -->
+<g id="node2" class="node">
+<title>d2</title>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="304.4,-477.89 185.6,-477.89 185.6,-438.11 304.4,-438.11 304.4,-477.89"/>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-460.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">2: CEDAR</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-449.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">identity mismatch</text>
+</g>
+<!-- d3 -->
+<g id="node3" class="node">
+<title>d3</title>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="461.4,-477.89 342.6,-477.89 342.6,-438.11 461.4,-438.11 461.4,-477.89"/>
+<text xml:space="preserve" text-anchor="middle" x="402" y="-460.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">3: GATEWAY</text>
+<text xml:space="preserve" text-anchor="middle" x="402" y="-449.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">DENY before target</text>
+</g>
+<!-- d4 -->
+<g id="node4" class="node">
+<title>d4</title>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="627.4,-477.89 508.6,-477.89 508.6,-438.11 627.4,-438.11 627.4,-477.89"/>
+<text xml:space="preserve" text-anchor="middle" x="568" y="-460.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">4: LAMBDA</text>
+<text xml:space="preserve" text-anchor="middle" x="568" y="-449.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">NOT INVOKED</text>
+</g>
+<!-- d5 -->
+<g id="node5" class="node">
+<title>d5</title>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="815.4,-483.51 696.6,-483.51 696.6,-432.49 815.4,-432.49 815.4,-483.51"/>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-466.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">5: AURORA</text>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-455.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 tool_audit</text>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-443.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 write_operations</text>
+</g>
+<!-- d6 -->
+<g id="node6" class="node">
+<title>d6</title>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="989.4,-483.51 870.6,-483.51 870.6,-432.49 989.4,-432.49 989.4,-483.51"/>
+<text xml:space="preserve" text-anchor="middle" x="930" y="-466.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">6: EVIDENCE</text>
+<text xml:space="preserve" text-anchor="middle" x="930" y="-455.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">1 DENY receipt</text>
+<text xml:space="preserve" text-anchor="middle" x="930" y="-443.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">named absence</text>
+</g>
+<!-- a1 -->
+<g id="node7" class="node">
+<title>a1</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-257.89 25.6,-257.89 25.6,-218.11 144.4,-218.11 144.4,-257.89"/>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-240.7" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1: COGNITO</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-229.45" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified Jessica</text>
+</g>
+<!-- a2 -->
+<g id="node8" class="node">
+<title>a2</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="304.4,-257.89 185.6,-257.89 185.6,-218.11 304.4,-218.11 304.4,-257.89"/>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-240.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">2: CEDAR</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-229.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">identity match</text>
+</g>
+<!-- a3 -->
+<g id="node9" class="node">
+<title>a3</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="464.4,-257.89 345.6,-257.89 345.6,-218.11 464.4,-218.11 464.4,-257.89"/>
+<text xml:space="preserve" text-anchor="middle" x="405" y="-240.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">3: GATEWAY</text>
+<text xml:space="preserve" text-anchor="middle" x="405" y="-229.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">ALLOW bounded target</text>
+</g>
+<!-- a4 -->
+<g id="node10" class="node">
+<title>a4</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="624.4,-257.89 505.6,-257.89 505.6,-218.11 624.4,-218.11 624.4,-257.89"/>
+<text xml:space="preserve" text-anchor="middle" x="565" y="-240.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">4: LAMBDA</text>
+<text xml:space="preserve" text-anchor="middle" x="565" y="-229.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">one execution per attempt</text>
+</g>
+<!-- a5 -->
+<g id="node11" class="node">
+<title>a5</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="813.21,-263.51 682.79,-263.51 682.79,-212.49 813.21,-212.49 813.21,-263.51"/>
+<text xml:space="preserve" text-anchor="middle" x="748" y="-246.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">5: AURORA RLS</text>
+<text xml:space="preserve" text-anchor="middle" x="748" y="-235.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">owned row + WITH CHECK</text>
+<text xml:space="preserve" text-anchor="middle" x="748" y="-223.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">one finalized write on replay</text>
+</g>
+<!-- a6 -->
+<g id="node12" class="node">
+<title>a6</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="1018.4,-263.51 899.6,-263.51 899.6,-212.49 1018.4,-212.49 1018.4,-263.51"/>
+<text xml:space="preserve" text-anchor="middle" x="959" y="-246.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">6: EVIDENCE</text>
+<text xml:space="preserve" text-anchor="middle" x="959" y="-235.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">policy + execution</text>
+<text xml:space="preserve" text-anchor="middle" x="959" y="-223.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">canonical write</text>
+</g>
+<!-- checkpoint -->
+<g id="node13" class="node">
+<title>checkpoint</title>
+<polygon fill="#fff7ed" stroke="#b45309" stroke-width="1.15" points="1149.8,-37 768.2,-37 768.2,-1 1149.8,-1 1149.8,-37"/>
+<text xml:space="preserve" text-anchor="middle" x="959" y="-15.3" font-family="Helvetica Neue" font-size="11.00" fill="#7c2d12">SEPARATE FACT: Operator human review is not implied by either lane</text>
+</g>
+</g>
+</svg>

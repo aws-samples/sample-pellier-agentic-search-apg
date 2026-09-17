@@ -218,7 +218,7 @@ export const ObservatoryWelcome: React.FC = () => {
         <PillarCard
           verb="Understand"
           title="Agents, Tools, Memory"
-          description="Five specialists, 17 tools, five skills, and the memory surfaces that explain what persisted."
+          description="Specialists, published tools, skills, and the memory surfaces that explain what persisted."
         />
         <PillarCard
           verb="Evaluate"

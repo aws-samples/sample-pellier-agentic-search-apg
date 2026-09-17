@@ -51,6 +51,28 @@ prove what each layer did. Bring your laptop to participate.
 
 ---
 
+## Participant guides in Pellier
+
+The governed Lab Collection links to complete guides for Labs 1–4. Each guide
+includes prerequisites, commands, checkpoints, troubleshooting, and a link to
+its Workbench task. Introduction, background, summary, and reference pages are
+also available in the application.
+
+Workshop Studio remains the authoring source. After changing its participant
+Markdown or referenced assets, update and verify the in-app bundle from this
+source checkout:
+
+```bash
+python3 scripts/sync_workshop_guides.py --studio-repo /path/to/governed-studio
+python3 scripts/sync_workshop_guides.py --studio-repo /path/to/governed-studio --check
+```
+
+The exporter preserves command blocks and records each guide's source hash.
+It does not run an exercise. Include this parity check before committing the
+source release; a screenshot or guide page does not certify a completed run.
+Fresh-account rehearsal and Workshop Studio publication remain separate
+validation steps.
+
 ## Who this is for
 
 This is a **Level 400 (expert)** workshop. The code edits are small; the reasoning

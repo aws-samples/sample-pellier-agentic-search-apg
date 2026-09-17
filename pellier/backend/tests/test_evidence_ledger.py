@@ -314,11 +314,16 @@ def test_strict_projection_distinguishes_unavailable_from_not_found() -> None:
 # ---------------------------------------------------------------------------
 # Contradiction: two canonical receipts that cannot both be true
 # ---------------------------------------------------------------------------
-def _event(kind: str, status: str, tool: str | None = None) -> dict[str, Any]:
+def _event(
+    kind: str, status: str, tool: str | None = None,
+    *, turn_id: str = "turn-1", audit_id: int | None = 77,
+) -> dict[str, Any]:
     return {
         "eventKind": kind,
         "status": status,
-        "details": {"tool": tool} if tool else {},
+        "turnId": turn_id,
+        "evidenceRef": {"kind": "tool_audit" if kind == "tool" else "governed_turn_receipt_policy", "id": "77"},
+        "details": {"tool": tool, "audit_id": audit_id} if tool else {},
     }
 
 
@@ -326,8 +331,9 @@ def _check(checks: list[dict[str, Any]], check_id: str) -> dict[str, Any]:
     return next(check for check in checks if check["id"] == check_id)
 
 
-def test_deny_with_an_execution_row_for_the_same_tool_reads_contradicted() -> None:
-    """A DENY and a tool_audit row naming one tool cannot both hold.
+@pytest.mark.parametrize("execution_status", ["succeeded", "unavailable"])
+def test_deny_linked_to_the_exact_execution_row_reads_contradicted(execution_status: str) -> None:
+    """A DENY linked to the exact executed audit row cannot hold.
 
     tool_audit records only calls that ran. Reporting this pair as two
     satisfied checks is exactly how a receipt asserts a non-execution that did
@@ -337,7 +343,7 @@ def test_deny_with_an_execution_row_for_the_same_tool_reads_contradicted() -> No
         [
             _event("response", "succeeded"),
             _event("policy", "denied", "issue_credit"),
-            _event("tool", "succeeded", "issue_credit"),
+            _event("tool", execution_status, "issue_credit"),
         ]
     )
 
@@ -362,3 +368,28 @@ def test_deny_and_execution_of_different_tools_is_not_a_contradiction() -> None:
 
     assert _check(checks, "tool-execution")["status"] == "satisfied"
     assert _check(checks, "policy-decision")["status"] == "satisfied"
+
+
+@pytest.mark.parametrize(
+    ("tool_turn", "audit_id"),
+    [("turn-1", None), ("turn-1", 78), ("turn-2", 77)],
+)
+def test_repeated_tool_names_do_not_establish_a_contradiction(
+    tool_turn: str, audit_id: int | None,
+) -> None:
+    checks = _sufficiency([
+        _event("response", "succeeded"),
+        _event("policy", "denied", "issue_credit", audit_id=audit_id),
+        _event("tool", "succeeded", "issue_credit", turn_id=tool_turn),
+    ])
+    assert _check(checks, "tool-execution")["status"] == "satisfied"
+    assert _check(checks, "policy-decision")["status"] == "satisfied"
+    if audit_id is None:
+        assert _check(checks, "policy-execution-correlation")["status"] == "unavailable"
+    else:
+        assert not any(check["id"] == "policy-execution-correlation" for check in checks)
+
+
+def test_null_tool_result_still_has_execution_evidence() -> None:
+    checks = _sufficiency([_event("tool", "unavailable", "check_inventory")])
+    assert _check(checks, "tool-execution")["status"] == "satisfied"

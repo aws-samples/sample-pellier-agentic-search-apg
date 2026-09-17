@@ -13,7 +13,7 @@
  * and throws when it is exceeded, which turns a hang into a failed assertion
  * with a count in the message.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -123,5 +123,35 @@ describe('Observatory workbench persona identity', () => {
     expect(
       screen.getByRole('button', { name: /Reconcile answer/ }),
     ).toHaveAttribute('aria-current', 'step');
+  });
+
+  it.each(['complete', 'error'])('ignores a previous lab stream that ends with %s', async (outcome) => {
+    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    let resolve!: (value: unknown) => void;
+    let reject!: (error: Error) => void;
+    mocks.sendChatMessageStreaming.mockImplementation(() => new Promise((yes, no) => {
+      resolve = yes;
+      reject = no;
+    }));
+    const { container } = render(workbench());
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect: First guided turn' }));
+    await waitFor(() => expect(mocks.sendChatMessageStreaming).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('link', { name: 'Lab 2 Anna: Build and Measure PostgreSQL Hybrid Retrieval' }));
+    await act(async () => {
+      mocks.sendChatMessageStreaming.mock.calls[0][2]({
+        type: 'content_delta', delta: 'Late answer from Marco.',
+      });
+      if (outcome === 'complete') {
+        resolve({ response: 'Late answer from Marco.', products: [], suggestions: [] });
+      } else {
+        reject(new Error('Late failure from Marco.'));
+      }
+    });
+    expect(screen.getByRole('link', { name: 'Lab 2 Anna: Build and Measure PostgreSQL Hybrid Retrieval' }))
+      .toHaveAttribute('aria-current', 'step');
+    expect(screen.queryByText('Late answer from Marco.')).toBeNull();
+    expect(screen.queryByText('Late failure from Marco.')).toBeNull();
+    expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Ready');
+    expect(container.querySelector('.observatory-evidence-sufficiency')).toBeNull();
   });
 });

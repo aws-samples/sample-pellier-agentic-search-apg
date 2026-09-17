@@ -19,7 +19,7 @@ describe('governed Labs interaction contract', () => {
     expect(interactionForPath('/observatory/')).toBe('interactive');
     expect(modeCopyForPath('/observatory/').label).toBe('Labs & Workbench');
     expect(modeCopyForPath('/observatory/').detail).toBe(
-      'Choose one evidence-first lab, then use the same workbench to inspect its live system behavior.',
+      'Follow the four labs in order, then use Workbench to inspect the evidence for each change.',
     );
   });
 

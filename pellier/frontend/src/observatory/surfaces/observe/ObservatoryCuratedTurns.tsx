@@ -131,7 +131,7 @@ export default function ObservatoryCuratedTurns({
     const waitingOnEarlierTurn = !canRunTurn(index);
     const stage = WORKSHOP_TURN_STAGES[Math.min(scenario.ordinal - 1, 2)];
     const isBuildCheckpoint =
-      journey.surface !== 'operator' &&
+      journey.anchorId === 'marco' &&
       scenario.journeyStage === 'prove' &&
       !scenario.imageUrl;
     const content = (
@@ -214,7 +214,7 @@ export default function ObservatoryCuratedTurns({
     <section className="labs-turns" id={id} aria-labelledby="labs-turns-title">
       <header className="labs-turns-heading">
         <h2 id="labs-turns-title">
-          {journey.surface === 'operator' ? 'Operator close' : 'Shopper turns'}
+          {journey.surface === 'operator' ? 'Jessica’s investigation' : 'Shopper turns'}
         </h2>
         <p>
           {journey.surface === 'operator'
@@ -255,6 +255,12 @@ export default function ObservatoryCuratedTurns({
           role="alert"
         >
           {`Unable to open ${journey.anchorName}'s guided session: ${anchorError}`}
+        </div>
+      ) : null}
+      {!loading && !error && !ready && !anchorError ? (
+        <div className="labs-turns-state">
+          <span>Select {journey.anchorName} in the Storefront scenario switcher to open these guided turns.</span>
+          <Link to="/">Open Storefront</Link>
         </div>
       ) : null}
       {!loading && !error && ready && scenarios.length === 0 ? (

@@ -110,7 +110,7 @@ describe('Pellier Observatory live agent workbench', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Select Marco in the Storefront scenario switcher before the three-turn journey begins/i,
+        /Ground Marco’s warehouse answer in current Aurora rows/i,
       ),
     ).toBeInTheDocument();
     // The run state is reported once, by the ledger panel that runs.
@@ -118,7 +118,7 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(screen.getAllByText('Ready')).toHaveLength(1);
     expect(
       screen.getByRole('link', {
-        name: 'Lab 1: Build a PostgreSQL-Grounded Agent',
+        name: 'Lab 1 Marco: Build a PostgreSQL-Grounded Agent',
       }),
     ).toHaveAttribute('aria-current', 'step');
     /*
@@ -214,8 +214,8 @@ describe('Pellier Observatory live agent workbench', () => {
       screen.queryByRole('button', { name: 'Graph' }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText('Grounded products from this turn will appear here.'),
-    ).toBeInTheDocument();
+      screen.queryByText('Grounded products from this turn will appear here.'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Captured SQL')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Explore reference views/i }),
@@ -291,6 +291,11 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(
       screen.getByRole('link', { name: /Open Jessica in Operator/i }),
     ).toHaveTextContent('Continue with the separately authenticated staff desk.')
+    expect(screen.queryByRole('status', { name: 'Run proof summary' })).toBeNull();
+    expect(screen.queryByText('Choose a shopper turn to inspect its answer and evidence.')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Review the Lab 4 proof' })).toHaveAttribute(
+      'href', '/observatory/govern/verification',
+    );
   });
 
   it('keeps the idle ledger and metrics honest before a run', () => {
@@ -1222,7 +1227,7 @@ describe('Pellier Observatory live agent workbench', () => {
     };
   }
 
-  function policyEvent(tool: string, decision: string, status: string) {
+  function policyEvent(tool: string, decision: string, status: string, auditId: number | null = 77) {
     return {
       sequence: 2,
       eventKind: 'policy',
@@ -1233,7 +1238,7 @@ describe('Pellier Observatory live agent workbench', () => {
       evidenceRef: { kind: 'governed_turn_receipt_policy', id: 'turn-1:1' },
       title: 'Policy decision',
       summary: `Policy outcome: ${decision}.`,
-      details: { decision, tool },
+      details: { decision, tool, audit_id: auditId },
     };
   }
 
@@ -1291,7 +1296,7 @@ describe('Pellier Observatory live agent workbench', () => {
     );
   }
 
-  it('names a DENY and an execution of the same tool as a conflict', async () => {
+  it('names a DENY linked to the exact executed audit row as a conflict', async () => {
     streamLedger([
       routeEvent,
       policyEvent('issue_credit', 'DENY', 'denied'),
@@ -1309,6 +1314,33 @@ describe('Pellier Observatory live agent workbench', () => {
     const conflict = await screen.findByTestId('observatory-receipt-conflict');
     expect(conflict).toHaveTextContent(/issue_credit/);
     expect(conflict).toHaveTextContent(/denied and executed/i);
+  });
+
+  it.each([
+    { auditId: null, toolTurn: 'turn-1' },
+    { auditId: 78, toolTurn: 'turn-1' },
+    { auditId: 77, toolTurn: 'turn-2' },
+  ])('does not infer a conflict from repeated tool names (%j)', async ({ auditId, toolTurn }) => {
+    streamLedger([
+      routeEvent,
+      policyEvent('issue_credit', 'DENY', 'denied', auditId),
+      { ...toolEvent('issue_credit'), turnId: toolTurn },
+    ]);
+    render(<MemoryRouter><ObservatoryWorkbench /></MemoryRouter>);
+    await inspectTurn(userEvent.setup(), FRESH_TURNS[0]);
+    expect(await screen.findByTestId('observatory-receipt-strip')).toBeInTheDocument();
+    expect(screen.queryByTestId('observatory-receipt-conflict')).toBeNull();
+  });
+
+  it('reports missing receipts without asserting that nothing executed', async () => {
+    streamLedger([routeEvent]);
+    render(<MemoryRouter><ObservatoryWorkbench /></MemoryRouter>);
+    await inspectTurn(userEvent.setup(), FRESH_TURNS[0]);
+    const strip = await screen.findByTestId('observatory-receipt-strip');
+    expect(strip).toHaveTextContent('no tool receipt recorded');
+    expect(strip).toHaveTextContent('no Aurora query or write receipt recorded');
+    expect(strip).not.toHaveTextContent('no tool ran');
+    expect(strip).not.toHaveTextContent('nothing reached Aurora');
   });
 
   it('stays quiet when a DENY and an execution name different tools', async () => {
@@ -1627,7 +1659,7 @@ describe('Pellier Observatory live agent workbench', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Agent run did not complete');
     expect(alert).toHaveTextContent('Agent execution timed out');
-    expect(screen.getAllByText('Error')).toHaveLength(1);
+    expect(screen.getAllByText('Run failed')).toHaveLength(1);
     expect(screen.queryByText('Live run complete')).not.toBeInTheDocument();
   });
 

@@ -1,0 +1,55 @@
+.lab-guide { color: var(--obs-ink-1); padding: clamp(20px, 4vw, 52px); }
+.lab-guide-header { max-width: 1120px; margin: 0 auto 36px; }
+.lab-guide-header > a { display: inline-flex; align-items: center; gap: 8px; }
+.lab-guide-header h1 { margin: 14px 0; max-width: 900px; }
+.lab-guide-header > p { line-height: 1.6; }
+.lab-guide-eyebrow { margin-top: 28px; color: var(--obs-ink-2); font-size: 13px; }
+.lab-guide-header .lab-action-primary { margin-top: 16px; min-height: 44px; }
+.lab-guide-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); max-width: 1120px; margin: auto; align-items: start; }
+.lab-guide-navigation { display: grid; gap: 8px; position: sticky; top: 100px; max-height: calc(100vh - 120px); overflow: auto; }
+.lab-guide-navigation a { display: block; padding: 10px 12px; min-height: 44px; line-height: 1.45; border-left: 2px solid transparent; font-size: 14px; }
+.lab-guide-navigation a[aria-current='page'] { border-color: var(--obs-red-1); background: var(--obs-cream-2); font-weight: 600; }
+.lab-guide-navigation a span { display: block; color: var(--obs-ink-2); font-size: 12px; margin-bottom: 3px; }
+.lab-guide-on-page { border-block: 1px solid var(--obs-card-border); margin: 12px 0; padding: 12px 0; }
+.lab-guide-on-page summary { padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.lab-guide-content { min-width: 0; font-size: 15px; line-height: 1.65; }
+.lab-guide-content h2, .lab-guide-content h3, .lab-guide-content h4 { scroll-margin-top: 110px; line-height: 1.3; margin: 32px 0 14px; }
+.lab-guide-content h2 { font-size: 25px; padding-top: 18px; border-top: 1px solid var(--obs-card-border); }
+.lab-guide-content h3 { font-size: 20px; }
+.lab-guide-content p { margin: 12px 0; }
+.lab-guide-content ul, .lab-guide-content ol { padding-left: 24px; margin: 12px 0; }
+.lab-guide-content li { margin: 8px 0; }
+.lab-guide-content a { color: var(--obs-red-1); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.lab-guide-content img { display: block; max-width: 100%; height: auto; border-radius: 4px; margin: 18px 0; }
+.lab-guide-content :not(pre) > code { overflow-wrap: anywhere; font-family: var(--obs-mono); font-size: .86em; }
+.guide-code { position: relative; min-width: 0; margin: 18px 0; background: var(--obs-cream-2); border: 1px solid var(--obs-card-border); border-radius: 4px; }
+.guide-code > button { display: block; margin-left: auto; min-height: 44px; padding: 8px 16px; color: var(--obs-red-1); cursor: pointer; font-size: 13px; }
+.guide-code pre { overflow: auto; padding: 0 18px 18px; margin: 0; font-size: 12px; line-height: 1.65; white-space: pre; }
+.guide-code code { font-family: var(--obs-mono); }
+.guide-notice { margin: 20px 0; padding: 16px 20px; background: var(--obs-cream-2); border-left: 3px solid var(--obs-red-1); }
+.guide-notice > strong { font-size: 16px; }
+.guide-notice[data-tone='success'] { border-color: var(--obs-ink-2); }
+.guide-expander { border: 1px solid var(--obs-card-border); border-radius: 4px; margin: 14px 0; }
+.guide-expander > summary { padding: 14px 18px; cursor: pointer; min-height: 44px; font-weight: 600; }
+.guide-expander > div { padding: 0 18px 14px; min-width: 0; }
+.guide-table-scroll { overflow: auto; margin: 18px 0; }
+.guide-table-scroll table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.guide-table-scroll th, .guide-table-scroll td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--obs-card-border); padding: 10px 12px; min-width: 130px; }
+.guide-table-scroll th { background: var(--obs-cream-2); font-weight: 600; }
+.guide-table-scroll p { margin: 0; }
+.lab-guide-source { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--obs-card-border); font-size: 13px; }
+.lab-guide-source summary { cursor: pointer; padding: 10px 0; min-height: 44px; }
+.lab-guide-source code { display: block; margin: 8px 0; }
+.lab-guide :focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 4px; }
+.lab-guide-header h1:focus { outline: none; }
+@media (max-width: 900px) {
+  .lab-guide-layout { grid-template-columns: minmax(0, 1fr); }
+  .lab-guide-navigation { position: static; max-height: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lab-guide-on-page { grid-column: 1 / -1; }
+}
+@media (max-width: 540px) {
+  .lab-guide { padding: 20px 16px; }
+  .lab-guide-navigation { grid-template-columns: minmax(0, 1fr); }
+  .lab-guide-content h2 { font-size: 22px; }
+  .guide-notice, .guide-expander > div { padding-inline: 12px; }
+}

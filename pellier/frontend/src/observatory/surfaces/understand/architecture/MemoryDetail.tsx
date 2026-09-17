@@ -372,6 +372,7 @@ const MemoryDetail: React.FC = () => {
         data
           ? {
               label: 'Current records for the selected customer. Each panel names its source and shows whether the read returned records or is waiting for extraction.',
+              measured: true,
               values: [
                 { label: 'Live sources', value: `${liveCount} / 5` },
                 { label: 'Items', value: String(totalItems) },

@@ -15,7 +15,7 @@ describe('observatoryTitleForPath', () => {
       'Sessions · Pellier Observatory',
     );
     expect(observatoryTitleForPath('/observatory/labs/grounded-inventory')).toBe(
-      'Lab · Pellier Observatory',
+      'Lab 1: Build a PostgreSQL-Grounded Agent · Pellier Observatory',
     );
   });
 });

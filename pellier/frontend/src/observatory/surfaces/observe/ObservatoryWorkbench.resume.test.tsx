@@ -6,7 +6,7 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../services/chat', () => ({
@@ -36,9 +36,20 @@ import {
   writeLabProgress,
 } from '../../../shared/labProgress';
 
+function HistoryControls() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return <>
+    <output data-testid="location">{location.pathname}{location.search}</output>
+    <button onClick={() => navigate(-1)}>Back</button>
+    <button onClick={() => navigate(1)}>Forward</button>
+  </>;
+}
+
 function renderAt(entry: string) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
+      <HistoryControls />
       <ObservatoryWorkbench />
     </MemoryRouter>,
   );
@@ -110,5 +121,40 @@ describe('Observatory workbench resume', () => {
         screen.getByRole('button', { name: /Reconcile answer/ }),
       ).toHaveAttribute('aria-current', 'step'),
     );
+  });
+
+  it('resumes a different step even when the page originally opened on the saved URL', async () => {
+    writeLabProgress({
+      lab: 'grounded-inventory', step: 'inspect', nextAction: 'Read the evidence.',
+    });
+    renderAt('/observatory/workbench?lab=grounded-inventory&step=inspect');
+    expect(screen.queryByRole('link', { name: /^Resume/ })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('step=reconcile');
+    await userEvent.click(screen.getByRole('link', { name: /^Resume/ }));
+
+    expect(screen.getByRole('button', { name: 'Inspect evidence' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByTestId('location')).toHaveTextContent('step=inspect');
+    expect(screen.queryByRole('link', { name: /^Resume/ })).toBeNull();
+  });
+
+  it('keeps focus steps in browser history', async () => {
+    renderAt('/observatory/workbench?lab=grounded-inventory');
+    await userEvent.click(screen.getByRole('button', { name: 'Inspect evidence' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: 'Inspect evidence' })).toHaveAttribute('aria-current', 'step');
+    await userEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    expect(screen.getByRole('button', { name: 'Reconcile answer' })).toHaveAttribute('aria-current', 'step');
+  });
+
+  it('does not offer a step-only Resume when Expert already shows every panel', () => {
+    localStorage.setItem(WORKBENCH_VIEW_KEY, 'expert');
+    writeLabProgress({
+      lab: 'grounded-inventory', step: 'reconcile', nextAction: 'Read the answer.',
+    });
+    renderAt('/observatory/workbench?lab=grounded-inventory');
+    expect(screen.queryByRole('link', { name: /^Resume/ })).toBeNull();
   });
 });

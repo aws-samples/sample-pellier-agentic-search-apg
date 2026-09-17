@@ -43,6 +43,7 @@ import {
   sendChatMessageStreaming,
   type ChatProduct,
   type ChatResponse,
+  type ChatServiceError,
   type ResponseMode,
 } from '../../../services/chat';
 import type {
@@ -235,33 +236,43 @@ type ReceiptStripSummary = {
 
 /**
  * The three receipts for one turn, from the ledger's own events. Policy is
- * the decision recorded, execution is what ran, data is what reached Aurora.
+ * the decision recorded, execution and data count their recorded receipts.
  * "Not recorded" is a finding, never hidden behind a neutral zero.
  */
 function summarizeReceipts(steps: JourneyStep[]): ReceiptStripSummary {
   const decisions = steps
     .filter((step) => step.eventKind === 'policy')
-    .map((step) => String(step.details?.decision ?? step.status).toUpperCase());
-  // A DENY means the tool never ran, and a tool event exists only when a
-  // tool_audit row proves it did. One tool named by both is a claim refuted by
-  // its own evidence, and it is reported as a conflict rather than as two
-  // independent facts the reader is left to reconcile.
-  const deniedTools = new Set(
-    steps
-      .filter(
-        (step) =>
-          step.eventKind === 'policy' &&
-          String(step.details?.decision ?? step.status).toUpperCase() === 'DENY',
-      )
-      .map((step) => String(step.details?.tool ?? ''))
-      .filter(Boolean),
+    .map((step) => {
+      const decision = String(step.details?.decision ?? step.status).toUpperCase();
+      if (decision === 'ALLOW') return 'Allowed';
+      if (decision === 'DENY') return 'Denied';
+      if (decision === 'WOULD_DENY') return 'Would deny (not enforced)';
+      if (decision === 'NOT_EVALUATED') return 'Not evaluated';
+      return decision.toLowerCase().replace(/_/g, ' ');
+    });
+  // The exact audit-row link establishes the same attempt. A repeated tool
+  // name, even on the same turn, is not enough to claim a contradiction.
+  const denied = steps.filter((step) =>
+    step.eventKind === 'policy' &&
+    step.status === 'denied' &&
+    step.turnId &&
+    step.details?.audit_id !== null &&
+    step.details?.audit_id !== undefined,
   );
   const conflicted = [
     ...new Set(
       steps
-        .filter((step) => step.eventKind === 'tool')
+        .filter((step) =>
+          step.eventKind === 'tool' &&
+          step.evidenceRef?.kind === 'tool_audit' &&
+          denied.some((policy) =>
+            policy.turnId === step.turnId &&
+            policy.details?.tool === step.details?.tool &&
+            String(policy.details?.audit_id) === step.evidenceRef?.id,
+          ),
+        )
         .map((step) => String(step.details?.tool ?? ''))
-        .filter((tool) => tool && deniedTools.has(tool)),
+        .filter(Boolean),
     ),
   ];
   const tools = steps.filter((step) => step.eventKind === 'tool');
@@ -277,14 +288,14 @@ function summarizeReceipts(steps: JourneyStep[]): ReceiptStripSummary {
     policy: decisions.length ? count(decisions) : 'not recorded',
     execution: tools.length
       ? `${tools.length} tool ${tools.length === 1 ? 'call' : 'calls'} audited`
-      : 'no tool ran',
+      : 'no tool receipt recorded',
     data: aurora.length
       ? `${aurora.length} Aurora ${aurora.length === 1 ? 'receipt' : 'receipts'}${
           rejected.length ? `, ${rejected.length} rejected` : ''
         }`
-      : 'nothing reached Aurora',
+      : 'no Aurora query or write receipt recorded',
     conflict: conflicted.length
-      ? `${conflicted.join(', ')} was denied and executed on this turn. ` +
+      ? `${conflicted.join(', ')} was denied and executed under the same audit-row link on this turn. ` +
         'tool_audit records only calls that ran, so these two receipts ' +
         'disagree; read both before drawing a conclusion.'
       : null,
@@ -539,7 +550,7 @@ function formatElapsed(elapsedMs: number): string {
 function statusLabel(status: RunStatus): string {
   if (status === 'running') return 'Running';
   if (status === 'complete') return 'Completed';
-  if (status === 'error') return 'Error';
+  if (status === 'error') return 'Run failed';
   return 'Ready';
 }
 
@@ -562,7 +573,7 @@ function runProofSummary(
   }
   if (runStatus === 'complete') {
     return {
-      label: 'Evidence captured',
+      label: eventCount ? 'Evidence captured' : 'Turn complete',
       summary: `${eventCount} ${eventCount === 1 ? 'event' : 'events'}. ${agentCount} ${agentCount === 1 ? 'agent' : 'agents'}. ${sqlCount} SQL ${sqlCount === 1 ? 'query' : 'queries'}. ${productCount} ${productCount === 1 ? 'product' : 'products'}.`,
     };
   }
@@ -585,38 +596,54 @@ function metricValue(status: RunStatus, value: number | string): string {
 }
 
 /**
- * The node marks the event's status, never its kind. The kicker already names
- * the kind in words; a category glyph beside it was redundant texture, and it
- * left status encoded by colour alone. Pending is a dashed ring, recorded is a
- * dot, succeeded a check, denied a shield, failed a cross, in flight a loader.
+ * Status describes the recorded operation, not whether reading its receipt
+ * worked. The projection also uses unavailable for an empty retrieval or a
+ * tool's null result, and not_enforced for a recorded WOULD_DENY evaluation.
  */
-/**
- * The ledger's own status, said plainly.
- *
- * `succeeded` is the only value that means evidence was recorded. `not_reached`
- * and `not_enforced` mean the run never got to that category; `failed` and
- * `unavailable` mean the lookup itself did not come back. Those are different
- * findings and the raw enum ("not reached", "unavailable") did not say so.
- *
- * A category that emitted no event at all is simply absent from the ledger, and
- * the payload carries no expected-set for the turn, so nothing here can claim
- * that an absence is normal or that evidence went missing. That distinction
- * needs the backend to declare what it expected.
- */
-function evidenceStateLabel(status: string): string {
+function evidenceStateLabel(step: JourneyStep): string {
+  const { status, eventKind, details } = step;
   if (status === 'succeeded') return 'Evidence available';
   if (status === 'denied') return 'Denied';
-  if (status === 'not_reached' || status === 'not_enforced') {
-    return 'Not applicable to this run';
+  if (status === 'not_reached') return 'Not reached';
+  if (status === 'not_enforced') {
+    const decision = String(details?.decision ?? '').toUpperCase();
+    if (decision === 'WOULD_DENY') return 'Would deny (not enforced)';
+    if (decision === 'NOT_EVALUATED') return 'Not evaluated';
+    return 'Not enforced';
   }
-  if (status === 'failed' || status === 'unavailable') {
-    return 'Evidence lookup failed';
+  if (status === 'failed' || status === 'error') {
+    if (eventKind === 'aurora') return 'Query execution failed';
+    if (eventKind === 'model') return 'Model invocation failed';
+    if (eventKind === 'policy') return 'Policy evaluation failed';
+    if (eventKind === 'memory') return 'Memory operation failed';
+    if (eventKind === 'response') return 'Turn failed';
+    return 'Execution failed';
   }
-  if (status === 'running') return 'Running';
+  if (status === 'unavailable') {
+    if (
+      eventKind === 'retrieval' &&
+      Array.isArray(details?.citation_ids) &&
+      details.citation_ids.length === 0
+    ) {
+      return 'No citations returned';
+    }
+    if (eventKind === 'tool' && step.evidenceRef?.kind === 'tool_audit') {
+      return 'No result recorded';
+    }
+    if (eventKind === 'response' && details?.terminal_status === 'trace-pending') {
+      return 'Trace pending';
+    }
+    if (eventKind === 'memory') return 'Memory unavailable';
+    return 'Evidence unavailable';
+  }
+  if (['running', 'in_progress', 'executing'].includes(status)) return 'Running';
+  if (status === 'completed' || status === 'complete') return 'Completed';
+  if (status === 'pending') return 'Waiting';
   if (status === 'planned') return 'Planned';
   return status.replace(/_/g, ' ');
 }
 
+/** The glyph reinforces the status label; it never replaces it. */
 function glyphForStatus(status: string) {
   if (status === 'succeeded' || status === 'completed' || status === 'complete') {
     return <Check size={14} strokeWidth={2.2} aria-hidden="true" />;
@@ -764,6 +791,15 @@ function errorMessage(error: unknown): string {
   return 'The live agent run failed before completion.';
 }
 
+function failureTitle(code: string | null): string {
+  if (code === 'authentication_required') return 'Sign-in required';
+  if (code === 'policy_denied') return 'Policy denied';
+  if (code === 'workshop_build_required') return 'Complete the workshop build';
+  if (code === 'invalid_request') return 'Request not accepted';
+  if (code === 'service_unavailable') return 'Service unavailable';
+  return 'Agent run did not complete';
+}
+
 function labelIntent(intent: string): string {
   return intent
     .split('_')
@@ -897,7 +933,7 @@ function whyThisAnswer({
 export default function ObservatoryWorkbench() {
   const { persona, switchError } = usePersona();
   const reduceMotion = useReducedMotion();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const selectedLab =
     findLabExercise(searchParams.get('lab') ?? undefined) ?? LAB_EXERCISES[0];
   const selectedJourney = journeyForLab(selectedLab.id)!;
@@ -913,6 +949,9 @@ export default function ObservatoryWorkbench() {
   const [agentResponse, setAgentResponse] = useState('');
   const [elapsedMs, setElapsedMs] = useState(0);
   const [runError, setRunError] = useState<string | null>(null);
+  const [runErrorCode, setRunErrorCode] = useState<string | null>(null);
+  const [retryAllowed, setRetryAllowed] = useState(true);
+  const [ledgerPending, setLedgerPending] = useState(false);
   const [responseMode, setResponseMode] =
     useState<ResponseMode>('balanced');
   const [setupOpen, setSetupOpen] = useState(false);
@@ -941,8 +980,14 @@ export default function ObservatoryWorkbench() {
    */
   const [view, setView] = useState<WorkbenchView>(() => readWorkbenchView());
   // The step is addressable: Resume and a shared link both carry `?step=`.
-  const urlStep = focusStepIndex(searchParams.get('step'));
-  const [focusStep, setFocusStep] = useState(urlStep);
+  const focusStep = focusStepIndex(searchParams.get('step'));
+  const showFocusStep = (index: number, replace = false) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('step', FOCUS_PANELS[index].id);
+      return next;
+    }, { replace, preventScrollReset: true });
+  };
   /**
    * Where this browser left off, read once on mount. Read once on purpose:
    * the control is a way back to a previous session, and repointing it at the
@@ -959,6 +1004,7 @@ export default function ObservatoryWorkbench() {
   >([]);
   const startedAtRef = useRef<number | null>(null);
   const eventSequenceRef = useRef(0);
+  const runGenerationRef = useRef(0);
   const traceListRef = useRef<HTMLOListElement | null>(null);
   const currentTraceStepRef = useRef<HTMLLIElement | null>(null);
   const stepNodesRef = useRef(new Map<string, HTMLLIElement>());
@@ -976,6 +1022,9 @@ export default function ObservatoryWorkbench() {
    * value: every pass would schedule the next one.
    */
   useEffect(() => {
+    // A late stream must never populate another lab or shopper's evidence.
+    runGenerationRef.current += 1;
+    startedAtRef.current = null;
     setActiveTurn(null);
     setActiveQuery(null);
     setRunStatus('idle');
@@ -984,6 +1033,9 @@ export default function ObservatoryWorkbench() {
     setAgentResponse('');
     setElapsedMs(0);
     setRunError(null);
+    setRunErrorCode(null);
+    setRetryAllowed(true);
+    setLedgerPending(false);
     setIntentSignal(null);
     setExecutionRail('Server selected');
     setExecutionPattern(null);
@@ -994,14 +1046,11 @@ export default function ObservatoryWorkbench() {
     setReceiptOverrides({});
     setLinkedStepId(null);
     setTurnEntries([]);
+    return () => {
+      runGenerationRef.current += 1;
+      startedAtRef.current = null;
+    };
   }, [selectedJourney.anchorId, selectedPersona?.customer_id]);
-
-  // The step is a view of the run, not a new run, so it follows `?step=` on
-  // its own. Folded into the reset above, every step change discarded the
-  // turn entries, trace and products it was meant to be a view of.
-  useEffect(() => {
-    setFocusStep(urlStep);
-  }, [urlStep]);
 
   // A highlight timer that outlives its node would fire against a step from a
   // previous run, so it is cancelled on unmount.
@@ -1303,6 +1352,9 @@ export default function ObservatoryWorkbench() {
 
     const conversationHistory =
       turnIndex === null ? [] : historyForTurn(turnEntries, turnIndex);
+    const generation = ++runGenerationRef.current;
+    const isCurrentRun = () => generation === runGenerationRef.current;
+    let turnId: string | null = null;
 
     setActiveTurn(turnIndex);
     setActiveQuery(request);
@@ -1310,6 +1362,9 @@ export default function ObservatoryWorkbench() {
     startedAtRef.current = Date.now();
     setRunStatus('running');
     setRunError(null);
+    setRunErrorCode(null);
+    setRetryAllowed(true);
+    setLedgerPending(false);
     setSteps([]);
     setProducts([]);
     setAgentResponse('');
@@ -1328,13 +1383,20 @@ export default function ObservatoryWorkbench() {
       const response: ChatResponse = await sendChatMessageStreaming(
         request,
         conversationHistory,
-        handleStreamEvent,
+        (event) => {
+          if (!isCurrentRun()) return;
+          if (event.type === 'turn_start' && typeof event.turn_id === 'string') {
+            turnId = event.turn_id;
+          }
+          handleStreamEvent(event);
+        },
         undefined,
         false,
         selectedPersona?.customer_id ?? null,
         'dispatcher',
         responseMode,
       );
+      if (!isCurrentRun()) return;
       if (response.response) {
         setAgentResponse((current) =>
           reconcileAgentResponse(current, response.response),
@@ -1381,15 +1443,65 @@ export default function ObservatoryWorkbench() {
       // The evidence panel is only worth reading once there is evidence in
       // it. While the turn streams, the request rail is the useful view, so
       // focus mode moves to Inspect on completion rather than on dispatch.
-      setFocusStep(FOCUS_INSPECT_STEP);
+      showFocusStep(FOCUS_INSPECT_STEP, true);
     } catch (error) {
+      if (!isCurrentRun()) return;
+      const failure = error as Partial<ChatServiceError> | null;
       setRunError(errorMessage(error));
+      setRunErrorCode(failure?.code ?? null);
+      setRetryAllowed(failure?.retryable !== false);
       setRunStatus('error');
-    } finally {
+      setSteps((current) => current.map((step) =>
+        ['running', 'in_progress', 'executing'].includes(step.status)
+          ? { ...step, status: 'unavailable' }
+          : step,
+      ));
       if (startedAtRef.current !== null) {
         setElapsedMs(Date.now() - startedAtRef.current);
+        startedAtRef.current = null;
       }
-      startedAtRef.current = null;
+      showFocusStep(FOCUS_INSPECT_STEP, true);
+      // The server persists a failed or denied turn before emitting its error.
+      // Read that exact principal-scoped ledger; never replay the action to
+      // obtain evidence. HTTP failures without a turn id have nothing to read.
+      if (turnId) {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        setLedgerPending(true);
+        try {
+          const result = await fetch(
+            `/api/observatory/turns/${encodeURIComponent(turnId)}/ledger`,
+            { credentials: 'include', signal: controller.signal },
+          );
+          if (result.ok && isCurrentRun()) {
+            const ledger = await result.json() as EvidenceLedger;
+            if (
+              isCurrentRun() &&
+              ledger.authority === 'canonical-receipt-projection' &&
+              ledger.principalScoped === true &&
+              ledger.turnId === turnId &&
+              Array.isArray(ledger.events) &&
+              Array.isArray(ledger.evidenceSufficiency)
+            ) {
+              setSteps(ledgerSteps(ledger));
+              setEvidenceSufficiency(ledger.evidenceSufficiency);
+              setDurableLedger(true);
+            }
+          }
+        } catch {
+          // Keep received live events; an unreadable ledger is not an empty one.
+        } finally {
+          window.clearTimeout(timeout);
+          if (isCurrentRun()) setLedgerPending(false);
+        }
+      }
+    } finally {
+      if (isCurrentRun()) {
+        if (startedAtRef.current !== null) {
+          setElapsedMs(Date.now() - startedAtRef.current);
+        }
+        startedAtRef.current = null;
+      }
     }
   };
 
@@ -1545,16 +1657,12 @@ export default function ObservatoryWorkbench() {
    * mark it so the relationship is visible rather than asserted.
    */
   const openLinkedStep = (stepId: string) => {
-    const node = stepNodesRef.current.get(stepId);
     setLinkedStepId(stepId);
     const step = steps.find((item) => item.id === stepId);
-    if (step?.sql) {
+    if (step) {
       setReceiptOverrides((current) => ({ ...current, [stepId]: true }));
     }
-    node?.scrollIntoView?.({
-      block: 'center',
-      behavior: reduceMotion ? 'auto' : 'smooth',
-    });
+    if (view === 'focus') showFocusStep(FOCUS_INSPECT_STEP);
     if (linkTimerRef.current !== null) {
       window.clearTimeout(linkTimerRef.current);
     }
@@ -1563,6 +1671,15 @@ export default function ObservatoryWorkbench() {
       linkTimerRef.current = null;
     }, 2200);
   };
+
+  // Navigation must reveal the ledger before a claim can scroll to its event.
+  useEffect(() => {
+    if (!linkedStepId || (view === 'focus' && focusStep !== FOCUS_INSPECT_STEP)) return;
+    stepNodesRef.current.get(linkedStepId)?.scrollIntoView?.({
+      block: 'center',
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
+  }, [linkedStepId, view, focusStep, reduceMotion]);
 
   const proofSummary = runProofSummary(
     runStatus,
@@ -1574,7 +1691,7 @@ export default function ObservatoryWorkbench() {
     products.length,
   );
 
-  const focusMode = view === 'focus';
+  const focusMode = storefrontJourney && view === 'focus';
   const currentStep = (FOCUS_PANELS[focusStep] ?? FOCUS_PANELS[0]).id;
 
   // Record the position as it changes so a closed tab is recoverable. The
@@ -1620,17 +1737,52 @@ export default function ObservatoryWorkbench() {
   const shownPanelId = FOCUS_PANELS[focusStep]?.id;
   const resumeElsewhere =
     resumePoint !== null &&
-    (resumePoint.lab !== selectedLab.id || resumePoint.step !== shownPanelId);
+    (resumePoint.lab !== selectedLab.id ||
+      (focusMode && resumePoint.step !== shownPanelId));
 
   /*
    * Sufficiency and claims are a result, not a promise. Before the first turn
    * the column says one thing; once a turn has settled they appear even when
-   * they are empty, because "the run produced no linked claim" is the finding.
+   * they are empty. Only a received ledger can establish an empty result;
+   * without one, the result is unavailable.
    */
   const turnSettled =
     runStatus === 'complete' ||
-    runStatus === 'error' ||
-    (runStatus === 'idle' && steps.length > 0);
+    runStatus === 'error';
+
+  // One visible run summary in either mode. Focus mode keeps it above the
+  // panels so status remains available while Run or Reconcile is selected.
+  const runSummary = (
+    <div
+      className="observatory-run-summary"
+      role="status"
+      aria-label="Run proof summary"
+      aria-live="polite"
+    >
+      <span className="observatory-run-summary-copy">
+        {proofSummary.label}. {proofSummary.summary}
+      </span>
+      <Badge
+        variant={
+          runStatus === 'complete'
+            ? 'success'
+            : runStatus === 'error'
+              ? 'destructive'
+              : runStatus === 'running'
+                ? 'warning'
+                : 'neutral'
+        }
+        className="observatory-live-state"
+        data-status={runStatus}
+      >
+        {runStatus === 'error' && runErrorCode === 'policy_denied'
+          ? 'Denied'
+          : runStatus === 'error' && runErrorCode === 'authentication_required'
+            ? 'Sign-in required'
+            : statusLabel(runStatus)}
+      </Badge>
+    </div>
+  );
 
   return (
     <div className="observatory-workbench labs-index">
@@ -1641,7 +1793,7 @@ export default function ObservatoryWorkbench() {
               Labs & Live Workbench
             </h1>
           </div>
-          <div className="observatory-workbench-intro-aside">
+          {storefrontJourney || resumeElsewhere ? <div className="observatory-workbench-intro-aside">
             {resumeElsewhere ? (
               <Link
                 className="observatory-resume"
@@ -1655,7 +1807,7 @@ export default function ObservatoryWorkbench() {
                 </span>
               </Link>
             ) : null}
-            <button
+            {storefrontJourney ? <button
               type="button"
               className="observatory-view-toggle"
               aria-pressed={focusMode ? 'false' : 'true'}
@@ -1663,8 +1815,8 @@ export default function ObservatoryWorkbench() {
             >
               <Columns3 size={14} aria-hidden="true" />
               Expert view
-            </button>
-          </div>
+            </button> : null}
+          </div> : null}
         </header>
         {focusMode ? (
           <nav
@@ -1683,7 +1835,7 @@ export default function ObservatoryWorkbench() {
                       : 'ahead'
                 }
                 aria-current={index === focusStep ? 'step' : undefined}
-                onClick={() => setFocusStep(index)}
+                onClick={() => showFocusStep(index)}
               >
                 <span aria-hidden="true">{index + 1}</span>
                 {panel.label}
@@ -1705,7 +1857,7 @@ export default function ObservatoryWorkbench() {
                 className="observatory-lab-switch-option"
                 data-selected={selected ? 'true' : undefined}
                 aria-current={selected ? 'step' : undefined}
-                aria-label={`Lab ${Number(exercise.number)}: ${exercise.title}`}
+                aria-label={`Lab ${Number(exercise.number)} ${exercise.anchorName}: ${exercise.title}`}
               >
                 <span aria-hidden="true">{Number(exercise.number)}</span>
                 {exercise.anchorName}
@@ -1713,14 +1865,20 @@ export default function ObservatoryWorkbench() {
             );
           })}
         </nav>
-        <p className="observatory-workbench-purpose">
-          <strong>Lab {Number(selectedLab.number)}:</strong>{' '}
-          {selectedLab.objective}
-        </p>
+        <div className="observatory-workbench-task">
+          <h2>Lab {Number(selectedLab.number)}: {selectedLab.title}</h2>
+          <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
+          <Link className="observatory-workbench-guide-link" to={`/observatory/labs/${selectedLab.id}`}>
+            Read Lab {Number(selectedLab.number)} guide
+          </Link>
+        </div>
+        {focusMode ? (
+          <div className="observatory-workbench-status">{runSummary}</div>
+        ) : null}
         <div
           className="observatory-workbench-grid"
-          data-view={view}
-          aria-label="Live agent run"
+          data-view={storefrontJourney ? view : 'operator'}
+          aria-label={storefrontJourney ? 'Live agent run' : 'Operator investigation handoff'}
         >
           <motion.aside
             className="observatory-input-panel"
@@ -1753,7 +1911,7 @@ export default function ObservatoryWorkbench() {
               }}
             />
 
-            <section
+            {storefrontJourney ? <section
               className="observatory-run-controls"
               aria-label="Run setup"
             >
@@ -1854,10 +2012,27 @@ export default function ObservatoryWorkbench() {
                   principal-scoped Aurora receipts when the turn completes.
                 </p>
               </div>
-            </section>
+            </section> : (
+              <section className="observatory-operator-next" aria-labelledby="operator-next-title">
+                <h3 id="operator-next-title">Carry the proof into the decision</h3>
+                <p>
+                  The identity matrix proves denial, business refusal, commit,
+                  and replay. Jessica’s Operator investigation uses those
+                  distinctions to prepare a decision for human review.
+                </p>
+                <p>
+                  Open the staff desk with an Operator account, then inspect
+                  its recorded evidence. Preparing a review does not execute
+                  the proposed action.
+                </p>
+                <Link to="/observatory/govern/verification">Review the Lab 4 proof</Link>
+                <Link to="/observatory/operator-lineage">Inspect recorded Operator evidence</Link>
+              </section>
+            )}
 
           </motion.aside>
 
+          {storefrontJourney ? <>
           <motion.section
             className="observatory-trace-panel"
             data-motion-panel="trace"
@@ -1939,31 +2114,7 @@ export default function ObservatoryWorkbench() {
                   {allReceiptsOpen ? 'Collapse all' : 'Expand all'}
                 </button>
               ) : null}
-              <div
-                className="observatory-run-summary"
-                role="status"
-                aria-label="Run proof summary"
-                aria-live="polite"
-              >
-                <span className="observatory-run-summary-copy">
-                  {proofSummary.label}. {proofSummary.summary}
-                </span>
-                <Badge
-                  variant={
-                    runStatus === 'complete'
-                      ? 'success'
-                      : runStatus === 'error'
-                        ? 'destructive'
-                        : runStatus === 'running'
-                          ? 'warning'
-                          : 'neutral'
-                  }
-                  className="observatory-live-state"
-                  data-status={runStatus}
-                >
-                  {statusLabel(runStatus)}
-                </Badge>
-              </div>
+              {!focusMode ? runSummary : null}
             </div>
 
             <div
@@ -2065,11 +2216,19 @@ export default function ObservatoryWorkbench() {
 
               {runError ? (
                 <div className="observatory-error" role="alert">
-                  <strong>Agent run did not complete</strong>
+                  <strong>{failureTitle(runErrorCode)}</strong>
                   <p>{runError}</p>
-                  {activeQuery !== null ? (
+                  {runErrorCode === 'authentication_required' ? (
+                    <Link to={`/signin?returnTo=${encodeURIComponent(
+                      `/observatory/workbench?lab=${selectedLab.id}&step=inspect`,
+                    )}`}>
+                      Sign in to continue
+                    </Link>
+                  ) : null}
+                  {activeQuery !== null && retryAllowed ? (
                     <button
                       type="button"
+                      disabled={ledgerPending}
                       onClick={() => {
                         void runAgent(activeQuery, activeTurn);
                       }}
@@ -2145,7 +2304,7 @@ export default function ObservatoryWorkbench() {
                       <div className="observatory-trace-content">
                         <div className="observatory-trace-kicker">
                           <span>{step.eventKind ?? step.kind}</span>
-                          <em>{evidenceStateLabel(step.status)}</em>
+                          <em>{evidenceStateLabel(step)}</em>
                         </div>
                         <h3 aria-label={step.title}>{step.title}</h3>
                         <p>{step.detail}</p>
@@ -2285,6 +2444,14 @@ export default function ObservatoryWorkbench() {
                     </motion.li>
                   ))}
                 </ol>
+              ) : turnSettled ? (
+                <p className="observatory-trace-skeleton-note">
+                  {ledgerPending
+                    ? "Reading this turn's durable ledger."
+                    : durableLedger
+                      ? 'The recorded ledger contains no events for this turn.'
+                      : 'No evidence events were received. The execution outcome is not established by this view.'}
+                </p>
               ) : (
                 <div className="observatory-trace-skeleton">
                   <p className="observatory-trace-skeleton-note">
@@ -2295,7 +2462,7 @@ export default function ObservatoryWorkbench() {
                   <ol
                     className="observatory-trace-list"
                     data-skeleton="true"
-                    aria-hidden="true"
+                    aria-label="Evidence categories"
                   >
                     {TRACE_SKELETON.map((kind) => (
                       <li
@@ -2377,27 +2544,6 @@ export default function ObservatoryWorkbench() {
                 <h2 id="live-result-title">Grounded answer</h2>
                 <p>The shopper reply and its supporting evidence.</p>
               </div>
-              <Badge
-                variant={
-                  runStatus === 'complete'
-                    ? 'success'
-                    : runStatus === 'error'
-                      ? 'destructive'
-                      : runStatus === 'running'
-                        ? 'warning'
-                        : 'neutral'
-                }
-                className="observatory-answer-state"
-                data-status={runStatus}
-              >
-                {runStatus === 'complete'
-                  ? 'Response complete'
-                  : runStatus === 'running'
-                    ? 'Streaming'
-                    : runStatus === 'error'
-                      ? 'Incomplete'
-                      : 'Awaiting turn'}
-              </Badge>
             </div>
 
             <div className="observatory-panel-scroll observatory-results-scroll">
@@ -2433,6 +2579,10 @@ export default function ObservatoryWorkbench() {
                   <p>
                     {runStatus === 'running'
                       ? 'The answer will appear here as the agent streams.'
+                      : runStatus === 'error'
+                        ? 'No shopper answer was received before the request stopped.'
+                        : runStatus === 'complete'
+                          ? 'This turn completed without a shopper answer.'
                       : 'Choose a shopper turn to inspect its answer and evidence.'}
                   </p>
                 )}
@@ -2490,18 +2640,14 @@ export default function ObservatoryWorkbench() {
                   ) : null}
 
                 </div>
-              ) : (
+              ) : runStatus === 'complete' ? (
                 <p
                   className="observatory-products-empty"
                   data-status={runStatus}
                 >
-                  {runStatus === 'complete'
-                    ? 'This turn completed without a product result.'
-                    : runStatus === 'running'
-                      ? 'Retrieving grounded catalog matches.'
-                      : 'Grounded products from this turn will appear here.'}
+                  This turn completed without a product result.
                 </p>
-              )}
+              ) : null}
 
               {turnSettled ? (
               <section
@@ -2527,9 +2673,11 @@ export default function ObservatoryWorkbench() {
                   </ul>
                 ) : (
                   <p className="observatory-results-placeholder">
-                    No sufficiency check was projected for this turn. The
-                    durable receipt must be readable under the verified
-                    principal before one can be.
+                    {ledgerPending
+                      ? "Reading this turn's durable ledger."
+                      : durableLedger
+                      ? 'The recorded ledger contains no sufficiency checks for this turn.'
+                      : 'Evidence sufficiency is unavailable because no durable ledger was received for this turn.'}
                   </p>
                 )}
               </section>
@@ -2570,7 +2718,11 @@ export default function ObservatoryWorkbench() {
                   </ul>
                 ) : (
                   <p className="observatory-results-placeholder">
-                    This turn linked no claim to an emitted event.
+                    {ledgerPending
+                      ? "Reading this turn's durable ledger."
+                      : durableLedger
+                      ? 'This turn linked no claim to an emitted event.'
+                      : 'Linked claims are unavailable because no durable ledger was received for this turn.'}
                   </p>
                 )}
                 {linkedClaimCount ? (
@@ -2578,6 +2730,12 @@ export default function ObservatoryWorkbench() {
                     <Link2 size={12} aria-hidden="true" />
                     {linkedClaimCount} of {verifiedClaims.length} linked to a
                     ledger event
+                  </p>
+                ) : null}
+                {!durableLedger && verifiedClaims.length > 0 ? (
+                  <p className="observatory-results-placeholder">
+                    These links use live events only. No durable ledger was
+                    received to verify this turn.
                   </p>
                 ) : null}
               </section>
@@ -2606,6 +2764,7 @@ export default function ObservatoryWorkbench() {
               ) : null}
             </div>
           </motion.section>
+          </> : null}
         </div>
         <WorkbenchResources compact collapsible defaultExpanded={false} />
       </div>

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Seven governance layers in Pellier</title>
+  <desc id="desc">A layered architecture from identity through managed execution, tool authorization, database authorization, evidence, AWS operations, and operator reconstruction.</desc>
+  <style>
+    .bg { fill: #f7f8fa; }
+    .title { fill: #161e2d; font: 700 38px Arial, sans-serif; }
+    .subtitle { fill: #5f6b7a; font: 20px Arial, sans-serif; }
+    .layer { fill: #ffffff; stroke: #d5d9d9; stroke-width: 2; }
+    .number { fill: #232f3e; font: 700 20px Arial, sans-serif; }
+    .name { fill: #161e2d; font: 700 22px Arial, sans-serif; }
+    .copy { fill: #3f4b5a; font: 17px Arial, sans-serif; }
+    .proof { fill: #166534; font: 700 15px Arial, sans-serif; }
+    .production { fill: #9a3412; font: 700 15px Arial, sans-serif; }
+    .rule { stroke: #eaeded; stroke-width: 2; }
+    .arrow { fill: none; stroke: #ff9900; stroke-width: 5; marker-end: url(#arrowhead); }
+    .label { fill: #ffffff; font: 700 14px Arial, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#ff9900"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="980"/>
+  <text class="title" x="80" y="72">Governance is a stack of boundaries</text>
+  <text class="subtitle" x="80" y="108">Each layer answers a different question. No single policy engine proves the whole turn.</text>
+
+  <path class="arrow" d="M45 180 L45 870"/>
+
+  <g transform="translate(80 145)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#232f3e"/>
+    <text class="label" x="45" y="53" text-anchor="middle">1</text>
+    <text class="name" x="90" y="38">Identity and attribution</text>
+    <text class="copy" x="90" y="68">Cognito JWT establishes authenticated subject and username.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">principal_id, verified subject, token fingerprint</text>
+  </g>
+
+  <g transform="translate(80 250)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#3b82a0"/>
+    <text class="label" x="45" y="53" text-anchor="middle">2</text>
+    <text class="name" x="90" y="38">Managed execution and memory</text>
+    <text class="copy" x="90" y="68">Runtime executes agents; Memory supplies conversation context.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">build, session IDs, extracted record IDs</text>
+  </g>
+
+  <g transform="translate(80 355)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#6b5b95"/>
+    <text class="label" x="45" y="53" text-anchor="middle">3</text>
+    <text class="name" x="90" y="38">Tool contract and authorization</text>
+    <text class="copy" x="90" y="68">Gateway exposes MCP tools; Policy evaluates Cedar before execution.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">tool schema, decision, identity, no-execution check</text>
+  </g>
+
+  <g transform="translate(80 460)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#2f855a"/>
+    <text class="label" x="45" y="53" text-anchor="middle">4</text>
+    <text class="name" x="90" y="38">Database authorization</text>
+    <text class="copy" x="90" y="68">SQL ownership, RLS row scoping, and column grants.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">restricted role, owned rows, denied write</text>
+  </g>
+
+  <g transform="translate(80 565)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#b45309"/>
+    <text class="label" x="45" y="53" text-anchor="middle">5</text>
+    <text class="name" x="90" y="38">Database and application evidence</text>
+    <text class="copy" x="90" y="68">Aurora stores tool receipts, domain state, and inventory movements.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">tool_audit, governed_receipts, inventory_ledger</text>
+  </g>
+
+  <g transform="translate(80 670)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#4b5563"/>
+    <text class="label" x="45" y="53" text-anchor="middle">6</text>
+    <text class="name" x="90" y="38">AWS and database operations</text>
+    <text class="copy" x="90" y="68">CloudWatch explains runtime; CloudTrail records control changes.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="production" x="840" y="38">PRODUCTION EXTENSIONS</text>
+    <text class="copy" x="840" y="67">pgAudit, PostgreSQL logs, retention, KMS, alarms</text>
+  </g>
+
+  <g transform="translate(80 775)">
+    <rect class="layer" width="1440" height="96" rx="8"/>
+    <circle cx="45" cy="48" r="25" fill="#c2413b"/>
+    <text class="label" x="45" y="53" text-anchor="middle">7</text>
+    <text class="name" x="90" y="38">Operator reconstruction</text>
+    <text class="copy" x="90" y="68">Pellier Observatory reconstructs one governed turn.</text>
+    <line class="rule" x1="805" y1="18" x2="805" y2="78"/>
+    <text class="proof" x="840" y="38">EVIDENCE TO CHECK</text>
+    <text class="copy" x="840" y="67">principal -> session -> tool -> decision -> audit row</text>
+  </g>
+
+  <text class="subtitle" x="80" y="930">Workshop rule: configure only the layers needed for the live proof; name the rest as production patterns.</text>
+</svg>

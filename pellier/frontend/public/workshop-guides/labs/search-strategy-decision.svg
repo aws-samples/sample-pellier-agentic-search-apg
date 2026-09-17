@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1188" height="570" viewBox="0 0 1188 570" role="img" aria-labelledby="title desc">
+  <title id="title">Four retrieval strategies and their decision boundaries</title>
+  <desc id="desc">A comparison of vector search, hybrid reciprocal rank fusion, hybrid with reranking, and agentic retrieval by mechanism, strength, latency, and cost.</desc>
+  <style>
+    .bg { fill: #f7f8fa; }
+    .title { fill: #161e2d; font: 700 29px Arial, sans-serif; }
+    .subtitle { fill: #5f6b7a; font: 16px Arial, sans-serif; }
+    .card { fill: #ffffff; stroke: #d5d9d9; stroke-width: 1.5; }
+    .eyebrow { font: 700 11px Arial, sans-serif; letter-spacing: 0; }
+    .card-title { fill: #161e2d; font: 700 19px Arial, sans-serif; }
+    .label { fill: #5f6b7a; font: 700 11px Arial, sans-serif; }
+    .copy { fill: #3f4b5a; font: 14px Arial, sans-serif; }
+    .strong { fill: #161e2d; font: 700 14px Arial, sans-serif; }
+    .code { fill: #3f4b5a; font: 13px "Courier New", monospace; }
+    .rule { stroke: #eaeded; stroke-width: 1.5; }
+    .footer { fill: #232f3e; }
+    .footer-title { fill: #ffffff; font: 700 14px Arial, sans-serif; }
+    .footer-copy { fill: #d5dbdb; font: 14px Arial, sans-serif; }
+  </style>
+
+  <rect class="bg" width="1188" height="570"/>
+  <text class="title" x="48" y="48">Four strategies, one decision</text>
+  <text class="subtitle" x="48" y="78">Each step adds a capability. Ship it only when the query class earns the added latency and modeled cost.</text>
+
+  <g transform="translate(48 112)">
+    <rect class="card" width="267" height="348" rx="8"/>
+    <rect width="267" height="7" rx="3.5" fill="#2f855a"/>
+    <text class="eyebrow" x="24" y="36" fill="#2f855a">1 / DATABASE BASELINE</text>
+    <text class="card-title" x="24" y="67">Vector only</text>
+    <line class="rule" x1="24" y1="84" x2="243" y2="84"/>
+    <text class="label" x="24" y="111">MECHANISM</text>
+    <text class="code" x="24" y="136">query embedding</text>
+    <text class="code" x="24" y="157">-&gt; pgvector distance</text>
+    <text class="label" x="24" y="194">EARNS ITS PLACE WHEN</text>
+    <text class="copy" x="24" y="220">Meaning matters more than</text>
+    <text class="copy" x="24" y="240">exact wording.</text>
+    <text class="label" x="24" y="278">TRADE-OFF</text>
+    <text class="strong" x="24" y="304">Lowest added complexity</text>
+    <text class="copy" x="24" y="327">Can miss literal constraints.</text>
+  </g>
+
+  <g transform="translate(323 112)">
+    <rect class="card" width="267" height="348" rx="8"/>
+    <rect width="267" height="7" rx="3.5" fill="#3b82a0"/>
+    <text class="eyebrow" x="24" y="36" fill="#24738f">2 / TWO DATABASE SIGNALS</text>
+    <text class="card-title" x="24" y="67">Hybrid (RRF)</text>
+    <line class="rule" x1="24" y1="84" x2="243" y2="84"/>
+    <text class="label" x="24" y="111">MECHANISM</text>
+    <text class="code" x="24" y="136">pgvector + PostgreSQL FTS</text>
+    <text class="code" x="24" y="157">-&gt; merge list positions</text>
+    <text class="label" x="24" y="194">EARNS ITS PLACE WHEN</text>
+    <text class="copy" x="24" y="220">Intent and exact terms both</text>
+    <text class="copy" x="24" y="240">change relevance.</text>
+    <text class="label" x="24" y="278">TRADE-OFF</text>
+    <text class="strong" x="24" y="304">No rerank model call</text>
+    <text class="copy" x="24" y="327">More retrieval logic to tune.</text>
+  </g>
+
+  <g transform="translate(598 112)">
+    <rect class="card" width="267" height="348" rx="8"/>
+    <rect width="267" height="7" rx="3.5" fill="#b45309"/>
+    <text class="eyebrow" x="24" y="36" fill="#9a4a08">3 / MODEL REORDERING</text>
+    <text class="card-title" x="24" y="67">Hybrid + rerank</text>
+    <line class="rule" x1="24" y1="84" x2="243" y2="84"/>
+    <text class="label" x="24" y="111">MECHANISM</text>
+    <text class="code" x="24" y="136">hybrid candidate pool</text>
+    <text class="code" x="24" y="157">-&gt; Cohere Rerank</text>
+    <text class="label" x="24" y="194">EARNS ITS PLACE WHEN</text>
+    <text class="copy" x="24" y="220">A better top few changes the</text>
+    <text class="copy" x="24" y="240">business outcome.</text>
+    <text class="label" x="24" y="278">TRADE-OFF</text>
+    <text class="strong" x="24" y="304">Stronger final ordering</text>
+    <text class="copy" x="24" y="327">Adds a Bedrock model call.</text>
+  </g>
+
+  <g transform="translate(873 112)">
+    <rect class="card" width="267" height="348" rx="8"/>
+    <rect width="267" height="7" rx="3.5" fill="#6b5b95"/>
+    <text class="eyebrow" x="24" y="36" fill="#5b4a84">4 / QUERY UNDERSTANDING</text>
+    <text class="card-title" x="24" y="67">Agentic retrieval</text>
+    <line class="rule" x1="24" y1="84" x2="243" y2="84"/>
+    <text class="label" x="24" y="111">MECHANISM</text>
+    <text class="code" x="24" y="136">extract filters -&gt; vector</text>
+    <text class="code" x="24" y="157">-&gt; rerank candidates</text>
+    <text class="label" x="24" y="194">EARNS ITS PLACE WHEN</text>
+    <text class="copy" x="24" y="220">Natural-language constraints</text>
+    <text class="copy" x="24" y="240">must become structured filters.</text>
+    <text class="label" x="24" y="278">TRADE-OFF</text>
+    <text class="strong" x="24" y="304">Most adaptive pipeline</text>
+    <text class="copy" x="24" y="327">Highest latency and cost here.</text>
+  </g>
+
+  <g transform="translate(48 488)">
+    <rect class="footer" width="1092" height="52" rx="8"/>
+    <text class="footer-title" x="24" y="22">DECISION EVIDENCE</text>
+    <text class="footer-copy" x="185" y="22">Top results and constraint fit</text>
+    <text class="footer-copy" x="475" y="22">One-run observedMs</text>
+    <text class="footer-copy" x="704" y="22">modeledCostPerThousandUsd</text>
+    <text class="footer-copy" x="24" y="42">These fields support comparison; they are not benchmark percentiles or billing measurements.</text>
+  </g>
+</svg>

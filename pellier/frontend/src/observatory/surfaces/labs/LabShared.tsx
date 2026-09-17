@@ -171,7 +171,7 @@ export function WorkflowStepper() {
     <section className="lab-workflow" aria-labelledby="lab-workflow-title">
       <div className="lab-section-heading">
         <h2 id="lab-workflow-title">Lab contract</h2>
-        <p>Focused two-hour stages, not inferred learner progress.</p>
+        <p>Four stages in 100 minutes. Your checks establish completion.</p>
       </div>
       <ol className="lab-workflow-list">
         {WORKFLOW_STEPS.map((step, index) => (

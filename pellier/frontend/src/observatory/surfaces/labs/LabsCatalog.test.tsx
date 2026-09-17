@@ -38,7 +38,10 @@ describe('LabsCatalog', () => {
         .getAllByRole('link')
         .filter((link) => link.classList.contains('labs-catalog-card-open')),
     ).toHaveLength(4);
-    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/workbench?lab=grounded-inventory');
+    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/labs/grounded-inventory');
+    for (const lab of LAB_EXERCISES) {
+      expect(screen.getByRole('link', { name: `Read Lab ${Number(lab.number)} guide` })).toHaveAttribute('href', `/observatory/labs/${lab.id}`);
+    }
     expect(screen.queryByText(/workshop complete/i)).not.toBeInTheDocument();
     const disclosure = screen.getByRole('button', { name: 'Explore reference views' });
     expect(disclosure).toHaveAttribute('aria-expanded', 'false');

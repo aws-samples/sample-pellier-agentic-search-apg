@@ -11,8 +11,8 @@ Read `CLAUDE.md` first for the repository contract and the participant/maintaine
 
 | number | meaning | source |
 |---|---|---|
-| **17** | the canonical tool vocabulary. Every Gateway surface Lambda and every schema in `TOOL_SCHEMAS` covers all of them, and `/api/observatory/build-state` reports all of them. | `scripts/deploy/gateway_tool_schemas.py` |
-| **15** | what this workshop iteration **publishes** at the start, 16 after Lab 3a. `restock_inventory` and `get_ticket_history` are deferred; `issue_credit` is published for staff only. | `WORKSHOP_DEFERRED_TOOLS` in the same module |
+| **18** | the canonical tool vocabulary. Every Gateway surface Lambda and every schema in `TOOL_SCHEMAS` covers all of them, and `/api/observatory/build-state` reports all of them. | `scripts/deploy/gateway_tool_schemas.py` |
+| **16** | what this workshop iteration **publishes** at the start, 17 after Lab 3a. `restock_inventory` and `get_ticket_history` are deferred; `issue_credit` is published for staff only. | `WORKSHOP_DEFERRED_TOOLS` in the same module |
 
 Conflating them produces a step that counts tools and gets the wrong answer. Recompute
 both, plus the per-target split and the baseline Cedar, with:

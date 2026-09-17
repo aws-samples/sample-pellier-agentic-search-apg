@@ -128,7 +128,8 @@ function Overview() {
       </Link>)}</div>
     </Section>
     <Section title="Use this alongside the workshop">
-      <p>Build in the Code Editor, run the required lab checks, then inspect the evidence here. The reference explains the intended controls. Live observations show what this environment currently reports.</p>
+      <p>Labs 1–3 establish the facts an agent can use, how it finds them, and which managed build runs. Lab 4 asks the next question: who may act on those facts, and what proves the outcome?</p>
+      <p>Build in the Code Editor, run the required lab checks, then inspect the evidence here. Continue Jessica’s investigation in Operator and stop at human review. The reference explains intended controls; live observations report this environment.</p>
       <EvidenceLink to="/observatory/workbench?lab=fail-closed-policy">Open the governed-action workbench</EvidenceLink>
     </Section>
   </>;
@@ -376,7 +377,7 @@ export default function Govern() {
           {CHAPTERS.filter(c => c.group === group).map(c => <Link key={c.id} to={`${BASE}/${c.id}`} aria-current={section === c.id ? 'page' : undefined}>{c.label}</Link>)}
         </div>)}
       </nav>
-      <Link className="govern-back" to="/observatory/workbench">← Back to Workbench</Link>
+      <Link className="govern-back" to="/observatory/workbench?lab=fail-closed-policy">← Back to Lab 4</Link>
     </aside>
     <article className="govern-content">
       <header className="govern-page-heading"><span className="govern-eyebrow">Pellier Observatory / Govern</span>

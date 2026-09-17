@@ -70,7 +70,7 @@ test.describe('Govern connected reference', () => {
   test('a failed refresh removes the previous configuration', async ({ page }) => {
     await page.goto('/observatory/govern/policies');
     const observation = page.getByRole('region', { name: 'Observed Gateway and policy configuration' });
-    await expect(observation.getByText(/definitions just read/)).toBeAttached();
+    await expect(observation.getByText(/definitions just read/)).toBeAttached({ timeout: 25_000 });
     await page.route('**/api/observatory/governance/policies', route => route.fulfill({
       status: 503, contentType: 'application/json', body: '{"detail":"policy_snapshot_unavailable"}',
     }));

@@ -21,10 +21,11 @@ export default function LabsCatalog() {
         <div className="labs-catalog-hero-copy">
           <h1 className="font-display">Governed Lab Collection</h1>
           <p>
-            Build a grounded agent, measure retrieval, deploy with AgentCore,
-            and govern actions with Cedar. Inspect each result in the workbench.
+            Start with an Aurora warehouse fact, improve how the agent finds
+            products, deploy with AgentCore, then govern actions with Cedar.
+            Each lab adds a boundary you can inspect.
           </p>
-          <Link to={resumePoint ? resumeHref(resumePoint) : '/observatory/workbench?lab=grounded-inventory'}>
+          <Link to={resumePoint ? resumeHref(resumePoint) : '/observatory/labs/grounded-inventory'}>
             {resumeLab ? `Resume Lab ${Number(resumeLab.number)}` : 'Start Lab 1'}
           </Link>
         </div>
@@ -34,13 +35,13 @@ export default function LabsCatalog() {
         <div className="labs-catalog-intro">
           <div>
             <h2 id="labs-catalog-heading" className="font-display">Four technical labs</h2>
-            <p>Follow Labs 1–4 in order, or return to your current lab. Environment status describes the setup and evidence, not participant completion.</p>
+            <p>Follow Labs 1–4 in order. Build in the workshop Code Editor, inspect shopper turns in Workbench, and continue Jessica’s investigation in Operator. Environment status reports available evidence; your lab checks establish completion.</p>
           </div>
         </div>
         {error ? <EvidenceLoadNotice error={error} onRetry={reload} /> : null}
         <div className="labs-catalog-contact-sheet">
           {LAB_EXERCISES.map((exercise, index) => {
-            const to = `/observatory/workbench?lab=${exercise.id}`;
+            const to = `/observatory/labs/${exercise.id}`;
             return (
               <article className="labs-catalog-card" data-lab={exercise.number} key={exercise.id} aria-labelledby={`collection-${exercise.id}`}>
                 <Link to={to} tabIndex={-1} aria-hidden="true" className="labs-catalog-portrait-link">
@@ -53,9 +54,10 @@ export default function LabsCatalog() {
                   <h3 id={`collection-${exercise.id}`}><Link to={to}>{exercise.title}</Link></h3>
                   <p>{exercise.summary}</p>
                   <LabStatusMark status={statusForExercise(exercise, data)} loading={loading} discloseDetails />
-                  <Link className="labs-catalog-card-open" to={to} aria-label={`Open Lab ${Number(exercise.number)} in workbench`}>
-                    Open Lab {Number(exercise.number)}
+                  <Link className="labs-catalog-card-open" to={to} aria-label={`Read Lab ${Number(exercise.number)} guide`}>
+                    Read Lab {Number(exercise.number)} guide
                   </Link>
+                  <Link className="labs-catalog-workbench-link" to={`/observatory/workbench?lab=${exercise.id}`}>Open Workbench</Link>
                 </div>
               </article>
             );

@@ -126,8 +126,8 @@ export const WORKSHOP_EVIDENCE_GUIDANCE = {
   "marco": {
     "prediction": "A named item and warehouse should produce a scoped inventory read with quantity and a recorded ship window.",
     "evidence": "Inspect the resolved product, Brooklyn warehouse, quantity, ship window, tool arguments, and execution receipt. A dispatch window does not prove a delivery date.",
-    "challenge": "Compare “Hadley Linen Shirt” with “A lightweight linen button-up for humid afternoons.”",
-    "inspect": "Inspect lexical contribution, semantic candidates, and rank changes. Similar intent does not require identical ordering."
+    "challenge": "Compare an unknown product with the sold-out Quilted Silk Vest.",
+    "inspect": "Explain why not_found carries no inventory count, while a known product with zero stock still has warehouse rows. A missing record is not a verified zero."
   },
   "anna": {
     "prediction": "Price and stock constraints should determine eligibility before relevance ranking.",
@@ -136,10 +136,10 @@ export const WORKSHOP_EVIDENCE_GUIDANCE = {
     "inspect": "Verify that the new ceiling replaces the previous one while recipient context persists. Inspect the exact boundary predicate; the workshop benchmark uses an inclusive price ceiling."
   },
   "theo": {
-    "prediction": "The managed agent should preserve the conversation and prepare a human checkpoint without executing the return.",
-    "evidence": "Check verified caller and scope, Runtime build fingerprint, published Gateway contract, an independent AgentCore Memory read, and the durable prepared review. Preparation is not a business write.",
+    "prediction": "The managed agent should preserve the conversation and use its published, customer-scoped Gateway tools. Its return call can execute after authorization and business validation.",
+    "evidence": "Check verified caller, Runtime build fingerprint, Gateway tool results, independent Memory records, and keyed Aurora effects. This managed call does not create the in-process path's human review.",
     "challenge": "I prefer matte glazes and compact pieces for my breakfast tray.",
-    "inspect": "Verify the new preference in a Memory event using the guide’s independent process. Then ask “Which pairing suits my routine?” without repeating it. Distinguish prompt history, Aurora history, and managed Memory; actors are scoped to this conversation."
+    "inspect": "Verify the new preference in a Memory event using the guide’s independent process. Then ask “Which pairing suits my routine?” without repeating it. This tests conversation continuity. Use the separate new-session Memory check and extracted record IDs to prove learned preferences."
   },
   "jessica": {
     "prediction": "Reported context should remain distinct from authoritative records, and human confirmation should remain separate from authorization and execution.",

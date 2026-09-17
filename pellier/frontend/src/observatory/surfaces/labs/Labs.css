@@ -20,6 +20,16 @@
   color: var(--obs-ink-1);
 }
 
+.labs-catalog-workbench-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  color: var(--obs-red-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* An unframed, full-width editorial band: flat recessed cream, no border,
    no gradient. The surface flag `data-labs` (set by ObservatoryFrame) removes
    the surrounding padding and the atmosphere image so the band bleeds. */

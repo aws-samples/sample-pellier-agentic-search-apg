@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="720" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
+  <title id="title">The three receipts for a governed action</title>
+  <desc id="desc">Policy, execution, and data receipts linked by a small set of correlation identifiers, with distinct ALLOW and DENY outcomes.</desc>
+  <style>
+    .bg { fill: #f7f8fa; }
+    .title { fill: #161e2d; font: 700 38px Arial, sans-serif; }
+    .subtitle { fill: #5f6b7a; font: 20px Arial, sans-serif; }
+    .card { fill: #ffffff; stroke: #d5d9d9; stroke-width: 2; }
+    .card-title { fill: #161e2d; font: 700 25px Arial, sans-serif; }
+    .question { fill: #3f4b5a; font: 700 17px Arial, sans-serif; }
+    .copy { fill: #3f4b5a; font: 17px Arial, sans-serif; }
+    .code { fill: #5f6b7a; font: 15px "Courier New", monospace; }
+    .arrow { fill: none; stroke: #ff9900; stroke-width: 5; marker-end: url(#arrowhead); }
+    .allow { fill: #e7f4ea; stroke: #2f855a; stroke-width: 2; }
+    .deny { fill: #fff1f0; stroke: #c2413b; stroke-width: 2; }
+    .outcome { fill: #161e2d; font: 700 18px Arial, sans-serif; }
+    .strip { fill: #232f3e; }
+    .strip-title { fill: #ffffff; font: 700 17px Arial, sans-serif; }
+    .strip-copy { fill: #d5dbdb; font: 16px "Courier New", monospace; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#ff9900"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="720"/>
+  <text class="title" x="80" y="72">Three receipts reconstruct one governed action</text>
+  <text class="subtitle" x="80" y="108">Each receipt answers a different question. Correlation turns them into one story.</text>
+
+  <g transform="translate(80 150)">
+    <rect class="card" width="420" height="270" rx="8"/>
+    <rect x="0" y="0" width="12" height="270" fill="#6b5b95"/>
+    <text class="card-title" x="42" y="52">Policy receipt</text>
+    <text class="question" x="42" y="88">Was the action permitted?</text>
+    <text class="copy" x="42" y="132">Verified principal</text>
+    <text class="copy" x="42" y="163">Matched policy and decision</text>
+    <text class="copy" x="42" y="194">Requested tool arguments</text>
+    <text class="code" x="42" y="235">pellier.governed_receipts</text>
+  </g>
+
+  <path class="arrow" d="M515 285 L570 285"/>
+
+  <g transform="translate(590 150)">
+    <rect class="card" width="420" height="270" rx="8"/>
+    <rect x="0" y="0" width="12" height="270" fill="#3b82a0"/>
+    <text class="card-title" x="42" y="52">Execution receipt</text>
+    <text class="question" x="42" y="88">What actually ran?</text>
+    <text class="copy" x="42" y="132">Runtime and Gateway rail</text>
+    <text class="copy" x="42" y="163">Target-qualified MCP tool</text>
+    <text class="copy" x="42" y="194">Result and latency</text>
+    <text class="code" x="42" y="235">managed trace + tool_audit</text>
+  </g>
+
+  <path class="arrow" d="M1025 285 L1080 285"/>
+
+  <g transform="translate(1100 150)">
+    <rect class="card" width="420" height="270" rx="8"/>
+    <rect x="0" y="0" width="12" height="270" fill="#b45309"/>
+    <text class="card-title" x="42" y="52">Data receipt</text>
+    <text class="question" x="42" y="88">What reached the system of record?</text>
+    <text class="copy" x="42" y="132">Linked audit row or verified absence</text>
+    <text class="copy" x="42" y="163">Domain row and inventory movement</text>
+    <text class="copy" x="42" y="194">Committed Aurora state</text>
+    <text class="code" x="42" y="235">audit_id + domain ledger</text>
+  </g>
+
+  <g transform="translate(80 455)">
+    <rect class="allow" width="700" height="82" rx="8"/>
+    <text class="outcome" x="28" y="34">ALLOW</text>
+    <text class="copy" x="28" y="61">policy receipt -> managed execution -> linked audit_id and data state</text>
+  </g>
+
+  <g transform="translate(820 455)">
+    <rect class="deny" width="700" height="82" rx="8"/>
+    <text class="outcome" x="28" y="34">DENY</text>
+    <text class="copy" x="28" y="61">policy receipt -> no target execution -> no audit_id after absence verification</text>
+  </g>
+
+  <g transform="translate(80 575)">
+    <rect class="strip" width="1440" height="92" rx="8"/>
+    <text class="strip-title" x="30" y="36">Minimal correlation contract</text>
+    <text class="strip-copy" x="30" y="66">principal_id | session_id | turn_id | receipt_id | audit_id | trace_id</text>
+  </g>
+</svg>

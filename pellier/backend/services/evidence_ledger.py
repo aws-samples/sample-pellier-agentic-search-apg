@@ -238,39 +238,40 @@ def _event(
 
 
 def _denied_then_executed(events: List[Dict[str, Any]]) -> List[str]:
-    """Tools a policy DENY covers that an execution row proves ran anyway.
+    """Find a DENY linked to the exact executed audit row on the same turn.
 
-    ``pellier.tool_audit`` records ALLOWed calls that actually execute, so a
-    DENY and an execution row naming the same tool on the same turn cannot both
-    be true. One of the two receipts is wrong, and which one is a question for
-    the operator -- but the ledger has to say the pair disagrees rather than
-    reporting two independently satisfied checks. Collapsing this into
-    "satisfied" (an execution exists) or "missing" (no evidence) is how a
-    receipt ends up asserting a non-execution that did execute.
-
-    Matching is by tool name because that is the field both sides carry: the
-    policy event from ``governed_turn_receipts.policy_events`` and the tool
-    event from ``tool_audit``.
+    A tool can be requested more than once, including across turns in a session
+    ledger. Its name alone cannot correlate a denial to an execution attempt.
+    A null tool result still proves entry into the tool when its audit row exists.
     """
-    denied = {
-        str((event.get("details") or {}).get("tool"))
-        for event in events
-        if event.get("eventKind") == "policy"
-        and event.get("status") == "denied"
-        and (event.get("details") or {}).get("tool")
-    }
-    # Presence, not `succeeded`. A tool event exists only when a tool_audit row
-    # exists, and a row exists only for a call that executed -- a null result
-    # means the call ran and returned nothing, not that it never ran. Requiring
-    # `succeeded` here would quietly miss the contradiction in exactly the case
-    # where the executed call went wrong, which is the case most worth seeing.
     executed = {
-        str((event.get("details") or {}).get("tool"))
+        (
+            str(event["turnId"]),
+            str((event.get("details") or {}).get("tool")),
+            str((event.get("evidenceRef") or {})["id"]),
+        )
         for event in events
         if event.get("eventKind") == "tool"
+        and event.get("turnId")
         and (event.get("details") or {}).get("tool")
+        and (event.get("evidenceRef") or {}).get("kind") == "tool_audit"
+        and (event.get("evidenceRef") or {}).get("id") is not None
     }
-    return sorted(denied & executed)
+    contradicted = set()
+    for event in events:
+        details = event.get("details") or {}
+        if (
+            event.get("eventKind") == "policy"
+            and event.get("status") == "denied"
+            and details.get("audit_id") is not None
+            and (
+                str(event.get("turnId")),
+                str(details.get("tool")),
+                str(details["audit_id"]),
+            ) in executed
+        ):
+            contradicted.add(str(details["tool"]))
+    return sorted(contradicted)
 
 
 def _sufficiency(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -280,17 +281,17 @@ def _sufficiency(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for kind in kinds
     }
     policy_events = [event for event in events if event["eventKind"] == "policy"]
-    policy_not_reached = bool(policy_events) and all(
+    policy_not_enforced = bool(policy_events) and all(
         event["status"] == "not_enforced" for event in policy_events
     )
     contradicted = _denied_then_executed(events)
     contradiction_detail = (
-        "A DENY and an execution row both name "
-        f"{', '.join(contradicted)}. tool_audit records only calls that ran, "
+        "A DENY links to the exact executed audit row for "
+        f"{', '.join(contradicted)} on the same turn. tool_audit records only calls that ran, "
         "so these two receipts cannot both hold; read them side by side before "
         "concluding anything about this turn."
     )
-    return [
+    checks = [
         {
             "id": "terminal-receipt",
             "label": "Immutable terminal receipt",
@@ -334,11 +335,6 @@ def _sufficiency(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "contradicted"
                 if contradicted
                 else "satisfied"
-                if any(
-                    event["status"] == "succeeded"
-                    for event in by_kind.get("tool", [])
-                )
-                else "missing"
                 if "tool" in kinds
                 else "not_reached"
                 if any(event["status"] == "denied" for event in policy_events)
@@ -357,7 +353,7 @@ def _sufficiency(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "contradicted"
                 if contradicted
                 else "not_enforced"
-                if policy_not_reached
+                if policy_not_enforced
                 else "satisfied"
                 if policy_events
                 else "unavailable"
@@ -379,6 +375,31 @@ def _sufficiency(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "detail": "CloudWatch or AgentCore trace identifiers locate service telemetry without copying span payloads into Aurora.",
         },
     ]
+    uncorrelated = any(
+        policy.get("turnId")
+        and (policy.get("details") or {}).get("tool")
+        and (policy.get("details") or {}).get("audit_id") is None
+        and policy["status"] == "denied"
+        and any(
+            tool.get("turnId") == policy.get("turnId")
+            and (tool.get("details") or {}).get("tool")
+            == (policy.get("details") or {}).get("tool")
+            for tool in by_kind.get("tool", [])
+        )
+        for policy in policy_events
+    )
+    if uncorrelated:
+        checks.append({
+            "id": "policy-execution-correlation",
+            "label": "Policy and execution correlation",
+            "status": "unavailable",
+            "detail": (
+                "A denial and execution name the same tool on a turn, but no "
+                "audit-row link establishes that they describe the same attempt. "
+                "Compare the exact request keys before concluding a contradiction."
+            ),
+        })
+    return checks
 
 
 def _order(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

@@ -355,7 +355,7 @@ for _target in TOOL_SCHEMAS.values():
 # ---------------------------------------------------------------------------
 #
 # `TOOL_SCHEMAS` above is the canonical catalogue of everything Pellier can serve
-# through a Gateway target: 17 tools. It is deliberately the superset, because a schema
+# through a Gateway target. It is deliberately the superset, because a schema
 # is a description of a capability and publication is a separate decision.
 #
 # Publishing a tool gives it an MCP action id, a Cedar action, a capability-endpoint
@@ -397,9 +397,9 @@ for _target in TOOL_SCHEMAS.values():
 #     python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD"
 #
 # Verify (live, the real check): an MCP tool listing made with your own token
-# names `get_ticket_history`. That listing shows 15 tools, not the 16 now
-# published, because the Gateway filters discovery by policy and `issue_credit`
-# is staff only.
+# names `get_ticket_history`. Visible counts depend on the caller because the
+# Gateway filters discovery by policy; published staff-only tools are not
+# necessarily visible to a shopper.
 WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
     "restock_inventory",
     "get_ticket_history",

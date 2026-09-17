@@ -22,7 +22,7 @@ const RESOURCE_QUESTIONS: readonly ResourceQuestion[] = [
   {
     question: 'What ran?',
     answer:
-      'Replay the turn, then inspect the control and receipt claims tied to it.',
+      'Open the recorded turn, then inspect the control and receipt claims tied to it.',
     links: [
       {
         label: 'Sessions & traces',

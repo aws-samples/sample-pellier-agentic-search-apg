@@ -62,14 +62,9 @@
      --pl-display  editorial display type.
      --pl-mono     system proof: SQL, identifiers, timings, receipts.
 
-     --pl-display works on prose but NOT on headings. Two rules outrank any
-     reasonable selector here: `base.css` sets
-     `.observatory-root h*:not(.font-display) { font-family: ... !important }`,
-     and adding `.font-display` to escape it hands the element to
-     `index.css`'s `.pellier-page-surface .font-display { font-family:
-     var(--sans) }` at higher specificity. Both are deliberate: Labs headings
-     are interface structure and belong to the sans register. Restyle heading
-     SCALE and COLOUR here; do not try to change a heading's family. */
+     Heading resets in base.css and index.css deliberately use the sans
+     register, including headings with .font-display. Change their scale and
+     colour here while preserving the documented interface typography. */
   --pl-sans: var(--sans, var(--obs-sans));
   --pl-serif: var(--pl-sans);
   --pl-display: var(--display, var(--obs-display));
@@ -140,12 +135,57 @@
   gap: 5px;
 }
 
+.observatory-workbench-task {
+  margin: 0 2px 16px;
+}
+
+.observatory-root .observatory-workbench-task h2 {
+  margin: 0 0 5px;
+  color: var(--pl-ink);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .observatory-root .observatory-workbench-purpose {
   max-width: 80ch;
-  margin: 0 2px 16px;
+  margin: 0;
   color: var(--pl-ink-soft);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.observatory-workbench-grid[data-view='operator'] {
+  grid-template-columns: minmax(0, 960px);
+  height: auto;
+}
+
+.observatory-workbench-grid[data-view='operator'] .observatory-input-panel {
+  max-height: none;
+}
+
+.observatory-operator-next {
+  margin: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--pl-line);
+}
+
+.observatory-operator-next h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.observatory-operator-next p {
+  color: var(--pl-ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.observatory-operator-next a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--pl-accent);
 }
 
 .observatory-workbench-purpose strong {
@@ -164,7 +204,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 15px;
   border: 1px solid var(--pl-line);
   border-radius: 999px;
@@ -348,6 +388,12 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.observatory-workbench-status {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 2px 12px;
 }
 
 /* -----------------------------------------------------------------------
@@ -740,7 +786,7 @@
   line-height: 1.45;
 }
 
-.observatory-root .observatory-error button {
+.observatory-root .observatory-error :is(button, a) {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -753,11 +799,22 @@
   color: var(--obs-paper-bright);
   font-size: 12px;
   font-weight: 650;
+  text-decoration: none;
 }
 
-.observatory-root .observatory-error button:hover {
+.observatory-root .observatory-error :is(button, a):hover {
   border-color: var(--pl-accent-deep);
   background: var(--pl-accent-deep);
+}
+
+.observatory-root .observatory-error :is(button, a):focus-visible {
+  outline: 2px solid var(--pl-accent);
+  outline-offset: 3px;
+}
+
+.observatory-root .observatory-error button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 /* ------------------------------------------------------------------------
@@ -955,6 +1012,7 @@
 
 .observatory-trace-kicker {
   display: flex;
+  flex-wrap: wrap;
   min-height: 34px;
   align-items: center;
   justify-content: space-between;
@@ -977,6 +1035,8 @@
 /* Status becomes an olive pill, the reference's `badge success`. */
 .observatory-trace-kicker em {
   flex: 0 0 auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 4px 9px;
   border: 1px solid var(--pl-olive-line);
   border-radius: 999px;
@@ -1254,6 +1314,10 @@
   list-style: none;
 }
 
+.observatory-trace-list[data-skeleton='true']::before {
+  content: none;
+}
+
 .observatory-trace-list[data-skeleton='true'] .observatory-trace-step {
   display: block;
   padding: 7px 2px;
@@ -1436,14 +1500,11 @@
   background: var(--obs-red-deep);
 }
 
-/* A claim refuted by its own evidence: a policy DENY beside an execution row
-   naming the same tool. It is not `missing` (nothing found) and not
-   `not_applicable` (muted, out of scope), so it gets the one treatment that
-   pulls the eye — a filled marker and a left rule. The status word beside it
-   still carries the meaning; this only stops the row reading as routine. */
+/* A contradiction requires a policy DENY linked to the exact executed audit
+   row on the same turn. The status text carries the meaning; a uniform thin
+   outline and the existing marker distinguish it from routine evidence. */
 .observatory-evidence-sufficiency li[data-status='contradicted'] {
   border-color: var(--obs-red-deep);
-  border-left-width: 3px;
 }
 
 .observatory-evidence-sufficiency li[data-status='contradicted'] > span {
@@ -1548,38 +1609,6 @@
   color: var(--pl-muted);
   font-size: var(--text-label);
   line-height: 1.45;
-}
-
-.observatory-answer-state {
-  flex: 0 0 auto;
-  padding: 6px 10px;
-  border: 1px solid var(--pl-line-strong);
-  border-radius: 999px;
-  background: var(--pl-paper-solid);
-  color: var(--pl-muted);
-  font-family: var(--pl-sans);
-  font-size: var(--text-label);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.observatory-answer-state[data-status='complete'] {
-  border-color: var(--pl-olive-line);
-  background: var(--pl-olive-soft);
-  color: var(--pl-olive);
-}
-
-.observatory-answer-state[data-status='running'] {
-  border-color: var(--pl-terracotta-line);
-  background: var(--pl-terracotta-soft);
-  color: var(--pl-terracotta);
-}
-
-.observatory-answer-state[data-status='error'] {
-  border-color: rgba(143, 29, 22, 0.22);
-  background: var(--obs-red-tint);
-  color: var(--obs-red-deep);
 }
 
 .observatory-results-scroll {
@@ -2264,10 +2293,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .observatory-lab-rail {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .observatory-input-panel,
   .observatory-trace-panel,
   .observatory-results-panel {
@@ -2319,11 +2344,6 @@
   .observatory-page-title {
     font-size: 22px;
     white-space: normal;
-  }
-
-  .observatory-lab-rail {
-    margin-inline: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .observatory-root .observatory-workbench-purpose {
@@ -2524,7 +2544,6 @@
   > div.observatory-receipt-conflict {
   grid-column: 1 / -1;
   border-color: var(--obs-red-deep);
-  border-left-width: 3px;
 }
 
 .observatory-root
@@ -2561,8 +2580,9 @@
   gap: 12px;
 }
 
-.observatory-view-toggle {
+.observatory-root .observatory-view-toggle {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 6px;
   padding: 6px 11px;
@@ -2578,12 +2598,12 @@
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.observatory-view-toggle:hover {
+.observatory-root .observatory-view-toggle:hover {
   color: var(--pl-ink);
   border-color: var(--pl-accent);
 }
 
-.observatory-view-toggle[aria-pressed='true'] {
+.observatory-root .observatory-view-toggle[aria-pressed='true'] {
   border-color: var(--pl-accent);
   background: color-mix(in srgb, var(--pl-accent) 8%, transparent);
   color: var(--pl-accent);
@@ -2596,8 +2616,9 @@
   margin: 0 2px 12px;
 }
 
-.observatory-focus-steps button {
+.observatory-root .observatory-focus-steps button {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
@@ -2707,13 +2728,6 @@
   letter-spacing: 0;
 }
 
-/* Keep the complete lab names legible without changing the four-card navigation. */
-@media (max-width: 560px) {
-  .observatory-lab-rail-card { grid-template-columns: 40px minmax(0, 1fr); gap: 8px; padding: 10px 8px; }
-  .observatory-lab-rail-portrait { width: 40px; min-width: 40px; max-width: 40px; height: 52px; min-height: 52px; max-height: 52px; border-radius: var(--pellier-image-radius-sm); }
-  .observatory-lab-rail-card strong { display: block; overflow: visible; font-size: 13px; line-height: 1.35; }
-  .observatory-lab-rail-card small { white-space: nowrap; }
-}
 .labs-turns-state { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px; }
 .labs-turns-state > span { flex: 1 1 220px; }
 .observatory-focus-steps button { min-height: 44px; transition: background-color 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out; }
@@ -2724,7 +2738,6 @@
 
 @media (max-width: 560px) {
   .observatory-workbench-intro-aside { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
-  .observatory-workbench-presence { flex-basis: 100%; }
   .observatory-view-toggle { white-space: nowrap; min-height: 44px; }
   .observatory-resume { flex: 1; min-width: 0; border-radius: 10px; }
 }
@@ -2736,3 +2749,11 @@
 .labs-evidence-guidance dd { margin: 0; max-width: 72ch; }
 .labs-evidence-guidance dd p { margin-top: 6px; }
 .labs-benchmark-note { max-width: 72ch; padding-top: 12px; border-top: 1px solid var(--rule-1); }
+.observatory-workbench-guide-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--obs-red-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

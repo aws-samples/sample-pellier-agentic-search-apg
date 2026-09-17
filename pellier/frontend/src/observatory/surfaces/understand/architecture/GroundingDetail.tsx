@@ -37,7 +37,7 @@ const GroundingDetail: React.FC = () => {
       cheatSheet={[
         {
           numeral: 'i.',
-          text: 'Every product recommendation is verified against the catalog. If the product doesn\'t exist in Aurora, the agent doesn\'t recommend it.',
+          text: 'Validate product identifiers and claims against the returned Aurora rows. A grounded tool result alone does not prove that every sentence in the model response is correct.',
         },
         {
           numeral: 'ii.',
@@ -45,11 +45,11 @@ const GroundingDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Grounding is what keeps the assistant from inventing products. Aurora is the source of truth; model prose is the presentation layer.',
+          text: 'Aurora supplies product facts. Use the tool rows and final answer together to check whether the response preserves those facts.',
         },
       ]}
       liveState={{
-        label: 'Current grounding state. Shows the Aurora-backed sources the assistant uses to anchor responses in facts.',
+        label: 'The product count comes from catalog statistics; embedding dimensions and index type describe the source configuration. Inspect the query plan to verify the executed access path.',
         values: [
           { label: 'Products', value: productCount },
           { label: 'Embeddings', value: '1024d' },
@@ -95,7 +95,7 @@ const GroundingDetail: React.FC = () => {
             />
             <SourceCard
               name="tools (registry)"
-              description="Aurora-backed teaching surface with 17 registered MCP tools; governed Gateway publishes the bounded 15-tool workshop subset."
+              description="Aurora ranks tool descriptions for discovery. Gateway publishes a separate canonical schema set; caller policy controls visible and callable tools."
               query="SELECT name, similarity FROM tools ORDER BY embedding <=> $1 LIMIT 5;"
             />
           </div>

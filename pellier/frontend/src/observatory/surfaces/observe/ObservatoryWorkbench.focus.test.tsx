@@ -102,6 +102,8 @@ describe('Observatory workbench focus mode', () => {
       'step',
     );
     expect(activePanel()).toBe('requests');
+    expect(screen.getAllByRole('status', { name: 'Run proof summary' })).toHaveLength(1);
+    expect(screen.getByRole('status', { name: 'Run proof summary' })).toBeVisible();
   });
 
   it('stays on Run while the turn streams and moves to Inspect when it completes', async () => {
@@ -123,6 +125,7 @@ describe('Observatory workbench focus mode', () => {
 
     await waitFor(() => expect(settle).not.toBeNull());
     expect(activePanel()).toBe('requests');
+    expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Running');
     expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute(
       'aria-current',
       'step',
@@ -139,6 +142,8 @@ describe('Observatory workbench focus mode', () => {
 
     await user.click(screen.getByRole('button', { name: /Reconcile answer/ }));
     expect(activePanel()).toBe('results');
+    expect(screen.getByRole('status', { name: 'Run proof summary' })).toBeVisible();
+    expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Completed');
   });
 
   it('restores the three-panel grid under Expert view and remembers it', async () => {
@@ -159,5 +164,32 @@ describe('Observatory workbench focus mode', () => {
     unmount();
     renderWorkbench();
     expect(grid()).toHaveAttribute('data-view', 'expert');
+  });
+
+  it('reveals the linked receipt when Open event is used from Reconcile', async () => {
+    mocks.sendChatMessageStreaming.mockResolvedValue({
+      response: 'An answer with a database receipt.',
+      products: [],
+      evidence_ledger: {
+        version: '1', authority: 'canonical-receipt-projection',
+        principalScoped: true, turnId: 'linked-turn',
+        events: [{
+          sequence: 1, eventKind: 'aurora', phase: 'execution',
+          status: 'succeeded', provenance: 'aurora-receipt',
+          turnId: 'linked-turn', evidenceRef: { kind: 'sql_query_log', id: '1' },
+          title: 'Warehouse query', summary: 'One row returned.',
+          sql: 'SELECT 1', details: { row_count: 1 },
+        }],
+        evidenceSufficiency: [],
+      },
+    });
+    renderWorkbench();
+    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` }));
+    await waitFor(() => expect(activePanel()).toBe('trace'));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open event' }));
+    expect(activePanel()).toBe('trace');
+    expect(screen.getByRole('button', { name: 'Inspect evidence' })).toHaveAttribute('aria-current', 'step');
+    expect(document.querySelector('[data-linked="true"]')).toHaveTextContent('Warehouse query');
   });
 });

@@ -1,8 +1,9 @@
 # Close: defend the architecture from your own evidence
 
-The last eight minutes are not a recap. Participants have spent two hours
-producing evidence; this is where they are asked to read it, including a case
-where the evidence does not say what it appears to say.
+Use the closing five minutes, while policy cleanup runs, to read the evidence
+from this 100-minute workshop. Choose the contradiction and one architecture
+question. The full three-move discussion below is optional facilitator material
+for a longer session; it is not additional required work.
 
 Run it in three moves: the contradiction, the four questions, the translation.
 
@@ -32,8 +33,9 @@ still does not follow.
 The correct answer:
 
 > The invocation was authorized and reached the tool boundary. **No durable
-> business effect is proven.** Something between the tool call and the commit
-> did not complete, and an ALLOW says nothing about it.
+> business effect is proven by this evidence set.** Read the keyed durable
+> outcome before concluding refusal, rollback, or success. An ALLOW alone
+> establishes none of them.
 
 This is the anti-lesson the whole workshop is built around: **authorization,
 execution, and commit are three separate state transitions**, and each one needs
@@ -113,14 +115,14 @@ receipt reports `PROVED`, `NOT YET`, or `UNCHECKED`, and the third one matters
 here: "I could not look" is not "it did not happen".
 
 The receipt is scoped to the run id minted by `workshop-start`, so each line
-speaks to that participant's own two hours rather than to whatever the shared
+speaks to that participant's own workshop run rather than to whatever the shared
 cluster saw most recently. A receipt whose header reads `Run: none` is still
 true, but it is answering a broader question than the participant asked.
 
 | Question | What answers it | Why that and not something else |
 |---|---|---|
 | What established Marco's inventory truth? | `01.execution_row` — a `tool_audit` row for `check_inventory` | The answer text is not evidence. The audit row proves the typed tool ran; it does not prove the *stock figure*, which comes from the inventory tables. |
-| What excluded Anna's ineligible result? | `02.hybrid_receipt` — a receipt carrying vector ranks, lexical ranks, and their fusion | A relevant-looking result list proves ranking happened. Only the deterministic eligibility gate proves the ineligible candidate was excluded on purpose rather than by luck of ordering. |
+| What excluded Anna's ineligible result? | `02.hybrid_receipt` — a receipt carrying vector ranks, lexical ranks, and their fusion | A result list alone does not establish why a candidate was included or excluded. Read the recorded branch ranks and the deterministic eligibility gate. |
 | What proved your Runtime revision executed? | The build fingerprint on the managed receipt | A successful invocation proves the service answered. Only the fingerprint comparison distinguishes your package from the previous deployment, because `qualifier=DEFAULT` reads the same for both. |
 | What separated Jessica's policy decision from PostgreSQL's outcome? | `04.deny_did_not_execute` beside `04.durable_effect` | Cedar decided whether the action was permitted. PostgreSQL decided, independently, whether the row was allowed to change. Either can refuse, and the two refusals are different evidence. |
 
@@ -150,8 +152,8 @@ Close on the question the workshop exists to answer:
 > consequential action, and prove which human, policy, application, and
 > PostgreSQL controls governed the outcome?
 
-Participants have now done all four, and have a receipt that says which ones
-they can prove.
+Participants can now point to the evidence for each boundary. Their own receipt
+establishes what they can prove and which checks remain `NOT YET` or `UNCHECKED`.
 
 ---
 

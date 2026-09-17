@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1188" height="666" viewBox="0 0 1188 666" role="img" aria-labelledby="title desc">
+  <title id="title">Lab 4: Build Governed Agent Actions with Cedar</title>
+  <desc id="desc">Cognito verifies the caller, Cedar authorizes the request, the tool and Aurora enforce business rules, and correlated rows prove execution and effect. Compare Marco's denial, Jessica's business refusal, her committed return, and its idempotent replay. Operator investigation is a separate staff action that stops before execution.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#596572"/></marker>
+  </defs>
+  <style>
+    text { font-family: Arial, sans-serif; fill: #172333; }
+    .title { font-size: 27px; font-weight: 700; }
+    .subtitle { font-size: 15px; fill: #4e5c69; }
+    .heading { font-size: 17px; font-weight: 700; }
+    .label { font-size: 12px; font-weight: 700; letter-spacing: .6px; }
+    .copy { font-size: 14px; }
+    .small { font-size: 13px; fill: #445360; }
+    .box { fill: #fff; stroke: #aab4bd; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #596572; stroke-width: 2; marker-end: url(#arrow); }
+  </style>
+  <rect width="1188" height="666" rx="12" fill="#f6f8fa"/>
+  <text class="title" x="40" y="46">Lab 4: Build Governed Agent Actions with Cedar</text>
+  <text class="subtitle" x="40" y="73">Jessica's return separates identity, authorization, business validity, execution, and committed effect.</text>
+
+  <rect class="box" x="40" y="101" width="260" height="108" rx="8"/>
+  <text class="heading" x="57" y="132">1. Cognito</text>
+  <text class="copy" x="57" y="161">Verify the caller's subject</text>
+  <text class="copy" x="57" y="183">and customer claim.</text>
+  <path class="flow" d="M304 155 H317"/>
+  <rect class="box" x="322" y="101" width="260" height="108" rx="8"/>
+  <text class="heading" x="339" y="132">2. Gateway and Policy</text>
+  <text class="copy" x="339" y="161">Cedar evaluates caller, tool,</text>
+  <text class="copy" x="339" y="183">and requested customer.</text>
+  <path class="flow" d="M586 155 H599"/>
+  <rect class="box" x="604" y="101" width="260" height="108" rx="8"/>
+  <text class="heading" x="621" y="132">3. Tool and Aurora</text>
+  <text class="copy" x="621" y="161">Check business rules, RLS,</text>
+  <text class="copy" x="621" y="183">and the idempotency key.</text>
+  <path class="flow" d="M868 155 H881"/>
+  <rect class="box" x="886" y="101" width="262" height="108" rx="8"/>
+  <text class="heading" x="903" y="132">4. Evidence</text>
+  <text class="copy" x="903" y="161">Correlate the decision, audit,</text>
+  <text class="copy" x="903" y="183">write, and return records.</text>
+
+  <text class="label" x="40" y="244">FOUR ATTEMPTS, FOUR OUTCOMES</text>
+  <rect x="40" y="261" width="1108" height="36" rx="5" fill="#e5eaf0"/>
+  <text class="label" x="58" y="284">ATTEMPT</text>
+  <text class="label" x="378" y="284">OUTCOME</text>
+  <text class="label" x="644" y="284">EVIDENCE TO CHECK</text>
+
+  <rect x="40" y="304" width="1108" height="46" rx="5" fill="#fff0ee"/>
+  <text class="copy" x="58" y="333">Marco requests Jessica's return</text>
+  <text class="heading" x="378" y="333">Policy denial</text>
+  <text class="copy" x="644" y="333">Denied key: no tool execution or business effect</text>
+
+  <rect x="40" y="357" width="1108" height="46" rx="5" fill="#fff5e5"/>
+  <text class="copy" x="58" y="386">Jessica requests an unowned product</text>
+  <text class="heading" x="378" y="386">Business refusal</text>
+  <text class="copy" x="644" y="386">Tool ran; the business rule refused a return</text>
+
+  <rect x="40" y="410" width="1108" height="46" rx="5" fill="#e8f3ed"/>
+  <text class="copy" x="58" y="439">Jessica requests her returnable product</text>
+  <text class="heading" x="378" y="439">Committed return</text>
+  <text class="copy" x="644" y="439">One finalized write and the owned return row</text>
+
+  <rect x="40" y="463" width="1108" height="46" rx="5" fill="#e8f0f7"/>
+  <text class="copy" x="58" y="492">Jessica repeats the allowed write key</text>
+  <text class="heading" x="378" y="492">Idempotent replay</text>
+  <text class="copy" x="644" y="492">Two audit attempts; the same write and return</text>
+
+  <text class="small" x="40" y="533">Pair the denied key's absence with a positive control. Then test Aurora RLS independently of Cedar.</text>
+
+  <rect x="40" y="555" width="1108" height="79" rx="8" fill="#fff" stroke="#77739a" stroke-width="1.5"/>
+  <text class="heading" x="58" y="583">Separate staff step: Operator investigation</text>
+  <text class="copy" x="58" y="608">Sign in as operator. Case Investigator runs before Resolution Planner. Stop before a consequential action.</text>
+  <text class="small" x="58" y="627">The direct Gateway matrix does not establish human approval. An exploratory investigation need not create an approval row.</text>
+</svg>

@@ -1,217 +1,75 @@
-import { ArrowLeft, CircleAlert } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-
-import { imageSrc } from '../../../utils/assetPath';
 import { LAB_EXERCISES, findLabExercise } from '../../labs/labCatalog';
-import {
-  classificationFromPayload,
-  evidenceForExercise,
-  evidenceIdentity,
-  policyEvidence,
-  statusForExercise,
-} from '../../labs/evidence';
-import { useLabEvidence } from '../../labs/useLabEvidence';
-import {
-  EvidenceClassificationCard,
-  EvidenceDatumList,
-  EvidenceLoadNotice,
-  ExerciseRail,
-  LabActionBar,
-  LabStatusMark,
-  SourceBadge,
-  WorkflowStepper,
-} from './LabShared';
+import guides from '../../labs/generated/workshopGuides.json';
+import GuideContent, { type GuideNode } from './GuideContent';
 import './Labs.css';
+import './LabGuide.css';
 
+interface Guide {
+  title: string;
+  sourcePage: string;
+  sourceSha256: string;
+  sections: { id: string; text: string }[];
+  nodes: GuideNode[];
+}
+
+const pages = guides.pages as Record<string, Guide>;
+
+/** Studio owns the instructions; the bundled copy works within the event app. */
 export default function LabDetail() {
-  const { exerciseId } = useParams<{ exerciseId: string }>();
+  const { exerciseId, guideId } = useParams<{ exerciseId: string; guideId: string }>();
+  const id = exerciseId ?? guideId ?? '';
   const exercise = findLabExercise(exerciseId);
-  const { data, error, loading, reload } = useLabEvidence();
+  const guide = pages[id];
+  const heading = useRef<HTMLHeadingElement>(null);
 
-  if (!exercise) {
-    return (
-      <div className="lab-not-found">
-        <h1>Lab not found</h1>
-        <p>The requested governed lab is not part of this collection.</p>
-        <Link to="/observatory">
-          <ArrowLeft size={16} aria-hidden="true" />
-          Return to Lab Collection
-        </Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (guide) {
+      document.title = guide.title + ' · Pellier Observatory';
+      heading.current?.focus({ preventScroll: true });
+    }
+  }, [guide]);
 
-  const statuses = new Map(
-    LAB_EXERCISES.map((candidate) => [
-      candidate.id,
-      statusForExercise(candidate, data),
-    ]),
-  );
-  const status = statuses.get(exercise.id) ?? statusForExercise(exercise, data);
-  const evidence = evidenceForExercise(exercise, data);
-  const identity = evidenceIdentity(data);
-  const policy = policyEvidence(data);
-  const classification = classificationFromPayload(data);
+  if (!guide) return <div className="lab-not-found">
+    <h1>Guide not found</h1><p>Choose one of the four governed labs.</p>
+    <Link to="/observatory">Return to Lab Collection</Link>
+  </div>;
 
-  return (
-    <article
-      className="lab-detail"
-      data-lab={exercise.number}
-      data-testid="lab-detail"
-    >
-      <nav className="lab-detail-breadcrumb" aria-label="Breadcrumb">
-        <Link to="/observatory">
-          <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" />
-          Lab Collection
-        </Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">Lab {Number(exercise.number)}</span>
+  return <article className="lab-guide" data-testid="lab-detail">
+    <header className="lab-guide-header">
+      <Link to="/observatory"><ArrowLeft size={16} aria-hidden="true" /> Lab Collection</Link>
+      <p className="lab-guide-eyebrow">100-minute governed workshop · Participant guide</p>
+      <h1 ref={heading} tabIndex={-1} className="observatory-page-title font-display">{guide.title}</h1>
+      <p>Build in Code Editor, inspect the result in Pellier, and keep the evidence for your run.</p>
+      {exercise && <Link className="lab-action-primary" to={'/observatory/workbench?lab=' + exercise.id}>
+        Open Lab {Number(exercise.number)} in Workbench <ArrowRight size={16} aria-hidden="true" />
+      </Link>}
+    </header>
+    <div className="lab-guide-layout">
+      <nav className="lab-guide-navigation" aria-label="Workshop guides">
+        <a href="#guide-steps">Jump to the guide</a>
+        <Link to="/observatory/guide/introduction" aria-current={id === 'introduction' ? 'page' : undefined}>Introduction</Link>
+        {LAB_EXERCISES.map(lab => <Link key={lab.id} to={'/observatory/labs/' + lab.id} aria-current={id === lab.id ? 'page' : undefined}>
+          <span>Lab {Number(lab.number)} · {lab.anchorName}</span>{lab.shortTitle}
+        </Link>)}
+        <Link to="/observatory/guide/summary" aria-current={id === 'summary' ? 'page' : undefined}>Summary and cleanup</Link>
+        <details className="lab-guide-on-page">
+          <summary>On this page</summary>
+          {guide.sections.map(section => <a key={section.id} href={'#' + section.id}>{section.text}</a>)}
+        </details>
+        <Link to="/observatory/guide/background">Architecture background</Link>
+        <Link to="/observatory/guide/reference">Technical reference</Link>
       </nav>
-
-      <header className="lab-detail-hero">
-        <div className="lab-detail-hero-media">
-          <img
-            src={imageSrc(exercise.image)}
-            width={exercise.imageWidth}
-            height={exercise.imageHeight}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-          />
-        </div>
-        <div className="lab-detail-summary">
-          <span className="lab-detail-number">Lab {Number(exercise.number)}</span>
-          <h1 className="observatory-page-title font-display">
-            {exercise.title}
-          </h1>
-          <p>{exercise.summary}</p>
-          <LabStatusMark status={status} loading={loading} />
-          <dl className="lab-detail-contract">
-            <div>
-              <dt>Objective</dt>
-              <dd>{exercise.objective}</dd>
-            </div>
-            <div>
-              <dt>Required proof</dt>
-              <dd>{exercise.evidenceAssertion}</dd>
-            </div>
-          </dl>
-        </div>
-      </header>
-
-      {error ? <EvidenceLoadNotice error={error} onRetry={reload} /> : null}
-
-      <div className="lab-workbench-grid">
-        <ExerciseRail
-          exercises={LAB_EXERCISES}
-          activeExercise={exercise}
-          statuses={statuses}
-        />
-
-        <main className="lab-workspace">
-          <WorkflowStepper />
-
-          <section className="lab-workspace-section">
-            <div className="lab-section-heading">
-              <h2>Participant TODO</h2>
-              <SourceBadge provenance="Derived" />
-            </div>
-            <p className="lab-todo">{exercise.participantTodo}</p>
-          </section>
-
-          <section className="lab-workspace-section">
-            <div className="lab-section-heading">
-              <h2>Focused run or verify command</h2>
-              <span>Lab contract</span>
-            </div>
-            <pre className="lab-command">
-              <code>{exercise.command}</code>
-            </pre>
-          </section>
-
-          <section className="lab-workspace-section">
-            <div className="lab-section-heading">
-              <h2>Measurement</h2>
-              <p>Targets remain derived until a scoped verifier records values.</p>
-            </div>
-            <div className="lab-measurement-grid">
-              {[exercise.measurements.before, exercise.measurements.after].map(
-                (measurement) => (
-                  <div key={measurement.label} className="lab-measurement">
-                    <span>{measurement.label}</span>
-                    <strong>{measurement.value}</strong>
-                    <span className="lab-measurement-meta">
-                      <SourceBadge provenance="Derived" compact />
-                      <span>Lab contract</span>
-                      <span>Static</span>
-                    </span>
-                  </div>
-                ),
-              )}
-            </div>
-          </section>
-
-          <section className="lab-workspace-section lab-decision">
-            <div>
-              <h2>Architecture decision</h2>
-              <p>{exercise.decisionPrompt}</p>
-            </div>
-            <span>Explain with measured evidence</span>
-          </section>
-
-          {exercise.unavailableReason ? (
-            <div className="lab-unavailable-note" role="note">
-              <CircleAlert size={17} strokeWidth={1.8} aria-hidden="true" />
-              <p>{exercise.unavailableReason}</p>
-            </div>
-          ) : null}
-
-          <LabActionBar exercise={exercise} />
-        </main>
-
-        <aside className="lab-evidence-rail" aria-label="Lab evidence">
-          <div className="lab-evidence-rail-heading">
-            <h2>Evidence</h2>
-            <p>Exact identities and source boundaries from the current response.</p>
-          </div>
-
-          <EvidenceClassificationCard classification={classification} />
-          <EvidenceDatumList title="Run identity" data={identity} />
-          <EvidenceDatumList
-            title="Current evidence"
-            data={evidence}
-            emptyMessage="No scoped evidence values exist for this exercise."
-          />
-          <EvidenceDatumList title="Policy identity" data={policy} />
-
-          <details className="lab-evidence-section lab-evidence-reconciliation">
-            <summary>
-              <h2>Reconciliation</h2>
-              <span className="lab-evidence-meta">Not observed until a run lands</span>
-            </summary>
-            <dl className="lab-evidence-data">
-              {[
-                ['Aurora transaction', 'Unknown'],
-                ['Outbox and export', 'Unknown'],
-                ['Reset proof', 'Unknown'],
-              ].map(([label, value]) => (
-                <div key={label} className="lab-evidence-datum">
-                  <dt>{label}</dt>
-                  <dd>
-                    <strong>{value}</strong>
-                    <span className="lab-evidence-meta">
-                      <SourceBadge provenance="Unknown" compact />
-                      <span>Scoped verifier</span>
-                      <span>Not observed</span>
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </details>
-        </aside>
+      <div className="lab-guide-content" id="guide-steps" tabIndex={-1}>
+        <GuideContent nodes={guide.nodes} />
+        <footer className="lab-guide-source">
+          <strong>Guide provenance</strong>
+          <p>Bundled from the Workshop Studio participant guide. Instructions and reference images do not certify a completed run.</p>
+          <details><summary>Source reference</summary><code>{guide.sourcePage}</code><code>SHA-256 {guide.sourceSha256}</code></details>
+        </footer>
       </div>
-    </article>
-  );
+    </div>
+  </article>;
 }

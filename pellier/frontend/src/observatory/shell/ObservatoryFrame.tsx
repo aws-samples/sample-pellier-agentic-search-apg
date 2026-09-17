@@ -10,6 +10,7 @@ import ObservatoryModeBanner from './ObservatoryModeBanner';
 import ObservatoryErrorBoundary from './ObservatoryErrorBoundary';
 import { interactionForPath } from './observatoryInteraction';
 import '../styles/base.css';
+import { LAB_EXERCISES } from '../labs/labCatalog';
 
 /**
  * Tab, history and bookmark titles for each Observatory route. Every route
@@ -30,6 +31,11 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
   ['/observatory/operator-turn', 'Operator turn evidence'],
   ['/observatory/replacement', 'Replacement recovery'],
   ['/observatory/workbench', 'Workbench'],
+  ['/observatory/guide/introduction', 'Introduction'],
+  ['/observatory/guide/background', 'Background and overview'],
+  ['/observatory/guide/summary', 'Summary'],
+  ['/observatory/guide/reference', 'Appendix'],
+  ['/observatory/guide/coding-coach', 'Claude Code coaching guide'],
   ['/observatory/labs', 'Lab'],
   ['/observatory/sessions', 'Sessions'],
   ['/observatory/architecture', 'Architecture'],
@@ -46,6 +52,8 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
 ];
 
 export function observatoryTitleForPath(pathname: string): string {
+  const lab = LAB_EXERCISES.find(exercise => pathname === `/observatory/labs/${exercise.id}`);
+  if (lab) return `Lab ${Number(lab.number)}: ${lab.title} · Pellier Observatory`;
   const match = ROUTE_TITLES.find(
     ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

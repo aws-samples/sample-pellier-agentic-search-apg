@@ -55,6 +55,8 @@ export interface DetailPageShellProps {
   liveState?: {
     label: string;
     values: LiveStateValue[];
+    /** Static design facts are the default; live requires measured data. */
+    measured?: boolean;
   };
   /**
    * Optional "See this in Pellier" cross-link. When set, renders
@@ -129,16 +131,17 @@ const CheatSheetStrip: React.FC<{ items: CheatSheetItem[] }> = ({ items }) => {
 interface LiveStateCalloutProps {
   label: string;
   values: LiveStateValue[];
+  measured?: boolean;
 }
 
-const LiveStateCallout: React.FC<LiveStateCalloutProps> = ({ label, values }) => (
+const LiveStateCallout: React.FC<LiveStateCalloutProps> = ({ label, values, measured = false }) => (
   <section style={{ marginTop: '40px' }}>
     <EvidenceCard>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header with pulsing indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <StatusDot status="live" size={8} />
-          <SectionEyebrow dot={false}>Live state</SectionEyebrow>
+          {measured && <StatusDot status="live" size={8} />}
+          <SectionEyebrow dot={false}>{measured ? 'Live state' : 'Design reference'}</SectionEyebrow>
         </div>
 
         {/* Context description */}
@@ -257,7 +260,7 @@ const DetailPageShell: React.FC<DetailPageShellProps> = ({
 
     {/* Live state callout */}
     {liveState && (
-      <LiveStateCallout label={liveState.label} values={liveState.values} />
+      <LiveStateCallout {...liveState} />
     )}
   </div>
 );

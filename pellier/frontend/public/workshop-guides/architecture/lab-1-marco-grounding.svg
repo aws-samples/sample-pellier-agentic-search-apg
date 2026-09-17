@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Title: Lab1MarcoGrounding Pages: 1 -->
+<svg width="1679pt" height="1080pt"
+ viewBox="0.00 0.00 1679.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1.65229 1.65229) rotate(0) translate(24.48 629.16)">
+<title>Lab1MarcoGrounding</title>
+<polygon fill="#f7f3ec" stroke="none" points="-24.48,24.48 -24.48,-629.16 991.9,-629.16 991.9,24.48 -24.48,24.48"/>
+<text xml:space="preserve" text-anchor="middle" x="236.75" y="-579.78" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 1: MARCO</text>
+<text xml:space="preserve" text-anchor="middle" x="236.75" y="-553.53" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Build a PostgreSQL&#45;grounded Inventory Agent</text>
+<!-- marco&#45;&gt;dispatcher -->
+<g id="edge1" class="edge">
+<title>marco&#45;&gt;dispatcher</title>
+<path fill="none" stroke="#9a3412" stroke-width="2.3" d="M331.27,-488C331.27,-488 409.5,-488 409.5,-488"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2.3" points="409.5,-490.73 417.3,-488 409.5,-485.27 409.5,-490.73"/>
+</g>
+<!-- dispatcher&#45;&gt;inventory -->
+<g id="edge2" class="edge">
+<title>dispatcher&#45;&gt;inventory</title>
+<path fill="none" stroke="#9a3412" stroke-width="2.3" d="M654.86,-488C654.86,-488 711.62,-488 711.62,-488"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2.3" points="711.62,-490.73 719.42,-488 711.62,-485.27 711.62,-490.73"/>
+</g>
+<!-- inventory&#45;&gt;aurora -->
+<g id="edge3" class="edge">
+<title>inventory&#45;&gt;aurora</title>
+<path fill="none" stroke="#9a3412" stroke-width="2.3" d="M723.11,-458C533.52,-458 169.27,-458 169.27,-458 169.27,-458 169.27,-311.16 169.27,-311.16"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2.3" points="172.01,-311.16 169.28,-303.36 166.55,-311.16 172.01,-311.16"/>
+<text xml:space="preserve" text-anchor="middle" x="417.4" y="-373.5" font-family="Helvetica Neue" font-size="10.00" fill="#5a2a0a">typed SQL&#45;backed tool</text>
+</g>
+<!-- inventory&#45;&gt;not_claimed -->
+<g id="edge7" class="edge">
+<title>inventory&#45;&gt;not_claimed</title>
+<path fill="none" stroke="#9a9285" stroke-dasharray="5,2" d="M834.9,-453.9C834.9,-368.41 834.9,-146.37 834.9,-70.14"/>
+</g>
+<!-- aurora&#45;&gt;answer -->
+<g id="edge4" class="edge">
+<title>aurora&#45;&gt;answer</title>
+<path fill="none" stroke="#3f6212" stroke-width="2.3" d="M248.4,-255C248.4,-255 347.06,-255 347.06,-255"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2.3" points="347.06,-257.73 354.86,-255 347.06,-252.27 347.06,-257.73"/>
+</g>
+<!-- aurora&#45;&gt;evidence -->
+<g id="edge6" class="edge">
+<title>aurora&#45;&gt;evidence</title>
+<path fill="none" stroke="#3f6212" stroke-width="1.7" d="M141.9,-231.8C141.9,-231.8 141.9,-80.62 141.9,-80.62"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="1.7" points="144.63,-80.62 141.9,-72.82 139.17,-80.62 144.63,-80.62"/>
+<text xml:space="preserve" text-anchor="middle" x="183.52" y="-151.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">WRITE: tool_audit</text>
+</g>
+<!-- answer&#45;&gt;marco -->
+<g id="edge5" class="edge">
+<title>answer&#45;&gt;marco</title>
+<path fill="none" stroke="#3f6212" stroke-width="2.3" d="M358.53,-277C330.52,-277 307.24,-277 307.24,-277 307.24,-277 307.24,-450.42 307.24,-450.42"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2.3" points="304.51,-450.42 307.24,-458.22 309.97,-450.42 304.51,-450.42"/>
+<text xml:space="preserve" text-anchor="middle" x="272.65" y="-373.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">answer + receipt ID</text>
+</g>
+<!-- marco -->
+<g id="node1" class="node">
+<title>marco</title>
+<polygon fill="#1f1410" stroke="#cbc1ad" stroke-width="1.2" points="330.67,-513.8 91.12,-513.8 91.12,-462.2 330.67,-462.2 330.67,-513.8"/>
+<text xml:space="preserve" text-anchor="middle" x="210.9" y="-491.6" font-family="Helvetica Neue" font-size="12.00" fill="#fbf8f2">01: MARCO IN STOREFRONT</text>
+<text xml:space="preserve" text-anchor="middle" x="210.9" y="-476.6" font-family="Helvetica Neue" font-size="12.00" fill="#fbf8f2">Three turns, 0 → 2 → 4 prior messages</text>
+</g>
+<!-- dispatcher -->
+<g id="node2" class="node">
+<title>dispatcher</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="654.67,-513.8 421.12,-513.8 421.12,-462.2 654.67,-462.2 654.67,-513.8"/>
+<text xml:space="preserve" text-anchor="middle" x="537.9" y="-491.6" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">02: STRANDS DISPATCHER</text>
+<text xml:space="preserve" text-anchor="middle" x="537.9" y="-476.6" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">Select exactly one bounded specialist</text>
+</g>
+<!-- inventory -->
+<g id="node3" class="node">
+<title>inventory</title>
+<polygon fill="#fbf8f2" stroke="#9a3412" stroke-width="2" points="946.05,-521.3 723.75,-521.3 723.75,-454.7 946.05,-454.7 946.05,-521.3"/>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-499.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">03: INVENTORY AGENT</text>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-484.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">Participant completes the specialist</text>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-469.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">and check_inventory tool</text>
+</g>
+<!-- aurora -->
+<g id="node4" class="node">
+<title>aurora</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="2" points="247.42,-299.3 36.37,-299.3 36.37,-232.7 247.42,-232.7 247.42,-299.3"/>
+<text xml:space="preserve" text-anchor="middle" x="141.9" y="-277.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">04: AURORA POSTGRESQL</text>
+<text xml:space="preserve" text-anchor="middle" x="141.9" y="-262.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">Warehouse quantity, ship window</text>
+<text xml:space="preserve" text-anchor="middle" x="141.9" y="-247.1" font-family="Helvetica Neue" font-size="12.00" fill="#1f1410">live system&#45;of&#45;record rows</text>
+</g>
+<!-- answer -->
+<g id="node5" class="node">
+<title>answer</title>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="2" points="548.55,-299.3 359.25,-299.3 359.25,-232.7 548.55,-232.7 548.55,-299.3"/>
+<text xml:space="preserve" text-anchor="middle" x="453.9" y="-277.1" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">05: GROUNDED ANSWER</text>
+<text xml:space="preserve" text-anchor="middle" x="453.9" y="-262.1" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">Hadley identity preserved</text>
+<text xml:space="preserve" text-anchor="middle" x="453.9" y="-247.1" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">Brooklyn availability refreshed</text>
+</g>
+<!-- evidence -->
+<g id="node6" class="node">
+<title>evidence</title>
+<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="1.2" points="283.8,-69.8 0,-69.8 0,-18.2 283.8,-18.2 283.8,-69.8"/>
+<text xml:space="preserve" text-anchor="middle" x="141.9" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">REQUIRED PROOF</text>
+<text xml:space="preserve" text-anchor="middle" x="141.9" y="-32.6" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">psql: inventory row + exactly one tool_audit row</text>
+</g>
+<!-- not_claimed -->
+<g id="node7" class="node">
+<title>not_claimed</title>
+<polygon fill="#f1ece1" stroke="#e3ddd1" stroke-width="1.2" points="967.42,-69.8 702.38,-69.8 702.38,-18.2 967.42,-18.2 967.42,-69.8"/>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#6b665d">NOT CLAIMED IN LAB 1</text>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-32.6" font-family="Helvetica Neue" font-size="12.00" fill="#6b665d">AgentCore Runtime, Gateway, Cedar, RLS</text>
+</g>
+</g>
+</svg>

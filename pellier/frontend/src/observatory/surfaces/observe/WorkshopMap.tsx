@@ -74,7 +74,7 @@ const LABS: LabItem[] = [
     lab: 'Lab 2',
     title: 'Build and Measure PostgreSQL Hybrid Retrieval',
     summary:
-      "Build the rank-fusion expression and relevance labels for Anna's query. Compare two rerank pools and five held-out cases, then justify a choice.",
+      "Verify recorded rank fusion, inspect a query plan, and widen Anna's rerank candidate pool. Prove one eligible candidate was recovered without relaxing price or stock constraints.",
     primary: {
       to: '/observatory/performance',
       label: 'Open retrieval comparison',

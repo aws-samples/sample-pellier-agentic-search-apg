@@ -30,7 +30,7 @@ const SkillsDetail: React.FC = () => {
       conceptName="Skills"
       category="live"
       title="Skills, persona-routed."
-      prose="Five skills – three persona overlays plus the shared Care Card and Proof Counter – load when the SkillRouter (Claude Sonnet 4.6) binds a turn to a specific handling style. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
+      prose="Five skills – three persona overlays plus the shared Care Card and Proof Counter – can load when the configured SkillRouter selects guidance for a specialist turn. Markdown briefs live under /skills/<slug>/SKILL.md; they are not separate agents."
       cheatSheet={[
         {
           numeral: 'i.',
@@ -38,7 +38,7 @@ const SkillsDetail: React.FC = () => {
         },
         {
           numeral: 'ii.',
-          text: 'The SkillRouter is a Sonnet 4.6 classifier with a tight JSON-only prompt. Intent routing already chose the specialist; this second router only decides which skill overlays to inject for that turn.',
+          text: 'The SkillRouter uses BEDROCK_ROUTER_MODEL with a JSON-only prompt. Intent routing already chose the specialist; this second router only decides which skill overlays to inject for that turn.',
         },
         {
           numeral: 'iii.',
@@ -46,11 +46,11 @@ const SkillsDetail: React.FC = () => {
         },
       ]}
       liveState={{
-        label: 'Current skill activation state. The SkillRouter evaluates each turn and activates skills based on persona context.',
+        label: 'Source-defined skill routing. Inspect a recorded turn for the actual model, selection, and elapsed time.',
         values: [
           { label: 'Skills available', value: '5' },
-          { label: 'Router model', value: 'Claude Sonnet 4.6 (global.anthropic.claude-sonnet-4-6)' },
-          { label: 'Active', value: 'None' },
+          { label: 'Router model', value: 'Configured at deployment' },
+          { label: 'Activation', value: 'Inspect the turn' },
         ],
       }}
     >
@@ -99,9 +99,10 @@ const SkillsDetail: React.FC = () => {
               <SectionLabel label="The routing flow" />
               <h3 style={titleStyle}>Turn arrives, router decides.</h3>
               <p style={proseStyle}>
-                Every turn passes through the SkillRouter before reaching the specialist agents.
-                The router is a small classifier call (~120ms) that decides whether to inject a
-                skill into the agent's tool set for this turn.
+                Specialist turns can pass through the SkillRouter after intent classification.
+                Greetings and other triage fast paths can return before this call. The router
+                selects prompt guidance; the recorded skill_routing event identifies the
+                selected skills and elapsed time. Skill selection does not grant tool permission.
               </p>
               <pre style={codeStyle}>{concept.codeSnippet}</pre>
             </div>
