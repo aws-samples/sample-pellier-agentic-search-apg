@@ -129,6 +129,8 @@ def _cedar_effect(policy: Dict[str, Any]) -> str:
         "statement", ""
     )
     stripped = statement.strip().lower()
+    if stripped.startswith("suppressoutput"):
+        return "suppressOutput"
     if stripped.startswith("forbid"):
         return "forbid"
     if stripped.startswith("permit"):

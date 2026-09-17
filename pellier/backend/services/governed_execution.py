@@ -885,8 +885,18 @@ _DENIAL_MARKERS = (
 )
 
 
+def is_output_suppression(error: BaseException | str) -> bool:
+    """Recognize explicit response suppression, never infer it from an HTTP code."""
+    if isinstance(error, BaseException) and getattr(error, "exceptions", None):
+        return any(is_output_suppression(child) for child in error.exceptions)
+    text = str(error).lower()
+    return "suppress" in text and ("output" in text or "response" in text) and "policy" in text
+
+
 def is_policy_denial(error: BaseException | str) -> bool:
     """True only for a Gateway/Cedar authorization denial."""
+    if is_output_suppression(error):
+        return False
     if isinstance(error, BaseException):
         children = getattr(error, "exceptions", None)
         if children:
@@ -940,6 +950,12 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     """
     status = str(result.get("status") or "")
     denied_by = str(result.get("denied_by") or "")
+
+    if status == "output_suppressed":
+        return AURORA_OUTCOME_UNKNOWN, (
+            "The Gateway withheld the tool response. This does not roll back a write. "
+            "Reconcile the existing operation key in Aurora before retrying."
+        )
 
     if status == "outcome_unknown":
         return AURORA_OUTCOME_UNKNOWN, (
@@ -1164,6 +1180,11 @@ async def _execute_through_gateway(
                     await session.initialize()
                     raw = await session.call_tool(action, payload)
     except Exception as exc:  # noqa: BLE001 - classified, not swallowed
+        if is_output_suppression(exc):
+            return POLICY_ALLOW, {"status": "output_suppressed"}, (
+                "The Gateway reported output suppression after authorization. "
+                "Execution and commit require separate Aurora evidence."
+            )
         if is_policy_denial(exc):
             return (
                 POLICY_DENY,
@@ -1181,6 +1202,10 @@ async def _execute_through_gateway(
     # LOG_ONLY and let it through — the caller resolves which from the engine's
     # own mode, never from this response).
     envelope: Dict[str, Any] = {}
+    if getattr(raw, "isError", False) and is_output_suppression(str(raw)):
+        return POLICY_ALLOW, {"status": "output_suppressed"}, (
+            "The Gateway reported output suppression; reconcile the existing operation key."
+        )
     for item in getattr(raw, "content", None) or []:
         text = getattr(item, "text", None)
         if not text:
@@ -1654,6 +1679,12 @@ async def _run_gateway_rail(
     if policy == POLICY_ALLOW:
         policy, policy_note = resolve_permissive_policy_state(engine_state)
     notes: Dict[str, str] = {"policy": policy_note}
+    if result.get("status") == "output_suppressed":
+        # The legacy observation reader does not distinguish request decisions
+        # from response Guardrail decisions. A response-phase DENY must never
+        # overwrite admission with a claim that the tool did not execute.
+        notes["output"] = "The Gateway reported output suppression. Reconcile the operation in Aurora."
+        return policy, dict(result), notes
     policy, observation_notes = await _observe_policy_decisions(
         db,
         base_policy=policy,

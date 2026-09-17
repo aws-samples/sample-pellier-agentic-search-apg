@@ -1,0 +1,21 @@
+.boundary-outcomes { margin-block: 1.5rem 2rem; padding: clamp(1rem, 3vw, 1.75rem); border: 1px solid var(--obs-rule-1); border-radius: var(--obs-card-radius); background: var(--obs-cream-1); }
+.boundary-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1rem; }
+.boundary-heading h2 { margin-block: .35rem .75rem; font-family: var(--obs-heading); font-size: 1.5rem; line-height: 1.25; }
+.boundary-lessons { padding-left: 1.5rem; margin-block: 1.5rem; }
+.boundary-lessons li { padding: .8rem 0; border-top: 1px solid var(--obs-rule-1); }
+.boundary-lessons li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
+.boundary-lessons p { margin: .4rem 0 0; }
+.boundary-state { font-size: .8rem; color: var(--obs-ink-3); }
+.boundary-run-select { display: grid; gap: .5rem; }
+.boundary-run-select select { width: 100%; min-width: 0; padding: .65rem; color: var(--obs-ink-1); background: var(--obs-cream-2); border: 1px solid var(--obs-rule-2); border-radius: 4px; }
+.boundary-table-scroll { overflow-x: auto; margin-block: 1rem; }
+.boundary-table { border-collapse: collapse; width: 100%; min-width: 620px; text-align: left; font-size: .85rem; }
+.boundary-table th, .boundary-table td { padding: .8rem .6rem; border-bottom: 1px solid var(--obs-rule-1); vertical-align: top; }
+.boundary-table small { display: block; font-weight: 400; color: var(--obs-ink-3); margin-top: .3rem; }
+.boundary-caution { border-left: 3px solid var(--obs-terracotta); padding-left: 1rem; }
+.boundary-record { border-top: 1px solid var(--obs-rule-1); padding-block: 1rem; }
+.boundary-record dl { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: .5rem 1rem; }
+.boundary-record dt { color: var(--obs-ink-3); }
+.boundary-record dd { margin: 0; overflow-wrap: anywhere; }
+.boundary-record code { font-family: var(--obs-mono); font-size: .8rem; }
+@media (max-width: 650px) { .boundary-record dl { grid-template-columns: 1fr; } .boundary-record dd { margin-bottom: .5rem; } }

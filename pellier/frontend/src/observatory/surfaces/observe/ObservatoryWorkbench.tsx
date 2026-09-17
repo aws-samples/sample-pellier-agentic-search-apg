@@ -1996,8 +1996,9 @@ export default function ObservatoryWorkbench() {
               <section className="observatory-operator-next" aria-labelledby="operator-next-title">
                 <h3 id="operator-next-title">Carry the proof into the decision</h3>
                 <p>
-                  The identity matrix proves denial, business refusal, commit,
-                  and replay. Jessica’s Operator investigation uses those
+                  Lab 4 separates authentication failure, Cedar denial, business
+                  refusal, commit, and output suppression. Its replay controls
+                  check that one operation key retains one effect. Jessica’s Operator investigation uses those
                   distinctions to prepare a decision for human review.
                 </p>
                 <p>

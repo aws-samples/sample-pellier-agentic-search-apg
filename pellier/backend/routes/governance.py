@@ -7,12 +7,39 @@ import hashlib
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 import jwt
 
-from services.auth import OPERATOR_GROUP, _has_presented_credentials
+from services.auth import OPERATOR_GROUP, _has_presented_credentials, require_operator
 from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from services.governance_snapshot import observed_at, policy_snapshot
 
 router = APIRouter(prefix="/api/observatory/governance", tags=["governance"])
 NO_STORE = {"Cache-Control": "no-store"}
+
+
+@router.get("/outcomes")
+async def outcomes(response: Response, _operator=Depends(require_operator)):
+    """Read bounded CLI observations; never run a proof from a page request."""
+    from routes.observatory import _live_db
+    from services.governance_boundaries import summarize
+
+    response.headers.update(NO_STORE)
+    try:
+        db = await _live_db()
+        rows = await db.fetch_all("""
+            WITH recent_runs AS (
+                SELECT proof_run_id FROM pellier.governance_boundary_observations
+                GROUP BY proof_run_id ORDER BY max(observation_id) DESC LIMIT 5
+            )
+            SELECT observation_id AS "observationId", proof_run_id AS "proofRunId",
+                   case_name AS "caseName", invocation_id AS "invocationId",
+                   operation_key AS "operationKey", tool, verified_username AS "verifiedUsername",
+                   observation, created_at AS "createdAt"
+              FROM pellier.governance_boundary_observations
+             WHERE proof_run_id IN (SELECT proof_run_id FROM recent_runs)
+             ORDER BY observation_id DESC
+        """)
+        return summarize([dict(row) for row in rows])
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="boundary_evidence_unavailable", headers=NO_STORE) from exc
 
 
 @router.get("/identity")

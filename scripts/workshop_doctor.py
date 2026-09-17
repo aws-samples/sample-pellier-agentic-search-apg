@@ -518,6 +518,36 @@ def _governance_chain(evidence: Evidence, run_id: Optional[str]) -> Check:
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
 
 
+def _boundary_outcomes(evidence: Evidence, run_id: Optional[str]) -> Check:
+    name = "five governance outcomes"
+    if not run_id:
+        return Check(name, False, "start the workshop run before collecting boundary evidence")
+    try:
+        sys.path.insert(0, str(BACKEND))
+        from services.governance_boundaries import summarize
+        bundle = evidence.one("""
+            WITH latest AS (
+                SELECT proof_run_id FROM pellier.governance_boundary_observations
+                 WHERE workshop_run_id = %(run)s
+                 GROUP BY proof_run_id ORDER BY max(observation_id) DESC LIMIT 1
+            )
+            SELECT jsonb_agg(jsonb_build_object(
+                'proofRunId', proof_run_id, 'caseName', case_name,
+                'observationId', observation_id, 'invocationId', invocation_id,
+                'operationKey', operation_key, 'tool', tool,
+                'verifiedUsername', verified_username, 'createdAt', created_at,
+                'observation', observation) ORDER BY observation_id DESC) AS rows
+              FROM pellier.governance_boundary_observations
+             WHERE proof_run_id IN (SELECT proof_run_id FROM latest)
+        """, {"run": run_id}) or {}
+        runs = summarize(bundle.get("rows") or [])["runs"]
+        passed = bool(runs and runs[0]["complete"])
+        return Check(name, passed, "" if passed else
+                     "run prove_governance_outcomes.py and inspect each incomplete boundary; output suppression is not rollback")
+    except Exception:
+        return Check(name, False, "boundary evidence unavailable; verify migration 055 and the current run")
+
+
 def lab4_checks(
     evidence: Evidence, run_id: Optional[str], *, repo: pathlib.Path = REPO,
     include_proof: bool = True,
@@ -528,6 +558,7 @@ def lab4_checks(
     ]
     if include_proof:
         checks.append(_governance_chain(evidence, run_id))
+        checks.append(_boundary_outcomes(evidence, run_id))
     return checks
 
 

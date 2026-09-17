@@ -285,13 +285,18 @@ def test_second_phase_attaches_the_baseline_cedar_set(tmp_path: Path) -> None:
     """
     _, project = _render(tmp_path, include_policies=True)
     policies = project["policyEngines"][0]["policies"]
-    expected = renderer.baseline_policies(gateway_arn=TEST_GATEWAY_ARN)
+    baseline = renderer.baseline_policies(gateway_arn=TEST_GATEWAY_ARN)
+    output = renderer.output_guardrail_policy(TEST_GATEWAY_ARN)
+    expected = baseline + [output]
 
     assert [policy["name"] for policy in policies] == [p["name"] for p in expected]
     assert all(policy["enforcementMode"] == "ACTIVE" for policy in policies)
     assert all(
-        policy["validationMode"] == "FAIL_ON_ANY_FINDINGS" for policy in policies
+        policy["validationMode"] == "FAIL_ON_ANY_FINDINGS" for policy in policies[:-1]
     )
+    assert policies[-1] == output
+    assert output["statement"].startswith("suppressOutput")
+    assert output["validationMode"] == "IGNORE_ALL_FINDINGS"
     statements = "\n".join(policy["statement"] for policy in policies)
     assert renderer.INITIATE_RETURN_ACTION in statements
     # Tool-specific policies must pin the deployed Gateway by ARN; the service

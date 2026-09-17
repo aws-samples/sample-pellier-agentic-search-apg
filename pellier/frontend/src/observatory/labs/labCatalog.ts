@@ -201,17 +201,17 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     customerNeed: 'Jessica needs a fair resolution, with account access and consequential actions controlled.',
     nextBoundary: 'Bring the four evidence sets together: defend which layer enforces each boundary, then restore the workshop baseline and follow cleanup.',
     summary:
-      'Bind verified identity in Cedar, prove the four-case execution matrix and Aurora RLS backstop, then investigate Jessica\'s case as separately authorized staff.',
+      'Bind verified identity in Cedar and prove which control acted, whether the tool executed, and whether data changed. Then investigate Jessica\'s case as separately authorized staff.',
     image: '/assets/personas/jessica-720.webp',
     imageWidth: 720,
     imageHeight: 900,
     proofCardIds: ['runtime-gateway-policy'],
     objective:
-      'Use Marco and Jessica to prove the customer boundary with the identity matrix and PostgreSQL RLS checks. Then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
+      'Prove five outcomes: authentication failure, Cedar denial, business refusal, commit, and output suppression. Verify replay and PostgreSQL RLS, then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
     participantTodo:
-      'Complete the Cedar rule and keyed absence query. Run the four-case identity matrix and RLS read and write checks, then complete one Operator investigation for Jessica. Stop before a consequential action and reset the policy in Summary.',
+      'Complete the Cedar rule and keyed absence query. Run the combined boundary proof and RLS read and write checks, then complete one Operator investigation for Jessica. The proof creates two synthetic one-cent credits. The investigation stops at human review; reset the policy in Summary.',
     command:
-      'python3 scripts/prove_identity_boundary.py \\\n  --json /tmp/pellier-evidence/lab-4.json\npsql -X -v ON_ERROR_STOP=1 -P pager=off \\\n  -f workshop/lab-4-rls.sql',
+      'python3 scripts/prove_governance_outcomes.py \\\n  --json /tmp/pellier-evidence/lab-4-boundaries.json\npsql -X -v ON_ERROR_STOP=1 -P pager=off \\\n  -f workshop/lab-4-rls.sql',
     measurements: {
       before: {
         label: 'Before',
@@ -219,13 +219,13 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       },
       after: {
         label: 'Acceptance target',
-        value: 'Marco is denied, Jessica\'s invalid return is refused, and her valid return commits once and replays safely. RLS enforces row scope; Operator stops before execution.',
+        value: 'All five outcomes have matched invocation and Aurora evidence. The suppressed credit remains committed and replays without a second credit. RLS enforces row scope; the Operator investigation stops at human review.',
       },
     },
     evidenceAssertion:
-      'The keyed matrix distinguishes policy, execution, write, and durable effect. RLS verifies an independent database boundary. The Operator investigation stops at the human checkpoint before a consequential action.',
+      'The boundary proof separates authentication, authorization, execution, durable effect, and response delivery. A suppressed response does not undo a committed credit. RLS verifies an independent database boundary; the Operator investigation stops at the human checkpoint.',
     decisionPrompt:
-      'Which layer proves identity, authorization, execution, database scope, and human approval, and what remains unproven if any layer is missing?',
+      'Which control acted, did the tool execute, and did data change? What evidence is still needed when a response is missing or suppressed?',
     primaryAction: {
       label: 'Open Jessica in Operator',
       to: '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowRight, Check, Copy, RefreshCw, ShieldCheck } from 'luci
 import { Link, useParams } from 'react-router-dom';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import IdentityBoundaryCard from '../understand/IdentityBoundaryCard';
+import BoundaryOutcomes from './BoundaryOutcomes';
 import type { IdentityObservation, PolicySnapshot } from './governanceTypes';
 import TraceScenarioLoop from '../../../shared/trace/TraceScenarioLoop';
 import './Govern.css';
@@ -323,25 +324,26 @@ function Actions() {
 function Verification() {
   return <>
     <p className="govern-lead">Use the exact caller, request key, and recorded outcome. A missing row by itself does not prove a denial.</p>
-    <Table label="Governance verification matrix" headings={['Case', 'Expected boundary', 'Evidence to inspect']} rows={[
-      ['Expired or malformed token', 'Authentication failure', 'No validated caller. Do not label the authentication error a Cedar DENY.'],
-      ['Shopper opens an Operator route', 'Application authorization refusal', '403 operator_group_required after identity validation.'],
-      ['Another customer’s return, after Lab 4', 'Enforced Cedar denial', 'Policy receipt for the exact key; measured absence of tool execution and durable effect.'],
-      ['Own customer, ineligible product', 'Business refusal', 'Policy and tool evidence, with no committed return.'],
-      ['Eligible first request', 'Committed result', 'Linked invocation, execution receipt, and canonical write operation.'],
-      ['Same authorized key repeated', 'Replay', 'Another attempt may be recorded; the business effect remains singular.'],
-      ['LOG_ONLY observation', 'Observed evaluation', 'Report would-deny separately from whether execution occurred.'],
-      ['No evidence or an unavailable read', 'Unknown', 'No pass, inferred denial, or fabricated zero-row result.'],
-    ]} />
-    <Section title="Run the existing Lab 4 proof">
-      <p>In the workshop Code Editor terminal, from the repository root, run this after completing and deploying the Lab 4 rule. It uses configured workshop identities and performs real test return attempts, including one eligible return and a replay.</p>
+    <BoundaryOutcomes />
+    <Section title="Run the Lab 4 boundary proof">
+      <p>Follow Workshop Studio to run the five-outcome proof after deploying the identity rule and managed output policy. It includes the return and RLS matrix, an unsigned Gateway call, two one-cent workshop credits, and a credit replay. Use synthetic workshop data. Output checks never roll back a committed credit.</p>
+      <Code label="Lab 4 five-outcome proof">{'python3 scripts/prove_governance_outcomes.py --json /tmp/pellier-evidence/lab-4-boundaries.json'}</Code>
+    </Section>
+    <details>
+      <summary>Inspect the return and RLS subset</summary>
+      <p>The combined proof already runs this subset once. Use the isolated command only to diagnose that boundary; another run consumes returnable quantity. It performs real test return attempts, including one eligible return and a replay.</p>
       <Code label="Lab 4 identity and Aurora proof">{'python3 scripts/prove_identity_boundary.py'}</Code>
       <p>The command checks Cedar denial, business refusal, commit, replay, and independent Aurora RLS behavior. Keep its request keys and recorded IDs. This reference page does not run the command or mark the lab complete.</p>
-    </Section>
-    <Section title="Read the recorded identity proof">
       <p>The cross-principal reconstruction below requires Operator access. Each record retains its provenance; fixture evidence and live provider evidence remain distinct.</p>
       <IdentityBoundaryCard />
-    </Section>
+    </details>
+    <details><summary>Other access and observation boundaries</summary>
+      <Table label="Additional governance boundaries" headings={['Case', 'Boundary', 'Evidence to inspect']} rows={[
+        ['Shopper opens an Operator route', 'Application authorization refusal', '403 operator_group_required after identity validation. This is separate from Cedar.'],
+        ['LOG_ONLY observation', 'Observed evaluation', 'Report would-deny separately from whether execution occurred.'],
+        ['No evidence or an unavailable read', 'Unknown', 'No pass, inferred denial, or fabricated zero-row result.'],
+      ]} />
+    </details>
     <Section title="Follow one request across the boundaries">
       <p>Use the Proof Board and the selected turn’s receipts to connect the validated principal, Runtime revision, Gateway policy observation, execution, and Aurora outcome. “Not correlated” is different from a measured absence.</p>
       <EvidenceLink to="/observatory/proof-board">Open the Proof Board</EvidenceLink>

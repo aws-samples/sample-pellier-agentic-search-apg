@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Prove that identity, not intent, decides whether a governed write executes.
 
-One command produces the whole Lab 4 matrix. Nothing here is guessed by the
-operator and nothing is inferred from a time window.
+This command produces the return and RLS subset of the Lab 4 boundary proof.
+The combined driver is prove_governance_outcomes.py. Nothing here is guessed
+by the operator and nothing is inferred from a time window.
 
-Section 1 — Cedar, four cases, one byte-identical request
+Section 1 — Cedar, four cases targeting the same customer
 ---------------------------------------------------------
 
-Every case sends the same protected input::
+Every case targets the same protected customer::
 
     initiate_return(customer_id="CUST-JESSICA", product_id=<resolved>, reason="damaged")
 
@@ -69,8 +70,8 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 _BACKEND = _REPO / "pellier" / "backend"
 _GATEWAY_CALLER = _REPO / "scripts" / "deploy" / "gateway_initiate_return.py"
 
-# The owner of the return being attempted. Every case sends this same value; only
-# the signing principal changes.
+# The owner of the return being attempted. Every case sends this same value;
+# the business-refusal case uses a product Jessica never ordered.
 TARGET_CUSTOMER = "CUST-JESSICA"
 
 # The runtime role the Aurora section assumes. Not the table owner, and
@@ -284,7 +285,7 @@ def _invoke(
             payload = {}
     tool_status = ""
     tool_message = ""
-    result = payload.get("tool_result") or {}
+    result = payload.get("tool_result") or payload.get("result") or {}
     for block in (result.get("content") or []) if isinstance(result, dict) else []:
         text = block.get("text") if isinstance(block, dict) else None
         if not text:
@@ -790,9 +791,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print("\n" + ("PROVED" if all_passed else "NOT PROVED"))
     if all_passed:
-        print("  The request never changed. Cedar refused two principals before the tool")
-        print("  ran, the third executed exactly once, a replay added nothing, and Aurora")
-        print("  refused the same crossing on its own.")
+        print("  Cedar refused the cross-customer request. The owner's unowned product")
+        print("  was refused by the business rule. The eligible return committed once,")
+        print("  replay added no effect, and Aurora independently enforced ownership.")
     return _EXIT_OK if all_passed else _EXIT_PROOF_FAILED
 
 

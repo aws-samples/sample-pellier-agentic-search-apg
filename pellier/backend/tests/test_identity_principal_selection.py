@@ -538,11 +538,11 @@ def test_identity_endpoint_requires_the_exact_four_case_replay_contract(monkeypa
                 write_rows=0,
             ),
             _identity_row(
-                f"{run}-anna",
-                username="anna",
-                mapped_customer="CUST-ANNA",
-                decision="DENY",
-                audit_rows=0,
+                f"{run}-jessica-ineligible",
+                username="jessica",
+                mapped_customer="CUST-JESSICA",
+                decision="ALLOW",
+                audit_rows=1,
                 write_rows=0,
             ),
             _identity_row(
@@ -565,6 +565,8 @@ def test_identity_endpoint_requires_the_exact_four_case_replay_contract(monkeypa
             ),
         ]
     )
+
+    db.rows[1]["businessRejected"] = True
 
     async def _live_db():
         return db

@@ -66,9 +66,9 @@ export const REFERENCES = {
     label: 'Govern', path: '/observatory/govern', lab: 'fail-closed-policy',
     role: 'Authorization and effects · Lab 4',
     question: 'Which boundary allowed or stopped Jessica’s action?',
-    inspect: 'Separate verified identity, Cedar authorization, database ownership and business checks, then committed effects. Reconcile DENY, business refusal, commit, and replay using the same request identifiers.',
-    limit: 'An ALLOW is permission to attempt the tool, not a committed return. A DENY needs a policy receipt and a keyed absence check. Operator human review belongs to the separately authenticated staff path.',
-    sources: ['pellier/backend/services/governed_turn_receipt.py', 'pellier/backend/routes/observatory.py'],
+    inspect: 'Distinguish failed authentication, Cedar denial, business refusal, commit, and output suppression. For each attempt, identify the control, tool execution, and durable effect using the same operation key. Check replay and the independent Aurora RLS boundary.',
+    limit: 'Authentication failure is not a Cedar decision. An ALLOW does not establish a commit, and withholding output does not undo one. Missing evidence stays unknown. Operator human review belongs to the separately authenticated staff path.',
+    sources: ['scripts/prove_governance_outcomes.py', 'pellier/backend/services/governance_boundaries.py'],
   },
   architecture: {
     label: 'Architecture', path: '/observatory/architecture', lab: 'fail-closed-policy',

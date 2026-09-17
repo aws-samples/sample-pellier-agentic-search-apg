@@ -67,7 +67,7 @@ const AXIS_NOTES: Record<keyof Assurance, Record<string, string>> = {
       'Inferred from policy text, not a decision. No engine evaluated this action.',
   },
   aurora: {
-    OUTCOME_UNKNOWN: 'The commit response was interrupted. Recover the stored result before deciding what happened.',
+    OUTCOME_UNKNOWN: 'The response does not establish the commit outcome. Read the durable record for the same operation key before deciding what happened.',
     NOT_EVALUATED: 'No statement has reached the database.',
     NOT_REACHED: 'The database was never asked to change anything.',
     PERMITTED: 'Row-Level Security was in scope and the transaction committed.',

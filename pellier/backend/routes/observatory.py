@@ -2810,6 +2810,12 @@ async def identity_boundary(
                 gr.identity_source                         AS "identitySource",
                 gr.tool                                    AS tool,
                 gr.audit_id                                AS "auditId",
+                EXISTS (
+                    SELECT 1 FROM pellier.tool_audit ta
+                     WHERE ta.audit_id = gr.audit_id
+                       AND ta.result->>'status' = 'error'
+                       AND ta.result->>'message' LIKE '%did not order%'
+                )                                          AS "businessRejected",
                 gr.created_at                              AS "createdAt",
                 mapping.customer_ids                        AS "mappedCustomerIds",
                 (
@@ -2920,6 +2926,7 @@ async def identity_boundary(
                 "keyedAuditRows": audit_rows,
                 "durableWriteRows": record.get("keyedWriteRows") or 0,
                 "auditId": record.get("auditId"),
+                "businessRejected": record.get("businessRejected") is True,
                 "createdAt": record.get("createdAt"),
             }
         )
@@ -2970,7 +2977,7 @@ async def identity_boundary(
         # concrete contract before the Observatory calls a run held.
         expected_cases = {
             f"{run['runId']}-marco": ("marco", "CUST-MARCO", "DENY", "absent"),
-            f"{run['runId']}-anna": ("anna", "CUST-ANNA", "DENY", "absent"),
+            f"{run['runId']}-jessica-ineligible": ("jessica", "CUST-JESSICA", "ALLOW", "present"),
             f"{run['runId']}-jessica": (
                 "jessica",
                 "CUST-JESSICA",
@@ -3017,6 +3024,11 @@ async def identity_boundary(
                 continue
             if expected_decision == "DENY" and (
                 case.get("keyedAuditRows") != 0 or case.get("durableWriteRows") != 0
+            ):
+                matrix_cases_held = False
+            if receipt_key.endswith("-jessica-ineligible") and (
+                not case.get("businessRejected") or case.get("durableWriteRows") != 0
+                or case.get("keyedAuditRows") != 1
             ):
                 matrix_cases_held = False
 

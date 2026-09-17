@@ -18,6 +18,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any
+from output_guardrail import policy as output_guardrail_policy
 
 from gateway_tool_schemas import (
     OWNER_SCOPED_GATEWAY_TOOLS,
@@ -523,6 +524,7 @@ def render_project(
                 "tags": tags,
                 "policies": (
                     baseline_policies(action_token, gateway_arn=gateway_arn)
+                    + [output_guardrail_policy(gateway_arn)]
                     if include_policies
                     else []
                 ),

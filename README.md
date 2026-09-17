@@ -190,6 +190,7 @@ as one policy engine:
 | Managed execution | AgentCore Runtime with JWT passthrough | Which orchestrator ran and on which managed rail |
 | Tool contract | AgentCore Gateway defines 18 target-qualified MCP tools, 16 published at the start and 17 after Lab 3a; discovery is caller-scoped | Which callable capability and input schema the agent received |
 | Authorization | AgentCore Policy evaluates Cedar before Gateway target execution | Which of five states the call reached: `ALLOW`, `DENY`, `WOULD_DENY` (a real LOG_ONLY decision flip), `EVALUATION_INCOMPLETE` (the engine could not be read), or `POLICY_INFERRED` (a match against policy text, which is never presented as a decision) |
+| Output control | A managed `suppressOutput` policy checks the staff credit response for email addresses | A withheld response does not undo the tool's committed effect. The configured MCP output path and provider response require fresh-account rehearsal. |
 | Data authorization | Aurora SQL functions validate ownership and write invariants | Which records the permitted tool could actually read or mutate |
 | Row-level authorization | PostgreSQL RLS policies on `orders` and `returns`, enforced against the `pellier_agent` and `pellier_query` roles (neither holds `BYPASSRLS`) and scoped by the `pellier.principal_sub` GUC through `pellier.principal_customers` | That a permitted tool holding a valid token still cannot read another shopper's rows, enforced by the database rather than by application code |
 | Generated-SQL authorization | `services/governed_query.py` wraps model-generated SQL as a subquery, inspects the plan with `EXPLAIN (FORMAT JSON, VERBOSE)`, and executes read-only under a statement timeout, fixed `search_path`, schema allowlist, and row cap | That structure and privilege, not prompt wording, decide what a natural-language question may reach |
@@ -530,8 +531,20 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 | Lab 1: Build a PostgreSQL-Grounded Agent | Complete Inventory Agent and `check_inventory`, then prove Marco's answer against live inventory and `tool_audit`. |
 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Read the SQL query plan, reconstruct RRF, and widen the live candidate budget. Compare exact candidate IDs before and after, retain SQL eligibility, and justify the tradeoff. |
 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | Publish a customer-scoped read, reconcile the Runtime tool list, and deploy. Use Theo's extracted preferences in a new conversation, verify current products in Aurora, inspect Memory from a separate process, compare build fingerprints, and run the trace contract. |
-| Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule and keyed absence query. Distinguish denial, business refusal, committed return, and replay; test Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
+| Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule and keyed absence query. Prove authentication failure, Cedar denial, business refusal, commit, and managed output suppression. Test replay and Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
 | Summary | Export evidence, restore the policy baseline, explain what each boundary establishes, and map the pattern to your application. |
+
+The Lab 4 driver, `scripts/prove_governance_outcomes.py --json /tmp/pellier-evidence/lab-4-boundaries.json`,
+runs the existing return/RLS matrix once and issues two one-cent credits in the
+synthetic workshop dataset. It compares a benign response with an email canary,
+then replays the suppressed credit's key. No real payment or human approval is
+claimed. Migration 055 stores sanitized CLI observations and exact-key Aurora
+snapshots separately from policy receipts. Observatory reads them at
+`/observatory/govern/verification`; authentication failures never acquire a
+fictional principal or Cedar decision. Local tests verify the implementation,
+not live Guardrail behavior. Publish only after fresh-account rehearsal proves
+the deployed output path, benign control, suppression envelope, and unchanged
+credit cardinality.
 
 Make canonical edits to the lab manual in the Workshop Studio repo, not here.
 

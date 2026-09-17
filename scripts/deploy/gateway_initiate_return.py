@@ -419,6 +419,8 @@ def _is_authorization_denial(exc: BaseException) -> bool:
         return any(_is_authorization_denial(child) for child in children)
 
     haystack = f"{exc.__class__.__name__}: {exc}".lower()
+    if "suppress" in haystack and ("output" in haystack or "response" in haystack):
+        return False
     denial_markers = (
         "authorizeactionexception",
         # Verbatim GA Gateway deny lead-in (box-verified 2026-06-12):
@@ -511,7 +513,7 @@ def main() -> int:
                 "error_type": exc.__class__.__name__,
                 "error": _exception_summary(exc),
                 "gateway_rail": True,
-                "tool_executed": False,
+                "tool_executed": None,
                 "cedar_denial": False,
             }
             print(json.dumps(payload, indent=2, sort_keys=True))

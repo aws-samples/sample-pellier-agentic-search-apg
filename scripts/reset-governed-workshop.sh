@@ -553,7 +553,8 @@ for migration in \
   051_review_requester.sql \
   052_replacement_recovery.sql \
   053_replacement_follow_up.sql \
-  054_query_statistics.sql
+  054_query_statistics.sql \
+  055_governance_boundary_observations.sql
 do
   if [[ ! -f "$REPO/scripts/migrations/$migration" ]]; then
     fail "Missing scripts/migrations/$migration"
@@ -620,6 +621,7 @@ TRUNCATE TABLE
     -- box has neither. (No semicolon in this comment: the contract test reads
     -- the statement up to the first one.)
     pellier.policy_decisions,
+    pellier.governance_boundary_observations,
     pellier.workshop_runs,
     -- LAST in the list, because execution_receipts and operator_episodes reference it.
     -- One TRUNCATE covers them together, so no CASCADE is needed and nothing is
@@ -756,7 +758,7 @@ _verify_baseline() {
     approvals execution_receipts operator_episodes write_operations
     conversations messages observatory_spans semantic_cache
     session_metadata tool_uses retrieval_receipts model_invocation_receipts
-    policy_decisions workshop_runs
+    policy_decisions governance_boundary_observations workshop_runs
   )
   local table count bad=0
   for table in "${empty_tables[@]}"; do

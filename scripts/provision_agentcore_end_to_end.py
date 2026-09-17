@@ -2106,6 +2106,12 @@ def main() -> int:
         gateway_id = str(gateway_state["gatewayId"])
         gateway_arn = str(gateway_state["gatewayArn"])
         gateway_url = str(gateway_state.get("gatewayUrl", ""))
+        from output_guardrail import ensure_permission
+        result["verification"]["output_guardrail_configuration"] = ensure_permission(
+            boto3.client("bedrock-agentcore-control", region_name=region, config=AWS_CONFIG),
+            boto3.client("iam", region_name=region, config=AWS_CONFIG),
+            gateway_id=gateway_id, region=region,
+        )
         policy_engine_id = str(policy_state["policyEngineId"])
         if not gateway_url:
             raise RuntimeError("AgentCore CLI state did not include Gateway URL")

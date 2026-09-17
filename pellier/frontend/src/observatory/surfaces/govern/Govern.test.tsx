@@ -116,6 +116,7 @@ describe('Govern reference', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     mount('/observatory/govern/verification');
+    fireEvent.click(screen.getByText('Inspect the return and RLS subset'));
     fireEvent.click(screen.getByRole('button', { name: 'Copy Lab 4 identity and Aurora proof' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('python3 scripts/prove_identity_boundary.py'));
     expect(screen.getByText(/performs real test return attempts/)).toBeInTheDocument();
