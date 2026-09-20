@@ -123,7 +123,7 @@ const PendingReviewLink: React.FC = () => {
 }
 
 const OperatorAuthControl: React.FC = () => {
-  const { user, isAuthenticated, loading, logout } = useAuth()
+  const { user, isAuthenticated, loading, authUnavailable, logout } = useAuth()
 
   if (loading) {
     return (
@@ -132,6 +132,10 @@ const OperatorAuthControl: React.FC = () => {
         aria-label="Checking operator sign-in"
       />
     )
+  }
+
+  if (authUnavailable) {
+    return <span className="operator-auth-identity">Session unavailable</span>
   }
 
   if (isAuthenticated && user) {

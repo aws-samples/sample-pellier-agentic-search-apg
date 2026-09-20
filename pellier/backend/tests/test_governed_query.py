@@ -21,6 +21,7 @@ little:
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
 import pytest
@@ -179,6 +180,248 @@ def test_precheck_bounds_statement_length():
 
 def test_precheck_passes_a_normal_statement():
     assert gq.precheck("SELECT name FROM product_catalog") is None
+
+
+@pytest.mark.parametrize(
+    "sql,body",
+    [
+        ("SELECT 1;", "SELECT 1"),
+        ("SELECT 1; -- terminal ;", "SELECT 1 -- terminal ;"),
+        ("SELECT 1; /* terminal ; */", "SELECT 1 /* terminal ; */"),
+        ("SELECT ';' AS value;", "SELECT ';' AS value"),
+        ("SELECT 'it''s; safe' AS value;", "SELECT 'it''s; safe' AS value"),
+        (r"SELECT E'a\';b' AS value;", r"SELECT E'a\';b' AS value"),
+        (r"SELECT E'\\' AS value;", r"SELECT E'\\' AS value"),
+        (r"SELECT '\' AS value;", r"SELECT '\' AS value"),
+        (r"SELECT U&'d\0061t;a' AS value;", r"SELECT U&'d\0061t;a' AS value"),
+        ("SELECT N'value;' AS value;", "SELECT N'value;' AS value"),
+        ("SELECT B'0101' AS value;", "SELECT B'0101' AS value"),
+        ('SELECT 1 AS "column;""quoted";', 'SELECT 1 AS "column;""quoted"'),
+        ("SELECT $$; -- ( ) /* */$$ AS value;", "SELECT $$; -- ( ) /* */$$ AS value"),
+        ("SELECT $tag$; $other$'$tag$ AS value;", "SELECT $tag$; $other$'$tag$ AS value"),
+        ("SELECT $é9$x;y$é9$ AS value;", "SELECT $é9$x;y$é9$ AS value"),
+        ("SELECT 1 AS foo$tag$;", "SELECT 1 AS foo$tag$"),
+        (
+            "/* outer ; /* inner ) ; */ */ SELECT (1) -- ; )\r\n;",
+            "/* outer ; /* inner ) ; */ */ SELECT (1) -- ; )",
+        ),
+        ("SELECT 'first;'\n'second;' AS value;", "SELECT 'first;'\n'second;' AS value"),
+        (
+            "SELECT E'first'\n" + r"'\';second' AS value;",
+            "SELECT E'first'\n" + r"'\';second' AS value",
+        ),
+        (
+            "SELECT E'first' -- continued ;\r\n" + r"'\';second' AS value;",
+            "SELECT E'first' -- continued ;\r\n" + r"'\';second' AS value",
+        ),
+        (
+            "SELECT 'set_config(' AS value /* set_config('role', 'none', true); */;",
+            "SELECT 'set_config(' AS value /* set_config('role', 'none', true); */",
+        ),
+        ("SELECT 1 AS set_config;", "SELECT 1 AS set_config"),
+        ("WITH a AS (SELECT 1 AS n) SELECT sum(n) FROM a;", "WITH a AS (SELECT 1 AS n) SELECT sum(n) FROM a"),
+        ("VALUES (1), (2);", "VALUES (1), (2)"),
+    ],
+)
+def test_one_statement_preserves_quoted_data_and_a_trailing_terminator(sql, body):
+    assert gq.precheck(sql) is None
+    assert gq.wrap_statement(sql) == (
+        f"SELECT * FROM (\n{body}\n) AS governed_query LIMIT {gq.MAX_ROWS}"
+    )
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1; SELECT 2",
+        "SELECT 1;;",
+        "; SELECT 1",
+        "SELECT 1; /* nested /* ; */ */ SELECT 2",
+        "SELECT 1 -- a comment\r; SELECT 2",
+        "SELECT 1) AS escaped; RESET ROLE; SELECT * FROM (SELECT 1",
+        "SELECT 1) AS escaped; COMMIT; SELECT * FROM (SELECT 1",
+        "SELECT 1) AS escaped UNION ALL SELECT * FROM (SELECT 2",
+        r"SELECT '\'; SELECT 2",
+        "SELECT $$safe;$$; SELECT 2",
+        "SELECT $a$safe$a$; SELECT 2",
+        "SELECT 1 /* unterminated",
+        "SELECT 1 /* outer /* inner */",
+        "SELECT 'unterminated",
+        "SELECT E'ending\\",
+        'SELECT "unterminated',
+        "SELECT $tag$unterminated",
+        "SELECT (1",
+        "SELECT 1)",
+        "-- nothing but a comment",
+        "/* nothing /* nested */ else */",
+        ";",
+    ],
+)
+def test_statement_escape_or_incomplete_token_is_refused_before_wrapping(sql):
+    assert gq.precheck(sql) is not None
+    with pytest.raises(ValueError):
+        gq.wrap_statement(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT set_config('role', 'none', true)",
+        "SELECT pg_catalog.set_config('role', 'none', false)",
+        'SELECT "pg_catalog"."set_config"(\'role\', \'none\', true)',
+        "SELECT SeT_CoNfIg /* split /* nested */ */ ('role', 'none', true)",
+        "SELECT set_config('pellier.principal_sub', 'other-principal', true)",
+        "SELECT set_config('statement_timeout', '0', false)",
+        "SELECT set_config('search_path', 'pg_catalog', true)",
+        "SELECT set_config('standard_conforming_strings', 'off', false)",
+        r"""SELECT U&"set_\0063onfig"('role', 'none', true)""",
+        """SELECT U&"set_!0063onfig" UESCAPE '!' ('role', 'none', true)""",
+        """SELECT query_to_xml($$SELECT set_config('role','none',true)$$, false, false, '')""",
+        """SELECT pg_catalog."query_to_xml"('SELECT 1', false, false, '')""",
+        """SELECT ts_stat('SELECT set_config(''role'',''none'',true)')""",
+        """SELECT crosstab2('SELECT set_config(''role'',''none'',true)')""",
+        """SELECT dblink_exec('dbname=unused', 'RESET ROLE')""",
+        """SELECT database_to_xml(true, false, '')""",
+    ],
+)
+def test_session_mutators_and_hidden_sql_helpers_are_refused(sql):
+    assert gq.precheck(sql) is not None
+
+
+class _RecordingCursor:
+    """An inert connection: records exactly what would be sent to Psycopg."""
+
+    def __init__(self, *, plan=None, failure=None):
+        self.calls = []
+        self.plan = plan if plan is not None else _plan(_scan("pellier", "orders"))
+        self.failure = failure
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def execute(self, sql, **kwargs):
+        self.calls.append((sql, kwargs))
+        if self.failure == len(self.calls):
+            raise RuntimeError("inert driver refusal")
+
+    async def fetchone(self):
+        return {"QUERY PLAN": self.plan}
+
+    async def fetchall(self):
+        return [{"n": n} for n in range(6)]
+
+
+class _RecordingDatabase:
+    def __init__(self, **kwargs):
+        self.recording_cursor = _RecordingCursor(**kwargs)
+        self.prepare_threshold = 5
+        self.sessions = []
+        self.receipts = []
+
+    @asynccontextmanager
+    async def query_session(self, principal_sub, **kwargs):
+        self.sessions.append((principal_sub, kwargs))
+        yield self
+
+    def cursor(self):
+        return self.recording_cursor
+
+    async def fetch_one(self, sql, *params):
+        self.receipts.append((sql, params))
+        return {"receipt_id": 7}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prepare_threshold", [0, 5, 100])
+async def test_planner_and_execution_force_preparation_with_the_same_bounded_sql(
+    prepare_threshold,
+):
+    db = _RecordingDatabase()
+    db.prepare_threshold = prepare_threshold
+    result = await gq.run_governed_query(
+        db, "SELECT quantity AS n FROM orders; -- a terminal ;",
+        principal_sub="unit-principal", max_rows=2,
+    )
+
+    assert result.accepted and result.execution_outcome == "success"
+    assert result.rows == [{"n": 0}, {"n": 1}]
+    assert result.row_count == result.result_limit == 2
+    assert result.role_used == "pellier_query"
+    assert result.schemas_read == ["pellier"]
+    assert db.sessions == [("unit-principal", {"statement_timeout": gq.STATEMENT_TIMEOUT})]
+    control, planner, execution = db.recording_cursor.calls
+    assert control == (
+        "SELECT set_config('standard_conforming_strings', 'on', true)",
+        {"prepare": True},
+    )
+    assert planner[0] == f"EXPLAIN (FORMAT JSON, VERBOSE) {execution[0]}"
+    assert planner[1] == execution[1] == {"prepare": True}
+    assert execution[0].endswith(") AS governed_query LIMIT 2")
+    assert result.receipt_id == 7 and len(db.receipts) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_connection_that_disables_preparation_cannot_send_generated_sql():
+    db = _RecordingDatabase()
+    db.prepare_threshold = None
+    result = await gq.run_governed_query(db, "SELECT 1")
+
+    assert not result.accepted
+    assert result.validation == "rejected_structure"
+    assert result.execution_outcome == "not_executed"
+    assert "prepared statements disabled" in result.rejection_reason
+    assert db.recording_cursor.calls == []
+    assert result.receipt_id == 7 and len(db.receipts) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1) AS escaped; RESET ROLE; SELECT * FROM (SELECT 1",
+        "SELECT set_config('pellier.principal_sub', 'other-principal', true)",
+        "SELECT query_to_xml('SELECT 1', false, false, '')",
+    ],
+)
+async def test_early_refusal_opens_no_query_session_but_keeps_its_receipt(sql):
+    db = _RecordingDatabase()
+    result = await gq.run_governed_query(db, sql, principal_sub="unit-principal")
+
+    assert not result.accepted
+    assert result.validation == "rejected_precheck"
+    assert result.execution_outcome == "not_executed"
+    assert result.sql == sql
+    assert db.sessions == [] and db.recording_cursor.calls == []
+    assert result.receipt_id == 7 and len(db.receipts) == 1
+    assert db.receipts[0][1][-1] == sql
+
+
+@pytest.mark.asyncio
+async def test_a_scope_rejection_never_sends_the_execution_statement():
+    db = _RecordingDatabase(plan=_plan(_scan("pg_catalog", "pg_authid")))
+    result = await gq.run_governed_query(db, "SELECT * FROM pg_catalog.pg_authid")
+
+    assert not result.accepted and result.validation == "rejected_plan"
+    assert result.execution_outcome == "not_executed"
+    assert len(db.recording_cursor.calls) == 2
+    assert all(kwargs == {"prepare": True} for _, kwargs in db.recording_cursor.calls)
+    assert len(db.receipts) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [1, 2, 3])
+async def test_driver_failure_stops_further_commands_and_preserves_the_outcome(failure):
+    db = _RecordingDatabase(failure=failure)
+    result = await gq.run_governed_query(db, "SELECT 1")
+
+    assert len(db.recording_cursor.calls) == failure
+    assert result.accepted is (failure == 3)
+    assert result.validation == ("accepted" if failure == 3 else "rejected_structure")
+    assert result.execution_outcome == ("error" if failure == 3 else "not_executed")
+    assert result.receipt_id == 7 and len(db.receipts) == 1
 
 
 # ---------------------------------------------------------------------------

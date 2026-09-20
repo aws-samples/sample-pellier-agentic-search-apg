@@ -186,12 +186,9 @@ def _live_gateway_facts() -> Tuple[List[str], Dict[str, int]]:
     if not gateway_arn or not engine_id:
         raise RuntimeError("AgentCore Gateway/policy engine not configured")
 
-    import boto3
+    from services.managed_policy import _control_client, policy_statement, policy_summaries
 
-    client = boto3.client(
-        "bedrock-agentcore-control",
-        region_name=settings.aws_region_resolved,
-    )
+    client = _control_client()
     gateway_id = gateway_arn.rsplit("/", 1)[-1]
 
     published: List[str] = []
@@ -218,10 +215,13 @@ def _live_gateway_facts() -> Tuple[List[str], Dict[str, int]]:
     }
 
     permitted: Dict[str, int] = {name: 0 for name in qualified}
-    for policy in client.list_policies(policyEngineId=engine_id).get("policies", []):
+    for summary in policy_summaries(client, engine_id):
+        policy = client.get_policy(policyEngineId=engine_id, policyId=summary["policyId"])
         if policy.get("enforcementMode") != "ACTIVE":
             continue
-        statement = (policy.get("definition") or {}).get("cedar", {}).get("statement", "")
+        statement = policy_statement(policy)
+        if not statement.strip():
+            raise RuntimeError("Policy definition unavailable")
         flat = " ".join(statement.split())
         if not flat.startswith("permit("):
             continue

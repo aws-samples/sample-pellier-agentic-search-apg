@@ -21,6 +21,8 @@
 
 .pellier-brand {
   display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
   align-items: baseline;
   justify-self: start;
   color: var(--dl-paper);
@@ -83,7 +85,7 @@
   .pellier-brand-full { display: none; }
   .pellier-brand-small { display: inline; }
   .pellier-surface-links { justify-content: flex-end; gap: 3px; }
-  .pellier-surface-link { gap: 6px; min-height: 40px; padding: 9px 12px; }
+  .pellier-surface-link { gap: 6px; min-height: 44px; padding: 9px 12px; }
 }
 @media (max-width: 380px) {
   .pellier-surface-bar { padding-inline: 10px; gap: 8px; }

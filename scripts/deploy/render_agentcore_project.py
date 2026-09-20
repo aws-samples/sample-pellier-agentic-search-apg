@@ -32,6 +32,39 @@ from gateway_tool_schemas import (
 
 AGENTCORE_CLI = "@aws/agentcore@0.29.0"
 
+# StackProps from the pinned CLI's agentcore/cdk/bin/cdk.ts scaffold. Keep this
+# customization separate from resource naming: labels must not select a new stack.
+_CDK_STACK_TAGS = """      tags: {
+        'agentcore:project-name': spec.name,
+        'agentcore:target-name': target.name,
+      },"""
+_CDK_STACK_TAGS_WITH_PROJECT = _CDK_STACK_TAGS.replace(
+    "      tags: {\n", "      tags: {\n        ...spec.tags,\n", 1
+)
+
+
+def _customize_governed_cdk_tags(config_dir: Path) -> None:
+    """Merge project labels into the reviewed 0.29.0 StackProps tag block."""
+    entrypoint = config_dir / "cdk" / "bin" / "cdk.ts"
+    if not entrypoint.exists() and not entrypoint.parent.parent.exists():
+        # Configuration-only rendering is also supported. The provisioner creates
+        # the CLI scaffold before rendering a project that it will deploy.
+        return
+    source = entrypoint.read_text(encoding="utf-8")
+    original_count = source.count(_CDK_STACK_TAGS)
+    customized_count = source.count(_CDK_STACK_TAGS_WITH_PROJECT)
+    if original_count == 0 and customized_count == 1:
+        return
+    if original_count != 1 or customized_count != 0:
+        raise SystemExit(
+            f"Unsupported {AGENTCORE_CLI} CDK stack tags in {entrypoint}; "
+            "review the pinned scaffold before deploying governed labels"
+        )
+    entrypoint.write_text(
+        source.replace(_CDK_STACK_TAGS, _CDK_STACK_TAGS_WITH_PROJECT, 1),
+        encoding="utf-8",
+    )
+
 
 def _deployment_suffix() -> str:
     """An optional label that isolates a second deployment in one account.
@@ -361,8 +394,11 @@ def render_project(
     gateway_arn: str = "",
 ) -> Path:
     """Write agentcore.json, aws-targets.json, and four tool-schema files."""
+    governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() == "governed"
     root = project_root(repo)
     config_dir = root / "agentcore"
+    if governed:
+        _customize_governed_cdk_tags(config_dir)
     schemas_dir = root / "tool-schemas"
     backend_dir = repo / "pellier" / "backend"
     runtime_dir, build_fingerprint = _render_runtime_source(root, backend_dir)
@@ -379,6 +415,12 @@ def render_project(
         "PellierDeploymentClass": "workshop",
         "PellierRuntimeExposure": WORKSHOP_RUNTIME_EXPOSURE,
     }
+    if governed:
+        tags.update(
+            Name="pellier-governed-managed",
+            PellierVariant="governed",
+            PellierComponent="agentcore",
+        )
 
     targets: list[dict[str, Any]] = []
     for surface, schema in TOOL_SCHEMAS.items():

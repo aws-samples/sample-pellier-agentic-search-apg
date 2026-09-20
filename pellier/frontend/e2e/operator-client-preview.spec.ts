@@ -1,24 +1,37 @@
 import { expect, test } from '@playwright/test'
 
-const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5173'
-const OPERATOR_TOKEN = process.env.PELLIER_OPERATOR_TOKEN ?? ''
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:8000'
+const OPERATOR_USERNAME = process.env.E2E_OPERATOR_USERNAME ?? ''
+const OPERATOR_PASSWORD = process.env.E2E_OPERATOR_PASSWORD ?? ''
+
+// These checks sign in with live credentials. Do not retain authentication
+// requests, form values, or cookies in browser artifacts.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' })
 
 test.describe('Operator client storefront handoff', () => {
   test.skip(
-    !OPERATOR_TOKEN,
-    'PELLIER_OPERATOR_TOKEN is required for the operator-gated client reads',
+    !OPERATOR_USERNAME || !OPERATOR_PASSWORD,
+    'Dedicated Operator credentials are required for the client reads',
   )
 
-  test.use({
-    extraHTTPHeaders: OPERATOR_TOKEN
-      ? { Authorization: `Bearer ${OPERATOR_TOKEN}` }
-      : {},
-  })
-
+  // Cookies are scoped to the application origin. Never attach a bearer token
+  // to every browser request, including third-party product image requests.
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     })
+    await page.goto(`${BASE_URL}/signin?returnTo=%2Foperator`)
+    await page.getByLabel('Username', { exact: true }).fill(OPERATOR_USERNAME)
+    await page.getByLabel('Password', { exact: true }).fill(OPERATOR_PASSWORD)
+    const signedIn = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/password/sign-in'),
+    )
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    expect((await signedIn).status()).toBe(200)
+    await expect(page).toHaveURL(new URL('/operator', BASE_URL).toString())
+    await expect.poll(async () =>
+      (await page.request.get(`${BASE_URL}/api/auth/me`)).status(),
+    ).toBe(200)
   })
 
   test('the live client book stays balanced across all three membership rungs', async ({
@@ -36,9 +49,23 @@ test.describe('Operator client storefront handoff', () => {
     }
   })
 
-  test('Jessica stays a read-only client preview and exposes the evidence conflict', async ({
+  test('Jessica stays a read-only preview and reflects her recorded return evidence', async ({
     page,
   }) => {
+    const response = await page.request.get(`${BASE_URL}/api/operator/clients/CUST-JESSICA`)
+    expect(response.status()).toBe(200)
+    const record = await response.json()
+    const count = record.client.returnEvidence.authoritativeReturnCount
+    expect(count).toBe(record.returns.length)
+    expect(record.client.returnEvidence.supportAssertsReturn).toBe(true)
+    // This workshop account may already have completed return exercises.
+    // Verify the seeded catchall/robe dispute against actual authoritative rows.
+    expect(record.client.returnEvidence.disputedProductIds).toEqual(['41', '42'])
+    const conflict = !record.returns.some(
+      (row: { productId: string }) => ['41', '42'].includes(row.productId),
+    )
+    expect(record.client.returnEvidence.unconfirmedReturnAssertion).toBe(conflict)
+
     await page.goto(
       `${BASE_URL}/operator/clients/CUST-JESSICA`,
       { waitUntil: 'networkidle' },
@@ -48,9 +75,12 @@ test.describe('Operator client storefront handoff', () => {
     await expect(request).toContainText(
       'Return received, refund amount disputed',
     )
-    await expect(request).toContainText('0 authoritative rows')
+    await expect(request).toContainText(`${count} authoritative ${count === 1 ? 'row' : 'rows'}`)
+    await expect(request).toHaveAttribute('data-conflict', String(conflict))
     await expect(request).toContainText(
-      'Reconcile the assertion before promising an outcome.',
+      conflict
+        ? 'Reconcile the assertion before promising an outcome.'
+        : 'Investigate the request against current records.',
     )
 
     await page.getByTestId('operator-storefront-handoff').click()
@@ -60,10 +90,13 @@ test.describe('Operator client storefront handoff', () => {
     await expect(preview).toBeVisible()
     await expect(preview).toContainText('Jessica Nakamura')
     await expect(preview).toContainText('Read-only')
-    await expect(
-      page.getByTestId('operator-client-preview-evidence-conflict'),
-    ).toContainText('returns ledger contains 0 record')
-    await expect(page.getByTestId('persona-pill')).toContainText('Sign in')
+    const warning = page.getByTestId('operator-client-preview-evidence-conflict')
+    if (conflict) {
+      await expect(warning).toContainText(`returns ledger contains ${count} record`)
+    } else {
+      await expect(warning).toHaveCount(0)
+    }
+    await expect(page.getByTestId('persona-pill')).toHaveAccessibleName('Select scenario')
 
     await page.getByTestId('operator-client-preview-record').click()
     await expect(page).toHaveURL(/\/operator\/clients\/CUST-JESSICA$/)
@@ -75,7 +108,7 @@ test.describe('Operator client storefront handoff', () => {
   }) => {
     await page.goto(BASE_URL, { waitUntil: 'networkidle' })
     await page.getByTestId('persona-pill').click()
-    await page.getByTestId('persona-option-marco').click()
+    await page.getByTestId('persona-card-marco').click()
     await expect(page.getByTestId('persona-pill')).toContainText('Marco')
 
     await page.goto(
@@ -83,7 +116,7 @@ test.describe('Operator client storefront handoff', () => {
       { waitUntil: 'networkidle' },
     )
     await expect(page.getByTestId('operator-client-preview')).toBeVisible()
-    await expect(page.getByTestId('persona-pill')).toContainText('Sign in')
+    await expect(page.getByTestId('persona-pill')).toHaveAccessibleName('Select scenario')
     await expect(page.getByTestId('persona-pill')).not.toContainText('Marco')
   })
 

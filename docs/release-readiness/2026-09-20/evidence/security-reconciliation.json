@@ -1,0 +1,560 @@
+{
+  "reviewed_at": "2026-09-20T20:27:14.659831+00:00",
+  "source_root": "/Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass",
+  "status": "ALL_FINAL_FLAGS_DISPOSITIONED_WITH_RETAINED_LIMITATIONS",
+  "conclusion": "Zero untriaged final Bandit findings; no newly identified material defect in the reviewed final delta. Scanner coverage, targeted source review and separately owned live/release evidence retain distinct boundaries.",
+  "scan": {
+    "artifact": "/tmp/pellier-review-20260920/bandit-final-source.json",
+    "sha256": "dfa31e7cbc4fcf23dff45d33b7bd9b796dc57f8a5cfd7df45c0f4da017fd789d",
+    "generated_at": "2026-09-20T20:20:24Z",
+    "offered_files": 402,
+    "parsed_modules": 401,
+    "known_fragment_errors": 1,
+    "counts": {
+      "LOW": 7993,
+      "MEDIUM": 92,
+      "HIGH": 0
+    },
+    "total": 8085,
+    "bandit_loc": 123164,
+    "nosec": 0,
+    "skipped_tests": 0,
+    "scope": "Main enumerated tracked and nonignored untracked first-party Python, including tests, scripts and solution/reference files. This reviewer consumed the saved scan without invoking Git or a scanner."
+  },
+  "comparison": {
+    "prior_ledger": "/tmp/pellier-review-20260920/security-low-completion-b/bandit-all-firstparty-dispositions.json",
+    "prior_total": 7972,
+    "prior_counts": {
+      "LOW": 7878,
+      "MEDIUM": 94
+    },
+    "net_total": 113,
+    "net_counts": {
+      "LOW": 115,
+      "MEDIUM": -2,
+      "HIGH": 0
+    },
+    "delta_by_file_rule": [
+      {
+        "filename": "pellier/backend/tests/test_agentcore_deploy_templates.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 212,
+        "final": 222,
+        "net": 10
+      },
+      {
+        "filename": "pellier/backend/tests/test_agentcore_deploy_templates.py",
+        "rule": "B108",
+        "severity": "MEDIUM",
+        "prior": 2,
+        "final": 1,
+        "net": -1
+      },
+      {
+        "filename": "pellier/backend/tests/test_bootstrap_readiness_contract.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 293,
+        "final": 296,
+        "net": 3
+      },
+      {
+        "filename": "pellier/backend/tests/test_compare_query_lanes.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 0,
+        "final": 10,
+        "net": 10
+      },
+      {
+        "filename": "pellier/backend/tests/test_compare_query_lanes.py",
+        "rule": "B105",
+        "severity": "LOW",
+        "prior": 0,
+        "final": 1,
+        "net": 1
+      },
+      {
+        "filename": "pellier/backend/tests/test_gateway_migration_captures.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 0,
+        "final": 36,
+        "net": 36
+      },
+      {
+        "filename": "pellier/backend/tests/test_password_auth.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 27,
+        "final": 39,
+        "net": 12
+      },
+      {
+        "filename": "pellier/backend/tests/test_quiet_search_business_logic.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 0,
+        "final": 19,
+        "net": 19
+      },
+      {
+        "filename": "pellier/backend/tests/test_seed_principal_mappings.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 33,
+        "final": 45,
+        "net": 12
+      },
+      {
+        "filename": "pellier/backend/tests/test_seed_principal_mappings.py",
+        "rule": "B105",
+        "severity": "LOW",
+        "prior": 1,
+        "final": 2,
+        "net": 1
+      },
+      {
+        "filename": "pellier/backend/tests/test_seed_principal_mappings.py",
+        "rule": "B608",
+        "severity": "MEDIUM",
+        "prior": 0,
+        "final": 1,
+        "net": 1
+      },
+      {
+        "filename": "pellier/backend/tests/test_teardown_agentcore_observability.py",
+        "rule": "B101",
+        "severity": "LOW",
+        "prior": 15,
+        "final": 26,
+        "net": 11
+      },
+      {
+        "filename": "scripts/compare_query_lanes.py",
+        "rule": "B608",
+        "severity": "MEDIUM",
+        "prior": 1,
+        "final": 0,
+        "net": -1
+      },
+      {
+        "filename": "scripts/migrate_gateway_vocabulary.py",
+        "rule": "B108",
+        "severity": "MEDIUM",
+        "prior": 1,
+        "final": 2,
+        "net": 1
+      },
+      {
+        "filename": "scripts/provision_agentcore_end_to_end.py",
+        "rule": "B108",
+        "severity": "MEDIUM",
+        "prior": 2,
+        "final": 1,
+        "net": -1
+      },
+      {
+        "filename": "scripts/seed_principal_mappings.py",
+        "rule": "B608",
+        "severity": "MEDIUM",
+        "prior": 1,
+        "final": 0,
+        "net": -1
+      }
+    ],
+    "low_delta_disposition": {
+      "B101_test_assertions_net": 113,
+      "B105_synthetic_fixtures_net": 2
+    },
+    "medium_delta_disposition": {
+      "source_B608_repaired_removed": 2,
+      "source_trace_B108_repaired_removed": 1,
+      "test_B108_net_removed": 1,
+      "migration_OS_alias_B108_added": 1,
+      "test_expected_SQL_B608_added": 1
+    }
+  },
+  "accountability": {
+    "remaining_untriaged": 0,
+    "unhandled_parser_errors": 0,
+    "new_material_defects_found": 0,
+    "original_low_total": 85,
+    "original_low_nondefects": 81,
+    "original_low_repaired": 4,
+    "original_medium_total_dispositioned": 75,
+    "disposition_counts": {
+      "CLOSED_AUTHORIZED_ISOLATED_TEST_FIXTURE": 3,
+      "CLOSED_CONSTRUCTED_HTTPS_TRANSPORT": 1,
+      "CLOSED_CONTROLLED_ADVERSARIAL_TEST_PATH": 1,
+      "CLOSED_CONTROLLED_ADVERSARIAL_TEST_SQL": 4,
+      "CLOSED_EXPECTED_TEST_ASSERTION": 7709,
+      "CLOSED_SCOPE_TYPE_ASSERTION": 4,
+      "CLOSED_SOURCE_CONTEXT_NON_SECRET": 120,
+      "CLOSED_SOURCE_CONTEXT_NO_COMMAND_INJECTION": 68,
+      "CLOSED_SOURCE_CONTEXT_NO_SECURITY_DEFECT": 86,
+      "CLOSED_SOURCE_CONTEXT_PRIVATE_PATH_VALIDATION": 1,
+      "CLOSED_STATIC_FRAGMENTS_BOUND_VALUES": 7,
+      "CLOSED_TEST_SQL_EXPECTATION": 4,
+      "CLOSED_TRUSTED_TEST_SOURCE_EXECUTION": 1,
+      "FALSE_POSITIVE_CONSTRUCTED_HTTPS": 1,
+      "FALSE_POSITIVE_STATIC_OR_BOUND_SQL": 50,
+      "REPAIRED_OFFLINE_VERIFIED_MAIN_REPORTS_AURORA_PASS": 1,
+      "REPAIRED_SOURCE_REVIEW_OFFLINE_EVIDENCE": 3,
+      "REPAIRED_VERIFIED_OFFLINE": 4,
+      "RETAINED_DEPLOYMENT_CONDITIONAL_BIND": 2,
+      "TRUSTED_SCRIPT_SQL_NO_CURRENT_UNTRUSTED_PATH": 15
+    },
+    "group_counts": {
+      "ADVERSARIAL_SQL_INTEGER_IDENTIFIER": 4,
+      "ASSERT_NOT_AN_AUTHORIZATION_GATE": 4,
+      "BEST_EFFORT_CACHE_DELETE": 1,
+      "BEST_EFFORT_CONNECTION_CLOSE": 1,
+      "BEST_EFFORT_EXPORTER_CLEANUP": 2,
+      "BEST_EFFORT_STREAM_DELIVERY": 3,
+      "CONFIG_FALLBACK_FAILS_WITHOUT_AUTHORITY": 1,
+      "CONFIG_FALLBACK_OBSERVABILITY": 1,
+      "CONTROLLED_ARGV_NO_SHELL": 28,
+      "CONTROLLED_ARGV_PROOF_FAILURE_REPAIRED": 4,
+      "DIAGNOSTIC_CONTEXT_CLEANUP": 2,
+      "E2E_INPUT_NAME_OR_DRY_RUN_PLACEHOLDER": 2,
+      "GRAPHVIZ_RENDER_ARGV": 2,
+      "IMPORT_ONLY_REVIEWED_CALLERS": 14,
+      "MIGRATION_OS_TEMP_ALIAS": 1,
+      "NONSECURITY_SYNTHETIC_RANDOM": 2,
+      "NON_SECRET_NAME_LABEL_OR_BOUND": 12,
+      "OPTIONAL_CACHE_STATISTICS": 1,
+      "OPTIONAL_CONTEXT_COPY": 1,
+      "OPTIONAL_EXTENSION_SETTING": 1,
+      "OPTIONAL_QUERY_DIAGNOSTICS": 2,
+      "OPTIONAL_RESPONSE_EXTRACTION": 1,
+      "OPTIONAL_RETRY_NOTIFICATION": 1,
+      "OPTIONAL_SAMPLER_DESCRIPTION": 1,
+      "OPTIONAL_TRACE_ANNOTATION": 3,
+      "PRIVATE_DISPOSABLE_SQL_TEST_FIXTURE": 3,
+      "ROLLBACK_PRESERVES_ORIGINAL_EXCEPTION": 1,
+      "SOLUTION_BOUND_EVIDENCE_FILTERS": 4,
+      "SOLUTION_BOUND_SEARCH_FILTERS": 3,
+      "SOLUTION_COOKIE_NAME": 1,
+      "SOLUTION_FIXED_RUNTIME_HTTPS": 1,
+      "SOLUTION_SCOPE_TYPE_ASSERTIONS": 4,
+      "TEST_ASSERTIONS": 7709,
+      "TEST_CONTROLLED_PROCESS_ARGV": 65,
+      "TEST_CONTROLLED_PROCESS_STUB": 1,
+      "TEST_EXPECTED_SQL_TEXT": 4,
+      "TEST_FIXTURE_CLEANUP": 3,
+      "TEST_FIXTURE_CREDENTIAL_OR_STATUS": 117,
+      "TEST_SOURCE_EXTRACTOR": 1,
+      "TRACE_PRIVATE_OUTPUT_REGRESSION": 1,
+      "agent-audit-filters": 2,
+      "bind-app": 1,
+      "bind-config": 1,
+      "business-catalog-filters": 5,
+      "catalog-reader": 1,
+      "chat-images": 1,
+      "cleanup-receipt-input": 1,
+      "data-api-audit": 2,
+      "doctor-receipt-query": 1,
+      "episode-columns": 2,
+      "experience-schema": 3,
+      "forensic-fixture": 4,
+      "gateway-search-schema-filters": 9,
+      "generated-sql": 1,
+      "governance-outcomes": 2,
+      "governance-windows": 2,
+      "hybrid-compiled-predicates": 2,
+      "identity-proof-quoted-literals": 7,
+      "legacy-local-fixture": 2,
+      "migration-temp": 1,
+      "observatory-latest": 2,
+      "observatory-sessions": 3,
+      "persona-filter": 1,
+      "pricing-schema-filters": 3,
+      "receipt-temp": 1,
+      "recommend-schema-filters": 9,
+      "runtime-url": 1,
+      "tool-registry-placeholders": 1,
+      "vector-compiled-predicates": 1
+    },
+    "rule_counts": {
+      "B101": 7717,
+      "B102": 1,
+      "B104": 2,
+      "B105": 93,
+      "B106": 39,
+      "B108": 6,
+      "B110": 26,
+      "B310": 2,
+      "B311": 2,
+      "B404": 35,
+      "B603": 56,
+      "B607": 25,
+      "B608": 81
+    },
+    "review_methods": {
+      "exact_prior_finding_verified_current_source": 330,
+      "same_reviewed_function_remapped_current_lines": 34,
+      "final_test_assertion_inventory": 7709,
+      "independent_final_test_context_review": 5,
+      "independent_final_source_review": 4,
+      "independent_final_source_review_existing_bound_sql": 3
+    }
+  },
+  "source_consistency": {
+    "reported_contexts_checked": 8085,
+    "context_mismatches": [],
+    "owned_proof_hashes_match": {
+      "scripts/prove_governance_windows.py": true,
+      "pellier/backend/tests/test_governance_proofs.py": true,
+      "pellier/backend/services/gateway_errors.py": true,
+      "pellier/backend/services/governed_execution.py": true
+    },
+    "huygens_191_test_hashes_match": {
+      "scripts/compare_query_lanes.py": true,
+      "scripts/seed_principal_mappings.py": true,
+      "scripts/migrate_gateway_vocabulary.py": true,
+      "pellier/backend/tests/test_compare_query_lanes.py": true,
+      "pellier/backend/tests/test_seed_principal_mappings.py": true,
+      "pellier/backend/tests/test_gateway_vocabulary_migration.py": true,
+      "pellier/backend/tests/test_gateway_migration_captures.py": true
+    },
+    "changed_previously_flagged_files": [
+      "pellier/backend/routes/password_auth.py",
+      "pellier/backend/tests/test_agentcore_deploy_templates.py",
+      "pellier/backend/tests/test_bootstrap_readiness_contract.py",
+      "pellier/backend/tests/test_cognito_e2e_workflow_contract.py",
+      "pellier/backend/tests/test_gateway_vocabulary_migration.py",
+      "pellier/backend/tests/test_password_auth.py",
+      "pellier/backend/tests/test_seed_principal_mappings.py",
+      "pellier/backend/tests/test_teardown_agentcore_observability.py",
+      "scripts/compare_query_lanes.py",
+      "scripts/migrate_gateway_vocabulary.py",
+      "scripts/provision_agentcore_end_to_end.py",
+      "scripts/seed_principal_mappings.py",
+      "scripts/teardown_agentcore_observability.py",
+      "solutions/the-quiet-search/services/business_logic.py"
+    ],
+    "new_python_inventory_files": [
+      "pellier/backend/tests/test_compare_query_lanes.py",
+      "pellier/backend/tests/test_gateway_migration_captures.py",
+      "pellier/backend/tests/test_quiet_search_business_logic.py"
+    ],
+    "current_python_lines": 156088,
+    "current_python_counts_by_area": {
+      "backend": 115,
+      "tests": 206,
+      "scripts": 58,
+      "solutions": 22,
+      "other": 1
+    },
+    "full_hash_manifest": "/tmp/pellier-review-20260920/security-low-completion-b/bandit-final-source-dispositions.json"
+  },
+  "parser_accounting": {
+    "status": "RAW_ERROR_RETAINED_UNCHANGED_FRAGMENT_SUPPLEMENT_VERIFIED",
+    "raw_errors": [
+      {
+        "filename": "./solutions/closing-marcos-gap/services/check_inventory_tool_body.py",
+        "reason": "syntax error while parsing AST from file"
+      }
+    ],
+    "source": "solutions/closing-marcos-gap/services/check_inventory_tool_body.py",
+    "sha256": "ca3db02e360d233dafc8a4e43197ea4b209f6e0e8fb28a461249c40639d32bf1",
+    "supplement": "/tmp/pellier-review-20260920/security-low-completion-b/bandit-fragment-supplement.json",
+    "supplement_findings": 0,
+    "supplement_errors": 0,
+    "transformation": "One function declaration prepended; all 15 original source lines unchanged. Scanned only temporary copy; no imports/execution. Original line mapping -1.",
+    "fresh_scan_performed": false,
+    "raw_error_counted_as_pass": false
+  },
+  "fix_dispositions": [
+    {
+      "id": "SEC-CURRENT-01",
+      "status": "REPAIRED_SOURCE_REVIEW_PRIOR_OFFLINE_PROOF",
+      "title": "Private atomic deployment receipt writer",
+      "source": [
+        "scripts/provision_agentcore_end_to_end.py:292"
+      ],
+      "evidence": "Randomized exclusive 0600 temporary file; fsync; atomic replacement; prior synthetic victim preservation proof retained."
+    },
+    {
+      "id": "SEC-CURRENT-02",
+      "status": "REPAIRED_OFFLINE_VERIFIED_MAIN_REPORTS_AURORA_PASS",
+      "title": "Single-statement SQL guard and prepared protocol",
+      "source": [
+        "pellier/backend/services/governed_query.py"
+      ],
+      "evidence": "Prior owned offline proof retained; main reported 75 live Aurora cases. No new live call by this reviewer."
+    },
+    {
+      "id": "SEC-CURRENT-03",
+      "status": "REPAIRED_VERIFIED_OFFLINE",
+      "title": "Backend launcher cd failure guard",
+      "source": [
+        "pellier/START_BACKEND.sh"
+      ],
+      "evidence": "Prior owned isolated-stub test proof retained."
+    },
+    {
+      "id": "SEC-CURRENT-04",
+      "status": "REPAIRED_SOURCE_REVIEW_HASH_MATCHED_OFFLINE_EVIDENCE",
+      "title": "Migration capture and rollback trust",
+      "source": [
+        "scripts/migrate_gateway_vocabulary.py:874",
+        "scripts/migrate_gateway_vocabulary.py:920",
+        "scripts/migrate_gateway_vocabulary.py:1011",
+        "scripts/migrate_gateway_vocabulary.py:2457"
+      ],
+      "evidence": "All seven source/test hashes in Huygens 191-test artifact match current files. Private owned directories, exclusive files, bounded verified snapshots and active deployment identity are required before updates."
+    },
+    {
+      "id": "SEC-CURRENT-05",
+      "status": "REPAIRED_SOURCE_REVIEW_MAIN_OFFLINE_EVIDENCE",
+      "title": "Cleanup receipt ownership, account and region",
+      "source": [
+        "scripts/teardown_agentcore_observability.py:30",
+        "scripts/teardown_agentcore_observability.py:61",
+        "scripts/teardown_agentcore_observability.py:454"
+      ],
+      "evidence": "Unsafe receipt files fail before clients; captured account/region and active caller match; exact Runtime group and configuration checks restrict cleanup. Main 114-test log retained."
+    },
+    {
+      "id": "SEC-CURRENT-06",
+      "status": "REPAIRED_VERIFIED_OFFLINE_HASH_MATCHED",
+      "title": "Fail-closed governance proof observations and denial classification",
+      "source": [
+        "scripts/prove_governance_windows.py",
+        "pellier/backend/tests/test_governance_proofs.py"
+      ],
+      "evidence": "103 focused offline tests; all four recorded source/helper hashes unchanged. Explicit invocation denial, bounded SQL observation, checked restoration and success only after all checks."
+    },
+    {
+      "id": "SEC-CURRENT-07",
+      "status": "REPAIRED_SOURCE_REVIEW_MAIN_OFFLINE_EVIDENCE",
+      "title": "Private trace download directory",
+      "source": [
+        "scripts/provision_agentcore_end_to_end.py:1916",
+        "pellier/backend/tests/test_agentcore_deploy_templates.py:1168"
+      ],
+      "evidence": "CLI output is created and consumed within a randomized private TemporaryDirectory. Regression checks 0700 permissions and preservation of a planted legacy symlink victim."
+    },
+    {
+      "id": "SEC-CURRENT-08",
+      "status": "CLOSED_AUTHORIZED_ISOLATED_TEST_FIXTURE",
+      "title": "Bounded disposable PostgreSQL test fixture",
+      "source": [
+        "pellier/backend/tests/test_forensic_dataset_postgres.py"
+      ],
+      "evidence": "Explicitly authorized isolated fixture, independently owned by main; application remains Aurora-only. This reviewer started no DB."
+    },
+    {
+      "id": "SEC-CURRENT-09",
+      "status": "REPAIRED_SOURCE_REVIEW_MAIN_REPORTED_TESTS",
+      "title": "Legacy reference category parameter binding",
+      "source": [
+        "solutions/the-quiet-search/services/business_logic.py:41",
+        "solutions/the-quiet-search/services/business_logic.py:66",
+        "pellier/backend/tests/test_quiet_search_business_logic.py:38"
+      ],
+      "evidence": "Category is retained in params before limit; fetch_all receives the complete parameter sequence. Main reported 40 tests; current source and new assertion contexts reviewed."
+    },
+    {
+      "id": "DELTA-B-03",
+      "status": "REPAIRED_SOURCE_REVIEW_MAIN_OFFLINE_EVIDENCE",
+      "title": "Deployment-origin bare query and fragment delimiters",
+      "source": [
+        "tests/e2e/validate_deployment_inputs.py:30"
+      ],
+      "evidence": "Literal query and fragment delimiters are refused before URL equivalence and before credential use. Main 114-test evidence includes this boundary."
+    },
+    {
+      "id": "FINAL-SQL-COMPARISON",
+      "status": "REPAIRED_SOURCE_REVIEW_HASH_MATCHED_OFFLINE_EVIDENCE",
+      "title": "Owner probe does not interpolate database role text",
+      "source": [
+        "scripts/compare_query_lanes.py:127"
+      ],
+      "evidence": "SQL compares tableowner directly to current_user; previous B608 retired. Included in hash-matched 191-test artifact."
+    },
+    {
+      "id": "FINAL-SQL-SEEDER",
+      "status": "REPAIRED_SOURCE_REVIEW_HASH_MATCHED_OFFLINE_EVIDENCE",
+      "title": "Principal mapping literals use Psycopg composition",
+      "source": [
+        "scripts/seed_principal_mappings.py:229",
+        "pellier/backend/tests/test_seed_principal_mappings.py:167"
+      ],
+      "evidence": "sql.Literal quotes subjects/customer identifiers; NUL is rejected. Previous source B608 retired; new B608 is only expected test text. Included in hash-matched 191-test artifact."
+    }
+  ],
+  "retired_or_replaced_flags": [
+    {
+      "prior_group": "comparison-current-user",
+      "prior_count": 1,
+      "status": "REPAIRED_FLAG_REMOVED",
+      "fix_id": "FINAL-SQL-COMPARISON"
+    },
+    {
+      "prior_group": "principal-mapping-seeder",
+      "prior_count": 1,
+      "status": "REPAIRED_FLAG_REMOVED",
+      "fix_id": "FINAL-SQL-SEEDER"
+    },
+    {
+      "prior_group": "trace-temp",
+      "prior_count": 1,
+      "status": "REPAIRED_FLAG_REMOVED",
+      "fix_id": "SEC-CURRENT-07"
+    },
+    {
+      "prior_group": "TRACE_PATH_TEST_EXPECTATION",
+      "prior_count": 2,
+      "final_count": 1,
+      "status": "REPLACED_WITH_ADVERSARIAL_PRIVATE_OUTPUT_REGRESSION",
+      "fix_id": "SEC-CURRENT-07"
+    }
+  ],
+  "test_evidence": [
+    {
+      "scope": "Owned governance proof",
+      "passed": 103,
+      "failed": 0,
+      "source_hashes_checked": 4,
+      "artifact": "/tmp/pellier-review-20260920/security-low-completion-b/failed-proof-classification-repair/verification.json",
+      "boundary": "Existing offline evidence verified against unchanged current source; not rerun."
+    },
+    {
+      "scope": "SQL composition, comparison and migration capture",
+      "passed": 191,
+      "source_hashes_checked": 7,
+      "artifact": "/tmp/pellier-review-20260920/trusted-sql-hardening/validation-results.json",
+      "boundary": "Huygens offline evidence; all supplied source/test hashes match."
+    },
+    {
+      "scope": "Receipt, cleanup, private trace and approved origin",
+      "passed": 114,
+      "artifact": "/tmp/pellier-review-20260920/receipt-trace-origin-security.log",
+      "boundary": "Main offline log summary inspected; source repair reviewed independently, tests not rerun."
+    },
+    {
+      "scope": "Legacy reference correction",
+      "passed": 40,
+      "boundary": "Main-reported result; current binding source and regression assertions reviewed, not independently rerun."
+    }
+  ],
+  "retained_limits": [
+    "One known function-body fragment is not a standalone Python module. Raw parser failure is retained; its body hash matches the prior wrapper-only supplement with zero findings/errors.",
+    "Two deployment-conditional B104 bind findings remain conditional on the deployment boundary; 15 trusted-script SQL contexts retain their stated trust assumptions.",
+    "Two ShellCheck environment-source lookups remain PARTIAL. The previous all-warning dispositions are retained, not recast as a clean final ShellCheck run.",
+    "No final gitleaks rescan was requested or run. The last full snapshot covers 1596 files and 17 redacted flags: 15 nonsecret/test identifiers and two ignored untracked local credential candidates; validity was not tested. Prior history remains 22 flags across 1051 commits and was not expanded.",
+    "The earlier whole-code inventory was 1007 code files / 278557 lines. Final Bandit covers Python; manual security review is targeted and does not assert exhaustive semantic review of every code line or non-Python path.",
+    "Private capture manifests establish integrity within the owning OS user boundary, not authenticity against compromise of that user. Unsafe historical captures are refused.",
+    "This reconciliation performs no source edits, scanner reruns, tests, Git, live AWS, DB or application/deployment CLI execution. Main owns final backend, browser, auth and release proof."
+  ],
+  "artifacts": {
+    "summary_json": "/tmp/pellier-review-20260920/security-final-scan-reconciliation.json",
+    "summary_markdown": "/tmp/pellier-review-20260920/security-final-scan-reconciliation.md",
+    "exact_ledger": "/tmp/pellier-review-20260920/security-low-completion-b/bandit-final-source-dispositions.json"
+  },
+  "sanitization": "Source snippets, literal credential-like values and raw Bandit issue_text are omitted; source paths, line numbers, rules, hashes and dispositions are retained."
+}

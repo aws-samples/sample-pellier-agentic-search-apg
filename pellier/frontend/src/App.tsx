@@ -32,6 +32,7 @@ import { routerBasename } from './utils/assetPath'
 import './styles/premium-heading-styles.css'
 import RouteExperience from './shared/RouteExperience'
 import AppErrorBoundary from './shared/AppErrorBoundary'
+import SessionStatusNotice from './shared/SessionStatusNotice'
 import './styles/navigation-polish.css'
 
 const PellierPage = lazy(() => import('./pages/PellierPage'))
@@ -193,13 +194,15 @@ function LegacyPathRedirect() {
 
 function RouteLoading() {
   return (
-    <div
-      role="status"
-      aria-label="Loading"
-      className="min-h-[40vh] flex items-center justify-center"
+    <main
+      id="main-content"
+      tabIndex={-1}
+      data-route-loading="true"
+      className="min-h-[40vh] flex items-center justify-center gap-3"
     >
-      <span className="w-7 h-7 rounded-full border-2 border-black/10 border-t-black/50 animate-spin" />
-    </div>
+      <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-black/10 border-t-black/50 motion-safe:animate-spin" />
+      <p role="status">Loading page…</p>
+    </main>
   )
 }
 
@@ -244,6 +247,7 @@ export function AppRoutes() {
             the backend router. */}
         <Route path="/operator" element={<OperatorFrame />}>
           <Route index element={<ClientBook key="records" />} />
+          <Route path="clients" element={<Navigate to="/operator" replace />} />
           <Route path="chat" element={<ClientBook key="chat" intent="chat" />} />
           <Route path="clients/:customerId" element={<ClientRecord />} />
           {/* Prepared requests handed off from Pellier. The queue is the desk's
@@ -360,6 +364,7 @@ function App() {
                     ever reaching it. */}
                 <RouteExperience />
                 <SurfaceNavigation />
+                <SessionStatusNotice />
                 <ModalRouteGuard />
                 <ShopperChatSlot />
               <ComparisonHost />

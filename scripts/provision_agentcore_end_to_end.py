@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -289,12 +290,23 @@ def _find_runtime_log_group(logs: Any, log_group_name: str) -> dict[str, Any] | 
 
 
 def _write_result(path: Path, result: dict[str, Any]) -> None:
-    """Atomically checkpoint the deployment receipt."""
+    """Atomically checkpoint a private receipt without following a temp symlink."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    temporary.chmod(0o600)
-    temporary.replace(path)
+    payload = json.dumps(result, indent=2) + "\n"
+    fd, filename = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp",
+    )
+    temporary = Path(filename)
+    try:
+        # mkstemp creates the file exclusively with mode 0600 before any data
+        # is written. Replacing the destination replaces a symlink itself.
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _validate_log_kms_key_arn(kms_key_arn: str) -> None:
@@ -316,6 +328,45 @@ def _validate_log_kms_key_arn(kms_key_arn: str) -> None:
         )
 
 
+def _require_release_log_protection(kms_key_arn: str, retention_days: int | None) -> None:
+    """Require the declared workshop contract before provisioning resources."""
+    _validate_log_kms_key_arn(kms_key_arn)
+    if not kms_key_arn:
+        raise RuntimeError(
+            "Managed readiness requires AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN. "
+            "Use the governed workshop's Code Editor log key; an existing "
+            "deployment without an approved key is not release-ready."
+        )
+    if type(retention_days) is not int or retention_days not in _RUNTIME_LOG_RETENTION_DAYS:
+        raise RuntimeError(
+            "Managed readiness requires AGENTCORE_RUNTIME_LOG_RETENTION_DAYS "
+            "with a supported positive retention period."
+        )
+
+
+def _log_protection_checks(
+    groups: list[dict[str, Any]], *, kms_key_arn: str, retention_days: int | None,
+) -> tuple[bool, bool]:
+    """Derive verification from read-back settings, never requested values."""
+    observed = [group.get("observed") for group in groups]
+    encrypted = bool(groups) and bool(kms_key_arn) and all(
+        isinstance(group, dict) and group.get("kms_key_arn") == kms_key_arn
+        for group in observed
+    )
+    bounded = (
+        bool(groups)
+        and type(retention_days) is int
+        and retention_days in _RUNTIME_LOG_RETENTION_DAYS
+        and all(
+            isinstance(group, dict)
+            and type(group.get("retention_days")) is int
+            and group.get("retention_days") == retention_days
+            for group in observed
+        )
+    )
+    return encrypted, bounded
+
+
 def _ensure_protected_log_group(
     *,
     logs: Any,
@@ -335,6 +386,10 @@ def _ensure_protected_log_group(
             "name": log_group_name,
             "kms_key_arn": kms_key_arn,
             "retention_days": retention_days,
+            "requested": {
+                "kms_key_arn": kms_key_arn or None,
+                "retention_days": retention_days,
+            },
             "cleanup": {
                 "created_by_workshop": created_by_workshop,
                 "creation_pending": creation_pending,
@@ -405,7 +460,13 @@ def _ensure_protected_log_group(
             f"CloudWatch log group retention is incorrect: {log_group_name}"
         )
 
-    return receipt()
+    result = receipt()
+    result["observed"] = {
+        "kms_key_arn": verified.get("kmsKeyId"),
+        "retention_days": verified.get("retentionInDays"),
+    }
+    result.update(result["observed"])
+    return result
 
 
 def _deploy_claim_trigger(
@@ -834,10 +895,15 @@ def _agentcore(
     *args: str,
     env: dict[str, str],
 ) -> subprocess.CompletedProcess[str]:
+    # Pellier stores the Runtime ARN in this application variable. The pinned
+    # CLI instead reads it as an endpoint alias, including when deriving the
+    # CloudWatch log-group name. Keep the CLI's DEFAULT alias in its child
+    # process without replacing the application's ARN.
+    cli_env = {**env, "AGENTCORE_RUNTIME_ENDPOINT": "DEFAULT"}
     return _run(
         ["npx", "-y", AGENTCORE_CLI, *args],
         cwd=root,
-        env=env,
+        env=cli_env,
     )
 
 
@@ -1807,7 +1873,6 @@ def _wait_for_unified_trace(
     """Poll the pinned CLI until the smoke invocation has a complete trace."""
     deadline = time.monotonic() + TRACE_DELIVERY_TIMEOUT_SECONDS
     last_error = "trace not listed yet"
-    trace_path = Path("/tmp") / f"pellier-agentcore-trace-{session_id}.json"
 
     while time.monotonic() < deadline:
         try:
@@ -1846,30 +1911,30 @@ def _wait_for_unified_trace(
                 continue
 
             trace_id = str(match["traceId"])
-            trace_path.unlink(missing_ok=True)
-            downloaded = _agentcore(
-                root,
-                "traces",
-                "get",
-                trace_id,
-                "--runtime",
-                RUNTIME_NAME,
-                "--since",
-                TRACE_LIST_WINDOW,
-                "--output",
-                str(trace_path),
-                "--json",
-                env=env,
-            )
-            try:
+            # The CLI writes model/tool trace data. A randomized 0700 directory
+            # protects both creation and reading from shared-/tmp path races.
+            with tempfile.TemporaryDirectory(prefix="pellier-agentcore-trace-") as directory:
+                trace_path = Path(directory) / "trace.json"
+                downloaded = _agentcore(
+                    root,
+                    "traces",
+                    "get",
+                    trace_id,
+                    "--runtime",
+                    RUNTIME_NAME,
+                    "--since",
+                    TRACE_LIST_WINDOW,
+                    "--output",
+                    str(trace_path),
+                    "--json",
+                    env=env,
+                )
                 download_payload = json.loads(downloaded.stdout)
                 if download_payload.get("success") is not True:
                     raise RuntimeError(
                         "AgentCore CLI trace download did not report success"
                     )
                 records = json.loads(trace_path.read_text(encoding="utf-8"))
-            finally:
-                trace_path.unlink(missing_ok=True)
             proof = _summarize_trace_records(
                 records,
                 trace_id=trace_id,
@@ -1963,13 +2028,12 @@ def main() -> int:
         # Existing resources are adopted by ARN; this tag only labels new ones.
         "workshop_id": os.environ.get("WORKSHOP_ID", "").strip() or "dat416",
         "model_id": _require_env("AGENT_MODEL_ID"),
-        # Optional: absent means the deployment does not manage log encryption.
-        # The live installation has no customer key on any Pellier log group.
+        # Helpers can inspect unmanaged groups. Full managed readiness requires
+        # the workshop's declared key and retention before provisioning starts.
         "runtime_log_kms_key_arn": os.environ.get(
             "AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN", ""
         ).strip(),
     }
-    # Optional: absent means retention stays as deployed (never expire, live).
     runtime_log_retention_days = _runtime_log_retention_days(
         os.environ.get("AGENTCORE_RUNTIME_LOG_RETENTION_DAYS", "")
     )
@@ -2035,6 +2099,9 @@ def main() -> int:
         checkpoint()
 
     try:
+        _require_release_log_protection(
+            required["runtime_log_kms_key_arn"], runtime_log_retention_days,
+        )
         _ensure_data_api_enabled(db_region, required["db_cluster_arn"])
         local_schema = _verify_local_schema()
         result["verification"]["local_tool_schema"] = local_schema
@@ -2056,6 +2123,7 @@ def main() -> int:
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
         caller = sts.get_caller_identity()
         account_id = caller["Account"]
+        result["account_id"] = account_id
         partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
         trace_log_groups = _ensure_trace_log_groups(
             region=region,
@@ -2065,8 +2133,13 @@ def main() -> int:
         )
         result["observability"]["trace_log_groups"] = trace_log_groups
         checkpoint()
-        result["verification"]["trace_log_groups_encrypted"] = True
-        result["verification"]["trace_log_groups_retention_bounded"] = True
+        encrypted, bounded = _log_protection_checks(
+            trace_log_groups["groups"],
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+        )
+        result["verification"]["trace_log_groups_encrypted"] = encrypted
+        result["verification"]["trace_log_groups_retention_bounded"] = bounded
         transaction_search = _configure_transaction_search(
             region=region,
             account_id=account_id,
@@ -2160,8 +2233,13 @@ def main() -> int:
         )
         result["observability"]["runtime_log_group"] = runtime_log_group
         checkpoint()
-        result["verification"]["runtime_log_group_encrypted"] = True
-        result["verification"]["runtime_log_group_retention_bounded"] = True
+        encrypted, bounded = _log_protection_checks(
+            [runtime_log_group, operator_log_group],
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+        )
+        result["verification"]["runtime_log_group_encrypted"] = encrypted
+        result["verification"]["runtime_log_group_retention_bounded"] = bounded
         result["memory"] = {
             "memory_id": memory_id,
             "memory_arn": memory_state.get("memoryArn"),

@@ -7,6 +7,10 @@ on:
         description: Fresh Workshop Studio deployment URL, without a trailing slash
         required: true
         type: string
+      boundary_run:
+        description: Completed five-outcome boundary proof run from this deployment
+        required: true
+        type: string
 
 concurrency:
   group: fresh-deployment-e2e-${{ inputs.base_url }}
@@ -18,63 +22,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      id-token: write
       contents: read
     environment: workshop-e2e
     env:
       E2E_BASE_URL: ${{ inputs.base_url }}
-      E2E_COGNITO_POOL_ID: ${{ secrets.E2E_COGNITO_POOL_ID }}
-      E2E_COGNITO_CLIENT_ID: ${{ secrets.E2E_COGNITO_CLIENT_ID }}
-      E2E_COGNITO_DOMAIN: ${{ secrets.E2E_COGNITO_DOMAIN }}
+      E2E_ALLOWED_BASE_URL: ${{ vars.E2E_ALLOWED_BASE_URL }}
+      E2E_BOUNDARY_RUN: ${{ inputs.boundary_run }}
       E2E_TEST_USER_EMAIL: ${{ secrets.E2E_TEST_USER_EMAIL }}
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-      E2E_AWS_REGION: ${{ secrets.E2E_AWS_REGION }}
-      E2E_AWS_ROLE_ARN: ${{ secrets.E2E_AWS_ROLE_ARN }}
-      PELLIER_OPERATOR_TOKEN: ${{ secrets.E2E_OPERATOR_TOKEN }}
+      E2E_GOVERN_USERNAME: ${{ secrets.E2E_GOVERN_USERNAME }}
+      E2E_GOVERN_PASSWORD: ${{ secrets.E2E_GOVERN_PASSWORD }}
+      E2E_OPERATOR_USERNAME: ${{ secrets.E2E_OPERATOR_USERNAME }}
+      E2E_OPERATOR_PASSWORD: ${{ secrets.E2E_OPERATOR_PASSWORD }}
 
     steps:
-      - name: Check required deployment inputs
-        shell: bash
-        run: |
-          case "$E2E_BASE_URL" in
-            https://*) ;;
-            *) echo "base_url must be an HTTPS Workshop Studio URL" >&2; exit 1 ;;
-          esac
-          missing=()
-          for name in E2E_COGNITO_POOL_ID E2E_COGNITO_CLIENT_ID E2E_COGNITO_DOMAIN E2E_TEST_USER_EMAIL E2E_TEST_USER_PASSWORD E2E_AWS_REGION E2E_AWS_ROLE_ARN PELLIER_OPERATOR_TOKEN; do
-            if [ -z "${!name:-}" ]; then
-              missing+=("$name")
-            fi
-          done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "Missing required Workshop Studio E2E secrets: ${missing[*]}" >&2
-            exit 1
-          fi
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.E2E_AWS_ROLE_ARN }}
-          aws-region: ${{ env.E2E_AWS_REGION }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
+      - name: Check approved deployment and required live inputs
+        run: python3 tests/e2e/validate_deployment_inputs.py
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: pellier/frontend/package-lock.json
-
-      - name: Install Cognito E2E dependencies
-        working-directory: pellier/backend
-        run: python -m pip install --require-hashes -r requirements.lock
 
       - name: Install frontend dependencies
         working-directory: pellier/frontend
@@ -84,9 +57,6 @@ jobs:
         working-directory: pellier/frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Bootstrap Cognito test user
-        run: python tests/e2e/bootstrap_cognito_dev_pool.py
-
       - name: Run real deployment E2E
         working-directory: pellier/frontend
         run: |
@@ -94,12 +64,10 @@ jobs:
             e2e/workshop-smoke.spec.ts \
             e2e/persona-modal.spec.ts \
             e2e/govern-reference.spec.ts \
+            e2e/resolution-trace.spec.ts \
+            e2e/workbench-live.spec.ts \
             e2e/cognito \
             e2e/operator-client-preview.spec.ts
-
-      - name: Tear down Cognito test user
-        if: always()
-        run: python tests/e2e/teardown_cognito_dev_pool.py
 
       - name: Upload Playwright report
         if: always()

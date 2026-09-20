@@ -1,31 +1,16 @@
 #!/usr/bin/env python3
-"""Bootstrap a single E2E test user in a dedicated Cognito dev pool.
+"""Manually create one disposable Cognito test identity with an ownership receipt.
 
-This script is CI-only. It uses a CI-scoped admin role (via ambient AWS
-credentials in the CI runner, never developer laptops) to call
-``AdminCreateUser`` + ``AdminSetUserPassword`` against a Cognito User Pool
-that is **separate from the workshop infrastructure**.  Google and Apple
-IdP flows are validated via manual workshop dry-runs; this pool is
-email/password-only.
+The hosted E2E workflow uses existing identities and does not run this helper.
+Live creation requires an unused ``--receipt`` path and explicitly configured
+``E2E_COGNITO_POOL_ID``, ``E2E_COGNITO_CLIENT_ID``, ``E2E_TEST_USER_EMAIL``,
+``E2E_TEST_USER_PASSWORD`` and ``E2E_AWS_REGION`` environment variables.
+Dry run uses the same configuration, but never contacts AWS or writes files.
 
-Environment variables (all required unless ``--dry-run`` is passed):
-
-* ``E2E_COGNITO_POOL_ID``   — dedicated dev pool (must NOT contain ``prod``)
-* ``E2E_COGNITO_CLIENT_ID`` — email-only app client
-* ``E2E_TEST_USER_EMAIL``   — email for the test user (also becomes the
-  Cognito ``username``)
-* ``E2E_TEST_USER_PASSWORD`` — password meeting the pool's password policy
-* ``E2E_AWS_REGION``        — AWS region of the pool
-
-Side effects are gated behind ``main()`` so the module can be imported for
-unit testing without hitting AWS.
-
-Production safety:
-    * The pool id is checked against a denylist of substrings (``prod``,
-      ``production``, ``prd``). Any match aborts with exit code ``2``.
-    * Only ``AdminCreateUser``, ``AdminSetUserPassword`` and
-      ``AdminGetUser`` are invoked. No destructive operations are performed
-      by this script; teardown is a sibling script.
+Passwords stay in process memory. A private, nonsecret identity receipt is
+published after creation and before password setup. Existing users are refused.
+Pool-name denylisting is supplemental: an opaque pool ID cannot prove that a
+pool is nonproduction. See docs/E2E-IDENTITIES.md for scope and recovery.
 """
 
 from __future__ import annotations
@@ -33,12 +18,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 import sys
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Mapping, Optional
 
-# Substrings that signal a production pool id. Matching is case-insensitive
-# and triggers an immediate abort per the workspace production-safety rule.
+# Supplemental typo guard, not a classification of the configured pool.
 _PROD_POOL_DENYLIST: tuple[str, ...] = ("prod", "production", "prd")
 
 # Exit codes
@@ -46,6 +33,13 @@ EXIT_OK = 0
 EXIT_MISSING_CONFIG = 1
 EXIT_PROD_GUARD = 2
 EXIT_AWS_ERROR = 3
+EXIT_RECEIPT_ERROR = 4
+
+_RECEIPT_KIND = "pellier-e2e-cognito-user"
+_RECEIPT_KEYS = {
+    "version", "kind", "pool_id", "region", "requested_username", "username", "sub",
+}
+_MAX_RECEIPT_BYTES = 16_384
 
 
 @dataclass(frozen=True)
@@ -55,7 +49,7 @@ class BootstrapConfig:
     pool_id: str
     client_id: str
     email: str
-    password: str
+    password: str = field(repr=False)
     region: str
 
     @classmethod
@@ -91,29 +85,171 @@ class BootstrapConfig:
 
 
 def assert_non_production_pool(pool_id: str) -> None:
-    """Hard-guard against accidental production pool usage.
-
-    Raises ``SystemExit(EXIT_PROD_GUARD)`` if ``pool_id`` contains any
-    denylisted substring (case-insensitive).
-    """
+    """Reject denylisted labels; passing this check does not establish scope."""
     lowered = pool_id.lower()
     for needle in _PROD_POOL_DENYLIST:
         if needle in lowered:
             print(
-                f"[bootstrap_cognito_dev_pool] Refusing to operate on pool "
-                f"'{pool_id}': contains denylisted substring '{needle}'. "
-                f"This script is restricted to dedicated dev pools.",
+                "[bootstrap_cognito_dev_pool] Refusing a pool ID containing "
+                "a denylisted label. Independently verify the dedicated dev "
+                "pool and the AWS credential scope.",
                 file=sys.stderr,
             )
             raise SystemExit(EXIT_PROD_GUARD)
 
 
-def plan(cfg: BootstrapConfig) -> list[dict[str, Any]]:
-    """Return the ordered list of AWS calls we WOULD make.
+class ReceiptError(ValueError):
+    """Ownership evidence is unavailable, unsafe or inconsistent."""
 
-    Shared between ``--dry-run`` (for visibility) and the real path (so we
-    keep a single source of truth for argument shapes).
+
+def user_identity(user: Any, attributes_key: str) -> tuple[str, str]:
+    """Extract only the canonical username and unique sub from an AWS response."""
+    if not isinstance(user, dict) or not isinstance(user.get("Username"), str):
+        raise ReceiptError("Missing created username.")
+    attributes = user.get(attributes_key)
+    if not isinstance(attributes, list):
+        raise ReceiptError("Missing user attributes.")
+    subs = [
+        item.get("Value") for item in attributes
+        if isinstance(item, dict) and item.get("Name") == "sub"
+    ]
+    if (
+        not user["Username"].strip()
+        or len(subs) != 1
+        or not isinstance(subs[0], str)
+        or not subs[0].strip()
+    ):
+        raise ReceiptError("Missing or ambiguous user identity.")
+    return user["Username"], subs[0]
+
+
+def is_service_error(exc: Exception, code: str) -> bool:
+    """Only an explicit SDK service error can mean that a user is absent."""
+    try:
+        from botocore.exceptions import ClientError
+    except ImportError:
+        return False
+
+    if not isinstance(exc, ClientError):
+        return False
+    error = exc.response.get("Error")
+    return isinstance(error, dict) and error.get("Code") == code
+
+
+class ReceiptReservation:
+    """Reserve a path, then atomically publish a complete receipt without replacing it.
+
+    All file operations share a pinned directory descriptor. The exclusive
+    .pending file blocks cooperating creators, including a retry after an
+    uncertain create result. A failed publish retains the .created file.
     """
+
+    def __init__(self, receipt_path: str, cfg: BootstrapConfig):
+        path = Path(receipt_path)
+        self.name = path.name
+        self.pending_name = self.name + ".pending"
+        self.directory_fd: Optional[int] = None
+        self.scope = {
+            "pool_id": cfg.pool_id,
+            "region": cfg.region,
+            "requested_username": cfg.email,
+        }
+        try:
+            self.directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.stat(self.name, dir_fd=self.directory_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise ReceiptError("Receipt already exists.")
+            self._write_private(
+                self.pending_name,
+                {"version": 1, "status": "create-unconfirmed", **self.scope},
+            )
+            os.fsync(self.directory_fd)
+        except Exception:
+            self.close()
+            raise
+
+    def _write_private(self, name: str, payload: dict[str, Any]) -> None:
+        fd = os.open(
+            name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600, dir_fd=self.directory_fd,
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            json.dump(payload, stream, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    def publish(self, username: str, sub: str) -> None:
+        staging_name = f".{self.name}.{uuid.uuid4().hex}.created"
+        self._write_private(
+            staging_name,
+            {
+                "version": 1,
+                "kind": _RECEIPT_KIND,
+                **self.scope,
+                "username": username,
+                "sub": sub,
+            },
+        )
+        # link(), unlike replace(), atomically fails if a file or symlink won
+        # the destination race. Keep staging evidence if any later step fails.
+        os.link(
+            staging_name, self.name,
+            src_dir_fd=self.directory_fd, dst_dir_fd=self.directory_fd,
+            follow_symlinks=False,
+        )
+        os.fsync(self.directory_fd)
+        os.unlink(staging_name, dir_fd=self.directory_fd)
+        os.unlink(self.pending_name, dir_fd=self.directory_fd)
+        os.fsync(self.directory_fd)
+
+    def close(self) -> None:
+        if self.directory_fd is not None:
+            os.close(self.directory_fd)
+            self.directory_fd = None
+
+    def __enter__(self) -> "ReceiptReservation":
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        self.close()
+
+
+def load_receipt(receipt_path: str) -> dict[str, Any]:
+    """Read private regular-file evidence without following a leaf symlink."""
+    fd = os.open(receipt_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "r", encoding="utf-8") as stream:
+        info = os.fstat(stream.fileno())
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or stat.S_IMODE(info.st_mode) != 0o600
+            or info.st_uid != os.geteuid()
+            or info.st_nlink != 1
+            or info.st_size > _MAX_RECEIPT_BYTES
+        ):
+            raise ReceiptError("Receipt must be a private, owned, regular file.")
+        receipt = json.loads(stream.read(_MAX_RECEIPT_BYTES + 1))
+    if (
+        not isinstance(receipt, dict)
+        or set(receipt) != _RECEIPT_KEYS
+        or type(receipt["version"]) is not int
+        or receipt["version"] != 1
+        or receipt["kind"] != _RECEIPT_KIND
+        or any(
+            not isinstance(receipt[key], str) or not receipt[key].strip()
+            for key in _RECEIPT_KEYS - {"version"}
+        )
+    ):
+        raise ReceiptError("Receipt is not complete creation evidence.")
+    return receipt
+
+
+def plan(cfg: BootstrapConfig) -> list[dict[str, Any]]:
+    """Describe conditional calls without exposing the environment password."""
     return [
         {
             "service": "cognito-idp",
@@ -125,6 +261,7 @@ def plan(cfg: BootstrapConfig) -> list[dict[str, Any]]:
                     {"Name": "email", "Value": cfg.email},
                     {"Name": "email_verified", "Value": "true"},
                 ],
+                "ForceAliasCreation": False,
                 "MessageAction": "SUPPRESS",
                 "DesiredDeliveryMediums": ["EMAIL"],
             },
@@ -132,9 +269,10 @@ def plan(cfg: BootstrapConfig) -> list[dict[str, Any]]:
         {
             "service": "cognito-idp",
             "operation": "AdminSetUserPassword",
+            "requires": "successful create and atomic private identity receipt",
             "params": {
                 "UserPoolId": cfg.pool_id,
-                "Username": cfg.email,
+                "Username": "<username returned by AdminCreateUser>",
                 "Password": "***redacted***",
                 "Permanent": True,
             },
@@ -142,87 +280,98 @@ def plan(cfg: BootstrapConfig) -> list[dict[str, Any]]:
     ]
 
 
-def _emit_credentials(cfg: BootstrapConfig, out_path: Optional[str]) -> None:
-    """Emit the bootstrapped credentials for the Playwright runner.
-
-    When ``out_path`` is provided, writes a JSON object there; otherwise
-    prints the same JSON to stdout. Playwright specs read these via env
-    vars ``E2E_TEST_USER_EMAIL`` / ``E2E_TEST_USER_PASSWORD``, but some CI
-    providers prefer a file artifact for the next step to consume.
-    """
-    payload = {"email": cfg.email, "password": cfg.password}
-    if out_path:
-        with open(out_path, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh)
-        # Do NOT echo the password to stdout when writing a file.
-        print(
-            f"[bootstrap_cognito_dev_pool] Wrote credentials to {out_path}",
-            file=sys.stderr,
-        )
-    else:
-        print(json.dumps(payload))
-
-
 def bootstrap(
     cfg: BootstrapConfig,
     *,
     dry_run: bool,
-    out_path: Optional[str] = None,
+    receipt_path: Optional[str] = None,
     client: Any = None,
 ) -> int:
-    """Bootstrap a single test user.
-
-    ``client`` is injectable so unit tests can pass a stub; production
-    callers leave it ``None`` and boto3 is imported lazily.
-    """
+    """Create a new identity; never reset or adopt an existing user."""
     assert_non_production_pool(cfg.pool_id)
 
     steps = plan(cfg)
     if dry_run:
         print(
-            "[bootstrap_cognito_dev_pool] DRY RUN — the following AWS calls "
-            "would be made (no boto3 client will be created):"
+            "[bootstrap_cognito_dev_pool] DRY RUN — conditional call plan; "
+            "no AWS client or files are created. Live creation requires an "
+            "unused --receipt path:"
         )
         print(json.dumps(steps, indent=2))
-        _emit_credentials(cfg, out_path)
         return EXIT_OK
 
-    if client is None:
-        # Lazy import so ``python -c 'import bootstrap_cognito_dev_pool'``
-        # never pulls boto3 on machines that don't have it installed.
-        import boto3  # type: ignore[import-not-found]
+    if not receipt_path:
+        print("[bootstrap_cognito_dev_pool] Live creation requires --receipt.", file=sys.stderr)
+        return EXIT_MISSING_CONFIG
 
-        client = boto3.client("cognito-idp", region_name=cfg.region)
-
+    create_attempted = False
     try:
-        # AdminCreateUser — idempotent-ish: if the user already exists from
-        # a previous failed run, we fall through to AdminSetUserPassword
-        # which will reset the password and mark it Permanent.
-        try:
-            client.admin_create_user(**steps[0]["params"])
-        except client.exceptions.UsernameExistsException:  # type: ignore[attr-defined]
-            print(
-                f"[bootstrap_cognito_dev_pool] User {cfg.email} already "
-                f"exists in pool {cfg.pool_id}; resetting password.",
-                file=sys.stderr,
-            )
+        with ReceiptReservation(receipt_path, cfg) as reservation:
+            try:
+                if client is None:
+                    import boto3
 
-        # AdminSetUserPassword — Permanent=True so the user can sign in
-        # immediately without the FORCE_CHANGE_PASSWORD challenge.
-        client.admin_set_user_password(
-            UserPoolId=cfg.pool_id,
-            Username=cfg.email,
-            Password=cfg.password,
-            Permanent=True,
-        )
-    except Exception as exc:  # noqa: BLE001 — surface every AWS failure
+                    client = boto3.client("cognito-idp", region_name=cfg.region)
+                create_attempted = True
+                response = client.admin_create_user(**steps[0]["params"])
+            except Exception as exc:
+                if (
+                    is_service_error(exc, "UsernameExistsException")
+                    or is_service_error(exc, "AliasExistsException")
+                ):
+                    message = "Existing user or alias refused; no password was changed."
+                else:
+                    message = "Create failed or its outcome is uncertain; no password was set."
+                print(
+                    f"[bootstrap_cognito_dev_pool] {message} "
+                    "Keep the private .pending evidence for reconciliation.",
+                    file=sys.stderr,
+                )
+                return EXIT_AWS_ERROR
+
+            try:
+                username, sub = user_identity(response.get("User"), "Attributes")
+                reservation.publish(username, sub)
+            except (OSError, ValueError, AttributeError, TypeError):
+                print(
+                    "[bootstrap_cognito_dev_pool] Create returned, but its identity "
+                    "receipt could not be published. No password was set. Keep the "
+                    "receipt directory, including .pending and .created evidence.",
+                    file=sys.stderr,
+                )
+                return EXIT_RECEIPT_ERROR
+
+            try:
+                client.admin_set_user_password(
+                    UserPoolId=cfg.pool_id,
+                    Username=username,
+                    Password=cfg.password,
+                    Permanent=True,
+                )
+            except Exception:
+                # AWS/transport error text can contain request data. Do not echo it.
+                print(
+                    "[bootstrap_cognito_dev_pool] Password setup failed or its "
+                    "outcome is uncertain. The identity receipt is retained; "
+                    "use receipt-verified teardown to clean up.",
+                    file=sys.stderr,
+                )
+                return EXIT_AWS_ERROR
+    except (OSError, ValueError):
         print(
-            f"[bootstrap_cognito_dev_pool] AWS error: {exc}",
+            "[bootstrap_cognito_dev_pool] Receipt file operation failed. "
+            "Retain the receipt directory and its evidence. "
+            + (
+                "Use an unused receipt path in an existing directory; "
+                "no AWS create was attempted."
+                if not create_attempted else
+                "A create was attempted; reconcile the retained evidence."
+            ),
             file=sys.stderr,
         )
-        return EXIT_AWS_ERROR
+        return EXIT_RECEIPT_ERROR
 
-    _emit_credentials(cfg, out_path)
+    print("[bootstrap_cognito_dev_pool] Created user; password configured; identity receipt retained.")
     return EXIT_OK
 
 
@@ -242,11 +391,11 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--out",
+        "--receipt",
         default=None,
         help=(
-            "Optional path to write {email, password} JSON. When omitted, "
-            "JSON is written to stdout (useful for CI ``outputs``)."
+            "Required for live creation: unused path for a private, nonsecret "
+            "identity receipt. No credentials are written."
         ),
     )
     return parser.parse_args(argv)
@@ -255,7 +404,7 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[list[str]] = None) -> int:
     args = _parse_args(argv)
     cfg = BootstrapConfig.from_env(os.environ)
-    return bootstrap(cfg, dry_run=args.dry_run, out_path=args.out)
+    return bootstrap(cfg, dry_run=args.dry_run, receipt_path=args.receipt)
 
 
 if __name__ == "__main__":  # pragma: no cover — CLI entrypoint

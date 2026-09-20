@@ -820,6 +820,8 @@ fi
 _agentcore() {
   (
     cd "$AGENTCORE_PROJECT"
+    # The CLI expects an endpoint alias; Pellier's parent environment stores an ARN.
+    export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
     if command -v agentcore >/dev/null 2>&1; then
       command agentcore "$@"
     else

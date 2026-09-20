@@ -39,6 +39,9 @@ export default function RouteExperience() {
       if (!main || main.getClientRects().length === 0) return
       if (!main.id) main.id = 'main-content'
       main.tabIndex = -1
+      // A delayed lazy route has a usable skip target of its own. Keep
+      // watching until the actual page replaces it, even on a slow network.
+      if (main.dataset.routeLoading === 'true') return
 
       if (navigationType === 'POP' && savedPosition !== undefined) {
         window.scrollTo({ top: savedPosition, behavior: 'instant' })
@@ -77,7 +80,6 @@ export default function RouteExperience() {
     arrive()
     const stopRestore = () => resizeObserver?.disconnect()
     const deadline = window.setTimeout(() => {
-      observer?.disconnect()
       stopRestore()
     }, 2000)
     const rememberPosition = () => {

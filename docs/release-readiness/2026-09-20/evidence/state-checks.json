@@ -1,0 +1,304 @@
+[
+  {
+    "id": "state-sessions-empty-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-sessions-empty-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-sessions-unavailable-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-sessions-unavailable-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-sessions-signin-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-sessions-signin-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-session-denied-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-session-denied-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-boundaries-empty-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-boundaries-empty-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-boundaries-unavailable-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-boundaries-unavailable-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-boundaries-denied-no-fatal-render",
+    "result": "PASS",
+    "pageErrors": []
+  },
+  {
+    "id": "state-boundaries-denied-no-horizontal-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "state-sessions-loading-loading-announced",
+    "result": "PASS",
+    "liveRegions": [
+      {
+        "role": "status",
+        "busy": null,
+        "label": "Loading sessions",
+        "text": "Loading sessions\u2026"
+      }
+    ]
+  },
+  {
+    "id": "state-sessions-loading-no-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390,
+    "overflowElements": []
+  },
+  {
+    "id": "state-session-loading-narrow-reduced-loading-announced",
+    "result": "PASS",
+    "liveRegions": [
+      {
+        "role": "status",
+        "busy": null,
+        "label": "Loading session",
+        "text": "Loading session evidence\u2026"
+      }
+    ]
+  },
+  {
+    "id": "state-session-loading-narrow-reduced-no-overflow",
+    "result": "PASS",
+    "width": 320,
+    "viewport": 320,
+    "overflowElements": []
+  },
+  {
+    "id": "state-session-loading-narrow-reduced-motion-reduced",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "state-lazy-loading-reduced-named-loading",
+    "result": "PASS"
+  },
+  {
+    "id": "state-lazy-loading-reduced-reduced-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "state-lazy-loading-reduced-resolves",
+    "result": "PASS"
+  },
+  {
+    "id": "state-lazy-error-error-visible",
+    "result": "PASS"
+  },
+  {
+    "id": "state-lazy-error-public-navigation-recovers",
+    "result": "PASS",
+    "title": "Pellier | Your Personal Shopping Concierge",
+    "active": {
+      "tag": "DIV",
+      "id": "",
+      "testid": null,
+      "name": "01Welcome to PellierBegin with the edit.Choose a point of view, then browse a collection shaped by the details that matt",
+      "insideMain": false,
+      "insideDialog": true,
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(24, 26, 31, 0.26) 0px 28px 70px 0px",
+      "borderColor": "rgba(24, 26, 31, 0.16)",
+      "backgroundColor": "rgb(251, 248, 242)",
+      "focusVisible": true,
+      "x": 15,
+      "y": 158.8125,
+      "width": 360,
+      "height": 526.359375
+    }
+  },
+  {
+    "id": "reduced-desktop-workbench-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-desktop-workbench-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-desktop-workbench-no-overflow",
+    "result": "PASS",
+    "width": 1440,
+    "viewport": 1440
+  },
+  {
+    "id": "reduced-desktop-operator-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-desktop-operator-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-desktop-operator-no-overflow",
+    "result": "PASS",
+    "width": 1440,
+    "viewport": 1440
+  },
+  {
+    "id": "reduced-desktop-verification-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-desktop-verification-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-desktop-verification-no-overflow",
+    "result": "PASS",
+    "width": 1440,
+    "viewport": 1440
+  },
+  {
+    "id": "reduced-mobile-workbench-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-mobile-workbench-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-mobile-workbench-no-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "reduced-mobile-operator-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-mobile-operator-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-mobile-operator-no-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "reduced-mobile-verification-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-mobile-verification-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-mobile-verification-no-overflow",
+    "result": "PASS",
+    "width": 390,
+    "viewport": 390
+  },
+  {
+    "id": "reduced-narrow-workbench-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-narrow-workbench-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-narrow-workbench-no-overflow",
+    "result": "PASS",
+    "width": 320,
+    "viewport": 320
+  },
+  {
+    "id": "reduced-narrow-operator-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-narrow-operator-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-narrow-operator-no-overflow",
+    "result": "PASS",
+    "width": 320,
+    "viewport": 320
+  },
+  {
+    "id": "reduced-narrow-verification-media",
+    "result": "PASS"
+  },
+  {
+    "id": "reduced-narrow-verification-no-continuous-motion",
+    "result": "PASS",
+    "animations": []
+  },
+  {
+    "id": "reduced-narrow-verification-no-overflow",
+    "result": "PASS",
+    "width": 320,
+    "viewport": 320
+  },
+  {
+    "id": "text-scale-200-govern-auth-no-overflow",
+    "result": "PASS",
+    "width": 1280,
+    "viewport": 1280
+  }
+]

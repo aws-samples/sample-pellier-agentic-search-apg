@@ -63,7 +63,8 @@ class BusinessLogic:
             LIMIT %s
         """
         
-        results = await self.db.fetch_all(query, limit)
+        params.append(limit)
+        results = await self.db.fetch_all(query, *params)
         
         products = [convert_decimals(dict(row)) for row in results]
         

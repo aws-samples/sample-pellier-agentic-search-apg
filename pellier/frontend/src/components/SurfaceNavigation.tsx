@@ -42,11 +42,13 @@ export default function SurfaceNavigation() {
 
   return (
     <div className="pellier-surface-bar" data-testid="surface-navigation">
+      <nav aria-label="Pellier home">
       <Link to="/" className="pellier-brand" aria-label="Pellier home">
         <span className="pellier-brand-full" aria-hidden="true">pellier</span>
         <span className="pellier-brand-small" aria-hidden="true">p</span>
         <span className="pellier-brand-dot" aria-hidden="true">.</span>
       </Link>
+      </nav>
       <nav aria-label="Pellier surfaces" className="pellier-surface-links">
         {SURFACES.map(surface => (
           <Link

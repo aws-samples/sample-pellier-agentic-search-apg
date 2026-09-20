@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 from functools import lru_cache
 
 import boto3
@@ -29,6 +30,7 @@ from routes.auth import (
 
 router = APIRouter(prefix="/api/auth/password", tags=["auth"])
 CSRF_COOKIE = "password_csrf"
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -137,11 +139,17 @@ async def sign_in(request: Request, service: CognitoAuthService = Depends(get_co
     tokens = result.get("AuthenticationResult") or {}
     access_token = tokens.get("AccessToken")
     if not access_token:
+        logger.warning("Cognito sign-in returned no access token")
         raise HTTPException(502, "auth_unavailable")
     try:
         await service.validate_jwt(access_token)
-    except HTTPException:
-        raise HTTPException(502, "auth_unavailable") from None
+    except HTTPException as exc:
+        # Keep the provider/verifier failure diagnosable without logging the
+        # credentials, returned JWT, claims, or an exception's message.
+        cause = exc.__cause__ or exc.__context__ or exc
+        logger.warning("Cognito sign-in verification failed: %s", type(cause).__name__)
+        status = 503 if exc.status_code == 503 else 502
+        raise HTTPException(status, "auth_unavailable") from None
     target = body.get("returnTo")
     return_to = _safe_return_to(target if isinstance(target, str) else None) or "/"
     response = _response({"status": "signed_in", "returnTo": return_to})

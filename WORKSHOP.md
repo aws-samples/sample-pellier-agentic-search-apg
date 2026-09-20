@@ -201,8 +201,10 @@ the three-turn continuity check; the two should not be described as the same pro
 
 Jessica's return requires the correct identity, an eligible order, and one effect.
 
-**Predict:** the same return workflow can be denied by policy, refused by a
-business rule, committed, or replayed without another effect.
+**Predict:** authentication can fail before Cedar is evaluated. An authenticated
+return can be denied by policy, refused by a business rule, committed, or replayed
+without another effect. A managed output check can suppress a credit response
+after the credit has committed.
 
 **Build 4a:** complete the Cedar identity-to-customer condition. Compare the
 verified customer claim with the requested customer. Keep Aurora's independent
@@ -221,11 +223,17 @@ identity is the only input that varies across all four cases. The policy denial
 must have a matching positive control; four zeros alone could mean the query
 searched the wrong run or key.
 
-**Check:** run the four cases, the independent RLS read/write probes, and the
-participant's absence query. Sign in as `operator` and investigate Jessica's
-service issue. The exploratory turn runs Case Investigator and Resolution
-Planner. It does not itself promise a new approval record. Stop before any
-consequential action; additional proposal prompts are optional.
+**Check:** run the guide's five-outcome proof. It includes the four return cases
+above, independent RLS read/write probes, an unsigned Gateway request, two
+one-cent workshop credits, and a credit replay. Run the participant's absence
+query with its allowed-key positive control. Inspect authorization, execution,
+and committed effects separately; suppressing a response does not roll back a
+write. Use synthetic workshop data and retain partial or contradictory results.
+
+Sign in as `operator` and investigate Jessica's service issue. The exploratory
+turn runs Case Investigator and Resolution Planner. It does not itself promise
+a new approval record. Stop before an additional consequential action;
+proposal prompts are optional.
 
 **Explain:** authentication, Cedar authorization, business validity, RLS,
 execution, idempotency, and human approval are separate controls. A direct Gateway
@@ -240,7 +248,8 @@ establishes return eligibility, and which controls still decide whether it can
 execute?
 
 The build receipt checks eight source artifacts and run-scoped Aurora evidence.
-Keep the separate Memory, trace, retrieval evaluation, identity, and RLS artifacts.
+Keep the separate Memory, trace, retrieval evaluation, five-outcome, identity,
+and RLS artifacts.
 A marker edit alone does not prove behavior; an unreadable evidence source remains
 unchecked. Download the evidence before the event account closes.
 

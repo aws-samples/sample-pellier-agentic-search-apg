@@ -1,0 +1,40 @@
+[
+  {
+    "id": "mobile-boundary-table-keyboard-scroll",
+    "result": "PASS",
+    "before": 0,
+    "after": 40
+  },
+  {
+    "id": "mobile-selector-focus-unobscured",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-boundary-table-contained",
+    "result": "PASS",
+    "width": 390
+  },
+  {
+    "id": "mobile-boundary-select-named",
+    "result": "PASS"
+  },
+  {
+    "id": "narrow-boundary-table-keyboard-scroll",
+    "result": "PASS",
+    "before": 0,
+    "after": 40
+  },
+  {
+    "id": "narrow-selector-focus-unobscured",
+    "result": "PASS"
+  },
+  {
+    "id": "narrow-boundary-table-contained",
+    "result": "PASS",
+    "width": 320
+  },
+  {
+    "id": "narrow-boundary-select-named",
+    "result": "PASS"
+  }
+]

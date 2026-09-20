@@ -350,6 +350,25 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
                     f"trace log group {group.get('name')!r} must capture cleanup ownership"
                 )
 
+    observed_groups = [
+        _value(payload, "observability.runtime_log_group"),
+        _value(payload, "observability.operator_runtime_log_group"),
+        *(trace_groups if isinstance(trace_groups, list) else []),
+    ]
+    for group in observed_groups:
+        if not isinstance(group, dict):
+            continue
+        for evidence_type in ("requested", "observed"):
+            evidence = group.get(evidence_type)
+            if not isinstance(evidence, dict) or any(
+                evidence.get(setting) != group.get(setting)
+                for setting in ("kms_key_arn", "retention_days")
+            ):
+                errors.append(
+                    f"log group {group.get('name')!r} must record matching "
+                    f"{evidence_type} encryption and retention settings"
+                )
+
     transaction_cleanup = _value(
         payload, "observability.transaction_search.cleanup"
     )

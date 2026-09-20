@@ -14,6 +14,16 @@
 main:focus { outline: none; }
 main, [id='shop'] { scroll-margin-top: 88px; }
 
+/* Reserve both sticky navigation rows when the browser scrolls keyboard focus. */
+html:has(.observatory-root) {
+  scroll-padding-block-start: calc(var(--pellier-surface-bar-height, 64px) + 88px);
+}
+@media (max-width: 820px) {
+  html:has(.observatory-root) {
+    scroll-padding-block-start: calc(var(--pellier-surface-bar-height, 56px) + 140px);
+  }
+}
+
 .pellier-nav-link {
   position: relative;
   display: inline-flex;
@@ -92,4 +102,33 @@ main, [id='shop'] { scroll-margin-top: 88px; }
 @media (prefers-reduced-motion: reduce) {
   .pellier-nav-link::after, .pellier-nav-link, .pellier-retry { transition: none; }
   .observatory-workbench-grid > section { animation: none; }
+}
+.pellier-session-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--cream-warm);
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule-1);
+  font-size: 0.9375rem;
+}
+
+.pellier-session-notice p {
+  margin: 0;
+}
+
+.pellier-session-notice button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.pellier-session-notice button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }

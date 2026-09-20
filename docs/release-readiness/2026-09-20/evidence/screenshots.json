@@ -1,0 +1,34 @@
+[
+  {
+    "file": "screenshots/desktop-jessica-record.webp",
+    "capturedAt": "2026-09-20T20:38:27.529Z",
+    "sourceSha256": "fb490e09aa3be75c123b697c0d206820a82f8816faac745a8cf093c2181b5565",
+    "sha256": "54f7904bdd15a7ecb738e4932d955349e123b99c36902bb52e0da14419eee007",
+    "derivation": "WebP encoding of fresh PNG capture; no content edits",
+    "scope": "Real Aurora records in review-owned final-build browser; no fixture response interception"
+  },
+  {
+    "file": "screenshots/laptop-jessica-preview.webp",
+    "capturedAt": "2026-09-20T20:38:27.529Z",
+    "sourceSha256": "32f07cfe43ba7aa4053c93022ad1454d6794a8160b6020eba7d647eb73e40014",
+    "sha256": "e236bb21e8076603209be16e405eb4b1ad79435b6cf9ee913dc90481281d9739",
+    "derivation": "WebP encoding of fresh PNG capture; no content edits",
+    "scope": "Real Aurora records in review-owned final-build browser; no fixture response interception"
+  },
+  {
+    "file": "screenshots/mobile-client-book.webp",
+    "capturedAt": "2026-09-20T20:38:27.529Z",
+    "sourceSha256": "5583f1ea5caa706a1c79183e44ef1c08810334e602a9af605809cae9864790d3",
+    "sha256": "8ecb6c222cf01fc3db3697b2ba7b9b7b9d112db3d142761034fe5fea0b0aaee0",
+    "derivation": "WebP encoding of fresh PNG capture; no content edits",
+    "scope": "Real Aurora records in review-owned final-build browser; no fixture response interception"
+  },
+  {
+    "file": "screenshots/mobile-jessica-record.webp",
+    "capturedAt": "2026-09-20T20:38:27.529Z",
+    "sourceSha256": "fcdcd0ec53f8364fa87368ea59823bd1d35c6a20bfcbccd22a3e70b435ac01e4",
+    "sha256": "61368a8d0b0246fbae4ceb9921b9ff718c78cfb5ed6c67b00901b78db2fdcbeb",
+    "derivation": "WebP encoding of fresh PNG capture; no content edits",
+    "scope": "Real Aurora records in review-owned final-build browser; no fixture response interception"
+  }
+]

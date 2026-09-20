@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,13 @@ def _load_script() -> Any:
 
 def _receipt() -> dict[str, Any]:
     return {
+        "region": "us-east-1",
+        "runtime": {
+            "runtime_arn": (
+                "arn:aws:bedrock-agentcore:us-east-1:123456789012:"
+                "runtime/pellier_orchestrator-abc123"
+            ),
+        },
         "observability": {
             "transaction_search": {
                 "cleanup": {
@@ -128,6 +136,71 @@ def test_cleanup_rejects_an_arbitrary_runtime_log_group() -> None:
         )
 
 
+@pytest.mark.parametrize("runtime_id", [
+    "pellier_pellier_orchestrator-abc123",
+    "pellierrc_pellier_rc_orchestrator-abc123",
+])
+def test_cleanup_accepts_the_exact_captured_cli_runtime(runtime_id: str) -> None:
+    module = _load_script()
+    receipt = _receipt()
+    receipt["runtime"]["runtime_arn"] = (
+        f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{runtime_id}"
+    )
+    name = f"/aws/bedrock-agentcore/runtimes/{runtime_id}-DEFAULT"
+    receipt["observability"]["runtime_log_group"]["name"] = name
+    assert module.cleanup_plan(receipt)[-1]["log_group_name"] == name
+
+
+def test_cleanup_includes_the_separate_operator_runtime() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    runtime_id = "pellierrc_pellier_rc_operator-abc123"
+    receipt["operator_runtime"] = {
+        "runtime_arn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{runtime_id}",
+    }
+    name = f"/aws/bedrock-agentcore/runtimes/{runtime_id}-DEFAULT"
+    receipt["observability"]["operator_runtime_log_group"] = {
+        "name": name, "kms_key_arn": WORKSHOP_KMS_KEY, "retention_days": 30,
+        "cleanup": {"created_by_workshop": True},
+    }
+    assert module.cleanup_plan(receipt)[-1]["log_group_name"] == name
+
+
+def test_cleanup_rejects_a_different_pellier_runtime_than_the_receipt() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    receipt["observability"]["runtime_log_group"]["name"] = (
+        "/aws/bedrock-agentcore/runtimes/pellierrc_pellier_rc_orchestrator-other-DEFAULT"
+    )
+    with pytest.raises(ValueError, match="must match the captured"):
+        module.cleanup_plan(receipt)
+
+
+def test_cleanup_requires_captured_runtime_identity() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    del receipt["runtime"]
+    with pytest.raises(ValueError, match="must match the captured"):
+        module.cleanup_plan(receipt)
+
+
+def test_cleanup_cannot_smuggle_an_unrelated_group_into_trace_destinations() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    receipt["observability"]["trace_log_groups"]["groups"][0]["name"] = "/aws/lambda/unrelated"
+    with pytest.raises(ValueError, match="unexpected trace log group"):
+        module.cleanup_plan(receipt)
+
+
+def test_cleanup_rejects_duplicate_log_groups() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    groups = receipt["observability"]["trace_log_groups"]["groups"]
+    groups.append(dict(groups[0]))
+    with pytest.raises(ValueError, match="repeats a log group"):
+        module.cleanup_plan(receipt)
+
+
 def test_dry_run_does_not_create_aws_clients(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -136,6 +209,7 @@ def test_dry_run_does_not_create_aws_clients(
     module = _load_script()
     receipt = tmp_path / "receipt.json"
     receipt.write_text(json.dumps(_receipt()), encoding="utf-8")
+    receipt.chmod(0o600)
     monkeypatch.setattr(
         module.boto3,
         "client",
@@ -144,9 +218,167 @@ def test_dry_run_does_not_create_aws_clients(
         ),
     )
 
-    assert module.main(["--receipt", str(receipt), "--dry-run"]) == 0
+    assert module.main([
+        "--receipt", str(receipt), "--region", "us-east-1", "--dry-run",
+    ]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert len(payload["plan"]) == 5
+
+
+@pytest.mark.parametrize("unsafe_kind", [
+    "symlink", "hardlink", "readable", "writable", "fifo", "oversized",
+])
+def test_untrusted_receipts_fail_before_any_aws_call(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unsafe_kind: str,
+) -> None:
+    module = _load_script()
+    target = tmp_path / "captured.json"
+    target.write_text(json.dumps(_receipt()), encoding="utf-8")
+    target.chmod(0o600)
+    receipt = tmp_path / "receipt.json"
+    if unsafe_kind == "symlink":
+        receipt.symlink_to(target)
+    elif unsafe_kind == "hardlink":
+        os.link(target, receipt)
+    elif unsafe_kind == "fifo":
+        os.mkfifo(receipt, 0o600)
+    else:
+        receipt.write_bytes(target.read_bytes())
+        receipt.chmod(0o644 if unsafe_kind == "readable" else 0o666)
+        if unsafe_kind == "oversized":
+            receipt.chmod(0o600)
+            with receipt.open("a", encoding="utf-8") as stream:
+                stream.write(" " * (4 * 1024 * 1024))
+    before = target.read_bytes()
+    monkeypatch.setattr(
+        module.boto3, "client",
+        lambda *_a, **_k: pytest.fail("untrusted receipt created an AWS client"),
+    )
+    assert module.main([
+        "--receipt", str(receipt), "--region", "us-east-1",
+        "--confirm-workshop-cleanup",
+    ]) == 1
+    assert target.read_bytes() == before
+
+
+def test_receipt_from_another_user_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    module = _load_script()
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text(json.dumps(_receipt()), encoding="utf-8")
+    receipt.chmod(0o600)
+    owner = receipt.stat().st_uid
+    monkeypatch.setattr(module.os, "geteuid", lambda: owner + 1)
+    with pytest.raises(ValueError, match="owned private regular"):
+        module._load_receipt(receipt)
+
+
+def test_receipt_changed_during_read_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    module = _load_script()
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text(json.dumps(_receipt()), encoding="utf-8")
+    receipt.chmod(0o600)
+    original_load = json.load
+
+    def read_then_change(stream):
+        payload = original_load(stream)
+        with receipt.open("a", encoding="utf-8") as writer:
+            writer.write(" ")
+        return payload
+
+    monkeypatch.setattr(module.json, "load", read_then_change)
+    with pytest.raises(ValueError, match="changed while being read"):
+        module._load_receipt(receipt)
+
+
+@pytest.mark.parametrize("change", [
+    "missing-region", "wrong-region", "wrong-resource-region",
+    "mixed-account", "missing-account", "empty",
+])
+def test_cleanup_scope_fails_before_any_aws_call(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, change: str,
+) -> None:
+    module = _load_script()
+    payload = _receipt()
+    if change == "missing-region":
+        payload.pop("region")
+    elif change == "wrong-region":
+        payload["region"] = "us-west-2"
+    elif change == "wrong-resource-region":
+        payload["runtime"]["runtime_arn"] = payload["runtime"]["runtime_arn"].replace(
+            ":us-east-1:", ":us-west-2:",
+        )
+    elif change == "mixed-account":
+        payload["account_id"] = "999999999999"
+    elif change == "missing-account":
+        payload = {"region": "us-east-1", "observability": payload["observability"]}
+    else:
+        payload = {}
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text(json.dumps(payload), encoding="utf-8")
+    receipt.chmod(0o600)
+    monkeypatch.setattr(
+        module.boto3, "client",
+        lambda *_a, **_k: pytest.fail("invalid scope created an AWS client"),
+    )
+    assert module.main([
+        "--receipt", str(receipt), "--region", "us-east-1",
+        "--confirm-workshop-cleanup",
+    ]) == 1
+
+
+@pytest.mark.parametrize("active_account, expected_status", [
+    ("999999999999", 1), ("123456789012", 0),
+])
+def test_cleanup_checks_active_account_before_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    active_account: str, expected_status: int,
+) -> None:
+    module = _load_script()
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text(json.dumps(_receipt()), encoding="utf-8")
+    receipt.chmod(0o600)
+    clients = []
+    executed = []
+
+    class Identity:
+        def get_caller_identity(self):
+            return {"Account": active_account}
+
+    def client(service, **kwargs):
+        clients.append(service)
+        assert service == "sts"
+        assert kwargs["region_name"] == "us-east-1"
+        return Identity()
+
+    def execute(**kwargs):
+        executed.append(kwargs)
+        return []
+
+    monkeypatch.setattr(module.boto3, "client", client)
+    monkeypatch.setattr(module, "execute_cleanup", execute)
+    assert module.main([
+        "--receipt", str(receipt), "--region", "us-east-1",
+        "--confirm-workshop-cleanup",
+    ]) == expected_status
+    assert clients == ["sts"]
+    assert bool(executed) is (expected_status == 0)
+    if executed:
+        assert executed[0]["region"] == "us-east-1"
+        assert executed[0]["plan"] == module.cleanup_plan(_receipt())
+
+
+def test_partial_provisioning_receipt_can_bind_account_wide_cleanup() -> None:
+    module = _load_script()
+    receipt = {
+        "region": "us-east-1",
+        "account_id": "123456789012",
+        "observability": _receipt()["observability"],
+    }
+    assert module._receipt_account(receipt, "us-east-1") == "123456789012"
 
 
 def test_execute_cleanup_is_idempotent(
@@ -247,6 +479,7 @@ def test_execute_cleanup_is_idempotent(
 def test_cleanup_restores_preexisting_policy_and_log_group_state() -> None:
     module = _load_script()
     receipt = {
+        "runtime": _receipt()["runtime"],
         "observability": {
             "transaction_search": {
                 "cleanup": {

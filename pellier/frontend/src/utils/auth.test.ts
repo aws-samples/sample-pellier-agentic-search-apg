@@ -44,6 +44,7 @@ function installLocation(initial: { pathname?: string; search?: string } = {}) {
 describe('openSignInChooser', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('routes to /signin?returnTo=<current path+search> by default', async () => {
@@ -194,6 +195,47 @@ describe('services/api 401 interceptor', () => {
     expect(chooserUrl).toBe(
       `/signin?returnTo=${encodeURIComponent('/products?q=linen')}`,
     )
+  })
+
+  it.each([429, 500, 503])('preserves the current page when refresh returns %s', async status => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status }))
+    const { apiClient } = await import('../services/api')
+    apiClient.axios.defaults.adapter = async config => {
+      throw Object.assign(new Error('expired access'), { config, response: { status: 401 } })
+    }
+    await expect(apiClient.axios.get('/api/products')).rejects.toMatchObject({
+      code: 'ERR_AUTH_UNAVAILABLE', response: { status: 503 },
+    })
+    expect(window.location.assign).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('coalesces concurrent refreshes and allows a later retry after a network failure', async () => {
+    const { refreshAuthTokens } = await import('../services/api')
+    fetchMock.mockRejectedValueOnce(new TypeError('offline'))
+    const results = await Promise.allSettled([refreshAuthTokens(), refreshAuthTokens()])
+    expect(results.map(result => result.status)).toEqual(['rejected', 'rejected'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await expect(refreshAuthTokens()).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(window.location.assign).not.toHaveBeenCalled()
+  })
+
+  it('bounds a refresh that never responds without sending the user to sign-in', async () => {
+    const { refreshAuthTokens, AUTH_REFRESH_TIMEOUT_MS } = await import('../services/api')
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementationOnce((_input, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError')))
+      }))
+      const result = expect(refreshAuthTokens()).rejects.toMatchObject({ name: 'AbortError' })
+      await vi.advanceTimersByTimeAsync(AUTH_REFRESH_TIMEOUT_MS)
+      await result
+      expect(window.location.assign).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('falls through to the chooser on a second 401 (retried request still 401s)', async () => {

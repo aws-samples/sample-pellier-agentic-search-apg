@@ -174,13 +174,10 @@ async def test_mutation_attempts_are_refused_and_change_nothing(db, label, sql):
     """Assert state, not error text: the row count must be untouched."""
     # `orders.customer_id` has a foreign key to `customers.id`, so the row has
     # to belong to a seeded customer; it is removed by id afterwards.
-    await db.execute_query(
+    seeded = (await db.fetch_one(
         "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES ('CUST-MARCO', '11', 1)"
-    )
-    seeded = (
-        await db.fetch_one("SELECT max(id) AS id FROM pellier.orders")
-    )["id"]
+        " VALUES ('CUST-MARCO', '11', 1) RETURNING id"
+    ))["id"]
     before = (
         await db.fetch_one("SELECT count(*) AS n FROM pellier.orders")
     )["n"]
@@ -435,9 +432,8 @@ async def test_the_earliest_rejection_is_still_receipted(db):
     that stops getting one — and it is the case with no other trace anywhere,
     since nothing was sent to Aurora at all.
 
-    An oversized statement rather than a stacked one: `precheck` only makes
-    the rejections it can make without a parser, so `SELECT 1; DROP ...` is
-    the *planner's* to refuse (`rejected_structure`), not this stage's.
+    An oversized statement exercises the length bound. Stacked statements
+    are also refused here by the lexical single-statement check.
     """
     from services.governed_query import MAX_SQL_LENGTH
 
@@ -460,3 +456,88 @@ async def test_the_earliest_rejection_is_still_receipted(db):
             "DELETE FROM pellier.governed_query_receipts WHERE receipt_id = %s",
             receipt_id,
         )
+
+
+# ---------------------------------------------------------------------------
+# Statement boundary, quoting controls, and session-configuration escapes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sql,expected",
+    [
+        ("SELECT 'it''s; safe' AS value;", {"value": "it's; safe"}),
+        (r"SELECT E'a\';b' AS value;", {"value": "a';b"}),
+        (r"SELECT '\' AS value;", {"value": "\\"}),
+        ("SELECT E'first'\n" + r"'\';second' AS value;", {"value": "first';second"}),
+        ("SELECT $tag$; -- ( )$tag$ AS value;", {"value": "; -- ( )"}),
+        ("SELECT $é9$x;y$é9$ AS value;", {"value": "x;y"}),
+        ('SELECT 1 AS "column;""quoted";', {'column;"quoted': 1}),
+        (
+            "/* outer ; /* inner ) */ */ SELECT (1) AS value; -- ; )",
+            {"value": 1},
+        ),
+        ("SELECT 'set_config(' AS value;", {"value": "set_config("}),
+        (r"SELECT U&'d\0061t;a' AS value;", {"value": "dat;a"}),
+    ],
+)
+@pytest.mark.asyncio(loop_scope="module")
+async def test_quoted_separators_and_a_single_terminator_are_real_queries(db, sql, expected):
+    result = await _run(db, sql)
+
+    assert result.accepted, result.rejection_reason
+    assert result.execution_outcome == "success", result.rejection_reason
+    assert result.rows == [expected]
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1) AS escaped; RESET ROLE; SELECT * FROM (SELECT 1",
+        "SELECT 1) AS escaped; COMMIT; SELECT * FROM (SELECT 1",
+        "SELECT 1) AS escaped; SET LOCAL ROLE NONE; SELECT * FROM (SELECT 1",
+        "SELECT 1) AS escaped UNION ALL SELECT * FROM (SELECT 2",
+        "SELECT 1; /* nested /* ; */ */ SELECT 2",
+        r"SELECT '\'; SELECT 2",
+        "SELECT set_config('role', 'none', true)",
+        "SELECT pg_catalog.set_config('role', 'none', false)",
+        """SELECT "pg_catalog"."set_config"('statement_timeout', '0', false)""",
+        "SELECT SeT_CoNfIg /* split /* nested */ */ ('role', 'none', true)",
+        "SELECT set_config('pellier.principal_sub', 'other-principal', true)",
+        "SELECT set_config('standard_conforming_strings', 'off', false)",
+        r"""SELECT U&"set_\0063onfig"('role', 'none', true)""",
+        """SELECT query_to_xml($$SELECT set_config('role','none',true)$$, false, false, '')""",
+        """SELECT ts_stat('SELECT set_config(''role'',''none'',true)')""",
+        """SELECT crosstab2('SELECT set_config(''role'',''none'',true)')""",
+    ],
+)
+@pytest.mark.asyncio(loop_scope="module")
+async def test_boundary_escapes_are_refused_and_the_next_query_stays_scoped(db, sql):
+    principal = f"guard-{_RUN}"
+    result = await _run(db, sql, principal_sub=principal)
+
+    assert not result.accepted
+    assert result.validation == "rejected_precheck"
+    assert result.execution_outcome == "not_executed"
+    assert result.receipt_id
+
+    # Observe enforced values on a real query after each attempt. This does
+    # not pretend a pool checkout is necessarily the same physical session;
+    # the offline contract separately asserts no query session was opened.
+    control = await _run(
+        db,
+        "SELECT current_user AS role,"
+        " current_setting('transaction_read_only') AS read_only,"
+        " current_setting('statement_timeout') AS timeout,"
+        " current_setting('pellier.principal_sub', true) AS principal,"
+        " current_setting('standard_conforming_strings') AS standard_strings",
+        principal_sub=principal,
+    )
+    assert control.accepted and control.execution_outcome == "success"
+    assert control.rows == [{
+        "role": "pellier_query",
+        "read_only": "on",
+        "timeout": "3s",
+        "principal": principal,
+        "standard_strings": "on",
+    }]

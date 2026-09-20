@@ -1,0 +1,62 @@
+
+ RUN  v4.1.11 /Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass/pellier/frontend
+
+ ❯ src/contexts/AuthContext.test.tsx (11 tests | 2 failed) 606ms
+     × retains preferences only for the same verified identity during an outage 107ms
+     × does not apply an earlier identity’s saved-preference response to a new session 54ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/contexts/AuthContext.test.tsx > AuthContext hydration > retains preferences only for the same verified identity during an outage
+AssertionError: expected { vibe: [], colors: [], …(2) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "categories": [],
+  "colors": [],
+  "occasions": [],
+  "vibe": [],
+}
+
+ ❯ src/contexts/AuthContext.test.tsx:238:40
+    236|     act(() => { refresh = result.current.refresh() })
+    237|     await waitFor(() => expect(result.current.user?.sub).toBe('user-2'…
+    238|     expect(result.current.preferences).toBeNull()
+       |                                        ^
+    239|     expect(result.current.preferencesUnavailable).toBe(true)
+    240|     await act(async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/contexts/AuthContext.test.tsx > AuthContext hydration > does not apply an earlier identity’s saved-preference response to a new session
+AssertionError: expected { vibe: [], colors: [], …(2) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "categories": [],
+  "colors": [],
+  "occasions": [],
+  "vibe": [],
+}
+
+ ❯ src/contexts/AuthContext.test.tsx:265:40
+    263|     })
+    264|     expect(result.current.user?.sub).toBe('user-2')
+    265|     expect(result.current.preferences).toBeNull()
+       |                                        ^
+    266|     expect(result.current.prefsVersion).toBe(0)
+    267|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 9 passed (11)
+   Start at  16:35:15
+   Duration  1.39s (transform 56ms, setup 167ms, import 43ms, tests 606ms, environment 449ms)

@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import types
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -95,6 +96,33 @@ def test_agentcore_cli_is_pinned_once() -> None:
     source = PROVISIONER_PATH.read_text()
     assert "AGENTCORE_CLI" in source
     assert "@aws/agentcore@latest" not in source
+
+
+@pytest.mark.parametrize("command", [("traces", "list"), ("traces", "get"), ("invoke",)])
+def test_cli_endpoint_alias_does_not_inherit_or_replace_application_arn(
+    tmp_path: Path, monkeypatch, command: tuple[str, ...],
+) -> None:
+    provisioner = _load_provisioner()
+    application_env = {
+        "AGENTCORE_RUNTIME_ENDPOINT": (
+            "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test-runtime"
+        ),
+        "AWS_REGION": "us-east-1",
+    }
+    observed = {}
+
+    def run(args, *, cwd, env):
+        observed.update(args=args, cwd=cwd, env=env)
+        return subprocess.CompletedProcess(args, 0, stdout='{"success": true}')
+
+    monkeypatch.setattr(provisioner, "_run", run)
+    result = provisioner._agentcore(tmp_path, *command, env=application_env)
+    assert result.returncode == 0
+    assert observed["env"]["AGENTCORE_RUNTIME_ENDPOINT"] == "DEFAULT"
+    assert observed["env"]["AWS_REGION"] == application_env["AWS_REGION"]
+    assert observed["args"][-len(command):] == list(command)
+    assert observed["cwd"] == tmp_path
+    assert application_env["AGENTCORE_RUNTIME_ENDPOINT"].startswith("arn:")
 
 
 def test_operator_runtime_is_separate_from_the_shopper_jwt_endpoint(tmp_path: Path) -> None:
@@ -614,6 +642,8 @@ def test_runtime_log_group_is_customer_encrypted_and_retention_bounded(
         "name": "/aws/bedrock-agentcore/runtimes/pellier_orchestrator-abc123-DEFAULT",
         "kms_key_arn": kms_key_arn,
         "retention_days": 30,
+        "requested": {"kms_key_arn": kms_key_arn, "retention_days": 30},
+        "observed": {"kms_key_arn": kms_key_arn, "retention_days": 30},
         "cleanup": {
             "created_by_workshop": False,
             "creation_pending": False,
@@ -1141,12 +1171,16 @@ def test_trace_poll_uses_pinned_cli_and_downloads_the_matching_session(
 ) -> None:
     provisioner = _load_provisioner()
     trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
-    session_id = f"runtime-proof-{tmp_path.name}-0000000000000001"
+    session_id = f"runtime-proof-{uuid.uuid4().hex}"
     runtime_arn = (
         "arn:aws:bedrock-agentcore:us-east-1:123456789012:"
         "runtime/pellier_orchestrator-abc123"
     )
     calls: list[tuple[str, ...]] = []
+    outputs: list[Path] = []
+    legacy_path = Path(f"/tmp/pellier-agentcore-trace-{session_id}.json")
+    legacy_path.symlink_to(tmp_path / "unrelated-target.json")
+    legacy_path.write_text("unrelated local file", encoding="utf-8")
 
     def _agentcore(
         _root: Path, *args: str, env: dict[str, str]
@@ -1172,6 +1206,10 @@ def test_trace_poll_uses_pinned_cli_and_downloads_the_matching_session(
                 stderr="",
             )
         output = Path(args[args.index("--output") + 1])
+        outputs.append(output)
+        assert output.parent.stat().st_mode & 0o777 == 0o700
+        assert output.parent.stat().st_uid == os.geteuid()
+        assert not output.exists()
         output.write_text(
             json.dumps(
                 _unified_trace_records(
@@ -1191,21 +1229,26 @@ def test_trace_poll_uses_pinned_cli_and_downloads_the_matching_session(
     # contract; a redacting Runtime would keep polling for a trace without it.
     monkeypatch.setenv("OTEL_REDACT_MODEL_CONTENT", "0")
 
-    proof = provisioner._wait_for_unified_trace(
-        root=tmp_path,
-        session_id=session_id,
-        runtime_arn=runtime_arn,
-        env={},
-    )
+    try:
+        proof = provisioner._wait_for_unified_trace(
+            root=tmp_path,
+            session_id=session_id,
+            runtime_arn=runtime_arn,
+            env={},
+        )
+        assert legacy_path.is_symlink()
+        assert legacy_path.read_text() == "unrelated local file"
+    finally:
+        legacy_path.unlink(missing_ok=True)
 
     assert proof["trace_id"] == trace_id
     assert proof["listed_span_count"] == 3
     assert proof["runtime_log_group"].endswith(
         "/pellier_orchestrator-abc123-DEFAULT"
     )
-    assert not Path(
-        f"/tmp/pellier-agentcore-trace-{session_id}.json"
-    ).exists()
+    assert len(outputs) == 1
+    assert not outputs[0].exists()
+    assert not outputs[0].parent.exists()
     assert calls == [
         (
             "traces",
@@ -1227,10 +1270,46 @@ def test_trace_poll_uses_pinned_cli_and_downloads_the_matching_session(
             "--since",
             "30m",
             "--output",
-            f"/tmp/pellier-agentcore-trace-{session_id}.json",
+            str(outputs[0]),
             "--json",
         ),
     ]
+
+
+def test_failed_trace_download_removes_its_private_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    provisioner = _load_provisioner()
+    session_id = f"runtime-proof-{uuid.uuid4().hex}"
+    outputs: list[Path] = []
+    clock = iter([0.0, 0.0, 2.0])
+    monkeypatch.setattr(provisioner, "TRACE_DELIVERY_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr(provisioner.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(provisioner.time, "sleep", lambda _seconds: None)
+
+    def command(_root: Path, *args: str, **_kwargs):
+        if args[:2] == ("traces", "list"):
+            return subprocess.CompletedProcess(
+                args, 0, stdout=json.dumps({
+                    "success": True,
+                    "traces": [{"traceId": "trace-id", "sessionId": session_id}],
+                }),
+            )
+        output = Path(args[args.index("--output") + 1])
+        assert output.parent.stat().st_mode & 0o777 == 0o700
+        output.write_text("partial trace", encoding="utf-8")
+        outputs.append(output)
+        raise RuntimeError("download failed")
+
+    monkeypatch.setattr(provisioner, "_agentcore", command)
+    with pytest.raises(RuntimeError, match="download failed"):
+        provisioner._wait_for_unified_trace(
+            root=tmp_path, session_id=session_id,
+            runtime_arn="arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test",
+            env={},
+        )
+    assert len(outputs) == 1
+    assert not outputs[0].parent.exists()
 
 
 def test_deploy_sequence_validates_both_cli_phases(

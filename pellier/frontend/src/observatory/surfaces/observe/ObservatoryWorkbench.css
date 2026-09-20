@@ -2621,11 +2621,6 @@
   color: var(--pl-accent);
 }
 
-.observatory-focus-steps button[data-state='done'] {
-  color: var(--pl-olive);
-  border-color: var(--pl-olive-line);
-}
-
 /* One column while a single panel is on screen. */
 .observatory-workbench-grid[data-view='focus'] {
   grid-template-columns: minmax(0, 1fr);

@@ -110,7 +110,7 @@ def policy_snapshot() -> dict[str, Any]:
                 }
                 try:
                     detail = client.get_policy(policyEngineId=engine_id, policyId=policy_id)
-                    cedar = (detail.get("definition") or {}).get("cedar", {}).get("statement")
+                    cedar = managed_policy.policy_statement(detail)
                     mode = detail.get("enforcementMode")
                     item.update({
                         "name": detail.get("name") or item["name"],

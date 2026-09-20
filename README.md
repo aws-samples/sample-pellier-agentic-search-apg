@@ -33,6 +33,11 @@ The quality badge reports GitHub's branch checks. Deployment E2E is a separate,
 manually triggered check against a real Workshop Studio environment. Neither
 badge reports the health of your local preview.
 
+Maintainers can use the [governed deployment profile](docs/GOVERNED-DEPLOYMENT.md)
+to preserve existing managed resource identities, and the
+[E2E identity guide](docs/E2E-IDENTITIES.md) to configure live browser checks and
+receipt-verified cleanup of disposable test users.
+
 ---
 
 ## Workshop abstract
@@ -218,18 +223,32 @@ movement agree. Adding them to the required path would broaden the architecture
 without strengthening the transaction claim.
 
 The observability provisioner changes account-level X-Ray Transaction Search
-delivery and creates three workshop log groups. Inspect the bounded cleanup plan
+delivery and protects four log groups: two Runtime payload groups and two shared
+trace destinations. Inspect the bounded cleanup plan
 before an event account is retired, then run it while the workshop role still
 exists:
 
 ```bash
-python3 scripts/teardown_agentcore_observability.py --dry-run
-python3 scripts/teardown_agentcore_observability.py --confirm-workshop-cleanup
+python3 scripts/teardown_agentcore_observability.py \
+  --receipt /tmp/pellier-agentcore-managed.json --region us-east-1 --dry-run
+python3 scripts/teardown_agentcore_observability.py \
+  --receipt /tmp/pellier-agentcore-managed.json --region us-east-1 \
+  --confirm-workshop-cleanup
 ```
 
 The receipt records the prior account-level destination, resource policy, KMS,
 and retention state. Cleanup restores resources that already existed and
-deletes only log groups or policy state created by this workshop run.
+deletes only log groups or policy state recorded as created by this workshop run
+whose current configuration still matches. Run as the receipt's owner; the file
+must be private (0600), regular, and have one filesystem link. Cleanup checks the
+captured Region and the active AWS account before creating mutation clients.
+Recover a missing or untrusted capture from a verified private backup; changing
+its permissions alone does not establish its provenance.
+
+This command handles observability only. The participant's policy reset, the
+independent AgentCore CLI stack, external tool Lambdas, and the Studio parent have
+separate lifecycles. See [governed deployment ownership](docs/GOVERNED-DEPLOYMENT.md)
+before retiring a deployment or any shared dependency.
 
 ### Memory model
 
@@ -325,7 +344,7 @@ retrieval-engineering work belongs in the separate Mosaic Builder Session.
 
 ## Quick start (local dev)
 
-Start from the repository root with Python 3.14, Node.js 20 or newer, `psql`,
+Start from the repository root with Python 3.14, Node.js 24 LTS, `psql`,
 and AWS credentials for the workshop account. A private Aurora connection also
 needs AWS CLI, the Session Manager plugin, `jq`, and `lsof`.
 
@@ -459,38 +478,29 @@ Use the account supplied by your facilitator. Operator access requires membershi
 in `pellier-operators`; a successful customer sign-in does not grant staff access.
 Passwords and access tokens do not belong in the README or committed files.
 
-### Local PostgreSQL journey rehearsal
+### Fixture boundaries
 
-After migrations `001-030` and the catalog seed have been applied to a local
-`pellier_dev` database, prepare the Theo shopper-to-operator checkpoint and
-survey Jessica's deliberately contradictory evidence:
+Run the governed application and participant journeys against the authorized
+Aurora workshop environment. Use fresh shopper conversations, current database
+records, and managed-service evidence for release checks.
 
-```bash
-# Read-only survey of the current local state.
-python3 scripts/seed_local_golden_journeys.py
-
-# Add only Theo's pending review and immutable shopper handoff.
-python3 scripts/seed_local_golden_journeys.py --apply
-
-# Verify the resulting local state.
-python3 scripts/seed_local_golden_journeys.py
-```
-
-The helper refuses non-loopback hosts and database names that do not end in
-`_dev`. It never confirms or executes the review and never writes an AgentCore
-or Cedar verdict. Local PostgreSQL proves the application workflow and durable
-lineage; the managed Runtime, Gateway, Memory, and Policy proofs still require
-the workshop AWS environment.
+The legacy `scripts/seed_local_golden_journeys.py` helper is restricted to
+loopback `_dev` databases. It can create a synthetic pending review and shopper
+handoff for isolated development; it does not run a shopper or Operator journey,
+confirm an action, or prove AgentCore or Cedar behavior. It is outside the
+participant path. Isolated SQL fixture tests likewise do not establish Aurora
+deployment, identity, or fresh-account readiness.
 
 ### AgentCore CLI (pinned)
 
-Pellier uses the Node-based AgentCore CLI (`@aws/agentcore`, Node.js ≥ 20), **pinned to the version this workshop is tested against**:
+Pellier uses the Node-based AgentCore CLI on Node.js 24 LTS. The CLI package is
+pinned to the version this workshop validates:
 
 ```bash
-npx -y @aws/agentcore@0.29.0 --version
+AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y @aws/agentcore@0.29.0 --version
 cd .agentcore-project/pellier
-npx -y @aws/agentcore@0.29.0 validate --json
-npx -y @aws/agentcore@0.29.0 deploy --yes --json
+AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y @aws/agentcore@0.29.0 validate --json
+AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y @aws/agentcore@0.29.0 deploy --yes --json
 ```
 
 The workshop bootstrap installs the same pin globally and provides an
@@ -500,11 +510,12 @@ CLI is the only control-plane authority for AgentCore resources in this repo.
 Lambda execution roles. Other Python and AWS CLI helpers remain limited to
 authentication, Memory data seeding, and post-deploy verification.
 
-Claude Code is a separate participant helper. Bootstrap installs the latest
-CLI release without a package-version pin and uses its `sonnet` alias through
-Amazon Bedrock, so the helper follows the current Sonnet model available at
-workshop time. Pellier's application model IDs remain explicit because the
-preflight invokes those exact profiles before declaring the environment ready.
+Claude Code is a separate participant helper. Bootstrap installs the explicit
+`CLAUDE_CODE_VERSION` from `scripts/bootstrap-environment.sh` and sets
+`ANTHROPIC_MODEL` to the configured Bedrock model profile. The facilitator dry run
+uses that same profile. Changing the package or model pin requires repeating the
+guided build and model-access checks. Pellier's application model IDs are also
+explicit, and preflight invokes those exact profiles before declaring readiness.
 
 ### Facilitator note: `SPA_MOUNT_PATH`
 

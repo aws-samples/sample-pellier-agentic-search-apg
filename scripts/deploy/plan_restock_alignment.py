@@ -129,7 +129,7 @@ def _baseline_policy(live: Dict[str, Any]) -> Dict[str, Any]:
 def _statement_of(policy: Dict[str, Any]) -> str:
     definition = policy.get("definition") or {}
     static = definition.get("static") or {}
-    return str(static.get("statement") or policy.get("statement") or "")
+    return MIG.policy_statement(policy) or str(static.get("statement") or policy.get("statement") or "")
 
 
 def plan(live: Dict[str, Any]) -> Dict[str, Any]:

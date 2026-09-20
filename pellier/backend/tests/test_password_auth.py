@@ -58,6 +58,36 @@ def test_rejects_unverified_token_without_session(setup):
     assert 'access_token' not in client.cookies
 
 
+@pytest.mark.parametrize('status', [401, 503])
+def test_verification_failure_logs_only_class_and_preserves_unavailability(setup, caplog, status):
+    client, _, validator = setup
+    cause = ValueError('private-verifier-detail verified-access transient-secret')
+    failure = HTTPException(status, 'private-verifier-detail')
+    failure.__cause__ = cause
+    validator.validate_jwt.side_effect = failure
+    response = post(client)
+    assert response.status_code == (503 if status == 503 else 502)
+    assert response.json() == {'detail': 'auth_unavailable'}
+    assert 'access_token' not in client.cookies
+    assert 'Cognito sign-in verification failed: ValueError' in caplog.text
+    for private in ('private-verifier-detail', 'verified-access', 'transient-secret'):
+        assert private not in caplog.text
+        assert private not in response.text
+    validator.validate_jwt.side_effect = None
+    assert post(client).status_code == 200
+    assert 'access_token' in client.cookies
+
+
+def test_missing_provider_token_is_diagnosed_without_creating_a_session(setup, caplog):
+    client, cognito, validator = setup
+    cognito.initiate_auth.return_value = {'AuthenticationResult': {'IdToken': 'private-id'}}
+    assert post(client).status_code == 502
+    assert 'Cognito sign-in returned no access token' in caplog.text
+    assert 'private-id' not in caplog.text
+    assert 'access_token' not in client.cookies
+    validator.validate_jwt.assert_not_called()
+
+
 @pytest.mark.parametrize('target', ['https://outside.example', '//outside.example', '/\\outside.example'])
 def test_rejects_external_return_destinations(setup, target):
     client, _, _ = setup

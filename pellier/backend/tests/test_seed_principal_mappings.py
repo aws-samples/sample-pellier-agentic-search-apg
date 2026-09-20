@@ -23,10 +23,23 @@ restated, so the application and the database cannot disagree about scope.
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from psycopg import DataError
+
+
+@pytest.fixture(autouse=True)
+def _no_external_transports(monkeypatch):
+    def unexpected_transport(*_args, **_kwargs):
+        pytest.fail("No AWS, database or external CLI call is allowed in this test.")
+
+    monkeypatch.setattr("boto3.client", unexpected_transport)
+    monkeypatch.setattr("psycopg.connect", unexpected_transport)
+    monkeypatch.setattr("subprocess.run", unexpected_transport)
 
 
 def _load_seeder():
@@ -134,6 +147,52 @@ def test_upsert_covers_every_resolved_persona():
         ("sub-j", "CUST-JESSICA"),
     ):
         assert f"('{sub}', '{customer}')" in sql
+
+
+@pytest.mark.parametrize("field", ["subject", "customer"])
+@pytest.mark.parametrize("value,literal", [
+    ("O'Reilly", "'O''Reilly'"),
+    (r"C:\workshop\end\\", r" E'C:\\workshop\\end\\\\'"),
+    (
+        "x'); DELETE FROM pellier.principal_customers; --",
+        "'x''); DELETE FROM pellier.principal_customers; --'",
+    ),
+    (
+        r"x\'); SELECT current_user; --",
+        r" E'x\\''); SELECT current_user; --'",
+    ),
+    ("first\n\\! do-not-run\nlast", " E'first\n\\\\! do-not-run\nlast'"),
+    ("α'客户", "'α''客户'"),
+])
+def test_upsert_quotes_each_value_as_one_postgresql_literal(field, value, literal):
+    """Exercise SQL-looking data without inventing a SQL parser or contacting a DB."""
+    seeder = _load_seeder()
+    subject, customer = ("sub-normal", "CUST-MARCO")
+    if field == "subject":
+        subject = value
+        expected_values = f"({literal}, 'CUST-MARCO')"
+    else:
+        customer = value
+        expected_values = f"('sub-normal', {literal})"
+
+    statement = seeder.upsert_sql({"marco": (subject, customer)})
+
+    assert statement == (
+        "BEGIN;\n"
+        "INSERT INTO pellier.principal_customers (principal_sub, customer_id)\n"
+        f" VALUES {expected_values}\n"
+        " ON CONFLICT (principal_sub, customer_id) DO NOTHING;\n"
+        "COMMIT;"
+    )
+
+
+@pytest.mark.parametrize("values", [
+    ("subject\x00suffix", "CUST-MARCO"),
+    ("subject", "CUST\x00MARCO"),
+])
+def test_upsert_rejects_nul_before_a_command_can_be_dispatched(values):
+    with pytest.raises(DataError, match="NUL"):
+        _load_seeder().upsert_sql({"marco": values})
 
 
 def test_mapping_preflight_rejects_one_existing_subject_with_two_customers():
@@ -327,3 +386,63 @@ def test_password_is_never_placed_on_a_command_line(monkeypatch):
     assert captured["env"]["PGPASSWORD"] == secret
     # `-X` keeps a developer's .psqlrc banners out of parsed output.
     assert "-X" in captured["args"]
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+def test_main_preserves_seed_and_check_contract_with_quoted_values(monkeypatch, check_only):
+    """Follow the real main -> composer -> psql adapter path with transport stubbed."""
+    seeder = _load_seeder()
+    for name in list(os.environ):
+        if name.startswith(("DB_", "COGNITO_", "AWS_")):
+            monkeypatch.delenv(name)
+    cfg = {
+        "DB_HOST": "database.example",
+        "DB_NAME": "test_database",
+        "DB_USER": "test_user",
+        "DB_PASSWORD": "synthetic-test-password",
+        "COGNITO_POOL_ID": "synthetic-pool",
+        "COGNITO_REGION": "us-east-1",
+    }
+    subject, customer = ("subject'quoted", "CUST-O'REILLY")
+    monkeypatch.setattr(seeder, "_load_env", lambda _path: cfg)
+    monkeypatch.setattr(seeder, "_username_to_customer", lambda: {"marco": customer})
+    resolutions = []
+
+    def resolve(**kwargs):
+        resolutions.append(kwargs)
+        return {"marco": subject}, []
+
+    monkeypatch.setattr(seeder, "resolve_subs", resolve)
+    calls = []
+
+    def run(args, **kwargs):
+        calls.append((args, kwargs))
+        # --check must still compare the table with the resolved current subject.
+        output = f"{customer}|{subject}\n" if check_only and len(calls) == 1 else ""
+        return SimpleNamespace(returncode=0, stdout=output, stderr="")
+
+    monkeypatch.setattr("subprocess.run", run)
+
+    assert seeder.main(["--check"] if check_only else []) == 0
+    assert resolutions == [{
+        "region": "us-east-1", "pool_id": "synthetic-pool", "usernames": ["marco"],
+    }]
+    assert len(calls) == (1 if check_only else 2)
+    assert calls[0][0][-2] == "-c"
+    assert calls[0][0][-1].startswith("SELECT customer_id")
+    if not check_only:
+        command, options = calls[1]
+        assert command[-2:] == [
+            "-c",
+            "BEGIN;\n"
+            "INSERT INTO pellier.principal_customers (principal_sub, customer_id)\n"
+            " VALUES ('subject''quoted', 'CUST-O''REILLY')\n"
+            " ON CONFLICT (principal_sub, customer_id) DO NOTHING;\n"
+            "COMMIT;",
+        ]
+        assert options.get("shell", False) is False
+        assert "-X" in command
+        assert "ON_ERROR_STOP=1" in command
+    for command, options in calls:
+        assert cfg["DB_PASSWORD"] not in " ".join(command)
+        assert options["env"]["PGPASSWORD"] == cfg["DB_PASSWORD"]

@@ -119,7 +119,8 @@ def control(monkeypatch):
     return client
 
 
-def test_snapshot_reads_pagination_and_preserves_each_policy_mode(control):
+@pytest.mark.parametrize("definition_member", ["policy", "cedar"])
+def test_snapshot_reads_pagination_and_preserves_each_policy_mode(control, definition_member):
     def pages(**kwargs):
         if kwargs.get("nextToken"):
             return {"policies": [{"policyId": "second"}]}
@@ -129,7 +130,7 @@ def test_snapshot_reads_pagination_and_preserves_each_policy_mode(control):
         return {
             "name": "workshop_identity_match_forbid" if kwargs["policyId"] == "second" else "read_catalogue",
             "enforcementMode": "LOG_ONLY" if kwargs["policyId"] == "second" else "ACTIVE",
-            "definition": {"cedar": {"statement": "forbid(principal, action, resource);"}},
+            "definition": {definition_member: {"statement": "forbid(principal, action, resource);"}},
         }
     control.get_policy = details
     data = snapshot.policy_snapshot()

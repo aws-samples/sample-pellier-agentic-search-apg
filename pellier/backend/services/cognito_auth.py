@@ -273,11 +273,13 @@ class CognitoAuthService:
 
         try:
             return await self.validate_jwt(token)
-        except HTTPException:
-            # Callers of extract_user treat absence of a verified user as
-            # "anonymous". Only the ``require_user`` dependency below
-            # escalates that to a 401.
-            return None
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return None
+            # An unavailable verifier has not rejected the credentials. Keep
+            # that failure distinct so callers fail closed without signing
+            # the person out or replacing their session with an anonymous one.
+            raise
 
 
 # Process-wide service instance. Kept module-level so the JWKS cache is

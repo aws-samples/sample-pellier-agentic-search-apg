@@ -42,6 +42,7 @@ Routes are not participant-edit surfaces. They ship as reference runtime code.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -458,11 +459,14 @@ def _clear_oauth_cookies(response: Response) -> None:
         )
 
 
-def _oauth_failure_response() -> JSONResponse:
+def _oauth_failure_response(
+    status_code: int = 502, detail: str = "auth_failed"
+) -> JSONResponse:
     """Return the non-leaking OAuth failure envelope and consume browser state."""
     response = JSONResponse(
-        status_code=502,
-        content={"detail": "auth_failed"},
+        status_code=status_code,
+        content={"detail": detail},
+        headers={"Cache-Control": "no-store"},
     )
     _clear_oauth_cookies(response)
     return response
@@ -503,8 +507,9 @@ def _basic_auth_header() -> Optional[Dict[str, str]]:
 def _token_exchange(body: Dict[str, str]) -> Dict[str, Any]:
     """POST to Cognito's ``/oauth2/token`` endpoint and return JSON.
 
-    Raises an HTTP 502 on any non-2xx response without echoing the
-    Cognito error body back to the caller (Req 3.1.5, 5.3.3).
+    Only an explicit ``invalid_grant`` rejects the caller's grant. Network,
+    throttling, configuration and malformed-response failures must preserve
+    existing session cookies. Never echo Cognito's error body or tokens.
     """
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     basic = _basic_auth_header()
@@ -515,19 +520,21 @@ def _token_exchange(body: Dict[str, str]) -> Dict[str, Any]:
         resp = requests.post(_token_url(), data=body, headers=headers, timeout=10)
     except requests.RequestException as exc:
         logger.error("Cognito token endpoint unreachable: %s", exc.__class__.__name__)
-        raise HTTPException(status_code=502, detail="auth_failed")
-
-    if resp.status_code >= 400:
-        logger.error(
-            "Cognito token exchange failed: status=%s", resp.status_code
-        )
-        raise HTTPException(status_code=502, detail="auth_failed")
+        raise HTTPException(status_code=503, detail="auth_unavailable") from exc
 
     try:
-        return resp.json()
+        payload = resp.json()
     except ValueError:
         logger.error("Cognito token response was not JSON")
-        raise HTTPException(status_code=502, detail="auth_failed")
+        raise HTTPException(status_code=503, detail="auth_unavailable")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=503, detail="auth_unavailable")
+    if resp.status_code == 400 and payload.get("error") == "invalid_grant":
+        raise HTTPException(status_code=401, detail="auth_failed")
+    if not 200 <= resp.status_code < 300:
+        logger.error("Cognito token exchange failed: status=%s", resp.status_code)
+        raise HTTPException(status_code=503, detail="auth_unavailable")
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -636,7 +643,8 @@ async def callback(
 
     # Exchange the authorization code for tokens.
     try:
-        token_response = _token_exchange(
+        token_response = await asyncio.to_thread(
+            _token_exchange,
             {
                 "grant_type": "authorization_code",
                 "client_id": _client_id(),
@@ -645,7 +653,9 @@ async def callback(
                 "code_verifier": verifier,
             }
         )
-    except HTTPException:
+    except HTTPException as exc:
+        if exc.status_code == 503:
+            return _oauth_failure_response(503, "auth_unavailable")
         return _oauth_failure_response()
 
     access_token = token_response.get("access_token")
@@ -663,6 +673,8 @@ async def callback(
         await service.validate_jwt(access_token)
     except HTTPException as exc:
         logger.error("Token validation after exchange failed: %s", exc.detail)
+        if exc.status_code == 503:
+            return _oauth_failure_response(503, "auth_unavailable")
         return _oauth_failure_response()
 
     response = RedirectResponse(
@@ -697,6 +709,7 @@ async def me(
         return JSONResponse(
             status_code=401,
             content={"error": "auth_failed"},
+            headers={"Cache-Control": "no-store"},
         )
     return JSONResponse(
         status_code=200,
@@ -705,6 +718,7 @@ async def me(
             "email": user.email,
             "given_name": user.given_name,
         },
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -726,7 +740,9 @@ async def logout(request: Request) -> Response:
             basic = _basic_auth_header()
             if basic:
                 headers.update(basic)
-            requests.post(_revoke_url(), data=body, headers=headers, timeout=5)
+            await asyncio.to_thread(
+                requests.post, _revoke_url(), data=body, headers=headers, timeout=5
+            )
         except requests.RequestException as exc:
             logger.warning(
                 "Cognito revoke call failed: %s", exc.__class__.__name__
@@ -759,16 +775,22 @@ async def refresh(
         )
 
     try:
-        token_response = _token_exchange(
+        token_response = await asyncio.to_thread(
+            _token_exchange,
             {
                 "grant_type": "refresh_token",
                 "client_id": _client_id(),
                 "refresh_token": refresh_token,
             }
         )
-    except HTTPException:
-        # Cognito refused the refresh token (revoked, expired, or the app
-        # client was rotated). Clear cookies so the SPA stops retrying.
+    except HTTPException as exc:
+        if exc.status_code != 401:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "auth_unavailable"},
+                headers={"Cache-Control": "no-store"},
+            )
+        # Only a rejected grant proves the browser's refresh token unusable.
         response = JSONResponse(
             status_code=401,
             content={"error": "refresh_failed"},
@@ -784,19 +806,21 @@ async def refresh(
 
     if not access_token:
         return JSONResponse(
-            status_code=401,
-            content={"error": "refresh_failed"},
+            status_code=502,
+            content={"error": "auth_unavailable"},
+            headers={"Cache-Control": "no-store"},
         )
 
     try:
         await service.validate_jwt(access_token)
-    except HTTPException:
-        response = JSONResponse(
-            status_code=401,
-            content={"error": "refresh_failed"},
+    except HTTPException as exc:
+        # Do not trust or set a token we cannot verify, and do not discard
+        # the existing refresh cookie because a signing-key lookup failed.
+        return JSONResponse(
+            status_code=503 if exc.status_code == 503 else 502,
+            content={"error": "auth_unavailable"},
+            headers={"Cache-Control": "no-store"},
         )
-        _clear_session_cookies(response)
-        return response
 
     response = JSONResponse(status_code=200, content={"ok": True})
     _set_session_cookies(

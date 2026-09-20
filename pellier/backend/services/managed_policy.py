@@ -37,7 +37,7 @@ import asyncio
 import logging
 import os
 from contextvars import ContextVar
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,32 @@ def _control_client() -> Any:
     )
 
 
+def policy_statement(policy: Dict[str, Any]) -> str:
+    """Read the current SDK union member, with support for archived captures."""
+    definition = policy.get("definition") or {}
+    body = definition.get("policy") or definition.get("cedar") or {}
+    statement = body.get("statement")
+    return statement if isinstance(statement, str) else ""
+
+
+def policy_summaries(client: Any, engine_id: str) -> Iterator[Dict[str, Any]]:
+    """Visit every policy page, failing closed on a broken pagination token."""
+    token = None
+    seen: set[str] = set()
+    while True:
+        params: Dict[str, Any] = {"policyEngineId": engine_id}
+        if token:
+            params["nextToken"] = token
+        page = client.list_policies(**params)
+        yield from page.get("policies", [])
+        token = page.get("nextToken")
+        if not token:
+            return
+        if token in seen:
+            raise ControlPlaneUnavailable("Repeated policy pagination token")
+        seen.add(token)
+
+
 def list_managed_policies() -> Dict[str, Any]:
     """Return the Cedar policies attached to the managed policy engine.
 
@@ -203,7 +229,7 @@ def list_managed_policies() -> Dict[str, Any]:
             region_name=_region(),
             config=_control_client_config(),
         )
-        summaries = client.list_policies(policyEngineId=engine_id).get("policies", [])
+        summaries = policy_summaries(client, engine_id)
         policies: List[Dict[str, Any]] = []
         for summary in summaries:
             policy_id = summary.get("policyId", "")
@@ -214,8 +240,7 @@ def list_managed_policies() -> Dict[str, Any]:
             try:
                 detail = client.get_policy(policyEngineId=engine_id, policyId=policy_id)
                 description = detail.get("description", description)
-                definition = detail.get("definition", {}) or {}
-                cedar = (definition.get("cedar", {}) or {}).get("statement", "")
+                cedar = policy_statement(detail)
             except Exception as exc:
                 logger.debug("get_policy(%s) failed: %s", policy_id, exc)
             policies.append({
@@ -354,14 +379,14 @@ def _read_engine_state(
     policies: Dict[str, tuple] = {}
     policy_ids: Dict[str, str] = {}
     matching: List[str] = []
-    for summary in client.list_policies(policyEngineId=engine_id).get("policies", []):
+    for summary in policy_summaries(client, engine_id):
         detail = client.get_policy(
             policyEngineId=engine_id, policyId=summary["policyId"]
         )
         name = str(detail.get("name") or summary.get("policyId"))
-        statement = str(
-            (detail.get("definition") or {}).get("cedar", {}).get("statement") or ""
-        )
+        statement = policy_statement(detail)
+        if not statement.strip():
+            raise ControlPlaneUnavailable("Policy definition unavailable")
         # The effect is read from the statement rather than a response field: the
         # control plane does not return `effect` on this shape, and inferring
         # "forbid" from a name would break the moment a policy is renamed.

@@ -21,7 +21,9 @@ type Mode = 'sign-in' | 'forgot' | 'reset'
 export default function SignInPage() {
   const params = new URLSearchParams(window.location.search)
   const returnTo = safeSignInReturn(params.get('returnTo'), asset('/'))
-  const operator = /\/operator(?:\/|\?|$)/.test(returnTo)
+  // This changes the explanation only. The backend still verifies staff
+  // group membership before returning any Operator or cross-principal data.
+  const operator = params.get('workspace') === 'operator' || /\/operator(?:\/|\?|$)/.test(returnTo)
   const [mode, setMode] = useState<Mode>('sign-in')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

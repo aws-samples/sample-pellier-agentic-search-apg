@@ -1807,13 +1807,7 @@ export default function ObservatoryWorkbench() {
               <button
                 key={panel.id}
                 type="button"
-                data-state={
-                  index === focusStep
-                    ? 'current'
-                    : index < focusStep
-                      ? 'done'
-                      : 'ahead'
-                }
+                data-state={index === focusStep ? 'current' : 'available'}
                 aria-current={index === focusStep ? 'step' : undefined}
                 onClick={() => showFocusStep(index)}
               >

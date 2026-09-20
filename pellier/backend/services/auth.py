@@ -40,9 +40,11 @@ async def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
         from services.cognito_auth import get_cognito_auth_service
 
         user = await get_cognito_auth_service().extract_user(request)
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.debug("Optional Cognito user extraction failed: %s", exc)
-        return None
+        logger.warning("Cognito verification unavailable: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="auth_unavailable") from exc
 
     if user is None:
         return None
@@ -133,9 +135,11 @@ async def require_operator(request: Request) -> Dict[str, Any]:
 
     try:
         user = await service.extract_user(request)
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.warning("Operator token verification failed: %s", exc)
-        raise HTTPException(status_code=401, detail="invalid_credentials") from exc
+        logger.warning("Operator verification unavailable: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="auth_unavailable") from exc
 
     if user is None:
         # Credentials were presented (checked above) but did not verify.

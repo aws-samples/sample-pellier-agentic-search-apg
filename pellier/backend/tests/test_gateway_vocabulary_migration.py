@@ -17,6 +17,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import pytest
@@ -159,7 +160,7 @@ def _live_policies() -> List[Dict[str, Any]]:
             "name": "baseline_permit_gateway_tools",
             "enforcementMode": "ACTIVE",
             "status": "ACTIVE",
-            "definition": {"cedar": {"statement": BASELINE_STATEMENT}},
+            "definition": {"policy": {"statement": BASELINE_STATEMENT}},
         },
         {
             "policyId": "process_return_allow_damaged-bbb",
@@ -171,20 +172,21 @@ def _live_policies() -> List[Dict[str, Any]]:
             # what the next phase will actually read. Modelling the old permit
             # made Phase A look like it left two matching permits on the
             # experience target when live it leaves zero.
-            "definition": {"cedar": {"statement": GROUP_FORBID_STATEMENT}},
+            "definition": {"policy": {"statement": GROUP_FORBID_STATEMENT}},
         },
         {
             "policyId": "process_return_damaged_only-ccc",
             "name": "process_return_damaged_only",
             "enforcementMode": "ACTIVE",
             "status": "ACTIVE",
-            "definition": {"cedar": {"statement": FORBID_STATEMENT}},
+            "definition": {"policy": {"statement": FORBID_STATEMENT}},
         },
     ]
 
 
 class FakeControl:
     def __init__(self, *, target_status: str = "READY", update_status: str = "READY") -> None:
+        self.meta = SimpleNamespace(region_name=ownership.EXPECTED_REGION)
         self.targets = {
             name: _live_target(name, tools, target_status)
             for name, tools in LIVE_TARGET_TOOLS.items()
@@ -277,6 +279,12 @@ class FakeCfn:
 
 @pytest.fixture(autouse=True)
 def _fast_polling(monkeypatch: pytest.MonkeyPatch):
+    def unexpected_transport(*_args, **_kwargs):
+        pytest.fail("No real AWS, database or external CLI calls are allowed.")
+
+    monkeypatch.setattr("boto3.client", unexpected_transport)
+    monkeypatch.setattr("psycopg.connect", unexpected_transport)
+    monkeypatch.setattr("subprocess.run", unexpected_transport)
     monkeypatch.setattr(MIG.time, "sleep", lambda *_: None)
     monkeypatch.setenv("AWS_REGION", ownership.EXPECTED_REGION)
     monkeypatch.setenv("DB_HOST", f"{ownership.EXPECTED_DB_CLUSTER}.cluster-x.us-east-1.rds.amazonaws.com")
@@ -748,7 +756,7 @@ def test_the_broad_permit_is_restored_to_the_derived_original_not_to_live_state(
     # run is a test of the environment rather than of the plan.
     assert restore["policyUpdates"][0]["before"] == (
         MIG.read_live(FakeControl())["policies"] and
-        next(p["definition"]["cedar"]["statement"]
+        next(p["definition"]["policy"]["statement"]
              for p in MIG.read_live(FakeControl())["policies"]
              if p["name"] == MIG.BASELINE_POLICY_NAME)
     )
@@ -758,36 +766,26 @@ def test_a_capture_that_disagrees_with_the_derived_broad_permit_stops_the_run(
     tmp_path,
 ) -> None:
     """The derived statement is cross-checked against the pre-migration capture."""
-    import json as _json
-
-    capture = tmp_path / "20260101-000000" / "rollback"
-    capture.mkdir(parents=True)
+    live = MIG.read_live(FakeControl())
     # A capture whose baseline was broad but written differently must not be assumed
     # equivalent; the service accepted the captured form, so a mismatch is a stop.
-    (capture / "live.json").write_text(_json.dumps({
-        "policies": [{
-            "name": MIG.BASELINE_POLICY_NAME,
-            "definition": {"cedar": {"statement":
-                'permit(principal, action, resource == AgentCore::Gateway::"arn:other");'}},
-        }]
-    }))
+    live["policies"][0]["definition"] = {"policy": {"statement":
+        'permit(principal, action, resource == AgentCore::Gateway::"arn:other");'}}
+    capture = MIG._capture_run(
+        tmp_path, MIG.PreflightResult(ok=True), _plan(FakeControl()),
+        live, MIG.validate_canonical(),
+    )
     with pytest.raises(SystemExit) as exc:
-        MIG.assert_broad_baseline_matches_capture(tmp_path / "20260101-000000")
+        MIG.assert_broad_baseline_matches_capture(capture)
     assert "STOP and reconcile" in str(exc.value)
 
 
 def test_a_matching_capture_passes_the_cross_check(tmp_path) -> None:
-    import json as _json
-
-    capture = tmp_path / "20260101-000000" / "rollback"
-    capture.mkdir(parents=True)
-    (capture / "live.json").write_text(_json.dumps({
-        "policies": [{
-            "name": MIG.BASELINE_POLICY_NAME,
-            "definition": {"cedar": {"statement": MIG.broad_baseline_statement()}},
-        }]
-    }))
-    MIG.assert_broad_baseline_matches_capture(tmp_path / "20260101-000000")
+    capture = MIG._capture_run(
+        tmp_path, MIG.PreflightResult(ok=True), _plan(FakeControl()),
+        MIG.read_live(FakeControl()), MIG.validate_canonical(),
+    )
+    MIG.assert_broad_baseline_matches_capture(capture)
 
 
 def test_a_missing_capture_is_advisory_not_fatal(tmp_path) -> None:
@@ -934,22 +932,23 @@ def test_rollback_of_phase_b_keeps_the_baseline_narrowed(tmp_path: Path) -> None
     # Simulate the post-Phase-A world.
     narrowed = plan["phases"][0]["policyUpdates"][0]["after"]
     control.policies["baseline_permit_gateway_tools-aaa"]["definition"] = {
-        "cedar": {"statement": narrowed}
+        "policy": {"statement": narrowed}
     }
     after_a = MIG.read_live(control)
-    directory = tmp_path / "rollback"
-    directory.mkdir()
-    (directory / "live.json").write_text(json.dumps(after_a, default=str))
+    capture = MIG._capture_run(
+        tmp_path, MIG.PreflightResult(ok=True), plan, after_a, MIG.validate_canonical(),
+    )
+    directory = capture / "rollback"
 
     MIG.apply_one_target(control, after_a, plan["phases"][1]["targetUpdates"][0])
-    MIG.rollback(control, directory)
+    MIG.rollback(control, directory, sts=FakeSts())
 
     restored = sorted(
         x["name"] for x in control.targets[RETURN_TARGET]["targetConfiguration"]
         ["mcp"]["lambda"]["toolSchema"]["inlinePayload"]
     )
     assert restored == ["escalate_to_stylist", "process_return"]
-    baseline = control.policies["baseline_permit_gateway_tools-aaa"]["definition"]["cedar"]["statement"]
+    baseline = control.policies["baseline_permit_gateway_tools-aaa"]["definition"]["policy"]["statement"]
     assert "action in [" in baseline, "rollback reopened the gateway"
     assert "action," not in " ".join(baseline.split()), "the broad permit came back"
 
@@ -973,7 +972,7 @@ def _canonical_control(control: "FakeControl") -> None:
     """Put the fake into the post-Phase-B, post-Phase-C world."""
     plan = _plan(control)
     control.policies["baseline_permit_gateway_tools-aaa"]["definition"] = {
-        "cedar": {"statement": plan["phases"][0]["policyUpdates"][0]["after"]}
+        "policy": {"statement": plan["phases"][0]["policyUpdates"][0]["after"]}
     }
     MIG.apply_one_target(control, MIG.read_live(control), plan["phases"][1]["targetUpdates"][0])
 
@@ -1048,7 +1047,7 @@ def test_phase_d_refuses_while_the_control_still_names_the_retired_action() -> N
     live = MIG.read_live(control)
     ctl = next(p for p in live["policies"] if p["name"] == MIG.CONTROL_POLICY_NAME)
     parsed = MIG.parse_statement(MIG.CONTROL_POLICY_NAME,
-                                ctl["definition"]["cedar"]["statement"])
+                                ctl["definition"]["policy"]["statement"])
     assert parsed.actions == (f"{RETURN_TARGET}___process_return",), (
         "fixture no longer models the pre-Phase-C control policy"
     )
@@ -1064,14 +1063,14 @@ def test_phase_c_failure_leaves_the_environment_closed() -> None:
     plan = _plan(control)
     update = next(u for e in plan["phases"] for u in e["policyUpdates"]
                   if u["policy"] == MIG.CONTROL_POLICY_NAME)
-    captured = control.policies[update["policyId"]]["definition"]["cedar"]["statement"]
+    captured = control.policies[update["policyId"]]["definition"]["policy"]["statement"]
     _fail_nth_policy_write(control, 1)
     # The captured definition names a retired action, so a restore is correctly not
     # attempted; either way the run must stop and the baseline must stay narrowed.
     with pytest.raises(SystemExit, match="STOP"):
         MIG.apply_policy_update(control, update, phase="return-forbid-canonical",
                                 live=MIG.read_live(control))
-    baseline = control.policies["baseline_permit_gateway_tools-aaa"]["definition"]["cedar"]["statement"]
+    baseline = control.policies["baseline_permit_gateway_tools-aaa"]["definition"]["policy"]["statement"]
     assert "action in [" in baseline, "the baseline was widened by a failure path"
 
 
@@ -1120,15 +1119,15 @@ def test_a_failed_policy_update_restores_the_captured_definition() -> None:
     control = FakeControl()
     plan = _plan(control)
     update = plan["phases"][0]["policyUpdates"][0]
-    captured = control.policies[update["policyId"]]["definition"]["cedar"]["statement"]
+    captured = control.policies[update["policyId"]]["definition"]["policy"]["statement"]
     _fail_nth_policy_write(control, 1)
 
     with pytest.raises(SystemExit, match="restored to the captured definition"):
         MIG.apply_policy_update(control, update)
 
     assert len(control.policy_updates) == 2, "expected one write and one restore"
-    assert control.policy_updates[-1]["definition"]["cedar"]["statement"] == captured
-    assert control.policies[update["policyId"]]["definition"]["cedar"]["statement"] == captured
+    assert control.policy_updates[-1]["definition"]["policy"]["statement"] == captured
+    assert control.policies[update["policyId"]]["definition"]["policy"]["statement"] == captured
     assert control.policies[update["policyId"]]["status"] == "ACTIVE"
 
 
@@ -1158,9 +1157,9 @@ def test_a_stored_definition_that_differs_from_the_submission_is_restored() -> N
 
     def tamper(**kwargs: Any) -> Dict[str, Any]:
         result = real(**kwargs)
-        if "action in [" in kwargs["definition"]["cedar"]["statement"]:
+        if "action in [" in kwargs["definition"]["policy"]["statement"]:
             control.policies[kwargs["policyId"]]["definition"] = {
-                "cedar": {"statement": "permit(principal, action, resource);"}
+                "policy": {"statement": "permit(principal, action, resource);"}
             }
         return result
 
@@ -1203,7 +1202,7 @@ def _phase_c_world() -> "FakeControl":
     control = FakeControl()
     plan = _plan(control)
     control.policies["baseline_permit_gateway_tools-aaa"]["definition"] = {
-        "cedar": {"statement": plan["phases"][0]["policyUpdates"][0]["after"]}
+        "policy": {"statement": plan["phases"][0]["policyUpdates"][0]["after"]}
     }
     MIG.apply_one_target(control, MIG.read_live(control), plan["phases"][1]["targetUpdates"][0])
     return control
@@ -1323,7 +1322,7 @@ def test_a_stale_captured_definition_is_not_auto_restored() -> None:
     plan = _plan(control)
     update = next(u for e in plan["phases"] for u in e["policyUpdates"]
                   if u["policy"] == MIG.CONTROL_POLICY_NAME)
-    before = control.policies[update["policyId"]]["definition"]["cedar"]["statement"]
+    before = control.policies[update["policyId"]]["definition"]["policy"]["statement"]
     _fail_nth_policy_write(control, 1)
     with pytest.raises(SystemExit, match="was NOT\\s+attempted|cannot reach ACTIVE"):
         MIG.apply_policy_update(control, update, phase="return-forbid-canonical",

@@ -129,7 +129,7 @@ def probe_mcp_lane_identity(cfg: Dict[str, str]) -> Dict[str, Any]:
             scalar(
                 "SELECT count(*) FROM pg_tables WHERE schemaname='pellier'"
                 " AND tablename IN ('orders','returns')"
-                f" AND tableowner = '{result['current_user']}'"
+                " AND tableowner = current_user"
             )
         )
         result["customers_visible"] = scalar(

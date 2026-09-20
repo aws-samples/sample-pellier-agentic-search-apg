@@ -23,11 +23,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { asset } from '../utils/assetPath'
 import type { Preferences } from '../services/types'
+import { refreshAuthTokens } from '../services/authRefresh'
 
 interface AuthUser {
   sub: string
@@ -44,6 +46,9 @@ interface AuthContextType {
   loading: boolean
   /** Alias for `loading` — matches the design-document signature. */
   isLoading: boolean
+  /** A failed verification is distinct from rejected or absent credentials. */
+  authUnavailable: boolean
+  preferencesUnavailable: boolean
   /**
    * Saved preferences from AgentCore Memory, fetched via
    * `/api/user/preferences`. `null` means either unauthenticated or no
@@ -128,6 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [preferences, setPreferences] = useState<Preferences | null>(null)
   const [prefsVersion, setPrefsVersion] = useState(0)
+  const [authUnavailable, setAuthUnavailable] = useState(false)
+  const [preferencesUnavailable, setPreferencesUnavailable] = useState(false)
+  const refreshGeneration = useRef(0)
+  const verifiedSubject = useRef<string | null>(null)
+  const identityGeneration = useRef(0)
 
   /**
    * `refresh()` — hydrate `user` from /api/auth/me and `preferences` from
@@ -136,48 +146,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * unauthenticated and we clear any stale state.
    */
   const refresh = useCallback(async () => {
+    const generation = ++refreshGeneration.current
+    const isCurrent = () => generation === refreshGeneration.current
     try {
-      const meRes = await authFetch('/api/auth/me', {
+      let meRes = await authFetch('/api/auth/me', {
         method: 'GET',
         credentials: 'include',
       })
-      if (!meRes.ok) {
+      if (!isCurrent()) return
+      if (meRes.status === 401 && await refreshAuthTokens()) {
+        meRes = await authFetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+        })
+      }
+      if (!isCurrent()) return
+      if (meRes.status === 401) {
+        verifiedSubject.current = null
+        ++identityGeneration.current
+        setAuthUnavailable(false)
+        setPreferencesUnavailable(false)
         setUser(null)
         setPreferences(null)
         if (typeof window !== 'undefined') {
+          const hadSession = localStorage.getItem(AUTH_SESSION_MARKER_KEY) === '1'
           localStorage.removeItem(AUTH_SESSION_MARKER_KEY)
+          if (hadSession && !/\/signin\/?$/.test(window.location.pathname)) {
+            const returnTo = window.location.pathname + window.location.search
+            window.location.assign(`${asset('/signin')}?returnTo=${encodeURIComponent(returnTo)}`)
+          }
         }
         return
       }
+      if (!meRes.ok) {
+        setAuthUnavailable(true)
+        return
+      }
       const me = (await meRes.json()) as MeResponse
+      if (!isCurrent()) return
+      const subject = me.userId ?? me.user_id
+      if (!subject) {
+        setAuthUnavailable(true)
+        return
+      }
+      if (verifiedSubject.current !== subject) {
+        verifiedSubject.current = subject
+        ++identityGeneration.current
+        // A different cookie identity must never inherit the previous person's
+        // preferences, including while its own request is pending or unavailable.
+        setPreferences(null)
+        setPreferencesUnavailable(true)
+      }
+      setAuthUnavailable(false)
       if (typeof window !== 'undefined') {
         localStorage.setItem(AUTH_SESSION_MARKER_KEY, '1')
       }
       setUser({
-        sub: me.userId ?? me.user_id ?? '',
+        sub: subject,
         email: me.email,
         givenName: me.givenName ?? me.given_name,
       })
 
       // Fetch preferences only once we know we have a verified user.
-      const prefsRes = await authFetch('/api/user/preferences', {
-        method: 'GET',
-        credentials: 'include',
-      })
-      if (prefsRes.ok) {
+      try {
+        const prefsRes = await authFetch('/api/user/preferences', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        if (!isCurrent()) return
+        if (!prefsRes.ok) {
+          setPreferencesUnavailable(true)
+          return
+        }
         const body = (await prefsRes.json()) as PreferencesResponse
+        if (!isCurrent()) return
         setPreferences(body.preferences ?? null)
-      } else {
-        setPreferences(null)
+        setPreferencesUnavailable(false)
+      } catch {
+        if (isCurrent()) setPreferencesUnavailable(true)
       }
     } catch {
-      // Network failure — surface as "unauthenticated" rather than leaving
-      // stale state. The caller can retry via its own error path.
-      setUser(null)
-      setPreferences(null)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(AUTH_SESSION_MARKER_KEY)
-      }
+      // Keep the last verified profile while displaying the outage. Every
+      // protected API still verifies the cookie; this grants no authority.
+      if (isCurrent()) setAuthUnavailable(true)
     }
   }, [])
 
@@ -187,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * throws so the PreferencesModal (Task 5.3) can surface the error.
    */
   const savePreferences = useCallback(async (p: Preferences) => {
+    const generation = identityGeneration.current
     const res = await authFetch('/api/user/preferences', {
       method: 'POST',
       credentials: 'include',
@@ -208,13 +260,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Empty body is fine — keep the input.
     }
+    if (generation !== identityGeneration.current || !verifiedSubject.current) return
     setPreferences(saved)
     setPrefsVersion(v => v + 1)
   }, [])
 
   // The session cookies are httpOnly by design, so JavaScript cannot reliably
   // predict whether they exist. Always ask the server once on mount. A clean
-  // anonymous load produces one expected 401; skipping the check can strand a
+  // anonymous load checks both access and refresh cookies; skipping this can strand a
   // valid operator session in a signed-out SPA state.
   useEffect(() => {
     let cancelled = false
@@ -238,6 +291,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
+    ++refreshGeneration.current
+    verifiedSubject.current = null
+    ++identityGeneration.current
+    setAuthUnavailable(false)
+    setPreferencesUnavailable(false)
     localStorage.removeItem(AUTH_SESSION_MARKER_KEY)
     setUser(null)
     setPreferences(null)
@@ -257,6 +315,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         loading,
         isLoading: loading,
+        authUnavailable,
+        preferencesUnavailable,
         preferences,
         prefsVersion,
         refresh,

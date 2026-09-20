@@ -30,7 +30,7 @@ def _valid_receipt() -> dict[str, Any]:
     shopper_names = sorted(validator.discoverable_tools_for_claims(
         has_staff_scope=False, has_customer_claim=True
     ))
-    return {
+    receipt = {
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/example"},
@@ -224,12 +224,41 @@ def _valid_receipt() -> dict[str, Any]:
             },
         },
     }
+    observability = receipt["observability"]
+    for group in [
+        observability["runtime_log_group"],
+        observability["operator_runtime_log_group"],
+        *observability["trace_log_groups"]["groups"],
+    ]:
+        settings = {
+            "kms_key_arn": group["kms_key_arn"],
+            "retention_days": group["retention_days"],
+        }
+        group["requested"] = dict(settings)
+        group["observed"] = dict(settings)
+    return receipt
 
 
 def test_ready_receipt_requires_managed_observability_proof() -> None:
     validator = _load_validator()
 
     assert validator.validate_receipt(_valid_receipt()) == []
+
+
+@pytest.mark.parametrize("evidence_type", ["requested", "observed"])
+def test_log_protection_flags_do_not_substitute_for_readback(evidence_type: str) -> None:
+    validator = _load_validator()
+    receipt = _valid_receipt()
+    group = receipt["observability"]["runtime_log_group"]
+    del group[evidence_type]
+    assert any(evidence_type in error for error in validator.validate_receipt(receipt))
+
+
+def test_observed_log_settings_must_match_the_claimed_configuration() -> None:
+    validator = _load_validator()
+    receipt = _valid_receipt()
+    receipt["observability"]["operator_runtime_log_group"]["observed"]["kms_key_arn"] = None
+    assert any("observed" in error for error in validator.validate_receipt(receipt))
 
 
 def test_receipt_matches_the_real_provisioner_catalogue() -> None:

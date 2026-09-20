@@ -13,7 +13,9 @@ async function signIn(page: Page, username: string, password: string, returnTo: 
   await page.goto(`/signin?returnTo=${encodeURIComponent(returnTo)}`)
   await page.getByLabel('Username', { exact: true }).fill(username)
   await page.getByLabel('Password', { exact: true }).fill(password)
+  const response = page.waitForResponse(reply => reply.url().endsWith('/api/auth/password/sign-in'))
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  expect((await response).status(), 'Cognito password sign-in must verify a session').toBe(200)
   await expect(page).not.toHaveURL(/\/signin/, { timeout: 30000 })
   if (returnTo === '/') await page.getByRole('button', { name: 'Skip welcome tour' }).click()
 }

@@ -172,7 +172,11 @@ def test_dispatcher_selects_real_sdk_tools(monkeypatch):
     monkeypatch.setattr("strands.models.BedrockModel", lambda **kw: object())
     result = gateway.ManagedGatewayDispatcher("token")("Find linen")
     assert result == "grounded answer"
-    assert factory.call_args.kwargs["tools"] == [tool]
+    adapted = factory.call_args.kwargs["tools"]
+    assert len(adapted) == 1
+    assert adapted[0].tool_name == "search_products"
+    assert adapted[0].mcp_tool is tool.mcp_tool
+    assert adapted[0].mcp_client is client
 
 
 @pytest.mark.parametrize("kind", ["summary", "episodic"])

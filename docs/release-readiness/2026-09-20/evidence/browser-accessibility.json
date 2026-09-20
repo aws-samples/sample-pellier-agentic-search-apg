@@ -1,0 +1,819 @@
+{
+  "capturedAt": "2026-09-20T20:38:27.529Z",
+  "temporaryOperatorIdentity": true,
+  "realAuroraRecords": true,
+  "frontend": "Node 24 final contrast-repair build, frontend-final-privacy-build; exact JS digests in deployed-artifacts.json",
+  "rows": [
+    {
+      "label": "desktop-jessica-record",
+      "url": "/operator/clients/CUST-JESSICA",
+      "layout": {
+        "width": 1440,
+        "height": 1000,
+        "scrollWidth": 1440,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 41,
+          "nodes": [
+            {
+              "target": [
+                "h1"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-rung"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-lede"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-standing-row > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "a[data-testid=\"operator-storefront-handoff\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#operator-concierge-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-scope-name"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-scope-meta"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-service > .operator-service-source > span > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-service > .operator-service-source > span > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-eyebrow"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-copy"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-toggle"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-evidence-link > .pellier-action-quiet[data-discover=\"true\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn:nth-child(13) > .operator-concierge-request[data-testid=\"operator-concierge-request\"] > .operator-concierge-eyebrow"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn:nth-child(13) > .operator-concierge-request[data-testid=\"operator-concierge-request\"] > .operator-concierge-request-body"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-primary[data-workflow=\"client_summary\"] > .operator-concierge-conclusion"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-recommendation > h3"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-recommendation > .operator-concierge-recommendation-body"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-head > .resolution-trace-kicker"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-head > .resolution-trace-mode"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-recording"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(1)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(2)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(3)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-0\"] > .resolution-trace-number[aria-label=\"Step 1\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-list > .resolution-trace-step[data-step-id=\"memory\"][data-step-status=\"completed\"] > .resolution-trace-summary"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-1\"] > .resolution-trace-number[aria-label=\"Step 2\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-1\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-1\"] > .resolution-trace-status"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-list > .resolution-trace-step[data-step-id=\"client\"][data-step-status=\"completed\"] > .resolution-trace-summary"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-2\"] > .resolution-trace-number[aria-label=\"Step 3\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-2\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-2\"] > .resolution-trace-status"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-list > .resolution-trace-step[data-step-id=\"order\"][data-step-status=\"completed\"] > .resolution-trace-summary"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-3\"] > .resolution-trace-number[aria-label=\"Step 4\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-3\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":ri:-3\"] > .resolution-trace-status"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#concierge-input"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#concierge-composer-note"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "desktop-jessica-preview",
+      "url": "/",
+      "layout": {
+        "width": 1440,
+        "height": 1000,
+        "scrollWidth": 1440,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 4,
+          "nodes": [
+            {
+              "target": [
+                "figcaption > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "figcaption > p"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(1)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(2)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "laptop-jessica-preview",
+      "url": "/",
+      "layout": {
+        "width": 1280,
+        "height": 720,
+        "scrollWidth": 1280,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 4,
+          "nodes": [
+            {
+              "target": [
+                "figcaption > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "figcaption > p"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(1)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(2)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "mobile-jessica-preview",
+      "url": "/",
+      "layout": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 13,
+          "nodes": [
+            {
+              "target": [
+                "figcaption > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "figcaption > p"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/3\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/1\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/2\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/4\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/5\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/6\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/7\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/8\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".product-card-media.rounded-\\[var\\(--pellier-image-radius-md\\)\\][href$=\"product/9\"] > .product-card-view"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined because element contains an image node"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(1)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            },
+            {
+              "target": [
+                ".mx-2.text-ink-quiet\\/50[aria-hidden=\"true\"]:nth-child(2)"
+              ],
+              "summary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "mobile-jessica-record",
+      "url": "/operator/clients/CUST-JESSICA",
+      "layout": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 44,
+          "nodes": [
+            {
+              "target": [
+                "h1"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-rung"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-lede"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-standing-row > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "a[data-testid=\"operator-storefront-handoff\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#operator-concierge-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-scope-name"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-scope-meta"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-service > .operator-service-source > span > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-service > .operator-service-source > span > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-eyebrow"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-copy"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-state-toggle"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(2) > .service-identity[data-service=\"aurora\"] > .service-identity-copy > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(2) > .service-identity[data-service=\"aurora\"] > .service-identity-copy > small"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(2) > .operator-concierge-source-detail"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(3) > .service-identity[data-service=\"strands\"] > .service-identity-copy > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(3) > .service-identity[data-service=\"strands\"] > .service-identity-copy > small"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-sources[data-testid=\"operator-concierge-sources\"] > ul > li:nth-child(3) > .operator-concierge-source-detail"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(12) > .operator-concierge-evidence-link > .pellier-action-quiet[data-discover=\"true\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn:nth-child(13) > .operator-concierge-request[data-testid=\"operator-concierge-request\"] > .operator-concierge-eyebrow"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn:nth-child(13) > .operator-concierge-request[data-testid=\"operator-concierge-request\"] > .operator-concierge-request-body"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-primary[data-workflow=\"client_summary\"] > .operator-concierge-conclusion"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-recommendation > h3"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-recommendation > .operator-concierge-recommendation-body"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-head > .resolution-trace-kicker"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-head > .resolution-trace-mode"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-recording"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(1)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(2)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > button:nth-child(3)"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-controls[role=\"group\"][aria-label=\"Trace playback\"] > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-1\"] > .resolution-trace-number[aria-label=\"Step 2\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-1\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-1\"] > .resolution-trace-status"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-list > .resolution-trace-step[data-step-id=\"client\"][data-step-status=\"completed\"] > .resolution-trace-summary"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-2\"] > .resolution-trace-number[aria-label=\"Step 3\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-2\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-2\"] > .resolution-trace-status"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                ".operator-concierge-turn[data-role=\"assistant\"]:nth-child(14) > .operator-concierge-investigation > .resolution-trace.resolution-trace--compact[aria-label=\"Investigation trace\"] > .resolution-trace-list > .resolution-trace-step[data-step-id=\"order\"][data-step-status=\"completed\"] > .resolution-trace-summary"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-3\"] > .resolution-trace-number[aria-label=\"Step 4\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "button[aria-controls=\":r17:-3\"] > .resolution-trace-step-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#concierge-input"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            },
+            {
+              "target": [
+                "#concierge-composer-note"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a pseudo element"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "mobile-client-book",
+      "url": "/operator",
+      "layout": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "overflow": false
+      },
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "count": 10,
+          "nodes": [
+            {
+              "target": [
+                "#operator-jessica-case-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "section[data-testid=\"operator-jessica-case-entry\"] > .operator-case-entry-copy > .operator-case-entry-headline > .operator-case-entry-kicker"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                ".operator-case-entry-case"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "section[data-testid=\"operator-jessica-case-entry\"] > .operator-case-entry-copy > .operator-case-entry-brief"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "section[data-testid=\"operator-jessica-case-entry\"] > .operator-case-entry-actions > .operator-case-entry-guided"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                ".operator-case-entry-actions > span"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "#operator-theo-care-title"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "section[aria-labelledby=\"operator-theo-care-title\"] > .operator-case-entry-copy > .operator-case-entry-headline > .operator-case-entry-kicker"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                "section[aria-labelledby=\"operator-theo-care-title\"] > .operator-case-entry-copy > .operator-case-entry-brief"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            },
+            {
+              "target": [
+                ".operator-case-entry-guided[data-discover=\"true\"]"
+              ],
+              "summary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

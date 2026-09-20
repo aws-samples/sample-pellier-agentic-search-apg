@@ -226,16 +226,22 @@ def upsert_sql(mappings: Dict[str, Tuple[str, str]]) -> str:
     """
     if not mappings:
         return ""
-    values = ", ".join(
-        f"('{sub}', '{customer}')" for sub, customer in mappings.values()
+    from psycopg import sql
+
+    # psql -c accepts a complete SQL command, not driver-bound parameters.
+    # Compose literals with Psycopg so quotes and backslashes remain data;
+    # connection-free adaptation emits E-strings when escaping is required.
+    values = sql.SQL(", ").join(
+        sql.SQL("({}, {})").format(sql.Literal(sub), sql.Literal(customer))
+        for sub, customer in mappings.values()
     )
-    return (
+    return sql.SQL(
         "BEGIN;\n"
         "INSERT INTO pellier.principal_customers (principal_sub, customer_id)\n"
-        f" VALUES {values}\n"
+        " VALUES {}\n"
         " ON CONFLICT (principal_sub, customer_id) DO NOTHING;\n"
         "COMMIT;"
-    )
+    ).format(values).as_string()
 
 
 def main(argv: Optional[List[str]] = None) -> int:

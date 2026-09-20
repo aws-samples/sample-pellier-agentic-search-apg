@@ -98,6 +98,14 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
           </button>
         ))}
       </div>
+      <div className="trace-scenario-foot">
+        <span>{reducedMotion ? 'Choose a chapter to inspect.' : showAll ? 'All three chapters are open.' : 'Three separate recordings, played in order. Hover or focus to hold one open.'}</span>
+        <button type="button" aria-expanded={showAll} onClick={() => {
+          setShowAll(value => !value)
+          setFinished(false)
+          setCycle(value => value + 1)
+        }}>{showAll ? 'Play the sequence' : 'View all three'}</button>
+      </div>
       {!showAll && (
         <div className="trace-scenario-layer">
           <p className="trace-scenario-adds">{scenario.adds}</p>
@@ -122,14 +130,6 @@ export default function TraceScenarioLoop({ showDetails = false }: { showDetails
           </motion.div>
         </AnimatePresence>
       )}
-      <div className="trace-scenario-foot">
-        <span>{reducedMotion ? 'Choose a chapter to inspect.' : showAll ? 'All three chapters are open.' : 'Three separate recordings, played in order. Hover or focus to hold one open.'}</span>
-        <button type="button" onClick={() => {
-          setShowAll(value => !value)
-          setFinished(false)
-          setCycle(value => value + 1)
-        }}>{showAll ? 'Play the sequence' : 'View all three'}</button>
-      </div>
     </section>
   )
 }

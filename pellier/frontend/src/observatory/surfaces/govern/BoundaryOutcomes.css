@@ -12,7 +12,7 @@
 .boundary-table { border-collapse: collapse; width: 100%; min-width: 620px; text-align: left; font-size: .85rem; }
 .boundary-table th, .boundary-table td { padding: .8rem .6rem; border-bottom: 1px solid var(--obs-rule-1); vertical-align: top; }
 .boundary-table small { display: block; font-weight: 400; color: var(--obs-ink-3); margin-top: .3rem; }
-.boundary-caution { border-left: 3px solid var(--obs-terracotta); padding-left: 1rem; }
+.boundary-caution { border-top: 1px solid var(--obs-rule-1); padding-top: 1rem; }
 .boundary-record { border-top: 1px solid var(--obs-rule-1); padding-block: 1rem; }
 .boundary-record dl { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: .5rem 1rem; }
 .boundary-record dt { color: var(--obs-ink-3); }

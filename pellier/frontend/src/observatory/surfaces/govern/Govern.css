@@ -24,6 +24,7 @@
   padding-right: 24px;
 }
 .govern-home { display: flex; min-height: 44px; align-items: center; gap: 9px; font-size: 19px; font-weight: 600; text-decoration: none; color: var(--obs-ink-1); }
+.govern-topics-toggle { display: none; }
 .govern-sidebar > p { font-size: 13px; color: var(--obs-ink-4); margin: 5px 0 28px; }
 .govern-eyebrow { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--obs-burgundy); }
 .govern-nav-group { display: grid; gap: 4px; margin-bottom: 26px; }
@@ -50,6 +51,7 @@
 .govern-section { margin-top: 38px; }
 .govern-section > h2 { font-family: var(--obs-display); font-size: 27px; font-weight: 400; line-height: 1.25; padding-bottom: 12px; margin: 0 0 20px; border-bottom: 1px solid var(--obs-rule-1); }
 .govern-content h3 { font-size: 18px; font-weight: 500; line-height: 1.5; margin: 0 0 10px; overflow-wrap: anywhere; }
+.govern-content .govern-observation-title { font-size: 18px; font-weight: 500; line-height: 1.5; margin: 0 0 10px; overflow-wrap: anywhere; }
 .govern-notice { border: 1px solid var(--obs-rule-1); background: var(--obs-cream-2); border-radius: 6px; padding: 16px 20px; margin: 22px 0; font-size: 14px; line-height: 1.7; }
 .govern-notice--warning { background: color-mix(in srgb, var(--obs-amber-1) 8%, var(--obs-cream-2)); }
 .govern-notice strong { font-weight: 600; }
@@ -84,7 +86,7 @@
 .govern-facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .govern-facts--single { grid-template-columns: minmax(0, 1fr); }
 .govern-badge { display: inline-block; font: 11px var(--obs-mono); padding: 6px 8px; border: 1px solid var(--obs-rule-2); border-radius: 4px; white-space: nowrap; }
-.govern-observation h3 .govern-badge { margin-left: 8px; vertical-align: middle; }
+.govern-observation-title .govern-badge { margin-left: 8px; vertical-align: middle; }
 .govern-details { margin-top: 24px; padding-top: 17px; border-top: 1px solid var(--obs-rule-1); font-size: 13px; }
 .govern-details > summary { cursor: pointer; color: var(--obs-ink-2); font-weight: 500; }
 .govern-details[open] > summary { margin-bottom: 15px; }
@@ -96,7 +98,7 @@
 .govern-path-node strong { font-size: 14px; font-weight: 600; }
 .govern-path-node span { font-size: 13px; color: var(--obs-ink-4); }
 .govern-lab-state { padding-top: 22px; margin: 22px 0; border-top: 1px solid var(--obs-rule-1); }
-.govern-lab-state h3 { margin: 9px 0; }
+.govern-lab-state .govern-observation-title { margin: 9px 0; }
 .govern-lab-state p { font-size: 14px; }
 .govern-search { display: grid; gap: 8px; font-size: 13px; font-weight: 500; margin: 24px 0 10px; }
 .govern-search input { width: 100%; box-sizing: border-box; border: 1px solid var(--obs-rule-2); border-radius: 6px; background: var(--obs-cream-1); color: var(--obs-ink-1); padding: 12px 14px; font: 14px var(--obs-sans); }
@@ -129,9 +131,11 @@
 }
 @media (max-width: 720px) {
   .govern-layout { display: block; padding: 16px 0 32px; }
-  .govern-sidebar { position: static; max-height: none; overflow: visible; border-right: 0; padding-right: 0; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 1px solid var(--obs-rule-1); }
-  .govern-sidebar > p { margin-bottom: 18px; }
+  .govern-sidebar { position: static; max-height: none; overflow: visible; border-right: 0; padding-right: 0; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--obs-rule-1); }
+  .govern-sidebar > p { margin-bottom: 8px; }
+  .govern-topics-toggle { display: flex; align-items: center; min-height: 44px; padding: 6px 0; color: var(--obs-burgundy); font: 500 14px var(--obs-sans); text-decoration: underline; text-underline-offset: 4px; }
   .govern-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .govern-sidebar nav[data-open="false"] { display: none; }
   .govern-nav-group { margin-bottom: 12px; }
   .govern-nav-group > a { font-size: 13px; padding: 9px 8px; }
   .govern-nav-group > .govern-eyebrow { font-size: 11px; margin-inline: 8px; }

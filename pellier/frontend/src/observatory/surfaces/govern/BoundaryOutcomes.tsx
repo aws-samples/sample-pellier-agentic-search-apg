@@ -31,25 +31,27 @@ export default function BoundaryOutcomes() {
   const { data, loading, error, errorStatus, refetch } = useObservatoryData<BoundaryPayload>({ key: 'governance/outcomes' });
   const [selectedId, setSelectedId] = useState('');
   const runs = data?.runs ?? [];
-  const run = runs.find(item => item.runId === selectedId) ?? runs[0];
+  const accessRequired = errorStatus === 401 || errorStatus === 403;
+  const run = !error && !loading ? runs.find(item => item.runId === selectedId) ?? runs[0] : undefined;
+  const unavailableLabel = loading ? 'Reading evidence' : accessRequired ? 'Operator sign-in required' : error ? 'Evidence unavailable' : 'Not yet proved';
   return <section className="boundary-outcomes" aria-labelledby="boundary-heading">
     <div className="boundary-heading">
       <div><span className="govern-eyebrow">Lab 4 · Five observed outcomes</span>
         <h2 id="boundary-heading">Which control acted?</h2></div>
-      <button className="pellier-action-quiet" type="button" onClick={refetch} disabled={loading}>Refresh evidence</button>
+      {!accessRequired && <button className="pellier-action-quiet" type="button" onClick={refetch} disabled={loading}>Refresh evidence</button>}
     </div>
     <p>Read authorization, execution, and data changes separately. These records contain CLI observations and exact-key Aurora snapshots. They are not provider policy decision logs.</p>
-    <ol className="boundary-lessons">{LESSONS.map(([id, title, description]) => <li key={id}>
-      <div><strong>{title}</strong><span className="boundary-state">{run?.outcomes[id] ? 'Observed in this run' : 'Not yet proved'}</span></div>
-      <p>{description}</p>
-    </li>)}</ol>
     {loading && <p role="status">Reading boundary evidence…</p>}
     {error && <div role="alert">
-      <p>{errorStatus === 401 || errorStatus === 403
+      <p>{accessRequired
         ? 'Sign in with an Operator account to inspect cross-principal evidence.'
         : 'Boundary evidence is unavailable. No outcome can be established from this read.'}</p>
-      {(errorStatus === 401 || errorStatus === 403) && <Link className="govern-evidence-link" to="/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification">Sign in to inspect the five outcomes</Link>}
+      {accessRequired && <Link className="govern-evidence-link" to="/signin?workspace=operator&returnTo=%2Fobservatory%2Fgovern%2Fverification">Sign in as Operator</Link>}
     </div>}
+    <ol className="boundary-lessons">{LESSONS.map(([id, title, description]) => <li key={id}>
+      <div><strong>{title}</strong><span className="boundary-state">{run?.outcomes[id] ? 'Observed in this run' : unavailableLabel}</span></div>
+      <p>{description}</p>
+    </li>)}</ol>
     {!loading && !error && !run && <p role="status">No five-outcome run is recorded. Complete the Workshop Studio Lab 4 proof to populate this view. Deployment configuration alone does not prove enforcement.</p>}
     {run && <>
       <label className="boundary-run-select">Evidence run

@@ -939,7 +939,10 @@ agentcore() {
     source="$(printf '%s' "$resolution" | cut -f1)"
     effective="$(printf '%s' "$resolution" | cut -f3-)"
     log "AgentCore CLI: ${source} — ${effective}"
-    ( cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
+    (
+      # Pellier uses this variable for an ARN; the CLI requires an endpoint alias.
+      export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
+      cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
         && if [ "$source" = "binary" ]; then
                "$(printf '%s' "$resolution" | cut -f2)" "$@"
            else
@@ -1466,12 +1469,12 @@ EOF
         AGENTCORE_OK=false
     fi
 
-    # The pinned CLI requires Node 20 or newer. Fail this managed provisioning
-    # beat cleanly if the base image fell back to an older runtime.
+    # The workshop and CI use Node 24 LTS. Fail this managed provisioning beat
+    # cleanly if the base image fell back to another runtime.
     if [ "$AGENTCORE_OK" = true ]; then
         _ac_node_major="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
-        if ! echo "$_ac_node_major" | grep -qE '^[0-9]+$' || [ "$_ac_node_major" -lt 20 ]; then
-            warn "Node $(node --version 2>/dev/null || echo 'none') (<20) — @aws/agentcore Runtime deploy cannot run. Skipping managed AgentCore provisioning; Pellier still starts. Fix: install Node 20 (see bootstrap-environment.sh) and re-run scripts/deploy/deploy_all.sh."
+        if ! echo "$_ac_node_major" | grep -qE '^[0-9]+$' || [ "$_ac_node_major" -ne 24 ]; then
+            warn "Node $(node --version 2>/dev/null || echo 'none') is not the workshop's Node 24 LTS runtime. Skipping managed provisioning; governed readiness cannot pass. Fix: install Node 24 (see bootstrap-environment.sh) and re-run bootstrap-labs.sh."
             write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
             AGENTCORE_OK=false
         fi

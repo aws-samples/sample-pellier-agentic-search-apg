@@ -43,8 +43,9 @@ test.describe('Govern connected reference', () => {
     }
     const boundaryEvidence = page.getByRole('region', { name: 'Which control acted?' });
     await expect(boundaryEvidence.getByRole('alert')).toContainText('Sign in with an Operator account');
-    await expect(boundaryEvidence.getByRole('link', { name: 'Sign in to inspect the five outcomes' }))
-      .toHaveAttribute('href', '/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification');
+    await expect(boundaryEvidence.getByRole('link', { name: 'Sign in as Operator' }))
+      .toHaveAttribute('href', '/signin?workspace=operator&returnTo=%2Fobservatory%2Fgovern%2Fverification');
+    await expect(boundaryEvidence.getByText('Not yet proved', { exact: true })).toHaveCount(0);
     const authenticationLink = page.getByRole('navigation', { name: 'Govern topics' }).getByRole('link', { name: 'Authentication & JWTs', exact: true });
     await authenticationLink.focus();
     await page.keyboard.press('Enter');
@@ -97,6 +98,10 @@ test.describe('Govern connected reference', () => {
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
         expect(overflow, `${path} should not overflow the viewport`).toBe(false);
+        if (width === 390) {
+          await expect(page.getByRole('navigation', { name: 'Govern topics' })).toBeHidden();
+          await page.getByRole('button', { name: 'Browse Govern topics' }).click();
+        }
         await expect(page.getByRole('navigation', { name: 'Govern topics' })).toBeVisible();
         if (path.endsWith('/policies')) {
           await expect(page.locator('details.govern-policy').first()).toBeVisible({ timeout: 25_000 });
@@ -120,6 +125,10 @@ test.describe('Govern connected reference', () => {
       }
       await page.goto('/observatory/govern');
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Governed agent access');
+      if (width === 390) {
+        await expect(page.getByRole('navigation', { name: 'Govern topics' })).toBeHidden();
+        await page.getByRole('button', { name: 'Browse Govern topics' }).click();
+      }
       await expect(page.getByRole('navigation', { name: 'Govern topics' })).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));

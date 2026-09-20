@@ -1,0 +1,599 @@
+{
+  "lab1": {
+    "question": "What can the agent legitimately conclude in each case?",
+    "cases": [
+      {
+        "case": "unknown",
+        "query": "Hadley cashmere scarf",
+        "status": "not_found",
+        "total_units": null,
+        "passed": true,
+        "conclusion": "the catalog does not carry this piece; the agent may say so and nothing about stock"
+      },
+      {
+        "case": "sold_out",
+        "query": "Quilted Silk Vest",
+        "status": "success",
+        "total_units": 0,
+        "passed": true,
+        "conclusion": "the catalog carries this piece and every warehouse holds zero; the agent may say it is sold out"
+      }
+    ],
+    "passed": true
+  },
+  "lab2": {
+    "candidateId": "21",
+    "comparisonId": "compare-68647a6f844b4c0abf5c774741f091d0",
+    "assertions": {
+      "sameQuery": true,
+      "savedComparisons": true,
+      "starterObserved": true,
+      "candidatePreviouslyLost": true,
+      "poolExpanded": true,
+      "candidateRecovered": true,
+      "rerankApplied": true,
+      "constraintsPreserved": true
+    }
+  },
+  "lab3": {
+    "startedAt": "2026-09-20T19:14:40.387533+00:00",
+    "candidate": {
+      "sha256": "6ac39da149eaca010cf43d3217fcee861b1789f78f1e008f0d1c80d3439b8b0d"
+    },
+    "baseline": {
+      "sha256": "b6e836b82047550aab2451a990bb16ff37cf5d2f3d4765e683ecc2bae5c6dcbe"
+    },
+    "sourceStarterEdited": false,
+    "restored": true,
+    "restoredPolicies": 8,
+    "ownerTicketRead": {
+      "isError": false,
+      "denial": false,
+      "discoveredTools": 15,
+      "responseBytes": 93
+    },
+    "crossCustomerTicketRead": {
+      "denied": true,
+      "errorType": "ExceptionGroup"
+    },
+    "threeTurnBrowserPassed": true,
+    "outcomeLimits": {
+      "turn2HadRecoveredToolError": true,
+      "thirdTurnReturnAttempted": true,
+      "newReturnCommitted": false,
+      "auroraRefusal": "quantity exceeds eligible unreturned quantity",
+      "policyInference": "Completion/execution ledger status is not an ALLOW decision."
+    }
+  },
+  "lab4": {
+    "runId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+    "passed": true,
+    "configurationUnchanged": true,
+    "outputControlsPassed": true,
+    "rows": [
+      {
+        "observationId": 28,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "authentication",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-authentication",
+        "operationKey": "boundaries-b2370c8a18ab49b394ab9c5941589648-anonymous",
+        "tool": "initiate_return",
+        "verifiedUsername": null,
+        "observation": {
+          "authentication": "REJECTED",
+          "authorization": "NOT_EVALUATED",
+          "output": "UNKNOWN",
+          "httpStatus": 401,
+          "database": {
+            "queried": true,
+            "executionRows": 0,
+            "writeRows": 0,
+            "committedRows": 0,
+            "domainRows": 0,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": false
+          }
+        },
+        "createdAt": "2026-09-20T18:15:15.361524+00:00"
+      },
+      {
+        "observationId": 29,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "deny",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-deny",
+        "operationKey": "identity-boundary-796de78ca5-marco",
+        "tool": "initiate_return",
+        "verifiedUsername": "marco",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "DENY",
+          "output": "UNKNOWN",
+          "businessRejected": false,
+          "database": {
+            "queried": true,
+            "executionRows": 0,
+            "writeRows": 0,
+            "committedRows": 0,
+            "domainRows": 0,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": false
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:48.796387+00:00"
+      },
+      {
+        "observationId": 30,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "refuse",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-refuse",
+        "operationKey": "identity-boundary-796de78ca5-jessica-ineligible",
+        "tool": "initiate_return",
+        "verifiedUsername": "jessica",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "RETURNED",
+          "businessRejected": true,
+          "database": {
+            "queried": true,
+            "executionRows": 1,
+            "writeRows": 1,
+            "committedRows": 0,
+            "domainRows": 0,
+            "ledgerRows": 0,
+            "pendingClaimRows": 1,
+            "businessRejected": true,
+            "idempotentReplay": false
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:49.735970+00:00"
+      },
+      {
+        "observationId": 31,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "allow",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-allow",
+        "operationKey": "identity-boundary-796de78ca5-jessica",
+        "tool": "initiate_return",
+        "verifiedUsername": "jessica",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "RETURNED",
+          "businessRejected": false,
+          "database": {
+            "queried": true,
+            "executionRows": 2,
+            "writeRows": 1,
+            "committedRows": 1,
+            "domainRows": 1,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": true
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:50.581806+00:00"
+      },
+      {
+        "observationId": 32,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "replay",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-replay",
+        "operationKey": "identity-boundary-796de78ca5-jessica",
+        "tool": "initiate_return",
+        "verifiedUsername": "jessica",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "RETURNED",
+          "businessRejected": false,
+          "database": {
+            "queried": true,
+            "executionRows": 2,
+            "writeRows": 1,
+            "committedRows": 1,
+            "domainRows": 1,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": true
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:51.440884+00:00"
+      },
+      {
+        "observationId": 33,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "benign-output",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-benign-output",
+        "operationKey": "boundaries-b2370c8a18ab49b394ab9c5941589648-benign-credit",
+        "tool": "issue_credit",
+        "verifiedUsername": "pellier-review-operator-129714b9a9",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "RETURNED",
+          "canaryReturned": false,
+          "responseHash": "8891a8d303c5f9eb8a6ba0f1911736e37b576df84fe37ec87d01f096d74e912c",
+          "database": {
+            "queried": true,
+            "executionRows": 1,
+            "writeRows": 1,
+            "committedRows": 1,
+            "domainRows": 1,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": false
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:53.862148+00:00"
+      },
+      {
+        "observationId": 34,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "suppressed-output",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-suppressed-output",
+        "operationKey": "boundaries-b2370c8a18ab49b394ab9c5941589648-suppressed-credit",
+        "tool": "issue_credit",
+        "verifiedUsername": "pellier-review-operator-129714b9a9",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "SUPPRESSED",
+          "canaryReturned": false,
+          "errorType": "ExceptionGroup",
+          "database": {
+            "queried": true,
+            "executionRows": 1,
+            "writeRows": 1,
+            "committedRows": 1,
+            "domainRows": 1,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": false
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:55.791983+00:00"
+      },
+      {
+        "observationId": 35,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "suppressed-replay",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-suppressed-replay",
+        "operationKey": "boundaries-b2370c8a18ab49b394ab9c5941589648-suppressed-credit",
+        "tool": "issue_credit",
+        "verifiedUsername": "pellier-review-operator-129714b9a9",
+        "observation": {
+          "authentication": "VERIFIED",
+          "authorization": "ALLOW",
+          "output": "SUPPRESSED",
+          "canaryReturned": false,
+          "errorType": "ExceptionGroup",
+          "database": {
+            "queried": true,
+            "executionRows": 2,
+            "writeRows": 1,
+            "committedRows": 1,
+            "domainRows": 1,
+            "ledgerRows": 0,
+            "pendingClaimRows": 0,
+            "businessRejected": false,
+            "idempotentReplay": true
+          },
+          "gatewayConfiguration": {
+            "gatewayMode": "ENFORCE",
+            "authorizerType": "CUSTOM_JWT",
+            "policyId": "credit_output_sensitive_information-7i88owc6gk",
+            "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+          }
+        },
+        "createdAt": "2026-09-20T18:15:57.965856+00:00"
+      },
+      {
+        "observationId": 36,
+        "proofRunId": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "caseName": "run-checks",
+        "invocationId": "boundaries-b2370c8a18ab49b394ab9c5941589648-run-checks",
+        "operationKey": "boundaries-b2370c8a18ab49b394ab9c5941589648",
+        "tool": "issue_credit",
+        "verifiedUsername": null,
+        "observation": {
+          "runChecks": {
+            "identityProofPassed": true,
+            "configurationUnchanged": true,
+            "outputControlsPassed": true
+          }
+        },
+        "createdAt": "2026-09-20T18:15:58.751218+00:00"
+      }
+    ],
+    "identityCases": [
+      {
+        "expected_outcome": "deny",
+        "keyed_evidence": {
+          "canonical_writes": 0,
+          "execution_rows": 0,
+          "idempotent_replay": false,
+          "ledger_rows": 0,
+          "policy_receipts": 1,
+          "queried": true,
+          "recorded_decision": "DENY",
+          "write_rows": 0
+        },
+        "kind": "deny",
+        "observed_outcome": "deny",
+        "passed": true,
+        "tool_status": "",
+        "username": "marco"
+      },
+      {
+        "expected_outcome": "allow",
+        "keyed_evidence": {
+          "canonical_writes": 0,
+          "execution_rows": 1,
+          "idempotent_replay": false,
+          "ledger_rows": 0,
+          "policy_receipts": 1,
+          "queried": true,
+          "recorded_decision": "ALLOW",
+          "write_rows": 1
+        },
+        "kind": "refuse",
+        "observed_outcome": "allow",
+        "passed": true,
+        "tool_status": "error",
+        "username": "jessica"
+      },
+      {
+        "expected_outcome": "allow",
+        "keyed_evidence": {
+          "canonical_writes": 1,
+          "execution_rows": 1,
+          "idempotent_replay": false,
+          "ledger_rows": 0,
+          "policy_receipts": 1,
+          "queried": true,
+          "recorded_decision": "ALLOW",
+          "write_rows": 1
+        },
+        "kind": "allow",
+        "observed_outcome": "allow",
+        "passed": true,
+        "tool_status": "success",
+        "username": "jessica"
+      },
+      {
+        "expected_outcome": "allow",
+        "keyed_evidence": {
+          "canonical_writes": 1,
+          "execution_rows": 2,
+          "idempotent_replay": true,
+          "ledger_rows": 0,
+          "policy_receipts": 1,
+          "queried": true,
+          "recorded_decision": "ALLOW",
+          "write_rows": 1
+        },
+        "kind": "replay",
+        "observed_outcome": "allow",
+        "passed": true,
+        "tool_status": "success",
+        "username": "jessica"
+      }
+    ],
+    "limits": "Two one-cent credits and one eligible Jessica return committed in the captured run. No replay after quantity depletion; unchanged Lambda/policy bytes retain this bounded evidence."
+  },
+  "memory": {
+    "recordCounts": {
+      "facts": 3,
+      "preferences": 2,
+      "summary": 1,
+      "episodic": 0
+    },
+    "historyEventsLoaded": 0,
+    "newSession": true,
+    "products": 6,
+    "scope": {
+      "unsigned": 401,
+      "other-shopper": 403,
+      "owner": 200,
+      "currentProductNameAndPriceMatches": 8
+    }
+  },
+  "managedTrace": {
+    "span_count": 32,
+    "agent_span": true,
+    "model_span": true,
+    "tool_span": true,
+    "content_redacted": true,
+    "tool_input_output_observed": false,
+    "tool_input_output_sanitized": true,
+    "step_latency_observed": true,
+    "step_latency_ms": {
+      "agent": 6045,
+      "model": 1916,
+      "tool": 1559
+    },
+    "model_ids": [
+      "global.anthropic.claude-opus-4-6-v1"
+    ],
+    "tool_names": [
+      "search_products"
+    ]
+  },
+  "temporaryCognitoLifecycle": {
+    "startedAt": "2026-09-20T19:21:09.588627+00:00",
+    "scope": "one newly created disposable test identity in the established workshop pool",
+    "existingUsersChanged": false,
+    "deleted": true,
+    "privateReceipt": true,
+    "duplicateCreateExit": 3,
+    "originalPasswordStillWorks": true,
+    "mismatchedIdentityCleanupExit": 4,
+    "absentRerunPassed": true,
+    "passwordsAbsentFromHelperOutput": true,
+    "passed": true,
+    "finishedAt": "2026-09-20T19:21:13.151969+00:00"
+  },
+  "authDiagnostics": {
+    "singlePriorBrowser502Retained": true,
+    "subsequentDirectTokenValidations": [
+      {
+        "index": 0,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:03:57.886418+00:00",
+        "iatDeltaSeconds": -1.062,
+        "validation": "PASS"
+      },
+      {
+        "index": 1,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:03:58.589640+00:00",
+        "iatDeltaSeconds": -0.59,
+        "validation": "PASS"
+      },
+      {
+        "index": 2,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:03:59.054517+00:00",
+        "iatDeltaSeconds": -0.055,
+        "validation": "PASS"
+      },
+      {
+        "index": 3,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:03:59.549259+00:00",
+        "iatDeltaSeconds": -0.549,
+        "validation": "PASS"
+      },
+      {
+        "index": 4,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:00.003501+00:00",
+        "iatDeltaSeconds": -0.004,
+        "validation": "PASS"
+      },
+      {
+        "index": 5,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:00.494001+00:00",
+        "iatDeltaSeconds": -0.494,
+        "validation": "PASS"
+      },
+      {
+        "index": 6,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:00.938683+00:00",
+        "iatDeltaSeconds": -0.939,
+        "validation": "PASS"
+      },
+      {
+        "index": 7,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:01.415076+00:00",
+        "iatDeltaSeconds": -0.415,
+        "validation": "PASS"
+      },
+      {
+        "index": 8,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:01.881921+00:00",
+        "iatDeltaSeconds": -0.882,
+        "validation": "PASS"
+      },
+      {
+        "index": 9,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:02.338266+00:00",
+        "iatDeltaSeconds": -0.338,
+        "validation": "PASS"
+      },
+      {
+        "index": 10,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:02.787939+00:00",
+        "iatDeltaSeconds": -0.788,
+        "validation": "PASS"
+      },
+      {
+        "index": 11,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:03.439463+00:00",
+        "iatDeltaSeconds": -0.44,
+        "validation": "PASS"
+      },
+      {
+        "index": 12,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:03.944692+00:00",
+        "iatDeltaSeconds": -0.945,
+        "validation": "PASS"
+      },
+      {
+        "index": 13,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:04.400621+00:00",
+        "iatDeltaSeconds": -0.401,
+        "validation": "PASS"
+      },
+      {
+        "index": 14,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:04.851559+00:00",
+        "iatDeltaSeconds": -0.852,
+        "validation": "PASS"
+      },
+      {
+        "index": 15,
+        "tokenPresent": true,
+        "at": "2026-09-20T20:04:05.280624+00:00",
+        "iatDeltaSeconds": -0.281,
+        "validation": "PASS"
+      }
+    ],
+    "causeOfOriginal502": "not established; sanitized diagnostics added; final authenticated suites passed"
+  }
+}

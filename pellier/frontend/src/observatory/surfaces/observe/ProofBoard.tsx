@@ -455,7 +455,7 @@ const GovernedProofRail: React.FC<{ cards: ProofCard[]; receipt: ManagedReceipt 
         })}
       </div>
 
-      <article
+      <div
         aria-labelledby={`governed-proof-tab-${activeStage.id}`}
         className="pellier-governed-proof-panel"
         id={`governed-proof-panel-${activeStage.id}`}
@@ -487,7 +487,7 @@ const GovernedProofRail: React.FC<{ cards: ProofCard[]; receipt: ManagedReceipt 
             </p>
           )}
         </div>
-      </article>
+      </div>
     </section>
   );
 };

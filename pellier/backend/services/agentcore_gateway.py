@@ -26,6 +26,7 @@ MCP (Model Context Protocol) docs: https://modelcontextprotocol.io
 """
 import logging
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -337,6 +338,34 @@ def _logical_gateway_tool_name(name: str) -> str:
     return name
 
 
+def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
+    """Give Bedrock short names while preserving Gateway execution identities.
+
+    Gateway prefixes can push a name past Bedrock's 64-character limit.
+    Strands' public name_override changes the model schema only; its MCP
+    adapter still calls the original qualified name under the same JWT.
+    Ambiguous aliases fail closed instead of selecting a different target.
+    """
+    from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
+
+    aliases: set[str] = set()
+    adapted: list[Any] = []
+    for tool in tools:
+        name = _logical_gateway_tool_name(tool.mcp_tool.name)
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+            raise RuntimeError("Gateway tool cannot be represented by a valid Bedrock name")
+        if name in aliases:
+            raise RuntimeError(f"Gateway exposes an ambiguous logical tool: {name}")
+        aliases.add(name)
+        adapted.append(MCPAgentTool(
+            tool.mcp_tool,
+            tool.mcp_client,
+            name_override=name,
+            timeout=tool.timeout,
+        ))
+    return adapted
+
+
 _SAFE_TOOL_INPUT_FIELDS = frozenset(
     {
         "category",
@@ -556,7 +585,7 @@ class ManagedGatewayDispatcher:
                     max_tokens=max_tokens,
                 ),
                 system_prompt=system_prompt,
-                tools=selected,
+                tools=_model_gateway_tools(selected),
             )
             tool_events: list[Dict[str, Any]] = []
             products: list[dict[str, Any]] = []

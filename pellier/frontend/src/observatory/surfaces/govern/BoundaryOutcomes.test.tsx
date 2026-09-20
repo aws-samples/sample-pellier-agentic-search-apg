@@ -20,12 +20,14 @@ describe('Lab 4 boundary outcomes', () => {
     render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getByRole('alert')).toHaveTextContent('No outcome can be established');
     expect(screen.queryByText(/No five-outcome run is recorded/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Not yet proved')).not.toBeInTheDocument();
   });
   it('keeps the operator boundary explicit', () => {
     state.error = 'forbidden'; state.errorStatus = 403;
     render(<MemoryRouter><BoundaryOutcomes /></MemoryRouter>);
     expect(screen.getByRole('alert')).toHaveTextContent('Operator account');
-    expect(screen.getByRole('link', { name: 'Sign in to inspect the five outcomes' })).toHaveAttribute('href', '/signin?returnTo=%2Fobservatory%2Fgovern%2Fverification');
+    expect(screen.getByRole('link', { name: 'Sign in as Operator' })).toHaveAttribute('href', '/signin?workspace=operator&returnTo=%2Fobservatory%2Fgovern%2Fverification');
+    expect(screen.queryByText('Not yet proved')).not.toBeInTheDocument();
   });
   it('shows a suppressed response beside execution and a committed effect', () => {
     state.data = { source: 'CLI observations + keyed Aurora snapshots', runs: [{

@@ -56,7 +56,7 @@ const SessionView: React.FC = () => {
     ? lastSegment
     : 'chat';
 
-  // Load session detail from fixture keyed by session ID
+  // Read the current caller's stored session through the scoped API.
   const { data: session, loading, error, errorStatus, refetch } = useObservatoryData<SessionDetail>({
     key: `session-${id?.toLowerCase()}`,
   });
@@ -93,7 +93,10 @@ const SessionView: React.FC = () => {
   /* Loading state */
   if (loading) {
     return (
-      <div style={{ padding: '40px 48px' }}>
+      <div style={{ padding: '40px clamp(16px, 4vw, 48px)' }}>
+        <div role="status" aria-label="Loading session">
+          <h1>Loading session evidence…</h1>
+        </div>
         <div
           style={{
             display: 'flex',
@@ -105,23 +108,25 @@ const SessionView: React.FC = () => {
           <Eyebrow label={`Session #${id}`} variant="muted" />
         </div>
         <div
+          aria-hidden="true"
+          className="motion-safe:animate-pulse"
           style={{
             background: 'var(--obs-cream-2)',
             borderRadius: 'var(--obs-card-radius)',
             height: '48px',
-            width: '320px',
+            width: 'min(320px, 100%)',
             opacity: 0.5,
-            animation: 'pulse 1.5s ease-in-out infinite',
             marginBottom: '24px',
           }}
         />
         <div
+          aria-hidden="true"
+          className="motion-safe:animate-pulse"
           style={{
             background: 'var(--obs-cream-2)',
             borderRadius: 'var(--obs-card-radius)',
             height: '400px',
             opacity: 0.4,
-            animation: 'pulse 1.5s ease-in-out infinite',
           }}
         />
       </div>
@@ -133,15 +138,15 @@ const SessionView: React.FC = () => {
     return (
       <div
         style={{
-          padding: '80px 48px',
+          padding: '80px clamp(16px, 4vw, 48px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
         }}
       >
-        <Eyebrow label="Something went wrong" variant="muted" />
-        <p
+        <Eyebrow label={errorStatus === 401 ? 'Sign-in required' : errorStatus === 403 ? 'Access required' : 'Session unavailable'} variant="muted" />
+        <h1
           style={{
             fontFamily: 'var(--obs-sans)',
             fontSize: '24px',
@@ -152,7 +157,7 @@ const SessionView: React.FC = () => {
           }}
         >
           We couldn't load session #{id}.
-        </p>
+        </h1>
         <p
           style={{
             fontFamily: 'var(--obs-mono)',
@@ -164,7 +169,13 @@ const SessionView: React.FC = () => {
         >
           {error}
         </p>
-        <button
+        {(errorStatus === 401 || errorStatus === 403) ? (
+          <Link className="observatory-reference-return"
+            to={`/signin?returnTo=${encodeURIComponent(location.pathname + location.search)}`}>
+            {errorStatus === 403 ? 'Use a different account' : 'Sign in to read this session'}
+          </Link>
+        ) : <button
+          type="button"
           onClick={refetch}
           style={{
             marginTop: '24px',
@@ -180,7 +191,8 @@ const SessionView: React.FC = () => {
           }}
         >
           Try again
-        </button>
+        </button>}
+        <Link className="observatory-reference-return" to="/observatory/sessions">Return to sessions</Link>
       </div>
     );
   }
@@ -190,14 +202,14 @@ const SessionView: React.FC = () => {
     return (
       <div
         style={{
-          padding: '80px 48px',
+          padding: '80px clamp(16px, 4vw, 48px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
         }}
       >
-        <Eyebrow label="Session not found" variant="muted" />
+        <h1>Session not found</h1>
         <p
           style={{
             fontFamily: 'var(--obs-sans)',
@@ -210,12 +222,13 @@ const SessionView: React.FC = () => {
         >
           No session data found for #{id}.
         </p>
+        <Link className="observatory-reference-return" to="/observatory/sessions">Return to sessions</Link>
       </div>
     );
   }
 
   return (
-    <main className="observatory-reading-page observatory-session-page">
+    <div className="observatory-reading-page observatory-session-page">
       <div className="observatory-session-actions">
         <Link
           to="/observatory/sessions"
@@ -273,7 +286,7 @@ const SessionView: React.FC = () => {
           context={{ session, replayNonce } satisfies SessionOutletContext}
         />
       </div>
-    </main>
+    </div>
   );
 };
 

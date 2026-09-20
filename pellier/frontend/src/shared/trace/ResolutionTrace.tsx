@@ -190,7 +190,7 @@ export default function ResolutionTrace({
         )}
         {recordingLabel && <p className="resolution-trace-recording">{recordingLabel}</p>}
         {mode === 'recorded' && showPlaybackControls && steps.length > 0 && (
-          <div className="resolution-trace-controls" aria-label="Trace playback">
+          <div className="resolution-trace-controls" role="group" aria-label="Trace playback">
             <button type="button" onClick={() => {
               if (settled) replay()
               else setPlaying(value => !value)

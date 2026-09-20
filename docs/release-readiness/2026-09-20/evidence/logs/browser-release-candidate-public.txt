@@ -1,0 +1,87 @@
+
+Running 57 tests using 2 workers
+
+(node:57457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57458) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57457) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:57458) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   1 [chromium] › e2e/cognito/auth-happy-path.spec.ts:4:1 › password sign-in verifies Cognito identity and protects browser tokens
+  -   2 [chromium] › e2e/cognito/anon-to-auth.spec.ts:4:1 › sign-in preserves the anonymous and staff authorization boundaries
+  -   3 [chromium] › e2e/cognito/auth-refresh-fail.spec.ts:4:1 › a rejected session returns to the current sign-in form with its destination
+  -   4 [chromium] › e2e/cognito/auth-refresh.spec.ts:4:1 › an expired access cookie refreshes through Cognito and retries hydration
+  ✓   6 [chromium] › e2e/workbench-results.spec.ts:107:3 › idle and Operator handoff remain usable at 1440px (1.4s)
+  ✓   7 [chromium] › e2e/workbench-results.spec.ts:107:3 › idle and Operator handoff remain usable at 1024px (468ms)
+  ✓   8 [chromium] › e2e/workbench-results.spec.ts:107:3 › idle and Operator handoff remain usable at 768px (585ms)
+  ✓   9 [chromium] › e2e/workbench-results.spec.ts:107:3 › idle and Operator handoff remain usable at 390px (950ms)
+  ✓  10 [chromium] › e2e/workbench-results.spec.ts:133:1 › receipt labels describe evaluation, empty results, and execution failures (1.1s)
+  ✓  11 [chromium] › e2e/workbench-results.spec.ts:159:3 › HTTP 401 cannot masquerade as a verified empty result (726ms)
+  ✓  12 [chromium] › e2e/workbench-results.spec.ts:159:3 › HTTP 503 cannot masquerade as a verified empty result (383ms)
+  ✓  13 [chromium] › e2e/workbench-results.spec.ts:175:3 › a streamed denial reads the exact ledger without replay (available: true) (699ms)
+  ✓  14 [chromium] › e2e/workbench-results.spec.ts:175:3 › a streamed denial reads the exact ledger without replay (available: false) (896ms)
+  ✓  15 [chromium] › e2e/workbench-results.spec.ts:199:1 › Resume, history, and Open event reveal the destination panel on a narrow viewport (1.3s)
+  ✓  16 [chromium] › e2e/workbench-results.spec.ts:223:1 › running and verified-empty states are distinct, and a late run cannot enter another lab (1.5s)
+  ✓   5 [chromium] › e2e/persona-modal.spec.ts:6:3 › Shopper scenario and identity boundary › all three scenarios remain anonymous until a real sign-in (10.7s)
+(node:58021) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58021) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  17 [chromium] › e2e/workshop-smoke.spec.ts:18:3 › Public governed workshop journey › Storefront opens the four-lab collection and returns to the shop (6.0s)
+  ✓  18 [chromium] › e2e/govern-reference.spec.ts:17:3 › Govern connected reference › all topics are discoverable, keyboard reachable, and free of runtime errors (3.7s)
+  ✓  19 [chromium] › e2e/workshop-smoke.spec.ts:50:3 › Public governed workshop journey › fonts and Cedar identity are self-hosted (840ms)
+  ✓  21 [chromium] › e2e/workshop-smoke.spec.ts:65:3 › Public governed workshop journey › legacy lab URLs land on the corresponding workbench, without duplicated guides (907ms)
+  ✓  20 [chromium] › e2e/govern-reference.spec.ts:58:3 › Govern connected reference › legacy Write path opens actual policy definitions with observed modes (2.0s)
+  ✓  22 [chromium] › e2e/workshop-smoke.spec.ts:74:3 › Public governed workshop journey › a signed-out Operator route requests identity and preserves the destination (740ms)
+  ✓  24 [chromium] › e2e/workshop-smoke.spec.ts:85:3 › Public governed workshop journey › the reset link clears persisted browser state and removes the reset flag (305ms)
+  ✓  25 [chromium] › e2e/workshop-smoke.spec.ts:94:5 › Public governed workshop journey › reference journey has readable headings and no document overflow at 1440px (3.1s)
+  ✓  23 [chromium] › e2e/govern-reference.spec.ts:80:3 › Govern connected reference › a failed refresh removes the previous configuration (4.1s)
+  ✓  26 [chromium] › e2e/workshop-smoke.spec.ts:94:5 › Public governed workshop journey › reference journey has readable headings and no document overflow at 1024px (3.5s)
+  ✓  27 [chromium] › e2e/govern-reference.spec.ts:94:5 › Govern connected reference › layout and policy disclosure at 1440px (3.6s)
+  ✓  29 [chromium] › e2e/govern-reference.spec.ts:94:5 › Govern connected reference › layout and policy disclosure at 1024px (3.4s)
+  ✓  28 [chromium] › e2e/workshop-smoke.spec.ts:94:5 › Public governed workshop journey › reference journey has readable headings and no document overflow at 390px (4.9s)
+  -  31 [chromium] › e2e/operator-client-preview.spec.ts:37:3 › Operator client storefront handoff › the live client book stays balanced across all three membership rungs
+  -  32 [chromium] › e2e/operator-client-preview.spec.ts:52:3 › Operator client storefront handoff › Jessica stays a read-only preview and reflects her recorded return evidence
+  -  33 [chromium] › e2e/operator-client-preview.spec.ts:106:3 › Operator client storefront handoff › a client preview clears an unrelated shopper persona
+  -  34 [chromium] › e2e/operator-client-preview.spec.ts:123:3 › Operator client storefront handoff › a hero handoff performs the canonical persona switch
+(node:58404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  30 [chromium] › e2e/govern-reference.spec.ts:94:5 › Govern connected reference › layout and policy disclosure at 768px (2.4s)
+  ✓  35 [chromium] › e2e/resolution-trace.spec.ts:23:1 › separate storefront tour preserves the hero and exposes all three recorded examples (1.3s)
+  ✓  36 [chromium] › e2e/govern-reference.spec.ts:94:5 › Govern connected reference › layout and policy disclosure at 390px (2.6s)
+  -  38 [chromium] › e2e/govern-reference.spec.ts:142:3 › Govern real Cognito sign-in › sign-in returns to the validated caller panel and shopper authority stays scoped
+  -  39 [chromium] › e2e/workbench-live.spec.ts:8:1 › a signed-in shopper turn reconciles to a real principal-scoped ledger
+(node:58444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  40 [chromium] › e2e/review-accessibility.spec.ts:7:1 › release accessibility and current public screenshots (4.8s)
+(node:58526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:58526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  41 [chromium] › e2e/review-recovery.spec.ts:11:1 › the client book index preserves the Operator sign-in boundary (284ms)
+  ✓  42 [chromium] › e2e/review-recovery.spec.ts:18:1 › inaccessible evidence puts Operator recovery before unobserved outcomes (364ms)
+  ✓  43 [chromium] › e2e/review-recovery.spec.ts:32:1 › mobile panels are navigation and do not award completion without evidence (284ms)
+  ✓  44 [chromium] › e2e/review-recovery.spec.ts:42:3 › opening all recordings keeps the control and first example in reading order at 1280px (374ms)
+  ✓  45 [chromium] › e2e/review-recovery.spec.ts:42:3 › opening all recordings keeps the control and first example in reading order at 390px (396ms)
+  ✓  46 [chromium] › e2e/review-recovery.spec.ts:60:1 › mobile Govern topics expand on demand and close after navigation (611ms)
+  ✓  47 [chromium] › e2e/review-recovery.spec.ts:72:1 › a simulated authentication outage is recoverable without navigating away (570ms)
+  ✓  48 [chromium] › e2e/review-recovery.spec.ts:91:1 › keyboard focus keeps the evidence selector below both sticky bars at 320px (368ms)
+  ✓  37 [chromium] › e2e/resolution-trace.spec.ts:54:1 › recorded examples repeat through storefront, Operator and Cedar with a readable result hold (33.7s)
+  ✓  49 [chromium] › e2e/resolution-trace.spec.ts:76:3 › tour and chat stay usable at 1440x900 (3.9s)
+  ✓  50 [chromium] › e2e/resolution-trace.spec.ts:76:3 › tour and chat stay usable at 1280x720 (3.3s)
+  ✓  51 [chromium] › e2e/resolution-trace.spec.ts:76:3 › tour and chat stay usable at 768x1024 (3.3s)
+  ✓  52 [chromium] › e2e/resolution-trace.spec.ts:76:3 › tour and chat stay usable at 390x844 (4.1s)
+  ✓  53 [chromium] › e2e/resolution-trace.spec.ts:112:1 › reduced motion shows a complete example and lets the reader choose Cedar directly (301ms)
+  ✓  54 [chromium] › e2e/resolution-trace.spec.ts:124:1 › technical details follow the persona, SQL source, and matching exercise (803ms)
+  -  55 [chromium] › e2e/resolution-trace.spec.ts:159:1 › real shopper request persists evidence and replays it in the Observatory
+  -  56 [chromium] › e2e/resolution-trace.spec.ts:194:1 › real Operator investigation streams numbered steps and preserves them in history
+  -  57 [chromium] › e2e/resolution-trace.spec.ts:231:1 › real boundary evidence shows the exact completed run and its suppression controls
+
+  13 skipped
+  44 passed (1.4m)

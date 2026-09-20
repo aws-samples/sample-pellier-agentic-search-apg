@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,8 @@ from botocore.exceptions import ClientError
 
 
 TRANSACTION_SEARCH_POLICY = "TransactionSearchXRayAccess"
-RUNTIME_LOG_PREFIX = "/aws/bedrock-agentcore/runtimes/pellier_orchestrator-"
+RUNTIME_LOG_PREFIX = "/aws/bedrock-agentcore/runtimes/"
+TRACE_LOG_GROUP_NAMES = {"aws/spans", "/aws/application-signals/data"}
 AWS_CONFIG = Config(
     retries={"total_max_attempts": 5, "mode": "adaptive"},
     connect_timeout=10,
@@ -25,21 +28,86 @@ AWS_CONFIG = Config(
 
 
 def _load_receipt(path: Path) -> dict[str, Any]:
-    if not path.exists():
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
         return {}
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+        before = os.fstat(stream.fileno())
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_uid != os.geteuid()
+            or before.st_mode & 0o077
+            or before.st_nlink != 1
+            or before.st_size > 4 * 1024 * 1024
+        ):
+            raise ValueError(
+                "managed receipt must be an owned private regular file "
+                "with one link and at most 4 MiB"
+            )
+        payload = json.load(stream)
+        after = os.fstat(stream.fileno())
+        if (
+            before.st_size != after.st_size
+            or before.st_mtime_ns != after.st_mtime_ns
+            or after.st_nlink != 1
+        ):
+            raise ValueError("managed receipt changed while being read")
     if not isinstance(payload, dict):
         raise ValueError("managed receipt root must be a JSON object")
     return payload
 
 
+def _receipt_account(receipt: dict[str, Any], region: str) -> str:
+    """Bind even account-wide cleanup to the captured deployment identity."""
+    if not receipt or receipt.get("region") != region:
+        raise ValueError("cleanup region must match the captured managed receipt")
+    accounts: set[str] = set()
+    captured_account = receipt.get("account_id")
+    if captured_account is not None:
+        if not re.fullmatch(r"\d{12}", str(captured_account)):
+            raise ValueError("managed receipt has an invalid account_id")
+        accounts.add(str(captured_account))
+    resources = [
+        (receipt.get(key) or {}).get(field)
+        for key, field in (
+            ("runtime", "runtime_arn"),
+            ("operator_runtime", "runtime_arn"),
+            ("gateway", "gateway_arn"),
+        )
+        if isinstance(receipt.get(key) or {}, dict)
+    ]
+    lambdas = receipt.get("lambdas")
+    if isinstance(lambdas, dict):
+        resources.extend(
+            value.get("function_arn")
+            for value in lambdas.values()
+            if isinstance(value, dict)
+        )
+    for arn in resources:
+        if not arn:
+            continue
+        match = re.fullmatch(
+            r"arn:[^:]+:(?:bedrock-agentcore|lambda):([a-z0-9-]+):(\d{12}):.+",
+            str(arn),
+        )
+        if not match or match[1] != region:
+            raise ValueError("managed receipt resource ARN has a different region")
+        accounts.add(match[2])
+    if len(accounts) != 1:
+        raise ValueError("managed receipt must identify exactly one AWS account")
+    return accounts.pop()
+
+
 def _runtime_log_group(
     receipt: dict[str, Any],
     override: str | None,
+    *,
+    runtime_key: str = "runtime",
 ) -> str | None:
     observability = receipt.get("observability")
     runtime = (
-        observability.get("runtime_log_group")
+        observability.get(f"{runtime_key}_log_group")
         if isinstance(observability, dict)
         else None
     )
@@ -52,9 +120,25 @@ def _runtime_log_group(
     if not value:
         return None
     value = str(value).strip()
-    if not value.startswith(RUNTIME_LOG_PREFIX) or not value.endswith("-DEFAULT"):
+    identity = receipt.get(runtime_key)
+    arn = identity.get("runtime_arn") if isinstance(identity, dict) else None
+    match = re.fullmatch(
+        r"arn:[^:]+:bedrock-agentcore:[a-z0-9-]+:\d{12}:runtime/"
+        r"([A-Za-z0-9_]+-[A-Za-z0-9]+)",
+        str(arn or ""),
+    )
+    pellier_name = (
+        r"(?:pellier[a-z0-9]{0,12}_)?pellier(?:_[a-z0-9]{1,12})?"
+        r"_(?:orchestrator|operator)-[A-Za-z0-9]+"
+    )
+    if (
+        not match
+        or not re.fullmatch(pellier_name, match[1])
+        or value != f"{RUNTIME_LOG_PREFIX}{match[1]}-DEFAULT"
+    ):
         raise ValueError(
-            "runtime log group must be the Pellier AgentCore Runtime DEFAULT group"
+            "runtime log group must match the captured Pellier AgentCore Runtime "
+            f"ARN in {runtime_key}.runtime_arn"
         )
     return value
 
@@ -97,6 +181,7 @@ def cleanup_plan(
 ) -> list[dict[str, Any]]:
     """Return operations that restore state captured before provisioning."""
     runtime_group = _runtime_log_group(receipt, runtime_log_group)
+    operator_group = _runtime_log_group(receipt, None, runtime_key="operator_runtime")
     observability = receipt.get("observability")
     observability = observability if isinstance(observability, dict) else {}
     transaction_search = observability.get("transaction_search")
@@ -154,16 +239,12 @@ def cleanup_plan(
         )
 
     groups: list[dict[str, Any]] = []
-    operator_runtime = observability.get("operator_runtime_log_group")
-    if isinstance(operator_runtime, dict):
-        groups.append(operator_runtime)
     trace_log_groups = observability.get("trace_log_groups")
     if isinstance(trace_log_groups, dict):
-        groups.extend(
-            group
-            for group in trace_log_groups.get("groups", [])
-            if isinstance(group, dict)
-        )
+        for group in trace_log_groups.get("groups", []):
+            if not isinstance(group, dict) or group.get("name") not in TRACE_LOG_GROUP_NAMES:
+                raise ValueError("receipt contains an unexpected trace log group")
+            groups.append(group)
     runtime = observability.get("runtime_log_group")
     if isinstance(runtime, dict):
         groups.append(runtime)
@@ -172,9 +253,18 @@ def cleanup_plan(
             "runtime log group override requires a receipt with captured "
             "ownership and configuration"
         )
+    operator = observability.get("operator_runtime_log_group")
+    if isinstance(operator, dict):
+        groups.append(operator)
+    elif operator_group:
+        raise ValueError("operator log group requires captured ownership and configuration")
 
+    seen_groups: set[str] = set()
     for group in groups:
         name = str(group.get("name") or "")
+        if name in seen_groups:
+            raise ValueError(f"receipt repeats a log group: {name}")
+        seen_groups.add(name)
         cleanup = group.get("cleanup")
         if not name or not isinstance(cleanup, dict):
             raise ValueError(
@@ -349,7 +439,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--runtime-log-group",
-        help="Pellier Runtime log group override when no receipt is available.",
+        help="Pellier Runtime log group, which must match the captured receipt.",
     )
     parser.add_argument(
         "--region",
@@ -363,18 +453,27 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         receipt = _load_receipt(args.receipt)
+        account_id = _receipt_account(receipt, args.region)
         plan = cleanup_plan(
             receipt,
             runtime_log_group=args.runtime_log_group,
         )
         if args.dry_run:
-            print(json.dumps({"region": args.region, "plan": plan}, indent=2))
+            print(json.dumps(
+                {"region": args.region, "account_id": account_id, "plan": plan},
+                indent=2,
+            ))
             return 0
         if not args.confirm_workshop_cleanup:
             parser.error(
                 "destructive cleanup requires --confirm-workshop-cleanup "
                 "(use --dry-run to inspect first)"
             )
+        caller = boto3.client(
+            "sts", region_name=args.region, config=AWS_CONFIG
+        ).get_caller_identity()
+        if caller.get("Account") != account_id:
+            raise ValueError("active AWS account does not match the managed receipt")
         results = execute_cleanup(region=args.region, plan=plan)
         print(json.dumps({"region": args.region, "results": results}, indent=2))
         return 0

@@ -5,9 +5,10 @@
  *   1. Calls /api/auth/refresh on any 401 response.
  *   2. On refresh success, retries the original request exactly once
  *      (flagged via a `_retry` marker on the Axios request config).
- *   3. On refresh failure, calls `openSignInChooser({ returnTo: ... })`
+ *   3. On rejected credentials, calls `openSignInChooser({ returnTo: ... })`
  *      from `utils/auth.ts` so the user lands on `/signin` with all
- *      three providers visible (Req 4.2.5).
+ *      three providers visible (Req 4.2.5). Temporary outages remain
+ *      retryable errors and preserve the browser's current page.
  *
  * The retry-once semantics are preserved even when multiple requests
  * fire concurrently by coalescing refreshes onto a shared promise.
@@ -32,37 +33,8 @@ interface RetryableAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
 
-/**
- * Shared in-flight refresh promise. When multiple requests 401
- * simultaneously they all await the same /api/auth/refresh call rather
- * than triggering a thundering herd.
- */
-let refreshInFlight: Promise<boolean> | null = null
-
-/**
- * Call /api/auth/refresh with the current cookies. Returns true when the
- * server responds 2xx (new cookies set server-side), false otherwise.
- * Exported only for tests.
- */
-export async function refreshAuthTokens(): Promise<boolean> {
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async () => {
-    try {
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      return res.ok
-    } catch {
-      return false
-    } finally {
-      // Clear immediately after completion so the *next* 401 wave starts
-      // a fresh refresh rather than reusing this one's result.
-      refreshInFlight = null
-    }
-  })()
-  return refreshInFlight
-}
+import { refreshAuthTokens } from './authRefresh'
+export { refreshAuthTokens, AUTH_REFRESH_TIMEOUT_MS } from './authRefresh'
 
 class ApiClient {
   private client: AxiosInstance
@@ -105,7 +77,18 @@ class ApiClient {
         if (is401 && original && !original._retry) {
           original._retry = true
 
-          const refreshed = await refreshAuthTokens()
+          let refreshed: boolean
+          try {
+            refreshed = await refreshAuthTokens()
+          } catch {
+            return Promise.reject(new AxiosError(
+              'Sign-in is temporarily unavailable. Please try again.',
+              'ERR_AUTH_UNAVAILABLE',
+              original,
+              undefined,
+              { data: { error: 'auth_unavailable' }, status: 503, statusText: 'Service Unavailable', headers: {}, config: original },
+            ))
+          }
           if (refreshed) {
             // Retry the original request exactly once.
             return this.client.request(original)

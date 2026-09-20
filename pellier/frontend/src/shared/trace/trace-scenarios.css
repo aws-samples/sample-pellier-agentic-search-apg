@@ -31,8 +31,8 @@
 .trace-scenario-all > div { min-width: 0; }
 .trace-scenario-loop .trace-scenario-inspect { display: flex; width: fit-content; gap: 8px; margin: -2px 0 17px; color: var(--pellier-burgundy); font: 12px/1.6 var(--sans); text-decoration: none; }
 .trace-scenario-inspect:hover { text-decoration: underline; text-underline-offset: 4px; }
-.trace-scenario-foot { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 15px 3px 0; font: 11px/1.6 var(--sans); color: var(--ink-soft); }
-.trace-scenario-foot button { flex-shrink: 0; background: transparent; border: 0; border-bottom: 1px solid var(--sand); padding: 2px 0; font: 500 12px var(--sans); color: var(--pellier-burgundy); cursor: pointer; }
+.trace-scenario-foot { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 0 3px 15px; font: 12px/1.6 var(--sans); color: var(--ink-soft); }
+.trace-scenario-foot button { flex-shrink: 0; min-height: 44px; background: transparent; border: 0; padding: 8px 4px; font: 500 12px var(--sans); color: var(--pellier-burgundy); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .trace-scenario-loop :is(button, a):focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 4px; }
 @media (max-width: 640px) {
   .trace-scenario-tabs { gap: 3px; }

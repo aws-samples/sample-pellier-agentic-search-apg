@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-09-20T18:10:27.217858+00:00",
+  "account": "<review-account>",
+  "region": "us-east-1",
+  "assetReads": [
+    {
+      "asset": "pellier-vpc.yml",
+      "status": "BLOCKED",
+      "code": "403"
+    },
+    {
+      "asset": "pellier-database.yml",
+      "status": "BLOCKED",
+      "code": "403"
+    },
+    {
+      "asset": "pellier-code-editor.yml",
+      "status": "BLOCKED",
+      "code": "403"
+    }
+  ],
+  "originCertificateInventory": {
+    "issuedCertificates": 0,
+    "domains": []
+  },
+  "dnsInventory": {
+    "hostedZoneCount": 0,
+    "zones": []
+  },
+  "historicalSecretDisposition": {
+    "historicalFinding": true,
+    "currentWorkshopPasswordMatches": false,
+    "historicalSecretStatus": "ResourceNotFoundException"
+  }
+}

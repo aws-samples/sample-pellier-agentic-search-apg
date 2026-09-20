@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import type { Session } from '../../types';
@@ -221,6 +221,8 @@ const EmptyState: React.FC = () => (
 
 const LoadingState: React.FC = () => (
   <div
+    role="status"
+    aria-label="Loading sessions"
     style={{
       display: 'flex',
       flexDirection: 'column',
@@ -228,15 +230,17 @@ const LoadingState: React.FC = () => (
       padding: '24px 0',
     }}
   >
+    <span className="sr-only">Loading sessions…</span>
     {[1, 2, 3].map((i) => (
       <div
         key={i}
+        aria-hidden="true"
+        className="motion-safe:animate-pulse"
         style={{
           background: 'var(--obs-cream-2)',
           borderRadius: 'var(--obs-card-radius)',
           height: '120px',
           opacity: 0.5,
-          animation: 'pulse 1.5s ease-in-out infinite',
         }}
       />
     ))}
@@ -249,10 +253,11 @@ const LoadingState: React.FC = () => (
 
 interface ErrorStateProps {
   message: string;
+  status: number | null;
   onRetry: () => void;
 }
 
-const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
+const ErrorState: React.FC<ErrorStateProps> = ({ message, status, onRetry }) => (
   <div
     style={{
       display: 'flex',
@@ -287,7 +292,11 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
     >
       {message}
     </p>
-    <button
+    {(status === 401 || status === 403) ? (
+      <Link className="observatory-reference-return" to="/signin?returnTo=%2Fobservatory%2Fsessions">
+        {status === 403 ? 'Use a different account' : 'Sign in to read your sessions'}
+      </Link>
+    ) : <button
       type="button"
       onClick={onRetry}
       style={{
@@ -304,7 +313,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
       }}
     >
       Try again
-    </button>
+    </button>}
   </div>
 );
 
@@ -322,7 +331,7 @@ const SessionsList: React.FC = () => {
   // opening query and id, plus a status chip, narrows without a round trip.
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Session['status']>('all');
-  const { data, loading, error, refetch } = useObservatoryData<Session[]>({
+  const { data, loading, error, errorStatus, refetch } = useObservatoryData<Session[]>({
     key: 'sessions',
   });
 
@@ -479,7 +488,7 @@ const SessionsList: React.FC = () => {
 
       {loading && <LoadingState />}
 
-      {error && <ErrorState message={error} onRetry={refetch} />}
+      {error && <ErrorState message={error} status={errorStatus ?? null} onRetry={refetch} />}
 
       {!loading && !error && scopedSessions.length === 0 && <EmptyState />}
 

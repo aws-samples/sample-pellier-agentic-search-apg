@@ -161,7 +161,7 @@
   .operator-sidebar .operator-topbar-nav>.operator-topbar-link:last-child { grid-column: 3; grid-row: 1; }
   .operator-membership-nav { display: flex; grid-column: 1 / -1; grid-row: 2; margin: 0; gap: 6px; }
   .operator-membership-nav>p { display: none; }
-  .operator-membership-nav>a { min-height: 36px; padding: 7px 11px; gap: 7px; }
+  .operator-membership-nav>a { min-height: 44px; padding: 7px 11px; gap: 7px; }
   .operator-membership-note { grid-column: 1 / -1; margin-top: 0; }
   .operator-sidebar .operator-topbar-link { min-width: 0; justify-content: center; border-radius: 999px; padding: 8px 7px; gap: 6px; font-size: 12px; }
   .operator-sidebar .operator-book-nav-count { min-width: auto; margin-left: 0; }

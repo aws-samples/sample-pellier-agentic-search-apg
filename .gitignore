@@ -52,6 +52,8 @@ docs/*
 # directory a clone never receives.
 !docs/HANDOFF-SOURCE-CONTRACT.md
 !docs/MEMORY_SHOWCASE.md
+!docs/GOVERNED-DEPLOYMENT.md
+!docs/E2E-IDENTITIES.md
 # Reviewed curriculum framing and editable architecture assets for the L400 guide.
 !docs/L400-SEARCH-RETRIEVAL-BRIEF.md
 !docs/architecture/

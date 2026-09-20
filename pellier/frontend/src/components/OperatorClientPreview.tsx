@@ -157,7 +157,8 @@ export default function OperatorClientPreview({
               >
                 Service context says a return was received. The returns ledger
                 contains {client.returnEvidence?.authoritativeReturnCount ?? 0}{' '}
-                record. These claims remain separate pending operator
+                {(client.returnEvidence?.authoritativeReturnCount ?? 0) === 1 ? 'record' : 'records'}.
+                {' '}These claims remain separate pending operator
                 reconciliation.
               </p>
             ) : null}

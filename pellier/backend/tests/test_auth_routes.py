@@ -40,6 +40,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import jwt
 import pytest
+import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
@@ -567,7 +568,7 @@ def test_callback_invalid_access_token_returns_502(
     assert PKCE_VERIFIER_COOKIE not in client.cookies
 
 
-def test_callback_cognito_token_endpoint_5xx_returns_auth_failed(
+def test_callback_cognito_rejection_returns_auth_failed(
     client: TestClient,
     token_post_recorder: Dict[str, Any],
 ) -> None:
@@ -583,6 +584,68 @@ def test_callback_cognito_token_endpoint_5xx_returns_auth_failed(
     assert resp.json() == {"detail": "auth_failed"}
     assert OAUTH_STATE_COOKIE not in client.cookies
     assert PKCE_VERIFIER_COOKIE not in client.cookies
+
+
+@pytest.mark.parametrize("status", [429, 500, 503])
+def test_callback_provider_outage_is_not_a_rejected_signin(
+    client: TestClient, token_post_recorder: Dict[str, Any], status: int
+) -> None:
+    state, _ = _begin_oauth(client)
+    token_post_recorder["responses"].append(
+        _FakeTokenResponse({"error": "temporarily_unavailable"}, status_code=status)
+    )
+    response = client.get("/api/auth/callback", params={"code": "c", "state": state})
+    assert response.status_code == 503
+    assert response.json() == {"detail": "auth_unavailable"}
+    assert OAUTH_STATE_COOKIE not in client.cookies
+
+
+@pytest.mark.parametrize("status", [400, 429, 500, 503])
+def test_refresh_provider_failure_preserves_existing_session(
+    client: TestClient, token_post_recorder: Dict[str, Any], status: int
+) -> None:
+    token_post_recorder["responses"].append(
+        _FakeTokenResponse({"error": "invalid_client"}, status_code=status)
+    )
+    client.cookies.set(REFRESH_TOKEN_COOKIE, "existing-refresh", domain="api.test")
+    client.cookies.set(ACCESS_TOKEN_COOKIE, "existing-access", domain="api.test")
+    response = client.post("/api/auth/refresh")
+    assert response.status_code == 503
+    assert response.json() == {"error": "auth_unavailable"}
+    assert "set-cookie" not in response.headers
+    assert client.cookies[REFRESH_TOKEN_COOKIE] == "existing-refresh"
+
+
+def test_network_timeout_preserves_refresh_cookie(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unavailable(*args, **kwargs):
+        raise requests.Timeout("provider timeout")
+    monkeypatch.setattr(auth_module.requests, "post", unavailable)
+    client.cookies.set(REFRESH_TOKEN_COOKIE, "existing-refresh", domain="api.test")
+    response = client.post("/api/auth/refresh")
+    assert response.status_code == 503
+    assert "set-cookie" not in response.headers
+
+
+def test_jwks_outage_preserves_session_and_fails_closed(
+    client: TestClient, auth_service: CognitoAuthService, signer: _Signer,
+    token_post_recorder: Dict[str, Any],
+) -> None:
+    def unavailable():
+        raise requests.Timeout("key endpoint timeout")
+    auth_service._fetch_jwks = unavailable
+    token = signer.sign(_access_claims())
+    client.cookies.set(ACCESS_TOKEN_COOKIE, token, domain="api.test")
+    response = client.get("/api/auth/me")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "auth_unavailable"}
+    client.cookies.set(REFRESH_TOKEN_COOKIE, "existing-refresh", domain="api.test")
+    token_post_recorder["responses"].append(_FakeTokenResponse({"access_token": token}))
+    response = client.post("/api/auth/refresh")
+    assert response.status_code == 503
+    assert "set-cookie" not in response.headers
+    assert client.cookies[REFRESH_TOKEN_COOKIE] == "existing-refresh"
 
 
 # ---------------------------------------------------------------------------

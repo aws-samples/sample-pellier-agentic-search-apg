@@ -10,10 +10,10 @@ the whole point of the design is what happens when two layers disagree.
         the policy decision, because the database was never reached.
 
     LOG_ONLY window
-        Cedar reports a would-deny and the request continues. The tool DOES
-        execute, and Aurora refuses it: Row-Level Security scopes the read the
-        write depends on. Zero business change, one attempt receipt. Never call
-        this an enforced Cedar denial — Cedar enforced nothing.
+        The configured policy lets the request continue. The tool must report
+        an explicit Aurora Row-Level Security refusal, with an attempt receipt
+        and zero business change. Per-call WOULD_DENY telemetry is a separate
+        observation; this response/audit comparison does not collect it.
 
 Both windows use the same request, so the only variable is enforcement mode.
 
@@ -33,6 +33,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import sys
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
@@ -61,6 +62,19 @@ TARGET_PRODUCT = "21"
 # the current account. That is an environment limitation, not a governance
 # failure, so it exits as a skip.
 _NOT_DEPLOYABLE = 3
+_OBSERVATION_TIMEOUT_SECONDS = 30
+
+# These canonical classifiers are pure helpers; importing them does not load
+# credentials, settings or managed clients.
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
+from services.gateway_errors import gateway_error_text, read_gateway_error_response
+from services.governed_execution import (
+    AURORA_DENIED,
+    classify_aurora,
+    is_output_suppression,
+    is_policy_denial,
+)
 
 
 def _load_env() -> Dict[str, str]:
@@ -109,6 +123,48 @@ def _policy_tool() -> Any:
     return module
 
 
+def _policy_error_evidence(error: BaseException) -> str | None:
+    """Require explicit invocation denial evidence in every exception leaf."""
+    import httpx
+
+    children = getattr(error, "exceptions", None)
+    if children:
+        evidence = [_policy_error_evidence(child) for child in children]
+        return " ".join(evidence) if all(evidence) else None
+    if isinstance(error, (httpx.RequestError, TimeoutError, OSError)):
+        return None
+    response = getattr(error, "response", None)
+    if response is not None and getattr(response, "status_code", None) != 403:
+        return None
+    if not is_policy_denial(error):
+        return None
+    return f"{type(error).__name__}: {gateway_error_text(error)}"
+
+
+def _gateway_response(response: Any) -> Dict[str, Any]:
+    """Keep explicit policy errors and returned tool envelopes distinct."""
+    text = "".join(
+        getattr(block, "text", "") for block in (response.content or [])
+    )
+    if is_output_suppression(text):
+        return {"outcome": "error", "error_kind": "output_suppressed"}
+    if getattr(response, "isError", False) is True and is_policy_denial(text):
+        return {
+            "outcome": "policy_denied",
+            "policy_source": "gateway-tool-error",
+            "policy_evidence": text,
+        }
+    try:
+        envelope = json.loads(text)
+    except (ValueError, TypeError):
+        envelope = None
+    return {
+        "outcome": "returned",
+        "is_error": bool(getattr(response, "isError", False)),
+        "result": envelope if isinstance(envelope, dict) else None,
+    }
+
+
 async def _call_initiate_return(
     gateway_url: str, token: str, *, reason: str, idempotency_key: str
 ) -> Dict[str, Any]:
@@ -117,45 +173,89 @@ async def _call_initiate_return(
     Returns a dict describing the outcome, including whether the call was
     refused before the target ran.
     """
+    import httpx
     from mcp import ClientSession
-    from mcp.client.streamable_http import streamablehttp_client
+    from mcp.client.streamable_http import streamable_http_client
 
     headers = {"Authorization": f"Bearer {token}"}
-    async with streamablehttp_client(gateway_url, headers=headers) as (
-        read,
-        write,
-        _,
-    ):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            tools = await session.list_tools()
-            name = next(
-                (t.name for t in tools.tools if t.name.endswith("initiate_return")),
-                None,
-            )
-            if name is None:
-                return {"outcome": "tool_absent"}
-            try:
-                response = await session.call_tool(
-                    name,
-                    {
-                        "customer_id": TARGET_CUSTOMER,
-                        "product_id": int(TARGET_PRODUCT),
-                        "reason": reason,
-                        "idempotency_key": idempotency_key,
-                    },
-                )
-            except Exception as exc:  # a Cedar denial surfaces as a protocol error
-                return {"outcome": "refused", "detail": str(exc)[:300]}
-
-            text = "".join(
-                getattr(block, "text", "") for block in (response.content or [])
-            )
+    invocation_started = False
+    try:
+        async with httpx.AsyncClient(
+            headers=headers,
+            timeout=httpx.Timeout(30.0, read=300.0),
+            follow_redirects=False,
+            event_hooks={"response": [read_gateway_error_response]},
+        ) as http_client:
+            async with streamable_http_client(
+                gateway_url, http_client=http_client
+            ) as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    name = next(
+                        (t.name for t in tools.tools if t.name.endswith("initiate_return")),
+                        None,
+                    )
+                    if name is None:
+                        return {"outcome": "tool_absent"}
+                    invocation_started = True
+                    response = await session.call_tool(
+                        name,
+                        {
+                            "customer_id": TARGET_CUSTOMER,
+                            "product_id": int(TARGET_PRODUCT),
+                            "reason": reason,
+                            "idempotency_key": idempotency_key,
+                        },
+                    )
+                    result = _gateway_response(response)
+        return result
+    except Exception as exc:
+        evidence = _policy_error_evidence(exc) if invocation_started else None
+        if evidence:
             return {
-                "outcome": "returned",
-                "is_error": bool(getattr(response, "isError", False)),
-                "text": text[:600],
+                "outcome": "policy_denied",
+                "policy_source": "gateway-exception",
+                "policy_evidence": evidence,
             }
+        if is_output_suppression(exc):
+            kind = "output_suppressed"
+        elif isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403):
+            kind = "authentication_error"
+        elif isinstance(exc, (httpx.RequestError, TimeoutError, OSError)):
+            kind = "transport_error"
+        else:
+            kind = "gateway_error"
+        # Exception strings may contain request data. Report the classification
+        # without printing credentials, headers or raw transport diagnostics.
+        return {"outcome": "error", "error_kind": kind}
+
+
+class ObservationUnavailable(RuntimeError):
+    """A database read did not establish the counts required for this proof."""
+
+
+def _observed_counts(
+    result: Any, *, label: str, expected: int
+) -> Tuple[int, ...]:
+    """Accept only a successful psql read with exactly the expected counts."""
+    if result.returncode != 0:
+        raise ObservationUnavailable(
+            f"{label}: database observation failed (psql exit {result.returncode})"
+        )
+    fields = result.stdout.strip().split("|")
+    # COUNT(*) is a nonnegative bigint. Empty output, missing fields and extra
+    # rows are unavailable evidence, never proof that a count was zero.
+    if len(fields) != expected or any(
+        re.fullmatch(r"[0-9]{1,19}", field) is None for field in fields
+    ):
+        raise ObservationUnavailable(
+            f"{label}: database observation did not return {expected} valid counts"
+        )
+    counts = tuple(int(field) for field in fields)
+    if any(count > 2**63 - 1 for count in counts):
+        raise ObservationUnavailable(f"{label}: database count is out of range")
+    return counts
 
 
 def _business_state(cfg: Dict[str, str]) -> Dict[str, int]:
@@ -169,18 +269,24 @@ def _business_state(cfg: Dict[str, str]) -> Dict[str, int]:
         f"{TARGET_CUSTOMER}')::text || '|' || "
         "(SELECT count(*) FROM pellier.inventory_ledger)::text"
     )
-    result = subprocess.run(
-        [
-            "psql", "-h", cfg["DB_HOST"], "-p", cfg.get("DB_PORT", "5432"),
-            "-U", cfg["DB_USER"], "-d", cfg["DB_NAME"],
-            "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql,
-        ],
-        env=child, capture_output=True, text=True,
+    try:
+        result = subprocess.run(
+            [
+                "psql", "-h", cfg["DB_HOST"], "-p", cfg.get("DB_PORT", "5432"),
+                "-U", cfg["DB_USER"], "-d", cfg["DB_NAME"],
+                "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql,
+            ],
+            env=child, capture_output=True, text=True,
+            timeout=_OBSERVATION_TIMEOUT_SECONDS,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        raise ObservationUnavailable(
+            f"business state: database observation unavailable ({type(exc).__name__})"
+        ) from None
+    returns, ledger = _observed_counts(
+        result, label="business state", expected=2
     )
-    if result.returncode != 0:
-        return {"returns": -1, "ledger": -1}
-    returns, _, ledger = result.stdout.strip().partition("|")
-    return {"returns": int(returns or 0), "ledger": int(ledger or 0)}
+    return {"returns": returns, "ledger": ledger}
 
 
 def _audit_rows(cfg: Dict[str, str], idempotency_key: str) -> int:
@@ -189,18 +295,24 @@ def _audit_rows(cfg: Dict[str, str], idempotency_key: str) -> int:
 
     child = os.environ.copy()
     child["PGPASSWORD"] = cfg["DB_PASSWORD"]
-    result = subprocess.run(
-        [
-            "psql", "-h", cfg["DB_HOST"], "-p", cfg.get("DB_PORT", "5432"),
-            "-U", cfg["DB_USER"], "-d", cfg["DB_NAME"],
-            "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1",
-            "-c",
-            "SELECT count(*) FROM pellier.tool_audit WHERE tool='initiate_return'"
-            f" AND args::text LIKE '%{idempotency_key}%'",
-        ],
-        env=child, capture_output=True, text=True,
-    )
-    return int((result.stdout or "0").strip() or 0)
+    try:
+        result = subprocess.run(
+            [
+                "psql", "-h", cfg["DB_HOST"], "-p", cfg.get("DB_PORT", "5432"),
+                "-U", cfg["DB_USER"], "-d", cfg["DB_NAME"],
+                "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1",
+                "-c",
+                "SELECT count(*) FROM pellier.tool_audit WHERE tool='initiate_return'"
+                f" AND args::text LIKE '%{idempotency_key}%'",
+            ],
+            env=child, capture_output=True, text=True,
+            timeout=_OBSERVATION_TIMEOUT_SECONDS,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        raise ObservationUnavailable(
+            f"execution audit: database observation unavailable ({type(exc).__name__})"
+        ) from None
+    return _observed_counts(result, label="execution audit", expected=1)[0]
 
 
 def _run_window(
@@ -247,12 +359,27 @@ def _report(result: Dict[str, Any]) -> List[str]:
         failures.append(f"{window}: a refused request moved inventory")
 
     if window == "ENFORCE":
+        if (
+            call.get("outcome") != "policy_denied"
+            or call.get("policy_source") not in {"gateway-exception", "gateway-tool-error"}
+            or not is_policy_denial(call.get("policy_evidence", ""))
+        ):
+            failures.append(f"{window}: no explicit Gateway/Cedar denial was observed")
         # Cedar denies before the target runs, so nothing should have executed.
         if result["executions"] != 0:
             failures.append(
                 f"{window}: expected no execution row, found {result['executions']}"
             )
-    else:
+    elif window == "LOG_ONLY":
+        envelope = call.get("result")
+        if (
+            call.get("outcome") != "returned"
+            or not isinstance(envelope, dict)
+            or envelope.get("status") not in {"error", "policy_blocked"}
+            or envelope.get("denied_by") != "database_row_level_security"
+            or classify_aurora(envelope)[0] != AURORA_DENIED
+        ):
+            failures.append(f"{window}: no explicit Aurora Row-Level Security refusal was observed")
         # The request continued past Cedar. Execution is expected; the database
         # is what refuses. Zero executions here would mean Cedar still blocked
         # it, so the mode change did not take effect.
@@ -261,6 +388,8 @@ def _report(result: Dict[str, Any]) -> List[str]:
                 f"{window}: expected the tool to execute and be refused by the "
                 "database, but nothing executed — Cedar may still be enforcing"
             )
+    else:
+        failures.append(f"Unsupported governance window: {window}")
     return failures
 
 
@@ -313,46 +442,43 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     failures: List[str] = []
     results: List[Dict[str, Any]] = []
+    exit_code = 0
     try:
-        # ---- ENFORCE window ------------------------------------------------
-        rc = policy._apply(
-            _PROJECT, control, engine_id, gateway_id,
-            policy_modes={GATING_POLICY: "ACTIVE"}, label="ENFORCE window",
-        )
-        if rc == _NOT_DEPLOYABLE:
-            print(
-                "\nSkipped: this box cannot switch enforcement mode, so the two\n"
-                "windows cannot be compared here. The mode is a declared property\n"
-                "of the AgentCore CLI project, and `agentcore deploy` is a\n"
-                "whole-project CDK deploy — it needs a project rendered for this\n"
-                "account. A provisioned Workshop Studio account has one.",
-                file=sys.stderr,
+        for label, mode in (("ENFORCE", "ACTIVE"), ("LOG_ONLY", "LOG_ONLY")):
+            rc = policy._apply(
+                _PROJECT, control, engine_id, gateway_id,
+                policy_modes={GATING_POLICY: mode}, label=f"{label} window",
             )
-            return 2
-        if rc != 0:
-            return rc
-        enforce = _run_window("ENFORCE", cfg, gateway_url, token)
-        results.append(enforce)
-        failures += _report(enforce)
-
-        # ---- LOG_ONLY window ----------------------------------------------
-        rc = policy._apply(
-            _PROJECT, control, engine_id, gateway_id,
-            policy_modes={GATING_POLICY: "LOG_ONLY"}, label="LOG_ONLY window",
-        )
-        if rc == _NOT_DEPLOYABLE:
-            print("\nSkipped before the LOG_ONLY window.", file=sys.stderr)
-            return 2
-        if rc != 0:
-            return rc
-        log_only = _run_window("LOG_ONLY", cfg, gateway_url, token)
-        results.append(log_only)
-        failures += _report(log_only)
+            if type(rc) is not int or rc != 0:
+                exit_code = 2 if rc == _NOT_DEPLOYABLE else 1
+                print(f"Could not establish the {label} window (status {rc}).", file=sys.stderr)
+                break
+            result = _run_window(label, cfg, gateway_url, token)
+            results.append(result)
+            failures.extend(_report(result))
+            if failures:
+                break
+    except ObservationUnavailable as exc:
+        failures.append(f"governance evidence unavailable: {exc}")
     finally:
         if not args.keep_log_only:
             # Restore even after a failure: a crashed run must not leave the
             # account in monitor mode.
-            policy._restore_shipped(_PROJECT, control, engine_id, gateway_id)
+            try:
+                restored = policy._restore_shipped(_PROJECT, control, engine_id, gateway_id)
+            except Exception as exc:
+                failures.append(f"shipped-mode restoration failed ({type(exc).__name__})")
+            else:
+                if type(restored) is not int or restored != 0:
+                    failures.append("shipped-mode restoration did not report success")
+
+    if failures:
+        print("FAILED:", file=sys.stderr)
+        for failure in failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    if exit_code:
+        return exit_code
 
     print()
     print("Governance windows")
@@ -363,28 +489,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"    gateway call      : {call['outcome']}"
               + (f" ({'error' if call.get('is_error') else 'ok'})"
                  if call["outcome"] == "returned" else ""))
-        if call.get("text"):
-            print(f"    tool said         : {call['text'][:120]}")
-        if call.get("detail"):
-            print(f"    refusal detail    : {call['detail'][:120]}")
         print(f"    execution rows    : {result['executions']}")
         print(f"    business change   : returns={result['business_change']['returns']}"
               f" ledger={result['business_change']['ledger']}")
         print()
 
     print("  Reading the pair:")
-    print("    ENFORCE  — Cedar refused before the target ran, so the absence of")
-    print("               an execution row IS the proof of non-execution.")
-    print("    LOG_ONLY — Cedar would have denied but did not stop the request.")
-    print("               The tool ran and Aurora refused it. Zero business")
-    print("               change either way, for two entirely different reasons.")
+    print("    ENFORCE  - Gateway reported an explicit Cedar denial, with zero")
+    print("               execution rows and no observed business change.")
+    print("    LOG_ONLY - The target reported an Aurora Row-Level Security")
+    print("               refusal, with an attempt receipt and no business change.")
+    print("    Per-call WOULD_DENY telemetry is not collected by this comparison.")
     print()
-
-    if failures:
-        print("FAILED:", file=sys.stderr)
-        for failure in failures:
-            print(f"  - {failure}", file=sys.stderr)
-        return 1
     print("✅ both windows behaved as designed")
     return 0
 

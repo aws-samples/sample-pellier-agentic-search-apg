@@ -1,0 +1,2222 @@
+[
+  {
+    "id": "desktop-welcome-named",
+    "result": "PASS",
+    "name": "Begin with the edit.",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 444,
+      "y": 267.140625,
+      "width": 552,
+      "height": 465.71875,
+      "top": 267.140625,
+      "right": 996,
+      "bottom": 732.859375,
+      "left": 444
+    }
+  },
+  {
+    "id": "desktop-welcome-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "01Welcome to PellierBegin with the edit.Choose a point of view, then browse a collection s",
+      "dialog": "pellier-spotlight-title",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(24, 26, 31, 0.26) 0px 28px 70px 0px"
+    }
+  },
+  {
+    "id": "desktop-welcome-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-welcome-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-welcome-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-welcome-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-scenario-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "desktop-scenario-named",
+    "result": "PASS",
+    "name": "Choose a scenario",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 250,
+      "y": 257.328125,
+      "width": 940,
+      "height": 485.328125,
+      "top": 257.328125,
+      "right": 1190,
+      "bottom": 742.65625,
+      "left": 250
+    }
+  },
+  {
+    "id": "desktop-scenario-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": "persona-modal",
+      "name": "Client perspectiveChoose a scenarioExplore each profile\u2019s history and preferences. Account",
+      "dialog": "persona-modal-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.5) 0px 28px 80px -24px"
+    }
+  },
+  {
+    "id": "desktop-scenario-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-scenario-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-scenario-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-scenario-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-scenario-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "desktop-bag-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "desktop-empty-bag-named",
+    "result": "PASS",
+    "name": "Your bag",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 1020.889648,
+      "y": 0,
+      "width": 420,
+      "height": 1000,
+      "top": 0,
+      "right": 1440.889648,
+      "bottom": 1000,
+      "left": 1020.889648
+    }
+  },
+  {
+    "id": "desktop-empty-bag-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "Your bagYour bag is emptyPieces you add from the collection or a conversation will appear ",
+      "dialog": "shopping-bag-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.15) -4px 0px 32px 0px"
+    }
+  },
+  {
+    "id": "desktop-empty-bag-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-empty-bag-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "desktop-empty-bag-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-empty-bag-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "desktop-empty-bag-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "desktop-dialog-flow-no-nonread-requests",
+    "result": "PASS",
+    "blocked": []
+  },
+  {
+    "id": "laptop-welcome-named",
+    "result": "PASS",
+    "name": "Begin with the edit.",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 364,
+      "y": 167.140625,
+      "width": 552,
+      "height": 465.71875,
+      "top": 167.140625,
+      "right": 916,
+      "bottom": 632.859375,
+      "left": 364
+    }
+  },
+  {
+    "id": "laptop-welcome-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "01Welcome to PellierBegin with the edit.Choose a point of view, then browse a collection s",
+      "dialog": "pellier-spotlight-title",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(24, 26, 31, 0.26) 0px 28px 70px 0px"
+    }
+  },
+  {
+    "id": "laptop-welcome-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-welcome-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-welcome-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-welcome-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-scenario-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "laptop-scenario-named",
+    "result": "PASS",
+    "name": "Choose a scenario",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 170,
+      "y": 75.5625,
+      "width": 940,
+      "height": 648.875,
+      "top": 75.5625,
+      "right": 1110,
+      "bottom": 724.4375,
+      "left": 170
+    }
+  },
+  {
+    "id": "laptop-scenario-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": "persona-modal",
+      "name": "Client perspectiveChoose a scenarioExplore each profile\u2019s history and preferences. Account",
+      "dialog": "persona-modal-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.5) 0px 28px 80px -24px"
+    }
+  },
+  {
+    "id": "laptop-scenario-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-scenario-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-scenario-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-scenario-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-scenario-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "laptop-bag-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "laptop-empty-bag-named",
+    "result": "PASS",
+    "name": "Your bag",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 860.764465,
+      "y": 0,
+      "width": 419.999939,
+      "height": 800,
+      "top": 0,
+      "right": 1280.764404,
+      "bottom": 800,
+      "left": 860.764465
+    }
+  },
+  {
+    "id": "laptop-empty-bag-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "Your bagYour bag is emptyPieces you add from the collection or a conversation will appear ",
+      "dialog": "shopping-bag-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.15) -4px 0px 32px 0px"
+    }
+  },
+  {
+    "id": "laptop-empty-bag-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-empty-bag-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "laptop-empty-bag-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-empty-bag-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "laptop-empty-bag-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "laptop-dialog-flow-no-nonread-requests",
+    "result": "PASS",
+    "blocked": []
+  },
+  {
+    "id": "mobile-welcome-named",
+    "result": "PASS",
+    "name": "Begin with the edit.",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 15,
+      "y": 158.8125,
+      "width": 360,
+      "height": 526.359375,
+      "top": 158.8125,
+      "right": 375,
+      "bottom": 685.171875,
+      "left": 15
+    }
+  },
+  {
+    "id": "mobile-welcome-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "01Welcome to PellierBegin with the edit.Choose a point of view, then browse a collection s",
+      "dialog": "pellier-spotlight-title",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(24, 26, 31, 0.26) 0px 28px 70px 0px"
+    }
+  },
+  {
+    "id": "mobile-welcome-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-welcome-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Trace, step 3 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Ask, step 2 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Show Choose, step 1 of 3",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Skip welcome tour",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgba(24, 26, 31, 0.56) 0px 0px 0px 2px, rgb(255, 255, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue",
+          "dialog": "pellier-spotlight-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgba(0, 0, 0, 0)",
+          "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(109, 31, 40) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-welcome-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-welcome-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-scenario-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "mobile-scenario-named",
+    "result": "PASS",
+    "name": "Choose a scenario",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 10,
+      "y": 152.71875,
+      "width": 370,
+      "height": 681.28125,
+      "top": 152.71875,
+      "right": 380,
+      "bottom": 834,
+      "left": 10
+    }
+  },
+  {
+    "id": "mobile-scenario-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": "persona-modal",
+      "name": "Client perspectiveChoose a scenarioExplore each profile\u2019s history and preferences. Account",
+      "dialog": "persona-modal-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.5) 0px 28px 80px -24px"
+    }
+  },
+  {
+    "id": "mobile-scenario-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-scenario-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-anna",
+          "name": "AnnaGifting, ceremony, silk, glassBuys for others: partner, mother, friends. Recent search",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-marco",
+          "name": "MarcoTravel, utility, leather, linenBrooklyn-based, partial to natural fibers. Seven order",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-modal-close",
+          "name": "Close",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": "persona-card-theo",
+          "name": "TheoSlow living, craft, stoneware, natural materialsKeeps a short list of quiet pieces: ce",
+          "dialog": "persona-modal-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "1px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-scenario-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-scenario-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-scenario-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": "persona-pill",
+      "name": "Select scenario",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "mobile-bag-trigger-keyboard-reachable",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "mobile-empty-bag-named",
+    "result": "PASS",
+    "name": "Your bag",
+    "modal": "true",
+    "containsFocus": true,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844,
+      "top": 0,
+      "right": 390,
+      "bottom": 844,
+      "left": 0
+    }
+  },
+  {
+    "id": "mobile-empty-bag-focus-entered",
+    "result": "PASS",
+    "focus": {
+      "tag": "DIV",
+      "testid": null,
+      "name": "Your bagYour bag is emptyPieces you add from the collection or a conversation will appear ",
+      "dialog": "shopping-bag-title",
+      "outlineStyle": "auto",
+      "outlineWidth": "1px",
+      "outlineColor": "rgb(0, 95, 204)",
+      "boxShadow": "rgba(31, 20, 16, 0.15) -4px 0px 32px 0px"
+    }
+  },
+  {
+    "id": "mobile-empty-bag-tab-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-empty-bag-reverse-trap",
+    "result": "PASS",
+    "sequence": [
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Close bag",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "auto",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(31, 20, 16)",
+          "boxShadow": "none"
+        }
+      },
+      {
+        "inside": true,
+        "focus": {
+          "tag": "BUTTON",
+          "testid": null,
+          "name": "Continue browsing",
+          "dialog": "shopping-bag-title",
+          "outlineStyle": "solid",
+          "outlineWidth": "2px",
+          "outlineColor": "rgb(0, 95, 204)",
+          "boxShadow": "none"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mobile-empty-bag-no-page-overflow",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-empty-bag-escape-dismisses",
+    "result": "PASS"
+  },
+  {
+    "id": "mobile-empty-bag-focus-restored",
+    "result": "PASS",
+    "focus": {
+      "tag": "BUTTON",
+      "testid": null,
+      "name": "Bag",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgba(0, 0, 0, 0)",
+      "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(31, 20, 16) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "id": "mobile-dialog-flow-no-nonread-requests",
+    "result": "PASS",
+    "blocked": []
+  },
+  {
+    "id": "mobile-boundary-table-keyboard-scroll",
+    "result": "PASS",
+    "before": 0,
+    "after": 40
+  },
+  {
+    "id": "mobile-boundary-table-contained",
+    "result": "PASS",
+    "width": 390
+  },
+  {
+    "id": "mobile-boundary-select-named",
+    "result": "PASS"
+  },
+  {
+    "id": "narrow-boundary-table-keyboard-scroll",
+    "result": "PASS",
+    "before": 0,
+    "after": 40
+  },
+  {
+    "id": "narrow-boundary-table-contained",
+    "result": "PASS",
+    "width": 320
+  },
+  {
+    "id": "narrow-boundary-select-named",
+    "result": "PASS"
+  }
+]

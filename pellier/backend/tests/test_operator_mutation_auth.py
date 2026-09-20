@@ -122,7 +122,7 @@ def test_invalid_token_is_distinct_from_missing_credentials(
     assert response.json()["detail"] == "invalid_credentials"
 
 
-def test_verification_error_is_invalid_credentials_not_a_500(
+def test_verification_outage_fails_closed_without_rejecting_credentials(
     app_with_operator_route: FastAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _set_mode(monkeypatch, "raises")
@@ -132,8 +132,8 @@ def test_verification_error_is_invalid_credentials_not_a_500(
         "/protected", headers={"Authorization": "Bearer whatever"}
     )
 
-    assert response.status_code == 401
-    assert response.json()["detail"] == "invalid_credentials"
+    assert response.status_code == 503
+    assert response.json()["detail"] == "auth_unavailable"
 
 
 def test_token_without_a_subject_is_rejected(

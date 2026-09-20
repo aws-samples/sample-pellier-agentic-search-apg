@@ -81,12 +81,12 @@ function IdentityCard() {
       ? 'The supplied credentials could not be validated. Sign in again. No Cedar decision was made by this identity check.'
       : 'Identity validation is unavailable. This is not a policy denial.'}</Notice>}
     {!loading && !error && data?.state === 'anonymous' && <>
-      <h3>No authenticated caller</h3>
+      <h2 className="govern-observation-title">No authenticated caller</h2>
       <p>These reference pages are readable without signing in. Customer evidence and Operator actions have separate access checks.</p>
     </>}
     {(errorStatus === 401 || data?.state === 'anonymous') &&
       <EvidenceLink to={`/signin?returnTo=${encodeURIComponent(`${BASE}/authentication`)}`}>Sign in to inspect your identity</EvidenceLink>}
-    {caller && <><h3>{caller.username} <span className="govern-badge">Validated access token</span></h3>
+    {caller && <><h2 className="govern-observation-title">{caller.username} <span className="govern-badge">Validated access token</span></h2>
       <dl className="govern-facts">
         <div><dt>Customer claim</dt><dd>{caller.customerClaim || 'No customer claim'}</dd></div>
         <div><dt>Staff scope</dt><dd>{caller.staffScope || 'No staff scope'}</dd></div>
@@ -241,7 +241,7 @@ function PolicyExplorer() {
       {data.source === 'managed-engine' && !data.complete && <Notice tone="warning">Some definitions or modes could not be read. Missing details remain unknown.</Notice>}
       <div className="govern-lab-state">
         <span className="govern-eyebrow">Lab 4 · ownership rule</span>
-        <h3>{data.labPolicyState === 'present' ? 'Policy name observed' : data.labPolicyState === 'not-observed' ? 'Workshop policy name not observed' : 'Deployment state unknown'}</h3>
+        <h2 className="govern-observation-title">{data.labPolicyState === 'present' ? 'Policy name observed' : data.labPolicyState === 'not-observed' ? 'Workshop policy name not observed' : 'Deployment state unknown'}</h2>
         <p>{data.labPolicyState === 'present'
           ? 'The engine lists workshop_identity_match_forbid. Inspect its definition and mode, then run the ownership proof. A matching name does not establish the rule’s correctness.'
           : 'The starter deliberately leaves the shopper return ownership condition for Lab 4. A differently named policy may also implement it; only inspection and a measured request establish protection.'}</p>
@@ -362,8 +362,10 @@ const PAGES: Record<Chapter, () => ReactNode> = {
 export default function Govern() {
   const { section } = useParams<{ section?: string }>();
   const chapter = CHAPTERS.find(c => c.id === section);
+  const [topicsOpen, setTopicsOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    setTopicsOpen(false);
     // The overview and topic routes can mount separate instances. Orient the
     // reader on arrival as well as when a mounted instance changes topics.
     // RouteExperience owns scroll restoration, including browser Back.
@@ -376,7 +378,11 @@ export default function Govern() {
     <aside className="govern-sidebar">
       <Link className="govern-home" to={BASE} aria-current={!section ? 'page' : undefined}><ShieldCheck size={18} />Govern</Link>
       <p>Identity to durable outcome</p>
-      <nav aria-label="Govern topics">
+      <button className="govern-topics-toggle" type="button" aria-expanded={topicsOpen}
+        aria-controls="govern-topics" onClick={() => setTopicsOpen(value => !value)}>
+        {topicsOpen ? 'Close topics' : 'Browse Govern topics'}
+      </button>
+      <nav id="govern-topics" aria-label="Govern topics" data-open={topicsOpen}>
         {['Identity & access', 'Enforcement & evidence'].map(group => <div className="govern-nav-group" key={group}>
           <span className="govern-eyebrow">{group}</span>
           {CHAPTERS.filter(c => c.group === group).map(c => <Link key={c.id} to={`${BASE}/${c.id}`} aria-current={section === c.id ? 'page' : undefined}>{c.label}</Link>)}

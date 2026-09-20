@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-20T19:33:41.563686+00:00",
+  "labels": {
+    "Name": "pellier-governed-managed",
+    "Project": "pellier",
+    "PellierVariant": "governed",
+    "PellierComponent": "agentcore"
+  },
+  "status": "UPDATE_COMPLETE",
+  "templateUnchanged": true,
+  "physicalResourcesUnchanged": 25,
+  "existingIdentityTagsPreserved": true,
+  "passed": true
+}

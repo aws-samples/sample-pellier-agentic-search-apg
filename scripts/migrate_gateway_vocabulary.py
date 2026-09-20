@@ -233,6 +233,10 @@ Safety contract
   and policy names before it can write. A mismatch is a hard stop.
 * Every run captures full rollback JSON for each resource it intends to change,
   and writes rollback payloads *before* applying anything.
+* Captures use owned 0700 directories and exclusive 0600 files. A versioned
+  integrity manifest binds the complete capture to the configured deployment.
+  Rollback refuses legacy, incomplete, modified or untrusted captures and checks
+  current resource identities before any update. Keep the whole run directory.
 * ``--plan`` is the default and mutates nothing.
 * Applying requires ``--apply`` plus a phase, so no single flag can move the whole
   environment at once.
@@ -265,11 +269,15 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import os
 import re
+import stat
 import sys
 import time
+import uuid
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -292,6 +300,15 @@ from ownership import (  # noqa: E402
     PreflightResult,
     require_environment_pins,
 )
+
+
+def policy_statement(policy: Dict[str, Any]) -> str:
+    """Read current AgentCore definitions and older saved migration captures."""
+    definition = policy.get("definition") or {}
+    body = definition.get("policy") or definition.get("cedar") or {}
+    value = body.get("statement")
+    return value if isinstance(value, str) else ""
+
 
 # The rename, as one map. Retired names appear here and in the Lambda's
 # migration-only dispatch alias, and nowhere else in the runtime.
@@ -828,24 +845,221 @@ def broad_baseline_statement() -> str:
     return f'permit(principal, action, {gateway_resource()});'
 
 
+class CaptureError(SystemExit):
+    """A capture cannot safely authorize a migration or rollback."""
+
+
+_CAPTURE_FILES = {
+    "preflight.json": "run",
+    "plan.json": "run",
+    "phase-proof.json": "run",
+    "live.json": "rollback",
+    "canonical.json": "rollback",
+}
+_CAPTURE_LIMIT = 16 * 1024 * 1024
+_DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+def _capture_scope() -> Dict[str, str]:
+    require_environment_pins()
+    return {
+        "account": EXPECTED_ACCOUNT,
+        "region": EXPECTED_REGION,
+        "gatewayId": EXPECTED_GATEWAY_ID,
+        "policyEngineId": EXPECTED_POLICY_ENGINE_ID,
+    }
+
+
+@contextmanager
+def _private_directory_at(parent_fd: int, name: str, *, create: bool = False):
+    if not name or Path(name).name != name or name in {".", ".."}:
+        raise CaptureError("Unsafe capture directory name.")
+    try:
+        if create:
+            try:
+                os.mkdir(name, 0o700, dir_fd=parent_fd)
+            except FileExistsError:
+                pass
+        fd = os.open(name, _DIRECTORY_FLAGS, dir_fd=parent_fd)
+        try:
+            info = os.fstat(fd)
+            if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                raise CaptureError("Capture directories must be owned by this user and mode 0700.")
+            yield fd
+        finally:
+            os.close(fd)
+    except OSError:
+        raise CaptureError("Cannot safely open a capture directory; symlinks are refused.") from None
+
+
+@contextmanager
+def _private_directory(path: Path, *, create: bool = False):
+    absolute = path.absolute()
+    if ".." in absolute.parts:
+        raise CaptureError("Capture paths must not contain parent-directory traversal.")
+    # macOS's root-owned /tmp and /var aliases are OS paths. Caller-controlled
+    # symlinks in every remaining component are rejected by descriptor traversal.
+    for alias in (Path("/tmp"), Path("/var")):
+        if absolute.is_relative_to(alias) and alias.is_symlink():
+            if alias.lstat().st_uid != 0:
+                raise CaptureError("Untrusted temporary-directory alias.")
+            absolute = alias.resolve(strict=True) / absolute.relative_to(alias)
+    try:
+        with ExitStack() as stack:
+            fd = os.open(absolute.anchor, _DIRECTORY_FLAGS)
+            stack.callback(os.close, fd)
+            for part in absolute.parts[1:-1]:
+                fd = os.open(part, _DIRECTORY_FLAGS, dir_fd=fd)
+                stack.callback(os.close, fd)
+            with _private_directory_at(fd, absolute.name, create=create) as directory_fd:
+                yield directory_fd
+    except OSError:
+        raise CaptureError("Capture path is unavailable or contains a symlink.") from None
+
+
+def _write_capture_json(directory_fd: int, name: str, value: Any) -> Dict[str, Any]:
+    if Path(name).name != name or name in {"", ".", ".."}:
+        raise CaptureError("Unsafe capture filename.")
+    data = (json.dumps(value, indent=2, sort_keys=True, default=str) + "\n").encode("utf-8")
+    if len(data) > _CAPTURE_LIMIT:
+        raise CaptureError("Capture is too large; no complete snapshot was saved.")
+    try:
+        fd = os.open(
+            name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600, dir_fd=directory_fd,
+        )
+        with os.fdopen(fd, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.fsync(directory_fd)
+    except OSError:
+        raise CaptureError("Capture write failed; existing paths and partial evidence are retained.") from None
+    return {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+
+
+def _read_capture_bytes(directory_fd: int, name: str) -> bytes:
+    try:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(before.st_mode)
+                or before.st_uid != os.geteuid()
+                or stat.S_IMODE(before.st_mode) != 0o600
+                or before.st_nlink != 1
+                or before.st_size > _CAPTURE_LIMIT
+            ):
+                raise CaptureError("Capture files must be owned regular 0600 files with one link.")
+            data = stream.read(_CAPTURE_LIMIT + 1)
+            after = os.fstat(stream.fileno())
+            if (
+                len(data) != before.st_size
+                or before.st_mtime_ns != after.st_mtime_ns
+                or before.st_ctime_ns != after.st_ctime_ns
+                or before.st_size != after.st_size
+            ):
+                raise CaptureError("Capture changed while being read.")
+            return data
+    except OSError:
+        raise CaptureError("Capture file is missing or unsafe; symlinks are refused.") from None
+
+
+def _capture_run(
+    root: Path, pre: PreflightResult, plan: Dict[str, Any],
+    live: Dict[str, Any], canonical: Dict[str, Any],
+) -> Path:
+    """Publish a fresh private capture; the manifest is written last.
+
+    Hashes detect corruption or replacement, not a compromise of the owning OS
+    user. Directory ownership and permissions establish that local trust boundary.
+    Failed writes keep their evidence but never produce an accepted partial run.
+    """
+    scope = _capture_scope()
+    name = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + uuid.uuid4().hex
+    with _private_directory(root, create=True) as root_fd:
+        try:
+            # Never reuse even an owned timestamp directory from another run.
+            os.mkdir(name, 0o700, dir_fd=root_fd)
+            os.fsync(root_fd)
+        except OSError:
+            raise CaptureError("Cannot create a fresh capture directory; no existing run was reused.") from None
+        with _private_directory_at(root_fd, name) as run_fd:
+            with _private_directory_at(run_fd, "rollback", create=True) as rollback_fd:
+                values = {
+                    "preflight.json": pre.checks,
+                    "plan.json": plan,
+                    "phase-proof.json": phase_states(plan),
+                    "live.json": live,
+                    "canonical.json": canonical,
+                }
+                files = {
+                    filename: _write_capture_json(
+                        run_fd if location == "run" else rollback_fd,
+                        filename, values[filename],
+                    )
+                    for filename, location in _CAPTURE_FILES.items()
+                }
+                _write_capture_json(rollback_fd, "manifest.json", {
+                    "version": 1, "scope": scope,
+                    "preflightPassed": pre.ok, "files": files,
+                })
+    return root / name
+
+
+def _load_capture(directory: Path) -> Dict[str, Any]:
+    """Read and verify the whole run before consuming any rollback payload."""
+    if directory.name != "rollback":
+        raise CaptureError("Use the rollback directory inside a complete captured run.")
+    scope = _capture_scope()
+    try:
+        with _private_directory(directory.parent.parent) as root_fd:
+            with _private_directory_at(root_fd, directory.parent.name) as run_fd:
+                with _private_directory_at(run_fd, "rollback") as rollback_fd:
+                    manifest = json.loads(_read_capture_bytes(rollback_fd, "manifest.json"))
+                    if (
+                        not isinstance(manifest, dict)
+                        or type(manifest.get("version")) is not int
+                        or manifest["version"] != 1
+                        or manifest.get("scope") != scope
+                        or manifest.get("preflightPassed") is not True
+                        or not isinstance(manifest.get("files"), dict)
+                        or set(manifest["files"]) != set(_CAPTURE_FILES)
+                    ):
+                        raise CaptureError("Capture manifest is incomplete, unapproved or outside the pinned scope.")
+                    payloads = {}
+                    for name, location in _CAPTURE_FILES.items():
+                        data = _read_capture_bytes(
+                            run_fd if location == "run" else rollback_fd, name,
+                        )
+                        expected = manifest["files"][name]
+                        if expected != {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}:
+                            raise CaptureError("Capture integrity check failed; no payload will be applied.")
+                        payloads[name] = json.loads(data)
+        live = payloads["live.json"]
+        if not isinstance(live, dict):
+            raise CaptureError("Capture does not contain a live resource snapshot.")
+        return live
+    except (ValueError, TypeError):
+        raise CaptureError("Capture JSON is malformed or incomplete.") from None
+
+
 def assert_broad_baseline_matches_capture(directory: Path) -> None:
     """Cross-check the derived broad permit against a pre-migration capture.
 
-    Advisory: a missing or unreadable capture is not a failure, because captures
-    live outside the repository. A capture that DISAGREES is a hard stop — it would
-    mean the original definition was not the shape this module reconstructs.
+    An absent run is advisory because captures live outside the repository.
+    An existing but untrusted/incomplete run, or a baseline that disagrees, is a
+    hard stop. Historical captures without an integrity manifest need independent
+    reconciliation; changing their permissions alone does not establish trust.
     """
-    candidate = directory / "rollback" / "live.json"
-    if not candidate.is_file():
+    if not os.path.lexists(directory):
         return
-    try:
-        payload = json.loads(candidate.read_text())
-    except (OSError, ValueError):
-        return
+    payload = _load_capture(directory / "rollback")
     for policy in payload.get("policies") or []:
         if policy.get("name") != BASELINE_POLICY_NAME:
             continue
-        captured = (policy.get("definition") or {}).get("cedar", {}).get("statement", "")
+        captured = policy_statement(policy)
         if not captured:
             return
         parsed = parse_statement(BASELINE_POLICY_NAME, captured)
@@ -1080,7 +1294,7 @@ def build_plan(live: Dict[str, Any], canonical: Dict[str, Any]) -> Dict[str, Any
     redundant = policies[QUIESCE_POLICY_NAME]
 
     def statement_of(policy: Dict[str, Any]) -> str:
-        return (policy.get("definition") or {}).get("cedar", {}).get("statement", "")
+        return policy_statement(policy)
 
     baseline_before = statement_of(baseline)
     baseline_narrow = narrowed_baseline_statement(live)
@@ -1502,7 +1716,7 @@ def _policy_state(control: Any, policy_id: str) -> Dict[str, Any]:
     detail = control.get_policy(
         policyEngineId=EXPECTED_POLICY_ENGINE_ID, policyId=policy_id
     )
-    raw = (detail.get("definition") or {}).get("cedar", {}).get("statement") or ""
+    raw = policy_statement(detail)
     return {
         "status": detail.get("status"),
         "enforcementMode": detail.get("enforcementMode"),
@@ -1518,7 +1732,7 @@ def _restore_policy(control: Any, policy_id: str, statement: str, mode: str) -> 
     control.update_policy(
         policyEngineId=EXPECTED_POLICY_ENGINE_ID,
         policyId=policy_id,
-        definition={"cedar": {"statement": statement}},
+        definition={"policy": {"statement": statement}},
         enforcementMode=mode,
         validationMode="FAIL_ON_ANY_FINDINGS",
     )
@@ -1547,7 +1761,7 @@ def _live_permit_matches(
     """
     out: Dict[str, List[str]] = {a: [] for a in actions}
     for policy in live["policies"]:
-        statement = (policy.get("definition") or {}).get("cedar", {}).get("statement", "")
+        statement = policy_statement(policy)
         parsed = parse_statement(policy["name"], statement, compiled)
         if parsed.effect != "permit":
             continue
@@ -1610,7 +1824,7 @@ def _require_closed_canonical_target(control: Any, phase: str) -> Dict[str, Any]
             )
         parsed = parse_statement(
             policy["name"],
-            (policy.get("definition") or {}).get("cedar", {}).get("statement", ""),
+            policy_statement(policy),
         )
         retired = f"{RETURN_TARGET_NAME}___process_return"
         if parsed.effect != "forbid" or parsed.actions != (retired,):
@@ -1697,7 +1911,7 @@ def validation_mode_for(
     )
     baseline_parsed = parse_statement(
         BASELINE_POLICY_NAME,
-        (baseline or {}).get("definition", {}).get("cedar", {}).get("statement", ""),
+        policy_statement(baseline or {}),
     )
     if baseline_parsed.actions is None:
         return "FAIL_ON_ANY_FINDINGS"
@@ -1800,7 +2014,7 @@ def apply_policy_update(
     control.update_policy(
         policyEngineId=EXPECTED_POLICY_ENGINE_ID,
         policyId=policy_id,
-        definition={"cedar": {"statement": update["after"]}},
+        definition={"policy": {"statement": update["after"]}},
         enforcementMode=mode,
         validationMode=validation,
     )
@@ -2195,9 +2409,64 @@ def print_phase_proof(plan: Dict[str, Any]) -> bool:
     return all_safe
 
 
-def rollback(control: Any, directory: Path) -> None:
-    """Restore targets and policies from a captured rollback directory."""
-    live = json.loads((directory / "live.json").read_text())
+def _rollback_resource_ids(live: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """Validate every captured write target before allowing the first update."""
+    if (
+        not isinstance(live.get("gateway"), dict)
+        or live["gateway"].get("gatewayId") != EXPECTED_GATEWAY_ID
+    ):
+        raise CaptureError("Rollback snapshot does not identify the pinned gateway.")
+    identities = {}
+    for key, id_key, names in (
+        ("targets", "targetId", EXPECTED_TARGET_NAMES),
+        ("policies", "policyId", EXPECTED_POLICY_NAMES),
+    ):
+        resources = live.get(key)
+        if not isinstance(resources, list) or len(resources) != len(names):
+            raise CaptureError("Rollback snapshot has an incomplete or unexpected resource set.")
+        indexed = {}
+        for resource in resources:
+            if not isinstance(resource, dict):
+                raise CaptureError("Malformed rollback resource.")
+            name, resource_id = resource.get("name"), resource.get(id_key)
+            if (
+                not isinstance(name, str) or name not in names or name in indexed
+                or not isinstance(resource_id, str) or not resource_id.strip()
+                or resource_id in indexed.values()
+            ):
+                raise CaptureError("Rollback resource identities are missing, duplicated or out of scope.")
+            if key == "targets":
+                if (
+                    not isinstance(resource.get("targetConfiguration"), dict)
+                    or not resource["targetConfiguration"]
+                    or not isinstance(resource.get("credentialProviderConfigurations"), list)
+                ):
+                    raise CaptureError("Rollback target configuration is incomplete.")
+            else:
+                try:
+                    statement = policy_statement(resource)
+                except (AttributeError, TypeError):
+                    statement = ""
+                if not statement or resource.get("enforcementMode") not in {"ACTIVE", "LOG_ONLY"}:
+                    raise CaptureError("Rollback policy definition or enforcement mode is incomplete.")
+            indexed[name] = resource_id
+        identities[key] = indexed
+    return identities
+
+
+def rollback(control: Any, directory: Path, *, sts: Any) -> None:
+    """Restore a verified capture only to its still-existing pinned resources."""
+    live = _load_capture(directory)
+    captured_ids = _rollback_resource_ids(live)
+    if (
+        sts.get_caller_identity().get("Account") != EXPECTED_ACCOUNT
+        or getattr(getattr(control, "meta", None), "region_name", None) != EXPECTED_REGION
+    ):
+        raise CaptureError("Rollback caller account or client region does not match the pinned scope.")
+    current = read_live(control)
+    if _rollback_resource_ids(current) != captured_ids:
+        raise CaptureError("Rollback resource names/IDs no longer match the live pinned deployment.")
+
     for target in live["targets"]:
         print(f"  restoring target {target['name']}")
         control.update_gateway_target(
@@ -2207,18 +2476,16 @@ def rollback(control: Any, directory: Path) -> None:
             targetConfiguration=target["targetConfiguration"],
             credentialProviderConfigurations=target["credentialProviderConfigurations"],
         )
-        print(f"      status: {_wait_target(control, target['targetId'])}")
+        status = _wait_target(control, target["targetId"])
+        if status not in TERMINAL_OK:
+            raise SystemExit("Rollback target update did not converge; capture retained.")
+        print(f"      status: {status}")
     for policy in live["policies"]:
-        statement = (policy.get("definition") or {}).get("cedar", {}).get("statement")
-        if not statement:
-            continue
+        statement = policy_statement(policy)
         print(f"  restoring policy {policy['name']}")
-        control.update_policy(
-            policyEngineId=EXPECTED_POLICY_ENGINE_ID,
-            policyId=policy["policyId"],
-            definition={"cedar": {"statement": statement}},
+        _restore_policy(
+            control, policy["policyId"], statement, policy["enforcementMode"],
         )
-        print(f"      status: {_wait_policy(control, policy['policyId'])}")
     print("rollback complete")
 
 
@@ -2287,7 +2554,10 @@ def main() -> int:
     parser.add_argument("--apply", action="store_true", help="perform the phase")
     parser.add_argument("--phase", choices=PHASES, help="which phase to apply")
     parser.add_argument("--rollback", default="", help="restore from a rollback directory")
-    parser.add_argument("--out", default="/tmp/pellier-agentcore-direct-migration")
+    parser.add_argument(
+        "--out", default="/tmp/pellier-agentcore-direct-migration",
+        help="Owned 0700 capture root, or a new directory under an existing parent.",
+    )
     parser.add_argument(
         "--allow-wildcard-baseline",
         action="store_true",
@@ -2301,10 +2571,17 @@ def main() -> int:
     args = parser.parse_args()
 
     _load_env()
+    if args.rollback:
+        # Reject untrusted files before even constructing SDK clients. Rollback
+        # verifies again and consumes its own in-memory copy before any updates.
+        _load_capture(Path(args.rollback))
+    else:
+        with _private_directory(Path(args.out), create=True):
+            pass
     control, sts, lam, cfn = _clients()
 
     if args.rollback:
-        rollback(control, Path(args.rollback))
+        rollback(control, Path(args.rollback), sts=sts)
         return 0
 
     canonical = validate_canonical()
@@ -2312,22 +2589,13 @@ def main() -> int:
     pre = preflight(control, sts, lam, cfn, live)
     plan = build_plan(live, canonical)
 
-    stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
-    out = Path(args.out) / stamp
-    (out / "rollback").mkdir(parents=True, exist_ok=True)
-    (out / "preflight.json").write_text(json.dumps(pre.checks, indent=2, default=str))
-    (out / "plan.json").write_text(json.dumps(plan, indent=2, default=str))
-    (out / "rollback" / "live.json").write_text(json.dumps(live, indent=2, default=str))
-    (out / "rollback" / "canonical.json").write_text(json.dumps(canonical, indent=2, default=str))
+    out = _capture_run(Path(args.out), pre, plan, live, canonical)
 
     print_report(pre, plan)
 
     print("\n=== PER-PHASE EFFECTIVE AUTHORIZATION ===")
     phase_safe = print_phase_proof(plan)
     print(f"\n  every phase governance-safe: {'YES' if phase_safe else 'NO'}")
-    (out / "phase-proof.json").write_text(
-        json.dumps(phase_states(plan), indent=2, default=str)
-    )
 
     print(f"\n  preflight : {out / 'preflight.json'}")
     print(f"  phases    : {out / 'phase-proof.json'}")
@@ -2349,6 +2617,7 @@ def main() -> int:
             "damaged-only forbid; refusing to mutate AWS"
         )
 
+    _load_capture(out / "rollback")
     entry = next((e for e in plan["phases"] if e["phase"] == args.phase), None)
     if entry is None:
         raise SystemExit(f"{args.phase} is not a phase in this plan")
@@ -2374,7 +2643,7 @@ def main() -> int:
         ]
         offenders = []
         for policy in live_now["policies"]:
-            statement = (policy.get("definition") or {}).get("cedar", {}).get("statement", "")
+            statement = policy_statement(policy)
             parsed = parse_statement(policy["name"], statement, tuple(current))
             if parsed.effect != "permit":
                 continue
@@ -2449,7 +2718,7 @@ def main() -> int:
             if found is None:
                 raise SystemExit(f"live policy engine has no policy named {name}")
             parsed = parse_statement(
-                name, (found.get("definition") or {}).get("cedar", {}).get("statement", "")
+                name, policy_statement(found)
             )
             got = (parsed.effect, parsed.actions, parsed.condition)
             if got != want:
@@ -2468,7 +2737,7 @@ def main() -> int:
         )
         baseline_parsed = parse_statement(
             BASELINE_POLICY_NAME,
-            (baseline_live or {}).get("definition", {}).get("cedar", {}).get("statement", ""),
+            policy_statement(baseline_live or {}),
         )
         if baseline_parsed.actions is None:
             raise SystemExit(
@@ -2491,7 +2760,7 @@ def main() -> int:
         )
         if control_live is None:
             raise SystemExit(f"live policy engine has no policy named {CONTROL_POLICY_NAME}")
-        statement = (control_live.get("definition") or {}).get("cedar", {}).get("statement", "")
+        statement = policy_statement(control_live)
         parsed = parse_statement(CONTROL_POLICY_NAME, statement)
         canonical_id = f"{RETURN_TARGET_NAME}___{RETIRED_TO_CURRENT['process_return']}"
         if parsed.effect != "forbid":
@@ -2525,7 +2794,7 @@ def main() -> int:
         if args.phase == "restore-broad-permit" and stale_group is not None:
             stale_parsed = parse_statement(
                 QUIESCE_POLICY_NAME,
-                (stale_group.get("definition") or {}).get("cedar", {}).get("statement", ""),
+                policy_statement(stale_group),
             )
             if stale_parsed.effect == "forbid" and stale_parsed.groups:
                 raise SystemExit(
@@ -2541,7 +2810,7 @@ def main() -> int:
         )
         baseline_parsed = parse_statement(
             BASELINE_POLICY_NAME,
-            (baseline_live or {}).get("definition", {}).get("cedar", {}).get("statement", ""),
+            policy_statement(baseline_live or {}),
         )
         if baseline_parsed.actions is None:
             raise SystemExit(
@@ -2561,7 +2830,7 @@ def main() -> int:
             raise SystemExit(f"live policy engine has no policy named {QUIESCE_POLICY_NAME}")
         allow_parsed = parse_statement(
             QUIESCE_POLICY_NAME,
-            (allow_live.get("definition") or {}).get("cedar", {}).get("statement", ""),
+            policy_statement(allow_live),
         )
         canonical_id = f"{RETURN_TARGET_NAME}___{RETIRED_TO_CURRENT['process_return']}"
         if (allow_parsed.effect, allow_parsed.actions, allow_parsed.condition) != (

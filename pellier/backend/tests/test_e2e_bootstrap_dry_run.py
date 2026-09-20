@@ -1,27 +1,12 @@
-"""Unit tests for the E2E Cognito dev pool bootstrap scripts — dry-run only.
-
-The scripts themselves need real AWS to exercise end-to-end (that's what
-``.github/workflows/e2e.yml`` is for). These tests cover the parts that
-must behave correctly in CI *before* any AWS call:
-
-* Module import is side-effect free.
-* Missing env vars exit with a helpful message.
-* The prod-pool guard rejects anything containing ``prod`` / ``production``
-  / ``prd`` (case-insensitive).
-* ``--dry-run`` prints the exact AWS call plan without creating a boto3
-  client — safe to run with zero AWS credentials on a laptop.
-
-Task: 3.8 "E2E Cognito dev pool bootstrap (CI)".
-"""
+"""AWS-free CLI checks for the optional manual Cognito identity helpers."""
 
 from __future__ import annotations
 
 import importlib.util
-import io
 import json
 import os
+import subprocess
 import sys
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -103,21 +88,20 @@ def valid_env(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_bootstrap_module_imports_without_side_effects(bootstrap):
-    # The module exposes the public surface we rely on — if import had
-    # side effects (e.g. building a boto3 client) this assertion would
-    # still pass, so we also check that ``boto3`` is NOT in sys.modules
-    # purely from loading this module on a fresh interpreter.
-    assert hasattr(bootstrap, "main")
-    assert hasattr(bootstrap, "bootstrap")
-    assert hasattr(bootstrap, "BootstrapConfig")
-    assert hasattr(bootstrap, "assert_non_production_pool")
-
-
-def test_teardown_module_imports_without_side_effects(teardown):
-    assert hasattr(teardown, "main")
-    assert hasattr(teardown, "teardown")
-    assert hasattr(teardown, "TeardownConfig")
+@pytest.mark.parametrize("name", ["bootstrap_cognito_dev_pool", "teardown_cognito_dev_pool"])
+def test_module_imports_without_aws_sdk(name):
+    result = subprocess.run(
+        [
+            sys.executable, "-B", "-c",
+            "import importlib, sys; "
+            "sys.modules['boto3'] = None; sys.modules['botocore'] = None; "
+            "sys.path.insert(0, sys.argv[1]); importlib.import_module(sys.argv[2])",
+            str(_E2E_DIR), name,
+        ],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == result.stderr == ""
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +171,6 @@ def test_prod_guard_rejects_denylisted_pool(bootstrap, pool_id, capsys):
         bootstrap.assert_non_production_pool(pool_id)
     assert exc_info.value.code == bootstrap.EXIT_PROD_GUARD
     err = capsys.readouterr().err
-    assert pool_id in err
     assert "denylisted" in err
 
 
@@ -200,8 +183,8 @@ def test_prod_guard_rejects_denylisted_pool(bootstrap, pool_id, capsys):
         "us-east-1_testPool42",
     ],
 )
-def test_prod_guard_allows_non_production_pools(bootstrap, pool_id):
-    # Should not raise.
+def test_denylist_does_not_classify_opaque_pool_ids(bootstrap, pool_id):
+    # Passing the substring check makes no claim about the real pool's purpose.
     bootstrap.assert_non_production_pool(pool_id)
 
 
@@ -211,64 +194,41 @@ def test_prod_guard_allows_non_production_pools(bootstrap, pool_id):
 
 
 def test_bootstrap_dry_run_does_not_touch_boto3(
-    bootstrap, valid_env, monkeypatch
+    bootstrap, valid_env, monkeypatch, tmp_path, capsys
 ):
-    # If boto3 were imported we'd see the call; fail loudly if so.
-    def _explode(*_a, **_kw):
-        raise AssertionError(
-            "boto3.client must not be called in --dry-run mode"
-        )
-
-    # Pretend boto3 is unavailable; dry-run must succeed anyway.
     monkeypatch.setitem(sys.modules, "boto3", None)
+    receipt = tmp_path / "identity.json"
 
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        rc = bootstrap.main(["--dry-run"])
-
+    rc = bootstrap.main(["--dry-run", "--receipt", str(receipt)])
     assert rc == bootstrap.EXIT_OK
-
-    out = buf.getvalue()
+    captured = capsys.readouterr()
+    out = captured.out
     assert "DRY RUN" in out
     assert "AdminCreateUser" in out
     assert "AdminSetUserPassword" in out
-    # Password must not leak in the planned call output; the plan uses a
-    # redaction marker and the real password only appears in the final
-    # credentials JSON line.
     assert "***redacted***" in out
-    lines = out.strip().splitlines()
-    creds_line = lines[-1]
-    plan_output = "\n".join(lines[:-1])
-    assert valid_env["E2E_TEST_USER_PASSWORD"] not in plan_output
-
-    # The credentials JSON is emitted at the end of dry-run for the
-    # Playwright step to consume.
-    payload = json.loads(creds_line)
-    assert payload == {
-        "email": valid_env["E2E_TEST_USER_EMAIL"],
-        "password": valid_env["E2E_TEST_USER_PASSWORD"],
-    }
+    assert valid_env["E2E_TEST_USER_PASSWORD"] not in out + captured.err
+    assert list(tmp_path.iterdir()) == []
+    assert os.environ["E2E_TEST_USER_PASSWORD"] == valid_env["E2E_TEST_USER_PASSWORD"]
 
 
-def test_bootstrap_dry_run_writes_out_file(
+def test_removed_credential_output_option_is_rejected(
     bootstrap, valid_env, tmp_path, capsys
 ):
     out_path = tmp_path / "creds.json"
+    with pytest.raises(SystemExit) as exc_info:
+        bootstrap.main(["--dry-run", "--out", str(out_path)])
 
-    rc = bootstrap.main(["--dry-run", "--out", str(out_path)])
-
-    assert rc == bootstrap.EXIT_OK
-    assert out_path.exists()
-
-    payload = json.loads(out_path.read_text())
-    assert payload == {
-        "email": valid_env["E2E_TEST_USER_EMAIL"],
-        "password": valid_env["E2E_TEST_USER_PASSWORD"],
-    }
-
-    # When --out is used, password must NOT be echoed to stdout.
+    assert exc_info.value.code != 0
+    assert not out_path.exists()
     captured = capsys.readouterr()
-    assert valid_env["E2E_TEST_USER_PASSWORD"] not in captured.out
+    assert valid_env["E2E_TEST_USER_PASSWORD"] not in captured.out + captured.err
+
+
+def test_config_repr_and_call_plan_do_not_disclose_password(bootstrap, valid_env):
+    cfg = bootstrap.BootstrapConfig.from_env(os.environ)
+    assert cfg.password not in repr(cfg)
+    assert cfg.password not in json.dumps(bootstrap.plan(cfg))
 
 
 def test_bootstrap_dry_run_respects_prod_guard(
@@ -288,16 +248,19 @@ def test_bootstrap_dry_run_respects_prod_guard(
 
 
 def test_teardown_dry_run_does_not_touch_boto3(
-    teardown, valid_env, monkeypatch, capsys
+    teardown, valid_env, monkeypatch, capsys, tmp_path
 ):
     monkeypatch.setitem(sys.modules, "boto3", None)
 
-    rc = teardown.main(["--dry-run"])
+    rc = teardown.main(["--dry-run", "--receipt", str(tmp_path / "missing.json")])
     assert rc == teardown.EXIT_OK
 
     out = capsys.readouterr().out
     assert "DRY RUN" in out
+    assert "AdminGetUser" in out
     assert "AdminDeleteUser" in out
+    assert "No live ownership is verified" in out
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_teardown_dry_run_respects_prod_guard(
@@ -315,7 +278,7 @@ def test_teardown_dry_run_respects_prod_guard(
 
 
 # ---------------------------------------------------------------------------
-# plan() shape is stable (drift-detection)
+# Plans keep password setup and deletion conditional on ownership.
 # ---------------------------------------------------------------------------
 
 
@@ -333,6 +296,7 @@ def test_bootstrap_plan_shape(bootstrap, valid_env):
     assert create_params["UserPoolId"] == valid_env["E2E_COGNITO_POOL_ID"]
     assert create_params["Username"] == valid_env["E2E_TEST_USER_EMAIL"]
     assert create_params["MessageAction"] == "SUPPRESS"
+    assert create_params["ForceAliasCreation"] is False
     assert {"Name": "email_verified", "Value": "true"} in create_params[
         "UserAttributes"
     ]
@@ -342,13 +306,25 @@ def test_bootstrap_plan_shape(bootstrap, valid_env):
     # plan() must redact the real password; only bootstrap() passes the
     # real one to boto3.
     assert set_pw_params["Password"] == "***redacted***"
+    assert set_pw_params["Username"] != cfg.email
+    assert "receipt" in steps[1]["requires"]
 
 
 def test_teardown_plan_shape(teardown, valid_env):
     cfg = teardown.TeardownConfig.from_env(os.environ)
     steps = teardown.plan(cfg)
 
-    assert len(steps) == 1
-    assert steps[0]["operation"] == "AdminDeleteUser"
-    assert steps[0]["params"]["UserPoolId"] == valid_env["E2E_COGNITO_POOL_ID"]
-    assert steps[0]["params"]["Username"] == valid_env["E2E_TEST_USER_EMAIL"]
+    assert [s["operation"] for s in steps] == ["AdminGetUser", "AdminDeleteUser"]
+    assert all(s["params"]["UserPoolId"] == cfg.pool_id for s in steps)
+    assert all(s["params"]["Username"] != cfg.email for s in steps)
+    assert "sub" in steps[1]["requires"]
+
+
+@pytest.mark.parametrize("name", ["bootstrap_cognito_dev_pool", "teardown_cognito_dev_pool"])
+def test_live_cli_requires_receipt_before_aws(name, valid_env, monkeypatch, capsys):
+    monkeypatch.setitem(sys.modules, "boto3", None)
+    module = _load_module(name)
+    assert module.main([]) == module.EXIT_MISSING_CONFIG
+    captured = capsys.readouterr()
+    assert "--receipt" in captured.err
+    assert valid_env["E2E_TEST_USER_PASSWORD"] not in captured.out + captured.err

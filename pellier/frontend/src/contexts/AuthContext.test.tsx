@@ -146,6 +146,124 @@ describe('AuthContext hydration', () => {
 
     expect(result.current.loading).toBe(false)
     expect(result.current.user).toBeNull()
+    expect(result.current.authUnavailable).toBe(true)
+  })
+
+  it('preserves the last verified session during an outage and recovers on retry', async () => {
+    installLocation('/observatory')
+    const fetchMock = mockAuthFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }))
+    await act(async () => result.current.refresh())
+    expect(result.current.user?.email).toBe('avery@example.com')
+    expect(result.current.authUnavailable).toBe(true)
+    expect(localStorage.getItem('pellier-auth-session')).toBe('1')
+    await act(async () => result.current.refresh())
+    expect(result.current.authUnavailable).toBe(false)
+    expect(result.current.user?.email).toBe('avery@example.com')
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    await act(async () => result.current.refresh())
+    expect(result.current.user).toBeNull()
+    expect(localStorage.getItem('pellier-auth-session')).toBeNull()
+  })
+
+  it('renews an expired access cookie before clearing a valid session', async () => {
+    const fetchMock = mockAuthFetch()
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(okJson({ ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.user?.email).toBe('avery@example.com')
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
+      '/api/auth/me', '/api/auth/refresh', '/api/auth/me', '/api/user/preferences',
+    ])
+  })
+
+  it('does not sign out or start preferences onboarding when preferences cannot be read', async () => {
+    const fetchMock = mockAuthFetch()
+    fetchMock.mockImplementation(async input => {
+      if (String(input).includes('/preferences')) throw new TypeError('network unavailable')
+      return okJson({ userId: 'user-1', email: 'avery@example.com' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.user?.email).toBe('avery@example.com')
+    expect(result.current.authUnavailable).toBe(false)
+    expect(result.current.preferencesUnavailable).toBe(true)
+  })
+
+  it('does not let an older response replace a newer verified identity', async () => {
+    const fetchMock = mockAuthFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    let resolveOld!: (value: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+    let older!: Promise<void>
+    act(() => { older = result.current.refresh() })
+    fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-2', email: 'second@example.com' }))
+    await act(async () => result.current.refresh())
+    await act(async () => {
+      resolveOld(okJson({ userId: 'user-1', email: 'avery@example.com' }))
+      await older
+    })
+    expect(result.current.user?.email).toBe('second@example.com')
+  })
+
+  it('retains preferences only for the same verified identity during an outage', async () => {
+    const previous = { vibe: [], colors: [], occasions: [], categories: [] }
+    const fetchMock = mockAuthFetch()
+    fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-1', email: 'avery@example.com' }))
+      .mockResolvedValueOnce(okJson({ preferences: previous }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.preferences).toEqual(previous)
+    fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-1', email: 'avery@example.com' }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+    await act(async () => result.current.refresh())
+    expect(result.current.preferences).toEqual(previous)
+
+    let resolvePreferences!: (response: Response) => void
+    fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-2', email: 'second@example.com' }))
+      .mockImplementationOnce(() => new Promise(resolve => { resolvePreferences = resolve }))
+    let refresh!: Promise<void>
+    act(() => { refresh = result.current.refresh() })
+    await waitFor(() => expect(result.current.user?.sub).toBe('user-2'))
+    expect(result.current.preferences).toBeNull()
+    expect(result.current.preferencesUnavailable).toBe(true)
+    await act(async () => {
+      resolvePreferences(new Response(null, { status: 503 }))
+      await refresh
+    })
+    expect(result.current.preferences).toBeNull()
+    expect(result.current.preferencesUnavailable).toBe(true)
+  })
+
+  it('does not apply an earlier identity’s saved-preference response to a new session', async () => {
+    const previous = { vibe: [], colors: [], occasions: [], categories: [] }
+    const fetchMock = mockAuthFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    let resolveSave!: (response: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { resolveSave = resolve }))
+    let save!: Promise<void>
+    act(() => { save = result.current.savePreferences(previous) })
+    fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-2', email: 'second@example.com' }))
+    await act(async () => result.current.refresh())
+    await act(async () => {
+      resolveSave(okJson({ preferences: previous }))
+      await save
+    })
+    expect(result.current.user?.sub).toBe('user-2')
+    expect(result.current.preferences).toBeNull()
+    expect(result.current.prefsVersion).toBe(0)
   })
 
   it('returns browser sign-in to the current SPA route', async () => {

@@ -1,0 +1,178 @@
+[
+  {
+    "file": "pellier/START_FRONTEND.sh",
+    "line": 22,
+    "endLine": 22,
+    "column": 31,
+    "endColumn": 48,
+    "level": "info",
+    "code": 1091,
+    "message": "Not following: ./nvm.sh: openBinaryFile: does not exist (No such file or directory)",
+    "fix": null
+  },
+  {
+    "file": "scripts/start-local-pellier-dev.sh",
+    "line": 61,
+    "endLine": 69,
+    "column": 3,
+    "endColumn": 4,
+    "level": "info",
+    "code": 2329,
+    "message": "This function is never invoked. Check usage (or ignored if invoked indirectly).",
+    "fix": null
+  },
+  {
+    "file": "scripts/reset-governed-workshop.sh",
+    "line": 436,
+    "endLine": 436,
+    "column": 26,
+    "endColumn": 27,
+    "level": "info",
+    "code": 2024,
+    "message": "sudo doesn't affect redirects. Use sudo cat file | ..",
+    "fix": null
+  },
+  {
+    "file": "scripts/prove-reset-cycles.sh",
+    "line": 32,
+    "endLine": 32,
+    "column": 15,
+    "endColumn": 75,
+    "level": "info",
+    "code": 2016,
+    "message": "Expressions don't expand in single quotes, use double quotes for that.",
+    "fix": null
+  },
+  {
+    "file": "scripts/health-gate.sh",
+    "line": 615,
+    "endLine": 615,
+    "column": 10,
+    "endColumn": 64,
+    "level": "info",
+    "code": 2059,
+    "message": "Don't use variables in the printf format string. Use printf '..%s..' \"$foo\".",
+    "fix": null
+  },
+  {
+    "file": "scripts/health-gate.sh",
+    "line": 618,
+    "endLine": 618,
+    "column": 10,
+    "endColumn": 63,
+    "level": "info",
+    "code": 2059,
+    "message": "Don't use variables in the printf format string. Use printf '..%s..' \"$foo\".",
+    "fix": null
+  },
+  {
+    "file": "scripts/dry-run-builders.sh",
+    "line": 63,
+    "endLine": 80,
+    "column": 1,
+    "endColumn": 2,
+    "level": "info",
+    "code": 2329,
+    "message": "This function is never invoked. Check usage (or ignored if invoked indirectly).",
+    "fix": null
+  },
+  {
+    "file": "scripts/dry-run-builders.sh",
+    "line": 131,
+    "endLine": 131,
+    "column": 9,
+    "endColumn": 11,
+    "level": "style",
+    "code": 2181,
+    "message": "Check exit code directly with e.g. 'if ! mycmd;', not indirectly with $?.",
+    "fix": null
+  },
+  {
+    "file": "scripts/dry-run-builders.sh",
+    "line": 460,
+    "endLine": 460,
+    "column": 10,
+    "endColumn": 82,
+    "level": "info",
+    "code": 2059,
+    "message": "Don't use variables in the printf format string. Use printf '..%s..' \"$foo\".",
+    "fix": null
+  },
+  {
+    "file": "scripts/dry-run-builders.sh",
+    "line": 463,
+    "endLine": 463,
+    "column": 10,
+    "endColumn": 84,
+    "level": "info",
+    "code": 2059,
+    "message": "Don't use variables in the printf format string. Use printf '..%s..' \"$foo\".",
+    "fix": null
+  },
+  {
+    "file": "scripts/deploy/deploy_all.sh",
+    "line": 58,
+    "endLine": 58,
+    "column": 27,
+    "endColumn": 33,
+    "level": "info",
+    "code": 2317,
+    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
+    "fix": null
+  },
+  {
+    "file": "scripts/deploy/deploy_all.sh",
+    "line": 73,
+    "endLine": 73,
+    "column": 27,
+    "endColumn": 33,
+    "level": "info",
+    "code": 2317,
+    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
+    "fix": null
+  },
+  {
+    "file": "scripts/bootstrap-labs.sh",
+    "line": 490,
+    "endLine": 490,
+    "column": 16,
+    "endColumn": 33,
+    "level": "info",
+    "code": 1091,
+    "message": "Not following: ./.env: openBinaryFile: does not exist (No such file or directory)",
+    "fix": null
+  },
+  {
+    "file": "scripts/bootstrap-labs.sh",
+    "line": 1351,
+    "endLine": 1351,
+    "column": 53,
+    "endColumn": 55,
+    "level": "info",
+    "code": 2015,
+    "message": "Note that A && B || C is not if-then-else. C may run when A is true.",
+    "fix": null
+  },
+  {
+    "file": "scripts/bootstrap-labs.sh",
+    "line": 1629,
+    "endLine": 1629,
+    "column": 13,
+    "endColumn": 15,
+    "level": "info",
+    "code": 2015,
+    "message": "Note that A && B || C is not if-then-else. C may run when A is true.",
+    "fix": null
+  },
+  {
+    "file": "scripts/bootstrap-labs.sh",
+    "line": 1866,
+    "endLine": 1866,
+    "column": 13,
+    "endColumn": 36,
+    "level": "info",
+    "code": 2317,
+    "message": "Command appears to be unreachable. Check usage (or ignore if invoked indirectly).",
+    "fix": null
+  }
+]

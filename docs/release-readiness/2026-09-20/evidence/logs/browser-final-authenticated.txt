@@ -1,0 +1,42 @@
+
+Running 4 tests using 1 worker
+
+(node:28575) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28575) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/cognito/anon-to-auth.spec.ts:4:1 › sign-in preserves the anonymous and staff authorization boundaries (1.5s)
+  ✓  2 [chromium] › e2e/cognito/auth-happy-path.spec.ts:4:1 › password sign-in verifies Cognito identity and protects browser tokens (977ms)
+  ✓  3 [chromium] › e2e/cognito/auth-refresh-fail.spec.ts:4:1 › a rejected session returns to the current sign-in form with its destination (1.0s)
+  ✓  4 [chromium] › e2e/cognito/auth-refresh.spec.ts:4:1 › an expired access cookie refreshes through Cognito and retries hydration (3.1s)
+
+  4 passed (7.4s)
+
+Running 5 tests using 1 worker
+
+(node:28685) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28685) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/govern-reference.spec.ts:142:3 › Govern real Cognito sign-in › sign-in returns to the validated caller panel and shopper authority stays scoped (1.5s)
+  ✓  2 [chromium] › e2e/resolution-trace.spec.ts:159:1 › real shopper request persists evidence and replays it in the Observatory (29.0s)
+  ✓  3 [chromium] › e2e/resolution-trace.spec.ts:194:1 › real Operator investigation streams numbered steps and preserves them in history (20.3s)
+  ✓  4 [chromium] › e2e/resolution-trace.spec.ts:231:1 › real boundary evidence shows the exact completed run and its suppression controls (1.3s)
+  ✓  5 [chromium] › e2e/workbench-live.spec.ts:8:1 › a signed-in shopper turn reconciles to a real principal-scoped ledger (25.0s)
+
+  5 passed (1.3m)
+
+Running 4 tests using 1 worker
+
+(node:29780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/operator-client-preview.spec.ts:37:3 › Operator client storefront handoff › the live client book stays balanced across all three membership rungs (2.1s)
+  ✓  2 [chromium] › e2e/operator-client-preview.spec.ts:52:3 › Operator client storefront handoff › Jessica stays a read-only preview and reflects her recorded return evidence (4.7s)
+  ✓  3 [chromium] › e2e/operator-client-preview.spec.ts:106:3 › Operator client storefront handoff › a client preview clears an unrelated shopper persona (4.4s)
+  ✓  4 [chromium] › e2e/operator-client-preview.spec.ts:123:3 › Operator client storefront handoff › a hero handoff performs the canonical persona switch (3.4s)
+
+  4 passed (15.2s)
+{"dedicatedUsersCreated": 2, "suiteExitCodes": [0, 0, 0], "existingPasswordsChanged": false}
+{"dedicatedUsersRemoved": 2}

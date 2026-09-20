@@ -1825,7 +1825,7 @@
 
 .operator-status[data-status='open'],
 .operator-status[data-status='pending'] {
-  color: var(--op-warn);
+  color: color-mix(in srgb, var(--op-warn) 80%, var(--op-ink));
   border-color: color-mix(in srgb, var(--op-warn) 40%, transparent);
   background: color-mix(in srgb, var(--op-warn) 8%, var(--op-paper));
 }

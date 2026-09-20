@@ -216,7 +216,7 @@ def _valid_managed_receipt() -> dict[str, object]:
         has_staff_scope=False, has_customer_claim=True
     ))
     target_names = sorted(config["target_name"] for config in provisioner.TOOL_SCHEMAS.values())
-    return {
+    receipt = {
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/test"},
@@ -414,6 +414,20 @@ def _valid_managed_receipt() -> dict[str, object]:
             "operator_runtime_build_fingerprint_match": True,
         },
     }
+    observability = receipt["observability"]
+    log_groups = [
+        observability["runtime_log_group"],
+        observability["operator_runtime_log_group"],
+        *observability["trace_log_groups"]["groups"],
+    ]
+    for group in log_groups:
+        protection = {
+            "kms_key_arn": group["kms_key_arn"],
+            "retention_days": group["retention_days"],
+        }
+        group["requested"] = dict(protection)
+        group["observed"] = dict(protection)
+    return receipt
 
 
 def _run_health_gate(
@@ -445,6 +459,7 @@ def _run_health_gate(
     schema_on_search_path: bool = True,
     schema_query_error: bool = False,
     credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
+    node_version: str = "v24.21.0",
 ) -> subprocess.CompletedProcess[str]:
     repo = tmp_path / "repo"
     fake_bin = tmp_path / "bin"
@@ -558,7 +573,9 @@ case "$*" in
 esac
 """,
     )
-    _write_executable(fake_bin / "node", "#!/bin/bash\nprintf 'v20.20.2\\n'\n")
+    _write_executable(
+        fake_bin / "node", '#!/bin/bash\nprintf "%s\\n" "$FAKE_NODE_VERSION"\n',
+    )
     # The fake `aws` used to print ENFORCE for every invocation. The operator-group check
     # asks a different question per username, and answering it uniformly would make the
     # shopper-in-group case unrepresentable — which is the case the check exists for.
@@ -620,6 +637,7 @@ esac
     ):
         env.pop(managed_key, None)
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["FAKE_NODE_VERSION"] = node_version
     env["PELLIER_REPO"] = str(repo)
     env["PELLIER_QUARANTINE_FILE"] = str(quarantine_file)
     env["PELLIER_PROVISION_STATE_FILE"] = str(provision_state_file)
@@ -684,6 +702,19 @@ def test_governed_health_gate_requires_complete_managed_receipt(
     assert "Labs 1-2 start in-process" in proc.stdout
     assert "pg_stat_statements extension is installed" in proc.stdout
     assert "READY" in proc.stdout
+
+
+@pytest.mark.parametrize("node_version", ["v20.20.2", "v22.20.0", "v26.5.0", ""])
+def test_governed_health_requires_the_release_lts_runtime(
+    tmp_path: Path, node_version: str,
+) -> None:
+    proc = _run_health_gate(
+        tmp_path, model_ready=True, workshop_format="governed",
+        managed_ready=True, node_version=node_version,
+    )
+    assert proc.returncode == 1
+    assert "not the workshop's Node 24 LTS runtime" in proc.stdout
+    assert "NOT READY" in proc.stdout
 
 
 def test_governed_health_gate_rejects_missing_query_statistics_extension(

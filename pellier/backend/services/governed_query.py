@@ -34,22 +34,21 @@ planner::
     <generated sql>
     ) AS governed_query LIMIT <max>
 
-That single move does most of the work, and it does it on **grammar** rather
-than on privileges — so it holds even if a grant is widened by mistake:
+The lexical check first requires one statement with balanced parentheses
+outside comments and quoted values. One trailing terminator is accepted and
+removed. Both planning and execution explicitly use the prepared protocol,
+which independently refuses multiple commands. The wrapper then enforces:
 
 * only a read-only ``SELECT`` can *be* a subquery, so ``DELETE``, ``UPDATE``,
   ``INSERT``, DDL, ``GRANT``, ``SET``, ``BEGIN`` and ``COMMIT`` are syntax
   errors rather than permission errors;
 * a data-modifying CTE is rejected by PostgreSQL itself — "WITH clause
   containing a data-modifying statement must be at the top level";
-* an embedded ``;`` becomes a syntax error, so a second statement cannot ride
-  along behind a comment;
 * the **outer** ``LIMIT`` is ours, so the row cap does not depend on the
   generated SQL omitting, inflating, or nesting a limit.
 
-Using PostgreSQL's own parser rather than a third-party one is deliberate:
-it is the same grammar that would execute the statement, so there is no
-parser-divergence gap between what was validated and what would run.
+PostgreSQL still supplies the structural parser. The bounded lexical check
+does not try to establish that a statement is a valid read-only query.
 
 Two things the wrap does not cover, handled explicitly:
 
@@ -59,14 +58,18 @@ Two things the wrap does not cover, handled explicitly:
   allowlist is rejected. ``VERBOSE`` is required for this: plain
   ``FORMAT JSON`` omits ``Schema``, and without it every relation looks
   schema-less and the allowlist checks nothing.
-* **Function calls.** A ``SELECT`` can invoke a function, so validation cannot
-  reason about side effects. ``pellier_query``'s EXECUTE privileges are the
-  boundary there, which is why migration 017 revokes them.
+* **Function calls.** Direct ``set_config`` and known SQL-in-string helpers
+  are refused before planning: read-only transactions do not stop a function
+  from changing the role, principal setting, or session settings. This check
+  is defense in depth, not a complete function sandbox. EXECUTE grants,
+  installed extensions, operators and casts still need review. Migration 017
+  restricts application functions, not every function in ``pg_catalog``.
 """
 from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
@@ -88,6 +91,167 @@ ALLOWED_SCHEMAS: Set[str] = {"pellier"}
 MAX_SQL_LENGTH = 4000
 
 _SUBQUERY_ALIAS = "governed_query"
+
+_SQL_SPACE = " \t\n\r\f\v"
+_DOLLAR_QUOTE = re.compile(
+    r"\$(?:[A-Za-z_\x80-\U0010ffff][A-Za-z_0-9\x80-\U0010ffff]*)?\$"
+)
+# These functions can alter the session or execute SQL hidden inside a value,
+# where neither the lexical check nor the outer EXPLAIN can inspect it.
+_UNSAFE_QUERY_FUNCTIONS = frozenset({
+    "set_config",
+    "query_to_xml", "query_to_xmlschema", "query_to_xml_and_xmlschema",
+    "cursor_to_xml", "cursor_to_xmlschema",
+    "table_to_xml", "table_to_xmlschema", "table_to_xml_and_xmlschema",
+    "schema_to_xml", "schema_to_xmlschema", "schema_to_xml_and_xmlschema",
+    "database_to_xml", "database_to_xmlschema", "database_to_xml_and_xmlschema",
+    "ts_stat", "crosstab", "crosstab2", "crosstab3", "crosstab4",
+    "connectby", "xpath_table",
+})
+
+
+def _identifier_start(char: str) -> bool:
+    return char == "_" or "a" <= char <= "z" or "A" <= char <= "Z" or ord(char) >= 128
+
+
+def _sql_gap(sql: str, start: int, *, block_comments: bool = True) -> Tuple[int, bool]:
+    """Skip PostgreSQL whitespace and comments, including nested block comments."""
+    i = start
+    while i < len(sql):
+        if sql[i] in _SQL_SPACE:
+            i += 1
+        elif sql.startswith("--", i):
+            i += 2
+            while i < len(sql) and sql[i] not in "\r\n":
+                i += 1
+        elif block_comments and sql.startswith("/*", i):
+            depth = 1
+            i += 2
+            while i < len(sql) and depth:
+                if sql.startswith("/*", i):
+                    depth += 1
+                    i += 2
+                elif sql.startswith("*/", i):
+                    depth -= 1
+                    i += 2
+                else:
+                    i += 1
+            if depth:
+                raise ValueError("unterminated block comment")
+        else:
+            break
+    return i, "\n" in sql[start:i] or "\r" in sql[start:i]
+
+
+def _quoted_sql(sql: str, start: int, *, escape: bool = False) -> Tuple[int, str]:
+    """Consume one quoted token; decode doubled quotes for function names."""
+    quote = sql[start]
+    chars: List[str] = []
+    i = start + 1
+    while i < len(sql):
+        char = sql[i]
+        if escape and char == "\\":
+            i += 2
+        elif char == quote:
+            if i + 1 < len(sql) and sql[i + 1] == quote:
+                chars.append(quote)
+                i += 2
+            else:
+                return i + 1, "".join(chars)
+        else:
+            chars.append(char)
+            i += 1
+    raise ValueError("unterminated quoted value or identifier")
+
+
+def _statement_body(sql: str) -> str:
+    """Bound the statement without interpreting SQL grammar.
+
+    Ordinary strings use standard_conforming_strings=on, pinned on the query
+    connection before planning. E strings, doubled quotes, dollar quotes and
+    nested comments are recognized so their separators remain data. Unicode
+    escape *identifiers* are explicitly unsupported: they could otherwise
+    encode a prohibited function name. UTF-8 and ordinary quoted names work.
+    """
+    if not sql or not sql.strip():
+        raise ValueError("empty statement")
+    if len(sql) > MAX_SQL_LENGTH:
+        raise ValueError(f"statement exceeds {MAX_SQL_LENGTH} characters")
+    if "\x00" in sql:
+        raise ValueError("statement contains a null byte")
+
+    tokens: List[Tuple[str, str, int]] = []
+    parentheses = 0
+    i = 0
+    while i < len(sql):
+        i, _ = _sql_gap(sql, i)
+        if i == len(sql):
+            break
+        start = i
+        char = sql[i]
+        escape = char in "eE" and sql[i:i + 2].lower() == "e'"
+        if char == "'" or escape:
+            i, _ = _quoted_sql(sql, i + int(escape), escape=escape)
+            # PostgreSQL concatenates string pieces separated by a newline;
+            # an E string retains its escape rules across those pieces.
+            while True:
+                # Block comments do not participate in PostgreSQL's quoted
+                # string continuation rule; whitespace and -- comments do.
+                following, newline = _sql_gap(sql, i, block_comments=False)
+                if not newline or following == len(sql) or sql[following] != "'":
+                    break
+                i, _ = _quoted_sql(sql, following, escape=escape)
+            tokens.append(("literal", "", start))
+        elif sql[i:i + 3].lower() == 'u&"':
+            raise ValueError(
+                "Unicode escape identifiers are not supported; use UTF-8 or ordinary quoted identifiers"
+            )
+        elif char == '"':
+            i, name = _quoted_sql(sql, i)
+            tokens.append(("identifier", name.lower(), start))
+        elif char == "$" and (delimiter := _DOLLAR_QUOTE.match(sql, i)):
+            tag = delimiter.group()
+            end = sql.find(tag, delimiter.end())
+            if end < 0:
+                raise ValueError("unterminated dollar-quoted value")
+            i = end + len(tag)
+            tokens.append(("literal", "", start))
+        elif _identifier_start(char):
+            i += 1
+            while i < len(sql) and (
+                _identifier_start(sql[i]) or sql[i] in "0123456789$"
+            ):
+                i += 1
+            tokens.append(("identifier", sql[start:i].lower(), start))
+        else:
+            if char == "(":
+                parentheses += 1
+            elif char == ")":
+                parentheses -= 1
+                if parentheses < 0:
+                    raise ValueError("unbalanced parentheses")
+            tokens.append(("symbol", char, start))
+            i += 1
+
+    if parentheses:
+        raise ValueError("unbalanced parentheses")
+    if not tokens:
+        raise ValueError("empty statement")
+    separators = [index for index, token in enumerate(tokens) if token[:2] == ("symbol", ";")]
+    if separators and (len(separators) != 1 or separators[0] != len(tokens) - 1):
+        raise ValueError("exactly one SQL statement is required")
+    if separators and len(tokens) == 1:
+        raise ValueError("empty statement")
+    for token, following in zip(tokens, tokens[1:]):
+        kind, name, _ = token
+        if kind == "identifier" and following[:2] == ("symbol", "(") and (
+            name in _UNSAFE_QUERY_FUNCTIONS or name.startswith("dblink")
+        ):
+            raise ValueError(f"function {name} is not allowed in a governed query")
+    if separators:
+        terminator = tokens[-1][2]
+        sql = sql[:terminator] + sql[terminator + 1:]
+    return sql.strip()
 
 
 @dataclass
@@ -150,7 +314,7 @@ def wrap_statement(sql: str, *, max_rows: int = MAX_ROWS) -> str:
     what the wrap means.
     """
     return (
-        f"SELECT * FROM (\n{sql.strip()}\n) AS {_SUBQUERY_ALIAS} "
+        f"SELECT * FROM (\n{_statement_body(sql)}\n) AS {_SUBQUERY_ALIAS} "
         f"LIMIT {int(max_rows)}"
     )
 
@@ -158,16 +322,14 @@ def wrap_statement(sql: str, *, max_rows: int = MAX_ROWS) -> str:
 def precheck(sql: str) -> Optional[str]:
     """Cheap deterministic rejections, before the database is involved.
 
-    Returns a reason, or ``None`` when the statement is worth planning. This
-    is not the structural gate — that is the planner — it just avoids sending
-    obvious junk.
+    Returns a reason, or ``None`` when the statement is worth planning.
+    Lexical checks protect the wrapper and session controls; PostgreSQL still
+    decides whether the wrapped statement is structurally valid.
     """
-    if not sql or not sql.strip():
-        return "empty statement"
-    if len(sql) > MAX_SQL_LENGTH:
-        return f"statement exceeds {MAX_SQL_LENGTH} characters"
-    if "\x00" in sql:
-        return "statement contains a null byte"
+    try:
+        _statement_body(sql)
+    except ValueError as exc:
+        return str(exc)
     return None
 
 
@@ -334,11 +496,26 @@ async def _attempt(
         async with db.query_session(
             principal_sub, statement_timeout=STATEMENT_TIMEOUT
         ) as conn:
+            # Psycopg treats prepare_threshold=None as disabling preparation,
+            # even when execute(..., prepare=True) is requested. Refuse that
+            # connection configuration instead of falling back to simple SQL.
+            if conn.prepare_threshold is None:
+                raise RuntimeError("governed query connection has prepared statements disabled")
             async with conn.cursor() as cur:
+                # Match the lexer's ordinary-string rules even if an earlier
+                # pool user changed this setting. This is trusted control SQL,
+                # never text supplied by the model.
+                await cur.execute(
+                    "SELECT set_config('standard_conforming_strings', 'on', true)",
+                    prepare=True,
+                )
                 # Structural gate: the planner parses the wrapped statement.
-                # A write, a utility statement, a data-modifying CTE, or an
-                # embedded separator fails here on grammar.
-                await cur.execute(f"EXPLAIN (FORMAT JSON, VERBOSE) {wrapped}")
+                # Force prepared protocol on BOTH calls: PostgreSQL's Parse
+                # message refuses multiple commands independently of the
+                # lexical check and the connection's prepare threshold.
+                await cur.execute(
+                    f"EXPLAIN (FORMAT JSON, VERBOSE) {wrapped}", prepare=True
+                )
                 plan_row = await cur.fetchone()
                 plan = _extract_plan(plan_row)
 
@@ -352,7 +529,7 @@ async def _attempt(
                 result.validation = "accepted"
                 result.accepted = True
 
-                await cur.execute(wrapped)
+                await cur.execute(wrapped, prepare=True)
                 rows = await cur.fetchall()
 
         result.rows = [dict(row) for row in rows][:max_rows]

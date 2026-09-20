@@ -11,12 +11,9 @@
 #   2. Catalog row count == expected (1,000 by default: 60 curated + 940 archive)
 #   3. Warehouse inventory present (180 rows: 60 curated x 3 warehouses)
 #   3b. Governed customer, order, and JSONB audit evidence present
-#   4. node --version >= 20                       (required for governed format;
-#      warning for builders format; ROOT CAUSE diagnostic:
-#      the @aws/agentcore CLI needs Node 20; on Node 18 every agentcore command
-#      silently no-ops, so Runtime/Gateway/Policy never deploy and checks 6-7
-#      below read empty. Surfacing the Node version turns "endpoints empty, why?"
-#      into a named cause.)
+#   4. node --version is 24 LTS                   (required for governed format;
+#      warning for builders format; CLI minimum compatibility alone does not
+#      establish a supported workshop release runtime)
 #   5. Required Bedrock model preflight passed     (required)
 #   6. AGENTCORE_MEMORY_ID set and SDK-backed
 #   7. AGENTCORE_RUNTIME_ENDPOINT set and the workshop starts on its intended rail
@@ -128,7 +125,7 @@ fi
 # STEP 19), and marks those runs with PELLIER_PROVISION_PHASE=bootstrap; a
 # FAILED state is refused even then.
 PROVISION_STATE_FILE="${PELLIER_PROVISION_STATE_FILE:-/var/lib/pellier/provision-state}"
-provision_state="$(tr -d '[:space:]' < "$PROVISION_STATE_FILE" 2>/dev/null || true)"
+provision_state="$(tr -d '[:space:]' 2>/dev/null < "$PROVISION_STATE_FILE" || true)"
 echo "  Provision state: ${provision_state:-absent}"
 if $managed_required && [[ -n "$provision_state" ]]; then
   if [[ "$provision_state" == "E2E_PROVED" ]]; then
@@ -333,18 +330,13 @@ if $managed_required; then
   fi
 fi
 
-# 4. Node version (warn — root-cause diagnostic for the managed pillars below).
-# The @aws/agentcore CLI is Node-based and requires Node >= 20; on Node 18 it
-# crashes at module load (regex `v`/unicodeSets flag) BEFORE doing any work, so
-# `agentcore deploy` silently produces nothing and the Runtime/Gateway/Policy
-# endpoints below stay empty. We surface the version here so an empty
-# AGENTCORE_RUNTIME_ENDPOINT (check 6) reads as a consequence, not a mystery.
+# 4. Node version: use the same supported LTS major as bootstrap and CI.
 node_ver="$(node --version 2>/dev/null || true)"
 node_major="$(echo "$node_ver" | sed 's/^v//' | cut -d. -f1)"
-if [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major >= 20 )); then
-  pass "Node $node_ver (>= 20 — @aws/agentcore CLI can run)"
+if [[ "$node_major" =~ ^[0-9]+$ ]] && (( node_major == 24 )); then
+  pass "Node $node_ver (workshop Node 24 LTS runtime)"
 else
-  managed_missing "Node ${node_ver:-not found} (< 20) — the @aws/agentcore CLI cannot run, so Runtime/Gateway/Policy cannot deploy. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run scripts/deploy/deploy_all.sh."
+  managed_missing "Node ${node_ver:-not found} is not the workshop's Node 24 LTS runtime. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run bootstrap-labs.sh."
 fi
 
 # 5. Required Bedrock model access

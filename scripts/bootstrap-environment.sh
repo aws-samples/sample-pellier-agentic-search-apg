@@ -70,65 +70,45 @@ dnf install --skip-broken -y -q \
 log "✅ System packages installed"
 
 # ----------------------------------------------------------------------------
-# Node.js 20+ (required by the @aws/agentcore CLI).
+# Node.js 24 LTS — the workshop and CI release runtime.
 #
-# AL2023's default `nodejs` package is Node 18, but @aws/agentcore (>=0.18)
-# declares `engines.node: ">=20"` and its bundled code uses the regex `v`
-# (unicodeSets) flag, which Node 18 does NOT parse — `npx @aws/agentcore deploy`
-# crashes at module load with "SyntaxError: Invalid regular expression flags"
-# BEFORE doing any work, so the managed Runtime never deploys. We therefore
-# install Node 20 from NodeSource (the supported path for a pinned major on
-# AL2023). Falls back to the distro nodejs only if NodeSource is unreachable,
-# so provisioning still gets a Node for the frontend build even if Runtime
-# deploy can't run. Everything downstream calls `node`/`npx` on PATH, so it
-# follows whichever got installed.
-# ----------------------------------------------------------------------------
-# This step is intentionally NON-fatal: a NodeSource hiccup must not abort the
-# whole box (Pellier still works on Node 18; only the managed-Runtime deploy
-# needs 20). We retry NodeSource and verify by the ACTUAL major version.
-# Removing the distro Node 18 stack first is what makes `node` resolve to 20:
-# erasing `nodejs` unregisters node-18 from the /usr/bin/node `alternatives`
-# group, which leaves Node 20 as the only candidate there. Both distro Node
-# packages register that group at the SAME priority (100), so while node-18 is
-# installed no amount of `update-alternatives --install` can outrank it - only
-# `--set` selects, and removal is what we rely on here.
-# The hard "is this actually 20?" guard lives at the
-# provisioning call site (bootstrap-labs STEP 16), where aborting just the
-# already-best-effort AgentCore step is the right blast radius. The health gate
-# surfaces an empty AGENTCORE_RUNTIME_ENDPOINT if 20 never arrived.
-log "Installing Node.js 20 (required by @aws/agentcore CLI; AL2023 default is 18)..."
+# The AgentCore CLI's minimum is Node 20, but that release reached end of support
+# on 2026-04-30. Use the supported LTS major, verify the actual executable, and
+# keep the editor available for diagnostics if package installation fails.
+# Stage 2 and the governed health gate require Node 24 before declaring readiness.
+log "Installing Node.js 24 LTS..."
 
 # Why this is more than "dnf install nodejs":
 #   On a fresh AL2023 box the distro `nodejs` (18) is often ALREADY installed
 #   (it satisfies build deps). In that state, adding the NodeSource repo and
 #   running `dnf install nodejs` is a NO-OP — dnf sees nodejs as already
-#   present and exits 0 WITHOUT upgrading to 20. The previous logic trusted
+#   present and exits 0 WITHOUT upgrading to 24. The previous logic trusted
 #   that exit 0 and left the box on Node 18 (observed on a fresh-account run:
 #   `node --version` → v18.20.8, every `agentcore` command silently empty).
 #   Fix: (1) remove the distro nodejs first so NodeSource's package is the
 #   only candidate, (2) verify success by the ACTUAL major version, never by
 #   dnf's exit code.
 _node_major() { node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1; }
-_node20_ok=false
+_node24_ok=false
 for attempt in 1 2; do
     # Drop any distro Node (18) so the NodeSource module installs clean rather
     # than being short-circuited as "already satisfied". Non-fatal if absent.
     dnf remove -y -q nodejs npm >/dev/null 2>&1 || true
-    if curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >/dev/null 2>&1; then
-        # NodeSource ships nodejs-20 as the `nodejs` package once its repo is
+    if curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - >/dev/null 2>&1; then
+        # NodeSource ships nodejs-24 as the `nodejs` package once its repo is
         # enabled; --allowerasing lets it replace any lingering distro bits.
         dnf install -y -q --allowerasing nodejs >/dev/null 2>&1 || true
     fi
     _maj="$(_node_major)"
-    if echo "$_maj" | grep -qE '^[0-9]+$' && [ "$_maj" -ge 20 ]; then
-        _node20_ok=true
+    if echo "$_maj" | grep -qE '^[0-9]+$' && [ "$_maj" -eq 24 ]; then
+        _node24_ok=true
         break
     fi
-    warn "Node 20 not active after attempt $attempt (node=$(node --version 2>/dev/null || echo none)); retrying..."
+    warn "Node 24 not active after attempt $attempt (node=$(node --version 2>/dev/null || echo none)); retrying..."
     sleep 3
 done
 
-if [ "$_node20_ok" = true ]; then
+if [ "$_node24_ok" = true ]; then
     log "✅ Node.js installed: $(node --version 2>/dev/null) ($(readlink -f /usr/bin/node 2>/dev/null))"
 
     # TypeScript compiler (tsc), global. The @aws/agentcore CLI is itself a
@@ -181,12 +161,12 @@ if [ "$_node20_ok" = true ]; then
         fi
     fi
 else
-    # Last resort: ensure SOME node exists for the frontend build. Managed
-    # Runtime/Gateway/Policy deploy will be skipped (STEP 16 guards on Node>=20).
+    # Preserve a diagnostic Node executable if possible. A fallback is not a
+    # supported release runtime; Stage 2 and the health gate still refuse it.
     if ! command -v node >/dev/null 2>&1; then
         dnf install --skip-broken -y -q nodejs >/dev/null 2>&1 || true
     fi
-    warn "Node 20 install failed after retries — node is $(node --version 2>/dev/null || echo 'none') (<20). The @aws/agentcore Runtime/Gateway/Policy deploy will be SKIPPED (Pellier + frontend build still work). Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run scripts/deploy/deploy_all.sh."
+    warn "Node 24 install failed after retries — node is $(node --version 2>/dev/null || echo 'none'). Governed readiness cannot pass. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run bootstrap-labs.sh."
 fi
 
 # ----------------------------------------------------------------------------
@@ -465,7 +445,7 @@ log "AWS Region: $AWS_REGION"
 # idempotent (re-running is a no-op if already bootstrapped), runs as root in
 # UserData with the instance-profile credentials, and is best-effort: a failure
 # is logged but does not abort the box (the AgentCore provisioning step later
-# surfaces it via the health gate). Requires Node 20 (installed above).
+# surfaces it via the health gate). Uses Node 24 LTS (installed above).
 # ----------------------------------------------------------------------------
 log "Bootstrapping CDK for AgentCore Runtime deploy (region $AWS_REGION)..."
 CDK_ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo '')"
