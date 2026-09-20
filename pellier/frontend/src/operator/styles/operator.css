@@ -845,11 +845,106 @@
    filtered reads as a short list. */
 .operator-filter-note {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin: -8px 0 14px;
   font-size: 13px;
   color: var(--op-muted);
+}
+
+.operator-signal-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: -8px 0 24px;
+  font-size: 13px;
+  color: var(--op-muted);
+}
+
+.operator-signal-filter-label {
+  font-weight: 500;
+  color: var(--op-ink-2);
+}
+
+.operator-request-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid var(--op-rule-strong);
+  border-radius: 999px;
+  background: var(--op-paper);
+  color: var(--op-ink);
+  font: 500 13px/1.4 var(--sans);
+  cursor: pointer;
+}
+
+.operator-request-filter:hover {
+  border-color: var(--op-authority);
+}
+
+.operator-request-filter[aria-pressed='true'] {
+  background: var(--op-ink);
+  border-color: var(--op-ink);
+  color: var(--op-paper);
+}
+
+.operator-request-filter:focus-visible {
+  outline: 2px solid var(--op-authority);
+  outline-offset: 3px;
+}
+
+.operator-request-filter > span {
+  font-variant-numeric: tabular-nums;
+}
+
+.operator-client-summary {
+  min-width: 0;
+}
+
+.operator-client-signals {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.operator-client-signal {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--op-paper-2);
+  color: var(--op-ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.operator-client-signal[data-status='open'] {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--op-ink) 14%, var(--op-paper));
+}
+
+.operator-client-signal[data-status='pending'] {
+  background: color-mix(in srgb, var(--op-warn) 9%, var(--op-paper));
+  color: color-mix(in srgb, var(--op-warn) 80%, var(--op-ink));
+}
+
+.operator-client-request-subject {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--op-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.operator-book-no-matches {
+  margin: 0;
+  padding: 24px;
+  color: var(--op-ink-2);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .operator-filter-clear {

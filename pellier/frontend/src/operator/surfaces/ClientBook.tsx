@@ -14,6 +14,7 @@ import {
   type Membership,
 } from '../../data/membership'
 import { useClientBook } from '../hooks/useClientBook'
+import type { OperatorClient } from '../../services/operator'
 import ServiceSource from '../components/ServiceSource'
 import ClientAvatar from '../components/ClientAvatar'
 import MembershipRung from '../components/MembershipRung'
@@ -29,6 +30,13 @@ import OperatorState from '../components/OperatorState'
  * arriving underneath is a distraction rather than an arrival.
  */
 const ENTRANCE_STAGGER_CAP = 12
+
+// A support-ticket status describes service work, not a human approval.
+function serviceRequestLabel(status: OperatorClient['openCaseStatus']): string | null {
+  if (status === 'open') return 'Open service request'
+  if (status === 'pending') return 'Pending service request'
+  return null
+}
 
 function money(value: number): string {
   return value.toLocaleString('en-US', {
@@ -61,6 +69,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
   // Client-side: the whole book is already loaded, so filtering needs no
   // round trip. Null means "no filter", not "registered".
   const requestedRung = params.get('membership')
+  const openRequestsOnly = params.get('requests') === 'open'
   const rungFilter: Membership | null = requestedRung == null
     ? initialView.rung ?? null
     : MEMBERSHIP_RUNGS.includes(requestedRung as Membership) ? requestedRung as Membership : null
@@ -158,11 +167,15 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
   const visible = book.clients.filter(
     (c) =>
       (!rungFilter || c.membership === rungFilter) &&
+      (!openRequestsOnly || serviceRequestLabel(c.openCaseStatus) !== null) &&
       (!needle ||
         c.name.toLowerCase().includes(needle) ||
         c.slug.toLowerCase().includes(needle) ||
-        (c.note ?? '').toLowerCase().includes(needle)),
+        (c.note ?? '').toLowerCase().includes(needle) ||
+        (serviceRequestLabel(c.openCaseStatus) !== null &&
+          (c.openCase ?? '').toLowerCase().includes(needle))),
   )
+  const openRequestClients = book.clients.filter(c => serviceRequestLabel(c.openCaseStatus) !== null).length
   const jessicaCase = book.clients.find(
     (client) =>
       client.slug === 'jessica' &&
@@ -297,7 +310,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Name or note"
+          placeholder="Name, note, or request subject"
           autoComplete="off"
           data-testid="operator-book-search"
         />
@@ -346,18 +359,42 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
         })}
       </div>
 
-      {rungFilter || needle ? (
-        <p className="operator-filter-note" data-testid="operator-filter-note">
+      <div className="operator-signal-filter">
+        <span className="operator-signal-filter-label">Signals</span>
+        <button
+          type="button"
+          className="operator-request-filter"
+          aria-pressed={openRequestsOnly}
+          aria-describedby="operator-request-filter-help"
+          onClick={() => setParams(current => {
+            const next = new URLSearchParams(current)
+            next.set('requests', openRequestsOnly ? 'all' : 'open')
+            return next
+          })}
+        >
+          Open requests <span>{openRequestClients}</span>
+        </button>
+        <span id="operator-request-filter-help">Clients with an open or pending service request.</span>
+      </div>
+
+      {rungFilter || needle || openRequestsOnly ? (
+        <p className="operator-filter-note" data-testid="operator-filter-note" role="status">
           <span>
             Showing {visible.length} of {book.total}
             {rungFilter ? ` · ${MEMBERSHIP[rungFilter].label}` : ''}
+            {openRequestsOnly ? ' · Open requests' : ''}
             {needle ? ` · matching "${query.trim()}"` : ''}
           </span>
           <button
             type="button"
             className="operator-filter-clear"
             onClick={() => {
-              setRungFilter(null)
+              setParams(current => {
+                const next = new URLSearchParams(current)
+                next.set('membership', 'all')
+                next.set('requests', 'all')
+                return next
+              })
               setQuery('')
             }}
             data-testid="operator-filter-clear"
@@ -368,6 +405,9 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
       ) : null}
 
       <div className="operator-book">
+        {visible.length === 0 ? (
+          <p className="operator-book-no-matches">No clients match these filters. Change the search or show all clients.</p>
+        ) : null}
         {/* Unfiltered, the list is grouped and the mark appears once per
             section. Filtered, the caption above already names the rung, so
             neither headers nor per-row pills are repeated. */}
@@ -410,9 +450,17 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
               name={client.name}
               personaId={client.personaId}
             />
-            <span>
+            <span className="operator-client-summary">
               <span className="operator-client-name">{client.name}</span>
               <span className="operator-client-note">{client.note}</span>
+              {serviceRequestLabel(client.openCaseStatus) ? (
+                <span className="operator-client-signals">
+                  <span className="operator-client-signal" data-status={client.openCaseStatus}>
+                    {serviceRequestLabel(client.openCaseStatus)}
+                  </span>
+                  {client.openCase ? <span className="operator-client-request-subject">{client.openCase}</span> : null}
+                </span>
+              ) : null}
             </span>
             {chatEntry ? (
               <span className="operator-client-chat-label">Open chat</span>
