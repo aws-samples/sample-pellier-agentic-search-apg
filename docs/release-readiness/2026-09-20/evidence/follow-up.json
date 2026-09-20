@@ -71,6 +71,24 @@
       "scope": "Full baseline followed by affected validation after direct-entry identity and default-vhost repairs. Exact-commit CI is attested in the Studio handoff.",
       "lateAffectedTestsPassed": 287,
       "lateAffectedSeconds": 33.31
+    },
+    "freshAccountModelContract": {
+      "state": "PASS",
+      "scope": "Provider stubs and executable configuration handoff; live new-root model access remains separate",
+      "focusedTestsPassed": 129,
+      "finalAffectedTestsPassed": 24,
+      "invalidModelOrPayloadNeverProvesAccess": true,
+      "embeddingAliasesPersistedTogether": true,
+      "editorialChatAliasPersisted": true,
+      "cdkBootstrapVersion": "2.1126.0"
+    },
+    "studioExistingPreviewAccess": {
+      "state": "PASS",
+      "observedDate": "2026-09-20",
+      "buildDate": "2026-09-13",
+      "studioSourceSha": "ce9fad096bb41f1ed6f431b0e560aa305e7be667",
+      "publishingState": "Unpublished",
+      "currentLocalPackageProofClaimed": false
     }
   },
   "privateEvidenceSha256": {
@@ -87,12 +105,13 @@
     "frontend-lint.log": "6d9c0bf860933684f1682eed95c44942240edc98b776b8b384ad95a9b0d3f609",
     "frontend-build.log": "21cfab8104657ba7ba31bd117bbc6f0ade073be8c618acf960c3e7d2e35687eb",
     "frontend-audit.log": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
-    "backend-full-final.log": "94099e31e446512843ceaa1dacf6884b98ae7e7fd45cd44daeaaff08e07a570f"
+    "backend-full-final.log": "94099e31e446512843ceaa1dacf6884b98ae7e7fd45cd44daeaaff08e07a570f",
+    "fresh-account-compatibility-review.json": "0b496ca1c156f20093ce2acd5d9ed3b14928ad7397ac100c4e65917fe9795fe9"
   },
   "pending": [
     "Complete isolated real-resource root lifecycle",
     "Private VPC origin, hosted HTTPS/SSE/WebSocket and lifecycle verification",
-    "Workshop Studio remote asset and native rendering access",
+    "Workshop Studio remote asset credentials and current-package native rendering",
     "Owner Studio publication",
     "Human timed fresh-account rehearsal"
   ],
@@ -111,6 +130,15 @@
       "backendPassed": 3531,
       "backendFailed": 1,
       "reason": "Existing policy-attachment source assertion still named the retired import-time policy-engine constant. Updated to require the resolved deployment identity; production behavior unchanged by this assertion repair."
+    },
+    {
+      "sourceSha": "3172658784a935a1da8b19663f63a0b5ea0f57be",
+      "ciRunId": 35540791868,
+      "state": "PASS",
+      "backendPassed": 3532,
+      "backendSkipped": 90,
+      "frontendPassed": 1128,
+      "scope": "Complete replacement CI before subsequent model-preflight and CDK-version repairs"
     }
   ]
 }

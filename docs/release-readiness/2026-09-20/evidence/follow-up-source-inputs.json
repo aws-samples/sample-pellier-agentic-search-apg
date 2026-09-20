@@ -562,6 +562,10 @@
       "sha256": "4b9e8d7de579f14c1fdf945b94475b17c9176bdc0fd0b36f130a025167809a85"
     },
     {
+      "file": "pellier/backend/tests/test_bootstrap_cdk_pin.py",
+      "sha256": "c358cf658def6eada1f3cfefccc7c0bc06b433ec0a3456d898c61a46a8097c53"
+    },
+    {
       "file": "pellier/backend/tests/test_bootstrap_failure_regressions.py",
       "sha256": "b1119f711285af1f15e5d287c07f0759bd431373747b762ac4941394c2642ee1"
     },
@@ -571,7 +575,7 @@
     },
     {
       "file": "pellier/backend/tests/test_bootstrap_readiness_contract.py",
-      "sha256": "c094fc9d926918f193da9ea4cade7264961a75cc430a3ec31739dd5dda32c27e"
+      "sha256": "ce3a414295fec1c1962bafdf66ec44ab42aca65f563a74f3c502a2118a68c31d"
     },
     {
       "file": "pellier/backend/tests/test_bootstrap_shared_trace_authorization.py",
@@ -920,6 +924,10 @@
     {
       "file": "pellier/backend/tests/test_memory_substrate_boundaries.py",
       "sha256": "b12c0c5f943ea33c6746f1a9ef617acc45c3cb7b054c62758a25709b34ee508b"
+    },
+    {
+      "file": "pellier/backend/tests/test_model_access_proof.py",
+      "sha256": "6db3c8a771ac8846fdf751c31a8d5b27a32a978935194e348b0127033679d3d5"
     },
     {
       "file": "pellier/backend/tests/test_model_id_parity.py",
@@ -3415,7 +3423,7 @@
     },
     {
       "file": "scripts/bootstrap-environment.sh",
-      "sha256": "5e7ddd1fa875219699d65863c6d1e1b6fc17c8eae66d7928c39fb886a74e7574"
+      "sha256": "3f58c53ab926eecdf3dab00b50d9e6ef3f0770358a2871d0d21d738268b05d73"
     },
     {
       "file": "scripts/bootstrap-labs.sh",
@@ -3427,7 +3435,7 @@
     },
     {
       "file": "scripts/check_model_access.py",
-      "sha256": "a5e4fbecd8f4750d77aa6d61561ecd8b2594f980bbd8cda2d3be295db988f4ae"
+      "sha256": "1f27a4b6c0bcb8611f3f8bd7efd86a1f8535feb1f2ae83c12939647c35ae4860"
     },
     {
       "file": "scripts/compare_query_lanes.py",
@@ -4086,6 +4094,8 @@
     "backendFull": "3527 passed, 90 skipped, 2 upstream warnings; before final direct-entry identity initialization and default-vhost refinement",
     "lateAffected": "287 passed including deployment identity, KMS, Cognito, provisioning, policy, governance, runtime hello and private nginx",
     "frontend": "1128 passed plus independent type-check, lint, build, zero production-audit vulnerabilities",
-    "ciInitialAttempt": "3f42cf8d: 3531 backend tests passed; one stale source-contract assertion failed after policy identity initialization changed. Assertion updated to require the resolved policy engine."
+    "ciInitialAttempt": "3f42cf8d: 3531 backend tests passed; one stale source-contract assertion failed after policy identity initialization changed. Assertion updated to require the resolved policy engine.",
+    "ciReplacement": "31726587: complete CI passed with 3532 backend tests and 1128 frontend tests, before subsequent model/CDK repairs.",
+    "modelAndCdkFollowup": "129 focused tests passed; 24 affected tests passed after final chat-alias repair; provider stubs and executable configuration handoff, not live entitlement proof."
   }
 }

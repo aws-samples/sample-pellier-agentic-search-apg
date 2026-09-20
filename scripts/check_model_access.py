@@ -109,13 +109,12 @@ MODELS = [
         #
         # Cohere Embed v4 (enabled in Workshop Studio). The backend calls this in
         # the configured region via config.BEDROCK_EMBEDDING_MODEL = "us.cohere.embed-v4:0",
-        # so the probe must only accept forms that MATCH that config: the US
-        # cross-region inference profile and (if the account exposes it) the bare
-        # on-demand id. We deliberately do NOT probe eu./apac./global. — a non-US
-        # profile "passing" would be a FALSE GREEN: it would report embeddings
-        # healthy while the id the backend actually invokes (us.*) is still denied,
-        # and it would route workshop data cross-region (e.g. to the EU). If us.*
-        # is still provisioning, this check should FAIL loudly, matching reality.
+        # so the probe resolves and persists the working form for BOTH backend
+        # and MCP tool Lambdas: the US cross-region inference profile and (if the
+        # account exposes it) the bare on-demand id. Do not probe eu./apac./global.
+        # profiles, which could route workshop data outside its US deployment.
+        # If neither accepted form can be invoked, fail rather than retaining
+        # a stale successful preflight marker.
         #
         # output_dimension=1024 keeps vectors aligned with the vector(1024)
         # schema + committed cache.
@@ -140,7 +139,7 @@ MODELS = [
 
 def _invoke_one(client, model_id: str, body: dict):
     """Try one model ID. Returns (status, detail) where status is one of:
-    ok | reachable | denied | denied_marketplace | no_ondemand | bad_dim | error."""
+    ok | denied | denied_marketplace | no_ondemand | bad_dim | error."""
     try:
         response = client.invoke_model(
             modelId=model_id,
@@ -159,14 +158,12 @@ def _invoke_one(client, model_id: str, body: dict):
     except Exception as e:
         low = str(e).lower()
         if "validationexception" in low:
-            # A ValidationException is NOT proof of access. Distinguish the
-            # "looks reachable but actually unusable" cases from a benign
-            # payload-shape rejection (which DOES imply access).
+            # Validation rejection is never invocation proof. Preserve these
+            # actionable explanations while failing every rejected payload.
             if "on-demand throughput is" in low and "supported" in low:
                 return ("no_ondemand", str(e))
             if "output_dimension" in low:
                 return ("bad_dim", str(e))
-            return ("reachable", str(e))  # payload quibble → access OK
         return ("error", str(e))
 
 
@@ -204,9 +201,6 @@ def _rerank_one(client, model_id: str, body: dict):
             return ("denied_marketplace", str(e))
         return ("denied", str(e))
     except Exception as e:
-        low = str(e).lower()
-        if "validationexception" in low:
-            return ("reachable", str(e))
         return ("error", str(e))
 
 
@@ -223,13 +217,10 @@ def check_model(client, rerank_client, model: dict) -> bool:
     results = []  # (variant, status, detail) for diagnostics if all fail
     for mid in variants:
         status, detail = probe(probe_client, mid, body)
-        if status in ("ok", "reachable"):
+        if status == "ok":
             if multi:
-                note = "" if status == "ok" else " (reachable; test payload rejected — access OK)"
-                model["_note"] = f"Accessible via: {mid}{note}"
+                model["_note"] = f"Accessible via: {mid}"
                 model["_resolved_id"] = mid
-            elif status == "reachable":
-                model["_note"] = "Model reachable; test payload rejected. Access OK."
             return True
         results.append((mid, status, detail))
 
@@ -346,6 +337,7 @@ def main():
     editorial_id = opus_id if opus_ok else sonnet_id
     if editorial_ok and args.write_env:
         _upsert_env(args.write_env, "BEDROCK_OPUS_MODEL", editorial_id)
+        _upsert_env(args.write_env, "BEDROCK_CHAT_MODEL", editorial_id)
         print(f"  → wrote BEDROCK_OPUS_MODEL={editorial_id} to {args.write_env}")
 
     # --- Sonnet role defaults: app routing/reporting + managed Runtime ---
@@ -370,6 +362,15 @@ def main():
             print(f"  → wrote BEDROCK_FAST_MODEL={fast_id} to {args.write_env}")
     else:
         print("\033[31mFast response mode: Claude Haiku 4.5 is not accessible.\033[0m")
+
+    # Backend settings and the MCP Lambda deployer use distinct environment
+    # keys. Persist both before READY so a working bare-model fallback cannot
+    # leave either execution path invoking the denied inference profile.
+    embedding_ok, _, embedding_id = results["Cohere Embed v4"]
+    if embedding_ok and args.write_env:
+        _upsert_env(args.write_env, "BEDROCK_EMBEDDING_MODEL", embedding_id)
+        _upsert_env(args.write_env, "BEDROCK_EMBED_MODEL_ID", embedding_id)
+        print(f"  → wrote backend and MCP embedding model IDs: {embedding_id}")
 
     # --- Hard-required models (Sonnet, Haiku, Rerank, Embed) ---
     hard = [m["name"] for m in MODELS if m.get("required", True)]

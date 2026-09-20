@@ -45,7 +45,9 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
 ) -> None:
     module = _load_model_check()
     env_file = tmp_path / ".env"
-    env_file.write_text("BEDROCK_OPUS_MODEL=stale\n", encoding="utf-8")
+    env_file.write_text(
+        "BEDROCK_OPUS_MODEL=stale\nBEDROCK_CHAT_MODEL=stale\n", encoding="utf-8"
+    )
 
     def fake_check(_client, _rerank_client, model):
         if model.get("role") == "editorial":
@@ -72,6 +74,7 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
         if "=" in line
     )
     assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-4-6"
+    assert values["BEDROCK_CHAT_MODEL"] == "global.anthropic.claude-sonnet-4-6"
     assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-4-6"
     assert (
         values["BEDROCK_FAST_MODEL"]

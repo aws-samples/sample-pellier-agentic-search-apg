@@ -501,10 +501,10 @@ log "Bootstrapping CDK for AgentCore Runtime deploy (region $AWS_REGION)..."
 CDK_ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo '')"
 if [ -n "$CDK_ACCOUNT" ]; then
 if env AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
-    npx -y aws-cdk@2 bootstrap "aws://${CDK_ACCOUNT}/$AWS_REGION" >/dev/null 2>&1; then
+    npx -y aws-cdk@2.1126.0 bootstrap "aws://${CDK_ACCOUNT}/$AWS_REGION" >/dev/null 2>&1; then
         log "✅ CDK bootstrapped for aws://${CDK_ACCOUNT}/${AWS_REGION}"
     else
-        warn "CDK bootstrap failed — @aws/agentcore Runtime deploy may fail until 'npx aws-cdk@2 bootstrap' succeeds for aws://${CDK_ACCOUNT}/${AWS_REGION}"
+        warn "CDK bootstrap failed — @aws/agentcore Runtime deploy may fail until 'npx aws-cdk@2.1126.0 bootstrap' succeeds for aws://${CDK_ACCOUNT}/${AWS_REGION}"
     fi
 else
     warn "Could not resolve account id (sts get-caller-identity) — skipping CDK bootstrap; AgentCore Runtime deploy will need it run manually"

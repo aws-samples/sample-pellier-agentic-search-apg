@@ -49,6 +49,15 @@ exact-commit CI, derived template revision and reviewed publication file list.
 - The local Studio UserData no longer attempts an obsolete Node 20 install or
   hides a failed core-package installation. Source bootstrap owns Node 24 and
   Python 3.14 installation; core-package failure now stops and signals failure.
+- Model readiness now requires successful InvokeModel and Rerank calls.
+  Validation errors for invalid identifiers or payloads no longer count as
+  access proof. A working embedding fallback is persisted for both backend
+  and MCP Lambda consumers; the editorial fallback also updates the chat and
+  optional analytics model alias before readiness is recorded.
+- CDK bootstrap and its recovery instruction now pin `aws-cdk@2.1126.0`,
+  matching the pinned AgentCore CLI scaffold. Its version-32 bootstrap template
+  is byte-identical to the newer CLI previously resolved locally. This removes
+  a floating package version without claiming first-account bootstrap proof.
 
 ## Live log protection and ownership
 
@@ -144,7 +153,10 @@ Local template lint, handler-schema and wiring checks do not prove effective
 event-role permissions, a complete root bootstrap, reset, rollback or teardown.
 Those gates remain separate from the deployed observability-key stack and
 existing managed-component checks. Studio asset reads and its remote helper
-again returned 403. S3 uploads, Studio staging, commit, push, import and
+returned 403. Subsequent signed-in browser access reached the existing
+September 13 native preview and confirmed that the workshop remains
+unpublished. That older preview does not validate the current local package.
+S3 uploads, Studio staging, commit, push, import and
 publication remain owner operations. Human fresh-event rehearsal remains
 EXCLUDED from automated work and required before event delivery.
 
