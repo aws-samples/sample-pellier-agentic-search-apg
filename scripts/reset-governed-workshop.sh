@@ -262,7 +262,7 @@ _restart_services_and_wait() {
     return 1
   fi
 
-  for attempt in {1..30}; do
+  for ((attempt = 1; attempt <= 30; attempt++)); do
     if _backend_listening; then
       pass "Application readiness endpoint responds on :${BACKEND_PORT}"
       return 0
@@ -829,7 +829,7 @@ _agentcore() {
 }
 
 policy_changed=false
-for policy_name in workshop_identity_match_forbid; do
+policy_name=workshop_identity_match_forbid
   if jq -e \
       --arg engine "$POLICY_ENGINE_NAME" \
       --arg policy "$policy_name" \
@@ -842,7 +842,6 @@ for policy_name in workshop_identity_match_forbid; do
       --json >>/tmp/pellier-governed-reset-policy.log
     policy_changed=true
   fi
-done
 
 if [[ "$policy_changed" == true ]]; then
   _agentcore validate --json >>/tmp/pellier-governed-reset-policy.log

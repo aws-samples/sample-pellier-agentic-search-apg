@@ -6,12 +6,15 @@
  * the final route table. The three product surfaces are
  * PellierPage (`/`) and the Pellier Observatory frame (`/observatory/*`).
  *
- * AuthGate is exported so the Pellier Observatory surface can be gated when Cognito
- * is configured.
+ * The Observatory route is not gated behind Cognito: selecting a persona
+ * presents a scenario but does not authenticate (see PRODUCT.md), and the
+ * surface is read-only evidence inspection. Pellier Operator is the one
+ * authenticated boundary; `OperatorFrame` reads `useAuth` directly and
+ * renders its own sign-in state rather than a shared route wrapper.
  */
-import { lazy, Suspense, useEffect, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { AuthProvider } from './contexts/AuthContext'
 import { CartProvider, useCart } from './contexts/CartContext'
 import { UIProvider, useUI } from './contexts/UIContext'
 import { LayoutProvider } from './contexts/LayoutContext'
@@ -28,6 +31,7 @@ import SurfaceNavigation from './components/SurfaceNavigation'
 import { routerBasename } from './utils/assetPath'
 import './styles/premium-heading-styles.css'
 import RouteExperience from './shared/RouteExperience'
+import AppErrorBoundary from './shared/AppErrorBoundary'
 import './styles/navigation-polish.css'
 
 const PellierPage = lazy(() => import('./pages/PellierPage'))
@@ -86,39 +90,6 @@ const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'))
 const StoryboardPage = lazy(() => import('./pages/StoryboardPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const HowPellierWorksPage = lazy(() => import('./pages/HowPellierWorksPage'))
-
-// ---------------------------------------------------------------------------
-// AuthGate — Cognito-aware auth wrapper. Gates the Pellier Observatory surface when
-// Cognito is configured. When Cognito is not configured (local dev without
-// env vars), children pass through directly.
-// ---------------------------------------------------------------------------
-export function AuthGate({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
-  const cognitoConfigured = !!(
-    import.meta.env.VITE_COGNITO_DOMAIN && import.meta.env.VITE_COGNITO_CLIENT_ID
-  )
-
-  if (!cognitoConfigured) return <>{children}</>
-
-  if (loading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'var(--cream)' }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-black/10 border-t-black/40 rounded-full animate-spin" />
-          <p className="text-sm" style={{ color: 'rgba(0,0,0,0.45)' }}>
-            Loading...
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) return <SignInPage />
-  return <>{children}</>
-}
 
 // ---------------------------------------------------------------------------
 // ModalRouteGuard — closes transient modals when the route changes.
@@ -229,6 +200,23 @@ function RouteLoading() {
     >
       <span className="w-7 h-7 rounded-full border-2 border-black/10 border-t-black/50 animate-spin" />
     </div>
+  )
+}
+
+/**
+ * Wraps the route table in AppErrorBoundary, keyed by pathname so a
+ * navigation away from a crashed route remounts a clean boundary instead of
+ * requiring a full page reload to recover. `SurfaceNavigation`,
+ * `RouteExperience`, and the modal slots all render as siblings of this
+ * component in `App()`, so they stay interactive even if the route inside
+ * throws.
+ */
+function AppRouteBoundary() {
+  const { pathname } = useLocation()
+  return (
+    <AppErrorBoundary key={pathname}>
+      <AppRoutes />
+    </AppErrorBoundary>
   )
 }
 
@@ -363,12 +351,19 @@ function App() {
             <CartPanelSlot />
             <ToastSlot />
               <BrowserRouter basename={routerBasename()}>
-                <SurfaceNavigation />
+                {/* Rendered first so its "Skip to content" link (fixed
+                    position, hidden until focus -- see
+                    styles/navigation-polish.css) is the first focusable
+                    element in Tab order. It used to render after
+                    SurfaceNavigation, so a keyboard user tabbed through
+                    the brand link and all three surface links before
+                    ever reaching it. */}
                 <RouteExperience />
+                <SurfaceNavigation />
                 <ModalRouteGuard />
                 <ShopperChatSlot />
               <ComparisonHost />
-              <AppRoutes />
+              <AppRouteBoundary />
             </BrowserRouter>
           </UIProvider>
         </CartProvider>

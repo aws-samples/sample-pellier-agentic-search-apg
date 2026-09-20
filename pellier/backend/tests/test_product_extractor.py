@@ -183,6 +183,33 @@ async def test_format_products_preserves_quantity_and_owned_status():
 
 
 @pytest.mark.asyncio
+async def test_format_products_escapes_like_metacharacters_in_image_backfill():
+    """A product name containing a literal LIKE metacharacter (e.g. the very
+    real "100% Cotton") must not widen the backfill match: the character has
+    to reach Postgres as a literal, not as a wildcard."""
+
+    class _CapturingCatalog:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, tuple]] = []
+
+        async def fetch_all(self, query, *params):
+            self.calls.append((query, params))
+            return []
+
+    catalog = _CapturingCatalog()
+    service = EnhancedChatService.__new__(EnhancedChatService)
+    service.db_service = catalog
+
+    await service._format_products(
+        [{**PRODUCT, "name": "100% Cotton Shirt_Deluxe"}]
+    )
+
+    assert len(catalog.calls) == 1
+    _, params = catalog.calls[0]
+    assert params == (r"%100\% cotton shirt\_deluxe%",)
+
+
+@pytest.mark.asyncio
 async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live_stock():
     class Catalog:
         async def fetch_all(self, query, *params):

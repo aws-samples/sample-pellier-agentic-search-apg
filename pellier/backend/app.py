@@ -1415,6 +1415,13 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                             {
                                 "type": "tool_call",
                                 **tool_call,
+                                # The browser stream uses completed/executing;
+                                # keep the managed success/error vocabulary in
+                                # the persisted execution envelope itself.
+                                "status": (
+                                    "completed" if tool_call.get("status") == "success"
+                                    else tool_call.get("status", "unknown")
+                                ),
                             },
                             ensure_ascii=False,
                             default=str,

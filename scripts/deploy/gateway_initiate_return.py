@@ -44,7 +44,9 @@ def _load_env() -> None:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, value = line.split("=", 1)
-            os.environ[key.strip()] = value.strip().strip("'\"")
+            # Explicit environment selects the deployment being proved. A
+            # local .env must not silently redirect it to an older Gateway.
+            os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
 def _require(name: str) -> str:

@@ -434,7 +434,6 @@ rm -rf "/home/$CODE_EDITOR_USER/.code-editor-server" 2>/dev/null || true
 # instance configured with HttpTokens=required, and the `|| echo 'us-east-1'` fallback
 # then hides that behind a plausible-looking default. A workshop in any other region
 # would have been configured for the wrong one with nothing in the log to say so.
-# `register_oauth_callback.sh` already does it this way; this is the same shape.
 imds_region() {
     local token
     token="$(curl -sS --max-time 5 -X PUT \
@@ -471,7 +470,7 @@ log "AWS Region: $AWS_REGION"
 log "Bootstrapping CDK for AgentCore Runtime deploy (region $AWS_REGION)..."
 CDK_ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo '')"
 if [ -n "$CDK_ACCOUNT" ]; then
-if AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
+if env AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
     npx -y aws-cdk@2 bootstrap "aws://${CDK_ACCOUNT}/$AWS_REGION" >/dev/null 2>&1; then
         log "✅ CDK bootstrapped for aws://${CDK_ACCOUNT}/${AWS_REGION}"
     else

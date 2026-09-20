@@ -22,12 +22,14 @@ def assess(observation: dict) -> dict:
     queried = evidence.get("queried") is True
     counts = [evidence.get(k) for k in ("executionRows", "writeRows", "committedRows", "domainRows", "ledgerRows")]
     measured = queried and all(type(v) is int and v >= 0 for v in counts)
+    pending = evidence.get("pendingClaimRows", 0)
+    pending_matches = type(pending) is int and pending in (0, 1) and measured and pending == counts[1]
     executed = (counts[0] > 0) if measured else None
     changed = None
     if measured:
         if counts[2] > 0 and counts[3] > 0:
             changed = True
-        elif not any(counts[1:]):
+        elif not any(counts[1:]) or (pending_matches and not any(counts[2:])):
             changed = False
     outcome = "inconclusive"
     contradiction = None
@@ -52,7 +54,8 @@ def assess(observation: dict) -> dict:
                     outcome = "output_suppressed"
             elif commits == domain == writes == 1 and output == "RETURNED":
                 outcome = "committed"
-            elif not (writes or commits or domain or ledger) and observation.get("businessRejected") is True:
+            elif (not (commits or domain or ledger) and pending_matches
+                  and observation.get("businessRejected") is True):
                 outcome = "transaction_rejected"
     return {
         "outcome": outcome, "control": {

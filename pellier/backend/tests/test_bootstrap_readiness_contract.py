@@ -432,6 +432,8 @@ def _run_health_gate(
     commerce_schema_exists: bool = True,
     policy_decisions_exists: bool = True,
     workshop_runs_exists: bool = True,
+    query_statistics_extension_exists: bool = True,
+    query_statistics_queryable: bool = True,
     managed_receipt: dict[str, object] | None = None,
     shopper_in_operator_group: bool = False,
     group_lookup_error_for: str | None = None,
@@ -551,6 +553,8 @@ case "$*" in
   *"to_regclass('pellier.policy_decisions')"*) relation_result {str(policy_decisions_exists).lower()} pellier.policy_decisions ;;
   *"to_regclass('pellier.workshop_runs')"*) relation_result {str(workshop_runs_exists).lower()} pellier.workshop_runs ;;
   *"column_name = 'requester_kind'"*) printf 'requester_kind\n' ;;
+  *"FROM public.pg_stat_statements"*) {"printf '1\\n'" if query_statistics_queryable else "exit 1"} ;;
+  *"extname = 'pg_stat_statements'"*) {"printf 'pg_stat_statements\\n'" if query_statistics_extension_exists else "true"} ;;
 esac
 """,
     )
@@ -678,7 +682,30 @@ def test_governed_health_gate_requires_complete_managed_receipt(
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "gateway-mcp Runtime smoke" in proc.stdout
     assert "Labs 1-2 start in-process" in proc.stdout
+    assert "pg_stat_statements extension is installed" in proc.stdout
     assert "READY" in proc.stdout
+
+
+def test_governed_health_gate_rejects_missing_query_statistics_extension(
+    tmp_path: Path,
+) -> None:
+    """Migration 054's own comment calls this a facilitator-readiness
+
+    requirement, but ``CREATE EXTENSION`` succeeds even when the cluster
+    parameter group never preloaded the module — so nothing before this test
+    proved the gate would actually notice a box where that preload is
+    missing.
+    """
+    proc = _run_health_gate(
+        tmp_path,
+        model_ready=True,
+        workshop_format="governed",
+        managed_ready=True,
+        query_statistics_extension_exists=False,
+    )
+    assert proc.returncode == 1
+    assert "pg_stat_statements extension missing" in proc.stdout
+    assert "NOT READY" in proc.stdout
 
 
 @pytest.mark.parametrize("schema_on_search_path", [True, False])
@@ -2008,3 +2035,11 @@ def test_credential_file_routes_participants_through_pellier_not_a_raw_hosted_ui
     assert "open PellierURL from the Workshop Studio outputs" in credentials_writer
     assert "do not open a raw Hosted UI /login link" in credentials_writer
     assert 'echo "Sign-in URL: $HOSTED_UI"' not in credentials_writer
+
+
+def test_governed_health_gate_rejects_installed_but_unusable_query_statistics(tmp_path):
+    proc = _run_health_gate(tmp_path, model_ready=True, workshop_format="governed",
+                           managed_ready=True, query_statistics_queryable=False)
+    assert proc.returncode == 1
+    assert "installed but cannot collect queries" in proc.stdout
+    assert "NOT READY" in proc.stdout

@@ -896,3 +896,49 @@ def test_build_state_detects_each_reference_solution_as_built(
                 sys.modules[module] = original
             else:
                 sys.modules.pop(module, None)
+
+
+# ---------------------------------------------------------------------------
+# Every reference solution the guide copies over a live file must be that live
+# file plus the answer. On 2026-09-19 three twins had drifted outside their
+# marker regions: the Lab 3a schema twin lacked `replace_damaged_item`, the Lab 3b
+# runtime twin lacked the traceparent injection, and the Lab 1a agent twin carried
+# older instructions. A participant taking the documented catch-up lane silently
+# regressed the running application. This is the tripwire.
+# ---------------------------------------------------------------------------
+
+_PY_MARKER_BLOCK = re.compile(
+    r"# === WORKSHOP · [^\n]*: START ===.*?# === WORKSHOP · [^\n]*: END ===", re.S
+)
+_SQL_MARKER_BLOCK = re.compile(
+    r"-- === WORKSHOP · [^\n]*: START ===.*?-- === WORKSHOP · [^\n]*: END ===", re.S
+)
+
+REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
+    (source, destination, _PY_MARKER_BLOCK)
+    for source, destination in LAB1_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
+) + (
+    (LAB2_BUDGET_REFERENCE, LAB2_BUDGET_REGION[0], _PY_MARKER_BLOCK),
+    (LAB2_REFERENCE, LAB2_STARTER, _SQL_MARKER_BLOCK),
+    (LAB4_ABSENCE_REFERENCE, "workshop/lab-4-absence.sql", _SQL_MARKER_BLOCK),
+)
+
+
+@pytest.mark.parametrize(("source", "destination", "block"), REFERENCE_TWINS)
+def test_reference_solution_matches_live_outside_the_markers(
+    source: str, destination: str, block: re.Pattern
+) -> None:
+    """The catch-up copy changes the marker region and nothing else."""
+    solution = (REPO / source).read_text(encoding="utf-8")
+    live = (REPO / destination).read_text(encoding="utf-8")
+    solution_blocks = block.findall(solution)
+    live_blocks = block.findall(live)
+    assert solution_blocks and len(solution_blocks) == len(live_blocks), (
+        f"{source} and {destination} do not carry the same marker regions"
+    )
+    outside_solution = block.sub("<MARKER>", solution)
+    outside_live = block.sub("<MARKER>", live)
+    assert outside_solution == outside_live, (
+        f"{source} drifted from {destination} outside the marker region; regenerate "
+        "the reference from the live file so the catch-up lane cannot regress the app"
+    )

@@ -57,9 +57,16 @@ const SessionView: React.FC = () => {
     : 'chat';
 
   // Load session detail from fixture keyed by session ID
-  const { data: session, loading, error, refetch } = useObservatoryData<SessionDetail>({
+  const { data: session, loading, error, errorStatus, refetch } = useObservatoryData<SessionDetail>({
     key: `session-${id?.toLowerCase()}`,
   });
+  // `:id` is a raw route param -- a stale bookmark or a typo both 404. That
+  // is "this session does not exist", not "the evidence service is down",
+  // so it renders the dedicated not-found state below (no "Try again": a
+  // 404 never resolves by retrying the same id) instead of falling into
+  // the generic error branch, which used to make the not-found state
+  // below unreachable.
+  const notFound = errorStatus === 404;
 
   // Each persona has their own history — viewing another persona's session
   // while signed in as someone else creates a confusing split screen
@@ -121,8 +128,8 @@ const SessionView: React.FC = () => {
     );
   }
 
-  /* Error state */
-  if (error) {
+  /* Error state (excludes 404 -- handled as "not found" below) */
+  if (error && !notFound) {
     return (
       <div
         style={{
@@ -178,7 +185,7 @@ const SessionView: React.FC = () => {
     );
   }
 
-  /* No data */
+  /* No data (404 "session does not exist", or a 200 with an empty body) */
   if (!session) {
     return (
       <div

@@ -11,11 +11,29 @@ import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_BASE_URL } from '../services/apiBase'
-import { HEALTH_FRESH_MS, HEALTH_TIMEOUT_MS, PresencePill } from './PresencePill'
+import {
+  __resetPresenceHealthCacheForTests,
+  HEALTH_FRESH_MS,
+  HEALTH_TIMEOUT_MS,
+  PresencePill,
+} from './PresencePill'
 
 function pill(): HTMLElement {
   return screen.getByTestId('presence-pill-pellier')
 }
+
+// The cross-mount health cache (in PresencePill.tsx) is module-level by
+// design, shared across every test in this file regardless of which
+// `describe` block it sits in. Without resetting it, a measurement from
+// one test could read as fresh (real or fake-timer time rarely advances a
+// full 30s between two tests) at the start of the next -- each test must
+// start with no prior measurement, same as a freshly loaded tab.
+beforeEach(() => {
+  __resetPresenceHealthCacheForTests()
+})
+afterEach(() => {
+  __resetPresenceHealthCacheForTests()
+})
 
 describe('PresencePill health', () => {
   beforeEach(() => {
@@ -154,6 +172,41 @@ describe('PresencePill health', () => {
     await vi.advanceTimersByTimeAsync(30_000)
 
     await waitFor(() => expect(pill()).toHaveTextContent('Concierge offline'))
+  })
+
+  it('carries a fresh measurement across a remount instead of flashing "checking"', async () => {
+    // Client-side navigation between Observatory routes unmounts and
+    // remounts the pill on every transition. A remount inside the 30s
+    // freshness window should read the last real measurement immediately,
+    // not restart at "unknown" while its own fresh check is still in flight.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    const { unmount } = render(<PresencePill surface="pellier" />)
+    await waitFor(() => expect(pill()).toHaveTextContent('Concierge online'))
+
+    unmount()
+    await vi.advanceTimersByTimeAsync(2_000) // well inside HEALTH_FRESH_MS
+
+    // A fetch that never resolves proves the initial render came from the
+    // cache, not from this mount's own (still in-flight) check.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    render(<PresencePill surface="pellier" />)
+
+    expect(pill()).toHaveTextContent('Concierge online')
+    expect(pill()).not.toHaveTextContent('Concierge checking')
+  })
+
+  it('does not carry a measurement across a remount once it has expired', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    const { unmount } = render(<PresencePill surface="pellier" />)
+    await waitFor(() => expect(pill()).toHaveTextContent('Concierge online'))
+
+    unmount()
+    await vi.advanceTimersByTimeAsync(HEALTH_FRESH_MS + 1_000)
+
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    render(<PresencePill surface="pellier" />)
+
+    expect(pill()).toHaveTextContent('Concierge checking')
   })
 })
 

@@ -122,6 +122,38 @@ def test_the_packaged_shared_modules_exist_on_disk() -> None:
         assert (DEPLOY / module).is_file(), f"{module} is packaged but absent"
 
 
+def test_every_standalone_boto3_client_in_deploy_lambda_pins_region() -> None:
+    """A `boto3.client(...)` built outside the `--region`-bound session must
+
+    still name a region explicitly, or it silently falls back to whatever
+    region the calling host happens to have configured (or none at all,
+    raising ``NoRegionError``). ``main()`` binds one ``boto3.Session(region_
+    name=args.region)`` and calls ``session.client(...)`` from it, which is
+    exempt; every bare ``boto3.client(...)`` elsewhere in the module must pass
+    ``region_name`` itself, since it cannot inherit the session's region.
+    """
+    tree = ast.parse(DEPLOY_LAMBDA.read_text(encoding="utf-8"))
+    unpinned: List[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (
+            isinstance(func, ast.Attribute)
+            and func.attr == "client"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "boto3"
+        ):
+            continue
+        has_region = any(kw.arg == "region_name" for kw in node.keywords)
+        if not has_region:
+            unpinned.append(f"line {node.lineno}: boto3.client({ast.dump(node.args[0]) if node.args else ''})")
+    assert not unpinned, (
+        "boto3.client(...) call(s) in deploy_lambda.py do not pin region_name "
+        f"and will use the ambient default region instead of --region: {unpinned}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # The converter that had drifted
 # ---------------------------------------------------------------------------

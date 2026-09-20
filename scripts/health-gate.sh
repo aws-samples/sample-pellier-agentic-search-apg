@@ -314,6 +314,23 @@ if $managed_required; then
     fail "Review requester schema missing. Apply scripts/migrations/051_review_requester.sql."
     ok=false
   fi
+
+  # Migration 054's own comment calls this a facilitator-readiness
+  # requirement; nothing checked that claim until now. CREATE EXTENSION
+  # succeeds even when the cluster parameter group has not preloaded the
+  # module, so this can be installed and still collect nothing.
+  query_statistics_extension="$(_psql "SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements';" || echo '')"
+  if [[ "$query_statistics_extension" == "pg_stat_statements" ]]; then
+    if _psql "SELECT count(*) FROM public.pg_stat_statements;" >/dev/null; then
+      pass "pg_stat_statements extension is installed and queryable"
+    else
+      fail "pg_stat_statements is installed but cannot collect queries. Confirm shared_preload_libraries and restart the cluster if a parameter change is pending."
+      ok=false
+    fi
+  else
+    fail "pg_stat_statements extension missing. Apply scripts/migrations/054_query_statistics.sql and confirm the cluster parameter group preloads pg_stat_statements."
+    ok=false
+  fi
 fi
 
 # 4. Node version (warn — root-cause diagnostic for the managed pillars below).
@@ -451,7 +468,15 @@ if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
   operator_user="${PELLIER_OPERATOR_USERNAME:-operator}"
   operator_client="${COGNITO_CLIENT_ID:-}"
   operator_domain="${COGNITO_DOMAIN:-}"
-  operator_password="${PELLIER_OPERATOR_PASSWORD:-Pellier-${WORKSHOP_ID:-dat416}-Operator1}"
+  operator_password="${PELLIER_OPERATOR_PASSWORD:-}"
+  if [[ -z "$operator_password" && -n "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" ]]; then
+    operator_password="$(aws secretsmanager get-secret-value \
+      --secret-id "$COGNITO_TEST_CREDENTIALS_SECRET_ARN" \
+      --region "${AWS_REGION:-us-east-1}" --query SecretString --output text 2>/dev/null \
+      | jq -er --arg username "$operator_user" \
+        '[.users[] | select(.username == $username)] | if length == 1 then .[0].password else error("ambiguous staff credential") end' \
+        2>/dev/null || true)"
+  fi
   in_group() {
     local groups
     if ! groups="$(aws cognito-idp admin-list-groups-for-user \

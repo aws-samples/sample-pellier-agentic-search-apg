@@ -440,7 +440,7 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
     assert headers["authorization"] == "Bearer jwt-abc"
     # STM session header is present and >= 33 chars (runtime requirement).
     sess_hdr = headers["x-amzn-bedrock-agentcore-runtime-session-id"]
-    assert sess_hdr.startswith("sess-runtime")
+    assert sess_hdr == rt._runtime_session_id_for("sess-runtime", "user-123")
     assert len(sess_hdr) >= 33
     # Payload carries the turn fields.
     assert json.loads(captured["data"]) == {
@@ -458,9 +458,53 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
     assert trace["traceKind"] == "managed-runtime-receipt"
     assert trace["runtime"] == "agentcore-managed"
     assert trace["rail"] == "gateway-mcp"
+    assert trace["runtimeSessionId"] == sess_hdr
     assert trace["jwtPassthrough"] is True
     assert trace["gatewayPassthrough"] is True
     assert trace["spans"] == []
+
+
+@pytest.mark.parametrize(
+    ("session_id_a", "session_id_b"),
+    [
+        ("sess-1", "sess-10"),
+        ("a", "a0"),
+        ("token", "token0000000000000000000000"),
+    ],
+)
+def test_runtime_session_id_padding_is_injective(
+    session_id_a: str, session_id_b: str
+) -> None:
+    """Two different short session ids must never pad to the same STM
+    session header.
+
+    A naive ``ljust(33, "0")`` merges ``"sess-1"`` and ``"sess-10"`` (and
+    any other pair where one id is a prefix of the other, followed only by
+    zeros) onto the identical ``X-Amzn-Bedrock-AgentCore-Runtime-Session-Id``
+    value, silently conflating two distinct shopper sessions on the managed
+    runtime's own STM tracking.
+    """
+    import services.agentcore_runtime as rt
+
+    padded_a = rt._runtime_session_id_for(session_id_a)
+    padded_b = rt._runtime_session_id_for(session_id_b)
+
+    assert padded_a != padded_b
+    for padded in (padded_a, padded_b):
+        assert padded.isascii()
+        assert 33 <= len(padded) <= 256
+
+
+def test_runtime_session_id_padding_is_stable_for_the_same_id() -> None:
+    """The same session id must always pad to the same header value, so a
+    turn lands in the same managed STM session as its own history."""
+    import services.agentcore_runtime as rt
+
+    assert rt._runtime_session_id_for("sess-1") == rt._runtime_session_id_for(
+        "sess-1"
+    )
+    long_id = "a" * 40
+    assert rt._runtime_session_id_for(long_id) == rt._runtime_session_id_for(long_id)
 
 
 @pytest.mark.parametrize(
@@ -545,3 +589,13 @@ def test_conversation_prompt_includes_bounded_normalized_history() -> None:
     assert '"role": "assistant", "content": "Here are three options."' in prompt
     assert "unsupported role" not in prompt
     assert "<current_user_message>only under $100</current_user_message>" in prompt
+
+
+def test_runtime_session_encoding_cannot_be_supplied_as_an_alias() -> None:
+    import services.agentcore_runtime as rt
+
+    encoded = rt._runtime_session_id_for("short", "principal-a")
+    assert rt._runtime_session_id_for(encoded, "principal-a") != encoded
+    assert rt._runtime_session_id_for("short", "principal-b") != encoded
+    assert rt._runtime_session_id_for(None) != rt._runtime_session_id_for(None)
+    assert len(rt._runtime_session_id_for("é" * 300)) <= 256

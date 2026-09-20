@@ -257,3 +257,35 @@ describe('AuthModal provider buttons (Req 2.6.6)', () => {
     })
   })
 })
+
+describe('AuthModal focus containment', () => {
+  // The dialog claims `aria-modal="true"`; a keyboard user reaching the
+  // page behind it via Tab makes that claim false. Regression test for the
+  // missing `useFocusTrap` wiring.
+  it('keeps Tab from a provider button on Shift+Tab from the first control', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByText('open-auth'))
+
+    const dialog = screen.getByTestId('auth-modal')
+    const google = screen.getByTestId('auth-modal-button-google')
+    google.focus()
+    expect(document.activeElement).toBe(google)
+
+    await user.tab({ shift: true })
+
+    // Shift+Tab from the first focusable control wraps to the last one
+    // inside the dialog, never out to `open-auth` or `open-drawer` behind it.
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).not.toBe(screen.getByText('open-auth'))
+  })
+
+  it('moves focus into the dialog when it opens', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByText('open-auth'))
+
+    const dialog = screen.getByTestId('auth-modal')
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+})

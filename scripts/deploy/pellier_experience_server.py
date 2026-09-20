@@ -30,6 +30,7 @@ from typing import Any
 import boto3
 
 from common.types import resolve_invocation
+from common.handler import audit_read_call
 from common.replacement_contract import REPLACEMENT_TOOL
 from common.dataapi import (
     execute_sql as _execute_sql,
@@ -641,7 +642,13 @@ def lambda_handler(event: dict, context: Any) -> dict:
         else:
             result = TOOLS[tool_name]["fn"](**execution_arguments)
         latency_ms = int((time.monotonic() - started) * 1000)
-        return {"content": [{"type": "text", "text": json.dumps(result, default=str)}]}
+        if tool_name not in ("initiate_return", "replace_damaged_item", "issue_credit"):
+            audit_read_call(tool_name, audit_arguments, result, started)
+        # Guardrail data paths cannot index the MCP content array. Expose the
+        # exact same serialized output as a record field for the managed check.
+        text = json.dumps(result, default=str)
+        return {"text": text, "content": [{"type": "text", "text": text}]}
     except Exception as e:
         logger.error("Tool %s failed: %s", tool_name, e)
-        return {"content": [{"type": "text", "text": json.dumps({"error": str(e)})}], "isError": True}
+        text = json.dumps({"error": "The requested action could not be completed."})
+        return {"text": text, "content": [{"type": "text", "text": text}], "isError": True}

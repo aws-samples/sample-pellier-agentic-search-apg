@@ -1,0 +1,22 @@
+{
+  "question": "What can the agent legitimately conclude in each case?",
+  "cases": [
+    {
+      "case": "unknown",
+      "query": "Hadley cashmere scarf",
+      "status": "not_found",
+      "total_units": null,
+      "passed": true,
+      "conclusion": "the catalog does not carry this piece; the agent may say so and nothing about stock"
+    },
+    {
+      "case": "sold_out",
+      "query": "Quilted Silk Vest",
+      "status": "success",
+      "total_units": 0,
+      "passed": true,
+      "conclusion": "the catalog carries this piece and every warehouse holds zero; the agent may say it is sold out"
+    }
+  ],
+  "passed": true
+}

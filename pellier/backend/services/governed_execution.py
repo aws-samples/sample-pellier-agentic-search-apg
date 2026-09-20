@@ -889,8 +889,10 @@ def is_output_suppression(error: BaseException | str) -> bool:
     """Recognize explicit response suppression, never infer it from an HTTP code."""
     if isinstance(error, BaseException) and getattr(error, "exceptions", None):
         return any(is_output_suppression(child) for child in error.exceptions)
-    text = str(error).lower()
-    return "suppress" in text and ("output" in text or "response" in text) and "policy" in text
+    from services.gateway_errors import gateway_error_text
+
+    text = gateway_error_text(error).lower()
+    return ("suppress" in text and ("output" in text or "response" in text) and "policy" in text) or text.startswith("output blocked by policy:")
 
 
 def is_policy_denial(error: BaseException | str) -> bool:
@@ -901,7 +903,9 @@ def is_policy_denial(error: BaseException | str) -> bool:
         children = getattr(error, "exceptions", None)
         if children:
             return any(is_policy_denial(child) for child in children)
-        haystack = f"{error.__class__.__name__}: {error}".lower()
+        from services.gateway_errors import gateway_error_text
+
+        haystack = f"{error.__class__.__name__}: {gateway_error_text(error)}".lower()
     else:
         haystack = str(error).lower()
     return any(marker in haystack for marker in _DENIAL_MARKERS)
@@ -1163,6 +1167,7 @@ async def _execute_through_gateway(
     from config import settings
 
     gateway_url = str(settings.AGENTCORE_GATEWAY_URL).strip()
+    from services.gateway_errors import read_gateway_error_response
     action = gateway_action_id(tool)
     payload = {**{k: v for k, v in args.items()}, "idempotency_key": idempotency_key}
 
@@ -1171,7 +1176,8 @@ async def _execute_through_gateway(
         async with httpx.AsyncClient(
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=timeout,
-            follow_redirects=True,
+            follow_redirects=False,
+            event_hooks={"response": [read_gateway_error_response]},
         ) as http_client:
             async with streamable_http_client(
                 gateway_url, http_client=http_client

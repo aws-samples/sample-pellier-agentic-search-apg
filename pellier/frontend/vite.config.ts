@@ -72,6 +72,8 @@ export default defineConfig({
     // Cache busting: Add hash to filenames for workshop reliability
     rollupOptions: {
       output: {
+        // Cache the shared framework separately from frequently changing app code.
+        manualChunks: { framework: ['react', 'react-dom', 'react-router-dom'] },
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'

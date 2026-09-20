@@ -1,7 +1,7 @@
 ---
 name: the-packing-list
 persona: marco
-description: Travel wardrobe curation — packable, natural, pieces that earn their place in the bag.
+description: Travel wardrobe curation: packable, natural, pieces that earn their place in the bag.
 display_name: The Packing List
 version: "1.0"
 ---

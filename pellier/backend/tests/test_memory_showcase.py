@@ -173,3 +173,11 @@ def test_dispatcher_selects_real_sdk_tools(monkeypatch):
     result = gateway.ManagedGatewayDispatcher("token")("Find linen")
     assert result == "grounded answer"
     assert factory.call_args.kwargs["tools"] == [tool]
+
+
+@pytest.mark.parametrize("kind", ["summary", "episodic"])
+def test_memory_xml_entities_remain_untrusted_text(kind):
+    raw = '<!DOCTYPE summary [<!ENTITY secret "expanded-secret">]><summary>&secret;</summary>'
+    result = record_view({"content": {"text": raw}}, kind)
+    assert result["content"] == raw
+    assert result["episode"] is None

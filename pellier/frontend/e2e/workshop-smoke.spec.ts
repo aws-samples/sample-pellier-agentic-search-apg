@@ -1,6 +1,6 @@
 /** Public participant navigation. No fixture interception or model-success claims.
  * Run against the intended deployment with E2E_BASE_URL. Authenticated Runtime,
- * Memory, writes, and output suppression require the separate fresh-account proof.
+ * Memory, writes, and output suppression require separate authenticated live checks.
  */
 import { expect, test } from '@playwright/test';
 

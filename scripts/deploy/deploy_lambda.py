@@ -113,7 +113,7 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
       if use_s3:
         if not s3_bucket:
           # Create temp bucket
-          account_id = boto3.client('sts').get_caller_identity()['Account']
+          account_id = boto3.client('sts', region_name=region).get_caller_identity()['Account']
           s3_bucket = f"lambda-deploy-{account_id}-{region}"
           s3_client = boto3.client('s3', region_name=region)
           try:

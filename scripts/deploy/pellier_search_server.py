@@ -33,6 +33,7 @@ from typing import Any
 import boto3
 
 from common.types import resolve_invocation
+from common.handler import audit_read_call
 from common.dataapi import (
     execute_write as _execute_write,
     begin_transaction as _begin_transaction,
@@ -906,7 +907,7 @@ def browse_category(
     parameters = [
         {
             "name": "category",
-            "value": {"stringValue": f"%{str(category).lower()}%"},
+            "value": {"stringValue": _prepare_like_pattern(category)},
         },
         {"name": "limit", "value": {"longValue": max(1, min(int(limit), 20))}},
     ]
@@ -966,7 +967,7 @@ def check_inventory(product_query: str = "") -> dict:
         name = f"token{index}"
         clauses.append(f"lower(name) LIKE :{name}")
         parameters.append(
-            {"name": name, "value": {"stringValue": f"%{token.lower()}%"}}
+            {"name": name, "value": {"stringValue": _prepare_like_pattern(token)}}
         )
     candidates = _execute_sql(
         f"""
@@ -1210,6 +1211,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
                     evidence=receipt_evidence,
                     latency_ms=int((time.monotonic() - started) * 1000),
                 )
+        if tool_name != "restock_inventory":
+            audit_read_call(tool_name, audit_arguments, result, started)
         return {"content": [{"type": "text", "text": json.dumps(result, default=str)}]}
     except Exception as e:
         logger.error(f"Tool {tool_name} failed: {e}")

@@ -1,0 +1,14 @@
+{
+  "candidateId": "21",
+  "comparisonId": "compare-a02967b40cb2434bb593a9ef0e26edd3",
+  "assertions": {
+    "sameQuery": true,
+    "savedComparisons": true,
+    "starterObserved": true,
+    "candidatePreviouslyLost": true,
+    "poolExpanded": true,
+    "candidateRecovered": true,
+    "rerankApplied": true,
+    "constraintsPreserved": true
+  }
+}

@@ -5,6 +5,7 @@
  * the standard Pellier chrome (Header + Footer). Keeps the Pellier
  * main page lean and gives "About" in the nav an honest destination.
  */
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EditorialBrief from '../components/EditorialBrief'
 import Footer from '../components/Footer'
@@ -26,6 +27,11 @@ const NAV_ROUTES: Record<NavItem, string> = {
 export default function AboutPage() {
   const navigate = useNavigate()
   const { openModal } = useUI()
+  useEffect(() => {
+    const previous = document.title
+    document.title = 'About | Pellier'
+    return () => { document.title = previous }
+  }, [])
 
   const handleNavigate = (item: NavItem) => {
     if (item === 'account') {

@@ -15,8 +15,8 @@
  *
  * The fields (`login`, `logout`, `accessToken`, `isAuthenticated`, `loading`)
  * remain compatible with existing call sites
- * (`LoginButton`, `SignInPage`, `AuthGate`, etc.). New code SHOULD import
- * from `utils/auth.ts` which re-exports `useAuth`.
+ * (`LoginButton`, `SignInPage`, `OperatorFrame`, etc.). New code SHOULD
+ * import from `utils/auth.ts` which re-exports `useAuth`.
  */
 import {
   createContext,

@@ -181,23 +181,46 @@ def test_turn_receipts_are_inserted_idempotently():
 
 
 def test_clear_does_not_attempt_to_delete_append_only_receipts():
-    """A trigger rejects DELETE; attempting it aborts the whole clear."""
+    """Triggers reject DELETE on all three evidence tables (migrations 014,
+    047); attempting one aborts the whole clear, so clear_sql() must not try.
+    """
     seeder = _load_seeder()
     clear = seeder.clear_sql()
 
-    assert "DELETE FROM pellier.governed_turn_receipts" not in clear
-    # It must still clean up what it can.
-    for table in ("tool_audit", "governed_receipts", "returns", "orders"):
-        assert table in clear
+    for table in ("governed_turn_receipts", "governed_receipts", "tool_audit"):
+        assert f"DELETE FROM pellier.{table}" not in clear
+    # Theo has ordinary orders too. Clearing by customer would destroy them.
+    assert "DELETE FROM" not in clear
+    assert "RAISE EXCEPTION" in clear
 
 
-def test_clear_is_scoped_to_the_seeded_prefix():
-    """A clear that removed real turns would destroy participant evidence."""
+def test_clear_is_scoped_to_the_seeded_customer():
+    """A clear that removed unrelated orders would destroy real evidence."""
     seeder = _load_seeder()
     clear = seeder.clear_sql()
 
     assert seeder.PREFIX in clear
-    assert "DELETE FROM pellier.tool_audit;" not in clear
+    assert "DELETE FROM pellier.orders;" not in clear
+
+
+def test_seed_sql_guards_every_write_against_reseeding():
+    """`governed_receipts` and `tool_audit` became append-only/fill-once in
+    migration 047, so `clear_sql()` can no longer delete-then-reinsert them.
+    Every write in `seed_sql()` must instead be conditioned on one up-front
+    snapshot of whether the dataset already exists, or a rerun would double
+    the orders/returns/tool_audit/governed_receipts rows.
+    """
+    seeder = _load_seeder()
+    sql = seeder.seed_sql()
+
+    assert "CREATE TEMP TABLE _forensic_already_seeded" in sql
+    guard = "NOT EXISTS (SELECT 1 FROM _forensic_already_seeded WHERE v)"
+    # Orders and both executions are gated; returns use only the exact new order.
+    assert sql.count(guard) == 3
+    assert 'FROM _forensic_order' in sql
+    assert 'RETURNING id' in sql
+    assert 'ORDER BY' not in sql
+    assert "pg_advisory_xact_lock" in sql
 
 
 def test_seed_ids_are_stable_so_an_answer_key_can_name_them():
@@ -239,3 +262,101 @@ def test_password_never_reaches_a_command_line(monkeypatch):
     assert secret not in " ".join(captured["args"])
     assert captured["env"]["PGPASSWORD"] == secret
     assert "-X" in captured["args"]
+
+
+# ---------------------------------------------------------------------------
+# main(): an already-seeded dataset cannot be cleared, only reported
+# ---------------------------------------------------------------------------
+
+
+def _stub_env(seeder, monkeypatch):
+    monkeypatch.setattr(
+        seeder,
+        "_load_env",
+        lambda: {"DB_HOST": "h", "DB_NAME": "d", "DB_USER": "u", "DB_PASSWORD": "p"},
+    )
+
+
+class _FakeResult:
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def test_already_seeded_dataset_is_a_pure_noop(monkeypatch):
+    """Rerunning after a full seed must not call clear_sql or seed_sql:
+
+    clear_sql() must preserve orders/returns, since deleting them while the
+    append-only evidence still exists would strip the business state that
+    evidence points at.
+    """
+    seeder = _load_seeder()
+    _stub_env(seeder, monkeypatch)
+    queries = []
+
+    def _fake_psql(cfg, sql):
+        queries.append(sql)
+        return _FakeResult(stdout="1")  # governed_turn_receipts already has it
+
+    monkeypatch.setattr(seeder, "_psql", _fake_psql)
+
+    rc = seeder.main([])
+
+    assert rc == 0
+    assert len(queries) == 1, "only the already-seeded check should run"
+    assert "governed_turn_receipts" in queries[0]
+    assert seeder.PREFIX in queries[0]
+
+
+def test_clear_refuses_once_the_dataset_is_seeded(monkeypatch):
+    """`--clear` must refuse rather than silently strip orders/returns out
+    from under evidence it can no longer remove.
+    """
+    seeder = _load_seeder()
+    _stub_env(seeder, monkeypatch)
+
+    monkeypatch.setattr(seeder, "_psql", lambda cfg, sql: _FakeResult(stdout="1"))
+
+    rc = seeder.main(["--clear"])
+
+    assert rc == 1
+
+
+def test_clear_still_works_before_anything_is_seeded(monkeypatch):
+    """On a fresh dataset, clear_sql() matches zero rows and must succeed."""
+    seeder = _load_seeder()
+    _stub_env(seeder, monkeypatch)
+    queries = []
+
+    def _fake_psql(cfg, sql):
+        queries.append(sql)
+        return _FakeResult(stdout="")  # nothing seeded yet
+
+    monkeypatch.setattr(seeder, "_psql", _fake_psql)
+
+    rc = seeder.main(["--clear"])
+
+    assert rc == 0
+    assert all("DELETE FROM" not in q for q in queries)
+
+
+def test_fresh_run_seeds_without_deleting_existing_orders(monkeypatch):
+    """A fresh seed adds its own order without deleting Theo's history."""
+    seeder = _load_seeder()
+    _stub_env(seeder, monkeypatch)
+    queries = []
+
+    def _fake_psql(cfg, sql):
+        queries.append(sql)
+        return _FakeResult(stdout="")
+
+    monkeypatch.setattr(seeder, "_psql", _fake_psql)
+
+    rc = seeder.main([])
+
+    assert rc == 0
+    assert len(queries) == 2  # read-only shortcut, atomic seed
+    assert "governed_turn_receipts" in queries[0]
+    assert all("DELETE FROM" not in q for q in queries)
+    assert "_forensic_already_seeded" in queries[1]

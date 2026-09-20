@@ -34,6 +34,9 @@ _RUN = uuid.uuid4().hex[:8]
 def _live_database_url() -> str:
     from urllib.parse import quote_plus
 
+    explicit = os.environ.get("PELLIER_LIVE_DB_URL", "").strip()
+    if explicit:
+        return explicit
     env_path = pathlib.Path(__file__).resolve().parents[1] / ".env"
     if not env_path.exists():
         pytest.skip("no backend .env; cannot reach a live cluster")

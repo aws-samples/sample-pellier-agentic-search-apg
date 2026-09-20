@@ -961,7 +961,7 @@ const ProvenanceStrip: React.FC<{ envelope: EvaluationsEnvelope }> = ({
             }}
             title={state.describes}
           >
-            {name}: {state.available ? 'available' : 'unavailable'} — {state.describes}
+            {name}: {state.available ? 'available' : 'unavailable'}, {state.describes}
           </span>
         ))}
       </div>

@@ -79,6 +79,26 @@ const ConciergeCapabilityState: React.FC<Props> = ({ status, capabilities, confi
     )
   }
 
+  if (status === 'config_unavailable') {
+    // Capabilities can load successfully even when config fails (they're
+    // fetched in parallel in useOperatorConcierge), so without this branch
+    // execution fell through to the "ready"/"read-only" render below using
+    // whatever capabilities did arrive -- contradicting the recovery banner
+    // OperatorConcierge renders lower on the same pane for this exact
+    // status ("The investigation service configuration could not be
+    // read."). Matching that wording here keeps the pane from disagreeing
+    // with itself.
+    return (
+      <div className="operator-concierge-state" data-state="conversation"
+           data-testid="operator-concierge-state">
+        <span className="operator-concierge-state-eyebrow">Configuration unavailable</span>
+        <p className="operator-concierge-state-copy">
+          The investigation service configuration could not be read.
+        </p>
+      </div>
+    )
+  }
+
   const closed = !capabilities.governedActionsAvailable
   const unavailableCopy = governedUnavailableCopy(capabilities)
 

@@ -17,6 +17,7 @@
  * The route is intentionally small - the full editorial hub lands in
  * a later Edit. Copy from copy.ts; Req 1.12 rules enforced there.
  */
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FieldNotes from '../components/FieldNotes'
 import Footer from '../components/Footer'
@@ -39,6 +40,11 @@ const NAV_ROUTES: Record<NavItem, string> = {
 export default function StoryboardPage() {
   const navigate = useNavigate()
   const { openModal } = useUI()
+  useEffect(() => {
+    const previous = document.title
+    document.title = 'Stories | Pellier'
+    return () => { document.title = previous }
+  }, [])
   const handleNavigate = (item: NavItem) => {
     if (item === 'account') {
       openModal('auth')

@@ -255,7 +255,7 @@ async def _fetch_editorial_catalog(
     clauses = ["NOT (tags ? 'archive')"]
     params: list[Any] = []
     if category:
-        clauses.append("category ILIKE %s ESCAPE '\\\\'")
+        clauses.append("category ILIKE %s ESCAPE '\\'")
         params.append(f"%{category.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')}%")
     if persona_id:
         clauses.append("persona_id = %s")

@@ -76,11 +76,20 @@ export function useObservatoryData<T = unknown>(
       const response = await fetch(buildApiUrl(key, params));
       if (!response.ok) {
         status = response.status;
+        // 404 is "this specific record does not exist" (a stale link, a
+        // mistyped id), never "the evidence service is down" -- collapsing
+        // it into the same "temporarily unavailable, try again" message as
+        // a 500/503 tells a participant retrying will help when it never
+        // will. `errorStatus` already carries the real code for a caller
+        // (e.g. SessionView) that wants to render a dedicated not-found
+        // state instead of a retry affordance.
         throw new Error(status === 401
           ? 'Sign in to read your account’s evidence.'
           : status === 403
             ? 'This profile belongs to a different account. Choose the profile that matches your sign-in.'
-            : 'This evidence is temporarily unavailable. Please try again.');
+            : status === 404
+              ? 'This evidence could not be found.'
+              : 'This evidence is temporarily unavailable. Please try again.');
       }
       const payload = await response.json();
       if (requestId === requestIdRef.current) {

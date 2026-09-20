@@ -126,7 +126,9 @@ def test_no_surface_claims_aurora_holds_a_preference_embedding_store() -> None:
         if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".md", ".json"}:
             continue
         rel = path.relative_to(REPO).as_posix()
-        if rel.startswith((".git/", "node_modules/")) or "/node_modules/" in rel:
+        # Generated Runtime staging contains third-party packages and is
+        # replaced during deployment. This contract scans first-party copy.
+        if rel.startswith((".git/", "node_modules/", ".agentcore-project/")) or "/node_modules/" in rel or "/.venv/" in rel:
             continue
         if rel == "pellier/backend/tests/test_memory_substrate_boundaries.py":
             continue

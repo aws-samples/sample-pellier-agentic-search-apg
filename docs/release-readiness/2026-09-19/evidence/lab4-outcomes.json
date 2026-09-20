@@ -1,0 +1,286 @@
+{
+  "runId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+  "passed": true,
+  "configurationUnchanged": true,
+  "outputControlsPassed": true,
+  "rows": [
+    {
+      "observationId": 19,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "authentication",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-authentication",
+      "operationKey": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-anonymous",
+      "tool": "initiate_return",
+      "verifiedUsername": null,
+      "observation": {
+        "authentication": "REJECTED",
+        "authorization": "NOT_EVALUATED",
+        "output": "UNKNOWN",
+        "httpStatus": 401,
+        "database": {
+          "queried": true,
+          "executionRows": 0,
+          "writeRows": 0,
+          "committedRows": 0,
+          "domainRows": 0,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": false
+        }
+      },
+      "createdAt": "2026-09-20T01:18:36.110939+00:00"
+    },
+    {
+      "observationId": 20,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "deny",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-deny",
+      "operationKey": "identity-boundary-61dbaec454-marco",
+      "tool": "initiate_return",
+      "verifiedUsername": "marco",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "DENY",
+        "output": "UNKNOWN",
+        "businessRejected": false,
+        "database": {
+          "queried": true,
+          "executionRows": 0,
+          "writeRows": 0,
+          "committedRows": 0,
+          "domainRows": 0,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": false
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:02.636413+00:00"
+    },
+    {
+      "observationId": 21,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "refuse",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-refuse",
+      "operationKey": "identity-boundary-61dbaec454-jessica-ineligible",
+      "tool": "initiate_return",
+      "verifiedUsername": "jessica",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "RETURNED",
+        "businessRejected": true,
+        "database": {
+          "queried": true,
+          "executionRows": 1,
+          "writeRows": 1,
+          "committedRows": 0,
+          "domainRows": 0,
+          "ledgerRows": 0,
+          "pendingClaimRows": 1,
+          "businessRejected": true,
+          "idempotentReplay": false
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:03.461886+00:00"
+    },
+    {
+      "observationId": 22,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "allow",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-allow",
+      "operationKey": "identity-boundary-61dbaec454-jessica",
+      "tool": "initiate_return",
+      "verifiedUsername": "jessica",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "RETURNED",
+        "businessRejected": false,
+        "database": {
+          "queried": true,
+          "executionRows": 2,
+          "writeRows": 1,
+          "committedRows": 1,
+          "domainRows": 1,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": true
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:04.216672+00:00"
+    },
+    {
+      "observationId": 23,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "replay",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-replay",
+      "operationKey": "identity-boundary-61dbaec454-jessica",
+      "tool": "initiate_return",
+      "verifiedUsername": "jessica",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "RETURNED",
+        "businessRejected": false,
+        "database": {
+          "queried": true,
+          "executionRows": 2,
+          "writeRows": 1,
+          "committedRows": 1,
+          "domainRows": 1,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": true
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:05.065934+00:00"
+    },
+    {
+      "observationId": 24,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "benign-output",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-benign-output",
+      "operationKey": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-benign-credit",
+      "tool": "issue_credit",
+      "verifiedUsername": "pellier-review-56882f61911b",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "RETURNED",
+        "canaryReturned": false,
+        "responseHash": "0490059c138424c870c72c4205606d134e1dd309c0dc4d6f2f97e258dcdb8a5c",
+        "database": {
+          "queried": true,
+          "executionRows": 1,
+          "writeRows": 1,
+          "committedRows": 1,
+          "domainRows": 1,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": false
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:07.285979+00:00"
+    },
+    {
+      "observationId": 25,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "suppressed-output",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-suppressed-output",
+      "operationKey": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-suppressed-credit",
+      "tool": "issue_credit",
+      "verifiedUsername": "pellier-review-56882f61911b",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "SUPPRESSED",
+        "canaryReturned": false,
+        "errorType": "ExceptionGroup",
+        "database": {
+          "queried": true,
+          "executionRows": 1,
+          "writeRows": 1,
+          "committedRows": 1,
+          "domainRows": 1,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": false
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:09.021390+00:00"
+    },
+    {
+      "observationId": 26,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "suppressed-replay",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-suppressed-replay",
+      "operationKey": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-suppressed-credit",
+      "tool": "issue_credit",
+      "verifiedUsername": "pellier-review-56882f61911b",
+      "observation": {
+        "authentication": "VERIFIED",
+        "authorization": "ALLOW",
+        "output": "SUPPRESSED",
+        "canaryReturned": false,
+        "errorType": "ExceptionGroup",
+        "database": {
+          "queried": true,
+          "executionRows": 2,
+          "writeRows": 1,
+          "committedRows": 1,
+          "domainRows": 1,
+          "ledgerRows": 0,
+          "pendingClaimRows": 0,
+          "businessRejected": false,
+          "idempotentReplay": true
+        },
+        "gatewayConfiguration": {
+          "gatewayMode": "ENFORCE",
+          "authorizerType": "CUSTOM_JWT",
+          "policyId": "credit_output_sensitive_information-7i88owc6gk",
+          "definitionHash": "82a73d163bcb16704c3f66bc00485175fbfe2d30ef908607ea57e4bc131f04e9"
+        }
+      },
+      "createdAt": "2026-09-20T01:19:11.000754+00:00"
+    },
+    {
+      "observationId": 27,
+      "proofRunId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "caseName": "run-checks",
+      "invocationId": "boundaries-3f948b9abbc94808a03d6aec4991c5f7-run-checks",
+      "operationKey": "boundaries-3f948b9abbc94808a03d6aec4991c5f7",
+      "tool": "issue_credit",
+      "verifiedUsername": null,
+      "observation": {
+        "runChecks": {
+          "identityProofPassed": true,
+          "configurationUnchanged": true,
+          "outputControlsPassed": true
+        }
+      },
+      "createdAt": "2026-09-20T01:19:11.776297+00:00"
+    }
+  ]
+}

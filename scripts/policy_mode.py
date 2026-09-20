@@ -125,7 +125,8 @@ def _cedar_effect(policy: Dict[str, Any]) -> str:
     `permit` in LOG_ONLY looks identical to a `permit` in ACTIVE from the
     shopper's side.
     """
-    statement = (policy.get("definition", {}).get("cedar", {}) or {}).get(
+    definition = policy.get("definition") or {}
+    statement = (definition.get("policy") or definition.get("cedar") or {}).get(
         "statement", ""
     )
     stripped = statement.strip().lower()

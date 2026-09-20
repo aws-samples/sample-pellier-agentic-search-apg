@@ -1187,6 +1187,12 @@ User=$CODE_EDITOR_USER
 Group=$CODE_EDITOR_USER
 WorkingDirectory=$REPO_PATH/pellier/backend
 EnvironmentFile=$REPO_PATH/.env
+# workshop-start.sh and lab3-start.sh prefer /etc/pellier/run.env for the
+# run id and the managed-rail switch and fall back to the repo .env when
+# that path is not writable. Load it after .env so a value written there
+# reaches the service instead of being silently ignored; '-' tolerates
+# its absence.
+EnvironmentFile=-/etc/pellier/run.env
 Environment=PATH=/home/$CODE_EDITOR_USER/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=PYTHONUNBUFFERED=1
@@ -1802,7 +1808,9 @@ _pool_id() { echo "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}"; }
 if [ -n "$(_pool_id)" ]; then
     log "Seeding the $OPERATOR_GROUP Cognito group and its member..."
     POOL="$(_pool_id)"
-    OPERATOR_PASSWORD="Pellier-${WORKSHOP_ID:-dat416}-Operator1"
+    # A public workshop ID must never determine a staff credential.
+    OPERATOR_PASSWORD="$(python3 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+    OPERATOR_PASSWORD_SET=false
 
     aws cognito-idp create-group --user-pool-id "$POOL" \
         --group-name "$OPERATOR_GROUP" --region "$AWS_REGION" \
@@ -1812,19 +1820,25 @@ if [ -n "$(_pool_id)" ]; then
         --region "$AWS_REGION" \
         --user-attributes Name=email,Value="operator@pellier.example.com" \
                           Name=email_verified,Value=true >/dev/null 2>&1 || true
-    aws cognito-idp admin-set-user-password --user-pool-id "$POOL" \
+    if aws cognito-idp admin-set-user-password --user-pool-id "$POOL" \
         --username "$OPERATOR_USERNAME" --password "$OPERATOR_PASSWORD" \
-        --permanent --region "$AWS_REGION" >/dev/null 2>&1 || true
+        --permanent --region "$AWS_REGION" >/dev/null 2>&1; then
+        OPERATOR_PASSWORD_SET=true
+    fi
     aws cognito-idp admin-add-user-to-group --user-pool-id "$POOL" \
         --username "$OPERATOR_USERNAME" --group-name "$OPERATOR_GROUP" \
         --region "$AWS_REGION" >/dev/null 2>&1 || true
 
     # VERIFY, do not assume. Every call above tolerates "already exists", so success of
     # the calls says nothing; membership is the only fact that matters.
-    if aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
+    if [ "$OPERATOR_PASSWORD_SET" = true ] && aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
          --username "$OPERATOR_USERNAME" --region "$AWS_REGION" \
          --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
          | grep -q "$OPERATOR_GROUP"; then
+        if ! OPERATOR_USERNAME="$OPERATOR_USERNAME" OPERATOR_PASSWORD="$OPERATOR_PASSWORD" \
+            python3 "$REPO_PATH/scripts/store_operator_credential.py"; then
+            fail "Could not persist the staff credential for readiness and Lab 4"
+        fi
         OPERATOR_GROUP_OK=true
         log "✅ $OPERATOR_USERNAME is in $OPERATOR_GROUP"
         if ! printf 'Operator console (Pellier Operator)\n  Username: %s\n  Password: %s\n  Group:    %s\n\n' \

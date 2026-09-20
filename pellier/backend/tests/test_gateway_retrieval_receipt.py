@@ -132,7 +132,9 @@ def test_gateway_hybrid_search_persists_actual_ranking_evidence(
     payload = json.loads(response["content"][0]["text"])
     assert [product["productId"] for product in payload["products"]] == ["P-2", "P-1"]
     assert "_receipt_evidence" not in payload
-    assert len(rds.calls) == 1
+    assert len(rds.calls) == 2
+    assert "INSERT INTO pellier.tool_audit" in rds.calls[1]["sql"]
+    assert json.loads(_parameter_values(rds.calls[1])["args"])["turn_id"] == "turn-0123456789abcdef0123456789abcdef"
 
     call = rds.calls[0]
     assert "INSERT INTO pellier.retrieval_receipts" in call["sql"]
@@ -299,7 +301,9 @@ def test_gateway_semantic_search_persists_cosine_order_without_rerank(
         SimpleNamespace(client_context=None),
     )
 
-    assert len(rds.calls) == 1
+    assert len(rds.calls) == 2
+    assert "INSERT INTO pellier.tool_audit" in rds.calls[1]["sql"]
+    assert json.loads(_parameter_values(rds.calls[1])["args"])["turn_id"] == "turn-abcdefabcdefabcdefabcdefabcdefab"
     values = _parameter_values(rds.calls[0])
     assert json.loads(values["vector_ranks"]) == {"P-3": 1, "P-4": 2}
     assert json.loads(values["rrf_scores"]) == {}

@@ -51,6 +51,18 @@ def test_failed_database_read_and_unmatched_commit_stay_unknown():
     assert result["contradiction"]
 
 
+def test_business_refusal_requires_independently_measured_unfinished_claim():
+    value = observation(counts=(1, 1, 0, 0, 0), businessRejected=True)
+    assert assess(value)["outcome"] == "inconclusive"
+    value["database"]["pendingClaimRows"] = 1
+    result = assess(value)
+    assert result["outcome"] == "transaction_rejected"
+    assert result["dataChanged"] is False
+    for invalid in (True, -1, 2, "1"):
+        value["database"]["pendingClaimRows"] = invalid
+        assert assess(value)["outcome"] == "inconclusive"
+
+
 @pytest.mark.parametrize("value", [observation(policy="DENY"), observation("REJECTED", "NOT_EVALUATED")])
 def test_rejection_with_execution_is_a_visible_contradiction(value):
     assert assess(value)["contradiction"]
@@ -95,9 +107,33 @@ def load_driver():
 def test_suppression_requires_explicit_response_phase_and_policy_identity():
     driver = load_driver()
     assert driver.suppression_reported("Output suppressed by policy credit-check-123", "credit-check-123")
+    observed = "Output blocked by policy: Policy evaluation denied due to credit-check-123"
+    assert driver.suppression_reported(observed, "credit-check-123")
+    assert not driver.suppression_reported(observed, "another-policy")
     for message in ("403 Forbidden", "401 Unauthorized", "Tool call not allowed due to policy credit-check-123",
                     "Output suppressed by another-policy", "Connection timeout"):
         assert not driver.suppression_reported(message, "credit-check-123")
+
+
+@pytest.mark.asyncio
+async def test_streamed_gateway_403_preserves_phase_and_policy_without_request_headers():
+    import httpx
+    from services.gateway_errors import gateway_error_text, read_gateway_error_response
+
+    async def service(request):
+        return httpx.Response(403, json={"error": {"code": -32002, "message":
+            "Output blocked by policy: Policy evaluation denied due to credit-check-123"}})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(service),
+        event_hooks={"response": [read_gateway_error_response]}) as client:
+        async with client.stream("POST", "https://gateway.example/mcp",
+                                 headers={"Authorization": "Bearer never-expose-this"}) as response:
+            with pytest.raises(httpx.HTTPStatusError) as caught:
+                response.raise_for_status()
+    grouped = ExceptionGroup("MCP", [caught.value])
+    text = gateway_error_text(grouped)
+    assert "credit-check-123" in text and "never-expose-this" not in text
+    assert execution.is_output_suppression(grouped)
+    assert not execution.is_policy_denial(grouped)
 
 
 def test_runtime_never_labels_output_suppression_a_cedar_denial_or_rollback():
@@ -152,8 +188,10 @@ def test_output_policy_and_permission_are_narrowly_scoped():
     assert policy["statement"].startswith("suppressOutput")
     assert output_guardrail.ACTION in policy["statement"]
     assert "context.input" not in policy["statement"]
-    assert "context.output.content[0].text" in policy["statement"]
+    assert "context.output.text" in policy["statement"]
+    assert "content[0]" not in policy["statement"]
     assert 'SensitiveInformation(["EMAIL"]' in policy["statement"]
+    assert '.maxConfidenceScore().greaterThan(decimal("0.2"))' in policy["statement"]
     control, iam = Mock(), Mock()
     control.get_gateway.return_value = {"roleArn": "arn:aws:iam::123456789012:role/path/gateway"}
     output_guardrail.ensure_permission(control, iam, gateway_id="test", region="us-east-1")
@@ -175,6 +213,62 @@ def test_preflight_refuses_log_only_or_modified_output_policy():
     control.get_policy.return_value = {"policyId": "p", "enforcementMode": "ACTIVE", "definition": {"cedar": {"statement": "permit(principal, action, resource);"}}}
     with pytest.raises(RuntimeError, match="differs"):
         driver.policy_configuration(control, "test", "e")
+
+
+def test_credit_guardrail_text_contains_the_exact_mcp_result(monkeypatch):
+    """A supported data path must scan every byte returned to the caller."""
+    import boto3
+    import json
+    load_driver()  # Adds the deployment module directory to sys.path.
+    monkeypatch.setattr(boto3, "client", lambda *args, **kwargs: Mock())
+    path = Path(__file__).resolve().parents[3] / "scripts/deploy/pellier_experience_server.py"
+    spec = importlib.util.spec_from_file_location("experience_guardrail_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = {"status": "success", "reason": "Synthetic learner@example.com"}
+    monkeypatch.setitem(module.TOOLS, "issue_credit", {"fn": lambda **kwargs: result})
+    response = module.lambda_handler({"name": "issue_credit", "arguments": {}}, None)
+    assert response["text"] == response["content"][0]["text"]
+    assert json.loads(response["text"]) == result
+    from gateway_tool_schemas import schema_for
+    credit = next(tool for tool in schema_for("experience", workshop=True) if tool["name"] == "issue_credit")
+    assert credit["outputSchema"]["properties"]["text"]["type"] == "string"
+    assert "text" in credit["outputSchema"]["required"]
+
+    def fail(**kwargs):
+        raise RuntimeError("internal database information")
+    monkeypatch.setitem(module.TOOLS, "issue_credit", {"fn": fail})
+    response = module.lambda_handler({"name": "issue_credit", "arguments": {}}, None)
+    assert response["isError"] is True
+    assert response["text"] == response["content"][0]["text"]
+    assert "internal database information" not in response["text"]
+
+
+@pytest.mark.parametrize("definition_arm", ["policy", "cedar"])
+def test_preflight_verifies_exact_statement_in_current_and_legacy_envelopes(definition_arm):
+    driver = load_driver()
+    control = Mock()
+    arn = "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/test"
+    control.get_gateway.return_value = {"gatewayArn": arn, "authorizerType": "CUSTOM_JWT",
+        "policyEngineConfiguration": {"mode": "ENFORCE", "arn": "arn:engine/e"}}
+    control.list_policies.return_value = {"policies": [{"name": driver.POLICY_NAME, "policyId": "p"}]}
+    control.get_policy.return_value = {"policyId": "p", "enforcementMode": "ACTIVE",
+        "definition": {definition_arm: {"statement": driver.output_policy(arn)["statement"]}}}
+    assert driver.policy_configuration(control, "test", "e")["policyId"] == "p"
+
+
+def test_proof_environment_cannot_be_redirected_by_a_local_dotenv(monkeypatch, tmp_path):
+    load_driver()
+    import gateway_initiate_return as gateway
+    (tmp_path / ".env").write_text('AGENTCORE_GATEWAY_URL=https://old.invalid/mcp\nPELLIER_PROOF_TEST_ONLY=local\n')
+    monkeypatch.setattr(gateway, "_repo_root", lambda: tmp_path)
+    monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://intended.invalid/mcp")
+    monkeypatch.delenv("PELLIER_PROOF_TEST_ONLY", raising=False)
+    gateway._load_env()
+    import os
+    assert os.environ["AGENTCORE_GATEWAY_URL"] == "https://intended.invalid/mcp"
+    assert os.environ["PELLIER_PROOF_TEST_ONLY"] == "local"
+    monkeypatch.delenv("PELLIER_PROOF_TEST_ONLY")
 
 
 def test_boundary_endpoint_requires_operator_and_failed_read_is_not_an_empty_run(monkeypatch):

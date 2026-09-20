@@ -28,6 +28,8 @@ from local execution to managed runtime by flipping one env var.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import uuid
 import json
 from pathlib import Path
 import logging
@@ -248,6 +250,7 @@ def _store_managed_runtime_receipt(
     trace_id: Optional[str] = None,
     request_id: Optional[str] = None,
     build_fingerprint: Optional[str] = None,
+    runtime_session_id: Optional[str] = None,
 ) -> None:
     """Expose a truthful managed-runtime receipt without synthesizing OTEL spans.
 
@@ -273,6 +276,7 @@ def _store_managed_runtime_receipt(
         "evidenceProvenance": "agentcore-service-telemetry",
         "traceId": trace_id,
         "runtimeRequestId": request_id,
+        "runtimeSessionId": runtime_session_id,
         "sessionId": session_id,
         # Which revision answered. The invoke response carries no version of
         # its own and `qualifier=DEFAULT` reads identically for yesterday's
@@ -285,7 +289,7 @@ def _store_managed_runtime_receipt(
             (build_fingerprint or "").strip(), _local_runtime_fingerprint()
         ),
         "managedTrace": _cloudwatch_trace_links(
-            session_id=session_id, trace_id=trace_id, request_id=request_id
+            session_id=runtime_session_id or session_id, trace_id=trace_id, request_id=request_id
         ),
     }
     _store_managed_trace(session_id, principal_sub, _latest_trace)
@@ -344,6 +348,18 @@ async def _run_orchestrator_inprocess(
         logger.debug("trace extraction skipped: %s", exc)
 
     return str(response)
+
+
+def _runtime_session_id_for(session_id: Optional[str], user_id: Optional[str] = None) -> str:
+    """Bind managed session reuse to the verified principal and conversation.
+
+    Hash every input, including long IDs: passing long IDs through would let a
+    caller submit the encoded form of somebody else's short ID. The fixed ASCII
+    header also obeys the Runtime length contract for arbitrary application IDs.
+    A missing conversation ID starts a new session instead of sharing a default.
+    """
+    identity = json.dumps([user_id or "", session_id or str(uuid.uuid4())])
+    return "pellier-" + hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
 # === REFERENCE: AgentCore Runtime — START ===
@@ -440,10 +456,7 @@ async def run_agent_on_runtime_result(
         f"https://bedrock-agentcore.{settings.aws_region_resolved}.amazonaws.com"
         f"/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
     )
-    # The runtime keys STM off this header and requires >= 33 chars; reuse the
-    # caller's session_id (right-padded if short) so a turn lands in the same
-    # managed session as its history.
-    runtime_session_id = (session_id or "pellier-session").ljust(33, "0")
+    runtime_session_id = _runtime_session_id_for(session_id, user_id)
 
     def _invoke() -> tuple[str, Dict[str, str]]:
         """Return the body and the response headers.
@@ -497,6 +510,7 @@ async def run_agent_on_runtime_result(
             trace_id=_trace_id_from(response_headers),
             request_id=response_headers.get("x-amzn-requestid"),
             build_fingerprint=str(parsed.get("build_fingerprint") or ""),
+            runtime_session_id=runtime_session_id,
         )
         products = parsed.get("products")
         tool_calls = parsed.get("tool_calls")

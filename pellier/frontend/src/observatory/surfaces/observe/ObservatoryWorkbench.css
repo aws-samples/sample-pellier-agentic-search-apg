@@ -26,8 +26,8 @@
   /* Ink */
   --pl-ink: var(--obs-ink-1);
   --pl-ink-soft: var(--obs-ink-2);
-  --pl-muted: var(--obs-ink-4);
-  --pl-faint: var(--obs-ink-5);
+  --pl-muted: var(--obs-ink-3);
+  --pl-faint: var(--obs-ink-3);
 
   /* Semantic accents */
   /* Aliases of the one house burgundy (styles/pellier-landing.css). Every
@@ -1888,7 +1888,7 @@
   border-right: 0;
 }
 
-.observatory-session-metrics span {
+.observatory-session-metrics dt {
   color: var(--pl-faint);
   font-family: var(--pl-mono);
   font-size: var(--text-label);
@@ -1896,7 +1896,8 @@
   text-transform: uppercase;
 }
 
-.observatory-session-metrics strong {
+.observatory-session-metrics dd {
+  margin: 0;
   color: var(--pl-ink);
   font-family: var(--pl-mono);
   font-size: 12px;

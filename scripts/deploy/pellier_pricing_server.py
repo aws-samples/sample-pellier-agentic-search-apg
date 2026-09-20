@@ -66,7 +66,8 @@ def find_deals(query: str, max_price: float = None, limit: int = 5) -> dict:
                1 - (embedding <=> :embedding::vector) AS similarity,
                CASE WHEN price > 0 THEN rating / price * 100 ELSE 0 END AS value_score
         FROM {SCHEMA}.product_catalog
-        WHERE quantity > 0 AND rating >= 3.5 {price_filter}
+        WHERE quantity > 0 AND rating >= 3.5
+          AND NOT (tags ? 'archive') {price_filter}
         ORDER BY embedding <=> :embedding::vector
         LIMIT :lim;
     """
@@ -75,8 +76,19 @@ def find_deals(query: str, max_price: float = None, limit: int = 5) -> dict:
 
 
 def get_price_analysis(category: str = None) -> dict:
-    """Get price statistics (min, max, avg, median) by category."""
-    where = "WHERE category = :cat" if category else ""
+    """Get price statistics (min, max, avg, median) by category.
+
+    Excludes archived rows, mirroring ``BusinessLogic.get_price_analysis`` on
+    the in-process rail: without this predicate, min/max/avg/median price by
+    category would be skewed by retired products that the storefront never
+    shows, and the managed and in-process rails would report different
+    numbers for the same category.
+    """
+    where = (
+        "WHERE category = :cat AND NOT (tags ? 'archive')"
+        if category
+        else "WHERE NOT (tags ? 'archive')"
+    )
     parameters = []
     if category:
         parameters.append({"name": "cat", "value": {"stringValue": str(category)}})

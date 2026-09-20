@@ -386,9 +386,9 @@ def test_rls_write_only_accepts_the_expected_row_security_sqlstate(monkeypatch):
 
     wrong_refusal = driver._rls_write({}, "marco-sub", 31)
 
-    assert wrong_refusal["queried"] is True
     assert wrong_refusal["refused"] is False
-    assert wrong_refusal["sqlstate"] == ""
+    assert wrong_refusal["sqlstate"] == "other"
+    assert wrong_refusal["queried"] is False
 
 
 # ---------------------------------------------------------------------------

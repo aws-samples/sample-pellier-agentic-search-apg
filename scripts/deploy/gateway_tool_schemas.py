@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 """Canonical AgentCore Gateway tool schemas for Pellier's four MCP targets."""
 
-from common.replacement_contract import REPLACEMENT_TOOL
+try:
+    from common.replacement_contract import REPLACEMENT_TOOL
+except ModuleNotFoundError as exc:
+    if exc.name != "common":
+        raise
+    # Observatory reads this checked-in contract with runpy from the backend,
+    # without adding deployment modules to the application's import path.
+    import runpy
+    from pathlib import Path
+
+    REPLACEMENT_TOOL = runpy.run_path(
+        str(Path(__file__).parent / "common" / "replacement_contract.py")
+    )["REPLACEMENT_TOOL"]
 
 # AgentCore Gateway targets accept only this JSON-Schema keyword subset per
 # (sub)property. The CLI owns target deployment; this sanitizer keeps its
@@ -270,6 +282,11 @@ TOOL_SCHEMAS = {
             },
             {
                 "name": "issue_credit",
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {"text": {"type": "string"}},
+                    "required": ["text"],
+                },
                 "description": (
                     "Issue a goodwill store credit for service recovery, up "
                     "to $500.00. Writes one durable row per idempotency key "

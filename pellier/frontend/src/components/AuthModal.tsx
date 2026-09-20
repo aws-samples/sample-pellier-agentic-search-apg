@@ -27,12 +27,13 @@
  * with a link to the configured hosted sign-in methods.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { AUTH_MODAL } from '../copy'
 import { useUI } from '../contexts/UIContext'
 import { redirectToSignIn, type SignInProvider } from '../utils/auth'
 import { cssVar as c } from '../design/cssVars'
+import { useFocusTrap } from '../shared/useFocusTrap'
 
 // === REFERENCE: START ===
 // --- Design tokens (storefront.md) ---------------------------------------
@@ -89,6 +90,7 @@ function ProviderButton({ provider, label, testId, onClick }: ProviderButtonProp
 export default function AuthModal() {
   const { activeModal, closeModal } = useUI()
   const isOpen = activeModal === 'auth'
+  const dialogRef = useRef<HTMLDivElement | null>(null)
 
   // Lock body scroll while open (standard modal hygiene; UIContext already
   // handles Escape via its global keydown listener).
@@ -100,6 +102,12 @@ export default function AuthModal() {
       document.body.style.overflow = previous
     }
   }, [isOpen])
+
+  // This dialog claims `aria-modal="true"` below; without a focus trap that
+  // claim was false -- Tab carried a keyboard user straight through to the
+  // page behind it. `closeModal` also serves Escape here, matching
+  // CartPanel and PersonaModal's use of the same hook.
+  useFocusTrap({ containerRef: dialogRef, active: isOpen, onClose: () => closeModal() })
 
   if (!isOpen) return null
 
@@ -133,6 +141,7 @@ export default function AuthModal() {
       }}
     >
       <div
+        ref={dialogRef}
         data-testid="auth-modal"
         role="dialog"
         aria-modal="true"

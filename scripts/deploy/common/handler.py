@@ -17,11 +17,30 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, Callable, Dict
 
 from common.types import resolve_invocation
 
 logger = logging.getLogger(__name__)
+
+
+def audit_read_call(tool: str, arguments: dict, result: Any, started: float) -> None:
+    """Correlate a completed managed read with the route's immutable turn.
+
+    Mutation tools already write their own receipts. This helper records only
+    reads carrying a turn id; an instructor's uncorrelated call cannot establish
+    a shopper turn's evidence. Failed audit writes remain visible in service logs.
+    """
+    turn_id = arguments.get("turn_id")
+    if not isinstance(turn_id, str) or not turn_id.startswith("turn-"):
+        return
+    from common.dataapi import write_tool_audit_independently
+
+    write_tool_audit_independently(
+        tool=tool, args=arguments, result=result,
+        latency_ms=int((time.monotonic() - started) * 1000), session_id=turn_id,
+    )
 
 
 def tool_catalog(tools: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -68,6 +87,7 @@ def build_handler(tools: Dict[str, Dict[str, Any]]) -> Callable[[dict, Any], dic
             return {"error": f"Unknown tool: {tool_name}"}
 
         try:
+            started = time.monotonic()
             # `turn_id` is correlation metadata the Gateway may attach; it is
             # not a tool parameter, and passing it through would be a
             # TypeError on every tool that does not declare it.
@@ -75,6 +95,7 @@ def build_handler(tools: Dict[str, Dict[str, Any]]) -> Callable[[dict, Any], dic
                 key: value for key, value in arguments.items() if key != "turn_id"
             }
             result = tools[tool_name]["fn"](**execution_arguments)
+            audit_read_call(tool_name, arguments, result, started)
             return {
                 "content": [{"type": "text", "text": json.dumps(result, default=str)}]
             }

@@ -291,6 +291,30 @@ describe('ProductDetailPage — live catalog read', () => {
       expect(id).not.toBe(SUBJECT.id)
     }
   })
+
+  it('titles the tab with the loaded product, not the generic index.html default', async () => {
+    document.title = 'Pellier | Your Personal Shopping Concierge'
+    stubFetch(() => jsonResponse(detailPayload()))
+
+    const { unmount } = renderAt(`/product/${SUBJECT.id}`)
+
+    await screen.findByTestId('product-detail-name')
+    await waitFor(() =>
+      expect(document.title).toBe(`${SUBJECT.name} | Pellier`),
+    )
+
+    unmount()
+    expect(document.title).toBe('Pellier | Your Personal Shopping Concierge')
+  })
+
+  it('keeps the generic title while the product has not loaded (never invents a name)', () => {
+    document.title = 'Pellier | Your Personal Shopping Concierge'
+    stubFetch(() => new Promise<Response>(() => {}))
+
+    renderAt(`/product/${SUBJECT.id}`)
+
+    expect(document.title).toBe('Pellier | Your Personal Shopping Concierge')
+  })
 })
 
 // --- Aurora layer -------------------------------------------------------

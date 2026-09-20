@@ -171,10 +171,15 @@ def _eligible_products(cfg: Dict[str, str]) -> List[Tuple[int, str]]:
     )
     code, out, _err = _psql(
         cfg,
-        "SELECT DISTINCT o.product_id, pc.name "
+        "SELECT o.product_id, pc.name "
         "  FROM pellier.orders o "
         "  JOIN pellier.product_catalog pc ON pc.product_id = o.product_id "
         f" WHERE {owner_filter} "
+        " GROUP BY o.customer_id, o.product_id, pc.name "
+        " HAVING sum(o.quantity) > ("
+        "   SELECT COALESCE(sum(r.quantity), 0) FROM pellier.returns r"
+        "   WHERE r.customer_id = o.customer_id AND r.product_id = o.product_id"
+        "     AND r.status <> 'rejected') "
         " ORDER BY o.product_id",
     )
     if code != 0:
@@ -223,8 +228,9 @@ def _resolve_product(
     candidates = _eligible_products(cfg)
     if not candidates:
         return None, [], (
-            f"No order rows found for {TARGET_CUSTOMER}; the ALLOW case cannot "
-            "succeed. Seed the workshop catalog and orders first."
+            f"No unreturned ordered quantity remains for {TARGET_CUSTOMER}; the "
+            "ALLOW case cannot succeed. Use an authorized fresh workshop dataset; "
+            "do not delete prior evidence or add orders just to pass the proof."
         )
     owned = {pid for pid, _name in candidates}
     if requested is None:
@@ -234,8 +240,8 @@ def _resolve_product(
         return chosen, candidates, f"resolved from {TARGET_CUSTOMER}'s orders: {chosen} ({name})"
     if requested not in owned:
         return None, candidates, (
-            f"product {requested} is not on any {TARGET_CUSTOMER} order, so an "
-            "ALLOW is impossible and a DENY would prove nothing about identity."
+            f"product {requested} has no unreturned quantity on a {TARGET_CUSTOMER} "
+            "order, so an ALLOW is impossible and a DENY would prove nothing about identity."
         )
     name = next(n for pid, n in candidates if pid == requested)
     return requested, candidates, f"validated against {TARGET_CUSTOMER}'s orders: {requested} ({name})"
@@ -364,7 +370,7 @@ def _return_evidence(cfg: Dict[str, str], idempotency_key: str) -> Dict[str, Any
         "SELECT json_build_object("
         "         'return_id', r.id, "
         "         'customer_id', r.customer_id, "
-        "         'product_id', r.product_id, "
+        "         'product_id', r.product_id::integer, "
         "         'reason', r.reason"
         "       )::text "
         "  FROM pellier.write_operations wo "
@@ -555,8 +561,8 @@ def _rls_write(cfg: Dict[str, str], sub: str, product_id: int) -> Dict[str, Any]
         "DECLARE v_message TEXT; "
         "BEGIN "
         "  BEGIN "
-        "    INSERT INTO pellier.returns (customer_id, product_id, reason, status, quantity) "
-        f"    VALUES ({_quote(TARGET_CUSTOMER)}, {product_id}, 'rls-boundary-probe', 'requested', 1); "
+        "    INSERT INTO pellier.returns (customer_id, product_id, reason, quantity) "
+        f"    VALUES ({_quote(TARGET_CUSTOMER)}, {product_id}, 'other', 1); "
         "    RAISE NOTICE 'RLS_PROBE_SQLSTATE:00000'; "
         "  EXCEPTION WHEN insufficient_privilege THEN "
         "    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT; "
@@ -581,13 +587,14 @@ def _rls_write(cfg: Dict[str, str], sub: str, product_id: int) -> Dict[str, Any]
         }
     role_ok = "RLS_PROBE_ROLE_OK" in _out
     refused = role_ok and marker in err
+    permitted = role_ok and "RLS_PROBE_SQLSTATE:00000" in err
     return {
-        "queried": role_ok,
+        "queried": role_ok and (refused or permitted),
         "refused": refused,
-        "sqlstate": "42501" if refused else "",
+        "sqlstate": "42501" if refused else "00000" if permitted else "other",
         "error": (
             ""
-            if refused
+            if refused or permitted
             else ("runtime role was not pellier_agent" if not role_ok else err.splitlines()[0][:200])
         ),
     }
@@ -720,7 +727,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     all_passed = True
     first_execution_count: Optional[int] = None
     first_write_count: Optional[int] = None
+    aurora: List[Dict[str, Any]] = []
     for case in cases:
+        if case["kind"] == "allow" and not args.skip_aurora:
+            # The deny/refuse receipts already establish both subjects. Probe
+            # INSERT under RLS before the one committed return can consume the
+            # last eligible unit. Both RLS probes always roll back.
+            aurora = _aurora_section(cfg, _receipt_subs(cfg, cases[:2]), product_id)
         result = _invoke(
             username=case["username"],
             product_id=case.get("product_id", product_id),
@@ -758,11 +771,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"         receipt {case['receipt_key']}")
         print(f"         write   {case['idempotency_key']}")
 
-    aurora: List[Dict[str, Any]] = []
     if not args.skip_aurora:
         print(f"\nSection 2: Aurora, role {RUNTIME_ROLE}, Cedar not consulted")
         print("  unauthorized read -> empty result; unauthorized write -> error and rollback\n")
-        aurora = _aurora_section(cfg, _receipt_subs(cfg, cases), product_id)
         for probe in aurora:
             if not probe.get("queried"):
                 all_passed = False

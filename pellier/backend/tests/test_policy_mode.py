@@ -95,6 +95,13 @@ def _policy(name: str, mode: str = "ACTIVE", effect: str = "forbid") -> Dict[str
     }
 
 
+def test_describe_identifies_general_output_policy_statement():
+    policy = _policy("output")
+    policy["definition"] = {"policy": {"statement": "suppressOutput(principal, action, resource);"}}
+    state = _load_tool().describe(_FakeControlPlane([policy]), "engine", None)
+    assert state["policies"][0]["effect"] == "suppressOutput"
+
+
 def _write_project(tmp_path: Path, *, gateway_mode: str, policy_mode: str) -> Path:
     """Write a minimal AgentCore CLI project to edit."""
     import json

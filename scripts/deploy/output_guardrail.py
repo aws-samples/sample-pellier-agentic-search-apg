@@ -1,8 +1,9 @@
 """Managed output checks for the staff credit tool. No custom interceptor.
 
-The Lambda returns an MCP content envelope, whose first text block contains
-the JSON result (including the free-text credit reason). Keep this path aligned
-with pellier_experience_server.lambda_handler. Deployment is not runtime proof.
+The Lambda exposes the same serialized result in its MCP content envelope and
+a top-level text field. Dogwood data paths accept record fields, not numeric
+array indexes. Keep this path aligned with pellier_experience_server.lambda_handler.
+Deployment is not runtime proof; the benign and sensitive-output controls must run.
 """
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ import json
 
 POLICY_NAME = "credit_output_sensitive_information"
 ACTION = "pellier-concierge-experience-target___issue_credit"
-OUTPUT_PATH = "context.output.content[0].text"
+OUTPUT_PATH = "context.output.text"
 
 
 def policy(gateway_arn: str) -> dict:
@@ -24,7 +25,7 @@ def policy(gateway_arn: str) -> dict:
             f'resource == AgentCore::Gateway::"{gateway_arn}")\n'
             "when guardrails {\n"
             f'  BedrockGuardrails::SensitiveInformation(["EMAIL"], [{OUTPUT_PATH}])'
-            '["EMAIL"].confidenceScore.greaterThan(decimal("0.2"))\n};'
+            '.maxConfidenceScore().greaterThan(decimal("0.2"))\n};'
         ),
         # Guardrail policies use their own service validation, not the standard
         # Cedar analyzer. This matches the AgentCore Guardrails CLI guide.

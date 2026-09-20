@@ -37,6 +37,7 @@ Endpoints:
 from __future__ import annotations
 
 import ast
+import json
 import logging
 import runpy
 import time
@@ -1336,6 +1337,22 @@ def _audit_result_status(result: Any) -> str:
     return "unavailable"
 
 
+# Gateway read receipts correlate by route-minted turn id. Resolve their
+# application session through its durable receipt; an unfinished managed turn
+# must not become an anonymously readable session under its tool handle.
+_SESSION_AUDIT_CTE = """
+WITH session_audit AS (
+    SELECT raw.audit_id, COALESCE(owner.session_id, raw.session_id) AS session_id,
+           raw.tool, raw.caller, raw.args, raw.result, raw.latency_ms, raw.created_at
+      FROM pellier.tool_audit raw
+      LEFT JOIN pellier.governed_turn_receipts owner
+        ON owner.turn_id = raw.args->>'turn_id'
+     WHERE raw.caller <> 'gateway' OR raw.args->>'turn_id' IS NULL
+        OR owner.turn_id IS NOT NULL
+)
+"""
+
+
 @router.get("/sessions")
 async def list_sessions(
     persona: Optional[str] = Query(default=None, description="Filter by persona ID"),
@@ -1345,7 +1362,7 @@ async def list_sessions(
     db = await _live_db()
     try:
         rows = await db.fetch_all(
-            """
+            _SESSION_AUDIT_CTE + """
             SELECT
                 ta.session_id AS id,
                 COALESCE(ss.persona_id, 'anonymous') AS "personaId",
@@ -1355,7 +1372,7 @@ async def list_sessions(
                         NULLIF(first_audit.args->>'message', ''),
                         first_audit.tool
                     )
-                      FROM pellier.tool_audit first_audit
+                      FROM session_audit first_audit
                      WHERE first_audit.session_id = ta.session_id
                      ORDER BY first_audit.created_at ASC, first_audit.audit_id ASC
                      LIMIT 1
@@ -1380,7 +1397,7 @@ async def list_sessions(
                      WHERE terminal.session_id = ta.session_id
                      ORDER BY terminal.created_at DESC, terminal.turn_id DESC LIMIT 1
                 ), 'unknown') END AS status
-              FROM pellier.tool_audit ta
+              FROM session_audit ta
               LEFT JOIN pellier.shopper_sessions ss ON ss.session_id = ta.session_id
              -- Both placeholders carry an explicit ::text cast. An uncast
              -- placeholder compared against NULL gives Postgres nothing to
@@ -1443,7 +1460,7 @@ async def get_session(
     db = await _live_db()
     try:
         rows = await db.fetch_all(
-            """
+            _SESSION_AUDIT_CTE + """
             SELECT
                 ta.session_id AS id,
                 COALESCE(ss.persona_id, 'anonymous') AS "personaId",
@@ -1453,7 +1470,7 @@ async def get_session(
                         NULLIF(first_audit.args->>'message', ''),
                         first_audit.tool
                     )
-                      FROM pellier.tool_audit first_audit
+                      FROM session_audit first_audit
                      WHERE first_audit.session_id = ta.session_id
                      ORDER BY first_audit.created_at ASC, first_audit.audit_id ASC
                      LIMIT 1
@@ -1478,7 +1495,7 @@ async def get_session(
                      WHERE terminal.session_id = ta.session_id
                      ORDER BY terminal.created_at DESC, terminal.turn_id DESC LIMIT 1
                 ), 'unknown') END AS status
-              FROM pellier.tool_audit ta
+              FROM session_audit ta
               LEFT JOIN pellier.shopper_sessions ss ON ss.session_id = ta.session_id
              WHERE ta.session_id = %s
              GROUP BY ta.session_id, ss.persona_id
@@ -1580,9 +1597,9 @@ async def get_session(
         audit_rows = [
             dict(row)
             for row in await db.fetch_all(
-                """
+                _SESSION_AUDIT_CTE + """
                 SELECT tool, caller, args, latency_ms, result, created_at
-                  FROM pellier.tool_audit
+                  FROM session_audit
                  WHERE session_id = %s
                  ORDER BY created_at ASC, audit_id ASC
                 """,
@@ -2814,7 +2831,7 @@ async def identity_boundary(
                     SELECT 1 FROM pellier.tool_audit ta
                      WHERE ta.audit_id = gr.audit_id
                        AND ta.result->>'status' = 'error'
-                       AND ta.result->>'message' LIKE '%did not order%'
+                       AND position('did not order' in ta.result->>'message') > 0
                 )                                          AS "businessRejected",
                 gr.created_at                              AS "createdAt",
                 mapping.customer_ids                        AS "mappedCustomerIds",

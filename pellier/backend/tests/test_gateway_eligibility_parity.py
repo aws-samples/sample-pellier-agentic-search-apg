@@ -24,6 +24,7 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND = _REPO_ROOT / "pellier" / "backend"
 _LAMBDA_PATH = _REPO_ROOT / "scripts" / "deploy" / "pellier_search_server.py"
+_PRICING_LAMBDA_PATH = _REPO_ROOT / "scripts" / "deploy" / "pellier_pricing_server.py"
 
 ARCHIVE_PREDICATE = "NOT (tags ? 'archive')"
 
@@ -32,6 +33,7 @@ _IN_PROCESS_REFERENCES = (
     (_BACKEND / "services" / "vector_search.py", "vector_search"),
     (_BACKEND / "services" / "hybrid_search.py", "_vector_branch_sql"),
     (_BACKEND / "services" / "business_logic.py", "get_products_by_category"),
+    (_BACKEND / "services" / "business_logic.py", "get_price_analysis"),
 )
 
 # Gateway Lambda functions that read the catalog for a shopper.
@@ -67,6 +69,23 @@ def test_gateway_lambda_catalog_reads_exclude_archived_rows(name: str) -> None:
         f"pellier_search_server.py::{name} reads the catalog without "
         f"{ARCHIVE_PREDICATE!r}; the managed rail would return seeded archive "
         "distractors that every in-process path excludes"
+    )
+
+
+def test_gateway_pricing_lambda_excludes_archived_rows_from_price_statistics() -> None:
+    """``get_price_analysis`` mirrors ``BusinessLogic.get_price_analysis``.
+
+    A different Lambda file than the three catalog readers above, so it is
+    checked on its own rather than folded into ``_LAMBDA_CATALOG_READERS``,
+    which assumes a single Lambda path.
+    """
+    assert ARCHIVE_PREDICATE in _function_source(
+        _PRICING_LAMBDA_PATH, "get_price_analysis"
+    ), (
+        "pellier_pricing_server.py::get_price_analysis computes price statistics "
+        f"without {ARCHIVE_PREDICATE!r}; the managed rail would let retired "
+        "products skew min/max/avg/median price by category, unlike the "
+        "in-process rail"
     )
 
 
@@ -161,3 +180,48 @@ def test_gateway_lambda_search_products_filters_category_in_sql(
     bound = {p["name"]: p["value"] for p in captured["params"]}
     assert bound["category"] == {"stringValue": module._prepare_like_pattern("Home Decor")}
     assert "category.lower() in" not in _function_source(_LAMBDA_PATH, "search_products")
+
+
+def test_gateway_lambda_browse_category_escapes_like_metacharacters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``browse_category``'s own argument must not act as a LIKE wildcard.
+
+    This function built its category predicate with a raw f-string while
+    ``semantic_search``/``search_products_hybrid`` in the same module used
+    ``_prepare_like_pattern``; an untrusted ``%`` in ``category`` silently
+    widened the filter to match every category instead of a literal
+    substring.
+    """
+    module = _load_lambda(monkeypatch)
+    captured: dict[str, Any] = {}
+
+    def _execute(sql: str, params: list) -> list:
+        captured["sql"], captured["params"] = sql, params
+        return []
+
+    monkeypatch.setattr(module, "_execute_sql", _execute)
+    module.browse_category(category=r"Home_100% \ Decor")
+    bound = {p["name"]: p["value"] for p in captured["params"]}
+    assert bound["category"] == {
+        "stringValue": module._prepare_like_pattern(r"Home_100% \ Decor")
+    }
+    assert bound["category"] == {"stringValue": r"%home\_100\% \\ decor%"}
+
+
+def test_gateway_lambda_check_inventory_escapes_like_metacharacters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``check_inventory``'s product-name tokens must not act as LIKE wildcards."""
+    module = _load_lambda(monkeypatch)
+    captured: dict[str, Any] = {}
+
+    def _execute(sql: str, params: list) -> list:
+        captured["sql"], captured["params"] = sql, params
+        return []
+
+    monkeypatch.setattr(module, "_execute_sql", _execute)
+    module.check_inventory(product_query=r"100%_deal")
+    bound = {p["name"]: p["value"] for p in captured["params"]}
+    assert bound["token0"] == {"stringValue": module._prepare_like_pattern(r"100%_deal")}
+    assert bound["token0"] == {"stringValue": r"%100\%\_deal%"}

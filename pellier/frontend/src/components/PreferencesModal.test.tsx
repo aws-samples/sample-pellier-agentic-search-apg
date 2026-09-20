@@ -377,3 +377,36 @@ describe('PreferencesModal save + skip', () => {
     expect(screen.getByTestId('prefs-modal')).toBeInTheDocument()
   })
 })
+
+// ------------------------------------------------------------------
+// Focus containment
+// ------------------------------------------------------------------
+// The dialog claims `aria-modal="true"` above; a keyboard user reaching
+// the page behind it via Tab makes that claim false. Regression test for
+// the missing `useFocusTrap` wiring (matches AuthModal's equivalent test).
+describe('PreferencesModal focus containment', () => {
+  it('moves focus into the dialog when it opens', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByText('open-prefs'))
+
+    const dialog = screen.getByTestId('prefs-modal')
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('wraps Shift+Tab from the first chip to the last control inside the dialog', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByText('open-prefs'))
+
+    const dialog = screen.getByTestId('prefs-modal')
+    const firstChip = screen.getByTestId('prefs-chip-0-0')
+    firstChip.focus()
+    expect(document.activeElement).toBe(firstChip)
+
+    await user.tab({ shift: true })
+
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).not.toBe(screen.getByText('open-prefs'))
+  })
+})

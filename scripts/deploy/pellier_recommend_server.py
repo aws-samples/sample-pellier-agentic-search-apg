@@ -246,7 +246,7 @@ def get_trending_products(limit: int = 5, category: str = None) -> dict:
         parameters.append(
             {
                 "name": "category",
-                "value": {"stringValue": f"%{str(category).lower()}%"},
+                "value": {"stringValue": _prepare_like_pattern(category)},
             }
         )
     rows = _execute_sql(

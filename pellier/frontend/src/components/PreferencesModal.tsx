@@ -38,7 +38,7 @@
  * "Adjust preferences" link later.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PREFERENCES_MODAL, type PreferenceGroup } from '../copy'
 import { useUI } from '../contexts/UIContext'
@@ -51,6 +51,7 @@ import type {
 } from '../services/types'
 import { useAuth } from '../utils/auth'
 import { cssVar as c } from '../design/cssVars'
+import { useFocusTrap } from '../shared/useFocusTrap'
 
 // === REFERENCE: START ===
 // --- Design tokens → Daylight via `cssVars` / bridge --------------------
@@ -243,6 +244,7 @@ export default function PreferencesModal() {
   const { activeModal, closeModal } = useUI()
   const { savePreferences } = useAuth()
   const isOpen = activeModal === 'preferences'
+  const dialogRef = useRef<HTMLDivElement | null>(null)
 
   // One Set per group, indexed 0..3 to match the copy.ts tuple order.
   const [selected, setSelected] = useState<Array<Set<string>>>([
@@ -338,6 +340,13 @@ export default function PreferencesModal() {
     closeModal()
   }
 
+  // This dialog claims `aria-modal="true"` below; without a focus trap that
+  // claim was false -- Tab carried a keyboard user straight through to the
+  // page behind it. Matches CartPanel and PersonaModal's use of the same
+  // hook. Called unconditionally (before the `isOpen` early return) because
+  // hooks cannot follow a conditional return.
+  useFocusTrap({ containerRef: dialogRef, active: isOpen, onClose: () => closeModal() })
+
   if (!isOpen) return null
 
   const groups = PREFERENCES_MODAL.GROUPS as PreferenceGroup[]
@@ -361,6 +370,7 @@ export default function PreferencesModal() {
       }}
     >
       <div
+        ref={dialogRef}
         data-testid="prefs-modal"
         role="dialog"
         aria-modal="true"

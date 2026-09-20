@@ -203,3 +203,81 @@ describe('useAgentChat — StrictMode purity', () => {
     })
   })
 })
+
+describe('useAgentChat — unmount mid-stream', () => {
+  // `ShopperChatSlot` (App.tsx) unmounts ChatDrawer -- and this hook with
+  // it -- on every navigation to /operator or /observatory. Before this
+  // fix, a turn already in flight kept running: every streamed event kept
+  // calling setMessages on a gone component and writing "latest" keys to
+  // localStorage that other surfaces read as current.
+  beforeEach(() => {
+    capturedOnUpdate = null
+    releaseStream = null
+    nextStreamFailure = null
+    localStorage.clear()
+  })
+
+  it('aborts the in-flight turn on unmount', async () => {
+    const abortSpy = vi.spyOn(AbortController.prototype, 'abort')
+    const { result, unmount } = renderHook(
+      () => useAgentChat({ mode: 'storefront' }),
+      { wrapper },
+    )
+
+    act(() => {
+      void result.current.sendMessage('show me linen')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    abortSpy.mockClear() // drop any StrictMode-remount no-op calls before the turn existed
+
+    unmount()
+
+    expect(abortSpy).toHaveBeenCalled()
+    abortSpy.mockRestore()
+  })
+
+  it('does not write a "latest" localStorage key from an event that arrives after unmount', async () => {
+    const { result, unmount } = renderHook(
+      () => useAgentChat({ mode: 'storefront' }),
+      { wrapper },
+    )
+
+    act(() => {
+      void result.current.sendMessage('show me linen')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+
+    unmount()
+
+    // Simulate the mock stream's fetch resolving its next chunk anyway --
+    // this is exactly what a real unaborted fetch would keep doing.
+    act(() => {
+      capturedOnUpdate?.({ type: 'skill_routing', skill: 'style', confidence: 0.92 })
+    })
+
+    expect(localStorage.getItem('pellier-skill-routing-latest')).toBeNull()
+  })
+
+  it('does not update messages/isLoading from a response that resolves after unmount', async () => {
+    const { result, unmount } = renderHook(
+      () => useAgentChat({ mode: 'storefront' }),
+      { wrapper },
+    )
+
+    act(() => {
+      void result.current.sendMessage('show me linen')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    const resolve = releaseStream
+
+    unmount()
+
+    // No React "update on an unmounted component" warning, and no throw:
+    // the guard returns before touching state at all.
+    expect(() => {
+      act(() => {
+        resolve?.({ response: 'too late', products: [], suggestions: [] })
+      })
+    }).not.toThrow()
+  })
+})

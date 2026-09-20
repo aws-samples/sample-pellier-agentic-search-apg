@@ -224,3 +224,33 @@ def test_managed_related_products_escapes_like_metacharacters(
     assert _parameter_value(captured, "source_product_pattern") == (
         r"%studio\_100\% \\ edition%"
     )
+
+
+def test_get_trending_products_escapes_like_metacharacters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A category argument's own `%`/`_`/`\\` must not act as a LIKE wildcard.
+
+    ``get_trending_products`` built its category predicate with a raw
+    f-string while ``get_related_products`` in the same file used
+    ``_prepare_like_pattern``; an untrusted ``%`` in the argument silently
+    widened the filter to match every category instead of a literal
+    substring.
+    """
+    server = _load_server(monkeypatch)
+    captured: list[dict[str, Any]] = []
+
+    def _execute(
+        _sql: str,
+        parameters: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        captured.extend(parameters or [])
+        return []
+
+    monkeypatch.setattr(server, "_execute_sql", _execute)
+    server.get_trending_products(category=r"Home_100% \ Decor")
+
+    assert _parameter_value(captured, "category") == (
+        server._prepare_like_pattern(r"Home_100% \ Decor")
+    )
+    assert _parameter_value(captured, "category") == r"%home\_100\% \\ decor%"

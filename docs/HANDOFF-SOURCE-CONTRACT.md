@@ -140,12 +140,12 @@ provisioning runs, so it is forensic provenance and not authority.
 | resource | created by | updated by | destroyed by | declared in | drift check |
 |---|---|---|---|---|---|
 | AgentCore Runtime | `agentcore deploy`, lands in CFN stack `AgentCore-pellier-default` | the same CLI | the CLI / stack delete | `render_agentcore_project.py` `runtimes[]` | `scripts/health-gate.sh`, AgentCore state |
-| AgentCore Memory | same stack, same CLI | the same CLI | the CLI / stack delete | `memories[]`, `USER_PREFERENCE` only | `scripts/health-gate.sh`; runtime DATA cleaned by `reset_memory_runtime.py`, which never touches the resource |
+| AgentCore Memory | same stack, same CLI | the same CLI | the CLI / stack delete | `memories[]`, four strategies: `SEMANTIC`, `USER_PREFERENCE`, `SUMMARIZATION`, `EPISODIC` | `scripts/health-gate.sh`; runtime DATA cleaned by `reset_memory_runtime.py`, which never touches the resource |
 | Gateway | fresh: the CLI project. Audited account: direct control-plane API, in **no** stack | fresh: CLI. Audited: `update_gateway`, and only for policy mode | never deleted by any script here | `agentCoreGateways[]` | `describe_workshop_publication.py` vs live discovery |
 | Gateway targets | as Gateway | `update_gateway_target`, in place | never deleted and recreated | inline `toolSchema` from `gateway_tool_schemas.py` | `provision_agentcore_end_to_end.py` asserts live discovery == expected |
 | Policy engine | as Gateway | never replaced: `add policy-engine` creates rather than adopts, so a project-declared engine would be a *second* engine | never | `policyEngines[]` | `policy_mode.py` (read-only with no flags) |
 | Policies | fresh: `baseline_policies()` through the CLI. Participant rule: `agentcore add policy` in Lab 4 | `update_policy` keeps the policy id, so history and attachments survive | reset removes only the participant rule | `render_agentcore_project.py` | `policy_mode.py`; reset restores mode at both scopes |
-| Target Lambdas (4) | `deploy_lambda.py`, invoked by `provision_agentcore_end_to_end.py` | the same script | not by any script here | `scripts/deploy/pellier_*_server.py` | `provision_agentcore_end_to_end.py` code-SHA assertion |
+| Target Lambdas (4) | `deploy_lambda.py`, invoked by `provision_agentcore_end_to_end.py` | the same script | not by any script here | `scripts/deploy/pellier_*_server.py` | none: `provision_agentcore_end_to_end.py` republishes each package on every run and reads back only `FunctionArn`; it makes no code-SHA comparison |
 | IAM (3 resources) | the CFN stack | the stack | the stack | CDK output of `agentcore deploy` | stack status `UPDATE_COMPLETE` |
 
 Two rules follow from that table and both have already been learned the hard way:
@@ -328,29 +328,19 @@ a client without a portrait fails rather than resolving to an initial circle.
     _MIGRATION_TOOL_ALIASES              Lambda dispatch compatibility, marked TEMPORARY
     migration 002 ALTER TABLE, 027       one-time convergence of an existing cluster
 
-## What remains
+## Release readiness
 
-**No known source defect.** The outstanding gap is a fresh-account deployment rehearsal of
-the exact Studio pin. Everything below has passed on the pushed SHA: the backend and
-frontend suites, type-check, lint, build, the Studio validator, and `git diff --check` over
-the whole commit range. None of that exercises a clean AWS account.
+The current bounded review and unresolved gates are recorded in
+[the release acceptance matrix](release-readiness/2026-09-19/ACCEPTANCE-MATRIX.md).
+Source checks, live integration, Studio publication, and a human fresh-account
+rehearsal are distinct gates. No historical pass establishes the current release.
 
-### How to close it
-
-1. Deploy a new Workshop Studio environment from the current pin.
-2. Require CloudFormation success **and** the health gate reporting READY. Either alone is
-   insufficient: CloudFormation has reported success over a box whose managed path failed.
-3. Read the three logs, in this order:
-   * `/var/log/bootstrap-environment.log`
-   * `/var/log/pellier-agentcore.log`
-   * `/var/log/pellier-health-gate.log`
-4. Verify Runtime, Memory, Gateway, **15** published tools, **6** Cedar policies, Aurora
-   Row-Level Security, and the `pellier-operators` membership boundary.
-5. Run all four labs with the participant commands, including operator access and the
-   shopper `403`.
-6. Fix any failure **in the owning bootstrap, template or source file**, re-pin Studio, and
-   repeat from another clean account. A repair applied by hand on the box is not a fix; it
-   is a fix the next account will not receive.
+For a fresh deployment, require CloudFormation success and the health gate's READY
+result. Inspect `/var/log/bootstrap-environment.log`, `/var/log/pellier-agentcore.log`,
+and `/var/log/pellier-health-gate.log`. Derive published tool and policy counts with
+`python3 scripts/describe_workshop_publication.py`; they change after Lab 3's edit.
+Verify both Runtime endpoints, Memory records, Gateway, authorization, and database
+effects with the participant commands before claiming full workshop readiness.
 
 ### Likely remediation owners
 
@@ -362,8 +352,8 @@ the whole commit range. None of that exercises a clean AWS account.
 | Operator desk refuses a legitimate operator, or admits a shopper | Cognito group creation, membership, or `cognito:groups` claim parsing |
 | Runtime, Memory or Gateway absent | `provision_agentcore_end_to_end.py`, or the generated deployment configuration |
 
-Each of those five was fixed from a log or from source inspection, not from a green fresh
-run, so the rehearsal is their first real exercise. Expect them here before anything else.
+These are diagnostic starting points, not current live findings. Use the dated
+release report for tested environments and remaining blockers.
 
 **Do not reintroduce the ineffective operator Cedar policy.** `issue_credit` is
 published because the desk executes an approved credit through it, and its only permit
@@ -372,9 +362,9 @@ recorded decisions with tests behind them:
 `test_staff_authority_is_a_scope_claim_never_a_group_name` and
 `test_issue_credit_is_published_for_staff_and_unreachable_by_a_shopper`.
 
-### Known open, and not defects
+### Historical deployment and maintenance notes
 
-These are decisions or deferrals, listed so nobody rediscovers them as surprises.
+These older observations are not fresh validation of the current AWS deployments.
 
 | item | state |
 |---|---|

@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """Canonical AgentCore Gateway tool schemas for Pellier's four MCP targets."""
 
+try:
+    from common.replacement_contract import REPLACEMENT_TOOL
+except ModuleNotFoundError as exc:
+    if exc.name != "common":
+        raise
+    # Observatory reads this checked-in contract with runpy from the backend,
+    # without adding deployment modules to the application's import path.
+    import runpy
+    from pathlib import Path
+
+    REPLACEMENT_TOOL = runpy.run_path(
+        str(Path(__file__).parent / "common" / "replacement_contract.py")
+    )["REPLACEMENT_TOOL"]
 
 # AgentCore Gateway targets accept only this JSON-Schema keyword subset per
 # (sub)property. The CLI owns target deployment; this sanitizer keeps its
@@ -269,6 +282,11 @@ TOOL_SCHEMAS = {
             },
             {
                 "name": "issue_credit",
+                "outputSchema": {
+                    "type": "object",
+                    "properties": {"text": {"type": "string"}},
+                    "required": ["text"],
+                },
                 "description": (
                     "Issue a goodwill store credit for service recovery, up "
                     "to $500.00. Writes one durable row per idempotency key "
@@ -329,6 +347,8 @@ TOOL_SCHEMAS = {
     },
 }
 
+TOOL_SCHEMAS["experience"]["tools"].append(REPLACEMENT_TOOL)
+
 # ``turn_id`` is a route-minted correlation value. It is optional in the
 # Gateway schema so direct/instructor invocations remain valid, but the managed
 # Runtime dispatcher requires it on every shopper tool call and each Lambda
@@ -352,7 +372,7 @@ for _target in TOOL_SCHEMAS.values():
 # ---------------------------------------------------------------------------
 #
 # `TOOL_SCHEMAS` above is the canonical catalogue of everything Pellier can serve
-# through a Gateway target: 17 tools. It is deliberately the superset, because a schema
+# through a Gateway target. It is deliberately the superset, because a schema
 # is a description of a capability and publication is a separate decision.
 #
 # Publishing a tool gives it an MCP action id, a Cedar action, a capability-endpoint
@@ -398,7 +418,7 @@ WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
 #
 # These two sets name why a tool can be missing from one caller's listing. They are
 # claim shapes, not a second catalogue: every name here is published.
-STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit"})
+STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit", "replace_damaged_item"})
 OWNER_SCOPED_GATEWAY_TOOLS: frozenset[str] = frozenset({
     "get_customer_preferences",
     "get_audit_trail",

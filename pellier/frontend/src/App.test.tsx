@@ -127,9 +127,9 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     render(<App />)
 
     // The storefront header is the stable anchor for the home-page shell.
-    // It's rendered at the top of `AppContent` (which the `*` route
-    // resolves to via <AuthGate/>) and is never rendered by the
-    // /storyboard or /discover routes.
+    // It's rendered by `PellierPage`, which the `/` route mounts directly
+    // (no auth gate -- the Storefront is unauthenticated), and is never
+    // rendered by the /storyboard or /discover routes.
     await screen.findByTestId('sticky-header')
     expect(within(screen.getByTestId('surface-navigation')).getByRole('link', { name: 'Pellier home' })).toHaveTextContent(/pellier/i)
 
@@ -153,5 +153,21 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
       screen.queryByTestId('operator-signin-modal-backdrop'),
     ).not.toBeInTheDocument()
     expect(screen.queryByTestId('prefs-modal-backdrop')).not.toBeInTheDocument()
+  })
+
+  it('renders the skip-to-content link before the surface navigation, so it is the first Tab stop', async () => {
+    render(<App />)
+    await screen.findByTestId('sticky-header')
+
+    const skipLink = screen.getByText('Skip to content')
+    const nav = screen.getByTestId('surface-navigation')
+
+    // `nav` following `skipLink` in the DOM means a keyboard user reaches
+    // the skip link before the brand link and the three surface links --
+    // it used to render after `SurfaceNavigation`, so Tab reached those
+    // four links first every time.
+    expect(
+      skipLink.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

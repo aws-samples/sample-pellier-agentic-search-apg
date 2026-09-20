@@ -930,7 +930,7 @@ function whyThisAnswer({
 
 export default function ObservatoryWorkbench() {
   const { persona, switchPersona, switching, switchError } = usePersona();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotion() !== false;
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedLab =
     findLabExercise(searchParams.get('lab') ?? undefined) ?? LAB_EXERCISES[0];
@@ -2468,22 +2468,22 @@ export default function ObservatoryWorkbench() {
             <div className="observatory-ledger-footer">
               <dl className="observatory-session-metrics">
                 <div>
-                  <span>Elapsed</span>
-                  <strong>
+                  <dt>Elapsed</dt>
+                  <dd>
                     {runStatus === 'idle' ? '-' : formatElapsed(elapsedMs)}
-                  </strong>
+                  </dd>
                 </div>
                 <div>
-                  <span>Steps</span>
-                  <strong>{metricValue(runStatus, steps.length)}</strong>
+                  <dt>Steps</dt>
+                  <dd>{metricValue(runStatus, steps.length)}</dd>
                 </div>
                 <div>
-                  <span>Agents</span>
-                  <strong>{metricValue(runStatus, agentCount)}</strong>
+                  <dt>Agents</dt>
+                  <dd>{metricValue(runStatus, agentCount)}</dd>
                 </div>
                 <div>
-                  <span>SQL</span>
-                  <strong>{metricValue(runStatus, sqlCount)}</strong>
+                  <dt>SQL</dt>
+                  <dd>{metricValue(runStatus, sqlCount)}</dd>
                 </div>
               </dl>
 

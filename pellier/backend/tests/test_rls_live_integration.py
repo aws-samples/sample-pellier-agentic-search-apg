@@ -141,15 +141,11 @@ async def seeded(db) -> AsyncIterator[Dict[str, Any]]:
         _SUB_MARCO,
         "CUST-MARCO",
     )
-    await db.execute_query(
+    rows = await db.fetch_all(
         "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES (%s, %s, %s), (%s, %s, %s)",
+        " VALUES (%s, %s, %s), (%s, %s, %s) RETURNING id, customer_id",
         "CUST-MARCO", "11", 1,
         "CUST-ANNA", "21", 1,
-    )
-    rows = await db.fetch_all(
-        "SELECT id, customer_id FROM pellier.orders"
-        " WHERE product_id IN ('11','21') ORDER BY id DESC LIMIT 2"
     )
     try:
         yield {"order_ids": [r["id"] for r in rows]}

@@ -134,6 +134,12 @@ FKs.
     extension required by facilitator readiness. Workshop Studio separately
     preloads the module through its cluster parameter group. This migration
     does not change that parameter group or restart the cluster.
+55. **`055_governance_boundary_observations.sql`** creates the append-only
+    `pellier.governance_boundary_observations` table for the privileged proof
+    runner's sanitized Gateway-boundary observations and exact-key SQL
+    snapshots, kept separate from `pellier.governed_receipts` because a
+    Gateway authentication failure has no authenticated principal or Cedar
+    decision for that table to hold.
 
 The replacement path also needs its Gateway target, Cedar policy, and worker.
 Follow `scripts/deploy/REPLACEMENT_RECOVERY.md` for that activation order.

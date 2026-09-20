@@ -1,0 +1,89 @@
+[
+  {
+    "route": "/",
+    "width": 1280,
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "route": "/signin",
+    "width": 1280,
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "route": "/observatory",
+    "width": 1280,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "route": "/observatory/workbench",
+    "width": 1280,
+    "violations": [],
+    "incomplete": [
+      "aria-prohibited-attr",
+      "color-contrast"
+    ]
+  },
+  {
+    "route": "/observatory/govern/verification",
+    "width": 1280,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "route": "/operator/clients/CUST-JESSICA",
+    "width": 1280,
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "route": "/",
+    "width": 390,
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "route": "/signin",
+    "width": 390,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "route": "/observatory",
+    "width": 390,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "route": "/observatory/workbench",
+    "width": 390,
+    "violations": [],
+    "incomplete": [
+      "aria-prohibited-attr"
+    ]
+  },
+  {
+    "route": "/observatory/govern/verification",
+    "width": 390,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "route": "/operator/clients/CUST-JESSICA",
+    "width": 390,
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  }
+]

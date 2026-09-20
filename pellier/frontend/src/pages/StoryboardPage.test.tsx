@@ -179,3 +179,15 @@ describe('StoryboardPage - site chrome (Req 1.13.1)', () => {
     expect(screen.queryByTestId('command-pill')).not.toBeInTheDocument()
   })
 })
+
+describe('StoryboardPage - document title', () => {
+  it('sets a specific title instead of the generic index.html default', () => {
+    document.title = 'Pellier | Your Personal Shopping Concierge'
+    const { unmount } = renderStoryboard()
+
+    expect(document.title).toBe('Stories | Pellier')
+
+    unmount()
+    expect(document.title).toBe('Pellier | Your Personal Shopping Concierge')
+  })
+})

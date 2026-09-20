@@ -233,23 +233,23 @@ const CODE_READ: Array<{ step: string; path: string; body: string }> = [
   },
   {
     step: 'The baseline: pure pgvector',
-    path: 'services/vector_search.py — VectorSearch.vector_search (reference)',
+    path: 'services/vector_search.py: VectorSearch.vector_search (reference)',
     body: 'Marco’s path. One CTE binds the query vector once; the <=> operator computes cosine distance; similarity = 1 − distance. SET LOCAL hnsw.ef_search tunes recall per query; iterative_scan can scan further when WHERE clauses are strict. Use the lab’s EXPLAIN output to establish the chosen access path; the distance operator alone does not prove index use.',
   },
   {
     step: 'The hybrid branches run in parallel',
-    path: 'services/hybrid_search.py — _vector_search ∥ _fts_search',
+    path: 'services/hybrid_search.py: _vector_search ∥ _fts_search',
     body: 'asyncio.gather fires the vector branch and the Postgres full-text branch at once. FTS uses to_tsquery(‘english’, …) with OR-joined stems over the description_tsv GIN index, ranked by ts_rank_cd (cover density). The SQL you see in the VECTOR and LEXICAL panels above is these two strings, verbatim.',
   },
   {
     step: 'RRF fuses two rankings without shared scales',
-    path: 'services/hybrid_search.py — _rrf_merge (k=60)',
-    body: 'score(d) = Σ 1 / (k + rank) over each branch d appears in. It never compares a cosine similarity to a ts_rank_cd directly — only ranks — so the two scales never need to be reconciled. Contributions from both branches can lift a candidate; the result depends on its ranks. That’s the FUSION panel.',
+    path: 'services/hybrid_search.py: _rrf_merge (k=60)',
+    body: 'score(d) = Σ 1 / (k + rank) over each branch d appears in. It never compares a cosine similarity to a ts_rank_cd directly, only ranks, so the two scales never need to be reconciled. Contributions from both branches can lift a candidate; the result depends on its ranks. That’s the FUSION panel.',
   },
   {
     step: 'Rerank reorders the survivors',
-    path: 'services/rerank.py — Cohere Rerank v3.5',
-    body: 'The fused pool goes to Cohere Rerank v3.5, which reads the query + each candidate and returns relevance scores. The RERANK panel’s rrf_pos → reranked_pos column is the movement those scores buy. On a Bedrock outage the service returns [] and the caller falls back to RRF order — the documented degrade.',
+    path: 'services/rerank.py: Cohere Rerank v3.5',
+    body: 'The fused pool goes to Cohere Rerank v3.5, which reads the query + each candidate and returns relevance scores. The RERANK panel’s rrf_pos → reranked_pos column is the movement those scores buy. On a Bedrock outage the service returns [] and the caller falls back to RRF order: the documented degrade.',
   },
 ];
 
@@ -291,7 +291,7 @@ const CodeReadCard: React.FC = () => (
     >
       After a run, the panels show live output. These are the files that produce
       them, in the order a query flows through. Open them in the Code Editor
-      alongside this surface — the SQL you read here is the SQL that ran.
+      alongside this surface: the SQL you read here is the SQL that ran.
     </p>
 
     <ol

@@ -872,7 +872,6 @@ class EnhancedChatService:
         self.model_id = settings.BEDROCK_CHAT_MODEL
         self.region = settings.aws_region_resolved
         self.bedrock = boto3.client('bedrock-runtime', region_name=self.region)
-        self.session_storage_dir = "/tmp/pellier-sessions"
         self.db_service = db_service
         self._agent_stats: Dict[str, Any] = {
             "query_count": 0,
@@ -1341,10 +1340,16 @@ CURRENT REQUEST: {message}"""
         # Backfill images from database — LLM sometimes drops image URLs.
         if formatted and self.db_service:
             try:
+                from services.business_logic import prepare_like_pattern
+
                 names = [p.get("name", "")[:60] for p in formatted if p.get("name")]
                 if names:
                     placeholders = " OR ".join(["name ILIKE %s"] * len(names))
-                    params = [f"%{n[:30]}%" for n in names]
+                    # A real product name can itself contain a LIKE
+                    # metacharacter (e.g. "100% Cotton"); escape it so the
+                    # pattern matches that name literally instead of the "%"
+                    # acting as a wildcard and widening the match.
+                    params = [prepare_like_pattern(n[:30]) for n in names]
                     rows = await self.db_service.fetch_all(
                         f'SELECT "productId", name, "imgUrl" FROM pellier.product_catalog WHERE {placeholders}',
                         *params,

@@ -64,6 +64,36 @@ const FLOOR_PX = 11
 const CSS_PX = /font-size:\s*(\d+(?:\.\d+)?)px/g
 const INLINE_PX = /fontSize:\s*'(\d+(?:\.\d+)?)px'/g
 
+// The `font` shorthand (`font: [style] [variant] [weight] size[/line-height]
+// family`) buries its size between optional leading keywords/numeric weights
+// and the mandatory family. This surface uses the shorthand throughout
+// (`font: 600 11px/1.5 var(--obs-sans)`), and CSS_PX above only matches the
+// longhand `font-size:` property, so a shorthand line could drift below the
+// floor with nothing to catch it. The leading group consumes style/variant
+// keywords and numeric weights (100-900) so the captured group is always the
+// size, never a weight or the unitless line-height that can follow.
+const CSS_FONT_SHORTHAND_PX =
+  /font:\s*['"]?(?:(?:italic|oblique|normal|bold|bolder|lighter|small-caps|[1-9]00)\s+)*(\d+(?:\.\d+)?)px/g
+
+const SIZE_PATTERNS = [CSS_PX, INLINE_PX, CSS_FONT_SHORTHAND_PX]
+
+/**
+ * Extract every px size these patterns recognize from one line, exported so
+ * the shorthand-parsing regex can be exercised directly against synthetic
+ * strings instead of only through a full filesystem scan.
+ */
+export function detectPxSizesInLine(line: string): number[] {
+  const sizes: number[] = []
+  for (const pattern of SIZE_PATTERNS) {
+    pattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(line)) !== null) {
+      sizes.push(Number.parseFloat(match[1]))
+    }
+  }
+  return sizes
+}
+
 function walk(target: string): string[] {
   const stats = statSync(target, { throwIfNoEntry: false })
   if (!stats) return []
@@ -88,19 +118,14 @@ function findViolations(): Violation[] {
 
     const lines = readFileSync(file, 'utf8').split('\n')
     lines.forEach((line, index) => {
-      for (const pattern of [CSS_PX, INLINE_PX]) {
-        pattern.lastIndex = 0
-        let match: RegExpExecArray | null
-        while ((match = pattern.exec(line)) !== null) {
-          const size = Number.parseFloat(match[1])
-          if (size < FLOOR_PX) {
-            violations.push({
-              file: rel,
-              line: index + 1,
-              size,
-              text: line.trim().slice(0, 80),
-            })
-          }
+      for (const size of detectPxSizesInLine(line)) {
+        if (size < FLOOR_PX) {
+          violations.push({
+            file: rel,
+            line: index + 1,
+            size,
+            text: line.trim().slice(0, 80),
+          })
         }
       }
     })
@@ -123,6 +148,26 @@ describe('Observatory and Operator type floor', () => {
             'letter-spacing carry the distinction instead.'
         : '',
     ).toEqual([])
+  })
+
+  it('catches font shorthand sizes, not just the font-size longhand', () => {
+    // A bare shorthand size, the pattern this surface uses everywhere.
+    expect(detectPxSizesInLine('.a { font: 9px/1.4 var(--obs-sans); }')).toEqual([9])
+    // Numeric weight before the size must not be captured as the size.
+    expect(
+      detectPxSizesInLine('.b { font: 600 9.5px/1.2 var(--obs-mono); }'),
+    ).toEqual([9.5])
+    // Style keyword before a numeric weight before the size.
+    expect(
+      detectPxSizesInLine('.c { font: italic 700 10px/1.5 var(--obs-sans); }'),
+    ).toEqual([10])
+    // A compliant shorthand line reports its real size, not a false floor hit.
+    expect(detectPxSizesInLine('.d { font: 600 14px/1.5 var(--obs-sans); }')).toEqual([14])
+    // `font: inherit` and other non-numeric shorthand values must not match.
+    expect(detectPxSizesInLine('.e { font: inherit; }')).toEqual([])
+    // The longhand and inline-style patterns still work alongside the new one.
+    expect(detectPxSizesInLine('.f { font-size: 9px; }')).toEqual([9])
+    expect(detectPxSizesInLine("fontSize: '9px',")).toEqual([9])
   })
 
   it('scans the files it claims to scan', () => {

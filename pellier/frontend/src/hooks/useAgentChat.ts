@@ -349,6 +349,26 @@ export function useAgentChat(
     messagesRef.current = messages
   }, [messages])
 
+  // Whether this hook instance is still mounted, and the in-flight turn's
+  // abort handle. `ShopperChatSlot` (App.tsx) unmounts ChatDrawer -- and
+  // therefore this hook -- on every navigation to /operator or /observatory,
+  // which is an encouraged cross-surface action, not an edge case. Without
+  // this guard the SSE fetch kept streaming for up to STREAM_TIMEOUT_MS
+  // after unmount, and every streamed event kept calling setMessages and
+  // writing "latest" keys to localStorage (skill routing, tool calls,
+  // runtime timing, DB queries) that Observatory panels on the route the
+  // user just navigated to read as current -- a zombie turn silently
+  // overwriting the evidence the user left the drawer to go inspect.
+  const activeRef = useRef(true)
+  const turnAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => {
+    activeRef.current = true
+    return () => {
+      activeRef.current = false
+      turnAbortRef.current?.abort()
+    }
+  }, [])
+
   // Debounced persistence
   useEffect(() => {
     if (!persistKey) return
@@ -546,11 +566,19 @@ export function useAgentChat(
       }
       setMessages(prev => [...prev, loadingMessage])
 
+      const controller = new AbortController()
+      turnAbortRef.current = controller
+
       try {
         const response = await sendChatMessageStreaming(
           text,
           historyBeforeUser,
           data => {
+            // The hook unmounted mid-stream (see the mount effect above).
+            // Every branch below either calls setMessages/setSessionCost on
+            // this now-gone component or writes a "latest" localStorage key
+            // another surface reads as current -- skip all of it.
+            if (!activeRef.current) return
             if (data.type === 'skill_routing') {
               // Routing event arrives BEFORE any text tokens per the
               // backend ordering contract. Attach to the current
@@ -834,9 +862,18 @@ export function useAgentChat(
           // Pellier and Pellier Observatory share the same fixed Dispatcher
           // contract. Optional comparison patterns remain backend-only.
           'dispatcher',
+          undefined, // responseMode: keep the 'balanced' default
+          controller.signal,
         )
 
         await editorialStream.settle()
+
+        // Resolved after an unmount that fired mid-await (the mount
+        // effect already aborted `controller`, which is what got us here
+        // via a rejection in the common case, but a response that raced
+        // ahead of the abort can still resolve normally). Nothing left to
+        // update.
+        if (!activeRef.current) return
 
         if (response.estimated_cost_usd) {
           setSessionCost(prev => prev + response.estimated_cost_usd!)
@@ -908,6 +945,11 @@ export function useAgentChat(
         setBackendOnline(true)
       } catch (error) {
         editorialStream.cancel()
+        // An unmount aborts `controller` (mount effect above), which
+        // surfaces here as a rejected fetch. There is no drawer left to
+        // show a failure card in, so stop rather than render one into thin
+        // air.
+        if (!activeRef.current) return
         const chatError = normalizeChatError(error)
         updateLast(lastMsg => ({
           ...lastMsg,
@@ -928,7 +970,7 @@ export function useAgentChat(
         )
       } finally {
         editorialStream.cancel()
-        setIsLoading(false)
+        if (activeRef.current) setIsLoading(false)
         sendingRef.current = false
       }
     },

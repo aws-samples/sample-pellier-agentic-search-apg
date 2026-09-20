@@ -107,3 +107,46 @@ async def test_catalog_lists_and_business_tools_exclude_archive_products():
     ]
     assert catalog_sql
     assert all(ARCHIVE_FILTER in sql for sql in catalog_sql)
+
+
+class _EscapeCaptureDB:
+    """Records the SQL text and bound params ``_fetch_editorial_catalog`` sends.
+
+    Unlike ``_BusinessDB`` above, a real PostgreSQL ``LIKE``/``ILIKE`` ``ESCAPE``
+    clause must be empty or exactly one character
+    ("invalid escape string" otherwise) -- a constraint a stub that merely
+    records SQL text can't enforce by itself, so the assertions below check
+    the clause's shape directly rather than relying on execution succeeding.
+    """
+
+    def __init__(self) -> None:
+        self.query: str = ""
+        self.params: tuple = ()
+
+    async def fetch_all(self, query: str, *params):
+        self.query = query
+        self.params = params
+        return []
+
+
+@pytest.mark.asyncio
+async def test_editorial_catalog_category_filter_uses_a_valid_escape_clause():
+    """category ILIKE ... ESCAPE must carry exactly one backslash.
+
+    Regression: the clause once read ``ESCAPE '\\\\'`` (two backslash
+    characters between the quotes), which PostgreSQL rejects outright with
+    "invalid escape string" on every single ``category``-filtered request --
+    live-verified against PostgreSQL 17. A fake DB that only records SQL text
+    without executing it never surfaces that failure, so this test checks the
+    clause's exact shape instead of trusting a stub's silent success.
+    """
+    db = _EscapeCaptureDB()
+
+    await _fetch_editorial_catalog(db, category="A%B_C\\D")
+
+    assert "ESCAPE '\\'" in db.query
+    assert "ESCAPE '\\\\'" not in db.query
+    # The bound pattern must escape the shopper-controlled metacharacters
+    # using that same single-character escape, so % and _ stay literal and
+    # a literal backslash in the category name doesn't unbalance the clause.
+    assert db.params[0] == "%A\\%B\\_C\\\\D%"

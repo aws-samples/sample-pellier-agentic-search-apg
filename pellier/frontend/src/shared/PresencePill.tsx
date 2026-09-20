@@ -112,6 +112,39 @@ function newestMemoryTimestamp(payload: unknown): string | null {
 }
 
 /**
+ * The most recent completed check, shared across every `PresencePill`
+ * mount in this tab. `useBackendReachable` starts a fresh poll cycle on
+ * every mount regardless (below), but client-side navigation between
+ * Observatory routes unmounts and remounts the pill on each transition,
+ * which reset `reachable` to `null` every time -- flashing "Concierge
+ * checking" for the gap before the new mount's own check resolved, even
+ * seconds after a real, still-fresh measurement. A measurement this cache
+ * holds is exactly as real after a remount as it was before it; only its
+ * age matters, which `freshUntil` already encodes.
+ */
+let healthCache: { reachable: boolean; freshUntil: number } | null = null
+
+/**
+ * Test-only: clear the cross-mount cache. Without this, one test's real or
+ * fake-timer measurement could still read as fresh at the start of the next
+ * test in the same file, since the cache otherwise only self-expires with
+ * real wall-clock or advanced fake time.
+ */
+export function __resetPresenceHealthCacheForTests(): void {
+  healthCache = null
+}
+
+function cachedReachable(): boolean | null {
+  if (!healthCache || healthCache.freshUntil <= Date.now()) return null
+  return healthCache.reachable
+}
+
+function cachedFreshUntil(): number | null {
+  if (!healthCache || healthCache.freshUntil <= Date.now()) return null
+  return healthCache.freshUntil
+}
+
+/**
  * True while a health check has *succeeded* inside the freshness window.
  *
  * Three things make this a measurement rather than a cadence. Each check
@@ -122,8 +155,8 @@ function newestMemoryTimestamp(payload: unknown): string | null {
  * the evidence for it even if the polling loop stops running.
  */
 function useBackendReachable(): boolean | null {
-  const [reachable, setReachable] = useState<boolean | null>(null)
-  const [freshUntil, setFreshUntil] = useState<number | null>(null)
+  const [reachable, setReachable] = useState<boolean | null>(cachedReachable)
+  const [freshUntil, setFreshUntil] = useState<number | null>(cachedFreshUntil)
   useEffect(() => {
     let active = true
     // Each effect owns its request. StrictMode's replacement effect must not
@@ -144,8 +177,10 @@ function useBackendReachable(): boolean | null {
       try {
         const ok = await checkBackendHealth(controller.signal)
         if (!active) return
+        const until = Date.now() + HEALTH_FRESH_MS
+        healthCache = { reachable: ok, freshUntil: until }
         if (ok) {
-          setFreshUntil(Date.now() + HEALTH_FRESH_MS)
+          setFreshUntil(until)
           setReachable(true)
         } else {
           // The endpoint answered, and answered badly. No need to wait out

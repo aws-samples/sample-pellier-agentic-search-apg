@@ -341,9 +341,20 @@ export async function sendChatMessageStreaming(
   customerId?: string | null,
   pattern?: OrchestrationPattern | null,
   responseMode: ResponseMode = 'balanced',
+  /**
+   * Caller-owned cancellation, e.g. a component unmounting mid-stream.
+   * Forwarded onto the internal controller so one `fetch` call still
+   * answers to both the timeout below and the caller's own lifecycle.
+   */
+  signal?: AbortSignal,
 ): Promise<ChatResponse> {
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
+  const forwardAbort = () => controller.abort()
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener('abort', forwardAbort)
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
@@ -493,6 +504,7 @@ export async function sendChatMessageStreaming(
     throw normalizeChatError(error)
   } finally {
     globalThis.clearTimeout(timeout)
+    signal?.removeEventListener('abort', forwardAbort)
   }
 }
 

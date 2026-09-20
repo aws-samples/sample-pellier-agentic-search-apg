@@ -50,7 +50,7 @@ Usage::
 
     python3 scripts/seed_forensic_dataset.py            # seed
     python3 scripts/seed_forensic_dataset.py --show     # list seeded turns
-    python3 scripts/seed_forensic_dataset.py --clear    # remove
+    python3 scripts/seed_forensic_dataset.py --clear    # assert no immutable fixture exists
 """
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ from typing import Dict, List, Optional
 _BACKEND = pathlib.Path(__file__).resolve().parents[1] / "pellier" / "backend"
 
 # Stable ids so the exercise, its answer key, and any lab content can name the
-# same turns. Prefixed so `--clear` can find them without touching real turns.
+# same turns. The prefix identifies immutable fixture evidence.
 PREFIX = "turn-forensic-"
 TURN_ALLOWED = f"{PREFIX}allowed"
 TURN_ENFORCE_DENIED = f"{PREFIX}enforce-denied"
@@ -119,27 +119,21 @@ def _policy_events(decision: str, source: str, policy: Optional[str]) -> str:
 
 
 def clear_sql() -> str:
-    """Remove the removable seeded artifacts, in dependency order.
+    """Refuse to detach immutable evidence from business state.
 
-    `governed_turn_receipts` is append-only by trigger, so its rows survive.
-    That is correct — evidence should not be quietly deletable — and it means a
-    corrected seed needs `reset-governed-workshop.sh`, which truncates.
+    Theo also has ordinary catalog orders. Customer ID alone cannot identify
+    this fixture's orders, so this command must never delete those records.
+    Before the fixture exists, clearing is a harmless no-op.
     """
     return f"""
 BEGIN;
-DELETE FROM pellier.governed_receipts
- WHERE audit_id IN (
-   SELECT audit_id FROM pellier.tool_audit
-    WHERE args->>'turn_id' LIKE '{PREFIX}%'
- );
-DELETE FROM pellier.tool_audit WHERE args->>'turn_id' LIKE '{PREFIX}%';
--- NOT governed_turn_receipts: migration 014 installs an append-only trigger
--- that rejects DELETE, which is the schema protecting evidence immutability.
--- Only a TRUNCATE removes them, and that is reset's job. Re-seeding is
--- therefore ON CONFLICT DO NOTHING rather than delete-then-insert.
-DELETE FROM pellier.returns WHERE reason = 'damaged' AND customer_id = '{_CUSTOMER}'
-   AND order_id IN (SELECT id FROM pellier.orders WHERE customer_id = '{_CUSTOMER}');
-DELETE FROM pellier.orders WHERE customer_id = '{_CUSTOMER}';
+SELECT pg_advisory_xact_lock(hashtextextended('pellier-forensic-seed', 0));
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pellier.governed_turn_receipts
+              WHERE turn_id LIKE '{PREFIX}%') THEN
+    RAISE EXCEPTION 'Forensic evidence is immutable; use reset-governed-workshop.sh';
+  END IF;
+END $$;
 COMMIT;
 """
 
@@ -151,14 +145,37 @@ def seed_sql() -> str:
     three enforcement outcomes can coexist: producing them live would require
     flipping Cedar mode between turns and would leave the account in whichever
     mode the last turn used.
+
+    Evidence is append-only/fill-once. A transaction-scoped advisory lock
+    serializes concurrent invocations. Every business write is conditioned on one
+    snapshot of whether this dataset already exists, taken before any insert
+    in this transaction runs, so re-running this script without
+    `reset-governed-workshop.sh` in between is a safe no-op rather than a
+    second turn A and turn C.
     """
     return f"""
 BEGIN;
+SELECT pg_advisory_xact_lock(hashtextextended('pellier-forensic-seed', 0));
+
+-- Snapshot "already seeded" once, before any write below, so every guard in
+-- this transaction agrees on the same answer even though
+-- governed_turn_receipts is itself written partway through. Matched by
+-- prefix rather than by TURN_ALLOWED specifically, so this check is not tied
+-- to any one turn's id.
+CREATE TEMP TABLE _forensic_already_seeded ON COMMIT DROP AS
+SELECT EXISTS (
+    SELECT 1 FROM pellier.governed_turn_receipts WHERE turn_id LIKE '{PREFIX}%'
+) AS v;
 
 -- The disputed order. One order, so the business question is identical
 -- across all three turns.
-INSERT INTO pellier.orders (customer_id, product_id, quantity)
-VALUES ('{_CUSTOMER}', '{_PRODUCT}', 2);
+CREATE TEMP TABLE _forensic_order ON COMMIT DROP AS
+WITH inserted AS (
+    INSERT INTO pellier.orders (customer_id, product_id, quantity)
+    SELECT '{_CUSTOMER}', '{_PRODUCT}', 2
+     WHERE NOT EXISTS (SELECT 1 FROM _forensic_already_seeded WHERE v)
+    RETURNING id
+) SELECT id FROM inserted;
 
 -- ---------------------------------------------------------------- turn A
 -- Allowed: Cedar permitted it, the tool ran, and business state changed.
@@ -172,12 +189,13 @@ ON CONFLICT (turn_id) DO NOTHING;
 
 WITH executed AS (
     INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)
-    VALUES ('{_SESSION}', 'initiate_return', 'agent',
-            jsonb_build_object('turn_id', '{TURN_ALLOWED}',
-                               'customer_id', '{_CUSTOMER}',
-                               'product_id', '{_PRODUCT}',
-                               'reason', 'damaged'),
-            jsonb_build_object('status', 'success'), 1477)
+    SELECT '{_SESSION}', 'initiate_return', 'agent',
+           jsonb_build_object('turn_id', '{TURN_ALLOWED}',
+                              'customer_id', '{_CUSTOMER}',
+                              'product_id', '{_PRODUCT}',
+                              'reason', 'damaged'),
+           jsonb_build_object('status', 'success'), 1477
+     WHERE NOT EXISTS (SELECT 1 FROM _forensic_already_seeded WHERE v)
     RETURNING audit_id
 )
 INSERT INTO pellier.governed_receipts
@@ -192,7 +210,7 @@ SELECT audit_id, '{_SESSION}', '{_PRINCIPAL}', 'theo', 'initiate_return',
 -- The business change turn A caused.
 INSERT INTO pellier.returns (customer_id, product_id, reason, status, quantity, order_id)
 SELECT '{_CUSTOMER}', '{_PRODUCT}', 'damaged', 'approved', 1, id
-  FROM pellier.orders WHERE customer_id = '{_CUSTOMER}' ORDER BY id DESC LIMIT 1;
+  FROM _forensic_order;
 
 -- ---------------------------------------------------------------- turn B
 -- Cedar ENFORCE denial. The tool never ran, so there is deliberately NO
@@ -225,16 +243,29 @@ ON CONFLICT (turn_id) DO NOTHING;
 -- verdict is on the turn receipt's policy_events above; this execution row is
 -- what proves the request continued anyway.
 INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)
-VALUES ('{_SESSION}', 'initiate_return', 'agent',
-        jsonb_build_object('turn_id', '{TURN_LOG_ONLY}',
-                           'customer_id', 'CUST-ANNA',
-                           'product_id', '21',
-                           'reason', 'changed_mind'),
-        jsonb_build_object('status', 'policy_blocked',
-                           'denied_by', 'database_row_level_security'), 512);
+SELECT '{_SESSION}', 'initiate_return', 'agent',
+       jsonb_build_object('turn_id', '{TURN_LOG_ONLY}',
+                          'customer_id', 'CUST-ANNA',
+                          'product_id', '21',
+                          'reason', 'changed_mind'),
+       jsonb_build_object('status', 'policy_blocked',
+                          'denied_by', 'database_row_level_security'), 512
+ WHERE NOT EXISTS (SELECT 1 FROM _forensic_already_seeded WHERE v);
 
 COMMIT;
 """
+
+
+def _already_seeded(cfg: Dict[str, str]) -> Optional[bool]:
+    """Read-only shortcut; the seed transaction rechecks under its lock."""
+    result = _psql(
+        cfg,
+        f"SELECT 1 FROM pellier.governed_turn_receipts WHERE turn_id LIKE '{PREFIX}%' LIMIT 1",
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip(), file=sys.stderr)
+        return None
+    return bool(result.stdout.strip())
 
 
 SHOW_SQL = f"""
@@ -252,7 +283,7 @@ SELECT gtr.turn_id
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--clear", action="store_true", help="Remove the dataset.")
+    parser.add_argument("--clear", action="store_true", help="Refuse if immutable fixture evidence exists; otherwise make no changes.")
     parser.add_argument("--show", action="store_true", help="List seeded turns.")
     args = parser.parse_args(argv)
 
@@ -271,14 +302,29 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("\n".join(f"  {row}" for row in rows) or "  (no forensic turns seeded)")
         return 0
 
-    # Always clear first: seeding twice would double the artifacts and make the
-    # exercise ambiguous about how many times something happened.
-    result = _psql(cfg, clear_sql())
-    if result.returncode != 0:
-        print(f"clear failed: {result.stderr.strip()[:300]}", file=sys.stderr)
+    # A rerun cannot delete the business state referenced by immutable evidence.
+    is_seeded = _already_seeded(cfg)
+    if is_seeded is None:
         return 1
+
     if args.clear:
-        print("✅ forensic dataset removed")
+        if is_seeded:
+            print(
+                "cannot fully clear: governed_turn_receipts, governed_receipts, "
+                "and tool_audit are append-only evidence. Run "
+                "reset-governed-workshop.sh for a full reset.",
+                file=sys.stderr,
+            )
+            return 1
+        result = _psql(cfg, clear_sql())
+        if result.returncode != 0:
+            print(f"clear failed: {result.stderr.strip()[:300]}", file=sys.stderr)
+            return 1
+        print("No forensic dataset exists; no changes made")
+        return 0
+
+    if is_seeded:
+        print("forensic dataset already seeded; no changes made")
         return 0
 
     result = _psql(cfg, seed_sql())

@@ -142,6 +142,21 @@ export default function ProductDetailPage() {
     window.scrollTo({ top: 0 })
   }, [numericId])
 
+  // Every other route in the app (Observatory, Operator, and
+  // HowPellierWorksPage) sets a specific document title; this route and
+  // the two below kept the generic index.html default the whole time the
+  // shopper was reading a specific piece, which loses the product identity
+  // in a browser tab or a screen reader's tab list. Falls back to the
+  // default title (restored on unmount) while the product hasn't loaded
+  // yet or failed to load, since a stale "Pellier" tab is honest and an
+  // invented product name is not.
+  useEffect(() => {
+    if (!detail) return
+    const previous = document.title
+    document.title = `${detail.name} | Pellier`
+    return () => { document.title = previous }
+  }, [detail])
+
   useEffect(() => {
     setLoadError(false)
     setCatalog([])

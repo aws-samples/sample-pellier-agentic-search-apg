@@ -679,3 +679,10 @@ def teardown_function() -> None:
         app_module.db_service = None  # type: ignore[attr-defined]
     except Exception:
         pass
+
+
+def test_receipt_json_text_decodes_without_inventing_missing_evidence():
+    from routes.observatory import _json_object
+    assert _json_object('{"idempotency_key":"exact-key"}') == {"idempotency_key": "exact-key"}
+    for missing in (None, "{broken", '[]', '"text"'):
+        assert _json_object(missing) == {}

@@ -20,7 +20,8 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:8000',
     headless: true,
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
+    // Authentication suites handle workshop credentials; never retain form values.
+    trace: 'off',
   },
   projects: [
     {

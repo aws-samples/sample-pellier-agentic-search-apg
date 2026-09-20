@@ -39,7 +39,12 @@ test('separate storefront tour preserves the hero and exposes all three recorded
   await expect(loop.getByText('Blocked by Cedar', { exact: true })).toBeVisible()
   await expect(loop.getByText(/Historical Gateway DENY/)).toBeVisible()
   await expect(loop.locator('[data-step-id]')).toHaveCount(9)
-  await page.getByRole('link', { name: 'Back to the collection' }).click()
+  // "Back to the collection" (`/#shop` ghost link beside the demo) was
+  // retired in adf21a3f when the page's primary CTAs shifted to the
+  // Observatory labs. "Visit the storefront" in the surfaces section below
+  // is the current equivalent return-to-collection affordance and sits
+  // after the recorded examples, same as the retired link did.
+  await page.getByRole('link', { name: 'Visit the storefront' }).click()
   await expect(page.locator('.pellier-hero-media img')).toHaveAttribute('src', source!)
   expect(errors).toEqual([])
 })
@@ -189,7 +194,7 @@ test('real Operator investigation streams numbered steps and preserves them in h
   const username = process.env.E2E_OPERATOR_USERNAME
   const password = process.env.E2E_OPERATOR_PASSWORD
   test.skip(!username || !password, 'Requires the existing workshop Operator identity.')
-  await signIn(page, username!, password!, '/operator/clients/CUST-MARCO')
+  await signIn(page, username!, password!, '/operator/clients/CUST-JESSICA')
   await expect(page.getByTestId('operator-record')).toBeVisible({ timeout: 25000 })
   const openChat = page.getByRole('button', { name: 'Open chat', exact: true })
   if (await openChat.isVisible()) await openChat.click()
@@ -219,4 +224,27 @@ test('real Operator investigation streams numbered steps and preserves them in h
   await expect(saved.getByRole('region', { name: 'Investigation trace' })).toBeVisible()
   expect(await saved.locator('[data-step-id]').count()).toBeGreaterThan(0)
   await page.screenshot({ path: '/tmp/pellier-operator-trace.png', fullPage: true, animations: 'disabled' })
+})
+
+test('real boundary evidence shows the exact completed run and its suppression controls', async ({ page }) => {
+  const username = process.env.E2E_OPERATOR_USERNAME
+  const password = process.env.E2E_OPERATOR_PASSWORD
+  const runId = process.env.E2E_BOUNDARY_RUN
+  test.skip(!username || !password || !runId, 'Requires staff credentials and a completed live boundary proof.')
+  const identityResponse = page.waitForResponse(response => response.url().endsWith('/api/observatory/identity-boundary'))
+  await signIn(page, username!, password!, '/observatory/govern/verification')
+  expect((await identityResponse).status()).toBe(200)
+  const run = page.getByLabel('Evidence run', { exact: true })
+  await expect(run).toBeVisible({ timeout: 30000 })
+  await run.selectOption(runId!)
+  await expect(page.getByText('All five outcomes and controls held.', { exact: true })).toBeVisible()
+  const table = page.getByRole('region', { name: 'Recorded boundary outcomes' })
+  for (const name of ['suppressed-output', 'suppressed-replay']) {
+    const row = table.getByRole('row').filter({ hasText: name })
+    await expect(row.getByRole('cell', { name: 'Yes', exact: true })).toHaveCount(2)
+    await expect(row.getByRole('cell', { name: 'Suppressed', exact: true })).toBeVisible()
+  }
+  await page.getByText('Inspect correlation keys and database counts', { exact: true }).click()
+  await expect(page.getByText('Matching unfinished claim rows', { exact: true }).first()).toBeVisible()
+  await page.screenshot({ path: '/tmp/pellier-boundaries-live.png', fullPage: true, animations: 'disabled' })
 })

@@ -1,5 +1,19 @@
 \set ON_ERROR_STOP on
 
+-- Lab 2 build artifact (Build 2a): RECONSTRUCT AND VERIFY RRF.
+--
+-- Complete the fusion expression between the markers, then check your
+-- arithmetic against the score the application already recorded for this
+-- turn. This reads a retrieval receipt; it does not change the ranking the
+-- live application performs. That is the point: you are proving you can
+-- derive the recorded score from the two ranks beside it, which is what
+-- makes the receipt auditable rather than something to take on faith.
+--
+-- Run with:
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off \
+--     -v receipt_high_water="$RECEIPT_HIGH_WATER" \
+--     -f workshop/lab-2-rrf.sql
+
 DROP TABLE IF EXISTS pg_temp.lab_2_fusion;
 
 -- Two facts select the turn. The high-water mark was captured before you

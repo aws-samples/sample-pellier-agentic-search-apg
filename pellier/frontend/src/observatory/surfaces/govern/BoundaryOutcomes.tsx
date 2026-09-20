@@ -17,7 +17,7 @@ export interface BoundaryAttempt {
   tool: string; principal: string | null; observedAt: string;
   outcome: Outcome; control: string; toolExecuted: boolean | null; dataChanged: boolean | null;
   authentication: string; authorization: string; output: string;
-  database: { executionRows?: number; writeRows?: number; committedRows?: number; domainRows?: number; ledgerRows?: number };
+  database: { executionRows?: number; writeRows?: number; committedRows?: number; domainRows?: number; ledgerRows?: number; pendingClaimRows?: number };
   contradiction: string | null;
 }
 export interface BoundaryRun {
@@ -53,7 +53,7 @@ export default function BoundaryOutcomes() {
     {!loading && !error && !run && <p role="status">No five-outcome run is recorded. Complete the Workshop Studio Lab 4 proof to populate this view. Deployment configuration alone does not prove enforcement.</p>}
     {run && <>
       <label className="boundary-run-select">Evidence run
-        <select value={run.runId} onChange={event => setSelectedId(event.target.value)}>
+        <select aria-label="Evidence run" value={run.runId} onChange={event => setSelectedId(event.target.value)}>
           {runs.map(item => <option value={item.runId} key={item.runId}>{new Date(item.observedAt).toLocaleString()} · {item.runId}</option>)}
         </select>
       </label>
@@ -70,6 +70,7 @@ export default function BoundaryOutcomes() {
         </table>
       </div>
       <p className="boundary-caution">Suppression is not rollback. Reconcile the existing operation key before retrying. Replay may add an audit attempt while retaining one business effect.</p>
+      <p className="boundary-caution">Data changed refers to business rows. A refused request can retain an unfinished idempotency claim; its measured count appears below.</p>
       <details><summary>Inspect correlation keys and database counts</summary>
         {run.attempts.map(attempt => <article className="boundary-record" key={attempt.id}>
           <h3>{attempt.case}</h3>
@@ -79,6 +80,7 @@ export default function BoundaryOutcomes() {
             <dt>Authentication / authorization</dt><dd>{attempt.authentication} / {attempt.authorization}</dd>
             <dt>Execution / claimed / committed / domain / inventory rows</dt>
             <dd><code>{[attempt.database.executionRows, attempt.database.writeRows, attempt.database.committedRows, attempt.database.domainRows, attempt.database.ledgerRows].map(v => v ?? '?').join(' / ')}</code></dd>
+            <dt>Matching unfinished claim rows</dt><dd>{attempt.database.pendingClaimRows ?? 'Not measured'}</dd>
           </dl>
         </article>)}
       </details>

@@ -64,7 +64,10 @@ class ObservatoryErrorBoundary extends React.Component<
 
           {/* An error message names the problem and the recovery. It does not
               make a joke about it: a participant who hits this needs to know
-              whether their lab progress is affected. */}
+              whether their lab progress is affected. The Observatory is a
+              core participant surface (not optional -- see
+              pellier/frontend/CLAUDE.md), so this copy names the recovery
+              without also downgrading the surface. */}
           <h1
             className="observatory-page-title font-display text-espresso"
             style={{ margin: '20px 0 16px' }}
@@ -81,8 +84,8 @@ class ObservatoryErrorBoundary extends React.Component<
               margin: '0 0 20px',
             }}
           >
-            The Observatory is optional, so nothing you have proved in a lab is
-            affected. Reload to try again, or read the same evidence with{' '}
+            Your lab progress is unaffected: it lives in Aurora, not in this
+            view. Reload to try again, or read the same evidence with{' '}
             <code>psql</code> in the Code Editor.
           </p>
 

@@ -22,7 +22,7 @@ class _ReplayStubDB:
         self.claimed = claimed
 
     async def fetch_all(self, query: str, *params: Any) -> list[dict]:
-        if "FROM pellier.tool_audit ta" in query:
+        if 'AS "openingQuery"' in query:
             return [
                 {
                     "id": "sess-1",

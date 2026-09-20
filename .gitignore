@@ -55,6 +55,7 @@ docs/*
 # Reviewed curriculum framing and editable architecture assets for the L400 guide.
 !docs/L400-SEARCH-RETRIEVAL-BRIEF.md
 !docs/architecture/
+!docs/release-readiness/
 
 # IDE
 .vscode/

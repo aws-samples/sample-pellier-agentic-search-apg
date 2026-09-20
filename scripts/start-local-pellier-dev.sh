@@ -164,8 +164,9 @@ if [[ -n "${TUNNEL_TARGET}" ]]; then
   export DB_HOST="127.0.0.1"
   export DB_TUNNEL_REMOTE_HOST="${REMOTE_DB_HOST}"
   export DB_PORT="${TUNNEL_LOCAL_PORT}"
-  export DB_USER="$(jq -r '.username' <<<"${secret_json}")"
-  export DB_PASSWORD="$(jq -r '.password' <<<"${secret_json}")"
+  DB_USER="$(jq -er '.username | select(type == "string" and length > 0)' <<<"${secret_json}")"
+  DB_PASSWORD="$(jq -er '.password | select(type == "string" and length > 0)' <<<"${secret_json}")"
+  export DB_USER DB_PASSWORD
   export DATABASE_URL=""
   # The SSM leg is encrypted, and PostgreSQL must verify the Aurora endpoint
   # on the remaining leg too. Cache only the public AWS CA bundle, no secrets.

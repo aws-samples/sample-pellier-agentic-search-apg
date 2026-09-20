@@ -47,8 +47,10 @@ info() { printf "  ${YEL}…${NC} %s\n" "$1"; }
 warn() { printf "  ${YEL}•${NC} %s\n" "$1"; }
 FAILED=false
 
-# Load env (safe source)
-[[ -f "$ENV_FILE" ]] && { set -a; source "$ENV_FILE"; set +a; }
+# Load values as data: participant dotenv text must not execute shell code.
+# shellcheck source=lib/dotenv.sh
+. "$REPO/scripts/lib/dotenv.sh"
+[[ -f "$ENV_FILE" ]] && pellier_load_dotenv "$ENV_FILE"
 GOVERNED=false
 [[ "${WORKSHOP_FORMAT:-builders}" == "governed" ]] && GOVERNED=true
 

@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 from output_guardrail import ACTION, POLICY_NAME, policy as output_policy
 from services.governance_boundaries import assess, summarize
 from services.workshop_run import current_run_id
+from services.gateway_errors import gateway_error_text, read_gateway_error_response
 
 CUSTOMER = "CUST-JESSICA"
 CANARY = "Synthetic workshop contact: learner@example.com"
@@ -56,7 +57,10 @@ def policy_configuration(control, gateway_id: str, engine_id: str) -> dict:
         params["nextToken"] = page["nextToken"]
     if not found or found.get("enforcementMode") != "ACTIVE":
         raise RuntimeError("Deploy the ACTIVE managed output policy before running this proof")
-    statement = found.get("definition", {}).get("cedar", {}).get("statement", "")
+    definition = found.get("definition") or {}
+    # Guardrails use the general PolicyStatement union arm; legacy Cedar-only
+    # policies retain the cedar arm. Both must match the reviewed bytes.
+    statement = (definition.get("policy") or definition.get("cedar") or {}).get("statement", "")
     expected = output_policy(gateway["gatewayArn"])["statement"]
     if "".join(statement.split()) != "".join(expected.split()):
         raise RuntimeError("Deployed output policy differs from the reviewed policy")
@@ -65,8 +69,7 @@ def policy_configuration(control, gateway_id: str, engine_id: str) -> dict:
 
 
 def error_text(exc: BaseException) -> str:
-    children = getattr(exc, "exceptions", None)
-    return " ".join(error_text(child) for child in children) if children else str(exc)
+    return gateway_error_text(exc)
 
 
 def suppression_reported(message: str, policy_id: str) -> bool:
@@ -77,8 +80,8 @@ def suppression_reported(message: str, policy_id: str) -> bool:
     envelopes require an explicit adapter update after rehearsal.
     """
     text = message.lower()
-    return bool(policy_id and policy_id.lower() in text and
-                ("output" in text or "response" in text) and "suppress" in text)
+    explicit_phase = (("output" in text or "response" in text) and "suppress" in text) or text.startswith("output blocked by policy:")
+    return bool(policy_id and policy_id.lower() in text and explicit_phase)
 
 
 async def invoke(gateway_url: str, token: str, tool: str, arguments: dict, policy_id: str) -> dict:
@@ -89,6 +92,7 @@ async def invoke(gateway_url: str, token: str, tool: str, arguments: dict, polic
         async with httpx.AsyncClient(
             headers={"Authorization": f"Bearer {token}"},
             timeout=httpx.Timeout(10, read=90), follow_redirects=False,
+            event_hooks={"response": [read_gateway_error_response]},
         ) as client:
             async with streamable_http_client(gateway_url, http_client=client) as (read, write, _):
                 async with ClientSession(read, write) as session:
@@ -111,6 +115,11 @@ async def invoke(gateway_url: str, token: str, tool: str, arguments: dict, polic
 
 def database_snapshot(conn, *, key: str, tool: str, reason: str, product_id: int | None = None) -> dict:
     """Count the exact operation; join through its result to the domain record."""
+    arguments = {"customer_id": CUSTOMER, "reason": reason,
+                 **({"product_id": product_id} if tool == "initiate_return" else {"amount_cents": 1})}
+    request_hash = hashlib.sha256(json.dumps(
+        {"operation": tool, "arguments": arguments}, sort_keys=True, separators=(",", ":")
+    ).encode()).hexdigest()
     domain_join = (
         "JOIN pellier.returns d ON d.id::text = w.result->>'return_id' "
         "AND d.product_id::text = %(product)s"
@@ -130,9 +139,11 @@ def database_snapshot(conn, *, key: str, tool: str, reason: str, product_id: int
             " AND w.result->>'status'='success' AND d.customer_id=%(customer)s AND d.reason=%(reason)s), "
             "(SELECT count(*) FROM pellier.inventory_ledger WHERE idempotency_key=%(key)s), "
             "(SELECT result FROM pellier.tool_audit WHERE tool=%(tool)s AND args->>'idempotency_key'=%(key)s "
-            " AND args->>'customer_id'=%(customer)s AND args->>'reason'=%(reason)s ORDER BY audit_id DESC LIMIT 1)",
+            " AND args->>'customer_id'=%(customer)s AND args->>'reason'=%(reason)s ORDER BY audit_id DESC LIMIT 1), "
+            "(SELECT count(*) FROM pellier.write_operations WHERE idempotency_key=%(key)s "
+            " AND operation=%(tool)s AND request_hash=%(request_hash)s AND result IS NULL AND completed_at IS NULL)",
             {"key": key, "tool": tool, "customer": CUSTOMER, "reason": reason,
-             "product": str(product_id) if product_id is not None else ""},
+             "product": str(product_id) if product_id is not None else "", "request_hash": request_hash},
         )
         row = cur.fetchone()
     result = row[5] or {}
@@ -140,6 +151,7 @@ def database_snapshot(conn, *, key: str, tool: str, reason: str, product_id: int
         result = json.loads(result)
     return {"queried": True, **dict(zip(
         ("executionRows", "writeRows", "committedRows", "domainRows", "ledgerRows"), row[:5])),
+        "pendingClaimRows": row[6],
         "businessRejected": result.get("status") == "error" and "did not order" in str(result.get("message", "")),
         "idempotentReplay": result.get("idempotent_replay") is True}
 

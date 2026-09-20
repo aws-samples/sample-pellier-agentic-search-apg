@@ -12,7 +12,8 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
-from xml.etree import ElementTree
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 import boto3
 from botocore.config import Config
@@ -68,7 +69,7 @@ def record_view(record: dict[str, Any], kind: str) -> dict[str, Any]:
     if kind == "summary" and raw.lstrip().startswith("<"):
         try:
             content = " ".join(part.strip() for part in ElementTree.fromstring(raw).itertext() if part.strip())
-        except ElementTree.ParseError:
+        except (ElementTree.ParseError, DefusedXmlException):
             pass
     if kind == "episodic" and episode is None:
         # The built-in consolidation output is a summary with an assessment.
@@ -78,7 +79,7 @@ def record_view(record: dict[str, Any], kind: str) -> dict[str, Any]:
             if root.tag == "summary" and all(root.findtext(tag, "").strip() for tag in ("situation", "intent", "assessment", "justification")):
                 episode = {tag: "".join(root.find(tag).itertext()).strip() for tag in ("situation", "intent", "assessment", "justification")}
                 content = episode["situation"] + " " + episode["justification"]
-        except ElementTree.ParseError:
+        except (ElementTree.ParseError, DefusedXmlException):
             pass
     return {
         "id": record.get("memoryRecordId", ""),
