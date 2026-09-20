@@ -7,7 +7,7 @@ Status: source repairs and available live checks completed; release remains bloc
 - Source: `/Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass`, branch `governed`, remote `https://github.com/aws-samples/sample-pellier-agentic-search-apg.git`. Initial local and advertised remote commit: `95b08e6b3d681980e2b258ef7539feefa5135a1b`.
 - Builders is the separate `main` track, initially `2860c33b6657d28ee225e2a6d4a019dfbe807013`; it was not the review or release target. No new source branch was created. There is no RC source branch to merge. Future source work goes directly to `origin/governed`.
 - Studio: `/Users/shayons/Desktop/Workshops/build-governed-agentic-ai-search-with-aurora-rds-bedrock-agentcore`, branch `mainline`, initial commit `ce9fad096bb41f1ed6f431b0e560aa305e7be667`. Its `workshopstudio://` remote is the separate governed workshop package. Existing source and Studio edits were inventoried and preserved; unrelated worktrees, screenshots and processes were left alone.
-- AWS: account `619763002613`, workshop Region `us-east-1`; the CLI default Region was `us-west-2`, so deployment checks select the workshop Region explicitly. The existing `AgentCore-pellierrc-default` stack is the test deployment being repaired. `pellierrc` is an AWS naming suffix, not a Git release branch. Its Aurora and Cognito dependencies are shared with the older `pellier` deployment; no destructive reset of shared business data is authorized by this review.
+- AWS: account `<review-account>`, workshop Region `us-east-1`; the CLI default Region was `us-west-2`, so deployment checks select the workshop Region explicitly. The existing `AgentCore-pellierrc-default` stack is the test deployment being repaired. `pellierrc` is an AWS naming suffix, not a Git release branch. Its Aurora and Cognito dependencies are shared with the older `pellier` deployment; no destructive reset of shared business data is authorized by this review.
 - Read project voice/design/product contracts, applicable maintainer instructions, and the governed verification workflow. The supplied broad maintainer task supersedes the root's participant-only exercise limits. Referenced global steering files were not present at their configured paths. Frontend design-taste and Impeccable were available and applied.
 - Only source Git staging, commit and push are agent-owned. All Studio S3 uploads/sync, Git staging/commit/push and publication/import remain owner operations. No Studio write/publication operation was performed.
 
@@ -40,6 +40,17 @@ The production frontend bundle was served by a separately started current-source
 Public Playwright checks include navigation, responsive routes, anonymous/denied access, scenario selection, reset and recovery, dialogs and reduced motion. Some storytelling/reference panels intentionally display recorded fixtures; their browser tests are presentation checks. Separate authenticated tests use real Cognito, stream real backend requests and reconcile persisted Aurora receipts. Neither type is a human fresh-account rehearsal.
 
 The current axe scan covers Storefront, sign-in, Observatory collection, Workbench, Govern verification and signed-out Operator at 1920, 1280 and 390 pixels. No WCAG A/AA violations were reported on those 18 surfaces. Axe's incomplete checks remain manual-review items; automated accessibility scans do not establish universal accessibility. Current screenshots are in `screenshots/`, with responsive navigation also inspected in the browser.
+
+## Publication hygiene correction
+
+The first pushed revision failed the tracked-file identifier gate because this report
+included the live AWS account and unlabelled frontend digests resembled account numbers.
+The public source evidence now redacts the account; exact environment identity remains
+in the local Studio release report. Hashes use explicit `sha256` fields, preserving every
+byte of the evidence and the existing scanner's strict account check. No test allowance
+or scan exclusion was added. This is a documentation-only correction; deployed code,
+frontend bundles and runtime fingerprints are unchanged. The final CI run is recorded
+in the local Studio handoff after the subsequent source publication.
 
 ## Security review boundaries
 

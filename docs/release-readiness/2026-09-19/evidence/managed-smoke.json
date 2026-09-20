@@ -1,7 +1,7 @@
 {
   "shopper": {
     "session": "release-review-dd990139c3df469c9037963670bc420f",
-    "runtime": "arn:aws:bedrock-agentcore:us-east-1:619763002613:runtime/pellierrc_pellier_rc_orchestrator-7Vzvwi79aT",
+    "runtime": "arn:aws:bedrock-agentcore:us-east-1:<review-account>:runtime/pellierrc_pellier_rc_orchestrator-7Vzvwi79aT",
     "buildFingerprint": "34184fa574bd0a689fe0669214c45cbec40df36f516da97671233b6b0bb57c06",
     "buildMatches": true,
     "rail": "gateway-mcp",
@@ -10,7 +10,7 @@
     "requestId": "d08fda7f-3722-48fc-aa09-6e3625ecbddb"
   },
   "operatorFixture": {
-    "runtime_arn": "arn:aws:bedrock-agentcore:us-east-1:619763002613:runtime/pellierrc_pellier_rc_operator-oYVBWoDCNu",
+    "runtime_arn": "arn:aws:bedrock-agentcore:us-east-1:<review-account>:runtime/pellierrc_pellier_rc_operator-oYVBWoDCNu",
     "session_id": "operator-smoke-1789865722-0000000000000000000001",
     "build_fingerprint": "34184fa574bd0a689fe0669214c45cbec40df36f516da97671233b6b0bb57c06",
     "build_fingerprint_match": true,

@@ -1,6 +1,6 @@
 {
   "checkedAt": "2026-09-20T01:30:15.578535+00:00",
-  "account": "619763002613",
+  "account": "<review-account>",
   "region": "us-east-1",
   "runtimeFingerprint": "34184fa574bd0a689fe0669214c45cbec40df36f516da97671233b6b0bb57c06",
   "lambdas": [
@@ -56,111 +56,296 @@
   "runtimes": [
     {
       "id": "pellierrc_pellier_rc_orchestrator-7Vzvwi79aT",
-      "arn": "arn:aws:bedrock-agentcore:us-east-1:619763002613:runtime/pellierrc_pellier_rc_orchestrator-7Vzvwi79aT",
+      "arn": "arn:aws:bedrock-agentcore:us-east-1:<review-account>:runtime/pellierrc_pellier_rc_orchestrator-7Vzvwi79aT",
       "version": "9",
       "status": "READY",
       "configuredFingerprint": "34184fa574bd0a689fe0669214c45cbec40df36f516da97671233b6b0bb57c06"
     },
     {
       "id": "pellierrc_pellier_rc_operator-oYVBWoDCNu",
-      "arn": "arn:aws:bedrock-agentcore:us-east-1:619763002613:runtime/pellierrc_pellier_rc_operator-oYVBWoDCNu",
+      "arn": "arn:aws:bedrock-agentcore:us-east-1:<review-account>:runtime/pellierrc_pellier_rc_operator-oYVBWoDCNu",
       "version": "1",
       "status": "READY",
       "configuredFingerprint": "34184fa574bd0a689fe0669214c45cbec40df36f516da97671233b6b0bb57c06"
     }
   ],
   "frontend": {
-    "assets/AboutPage.BAesaBoh.js": "d075fbe90c567fe46a396eb96a31bf143ecaa5c0b49119cc47fb443731f00e02",
-    "assets/ArchitectureDetail.BkvigTak.js": "8d6f9b479c6716d2fb659c1f6c4db0cfc4a444e56768a2be09cc9cb83fc0fdf2",
-    "assets/ArchitectureIndex.D_GXx187.js": "46da1bce06c12470fe9b04cc2e26765ceef4242f08278aa8bc0124d4cc9f89fb",
-    "assets/BriefTab.7f9Y2vp2.js": "e0360a368d0e54170755d80f2429c0ed342224864ca2a3a0290d4662703c10fd",
-    "assets/CategoryBadge.W0wrmfYB.js": "927c7dec4fa5cff4301282870816aa5195af9555c08093cd399992e4c1fe963e",
-    "assets/ChatTab.0739p_Va.js": "dd12f0300a06732dd10eda9ea308ac1bc3b2005cdd80b34b08cfc2cf60b6b845",
-    "assets/ClientBook.Bc05nPjU.js": "1e600837c3e59ce4af50e89e49e3e6e5e21cc12d5aebd86213deae076918fc74",
-    "assets/ClientRecord.EuL-DR_L.js": "2e2d15f38b85c1497b1fc2b35ec7fcec7899f9c7d5c3d2fc1134991d259df4ae",
-    "assets/ContextRail.B8X8-Xvk.js": "99f020695532c26beeb0ebe678ed57df1278d2fc827afa7b9b8bebd1915cc2a7",
-    "assets/DetailPageShell.BrpQ1HQD.js": "13fc8e5a268cd7a1531ee4eb4d0b0151765945fa01d1e8bde12438e69e276eac",
-    "assets/DetailStates.21_691c0.js": "58d75bc58f7b91194469e893c9710b632a75a748aaa8401834273984cf1085ad",
-    "assets/EditorialTitle.BpQJ6vUA.js": "0c2f55715d9b75baabd8b663ffa0e4f838e2deb19afd39131d8a293beb2a67fc",
-    "assets/EmptyState.BEt4pUxU.js": "875be5aeaef68512e83140d7150c550cfe2f0e4aea552ba4b391cd3bf1120d4e",
-    "assets/Evaluations.q-m1h03F.js": "353d37349937d507d5b97a0300aa72ac47004dcfb6a70eb3bf2659c5ce945ca2",
-    "assets/EvaluationsDetail.CmG0OtIa.js": "c795454c026a3e49e68dd9d51679d7c309a8d47b6c8642b05a6f3e648451b85d",
-    "assets/EvidenceCard.CLXqmxKV.js": "3156f6bcef7f466c0d37da4ebcbaf0600a87785edca21d0e7641b3a7ab700742",
-    "assets/ExpCard.BRbuT9vl.js": "2f6d39059b2fe1dfc649e3d50bba3b7adf1e87df9fdfc4a0f665e47f776b0da3",
-    "assets/Eyebrow.C7bP5Y08.js": "47679aa2e2f473eed7f55d71371864c267d4a90ec11db4fa1fe8010a62872f54",
-    "assets/Footer.f-xadBVt.js": "4e4c86b0f89e5eea6babc02fda4fc68d812388e17f2118b04cc96b1c7178d47e",
-    "assets/Govern.kVjWFVOY.js": "04ad82d77918b78503cb9c0b7a6b7ae9487ffb99a9702bfa21d0496d005fa7d7",
-    "assets/GroundingDetail.AzAh4DR6.js": "572e8ae6d4635d44921bf5473b418f460b7276d79d5881d9af8c7e6fd9a02c3f",
-    "assets/HowPellierWorksPage.CvFVGUlh.js": "d73bed751785f677a2ce9c417e9f02d9dec3bf0a001d7530822fba0fec72c286",
-    "assets/LabRedirect.BKYq-SzI.js": "68ba27b2e272a13fd12b9b358b1cb4805067d89227a1cd9a13a186e09e86a239",
-    "assets/LabShared.DfPk_BQ1.js": "b45be653458c728a45dfd4a0e0b6ab0f544b030ff93e4aca7b3daaee1ef5ce73",
-    "assets/LabsCatalog.Cx-KbyPv.js": "70cb21a6b2ab248cfa63c6e3e3c520ebca745068a93833163f3a807700295667",
-    "assets/McpDetail.Dw2Dh65v.js": "df2f9669dde93d72babd1ff95d758189fb87215d107bc4a5e394704ce41c70e0",
-    "assets/MembershipRung.Ba7w_YLS.js": "e806fee57ba9a8b7d9851db794afa5ae0342a8bd59237be2bf3c9e4867dd36ac",
-    "assets/MemoryDashboard.Nb_npIpr.js": "4f4129691d0e8c44f2a020f63c9e1af636de0734f7ba454081b614372424c519",
-    "assets/MemoryDetail.C_TtABvA.js": "e671bb83564bd07bb3263f774d2f906ec604f7b68cfa04d47fd45527f5abd7ef",
-    "assets/ModeStrip.JSbYVnoW.js": "96b5a634c0c103380d51e043d7e45952b632679bc7bd47ba8fb7ff0df3c89259",
-    "assets/ObservatoryFrame.BYkn_cbn.js": "d76f355efefccdfeab91f751ef69c01c3709bf84ffcda8a2d6088198b11821c9",
-    "assets/ObservatoryWorkbench.B5bJ_BIQ.js": "5692dd3518e3043cca745dad47b0d924a1be26d44c03e3a4d1650637e8a1ac31",
-    "assets/OperatorFrame.VgJzMCrE.js": "c4b68e1b64823928d13399078b759f1df2feb4f6db54674ce1589e682f9a7b57",
-    "assets/OperatorLineage.29v7HuQZ.js": "4ebe51362cca644b6dca59815bb4d51f4b0f0c931a5426b2fc4462f821a5500e",
-    "assets/OperatorState.DajsU7MK.js": "31e5aeb9e59399bee855324f1af42b7a7c821c534168bad08304792c56aa4083",
-    "assets/OperatorTurnEvidence.DwBHnpPe.js": "3b82cdd22ab9f599d72d8a72dd0e4bdb2a2e1cde28d83d66806fa44da422e2c9",
-    "assets/PellierPage.Csa_Z0Mc.js": "58c855bd5433a3b8dd69617a0596cddaf58f68130a2f819cc5b9036b62d47115",
-    "assets/Performance.CrNtFu_T.js": "5f5e2e415e2b0d0894b7fff571f2abc0339ba3f52e927f4f597afbfb683bae78",
-    "assets/ProductCard.D7uVAmNI.js": "1581ca1c22fa89522337e30e150380b46403b900b5255708a1ec7b73fd7ca0ca",
-    "assets/ProductDetailPage.Dk6WHloi.js": "b42e9c5998fac5f86dfd04c8d7c1374866ad7824377aba1c3bb7fef6db9d9099",
-    "assets/ProductionPatterns.B0Q1nrXs.js": "ccab12b959dada3309de47a097c7e4d72daab602006094989cab450ac269ff96",
-    "assets/ProofBoard.Dvu4yqP2.js": "10cbaa5273046bccfd00ed8696e71b94a596ecb1e57b01f78ffc7e207cad96e6",
-    "assets/ReferenceBrief.CmdFpFTF.js": "d4dc7ce55a785376c91f4fe39b85551a8e67a65f75bcc922e19a072f3b0fe469",
-    "assets/ReplacementEvidence.Xtv8i7Vy.js": "6e7cfb56d290510478de7818c254b19dec3f29dc4bd605e92fc1b03b4ef203d7",
-    "assets/ResolutionTrace.CZ9ToAjU.js": "fd7a17f3bf91a71c48581a2165f3b29f118a3410e6009f9d723b0ccd46d41492",
-    "assets/ReviewQueue.1Qq_B5Xn.js": "31bceab09de4c40a0b7e787fc7abfd72f3e01aad1af162faa1abcd4c9155065a",
-    "assets/ReviewRecord.BcMT11gK.js": "7bcfd4d4036717b2eaefe8144223cdca3fedb88df9300e8008ae9d52a29d8a43",
-    "assets/Routing.Ck2Ho6HB.js": "36191ddf4b7be30d2b0000e864542cbff931068398720b63d99d4d43890b6194",
-    "assets/RuntimeDetail.CGQ2Gw_b.js": "d85605379859aa742550af2772d97fc2b107af6234c2f8e6acf1929b37076a40",
-    "assets/Search.CYtyTVw1.js": "fa49944b286c931feaa2fb8878d1668ab7470e5b83dd702cb04c3510ff54a53f",
-    "assets/SectionEyebrow.R7Xw0sAM.js": "3363d53758c44e58e7e22d79d1c366b5dbf3f9f9c8fbf81dd1bbf66ffa3c0923",
-    "assets/ServiceIdentity.BDCjssYw.js": "ce0c97f84420fa169cbb12d2857782b8f8c11e39e9edbb10dea177e50fde89b4",
-    "assets/ServiceSource.bjyCo-24.js": "96de4a3ce7921a24db5e8b0456f3586a25a935700b31015b2abb3737e0788c48",
-    "assets/SessionView.B1eplYcc.js": "ae1d58648dcdfac7af71a38bb4669778f36df61004b3710f6cddc021b0778644",
-    "assets/SessionsList.C3JTNXsX.js": "961fb8fb53954d6bab03a0330446b2ca7c56f49ecb98866d8f718e1418438161",
-    "assets/Settings.BiORKkHf.js": "d708d39b0d1e537eff9f5c62691fb2722a87cab5beab44de15b0c5f627b19033",
-    "assets/ShopperHandoffView.Dc-BrZty.js": "fb302863387c831087e19f6b3def334fddb9e7a48b8fbd431500f6b4c0216e54",
-    "assets/Skills.ROoZqZhI.js": "2eec6e9d7d54cfcc42f1922eb9f893a86d143a5a555c97c500f0964da014caea",
-    "assets/SkillsDetail.SFMYdtvB.js": "87365e97053e3adafb7f18de9a7ce1667580496cfa0e368c8c73da7889da68d1",
-    "assets/StateBadge.CqOzQws8.js": "5b718a44aa3377e13dc024499e82c12a538e97c979d9ae3afab532f2dce820b5",
-    "assets/StateDetail.BLvHao-1.js": "37346c1f8144b45f7334742457f4783c4d0fd417eb0bcb4a6193ea854af83ad5",
-    "assets/StatusDot.B1XFlKH2.js": "708d1e5e49c6baaec4e9218c66d75520859d9d0c13a6add594b9671ec6494bbb",
-    "assets/StoryboardPage.Be-A-a5f.js": "4d48e4e443c051b8372765301e6525d597593bd93288c6904913fc6869adbd7a",
-    "assets/SurfaceFilterBar.CukIzmTC.js": "fba9aef8e46a1465608d8db12ba59074a9fa4254e2d0f40430108a6d7c5a07bb",
-    "assets/TabNav.Bf76Zhs3.js": "d7894389194ceba2a421b36be395e4f3fb351edcfc63c5b536377a0ee735f398",
-    "assets/TelemetryTab.1qVXhzUR.js": "55ac23e197ac8176196e3e7bcd14da7a961ef2a87e0fa4739ec04d9b81c9d62c",
-    "assets/ToolRegistryDetail.CBLcA_YR.js": "73fe6d3b614801a37c59d0b533fba561992769ebc258e60c2dd1217af25efed4",
-    "assets/Tools.BL1LbIW6.js": "70c6de8f23e9da8fe8c3092f0e480708ef5b7df9053e28e5c51ebd31882d63df",
-    "assets/TraceScenarioLoop.uQEEXdNO.js": "b47e7ca1c44bd729c16413c84db8fb8eb375a8bac65ecc4ea44aef3fa828e8f9",
-    "assets/WorkbenchResources.Cysjxxa2.js": "00c3a4e747f52fe4b31a32c1e5340456c306a21074e17da0fee9282b0b8038d6",
-    "assets/WorkshopMap.DH8mt7F6.js": "bff80ca7ba36e015d91a1e74b3aeced59e654e116c3ff067a19505ac662f268d",
-    "assets/arrow-left.BBSMPWFQ.js": "3395322a047c9322919c6a7352618a2a1d0e4d7335c8a6bd4cccd978f76259b0",
-    "assets/circle-check.DeasV0DC.js": "a004f49d5a8bacdddb977ab8afce538b7aa49ff7af7388f2618183b2c848c52a",
-    "assets/circle-dashed.D9Kw8JNn.js": "5545d80d76b92ac2fced8a5bc94204e04c0b6a0acd5c011fbf901537ceb6c25c",
-    "assets/codeStyles.DuuYIlVH.js": "cfbd3c8769f9d56dc5cc2b20a94e98eb1d05af88714091b5de1873a0b79042c3",
-    "assets/framework.DnOUApHi.js": "cb89b905a04862d828bbe5a136a125ba2d9985efd4b458e12784c2d7f77dc715",
-    "assets/git-branch.B-QDT8BS.js": "6e7adb4b266c65a2693821a098d0b08b279f9844da6008a88ac4654ec8018203",
-    "assets/index.CK35BJv_.js": "3acaa30a5f79410bae41b8edd6eba83e54e8facd0e3b5047878a8388119168c8",
-    "assets/labCatalog.DzVAGGDm.js": "17c756a08b358251957822f57c9096b16e86853dc7549a636b7e8f15a7663df5",
-    "assets/membership.D1ZH3uY2.js": "1c02ed96b27fe25af85c07b95da18f12b19efaf6c414ebdbf51ad5053c45acc2",
-    "assets/message-square-quote.CSVDDiGu.js": "aacfcf93f8414270e0efacd25f2fe2c0b5fe78069ee1e46a40c2a4cb51fe2624",
-    "assets/operator.Dd3LTRrB.js": "13625e8cab50335b3fb5df9825bc420973102bbb4b6ef23c740cdfe12d6274a4",
-    "assets/play.Du8pTKkK.js": "4a86db446e48ef5a9268fa4f79c59b7fa8a27a5be539d6f36ea4db8b6a230dab",
-    "assets/referenceCatalog.DfkuVQSY.js": "a58de8be45b98601db50bbf7da612411db7923368652ed12bab44ab4b550b860",
-    "assets/refresh-cw.BkqEy622.js": "e3917be06ef547f4d2d5325dbdd1efdf15d59ab516ff2312997d5013161d2ff7",
-    "assets/resolveProductImageUrl.CuomKjcT.js": "528030d22395a4bc791fc060dba5b3b71e47d6fff2024dea743f5143a54ded1d",
-    "assets/retrievalReceipt.B155HXTG.js": "e79fe1b48889a8855f7a3d4d6e5b4b2fb1c3268e5a543bbbccb1ca66d793a873",
-    "assets/search.DLYlCZqb.js": "1bbba9ba794ee35bef5f4c85250d17c95f2d56c4455b895103b06e107a158607",
-    "assets/shield-x.CCalXS0x.js": "3c79a8fa6d9291fe35f3f6cbf22d6739f025017c8d95d4208ac48efe3ae961c5",
-    "assets/useClientBook.pOdLV8oD.js": "935dec23dab848d7bd5eb889d91b26e1a7fa51d1249ae0bfcfa1ad4b6ee45322",
-    "assets/useObservatoryData.C43d1lCT.js": "a8a3050b1c3d8c7b5032a669342ee46df436113615725a9dd626d988a2d7aa19",
-    "assets/user-check.BXbtNohp.js": "190b346e9ecf65759fc1eec135f20a1e3cc34d21c29c8824906e56f4d4ec442b"
-  }
+    "assets/AboutPage.BAesaBoh.js": {
+      "sha256": "d075fbe90c567fe46a396eb96a31bf143ecaa5c0b49119cc47fb443731f00e02"
+    },
+    "assets/ArchitectureDetail.BkvigTak.js": {
+      "sha256": "8d6f9b479c6716d2fb659c1f6c4db0cfc4a444e56768a2be09cc9cb83fc0fdf2"
+    },
+    "assets/ArchitectureIndex.D_GXx187.js": {
+      "sha256": "46da1bce06c12470fe9b04cc2e26765ceef4242f08278aa8bc0124d4cc9f89fb"
+    },
+    "assets/BriefTab.7f9Y2vp2.js": {
+      "sha256": "e0360a368d0e54170755d80f2429c0ed342224864ca2a3a0290d4662703c10fd"
+    },
+    "assets/CategoryBadge.W0wrmfYB.js": {
+      "sha256": "927c7dec4fa5cff4301282870816aa5195af9555c08093cd399992e4c1fe963e"
+    },
+    "assets/ChatTab.0739p_Va.js": {
+      "sha256": "dd12f0300a06732dd10eda9ea308ac1bc3b2005cdd80b34b08cfc2cf60b6b845"
+    },
+    "assets/ClientBook.Bc05nPjU.js": {
+      "sha256": "1e600837c3e59ce4af50e89e49e3e6e5e21cc12d5aebd86213deae076918fc74"
+    },
+    "assets/ClientRecord.EuL-DR_L.js": {
+      "sha256": "2e2d15f38b85c1497b1fc2b35ec7fcec7899f9c7d5c3d2fc1134991d259df4ae"
+    },
+    "assets/ContextRail.B8X8-Xvk.js": {
+      "sha256": "99f020695532c26beeb0ebe678ed57df1278d2fc827afa7b9b8bebd1915cc2a7"
+    },
+    "assets/DetailPageShell.BrpQ1HQD.js": {
+      "sha256": "13fc8e5a268cd7a1531ee4eb4d0b0151765945fa01d1e8bde12438e69e276eac"
+    },
+    "assets/DetailStates.21_691c0.js": {
+      "sha256": "58d75bc58f7b91194469e893c9710b632a75a748aaa8401834273984cf1085ad"
+    },
+    "assets/EditorialTitle.BpQJ6vUA.js": {
+      "sha256": "0c2f55715d9b75baabd8b663ffa0e4f838e2deb19afd39131d8a293beb2a67fc"
+    },
+    "assets/EmptyState.BEt4pUxU.js": {
+      "sha256": "875be5aeaef68512e83140d7150c550cfe2f0e4aea552ba4b391cd3bf1120d4e"
+    },
+    "assets/Evaluations.q-m1h03F.js": {
+      "sha256": "353d37349937d507d5b97a0300aa72ac47004dcfb6a70eb3bf2659c5ce945ca2"
+    },
+    "assets/EvaluationsDetail.CmG0OtIa.js": {
+      "sha256": "c795454c026a3e49e68dd9d51679d7c309a8d47b6c8642b05a6f3e648451b85d"
+    },
+    "assets/EvidenceCard.CLXqmxKV.js": {
+      "sha256": "3156f6bcef7f466c0d37da4ebcbaf0600a87785edca21d0e7641b3a7ab700742"
+    },
+    "assets/ExpCard.BRbuT9vl.js": {
+      "sha256": "2f6d39059b2fe1dfc649e3d50bba3b7adf1e87df9fdfc4a0f665e47f776b0da3"
+    },
+    "assets/Eyebrow.C7bP5Y08.js": {
+      "sha256": "47679aa2e2f473eed7f55d71371864c267d4a90ec11db4fa1fe8010a62872f54"
+    },
+    "assets/Footer.f-xadBVt.js": {
+      "sha256": "4e4c86b0f89e5eea6babc02fda4fc68d812388e17f2118b04cc96b1c7178d47e"
+    },
+    "assets/Govern.kVjWFVOY.js": {
+      "sha256": "04ad82d77918b78503cb9c0b7a6b7ae9487ffb99a9702bfa21d0496d005fa7d7"
+    },
+    "assets/GroundingDetail.AzAh4DR6.js": {
+      "sha256": "572e8ae6d4635d44921bf5473b418f460b7276d79d5881d9af8c7e6fd9a02c3f"
+    },
+    "assets/HowPellierWorksPage.CvFVGUlh.js": {
+      "sha256": "d73bed751785f677a2ce9c417e9f02d9dec3bf0a001d7530822fba0fec72c286"
+    },
+    "assets/LabRedirect.BKYq-SzI.js": {
+      "sha256": "68ba27b2e272a13fd12b9b358b1cb4805067d89227a1cd9a13a186e09e86a239"
+    },
+    "assets/LabShared.DfPk_BQ1.js": {
+      "sha256": "b45be653458c728a45dfd4a0e0b6ab0f544b030ff93e4aca7b3daaee1ef5ce73"
+    },
+    "assets/LabsCatalog.Cx-KbyPv.js": {
+      "sha256": "70cb21a6b2ab248cfa63c6e3e3c520ebca745068a93833163f3a807700295667"
+    },
+    "assets/McpDetail.Dw2Dh65v.js": {
+      "sha256": "df2f9669dde93d72babd1ff95d758189fb87215d107bc4a5e394704ce41c70e0"
+    },
+    "assets/MembershipRung.Ba7w_YLS.js": {
+      "sha256": "e806fee57ba9a8b7d9851db794afa5ae0342a8bd59237be2bf3c9e4867dd36ac"
+    },
+    "assets/MemoryDashboard.Nb_npIpr.js": {
+      "sha256": "4f4129691d0e8c44f2a020f63c9e1af636de0734f7ba454081b614372424c519"
+    },
+    "assets/MemoryDetail.C_TtABvA.js": {
+      "sha256": "e671bb83564bd07bb3263f774d2f906ec604f7b68cfa04d47fd45527f5abd7ef"
+    },
+    "assets/ModeStrip.JSbYVnoW.js": {
+      "sha256": "96b5a634c0c103380d51e043d7e45952b632679bc7bd47ba8fb7ff0df3c89259"
+    },
+    "assets/ObservatoryFrame.BYkn_cbn.js": {
+      "sha256": "d76f355efefccdfeab91f751ef69c01c3709bf84ffcda8a2d6088198b11821c9"
+    },
+    "assets/ObservatoryWorkbench.B5bJ_BIQ.js": {
+      "sha256": "5692dd3518e3043cca745dad47b0d924a1be26d44c03e3a4d1650637e8a1ac31"
+    },
+    "assets/OperatorFrame.VgJzMCrE.js": {
+      "sha256": "c4b68e1b64823928d13399078b759f1df2feb4f6db54674ce1589e682f9a7b57"
+    },
+    "assets/OperatorLineage.29v7HuQZ.js": {
+      "sha256": "4ebe51362cca644b6dca59815bb4d51f4b0f0c931a5426b2fc4462f821a5500e"
+    },
+    "assets/OperatorState.DajsU7MK.js": {
+      "sha256": "31e5aeb9e59399bee855324f1af42b7a7c821c534168bad08304792c56aa4083"
+    },
+    "assets/OperatorTurnEvidence.DwBHnpPe.js": {
+      "sha256": "3b82cdd22ab9f599d72d8a72dd0e4bdb2a2e1cde28d83d66806fa44da422e2c9"
+    },
+    "assets/PellierPage.Csa_Z0Mc.js": {
+      "sha256": "58c855bd5433a3b8dd69617a0596cddaf58f68130a2f819cc5b9036b62d47115"
+    },
+    "assets/Performance.CrNtFu_T.js": {
+      "sha256": "5f5e2e415e2b0d0894b7fff571f2abc0339ba3f52e927f4f597afbfb683bae78"
+    },
+    "assets/ProductCard.D7uVAmNI.js": {
+      "sha256": "1581ca1c22fa89522337e30e150380b46403b900b5255708a1ec7b73fd7ca0ca"
+    },
+    "assets/ProductDetailPage.Dk6WHloi.js": {
+      "sha256": "b42e9c5998fac5f86dfd04c8d7c1374866ad7824377aba1c3bb7fef6db9d9099"
+    },
+    "assets/ProductionPatterns.B0Q1nrXs.js": {
+      "sha256": "ccab12b959dada3309de47a097c7e4d72daab602006094989cab450ac269ff96"
+    },
+    "assets/ProofBoard.Dvu4yqP2.js": {
+      "sha256": "10cbaa5273046bccfd00ed8696e71b94a596ecb1e57b01f78ffc7e207cad96e6"
+    },
+    "assets/ReferenceBrief.CmdFpFTF.js": {
+      "sha256": "d4dc7ce55a785376c91f4fe39b85551a8e67a65f75bcc922e19a072f3b0fe469"
+    },
+    "assets/ReplacementEvidence.Xtv8i7Vy.js": {
+      "sha256": "6e7cfb56d290510478de7818c254b19dec3f29dc4bd605e92fc1b03b4ef203d7"
+    },
+    "assets/ResolutionTrace.CZ9ToAjU.js": {
+      "sha256": "fd7a17f3bf91a71c48581a2165f3b29f118a3410e6009f9d723b0ccd46d41492"
+    },
+    "assets/ReviewQueue.1Qq_B5Xn.js": {
+      "sha256": "31bceab09de4c40a0b7e787fc7abfd72f3e01aad1af162faa1abcd4c9155065a"
+    },
+    "assets/ReviewRecord.BcMT11gK.js": {
+      "sha256": "7bcfd4d4036717b2eaefe8144223cdca3fedb88df9300e8008ae9d52a29d8a43"
+    },
+    "assets/Routing.Ck2Ho6HB.js": {
+      "sha256": "36191ddf4b7be30d2b0000e864542cbff931068398720b63d99d4d43890b6194"
+    },
+    "assets/RuntimeDetail.CGQ2Gw_b.js": {
+      "sha256": "d85605379859aa742550af2772d97fc2b107af6234c2f8e6acf1929b37076a40"
+    },
+    "assets/Search.CYtyTVw1.js": {
+      "sha256": "fa49944b286c931feaa2fb8878d1668ab7470e5b83dd702cb04c3510ff54a53f"
+    },
+    "assets/SectionEyebrow.R7Xw0sAM.js": {
+      "sha256": "3363d53758c44e58e7e22d79d1c366b5dbf3f9f9c8fbf81dd1bbf66ffa3c0923"
+    },
+    "assets/ServiceIdentity.BDCjssYw.js": {
+      "sha256": "ce0c97f84420fa169cbb12d2857782b8f8c11e39e9edbb10dea177e50fde89b4"
+    },
+    "assets/ServiceSource.bjyCo-24.js": {
+      "sha256": "96de4a3ce7921a24db5e8b0456f3586a25a935700b31015b2abb3737e0788c48"
+    },
+    "assets/SessionView.B1eplYcc.js": {
+      "sha256": "ae1d58648dcdfac7af71a38bb4669778f36df61004b3710f6cddc021b0778644"
+    },
+    "assets/SessionsList.C3JTNXsX.js": {
+      "sha256": "961fb8fb53954d6bab03a0330446b2ca7c56f49ecb98866d8f718e1418438161"
+    },
+    "assets/Settings.BiORKkHf.js": {
+      "sha256": "d708d39b0d1e537eff9f5c62691fb2722a87cab5beab44de15b0c5f627b19033"
+    },
+    "assets/ShopperHandoffView.Dc-BrZty.js": {
+      "sha256": "fb302863387c831087e19f6b3def334fddb9e7a48b8fbd431500f6b4c0216e54"
+    },
+    "assets/Skills.ROoZqZhI.js": {
+      "sha256": "2eec6e9d7d54cfcc42f1922eb9f893a86d143a5a555c97c500f0964da014caea"
+    },
+    "assets/SkillsDetail.SFMYdtvB.js": {
+      "sha256": "87365e97053e3adafb7f18de9a7ce1667580496cfa0e368c8c73da7889da68d1"
+    },
+    "assets/StateBadge.CqOzQws8.js": {
+      "sha256": "5b718a44aa3377e13dc024499e82c12a538e97c979d9ae3afab532f2dce820b5"
+    },
+    "assets/StateDetail.BLvHao-1.js": {
+      "sha256": "37346c1f8144b45f7334742457f4783c4d0fd417eb0bcb4a6193ea854af83ad5"
+    },
+    "assets/StatusDot.B1XFlKH2.js": {
+      "sha256": "708d1e5e49c6baaec4e9218c66d75520859d9d0c13a6add594b9671ec6494bbb"
+    },
+    "assets/StoryboardPage.Be-A-a5f.js": {
+      "sha256": "4d48e4e443c051b8372765301e6525d597593bd93288c6904913fc6869adbd7a"
+    },
+    "assets/SurfaceFilterBar.CukIzmTC.js": {
+      "sha256": "fba9aef8e46a1465608d8db12ba59074a9fa4254e2d0f40430108a6d7c5a07bb"
+    },
+    "assets/TabNav.Bf76Zhs3.js": {
+      "sha256": "d7894389194ceba2a421b36be395e4f3fb351edcfc63c5b536377a0ee735f398"
+    },
+    "assets/TelemetryTab.1qVXhzUR.js": {
+      "sha256": "55ac23e197ac8176196e3e7bcd14da7a961ef2a87e0fa4739ec04d9b81c9d62c"
+    },
+    "assets/ToolRegistryDetail.CBLcA_YR.js": {
+      "sha256": "73fe6d3b614801a37c59d0b533fba561992769ebc258e60c2dd1217af25efed4"
+    },
+    "assets/Tools.BL1LbIW6.js": {
+      "sha256": "70c6de8f23e9da8fe8c3092f0e480708ef5b7df9053e28e5c51ebd31882d63df"
+    },
+    "assets/TraceScenarioLoop.uQEEXdNO.js": {
+      "sha256": "b47e7ca1c44bd729c16413c84db8fb8eb375a8bac65ecc4ea44aef3fa828e8f9"
+    },
+    "assets/WorkbenchResources.Cysjxxa2.js": {
+      "sha256": "00c3a4e747f52fe4b31a32c1e5340456c306a21074e17da0fee9282b0b8038d6"
+    },
+    "assets/WorkshopMap.DH8mt7F6.js": {
+      "sha256": "bff80ca7ba36e015d91a1e74b3aeced59e654e116c3ff067a19505ac662f268d"
+    },
+    "assets/arrow-left.BBSMPWFQ.js": {
+      "sha256": "3395322a047c9322919c6a7352618a2a1d0e4d7335c8a6bd4cccd978f76259b0"
+    },
+    "assets/circle-check.DeasV0DC.js": {
+      "sha256": "a004f49d5a8bacdddb977ab8afce538b7aa49ff7af7388f2618183b2c848c52a"
+    },
+    "assets/circle-dashed.D9Kw8JNn.js": {
+      "sha256": "5545d80d76b92ac2fced8a5bc94204e04c0b6a0acd5c011fbf901537ceb6c25c"
+    },
+    "assets/codeStyles.DuuYIlVH.js": {
+      "sha256": "cfbd3c8769f9d56dc5cc2b20a94e98eb1d05af88714091b5de1873a0b79042c3"
+    },
+    "assets/framework.DnOUApHi.js": {
+      "sha256": "cb89b905a04862d828bbe5a136a125ba2d9985efd4b458e12784c2d7f77dc715"
+    },
+    "assets/git-branch.B-QDT8BS.js": {
+      "sha256": "6e7adb4b266c65a2693821a098d0b08b279f9844da6008a88ac4654ec8018203"
+    },
+    "assets/index.CK35BJv_.js": {
+      "sha256": "3acaa30a5f79410bae41b8edd6eba83e54e8facd0e3b5047878a8388119168c8"
+    },
+    "assets/labCatalog.DzVAGGDm.js": {
+      "sha256": "17c756a08b358251957822f57c9096b16e86853dc7549a636b7e8f15a7663df5"
+    },
+    "assets/membership.D1ZH3uY2.js": {
+      "sha256": "1c02ed96b27fe25af85c07b95da18f12b19efaf6c414ebdbf51ad5053c45acc2"
+    },
+    "assets/message-square-quote.CSVDDiGu.js": {
+      "sha256": "aacfcf93f8414270e0efacd25f2fe2c0b5fe78069ee1e46a40c2a4cb51fe2624"
+    },
+    "assets/operator.Dd3LTRrB.js": {
+      "sha256": "13625e8cab50335b3fb5df9825bc420973102bbb4b6ef23c740cdfe12d6274a4"
+    },
+    "assets/play.Du8pTKkK.js": {
+      "sha256": "4a86db446e48ef5a9268fa4f79c59b7fa8a27a5be539d6f36ea4db8b6a230dab"
+    },
+    "assets/referenceCatalog.DfkuVQSY.js": {
+      "sha256": "a58de8be45b98601db50bbf7da612411db7923368652ed12bab44ab4b550b860"
+    },
+    "assets/refresh-cw.BkqEy622.js": {
+      "sha256": "e3917be06ef547f4d2d5325dbdd1efdf15d59ab516ff2312997d5013161d2ff7"
+    },
+    "assets/resolveProductImageUrl.CuomKjcT.js": {
+      "sha256": "528030d22395a4bc791fc060dba5b3b71e47d6fff2024dea743f5143a54ded1d"
+    },
+    "assets/retrievalReceipt.B155HXTG.js": {
+      "sha256": "e79fe1b48889a8855f7a3d4d6e5b4b2fb1c3268e5a543bbbccb1ca66d793a873"
+    },
+    "assets/search.DLYlCZqb.js": {
+      "sha256": "1bbba9ba794ee35bef5f4c85250d17c95f2d56c4455b895103b06e107a158607"
+    },
+    "assets/shield-x.CCalXS0x.js": {
+      "sha256": "3c79a8fa6d9291fe35f3f6cbf22d6739f025017c8d95d4208ac48efe3ae961c5"
+    },
+    "assets/useClientBook.pOdLV8oD.js": {
+      "sha256": "935dec23dab848d7bd5eb889d91b26e1a7fa51d1249ae0bfcfa1ad4b6ee45322"
+    },
+    "assets/useObservatoryData.C43d1lCT.js": {
+      "sha256": "a8a3050b1c3d8c7b5032a669342ee46df436113615725a9dd626d988a2d7aa19"
+    },
+    "assets/user-check.BXbtNohp.js": {
+      "sha256": "190b346e9ecf65759fc1eec135f20a1e3cc34d21c29c8824906e56f4d4ec442b"
+    }
+  },
+  "identityRedaction": "AWS account is redacted in the public source snapshot. Exact account/deployment identities remain in the local Studio release evidence."
 }
