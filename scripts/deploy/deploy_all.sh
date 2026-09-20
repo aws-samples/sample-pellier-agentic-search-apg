@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prefer workshop aliases without changing the operating system interpreter.
+export PATH="/opt/pellier/bin:$PATH"
+
 # Recovery entrypoint for Pellier's managed AgentCore deployment.
 #
 # scripts/provision_agentcore_end_to_end.py is the only implementation. It

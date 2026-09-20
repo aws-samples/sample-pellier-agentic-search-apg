@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Workshop Python aliases are separate from AL2023 system Python.
+export PATH="/opt/pellier/bin:$PATH"
+
 # ============================================================================
 # PARAMETERS & LOGGING
 # ============================================================================
@@ -263,7 +266,7 @@ if [ -n "$DB_HOST" ]; then
     # URL-encode the password for DATABASE_URL. Aurora master secrets
     # routinely contain @ : / ? % which must be percent-encoded inside
     # a postgresql:// URL or psycopg will misparse the string.
-    DB_PASSWORD_URLENC=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASSWORD")
+    DB_PASSWORD_URLENC=$(python3.14 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASSWORD")
 
     # Cognito's hosted-UI client is confidential. The browser never receives
     # this value, but the server-side authorization-code exchange, refresh, and
@@ -279,7 +282,7 @@ if [ -n "$DB_HOST" ]; then
             --query SecretString \
             --output text 2>/dev/null || true)"
         if [ -n "$_cognito_secret_payload" ]; then
-            COGNITO_CLIENT_SECRET="$(printf '%s' "$_cognito_secret_payload" | python3 -c '
+            COGNITO_CLIENT_SECRET="$(printf '%s' "$_cognito_secret_payload" | python3.14 -c '
 import json
 import sys
 
@@ -445,15 +448,15 @@ log "✅ Participant Claude Code guidance installed at $GLOBAL_CLAUDE"
 # we want to catch it here before the seeder runs and hits
 # ModuleNotFoundError.
 log "Verifying Python dependencies..."
-if sudo -u "$CODE_EDITOR_USER" python3 -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>/dev/null; then
+if sudo -u "$CODE_EDITOR_USER" python3.14 -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>/dev/null; then
     log "✅ Backend dependencies verified"
 else
     warn "Some backend dependencies are missing — re-running pip install"
     if [ -f "$REPO_PATH/pellier/backend/requirements.lock" ]; then
-        sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user \
+        sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user \
             --require-hashes -r "$REPO_PATH/pellier/backend/requirements.lock" 2>&1 \
             | tee -a /var/log/pellier-pip-install.log >/dev/null
-        if sudo -u "$CODE_EDITOR_USER" python3 -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>/dev/null; then
+        if sudo -u "$CODE_EDITOR_USER" python3.14 -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>/dev/null; then
             log "✅ Backend dependencies recovered"
         else
             warn "Backend dependencies still missing after retry — pellier service will fail to start"
@@ -466,9 +469,9 @@ fi
 # STEP 7: INSTALL UV (~30 sec)
 # ============================================================================
 log "Installing uv..."
-if ! sudo -u "$CODE_EDITOR_USER" bash -c 'export PATH="$HOME/.local/bin:$PATH" && command -v uv' &>/dev/null; then
+if ! sudo -u "$CODE_EDITOR_USER" bash -c 'export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH" && command -v uv' &>/dev/null; then
     sudo -u "$CODE_EDITOR_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh' &>/dev/null || \
-    sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user uv &>/dev/null
+    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user uv &>/dev/null
     log "✅ uv installed"
 else
     log "✅ uv already installed"
@@ -501,7 +504,7 @@ if [ -n "$DB_HOST" ] && [ -f "$REPO_PATH/pellier/backend/generate_mcp_config.py"
             export DB_CLUSTER_ARN='$DB_CLUSTER_ARN' && \
             export DB_NAME='$DB_NAME' && \
             export AWS_REGION='$AWS_REGION' && \
-            python3 generate_mcp_config.py" 2>&1 | tee /var/log/mcp-config-generation.log
+            python3.14 generate_mcp_config.py" 2>&1 | tee /var/log/mcp-config-generation.log
         
         if [ -f "$REPO_PATH/pellier/config/mcp-server-config.json" ]; then
             log "✅ MCP config generated at pellier/config/mcp-server-config.json"
@@ -529,7 +532,7 @@ if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
         export AWS_REGION='${AWS_REGION:-us-east-1}'
         cd '$REPO_PATH'
-        python3 scripts/check_model_access.py --write-env '$REPO_PATH/pellier/backend/.env'
+        python3.14 scripts/check_model_access.py --write-env '$REPO_PATH/pellier/backend/.env'
     " 2>&1 | tee /var/log/model-access-preflight.log; then
         log "✅ Bedrock model-access preflight passed"
     else
@@ -619,7 +622,7 @@ setup_database() {
         # on a machine with Bedrock access and commit the updated cache.
         #
         # Must run as $CODE_EDITOR_USER: psycopg is installed via
-        # `pip install --user` for that user in Stage 1, so root's python3
+        # `pip install --user` for that user in Stage 1, so root's python3.14
         # cannot import it. Without sudo -u the seeder dies with
         # ModuleNotFoundError and the catalog stays empty — cascading silent
         # failures into 003's persona-orders JOIN. ----
@@ -637,7 +640,7 @@ setup_database() {
             ASSETS_BUCKET_PREFIX="${ASSETS_BUCKET_PREFIX:-}" \
             DATABASE_URL="$DATABASE_URL" \
             REPO_PATH="$REPO_PATH" \
-            bash -c 'cd "$REPO_PATH" && python3 scripts/seed_pellier_catalog.py --from-cache' \
+            bash -c 'cd "$REPO_PATH" && python3.14 scripts/seed_pellier_catalog.py --from-cache' \
             2>&1 | tee /var/log/database-setup.log
         local seed_rc=${PIPESTATUS[0]}
         if [ "$seed_rc" -ne 0 ]; then
@@ -743,7 +746,7 @@ setup_database() {
                 AWS_REGION="$AWS_REGION" \
                 DATABASE_URL="$DATABASE_URL" \
                 REPO_PATH="$REPO_PATH" \
-                bash -c 'cd "$REPO_PATH" && python3 scripts/seed_tool_registry.py' \
+                bash -c 'cd "$REPO_PATH" && python3.14 scripts/seed_tool_registry.py' \
                 2>&1 | tee -a /var/log/database-setup.log
             local tool_rc=${PIPESTATUS[0]}
             if [ "$tool_rc" -ne 0 ]; then
@@ -895,7 +898,7 @@ alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-ga
 # four labs leave behind. Also the fastest table-lead diagnostic: it names the
 # boundary a stuck participant has not crossed, and distinguishes "no row yet"
 # from "could not look", which are different problems.
-alias receipt='python3 /workshop/sample-pellier-agentic-search-apg/scripts/build_receipt.py'
+alias receipt='python3.14 /workshop/sample-pellier-agentic-search-apg/scripts/build_receipt.py'
 
 # AgentCore CLI (pinned 0.29.0). Labs inspect the managed resources, then add,
 # validate, deploy, and remove one participant Cedar policy in the same
@@ -937,7 +940,7 @@ _agentcore_resolve() {
 agentcore() {
     local resolution source effective repo project_dir
     repo="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
-    project_dir="$(python3 "$repo/scripts/deploy/resolve_agentcore_identity.py" \
+    project_dir="$(python3.14 "$repo/scripts/deploy/resolve_agentcore_identity.py" \
       --repo "$repo" --field project-root)" || return 1
     resolution="$(_agentcore_resolve)"
     source="$(printf '%s' "$resolution" | cut -f1)"
@@ -986,7 +989,7 @@ export AWS_REGION=${AWS_REGION:-us-east-1}
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 
 # Ensure uv is in PATH (required for MCP)
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH"
 
 # Auto-navigate to workshop directory on terminal open
 if [ "$PWD" = "$HOME" ] || [ "$PWD" = "/workshop" ]; then
@@ -1010,7 +1013,7 @@ alias reset-governed='bash /workshop/sample-pellier-agentic-search-apg/scripts/r
 # `doctor --lab N` names the prerequisite a stuck participant has not met.
 alias workshop-start='bash /workshop/sample-pellier-agentic-search-apg/scripts/workshop-start.sh'
 alias lab3-start='bash /workshop/sample-pellier-agentic-search-apg/scripts/lab3-start.sh'
-alias doctor='python3 /workshop/sample-pellier-agentic-search-apg/scripts/workshop_doctor.py'
+alias doctor='python3.14 /workshop/sample-pellier-agentic-search-apg/scripts/workshop_doctor.py'
 ALS
 printf '%s\n' "$BASHRC_END"
 } >> "$BASHRC_TMP"
@@ -1044,7 +1047,7 @@ if [ -n "$DB_HOST" ]; then
 fi
 
 # Verify Python packages
-if sudo -u "$CODE_EDITOR_USER" python3 -c "import fastapi, strands, uvicorn" 2>/dev/null; then
+if sudo -u "$CODE_EDITOR_USER" python3.14 -c "import fastapi, strands, uvicorn" 2>/dev/null; then
     log "✅ Pellier Backend dependencies verified"
 else
     warn "⚠️  Some Pellier Backend dependencies may be missing"
@@ -1207,7 +1210,7 @@ EnvironmentFile=$REPO_PATH/.env
 # reaches the service instead of being silently ignored; '-' tolerates
 # its absence.
 EnvironmentFile=-/etc/pellier/run.env
-Environment=PATH=/home/$CODE_EDITOR_USER/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/opt/pellier/bin:/home/$CODE_EDITOR_USER/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=PYTHONUNBUFFERED=1
 # VITE_BASE_PATH is baked into the built bundle so asset URLs match
@@ -1219,9 +1222,9 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # when dist/ is absent (the SPA 404s with a clear log line). This is the
 # fix for the prior failure mode where an unguarded npm run build under
 # set -e aborted bootstrap before uvicorn ever started.
-ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3 generate_mcp_config.py 2>/dev/null || true'
+ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3.14 generate_mcp_config.py 2>/dev/null || true'
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
-ExecStart=/usr/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
+ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
 Restart=always
 RestartSec=3
 StandardOutput=append:/tmp/pellier/uvicorn.log
@@ -1312,10 +1315,10 @@ if [ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ] \
     export COGNITO_REGION="${COGNITO_REGION:-$AWS_REGION}"
     # Dependencies belong to the participant's Python installation.
     if sudo -u "$CODE_EDITOR_USER" env \
-         PATH="/usr/bin:/usr/local/bin:$PATH" \
+         PATH="/opt/pellier/bin:/usr/bin:/usr/local/bin:$PATH" \
          AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
          COGNITO_POOL_ID="$COGNITO_POOL_ID" COGNITO_REGION="$COGNITO_REGION" \
-         python3 "$REPO_PATH/scripts/seed_principal_mappings.py" 2>&1 \
+         python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py" 2>&1 \
          | tee /var/log/pellier-seed-principal-mappings.log; then
         log "✅ Principal mappings seeded"
     elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
@@ -1418,7 +1421,7 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
         log "Governed format: preserving Inventory Agent and check_inventory scaffolds for participant build"
         if (
             cd "$REPO_PATH"
-            python3 scripts/reset_participant_exercises.py --repo "$REPO_PATH"
+            python3.14 scripts/reset_participant_exercises.py --repo "$REPO_PATH"
         ); then
             log "✅ Governed format: all four participant exercises restored to starter state"
         else
@@ -1476,8 +1479,8 @@ EOF
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PROVISION_ENV" 2>/dev/null || true
     log "Wrote provisioning recovery file: $PROVISION_ENV"
 
-    if ! command -v npx &>/dev/null || ! command -v python3 &>/dev/null; then
-        warn "Missing npx or python3 — skipping managed AgentCore provisioning (backend will still start)"
+    if ! command -v npx &>/dev/null || ! command -v python3.14 &>/dev/null; then
+        warn "Missing npx or python3.14 — skipping managed AgentCore provisioning (backend will still start)"
         write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
         AGENTCORE_OK=false
     fi
@@ -1496,10 +1499,10 @@ EOF
     # Tee the full provisioning run (incl. `agentcore deploy` stdout/stderr) to
     # a dedicated log so a failed run has a single, predictable place to look —
     # /var/log/pellier-agentcore.log — instead of grepping the master bootstrap
-    # log. pipefail propagates the python3 exit status through the pipe.
+    # log. pipefail propagates the python3.14 exit status through the pipe.
     AGENTCORE_LOG="/var/log/pellier-agentcore.log"
     if [ "$AGENTCORE_OK" = true ] && ! sudo -u "$CODE_EDITOR_USER" bash -c "
-        export PATH=\"/usr/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH\"
+        export PATH=\"/opt/pellier/bin:/usr/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH\"
         node --version  # log the node the CLI will actually use
         export AWS_REGION='$AWS_REGION'
         export AWS_DEFAULT_REGION='$AWS_REGION'
@@ -1524,7 +1527,7 @@ EOF
         export AGENT_MODEL_ID='${AGENT_MODEL_ID:-}'
         export BEDROCK_FAST_MODEL='${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'
         export WORKSHOP_ID='${WORKSHOP_ID:-dat416}'
-        python3 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
+        python3.14 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
             --repo-path '$REPO_PATH' \
             --output-json '$MANAGED_OUTPUT_JSON'
     " 2>&1 | tee "$AGENTCORE_LOG"; then
@@ -1753,7 +1756,7 @@ _want="\${1:-}"
 _creds=\$(aws secretsmanager get-secret-value \\
   --secret-id "$COGNITO_TEST_CREDENTIALS_SECRET_ARN" --region "$AWS_REGION" \\
   --query SecretString --output text 2>/dev/null)
-_pair=\$(echo "\$_creds" | python3 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=[x for x in json.load(sys.stdin).get("users",[]) if str(x.get("username","")).strip()];matches=[x for x in us if x["username"].strip().lower()==w];chosen=(us[0] if not w and us else matches[0] if len(matches)==1 else None);print((chosen["username"]+"\\t"+chosen["password"]) if chosen else "")' "\$_want" 2>/dev/null)
+_pair=\$(echo "\$_creds" | python3.14 -c 'import sys,json;w=(sys.argv[1] if len(sys.argv)>1 else "").strip().lower();us=[x for x in json.load(sys.stdin).get("users",[]) if str(x.get("username","")).strip()];matches=[x for x in us if x["username"].strip().lower()==w];chosen=(us[0] if not w and us else matches[0] if len(matches)==1 else None);print((chosen["username"]+"\\t"+chosen["password"]) if chosen else "")' "\$_want" 2>/dev/null)
 if [ -z "\$_pair" ]; then
   echo "✗ Unknown Cognito username '\$_want'. Expected marco, anna, theo, or jessica."
   unset PELLIER_TOKEN
@@ -1767,8 +1770,8 @@ _ap="USERNAME=\$_u,PASSWORD=\$_p"
 _csarn='${COGNITO_CLIENT_SECRET_ARN:-}'
 if [ -n "\$_csarn" ]; then
   _csec=\$(aws secretsmanager get-secret-value --secret-id "\$_csarn" --region "$AWS_REGION" --query SecretString --output text 2>/dev/null)
-  _csec=\$(echo "\$_csec" | python3 -c 'import sys,json;s=sys.stdin.read().strip();print(json.loads(s).get("client_secret",s) if s.startswith("{") else s)' 2>/dev/null)
-  _sh=\$(python3 -c 'import sys,hmac,hashlib,base64;u,c,k=sys.argv[1:4];print(base64.b64encode(hmac.new(k.encode(),(u+c).encode(),hashlib.sha256).digest()).decode())' "\$_u" "$_TOKEN_CLIENT" "\$_csec" 2>/dev/null)
+  _csec=\$(echo "\$_csec" | python3.14 -c 'import sys,json;s=sys.stdin.read().strip();print(json.loads(s).get("client_secret",s) if s.startswith("{") else s)' 2>/dev/null)
+  _sh=\$(python3.14 -c 'import sys,hmac,hashlib,base64;u,c,k=sys.argv[1:4];print(base64.b64encode(hmac.new(k.encode(),(u+c).encode(),hashlib.sha256).digest()).decode())' "\$_u" "$_TOKEN_CLIENT" "\$_csec" 2>/dev/null)
   [ -n "\$_sh" ] && _ap="\$_ap,SECRET_HASH=\$_sh"
 fi
 export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
@@ -1827,7 +1830,7 @@ if [ -n "$(_pool_id)" ]; then
     log "Seeding the $OPERATOR_GROUP Cognito group and its member..."
     POOL="$(_pool_id)"
     # A public workshop ID must never determine a staff credential.
-    OPERATOR_PASSWORD="$(python3 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+    OPERATOR_PASSWORD="$(python3.14 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
     OPERATOR_PASSWORD_SET=false
 
     aws cognito-idp create-group --user-pool-id "$POOL" \
@@ -1853,8 +1856,13 @@ if [ -n "$(_pool_id)" ]; then
          --username "$OPERATOR_USERNAME" --region "$AWS_REGION" \
          --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
          | grep -q "$OPERATOR_GROUP"; then
-        if ! OPERATOR_USERNAME="$OPERATOR_USERNAME" OPERATOR_PASSWORD="$OPERATOR_PASSWORD" \
-            python3 "$REPO_PATH/scripts/store_operator_credential.py"; then
+        # boto3 belongs to the participant's Python 3.14 user site. Pass the
+        # credential as literal environment data, never through a shell string.
+        if ! sudo -u "$CODE_EDITOR_USER" env \
+            AWS_REGION="$AWS_REGION" \
+            COGNITO_TEST_CREDENTIALS_SECRET_ARN="$COGNITO_TEST_CREDENTIALS_SECRET_ARN" \
+            OPERATOR_USERNAME="$OPERATOR_USERNAME" OPERATOR_PASSWORD="$OPERATOR_PASSWORD" \
+            python3.14 "$REPO_PATH/scripts/store_operator_credential.py"; then
             fail "Could not persist the staff credential for readiness and Lab 4"
         fi
         OPERATOR_GROUP_OK=true
@@ -1899,7 +1907,7 @@ echo "✅ Database setup complete (expanded product corpus + warehouse inventory
 echo "✅ MCP server config written to pellier/config/mcp-server-config.json"
 echo "✅ Bash environment configured (psql ready)"
 if [ "${WORKSHOP_FORMAT}" = "builders" ]; then
-    echo "✅ pellier systemd service enabled — python3 -m uvicorn --reload on :8000 (live .py edits)"
+    echo "✅ pellier systemd service enabled — python3.14 -m uvicorn --reload on :8000 (live .py edits)"
 else
     echo "✅ pellier systemd service enabled (single process on :8000)"
 fi

@@ -179,9 +179,9 @@ fi
 # ----------------------------------------------------------------------------
 # Python 3.14 — the single supported interpreter for this workshop.
 #
-# PY_VER is used for update-alternatives so /usr/bin/python3 points at the
-# chosen interpreter. Downstream scripts call `python3` (the alternative),
-# never a pinned python3.X, so they follow this choice automatically.
+# AL2023 owns /usr/bin/python3 and its Python 3.9 packages (cloud-init, dnf,
+# and other OS tools). Never repoint that interpreter. Workshop commands use
+# the versioned binary; only workshop/editor shells receive the private aliases.
 # ----------------------------------------------------------------------------
 log "Installing Python 3.14..."
 PY_VER="3.14"
@@ -202,47 +202,45 @@ log "✅ Python ${PY_VER} installed"
 # ============================================================================
 
 log "Installing AWS CLI v2..."
-cd /tmp
-if [ "$(uname -m)" = "aarch64" ]; then
-    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
-else
-    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-fi
-unzip -q awscliv2.zip
-./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
-rm -rf awscliv2.zip aws/
-cd - > /dev/null
+# A reboot can interrupt extraction. Each attempt owns a fresh directory so
+# unzip never prompts about leftovers and cleanup cannot remove another run.
+(
+    AWS_CLI_STAGING="$(mktemp -d /tmp/pellier-aws-cli.XXXXXXXX)"
+    trap 'rm -rf -- "$AWS_CLI_STAGING"' EXIT
+    cd "$AWS_CLI_STAGING"
+    if [ "$(uname -m)" = "aarch64" ]; then
+        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+    else
+        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    fi
+    unzip -q awscliv2.zip
+    ./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+)
 
-# CRITICAL ordering fix: AL2023 preinstalls AWS CLI **v1** at /usr/bin/aws – a
-# Python script whose shebang runs the SYSTEM python3 and does `import awscli`.
-# The official v2 bundle we just installed is self-contained (its own embedded
-# python, no `import awscli`) and lands at /usr/local/bin/aws. But /usr/bin
-# precedes /usr/local/bin on the provisioning PATH, so `aws` would still resolve
-# to the v1 shim – and the moment we repoint python3 -> 3.14 below, that v1 shim
-# breaks with "ModuleNotFoundError: No module named 'awscli'" (awscli was
-# installed for 3.9, not 3.14). That silently kills every `aws` subprocess in
-# AgentCore provisioning (observed: `aws lambda get-function` → ModuleNotFound →
-# no Lambdas/Gateway/Runtime/Policy deploy). Force /usr/bin/aws to point at the
-# python-independent v2 binary so it survives the python switch and wins on PATH.
+# AL2023 also ships a Python-based AWS CLI v1. The self-contained v2 bundle
+# must win on the provisioning PATH, independently of either Python runtime.
 if [ -x /usr/local/bin/aws ]; then
     ln -sf /usr/local/bin/aws /usr/bin/aws
     ln -sf /usr/local/bin/aws_completer /usr/bin/aws_completer 2>/dev/null || true
 fi
 
-# Set the chosen Python ($PY_VER, from STEP 1) as the default python3.
-log "Setting Python ${PY_VER} as default..."
-update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python${PY_VER}" 1
-update-alternatives --set python3 "/usr/bin/python${PY_VER}"
-log "✅ Python ${PY_VER} set as default (python3 → python${PY_VER})"
+# BEGIN WORKSHOP PYTHON ISOLATION
+# Only this root-owned private directory gets aliases. OS absolute shebangs
+# continue to resolve /usr/bin/python3 to the distribution's interpreter.
+/usr/bin/python3.14 -c 'import sys; assert sys.version_info[:2] == (3, 14)'
+install -d -m 0755 /opt/pellier/bin
+ln -sfn /usr/bin/python3.14 /opt/pellier/bin/python3
+ln -sfn /usr/bin/python3.14 /opt/pellier/bin/python
+export PATH="/opt/pellier/bin:$PATH"
+log "✅ Workshop Python ${PY_VER} configured; system Python preserved"
+# END WORKSHOP PYTHON ISOLATION
 
-# Verify AWS CLI AFTER the python switch – this is the check that would have
-# caught the v1/python3.14 breakage. Must report aws-cli/2.x; v1 (aws-cli/1.x)
-# or a ModuleNotFoundError here means the symlink above didn't take.
+# Verify the independent AWS CLI v2 executable.
 _aws_ver="$(aws --version 2>&1 || true)"
 if echo "$_aws_ver" | grep -q 'aws-cli/2'; then
-    log "✅ AWS CLI v2 active after python switch: $_aws_ver"
+    log "✅ AWS CLI v2 active: $_aws_ver"
 else
-    warn "AWS CLI is NOT v2 after the python switch (got: ${_aws_ver:-no output}). AgentCore provisioning shells out to 'aws' and will fail. Recover: 'sudo ln -sf /usr/local/bin/aws /usr/bin/aws' then re-run scripts/deploy/deploy_all.sh."
+    warn "AWS CLI is NOT v2 (got: ${_aws_ver:-no output}). AgentCore provisioning shells out to 'aws' and will fail. Recover: 'sudo ln -sf /usr/local/bin/aws /usr/bin/aws' then re-run scripts/deploy/deploy_all.sh."
 fi
 
 # ============================================================================
@@ -520,7 +518,7 @@ Type=simple
 User=%i
 Group=%i
 WorkingDirectory=$HOME_FOLDER
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/$CODE_EDITOR_USER/.local/bin
+Environment=PATH=/opt/pellier/bin:/usr/local/bin:/usr/bin:/bin:/home/$CODE_EDITOR_USER/.local/bin
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=AWS_REGION=$AWS_REGION
 Environment=AWS_DEFAULT_REGION=$AWS_REGION
@@ -683,7 +681,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "update.showReleaseNotes": false,
     "terminal.integrated.defaultProfile.linux": "bash",
     "task.allowAutomaticTasks": "on",
-    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.defaultInterpreterPath": "/usr/bin/python3.14",
     "python.testing.pytestEnabled": true,
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
@@ -822,7 +820,7 @@ cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
     "editor.fontSize": 16,
     "terminal.integrated.fontSize": 18,
     "window.zoomLevel": 1,
-    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.defaultInterpreterPath": "/usr/bin/python3.14",
     "task.autoDetect": "on",
     "task.allowAutomaticTasks": "on",
     "task.problemMatchers.neverPrompt": true,
@@ -849,7 +847,7 @@ log "Installing locked workshop dependencies..."
 REQUIREMENTS="$HOME_FOLDER/$REPO_NAME/pellier/backend/requirements.lock"
 if [ -f "$REQUIREMENTS" ]; then
     log "Installing backend dependencies from requirements.lock..."
-    sudo -u "$CODE_EDITOR_USER" python3 -m pip install --user --require-hashes -r "$REQUIREMENTS" 2>&1 \
+    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user --require-hashes -r "$REQUIREMENTS" 2>&1 \
         | tee /var/log/pellier-pip-install.log
     PIP_EXIT=${PIPESTATUS[0]}
     if [ "$PIP_EXIT" -ne 0 ]; then
@@ -892,7 +890,7 @@ if [ -f /workshop/sample-pellier-agentic-search-apg/.env ]; then
 fi
 
 # Add local bin to PATH
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH"
 EOF
 
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "/home/$CODE_EDITOR_USER/.bashrc"

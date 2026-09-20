@@ -20,6 +20,9 @@
 #   PELLIER_BACKEND_PORT           backend port (default 8000)
 set -uo pipefail
 
+# Prefer workshop aliases without changing the operating system interpreter.
+export PATH="/opt/pellier/bin:$PATH"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 HOME_FOLDER="${HOME_FOLDER:-/workshop}"

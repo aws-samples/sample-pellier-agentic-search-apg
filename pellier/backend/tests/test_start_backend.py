@@ -27,14 +27,13 @@ def test_launcher_enters_its_backend_or_stops_before_running_commands(
     stubs = tmp_path / "stubs"
     stubs.mkdir()
     calls = tmp_path / "calls.txt"
-    for name, exit_code in (("python3", config_exit), ("uvicorn", 0)):
-        executable = stubs / name
-        executable.write_text(
-            "#!/bin/sh\n"
-            f'printf "%s\\n" "{name}|$PWD|$*" >> "$PELLIER_LAUNCHER_TEST_LOG"\n'
-            f"exit {exit_code}\n"
-        )
-        executable.chmod(0o700)
+    executable = stubs / "python3"
+    executable.write_text(
+        "#!/bin/sh\n"
+        'printf "%s\\n" "python3|$PWD|$*" >> "$PELLIER_LAUNCHER_TEST_LOG"\n'
+        f'if [ "$1" = "generate_mcp_config.py" ]; then exit {config_exit}; fi\nexit 0\n'
+    )
+    executable.chmod(0o700)
 
     result = subprocess.run(
         ["/bin/bash", str(launcher)],
@@ -55,7 +54,7 @@ def test_launcher_enters_its_backend_or_stops_before_running_commands(
         assert result.returncode == 0
         assert calls.read_text().splitlines() == [
             f"python3|{backend}|generate_mcp_config.py",
-            f"uvicorn|{backend}|app:app --reload --host 0.0.0.0 --port 8000",
+            f"python3|{backend}|-m uvicorn app:app --reload --host 0.0.0.0 --port 8000",
         ]
         if config_exit:
             assert "MCP config generation skipped" in result.stdout

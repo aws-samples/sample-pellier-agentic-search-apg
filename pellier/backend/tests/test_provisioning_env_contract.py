@@ -134,7 +134,7 @@ def test_the_rls_seed_runs_as_the_user_that_owns_the_dependencies() -> None:
     body = BOOTSTRAP.read_text()
     # The INVOCATION, not the `[ -f ... ]` existence guard a few lines above it. Anchoring
     # on the bare filename found the guard and read the wrong window.
-    marker = 'python3 "$REPO_PATH/scripts/seed_principal_mappings.py"'
+    marker = 'python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py"'
     assert marker in body, "bootstrap no longer invokes the RLS principal seed"
     call = body.index(marker)
     window = body[max(0, call - 700): call]

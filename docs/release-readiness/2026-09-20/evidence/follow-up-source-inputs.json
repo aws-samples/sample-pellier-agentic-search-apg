@@ -14,6 +14,14 @@
       "sha256": "206a7b010564c1525031403e97d1606de2489ce9def74a060beaa37971fd9523"
     },
     {
+      "file": "pellier/START_BACKEND.sh",
+      "sha256": "5ad7328b25ee088173b32d16f6aaeab2be8bbc85aaa3f6ba021ce283d5d45506"
+    },
+    {
+      "file": "pellier/START_FRONTEND.sh",
+      "sha256": "93cc4d47278a335b6b8e099ee49ba7463ced912c7e6ddf3cffb09be09142ae3c"
+    },
+    {
       "file": "pellier/backend/__init__.py",
       "sha256": "b93d67b6d81c2360829e7bae6c542d4d153981bbd296aa86f984304b2af5f3d2"
     },
@@ -574,8 +582,12 @@
       "sha256": "cf97799ec79f9228dbf76fa7dbef266574280890d074d9d0b77cd373f4d68211"
     },
     {
+      "file": "pellier/backend/tests/test_bootstrap_python_isolation.py",
+      "sha256": "615c3360db7c6c0046c1d73abdbce6ae0fe60f61093a6a686cd8c356c8fb5124"
+    },
+    {
       "file": "pellier/backend/tests/test_bootstrap_readiness_contract.py",
-      "sha256": "ce3a414295fec1c1962bafdf66ec44ab42aca65f563a74f3c502a2118a68c31d"
+      "sha256": "21f3f4884c2479f45b1f916fcef506a1b33a44de5fb988e0db7922f66ce138e7"
     },
     {
       "file": "pellier/backend/tests/test_bootstrap_shared_trace_authorization.py",
@@ -1107,7 +1119,7 @@
     },
     {
       "file": "pellier/backend/tests/test_provisioning_env_contract.py",
-      "sha256": "cc5513f8b0f9ea251afdea36690ec30e8fb2718daf53af961352b0e87bc11af2"
+      "sha256": "e7a14dc4488739db7967876732374a6689eb32b8463c3416e014e7987659abc0"
     },
     {
       "file": "pellier/backend/tests/test_quiet_search_business_logic.py",
@@ -1227,7 +1239,7 @@
     },
     {
       "file": "pellier/backend/tests/test_start_backend.py",
-      "sha256": "ccf489e8c6b109a7e66164b1114740daa078a8ef21e77aad6aa75ea84f578bc5"
+      "sha256": "cccd6e018a48cd7cb35a022c5f6f404b1aa4bbbe53e0f225bedb1770ade8779e"
     },
     {
       "file": "pellier/backend/tests/test_start_frontend_runtime.py",
@@ -1303,7 +1315,7 @@
     },
     {
       "file": "pellier/backend/tests/test_workshop_reset_contract.py",
-      "sha256": "8b88cc435f7a1ac23b151c8ce70f93dbb30a6978cd2eec4e327bd1c8e77089a6"
+      "sha256": "ae67b3de857d3cbcc1f4d24535545dad4e34f0faa7b7deeb5e1c16cd6281771f"
     },
     {
       "file": "pellier/backend/tests/test_workshop_resume.py",
@@ -3423,11 +3435,11 @@
     },
     {
       "file": "scripts/bootstrap-environment.sh",
-      "sha256": "3f58c53ab926eecdf3dab00b50d9e6ef3f0770358a2871d0d21d738268b05d73"
+      "sha256": "fbb1b8f49b8f03f4d8614e27b4179195c06a6e44ef79b406fa21a37700f0e967"
     },
     {
       "file": "scripts/bootstrap-labs.sh",
-      "sha256": "97199188436626cea26be438f8c2c0233e99956083d1bccd019af7e76b79f3bf"
+      "sha256": "4148584b73afa828eb31966c2d2ce8806fb0efcfeba579bca58e7bc073a54b49"
     },
     {
       "file": "scripts/build_receipt.py",
@@ -3471,7 +3483,7 @@
     },
     {
       "file": "scripts/deploy/deploy_all.sh",
-      "sha256": "28f46e430110e2c912ac6af6f83f87945c19d9ce360be321dbfd96ae3af3accd"
+      "sha256": "84be80a3d6358f55a462d2567e4282664fd073b2e80b52c4136a7eec41af40fe"
     },
     {
       "file": "scripts/deploy/deploy_customer_claim_trigger.py",
@@ -3559,7 +3571,7 @@
     },
     {
       "file": "scripts/dry-run-builders.sh",
-      "sha256": "d62e715946a22cd13bb26b25f4a9d553d8695de421e29851882a8b81fc0a3abc"
+      "sha256": "183c452ca05f40d4f98821da7061df07aef7b35aac876406b663f2a07c29e881"
     },
     {
       "file": "scripts/eval_retrieval_harness.py",
@@ -3571,7 +3583,7 @@
     },
     {
       "file": "scripts/health-gate.sh",
-      "sha256": "45571253a9945b5ab84997d91f4c78b864feaca207a736d2ff99c40d15fecac7"
+      "sha256": "5c9c006c8840bfe8a79316f9f2c1ad472b651e43684976addf13b6b29df65c8f"
     },
     {
       "file": "scripts/lab1_contract_check.py",
@@ -3579,7 +3591,7 @@
     },
     {
       "file": "scripts/lab3-start.sh",
-      "sha256": "49e5a88c4c81c469627989abe18fd3de114ce06c09b56936dc12bc5d8ac77ab9"
+      "sha256": "df40db1e3ab8bcd7ed0f5ccad79d1f5da2e6a36ec16ce5a28b7f1b5f27974690"
     },
     {
       "file": "scripts/lib/dotenv.sh",
@@ -3819,7 +3831,7 @@
     },
     {
       "file": "scripts/prove-reset-cycles.sh",
-      "sha256": "9d64ad95e14f0bac671cf1777e62af9d556630acd20389a2bf98fa8395479a33"
+      "sha256": "b833291438d567cd1cf9c8d89f62d529bd74f33780045e76c614ed24b2cd3ad0"
     },
     {
       "file": "scripts/prove_customer_claim.py",
@@ -3855,7 +3867,7 @@
     },
     {
       "file": "scripts/reset-governed-workshop.sh",
-      "sha256": "0a5ff45a5dae4f538e4b39e43ff23725551bdc90869ecd3ec36a7bd3b6b1ded9"
+      "sha256": "e545f18a12cb3fc7b40bdb6651ad12dbc1efb9e9ea89c2803cc22bb674e329e3"
     },
     {
       "file": "scripts/reset_memory_runtime.py",
@@ -3867,7 +3879,7 @@
     },
     {
       "file": "scripts/runtime_hello.sh",
-      "sha256": "938dc3014016154b958a320221b95cfd9323849f30f7d9c5de5000ce331cafc4"
+      "sha256": "9c6e72258c1d8a216589911511ba3be39c2cbf8829641ca8fad28e406b147f17"
     },
     {
       "file": "scripts/score_governance_evidence.py",
@@ -3931,7 +3943,7 @@
     },
     {
       "file": "scripts/workshop-start.sh",
-      "sha256": "1c3723b45e32c4ca9d8426f5f0c7e1313a8fad168add455f37e46e1718c8fb70"
+      "sha256": "89569940a01edf1cb56e866d356e1f40c71ab6985e8730181c4fc638eaad65f6"
     },
     {
       "file": "scripts/workshop_doctor.py",
@@ -4096,6 +4108,8 @@
     "frontend": "1128 passed plus independent type-check, lint, build, zero production-audit vulnerabilities",
     "ciInitialAttempt": "3f42cf8d: 3531 backend tests passed; one stale source-contract assertion failed after policy identity initialization changed. Assertion updated to require the resolved policy engine.",
     "ciReplacement": "31726587: complete CI passed with 3532 backend tests and 1128 frontend tests, before subsequent model/CDK repairs.",
-    "modelAndCdkFollowup": "129 focused tests passed; 24 affected tests passed after final chat-alias repair; provider stubs and executable configuration handoff, not live entitlement proof."
+    "modelAndCdkFollowup": "129 focused tests passed; 24 affected tests passed after final chat-alias repair; provider stubs and executable configuration handoff, not live entitlement proof.",
+    "pythonIsolationFull": "3565 passed, 90 skipped, 2 upstream warnings in 189.46s after all Python isolation and credential-writer changes. Clean replacement bootstrap remains pending.",
+    "ciModelCheckpoint": "79889f82 exact-commit CI passed: 3545 backend and 1128 frontend tests, before the later live-discovered OS Python repair."
   }
 }

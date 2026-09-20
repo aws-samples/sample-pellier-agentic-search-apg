@@ -25,6 +25,9 @@
 # =============================================================================
 set -uo pipefail
 
+# Prefer workshop aliases without changing the operating system interpreter.
+export PATH="/opt/pellier/bin:$PATH"
+
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"

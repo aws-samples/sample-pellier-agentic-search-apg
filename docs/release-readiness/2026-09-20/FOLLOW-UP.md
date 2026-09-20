@@ -182,3 +182,39 @@ requirements, rather than participant-specific code or DNS setup.
 The companion follow-up evidence records the actual check results and their
 scope. Original September 20 evidence remains unchanged; final source and
 Studio publication identities are attested in the local Studio handoff.
+
+## First isolated root attempt and Python repair
+
+The first real root attempt created its private network and separate Aurora
+database. Its editor ran with the new instance role and installed Node 24,
+Python 3.14, AWS CLI v2 and nginx. The existing shared CDK toolkit upgraded from
+template version 30 to 32 with all eleven physical resource identifiers
+unchanged. That proves an upgrade, not first creation in an empty account.
+
+The account's existing Systems Manager patch association then requested a
+reboot during initialization. The exact patch-command receipt and guest journal
+establish the requester and timing. Starting Code Editor conflicted with the
+pending shutdown; CloudFormation received a failure signal. Stage 2 did not run
+and no isolated managed AgentCore resources were created. Account-wide patching
+was not changed.
+
+The next boot exposed a source defect: selecting Python 3.14 through
+`update-alternatives` had replaced Amazon Linux's `/usr/bin/python3`, breaking
+the OS installations of cloud-init and dnf. Restoring the RPM-declared Python
+3.9 symlink on this owned failed instance restored package integrity and both
+tools. This diagnosis and repair check does not count as a successful bootstrap.
+
+Source bootstrap now preserves OS Python. It installs private workshop aliases
+under `/opt/pellier/bin`, explicitly selects Python 3.14 across sudo boundaries,
+and uses `/usr/bin/python3.14` for the application service. Editor, participant
+and recovery shells select the workshop interpreter. The Operator credential
+writer runs as the participant, where its AWS dependency is installed. AWS CLI
+extraction uses a separate temporary directory per attempt so an interrupted
+installation can be retried without extraction prompts or shared-path cleanup.
+
+The paired Studio initialization also needs durable reboot recovery, with
+completed-stage and delivered-environment guards because Stage 2 resets
+participant exercises and baseline data. The local handoff records that
+template repair, its validation, and the subsequent clean launch and lifecycle
+results. Neither local regression tests nor restoring the failed instance closes
+the fresh-root gate.

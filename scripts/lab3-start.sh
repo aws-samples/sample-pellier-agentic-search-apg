@@ -25,6 +25,9 @@
 # =============================================================================
 set -uo pipefail
 
+# Prefer workshop aliases without changing the operating system interpreter.
+export PATH="/opt/pellier/bin:$PATH"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 RUN_ENV_FILE="${PELLIER_RUN_ENV:-/etc/pellier/run.env}"

@@ -151,7 +151,7 @@ def test_facilitator_dry_run_covers_both_lab1_build_sites() -> None:
 
 def test_governed_bootstrap_restores_all_participant_starters() -> None:
     bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
-    command = "python3 scripts/reset_participant_exercises.py --repo \"$REPO_PATH\""
+    command = "python3.14 scripts/reset_participant_exercises.py --repo \"$REPO_PATH\""
     assert command in bootstrap
     governed_branch = bootstrap.index(
         'log "Governed format: preserving Inventory Agent and check_inventory scaffolds'
@@ -999,7 +999,7 @@ def test_bootstrap_requires_identity_seed_before_managed_deployment(
     tmp_path: Path, seed_exit_code: int
 ) -> None:
     source = BOOTSTRAP.read_text(encoding="utf-8")
-    seed_call = source.index('python3 "$REPO_PATH/scripts/seed_principal_mappings.py"')
+    seed_call = source.index('python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py"')
     managed_call = source.index("Provisioning full AgentCore managed path")
     assert seed_call < managed_call
     start = source.index("# Seed identity before the managed deployment")
@@ -1180,7 +1180,7 @@ def test_bootstrap_normalizes_cognito_aliases_before_managed_provisioning() -> N
         'export COGNITO_CLIENT="${COGNITO_CLIENT:-'
         '${COGNITO_CLIENT_ID:-}}"'
     )
-    provision = "python3 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py'"
+    provision = "python3.14 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py'"
 
     assert source.index(pool_alias) < source.index(provision)
     assert source.index(client_alias) < source.index(provision)

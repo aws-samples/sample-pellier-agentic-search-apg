@@ -32,6 +32,9 @@
 
 set -euo pipefail
 
+# Prefer workshop aliases without changing the operating system interpreter.
+export PATH="/opt/pellier/bin:$PATH"
+
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 # The systemd unit's EnvironmentFile. `lab3-start.sh` writes the managed-rail
@@ -91,10 +94,10 @@ fi
 cd "$REPO"
 # A WORKSHOP BOX HAS NO VENV. `bootstrap-environment.sh` installs
 # `pellier/backend/requirements.lock` into the participant's `~/.local` with
-# `pip install --user`, and the systemd unit runs the ambient interpreter. So `python3`
-# there IS the validated interpreter, carrying the same pinned botocore 1.43.51 as a
-# developer venv. Do not "fix" this fallback away: `deploy_all.sh` resolves it the same
-# way for the same reason.
+# `python3.14 -m pip install --user`, and systemd runs /usr/bin/python3.14.
+# The private workshop PATH alias resolves `python3` to that interpreter, with the
+# same pinned botocore 1.43.51 as a developer venv. `deploy_all.sh` uses the
+# same venv-first, private-PATH fallback.
 if [[ ! -x "$PYTHON" ]]; then
   PYTHON="python3"
 fi

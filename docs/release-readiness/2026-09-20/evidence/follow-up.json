@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-20T21:45:57.459157+00:00",
+  "recordedAt": "2026-09-20T22:54:39.187895+00:00",
   "scope": "Follow-up to original September 20 release snapshot. This sanitized summary does not replace private resource receipts. Final source and Studio identities are in the local Studio handoff.",
   "eventVerdict": "HOLD",
   "proofs": {
@@ -64,13 +64,11 @@
     },
     "backend": {
       "state": "PASS",
-      "testsPassed": 3527,
+      "testsPassed": 3565,
       "skipped": 90,
       "upstreamWarnings": 2,
-      "seconds": 225.51,
-      "scope": "Full baseline followed by affected validation after direct-entry identity and default-vhost repairs. Exact-commit CI is attested in the Studio handoff.",
-      "lateAffectedTestsPassed": 287,
-      "lateAffectedSeconds": 33.31
+      "seconds": 189.46,
+      "scope": "Full local suite after Python isolation and participant credential-writer repair; clean replacement bootstrap remains pending."
     },
     "freshAccountModelContract": {
       "state": "PASS",
@@ -89,6 +87,40 @@
       "studioSourceSha": "ce9fad096bb41f1ed6f431b0e560aa305e7be667",
       "publishingState": "Unpublished",
       "currentLocalPackageProofClaimed": false
+    },
+    "initialIsolatedBootstrap": {
+      "state": "FAIL",
+      "sourceSha": "3172658784a935a1da8b19663f63a0b5ea0f57be",
+      "vpcCreated": true,
+      "separateAuroraCreated": true,
+      "actualInstanceRoleVerified": true,
+      "failureSignalAccepted": true,
+      "stage2Ran": false,
+      "managedResourcesCreated": false,
+      "rebootCause": "Existing account State Manager patch association requested RebootIfNeeded during Stage 1; association unchanged.",
+      "sourceDefect": "System Python replaced by workshop Python 3.14, breaking cloud-init and dnf on reboot.",
+      "ownedInstanceOsRestorationVerified": true,
+      "cleanReplacementProofClaimed": false
+    },
+    "pythonIsolationRepair": {
+      "state": "PASS",
+      "scope": "Source regression tests and independent OS restoration on the failed instance; not a successful fresh bootstrap.",
+      "preservesOsPython": true,
+      "workshopPython": "3.14",
+      "privateAliases": "/opt/pellier/bin",
+      "backendExecStartInterpreter": "/usr/bin/python3.14",
+      "operatorCredentialWriterUser": "participant",
+      "awsCliExtractionPerAttempt": true,
+      "focusedTestsBeforeFinalAdditions": 198,
+      "finalAffectedTests": 49,
+      "newIsolationCases": 20
+    },
+    "sharedCdkToolkitUpgrade": {
+      "state": "PASS",
+      "fromVersion": 30,
+      "toVersion": 32,
+      "physicalResourceIdsUnchanged": 11,
+      "firstCreationProved": false
     }
   },
   "privateEvidenceSha256": {
@@ -106,7 +138,12 @@
     "frontend-build.log": "21cfab8104657ba7ba31bd117bbc6f0ade073be8c618acf960c3e7d2e35687eb",
     "frontend-audit.log": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
     "backend-full-final.log": "94099e31e446512843ceaa1dacf6884b98ae7e7fd45cd44daeaaff08e07a570f",
-    "fresh-account-compatibility-review.json": "0b496ca1c156f20093ce2acd5d9ed3b14928ad7397ac100c4e65917fe9795fe9"
+    "fresh-account-compatibility-review.json": "0b496ca1c156f20093ce2acd5d9ed3b14928ad7397ac100c4e65917fe9795fe9",
+    "python-isolation-checks.json": "27a5262548d688d3f3dca5b400213cd27e22bf14d3e30d5c42a8c4ee08e8a2d0",
+    "root-rehearsal-reboot-cause-summary.json": "8ad1ab08e9f5b5c85dd7c4a8735d80e0cd5962b8053ab9ceb586380d1f63915e",
+    "root-rehearsal-restore-os-python-proof.json": "279f1f070a80d07dac3c41d5c5f368ee8fca64447ad1eaaef1d61266694c10e6",
+    "root-rehearsal-cdk-after-bootstrap.json": "4230160106b73f89fc4fe070fd18fb224ef4166fc9936d89898e84664e5e0e94",
+    "backend-python-isolation-full.log": "8544bfb4cff314386675e939fce7c91edeb396008f4330140e1ff2b4d01c33be"
   },
   "pending": [
     "Complete isolated real-resource root lifecycle",
@@ -139,6 +176,27 @@
       "backendSkipped": 90,
       "frontendPassed": 1128,
       "scope": "Complete replacement CI before subsequent model-preflight and CDK-version repairs"
+    },
+    {
+      "sourceSha": "79889f8291d0ee5b43be86157b724fa81ae8db69",
+      "ciRunId": 35541811370,
+      "state": "PASS",
+      "backendPassed": 3545,
+      "backendSkipped": 90,
+      "frontendPassed": 1128,
+      "scope": "Pipeline checkpoint before subsequent live-discovered OS Python repair; CI success did not establish fresh bootstrap readiness."
+    }
+  ],
+  "priorBackendChecks": [
+    {
+      "state": "PASS",
+      "testsPassed": 3527,
+      "skipped": 90,
+      "upstreamWarnings": 2,
+      "seconds": 225.51,
+      "scope": "Full baseline followed by affected validation after direct-entry identity and default-vhost repairs. Exact-commit CI is attested in the Studio handoff.",
+      "lateAffectedTestsPassed": 287,
+      "lateAffectedSeconds": 33.31
     }
   ]
 }
