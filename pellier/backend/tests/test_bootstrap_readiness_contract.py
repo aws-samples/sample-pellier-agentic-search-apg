@@ -1151,7 +1151,7 @@ def test_policy_attachment_is_a_provisioning_hard_gate() -> None:
     assert '"policyEngineConfiguration"' in renderer
     assert '"mode": "ENFORCE"' in renderer
     assert "policy_state = _require_state_resource(" in source
-    assert '"policyEngines", POLICY_ENGINE_NAME' in source
+    assert '"policyEngines", identity.policy_engine_name' in source
     assert 'result["status"] = "ready"' in source
     assert source.index(
         "policy_state = _require_state_resource("

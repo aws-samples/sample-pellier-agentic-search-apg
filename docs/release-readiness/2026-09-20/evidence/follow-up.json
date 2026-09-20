@@ -102,5 +102,15 @@
     "region": "us-east-1",
     "localRealResourceValidationRequired": true,
     "perEventAccountEntitlementAndPolicyPreflightRequired": true
-  }
+  },
+  "validationAttempts": [
+    {
+      "sourceSha": "3f42cf8dfc6cf18c37123b7f93d37c95da3a1a75",
+      "ciRunId": 35540519355,
+      "state": "FAIL",
+      "backendPassed": 3531,
+      "backendFailed": 1,
+      "reason": "Existing policy-attachment source assertion still named the retired import-time policy-engine constant. Updated to require the resolved deployment identity; production behavior unchanged by this assertion repair."
+    }
+  ]
 }

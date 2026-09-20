@@ -571,7 +571,7 @@
     },
     {
       "file": "pellier/backend/tests/test_bootstrap_readiness_contract.py",
-      "sha256": "6d2cf7c729a2f1914fc52f4dc011a39e3f5869429adf87d9b78c086a7e7ef29c"
+      "sha256": "c094fc9d926918f193da9ea4cade7264961a75cc430a3ec31739dd5dda32c27e"
     },
     {
       "file": "pellier/backend/tests/test_bootstrap_shared_trace_authorization.py",
@@ -4085,6 +4085,7 @@
   "validation": {
     "backendFull": "3527 passed, 90 skipped, 2 upstream warnings; before final direct-entry identity initialization and default-vhost refinement",
     "lateAffected": "287 passed including deployment identity, KMS, Cognito, provisioning, policy, governance, runtime hello and private nginx",
-    "frontend": "1128 passed plus independent type-check, lint, build, zero production-audit vulnerabilities"
+    "frontend": "1128 passed plus independent type-check, lint, build, zero production-audit vulnerabilities",
+    "ciInitialAttempt": "3f42cf8d: 3531 backend tests passed; one stale source-contract assertion failed after policy identity initialization changed. Assertion updated to require the resolved policy engine."
   }
 }
