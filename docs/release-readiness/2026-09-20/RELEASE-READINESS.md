@@ -3,8 +3,12 @@
 **Verdict: HOLD for an event release.** Source repairs and the local Studio
 package are prepared for publication. Successful local and managed-service
 checks do not establish a working fresh Studio root stack. Origin TLS, remote
-asset access, existing log-key configuration, and an authorized disposable
+asset access and an authorized disposable
 root-stack lifecycle target remain unresolved.
+
+The [follow-up](FOLLOW-UP.md) supersedes the original log-key and dynamic-shell
+blockers and records subsequent source, template and UI repairs. Original test
+counts and captured journeys below remain the earlier review snapshot.
 
 The companion [acceptance matrix](ACCEPTANCE-MATRIX.md), [check ledger](CHECKS.jsonl)
 and evidence directory preserve the checks and their limits. Failed attempts
@@ -87,7 +91,7 @@ shared database, identity pool, older runtime or unrelated stack was deleted.
 
 | Severity | Finding | Repair and evidence |
 |---|---|---|
-| High | Studio forwards signed sessions/editor credentials over an HTTP origin connection | **OPEN:** the CloudFront-to-EC2 hop remains HTTP. Prefix-list filtering and an origin header do not provide encryption. No approved origin certificate/domain was available. See blockers. |
+| High | Prepared Studio template forwards session/editor traffic over an HTTP origin connection | **OPEN:** the prepared CloudFront-to-EC2 hop remains HTTP; no deployed governed Studio root was found. Prefix-list filtering and an origin header do not provide encryption. A workshop-specific domain/certificate dependency is unsuitable for arbitrary ephemeral participant accounts. See the follow-up transport design boundary. |
 | Medium | Model-generated SQL could balance out of a query wrapper and retain a second statement | Added a bounded, quote/comment-aware single-statement guard; forced prepared protocol for both EXPLAIN and execution; reject configurations that disable preparation and unsafe SQL-in-string/GUC helpers. Preserve read-only transactions, principal/RLS, timeouts, plan checks and row limits. 75 real Aurora adversarial/RLS cases passed. This is not a claim of a general-purpose SQL sandbox. |
 | Medium | Authentication verifier outages could be treated as invalid identity | Preserve 503 unavailability, existing identity/cookies/preferences and bounded refresh behavior; coalesce frontend refreshes and guard identity races. Cached preferences now belong to one verified identity; a subject change clears them before fetching, and a late save response cannot populate a new session. Both privacy regressions failed before repair and pass afterward. Password sign-in records only the failure class and distinguishes verifier unavailability from an invalid upstream result. No credentials or JWT claims are logged. |
 | Medium | A live managed tool's target-qualified name exceeded Bedrock's 64-character tool-name limit | Give the model validated, unique logical names through the public MCP adapter API, while retaining the original wire name/client/timeout for invocation. A real managed deployment and the edited Lab 3 path passed after repair. |
@@ -96,7 +100,7 @@ shared database, identity pool, older runtime or unrelated stack was deleted.
 | Medium | Failed database observations could become a successful absence proof | Require successful SQL status and exact nonnegative count output. Unavailable evidence stops proof generation and retains mode restoration. Authentication/transport failures cannot substitute for a Cedar decision. |
 | Medium | Hosted E2E could accept unsafe origins or manage shared fixed identities | Validate the exact protected HTTPS origin before credentials are used. Dedicated temporary identities have private ownership receipts and fail-closed cleanup; existing users/passwords are preserved. Browser sign-in uses the real form and scoped cookies. Six live identity lifecycle checks passed. |
 | Medium | Bootstrap/runtime readiness and environment handoffs could report a started but unusable system | Require functioning database, authentication, managed components and observability; distinguish app Runtime ARN from the CLI endpoint alias; retain bounded failure diagnostics. Studio now uses an EC2 CreationPolicy signal after health gates and re-signals a replaced editor on infrastructure revision changes. |
-| Medium | Existing observability evidence could imply KMS protection without observed protection | Receipts distinguish requested and observed keys and require the actual log-group state. Governed provisioning fails closed without required key/retention configuration. Existing groups still lack an approved customer-managed key; fresh-root behavior is unexecuted. |
+| Medium | Existing observability evidence could imply KMS protection without observed protection | Receipts distinguish requested and observed keys and require the actual log-group state. Governed provisioning fails closed without required key/retention configuration. The follow-up associated and read back a dedicated retained customer-managed key on all four governed Runtime/trace groups. Fresh-root behavior is unexecuted. |
 | Medium | Node 20 was beyond its published support period | Bootstrap, health gates and all three workflows now require Node 24 LTS. An isolated official Node 24 binary was checksum-verified; frontend gates and generated AgentCore CDK build passed with it. Fresh AL2023 package installation remains part of the blocked root bootstrap. |
 | Low | A failed backend-directory change could launch from the wrong directory | Stop immediately on failed `cd`; successful launch and optional config behavior have focused tests. |
 | Low | Trusted-role and principal-seeding SQL interpolated values | Use database `current_user` and Psycopg literal composition for the complete parameter set, including quote/backslash/NUL cases. |
@@ -258,9 +262,9 @@ read. An attempted large IAM service-authorization table read was incomplete;
 that attempt is not counted as full-table verification.
 
 Cleanup must account for the independent AgentCore CLI stack, external tool
-Lambdas/roles, retained logs and any captured evidence. The fresh template's
-customer-managed log key enters a seven-day deletion window after root removal;
-dependent logs must be exported or handled before key deletion. The root's
+Lambdas/roles, retained logs and any captured evidence. The locally repaired template retains its customer-managed log key on root
+removal or replacement. Dependent encrypted logs must be reviewed before a
+separate manual key retirement; retention and ongoing key costs are explicit. The root's
 database policy deletes workshop data without a final snapshot. Two NAT
 gateways, Aurora, the editor, model calls and retained managed resources incur
 cost while present. No destructive cleanup was performed on shared resources.
@@ -269,9 +273,9 @@ cost while present. No destructive cleanup was performed on shared resources.
 
 | Gate | State | Smallest action |
 |---|---|---|
-| CloudFront-to-editor transport | FAIL | Provide an approved trusted origin hostname/certificate or approve a concrete TLS termination design. Update/validate the templates and prove HTTPS end to end. Do not send workshop sessions over the current HTTP origin hop. |
+| CloudFront-to-editor transport | FAIL | Resolve the origin transport architecture without a shared private key or participant DNS/certificate prerequisite. Verify the chosen workshop design live; do not label private HTTP as origin TLS. |
 | Automated fresh root lifecycle | BLOCKED | Identify an existing disposable workshop stack/account explicitly authorized for bootstrap, partial failure, rollback, reset and teardown. The reviewed component's shared Aurora/Cognito do not qualify. |
-| Existing log-group customer-managed keys | FAIL | Choose an approved Pellier key and establish ownership of the shared trace groups. Associate/verify the key and replay observability/cleanup checks. Default CloudWatch encryption is present; this is the unmet customer-managed-key requirement. |
+| Existing log-group customer-managed keys | PASS | Follow-up user-authorized migration created a retained rotating key and independently read back all four governed Runtime/trace associations with 30-day retention. Keep the key for retained encrypted history; older logs are not re-encrypted. |
 | Studio S3 and Git/native package access | BLOCKED | Restore authorized asset/package read access. Three nested-template HeadObject calls and the Studio remote read returned 403. Validate remote bytes, content types and published rendering after the owner uploads/imports. |
 | Final hosted source and assets | BLOCKED | Complete the owner's manual publication and deploy the verified source/templates into the authorized environment. Compare runtime and static artifact identities, clear stale sessions/caches, then run authenticated automated journeys. |
 | Positive Theo return in this existing account | BLOCKED | Supply an eligible authorized test order/case. The current bowl has no unreturned quantity; retain the observed refusal and do not reset shared records to manufacture success. |

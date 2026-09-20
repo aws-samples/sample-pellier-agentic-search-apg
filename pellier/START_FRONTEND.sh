@@ -17,9 +17,24 @@ set -euo pipefail
 
 cd "$(dirname "$0")/frontend"
 
-# Load nvm (harmless if not installed)
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+# Keep the release runtime when it is already active. Loading NVM normally
+# selects its default, which may silently replace Node 24 with an older major.
+node_version="$(node --version 2>/dev/null || true)"
+if [[ "$node_version" != v24.* ]]; then
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+        # Select only an installed Node 24; this entrypoint never installs it.
+        if ! . "$NVM_DIR/nvm.sh" --no-use || ! nvm use 24 >/dev/null 2>&1; then
+            echo "Node.js 24 is required. NVM could not activate an installed Node 24. Select Node 24 and rerun this script." >&2
+            exit 1
+        fi
+    fi
+    node_version="$(node --version 2>/dev/null || true)"
+fi
+if [[ "$node_version" != v24.* ]]; then
+    printf 'Node.js 24 is required; found %s. Select Node 24 and rerun this script.\n' "${node_version:-no usable Node executable}" >&2
+    exit 1
+fi
 
 # VITE_BASE_PATH bakes the asset URL prefix into the built bundle so
 # Workshop Studio's /ports/8000/* reverse-proxy prefix matches. Use

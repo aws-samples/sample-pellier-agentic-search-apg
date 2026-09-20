@@ -46,8 +46,6 @@ sys.path.insert(0, str(DEPLOY))
 
 from gateway_initiate_return import _load_env, _require  # noqa: E402
 
-FUNCTION_NAME = "pellier-cognito-customer-claim"
-ROLE_NAME = "pellier-cognito-customer-claim-role"
 HANDLER_FILE = DEPLOY / "cognito_customer_claim.py"
 LAMBDA_RUNTIME = "python3.12"
 SUPPORTED_TIERS = {"ESSENTIALS", "PLUS"}
@@ -69,6 +67,14 @@ _BASIC_LOGGING = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRo
 
 def _region() -> str:
     return os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+
+
+def _resource_names() -> tuple[str, str]:
+    # The command loads dotenv in main(), while the provisioner supplies its
+    # environment directly. Resolve here so both paths use the same identity.
+    from render_agentcore_project import customer_claim_resource_names
+
+    return customer_claim_resource_names()
 
 
 def mapping_from_database(
@@ -145,18 +151,19 @@ def deploy_trigger(
 
 
 def ensure_role(iam: Any) -> str:
+    _, role_name = _resource_names()
     try:
-        role = iam.get_role(RoleName=ROLE_NAME)["Role"]
+        role = iam.get_role(RoleName=role_name)["Role"]
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "NoSuchEntity":
             raise
         role = iam.create_role(
-            RoleName=ROLE_NAME,
+            RoleName=role_name,
             AssumeRolePolicyDocument=json.dumps(_TRUST),
             Description="Pellier Cognito pre-token trigger: logging only",
             Tags=[{"Key": "PellierWorkshopId", "Value": os.environ.get("WORKSHOP_ID", "dat416")}],
         )["Role"]
-        iam.attach_role_policy(RoleName=ROLE_NAME, PolicyArn=_BASIC_LOGGING)
+        iam.attach_role_policy(RoleName=role_name, PolicyArn=_BASIC_LOGGING)
         time.sleep(10)
     return role["Arn"]
 
@@ -169,15 +176,17 @@ def _package() -> bytes:
 
 
 def _wait_for_function(lam: Any) -> None:
+    function_name, _ = _resource_names()
     for _ in range(30):
-        state = lam.get_function_configuration(FunctionName=FUNCTION_NAME)
+        state = lam.get_function_configuration(FunctionName=function_name)
         if state.get("State") == "Active" and state.get("LastUpdateStatus") in (None, "Successful"):
             return
         time.sleep(2)
-    raise SystemExit(f"{FUNCTION_NAME} did not become Active")
+    raise SystemExit(f"{function_name} did not become Active")
 
 
 def ensure_function(lam: Any, role_arn: str, mapping: Dict[str, str]) -> str:
+    function_name, _ = _resource_names()
     env = {
         "Variables": {
             "CUSTOMER_CLAIM_MAP": json.dumps(mapping, sort_keys=True),
@@ -187,7 +196,7 @@ def ensure_function(lam: Any, role_arn: str, mapping: Dict[str, str]) -> str:
     }
     code = _package()
     try:
-        lam.get_function(FunctionName=FUNCTION_NAME)
+        lam.get_function(FunctionName=function_name)
         exists = True
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "ResourceNotFoundException":
@@ -197,7 +206,7 @@ def ensure_function(lam: Any, role_arn: str, mapping: Dict[str, str]) -> str:
         for attempt in range(6):
             try:
                 created = lam.create_function(
-                    FunctionName=FUNCTION_NAME,
+                    FunctionName=function_name,
                     Runtime=LAMBDA_RUNTIME,
                     Role=role_arn,
                     Handler="cognito_customer_claim.handler",
@@ -217,19 +226,20 @@ def ensure_function(lam: Any, role_arn: str, mapping: Dict[str, str]) -> str:
         _wait_for_function(lam)
         return created["FunctionArn"]
     _wait_for_function(lam)
-    lam.update_function_code(FunctionName=FUNCTION_NAME, ZipFile=code)
+    lam.update_function_code(FunctionName=function_name, ZipFile=code)
     _wait_for_function(lam)
     updated = lam.update_function_configuration(
-        FunctionName=FUNCTION_NAME, Environment=env, Runtime=LAMBDA_RUNTIME, Role=role_arn
+        FunctionName=function_name, Environment=env, Runtime=LAMBDA_RUNTIME, Role=role_arn
     )
     _wait_for_function(lam)
     return updated["FunctionArn"]
 
 
 def ensure_permission(lam: Any, pool_arn: str) -> None:
+    function_name, _ = _resource_names()
     try:
         lam.add_permission(
-            FunctionName=FUNCTION_NAME,
+            FunctionName=function_name,
             StatementId=PERMISSION_SID,
             Action="lambda:InvokeFunction",
             Principal="cognito-idp.amazonaws.com",

@@ -40,6 +40,11 @@ def activation(monkeypatch):
         stuck_response = None
         updates = []
 
+        def get_indexing_rules(self):
+            return {"IndexingRules": [{"Name": "Default", "Rule": {
+                "Probabilistic": {"DesiredSamplingPercentage": 100},
+            }}]}
+
         def get_trace_segment_destination(self):
             if self.stuck_response:
                 return dict(self.stuck_response)

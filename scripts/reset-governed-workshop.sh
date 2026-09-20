@@ -808,9 +808,10 @@ if [[ "${PELLIER_RESET_SKIP_AGENTCORE:-0}" == "1" ]]; then
   exit 0
 fi
 
-AGENTCORE_PROJECT="$REPO/.agentcore-project/pellier"
+IDENTITY_HELPER="$REPO/scripts/deploy/resolve_agentcore_identity.py"
+AGENTCORE_PROJECT="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field project-root)" || exit 1
 AGENTCORE_CONFIG="$AGENTCORE_PROJECT/agentcore/agentcore.json"
-POLICY_ENGINE_NAME="pellier_policy_engine"
+POLICY_ENGINE_NAME="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field policy-engine-name)" || exit 1
 
 if [[ ! -f "$AGENTCORE_CONFIG" ]]; then
   fail "AgentCore CLI project missing: $AGENTCORE_CONFIG"

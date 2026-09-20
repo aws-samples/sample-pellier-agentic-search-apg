@@ -41,7 +41,6 @@ from typing import Any, Dict, List, Optional, Tuple
 _REPO = pathlib.Path(__file__).resolve().parents[0].parent
 _BACKEND = _REPO / "pellier" / "backend"
 _DEPLOY = _REPO / "scripts" / "deploy"
-_PROJECT = _REPO / ".agentcore-project" / "pellier"
 
 # The forbid policy whose mode decides which window we are in. A permit policy
 # in LOG_ONLY looks identical to one in ACTIVE from the caller's side.
@@ -90,7 +89,7 @@ def _load_env() -> Dict[str, str]:
         {
             k: v
             for k, v in os.environ.items()
-            if k.startswith(("DB_", "AWS_", "COGNITO_", "AGENTCORE_"))
+            if k.startswith(("DB_", "AWS_", "COGNITO_", "AGENTCORE_")) or k == "PELLIER_DEPLOYMENT_SUFFIX"
         }
     )
     return values
@@ -423,6 +422,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     gw_auth, _gw_tools = _import_tools()
     policy = _policy_tool()
+    sys.path.insert(0, str(_DEPLOY))
+    from render_agentcore_project import project_root
+
+    project_dir = project_root(_REPO, deployment_suffix=cfg.get("PELLIER_DEPLOYMENT_SUFFIX", ""))
 
     import boto3
 
@@ -446,7 +449,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         for label, mode in (("ENFORCE", "ACTIVE"), ("LOG_ONLY", "LOG_ONLY")):
             rc = policy._apply(
-                _PROJECT, control, engine_id, gateway_id,
+                project_dir, control, engine_id, gateway_id,
                 policy_modes={GATING_POLICY: mode}, label=f"{label} window",
             )
             if type(rc) is not int or rc != 0:
@@ -465,7 +468,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             # Restore even after a failure: a crashed run must not leave the
             # account in monitor mode.
             try:
-                restored = policy._restore_shipped(_PROJECT, control, engine_id, gateway_id)
+                restored = policy._restore_shipped(project_dir, control, engine_id, gateway_id)
             except Exception as exc:
                 failures.append(f"shipped-mode restoration failed ({type(exc).__name__})")
             else:

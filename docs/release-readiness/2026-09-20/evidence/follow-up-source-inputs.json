@@ -1,0 +1,4090 @@
+{
+  "scope": "Follow-up first-party code/config inputs; original source-inputs.json remains the earlier snapshot. No private environments or caches included.",
+  "files": [
+    {
+      "file": ".github/workflows/agentcore-rehearsal.yml",
+      "sha256": "b76a65c61b01a9629c9f19d1095ad039cf8a46614ad47ee4c6135803227cd79b"
+    },
+    {
+      "file": ".github/workflows/e2e.yml",
+      "sha256": "8ec6ac2d3a5e31e699c3a540ac25571c03c183f3517d82a8272d52ca6a285c9a"
+    },
+    {
+      "file": ".github/workflows/quality.yml",
+      "sha256": "206a7b010564c1525031403e97d1606de2489ce9def74a060beaa37971fd9523"
+    },
+    {
+      "file": "pellier/backend/__init__.py",
+      "sha256": "b93d67b6d81c2360829e7bae6c542d4d153981bbd296aa86f984304b2af5f3d2"
+    },
+    {
+      "file": "pellier/backend/agentcore_runtime.py",
+      "sha256": "63442641bfd61f18107db662cfeb5403f14ce82402f53a5279be5f9247af97f5"
+    },
+    {
+      "file": "pellier/backend/agents/__init__.py",
+      "sha256": "fc08d1d5d0ad846e03e24c2f4fb3f3dd6027fa24b23676ae473a518eacaf06b5"
+    },
+    {
+      "file": "pellier/backend/agents/customer_service_agent.py",
+      "sha256": "bf1ed8da04a4a4b56d47677e81a41d339d120f1198e7a25ddf23bb3173c80849"
+    },
+    {
+      "file": "pellier/backend/agents/graph_pattern.py",
+      "sha256": "f81411218056990016d3d1c935d2bcc410b54f8ccac1e118dc4759e3fda116fe"
+    },
+    {
+      "file": "pellier/backend/agents/inventory_agent.py",
+      "sha256": "70ef52620f75904ceea89d56af6299ff8a87937352858fc7d32df2347cb5083e"
+    },
+    {
+      "file": "pellier/backend/agents/orchestrator.py",
+      "sha256": "4fcf6adf6ad14e58875911744cd01952c8cc21aab1c2206471fe2169781670ab"
+    },
+    {
+      "file": "pellier/backend/agents/personalization_agent.py",
+      "sha256": "c9975a133196a881379f97c383f23a79af7d4e1ff035944c501de262bf605787"
+    },
+    {
+      "file": "pellier/backend/agents/pricing_agent.py",
+      "sha256": "472a042001467031289fc25f493789eb97f2c16833da6654f440477bfec135aa"
+    },
+    {
+      "file": "pellier/backend/agents/search_agent.py",
+      "sha256": "1283ea84c8f11a151d405a25ea8e50c6679e9253fcf4936e8849ccaddd8caa72"
+    },
+    {
+      "file": "pellier/backend/agents/specialist_hooks.py",
+      "sha256": "faff0b85b66ca42cdefef8c644899f4fb2fc8d5d56d9b949b3c4ef5dbb16dfc2"
+    },
+    {
+      "file": "pellier/backend/app.py",
+      "sha256": "5ead24db06da0862928562b2477a674c8b472cd3d543d3f005218042de16abaa"
+    },
+    {
+      "file": "pellier/backend/config.py",
+      "sha256": "1eec7a3a15d87e806025f8187bd6637c65f8dafe794ff16afb0b1ce8d2f0c310"
+    },
+    {
+      "file": "pellier/backend/generate_mcp_config.py",
+      "sha256": "a55b4b9b4f453456cf862e32359ba80a5850594ac54f6fd52dc162f25a5cbc06"
+    },
+    {
+      "file": "pellier/backend/models/__init__.py",
+      "sha256": "fad04043521374bd7a174f17a8ead3235798e81bfd9f0020ed7b0e5e2a5a6ec1"
+    },
+    {
+      "file": "pellier/backend/models/product.py",
+      "sha256": "ec273ab9e9847cf8776c415211ee63242caa24712e0dcbcbe599cd281b13409e"
+    },
+    {
+      "file": "pellier/backend/models/search.py",
+      "sha256": "b4c2a9787c97c763daa9f77ebd337c78b4cc99bc99e8fd140633ea9083d00beb"
+    },
+    {
+      "file": "pellier/backend/operator_agentcore_runtime.py",
+      "sha256": "6ac1380575f57215310e07a2fc3ae27dc922634650675f8c196e94d92b61fe36"
+    },
+    {
+      "file": "pellier/backend/pellier_copy.py",
+      "sha256": "47d948e8ed29ed4999c02ba19eccba12688fe3a10d384ea6b7dec449d99e90e5"
+    },
+    {
+      "file": "pellier/backend/pyproject.toml",
+      "sha256": "69588f63b38ba0e33f11314899b8a83f27840a7ffdffb157660b452dc8102ec7"
+    },
+    {
+      "file": "pellier/backend/pyrightconfig.json",
+      "sha256": "de12b0a6563f73f0c2ad7232b5e7bdfbae1b68002ae600c82e70dcf3247e4255"
+    },
+    {
+      "file": "pellier/backend/requirements.lock",
+      "sha256": "d467bc35b9716ef4b3c18db490d22934955c1628e236823f2c189c737612ae14"
+    },
+    {
+      "file": "pellier/backend/routes/__init__.py",
+      "sha256": "3aacf1adbb85aa1f0854c8d4d67246727b590e160f49cb8d03be9f3e96291482"
+    },
+    {
+      "file": "pellier/backend/routes/agent.py",
+      "sha256": "02da316ab26d0c6b7db1c942886ebbef792ff28710a745ae84db9c2f4bf0a7a7"
+    },
+    {
+      "file": "pellier/backend/routes/auth.py",
+      "sha256": "10ec3b2ae1fe2690bb72541d049bb340061f796c3f01d6834100d80ac638eec5"
+    },
+    {
+      "file": "pellier/backend/routes/commerce.py",
+      "sha256": "6ea4cd8534429ee40da6d9854ea86fa4e5d3b691f0aedcb4ce01cbf7f1bafd0b"
+    },
+    {
+      "file": "pellier/backend/routes/governance.py",
+      "sha256": "c049eae7262df434ecca7dac9624a532a7c9b8c711e912175df9f119af8b958d"
+    },
+    {
+      "file": "pellier/backend/routes/observatory.py",
+      "sha256": "705d24b5b91fb8d390150fce186734359260127cc41eb95ecdd79d6a9ecffcec"
+    },
+    {
+      "file": "pellier/backend/routes/operator.py",
+      "sha256": "510a5f1c0ba195a999c36e13178eb35b63bb3ef43bf170d833130337c7b4f2d3"
+    },
+    {
+      "file": "pellier/backend/routes/password_auth.py",
+      "sha256": "1ecdb2e6b21a3b3bf8f559145b4bad74eb0963d79da1b7e96142f784a07c774b"
+    },
+    {
+      "file": "pellier/backend/routes/products.py",
+      "sha256": "8ea38f1bdc28beb483674e94724fdfa1b365a99c85041bce06902c0225df4640"
+    },
+    {
+      "file": "pellier/backend/routes/search.py",
+      "sha256": "967c3c58e4b080ec890956d3d09fa26a2206335da6c4d7d26c3a579e9809038c"
+    },
+    {
+      "file": "pellier/backend/routes/storefront.py",
+      "sha256": "688b7573bad928fd40bf6f4b69ae367a539576fb27e6b4ac540e293d203e7b11"
+    },
+    {
+      "file": "pellier/backend/routes/user.py",
+      "sha256": "8fadce64d41852adddeb4f0dcfbc4c1dd41b73a38d54862889519618698a1df6"
+    },
+    {
+      "file": "pellier/backend/routes/workshop.py",
+      "sha256": "c38d132c9b237069e95ef1853fa81521b9ab1a9b33a20fa3369e20d01506d1c3"
+    },
+    {
+      "file": "pellier/backend/scripts/smoke_dispatcher.py",
+      "sha256": "911b2ed73f24266b360360ff3abf75d2ff081e7f38f819cc089e9c0c84c43178"
+    },
+    {
+      "file": "pellier/backend/services/__init__.py",
+      "sha256": "9eee2e87bfb3286456ca99c7f2cfda5c3b3b2f597343a6aa441f865352ed9275"
+    },
+    {
+      "file": "pellier/backend/services/agent_context.py",
+      "sha256": "b4864eaeb07e0eebb61fd785688c3509b16d884a8467ba30a5d4cce53a280721"
+    },
+    {
+      "file": "pellier/backend/services/agent_tools.py",
+      "sha256": "47191bda0ebc46db8cbdc20666c94fe46bc148a38e221e1a2018c5e23d056a60"
+    },
+    {
+      "file": "pellier/backend/services/agentcore_evals.py",
+      "sha256": "5e042a4e08dcc1c148f395413a2fb8cb849f4d7ce463f72ffeb7b7a3af633f7e"
+    },
+    {
+      "file": "pellier/backend/services/agentcore_gateway.py",
+      "sha256": "3be9c058fcb51b2df137aa955af3d85ac712ea0b75b1f65c917335ae34473196"
+    },
+    {
+      "file": "pellier/backend/services/agentcore_identity.py",
+      "sha256": "38d63aea3e8edd3efc3ff0f7bfb242e900396cc5b03ad1901646ad1066bb3dbc"
+    },
+    {
+      "file": "pellier/backend/services/agentcore_memory.py",
+      "sha256": "f2141f32b1c15c7ebc2cdc8f6c818ba946be8f4020639d43496915d4cccabad3"
+    },
+    {
+      "file": "pellier/backend/services/agentcore_runtime.py",
+      "sha256": "a423c80f831cee4cbc5c2ae57bce4ed1682f63e78a32a7093e6901d945a36284"
+    },
+    {
+      "file": "pellier/backend/services/auth.py",
+      "sha256": "f486ee76a102a5eaedf08a771b0e3dcbdb19c9fd31528115c8ec9abef5a7a098"
+    },
+    {
+      "file": "pellier/backend/services/build_fingerprint.py",
+      "sha256": "55169b8987347d28ba68bc1ecd3aa8da29e09d3580844341f4ab2c6c61a42349"
+    },
+    {
+      "file": "pellier/backend/services/business_logic.py",
+      "sha256": "c2f39936e32062f9255a7f3a85ba4d11b968c68332ff05620bea4a5ad7a3c289"
+    },
+    {
+      "file": "pellier/backend/services/cache.py",
+      "sha256": "a780c6c2a765a977581c51c17307a463e733d432523f89c13e902473a51e0a0d"
+    },
+    {
+      "file": "pellier/backend/services/chat.py",
+      "sha256": "e9ddecaa2a05702d77593102f7b1670528e96f27d0eee63587d67237f551fd11"
+    },
+    {
+      "file": "pellier/backend/services/chat_error_taxonomy.py",
+      "sha256": "6e3358c5b16f9aa0b1f34a74617e46ab0302f265fd32282e08ac424cc84c389f"
+    },
+    {
+      "file": "pellier/backend/services/code_interpreter.py",
+      "sha256": "f59e251c466c450b61406d3222131b1a6d9d8f6262e0bc0a3a5515d9fa4865af"
+    },
+    {
+      "file": "pellier/backend/services/cognito_auth.py",
+      "sha256": "e284daa34c57b340d13e95edbdfff2108ebde2190d053f21bf2cc2d7b0e5c999"
+    },
+    {
+      "file": "pellier/backend/services/commerce.py",
+      "sha256": "1fdfd6bb67188099a73ffe4e098cc5b559879d45ee7d8156e6de9c015477cae0"
+    },
+    {
+      "file": "pellier/backend/services/context_manager.py",
+      "sha256": "b461ddb7ac2aea230e5a8d0f9e59d55570a34b88111cf2ab953ff130a66d457d"
+    },
+    {
+      "file": "pellier/backend/services/conversation_context.py",
+      "sha256": "df577515be70e93959716a47ec134b8eca40cc59f69d289c8997e683e0ee29c0"
+    },
+    {
+      "file": "pellier/backend/services/data_source.py",
+      "sha256": "07d8f80b01bd70a1b0f4912e83267b26b7c161273b21b04325c31136c1c99f96"
+    },
+    {
+      "file": "pellier/backend/services/database.py",
+      "sha256": "cadaac8711f399334c926cff252b993873a24fb72a385e4782351ad83f44e43f"
+    },
+    {
+      "file": "pellier/backend/services/embeddings.py",
+      "sha256": "71fa0e89a1901ff87482af97ca49a28ea46be3df572b0eafde013f7effd58f77"
+    },
+    {
+      "file": "pellier/backend/services/episodic_memory.py",
+      "sha256": "2487ec049756db91dec1860e97e1ffb6b8833b301f51000101ca3336add56c0d"
+    },
+    {
+      "file": "pellier/backend/services/evidence_ledger.py",
+      "sha256": "4c1a095b158deff1ad046556fc717692285450f3562484eadb05f8e9327eff0f"
+    },
+    {
+      "file": "pellier/backend/services/evidence_spans.py",
+      "sha256": "aaf77900fab6f8c76f33109390a5c3635a2eb9e40dfab57cfaf9f6ba255602f4"
+    },
+    {
+      "file": "pellier/backend/services/execution_rail.py",
+      "sha256": "24cbc625e3b7379711fcc4a9062da0c6aae30092fd43d5636afd8b2dade307c5"
+    },
+    {
+      "file": "pellier/backend/services/gateway_errors.py",
+      "sha256": "966520444fe5e66b8825e700cf80298e2bdf2cde767c529170ddbe6f47e19a7a"
+    },
+    {
+      "file": "pellier/backend/services/governance_boundaries.py",
+      "sha256": "a02b442330248adf7094800a45f6c69926bff8b2b94a3385d9b437d4117a71fd"
+    },
+    {
+      "file": "pellier/backend/services/governance_snapshot.py",
+      "sha256": "09c18fe47343b9669c0534c846eb1ab43a01763454f3bf27d5be8df100992c45"
+    },
+    {
+      "file": "pellier/backend/services/governed_execution.py",
+      "sha256": "5d866ccb69e5662884c23616bf4eb2df8616089839eec1c351aa666c94833a1e"
+    },
+    {
+      "file": "pellier/backend/services/governed_query.py",
+      "sha256": "a2c21022053aa587b34f24fa3cd0a74e1a993f66213e9c0803421cb984f9f547"
+    },
+    {
+      "file": "pellier/backend/services/governed_turn_receipt.py",
+      "sha256": "e43498f9ea5db1839e0fb6a3af7e6943070fa5df8aeda95ee55325a915a2a802"
+    },
+    {
+      "file": "pellier/backend/services/guardrails.py",
+      "sha256": "a7c96108bb7f60301367e74ebf8b19e5867cb5ffbc247a911b496d66c3e45a94"
+    },
+    {
+      "file": "pellier/backend/services/guardrails_log.py",
+      "sha256": "e39945b797dff5ce8eee835221a430dca23c942eddb18f714d45275b18997e28"
+    },
+    {
+      "file": "pellier/backend/services/hybrid_search.py",
+      "sha256": "e20f2d75ea6d253f8e5015fc7f86e617c3eba308fa3bc75da33a129defe70af4"
+    },
+    {
+      "file": "pellier/backend/services/index_performance.py",
+      "sha256": "ab42608842f769e9f917524e77dc358f733b818af09ad80f476e808dd5b71957"
+    },
+    {
+      "file": "pellier/backend/services/intent_router.py",
+      "sha256": "e6022911ec8651af23db7d3508b0f6efb8a24af6bc11e34200197fa286fa5a60"
+    },
+    {
+      "file": "pellier/backend/services/inventory_evidence.py",
+      "sha256": "96d9298a1c631f34bbd5462405691c228a108c83d059cb53bfba9e807bd79388"
+    },
+    {
+      "file": "pellier/backend/services/managed_policy.py",
+      "sha256": "84fceebb631ab006221b772e6197486c64b141d9b4e4b83da3e3c2923261e28e"
+    },
+    {
+      "file": "pellier/backend/services/memory_showcase.py",
+      "sha256": "fbddbf8e94bb19b06638b6ad6eaeae3a902a4deb986ead5f4342b79a72234e39"
+    },
+    {
+      "file": "pellier/backend/services/model_invocation_receipt.py",
+      "sha256": "23c117dfcb67fea6d3ba685474925e695f2ee10f52e20e0517aa67974db6024d"
+    },
+    {
+      "file": "pellier/backend/services/observatory_copy.py",
+      "sha256": "eb34a1812b87b3c072c9b1f991d7aa6660990181579de530c1152358383fe864"
+    },
+    {
+      "file": "pellier/backend/services/operator_capabilities.py",
+      "sha256": "01c29af154f80cf78b6f88ced87eb466ad1c5948d2098052457711634adfb94b"
+    },
+    {
+      "file": "pellier/backend/services/operator_concierge.py",
+      "sha256": "c0007e819e1a44ba5127eeb920eba39b4512ebc4381e41cc809a7aacca4473fc"
+    },
+    {
+      "file": "pellier/backend/services/operator_concierge_sessions.py",
+      "sha256": "acadce7b7efe30638bf7032b18f62e74ec1fd7a5c5699044025a262b19f366dd"
+    },
+    {
+      "file": "pellier/backend/services/operator_episodes.py",
+      "sha256": "2bd44a11f655979e5db72fdc9f2caba4afadac39d72867935940bc37ef1e9a1a"
+    },
+    {
+      "file": "pellier/backend/services/operator_graph.py",
+      "sha256": "5b3ee55473690813e686a70a968442b5a58dd996599796760ba3a0955a51f933"
+    },
+    {
+      "file": "pellier/backend/services/operator_proposals.py",
+      "sha256": "40c63352d51710ba8a3e1a978a4b056cf012aae50d26be543c9a3edc3ae0669b"
+    },
+    {
+      "file": "pellier/backend/services/operator_review.py",
+      "sha256": "ab3ab0ead94c077643047bc75058a57bf52cc623cb2b5d86f32e2a6d5bfc86c9"
+    },
+    {
+      "file": "pellier/backend/services/operator_runtime.py",
+      "sha256": "a19402e6cb1b8801d414949387c33236996f7643238ccb4aa5627fa64c66f269"
+    },
+    {
+      "file": "pellier/backend/services/otel_cloudwatch_export.py",
+      "sha256": "c537206b9fdf825330daeee3266261fedd248e301d338ecc9cca1d30245f01fd"
+    },
+    {
+      "file": "pellier/backend/services/otel_content_redaction.py",
+      "sha256": "d790aee0e2a959f4c2e0f6e38e1f7564b97174a81f5c836bfe7fa6610119bf78"
+    },
+    {
+      "file": "pellier/backend/services/otel_trace_extractor.py",
+      "sha256": "993d01395b522f7f4857a78162573e6099305830b2f8e2d22f2089fdbfe838b8"
+    },
+    {
+      "file": "pellier/backend/services/performance_log.py",
+      "sha256": "3ff487167728179927896545703219fc3191ce54717d9c5e8ff8e1e8cd5e69a8"
+    },
+    {
+      "file": "pellier/backend/services/persona_context.py",
+      "sha256": "8dd9f411474d4dc26def47ef97b22068c5c7c55d8c2a72b01fe5015d523371e8"
+    },
+    {
+      "file": "pellier/backend/services/personalization.py",
+      "sha256": "fb18b5bdc17fc1cd056da29dfd3c7838f8c6ddb09f77e07a73f4b7b08ee9601f"
+    },
+    {
+      "file": "pellier/backend/services/planned_hybrid_retrieval.py",
+      "sha256": "dcfa5c9729ff2cb044511a289ce8c9031e08cec5b368f31dfd53740e90ac9b4b"
+    },
+    {
+      "file": "pellier/backend/services/policy_decisions.py",
+      "sha256": "765f6d14d3213c1e0ab041ddcf3a5aaad2a74ce69a57b7de57b2ae12455d4405"
+    },
+    {
+      "file": "pellier/backend/services/product_envelope.py",
+      "sha256": "2243a50a01539a7fb9b9966fc087e6411bc8e1c40ac25f45572f4954c0af0629"
+    },
+    {
+      "file": "pellier/backend/services/replacement_recovery.py",
+      "sha256": "18bdbf66463f14636f2b2a546e9cfd8a64a05fb0fa344fc40cfa6bd7db0ef245"
+    },
+    {
+      "file": "pellier/backend/services/replacement_search.py",
+      "sha256": "76b82deda289b7110352a0fb0ff0f44d4a786bf570176e37495c7af50e8ea986"
+    },
+    {
+      "file": "pellier/backend/services/rerank.py",
+      "sha256": "ca20ea0769f4ee3e65ab983b05ea768d5b5732e461c0635a2d47b05ecdfc7943"
+    },
+    {
+      "file": "pellier/backend/services/response_mode.py",
+      "sha256": "8a403956abbc79da4d1205b98d165da3e8a60cd8cfd7e1ac87a48a6087cc8cac"
+    },
+    {
+      "file": "pellier/backend/services/retrieval_receipt.py",
+      "sha256": "931ce3d434881e5b22121b741f49d343c3dad575ffccc5fab42a39d187ffbaa1"
+    },
+    {
+      "file": "pellier/backend/services/runtime_env.py",
+      "sha256": "267536045f69a3ffd39940a14359f7eefc72d2cbd8c298140affb5216c5bccc1"
+    },
+    {
+      "file": "pellier/backend/services/search_plan.py",
+      "sha256": "2204fb54bf7bf4b3984e624ba726dd68f80fcea2aca546f025cf6ae084dd7152"
+    },
+    {
+      "file": "pellier/backend/services/shopper_handoff.py",
+      "sha256": "752fa697f5ffab486b58d1851d71a8af44c0dd9f70c7c4764ff4a0f4744ea81a"
+    },
+    {
+      "file": "pellier/backend/services/sql_query_logger.py",
+      "sha256": "d1d991a66ce47d6f23ef70fef9e1bcf72ab07e74bd7252bdd5ccf8ad482a5c1b"
+    },
+    {
+      "file": "pellier/backend/services/structured_extract.py",
+      "sha256": "a37433503bdffa8db7d10df555152a42ec55547c5fa38ee193b03a2e4a0da852"
+    },
+    {
+      "file": "pellier/backend/services/tool_audit_writer.py",
+      "sha256": "8a95a23d64c369bcda27436a95d7bdf553e837d08f59f641a8be05f1463d11d7"
+    },
+    {
+      "file": "pellier/backend/services/tool_registry.py",
+      "sha256": "8235631fd7a965ad74ceb0ad4c5bbe2fcfd80e575f77e3012f72f4caf0f408a5"
+    },
+    {
+      "file": "pellier/backend/services/turn_identity.py",
+      "sha256": "84ae84479a8fc914617cbbc7e2b0e9980132046202a9e178e43e1046dc191c95"
+    },
+    {
+      "file": "pellier/backend/services/vector_search.py",
+      "sha256": "afb4aea5a1c64c44b4caba27f00aaf507528da7a7de5caceed23f55167cb5e8c"
+    },
+    {
+      "file": "pellier/backend/services/workshop_panels.py",
+      "sha256": "15d01c98cc0455815cdd4f38f8bd694c9f72184a9c5c4d774fa48c4ef4e71628"
+    },
+    {
+      "file": "pellier/backend/services/workshop_run.py",
+      "sha256": "71f66382c97c058ae22b332e864216c5ac72db1204678b39cbbcba858e24270a"
+    },
+    {
+      "file": "pellier/backend/skills/__init__.py",
+      "sha256": "05f1029e70012df58c3234d0e6a4da57339965cc4eea436ceedae2db4eee4507"
+    },
+    {
+      "file": "pellier/backend/skills/context.py",
+      "sha256": "06d887962549501d217a426e86127084328a9ee7ed819d8d783d3ece30d4b373"
+    },
+    {
+      "file": "pellier/backend/skills/loader.py",
+      "sha256": "6857608c538c93ef25800155b57d4b88f49346eaa2c826bb910c8a86dbf2cbde"
+    },
+    {
+      "file": "pellier/backend/skills/models.py",
+      "sha256": "6e7bdd21f9f61af851203ceb8dd654366cfbf11274cf42aee0e949257e50eab9"
+    },
+    {
+      "file": "pellier/backend/skills/registry.py",
+      "sha256": "23908b1a72f9ed5e1f60bab9a480f17fac27674a5b0d124f8f9bdab5e9fa4094"
+    },
+    {
+      "file": "pellier/backend/skills/router.py",
+      "sha256": "db4ba51b4857b841365b463a1cedf87db4e73a9b211c1d2a6e149ff2cd4cf1e2"
+    },
+    {
+      "file": "pellier/backend/skills/router_test.py",
+      "sha256": "0733ad9706102caa69f5372fe1971d46ad51955f5880995c6b666bafc953d547"
+    },
+    {
+      "file": "pellier/backend/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "pellier/backend/tests/conftest.py",
+      "sha256": "577239a65de989d92c7cb90017e1c9135dfa06810e70114c677155a84b226cb2"
+    },
+    {
+      "file": "pellier/backend/tests/golden/journeys.json",
+      "sha256": "bfd38695731a738dca405478ad3528f066c0d8d71739a4ebe716abd1da2a5a32"
+    },
+    {
+      "file": "pellier/backend/tests/test_agent_chat_stream.py",
+      "sha256": "230713cd45b0115ac4427e91b388de22d4821265d8d0e0ca09a44b51447a8a1c"
+    },
+    {
+      "file": "pellier/backend/tests/test_agent_context.py",
+      "sha256": "743938825effd58fc93cfeb4d62d5833fb9c6c256b9636722b88f4bbd6096ac3"
+    },
+    {
+      "file": "pellier/backend/tests/test_agent_tools.py",
+      "sha256": "f3da4f617416a36478aeed11d53579ce1b860d32d03b6f82c27ca22f001dbe3c"
+    },
+    {
+      "file": "pellier/backend/tests/test_agent_vocabulary.py",
+      "sha256": "fcedf12d72a1c670c74d2644fcf0bfcf8347af51bd247c6077ec78ef1a0a04c2"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_deploy_templates.py",
+      "sha256": "a92d5e3077a8699383d5be6748facceb2b9e9acd180e38fa79b8adeb7d887a4e"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_evals.py",
+      "sha256": "979d313f1e989653c78d921919e92464ba67e429efccb75397bc04d569647398"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_identity.py",
+      "sha256": "a6e6329b9fe58544f7768f35a3df7407cffa262c52b9c407f7e784104092e48b"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_memory.py",
+      "sha256": "172b5493463bb3e29c4e08462f639ba421539440908cc9ac14b7e75b0d4fc920"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_receipt.py",
+      "sha256": "b4ba146ddf169282225fab2a1c278b63df5032bcefc2cd1ce51ffc266cc7ce3d"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_runtime_entrypoint.py",
+      "sha256": "cb87cccc565fefd910ee45bf71f739bdaaa4cd1b0e99bb185cd821ecb5ce0c5c"
+    },
+    {
+      "file": "pellier/backend/tests/test_agentcore_runtime_status.py",
+      "sha256": "de54bcd35049cbd40a373ac7d4643d7ef99b4b14df8938c148375e38d5e5c7ef"
+    },
+    {
+      "file": "pellier/backend/tests/test_api_surface_hygiene.py",
+      "sha256": "351e6eeebcd9871208a8476cf74a80f361827992ed52e895420aa4aefa561292"
+    },
+    {
+      "file": "pellier/backend/tests/test_aurora_profile_context.py",
+      "sha256": "742b80b89839cf60753c4b6bb8b50d417dd372b5563f871de4c259ffe231c0e6"
+    },
+    {
+      "file": "pellier/backend/tests/test_auth_routes.py",
+      "sha256": "7f18171edaae9c148578c168bda9545631464b8db79b3c3509f4898755926e98"
+    },
+    {
+      "file": "pellier/backend/tests/test_backend_copy_hardcoded.py",
+      "sha256": "dd9896d247cae242a11df478264d77e20d6e4dfde84bc25aa44506731a730fe0"
+    },
+    {
+      "file": "pellier/backend/tests/test_bench_runtime_coldstart.py",
+      "sha256": "4b9e8d7de579f14c1fdf945b94475b17c9176bdc0fd0b36f130a025167809a85"
+    },
+    {
+      "file": "pellier/backend/tests/test_bootstrap_failure_regressions.py",
+      "sha256": "b1119f711285af1f15e5d287c07f0759bd431373747b762ac4941394c2642ee1"
+    },
+    {
+      "file": "pellier/backend/tests/test_bootstrap_private_origin.py",
+      "sha256": "cf97799ec79f9228dbf76fa7dbef266574280890d074d9d0b77cd373f4d68211"
+    },
+    {
+      "file": "pellier/backend/tests/test_bootstrap_readiness_contract.py",
+      "sha256": "6d2cf7c729a2f1914fc52f4dc011a39e3f5869429adf87d9b78c086a7e7ef29c"
+    },
+    {
+      "file": "pellier/backend/tests/test_bootstrap_shared_trace_authorization.py",
+      "sha256": "660e102168b3fbe8afa492089c4f633eb12d799107adcdd27f0e3782a9aa263b"
+    },
+    {
+      "file": "pellier/backend/tests/test_boundary_outcomes.py",
+      "sha256": "b38f9859a32eee52b6745f50be262cab7a7984489bcd8c9c9028918c17fe1d0a"
+    },
+    {
+      "file": "pellier/backend/tests/test_build_fingerprint.py",
+      "sha256": "91b396862fd06df814fdd2a95d0637af6428f88ab79f596758163da0f59832db"
+    },
+    {
+      "file": "pellier/backend/tests/test_build_receipt.py",
+      "sha256": "9386ec0e1c98261fe7d2aee055da653134fca2814e4b3830f9daf58d84f970b2"
+    },
+    {
+      "file": "pellier/backend/tests/test_business_logic_like_escaping.py",
+      "sha256": "527db7bb759530eb490eee934f34e37a05ea2d4aadda27df4cc40b521a1bd558"
+    },
+    {
+      "file": "pellier/backend/tests/test_c3_recommendation_relevance.py",
+      "sha256": "da39eb472682028f3aad09bc7687722328fb11365be6c5d23c8a313da33574fc"
+    },
+    {
+      "file": "pellier/backend/tests/test_catalog_visibility.py",
+      "sha256": "4ff0b7aa3e4d5c8d6b1021f1a553e040c1f5fd60dc4d3f723f3da2b7d78b84ca"
+    },
+    {
+      "file": "pellier/backend/tests/test_cedar_identity_mapping_parity.py",
+      "sha256": "6cfc7401d64f09521acfb214ef2f542be721b9c5655c8924420086881e7796ea"
+    },
+    {
+      "file": "pellier/backend/tests/test_chat_error_taxonomy.py",
+      "sha256": "1eaaf0f5528e8887dd22e9c4a7d6dcaa64200c4e2f9ff46472a74764ab3ef604"
+    },
+    {
+      "file": "pellier/backend/tests/test_chat_source_events.py",
+      "sha256": "21ca9c72121cdd66e282f937d9a4902771f0959bb17ba640d1c7625fa10c9b84"
+    },
+    {
+      "file": "pellier/backend/tests/test_chat_triage.py",
+      "sha256": "26a86cce9945c944ee1b6c5c6fd1bc5e0e7155a32ced9377e3bc54ad425451e8"
+    },
+    {
+      "file": "pellier/backend/tests/test_check_inventory_contract.py",
+      "sha256": "773d2fb01248b1c14b7944e4ae749bd0ad9cdcc7052b1cbbc30bc2ce4d7dcbf5"
+    },
+    {
+      "file": "pellier/backend/tests/test_client_book_and_membership.py",
+      "sha256": "155b69184710bf9b24a8d412f7b0de14dceb1e5dfbd0851cd3313ff2f639fd5b"
+    },
+    {
+      "file": "pellier/backend/tests/test_cognito_auth.py",
+      "sha256": "ad5b240c8144989149fe23b041d27017556554f6787997b786051b5c87c1ee28"
+    },
+    {
+      "file": "pellier/backend/tests/test_cognito_customer_claim.py",
+      "sha256": "de4e3bf63f0576760fa673ade25dc13e22b170f055e017031c6711ea077510fb"
+    },
+    {
+      "file": "pellier/backend/tests/test_cognito_e2e_workflow_contract.py",
+      "sha256": "d437f9e8eb69d553436ca54753293bef9f5aba96eb143519903645ca208ae06c"
+    },
+    {
+      "file": "pellier/backend/tests/test_commerce.py",
+      "sha256": "b31fe5959dc3709c24557936bd78d53d318de495fe31b9c78d84f19fff941900"
+    },
+    {
+      "file": "pellier/backend/tests/test_compare_query_lanes.py",
+      "sha256": "40282384dfb81edc7b57f401861e8161841d594d2d4a3a4c0b0c97b1f19f7630"
+    },
+    {
+      "file": "pellier/backend/tests/test_config.py",
+      "sha256": "e27776dc0a6411000f7e00a010cd3a7027d3a24fb89c067316041b384ec29e39"
+    },
+    {
+      "file": "pellier/backend/tests/test_copy_compliance.py",
+      "sha256": "fd1b61703adcc3a2ec005088af830e307cb8e52229b45b8f64710428f17cd62d"
+    },
+    {
+      "file": "pellier/backend/tests/test_database.py",
+      "sha256": "4547a89c4dc925f5d6a57c85d9beff916c1b4868765be8028ae1f840109b296e"
+    },
+    {
+      "file": "pellier/backend/tests/test_dependency_contract.py",
+      "sha256": "87d1b39a7b4c42c6df80ada1ab25085511bf3d2308fc2a5b086d6061dd2ed876"
+    },
+    {
+      "file": "pellier/backend/tests/test_deployment_hardening_contract.py",
+      "sha256": "fad2fbb6b8572dafc0193e13df859ebe1441b3ac379285e022461d03d65b07c8"
+    },
+    {
+      "file": "pellier/backend/tests/test_deployment_suffix_contract.py",
+      "sha256": "ba019e36ce01591d7dc27bbec796c75133c4610c65b19f4b394f8ef6633a4582"
+    },
+    {
+      "file": "pellier/backend/tests/test_dispatcher_pattern.py",
+      "sha256": "272ea70ff6d436aef490abb18168da651ae88426ce7108253e3eb77c2690b80f"
+    },
+    {
+      "file": "pellier/backend/tests/test_dispatcher_stub_fastpath.py",
+      "sha256": "338dabb39c2f10230ebe936c3daa39d986fe958b60637dd68de30f22e243cf31"
+    },
+    {
+      "file": "pellier/backend/tests/test_dotenv_shell_contract.py",
+      "sha256": "040569ba5a19ecc966fe30e9f83cac00cff36c9e6879039d35b529a97fcdc816"
+    },
+    {
+      "file": "pellier/backend/tests/test_e2e_bootstrap_dry_run.py",
+      "sha256": "56ce9ba6ef6fcd0d9d2f5feb8f28cdd04badd91b9ae668b2e30148c6afb646f9"
+    },
+    {
+      "file": "pellier/backend/tests/test_e2e_identity_ownership.py",
+      "sha256": "c869289ff6645ce43b830ce953d6a8c4e9d8d7d7ba3292ceccfc8cf743e8772e"
+    },
+    {
+      "file": "pellier/backend/tests/test_embedding_cost_model.py",
+      "sha256": "fb09ab2e9404ec2cf2dff4e13c675a8ed31a65e7d190b2a12c2b737b1b41a529"
+    },
+    {
+      "file": "pellier/backend/tests/test_episode_recall.py",
+      "sha256": "6f2d1161834d9c729631936116d893ab5905a5519887c4a4a727e77b895d87db"
+    },
+    {
+      "file": "pellier/backend/tests/test_episode_writer.py",
+      "sha256": "e2c7895b10b71b1e7cfe38ad132a4d16fcb01c928096403a0c370014b254d68e"
+    },
+    {
+      "file": "pellier/backend/tests/test_episodic_memory.py",
+      "sha256": "ca2730e92d8b6babdffa3e648db52a7c4af1e3066224ca673af770f24f64baf1"
+    },
+    {
+      "file": "pellier/backend/tests/test_eval_harness_gate.py",
+      "sha256": "31553e1f7bdec2e8606bf43d8e5c1de0f073cc0ade1dbeed48ec09b17b3be3b2"
+    },
+    {
+      "file": "pellier/backend/tests/test_evidence_ledger.py",
+      "sha256": "249af138278f8a76c12d3096bf77d8fbad7ddc64527be74eaee3a64c4a64a81b"
+    },
+    {
+      "file": "pellier/backend/tests/test_evidence_ledger_api.py",
+      "sha256": "be834a5325b2270968dd30e8f14fd8bcbfb33745f05181ca050d402e7b77793b"
+    },
+    {
+      "file": "pellier/backend/tests/test_evidence_spans.py",
+      "sha256": "ca2f4b5c3d531d592f166b331034c4e97ce871f4bb34390edc951f8502add556"
+    },
+    {
+      "file": "pellier/backend/tests/test_evidence_substrate_readiness.py",
+      "sha256": "ce73108ab63f2bdadd2623aa6235fe6b44ba4b81b959f27c088f4bfe75453c18"
+    },
+    {
+      "file": "pellier/backend/tests/test_execution_rail.py",
+      "sha256": "5e2ac847d3308336f35de49050cb66555ce3befb3fa84ac02427e4ce916ef34d"
+    },
+    {
+      "file": "pellier/backend/tests/test_execution_receipts.py",
+      "sha256": "2e169a2bf28bfc242aa070986120a462450874f7359cb291deb0a9138afa819d"
+    },
+    {
+      "file": "pellier/backend/tests/test_execution_reconstruction.py",
+      "sha256": "0cc16c442f08d33288a28d014227b050168ec2c25fbb8491c75f2496c144cf1d"
+    },
+    {
+      "file": "pellier/backend/tests/test_factory_shape.py",
+      "sha256": "38e68517d47105a40dabb4231e17ea0a3559d320fad43f69990c2723e71aef54"
+    },
+    {
+      "file": "pellier/backend/tests/test_forensic_dataset.py",
+      "sha256": "b2f11592b4a50b6f5349ab58e5298657109401198b97cd8bddf1038d8a82aa71"
+    },
+    {
+      "file": "pellier/backend/tests/test_forensic_dataset_postgres.py",
+      "sha256": "c57c21e319eeef06d021a747a75c1d358dd5f067fbce0ed1dd60982ca4cb4fdf"
+    },
+    {
+      "file": "pellier/backend/tests/test_fresh_policy_set.py",
+      "sha256": "9b52dc45b7ffc914ec5ce5bfda0129046a4c50a4888689814c42e899d3ab4f6c"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway.py",
+      "sha256": "df19a2d04434f4d6678899cb5d42fae0e43880299095c6eb9f0b22ac190381a2"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_customer_scope.py",
+      "sha256": "a5f8cb67463c9ce8858cc173ac59465db042ce8f04f5ada337793f4529264fb2"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_discovery_claims.py",
+      "sha256": "f6a1da4c7e53958e61975bc0b6e18d1fcb4647cf2a2f2397538740cc68399e4c"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_eligibility_parity.py",
+      "sha256": "bf09dfbe2ef55c8221521b5ce3bfa204d329d99f117b117a6e2bf06214e67fc2"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_migration_captures.py",
+      "sha256": "c711099ab28f07c108f55dd847f8320b11a9a3c1f81b5d3075fcd795d053bb47"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_model_names.py",
+      "sha256": "6ffb3e73eddd11d9e3804663141e61a41cadb149616f3ff8b208a689368feb64"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_mutation_atomicity.py",
+      "sha256": "71f4c7e8379622640e618679dcd7a872b9d565202e1408d9a3677e4b51c63511"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_preference.py",
+      "sha256": "2a224caef55091d47758e06f39ba3a955b0b3ef9e3bc93f3dd8e8db2b15f1613"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_read_audit.py",
+      "sha256": "8f1aacb9936424d41e7e8e5cd0f3daf18e178d6b7e67777118cd1eb8cec53c88"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_retrieval_receipt.py",
+      "sha256": "2185020b94592883ab54ed0d04f7b8981c079b847c3c9a472ca1c593b525550d"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_schema_standalone.py",
+      "sha256": "4636ffe1e0521358647b7f62359b94175f89b2ca9d5ee6f68dd8c243c4379e9d"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_trace_propagation.py",
+      "sha256": "4b87570beba2ee554785f92992b1927ea946457031086910abe5cfdc17a4a3a5"
+    },
+    {
+      "file": "pellier/backend/tests/test_gateway_vocabulary_migration.py",
+      "sha256": "0e79aff633f3d22fa299e81d9e96e7c0d4e13dae34b83144a2acc3702370a7e6"
+    },
+    {
+      "file": "pellier/backend/tests/test_golden_journeys.py",
+      "sha256": "ea20c0e2d5332bcd945ab53bcbd7705db4847b48a13824f9dbe6935483e9ec1b"
+    },
+    {
+      "file": "pellier/backend/tests/test_governance_outcomes.py",
+      "sha256": "88780fd770a96a277392adc7be56dc64781f0016882b70954dbb23c8e554c847"
+    },
+    {
+      "file": "pellier/backend/tests/test_governance_proofs.py",
+      "sha256": "cae9b2dd0799fb4362872cc5db8059614dc0f7f70e0f52a47846371cd5e86ea1"
+    },
+    {
+      "file": "pellier/backend/tests/test_governance_reference.py",
+      "sha256": "2e12f6ef1a3360bfa6acccf54f0fdfe5ba4669d2898d97b1b88ba032d89ff91c"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_execution.py",
+      "sha256": "1387b80d4152667adb874ed6afc9494c6ea0752c118305901dd7959caff5ca0b"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_query.py",
+      "sha256": "dec650c186f864df9904b5f78a780666e3e26f56306a8c666ea6b6e402b85560"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_query_live.py",
+      "sha256": "522a594d6671176698004c15fde71d9d0d7d0066c16cd1917bc23ba8cee29941"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_receipt_api.py",
+      "sha256": "595495bc2f30227ff40d9bb0b69ec4502f72b409d9754a92200f67337ed932d7"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_return_rails.py",
+      "sha256": "39606609e478395a3dfd9010da20a833a7df072c971c1f2cc975231759b9b95e"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_review_notice.py",
+      "sha256": "d1007d3999f30c55c581ff993fda0e4e98e50e50b1e879cbbc4adf79156fe1b4"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_review_regressions.py",
+      "sha256": "542e5a447b6e97e70265248c9a92f088c57574399ca271e1c1fa6e87cdb81155"
+    },
+    {
+      "file": "pellier/backend/tests/test_governed_turn_receipt.py",
+      "sha256": "2b67ff98a8df3e64c00040f7c718787496f0c839da49e6876b6e25c0d986092a"
+    },
+    {
+      "file": "pellier/backend/tests/test_graph_pattern.py",
+      "sha256": "2cdfc7e3c85031e5552911431d5a1d0b72d14f2356d0ce41f102acf643983cea"
+    },
+    {
+      "file": "pellier/backend/tests/test_health.py",
+      "sha256": "5223b529fe88a4a4092c2ed79f50a5a277e959f70ec9fd936fa51960e8c39d7d"
+    },
+    {
+      "file": "pellier/backend/tests/test_hybrid_search.py",
+      "sha256": "99b241460b29e9bd593440c2eb0a03b6d0a06b2e9e3bc0d12ad21eca5cf5df68"
+    },
+    {
+      "file": "pellier/backend/tests/test_idempotency_claim_release.py",
+      "sha256": "537c50cc64ed6513648f949a3d1b3b8ffe1d006ebb2197012da150a9ea23d142"
+    },
+    {
+      "file": "pellier/backend/tests/test_identity_principal_selection.py",
+      "sha256": "ea23ee903c1d2293f11817a18ffbf2d02b4c47ba8e4fd80f1bed8004c5270765"
+    },
+    {
+      "file": "pellier/backend/tests/test_initiate_return.py",
+      "sha256": "0c49083fa63c28c557d90546e1596d034b262e593eb8b40aeaeb2dcf827f71d0"
+    },
+    {
+      "file": "pellier/backend/tests/test_lab1_contract_check.py",
+      "sha256": "dab297ddffb02fdb36d72aa84cd9240e30dafbf05695441136521649708d65d3"
+    },
+    {
+      "file": "pellier/backend/tests/test_lambda_shared_helpers.py",
+      "sha256": "8e538904b7952ac468e540214177c6eec4dfd5563a3b4b17cb192cf614c72e5b"
+    },
+    {
+      "file": "pellier/backend/tests/test_live_surface_contract.py",
+      "sha256": "482c347d38917caf3b8900918dfcea0800b5c934ed4ed577810220615066bac5"
+    },
+    {
+      "file": "pellier/backend/tests/test_local_golden_journey_seed.py",
+      "sha256": "e15ba4b3ef51d1b089c493375e4e0b8914d807799432ede2700ee17d06f968d6"
+    },
+    {
+      "file": "pellier/backend/tests/test_log_protection_contract.py",
+      "sha256": "2a6af1f8c5123209e3bd11b5da32227cb4bc66756eeebfc9369f76cc02c72afb"
+    },
+    {
+      "file": "pellier/backend/tests/test_managed_adoption.py",
+      "sha256": "6cb9d967716fec036186a69b4c6f17c99548b8333cd4a18f28099fae7fcac275"
+    },
+    {
+      "file": "pellier/backend/tests/test_managed_gateway_tool_contract.py",
+      "sha256": "5fefc099d8bd18b5dffce38885d3b4f6a4176512fbed39903835cfd2a9c6ad8c"
+    },
+    {
+      "file": "pellier/backend/tests/test_managed_policy.py",
+      "sha256": "753fd50bee51a61f5572fa694d36b90504a7ee52b7e763366bc5781f2b9a4cdd"
+    },
+    {
+      "file": "pellier/backend/tests/test_managed_rail_readiness.py",
+      "sha256": "97a343f72290088911c54385838d5dd91a4a02ec282ec4dcbc187b8b9b57061f"
+    },
+    {
+      "file": "pellier/backend/tests/test_memory_showcase.py",
+      "sha256": "da2e88ebbfee5da9c58bc1c0f18ad9bff0ef0cc31c6aaee0c6ddeae707e28952"
+    },
+    {
+      "file": "pellier/backend/tests/test_memory_substrate_boundaries.py",
+      "sha256": "b12c0c5f943ea33c6746f1a9ef617acc45c3cb7b054c62758a25709b34ee508b"
+    },
+    {
+      "file": "pellier/backend/tests/test_model_id_parity.py",
+      "sha256": "73dec8882dc88ba00e34c5ad2027cdafe36e7a936308be476de17fe5a3154732"
+    },
+    {
+      "file": "pellier/backend/tests/test_model_invocation_receipt.py",
+      "sha256": "73eca7ebc08e3530682cfb7bd1ad659de8561779fdd442a9bce2c83bce6ff0e3"
+    },
+    {
+      "file": "pellier/backend/tests/test_models.py",
+      "sha256": "55ca27544558d556640426c7b66ee02290685f60d90a1aa361a10432c50d6900"
+    },
+    {
+      "file": "pellier/backend/tests/test_no_environment_identifiers.py",
+      "sha256": "c8fa311f103694eb2fe2d1594bc128a1feec2fd7268454a87860a5443a8d1e53"
+    },
+    {
+      "file": "pellier/backend/tests/test_no_whitespace_damage.py",
+      "sha256": "107008a16e73e0bda40778a61b81c69e088ad222670c4770592fd3bb21d3e2b7"
+    },
+    {
+      "file": "pellier/backend/tests/test_observatory_proof_board.py",
+      "sha256": "850b9f929ca6cc9c936223401833e49cbcfc981f945c7d0e1a1cc74dc178067f"
+    },
+    {
+      "file": "pellier/backend/tests/test_observatory_session_truth.py",
+      "sha256": "ea2fedd4d310b166ec0fc60fe414dddf041401b013d2928696a87c8c250b9c20"
+    },
+    {
+      "file": "pellier/backend/tests/test_observatory_working_panel.py",
+      "sha256": "6583a08f53bf85d4f28a23e057e9ebd4d27299b7fabdd5c87419e8ee93763642"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_bootstrap_credentials.py",
+      "sha256": "00a168c5b168bd3d04c9ac3c1c753235e18583a39dc275c0fd889bb54e600c08"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_concierge_orchestration.py",
+      "sha256": "6460b1539773fe9dc47575c24ecad222a9be0e8d69527ab361cd032aa2920a2f"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_concierge_sessions.py",
+      "sha256": "7bac546ad9ba866ccd2b6b68443c54dedf4b56c6b9814f0b32d92656cec67fd0"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_episodes.py",
+      "sha256": "c83fa1196158f3bb2e4178c4e8b3b5f36869db5e498178eff95a3b486c0469f7"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_graph.py",
+      "sha256": "801f846279beafab1c3d28a562d30072e81196367327fb7dbe8ae0046afc620b"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_lineage.py",
+      "sha256": "cd4f2d1a4a5b3b7b2dbbbb0fe5c124ff471eb71ae504014d050a92a8ea28c18a"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_mutation_auth.py",
+      "sha256": "8cf8daf2f1d497b10328d01a5ebd00a997982b4c4a86383e0a16e3c8b8c7b506"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_proposals.py",
+      "sha256": "f74d459c53867d8ad631e9e45dd6863b30c3a4ba91fa5efdb99306d8d908ddc2"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_return_scope.py",
+      "sha256": "49172e28d25800356dfcb7928b3d35ce06e77190ebba349fb437491527f81a6e"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_review.py",
+      "sha256": "7df9a226926dc691ae5c18b5a20830fd015eecae1dbcf07806746de26c6405ee"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_runtime.py",
+      "sha256": "af623082407a23ff5ad53deff1e4f490454c213f45f5248f1ac7df63e7995f6a"
+    },
+    {
+      "file": "pellier/backend/tests/test_operator_truth_contracts.py",
+      "sha256": "04a859140abd05cc413093812c35c89fc5ab4ee0c214c0f84ef0d851c975a80c"
+    },
+    {
+      "file": "pellier/backend/tests/test_orchestrator_routing.py",
+      "sha256": "5a6a24152da2a2f5a0486f9248d70b05cc6e50da6a07c4c48ae84ce981b12116"
+    },
+    {
+      "file": "pellier/backend/tests/test_otel_cloudwatch_export.py",
+      "sha256": "122a4f834c36111f2cbe1a763f3f1fe75731338efc9092863b75fbfccea7a6ee"
+    },
+    {
+      "file": "pellier/backend/tests/test_otel_content_redaction.py",
+      "sha256": "6ccde2836fca552f33975fe42375928829a9a0c124452033048b76068f566bea"
+    },
+    {
+      "file": "pellier/backend/tests/test_otel_extractor.py",
+      "sha256": "8365f8d548888164cb5cb52e2f9def65981df5cb015017c0146afedc950257de"
+    },
+    {
+      "file": "pellier/backend/tests/test_password_auth.py",
+      "sha256": "ee1dc13edb4461c06f1d08366aaa20d5ab33ac6c7f3cba797ee4ef9d77bcb6e7"
+    },
+    {
+      "file": "pellier/backend/tests/test_pellier_fast_path.py",
+      "sha256": "da82466287109a28b26092ac455b0bfefebe68437612b734ee0ce5f1e404599b"
+    },
+    {
+      "file": "pellier/backend/tests/test_pellier_stm_fallback.py",
+      "sha256": "508028f772a4efcebc88aa34213434c00b922adc75093ed640adfd24db6afdb2"
+    },
+    {
+      "file": "pellier/backend/tests/test_performance_endpoint_validation.py",
+      "sha256": "eb02d98b03158f47870136922b9140d4bf929265065a4831068b11818eefc345"
+    },
+    {
+      "file": "pellier/backend/tests/test_performance_log.py",
+      "sha256": "c7ec4a600b75282a843d5606ef01267dc26a81bc00ad9bee69f20f9cd0dd80ef"
+    },
+    {
+      "file": "pellier/backend/tests/test_persona_arc_contract.py",
+      "sha256": "521ed06785159ebe9f168f9ddcaff17fad161d8078ad300001742eccd409758f"
+    },
+    {
+      "file": "pellier/backend/tests/test_personalization.py",
+      "sha256": "2bc33525cb150e3ace422157d051734df3b3154d4e8b87ac64fab75be3824081"
+    },
+    {
+      "file": "pellier/backend/tests/test_pgvector_quantization_contract.py",
+      "sha256": "2b6986ad97724484b98271c56b5bd356719c10b70cd19a8fa71f88efeca45663"
+    },
+    {
+      "file": "pellier/backend/tests/test_planned_hybrid_retrieval_contract.py",
+      "sha256": "1fe4bbaf5d354fbea4421982c5e57b60ea6ecb8ce0377728deed5dd461a14105"
+    },
+    {
+      "file": "pellier/backend/tests/test_policy_boundary_span.py",
+      "sha256": "1aae350bde15c9d5683397aa2f1cdb33c432f8089af51e92d6c037b1513e702e"
+    },
+    {
+      "file": "pellier/backend/tests/test_policy_control_contract.py",
+      "sha256": "8e9dfb46ea3fda8911b22b424ab3d5c41b24f530d48bf83dfc05cf69f2c88640"
+    },
+    {
+      "file": "pellier/backend/tests/test_policy_decisions.py",
+      "sha256": "99232aa858bc76818740c7005db85cdc3800ffb9be5de990b9e87351e211366e"
+    },
+    {
+      "file": "pellier/backend/tests/test_policy_mode.py",
+      "sha256": "48f42596146fe0c8de69e623a6cea840746fec980c7673efc0c7e213b87e4e63"
+    },
+    {
+      "file": "pellier/backend/tests/test_preferences_api.py",
+      "sha256": "8a324f60011988e85c4f771b5add73dbddf140e204f7b62a4a62b716406c00d8"
+    },
+    {
+      "file": "pellier/backend/tests/test_principal_session.py",
+      "sha256": "d709d55d5e21967a95827dbb805f4e9bbb499e6f26dd4479e95c771ac8d868aa"
+    },
+    {
+      "file": "pellier/backend/tests/test_private_deployment_receipt.py",
+      "sha256": "2a3a3b1bcd2a075f6c5c1af1db4c18e2dc786f1be97ca2a6950251e27ca89110"
+    },
+    {
+      "file": "pellier/backend/tests/test_product_asset_tracking.py",
+      "sha256": "959d78152b4cd8479efedc1032dfcc7aecbd86caa697ab98adb896f60a3d3e93"
+    },
+    {
+      "file": "pellier/backend/tests/test_product_extractor.py",
+      "sha256": "636d80c5ea04aab5164a6c5bb4f80ab6cc435c22186c1dec80d7c53b7e70593b"
+    },
+    {
+      "file": "pellier/backend/tests/test_products_personalized.py",
+      "sha256": "6b8762eab7cfef3b28a530ce8b68cc5da8f79ceee4ad7482215717f5908829ce"
+    },
+    {
+      "file": "pellier/backend/tests/test_proof_preflight_postgres.py",
+      "sha256": "92ec014d63ec54b313799faedf5dca347863c6a269ec4db308959c479429a7ae"
+    },
+    {
+      "file": "pellier/backend/tests/test_provisioning_env_contract.py",
+      "sha256": "cc5513f8b0f9ea251afdea36690ec30e8fb2718daf53af961352b0e87bc11af2"
+    },
+    {
+      "file": "pellier/backend/tests/test_quiet_search_business_logic.py",
+      "sha256": "4efc939678ef645344e88c9aabbcf0f873fa59ec2af572850015b413eb2c6dbb"
+    },
+    {
+      "file": "pellier/backend/tests/test_read_only_proof_tools.py",
+      "sha256": "2542712668ea119ea9e8a3967311a1846e099d4b0d3f3db7961674d4428b355b"
+    },
+    {
+      "file": "pellier/backend/tests/test_reconstruct_turn.py",
+      "sha256": "8f95b5e4dd4ff27df08c10a51a053f9940a9080afee3f9b3b3f6502fa4c06242"
+    },
+    {
+      "file": "pellier/backend/tests/test_replacement_recovery.py",
+      "sha256": "cf89d2fa8cd3b86a8adc94d5dce0c2009fc6683041fe24d5dfba9c47954f016b"
+    },
+    {
+      "file": "pellier/backend/tests/test_replacement_search.py",
+      "sha256": "9ae1a231622d853659e22886eb4b24767445a175050d1107dd17807715d19f16"
+    },
+    {
+      "file": "pellier/backend/tests/test_rerank.py",
+      "sha256": "1d94d616e91a44fe073274d291be93bb52cad997e166f9c5db6c3f2f99da276a"
+    },
+    {
+      "file": "pellier/backend/tests/test_reset_memory_runtime.py",
+      "sha256": "adbd406be06ea90f2a25dc04dcc99c0e9136eb2c81af2c1cd60fa8de4c273510"
+    },
+    {
+      "file": "pellier/backend/tests/test_response_mode.py",
+      "sha256": "a99dfa5563926439636e66ead5ecd4d954dd741756173cda4a49f41cdf3c9f4d"
+    },
+    {
+      "file": "pellier/backend/tests/test_retrieval_receipt.py",
+      "sha256": "97810f4dcb3beec3729e50ce64260f32c6df4965711642f6bf8f19d77f038c74"
+    },
+    {
+      "file": "pellier/backend/tests/test_rls_live_integration.py",
+      "sha256": "5c194884684c7199abf87f8b122b8a8e581c136c31dd9b235bb05a9e93182617"
+    },
+    {
+      "file": "pellier/backend/tests/test_rrf_parity.py",
+      "sha256": "b0821a561d1b576909442e00c3fe3a36b191a2785c8c6f252d5673ed5a0254a7"
+    },
+    {
+      "file": "pellier/backend/tests/test_runtime_hello.py",
+      "sha256": "57603890198ae872aaca7fd4816100979b6808f54ec36673ffce39c3bb2a7b78"
+    },
+    {
+      "file": "pellier/backend/tests/test_runtime_switch.py",
+      "sha256": "61f6298572e05ac8f82640605df6fbc18531f44ed1b58a48afa966e58dd4e52f"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_endpoint.py",
+      "sha256": "92be5f2e43034621595e59f126453245a890300974941e13b8846136046d94a8"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_explain_endpoint.py",
+      "sha256": "e8f184620c04e7ce790f445def2956e20803770b02f0b90074053f91ebef8a99"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_micro_eval.py",
+      "sha256": "1c769cc3d34b3ad5b9cdf54b30f8957f582f30bb6fcfca72a76a0e67e36f8744"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_plan.py",
+      "sha256": "dbcc64ff317ff6f4bfc6b444301031300a9789008876e38e8d3418c462beb0d5"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_products_hybrid.py",
+      "sha256": "1ee91023015546ec7e019445bc34977dcc00ffda8e87cdc5d9aa1116cb8f83f8"
+    },
+    {
+      "file": "pellier/backend/tests/test_search_strategy_compare_endpoint.py",
+      "sha256": "c4ac4cd50955f65863bc1eca7cdab1d345549479354a8668024d0af234c3534b"
+    },
+    {
+      "file": "pellier/backend/tests/test_seed_pellier_catalog.py",
+      "sha256": "9c3a31706b5128874110ddafde9a31af95330a7bd8265a7c2b820f78b2caec76"
+    },
+    {
+      "file": "pellier/backend/tests/test_seed_principal_mappings.py",
+      "sha256": "9c391f35bedbb00a5bf6a261c00fab54faaf60ec2227f7a9aca18383502867a0"
+    },
+    {
+      "file": "pellier/backend/tests/test_seed_schema_contract.py",
+      "sha256": "69daca92c5e98ecccba971ff0683b13b3989e0c950942db55d278c4c486d2485"
+    },
+    {
+      "file": "pellier/backend/tests/test_seed_tool_registry.py",
+      "sha256": "64575f61860d3db3bea9590e796dbc0209a6259a533fa4ed46466d978dd07721"
+    },
+    {
+      "file": "pellier/backend/tests/test_shopper_arc_prompt2.py",
+      "sha256": "ab53142cc2d19d20aa3736ce3177d7ff6af13c01f9dc3c49c7be12749bfda8e5"
+    },
+    {
+      "file": "pellier/backend/tests/test_shopper_handoff.py",
+      "sha256": "507093fbcb5f344ac980802b0aaa18d1c57969e4c0849aa4a9ab511cc3f7274d"
+    },
+    {
+      "file": "pellier/backend/tests/test_solutions_parity.py",
+      "sha256": "446906ccf0899395a849b48aabbc99bd5fa50e7269468ea5e267949457aa5bcf"
+    },
+    {
+      "file": "pellier/backend/tests/test_spa_mount.py",
+      "sha256": "438db279357ff3b9fbcc84a50ffc04a058532ee9325933fc25506d1c0ab9cc80"
+    },
+    {
+      "file": "pellier/backend/tests/test_specialist_product_forwarding.py",
+      "sha256": "b8d5e8331dfa29dc80dbde73ad781466a08e259d86dc4aa62163334355cf555b"
+    },
+    {
+      "file": "pellier/backend/tests/test_sql_query_logger.py",
+      "sha256": "b16a3c7bec1805d6de768ae7520bfcd96c7c169da6bb768176461677b6148ba9"
+    },
+    {
+      "file": "pellier/backend/tests/test_start_backend.py",
+      "sha256": "ccf489e8c6b109a7e66164b1114740daa078a8ef21e77aad6aa75ea84f578bc5"
+    },
+    {
+      "file": "pellier/backend/tests/test_start_frontend_runtime.py",
+      "sha256": "5aabaf2281eb82b32801febe132ca7dda54e8799f772bba2a593a56022459918"
+    },
+    {
+      "file": "pellier/backend/tests/test_surface_naming.py",
+      "sha256": "6afc6c415d58f566676f4d623a8d1795d16f106db6bcddba4a4f05ef01b70db3"
+    },
+    {
+      "file": "pellier/backend/tests/test_teardown_agentcore_observability.py",
+      "sha256": "7ac21a3828969700e957394f74c946c1ef6bb7ec5b65fa6742bb843852d53a31"
+    },
+    {
+      "file": "pellier/backend/tests/test_telemetry_error_redaction.py",
+      "sha256": "c5e0adb0108c8c807050e237baa8ce2fe03c9a44a072552e2daccaa8eda1971b"
+    },
+    {
+      "file": "pellier/backend/tests/test_tool_audit_writer.py",
+      "sha256": "9b702b9eae8fc1ce4ada0b1ee0ad99f0c71ddd45543437e1f9efcfb8fba040fb"
+    },
+    {
+      "file": "pellier/backend/tests/test_tool_boundary_span.py",
+      "sha256": "f6b14385a32b901a95a9bf223c41559f056514aa6411ad7f959ddee0870694c1"
+    },
+    {
+      "file": "pellier/backend/tests/test_tool_ownership.py",
+      "sha256": "83b3428d72ef89b157f56d0322fb4f294993a529626c7137a4970515baae6dc9"
+    },
+    {
+      "file": "pellier/backend/tests/test_tool_registry.py",
+      "sha256": "3d190a0e9918d7df3a4dcb62712f88a54c07d8b5f54cac7251a3ef3a541612d6"
+    },
+    {
+      "file": "pellier/backend/tests/test_tool_vocabulary.py",
+      "sha256": "ca8a55ddb20beec0f5b035c6ec39c5fb2455396f05dd49abbe7b9a40e340c3d8"
+    },
+    {
+      "file": "pellier/backend/tests/test_trace_attributes_payload_guard.py",
+      "sha256": "fb3885dfed212fd52ec588b5e60aa7868f8f523bc2f35f4393f333de56f6b728"
+    },
+    {
+      "file": "pellier/backend/tests/test_transaction_search_activation.py",
+      "sha256": "866e2b382e05cbd4f58765b192e936a9f1bfa570a9e03a0459409547f35cb452"
+    },
+    {
+      "file": "pellier/backend/tests/test_transaction_search_indexing.py",
+      "sha256": "517f084834c2de0b30251901acafd17bf7f8b51b507aa857c92c6ac4671031fe"
+    },
+    {
+      "file": "pellier/backend/tests/test_turn_id_contract.py",
+      "sha256": "0d03ef36af6526fcebd419453ee81f98759924013e73c86a7c7b5127bb78e223"
+    },
+    {
+      "file": "pellier/backend/tests/test_turn_identity.py",
+      "sha256": "4fc7faf2a0340a798a74b585ba1382a31835890abfb30121ccf9c0ab507dc58e"
+    },
+    {
+      "file": "pellier/backend/tests/test_vector_search.py",
+      "sha256": "f8ab4487a621f3d6bb494e0f98dc755bcbbddd54731e576430e2fd641fe8ee92"
+    },
+    {
+      "file": "pellier/backend/tests/test_verify_agentcore_memory.py",
+      "sha256": "a59523e4a3666218f923e381dc969a5ee8385bbe4eaed8cf4afe2b3f71557b82"
+    },
+    {
+      "file": "pellier/backend/tests/test_workshop_doctor.py",
+      "sha256": "ac8d41340d09986db1b9bb76a86cdded6bc7c33d2c2ab19d8d37bf57b8ad8c57"
+    },
+    {
+      "file": "pellier/backend/tests/test_workshop_marker_contract.py",
+      "sha256": "cb2ad65532f65a80062d2d1f67cdb4448a0f180fedea0c9a624cd128ff559e54"
+    },
+    {
+      "file": "pellier/backend/tests/test_workshop_reset_contract.py",
+      "sha256": "8b88cc435f7a1ac23b151c8ce70f93dbb30a6978cd2eec4e327bd1c8e77089a6"
+    },
+    {
+      "file": "pellier/backend/tests/test_workshop_resume.py",
+      "sha256": "0fa7ecd4898104043d42ed4a04d0dcd6dd272280fa7951666c0b78791da93864"
+    },
+    {
+      "file": "pellier/backend/tests/test_workshop_run.py",
+      "sha256": "ba36af5b927e8e4a7c9cc87a8598a664bdbe59c4293ff17e1ae1e04bb940b976"
+    },
+    {
+      "file": "pellier/backend/uv.lock",
+      "sha256": "3e5e5840e35d61dc8b28aeb4948fc34069f4295c75bf2087dad0a9d2f29ca482"
+    },
+    {
+      "file": "pellier/frontend/e2e/cognito/anon-to-auth.spec.ts",
+      "sha256": "4ce2de6f1f89a3f334bb7bd911b43c211812dda2e46329a66849eb8d4176d954"
+    },
+    {
+      "file": "pellier/frontend/e2e/cognito/auth-happy-path.spec.ts",
+      "sha256": "efd76405913eb3a2ca7c1b1cb2b0ca80079fd38ae8938f4c9791d8bc59a5a0b3"
+    },
+    {
+      "file": "pellier/frontend/e2e/cognito/auth-refresh-fail.spec.ts",
+      "sha256": "a08088bc68b78c5448c04ff67c494fa696dd375551162022492af868d9b7755a"
+    },
+    {
+      "file": "pellier/frontend/e2e/cognito/auth-refresh.spec.ts",
+      "sha256": "b8a3dbc606c28603546a308109174e7b54ce6cc1b72ae5f7bcc7f161d9e9e2b6"
+    },
+    {
+      "file": "pellier/frontend/e2e/cognito/helpers.ts",
+      "sha256": "d48b683d569030186c3d88f62e36d3ffe85b22f852b62d658ba3bd487365b900"
+    },
+    {
+      "file": "pellier/frontend/e2e/govern-reference.spec.ts",
+      "sha256": "8c77592b74c1b7a97c504d667d055700b2be131c3c9d96b7da5f411af1b3cc42"
+    },
+    {
+      "file": "pellier/frontend/e2e/operator-client-preview.spec.ts",
+      "sha256": "d82efbb3bc7cadb42f7aed1485a2c314926b77afeba896fbebf1eae6a1ebbaf1"
+    },
+    {
+      "file": "pellier/frontend/e2e/persona-modal.spec.ts",
+      "sha256": "fc42ab18a7127fbe246b11a10f3fa13390915da6245aebfeab5139aa20972679"
+    },
+    {
+      "file": "pellier/frontend/e2e/resolution-trace.spec.ts",
+      "sha256": "e0f550483b067a93c40de52adf8457fddeb26ac5804b18f8bd017bcb738d11c8"
+    },
+    {
+      "file": "pellier/frontend/e2e/review-accessibility.spec.ts",
+      "sha256": "359f93ed5fb06760098a35d3052b0f9747ac777361d829922f40a7517c85961a"
+    },
+    {
+      "file": "pellier/frontend/e2e/review-recovery.spec.ts",
+      "sha256": "9b5eef72d9a5c038fa2f7e3f4936c7a10030d9dca5b90af7d9acf1e0d5b440fd"
+    },
+    {
+      "file": "pellier/frontend/e2e/workbench-live.spec.ts",
+      "sha256": "3c7b254438f664b30602160f9ff704906ff798675999d11a925a78a0fd49c1f6"
+    },
+    {
+      "file": "pellier/frontend/e2e/workbench-results.spec.ts",
+      "sha256": "be836878169a17bfa5c39e67f51cd1b674dffd1c52c926570113116f7f2ad8b9"
+    },
+    {
+      "file": "pellier/frontend/e2e/workshop-smoke.spec.ts",
+      "sha256": "5a1dc3ad77b289dda617c40c3a7c7f32a83600d66c1db9cbad1d69f0c80adf21"
+    },
+    {
+      "file": "pellier/frontend/src/App.routes.test.tsx",
+      "sha256": "e4fce47b9945fb664dc8002cfa99b2c7e32bb8c090ba4f0e1699b227e93107bf"
+    },
+    {
+      "file": "pellier/frontend/src/App.test.tsx",
+      "sha256": "d2dda220f37dbf517e46c478c85b86e559ecc67ecdf3414d4e0cf3a9285d84df"
+    },
+    {
+      "file": "pellier/frontend/src/App.tsx",
+      "sha256": "2515488a1fba294927f652d2be05f2f16e62d57c6e579c74a63991f154bcdceb"
+    },
+    {
+      "file": "pellier/frontend/src/__tests__/copy_hardcoded_strings.test.ts",
+      "sha256": "f90724b48795e792742a56289d385f9e72585b16261d9f95c7c10f5a1c0fbb2d"
+    },
+    {
+      "file": "pellier/frontend/src/__tests__/governed_tokens_import.test.ts",
+      "sha256": "8c671075357007668b13b360dcd24629e54a7102864903bb0723358fa530ea87"
+    },
+    {
+      "file": "pellier/frontend/src/__tests__/observatory_type_floor.test.ts",
+      "sha256": "3dd0756f7536b978a1cd2279cba9c3142e747a59847c2ecf07174a3bc58d3516"
+    },
+    {
+      "file": "pellier/frontend/src/components/AnnouncementBar.test.tsx",
+      "sha256": "16414bc938417ec5cb122c5a6cc2f207043223b5e5e0e2410bb35992dcdb9ffd"
+    },
+    {
+      "file": "pellier/frontend/src/components/AnnouncementBar.tsx",
+      "sha256": "1d7d6c2374cf83aad93439aea73e860b475e48284d8e5ea79bcb33f09f3604f8"
+    },
+    {
+      "file": "pellier/frontend/src/components/AuthModal.test.tsx",
+      "sha256": "0ee377f8da879677ae3b4b3e21283b7477a17ba2f57cd5f0c904773d4a30113a"
+    },
+    {
+      "file": "pellier/frontend/src/components/AuthModal.tsx",
+      "sha256": "ecc9854e9dd788685800ae9be66ce5ab7600f70a0a96e87ffc32d148d912c838"
+    },
+    {
+      "file": "pellier/frontend/src/components/AuthStateBand.test.tsx",
+      "sha256": "4bd07259c0aff31277c6d55c51a91f5a8904156d4cef69987f7755592614ca57"
+    },
+    {
+      "file": "pellier/frontend/src/components/AuthStateBand.tsx",
+      "sha256": "5864f37207f4231396218c5a9fedccee2595c4f8e3cab76bad6d488d77b45aac"
+    },
+    {
+      "file": "pellier/frontend/src/components/CartPanel.test.tsx",
+      "sha256": "46da58d710829d2bce50f72f7c15c7e843da70b20c6e560fba63565f70f8868a"
+    },
+    {
+      "file": "pellier/frontend/src/components/CartPanel.tsx",
+      "sha256": "e073c0d36352a16322a2ff7ba8a89a2eaf93df8cf9f61113fbe6be428085e6b2"
+    },
+    {
+      "file": "pellier/frontend/src/components/CategoryChips.test.tsx",
+      "sha256": "72024f576946e790859b91c48c074781de23df4a28ffc0256b7af55356617d3d"
+    },
+    {
+      "file": "pellier/frontend/src/components/CategoryChips.tsx",
+      "sha256": "6c8fc3b6d18f59575de4a70ef1469b3c819df258f1437a6d928f31a463c9cb20"
+    },
+    {
+      "file": "pellier/frontend/src/components/ChatDrawer.account.test.tsx",
+      "sha256": "4f2b4cda7a292d7a2eaa8ef3653d44029dc720c291a5f23e001279338821a357"
+    },
+    {
+      "file": "pellier/frontend/src/components/ChatDrawer.onboarding.test.tsx",
+      "sha256": "db3cd7e2d6e9f3fca1d85fe6dc137f49e0a6bf59aa6d42f82f98048777025ea0"
+    },
+    {
+      "file": "pellier/frontend/src/components/ChatDrawer.tsx",
+      "sha256": "1d5b8cdc68194e1b53d2239accb0734e0efadcbdff64e987de50527eacd1f29c"
+    },
+    {
+      "file": "pellier/frontend/src/components/ChatFailureCard.tsx",
+      "sha256": "0b32fa043d7d90ce0bf67e8e1a9d0bd92c9ab39f0a281430d24d6e61491f5eaa"
+    },
+    {
+      "file": "pellier/frontend/src/components/ChatOutcomeCards.test.tsx",
+      "sha256": "e156beee2c6935a3d24ca04bd14574258c4ccc85c2c9a5e072831ea659aa7064"
+    },
+    {
+      "file": "pellier/frontend/src/components/CommandPill.test.tsx",
+      "sha256": "b43a5b4945ef76a23230cd4fbc600fbb832642f1b91aa60d50dc15ecf5d9f390"
+    },
+    {
+      "file": "pellier/frontend/src/components/CommandPill.tsx",
+      "sha256": "518a3f50dcc63e06ea3f82e03cec39175f30e895cc9e55ee0eb90ec28eab58b0"
+    },
+    {
+      "file": "pellier/frontend/src/components/ComparisonHost.tsx",
+      "sha256": "fef30b510a1e4581ad1756d8555fca9968807d9236b6dd0ab1842b58f7f824ea"
+    },
+    {
+      "file": "pellier/frontend/src/components/EditorialBrief.tsx",
+      "sha256": "5ec3b4139e11a03faec1d11f0f2583fe993c96fcbabb0891bd94615cfa4ae47e"
+    },
+    {
+      "file": "pellier/frontend/src/components/FieldNotes.tsx",
+      "sha256": "b507dcf503572464165b28f2ad7301c2f3b42522316280a6f28629277ad7401e"
+    },
+    {
+      "file": "pellier/frontend/src/components/Footer.test.tsx",
+      "sha256": "087f8a7d64e29ab582e6e8dfe90a500beecf66f3d198384395b11ed8ef0a40b1"
+    },
+    {
+      "file": "pellier/frontend/src/components/Footer.tsx",
+      "sha256": "e890d05c677d93f7fec88e4396175ca0dc4621d2fe039a30b9e4b2f7c8a8ef60"
+    },
+    {
+      "file": "pellier/frontend/src/components/GovernedTurnReceipt.tsx",
+      "sha256": "3fd0cbad84adc71fac75ca3974026bc3dbc01d18a5b8678d2dd71c094699bcdc"
+    },
+    {
+      "file": "pellier/frontend/src/components/Header.test.tsx",
+      "sha256": "a7961101d6f94722016b08fd9c37d8e3c476d77c16ec7d8014738558bc9839e4"
+    },
+    {
+      "file": "pellier/frontend/src/components/Header.tsx",
+      "sha256": "204b5c87ab96f91a6f2b8fdd05fb169794fed0e015d7ec3117c64aaa7f72fe80"
+    },
+    {
+      "file": "pellier/frontend/src/components/LiveStatusStrip.test.tsx",
+      "sha256": "6118055db201744b2d31e75c532d7bdc922847a522a38dafad3cda768c7edc5e"
+    },
+    {
+      "file": "pellier/frontend/src/components/LiveStatusStrip.tsx",
+      "sha256": "bad6df6a16b21e3402652e3db5341a9d1d508549ef28e941864d090715b589d2"
+    },
+    {
+      "file": "pellier/frontend/src/components/LoginButton.tsx",
+      "sha256": "558ce3c860d918a112c7bcf3e615e0dc198d78aad291a17a877050a83c73ec93"
+    },
+    {
+      "file": "pellier/frontend/src/components/MarkdownMessage.test.tsx",
+      "sha256": "f95367c21ace582b7b39f5ea2ea16b21289e89c9c75266218ae3a69481740756"
+    },
+    {
+      "file": "pellier/frontend/src/components/MarkdownMessage.tsx",
+      "sha256": "75b80b5e15a2d14a58d8b8097f2e59efa9fe0fe038ae785661348e682cf995eb"
+    },
+    {
+      "file": "pellier/frontend/src/components/MemoryHandoffCard.tsx",
+      "sha256": "5c30357a489fe291420b34266bafe45c81ce15c02d70cd73f7dde052152e3ab8"
+    },
+    {
+      "file": "pellier/frontend/src/components/MetricsRow.test.tsx",
+      "sha256": "ad500f92e165794cd04d31b24243a22f2a87b35cd388ecb36a168aa06040f9e4"
+    },
+    {
+      "file": "pellier/frontend/src/components/MetricsRow.tsx",
+      "sha256": "2b667870e14a645ac5649697b44bca442c3bcb50037e22a7a9bc4987449e8178"
+    },
+    {
+      "file": "pellier/frontend/src/components/ObservatoryHero.test.tsx",
+      "sha256": "5ca0b01f91c429304c4d11b72b79136c678d0d27cb572235c95ec2c1fc3df0b9"
+    },
+    {
+      "file": "pellier/frontend/src/components/ObservatoryHero.tsx",
+      "sha256": "2bc5f0a2263b0feb33ca2246a82274c2733b1b9ae7d96a28703829b06f673cdf"
+    },
+    {
+      "file": "pellier/frontend/src/components/OperatorClientPreview.test.tsx",
+      "sha256": "5ecac4a191dd54b96d040f9d99a5304081f0603d4aac02b0c546165707b3f655"
+    },
+    {
+      "file": "pellier/frontend/src/components/OperatorClientPreview.tsx",
+      "sha256": "927205cc6ee512b17e312831c4c074b7043098cbdd58a7a783ec90c6a2b4a460"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierApproach.tsx",
+      "sha256": "cb6ffc81e82df87cfd86ea8bad791ffd6fb9c7921398734680c31779b58ef879"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierChatBody.reviewPending.test.tsx",
+      "sha256": "6ae6332f2ba33c0d15e8cf272545836a50c808b6e429d0b3655d69aacbdee787"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierChatBody.scenario.test.tsx",
+      "sha256": "266d112ce301e16fef805ef21a3bbd48f2f69f26ef40b43fca0f0f648427cd52"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierChatBody.sources.test.tsx",
+      "sha256": "e7e70f5e3d07cdbce9751e862182a55cc39c8107400b81b49402516b32d715b7"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierChatBody.tsx",
+      "sha256": "303e5b344bf832f96bda54909f5d23c157dfc1f7558d822e3af711cc8fd3053a"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierCollections.tsx",
+      "sha256": "86513835525e67ca8ff377f14e0c43d99b7a74534bc2f892a2779d3b315aefb1"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierHero.test.tsx",
+      "sha256": "6d9837db77870b38f03e8f5a21a8e091a82dc8e1f007b9a39f6563e7fc3a95c8"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierHero.tsx",
+      "sha256": "521e0aded3cd125dc8306383e1900b693958141ddb02156f4509e7c0d890999c"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierHomeLink.tsx",
+      "sha256": "7e6737ccbe2e5c127e7a40368048666e7c43dfe99e0a17044400c17ddd833100"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierMark.tsx",
+      "sha256": "ab80d619b32ece97513adaafa4a0b38dde2d1f68fa99a5f839178cf568d05c8e"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierServiceStrip.tsx",
+      "sha256": "4483cb59abe8e497fcf9914330a4f99aa3e16badff92084f765a2d6a062f1360"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierSpotlight.tsx",
+      "sha256": "3306abbfd34af62634e82cd292d444b1eac76a284ea653e9f672664ae40ce3c4"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierWelcome.test.ts",
+      "sha256": "7cac7cd2b1a7225731b066c8eb06c84a90bcb43a4d39d66eb6ec340186002c11"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierWelcome.test.tsx",
+      "sha256": "552515e242c29a535eae0b83c533e3e3d195e79d113dfc1660d5c3990158b8ed"
+    },
+    {
+      "file": "pellier/frontend/src/components/PellierWelcome.tsx",
+      "sha256": "58c9516ebdbe6642461b054f3211415b9cd24d49a027feb1791c8a6b6752e751"
+    },
+    {
+      "file": "pellier/frontend/src/components/PersonaConcierge.tsx",
+      "sha256": "dad47d8949786754d39d566d3cee5cbbe3bd7f47a7f7a20f49e1f36befb4fa70"
+    },
+    {
+      "file": "pellier/frontend/src/components/PersonaModal.test.tsx",
+      "sha256": "aac1990eb04557307bdb9c644e5dd23bbd3d6021db8983f5b11e0049de3cfef1"
+    },
+    {
+      "file": "pellier/frontend/src/components/PersonaModal.tsx",
+      "sha256": "c10e9e44f17e92bdb0b63810312bd19f9a3f4e51592c1a98e4254aa311dfef60"
+    },
+    {
+      "file": "pellier/frontend/src/components/PersonaTransitionOverlay.test.tsx",
+      "sha256": "6bbfb4218b3741a426e1bcb86ee182cf614884535686e39d0adef472ea9c6348"
+    },
+    {
+      "file": "pellier/frontend/src/components/PersonaTransitionOverlay.tsx",
+      "sha256": "c3f1e5d4ab1114b544ec620a79b74217ca1038ecc8222b6148009bcc0091410b"
+    },
+    {
+      "file": "pellier/frontend/src/components/PreferencesModal.test.tsx",
+      "sha256": "cecd6a63ae8edf3216e5ec217c81c0b57e8fda1a5ba8977222279d76d5428081"
+    },
+    {
+      "file": "pellier/frontend/src/components/PreferencesModal.tsx",
+      "sha256": "9c1f737c4c4a4ae29694c0a22cdd1c28f7bd2c2c8753e67b7ca9430a4bb9e16b"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductArtifactCard.test.tsx",
+      "sha256": "8532cbc1c867928d7c6d54e7a76c058a8a613bcd01e5e3a9d51269387af3b4a9"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductArtifactCard.tsx",
+      "sha256": "84a5cd8e32de3fdd69895eac63c64574fa2692241e57a81b447cf97c44dde3f9"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductAvailabilityPanel.tsx",
+      "sha256": "ff9c751d81d97f6622c3512a9e0d43e5b9426f9791d3c085698b7b52a9a92b1d"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductCard.tsx",
+      "sha256": "7f736279ed54bfeed378bf020f559fe6f32c3a2678bfb657b091abc0751cdf40"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductCardCompact.tsx",
+      "sha256": "1ed2796c44c5836a332b8ad04db15cfc94d07a8713a0f3b76f142fe4e6cb0de7"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductComparison.tsx",
+      "sha256": "804bfb3e726aa4ca13d70541b22000a33a3c026c64fa789f9f363a87b0767025"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductGrid.test.tsx",
+      "sha256": "3ba91c703ea0e6acae2e684cb846bc08a86e77323e753ccb7142bcbc0ed61245"
+    },
+    {
+      "file": "pellier/frontend/src/components/ProductGrid.tsx",
+      "sha256": "a2de7eab1d6efbee7cb4c429ff5aae016a12bd02ddb4b2266ed91510a8eab631"
+    },
+    {
+      "file": "pellier/frontend/src/components/RationaleBand.tsx",
+      "sha256": "583b68dbf60e3fb7eccb7795bd835dcfed3cfef0f00c9eddaf5d0c90918e2765"
+    },
+    {
+      "file": "pellier/frontend/src/components/ReasoningChip.test.tsx",
+      "sha256": "4f1832435c88ec31b5a7e11f72e5a1f6bd7fa0e7e077606c43a82b40c5b1fb7d"
+    },
+    {
+      "file": "pellier/frontend/src/components/ReasoningChip.tsx",
+      "sha256": "689e0e3e8fc476044e481521577d9c4ce2973ae4c7d62404430b66a884bd3d3d"
+    },
+    {
+      "file": "pellier/frontend/src/components/RefinementPanel.test.tsx",
+      "sha256": "234db4cbb5d6fa5acc36e8b8c218aa0a15fb0d8d4b908411c2d8e3a2a7868fcb"
+    },
+    {
+      "file": "pellier/frontend/src/components/RefinementPanel.tsx",
+      "sha256": "d7578312c9c37c8b63f8b2b58dc83c8af723aa4921871aa500d5cd920cfe7ba7"
+    },
+    {
+      "file": "pellier/frontend/src/components/ResponsiveImage.tsx",
+      "sha256": "7030944b7daca7a334255dc4aa439aad7895547633e678910ba0eaf556b7777a"
+    },
+    {
+      "file": "pellier/frontend/src/components/SignInPage.test.tsx",
+      "sha256": "7337d0a992e4fc7950e9b64691cdb4b50a43d27613ed0731794c2f100f9f5c39"
+    },
+    {
+      "file": "pellier/frontend/src/components/SignInPage.tsx",
+      "sha256": "b11c0e42b5d59e87073f619df78ff0e31a36a278f368164c6d088306d4563a4b"
+    },
+    {
+      "file": "pellier/frontend/src/components/StatusLines.test.tsx",
+      "sha256": "095fb777c26d5cd6a66f2ed69f9712473de09876aedeab97a8261df7c4345494"
+    },
+    {
+      "file": "pellier/frontend/src/components/StatusLines.tsx",
+      "sha256": "01c29340d558c3e968699e252a19ab33339ffb71720916e82ab4c6e265910173"
+    },
+    {
+      "file": "pellier/frontend/src/components/StoryboardTeaser.test.tsx",
+      "sha256": "96cbcf67086c0d18d0adaa2cdd38664e66b984d83cd0917695f4e5901eebd12a"
+    },
+    {
+      "file": "pellier/frontend/src/components/StoryboardTeaser.tsx",
+      "sha256": "c5d51d436a0f238551f482afef19b496b5ccea835c0754e767fa0b9bb739bb36"
+    },
+    {
+      "file": "pellier/frontend/src/components/StylistHandoffCard.tsx",
+      "sha256": "0a489e21c0c71c5115ddc6999880f85c3857b6c1a701e8d3a9b4261602a0694d"
+    },
+    {
+      "file": "pellier/frontend/src/components/SurfaceNavigation.test.tsx",
+      "sha256": "ab1b9ac1b3fe7ff5d509a78376182ba21a065eba6d21209466d835a1fd41b609"
+    },
+    {
+      "file": "pellier/frontend/src/components/SurfaceNavigation.tsx",
+      "sha256": "0f7dbe97065f60b1faabb70533925e237ebf2e4f2f8d928c88990c8bdf4ee8fd"
+    },
+    {
+      "file": "pellier/frontend/src/components/Toast.tsx",
+      "sha256": "986e7900c05432beae9e8b70d1e81f3b9f58647426a251e43a26bc56d301a797"
+    },
+    {
+      "file": "pellier/frontend/src/components/TurnReceipt.test.tsx",
+      "sha256": "a9d91b8d8789a30290f0c8006f8ade3b9131ba1f898623f969fb87c67ca89950"
+    },
+    {
+      "file": "pellier/frontend/src/components/TurnReceipt.tsx",
+      "sha256": "ffe4ef75b17f44b1bc9a96c1914cdcd1ad70d04d5de6f400eb68f15962f6d97f"
+    },
+    {
+      "file": "pellier/frontend/src/components/__tests__/GovernedTurnReceipt.test.tsx",
+      "sha256": "6c605610fab1129febe3a260449a6a9e2ea5df8eab6b971fb8aa89430eae6a6f"
+    },
+    {
+      "file": "pellier/frontend/src/components/__tests__/spotlight-mounted.test.tsx",
+      "sha256": "01d57e8a9ea5a5107232b8d1af02894b73cfcbbc60bff67281ed08107637e696"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/AssistantText.test.tsx",
+      "sha256": "d6b38c1ec95ef42b605a684f42412b21ca34bb3ccb60aea60a0ea885537aeda4"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/AssistantText.tsx",
+      "sha256": "b362281385b69e2333ca13c8f520d4b49d92139e09a12d911f3df971f2cf1b4b"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/AssistantTurn.test.tsx",
+      "sha256": "8d87c0769a9b5b8902e4e9d4154420082053d1bbc58e7de23ecd7154d85b4477"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/AssistantTurn.tsx",
+      "sha256": "38b3a328facbe0e4b20ede544579b8ee1dc99eb6ca53c6f3cc050e6a0426ca60"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ConfidenceSummary.test.tsx",
+      "sha256": "36d8ee9ee358015ad8565663e5ee0c42b7e5deeb68463b473a1f776d44efd5c0"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ConfidenceSummary.tsx",
+      "sha256": "60f7edbe1abc83f2f5c011dd602e5e73fc20128cb81bf7a3e88105c6d1752c8a"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/PlanPreviewChip.test.tsx",
+      "sha256": "439b1c385f92c68db686344cd8561b524eaaea969951a0294132876edf90a362"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/PlanPreviewChip.tsx",
+      "sha256": "9fd3d4596fba77e130d5645bce47aadc4753858837d29400e8de4668594ee6c1"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ProductMiniCard.test.tsx",
+      "sha256": "651262597cf4aaee0db943722977318e42303697c2b55ddb16210f9f486c6fe2"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ProductMiniCard.tsx",
+      "sha256": "e482f83ab9a9f749b03872dba33612be081fb6150d5a72c377f7e85d0fb6f35e"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ToolChip.test.tsx",
+      "sha256": "5f6b3e298965823c84f5e07991c23f47f7efacfd374c1d160e80200720279e03"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/ToolChip.tsx",
+      "sha256": "17ed7ff630244857286e30c2436d0ac251fa40ff1ef3b994377290dd659e7e97"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/UserMessage.test.tsx",
+      "sha256": "d7871ccdf5d5862dd57671f30c141635fe91efe4975163b20818c7415dee921f"
+    },
+    {
+      "file": "pellier/frontend/src/components/observatory-chat/UserMessage.tsx",
+      "sha256": "611144adf5a5619daae91a6ada5639540d5e2397b878fecd08c587cdbc3e2db9"
+    },
+    {
+      "file": "pellier/frontend/src/components/ui/badge.tsx",
+      "sha256": "12f3bdef3ed6681da0456d1b95ed3b7804227cd54fd88fbef1189dac459b1447"
+    },
+    {
+      "file": "pellier/frontend/src/components/ui/dropdown-menu.tsx",
+      "sha256": "572ee563e20d3dc8ade66edcffadddaba2bb16f090b94001b460ceff7381af7e"
+    },
+    {
+      "file": "pellier/frontend/src/components/ui/index.ts",
+      "sha256": "1b52c8581ccd7aee4be4c2f4d3344936502f8915a2b2cc7d94ccbfd92accc474"
+    },
+    {
+      "file": "pellier/frontend/src/components/ui/switch.tsx",
+      "sha256": "33fec81ddabc3061ffb91d8dfe20ad5e97a23c7f6875b3bf0f69bcc1b86788e7"
+    },
+    {
+      "file": "pellier/frontend/src/components/ui/toggle-group.tsx",
+      "sha256": "f6694b967c22dd2e69515904b69ba32c6ea0bc714301f56ccb29ae2a31d628eb"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/AuthContext.test.tsx",
+      "sha256": "4b694d77fa764796646008ac60deb146178c9709dd7400aa0271c87aac18e067"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/AuthContext.tsx",
+      "sha256": "ad5c6ed427965d090ec96221257628517045534cd5505bb7041be70c9031a3f8"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/CartContext.tsx",
+      "sha256": "26821e91edbabd1709a9692c8fc4f618fd3bc6845778e4b8ed66f8230d95fcfc"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/LayoutContext.tsx",
+      "sha256": "cabda4ecac2f964d5e08e55bfa8d6118b0536762a5bfbb2f99a60699ee6173b1"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/PersonaContext.tsx",
+      "sha256": "903be90fd319a2fc13f2127905df3fa2d1763ce84ff6698ac50fda8a1285f11f"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/UIContext.test.tsx",
+      "sha256": "0a535444fd33434c72485d0c7f79920c244eea5555b7f608433555d6e052a4f4"
+    },
+    {
+      "file": "pellier/frontend/src/contexts/UIContext.tsx",
+      "sha256": "c017049bcab00c4e8434a380b00abd62a7c0a91524920121fe97422d896711c8"
+    },
+    {
+      "file": "pellier/frontend/src/copy.ts",
+      "sha256": "4fcf8c3a63c4493eb2f258092fa2c40257a03483c65f2ce6457aede713f4e0b0"
+    },
+    {
+      "file": "pellier/frontend/src/data/membership.ts",
+      "sha256": "af91290bcd027612ab9906315228294000b0d56b88bf88a5d6fe80ea8ac1b897"
+    },
+    {
+      "file": "pellier/frontend/src/data/pellierTraceScenarios.json",
+      "sha256": "fec399ab15e77646b4fdb8fd0eebbcc461d5e4ba28c39355a8380bced02f69f9"
+    },
+    {
+      "file": "pellier/frontend/src/data/personaCurations.ts",
+      "sha256": "00c2c71f7b2618416a9b5789be7bedd4b08c1193ab96e0b505e169ecab10b406"
+    },
+    {
+      "file": "pellier/frontend/src/data/personaPhotos.ts",
+      "sha256": "12b4a55c43cf868f755edfc05f64dde9bf20ec329a187444e5e6da3b83a78a4f"
+    },
+    {
+      "file": "pellier/frontend/src/data/showcaseProducts.ts",
+      "sha256": "189becb6166b20b3cd5d4a542d62a6b0877f03c05c8d801ec2a23dc3ed6d4796"
+    },
+    {
+      "file": "pellier/frontend/src/data/welcomeScenes.ts",
+      "sha256": "8e6879eec99824b969f10bdfa6c432042ce01690c8bb4f511bcf6f53f769b8f4"
+    },
+    {
+      "file": "pellier/frontend/src/data/workshopJourneys.test.ts",
+      "sha256": "6fc81c7f98201a6942bbad50866ad4f6660dabbe23ca6c39dbd3f7496133adfe"
+    },
+    {
+      "file": "pellier/frontend/src/data/workshopJourneys.ts",
+      "sha256": "ef65eca32aefe629d86d86b76212902ec5387c8c86ea5687e62918b355933f50"
+    },
+    {
+      "file": "pellier/frontend/src/design/cssVars.ts",
+      "sha256": "ce2eed6156c0edf8918679eb7719fcc55581b15391bfdd9a739c3489a593de1c"
+    },
+    {
+      "file": "pellier/frontend/src/design/primitives/Avatar.tsx",
+      "sha256": "6bf9f320ac45aafdc9b1d5cf24dd41cdbd4c44b13ac6f0a1bd98d9f0f87a80d0"
+    },
+    {
+      "file": "pellier/frontend/src/design/primitives/IconButton.tsx",
+      "sha256": "1a780a6462ce3aac10fb051c706a3eb4c9fdf667f3c0ad1768c8bf410108c081"
+    },
+    {
+      "file": "pellier/frontend/src/design/primitives/index.ts",
+      "sha256": "c8ec61c75a25b0fedf33ab11d5e1f195882e32ed9c6f026b563ac14438c3a7b1"
+    },
+    {
+      "file": "pellier/frontend/src/design/tokens.ts",
+      "sha256": "db92b4378cf01fb3c04fb78c957f242ad53488ef4cc6f74aeda59cfd53ab46e6"
+    },
+    {
+      "file": "pellier/frontend/src/design/typography.css",
+      "sha256": "06d4c5450b16af2be668f7566b9befefdeecc24221fef3e78e1a22251a0f46b2"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useAgentChat.test.tsx",
+      "sha256": "bc1b9318a483e5e94a52efd125f779dbd5913f38286b5fa3c6b3fbae4d788e26"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useAgentChat.ts",
+      "sha256": "264084e65c9e087d1b92802f2c7598eac62706a98af3c278cad32334b6380874"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useCatalogStats.ts",
+      "sha256": "ff917fa3095f32ccd0fc1c5a4e5604ee9184ed0768a38a810de60b6177c2828b"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useScrollAndFlash.test.tsx",
+      "sha256": "ec01015143bca41d649d38fe2421679881363c5b8af57652ad481bdd8d089755"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useScrollAndFlash.ts",
+      "sha256": "ab539bbbdae0158d3c1efe1087e973b58cb8ae8e56d02e14bc47489b73e6b145"
+    },
+    {
+      "file": "pellier/frontend/src/hooks/useScrollReveal.ts",
+      "sha256": "15c4cd7e8a4b16755c37e8eee9d61e3fa6b8b2d5108cbcc3d9dac453edca38c7"
+    },
+    {
+      "file": "pellier/frontend/src/index.css",
+      "sha256": "de37d85090feb56b3e392e9ddcd0ec9fe032efd0646428cad2cfc2341464fbd6"
+    },
+    {
+      "file": "pellier/frontend/src/lib/utils.ts",
+      "sha256": "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05"
+    },
+    {
+      "file": "pellier/frontend/src/main.tsx",
+      "sha256": "790c45efdc87442911d4a629472dc574bb75fb6c00609cc9a75289fe7a179f0f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/components.test.tsx",
+      "sha256": "81095622705e72eaf35cf0a41f7a6da33212991506a640882fcd6ecd2c56fe79"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/data-layer.test.tsx",
+      "sha256": "39bc5e49357a2c97c66c2530809d63bb9e09f3522fd7909d7302ad9e91edb243"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/labs-interaction.test.ts",
+      "sha256": "5673baa0eeba824adf5494a77aeeb32cac17d48640978b3819b361ca69608d01"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/persona-turn-alignment.test.ts",
+      "sha256": "439ba15de556df9aac1ef1640398d8820673de3c61ef1af388e4b4bc12773bde"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/route-resolution.property.test.ts",
+      "sha256": "b946753e535efc9e377a8e65b43f1155065399d0d1814330d86c57ed0a767306"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/sessions.property.test.ts",
+      "sha256": "334e72d4e5213f95909c0ac975ac26f579cd7c83aa3b6b4b2dc2a9edf5230a9d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/__tests__/workshop-progress.property.test.ts",
+      "sha256": "65f6f10c28e20d7063ed07c48c7f11d149e89be1ae2b60c368e44954efd5fb5e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/BreadcrumbTrail.tsx",
+      "sha256": "f2241128046d0c561ef8ecbb1be5836b64450b03ce2e92c871ca8ae85ce0b91c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/CategoryBadge.tsx",
+      "sha256": "d630a275923225afeca41482525959905c10e8cc9c23aa95175cfaaf8574e882"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ContextRail.tsx",
+      "sha256": "b3a5b439d818f8140c07890b02d26c7df2658a1ac4448c382ec9bda02a7c4ad5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/EditorialTitle.tsx",
+      "sha256": "f69df65ee7ebc6d2679dffcfa7fbc06ad653b7d4c3b08b3c54439a03d8a96f53"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ExpCard.tsx",
+      "sha256": "9ab39e93bf65fb0744c37a2fc5763e93b4e94db2f76d03da7c093767f3bb0649"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/Eyebrow.tsx",
+      "sha256": "6d07f92630b3eb11088204e20426379dd230dda5dbf45f36fa7b6f7faf1df1a2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/LabGrammar.test.tsx",
+      "sha256": "7e1654d4f0f6ceef6bcf9c2eaddad095dbe0be81584205be01d5d36df5164439"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/LabGrammar.tsx",
+      "sha256": "3061783b3e8bf2527cfb1c4b3eea497b0ec7297e3f705fd8c145ffa2dfc55b35"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ModeStrip.tsx",
+      "sha256": "0fe324d6fb892cd0a6e7490e9b347c5965b9e6d2879b1b160615f241126ef6f6"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ObservatoryWelcome.tsx",
+      "sha256": "ea05808180a8f4b6def2fe7ff0aafbd17b710d96b1937c1c76a7f88a91d01b63"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ReferenceBrief.css",
+      "sha256": "496f8c8554dd40c9d9d57096cf66b32effbed36ebce5b283411673325c2fa729"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ReferenceBrief.test.tsx",
+      "sha256": "95131a539ad6ec141739a1d1a531f4bab31beb3f1a425b4c6dcc0c0b665e119e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/ReferenceBrief.tsx",
+      "sha256": "9af4d9b0c976f18530051dc72f587bb7169a3eba6007ca6f9ff302a6d7ef9961"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/RetrievalReceipt.test.tsx",
+      "sha256": "b55de321f3091230f2aebbcc20b287bacfe6764918fdcedf450b2d4ec9195dac"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/RetrievalReceipt.tsx",
+      "sha256": "6d11e55eb78112eb19ad614370ddeb5270a577043e48009177201a473e94ecd1"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/StatusDot.tsx",
+      "sha256": "a965c52d2eab44977bcd02ab56bb9fc8df4d03768e1e5ae312b339cacec26bd0"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/StatusPill.tsx",
+      "sha256": "9244ba8a03ae802a3560ccac457a1a071ec73a3075ce14d95128e4f50a00fed2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/SurfaceFilterBar.tsx",
+      "sha256": "a46e04248ca1128c7d40c75da91af160f9dcd7804cb9c0fc3780f674a1ad8400"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/TabNav.test.tsx",
+      "sha256": "fbe453dba4b900f60c4c6f9d3b8c7fb9fc0911ed7ca2d155fce5b2ebd3786f8e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/TabNav.tsx",
+      "sha256": "ed468e5cb59b04ebe4870679f7a745f7d22a8507cb41f44e719b9831c712f9fa"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/WorkbenchResources.css",
+      "sha256": "83bbfe7e648e713265750c5117574ba0fd0c9c27660f41304283c979ee4850db"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/WorkbenchResources.test.tsx",
+      "sha256": "db9d24d8e8a50d9f4da526e91ebe19e137429ce6609d8fb6c9ea8553600f9543"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/WorkbenchResources.tsx",
+      "sha256": "3f808c5b4763dcb0cd6528f7e3a0e3c93d724a085f86ebeca65668f304374f51"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/WorkshopProgressStrip.tsx",
+      "sha256": "fdca34dc11fc940c73a9d3d723c761ed2cc01f599863bbed03b2be43fc0dda57"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/index.ts",
+      "sha256": "a8ad29950326dfda2cdc0158f9854f38c94fbdde7c4d6a204eadc2f6c576bf80"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/referenceCatalog.ts",
+      "sha256": "b0fee62f7ec7e16e20f960c396fc9c8962b5567f1a868c7fbfd6c551918a741a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/components/referenceDiagnostics.ts",
+      "sha256": "08d17c19e1c7e462117d0dccdb08a2538dacfaf924797cf41aad5a79211711f5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/constants/bedrockModels.ts",
+      "sha256": "079ddc862672abde6debece130cf8469d135d4a9bd6606998b5138c688d8d25e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/constants/canonicalQuery.ts",
+      "sha256": "268c2b2941973baa9d5840e675a5edee68f748f3a7a4b0c24414d98b2b7c05d8"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/agents.json",
+      "sha256": "389f443e14c2554fe3d83bc29be54e3c86252b07c2a7ae7caf91200309786a4d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/architecture.json",
+      "sha256": "2a9eb2ef2e0ce4a59213465a23fa396ff3e539c6eed586df1101541eff7a4798"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/evaluations.json",
+      "sha256": "07e168046eadbf7f7ee5ce948c8191f66cc772e277fc919c6d86d8bd4f90f9f7"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/performance.json",
+      "sha256": "985e4c24b9ba170b354c6fd33f4fe13bb4bce566fe999adb28b77b66153cae3b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/production-patterns.json",
+      "sha256": "2825bd233ca627fb7b1f178d7a94a8a86082cd3694c0b2c725ea23f6157d33fb"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/routing.json",
+      "sha256": "4cf9faca44234f51e3ce2285ca561160dd2ae9572ffdc49c8e368b0e80529986"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-7f5a.json",
+      "sha256": "c9dc6216c7ed0dcad0f334386650b0ea7e80c1918bfb599abca3b2b08c3d57ce"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-anna-birthday-gift.json",
+      "sha256": "68aacce7eb611160bb4fefeaf0b6bb24644f822b10d7537fe20b93b0dbb2ed70"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-anna-candle-pairing.json",
+      "sha256": "8bb2d92627e9a9aec62c72377c32dfb4d49c05dddd6f860592d32c64bfa6d774"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-anna-housewarming.json",
+      "sha256": "91930e433b4daa104fc64e005ba4bf78162f5aa5a2f1413cba438ee98ea4f18c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-anna-morning-ritual.json",
+      "sha256": "5ce7f5aea2ecd0b4645a1f46b3daabc8f3bcea20038fa2aa7e9891836e6236c2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-anna-under-100.json",
+      "sha256": "a2b020f99251b6738e823b67b5aade7109dad3cb1106e2ca58b93cd63f0b2737"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-marco-capstone.json",
+      "sha256": "c73fee40c2c34ca03ca51d2c39fdfe6e9a6649d41d0c3fa6deb8aaa5b2dec459"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-marco-midpoint-checkpoint.json",
+      "sha256": "114059cb8c1b118b1bf4dd4e5073be6a627c967713c78da61c47039bd134a14e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-marco-opening-demo.json",
+      "sha256": "7e390166ab3aec0670e9d067b434ae3167771ede0cfa9da0c61f893d8433e272"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-theo-ceramics-return.json",
+      "sha256": "e80eff338e61ac4cc9f71bb920333ffbf04208a3b87839938c82866d6f675d58"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-theo-home-not-wardrobe.json",
+      "sha256": "3707035f5518f8918550fe989e7959e5dccc05d64c098976f273c2c401c6990a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-theo-linen-seasons.json",
+      "sha256": "cecf58ae05516d94825f7cb827c7ac7eb3a20aa2f424f9cf41ae81a81c0328a0"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-theo-pour-over-pairing.json",
+      "sha256": "384cc3f5b502f45b9db748f70aa6bc25c518ae16f3ec920c5c35a2f6a96033fb"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/session-theo-pour-over.json",
+      "sha256": "95f31ab475047b865f5325b2f853140ee2f949f32419a8802f8ae869d86e8023"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/sessions.json",
+      "sha256": "cfd8b7826916220046f25d51b16aec991467436745c1a958035907f9fc57cd74"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/skills.json",
+      "sha256": "6e5d7bf888c3d02e4055db894c5170aca8758618c33b8387af1f816a0540fd02"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/fixtures/tools.json",
+      "sha256": "b46a4c238d14b0dac6c4cdb8587c8dbd888c719348248c8f9d4869732031fa40"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/hooks/useBuildState.ts",
+      "sha256": "f27624cb375bd35958a2507a6d7f9930febcf72b1d677be19e3e948ea8a9e665"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/hooks/useObservatoryData.test.tsx",
+      "sha256": "c9f39a7549267baecb1b8fc2f3925278c404d9e74f3d876e4f8bf5c39de31b71"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/hooks/useObservatoryData.ts",
+      "sha256": "13b92bdbb8fc5cc141cef040e7f5766eb98f8a82f29608703b9b009a275ecb95"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/hooks/useSearchExplain.ts",
+      "sha256": "1f9cfeec44b9c66eb368fa08461054b23c720aeec44949042e6ce1a40e868ba9"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/hooks/useToolDiscovery.ts",
+      "sha256": "2568ae7c73e94c9350706768274faa1afcd449bf63d10e21e22f17a71607503d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/evidence.test.ts",
+      "sha256": "48f6cf9e1315f4ce22e989c7a8942f859191ac1fb39742f9795dd05a13b42d3f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/evidence.ts",
+      "sha256": "0942363bb144b7c941f7f0c9ee66ab6d4a14f4e91e68c2de2be3ba40c186af31"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/labCatalog.ts",
+      "sha256": "4d9b345ddd98b55663f7d9383cb482dd8cdea84c4dabca1ce3c06f6bc99dd20b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/retrievalReceipt.test.ts",
+      "sha256": "27798efc73a95d2f692e7160160cf380f79e8b10e6fbdda800ee1060bfba62ef"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/retrievalReceipt.ts",
+      "sha256": "5698cbc6df0dff0f1a0b1156a35c1a46471895605798e5763f1aba5e251d8d99"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/labs/useLabEvidence.ts",
+      "sha256": "da08b857d97b659df5f30f4035f92938601d9666c55363492dd2607227f3454c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/services/catalogSearch.ts",
+      "sha256": "59dd2851aad599cddb6735179f7678ef4b0c8337f77883eb1fff579c4ce33059"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryContextBanner.test.tsx",
+      "sha256": "992548a2b10af0956b3a20d42f21ab76f7dff997d81032d55d67ee6c84764ff8"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryContextBanner.tsx",
+      "sha256": "9d038586e94d797dc741cfaf4d16b2e781d057a1a5781e507ca5da5140d613ff"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryErrorBoundary.tsx",
+      "sha256": "ad63149e8f28736fc3dbbc67ffa46434513203e59b68f26cc9c5a425f16fa9f3"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryFrame.test.tsx",
+      "sha256": "ecbe87724918ee848702cc4f4bcf0dcc8c0c92689d399e534f24c3be65e07a2c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryFrame.tsx",
+      "sha256": "fd054588f94ef18bc020f6c446f92790e9a756214981482520aac73727ed2495"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/ObservatoryModeBanner.tsx",
+      "sha256": "6c4d1192ee92fcec4a85319aa644b5e351bfaaa5c435a6581f906e8b98eadf6b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/TopBar.test.tsx",
+      "sha256": "2983f6457bdbb015175e3de6bf0817930881c049f38f6b7c0c334b1cf1abf3af"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/TopBar.tsx",
+      "sha256": "ca7637896c534b7100fba643b3ea9275f278998062a7c6d8195f0a17d3bd4f9e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/observatoryInteraction.test.ts",
+      "sha256": "1cf89ddcd4611811645a49fcbb71cb5dd38161ea625c903b9f2c0ed750eca759"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/observatoryInteraction.ts",
+      "sha256": "571299e73529a0b81d9e2b7f28a2a5329af2c16238c9b5f7f47a6bc411ff9a29"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/shell/observatoryTitle.test.ts",
+      "sha256": "92d1a315bc973d1565e4407797b050054afc53787850b46a269ebd435e209348"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/styles/base.css",
+      "sha256": "e967371c8bb13758abc1b4cc4d5d9e4cab7233928ee55ab31c04aa581de64b67"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/styles/fonts.css",
+      "sha256": "0f2a88505df991a0b92e4be6f1c3bf2bac20f7a08d2d4cbeaf0e696a46e02ec8"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/styles/tokens.css",
+      "sha256": "fd1e9730f43e3c34e44a20b00e74eaa231ab6b788c1dcb2607ca9f5b87f8d2b3"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/Settings.tsx",
+      "sha256": "23c683d1838b2c434324f23d03c1677d2b682588ec1e73a096b7aa619f379c84"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/BoundaryOutcomes.css",
+      "sha256": "6c96e87f46f2e85751c24aab321d7ea5314d43ac1c56651b5542ac201b9f7174"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/BoundaryOutcomes.test.tsx",
+      "sha256": "b79865a343bcf3ae2f1aee73b39a79d74ce1bb9175f4193adecbb20fd536c354"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/BoundaryOutcomes.tsx",
+      "sha256": "6b30fa16c46059b22ebbcf4ee201e7348062b1f8fc9e1e792ed3877180c582e9"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/Govern.css",
+      "sha256": "7daae3fcbed38519cd618b6e882681ebb26e3ce2362c7399624b7d2553728547"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/Govern.test.tsx",
+      "sha256": "5fc3b52b7cea343c4d4f1ea5bff25193f8ad5c152e705221da04463d2cae008a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/Govern.tsx",
+      "sha256": "44c725f874ef245263c19bff1429859c352e517c4ec54320f0c02a2d1c7ec843"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/govern/governanceTypes.ts",
+      "sha256": "07c021835b861916f1de285d321ef507bd4745cb6063c4bac4194670c2728d9d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabHandoff.css",
+      "sha256": "266766c3c52dbd9fe2b42216ecda87ec14a3f0234cb5de8ae37811e7c5c55923"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabHandoff.tsx",
+      "sha256": "a458eab2f0ae6dff2c955f2bbfdc36832c1be55aa85947818a2c55fd2535a265"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabRedirect.tsx",
+      "sha256": "4ac05496904687a277add1d7d06ef2bd81b361328b7d1954c7cf8756a0d903f4"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabShared.tsx",
+      "sha256": "f052753df469b873b87a7c8d2146fba0909773e46ac97ca0b69da35f752e614e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/Labs.css",
+      "sha256": "54c7f2e94d2da04b8f88b091dc37472c4896f864a601418a27971665a398921c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabsCatalog.test.tsx",
+      "sha256": "a786185e5b361be355ea5b21638bbdd9b075afdf89bc784dc380bb97f18c6f03"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/labs/LabsCatalog.tsx",
+      "sha256": "58890c5e7096e3ff0f81cbc477fd7e1ce520f7ac3a12ab607dbb87db2e29e4d1"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Evaluations.test.tsx",
+      "sha256": "9a10e5d3bea915154d66519c80b4943473930d5355025d6a0504cdebcfd277f3"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Evaluations.tsx",
+      "sha256": "1239fb16b9f6662941ecb82e1aee8357441e9d8d58bd45ad6ac2711f2dc4b763"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/MicroEvalCard.test.tsx",
+      "sha256": "3b385798a300b506dc3383212e253a74be84f3030f88eafa55541182af217283"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/MicroEvalCard.tsx",
+      "sha256": "5153d3546b099aef832a6e1d2bddedbfca28eca060a0852d0f17e7b9828fc921"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Performance.css",
+      "sha256": "23e2228463e5377d0c684821e1c056bcaff1e5bdd7d55ab38f6d9c52617f267a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Performance.empty.test.tsx",
+      "sha256": "30c37bc878a656cea1657f4bf7215f4801742988e0eff51b737d41173f64d4df"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Performance.test.tsx",
+      "sha256": "6bc9a1f2c34051bf29766b0469bfa10f128aefed5cefe9877642f9802e0c8abb"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/Performance.tsx",
+      "sha256": "85095f841467f4da2c7b25f3bc5c8c7e5759dd4a170584d2f5fd3bbc5a41792f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/ProductionPatterns.test.tsx",
+      "sha256": "18a5ec0bb73f3413b644dce9a637e0f0cef4574a4a2dca4e6876e99f77b0731f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/ProductionPatterns.tsx",
+      "sha256": "d721cf802bf025d96f29260ca191549b990b14698c6f641175d723f1b91460b7"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/evalMethods.ts",
+      "sha256": "0bdd126f6fa0f507652fe2dceff0ed14bcc1cef836c2fa3e08d8441428df3773"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/evalMetrics.test.ts",
+      "sha256": "a4bbe648738f72b3306bcd1eb7eb1f20241ced3d94bef3a08b6a6a53f629421e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/measure/evalMetrics.ts",
+      "sha256": "e5acffc234534f786b2e3ddc3a3de6cfdfebc05d1e2ad6e7317d5ee70ecb5298"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/BriefTab.tsx",
+      "sha256": "b9bf3f00e59230647937b46322ab32cbdb9f8a0b7fcef4f4a5757dfaecdb5c4c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ChatTab.tsx",
+      "sha256": "36a51ae191badf2529019a989f410b6bd511fe12418be7bdf589202a59830e5c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryCuratedTurns.tsx",
+      "sha256": "6d328362aa93261a12a30f391670303061aff25f399c45c7bc1ee024bad3c784"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryIndex.css",
+      "sha256": "3fad4406739f72a7cd0d60d5198d999cdfce75f372abb95b580b5f010660055d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.css",
+      "sha256": "d5a6323c69a2aa1445fb1196a945a16e738eb4cd3f46db72b2946431df34d18b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.explore.test.tsx",
+      "sha256": "0fbeee4682291bb126c47c0b0504ce76322e3f355c4db2efc59dbab40132fde1"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.focus.test.tsx",
+      "sha256": "4d5f8717fe4c48198f0762514607038aa002c9edb06676b06d0317639b2fef8a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.focusVisibility.test.tsx",
+      "sha256": "68e523583a78f6af715ec0848f1381d7e6159e21531cd84c66bda621a76a6784"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.history.test.tsx",
+      "sha256": "4f35081a925c6ea5612937afb9d757637a6ac891220edd780d5fb11a968c9f6b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.identity.test.tsx",
+      "sha256": "bbd75430c46b6c747dde71c2e8bde831538e3d762a58f4919b8cb76383997b1b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.results.test.tsx",
+      "sha256": "983a80a1531fdb7e27a10cdaaffce1cd9d0c160005d79ba4c319d5526a29f973"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.resume.test.tsx",
+      "sha256": "d94058b5753c13a681f24681b8a3ea27e102474962e4912fbace2910adca0112"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.test.tsx",
+      "sha256": "1335a7feb80980ebc486140ba606434b353f736e823ce0f3e92cc7d6570a6ec8"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.tsx",
+      "sha256": "4dc9e25664054f4be7e47135f60b1076da26d24bd51ac92eb3b1ff768cac3531"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorLineage.css",
+      "sha256": "07d4446553b96a32214bf8f63708ae1edd4e57069bb7318e3c3b7beb76cf44a0"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorLineage.test.tsx",
+      "sha256": "09b0427ed4396ac6356b03024016a505bb46eb2f87501181920ff5aca774cb08"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorLineage.tsx",
+      "sha256": "0601baecacb2840bca957a78455d644a4bd4f5fe3f51fb84b69f1342236eeef4"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorTurnEvidence.css",
+      "sha256": "2e278d289e467957dfe5444c18a97e11c7355b8b03a295c830511a5f61e95d99"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorTurnEvidence.test.tsx",
+      "sha256": "2186ed15462012217e730ced93705433f0a48c7ab6aa55c9e5b34dd2135f08f5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/OperatorTurnEvidence.tsx",
+      "sha256": "0518b5283e166f93cbe00fabb79ed9f42d430b6d6fe2460fcaef5e74befa9922"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ProofBoard.test.tsx",
+      "sha256": "fce2afc3cb488d132c8d38295a566f21b55bc2cd425502fe59cf8fbab1488112"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ProofBoard.tsx",
+      "sha256": "031c14e6bdf24785296c6fb0c04422a7787543987a902940a45707ab5a49c72f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/ReplacementEvidence.tsx",
+      "sha256": "b6dc700384e10f3d4d01b64a159c50aa1c19801a03804d498ff31a932af796e5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/SessionReplay.test.tsx",
+      "sha256": "e526859a8c01c53d9b8b7025dff76192d46705fbca786e16e688c77b648e6772"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/SessionView.test.tsx",
+      "sha256": "16cd7deb249a0d1ae0a7d17dd05c5555981a8ee727e90380a4e08dac6657acda"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/SessionView.tsx",
+      "sha256": "c6d07067f6a1204cd2cb0d0d854ce02c6297f28547412feff8ac2e8f228eabd7"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/SessionsList.live.test.tsx",
+      "sha256": "28f65b890ee044220e734eb2ff350197dc0efabed46a7827570f7917cd581a33"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/SessionsList.tsx",
+      "sha256": "7eadf74a9c90f83537f8f3eab2a3e6706ecbbf561265bd5da48e3954b1cf7184"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/TelemetryTab.routing.test.ts",
+      "sha256": "7a97a14f57f0fbf268eb26087789b8db2e1ba6924b731dde3f71927c4e6a880f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/TelemetryTab.tsx",
+      "sha256": "d3824208e8bf6d83b9eabead9c077310548922ee2808dc7688ac3ed70c049d91"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/WorkshopMap.test.tsx",
+      "sha256": "bc46a0a4d59367c832dc0c47da45b69fff996591c7b0af355df1d0709954810e"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/WorkshopMap.tsx",
+      "sha256": "108cab9bbbf848663cea82fbea8b05922334021172cfccad33fa5179f9ebe339"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/guidedHistory.test.ts",
+      "sha256": "a425bc7325f4060ca41f288f5434f1af6187e8b789f4d39bc356fb1a3d4c03c2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/guidedHistory.ts",
+      "sha256": "1cf12c5469fa07ca81914a7116c1f27ba49b200d3e9f9d95f7af1f1417b18f91"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/telemetryTrace.test.ts",
+      "sha256": "3ba9ef22ad7159ab9df7e1e661d8bc94112b9c00e616b8d9cdf1e5eaa35ce6b5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/telemetryTrace.ts",
+      "sha256": "f5208481e4e44936df476f8ce0117872e1a2d4fc2c508e2ff97d7912e947abd1"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/workbenchView.test.ts",
+      "sha256": "6b1fc366652a02f12183838e994e308338e5381d448bc642c78a73c4c5175fe7"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/observe/workbenchView.ts",
+      "sha256": "e2f8e7480313521d060d2171626b94f43ed3884207de05dcb05bf3e4e66e75d5"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/ArchitectureDetail.tsx",
+      "sha256": "45b54f15c4110b16ad4023584f8f1392ddb820091885c68bb0cdcacf194fad47"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/ArchitectureIndex.tsx",
+      "sha256": "8af90a0478d228eede33d04133f52c471481b3a315c11f4c266a4af3efbe0b1b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/IdentityBoundaryCard.tsx",
+      "sha256": "5b2411e48320acb4615294e03ab19d0f058cc7c619854ded992646e40b31ae39"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/MemoryDashboard.tsx",
+      "sha256": "a3a3e5384e900d808f9f78e72131603bda5d5062cf1003429ed4992eca55819b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/MemoryShowcase.css",
+      "sha256": "5c1c39caf8a0c5a2e9fe59cb960864a2a7061db8ee4643efd3fbb14aba87ed4a"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/MemoryShowcase.test.tsx",
+      "sha256": "b714118caffefef4efe46f74b544329da67031f5db42e146b544b75f2a112066"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/MemoryShowcase.tsx",
+      "sha256": "3a780c8b8c2ec12af38d7eae570b6e86a0e9ec4b033128da974e2b5e195e28c9"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Routing.test.tsx",
+      "sha256": "45e13105409b95bccc3df593c5f2c329de1c0706d9fd04469578bce546abfc88"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Routing.tsx",
+      "sha256": "39c11b1d91c4148ea5d6162f8cc721e2e61490dd6e7a584832713f86dbcac455"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Search.test.tsx",
+      "sha256": "a9fab2ede39b407a8005ea74fe35594d27cfd1167b35f1c6885a61b3d7752303"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Search.tsx",
+      "sha256": "6cca88ff41f1fcf641f86482fcb006a94d31dfbb406fbc0936ea029b39805518"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Skills.tsx",
+      "sha256": "125910a5e33baa7dbea5cabc08f99e723d57c9fb48dd726f7b73751c76f602ca"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/Tools.tsx",
+      "sha256": "4674ac50a732118ee5464685e771581c12ac3e2ea4579a37fd1afc3874778a92"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/ArchitectureDetail.tsx",
+      "sha256": "5bd89fe56dc01d383a935a0bb1d7d8a8c162736f8c5203288909b982dac57707"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/ArchitectureEvidence.test.tsx",
+      "sha256": "53c099eefa936368ebff484dbd6000f35b1bd1b0cc5d4727f90784d277b98181"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/ArchitectureTruth.test.tsx",
+      "sha256": "9023f4efb06941d812d9686a109376f860b4ae847ef1fdffe9ce250b21a04b09"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/DetailPageShell.tsx",
+      "sha256": "af32316603e5e1e6cac52929b24f831ba5c14610c94bbdde3acf703b7fa39998"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/DetailStates.tsx",
+      "sha256": "cc7b18248eab55f624066ecf32962bf5753f64eecbd49caca67e872e0cd7b685"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/EvaluationsDetail.tsx",
+      "sha256": "56939af8af0910ac4b2d574b21aa85b239499bc0e2bfa51810ad3f9711018680"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/GroundingDetail.tsx",
+      "sha256": "81fb584e15e634f9c1fb7b7ba2f4ae5cb54f91d1d198f36f9d972ea56b08c536"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/McpDetail.tsx",
+      "sha256": "e3e35c03e3b050cac0fc940ae2bf5dbe4f0df97ba5b93455443a53000d81ae2f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/MemoryDetail.tsx",
+      "sha256": "5929804aaa414bc37e4520853e2538a70a1f2ece311b994289fc060eed2d1235"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/RuntimeDetail.tsx",
+      "sha256": "9c98fa2463ac108e1b43c480824768acddd4dd914f279baeb4ae988d89986c5b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/SkillsDetail.tsx",
+      "sha256": "8b3894cc5aeffa6828751efb09095a0f1190ed50198506bb2d77f9d9ede09d60"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/StateDetail.tsx",
+      "sha256": "dd20d4e0582a9be12a565fc0676be2705196e180382f32a899eafd92671ea738"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/ToolRegistryDetail.tsx",
+      "sha256": "63ce52b59b081698fe9c4875cee41f19a6c5a2252bb60d1b58c795edf78f3db2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/architecture/codeStyles.ts",
+      "sha256": "f39894f3466c27100a78d61ff3a79debd54981ba79461f4689206cc0256bc9ed"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/skillsRouterUtils.ts",
+      "sha256": "cdb3fa2d81ca8b746485f696e8b55ea34c61e704a5af8cbfb11bca467fd8a669"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/toolsDiscoveryUtils.test.ts",
+      "sha256": "5a7dcde264dbf5085c27e8de03016faf094be06ff1002174813c11af91d006cf"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/surfaces/understand/toolsDiscoveryUtils.ts",
+      "sha256": "01c2bb2f4a344e40f8817bd6c7151cfd1a72c94a5758632341d44ead0a8b7348"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/agent.ts",
+      "sha256": "ec84cd26b76c5ca4ede2b0bee5c7de5ab5d53585ff6eb6edcdfd83e926cab7d7"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/architecture.ts",
+      "sha256": "0d03a00b34714b7f6586df7658af0a1afc9e3e629c1ee283f787dc190322eedc"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/brief.ts",
+      "sha256": "f386ecc3dacd3933bd06c16ed46136ea2cd991c5af2fe7c7fe277ea8b55698ba"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/chat.ts",
+      "sha256": "2d8b3f2dbb8dd22e84b767ba0c85b2bb3236dff09a340f6eb42b18bb2f19ec8b"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/evaluations.ts",
+      "sha256": "5a76e35d7c0fd1ddb1c7209c79295fa1455c7d8b85b557cead1a12685a5bc9b3"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/index.ts",
+      "sha256": "592fc7dd9a8236758b484efa3927f3561d6646823f9c6c1c8fc3491995cd708d"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/memory.ts",
+      "sha256": "3100a392c4edde2f5d8979ddfdfca05573376ddee91b80c760dc5d4ad8b96c02"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/performance.ts",
+      "sha256": "f0bd2488fca645981b32460d7dffc01c7584ae94e72de791a4e514bcdb0de5b4"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/persona.ts",
+      "sha256": "122a4e3deb1bc04fa7543e24f4523c7c581cb8a6e420d9842980da3441e98530"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/productionPatterns.ts",
+      "sha256": "2f4f31a51a4f190e9f2f72fa587ff72c7740757afe11c714af526f051f80b599"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/routing.ts",
+      "sha256": "6f2334fca2991e06bdb060f66ce55847db271ac6e12894ffb419cfa6c96ca4f2"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/search.ts",
+      "sha256": "4ae907c078d5b62aff4a1af9f38a17c2dc5912837c70c42e71c5e50b908bdd62"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/session.ts",
+      "sha256": "85f05ed22807c53d7c9cae69ce23f5b47ee947e30fb8cbcae52e65d2eebb989f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/skill.ts",
+      "sha256": "dd2292fe2e5e4b56faf70bc13592ff0cf16b8d7cf7b1be4504bf2b36f3ce8c3f"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/telemetry.ts",
+      "sha256": "686bf6c99c34eb1670ae2a8a239ebafbd57adebfba69b7644ffd077aaf689b5c"
+    },
+    {
+      "file": "pellier/frontend/src/observatory/types/tool.ts",
+      "sha256": "72fc5ff4a5cd1ef8ebbe04edc67ad9711866c0ea532de6688850eff0067b869f"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ActionAssurance.tsx",
+      "sha256": "f46ff6a5ace04dcf8cab8931b0d3f5b2210cbb300da0701dfa7826138cd891df"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ClientAvatar.tsx",
+      "sha256": "43951d032e0810deb4ab643758199633938d7d7cd82e432322b53deabc3d095f"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ClientBookNavigation.test.tsx",
+      "sha256": "639a5055333990e37e8ed06e6f24c10dc8b1cda9698c604c0ac2bdc848033487"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ClientBookNavigation.tsx",
+      "sha256": "f1cf1bafaa5873307c3ba872199851f3359018b4c3918a3e6168894d784e9b15"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/MembershipRung.tsx",
+      "sha256": "7da7dd3012609a71ffe443b358b7ced63497a119d4e77c2ff4469344b77541af"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/OperatorSignInAction.tsx",
+      "sha256": "46cac90034ea35bd5e32e9f10de03f082579baac0fe3a91289bdc94a31e18f44"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/OperatorState.test.tsx",
+      "sha256": "2b561fb73ec495b1f73c1ac5ddb0a3afb45a7453221876e51e187095528bc6d2"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/OperatorState.tsx",
+      "sha256": "5ca7169c37f71dd699fd95b4a0ac71f3f5b365753b6ad5d07f9214bab183dea4"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ReplacementCare.tsx",
+      "sha256": "842605e29c06d9cb3138d0cd049951aaa4b9abecf5eca4e2f288b714c6db85f7"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ReviewQueuePanel.tsx",
+      "sha256": "a8722a090657ce5740a8784aa8360f759d7f1c5cab156e3fa7087faae5dd7274"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ServiceLogo.tsx",
+      "sha256": "ed9b9c9bd93dcbdb21a20a4855c18c7e3727a217fbb513d436c7a0a48dfdf679"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ServiceSource.tsx",
+      "sha256": "1b889dbc86da44072ff8744f285d30279d7c4f874d215cf311397b2a5618a2e4"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/ShopperHandoffView.tsx",
+      "sha256": "2c2ee8829b007b7d2945f7b34903c666632303129622da82416fa19a6306675f"
+    },
+    {
+      "file": "pellier/frontend/src/operator/components/replacement-care.css",
+      "sha256": "ab106737248b11d7c9f04f99a21b3f57b1027e03ed2be8b0fd439fe55308ac9e"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeCapabilityState.test.tsx",
+      "sha256": "0280393c25fdf706921bbc3ea095c3411892cb8d1f7b777e73d52bcbb7ca40c1"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeCapabilityState.tsx",
+      "sha256": "c500ad27f552ce85adf1ea40921cb522724dbcc33101f8f390b6309fa4572d0e"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeComposer.test.tsx",
+      "sha256": "8315dde77e61c11e388bc81123571076452f8827d5448d9261751d53a7dc3869"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeComposer.tsx",
+      "sha256": "6dbfff0086e750bb73b39209078416a318e3958ec36ac43e275a75ea78108dd4"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeConversation.tsx",
+      "sha256": "ac90fae09868bb4018ff504e670ddc626dfdac32bf1092e9541a8d80bead77fd"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeEmptyState.tsx",
+      "sha256": "643b0c225bdb2ce057a71b264914866e117cb385ecab777854dffc6373e6b542"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeEvidence.tsx",
+      "sha256": "eb7768b0c5fe773af33238034c6467cfd60d2c39153652ebf65dac1e44abfff8"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeHumanCheckpoint.tsx",
+      "sha256": "6ac200159ceb3b2f9b4af2866c285850483f01af3826239d5bbd78cb0bbad03e"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeInvestigation.tsx",
+      "sha256": "f4fbe9b6c5eddeeec2ce9aacb5b907ec888ab4b66eb3c351317e6451c294cb90"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergePendingTurn.test.tsx",
+      "sha256": "5eb22c18cd0e03f50869b24f792f1c53754e95c6f7d40e048f7de23f78a1f543"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergePendingTurn.tsx",
+      "sha256": "280c2310e06836a2e3c54851e3e5e8e02f4d0d2bff9ca3d467b77b8aee7c5c82"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergePriorResolutions.tsx",
+      "sha256": "403a0044e4f08e32627677f36ea8586207b55c33c894dae72f970f5b4d7a9619"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeProposedAction.tsx",
+      "sha256": "cc68f300b943a3d93158aab54b033f740abf6c36a884971b044aab750d2229fe"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeRecommendations.tsx",
+      "sha256": "4ddb5d732c054e3d14719216627024916fd01c8588d34b6f787b159132113a64"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeStepList.test.tsx",
+      "sha256": "44f6df400e9b0b5834dc18df89aebb13563fc7a8037ce54bb84ca9a87c05f36a"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeStepList.tsx",
+      "sha256": "11603aec252b0b112d1d659d15cdc2412e8064a5b012949a4d5bd312ddcbd9eb"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/ConciergeSuggestions.tsx",
+      "sha256": "136196706db183179f164f950202d508a4d96c41ff2eda75b32c67d6bccea792"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/OperatorConcierge.tsx",
+      "sha256": "f4a2fe488a7a48330265a9be14b265cf70e82dcc4c7916d89df334a49034feb6"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/concierge.test.tsx",
+      "sha256": "87982a29270d2066c91bd6a33965d82363177dca68347c5378e72c20bf4719b2"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/priorResolutions.test.tsx",
+      "sha256": "1338774038f1b7a6afadd8f620966fd91f7fe679b5e321076b62960023f0318d"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/templates.ts",
+      "sha256": "f39db9a2987e0a4c08ed3108ce26584dbc65e54faef20a805d0727487c49f747"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/traceSteps.ts",
+      "sha256": "de59c2e8dc71d479de73ae1d479c6010fd691a809a0cf7e131e355762afba326"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/useOperatorConcierge.test.tsx",
+      "sha256": "33f3d1a20fb754a9a7d0d6cc644cf669c72e8af792e2732d7b65d9b6f0dfbb81"
+    },
+    {
+      "file": "pellier/frontend/src/operator/concierge/useOperatorConcierge.ts",
+      "sha256": "0ad09a1c8f82f7ff562660a66723d6044179a4f859497dc57d01627c0de81ab6"
+    },
+    {
+      "file": "pellier/frontend/src/operator/hooks/useClientBook.tsx",
+      "sha256": "1291945d319cdcca49c59cd84c4831e92e9f7a960dd37a591dc4d49b4471f072"
+    },
+    {
+      "file": "pellier/frontend/src/operator/hooks/useReviewQueue.tsx",
+      "sha256": "0ac80749c2bd1e261dac952095eb9989b03f89ad143625a2405ad0148309a52f"
+    },
+    {
+      "file": "pellier/frontend/src/operator/operator.test.tsx",
+      "sha256": "c27b125dd2643b1e465358cd6a93cad767b865d07eab940854870531b9b13eb6"
+    },
+    {
+      "file": "pellier/frontend/src/operator/recordBand.test.ts",
+      "sha256": "57a3396a7d0dd679504169f6e569179a4ea2fa867d6bc89ad48add0f26055adb"
+    },
+    {
+      "file": "pellier/frontend/src/operator/replacement.test.tsx",
+      "sha256": "9e24011ed00c10a501a92f3e10ee96a23af4e1e127c79e6c8b6807ad64c264fe"
+    },
+    {
+      "file": "pellier/frontend/src/operator/review.test.tsx",
+      "sha256": "f5e75cdd034f855b2838bbd77239de89a82b0a729f7e29a43348b18b38e19ae3"
+    },
+    {
+      "file": "pellier/frontend/src/operator/shell/OperatorFrame.tsx",
+      "sha256": "bd9eba42bdab85bf3dfd40320400bfa5b852f085fde05b6eb0a3c58886d5945b"
+    },
+    {
+      "file": "pellier/frontend/src/operator/shell/operatorTitle.test.ts",
+      "sha256": "7bfc7b321e78b8c98910e86afe0aa739a421f06fb3914b6d1724a0837afa4661"
+    },
+    {
+      "file": "pellier/frontend/src/operator/styles/operator-desk.css",
+      "sha256": "52f98504420e2f796cf91e5d94c5ef709541dda5a7f44cf87835bb326572257f"
+    },
+    {
+      "file": "pellier/frontend/src/operator/styles/operator.css",
+      "sha256": "125a99ebc16dd12cc28331a929b3a74392506677995b68f937288e6d884f0bb3"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/ClientBook.tsx",
+      "sha256": "f13b6edf22986443f08284a4ebc1970b83a256abaf7776a26ea114d83da70c82"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/ClientBookSignals.test.tsx",
+      "sha256": "88093c1a6ad6df0102c8b7c3da16e72a14d2c10db3ac0a6d0b2180ad02456975"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/ClientRecord.tsx",
+      "sha256": "fc664f8f5efc4ba1b972a27f71b730d5266d216249a84e8c118b873feaeb7436"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/ReviewQueue.tsx",
+      "sha256": "7584f29d72949d778879a60edbd01424a8f9421df99462d5d00b97bc74019cfc"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/ReviewRecord.tsx",
+      "sha256": "e7fd258847356931ea420ec2ff11306917b3fa7a3c6e107a76c4fe2fef100815"
+    },
+    {
+      "file": "pellier/frontend/src/operator/surfaces/reviewOutcome.test.ts",
+      "sha256": "2c376958475a8ddfbddcef281ed1a5330c7abffe53cbd11ae7fac7898c87a0a7"
+    },
+    {
+      "file": "pellier/frontend/src/pages/AboutPage.test.tsx",
+      "sha256": "98d1105a9545572daefb4c8d313c5b3553a62ede8a1c07f17752270b6b0f7f01"
+    },
+    {
+      "file": "pellier/frontend/src/pages/AboutPage.tsx",
+      "sha256": "9ab8a4ca552af9d282cc39743808807ccab65fd811823d7beebbcdf872f68cf2"
+    },
+    {
+      "file": "pellier/frontend/src/pages/ComingSoonLine.tsx",
+      "sha256": "0fc8a7a9adc5ecfafaa5e07bd23cae37aa3b5cacf0367a78598d2575dbc40c1c"
+    },
+    {
+      "file": "pellier/frontend/src/pages/DiscoverPage.test.tsx",
+      "sha256": "50b0650d93d33939888720781e42206e17cce77ce6da85b14e871025166aeb44"
+    },
+    {
+      "file": "pellier/frontend/src/pages/DiscoverPage.tsx",
+      "sha256": "127bb3fc57743c9258a83a674b2614f1cfee06d18e342f3454062d25e257e79c"
+    },
+    {
+      "file": "pellier/frontend/src/pages/HowPellierWorksPage.tsx",
+      "sha256": "f64e826b7aa65e42b040c861ea067e13bf58cf145defd611accbb37d28128dd8"
+    },
+    {
+      "file": "pellier/frontend/src/pages/InspectorPage.tsx",
+      "sha256": "e5d0e7687c9a1d64ac3790cff6bbd0b292b89a216683952e2331c22d98a9b2a1"
+    },
+    {
+      "file": "pellier/frontend/src/pages/PellierPage.test.ts",
+      "sha256": "b3d4cd73d6ed28a585e401a2fc787b96331a2ed1e84adeb053ac94b2597d7a9c"
+    },
+    {
+      "file": "pellier/frontend/src/pages/PellierPage.tsx",
+      "sha256": "810a11a5d4cb2cdfc0e933cc59e2ae5d32832a9b668c4141cf5c9e94418d66dd"
+    },
+    {
+      "file": "pellier/frontend/src/pages/ProductDetailPage.test.tsx",
+      "sha256": "546b5f66e1a6d15c44a74c8a0d90d2d2cfc48fa777111ccb7704e63e459fdd02"
+    },
+    {
+      "file": "pellier/frontend/src/pages/ProductDetailPage.tsx",
+      "sha256": "10490e677f21be62e69d488b81999037be718a511f5e8b9b26ec44c249cda513"
+    },
+    {
+      "file": "pellier/frontend/src/pages/StoryboardPage.test.tsx",
+      "sha256": "578f2c6d775153f1d3b184b457a711032e78577ce095dd84dba2cc765bb555d7"
+    },
+    {
+      "file": "pellier/frontend/src/pages/StoryboardPage.tsx",
+      "sha256": "dff3d561817bda3a06de651af406bf6d0e46c6e3f5c26678a13060002194dac9"
+    },
+    {
+      "file": "pellier/frontend/src/services/__tests__/turnIdentity.test.ts",
+      "sha256": "bba38426306f4230d185dd1a6ad5a9804aecab6d2bf13852c0aa283a0b79ef54"
+    },
+    {
+      "file": "pellier/frontend/src/services/api.ts",
+      "sha256": "2ec790817c82e4d5d4471c7f430954eda235270360cf16238452b926dad18ddb"
+    },
+    {
+      "file": "pellier/frontend/src/services/apiBase.ts",
+      "sha256": "44082429c1c9abf772a969de49c7e105b4c90525718a964c370234cc01a30177"
+    },
+    {
+      "file": "pellier/frontend/src/services/authRefresh.ts",
+      "sha256": "0714601bfa2344aae3ca292229c27f0abb5386534e5b5379d334669552343544"
+    },
+    {
+      "file": "pellier/frontend/src/services/chat.test.ts",
+      "sha256": "abfd7514113ade58d1cb413ff5c67faf6e43a457ae8efcf57f7c3201a7a93550"
+    },
+    {
+      "file": "pellier/frontend/src/services/chat.ts",
+      "sha256": "17a17425f0eb0152eafc710da4005c1c07f1d4e36262a626dc4d52856c5ac72d"
+    },
+    {
+      "file": "pellier/frontend/src/services/commerce.test.ts",
+      "sha256": "9794bf1a063e56cdc9c5004d53eee1704df38f4d07a089f349ac6ca0975ecf49"
+    },
+    {
+      "file": "pellier/frontend/src/services/commerce.ts",
+      "sha256": "f3651cb0f3b593a20b50c2ec14b3b2260a7bc7a19a4e359df13ca424caf7a64f"
+    },
+    {
+      "file": "pellier/frontend/src/services/evidenceLedger.test.ts",
+      "sha256": "f5300542d13fe72be06c7fa626b8f7e530269054d9a20427d610819181dff2e1"
+    },
+    {
+      "file": "pellier/frontend/src/services/evidenceLedger.ts",
+      "sha256": "af51df8f8808dc2bef0e3c9ee90cb50ef78eb21a48edbb8264d3f10e28f264a6"
+    },
+    {
+      "file": "pellier/frontend/src/services/microEval.test.ts",
+      "sha256": "67834503cc3b3190d9a26e50c1e93952ab8a4cbec2771d76b406405e8afc01e2"
+    },
+    {
+      "file": "pellier/frontend/src/services/microEval.ts",
+      "sha256": "c5165b08fbf60a680f9c3dedda7b75560b74d6024a5ef8f1bfbeba36f41d06c1"
+    },
+    {
+      "file": "pellier/frontend/src/services/operator.test.ts",
+      "sha256": "6a42ae11172c425b0398905eb25df01a1d0839a0e4fcbed71d8cbc5a19cce37c"
+    },
+    {
+      "file": "pellier/frontend/src/services/operator.ts",
+      "sha256": "3b33983a21b8b2c5bb9dfa62cd78690b4760f30c733fa17c8c69163336caf821"
+    },
+    {
+      "file": "pellier/frontend/src/services/operatorCapabilities.ts",
+      "sha256": "517397b1c0875987a3e547af08296c09248f0439c81d47d41b510d18e4f100e2"
+    },
+    {
+      "file": "pellier/frontend/src/services/operatorConcierge.ts",
+      "sha256": "d43a98e00769a72056265b8c3ee49183685a1fd559066dc0332f43cab192d0d5"
+    },
+    {
+      "file": "pellier/frontend/src/services/operatorStream.test.ts",
+      "sha256": "9a46ea5639d9e24b6ee05722b8647b69f51f6f2720745050fbae943f0afc5957"
+    },
+    {
+      "file": "pellier/frontend/src/services/passwordAuth.test.ts",
+      "sha256": "8d2e2274c8a72f55b671e2f4f899ccbeeaae183cc199763e12a1a83b9fc6609a"
+    },
+    {
+      "file": "pellier/frontend/src/services/passwordAuth.ts",
+      "sha256": "3a79e880315ca48bea68d93bb2bca48bf2ae4ff2b485d51b0f8e75f68d6def81"
+    },
+    {
+      "file": "pellier/frontend/src/services/types.ts",
+      "sha256": "938649b133f63e3ddb73a83751bdf4fcb2a7d4419516005d971bd63ab560196e"
+    },
+    {
+      "file": "pellier/frontend/src/services/workshop.test.ts",
+      "sha256": "333ee7fcdaff2546ab4f4e7455c9c37f619748b1ea057e1718c80882527fce99"
+    },
+    {
+      "file": "pellier/frontend/src/services/workshop.ts",
+      "sha256": "780bb6f0a388e7871b8c35489052c89bc0545152e3d3b667e33befd77d7cc94b"
+    },
+    {
+      "file": "pellier/frontend/src/shared/AppErrorBoundary.test.tsx",
+      "sha256": "38f6b606e5e641fa2eaac5b2c4fff10c21df4f32cf066fa735337971d0ebe610"
+    },
+    {
+      "file": "pellier/frontend/src/shared/AppErrorBoundary.tsx",
+      "sha256": "17c32fe1b940423aeb825c1de42fdac585b42853b897f3a05ea38424cd9b074f"
+    },
+    {
+      "file": "pellier/frontend/src/shared/DataTable.test.tsx",
+      "sha256": "2651800c89105bc350823700ec7bb36a213d7b023670705a40686c435e4944fd"
+    },
+    {
+      "file": "pellier/frontend/src/shared/DataTable.tsx",
+      "sha256": "282ba104a653750aa7cca0c35084c99e43840f527c77eb4bdd1b4cd5f48c6e68"
+    },
+    {
+      "file": "pellier/frontend/src/shared/EmptyState.test.tsx",
+      "sha256": "1fc5ff5ebb547d82e9003fa1550a01e9f0c689c3300b14206839f8275bba6fd5"
+    },
+    {
+      "file": "pellier/frontend/src/shared/EmptyState.tsx",
+      "sha256": "6781091694e2ff00b179c7c2ac76a18a70d9eaf57bc086c312598ebb26819f44"
+    },
+    {
+      "file": "pellier/frontend/src/shared/EvidenceCard.test.tsx",
+      "sha256": "e2cc62c813f97f1c4b3cb62eafba92a151972c7383997206b40ae468aa043941"
+    },
+    {
+      "file": "pellier/frontend/src/shared/EvidenceCard.tsx",
+      "sha256": "c2d052c7076d94fafea04881ffc5a82ba9c1570b33af7869226911447699471b"
+    },
+    {
+      "file": "pellier/frontend/src/shared/GovernedSeal.tsx",
+      "sha256": "b462bc3e2c715b215f68e2b4060738c2ab4bbb398678fe458a2d63a090efe09d"
+    },
+    {
+      "file": "pellier/frontend/src/shared/PolicyDecisionBadge.tsx",
+      "sha256": "750e32e5fa2df3c0409f94eece9abcb0818bcfd3784c2fbd61e129cff979332c"
+    },
+    {
+      "file": "pellier/frontend/src/shared/PresencePill.test.tsx",
+      "sha256": "590d8680880fac41fa118542b750c08535c157686b69271a89717c4c3688ddaf"
+    },
+    {
+      "file": "pellier/frontend/src/shared/PresencePill.tsx",
+      "sha256": "923a475e33398436a08fec3aa6120c4a156204019abd9ef43d243941901d57c7"
+    },
+    {
+      "file": "pellier/frontend/src/shared/RouteExperience.tsx",
+      "sha256": "9f80e7e42dcb74baa3bbc4f4ebe34699eccce66118647ee24e0aa9355aeeb269"
+    },
+    {
+      "file": "pellier/frontend/src/shared/SectionEyebrow.test.tsx",
+      "sha256": "f82b17dcc0b190738d9f654326f532449c2eaeecfab4ff91c07c5c61770a4ddb"
+    },
+    {
+      "file": "pellier/frontend/src/shared/SectionEyebrow.tsx",
+      "sha256": "ac0c197a0b13853bc9acc6e02f49f8425db03e0503c825254fd18efa2f9360d0"
+    },
+    {
+      "file": "pellier/frontend/src/shared/ServiceIdentity.test.tsx",
+      "sha256": "e818dc0880312582a6bc4d08f9997cc582cc5663d40e3961df97d742716a35cb"
+    },
+    {
+      "file": "pellier/frontend/src/shared/ServiceIdentity.tsx",
+      "sha256": "ed6f8e03c2b0b6bff64a96e097c807cf8520f316f19fa97d01190b2c1ab96484"
+    },
+    {
+      "file": "pellier/frontend/src/shared/SessionStatusNotice.tsx",
+      "sha256": "7160dc563314dbab46877c95c4b048904809ff6ddbe53148800ea91938af3501"
+    },
+    {
+      "file": "pellier/frontend/src/shared/StateBadge.test.tsx",
+      "sha256": "c0119337c99fff6b637388d02f65d02a31824dcc24a4eecc8a4f6992db0d3683"
+    },
+    {
+      "file": "pellier/frontend/src/shared/StateBadge.tsx",
+      "sha256": "b2b9669ab347dc484e7f7cd19b4febf0fa702e546efe2e28572344c5f083b307"
+    },
+    {
+      "file": "pellier/frontend/src/shared/SurfaceCrossLink.tsx",
+      "sha256": "fb9dff2546bcc05f7ad4d063b2b86f5c97c28ee6a4fffe4e74ac04376127edbe"
+    },
+    {
+      "file": "pellier/frontend/src/shared/TraceChip.test.tsx",
+      "sha256": "3f2e5a38af870cab3e391f2d9fca23631cf853a35c50977435b0ecbe282d8828"
+    },
+    {
+      "file": "pellier/frontend/src/shared/TraceChip.tsx",
+      "sha256": "52bcb19ab86223dfb4d06ffe7e5390ad547757bb6037e5cdbe5d8e52708811d7"
+    },
+    {
+      "file": "pellier/frontend/src/shared/__tests__/governedFoundations.test.tsx",
+      "sha256": "cc5d3d3d771c1905f10da4ceefa6d2da03fdb19aae05ef397d452b3efbcab24c"
+    },
+    {
+      "file": "pellier/frontend/src/shared/agentVocabulary.ts",
+      "sha256": "7c32852c9d7d51251f2ae6e2bc1cb7192339cee2f06bf006d1dee27ee1ae9ccc"
+    },
+    {
+      "file": "pellier/frontend/src/shared/evidenceLedger.ts",
+      "sha256": "04d9d8831c5f603cb0075748b0aec5a1ad58c6955eabec30948027d0b23264df"
+    },
+    {
+      "file": "pellier/frontend/src/shared/governedReceipt.ts",
+      "sha256": "318fbcce41f365f213949cc60593d436e71b6a88b1a822c407495ffbeea6b83c"
+    },
+    {
+      "file": "pellier/frontend/src/shared/governedTypes.ts",
+      "sha256": "d9bf4574823d9a714c2fb5f449cd773376a818d6f5aeb234ae85fbc3323efb21"
+    },
+    {
+      "file": "pellier/frontend/src/shared/index.ts",
+      "sha256": "257becafca185b85e40213d567465f35600cb2eae7068e49c6bf5050a0fee3a3"
+    },
+    {
+      "file": "pellier/frontend/src/shared/labProgress.test.ts",
+      "sha256": "7fe9d1d5d15d211e0ca319c5a2f413e7e71e698d029e59b6b1d276beaca33845"
+    },
+    {
+      "file": "pellier/frontend/src/shared/labProgress.ts",
+      "sha256": "a5b7c32729336ba61bbaa5287fe5e3ed22f4cabcc6000961cb209cdff8bd9c39"
+    },
+    {
+      "file": "pellier/frontend/src/shared/primitives.css",
+      "sha256": "969576c6450c7aaa9e437f1a45b58d025707312699ac7e0828f0878ce63d1726"
+    },
+    {
+      "file": "pellier/frontend/src/shared/service-identity.css",
+      "sha256": "a7940317545c45812b095a86ef7cd606ef19de6577cb718924e33f94ee1f1083"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/ResolutionTrace.test.tsx",
+      "sha256": "30ddae1b3c982e6032f310702431fa32b2d4fc84d915e8ce5b32b189edbe5c9a"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/ResolutionTrace.tsx",
+      "sha256": "9ba616f21167c44e13ca227a38c868131770e107e067667e8ed43416051e5e2c"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/TraceScenarioDetails.test.tsx",
+      "sha256": "37b18b05360f70d2c9544faf2c904f07d691581c5c0120691a7a95a6a945c1bb"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/TraceScenarioDetails.tsx",
+      "sha256": "675e8e2562571ca9ce88ffb71320dc6e46fe136f43bb2d2c408f15bba5d352f0"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/TraceScenarioLoop.test.tsx",
+      "sha256": "d55ee797848a6bb2d5693b369d3eda9e71f47d308171cedd51cc8d4a3749677f"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/TraceScenarioLoop.tsx",
+      "sha256": "9ff39c9b4b7929b3a191e4fb9d6cb6315b55b43e6bc90dfaed064e926fd8b208"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/resolution-trace.css",
+      "sha256": "33314e108e6599ce7044b5b6d74a7f40be3b08feada5eb8ebf30ba8eecdc67e7"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/trace-evidence.css",
+      "sha256": "c308b7c6212129de5107594ee97d7395367bdf28d05fec9cab72933095358d11"
+    },
+    {
+      "file": "pellier/frontend/src/shared/trace/trace-scenarios.css",
+      "sha256": "429e70a70a4a9a2e9f8e1e09e8743db8f2b5d4424f74b42b075012669dfd95ff"
+    },
+    {
+      "file": "pellier/frontend/src/shared/useFocusTrap.test.tsx",
+      "sha256": "2a8e6bcc2aa9e7ee3de299869570545948fb99c747dc569eaee06852d927281f"
+    },
+    {
+      "file": "pellier/frontend/src/shared/useFocusTrap.ts",
+      "sha256": "6673e605b1a1a90bea61a2a8974fd2b2073993b2067d78ebe62a819976ca4137"
+    },
+    {
+      "file": "pellier/frontend/src/styles/chat-drawer.css",
+      "sha256": "6127fdfc323d4f0f4a9fba52d8949e61b2eaad5e9b295a03048afce7613fa0dd"
+    },
+    {
+      "file": "pellier/frontend/src/styles/chat-outcomes.css",
+      "sha256": "439da1d94028de16bfd913aaef14093bcbf14f2c33ceeab836d8629cd7f2debe"
+    },
+    {
+      "file": "pellier/frontend/src/styles/daylight-bridge.css",
+      "sha256": "f41cbde9b5e924e609d0c0267f2d48704f3f8fc4aeccf917e2f60d215816a09d"
+    },
+    {
+      "file": "pellier/frontend/src/styles/daylight-components.css",
+      "sha256": "df0231433587fdac08e75d8a7ff7463a9cbebe62f625c302f85f6f7958d02ecd"
+    },
+    {
+      "file": "pellier/frontend/src/styles/daylight-tokens.css",
+      "sha256": "9756c3b077fd3f5b0d441db82744015c965bbff21a8a07c10dc95908f73f010a"
+    },
+    {
+      "file": "pellier/frontend/src/styles/editorial-streaming.css",
+      "sha256": "249837e22ddeddac8cb86794551de70142a7d4ac2473631ddfca152a65df9c29"
+    },
+    {
+      "file": "pellier/frontend/src/styles/governed-tokens.css",
+      "sha256": "a4c8a324342037ee36d573a5ca481fd3b6ad8323ce4ea1b9ed77460623433947"
+    },
+    {
+      "file": "pellier/frontend/src/styles/how-pellier-works.css",
+      "sha256": "9cb95853e3a6febaf589fad17fcb1b83058ad643654d98eecae94519fd23394b"
+    },
+    {
+      "file": "pellier/frontend/src/styles/navigation-polish.css",
+      "sha256": "73725aba34d6ab282219a72819f2645cd96b49a278e7b1af034bed35dc90981a"
+    },
+    {
+      "file": "pellier/frontend/src/styles/pellier-chat.css",
+      "sha256": "742466ac3620cf84022407f2e75077411bf4ddc9dbd6a9204ddba7611947d328"
+    },
+    {
+      "file": "pellier/frontend/src/styles/pellier-landing.css",
+      "sha256": "eecaf04ac080d6e26a87402fe52f94db4eed6aa53403efec988f1ba8f21e3197"
+    },
+    {
+      "file": "pellier/frontend/src/styles/pellier-signin.css",
+      "sha256": "8bc2d9743702993d3c4dbd25dfdb168ab39896a72bd0c7fe5e562fb113be4e03"
+    },
+    {
+      "file": "pellier/frontend/src/styles/pellier-welcome.css",
+      "sha256": "a3b77b85f50a8fc6e5d7ca8404065d15aef74d825d6a1cf7436853da7d7f2464"
+    },
+    {
+      "file": "pellier/frontend/src/styles/persona-modal.css",
+      "sha256": "2b7b9813bb488b1f317201e3e7edd24139a86507313e91124ba7016cd284dd62"
+    },
+    {
+      "file": "pellier/frontend/src/styles/premium-heading-styles.css",
+      "sha256": "7a446801e66c82a1fd8343829348e3fae2b27d0ae21a00bdca225d1b86bc3c05"
+    },
+    {
+      "file": "pellier/frontend/src/styles/product-artifact.css",
+      "sha256": "716a87c8640d62ec7e8d1f89db635b8eda276908d78d0d2d0fa3f41bf3a88213"
+    },
+    {
+      "file": "pellier/frontend/src/styles/skills-panel.css",
+      "sha256": "bd9891ee5b88fdd8dfde70f02eb8b59a286564fe0087b07a54882baba9653e59"
+    },
+    {
+      "file": "pellier/frontend/src/styles/surface-navigation.css",
+      "sha256": "bb6a85a639d69c73ded9368dffdcb680165b113bdcec8e05dda53823884600ac"
+    },
+    {
+      "file": "pellier/frontend/src/styles/turn-receipt.css",
+      "sha256": "d8a2bd4564add29f0a31657c7f94b6cfe25b2000901185ac6e35129acf169809"
+    },
+    {
+      "file": "pellier/frontend/src/test-setup.ts",
+      "sha256": "56a3012537290bfcf1bf429c7577452ef3b5854c31bf7a1985b0c4f0a615b549"
+    },
+    {
+      "file": "pellier/frontend/src/test-support/workbenchViewport.ts",
+      "sha256": "9f1f787aacf4a91ec9ce6ff9dc1465c3a73b9007ae89c0fe72cfa281bda4118a"
+    },
+    {
+      "file": "pellier/frontend/src/utils/agentIdentity.ts",
+      "sha256": "bbd4d7b75290d6b63ddb3d4d6b93f9943a5f9a747623870f532e4958833472b9"
+    },
+    {
+      "file": "pellier/frontend/src/utils/assetPath.test.ts",
+      "sha256": "66a9022eca4068f0b0d4e2fa9b3b40542b62b36ae311242613e95dcef4775a8b"
+    },
+    {
+      "file": "pellier/frontend/src/utils/assetPath.ts",
+      "sha256": "dfb4974d9119811481e5c5f7cfab9e11b71b451863b74b31b4aad31e6d45856b"
+    },
+    {
+      "file": "pellier/frontend/src/utils/auth.test.ts",
+      "sha256": "6a2dd319c2b2f3342abd8f801a6b9fd7f2ce1c7438463092b961c04223e21a57"
+    },
+    {
+      "file": "pellier/frontend/src/utils/auth.ts",
+      "sha256": "826ed14a2d079663700c04ade53c7e0b5ea6a90628253875e8d7b3b2b1496fce"
+    },
+    {
+      "file": "pellier/frontend/src/utils/awsServiceMarks.test.ts",
+      "sha256": "7276f57a4eb85ccc052b5a18441f7b9a1fcbb5fcf9bfb5cff31bc0283bbab34e"
+    },
+    {
+      "file": "pellier/frontend/src/utils/awsServiceMarks.ts",
+      "sha256": "758ab53c3a1336c9afd606c12e34bdf47d696027623afd1a6a698c7280b70c09"
+    },
+    {
+      "file": "pellier/frontend/src/utils/catalogFollowUps.test.ts",
+      "sha256": "260a6bd772cb78ce124ae36a108b4fc074c1137940c586b3f0e778c0662b3995"
+    },
+    {
+      "file": "pellier/frontend/src/utils/catalogFollowUps.ts",
+      "sha256": "58cfa4524292c35f98c0a0ef7f8d834bfde5dc33b3565bca385274121174d1a3"
+    },
+    {
+      "file": "pellier/frontend/src/utils/editorialStream.test.ts",
+      "sha256": "f805721886519eca8336e9df33c1a2c1ac63e6c08e77cded312f77ae767ba7f8"
+    },
+    {
+      "file": "pellier/frontend/src/utils/editorialStream.ts",
+      "sha256": "ad87e82ef704eadd3c7083dd3d1797d1b4ac081a5f9914e96630781a87cf8337"
+    },
+    {
+      "file": "pellier/frontend/src/utils/headlineAccent.ts",
+      "sha256": "3c6b77b3e8115767e3ad472087503e66ea644b1de89880a0c0bb6f8d70d6e6cc"
+    },
+    {
+      "file": "pellier/frontend/src/utils/plainText.ts",
+      "sha256": "234f05758683eb1d34410d834027dbe4f25606847ecdd489b56f35186fde3742"
+    },
+    {
+      "file": "pellier/frontend/src/utils/recentlyViewed.ts",
+      "sha256": "afd79f7684718a4566bd9d72ba681c011654fb5763590df9ee0b5afcbb5eeafd"
+    },
+    {
+      "file": "pellier/frontend/src/utils/resolveProductImageUrl.ts",
+      "sha256": "7d7feb637e363bc12c3eeb43688b0bad9250771719ab77656a603dbe8f9263b2"
+    },
+    {
+      "file": "pellier/frontend/src/vite-env.d.ts",
+      "sha256": "b1228b2d4f337eed48ba840b2f20f4234f5fd1943acc9dcd8215ce0271f6e8ed"
+    },
+    {
+      "file": "scripts/audit_product_assets.py",
+      "sha256": "fdcdf38e12f081f78db04fbbfeb343c688d921045b99d6962ba72ac06bfbd46d"
+    },
+    {
+      "file": "scripts/bench_runtime_coldstart.py",
+      "sha256": "226642a52287ef7d0f33cf32cc68f500c515344c7d4d3293610f8b9242aae08d"
+    },
+    {
+      "file": "scripts/bootstrap-environment.sh",
+      "sha256": "5e7ddd1fa875219699d65863c6d1e1b6fc17c8eae66d7928c39fb886a74e7574"
+    },
+    {
+      "file": "scripts/bootstrap-labs.sh",
+      "sha256": "97199188436626cea26be438f8c2c0233e99956083d1bccd019af7e76b79f3bf"
+    },
+    {
+      "file": "scripts/build_receipt.py",
+      "sha256": "c119e97c9c8c438d4d47a5916aed19c9be37dfc852204b829869d8dd1b017395"
+    },
+    {
+      "file": "scripts/check_model_access.py",
+      "sha256": "a5e4fbecd8f4750d77aa6d61561ecd8b2594f980bbd8cda2d3be295db988f4ae"
+    },
+    {
+      "file": "scripts/compare_query_lanes.py",
+      "sha256": "76160c1b990fbe49f106fa4c4ec52f3ebca00a01a1fde5e7780b8ec7f9424961"
+    },
+    {
+      "file": "scripts/demo/mov-to-gif.sh",
+      "sha256": "8d21308eba9ab61b1360122415163a50ebc91b454b688763939c9408445f5ab6"
+    },
+    {
+      "file": "scripts/deploy/cognito_customer_claim.py",
+      "sha256": "b3e96d248199709a12a662149f819a4b452e461f1611efd226166ed7139f71c6"
+    },
+    {
+      "file": "scripts/deploy/common/__init__.py",
+      "sha256": "a72e38ff9d3a262f0c5bfb6e4eb3462753d4a12f56fd6fe433ec2394a3925538"
+    },
+    {
+      "file": "scripts/deploy/common/dataapi.py",
+      "sha256": "1c9f8ceb304ccc14213c276de945a9a087a7efb5a0770ef2caf768a62995b2fb"
+    },
+    {
+      "file": "scripts/deploy/common/handler.py",
+      "sha256": "96d6ec4610f7d956ae32ee32b46d2834268287af148d4833f6a23e5089c26fac"
+    },
+    {
+      "file": "scripts/deploy/common/replacement_contract.py",
+      "sha256": "f0e330e62518171a428bf6a34e12b666930337833420f7eea7eabd2962e299dc"
+    },
+    {
+      "file": "scripts/deploy/common/types.py",
+      "sha256": "1c78e436b69f2a665a4303d8750b2775766260eb19c7d33d360ff182ee1aaacd"
+    },
+    {
+      "file": "scripts/deploy/deploy_all.sh",
+      "sha256": "28f46e430110e2c912ac6af6f83f87945c19d9ce360be321dbfd96ae3af3accd"
+    },
+    {
+      "file": "scripts/deploy/deploy_customer_claim_trigger.py",
+      "sha256": "7a8faebe63a56128bbaea6d39d2b2bc952fe423c951bb9c63523e76b96a21626"
+    },
+    {
+      "file": "scripts/deploy/deploy_lambda.py",
+      "sha256": "0d4e96b12582fbea97d531330677d073d53fb2b8993dbee83474112ee4f6c6f2"
+    },
+    {
+      "file": "scripts/deploy/gateway_initiate_return.py",
+      "sha256": "04e783eff002a3a9900a3f8efcddba74ece798b9a76e85a58180c2169cd6090d"
+    },
+    {
+      "file": "scripts/deploy/gateway_tool_schemas.py",
+      "sha256": "a44886183551f7a7956f6f45de80849c4b53c8ec79196f041fc28ffb91fc674e"
+    },
+    {
+      "file": "scripts/deploy/output_guardrail.py",
+      "sha256": "d515f0ac10d00966bfaf7c2869a1a95c89b08dba79d486fb0070edb4e1a52cfc"
+    },
+    {
+      "file": "scripts/deploy/ownership.py",
+      "sha256": "2a9a75aab375350662868633b82e7dc798fa6cff0dedff6983fd05838659b605"
+    },
+    {
+      "file": "scripts/deploy/pellier_experience_server.py",
+      "sha256": "b2b0515ed67f29228475dd87411667f3c7d365b642f849f864060edbbec331e5"
+    },
+    {
+      "file": "scripts/deploy/pellier_pricing_server.py",
+      "sha256": "119d49bbeca1d3ed80d11b2ae15efe49f79251ee56691c17f9b55a1d94dbb3b2"
+    },
+    {
+      "file": "scripts/deploy/pellier_recommend_server.py",
+      "sha256": "81c8786fb4354fc3369431941833f526923bfe84e5c75a7ce82394f92c72e3eb"
+    },
+    {
+      "file": "scripts/deploy/pellier_search_server.py",
+      "sha256": "08c72c09bf1cbf77b12c2eac972eab4e4af4215bd3251bf39c2488757adb5991"
+    },
+    {
+      "file": "scripts/deploy/plan_restock_alignment.py",
+      "sha256": "1f2eba8f87080bed7ebfb1c390cc78e36a1b35722389174cdfcfebf5aab29f76"
+    },
+    {
+      "file": "scripts/deploy/render_agentcore_project.py",
+      "sha256": "ae9809dea98a353e2b76f1024e16152c1cabba350e1ac1c15897fd333b02b358"
+    },
+    {
+      "file": "scripts/deploy/replacement-workflow.template.json",
+      "sha256": "8866e0129e1fbde62d3aaf98bcab7e8444e3232479ef94b5b3b5201a632327fc"
+    },
+    {
+      "file": "scripts/deploy/replacement_worker.py",
+      "sha256": "4d18d907ca042bc73e8127ca4477e70b0d3a3fc640c50b59df06bda20330c210"
+    },
+    {
+      "file": "scripts/deploy/resolve_agentcore_identity.py",
+      "sha256": "67524e1c3aaf4ff1c339f05793c1924ba6f9a396e2da595c2b97a19a15341b58"
+    },
+    {
+      "file": "scripts/deploy/sdk_preflight.py",
+      "sha256": "cbb6769f996659071da6b3a0b45fa9bce13c871ce8177f1d3008cca82155fc39"
+    },
+    {
+      "file": "scripts/deploy/seed_agentcore_memory.py",
+      "sha256": "c20d6bb270e8588744329ea6120288a09429e955b2e14bd035a733f62e01a4c1"
+    },
+    {
+      "file": "scripts/deploy/test_gateway_auth.py",
+      "sha256": "01f487300de3cc6e30df9de16b34899fba2d7c438a5946afedec4b8d0ea90295"
+    },
+    {
+      "file": "scripts/deploy/test_gateway_tools.py",
+      "sha256": "b4fea197d0752281656e25532fe4dee8de507a0b30f2f55c36b792e187322ea9"
+    },
+    {
+      "file": "scripts/derive_product_variants.py",
+      "sha256": "a2a195c2109cc588ea2e6e1977da95a0402ee7e026d703404a7a9fd270eeaead"
+    },
+    {
+      "file": "scripts/describe_workshop_publication.py",
+      "sha256": "0b70cdc82ff085e684b51a9c55c57c07e119f327201440eb0d1c32f42ace03a0"
+    },
+    {
+      "file": "scripts/dry-run-builders.sh",
+      "sha256": "d62e715946a22cd13bb26b25f4a9d553d8695de421e29851882a8b81fc0a3abc"
+    },
+    {
+      "file": "scripts/eval_retrieval_harness.py",
+      "sha256": "ff6ee37f18d5443521c69a68c5ef408d2c0476f9db4a2937562d504cf85e6753"
+    },
+    {
+      "file": "scripts/generate-embeddings.py",
+      "sha256": "eb4c5e260b572911a5a744218ae8246f4c0d5014c0139a85821dfc1ae1470289"
+    },
+    {
+      "file": "scripts/health-gate.sh",
+      "sha256": "45571253a9945b5ab84997d91f4c78b864feaca207a736d2ff99c40d15fecac7"
+    },
+    {
+      "file": "scripts/lab1_contract_check.py",
+      "sha256": "ecf8c41de6afce87b0fd865c68c6cd595db5665c56eca1bf2af1fbcd67d51dcc"
+    },
+    {
+      "file": "scripts/lab3-start.sh",
+      "sha256": "49e5a88c4c81c469627989abe18fd3de114ce06c09b56936dc12bc5d8ac77ab9"
+    },
+    {
+      "file": "scripts/lib/dotenv.sh",
+      "sha256": "8d195eafad3cd62eb0b5e0ee74665a1626c62b6e75ae60890dfab6ba07faad14"
+    },
+    {
+      "file": "scripts/migrate_gateway_vocabulary.py",
+      "sha256": "9ea7171f63415d45562583096b5566d8ff6536f324f5d76b6c792fea74501ccc"
+    },
+    {
+      "file": "scripts/migrations/001_schema.sql",
+      "sha256": "2851be445d7d8557bd1cbb33c5b4ce9b5406af3cd043ed111dcfaf535372220d"
+    },
+    {
+      "file": "scripts/migrations/002_workshop_telemetry.sql",
+      "sha256": "c956a8bf3d5416779835e9ac053b61ad26ecf488a00295df33057e48cd8c28fe"
+    },
+    {
+      "file": "scripts/migrations/003_persona_seed.sql",
+      "sha256": "93f9ee78e326baa72934ffd8e5e1c0138046a54dabe81a0d828a70e9f0bf7c7c"
+    },
+    {
+      "file": "scripts/migrations/004_anna_hybrid_search.sql",
+      "sha256": "9a14fabd8cfe14b144529f93969251c828b093d3000becd5815f8a485811bfc1"
+    },
+    {
+      "file": "scripts/migrations/005_theo_returns.sql",
+      "sha256": "0846d281957c1146deb7984166b6dbe1eb097824840a290f4a811b27ea77dd0d"
+    },
+    {
+      "file": "scripts/migrations/006_warehouse_inventory.sql",
+      "sha256": "75518c99a9eed775ebb611d5fcbe97664445062645058958f9981bf927e81170"
+    },
+    {
+      "file": "scripts/migrations/007_chat_session_tables.sql",
+      "sha256": "8afff66a65390ca4bd612600375297af2a9cd29f89dab1710acb8bcc4551839b"
+    },
+    {
+      "file": "scripts/migrations/008_search_performance_indexes.sql",
+      "sha256": "d887097b21a06242f40335315e8af82ecbf2bbc1beac5a3a6a154087c1d0bd9d"
+    },
+    {
+      "file": "scripts/migrations/009_return_policies.sql",
+      "sha256": "b86a949027745cd982230c29c43642efbe9f20973504d239370a0cc5b40ff750"
+    },
+    {
+      "file": "scripts/migrations/010_governed_receipts.sql",
+      "sha256": "f20382b1cc0bbbdba098b0edf1cab5eda1bd57670ffc806ca34a4edf6fa3fccd"
+    },
+    {
+      "file": "scripts/migrations/011_governed_write_integrity.sql",
+      "sha256": "84c8ecb50c11aed0af59dceb26926a133dabffda7a190a6f7a8493ff2767f724"
+    },
+    {
+      "file": "scripts/migrations/012_retrieval_receipts.sql",
+      "sha256": "fd10d2642dbd24df94f48dc6f349438f867edd5dc7bbe02d1d956ad2da96f1cb"
+    },
+    {
+      "file": "scripts/migrations/013_inventory_ledger.sql",
+      "sha256": "d4ee0fbd6be30769d105fcfbd306d41c3bd8cc783a890fc241b2235d9468c18c"
+    },
+    {
+      "file": "scripts/migrations/014_governed_turn_receipts.sql",
+      "sha256": "6af205ba64af9b9f6785e24c1f2204cc1805ebd7f464ccaffda8ea12e4b5a193"
+    },
+    {
+      "file": "scripts/migrations/015_proof_carrying_commerce.sql",
+      "sha256": "4566dee3631037b6e1062b24b4420c72424b460549e7155cd126d979844addbc"
+    },
+    {
+      "file": "scripts/migrations/016_runtime_roles_rls.sql",
+      "sha256": "84222036d66806b04fbf2b589017d59d8d72ee8a79df442476f129e04ccaae6d"
+    },
+    {
+      "file": "scripts/migrations/017_governed_query_receipts.sql",
+      "sha256": "414fee0df7e346e44f1beb576c3d17454f614e48bdee3c53eec6a5bb06426c5c"
+    },
+    {
+      "file": "scripts/migrations/018_client_book.sql",
+      "sha256": "9aae859987a1b0fdd915598a21fbbdf693cb74ac5061dfcbada5b24246cc341f"
+    },
+    {
+      "file": "scripts/migrations/019_operator_desk.sql",
+      "sha256": "b7fbca3d623de830a74106aa8e5e402d3ff17552b60496d557b62802b091fda1"
+    },
+    {
+      "file": "scripts/migrations/020_operator_review.sql",
+      "sha256": "486d7418e3cced61d39b273d3e188235b1658cc9ffe512ba64c3256adc5bbdf7"
+    },
+    {
+      "file": "scripts/migrations/021_governed_execution.sql",
+      "sha256": "5a0817745fb4308c5fee4de3856a35550914a03ccc79b1b4d4026b9072aeb887"
+    },
+    {
+      "file": "scripts/migrations/022_write_operation_vocabulary.sql",
+      "sha256": "33f74164ce28e512e396b0ef0e878dc586b14fa882eb54c591f4738ba700183e"
+    },
+    {
+      "file": "scripts/migrations/023_idempotency_claims_release_on_failure.sql",
+      "sha256": "e9e685e375184e8f362e661926b6731ab6f307f4477be092062bca437dc17e5d"
+    },
+    {
+      "file": "scripts/migrations/024_operator_episodes.sql",
+      "sha256": "234971cbf810f63372ae8d78be022afc0a3a5116ffc81df3c3adc6d4d03f37c5"
+    },
+    {
+      "file": "scripts/migrations/025_execution_receipts.sql",
+      "sha256": "fded74191056ea212869a870fedf5441bcace34e308ee31116d7585315bdc9bb"
+    },
+    {
+      "file": "scripts/migrations/026_episode_outcome_lineage.sql",
+      "sha256": "239623dc447c8723d327517618aeff89605d820e94ee67c271495257b4737f07"
+    },
+    {
+      "file": "scripts/migrations/027_canonical_span_table.sql",
+      "sha256": "d73af26ce1f34e77fe944c314e1d926bd91af45d03f7558396a728e6b519de19"
+    },
+    {
+      "file": "scripts/migrations/028_shopper_operator_handoff.sql",
+      "sha256": "f4bad531c140721c78d6d0041996e164f40eb15c69eb7fa5bed8c18cff657ee1"
+    },
+    {
+      "file": "scripts/migrations/029_live_surface_data.sql",
+      "sha256": "7474d0bf31fa026d8a2cc6426da1164505ce43e81c59fb30b16ecac383b661b4"
+    },
+    {
+      "file": "scripts/migrations/030_storefront_editorial_order.sql",
+      "sha256": "b976e607386ab0820af4e3514bf51797d850d148ea187fdb99222c39bb194548"
+    },
+    {
+      "file": "scripts/migrations/031_refine_fresh_storefront_edit.sql",
+      "sha256": "993ab2477fbffc90019ab916915efa94cf26ef895105589bcfc37957edc5d5ce"
+    },
+    {
+      "file": "scripts/migrations/032_restore_fresh_runner_edit.sql",
+      "sha256": "0270e854889f90181ed33ac078dd0b76684653f1669abe595532fadc3ae99847"
+    },
+    {
+      "file": "scripts/migrations/033_extend_curated_inventory.sql",
+      "sha256": "b2835689d353172b91f1327aab63c2d1ab652acac8129dc75bf1c6b9b58e28fe"
+    },
+    {
+      "file": "scripts/migrations/034_refine_persona_personalities.sql",
+      "sha256": "a4890894542879abe518d9da17ed43f6b8ceab5beeb9fa076be06ba12de7c2fd"
+    },
+    {
+      "file": "scripts/migrations/035_expand_persona_discovery_grids.sql",
+      "sha256": "7da7a0f663aec27af75dc778d286285137e2854c254cb03722e879a155b3cb7e"
+    },
+    {
+      "file": "scripts/migrations/036_refresh_persona_hero_alt_text.sql",
+      "sha256": "6dbc6009d82a66bdf18fb2a18bf4b9f15be45221d79bac2f01ea2769fdee176d"
+    },
+    {
+      "file": "scripts/migrations/037_serve_persona_hero_masters.sql",
+      "sha256": "7f6c05ff074e8c80e1ece28ce636359d968d0eb9b34308e2b3bc29bd15b7d942"
+    },
+    {
+      "file": "scripts/migrations/038_principal_customer_cardinality.sql",
+      "sha256": "cd39e327363da24bb0490fe3ef46e97559a560488dfd3a238f383e3fa811d0ea"
+    },
+    {
+      "file": "scripts/migrations/039_return_replay_scope.sql",
+      "sha256": "4389cd44fdac2288120173d5ad12b91af687c6a9e31ad6397d53573641dc0850"
+    },
+    {
+      "file": "scripts/migrations/040_resequence_theo_governed_turn.sql",
+      "sha256": "336c986146b870f50775b26a160d035dd9cf99059d7f5c2b7de5b4689804f483"
+    },
+    {
+      "file": "scripts/migrations/041_align_theo_pairing_preview.sql",
+      "sha256": "fbc65828fc70e384ccad18714a60eb5bdc14eaa18c70457b5abcb6707be2f5fb"
+    },
+    {
+      "file": "scripts/migrations/042_align_anna_guided_previews.sql",
+      "sha256": "e10231e74decc5910d8fbe2f67e83e2547438d75452ba780308845d7cd856015"
+    },
+    {
+      "file": "scripts/migrations/043_evidence_ledger.sql",
+      "sha256": "c2482d0086b5fab3705851a2a8d13e3b1d3f091d4b26c27a3fca7d42f2cdf225"
+    },
+    {
+      "file": "scripts/migrations/044_operator_lifecycle_ledger.sql",
+      "sha256": "3f4cb2ab227318391586f50e17d663e6e1fa5697e9125a26a913b0985199b3d6"
+    },
+    {
+      "file": "scripts/migrations/045_persona_blurbs.sql",
+      "sha256": "c6dcf01771f1be84d2a0e3f5a2a5c8e0e2605bd883338e7ca666074be93f6b6a"
+    },
+    {
+      "file": "scripts/migrations/046_retrieval_citation_snapshots.sql",
+      "sha256": "fb3a495a0b9147d90fb01891ac9935c8c75322868d4035b75d1eb2dae81725ad"
+    },
+    {
+      "file": "scripts/migrations/047_evidence_immutability.sql",
+      "sha256": "86fe68362dcf3caa4f8b3c6fadb8b6271bc16606bc6c187ebb9498dc96fa82d1"
+    },
+    {
+      "file": "scripts/migrations/048_policy_decisions.sql",
+      "sha256": "902d3bd51c7c87faa90c5ee4611cdba27b1ae0af09c4ee5f1fa7cbc050231cf3"
+    },
+    {
+      "file": "scripts/migrations/049_workshop_runs.sql",
+      "sha256": "35f21e9706e79873e9e7844adf6dc9e653c516245f06bbc7dafcbad4e9500963"
+    },
+    {
+      "file": "scripts/migrations/050_refine_guided_questions.sql",
+      "sha256": "60b5e88cc8fb715609a4ee5e866d0296341ad4afd7341fceffa4df468fdf3ca1"
+    },
+    {
+      "file": "scripts/migrations/051_review_requester.sql",
+      "sha256": "70d25bc9c879343fe19c90cf119e0c744733b4ddcba5694198b806c142041b4f"
+    },
+    {
+      "file": "scripts/migrations/052_replacement_recovery.sql",
+      "sha256": "d0608dd5f34051e34726ddf060c85839d7181c746eb567162c1ee9aa5aa2ffb3"
+    },
+    {
+      "file": "scripts/migrations/053_replacement_follow_up.sql",
+      "sha256": "977276de39de2333dce7a6652cdda3500e23db993a8e99f615d624d68d82d416"
+    },
+    {
+      "file": "scripts/migrations/054_query_statistics.sql",
+      "sha256": "372dcd540cb776c43667a369c0d5f3ae92b959633ea105b3e901a39f56a00174"
+    },
+    {
+      "file": "scripts/migrations/055_governance_boundary_observations.sql",
+      "sha256": "2d2eedc32a043278368174feec9b0a0fbe2bfd5a0798d15349edf3cc79788d9a"
+    },
+    {
+      "file": "scripts/policy_mode.py",
+      "sha256": "aff5b6d05efffdad20b5efb0eb92ce908811c59e33cbe5e82a0e744845dfb697"
+    },
+    {
+      "file": "scripts/probe_gateway_tool.py",
+      "sha256": "8a45cfce29638c28549d800adda2dc0876f51df3dcc804ec1df0c89b4e45fe52"
+    },
+    {
+      "file": "scripts/prove-reset-cycles.sh",
+      "sha256": "9d64ad95e14f0bac671cf1777e62af9d556630acd20389a2bf98fa8395479a33"
+    },
+    {
+      "file": "scripts/prove_customer_claim.py",
+      "sha256": "7b179736f262b78c0afcf2d1e302e58294c328886d009120cdc28dcc2192f76e"
+    },
+    {
+      "file": "scripts/prove_governance_outcomes.py",
+      "sha256": "92bb81034681f27e3f10aff43a0828f7f41747663ed373e2d5a5dea8768f855a"
+    },
+    {
+      "file": "scripts/prove_governance_windows.py",
+      "sha256": "578ffbfda1a26378662707301f3f4ad44f1dc1b669dbd406eb99a8f5225141a4"
+    },
+    {
+      "file": "scripts/prove_identity_boundary.py",
+      "sha256": "f1a35afb2a4c93500ab8622b14ddbd877eca621154aeb6991544bd6e7fcd4264"
+    },
+    {
+      "file": "scripts/provision_agentcore_end_to_end.py",
+      "sha256": "5d133b3047692d75652829264336677360ad9cbfd92266c45ee982e2382b6ead"
+    },
+    {
+      "file": "scripts/read_catalog_product.py",
+      "sha256": "7b378d00b2608b3e271f74a0f63eb9c9f55b4f541cd1e5ec23eb7863cc99bdfb"
+    },
+    {
+      "file": "scripts/rebuild-frontend-builders.sh",
+      "sha256": "149d4528aeb0f81c0d2a8bc83aca7ca59427535c79b7407f540cc2c2373fb142"
+    },
+    {
+      "file": "scripts/reconstruct_turn.py",
+      "sha256": "37489bcf86e6a48dfe36af27134b42a90d26f4e9318cd41ce1bda99936ffba98"
+    },
+    {
+      "file": "scripts/reset-governed-workshop.sh",
+      "sha256": "0a5ff45a5dae4f538e4b39e43ff23725551bdc90869ecd3ec36a7bd3b6b1ded9"
+    },
+    {
+      "file": "scripts/reset_memory_runtime.py",
+      "sha256": "256358718b6c6b16f651c3c48316e0dd5d59a9f90d2aad6b057ffbf776973c5a"
+    },
+    {
+      "file": "scripts/reset_participant_exercises.py",
+      "sha256": "754a9ead028153a46919cfa7bdf5c95d374a052efbde265de904e6eaa21a9e74"
+    },
+    {
+      "file": "scripts/runtime_hello.sh",
+      "sha256": "938dc3014016154b958a320221b95cfd9323849f30f7d9c5de5000ce331cafc4"
+    },
+    {
+      "file": "scripts/score_governance_evidence.py",
+      "sha256": "640a88d316e0b2e9f6f98611f3204dfd5fef569dba4cc0a503db84d331c41d20"
+    },
+    {
+      "file": "scripts/seed-sample-preferences.sh",
+      "sha256": "22ad2f23f0f074775536c91a31ea0c631346d09ac283952151eb9586033569c9"
+    },
+    {
+      "file": "scripts/seed_forensic_dataset.py",
+      "sha256": "f04bfcaf3431d7fff594e3dd73fd6266e18909ae0ca01cf160c65ef0fb6ee3c5"
+    },
+    {
+      "file": "scripts/seed_local_golden_journeys.py",
+      "sha256": "3e48079352ef2f47993224b7dcc16fa676ff3df20eabcde4a83ceb520c5ddb4f"
+    },
+    {
+      "file": "scripts/seed_pellier_catalog.py",
+      "sha256": "545bafd0cb213c83e248b87e17b2e208259eb2a2c1ea18aa2982b9687db5497b"
+    },
+    {
+      "file": "scripts/seed_principal_mappings.py",
+      "sha256": "194a2f411ff2a8f18b0769ae311b10a7582faf1bd16b6ab22405845d2ff30e36"
+    },
+    {
+      "file": "scripts/seed_tool_registry.py",
+      "sha256": "02de6f7cec5c87413625fac50aa441047fe550c9c2041cda699d5fc642ed205c"
+    },
+    {
+      "file": "scripts/showcase_agentcore_memory.py",
+      "sha256": "5bebff2a645f34169d926cba6d6bd8d48f8a28158d5c4bbb9918f8a1b0e7e451"
+    },
+    {
+      "file": "scripts/start-backend-builders.sh",
+      "sha256": "9453611595e0e7273503ab2fe88da68d8e216a7ce41a2ab411cbcfbae0e2d07b"
+    },
+    {
+      "file": "scripts/start-local-pellier-dev.sh",
+      "sha256": "8fa733170903b3beac2203a98d6716989b0dfcc23096b204f845287e61c14338"
+    },
+    {
+      "file": "scripts/store_operator_credential.py",
+      "sha256": "5a755bfb159d4f4ebdf180f25fcbfae2a24d8ec112f2a7fcad67436e099a6eb4"
+    },
+    {
+      "file": "scripts/sync_skills_fixture.py",
+      "sha256": "fd11c3a9df436f58de68bf3c080638e632a2cd1b3e23caa72d17f3fc5ec29991"
+    },
+    {
+      "file": "scripts/teardown_agentcore_observability.py",
+      "sha256": "6f4b0a9aefa78c12c92b8af1c29fa956f51dbb0cfe28f19d06cb47a52c3fe721"
+    },
+    {
+      "file": "scripts/validate_agentcore_receipt.py",
+      "sha256": "4193773c0c6336696cc2bb45551dfcff26af422e9fb60926282f1fdf85e5abbf"
+    },
+    {
+      "file": "scripts/verify_agentcore_memory.py",
+      "sha256": "e73fa17c13610fb5c72008a809b8f0109c951760ce143756474fba478b4dad27"
+    },
+    {
+      "file": "scripts/workshop-start.sh",
+      "sha256": "1c3723b45e32c4ca9d8426f5f0c7e1313a8fad168add455f37e46e1718c8fb70"
+    },
+    {
+      "file": "scripts/workshop_doctor.py",
+      "sha256": "a140c520018f2d25977d096a4f7f598edc5d0eb848b3ffd4393eef1556ca55cc"
+    },
+    {
+      "file": "scripts/write-test-credentials.sh",
+      "sha256": "2d0bc8b8e2a0f293c54e130c6770322e25e2e6426f0b66db763e82a112ecc7d6"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/agents/customer_service_agent.py",
+      "sha256": "bf1ed8da04a4a4b56d47677e81a41d339d120f1198e7a25ddf23bb3173c80849"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/agents/inventory_agent.py",
+      "sha256": "43d6ef9af968b39b25a9f68a8bc3242e7b589c97295f900cf675a69954d810d6"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/agents/orchestrator.py",
+      "sha256": "4fcf6adf6ad14e58875911744cd01952c8cc21aab1c2206471fe2169781670ab"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/agents/personalization_agent.py",
+      "sha256": "c9975a133196a881379f97c383f23a79af7d4e1ff035944c501de262bf605787"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py",
+      "sha256": "48fc1906a1bf0b6e2cdf4f1526952ccf9d5ac81208c2f532b14b6dd189494872"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py",
+      "sha256": "d16d0ff6ff5b84bfd617bfc44563642e302e4af726a46f6f21fd25a705777b5a"
+    },
+    {
+      "file": "solutions/closing-marcos-gap/services/check_inventory_tool_body.py",
+      "sha256": "ca3db02e360d233dafc8a4e43197ea4b209f6e0e8fb28a461249c40639d32bf1"
+    },
+    {
+      "file": "solutions/the-concierge/gateway_tools_list.py",
+      "sha256": "010719c4e3f761de3e30b00b049ce21f4e36f903125ad641ddb879e8e72fae83"
+    },
+    {
+      "file": "solutions/the-concierge/mcp_handshake.py",
+      "sha256": "e0f5dd4bbd0f88db314cf9083235cbbe7d7e616b717f358ea671ee294fc9b165"
+    },
+    {
+      "file": "solutions/the-concierge/policies/identity_match_forbid.cedar",
+      "sha256": "3821aa58d99ae0bf828df432d8d4464d592568cf986c1d9da7bf703455c7db95"
+    },
+    {
+      "file": "solutions/the-ledger/frontend/agentIdentity.ts",
+      "sha256": "bbd4d7b75290d6b63ddb3d4d6b93f9943a5f9a747623870f532e4958833472b9"
+    },
+    {
+      "file": "solutions/the-ledger/frontend/components/AuthModal.tsx",
+      "sha256": "cba2419a9153e99cb310dd4c8832577803c514795d761a1d303f9de59605ad9d"
+    },
+    {
+      "file": "solutions/the-ledger/frontend/components/PreferencesModal.tsx",
+      "sha256": "7f83914d12c8f803563a46be51efec1e49c09909ba2266ebc227e4337ffff927"
+    },
+    {
+      "file": "solutions/the-ledger/frontend/utils/auth.ts",
+      "sha256": "a575da0d24c6363bd35fd1b32d7d2ec1dfdbff164c904d3ed6ea448b142ec4b9"
+    },
+    {
+      "file": "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
+      "sha256": "ae7cdae2203a25d60f80d973efe87601581af1dc044ea499a1fb38d93f05671c"
+    },
+    {
+      "file": "solutions/the-ledger/observability/lab-4-absence-solution.sql",
+      "sha256": "59dd849f7da5fbfe668aa9400fefebfd8c4f0d51e1317d9ecfb28c1873ef805a"
+    },
+    {
+      "file": "solutions/the-ledger/services/agentcore_gateway.py",
+      "sha256": "539a1b2913e8772bd04f21b0f719155a8938af6c97091fe5c6786ad3f6e97854"
+    },
+    {
+      "file": "solutions/the-ledger/services/agentcore_identity.py",
+      "sha256": "38d63aea3e8edd3efc3ff0f7bfb242e900396cc5b03ad1901646ad1066bb3dbc"
+    },
+    {
+      "file": "solutions/the-ledger/services/agentcore_memory.py",
+      "sha256": "f2141f32b1c15c7ebc2cdc8f6c818ba946be8f4020639d43496915d4cccabad3"
+    },
+    {
+      "file": "solutions/the-ledger/services/agentcore_runtime.py",
+      "sha256": "a423c80f831cee4cbc5c2ae57bce4ed1682f63e78a32a7093e6901d945a36284"
+    },
+    {
+      "file": "solutions/the-ledger/services/cognito_auth.py",
+      "sha256": "e284daa34c57b340d13e95edbdfff2108ebde2190d053f21bf2cc2d7b0e5c999"
+    },
+    {
+      "file": "solutions/the-ledger/services/otel_trace_extractor.py",
+      "sha256": "993d01395b522f7f4857a78162573e6099305830b2f8e2d22f2089fdbfe838b8"
+    },
+    {
+      "file": "solutions/the-ledger/sql/forensic_incident.sql",
+      "sha256": "7e79c9a7be10c576708b1fa76fa9bd82b5c43604c4a98dbd895ab31c528b77e3"
+    },
+    {
+      "file": "solutions/the-ledger/sql/tool_audit_recap.sql",
+      "sha256": "7589c2e0112f6e0b2b6a930a47eea0c903974e0f01397da7c4fd8d7b11526859"
+    },
+    {
+      "file": "solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py",
+      "sha256": "e806dc6c77fa582c568c37f9355a75716974df56efc30d814fe9e319f2c1901c"
+    },
+    {
+      "file": "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py",
+      "sha256": "84c0d6627289c6303b41e872984be497ee46434ed4e4752a33319282b1d37293"
+    },
+    {
+      "file": "solutions/the-quiet-search/services/business_logic.py",
+      "sha256": "420c7eb9fbb84a7c7258c55ef310b1d54b703dd37baf95005575236263a9a211"
+    },
+    {
+      "file": "solutions/the-quiet-search/services/hybrid_search.py",
+      "sha256": "9fd08849f1c80beb96521a9c41467f2aeb031a591e01150759551c98d9fb54d5"
+    },
+    {
+      "file": "solutions/the-quiet-search/services/hybrid_search_with_rerank.py",
+      "sha256": "12c191a7768a067dc092860184981b476e63f4e1579f08d049c136c37fe67ac7"
+    },
+    {
+      "file": "solutions/the-quiet-search/sql/lab-2-rrf-solution.sql",
+      "sha256": "d8009de75a8767b52364ae21f957bc4250c91f1749cd53cd6d378af8e16458c8"
+    },
+    {
+      "file": "solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py",
+      "sha256": "f02a1bf7aab07ed71348eeb4f2619d60a31831ebbd06c48c1a1c1d6a3e8e6712"
+    },
+    {
+      "file": "tests/e2e/__init__.py",
+      "sha256": "72a55896d15be575d2862faffc9aadf94ce39c1922026bbaf02b3c74d08a11c8"
+    },
+    {
+      "file": "tests/e2e/bootstrap_cognito_dev_pool.py",
+      "sha256": "bd767b6d625e8bdf09516f489a14f3006b47f3e94e109def378c035fec44b2ab"
+    },
+    {
+      "file": "tests/e2e/teardown_cognito_dev_pool.py",
+      "sha256": "2bdd3e5830aa75f55153accfe3e495e9be44586f228f8da5b52dcc0e07d016d2"
+    },
+    {
+      "file": "tests/e2e/validate_deployment_inputs.py",
+      "sha256": "42f2cd48439005e996c0193665655efe62e5c91153ed9ad3e223f55a8d873c2b"
+    },
+    {
+      "file": "tests/perf/__init__.py",
+      "sha256": "2e31397908c631e86b415ed3237b6cc9e5b5c08ef079f8c4f30f4f65f1bdbff0"
+    },
+    {
+      "file": "tests/perf/test_perf_smoke.py",
+      "sha256": "c8a77acc7ea92ac8aa36c70f7993dc377169c6abb37de41dd81142266ef336bf"
+    }
+  ],
+  "validation": {
+    "backendFull": "3527 passed, 90 skipped, 2 upstream warnings; before final direct-entry identity initialization and default-vhost refinement",
+    "lateAffected": "287 passed including deployment identity, KMS, Cognito, provisioning, policy, governance, runtime hello and private nginx",
+    "frontend": "1128 passed plus independent type-check, lint, build, zero production-audit vulnerabilities"
+  }
+}

@@ -17,7 +17,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from output_guardrail import policy as output_guardrail_policy
 
 from gateway_tool_schemas import (
@@ -66,7 +66,7 @@ def _customize_governed_cdk_tags(config_dir: Path) -> None:
     )
 
 
-def _deployment_suffix() -> str:
+def _deployment_suffix(value: str | None = None) -> str:
     """An optional label that isolates a second deployment in one account.
 
     ``PELLIER_DEPLOYMENT_SUFFIX=rc`` renders ``pellier-rc`` resources and a
@@ -77,7 +77,7 @@ def _deployment_suffix() -> str:
     in every resource name it lands in; the CLI project name in particular
     accepts nothing but letters and digits.
     """
-    raw = os.environ.get("PELLIER_DEPLOYMENT_SUFFIX", "").strip().lower()
+    raw = (os.environ.get("PELLIER_DEPLOYMENT_SUFFIX", "") if value is None else value).strip().lower()
     if raw and not re.fullmatch(r"[a-z][a-z0-9]{0,11}", raw):
         raise SystemExit(
             "PELLIER_DEPLOYMENT_SUFFIX must be 1-12 lowercase letters or digits"
@@ -85,15 +85,61 @@ def _deployment_suffix() -> str:
     return raw
 
 
-DEPLOYMENT_SUFFIX = _deployment_suffix()
-_DASH = f"-{DEPLOYMENT_SUFFIX}" if DEPLOYMENT_SUFFIX else ""
-_UNDER = f"_{DEPLOYMENT_SUFFIX}" if DEPLOYMENT_SUFFIX else ""
-PROJECT_NAME = f"pellier{DEPLOYMENT_SUFFIX}"
-RUNTIME_NAME = f"pellier{_UNDER}_orchestrator"
-OPERATOR_RUNTIME_NAME = f"pellier{_UNDER}_operator"
-MEMORY_NAME = f"Pellier{DEPLOYMENT_SUFFIX.capitalize()}Memory"
-GATEWAY_NAME = f"pellier{_DASH}-gateway"
-POLICY_ENGINE_NAME = f"pellier{_UNDER}_policy_engine"
+class DeploymentIdentity(NamedTuple):
+    suffix: str
+    project_name: str
+    runtime_name: str
+    operator_runtime_name: str
+    memory_name: str
+    gateway_name: str
+    policy_engine_name: str
+    server_prefix: str
+
+
+def deployment_identity(suffix: str | None = None) -> DeploymentIdentity:
+    """Resolve one immutable set of names after configuration is available."""
+    suffix = _deployment_suffix(suffix)
+    dash = f"-{suffix}" if suffix else ""
+    under = f"_{suffix}" if suffix else ""
+    return DeploymentIdentity(
+        suffix, f"pellier{suffix}", f"pellier{under}_orchestrator",
+        f"pellier{under}_operator", f"Pellier{suffix.capitalize()}Memory",
+        f"pellier{dash}-gateway", f"pellier{under}_policy_engine", f"pellier{dash}",
+    )
+
+
+def deployment_identity_from_repo(repo: Path) -> DeploymentIdentity:
+    """Read only the saved label as data; explicit process input always wins."""
+    if "PELLIER_DEPLOYMENT_SUFFIX" in os.environ:
+        return deployment_identity()
+    for path in (repo / "pellier/backend/.env", repo / ".env"):
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, separator, value = line.strip().partition("=")
+            if separator and key.strip() == "PELLIER_DEPLOYMENT_SUFFIX":
+                return deployment_identity(value.strip().strip("\"'"))
+    return deployment_identity("")
+
+
+# Compatibility aliases for consumers that inspect the default identity. The
+# provisioner passes a resolved identity after loading its saved configuration.
+_IDENTITY = deployment_identity()
+DEPLOYMENT_SUFFIX = _IDENTITY.suffix
+PROJECT_NAME = _IDENTITY.project_name
+RUNTIME_NAME = _IDENTITY.runtime_name
+OPERATOR_RUNTIME_NAME = _IDENTITY.operator_runtime_name
+MEMORY_NAME = _IDENTITY.memory_name
+GATEWAY_NAME = _IDENTITY.gateway_name
+POLICY_ENGINE_NAME = _IDENTITY.policy_engine_name
+
+
+def customer_claim_resource_names() -> tuple[str, str]:
+    """Resolve trigger names after callers have loaded their environment."""
+    function = f"{deployment_identity().server_prefix}-cognito-customer-claim"
+    return function, f"{function}-role"
+
+
 EXPERIENCE_TARGET = "pellier-concierge-experience-target"
 INITIATE_RETURN_ACTION = f"{EXPERIENCE_TARGET}___initiate_return"
 RECOMMENDATION_TARGET = "pellier-curation-recommendation-target"
@@ -120,8 +166,8 @@ from services.build_fingerprint import (  # noqa: E402
 )
 
 
-def project_root(repo: Path) -> Path:
-    return repo / ".agentcore-project" / PROJECT_NAME
+def project_root(repo: Path, deployment_suffix: str | None = None) -> Path:
+    return repo / ".agentcore-project" / deployment_identity(deployment_suffix).project_name
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -392,10 +438,12 @@ def render_project(
     fast_model_id: str | None = None,
     action_token: str = INITIATE_RETURN_ACTION,
     gateway_arn: str = "",
+    identity: DeploymentIdentity | None = None,
 ) -> Path:
     """Write agentcore.json, aws-targets.json, and four tool-schema files."""
     governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() == "governed"
-    root = project_root(repo)
+    identity = identity or deployment_identity()
+    root = project_root(repo, identity.suffix)
     config_dir = root / "agentcore"
     if governed:
         _customize_governed_cdk_tags(config_dir)
@@ -439,13 +487,13 @@ def render_project(
 
     project = {
         "$schema": "https://raw.githubusercontent.com/aws/agentcore-cli/v0.29.0/schemas/agentcore.schema.v1.json",
-        "name": PROJECT_NAME,
+        "name": identity.project_name,
         "version": 1,
         "managedBy": "CDK",
         "tags": tags,
         "runtimes": [
             {
-                "name": RUNTIME_NAME,
+                "name": identity.runtime_name,
                 "description": (
                     "Pellier governed dispatcher "
                     "(workshop-only public runtime; not production-ready)"
@@ -504,7 +552,7 @@ def render_project(
         ],
         "memories": [
             {
-                "name": MEMORY_NAME,
+                "name": identity.memory_name,
                 "eventExpiryDuration": 30,
                 "strategies": [
                     {
@@ -539,7 +587,7 @@ def render_project(
         "onlineEvalConfigs": [],
         "agentCoreGateways": [
             {
-                "name": GATEWAY_NAME,
+                "name": identity.gateway_name,
                 "description": "Pellier MCP tools for search, pricing, curation, and experience",
                 "protocolType": "MCP",
                 "targets": targets,
@@ -553,7 +601,7 @@ def render_project(
                 "enableSemanticSearch": True,
                 "exceptionLevel": "NONE",
                 "policyEngineConfiguration": {
-                    "policyEngineName": POLICY_ENGINE_NAME,
+                    "policyEngineName": identity.policy_engine_name,
                     "mode": "ENFORCE",
                 },
                 "tags": tags,
@@ -561,7 +609,7 @@ def render_project(
         ],
         "policyEngines": [
             {
-                "name": POLICY_ENGINE_NAME,
+                "name": identity.policy_engine_name,
                 "description": "Cedar authorization for Pellier Gateway tools",
                 "tags": tags,
                 "policies": (
@@ -577,7 +625,7 @@ def render_project(
     # A separate IAM-authenticated endpoint accepts evidence only from the
     # backend role. Shopper JWTs cannot invoke the Operator graph.
     project["runtimes"].append({
-        "name": OPERATOR_RUNTIME_NAME,
+        "name": identity.operator_runtime_name,
         "description": "Pellier read-only Operator investigation and resolution graph",
         "build": "CodeZip",
         "entrypoint": "operator_agentcore_runtime.py",
@@ -640,6 +688,7 @@ def main() -> int:
         fast_model_id=args.fast_model_id,
         action_token=args.action_token,
         gateway_arn=args.gateway_arn,
+        identity=deployment_identity_from_repo(args.repo.resolve()),
     )
     print(root)
     return 0

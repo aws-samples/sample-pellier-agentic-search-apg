@@ -16,6 +16,7 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import shutil
@@ -44,16 +45,12 @@ from gateway_tool_schemas import (  # noqa: E402
     schema_for,
 )
 from render_agentcore_project import (  # noqa: E402
+    DeploymentIdentity,
+    deployment_identity,
     DEPLOYMENT_SUFFIX,
     AGENTCORE_CLI,
     FINGERPRINT_ENV_VAR,
-    GATEWAY_NAME,
-    MEMORY_NAME,
-    POLICY_ENGINE_NAME,
     INITIATE_RETURN_ACTION,
-    PROJECT_NAME,
-    RUNTIME_NAME,
-    OPERATOR_RUNTIME_NAME,
     project_root,
     render_project,
 )
@@ -85,6 +82,17 @@ EXPECTED_TARGETS = {
         "entrypoint": "scripts/deploy/pellier_experience_server.py",
     },
 }
+
+
+def _deployment_targets(identity: DeploymentIdentity) -> dict[str, dict[str, str]]:
+    """Keep tool metadata fixed while resolving the external Lambda namespace."""
+    return {
+        surface: {
+            **config,
+            "server_name": identity.server_prefix + config["server_name"].removeprefix(_SERVER_PREFIX),
+        }
+        for surface, config in EXPECTED_TARGETS.items()
+    }
 
 AWS_CONFIG = Config(
     retries={"total_max_attempts": 5, "mode": "adaptive"},
@@ -136,6 +144,7 @@ _TRACE_LOG_GROUP_NAMES = (
     "aws/spans",
     "/aws/application-signals/data",
 )
+_SHARED_TRACE_LOG_CHANGES_ENV = "AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES"
 _AGENT_INPUT_ATTRIBUTE_KEYS = (
     "gen_ai.input.messages",
     "gen_ai.request.input",
@@ -218,6 +227,8 @@ def _load_env_fallback(repo: Path) -> None:
             value = value.strip().strip("'\"")
             # setdefault, not assignment: a variable the caller exported is the caller's
             # decision and a stale file must never quietly win over it.
+            if key == "PELLIER_DEPLOYMENT_SUFFIX" and key in os.environ:
+                continue
             if key and value and not os.environ.get(key, "").strip():
                 os.environ[key] = value
 
@@ -312,15 +323,15 @@ def _write_result(path: Path, result: dict[str, Any]) -> None:
 def _validate_log_kms_key_arn(kms_key_arn: str) -> None:
     """Validate a supplied key ARN. An empty value means "no key", not "invalid".
 
-    The live installation has no customer key on any Pellier log group, so
-    treating absence as a validation failure made the deployed encryption posture
-    impossible to express. A value that IS supplied is still held to the
-    customer-managed-key contract: an alias is still rejected.
+    Inspection helpers must be able to express a group with no customer key.
+    Release provisioning separately requires a key. A supplied value must be
+    a concrete key ARN; an alias is rejected.
     """
     if not str(kms_key_arn or "").strip():
         return
-    if not re.match(
-        r"^arn:[^:]+:kms:[^:]+:\d{12}:key/(?:mrk-)?[0-9a-f-]{36}$",
+    if not re.fullmatch(
+        r"arn:[^:]+:kms:[^:]+:\d{12}:key/"
+        r"(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|mrk-[0-9a-f]{32})",
         kms_key_arn,
     ):
         raise RuntimeError(
@@ -342,6 +353,28 @@ def _require_release_log_protection(kms_key_arn: str, retention_days: int | None
             "Managed readiness requires AGENTCORE_RUNTIME_LOG_RETENTION_DAYS "
             "with a supported positive retention period."
         )
+
+
+def _verify_log_kms_key(
+    kms_key_arn: str, *, region: str, account_id: str, partition: str,
+) -> None:
+    """Fail before provisioning if the declared log key cannot serve this root."""
+    _validate_log_kms_key_arn(kms_key_arn)
+    prefix = f"arn:{partition}:kms:{region}:{account_id}:key/"
+    if not kms_key_arn.startswith(prefix):
+        raise RuntimeError("The log KMS key must belong to the deployment account and region")
+    kms = boto3.client("kms", region_name=region, config=AWS_CONFIG)
+    key = kms.describe_key(KeyId=kms_key_arn).get("KeyMetadata", {})
+    if (
+        key.get("Arn") != kms_key_arn
+        or key.get("AWSAccountId") != account_id
+        or key.get("KeyManager") != "CUSTOMER"
+        or key.get("KeyState") != "Enabled"
+        or key.get("Enabled") is not True
+        or key.get("KeySpec") != "SYMMETRIC_DEFAULT"
+        or key.get("KeyUsage") != "ENCRYPT_DECRYPT"
+    ):
+        raise RuntimeError("The log KMS key must be an enabled customer-managed symmetric encryption key")
 
 
 def _log_protection_checks(
@@ -367,6 +400,33 @@ def _log_protection_checks(
     return encrypted, bounded
 
 
+def _require_existing_log_group_change_authorization(
+    groups: list[dict[str, Any]],
+    *,
+    kms_key_arn: str,
+    retention_days: int | None,
+    allow_existing_changes: bool,
+) -> None:
+    """Keep account-wide trace destinations unchanged without owner approval."""
+    if allow_existing_changes:
+        return
+    changing = [
+        str(group["logGroupName"])
+        for group in groups
+        if (kms_key_arn and group.get("kmsKeyId") != kms_key_arn)
+        or (retention_days is not None and group.get("retentionInDays") != retention_days)
+    ]
+    if changing:
+        raise RuntimeError(
+            "Existing shared trace log groups require changes: "
+            + ", ".join(changing)
+            + f". Set {_SHARED_TRACE_LOG_CHANGES_ENV}=true only with authorization "
+            "to change these account-wide groups and retain the key for their "
+            "encrypted history. Cleanup restores future ingestion settings; "
+            "it does not re-encrypt existing log events."
+        )
+
+
 def _ensure_protected_log_group(
     *,
     logs: Any,
@@ -374,10 +434,17 @@ def _ensure_protected_log_group(
     kms_key_arn: str,
     retention_days: int | None,
     on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
+    allow_existing_changes: bool = True,
 ) -> dict[str, Any]:
     """Create or repair one CloudWatch Logs destination."""
     observed_previous = _find_runtime_log_group(logs, log_group_name)
     previous = dict(observed_previous) if observed_previous is not None else None
+    _require_existing_log_group_change_authorization(
+        [previous] if previous is not None else [],
+        kms_key_arn=kms_key_arn,
+        retention_days=retention_days,
+        allow_existing_changes=allow_existing_changes,
+    )
     creation_pending = previous is None
     created_by_workshop = False
 
@@ -435,6 +502,15 @@ def _ensure_protected_log_group(
     observed = _find_runtime_log_group(logs, log_group_name)
     if observed is None:
         raise RuntimeError(f"CloudWatch log group was not created: {log_group_name}")
+    if not created_by_workshop:
+        # A group may appear or change after the two-group preflight. Never
+        # treat winning a create race as ownership of the other writer's group.
+        _require_existing_log_group_change_authorization(
+            [observed],
+            kms_key_arn=kms_key_arn,
+            retention_days=retention_days,
+            allow_existing_changes=allow_existing_changes,
+        )
 
     # Only manage what this deployment declares. An unset key or retention means
     # "leave it as deployed", so the provisioner neither writes nor asserts it.
@@ -586,10 +662,24 @@ def _ensure_trace_log_groups(
     kms_key_arn: str,
     retention_days: int | None,
     on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
+    allow_existing_changes: bool = False,
 ) -> dict[str, Any]:
     """Protect both Transaction Search destinations before X-Ray writes spans."""
     _validate_log_kms_key_arn(kms_key_arn)
     logs = boto3.client("logs", region_name=region, config=AWS_CONFIG)
+    # Inspect both account-wide destinations before creating or changing either
+    # one. A refusal on the second group must not partially modify the first.
+    existing = [
+        group
+        for name in _TRACE_LOG_GROUP_NAMES
+        if (group := _find_runtime_log_group(logs, name)) is not None
+    ]
+    _require_existing_log_group_change_authorization(
+        existing,
+        kms_key_arn=kms_key_arn,
+        retention_days=retention_days,
+        allow_existing_changes=allow_existing_changes,
+    )
     groups: list[dict[str, Any]] = []
     for name in _TRACE_LOG_GROUP_NAMES:
         groups.append(
@@ -599,6 +689,7 @@ def _ensure_trace_log_groups(
                 kms_key_arn=kms_key_arn,
                 retention_days=retention_days,
                 on_cleanup_state=on_cleanup_state,
+                allow_existing_changes=allow_existing_changes,
             )
         )
     return {
@@ -606,6 +697,38 @@ def _ensure_trace_log_groups(
         "kms_key_arn": kms_key_arn,
         "retention_days": retention_days,
     }
+
+
+def _default_indexing_rule(xray: Any) -> dict[str, Any]:
+    """Read the restorable Default rule; never invent an implicit prior value."""
+    token: str | None = None
+    while True:
+        response = xray.get_indexing_rules(**({"NextToken": token} if token else {}))
+        for rule in response.get("IndexingRules", []):
+            if rule.get("Name") != "Default":
+                continue
+            sampling = rule.get("Rule", {}).get("Probabilistic", {})
+            desired = sampling.get("DesiredSamplingPercentage")
+            if (
+                type(desired) not in {int, float}
+                or not math.isfinite(desired)
+                or not 0 <= desired <= 100
+            ):
+                raise RuntimeError("X-Ray Default indexing rule has no valid prior sampling percentage")
+            observed: dict[str, Any] = {
+                "name": "Default", "desired_sampling_percentage": desired,
+            }
+            if "ActualSamplingPercentage" in sampling:
+                observed["actual_sampling_percentage"] = sampling["ActualSamplingPercentage"]
+            if rule.get("ModifiedAt") is not None:
+                observed["modified_at"] = str(rule["ModifiedAt"])
+            return observed
+        token = response.get("NextToken")
+        if not token:
+            raise RuntimeError(
+                "X-Ray did not return the Default indexing rule. Cannot change "
+                "account sampling without a captured prior value for cleanup."
+            )
 
 
 def _configure_transaction_search(
@@ -643,6 +766,7 @@ def _configure_transaction_search(
         raise RuntimeError(
             "Transaction Search returned an unsupported prior trace destination"
         )
+    previous_indexing_rule = _default_indexing_rule(xray)
     cleanup = {
         "destination_changed": previous_destination != "CloudWatchLogs",
         "previous_destination": previous_destination,
@@ -650,6 +774,9 @@ def _configure_transaction_search(
         "previous_resource_policy_document": (
             previous_policy.get("policyDocument") if previous_policy else None
         ),
+        "previous_indexing_rule": previous_indexing_rule,
+        "indexing_rule_changed": previous_indexing_rule["desired_sampling_percentage"] != 100,
+        "indexing_rule_update_started": False,
     }
     policy = {
         "Version": "2012-10-17",
@@ -687,6 +814,7 @@ def _configure_transaction_search(
         "resource_policy": TRANSACTION_SEARCH_POLICY,
         "resource_policy_document": policy_document,
         "span_log_group": "aws/spans",
+        "indexing_rule": {"name": "Default", "desired_sampling_percentage": 100},
         "cleanup": cleanup,
     }
     if on_cleanup_state is not None:
@@ -713,18 +841,32 @@ def _configure_transaction_search(
         now = time.monotonic()
         elapsed = int(now - started)
         if observed == ("CloudWatchLogs", "ACTIVE"):
+            if cleanup["indexing_rule_changed"]:
+                # The private checkpoint precedes the write so a lost update
+                # response still leaves a guarded restoration path.
+                cleanup["indexing_rule_update_started"] = True
+                if on_cleanup_state is not None:
+                    on_cleanup_state(configuring_receipt)
+                xray.update_indexing_rule(
+                    Name="Default",
+                    Rule={"Probabilistic": {"DesiredSamplingPercentage": 100}},
+                )
+            indexing_rule = _default_indexing_rule(xray)
+            if indexing_rule["desired_sampling_percentage"] != 100:
+                raise RuntimeError("X-Ray Default indexing rule did not retain 100 percent sampling")
+            # Actual sampling is retained separately when AWS reports it. A
+            # requested percentage alone does not prove live trace delivery.
+            configuring_receipt["indexing_rule"] = indexing_rule
+            if on_cleanup_state is not None:
+                on_cleanup_state(configuring_receipt)
             print(
                 f"Transaction Search ACTIVE after {elapsed}s "
                 "(destination=CloudWatchLogs)",
                 flush=True,
             )
             return {
-                "destination": "CloudWatchLogs",
+                **configuring_receipt,
                 "status": "ACTIVE",
-                "resource_policy": TRANSACTION_SEARCH_POLICY,
-                "resource_policy_document": policy_document,
-                "span_log_group": "aws/spans",
-                "cleanup": cleanup,
             }
         if observed != last_observed or now >= next_progress or now >= deadline:
             waiting_receipt = {
@@ -856,8 +998,10 @@ def _scaffold_cli_project(
     *,
     repo: Path,
     env: dict[str, str],
+    identity: DeploymentIdentity | None = None,
 ) -> Path:
-    root = project_root(repo)
+    identity = identity or deployment_identity()
+    root = project_root(repo, identity.suffix)
     config_path = root / "agentcore" / "agentcore.json"
     output_dir = root.parent
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -876,7 +1020,7 @@ def _scaffold_cli_project(
                 AGENTCORE_CLI,
                 "create",
                 "--project-name",
-                PROJECT_NAME,
+                identity.project_name,
                 "--no-agent",
                 "--skip-git",
                 "--skip-python-setup",
@@ -921,9 +1065,11 @@ def _deploy_cli_project(
     opus_model_id: str | None = None,
     sonnet_model_id: str | None = None,
     fast_model_id: str | None = None,
+    identity: DeploymentIdentity | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Deploy infrastructure first, then add Gateway-scoped Cedar policies."""
-    root = _scaffold_cli_project(repo=repo, env=env)
+    identity = identity or deployment_identity()
+    root = _scaffold_cli_project(repo=repo, env=env, identity=identity)
     common = {
         "repo": repo,
         "account_id": account_id,
@@ -936,6 +1082,7 @@ def _deploy_cli_project(
         "sonnet_model_id": sonnet_model_id or model_id,
         "fast_model_id": fast_model_id or model_id,
         "workshop_id": workshop_id,
+        "identity": identity,
     }
 
     render_project(**common, include_policies=False)
@@ -943,8 +1090,8 @@ def _deploy_cli_project(
     _agentcore(root, "deploy", "--yes", "--json", env=env)
 
     state = _read_deployed_state(root)
-    gateway_state = _require_gateway_state(state, GATEWAY_NAME)
-    _require_state_resource(state, "policyEngines", POLICY_ENGINE_NAME)
+    gateway_state = _require_gateway_state(state, identity.gateway_name)
+    _require_state_resource(state, "policyEngines", identity.policy_engine_name)
 
     # Tool-specific Cedar policies must name the Gateway by ARN, which exists
     # only after the first deploy; that is the reason for the second render.
@@ -1017,10 +1164,11 @@ def _deploy_lambdas(
     db_cluster_arn: str,
     db_secret_arn: str,
     db_name: str,
+    identity: DeploymentIdentity | None = None,
 ) -> dict[str, str]:
     lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
     arns: dict[str, str] = {}
-    for surface, config in EXPECTED_TARGETS.items():
+    for surface, config in _deployment_targets(identity or deployment_identity()).items():
         _run(
             [
                 sys.executable,
@@ -1438,6 +1586,7 @@ def _authenticated_runtime_smoke(
     expected_fingerprint: str = "",
     attempts: int = 12,
     wait_seconds: float = 20.0,
+    identity: DeploymentIdentity | None = None,
 ) -> dict[str, Any]:
     """Invoke the deployed Runtime and require the answer to come from THIS build.
 
@@ -1456,6 +1605,7 @@ def _authenticated_runtime_smoke(
     that with margin, and costs nothing on the common path where the first
     invoke already carries the expected digest.
     """
+    identity = identity or deployment_identity()
     decoded: dict[str, Any] = {}
     answered_by = ""
     for attempt in range(1, max(1, attempts) + 1):
@@ -1465,7 +1615,7 @@ def _authenticated_runtime_smoke(
             root,
             "invoke",
             "--runtime",
-            RUNTIME_NAME,
+            identity.runtime_name,
             "--session-id",
             runtime_session_id,
             "--bearer-token",
@@ -1869,8 +2019,10 @@ def _wait_for_unified_trace(
     session_id: str,
     runtime_arn: str,
     env: dict[str, str],
+    identity: DeploymentIdentity | None = None,
 ) -> dict[str, Any]:
     """Poll the pinned CLI until the smoke invocation has a complete trace."""
+    identity = identity or deployment_identity()
     deadline = time.monotonic() + TRACE_DELIVERY_TIMEOUT_SECONDS
     last_error = "trace not listed yet"
 
@@ -1881,7 +2033,7 @@ def _wait_for_unified_trace(
                 "traces",
                 "list",
                 "--runtime",
-                RUNTIME_NAME,
+                identity.runtime_name,
                 "--since",
                 TRACE_LIST_WINDOW,
                 "--limit",
@@ -1921,7 +2073,7 @@ def _wait_for_unified_trace(
                     "get",
                     trace_id,
                     "--runtime",
-                    RUNTIME_NAME,
+                    identity.runtime_name,
                     "--since",
                     TRACE_LIST_WINDOW,
                     "--output",
@@ -2011,6 +2163,7 @@ def main() -> int:
     output_path = Path(args.output_json)
     # Before the first _require_env, or the fallback cannot help.
     _load_env_fallback(repo)
+    identity = deployment_identity()
     region = _require_env("AWS_REGION")
     required = {
         "db_cluster_arn": _require_env("DB_CLUSTER_ARN"),
@@ -2102,6 +2255,15 @@ def main() -> int:
         _require_release_log_protection(
             required["runtime_log_kms_key_arn"], runtime_log_retention_days,
         )
+        sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
+        caller = sts.get_caller_identity()
+        account_id = caller["Account"]
+        result["account_id"] = account_id
+        partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
+        _verify_log_kms_key(
+            required["runtime_log_kms_key_arn"], region=region,
+            account_id=account_id, partition=partition,
+        )
         _ensure_data_api_enabled(db_region, required["db_cluster_arn"])
         local_schema = _verify_local_schema()
         result["verification"]["local_tool_schema"] = local_schema
@@ -2114,22 +2276,22 @@ def main() -> int:
             db_cluster_arn=required["db_cluster_arn"],
             db_secret_arn=required["db_secret_arn"],
             db_name=db_name,
+            identity=identity,
         )
         result["lambdas"] = {
             surface: {"function_arn": arn}
             for surface, arn in lambda_arns.items()
         }
 
-        sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
-        caller = sts.get_caller_identity()
-        account_id = caller["Account"]
-        result["account_id"] = account_id
-        partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
         trace_log_groups = _ensure_trace_log_groups(
             region=region,
             kms_key_arn=required["runtime_log_kms_key_arn"],
             retention_days=runtime_log_retention_days,
             on_cleanup_state=checkpoint_trace_log_group,
+            allow_existing_changes=(
+                os.environ.get(_SHARED_TRACE_LOG_CHANGES_ENV, "").strip().lower()
+                == "true"
+            ),
         )
         result["observability"]["trace_log_groups"] = trace_log_groups
         checkpoint()
@@ -2163,15 +2325,16 @@ def main() -> int:
             fast_model_id=fast_model_id,
             workshop_id=required["workshop_id"],
             env=deploy_env,
+            identity=identity,
         )
         result["cli"]["project_root"] = str(root)
 
-        runtime_state = _require_state_resource(state, "runtimes", RUNTIME_NAME)
-        operator_state = _require_state_resource(state, "runtimes", OPERATOR_RUNTIME_NAME)
-        memory_state = _require_state_resource(state, "memories", MEMORY_NAME)
-        gateway_state = _require_gateway_state(state, GATEWAY_NAME)
+        runtime_state = _require_state_resource(state, "runtimes", identity.runtime_name)
+        operator_state = _require_state_resource(state, "runtimes", identity.operator_runtime_name)
+        memory_state = _require_state_resource(state, "memories", identity.memory_name)
+        gateway_state = _require_gateway_state(state, identity.gateway_name)
         policy_state = _require_state_resource(
-            state, "policyEngines", POLICY_ENGINE_NAME
+            state, "policyEngines", identity.policy_engine_name
         )
         runtime_arn = str(runtime_state["runtimeArn"])
         operator_runtime_arn = str(operator_state["runtimeArn"])
@@ -2354,6 +2517,7 @@ def main() -> int:
             username=smoke_username,
             env=deploy_env,
             expected_fingerprint=_rendered_build_fingerprint(root),
+            identity=identity,
         )
         result["verification"]["authenticated_runtime_invoke_smoke"] = True
         result["verification"]["runtime_invoke_smoke"] = runtime_smoke
@@ -2371,6 +2535,7 @@ def main() -> int:
             session_id=runtime_smoke["session_id"],
             runtime_arn=runtime_arn,
             env=deploy_env,
+            identity=identity,
         )
         result["observability"]["unified_trace"] = trace_proof
         result["verification"]["unified_trace_delivered"] = True

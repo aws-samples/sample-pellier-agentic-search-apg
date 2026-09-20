@@ -1,5 +1,8 @@
 # Evidence index
 
+The [follow-up report](../FOLLOW-UP.md) distinguishes subsequent checks and
+repairs from the original snapshot below.
+
 This directory contains selected, sanitized evidence from the September 20
 maintainer review. Exact account/resource identifiers and raw service responses
 remain in the reviewer's private `/tmp/pellier-review-20260920` directory and

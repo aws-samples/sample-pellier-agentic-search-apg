@@ -1,0 +1,106 @@
+{
+  "recordedAt": "2026-09-20T21:45:57.459157+00:00",
+  "scope": "Follow-up to original September 20 release snapshot. This sanitized summary does not replace private resource receipts. Final source and Studio identities are in the local Studio handoff.",
+  "eventVerdict": "HOLD",
+  "proofs": {
+    "logProtection": {
+      "state": "PASS",
+      "runtimeGroups": 2,
+      "sharedTraceGroups": 2,
+      "retentionDays": 30,
+      "customerManagedKey": true,
+      "keyRotation": true,
+      "retainOnDeleteAndReplace": true,
+      "retroactiveEncryptionClaimed": false
+    },
+    "dynamicShell": {
+      "state": "PASS",
+      "al2023Bash": "5.2.15",
+      "localBash": "5.3",
+      "nvmReproducedMajor": 22,
+      "fixedNodeMajor": 24,
+      "shellcheckExternalSourceWarningsRetained": true
+    },
+    "theoReturn": {
+      "state": "PASS",
+      "authorizedNewSyntheticOrder": true,
+      "realManagedRuntimeCommit": true,
+      "finalizedWriteOperation": true,
+      "exactKeyReplay": true,
+      "sameReturnOnReplay": true,
+      "priorExhaustedOrderPreserved": true,
+      "baselineRestored": true,
+      "restoredRuntimeVersions": [
+        21,
+        13
+      ],
+      "activePolicyCount": 8,
+      "policyMode": "ENFORCE",
+      "physicalManagedResourcesUnchanged": 25,
+      "browserJourneyClaimed": false,
+      "orderLinkedReturnClaimed": false
+    },
+    "ui": {
+      "state": "PASS",
+      "viewports": [
+        320,
+        390,
+        768,
+        1440
+      ],
+      "overflow": false,
+      "pageErrors": false,
+      "panelTransitionsDisclosureFocusVerified": true,
+      "liveAuthenticatedProofClaimed": false
+    },
+    "frontend": {
+      "state": "PASS",
+      "testsPassed": 1128,
+      "testFiles": 158,
+      "independentTypes": true,
+      "lint": true,
+      "build": true,
+      "auditVulnerabilities": 0
+    },
+    "backend": {
+      "state": "PASS",
+      "testsPassed": 3527,
+      "skipped": 90,
+      "upstreamWarnings": 2,
+      "seconds": 225.51,
+      "scope": "Full baseline followed by affected validation after direct-entry identity and default-vhost repairs. Exact-commit CI is attested in the Studio handoff.",
+      "lateAffectedTestsPassed": 287,
+      "lateAffectedSeconds": 33.31
+    }
+  },
+  "privateEvidenceSha256": {
+    "al2023-env-contract.json": "d7f95ebe75ba96774347b3f52f8b9a16c70f8f2f5b4c5a8c959790e9369045f0",
+    "indexing-checks.json": "d346a2817299ac1c3dccf14700a9c3e14314c1ca4a22c3513170523a12d4649c",
+    "managed-recheck.json": "c156cd21ac576767897e029459ed8d789dcbd6aa4f1e0ae8897b437a52c46e99",
+    "log-protection-applied.json": "2cabf01dc3e18c47e59be58b4f871e179b9f71b0bdac9698ef332b663c4565bc",
+    "theo-positive.json": "3d7ddf77347615b003d693019a36b1e40500e038da2e2a1dc1d115f2f2162d48",
+    "theo-restoration-check.json": "4d0ed6d4810b3e98d16695c4187052ab3740e7800b9bcf3d0c802d1552d5f361",
+    "theo-protected-observability.json": "6adae63229f6fda75cc518eb78e4c4b37558897cb4388f0d8c724baa9d4d1809",
+    "ui-after/checks.json": "c3fb8d75e97ff220e3e895e2cb13f8f59e60d1d1bacc99710e482b2f19f33466",
+    "frontend-tests.log": "078a84883fe3cebc906d3ee976feae006557f1b3eb285649a803cd037bf755c6",
+    "frontend-types.log": "e75b92878358a6cb0a28415e7e23ea64a5bbfaa4ff9e554750139c7e13b7e187",
+    "frontend-lint.log": "6d9c0bf860933684f1682eed95c44942240edc98b776b8b384ad95a9b0d3f609",
+    "frontend-build.log": "21cfab8104657ba7ba31bd117bbc6f0ade073be8c618acf960c3e7d2e35687eb",
+    "frontend-audit.log": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
+    "backend-full-final.log": "94099e31e446512843ceaa1dacf6884b98ae7e7fd45cd44daeaaff08e07a570f"
+  },
+  "pending": [
+    "Complete isolated real-resource root lifecycle",
+    "Private VPC origin, hosted HTTPS/SSE/WebSocket and lifecycle verification",
+    "Workshop Studio remote asset and native rendering access",
+    "Owner Studio publication",
+    "Human timed fresh-account rehearsal"
+  ],
+  "deploymentTarget": {
+    "accounts": 200,
+    "participantsPerAccount": 1,
+    "region": "us-east-1",
+    "localRealResourceValidationRequired": true,
+    "perEventAccountEntitlementAndPolicyPreflightRequired": true
+  }
+}

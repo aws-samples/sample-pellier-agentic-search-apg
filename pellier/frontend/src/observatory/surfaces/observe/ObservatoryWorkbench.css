@@ -2609,6 +2609,7 @@
   justify-content: center;
   width: 19px;
   height: 19px;
+  flex: 0 0 19px;
   border-radius: 999px;
   border: 1px solid currentColor;
   font-family: var(--pl-mono);
@@ -2619,6 +2620,15 @@
 .observatory-focus-steps button[data-state='current'] {
   border-color: var(--pl-accent);
   color: var(--pl-accent);
+}
+
+.observatory-root .observatory-focus-steps button:hover {
+  background: var(--pl-paper-muted);
+}
+
+.observatory-root .observatory-focus-steps button:focus-visible {
+  outline: 2px solid var(--pl-accent);
+  outline-offset: 3px;
 }
 
 /* One column while a single panel is on screen. */
@@ -2710,10 +2720,27 @@
 @media (max-width: 560px) {
   .observatory-workbench-intro-aside { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
   .observatory-resume { flex: 1; min-width: 0; border-radius: 10px; }
+  .observatory-focus-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .observatory-root .observatory-focus-steps button {
+    min-width: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 10px 8px;
+    border-radius: var(--pl-r-md);
+    line-height: 1.3;
+    text-align: center;
+  }
 }
 
-.labs-evidence-guidance { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--rule-1); color: var(--ink-soft); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
-.labs-evidence-guidance summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ink); font-weight: 600; }
+.labs-evidence-guidance { margin: 0; padding: 12px 20px; border-block: 1px solid var(--rule-1); color: var(--ink-soft); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
+.labs-evidence-guidance summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ink); font-weight: 600; border-radius: var(--pl-r-sm); }
+.labs-evidence-guidance summary:hover { color: var(--pl-accent); }
+.labs-evidence-guidance summary:focus-visible { outline: 2px solid var(--pl-accent); outline-offset: 4px; }
 .labs-evidence-guidance dl { display: grid; gap: 16px; margin-block: 16px; }
 .labs-evidence-guidance dt { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
 .labs-evidence-guidance dd { margin: 0; max-width: 72ch; }

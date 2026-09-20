@@ -519,6 +519,11 @@ def test_transaction_search_setup_is_scoped_and_requires_active_destination(
         def get_trace_segment_destination(self) -> dict[str, str]:
             return next(self.responses)
 
+        def get_indexing_rules(self) -> dict[str, Any]:
+            return {"IndexingRules": [{"Name": "Default", "Rule": {
+                "Probabilistic": {"DesiredSamplingPercentage": 100},
+            }}]}
+
         def update_trace_segment_destination(self, *, Destination: str) -> None:
             self.updated_to = Destination
 
@@ -544,11 +549,15 @@ def test_transaction_search_setup_is_scoped_and_requires_active_destination(
         "resource_policy": "TransactionSearchXRayAccess",
         "resource_policy_document": logs.policy_document,
         "span_log_group": "aws/spans",
+        "indexing_rule": {"name": "Default", "desired_sampling_percentage": 100},
         "cleanup": {
             "destination_changed": True,
             "previous_destination": "XRay",
             "resource_policy_created": True,
             "previous_resource_policy_document": None,
+            "previous_indexing_rule": {"name": "Default", "desired_sampling_percentage": 100},
+            "indexing_rule_changed": False,
+            "indexing_rule_update_started": False,
         },
     }
     assert logs.policy_name == "TransactionSearchXRayAccess"
@@ -947,6 +956,11 @@ def test_transaction_search_checkpoints_prior_state_before_policy_mutation(
         def get_trace_segment_destination(self) -> dict[str, str]:
             return {"Destination": "XRay", "Status": "ACTIVE"}
 
+        def get_indexing_rules(self) -> dict[str, Any]:
+            return {"IndexingRules": [{"Name": "Default", "Rule": {
+                "Probabilistic": {"DesiredSamplingPercentage": 100},
+            }}]}
+
     logs = _Logs()
     xray = _XRay()
     monkeypatch.setattr(
@@ -978,11 +992,15 @@ def test_transaction_search_checkpoints_prior_state_before_policy_mutation(
             "status": "CONFIGURING",
             "resource_policy": "TransactionSearchXRayAccess",
             "span_log_group": "aws/spans",
+            "indexing_rule": {"name": "Default", "desired_sampling_percentage": 100},
             "cleanup": {
                 "destination_changed": True,
                 "previous_destination": "XRay",
                 "resource_policy_created": True,
                 "previous_resource_policy_document": None,
+                "previous_indexing_rule": {"name": "Default", "desired_sampling_percentage": 100},
+                "indexing_rule_changed": False,
+                "indexing_rule_update_started": False,
             },
         }
     ]

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import stat
@@ -204,6 +205,30 @@ def cleanup_plan(
         )
 
     plan: list[dict[str, Any]] = []
+    if transaction_cleanup.get("indexing_rule_update_started") is True:
+        previous = transaction_cleanup.get("previous_indexing_rule")
+        expected = transaction_search.get("indexing_rule")
+        previous_percentage = previous.get("desired_sampling_percentage") if isinstance(previous, dict) else None
+        if (
+            not isinstance(previous, dict)
+            or previous.get("name") != "Default"
+            or type(previous_percentage) not in {int, float}
+            or not math.isfinite(previous_percentage)
+            or not 0 <= previous_percentage <= 100
+            or not isinstance(expected, dict)
+            or expected.get("name") != "Default"
+            or type(expected.get("desired_sampling_percentage")) not in {int, float}
+            or expected.get("desired_sampling_percentage") != 100
+        ):
+            raise ValueError("receipt has no valid captured Default indexing rule")
+        plan.append({
+            "service": "xray",
+            "operation": "restore_indexing_rule",
+            "name": "Default",
+            "desired_sampling_percentage": previous_percentage,
+            "expected_desired_sampling_percentage": 100,
+            "expected_modified_at": expected.get("modified_at"),
+        })
     if transaction_cleanup.get("destination_changed") is True:
         previous_destination = transaction_cleanup.get("previous_destination")
         if previous_destination not in {"XRay", "CloudWatchLogs"}:
@@ -328,7 +353,30 @@ def execute_cleanup(
     for step in plan:
         operation = step["operation"]
         try:
-            if operation == "restore_trace_segment_destination":
+            if operation == "restore_indexing_rule":
+                current = None
+                token = None
+                while True:
+                    response = xray.get_indexing_rules(**({"NextToken": token} if token else {}))
+                    current = next((rule for rule in response.get("IndexingRules", []) if rule.get("Name") == step["name"]), None)
+                    token = response.get("NextToken")
+                    if current is not None or not token:
+                        break
+                percentage = (current or {}).get("Rule", {}).get("Probabilistic", {}).get("DesiredSamplingPercentage")
+                expected_modified_at = step.get("expected_modified_at")
+                if (
+                    current is None
+                    or percentage != step["expected_desired_sampling_percentage"]
+                    or (expected_modified_at is not None and str(current.get("ModifiedAt")) != expected_modified_at)
+                ):
+                    results.append({**step, "status": "skipped_external_change"})
+                else:
+                    xray.update_indexing_rule(
+                        Name=step["name"],
+                        Rule={"Probabilistic": {"DesiredSamplingPercentage": step["desired_sampling_percentage"]}},
+                    )
+                    results.append({**step, "status": "restored"})
+            elif operation == "restore_trace_segment_destination":
                 current = xray.get_trace_segment_destination()
                 if current.get("Destination") == "CloudWatchLogs":
                     xray.update_trace_segment_destination(

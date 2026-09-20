@@ -1704,6 +1704,7 @@ def _run_reset(
     backend_listening: bool = False,
     recovery_installed: str = "f",
     recovery_records: str = "0",
+    deployment_suffix: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the real reset against a sandbox repo with every external binary faked.
 
@@ -1729,17 +1730,19 @@ def _run_reset(
     fake_bin = tmp_path / "bin"
     (repo / "scripts" / "migrations").mkdir(parents=True)
     (repo / "pellier" / "backend" / ".venv" / "bin").mkdir(parents=True)
-    (repo / ".agentcore-project" / "pellier" / "agentcore").mkdir(parents=True)
+    project_name = f"pellier{deployment_suffix}"
+    (repo / ".agentcore-project" / project_name / "agentcore").mkdir(parents=True)
     fake_bin.mkdir()
 
     quarantine_file = tmp_path / "quarantine"
     if quarantine_seed is not None:
         quarantine_file.write_text(quarantine_seed, encoding="utf-8")
     (repo / ".env").write_text(
-        "DB_NAME=pellier\nDB_USER=pellier\nDB_HOST=localhost\nDB_PORT=5432\n",
+        "DB_NAME=pellier\nDB_USER=pellier\nDB_HOST=localhost\nDB_PORT=5432\n"
+        f"PELLIER_DEPLOYMENT_SUFFIX='{deployment_suffix}'\n",
         encoding="utf-8",
     )
-    (repo / ".agentcore-project" / "pellier" / "agentcore" / "agentcore.json").write_text(
+    (repo / ".agentcore-project" / project_name / "agentcore" / "agentcore.json").write_text(
         "{}\n", encoding="utf-8"
     )
     for migration in (REPO / "scripts" / "migrations").glob("*.sql"):
@@ -1749,6 +1752,7 @@ def _run_reset(
         repo / "pellier" / "backend" / ".venv" / "bin" / "python",
         f"""#!/bin/bash
 case "$1" in
+  *resolve_agentcore_identity.py) shift; exec '{sys.executable}' '{REPO / "scripts/deploy/resolve_agentcore_identity.py"}' "$@" ;;
   *reset_memory_runtime.py) exit {memory_exit} ;;
   *policy_mode.py) exit {policy_exit} ;;
 esac
@@ -1781,7 +1785,8 @@ exit 0
     _write_executable(fake_bin / "systemctl", "#!/bin/bash\nexit 1\n")
     _write_executable(
         fake_bin / "jq",
-        """#!/bin/bash
+        f"""#!/bin/bash
+printf '%s\\n' "$*" >> '{repo / "cli-config-inspection.log"}'
 case "$*" in
   *policyEngines*) exit 1 ;;
   *agentCoreGateways*) printf 'ENFORCE\\n' ;;
@@ -1808,6 +1813,17 @@ exit 0
         check=False,
     )
     return proc, quarantine_file
+
+
+def test_reset_resolves_isolated_project_and_policy_engine(tmp_path: Path) -> None:
+    proc, quarantine_file = _run_reset(
+        tmp_path, deployment_suffix="rehearsal", backend_listening=True
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert not quarantine_file.exists()
+    inspected = (tmp_path / "repo/cli-config-inspection.log").read_text()
+    assert "--arg engine pellier_rehearsal_policy_engine" in inspected
+    assert "/.agentcore-project/pellierrehearsal/agentcore/agentcore.json" in inspected
 
 
 @pytest.mark.parametrize(("installed", "records"), [("t", "1"), ("t", ""), ("", "0")])

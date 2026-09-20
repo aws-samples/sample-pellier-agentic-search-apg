@@ -51,7 +51,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 _REPO = pathlib.Path(__file__).resolve().parents[1]
 _BACKEND = _REPO / "pellier" / "backend"
-_DEFAULT_PROJECT = _REPO / ".agentcore-project" / "pellier"
 
 # The account id a template render carries before provisioning
 # substitutes the real one.
@@ -81,9 +80,16 @@ def _load_env() -> Dict[str, str]:
                 key, _, value = line.partition("=")
                 values[key.strip()] = value.strip().strip('"').strip("'")
     values.update(
-        {k: v for k, v in os.environ.items() if k.startswith(("AGENTCORE_", "AWS_"))}
+        {k: v for k, v in os.environ.items() if k.startswith(("AGENTCORE_", "AWS_")) or k == "PELLIER_DEPLOYMENT_SUFFIX"}
     )
     return values
+
+
+def _project_for_config(cfg: Dict[str, str]) -> pathlib.Path:
+    sys.path.insert(0, str(_REPO / "scripts" / "deploy"))
+    from render_agentcore_project import project_root
+
+    return project_root(_REPO, deployment_suffix=cfg.get("PELLIER_DEPLOYMENT_SUFFIX", ""))
 
 
 def gateway_id_from_arn(arn: str) -> str:
@@ -418,7 +424,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument(
         "--project",
-        default=str(_DEFAULT_PROJECT),
+        default=None,
         help="AgentCore CLI project directory.",
     )
     parser.add_argument("--region", default=None)
@@ -456,9 +462,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         require_policy_mode_support()
 
+    project_dir = pathlib.Path(args.project) if args.project else _project_for_config(cfg)
     client = boto3.client("bedrock-agentcore-control", region_name=region)
     gateway_id = gateway_id_from_arn(gateway_arn) if gateway_arn else None
-    project_dir = pathlib.Path(args.project)
 
     if not args.mode and not args.restore_shipped:
         _print_state(describe(client, engine_id, gateway_id))

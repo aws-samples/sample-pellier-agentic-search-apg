@@ -35,7 +35,7 @@ EVIDENCE_DIR="${PELLIER_EVIDENCE_DIR:-/tmp/pellier-evidence}"
 
 PERSONA="marco"
 LABEL="baseline"
-RUNTIME_NAME="pellier_orchestrator"
+RUNTIME_NAME=""
 PROMPT="What linen pieces do you have for warm weather?"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
@@ -62,7 +62,11 @@ if ! [[ "$LABEL" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
   exit 1
 fi
 
-PROJECT_DIR="$REPO/.agentcore-project/pellier"
+IDENTITY_HELPER="$SCRIPT_DIR/deploy/resolve_agentcore_identity.py"
+PROJECT_DIR="$(python3 "$IDENTITY_HELPER" --repo "$REPO" --field project-root)" || exit 1
+if [ -z "$RUNTIME_NAME" ]; then
+  RUNTIME_NAME="$(python3 "$IDENTITY_HELPER" --repo "$REPO" --field runtime-name)" || exit 1
+fi
 EVIDENCE_FILE="$EVIDENCE_DIR/runtime-hello-$LABEL.json"
 
 if [ ! -d "$PROJECT_DIR" ]; then
@@ -93,7 +97,7 @@ fi
 mkdir -p "$EVIDENCE_DIR"
 SESSION_ID="hello-$LABEL-$(date +%s)-$$-0000000000000001"
 
-RAW="$(cd "$PROJECT_DIR" && npx -y "@aws/agentcore@${AGENTCORE_CLI_PINNED_VERSION}" invoke \
+RAW="$(cd "$PROJECT_DIR" && AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y "@aws/agentcore@${AGENTCORE_CLI_PINNED_VERSION}" invoke \
   --runtime "$RUNTIME_NAME" \
   --session-id "$SESSION_ID" \
   --bearer-token "$PELLIER_TOKEN" \

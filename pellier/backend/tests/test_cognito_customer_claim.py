@@ -270,3 +270,52 @@ def test_deploy_trigger_updates_the_function_and_attaches_the_v2_trigger(
     assert env["STAFF_GROUP"] == "pellier-operators" and env["STAFF_SCOPE"] == "returns"
     assert receipt["mappedSubjects"] == 1 and receipt["customers"] == ["CUST-MARCO"]
     assert receipt["lambdaConfig"]["PreTokenGenerationConfig"]["LambdaVersion"] == "V2_0"
+
+
+@pytest.mark.parametrize("suffix", ["", "rehearsal"])
+@pytest.mark.parametrize("exists", [True, False])
+def test_trigger_every_resource_call_uses_the_deployment_identity(monkeypatch, suffix, exists):
+    from botocore.exceptions import ClientError
+
+    deploy = _load("deploy_customer_claim_trigger")
+    # Set after import to cover dotenv loading in the standalone command too.
+    monkeypatch.setenv("PELLIER_DEPLOYMENT_SUFFIX", suffix)
+    function = f"pellier{'-' + suffix if suffix else ''}-cognito-customer-claim"
+    role = f"{function}-role"
+    function_arn = f"arn:aws:lambda:us-east-1:123456789012:function:{function}"
+    role_arn = f"arn:aws:iam::123456789012:role/{role}"
+    calls = []
+
+    class Provider:
+        def __getattr__(self, name):
+            def call(**kwargs):
+                calls.append((name, kwargs))
+                if name == "get_role":
+                    if not exists:
+                        raise ClientError({"Error": {"Code": "NoSuchEntity"}}, "GetRole")
+                    return {"Role": {"Arn": role_arn}}
+                if name == "create_role":
+                    return {"Role": {"Arn": role_arn}}
+                if name == "get_function" and not exists:
+                    raise ClientError({"Error": {"Code": "ResourceNotFoundException"}}, "GetFunction")
+                if name == "get_function_configuration":
+                    return {"State": "Active", "LastUpdateStatus": "Successful"}
+                if name in ("create_function", "update_function_configuration"):
+                    return {"FunctionArn": function_arn}
+                if name == "describe_user_pool":
+                    return {"UserPool": _pool()}
+                return {}
+            return call
+
+    monkeypatch.setattr(deploy.boto3, "client", lambda *_args, **_kwargs: Provider())
+    monkeypatch.setattr(deploy.time, "sleep", lambda *_args: None)
+    monkeypatch.setattr(deploy, "attach_trigger", lambda _idp, _pool, arn: {"PreTokenGenerationConfig": {"LambdaArn": arn}})
+    receipt = deploy.deploy_trigger(region="us-east-1", pool_id="us-east-1_test", mapping={"new-sub": "CUST-THEO"})
+    assert receipt["function"] == function_arn
+    assert receipt["role"] == role_arn
+    assert all(kwargs["FunctionName"] == function for _, kwargs in calls if "FunctionName" in kwargs)
+    assert all(kwargs["RoleName"] == role for _, kwargs in calls if "RoleName" in kwargs)
+    permissions = [kwargs for name, kwargs in calls if name == "add_permission"]
+    assert permissions[0]["SourceArn"] == _pool()["Arn"]
+    configured = next(kwargs for name, kwargs in calls if name in ("create_function", "update_function_configuration"))
+    assert json.loads(configured["Environment"]["Variables"]["CUSTOMER_CLAIM_MAP"]) == {"new-sub": "CUST-THEO"}

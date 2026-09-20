@@ -13,6 +13,7 @@ CODE_EDITOR_USER="${CODE_EDITOR_USER:-participant}"
 HOME_FOLDER="${HOME_FOLDER:-/workshop}"
 REPO_NAME="${REPO_NAME:-sample-pellier-agentic-search-apg}"
 ORIGIN_VERIFY_TOKEN="${ORIGIN_VERIFY_TOKEN:-}"
+PELLIER_PRIVATE_ORIGIN="${PELLIER_PRIVATE_ORIGIN:-false}"
 CFN_WAIT_HANDLE="${CFN_WAIT_HANDLE:-}"
 STAGE2_SCRIPT_URL="${STAGE2_SCRIPT_URL:-}"
 ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}"
@@ -28,6 +29,12 @@ NC='\033[0m'
 log() { echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"; }
 warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ERROR:${NC} $1"; exit 1; }
+
+case "$PELLIER_PRIVATE_ORIGIN" in
+    true) [ -n "$ORIGIN_VERIFY_TOKEN" ] || error "Private origin requires an origin verification token" ;;
+    false) ;;
+    *) error "PELLIER_PRIVATE_ORIGIN must be true or false" ;;
+esac
 
 probe_editor_http() {
     local url="$1"
@@ -290,6 +297,23 @@ log "✅ Token configured"
 
 log "Configuring Nginx..."
 mkdir -p /etc/nginx/conf.d
+# Own the complete workshop server configuration. A distribution-provided
+# default virtual host must not bypass this proxy or its origin-token guard.
+cat > /etc/nginx/nginx.conf << 'EOF'
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /run/nginx.pid;
+events { worker_connections 1024; }
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+    access_log /var/log/nginx/access.log;
+    include /etc/nginx/conf.d/code-editor.conf;
+}
+EOF
 cat > /etc/nginx/conf.d/code-editor.conf << 'EOF'
 map $http_x_forwarded_proto $pellier_forwarded_proto {
     default $http_x_forwarded_proto;
@@ -297,9 +321,10 @@ map $http_x_forwarded_proto $pellier_forwarded_proto {
 }
 
 server {
-    listen 80;
-    listen [::]:80;
+    listen 80 default_server;
+    listen [::]:80 default_server;
     server_name _;
+    proxy_http_version 1.1;
     # __PELLIER_ORIGIN_VERIFY__
     
     # Pellier (single-process): FastAPI on :8000 serves BOTH
@@ -384,6 +409,31 @@ if [ -n "$ORIGIN_VERIFY_TOKEN" ]; then
         /etc/nginx/conf.d/code-editor.conf
 else
     sed -i '/# __PELLIER_ORIGIN_VERIFY__/d' /etc/nginx/conf.d/code-editor.conf
+fi
+
+if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
+    # ALB overwrites X-Forwarded-Proto with its own HTTP origin hop. CloudFront
+    # sets this separate header after enforcing viewer HTTPS. The token guard
+    # above and private ALB-only ingress authenticate the forwarding boundary.
+    sed -i 's/\$http_x_forwarded_proto/\$http_x_pellier_viewer_proto/g' \
+        /etc/nginx/conf.d/code-editor.conf
+    # The target group probes this separate port; its security-group ingress
+    # permits only the ALB. Never bypass the token guard on user-facing :80.
+    cat >> /etc/nginx/conf.d/code-editor.conf << 'EOF'
+
+server {
+    listen 8081;
+    server_name _;
+    location = /health {
+        proxy_pass http://127.0.0.1:8000/api/health;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+        proxy_buffering off;
+        access_log off;
+    }
+    location / { return 404; }
+}
+EOF
 fi
 
 nginx -t
@@ -880,6 +930,7 @@ fi
 # Verify Nginx proxy
 NGINX_CODE=$(probe_editor_http http://127.0.0.1:80/ \
     -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN" \
+    -H "X-Pellier-Viewer-Proto: https" \
     -H "X-Forwarded-Proto: https")
 if [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "200" ]; then
     log "✅ Nginx proxy verified (HTTP $NGINX_CODE)"
@@ -911,6 +962,7 @@ write_stage2_manifest() {
     for name in \
         CODE_EDITOR_USER HOME_FOLDER REPO_NAME REPO_URL \
         WORKSHOP_FORMAT WORKSHOP_BRANCH WORKSHOP_ID WORKSHOP_STACK_NAME \
+        PELLIER_DEPLOYMENT_SUFFIX \
         WORKSHOP_SOURCE_REVISION AWS_REGION AWS_DEFAULT_REGION \
         DB_SECRET_ARN DB_CLUSTER_ARN DB_CLUSTER_ENDPOINT DB_NAME \
         ASSETS_BUCKET_NAME ASSETS_BUCKET_PREFIX \
@@ -921,9 +973,13 @@ write_stage2_manifest() {
         COGNITO_TEST_CREDENTIALS_SECRET_ARN COGNITO_CLIENT_SECRET_ARN \
         AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN \
         AGENTCORE_RUNTIME_LOG_RETENTION_DAYS TS_DESIRED_SAMPLING \
+        AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES \
         ORIGIN_VERIFY_TOKEN
     do
         value="${!name:-}"
+        if [ "$name" = "AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES" ]; then
+            value="${value:-false}"
+        fi
         printf 'export %s=%q\n' "$name" "$value" >> "$temp_manifest"
     done
 

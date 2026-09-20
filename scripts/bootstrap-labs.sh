@@ -345,6 +345,7 @@ BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
 BEDROCK_FAST_MODEL='${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'
 WORKSHOP_ID='${WORKSHOP_ID:-dat416}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-governed}'
+PELLIER_DEPLOYMENT_SUFFIX='${PELLIER_DEPLOYMENT_SUFFIX:-}'
 AUTH_MODE='${AUTH_MODE:-cognito}'
 COGNITO_USER_POOL_ID='${COGNITO_USER_POOL_ID:-}'
 COGNITO_POOL_ID='${COGNITO_USER_POOL_ID:-}'
@@ -934,7 +935,10 @@ _agentcore_resolve() {
 }
 
 agentcore() {
-    local resolution source effective
+    local resolution source effective repo project_dir
+    repo="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
+    project_dir="$(python3 "$repo/scripts/deploy/resolve_agentcore_identity.py" \
+      --repo "$repo" --field project-root)" || return 1
     resolution="$(_agentcore_resolve)"
     source="$(printf '%s' "$resolution" | cut -f1)"
     effective="$(printf '%s' "$resolution" | cut -f3-)"
@@ -942,7 +946,7 @@ agentcore() {
     (
       # Pellier uses this variable for an ARN; the CLI requires an endpoint alias.
       export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
-      cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
+      cd "$project_dir" 2>/dev/null \
         && if [ "$source" = "binary" ]; then
                "$(printf '%s' "$resolution" | cut -f2)" "$@"
            else
@@ -1057,9 +1061,15 @@ fi
 # Idempotent by design: this checks first and only mutates what is missing, so
 # re-running bootstrap on an account that already has it is a no-op.
 #
-# Start activation here without blocking application setup. The governed
-# managed provisioner later waits for ACTIVE and fails readiness if activation
-# never completes; an accepted update alone does not prove span delivery.
+# Governed provisioning first checks ownership and protects both shared log
+# groups, then captures the previous Transaction Search settings in its cleanup
+# receipt. Starting activation here would bypass that preflight and can create
+# account-wide destinations before the provisioner can establish ownership.
+if [ "${WORKSHOP_FORMAT:-governed}" = "governed" ]; then
+    log "Deferring Transaction Search configuration to managed provisioning and its ownership checks"
+else
+# Other formats keep their optional early activation path. An accepted update
+# alone does not prove span delivery.
 log "Verifying CloudWatch Transaction Search..."
 
 TS_DESIRED_SAMPLING=100
@@ -1139,6 +1149,7 @@ else
         fi
     fi
 fi
+fi  # Non-governed Transaction Search setup.
 
 # ============================================================================
 # STEP 14: AUTO-START PELLIER SERVICE (single-process, port 8000)
@@ -1458,6 +1469,8 @@ export COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_AR
 export COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
 export AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN='${AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN:-}'
 export AGENTCORE_RUNTIME_LOG_RETENTION_DAYS='${AGENTCORE_RUNTIME_LOG_RETENTION_DAYS:-30}'
+export AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES='${AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES:-false}'
+export PELLIER_DEPLOYMENT_SUFFIX='${PELLIER_DEPLOYMENT_SUFFIX:-}'
 EOF
     chmod 600 "$PROVISION_ENV" 2>/dev/null || true
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PROVISION_ENV" 2>/dev/null || true
@@ -1500,6 +1513,8 @@ EOF
         export COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
         export AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN='${AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN:-}'
         export AGENTCORE_RUNTIME_LOG_RETENTION_DAYS='${AGENTCORE_RUNTIME_LOG_RETENTION_DAYS:-30}'
+        export AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES='${AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES:-false}'
+        export PELLIER_DEPLOYMENT_SUFFIX='${PELLIER_DEPLOYMENT_SUFFIX:-}'
         # sudo strips the parent environment, so anything the provisioner requires has to
         # be re-exported HERE. AGENT_MODEL_ID was missing and killed the whole managed
         # path: check_model_access.py resolves it at bootstrap time and writes it to
