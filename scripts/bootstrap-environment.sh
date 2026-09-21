@@ -271,7 +271,12 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER"
 
 log "Installing Code Editor..."
 export CodeEditorUser="$CODE_EDITOR_USER"
+# The vendor installer downloads its archive as root and extracts it as the
+# workshop user. Keep the worker's private default umask everywhere else, but
+# allow the installer archive to be read during that delegated extraction.
+umask 022
 curl -fsSL https://code-editor.amazonaws.com/content/code-editor-server/dist/aws-workshop-studio/install.sh | bash -s --
+umask 077
 
 # Find Code Editor binary
 if [ -f "/home/$CODE_EDITOR_USER/.local/bin/code-editor-server" ]; then
