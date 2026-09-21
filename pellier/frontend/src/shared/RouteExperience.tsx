@@ -58,12 +58,16 @@ export default function RouteExperience() {
         const target = document.getElementById(anchor)
         if (!target) return
         target.scrollIntoView({ behavior: 'instant' })
+        if (keyboardNavigation.current) {
+          if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+          target.focus({ preventScroll: true })
+        }
       } else if (changedPage) {
         window.scrollTo({ top: 0, behavior: 'instant' })
       }
 
       if (changedPage && !arrivalHandled) {
-        if (keyboardNavigation.current) main.focus({ preventScroll: true })
+        if (keyboardNavigation.current && !location.hash) main.focus({ preventScroll: true })
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && main.animate) {
           animation = main.animate(
             [{ opacity: 0.86, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }],

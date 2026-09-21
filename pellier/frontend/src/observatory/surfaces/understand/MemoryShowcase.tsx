@@ -83,7 +83,7 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
                 <div><dt>Strategy ID</dt><dd><code>{record.strategyId}</code></dd></div>
                 <div><dt>Namespace</dt><dd><code>{record.namespaces?.join('\n') || panel.namespace}</code></dd></div>
               </dl>
-              <pre>{record.raw}</pre>
+              <pre tabIndex={0} role="region" aria-label="Raw memory record">{record.raw}</pre>
             </details>
           </article>)}
         </div>
@@ -117,7 +117,7 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
       </>}
       <details className="memory-showcase-details"><summary>Run this exercise in the Code Editor</summary>
         <p>From the source repository root, with the backend Python environment active. Use the matching shopper sign-in to view the result here.</p>
-        <pre>{`python scripts/showcase_agentcore_memory.py learn --persona ${persona}\npython scripts/showcase_agentcore_memory.py status --persona ${persona}\n# Wait for facts, preferences and summary records, then:\npython scripts/showcase_agentcore_memory.py recall --persona ${persona}\n# Optional episode: review the answer, then send the scripted acknowledgement:\npython scripts/showcase_agentcore_memory.py finish --persona ${persona}`}</pre>
+        <pre tabIndex={0} role="region" aria-label="Memory exercise commands">{`python scripts/showcase_agentcore_memory.py learn --persona ${persona}\npython scripts/showcase_agentcore_memory.py status --persona ${persona}\n# Wait for facts, preferences and summary records, then:\npython scripts/showcase_agentcore_memory.py recall --persona ${persona}\n# Optional episode: review the answer, then send the scripted acknowledgement:\npython scripts/showcase_agentcore_memory.py finish --persona ${persona}`}</pre>
         <p>The workshop deployment configures four managed strategies. Learn writes a scripted first conversation. Recall invokes the live agent and can incur model charges. Refresh only reads evidence. Episode consolidation is optional and can take longer.</p>
       </details>
     </section>

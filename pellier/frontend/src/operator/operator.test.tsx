@@ -158,6 +158,10 @@ describe('ClientBook', () => {
     expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument()
     expect(screen.getByText('Nadia Weber')).toBeInTheDocument()
     expect(screen.getByTestId('operator-client-amara')).toBeInTheDocument()
+    for (const [slug, id] of [['amara', 'CUST-AMARA'], ['marco', 'CUST-MARCO'], ['new', 'CUST-NEW']]) {
+      expect(screen.getByTestId(`operator-client-${slug}`)).toHaveAttribute('href', `/operator/clients/${id}#operator-concierge`)
+      expect(screen.getByTestId(`operator-client-${slug}`)).toHaveTextContent('Open chat')
+    }
   })
 
   it('takes membership counts from the API rather than recomputing them', async () => {
@@ -576,7 +580,7 @@ describe('ClientRecord', () => {
     expect(request).toHaveAttribute('data-conflict', 'true')
     expect(
       screen.getByRole('link', { name: /Investigate case/i }),
-    ).toHaveAttribute('href', '#operator-concierge-title')
+    ).toHaveAttribute('href', '#operator-concierge')
   })
 
   it('offers every nonhero client a read-only storefront preview', async () => {
@@ -630,7 +634,7 @@ describe('ClientRecord', () => {
     expect(screen.queryByTestId('operator-return-submit')).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Investigate case/i }),
-    ).toHaveAttribute('href', '#operator-concierge-title')
+    ).toHaveAttribute('href', '#operator-concierge')
   })
 })
 

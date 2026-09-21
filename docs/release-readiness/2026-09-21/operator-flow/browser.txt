@@ -1,0 +1,13 @@
+
+Running 4 tests using 1 worker
+
+(node:37669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/operator-conversation-flow.spec.ts:104:1 › a newer client conversation surfaces its own pending review from the queue (920ms)
+  ✓  2 [chromium] › e2e/operator-conversation-flow.spec.ts:119:3 › client chat, prepared review, and exact conversation return stay connected at 1440px (1.6s)
+  ✓  3 [chromium] › e2e/operator-conversation-flow.spec.ts:119:3 › client chat, prepared review, and exact conversation return stay connected at 768px (1.3s)
+  ✓  4 [chromium] › e2e/operator-conversation-flow.spec.ts:119:3 › client chat, prepared review, and exact conversation return stay connected at 390px (1.2s)
+
+  4 passed (5.6s)

@@ -29,15 +29,17 @@ test.describe('Operator client storefront handoff', () => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     expect((await signedIn).status()).toBe(200)
     await expect(page).toHaveURL(new URL('/operator', BASE_URL).toString())
-    await expect.poll(async () =>
-      (await page.request.get(`${BASE_URL}/api/auth/me`)).status(),
+    // Use the browser's loopback handling for Secure cookies, as the app does.
+    await expect.poll(() => page.evaluate(async () =>
+      (await fetch('/api/auth/me', { credentials: 'include' })).status),
+      { timeout: 20000 },
     ).toBe(200)
   })
 
   test('the live client book stays balanced across all three membership rungs', async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/operator`, { waitUntil: 'networkidle' })
+    await page.goto(`${BASE_URL}/operator`)
     await expect(page.getByTestId('operator-book')).toBeVisible()
 
     for (const rung of ['registered', 'circle', 'maison']) {
@@ -49,12 +51,52 @@ test.describe('Operator client storefront handoff', () => {
     }
   })
 
+  for (const width of [1440, 768, 390]) {
+    test(`live client chat and review navigation remain read-only at ${width}px`, async ({ page }) => {
+      const mutations: string[] = []
+      page.on('request', request => {
+        if (new URL(request.url()).pathname.startsWith('/api/operator/') && request.method() !== 'GET') {
+          mutations.push(request.method())
+        }
+      })
+      await page.setViewportSize({ width, height: 960 })
+      const row = page.getByTestId('operator-client-jessica')
+      await expect(row).toContainText('Open chat')
+      await row.click()
+      await expect(page).toHaveURL(/CUST-JESSICA#operator-concierge$/)
+      await expect(page.getByTestId('operator-concierge-state')).not.toHaveAttribute('data-state', 'loading', { timeout: 60000 })
+      await expect(page.getByTestId('operator-concierge-input')).toBeInViewport()
+      await page.getByTestId('operator-reviews-link').click()
+      await expect(page.getByTestId('operator-reviews')).toBeVisible()
+      const reviewLinks = page.locator('a[data-testid^="operator-review-"]')
+      if (await reviewLinks.count()) {
+        await reviewLinks.first().click()
+        await expect(page.getByTestId('operator-review-record')).toBeVisible()
+        if (width <= 1000) {
+          const browse = page.getByRole('button', { name: 'Browse action queue' })
+          await expect(browse).toHaveAttribute('aria-expanded', 'false')
+          await browse.click()
+          await expect(page.getByRole('textbox', { name: 'Find a review' })).toBeVisible()
+          await browse.click()
+          await expect(page.getByRole('textbox', { name: 'Find a review' })).toBeHidden()
+        }
+        await page.getByTestId('operator-review-chat-link').click()
+        await expect(page.getByTestId('operator-concierge-input')).toBeInViewport()
+      }
+      expect(mutations).toEqual([])
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false)
+    })
+  }
+
   test('Jessica stays a read-only preview and reflects her recorded return evidence', async ({
     page,
   }) => {
-    const response = await page.request.get(`${BASE_URL}/api/operator/clients/CUST-JESSICA`)
-    expect(response.status()).toBe(200)
-    const record = await response.json()
+    const response = await page.evaluate(async () => {
+      const result = await fetch('/api/operator/clients/CUST-JESSICA', { credentials: 'include' })
+      return { status: result.status, record: await result.json() }
+    })
+    expect(response.status).toBe(200)
+    const record = response.record
     const count = record.client.returnEvidence.authoritativeReturnCount
     expect(count).toBe(record.returns.length)
     expect(record.client.returnEvidence.supportAssertsReturn).toBe(true)
@@ -68,7 +110,6 @@ test.describe('Operator client storefront handoff', () => {
 
     await page.goto(
       `${BASE_URL}/operator/clients/CUST-JESSICA`,
-      { waitUntil: 'networkidle' },
     )
     await expect(page.getByTestId('operator-record')).toBeVisible()
     const request = page.getByTestId('operator-service-request')
@@ -106,14 +147,13 @@ test.describe('Operator client storefront handoff', () => {
   test('a client preview clears an unrelated shopper persona', async ({
     page,
   }) => {
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+    await page.goto(BASE_URL)
     await page.getByTestId('persona-pill').click()
     await page.getByTestId('persona-card-marco').click()
     await expect(page.getByTestId('persona-pill')).toContainText('Marco')
 
     await page.goto(
       `${BASE_URL}/?clientPreview=CUST-JESSICA`,
-      { waitUntil: 'networkidle' },
     )
     await expect(page.getByTestId('operator-client-preview')).toBeVisible()
     await expect(page.getByTestId('persona-pill')).toHaveAccessibleName('Select scenario')
@@ -125,7 +165,6 @@ test.describe('Operator client storefront handoff', () => {
   }) => {
     await page.goto(
       `${BASE_URL}/operator/clients/CUST-MARCO`,
-      { waitUntil: 'networkidle' },
     )
     await expect(page.getByTestId('operator-record')).toBeVisible()
 

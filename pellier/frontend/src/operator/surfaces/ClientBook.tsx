@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
+import { MessageCircle } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   MEMBERSHIP,
@@ -226,7 +227,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
       <h1 className="operator-title">{chatEntry ? 'Operator chat' : 'Every client the house knows'}</h1>
       <p className="operator-lede">{chatEntry
         ? 'Choose a client to ask questions, examine the source records, and work toward a fair resolution.'
-        : 'Open a client, investigate the evidence, and prepare a resolution for human review.'}</p>
+        : 'Open a client’s chat to investigate the request with their records alongside. Prepare a resolution, then review the exact terms before taking action.'}</p>
       <details className="operator-source-details">
         <summary>How the desk works</summary>
         <div className="operator-service-sources">
@@ -439,7 +440,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
             {clients.map((client) => (
           <Link
             key={client.customerId}
-            to={`/operator/clients/${encodeURIComponent(client.customerId)}${chatEntry ? '#operator-concierge' : ''}`}
+            to={`/operator/clients/${encodeURIComponent(client.customerId)}#operator-concierge`}
             className={`operator-book-row${chatEntry ? ' operator-chat-client-row' : ''}`}
             data-testid={`operator-client-${client.slug}`}
             style={{ '--op-row-index': entranceIndex() } as React.CSSProperties}
@@ -461,6 +462,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
                   {client.openCase ? <span className="operator-client-request-subject">{client.openCase}</span> : null}
                 </span>
               ) : null}
+              {!chatEntry ? <span className="operator-client-chat-entry"><MessageCircle size={14} aria-hidden="true" />Open chat</span> : null}
             </span>
             {chatEntry ? (
               <span className="operator-client-chat-label">Open chat</span>

@@ -473,8 +473,10 @@ const ToolRow: React.FC<ToolRowProps> = ({
       data-testid={`tool-row-${tool.functionName}`}
       role="button"
       tabIndex={0}
+      aria-expanded={isSelected}
       onClick={onSelect}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onSelect();

@@ -192,7 +192,7 @@
     --accent: var(--pellier-burgundy);
     --accent-ink: var(--pellier-burgundy-deep);
     --red-1: var(--pellier-burgundy);
-    --red-soft: #f1e1e5;
+    --red-soft: var(--pellier-burgundy-tint);
     --dusk: var(--dl-ink);
     --bg-primary: var(--dl-bg);
     --bg-secondary: var(--dl-paper-2);
@@ -1165,7 +1165,7 @@
 .pellier-action:hover { text-decoration: none; }
 .pellier-action:focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 3px; }
 .pellier-action--primary { background: var(--pellier-burgundy); color: var(--cream-1, #faf7f2); }
-.pellier-action--primary:hover { background: color-mix(in srgb, var(--pellier-burgundy) 86%, #000); }
+.pellier-action--primary:hover { border-color: var(--pellier-burgundy-deep); background: var(--pellier-burgundy-deep); }
 .pellier-action--ghost { background: var(--cream-elev, #fbf8f2); border-color: var(--sand); color: var(--ink); }
 .pellier-action--ghost:hover { border-color: var(--pellier-burgundy); color: var(--pellier-burgundy); }
 .pellier-action--sm { min-height: 40px; padding: 10px 18px; font-size: 13px; }

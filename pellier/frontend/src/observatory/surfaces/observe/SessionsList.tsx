@@ -24,14 +24,13 @@ export const SESSION_PAGE_SIZE = 8;
  * ----------------------------------------------------------------------- */
 
 /**
- * Sort sessions by timestamp ascending (earliest first) so the
- * instructor-view list reads Marco → Anna → Theo, matching the
- * canonical persona order used everywhere else in the Observatory.
+ * Put the latest recorded activity first so a participant can find the turn
+ * they just completed. The lab collection owns the teaching sequence.
  * Returns a new array; does not mutate the input.
  */
 export function sortSessionsByRecency(sessions: Session[]): Session[] {
   return [...sessions].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
 }
 

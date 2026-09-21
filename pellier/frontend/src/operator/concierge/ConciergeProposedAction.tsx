@@ -26,6 +26,7 @@ import ActionAssurance from '../components/ActionAssurance'
 import { fetchReview } from '../../services/operator'
 import type { OperatorReviewDetail } from '../../services/operator'
 import type { ConciergeProposedAction } from '../../services/operatorConcierge'
+import { conversationReviewHref } from './conversationLinks'
 
 const EXECUTION_COPY: Record<string, string> = {
   available: 'Available',
@@ -57,9 +58,12 @@ function reasonLabel(reason: string): string {
 
 interface Props {
   action: ConciergeProposedAction
+  customerId?: string
+  sessionId?: string | null
+  turnId?: string | null
 }
 
-const ConciergeProposedActionCard: React.FC<Props> = ({ action }) => {
+const ConciergeProposedActionCard: React.FC<Props> = ({ action, customerId, sessionId, turnId }) => {
   const [review, setReview] = useState<OperatorReviewDetail | null>(null)
   const [readState, setReadState] = useState<'loading' | 'ready' | 'failed'>('loading')
   const reviewId = action.reviewId ?? null
@@ -169,17 +173,16 @@ const ConciergeProposedActionCard: React.FC<Props> = ({ action }) => {
           <p className="operator-concierge-proposal-note">
             Review #{reviewId} is saved in Action Queue.{' '}
             {humanState === 'confirmation_required'
-              ? 'Open it to confirm or decline this return. Execution is a separate step.'
+              ? 'Open it to confirm or decline these terms. Execution is a separate step.'
               : 'Open it to read the current decision and execution evidence.'}
           </p>
           <Link
             className="operator-concierge-proposal-link"
-            to={`/operator/reviews/${reviewId}`}
+            to={conversationReviewHref(reviewId, sessionId, turnId, customerId)}
             data-testid="operator-concierge-proposal-review-link"
           >
-            {humanState === 'confirmation_required' ? 'Review this return'
+            {humanState === 'confirmation_required' ? action.tool === 'initiate_return' ? 'Review this return' : 'Review this action'
               : humanState ? 'View review outcome' : `Open review #${reviewId}`}
-            <span aria-hidden="true">&rarr;</span>
           </Link>
         </>
       ) : null}
@@ -189,9 +192,12 @@ const ConciergeProposedActionCard: React.FC<Props> = ({ action }) => {
 
 interface ListProps {
   actions: ConciergeProposedAction[]
+  customerId?: string
+  sessionId?: string | null
+  turnId?: string | null
 }
 
-const ConciergeProposedActions: React.FC<ListProps> = ({ actions }) => {
+const ConciergeProposedActions: React.FC<ListProps> = ({ actions, customerId, sessionId, turnId }) => {
   if (!actions.length) return null
   return (
     <>
@@ -199,6 +205,9 @@ const ConciergeProposedActions: React.FC<ListProps> = ({ actions }) => {
       {actions.map((action) => (
         <ConciergeProposedActionCard
           action={action}
+          customerId={customerId}
+          sessionId={sessionId}
+          turnId={turnId}
           key={`${action.tool}-${action.reviewId ?? action.state}`}
         />
       ))}

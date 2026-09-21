@@ -85,7 +85,7 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
         (request) => request.role === 'user' && request.turnId === message.turnId,
       )
       return (
-        <li className="operator-concierge-turn" key={message.messageId} data-role="assistant">
+        <li className="operator-concierge-turn" key={message.messageId} data-role="assistant" data-turn-id={message.turnId} tabIndex={-1}>
           {message.content ? (
             <div className="operator-concierge-primary"
                  data-workflow={artifact.workflow || 'client_summary'}>
@@ -130,7 +130,7 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
             </section>
           ) : null}
           {artifact.proposedActions?.length ? (
-            <ConciergeProposedActions actions={artifact.proposedActions} />
+            <ConciergeProposedActions actions={artifact.proposedActions} customerId={customerId} sessionId={sessionId} turnId={message.turnId} />
           ) : null}
           {message === latestAnswer ? nextStep : null}
           {/* Products come before the sections: an operator asked for options, so

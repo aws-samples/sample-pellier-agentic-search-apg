@@ -88,7 +88,7 @@
      so they substituted THIS value and shipped terracotta everywhere. One
      alias, one colour, no scope-dependent brand mark. */
   --obs-red-1:      var(--pellier-burgundy);
-  --obs-red-soft:   var(--dl-accent-soft);
+  --obs-red-soft:   var(--pellier-burgundy-tint);
   --obs-green-1:    var(--dl-ok);
   --obs-green-soft: rgba(63, 98, 18, 0.12);
   --obs-espresso-1: var(--dl-ink);
@@ -101,12 +101,12 @@
        --obs-amber-1   caution, not failure. `--dl-warn` is the palette's
                        existing token for exactly that state, so this reuses it
                        rather than introducing a fourth warning colour.
-       --obs-burgundy  15 call sites, all wanting the deep accent already
-                       defined as `--obs-accent-2`.
+       --obs-burgundy  the secondary brand tone, resolved directly at :root
+                       so it does not depend on a descendant-only alias.
        --obs-shipped   DAYLIGHT_INTEGRATION.md documents `--dl-ok` as the
                        "shipped" status colour. */
   --obs-amber-1:    var(--dl-warn);
-  --obs-burgundy:   var(--obs-accent-2);
+  --obs-burgundy:   var(--pellier-burgundy-soft);
   --obs-shipped:    var(--dl-ok);
 
   /* Type aliases for the Observatory */

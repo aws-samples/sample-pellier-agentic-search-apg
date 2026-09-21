@@ -64,6 +64,7 @@ const ClientRecordPage: React.FC = () => {
   const { customerId = '' } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const conversationParams = new URLSearchParams(location.search)
   const [guidedServiceRecovery] = useState(
     () =>
       new URLSearchParams(location.search).get('guided') ===
@@ -358,7 +359,7 @@ const ClientRecordPage: React.FC = () => {
                 : 'Investigate the request against current records.'}
             </p>
             <a
-              href="#operator-concierge-title"
+              href="#operator-concierge"
               className="operator-service-request-action"
             >
               Investigate case
@@ -580,6 +581,8 @@ const ClientRecordPage: React.FC = () => {
           spendLabel={`${money(client.spend12mo)} \u00b7 12mo spend`}
           record={record}
           guidedServiceRecovery={guidedServiceRecovery}
+          initialSessionId={guidedServiceRecovery ? null : conversationParams.get('session')}
+          initialTurnId={guidedServiceRecovery ? null : conversationParams.get('turn')}
         />
       </div>
     </div>

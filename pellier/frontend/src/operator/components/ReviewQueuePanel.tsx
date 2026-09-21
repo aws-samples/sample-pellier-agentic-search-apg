@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { ChevronDown, Search } from 'lucide-react'
 import { useReviewQueue } from '../hooks/useReviewQueue'
 import { outcomeKind, outcomeLine } from '../surfaces/ReviewQueue'
 import ClientAvatar from './ClientAvatar'
@@ -9,6 +9,9 @@ import ClientAvatar from './ClientAvatar'
 export default function ReviewQueuePanel() {
   const { queue, error } = useReviewQueue()
   const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState(false)
+  const { pathname } = useLocation()
+  useEffect(() => { setExpanded(false) }, [pathname])
   const needle = query.trim().toLowerCase()
   const reviews = queue?.reviews.filter(review =>
     [review.customerName, review.productName, review.issue, String(review.reviewId)]
@@ -17,6 +20,11 @@ export default function ReviewQueuePanel() {
 
   return (
     <aside className="operator-queue-panel" aria-label="Review queue">
+      <button className="operator-queue-toggle" type="button" aria-expanded={expanded}
+        aria-controls="operator-review-queue-content" onClick={() => setExpanded(value => !value)}>
+        Browse action queue <ChevronDown size={16} aria-hidden="true" />
+      </button>
+      <div id="operator-review-queue-content" className="operator-queue-content" data-expanded={expanded}>
       <div className="operator-queue-panel-heading">
         <h2>Review desk</h2>
         {queue ? <span>{queue.pendingCount} pending</span> : null}
@@ -53,6 +61,7 @@ export default function ReviewQueuePanel() {
       {queue && !reviews.length ? <p className="operator-queue-panel-note">
         {needle ? 'No reviews match this client or piece.' : 'No prepared actions in the queue.'}
       </p> : null}
+      </div>
     </aside>
   )
 }

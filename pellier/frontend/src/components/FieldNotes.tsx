@@ -16,9 +16,9 @@ import { cssVar as c } from '../design/cssVars'
 const RULE_1 = 'rgba(45, 24, 16, 0.08)'
 
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
-const MONO_STACK = 'JetBrains Mono, ui-monospace, monospace'
 
 interface Note {
+  id: string
   kicker: string
   title: string
   body: string[]
@@ -27,6 +27,7 @@ interface Note {
 
 const NOTES: readonly Note[] = [
   {
+    id: 'field-note-editors',
     kicker: 'Field note · No. 01',
     title: 'On asking for the piece, not the product.',
     body: [
@@ -36,6 +37,7 @@ const NOTES: readonly Note[] = [
     signature: 'The editors',
   },
   {
+    id: 'field-note-marco',
     kicker: 'Field note · No. 02',
     title: 'Marco, on being remembered.',
     body: [
@@ -45,6 +47,7 @@ const NOTES: readonly Note[] = [
     signature: 'Marco, a regular',
   },
   {
+    id: 'field-note-anna',
     kicker: 'Field note · No. 03',
     title: 'Anna, on gifting as a practiced art.',
     body: [
@@ -54,6 +57,7 @@ const NOTES: readonly Note[] = [
     signature: 'Anna, a gift-giver',
   },
   {
+    id: 'field-note-theo',
     kicker: 'Field note · No. 04',
     title: 'Theo, on pieces that wear in.',
     body: [
@@ -78,7 +82,7 @@ export default function FieldNotes() {
         <header style={{ marginBottom: 48 }}>
           <p
             style={{
-              fontFamily: MONO_STACK,
+              fontFamily: 'var(--sans)',
               fontSize: 11,
               letterSpacing: '0.24em',
               textTransform: 'uppercase',
@@ -139,15 +143,19 @@ export default function FieldNotes() {
           {NOTES.map((note, i) => (
             <article
               key={note.title}
+              id={note.id}
+              tabIndex={-1}
+              aria-labelledby={`${note.id}-heading`}
               data-testid={`field-note-${i}`}
               style={{
+                scrollMarginTop: 'calc(var(--pellier-surface-bar-height, 64px) + 96px)',
                 borderTop: `1px solid ${RULE_1}`,
                 paddingTop: 32,
               }}
             >
               <p
                 style={{
-                  fontFamily: MONO_STACK,
+                  fontFamily: 'var(--sans)',
                   fontSize: 11,
                   letterSpacing: '0.22em',
                   textTransform: 'uppercase',
@@ -159,6 +167,7 @@ export default function FieldNotes() {
                 {note.kicker}
               </p>
               <h3
+                id={`${note.id}-heading`}
                 style={{
                   fontFamily: FRAUNCES_STACK,
                   fontStyle: 'italic',

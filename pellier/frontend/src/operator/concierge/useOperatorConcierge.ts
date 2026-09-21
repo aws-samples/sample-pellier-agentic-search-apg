@@ -71,6 +71,8 @@ export interface ConciergeController {
 interface ConciergeOptions {
   /** A guided workshop run starts clean instead of replaying the prior case file. */
   resumeLatest?: boolean
+  /** A review returns to its originating conversation, even if a newer one exists. */
+  initialSessionId?: string | null
 }
 
 /** A stable key per submission so a network retry cannot duplicate the turn. */
@@ -84,6 +86,7 @@ export function useOperatorConcierge(
   options: ConciergeOptions = {},
 ): ConciergeController {
   const resumeLatest = options.resumeLatest ?? true
+  const initialSessionId = options.initialSessionId ?? null
   const [capabilities, setCapabilities] = useState<CapabilitySnapshot | null>(null)
   const [config, setConfig] = useState<ConciergeConfig | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -130,7 +133,9 @@ export function useOperatorConcierge(
     void Promise.allSettled([
       fetchCapabilities(),
       fetchConciergeConfig(),
-      resumeLatest
+      initialSessionId
+        ? Promise.resolve(initialSessionId)
+        : resumeLatest
         ? fetchLatestConciergeSession(clientId)
         : Promise.resolve(null),
     ]).then(async ([caps, cfg, latest]) => {
@@ -163,7 +168,7 @@ export function useOperatorConcierge(
           const session = await fetchConciergeSession(clientId, resumed)
           if (!isCurrentClient()) return
           // Never render another client's conversation or silently replace it.
-          if (session.customerId !== clientId) throw new Error('conversation_scope_mismatch')
+          if (session.customerId !== clientId || session.sessionId !== resumed) throw new Error('conversation_scope_mismatch')
           setSessionId(session.sessionId)
           setMessages(session.messages)
           if (session.messages.at(-1)?.turnState === 'incomplete') {
@@ -186,7 +191,7 @@ export function useOperatorConcierge(
       }
       setLoadedClientId(clientId)
     })
-  }, [clientId, resumeLatest])
+  }, [clientId, resumeLatest, initialSessionId])
 
   const governedActionsAvailable = Boolean(capabilities?.governedActionsAvailable)
   const composerEnabled = Boolean(
@@ -275,11 +280,11 @@ export function useOperatorConcierge(
     try {
       const [caps, cfg, latest] = await Promise.all([
         fetchCapabilities(), fetchConciergeConfig(),
-        sessionId ? Promise.resolve(sessionId) : fetchLatestConciergeSession(clientId),
+        sessionId || initialSessionId ? Promise.resolve(sessionId || initialSessionId) : fetchLatestConciergeSession(clientId),
       ])
       const session = latest ? await fetchConciergeSession(clientId, latest) : null
       if (!current()) return
-      if (session && session.customerId !== clientId) throw new Error('conversation_scope_mismatch')
+      if (session && (session.customerId !== clientId || session.sessionId !== latest)) throw new Error('conversation_scope_mismatch')
       setCapabilities(caps)
       setConfig(cfg)
       setSessionId(session?.sessionId ?? null)
@@ -301,7 +306,7 @@ export function useOperatorConcierge(
     } finally {
       if (current()) busy.current = false
     }
-  }, [clientId, sessionId])
+  }, [clientId, sessionId, initialSessionId])
 
   const startNew = useCallback(() => {
     if (busy.current || !config?.composerEnabled) return

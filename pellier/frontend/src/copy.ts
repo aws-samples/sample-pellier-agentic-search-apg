@@ -515,42 +515,46 @@ export interface StoryboardTeaser {
   title: string;
   excerpt: string;
   link: string;
+  noteId: string;
   imageUrl: string;
   imageAlt: string;
 }
 export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
   {
-    badge: "MOOD FILM",
-    volume: "Vol. 12",
-    theme: "Summer",
-    title: "A summer worth slowing for.",
+    badge: "FIELD NOTE",
+    volume: "No. 02",
+    theme: "Marco",
+    title: "On being remembered.",
     excerpt:
-      "Linen, ceramic, light that lingers. Three days in the hills with the pieces we kept reaching for.",
-    link: "Read the notes \u203a",
+      "A linen shirt, a holdall, a thread worth keeping. How a returning shopper's earlier choices shape what comes next.",
+    link: "Read Marco's note \u203a",
+    noteId: "field-note-marco",
     imageUrl: "/products/story-summer.png",
     imageAlt: "A folded stack of oatmeal linen shirt and trousers on a travertine ledge, a stem of dried wheat across it and a charcoal stoneware tumbler beside it, in raking afternoon light",
   },
   {
-    badge: "VISION BOARD",
-    volume: "Vol. 11",
-    theme: "The Makers",
-    title: "The last clay studio in Ojai.",
+    badge: "FIELD NOTE",
+    volume: "No. 03",
+    theme: "Anna",
+    title: "On gifting as a practiced art.",
     excerpt:
-      "One kiln, two hands, forty years of practice. A visit with the makers behind our ceramic line.",
-    link: "Read the notes \u203a",
-    imageUrl: "/products/story-makers.png",
-    imageAlt: "A freshly thrown charcoal stoneware bowl resting on a potter's wheel with a wooden rib tool, olive-branch shadows on the plaster wall behind",
-  },
-  {
-    badge: "BEHIND THE SCENES",
-    volume: "Vol. 10",
-    theme: "The Edit",
-    title: "How we chose the Edit.",
-    excerpt:
-      "Nine pieces survived the cut. A quiet walk-through of the edit room conversations that got us here.",
-    link: "Read the notes \u203a",
+      "Start with the person, then the piece. Anna's gift search holds the occasion and the budget in equal regard.",
+    link: "Read Anna's note \u203a",
+    noteId: "field-note-anna",
     imageUrl: "/products/story-edit.png",
     imageAlt: "Linen swatches in sage, oat, charcoal and warm white fanned across an oak table, with a folded linen shirt, a stoneware cup, wooden rings and tailor's shears",
+  },
+  {
+    badge: "FIELD NOTE",
+    volume: "No. 04",
+    theme: "Theo",
+    title: "On pieces that wear in.",
+    excerpt:
+      "Stoneware, ceramics, and the pleasure of a piece that lasts. Theo returns for the things that earn their place over time.",
+    link: "Read Theo's note \u203a",
+    noteId: "field-note-theo",
+    imageUrl: "/products/story-makers.png",
+    imageAlt: "A freshly thrown charcoal stoneware bowl resting on a potter's wheel with a wooden rib tool, olive-branch shadows on the plaster wall behind",
   },
 ];
 

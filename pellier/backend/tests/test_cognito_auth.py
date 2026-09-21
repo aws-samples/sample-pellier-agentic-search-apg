@@ -195,6 +195,39 @@ def test_access_token_with_aud_instead_of_client_id_fails(
     assert getattr(exc.value, "status_code", None) == 401
 
 
+@pytest.mark.parametrize("claim,offset,allowed", [
+    ("iat", 3, True),
+    ("nbf", 3, True),
+    ("exp", -3, True),
+    ("iat", 30, False),
+    ("nbf", 30, False),
+    ("exp", -30, False),
+])
+def test_clock_skew_is_small_and_bounded(
+    auth_service: CognitoAuthService, signer: _Signer,
+    monkeypatch: pytest.MonkeyPatch, claim: str, offset: int, allowed: bool,
+) -> None:
+    from datetime import datetime, timezone
+
+    now = int(time.time())
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromtimestamp(now, tz=timezone.utc)
+
+    monkeypatch.setattr(jwt.api_jwt, "datetime", FixedClock)
+    claims = _valid_access_claims()
+    claims[claim] = now + offset
+    token = signer.sign(claims)
+    if allowed:
+        assert _run(auth_service.validate_jwt(token)).user_id == claims["sub"]
+    else:
+        with pytest.raises(Exception) as exc:
+            _run(auth_service.validate_jwt(token))
+        assert getattr(exc.value, "status_code", None) == 401
+
+
 # ---------------------------------------------------------------------------
 # validate_jwt — failure paths
 # ---------------------------------------------------------------------------

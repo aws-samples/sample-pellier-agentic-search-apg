@@ -63,8 +63,8 @@ describe('SessionsList live data boundary', () => {
         <SessionsList />
       </MemoryRouter>,
     )
-    expect(screen.getByText('Durable live Aurora session')).toBeInTheDocument()
-    expect(screen.getByText('Anna durable session 1')).toBeInTheDocument()
+    expect(screen.getByText('Anna durable session 9')).toBeInTheDocument()
+    expect(screen.queryByText('Durable live Aurora session')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByTestId('observatory-sessions-search'), {
       target: { value: 'durable live' },
@@ -81,7 +81,7 @@ describe('SessionsList live data boundary', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Durable live Aurora session')).toBeInTheDocument()
+    expect(screen.getByText('Anna durable session 9')).toBeInTheDocument()
     expect(screen.queryByText('A different live Aurora session')).not.toBeInTheDocument()
     expect(
       screen.queryByText('What linen do you have for 10 days in Goa?'),
@@ -96,12 +96,12 @@ describe('SessionsList live data boundary', () => {
     )
 
     expect(screen.getByText('Showing 8 of 10 recorded sessions')).toBeInTheDocument()
-    expect(screen.queryByText('Anna durable session 9')).not.toBeInTheDocument()
+    expect(screen.queryByText('Durable live Aurora session')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('sessions-load-more'))
 
     expect(screen.getByText('Showing 10 of 10 recorded sessions')).toBeInTheDocument()
-    expect(screen.getByText('Anna durable session 9')).toBeInTheDocument()
+    expect(screen.getByText('Durable live Aurora session')).toBeInTheDocument()
     expect(screen.queryByTestId('sessions-load-more')).not.toBeInTheDocument()
   })
 

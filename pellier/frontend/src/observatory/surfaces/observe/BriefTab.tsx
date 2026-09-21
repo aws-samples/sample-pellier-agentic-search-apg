@@ -520,7 +520,7 @@ const BriefTab: React.FC = () => {
         <Eyebrow
           label={`Personalization Agent's Brief · Folio ${brief.folioNumber}`}
         />
-        <h1
+        <h2
           style={{
             fontFamily: 'var(--obs-sans)',
             fontSize: '36px',
@@ -532,7 +532,7 @@ const BriefTab: React.FC = () => {
           }}
         >
           {brief.headline}
-        </h1>
+        </h2>
         <div
           style={{
             fontFamily: 'var(--obs-mono)',

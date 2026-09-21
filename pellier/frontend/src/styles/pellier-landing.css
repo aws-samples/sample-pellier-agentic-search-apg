@@ -33,24 +33,21 @@
  * ======================================================================== */
 
 :root {
-  /* Brand burgundy. THE burgundy: this is the single swatch the whole
-     product resolves to. `--accent` (storefront + operator desk),
+  /* Bordeaux: the shared brand swatch for the whole product.
+     `--accent` (storefront + operator desk),
      `--obs-red-1` (Observatory) and `--pl-accent` (workbench) are all
-     aliases of it. Three literals (#6d1f28, #70232e, #7a263a) used to render
-     as three different burgundies on one screen; changing the house colour
-     now means changing this line. */
-  --pellier-burgundy: #6d1f28;
-  --pellier-burgundy-soft: #8a3943;
+     aliases of it. The dark wine has a quiet plum undertone beside ivory and
+     espresso without borrowing the red used for blocked outcomes. */
+  --pellier-burgundy: #481626;
+  --pellier-burgundy-soft: #713348;
+  --pellier-burgundy-tint: #f2e9eb;
   /* Pressed, hovered and visited authority. Deep enough to read as the same
      colour under pressure rather than as a second hue. */
-  --pellier-burgundy-deep: #55181f;
-  --pellier-burgundy-rgb: 109, 31, 40;
-  /* The same authority, lightened for espresso grounds. `--pellier-burgundy`
-     on `--ink` measures 1.61:1, so the announcement strip's label and its
-     presence dot were invisible on the one bar every shopper passes through.
-     This is that hue carried up until it clears AA: 5.6:1 on #1f1410. Use it
-     wherever burgundy has to speak on a dark surface; never gray. */
-  --pellier-burgundy-on-dark: #c17c83;
+  --pellier-burgundy-deep: #30101b;
+  --pellier-burgundy-rgb: 72, 22, 38;
+  /* A lighter wine for legible accents on espresso grounds. */
+  --pellier-burgundy-on-dark: #c99aa9;
+  --pellier-action-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 2px 5px rgba(var(--pellier-burgundy-rgb), 0.12);
   /* Signature copper: light on chocolate, deeper on the selected ivory pill. */
   --pellier-copper-on-dark: #da9562;
   --pellier-copper: #9a4d20;
@@ -104,7 +101,7 @@
   text-transform: uppercase;
 }
 
-/* Primary storefront action. Burgundy fill, cream label: 8.9:1. */
+/* Primary storefront action. Dark Bordeaux fill and a warm ivory label. */
 .pellier-action {
   display: inline-flex;
   min-height: 46px;
@@ -122,13 +119,15 @@
   letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
+  box-shadow: var(--pellier-action-shadow);
   transition:
     background-color var(--gov-motion-base, 200ms) ease,
     transform var(--gov-motion-fast, 120ms) ease;
 }
 
 .pellier-action:hover {
-  background: var(--pellier-burgundy-soft);
+  border-color: var(--pellier-burgundy-deep);
+  background: var(--pellier-burgundy-deep);
 }
 
 .pellier-action:active {

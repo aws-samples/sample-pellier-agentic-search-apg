@@ -23,7 +23,7 @@
 .memory-showcase summary { cursor: pointer; color: var(--obs-ink-2); font-size: 13px; line-height: 1.5; min-height: 44px; padding: 12px 0; }
 .memory-showcase code, .memory-showcase pre { font-family: var(--obs-mono); font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .memory-showcase details > code { display: block; margin: 8px 0; }
-.memory-showcase pre { padding: 14px; background: var(--obs-cream-2); border-radius: 8px; max-height: 280px; overflow: auto; line-height: 1.6; }
+.memory-showcase pre { padding: 14px; color: var(--obs-ink-1); background: var(--obs-cream-2); border-radius: 8px; max-height: 280px; overflow: auto; line-height: 1.6; }
 .memory-showcase-tabs { flex-wrap: wrap; overflow: visible; margin-top: 24px; }
 .memory-showcase-tabs > button { flex-shrink: 0; border-radius: 0; }
 .memory-showcase-records { padding: 22px 0 4px; }

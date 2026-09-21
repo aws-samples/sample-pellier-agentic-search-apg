@@ -187,7 +187,7 @@ function presentIdentity(value: string): string {
 }
 
 const OperatorFrame: React.FC = () => {
-  const { pathname, hash } = useLocation()
+  const { pathname, search, hash } = useLocation()
   const onClient = pathname.startsWith('/operator/clients/')
   const chatActive = pathname === '/operator/chat' || (onClient && hash.startsWith('#operator-concierge'))
   const resource = useQueueResource()
@@ -211,7 +211,7 @@ const OperatorFrame: React.FC = () => {
               <nav className="operator-topbar-nav" aria-label="Operator sections">
                 <ClientBookNavigation />
                 <Link
-                  to={onClient ? `${pathname}#operator-concierge` : '/operator/chat?membership=all'}
+                  to={onClient ? `${pathname}${search}#operator-concierge` : '/operator/chat?membership=all'}
                   className={`operator-topbar-link operator-chat-nav-link${chatActive ? ' operator-topbar-link-active' : ''}`}
                   aria-current={chatActive ? 'page' : undefined}
                   data-testid="operator-chat-link"

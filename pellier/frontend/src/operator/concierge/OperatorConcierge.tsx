@@ -13,6 +13,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import type { OperatorClientRecord } from '../../services/operator'
 
@@ -31,6 +32,9 @@ import ConciergeComposer from './ConciergeComposer'
 import ConciergeConversation from './ConciergeConversation'
 import ConciergeEmptyState from './ConciergeEmptyState'
 import { useOperatorConcierge } from './useOperatorConcierge'
+import { conversationReviewHref } from './conversationLinks'
+import { useOperatorQueueRefresh } from '../shell/OperatorFrame'
+import { useReviewQueue } from '../hooks/useReviewQueue'
 
 interface Props {
   clientId: string
@@ -41,6 +45,8 @@ interface Props {
   record: OperatorClientRecord | null
   /** Starts the canonical Jessica case as a fresh, observable run. */
   guidedServiceRecovery?: boolean
+  initialSessionId?: string | null
+  initialTurnId?: string | null
 }
 
 const OperatorConcierge: React.FC<Props> = ({
@@ -50,10 +56,15 @@ const OperatorConcierge: React.FC<Props> = ({
   spendLabel,
   record,
   guidedServiceRecovery = false,
+  initialSessionId,
+  initialTurnId,
 }) => {
   const concierge = useOperatorConcierge(clientId, {
     resumeLatest: !guidedServiceRecovery,
+    initialSessionId,
   })
+  const refreshQueue = useOperatorQueueRefresh()
+  const { queue } = useReviewQueue()
   const hasConversation = concierge.messages.length > 0
   const inFlight = concierge.pendingRequest !== null
   // Deterministic, from loaded state. No model decides what to suggest.
@@ -67,6 +78,28 @@ const OperatorConcierge: React.FC<Props> = ({
       (action) => action.reviewId != null,
     ),
   )
+  // A durable proposal can precede later discussion. Keep its handoff reachable
+  // without representing the historical proposal as a current pending decision.
+  const preparedTurn = [...concierge.messages].reverse().find(message =>
+    message.role === 'assistant' && message.turnState === 'complete' &&
+    message.artifact?.proposedActions?.some(action => action.reviewId != null),
+  )
+  const preparedReviewIds = [...new Set(preparedTurn?.artifact?.proposedActions
+    ?.flatMap(action => action.reviewId != null ? [action.reviewId] : []) ?? [])]
+  const preparedReviewKey = preparedReviewIds.join(',')
+  useEffect(() => {
+    if (preparedReviewKey) refreshQueue()
+  }, [preparedReviewKey, refreshQueue])
+  // A newer discussion may have no proposal of its own. The authenticated
+  // queue can still supply the next pending review for this same client.
+  const pendingClientReview = queue?.reviews?.find(review =>
+    review.customerId === clientId && review.humanState === 'confirmation_required',
+  )
+  const handoffReviewIds = preparedReviewIds.length ? preparedReviewIds
+    : pendingClientReview ? [pendingClientReview.reviewId] : []
+  const handoffTurnId = preparedTurn?.turnId ?? [...concierge.messages].reverse().find(
+    message => message.role === 'assistant' && message.turnState === 'complete',
+  )?.turnId
   const guidedCompletedTurns = useMemo(() => {
     if (!guidedServiceRecovery) return 0
     const answeredTurns = new Set(concierge.messages.filter(
@@ -127,6 +160,7 @@ const OperatorConcierge: React.FC<Props> = ({
 
   const body = useRef<HTMLDivElement | null>(null)
   const following = useRef(true)
+  const revealedTurn = useRef<string | null>(null)
   const [showLatest, setShowLatest] = useState(false)
   const goToLatest = () => {
     const el = body.current
@@ -140,9 +174,23 @@ const OperatorConcierge: React.FC<Props> = ({
     setShowLatest(false)
   }
   useEffect(() => {
+    const targetKey = `${concierge.sessionId}/${initialTurnId}`
+    if (initialTurnId && !inFlight && revealedTurn.current !== targetKey) {
+      const el = body.current
+      const target = [...(el?.querySelectorAll<HTMLElement>('[data-turn-id]') ?? [])]
+        .find(node => node.dataset.turnId === initialTurnId)
+      if (el && target) {
+        el.scrollTop += target.getBoundingClientRect().top - el.getBoundingClientRect().top
+        target.focus({ preventScroll: true })
+        revealedTurn.current = targetKey
+        following.current = false
+        setShowLatest(target !== el.querySelector('[data-role="assistant"]:last-child'))
+        return
+      }
+    }
     if (following.current) goToLatest()
     else setShowLatest(true)
-  }, [concierge.messages, concierge.pendingRequest, concierge.liveAnswer])
+  }, [concierge.messages, concierge.pendingRequest, concierge.liveAnswer, concierge.sessionId, initialTurnId, inFlight])
 
   const nextStep = !inFlight ? (
     <>
@@ -205,9 +253,12 @@ const OperatorConcierge: React.FC<Props> = ({
       data-testid="operator-concierge"
     >
       <header className="operator-concierge-head">
+        <div className="operator-concierge-heading-row">
         <h2 className="operator-concierge-title" id="operator-concierge-title">
           Operator Concierge
         </h2>
+        <a href="#operator-client-record" className="operator-concierge-record-link">Client record</a>
+        </div>
         {/*
           * Orientation, and only until it is no longer needed.
           *
@@ -315,6 +366,18 @@ const OperatorConcierge: React.FC<Props> = ({
         )}
       </div>
 
+      {!inFlight && handoffReviewIds.length ? (
+        <nav className="operator-concierge-review-handoff" aria-label="Prepared reviews" data-testid="operator-concierge-review-handoff">
+          <p>{preparedReviewIds.length
+            ? 'Prepared in this conversation. Review the exact terms and current outcome.'
+            : `A prepared action for ${clientName} is awaiting human review.`}</p>
+          <div>{handoffReviewIds.map(reviewId => (
+            <Link key={reviewId} to={conversationReviewHref(reviewId, concierge.sessionId, handoffTurnId, clientId)}>
+              Open review #{reviewId}
+            </Link>
+          ))}</div>
+        </nav>
+      ) : null}
       {hasNextStep || showLatest ? (
         <nav className="operator-concierge-navigation" aria-label="Conversation navigation">
           {showLatest ? <button type="button" className="operator-concierge-latest" onClick={goToLatest}>Latest reply</button> : null}

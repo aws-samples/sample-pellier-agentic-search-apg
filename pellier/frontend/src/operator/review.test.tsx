@@ -202,9 +202,9 @@ function renderQueue() {
   )
 }
 
-function renderRecord() {
+function renderRecord(entry = '/operator/reviews/12') {
   return render(
-    <MemoryRouter initialEntries={['/operator/reviews/12']}>
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/operator/reviews/:reviewId" element={<ReviewRecord />} />
       </Routes>
@@ -215,6 +215,30 @@ function renderRecord() {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+})
+
+it('returns from a review to the same client conversation and turn without deciding anything', async () => {
+  const mutations: string[] = []
+  mockFetch((url, init) => {
+    if (init?.method && init.method !== 'GET') mutations.push(url)
+    return { body: REVIEW_DETAIL }
+  })
+  renderRecord('/operator/reviews/12?client=CUST-THEO&session=case-session&turn=follow-up-turn')
+  expect(await screen.findByRole('link', { name: 'Return to conversation' })).toHaveAttribute(
+    'href', '/operator/clients/CUST-THEO?session=case-session&turn=follow-up-turn#operator-concierge',
+  )
+  expect(screen.getByTestId('operator-review-confirm')).toBeEnabled()
+  expect(screen.queryByTestId('operator-review-execute')).not.toBeInTheDocument()
+  expect(mutations).toEqual([])
+})
+
+it('discards another client’s conversation context on the review return link', async () => {
+  mockFetch(() => ({ body: REVIEW_DETAIL }))
+  renderRecord('/operator/reviews/12?client=CUST-JESSICA&session=other-session&turn=other-turn')
+  expect(await screen.findByTestId('operator-review-chat-link')).toHaveAttribute(
+    'href', '/operator/clients/CUST-THEO#operator-concierge',
+  )
+  expect(screen.queryByRole('link', { name: 'Return to conversation' })).not.toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------

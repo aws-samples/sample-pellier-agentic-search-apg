@@ -1,21 +1,7 @@
 /**
- * StoryboardPage - minimal `/storyboard` index route.
- *
- * Validates Requirements 1.13.1, 1.13.3, 1.13.4.
- *
- * Composition:
- *   - Header (sticky) with `current="stories"` so the Stories nav
- *     item takes the ink-highlighted current-page state (Req 1.13.4).
- *   - The 3-card StoryboardTeaser grid from the home page (Req 1.9 /
- *     4.8), reused as-is.
- *   - A single ComingSoonLine (`Coming soon - the full editorial hub
- *     arrives with the next Edit.`) in italic Fraunces (Req 1.13.1).
- *   - Footer, so the chrome matches the About page; the floating command
- *     pill stays off the editorial pages where it overlapped the prose.
- *     page (Req 1.13.1).
- *
- * The route is intentionally small - the full editorial hub lands in
- * a later Edit. Copy from copy.ts; Req 1.12 rules enforced there.
+ * Stories pairs three shopper introductions with their FieldNotes essays.
+ * Shared storefront chrome stays visible; the floating command pill stays
+ * off the editorial pages so it does not overlap the prose.
  */
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'

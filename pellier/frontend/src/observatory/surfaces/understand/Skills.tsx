@@ -483,6 +483,7 @@ const SkillCard: React.FC<SkillCardProps> = ({
     aria-pressed={isSelected}
     onClick={onSelect}
     onKeyDown={(e) => {
+      if (e.target !== e.currentTarget) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onSelect();
@@ -580,6 +581,9 @@ const SkillCard: React.FC<SkillCardProps> = ({
     <div>
       <Eyebrow label="Skill body (injected into system prompt)" />
       <pre
+        tabIndex={0}
+        role="region"
+        aria-label={`${skill.name} skill guidance`}
         style={{
           marginTop: '8px',
           padding: '18px 20px',

@@ -23,6 +23,7 @@ import { Link } from 'react-router-dom'
 
 interface AppErrorBoundaryProps {
   children: React.ReactNode
+  resetKey?: string
 }
 
 interface AppErrorBoundaryState {
@@ -42,6 +43,12 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('[AppErrorBoundary]', error, errorInfo)
+  }
+
+  componentDidUpdate(previous: AppErrorBoundaryProps): void {
+    if (this.state.hasError && previous.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null })
+    }
   }
 
   private handleReload = (): void => {

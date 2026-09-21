@@ -1,0 +1,1136 @@
+{
+  "stage": "initial inspection before fixes",
+  "viewports": [
+    1440,
+    768,
+    390
+  ],
+  "pageCount": 99,
+  "pageErrors": [],
+  "pages": [
+    {
+      "route": "/",
+      "width": 1440,
+      "disclosures": 9,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/product/2",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/about",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/storyboard",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/how-pellier-works",
+      "width": 1440,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator",
+      "width": 1440,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-JESSICA",
+      "width": 1440,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-THEO",
+      "width": 1440,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/reviews",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory",
+      "width": 1440,
+      "disclosures": 5,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/workbench",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/sessions",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/proof-board",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-lineage",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-turn",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/replacement",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/search",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/performance",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/tools",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/memory",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "pre"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1e1e5, background color: #f1ece1, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<pre>"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/skills",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "help": "Scrollable region must have keyboard access",
+          "nodes": [
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-care-card\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-gift-table\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-makers-shelf\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-packing-list\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-proof-counter\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/routing",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/architecture",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "div:nth-child(4) > span"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.63 (foreground color: #b88a3a, background color: #f3ebdc, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<span class=\"\" style=\"display: inline-flex...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/evaluations",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/production-patterns",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/settings",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern",
+      "width": 1440,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/authentication",
+      "width": 1440,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/permissions",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/agent-access",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/policies",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/actions",
+      "width": 1440,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/verification",
+      "width": 1440,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "disclosures": 9,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/product/2",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/about",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/storyboard",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/how-pellier-works",
+      "width": 768,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator",
+      "width": 768,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-JESSICA",
+      "width": 768,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-THEO",
+      "width": 768,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/reviews",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory",
+      "width": 768,
+      "disclosures": 5,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/workbench",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/sessions",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/proof-board",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-lineage",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-turn",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/replacement",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/search",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/performance",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/tools",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/memory",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "pre"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1e1e5, background color: #f1ece1, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<pre>"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/skills",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "help": "Scrollable region must have keyboard access",
+          "nodes": [
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-care-card\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-gift-table\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-makers-shelf\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-packing-list\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-proof-counter\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/routing",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/architecture",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "div:nth-child(4) > span"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.63 (foreground color: #b88a3a, background color: #f3ebdc, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<span class=\"\" style=\"display: inline-flex...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/evaluations",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/production-patterns",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/settings",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern",
+      "width": 768,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/authentication",
+      "width": 768,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/permissions",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/agent-access",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/policies",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/actions",
+      "width": 768,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/verification",
+      "width": 768,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "disclosures": 9,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/product/2",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/about",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/storyboard",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/how-pellier-works",
+      "width": 390,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator",
+      "width": 390,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-JESSICA",
+      "width": 390,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/clients/CUST-THEO",
+      "width": 390,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/operator/reviews",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory",
+      "width": 390,
+      "disclosures": 5,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/workbench",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/sessions",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/proof-board",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-lineage",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/operator-turn",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/replacement",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/search",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/performance",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/tools",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/memory",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "pre"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1e1e5, background color: #f1ece1, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<pre>"
+            }
+          ]
+        },
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "help": "Scrollable region must have keyboard access",
+          "nodes": [
+            {
+              "target": [
+                "pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre>"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/skills",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "help": "Scrollable region must have keyboard access",
+          "nodes": [
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-care-card\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-gift-table\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-makers-shelf\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-packing-list\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            },
+            {
+              "target": [
+                "div[data-testid=\"skill-card-the-proof-counter\"] > .observatory-exp-card > div:nth-child(3) > pre"
+              ],
+              "summary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable",
+              "html": "<pre style=\"margin-top: 8px; pad...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/routing",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/architecture",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "nodes": [
+            {
+              "target": [
+                "div:nth-child(4) > span"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.63 (foreground color: #b88a3a, background color: #f3ebdc, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+              "html": "<span class=\"\" style=\"display: inline-flex...\">"
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "route": "/observatory/evaluations",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/production-patterns",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/settings",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern",
+      "width": 390,
+      "disclosures": 2,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/authentication",
+      "width": 390,
+      "disclosures": 1,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/permissions",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/agent-access",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/policies",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/actions",
+      "width": 390,
+      "disclosures": 0,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    },
+    {
+      "route": "/observatory/govern/verification",
+      "width": 390,
+      "disclosures": 3,
+      "overflow": false,
+      "brokenImages": [],
+      "violations": [],
+      "error": null
+    }
+  ]
+}

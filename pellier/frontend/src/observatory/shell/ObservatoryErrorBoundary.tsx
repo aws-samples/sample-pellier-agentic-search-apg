@@ -17,6 +17,7 @@ import { Eyebrow } from '../components/Eyebrow';
 
 interface ObservatoryErrorBoundaryProps {
   children: React.ReactNode;
+  resetKey?: string;
 }
 
 interface ObservatoryErrorBoundaryState {
@@ -40,6 +41,12 @@ class ObservatoryErrorBoundary extends React.Component<
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log for debugging — could wire to telemetry in a future phase
     console.error('[ObservatoryErrorBoundary]', error, errorInfo);
+  }
+
+  componentDidUpdate(previous: ObservatoryErrorBoundaryProps): void {
+    if (this.state.hasError && previous.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   private handleReset = (): void => {

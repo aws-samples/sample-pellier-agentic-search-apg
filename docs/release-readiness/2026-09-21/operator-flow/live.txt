@@ -1,0 +1,18 @@
+
+Running 7 tests using 1 worker
+
+(node:37974) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:37974) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/operator-client-preview.spec.ts:39:3 › Operator client storefront handoff › the live client book stays balanced across all three membership rungs (1.9s)
+  ✓  2 [chromium] › e2e/operator-client-preview.spec.ts:55:5 › Operator client storefront handoff › live client chat and review navigation remain read-only at 1440px (7.5s)
+  ✓  3 [chromium] › e2e/operator-client-preview.spec.ts:55:5 › Operator client storefront handoff › live client chat and review navigation remain read-only at 768px (6.5s)
+  ✓  4 [chromium] › e2e/operator-client-preview.spec.ts:55:5 › Operator client storefront handoff › live client chat and review navigation remain read-only at 390px (6.6s)
+  ✓  5 [chromium] › e2e/operator-client-preview.spec.ts:91:3 › Operator client storefront handoff › Jessica stays a read-only preview and reflects her recorded return evidence (3.7s)
+  ✓  6 [chromium] › e2e/operator-client-preview.spec.ts:147:3 › Operator client storefront handoff › a client preview clears an unrelated shopper persona (3.4s)
+  ✓  7 [chromium] › e2e/operator-client-preview.spec.ts:163:3 › Operator client storefront handoff › a hero handoff performs the canonical persona switch (2.1s)
+
+  7 passed (32.4s)
+{"captures":9,"reviewId":14,"errors":[]}
+Temporary review identity removed.

@@ -379,17 +379,28 @@ describe('ProductDetailPage — Aurora layer', () => {
     expect(labels.join(' ')).not.toContain('tag.match')
   })
 
-  it('opens an enlarged view of the piece and closes it on Escape', async () => {
+  it('contains keyboard focus in image zoom and restores focus and scrolling on Escape', async () => {
     stubFetch(() => jsonResponse(detailPayload()))
 
     renderAt(`/product/${SUBJECT.id}`)
 
     const zoom = await screen.findByTestId('product-detail-zoom')
+    const previousOverflow = document.body.style.overflow
     await userEvent.click(zoom)
-    expect(screen.getByTestId('product-detail-zoom-dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('product-detail-zoom-dialog')).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+    const close = screen.getByRole('button', { name: 'Close enlarged image' })
+    await userEvent.tab()
+    expect(close).toHaveFocus()
+    await userEvent.tab()
+    expect(close).toHaveFocus()
+    await userEvent.tab({ shift: true })
+    expect(close).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByTestId('product-detail-zoom-dialog')).not.toBeInTheDocument()
+    expect(zoom).toHaveFocus()
+    expect(document.body.style.overflow).toBe(previousOverflow)
   })
 
   it('sets the piece name in the editorial display voice', async () => {

@@ -92,7 +92,7 @@ const ObservatoryFrame: React.FC = () => {
             }
           >
             <ObservatoryModeBanner />
-            <ObservatoryErrorBoundary key={pathname}>
+            <ObservatoryErrorBoundary resetKey={pathname}>
               <Outlet />
             </ObservatoryErrorBoundary>
           </main>

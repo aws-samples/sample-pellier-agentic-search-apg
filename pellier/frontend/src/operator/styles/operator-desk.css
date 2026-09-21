@@ -58,6 +58,8 @@
 .operator-desk-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); align-items: start; gap: 24px; }
 .operator-desk-case { min-width: 0; }
 .operator-queue-panel { position: sticky; top: var(--op-topbar-clearance); min-width: 0; }
+.operator-queue-toggle { display: none; }
+.operator-table-wrap:focus-visible { outline: 2px solid var(--op-authority); outline-offset: 3px; }
 .operator-queue-panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 15px; }
 .operator-queue-panel-heading h2 { margin: 0; font-family: var(--display); font-size: 26px; font-weight: 400; letter-spacing: var(--op-display-track); }
 .operator-queue-panel-heading>span { font-size: 11px; color: var(--op-muted); }
@@ -103,6 +105,21 @@
 .operator-case-entry-actions>span { max-width: 28ch; color: var(--op-muted); font: 400 11px/1.5 var(--sans); }
 .operator-chat-client-row { grid-template-columns: 72px minmax(0, 1fr) auto; }
 .operator-client-chat-label,.operator-client-chat-link { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 9px 16px; border: 1px solid var(--op-rule-strong); border-radius: 999px; color: var(--op-authority); font: 500 13px/1.4 var(--sans); text-decoration: none; white-space: nowrap; }
+.operator-client-chat-entry { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--op-authority); font: 500 13px/1.4 var(--sans); }
+.operator-concierge-heading-row { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
+.operator-concierge-record-link { display: inline-flex; align-items: center; min-height: 32px; color: var(--op-authority); font: 500 12px/1.4 var(--sans); text-underline-offset: 4px; }
+.operator-concierge-review-handoff { flex: 0 0 auto; padding-block: 12px; border-top: 1px solid var(--op-rule); font: 400 12px/1.5 var(--sans); }
+.operator-concierge-review-handoff p { margin: 0 0 8px; color: var(--op-ink-2); }
+.operator-concierge-review-handoff > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.operator-concierge-review-handoff a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 18px; border-radius: 999px; background: var(--op-authority); color: var(--op-paper); font-weight: 600; text-decoration: none; }
+.operator-concierge-review-handoff a:hover { background: var(--pellier-burgundy-deep); }
+
+/* Keep the conversation and its next action together on a workshop laptop or
+   phone. A long replay scrolls inside the pane, leaving the composer reachable. */
+@media (max-width: 1080px) {
+  .operator-workbench-concierge { height: calc(100svh - var(--op-topbar-clearance) - 16px); min-height: 560px; }
+  .operator-concierge-body { max-height: none; }
+}
 .operator-client-chat-link:hover { border-color: var(--op-authority); background: var(--op-paper-2); }
 .operator-client-chat-link:focus-visible { outline: 2px solid var(--op-authority); outline-offset: 3px; }
 .operator-review-client-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
@@ -151,6 +168,12 @@
   .operator-desk-case .operator-review-record-layout>* { grid-column: 1 / -1; }
 }
 @media (max-width: 1000px) {
+  .operator-desk-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .operator-queue-panel { position: static; }
+  .operator-queue-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--op-rule); background: transparent; color: var(--op-authority); font: 500 14px/1.4 var(--sans); cursor: pointer; }
+  .operator-queue-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+  .operator-queue-content[data-expanded='false'] { display: none; }
+  .operator-queue-content[data-expanded='true'] { padding-top: 16px; }
   .operator-workspace-layout { grid-template-columns: minmax(0, 1fr); }
   .operator-sidebar { position: static; min-height: auto; padding: 9px 20px; }
   .operator-sidebar-label,.operator-sidebar-note { display: none; }

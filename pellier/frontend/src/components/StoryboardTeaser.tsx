@@ -1,27 +1,9 @@
 /**
- * StoryboardTeaser - the 3-card editorial grid below the product sections.
- *
- * Validates Requirements 1.9.1, 1.9.2, 1.9.3, 1.9.4.
- *
- * Contract:
- *   - Renders exactly three cards in the authored order from
- *     `STORYBOARD_TEASERS` in copy.ts. Never a single editorial block
- *     (Req 1.9.1).
- *   - Each card has: editorial image with a golden wash overlay, a
- *     category badge, a volume number, a theme token, an italic
- *     Fraunces title, a 2-3 sentence excerpt, and a
- *     `Read the full vision \u203a` link in terracotta (Req 1.9.2).
- *   - Hovering a card scales its image to 1.05 (Req 1.9.3).
- *   - The eyebrow line composes to
- *     `{badge} \u00b7 {volume} \u00b7 {theme}` so the three cards read,
- *     in order, as: `MOOD FILM \u00b7 Vol. 12 \u00b7 Summer`,
- *     `VISION BOARD \u00b7 Vol. 11 \u00b7 The Makers`,
- *     `BEHIND THE SCENES \u00b7 Vol. 10 \u00b7 The Edit` (Req 1.9.4).
- *
- * Kept intentionally presentational - the home page composes it below
- * the product grid, and the Storyboard route (4.11) reuses it as-is.
+ * Three editorial introductions to the corresponding FieldNotes essays.
+ * Each title, excerpt and named link describes the note it opens.
  */
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { STORYBOARD_TEASERS, type StoryboardTeaser as StoryboardTeaserCard } from '../copy'
 import ResponsiveImage from './ResponsiveImage'
@@ -77,7 +59,7 @@ export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 
               margin: '12px 0 0',
             }}
           >
-            The Edit, in three volumes.
+            A few familiar faces.
           </Heading>
         </header>
 
@@ -210,9 +192,9 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         >
           {card.excerpt}
         </p>
-        <a
+        <Link
           data-testid={`storyboard-card-link-${index}`}
-          href="#field-notes-heading"
+          to={`#${card.noteId}`}
           style={{
             // Req 1.9.2 - terracotta link.
             color: c.accent,
@@ -226,7 +208,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           }}
         >
           {card.link}
-        </a>
+        </Link>
       </div>
     </article>
   )

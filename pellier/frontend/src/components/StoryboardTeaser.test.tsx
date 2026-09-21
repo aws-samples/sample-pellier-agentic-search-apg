@@ -8,30 +8,31 @@
  *     explicit done-when from task 4.8.
  *   - Each card renders the image, category badge, volume number,
  *     theme, italic Fraunces title, excerpt, and terracotta
- *     `Read the full vision \u203a` link (Req 1.9.2, 1.9.4).
+ *     `Read the note \u203a` link (Req 1.9.2, 1.9.4).
  *   - Hovering a card scales its image `transform` to `scale(1.05)`
  *     (Req 1.9.3).
  *   - The three cards render in the exact authored order:
- *     `MOOD FILM \u00b7 Vol. 12 \u00b7 Summer`,
- *     `VISION BOARD \u00b7 Vol. 11 \u00b7 The Makers`,
- *     `BEHIND THE SCENES \u00b7 Vol. 10 \u00b7 The Edit` (Req 1.9.4).
+ *     `FIELD NOTE \u00b7 No. 02 \u00b7 Marco`,
+ *     `FIELD NOTE \u00b7 No. 03 \u00b7 Anna`,
+ *     `FIELD NOTE \u00b7 No. 04 \u00b7 Theo` (Req 1.9.4).
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { MemoryRouter } from 'react-router-dom'
 import StoryboardTeaser from './StoryboardTeaser'
 import { STORYBOARD_TEASERS } from '../copy'
 import { imageSrc } from '../utils/assetPath'
 
 describe('StoryboardTeaser - 3-card grid (Req 1.9.1)', () => {
   it('renders exactly 3 cards, never 1', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
     const cards = screen.getAllByRole('listitem')
     expect(cards).toHaveLength(3)
   })
 
   it('renders each card from the authored STORYBOARD_TEASERS order', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     // The data source must carry exactly three authored cards; the
     // component should not pad or drop entries.
@@ -44,21 +45,21 @@ describe('StoryboardTeaser - 3-card grid (Req 1.9.1)', () => {
 
 describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
   it('renders the three cards with the exact eyebrow lines from the spec', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     expect(screen.getByTestId('storyboard-card-eyebrow-0')).toHaveTextContent(
-      'MOOD FILM \u00b7 Vol. 12 \u00b7 Summer',
+      'FIELD NOTE \u00b7 No. 02 \u00b7 Marco',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-1')).toHaveTextContent(
-      'VISION BOARD \u00b7 Vol. 11 \u00b7 The Makers',
+      'FIELD NOTE \u00b7 No. 03 \u00b7 Anna',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-2')).toHaveTextContent(
-      'BEHIND THE SCENES \u00b7 Vol. 10 \u00b7 The Edit',
+      'FIELD NOTE \u00b7 No. 04 \u00b7 Theo',
     )
   })
 
   it('renders the title, excerpt, and link for each card verbatim from copy.ts', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     STORYBOARD_TEASERS.forEach((card, i) => {
       const root = screen.getByTestId(`storyboard-card-${i}`)
@@ -75,7 +76,7 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
   })
 
   it('renders an editorial image with the golden wash overlay per card', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     STORYBOARD_TEASERS.forEach((card, i) => {
       const img = screen.getByTestId(
@@ -88,7 +89,7 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
   })
 
   it('renders titles in italic Fraunces', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
     for (let i = 0; i < STORYBOARD_TEASERS.length; i += 1) {
       const title = screen.getByTestId(`storyboard-card-title-${i}`)
       const style = title.getAttribute('style') ?? ''
@@ -97,8 +98,8 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     }
   })
 
-  it('renders each "Read the full vision" link in terracotta (var(--accent))', () => {
-    render(<StoryboardTeaser />)
+  it('renders each "Read the note" link in terracotta (var(--accent))', () => {
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
     for (let i = 0; i < STORYBOARD_TEASERS.length; i += 1) {
       const link = screen.getByTestId(`storyboard-card-link-${i}`)
       const style = link.getAttribute('style') ?? ''
@@ -112,7 +113,7 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
 
 describe('StoryboardTeaser - hover scale (Req 1.9.3)', () => {
   it('scales the image to 1.05 on mouse enter and resets on mouse leave', () => {
-    render(<StoryboardTeaser />)
+    render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     const card = screen.getByTestId('storyboard-card-0')
     const img = screen.getByTestId('storyboard-card-image-0')

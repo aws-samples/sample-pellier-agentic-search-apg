@@ -19,7 +19,7 @@
 
 import { CheckCircle2, CircleX, LoaderCircle } from 'lucide-react'
 import React, { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { MEMBERSHIP } from '../../data/membership'
 import { imageSrc } from '../../utils/assetPath'
@@ -38,6 +38,7 @@ import OperatorState from '../components/OperatorState'
 import MembershipRung from '../components/MembershipRung'
 import ShopperHandoffView from '../components/ShopperHandoffView'
 import { useOperatorQueueRefresh } from '../shell/OperatorFrame'
+import { conversationHref } from '../concierge/conversationLinks'
 
 function money(value: number): string {
   return value.toLocaleString('en-US', {
@@ -150,6 +151,7 @@ function describeDecisionError(code: string, missing: readonly string[] = []): s
 
 const ReviewRecordPage: React.FC = () => {
   const { reviewId } = useParams<{ reviewId: string }>()
+  const [params] = useSearchParams()
   const { user } = useAuth()
   const refreshQueue = useOperatorQueueRefresh()
   const [detail, setDetail] = useState<OperatorReviewDetail | null>(null)
@@ -332,6 +334,11 @@ const ReviewRecordPage: React.FC = () => {
     returns,
   } = detail
   const rung = MEMBERSHIP[client.membership]
+  // Keep the conversation the operator came from, including when it surfaced
+  // an already-open review. Never carry another client's navigation context.
+  const sourceSession = params.get('client') === client.customerId
+    ? params.get('session') : null
+  const chatHref = conversationHref(client.customerId, sourceSession, params.get('turn'))
   const pending = review.humanState === 'confirmation_required'
   // The return this review produced is not part of the client's prior history. It is
   // identified by the write key the execution receipt carries, not by being the newest
@@ -455,11 +462,11 @@ const ReviewRecordPage: React.FC = () => {
           </p>
           <div className="operator-review-client-actions">
           <Link
-            to={`/operator/clients/${encodeURIComponent(client.customerId)}#operator-concierge`}
+            to={chatHref}
             className="operator-client-chat-link"
             data-testid="operator-review-chat-link"
           >
-            Open client chat
+            {sourceSession ? 'Return to conversation' : 'Open client chat'}
           </Link>
           <Link
             to={`/operator/clients/${client.customerId}`}
@@ -513,7 +520,7 @@ const ReviewRecordPage: React.FC = () => {
       >
         <h2 className="operator-card-title">Order</h2>
         {order ? (
-          <div className="operator-table-wrap"><table className="operator-table">
+          <div className="operator-table-wrap" tabIndex={0} role="region" aria-label="Order details"><table className="operator-table">
             <thead>
               <tr>
                 <th scope="col">Order</th>
@@ -619,7 +626,7 @@ const ReviewRecordPage: React.FC = () => {
         <p className="operator-table-id operator-review-action-name">
           {review.action}
         </p>
-        <div className="operator-table-wrap"><table className="operator-table">
+        <div className="operator-table-wrap" tabIndex={0} role="region" aria-label="Exact action parameters"><table className="operator-table">
           <thead>
             <tr>
               <th scope="col">Parameter</th>

@@ -1,0 +1,12 @@
+
+> pellier-frontend@1.0.0 test
+> vitest --run src/operator
+
+
+ RUN  v4.1.11 /Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass/pellier/frontend
+
+
+ Test Files  16 passed (16)
+      Tests  243 passed (243)
+   Start at  13:52:55
+   Duration  6.07s (transform 4.56s, setup 9.28s, import 10.35s, tests 6.96s, environment 25.88s)

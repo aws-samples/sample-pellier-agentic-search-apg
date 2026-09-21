@@ -71,7 +71,7 @@
   --obs-paper-bright: #fffdfa;
   --obs-sand-2: #f8f1df;
   --obs-sand-line: #d8c9a9;
-  --obs-red-soft: #f3e9eb;
+  --obs-red-soft: var(--pellier-burgundy-tint);
   /* `--display` and `--obs-display` are deliberately NOT remapped here. The
      comment above already documents the two-register system: Fraunces carries
      the one page-level title per screen (`.observatory-page-title`,
@@ -84,7 +84,7 @@
   --obs-card-border: var(--obs-rule-1);
   /* See observatory/styles/tokens.css: one card radius, `--gov-radius-lg`. */
   --obs-card-radius: var(--gov-radius-lg);
-  --obs-accent-2: #8b3b47;
+  --obs-accent-2: var(--pellier-burgundy-soft);
   --obs-olive: #4f6f5a;
   --obs-olive-soft: #eaf2ed;
   --obs-olive-line: #bfd1c5;
@@ -2005,7 +2005,7 @@
   border-color: var(--pellier-burgundy);
   background: var(--pellier-burgundy);
   color: var(--cream-elev);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 3px 10px rgb(109 31 40 / 10%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 3px 10px rgba(var(--pellier-burgundy-rgb), 0.1);
 }
 
 .labs-mode-banner-detail {

@@ -61,6 +61,9 @@ logger = logging.getLogger(__name__)
 #    cp solutions/the-ledger/services/cognito_auth.py pellier/backend/services/cognito_auth.py
 
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
+# Cognito and the verifier can straddle a clock tick. Keep the allowance small
+# and fixed; signature, issuer, client and token-use validation remain required.
+JWT_CLOCK_SKEW_SECONDS = 5
 ACCESS_TOKEN_COOKIE = "access_token"
 
 
@@ -182,7 +185,7 @@ class CognitoAuthService:
           * ``iss`` matches the pool issuer URL
           * ``client_id`` matches ``COGNITO_CLIENT_ID``
           * non-empty ``sub`` identifies the authenticated principal
-          * ``exp`` not in the past
+          * ``iat``, ``nbf`` and ``exp`` within the fixed five-second clock allowance
           * ``token_use == 'access'``
         """
         if not self._client_id:
@@ -198,6 +201,7 @@ class CognitoAuthService:
                 key=key,
                 algorithms=["RS256"],
                 issuer=self.issuer,
+                leeway=JWT_CLOCK_SKEW_SECONDS,
                 options={
                     "verify_aud": False,
                     "require": ["exp", "iss", "sub", "client_id", "token_use"],

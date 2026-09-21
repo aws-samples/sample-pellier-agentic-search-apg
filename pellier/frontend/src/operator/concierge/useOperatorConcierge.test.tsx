@@ -27,6 +27,50 @@ afterEach(() => {
 })
 
 describe('useOperatorConcierge client isolation', () => {
+  it('returns to the selected conversation without loading a newer thread or creating one', async () => {
+    mocks.fetchCapabilities.mockResolvedValue({ governedActionsAvailable: false })
+    mocks.fetchConciergeConfig.mockResolvedValue({ composerEnabled: true })
+    mocks.fetchLatestConciergeSession.mockResolvedValue('newer-session')
+    mocks.fetchConciergeSession.mockResolvedValue({
+      sessionId: 'review-session', customerId: 'CUST-JESSICA', messages: [],
+    })
+    const { result } = renderHook(() => useOperatorConcierge('CUST-JESSICA', { initialSessionId: 'review-session' }))
+    await waitFor(() => expect(result.current.composerEnabled).toBe(true))
+    expect(result.current.sessionId).toBe('review-session')
+    expect(mocks.fetchConciergeSession).toHaveBeenCalledWith('CUST-JESSICA', 'review-session')
+    expect(mocks.fetchLatestConciergeSession).not.toHaveBeenCalled()
+    expect(mocks.createConciergeSession).not.toHaveBeenCalled()
+    expect(mocks.streamConciergeTurn).not.toHaveBeenCalled()
+  })
+
+  it.each(['another-client', 'another-session'])('does not show %s as the requested conversation', async mismatch => {
+    mocks.fetchCapabilities.mockResolvedValue({ governedActionsAvailable: false })
+    mocks.fetchConciergeConfig.mockResolvedValue({ composerEnabled: true })
+    mocks.fetchConciergeSession.mockResolvedValue({
+      sessionId: mismatch === 'another-session' ? 'different' : 'review-session',
+      customerId: mismatch === 'another-client' ? 'CUST-THEO' : 'CUST-JESSICA',
+      messages: [{ content: 'Wrong conversation', turnState: 'complete' }],
+    })
+    const { result } = renderHook(() => useOperatorConcierge('CUST-JESSICA', { initialSessionId: 'review-session' }))
+    await waitFor(() => expect(result.current.status).toBe('conversation_unavailable'))
+    expect(result.current.messages).toEqual([])
+    expect(result.current.composerEnabled).toBe(false)
+  })
+
+  it('retries the selected conversation after a read failure without silently switching to latest', async () => {
+    mocks.fetchCapabilities.mockResolvedValue({ governedActionsAvailable: false })
+    mocks.fetchConciergeConfig.mockResolvedValue({ composerEnabled: true })
+    mocks.fetchConciergeSession.mockRejectedValueOnce(new Error('503')).mockResolvedValue({
+      sessionId: 'review-session', customerId: 'CUST-JESSICA', messages: [],
+    })
+    const { result } = renderHook(() => useOperatorConcierge('CUST-JESSICA', { initialSessionId: 'review-session' }))
+    await waitFor(() => expect(result.current.status).toBe('conversation_unavailable'))
+    await act(async () => { await result.current.retryHistory() })
+    expect(result.current.sessionId).toBe('review-session')
+    expect(result.current.composerEnabled).toBe(true)
+    expect(mocks.fetchLatestConciergeSession).not.toHaveBeenCalled()
+  })
+
   it('does not allow submission before the current client load settles', async () => {
     const latest = deferred<string | null>()
     mocks.fetchCapabilities.mockResolvedValue({

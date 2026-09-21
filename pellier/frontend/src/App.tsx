@@ -207,9 +207,8 @@ function RouteLoading() {
 }
 
 /**
- * Wraps the route table in AppErrorBoundary, keyed by pathname so a
- * navigation away from a crashed route remounts a clean boundary instead of
- * requiring a full page reload to recover. `SurfaceNavigation`,
+ * Reset a failed route on navigation without remounting healthy parent routes
+ * (such as a session shared by Replay, Evidence, and Brief). `SurfaceNavigation`,
  * `RouteExperience`, and the modal slots all render as siblings of this
  * component in `App()`, so they stay interactive even if the route inside
  * throws.
@@ -217,7 +216,7 @@ function RouteLoading() {
 function AppRouteBoundary() {
   const { pathname } = useLocation()
   return (
-    <AppErrorBoundary key={pathname}>
+    <AppErrorBoundary resetKey={pathname}>
       <AppRoutes />
     </AppErrorBoundary>
   )

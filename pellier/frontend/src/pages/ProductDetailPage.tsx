@@ -16,7 +16,7 @@
  * catalog metadata the grid card cites. Nothing here invents a material, a
  * delivery date, a review, or an agent step.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Sparkles, Star, X } from 'lucide-react'
 
@@ -29,6 +29,7 @@ import { asset } from '../utils/assetPath'
 import ReasoningChip from '../components/ReasoningChip'
 import ResponsiveImage from '../components/ResponsiveImage'
 import { TraceChip } from '../shared'
+import { useFocusTrap } from '../shared/useFocusTrap'
 import { useCart } from '../contexts/CartContext'
 import { useUI } from '../contexts/UIContext'
 import { PRODUCT_DETAIL } from '../copy'
@@ -108,13 +109,13 @@ function catalogSignals(tags: string[]): string[] {
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>()
   const [zoomOpen, setZoomOpen] = useState(false)
+  const zoomRef = useRef<HTMLDivElement>(null)
+  useFocusTrap({ containerRef: zoomRef, active: zoomOpen, onClose: () => setZoomOpen(false) })
   useEffect(() => {
     if (!zoomOpen) return undefined
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setZoomOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
   }, [zoomOpen])
   const navigate = useNavigate()
   const { addToCart } = useCart()
@@ -139,6 +140,7 @@ export default function ProductDetailPage() {
   }, [])
 
   useEffect(() => {
+    setZoomOpen(false)
     window.scrollTo({ top: 0 })
   }, [numericId])
 
@@ -357,11 +359,12 @@ export default function ProductDetailPage() {
             </div>
             {zoomOpen ? (
               <div
+                ref={zoomRef}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`${view.name}, enlarged`}
                 data-testid="product-detail-zoom-dialog"
-                className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(24,26,31,0.86)] p-6"
+                className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(45,24,16,0.86)] p-6"
                 onClick={() => setZoomOpen(false)}
               >
                 <img

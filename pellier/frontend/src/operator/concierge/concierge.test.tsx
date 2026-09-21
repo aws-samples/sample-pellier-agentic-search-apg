@@ -1098,11 +1098,15 @@ describe('proposed actions', () => {
     }
     // The one affordance: navigation to the canonical review surface.
     const link = screen.getByTestId('operator-concierge-proposal-review-link')
-    expect(link.getAttribute('href')).toBe('/operator/reviews/36')
+    expect(link.getAttribute('href')).toBe('/operator/reviews/36?client=CUST-JESSICA&session=sess-1&turn=turn-p')
     await waitFor(() => expect(link).toHaveTextContent('Review this return'))
     expect(screen.getByTestId('operator-concierge-proposal')).toHaveTextContent(
       'Review #36 is saved in Action Queue',
     )
+    const handoff = screen.getByRole('navigation', { name: 'Prepared reviews' })
+    expect(screen.getByTestId('operator-concierge-body')).not.toContainElement(handoff)
+    expect(handoff.querySelector('a')).toHaveAttribute('href', link.getAttribute('href'))
+    expect(handoff).not.toHaveTextContent(/pending|confirmed|completed/i)
   })
 
   it('does not invent a pending human decision when the current review cannot be read', async () => {
@@ -1114,7 +1118,7 @@ describe('proposed actions', () => {
       ),
     )
     expect(screen.getByTestId('operator-concierge-proposal-review-link')).toHaveAttribute(
-      'href', '/operator/reviews/36',
+      'href', '/operator/reviews/36?client=CUST-JESSICA&session=sess-1&turn=turn-p',
     )
   })
 

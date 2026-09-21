@@ -72,6 +72,6 @@
    * ---------------------------------------------------------------- */
   --obs-cat-both: var(--obs-red-1);
   --obs-cat-managed: var(--obs-green-1);
-  --obs-cat-owned: #b88a3a;        /* Amber for owned */
-  --obs-cat-teaching: var(--obs-ink-4);
+  --obs-cat-owned: #81591d;        /* Deep amber remains legible on the cream badge. */
+  --obs-cat-teaching: var(--obs-ink-2);
 }
