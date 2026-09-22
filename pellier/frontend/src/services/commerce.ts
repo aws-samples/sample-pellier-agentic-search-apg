@@ -1,3 +1,4 @@
+import { apiFetch } from './apiBase'
 export interface CommerceQuoteLine {
   productId: number
   name: string
@@ -104,7 +105,7 @@ export class CommerceApiError extends Error {
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response
   try {
-    response = await fetch(path, {
+    response = await apiFetch(path, {
       ...init,
       credentials: 'include',
       headers: {

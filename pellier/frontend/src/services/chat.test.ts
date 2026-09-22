@@ -37,6 +37,7 @@ describe('chat service auth transport', () => {
     expect(init).toMatchObject({
       method: 'POST',
       credentials: 'include',
+      headers: expect.objectContaining({ Accept: 'text/event-stream' }),
     })
     expect(JSON.parse(init.body as string)).toMatchObject({
       response_mode: 'balanced',

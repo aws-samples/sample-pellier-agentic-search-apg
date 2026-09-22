@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../services/apiBase'
 /**
  * Skills — the 5 prompt overlays loaded by the SkillRouter.
  *
@@ -93,7 +94,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
       setRunning(true);
       setResult(null);
       try {
-        const r = await fetch('/api/observatory/skills/route', {
+        const r = await apiFetch('/api/observatory/skills/route', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: q }),

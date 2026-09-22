@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../services/apiBase'
 import {
   useEffect,
   useLayoutEffect,
@@ -1464,7 +1465,7 @@ export default function ObservatoryWorkbench() {
         const timeout = window.setTimeout(() => controller.abort(), 8000);
         setLedgerPending(true);
         try {
-          const result = await fetch(
+          const result = await apiFetch(
             `/api/observatory/turns/${encodeURIComponent(turnId)}/ledger`,
             { credentials: 'include', signal: controller.signal },
           );

@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import { API_BASE_URL } from '../services/apiBase'
+import { API_BASE_URL, apiFetch } from '../services/apiBase'
 const REFRESH_MS = 60_000 // catalog size moves on the order of minutes
 
 export interface CatalogStats {
@@ -30,7 +30,7 @@ export function useCatalogStats(): CatalogStats | null {
 
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/storefront/catalog-stats`, {
+      const res = await apiFetch(`${API_BASE_URL}/api/storefront/catalog-stats`, {
         signal,
       })
       if (!res.ok) return

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * PersonaModal — the shared persona switcher.
  *
@@ -47,7 +48,7 @@ export default function PersonaModal({ open, onClose, closeOnSelect = true }: Pe
     if (!open || personas.length > 0) return
     setLoading(true)
     setError(null)
-    fetch('/api/observatory/personas')
+    apiFetch('/api/observatory/personas')
       .then((r) => {
         if (!r.ok) throw new Error('We couldn’t load the profiles. Please try again.')
         return r.json()

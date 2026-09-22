@@ -237,16 +237,9 @@ log "Creating environment files..."
 #
 # Single-process model: FastAPI on :8000 serves BOTH the built SPA
 # and /api, so the browser hits the same origin for both — no
-# separate API base URL is needed. VITE_API_URL stays empty (the
-# chat/search services default to '' → relative URLs).
-#
-# VITE_BASE_PATH is the asset URL prefix baked into the built bundle
-# so CloudFront's /ports/8000/* reverse proxy matches what code-server
-# forwards. Override to "/" for a pure-local prod-build test.
-# VITE_COGNITO_* drive the real sign-in (no demo mode). They come from
-# .pellier-env, which CloudFormation populated with the live pool/client.
-# The redirect URI resolves from window.location.origin at runtime
-# (AuthContext.tsx), so it is intentionally not baked in here.
+# separate API origin is needed. API paths and assets both use the application
+# prefix, leaving the managed browser workspace's own /api namespace intact.
+# VITE_COGNITO_* come from the CloudFormation-provisioned pool and client.
 [ -d "$REPO_PATH/pellier/frontend" ] && cat > "$REPO_PATH/pellier/frontend/.env" << EOF
 VITE_API_URL=
 VITE_BASE_PATH=/ports/8000/
@@ -358,6 +351,7 @@ COGNITO_CLIENT_SECRET_ARN='${COGNITO_CLIENT_SECRET_ARN:-}'
 COGNITO_TEST_CREDENTIALS_SECRET_ARN='${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}'
 COGNITO_DOMAIN='${COGNITO_DOMAIN:-${VITE_COGNITO_DOMAIN:-}}'
 APP_BASE_PATH='/ports/8000'
+OAUTH_REDIRECT_URI='${OAUTH_REDIRECT_URI:-}'
 EOF
 
     chmod 600 "$REPO_PATH/.env"
@@ -1214,7 +1208,7 @@ Environment=PATH=/opt/pellier/bin:/home/$CODE_EDITOR_USER/.local/bin:/usr/local/
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=PYTHONUNBUFFERED=1
 # VITE_BASE_PATH is baked into the built bundle so asset URLs match
-# the CloudFront /ports/8000/* reverse-proxy prefix.
+# the browser workspace /ports/8000/* reverse-proxy prefix.
 Environment=VITE_BASE_PATH=/ports/8000/
 # ExecStartPre is BEST-EFFORT (leading '-' tells systemd to ignore a
 # non-zero exit; '|| true' keeps the bash -c itself at 0). A frontend
@@ -1224,7 +1218,7 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # set -e aborted bootstrap before uvicorn ever started.
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3.14 generate_mcp_config.py 2>/dev/null || true'
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
-ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 0.0.0.0 --port 8000 $UVICORN_RELOAD_ARGS
+ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 127.0.0.1 --port 8000 $UVICORN_RELOAD_ARGS
 Restart=always
 RestartSec=3
 StandardOutput=append:/tmp/pellier/uvicorn.log
@@ -1287,15 +1281,15 @@ else
 fi
 
 log "✅ Auto-start service configured"
-log "   App URL (Workshop Studio): https://<cloudfront>/ports/8000/"
+log "   App URL (Workshop Studio): https://<browser-workspace>/ports/8000/"
 log "   App URL (local):           http://localhost:8000/"
 log "   Frontend rebuild: run 'rebuild-frontend' alias or restart the service"
 
 # The CloudFormation template owns the Hosted UI callback registration. It
-# runs a custom resource after the CloudFront distribution exists, so a stack
+# runs a custom resource after the browser workspace exists, so a stack
 # cannot reach CREATE_COMPLETE with an unregistered callback. Keeping that
 # dependency in the stack avoids the old detached-oneshot race: the instance
-# necessarily booted before the distribution existed, and a failed background
+# necessarily booted before the browser endpoint existed, and a failed background
 # retry could leave browser sign-in broken while bootstrap still reported ready.
 log "✅ OAuth callback registration is a CloudFormation readiness dependency"
 
@@ -1912,7 +1906,7 @@ else
     echo "✅ pellier systemd service enabled (single process on :8000)"
 fi
 echo ""
-echo "🌐 App is live at: https://<cloudfront>/ports/8000/"
+echo "🌐 App is live at: https://<browser-workspace>/ports/8000/"
 echo "   Frontend + API both served by one uvicorn process (systemd)."
 echo "   Edits to pellier/backend/*.py reload automatically (builders)."
 echo "   Edits to pellier/frontend/src/ require: rebuild-frontend"

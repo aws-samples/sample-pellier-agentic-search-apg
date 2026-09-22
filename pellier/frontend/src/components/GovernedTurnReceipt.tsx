@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * GovernedTurnReceipt — the compact receipt under a completed answer.
  *
@@ -141,7 +142,7 @@ export const GovernedTurnReceipt: React.FC<GovernedTurnReceiptProps> = ({
     }
     let active = true
     const controller = new AbortController()
-    fetch(`/api/governed-receipts/${encodeURIComponent(turnId)}`, {
+    apiFetch(`/api/governed-receipts/${encodeURIComponent(turnId)}`, {
       credentials: 'include',
       signal: controller.signal,
     })

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * PellierPage — the `/` route composition (Pellier redesign).
  *
@@ -109,7 +110,7 @@ export default function PellierPage() {
     setCatalogError(null)
     setProducts([])
 
-    void fetch(`/api/products?persona=${encodeURIComponent(profile)}`, {
+    void apiFetch(`/api/products?persona=${encodeURIComponent(profile)}`, {
       credentials: 'include',
       signal: controller.signal,
     })

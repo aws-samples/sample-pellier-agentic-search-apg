@@ -12,7 +12,7 @@ import type {
   EvidenceSufficiencyCheck,
 } from '../shared/evidenceLedger'
 
-import { API_BASE_URL } from './apiBase'
+import { API_BASE_URL, apiFetch } from './apiBase'
 
 /**
  * Fetch the evidence ledger projected for one turn.
@@ -25,7 +25,7 @@ export async function fetchTurnEvidenceLedger(
   turnId: string,
   signal?: AbortSignal,
 ): Promise<EvidenceLedger | null> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/observatory/turns/${encodeURIComponent(turnId)}/ledger`,
     { credentials: 'include', signal },
   )

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * InspectorPage — the `/inspector` route.
  *
@@ -61,7 +62,7 @@ export default function InspectorPage() {
   const [waterfallStatus, setWaterfallStatus] = useState<WaterfallStatus | null>(null)
   useEffect(() => {
     let cancelled = false
-    fetch('/api/traces/waterfall')
+    apiFetch('/api/traces/waterfall')
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
         if (cancelled || !data) return

@@ -3,7 +3,7 @@
  * Handles product search and AI chat functionality
  */
 
-import { API_BASE_URL } from './apiBase'
+import { API_BASE_URL, apiFetch } from './apiBase'
 
 export const CHAT_ERROR_CODES = [
   'policy_denied',
@@ -357,10 +357,10 @@ export async function sendChatMessageStreaming(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    const response = await apiFetch(`${API_BASE_URL}/api/chat/stream`, {
       method: 'POST',
       credentials: 'include',
-      headers: getAuthHeaders(),
+      headers: { ...getAuthHeaders(), Accept: 'text/event-stream' },
       signal: controller.signal,
       body: JSON.stringify({
         message: query,
@@ -520,7 +520,7 @@ export async function checkBackendHealth(
   signal?: AbortSignal,
 ): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/health`, {
+    const response = await apiFetch(`${API_BASE_URL}/api/health`, {
       method: 'GET',
       signal,
     })

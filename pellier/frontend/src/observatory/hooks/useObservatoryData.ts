@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * Pellier Observatory — live data-fetching hook.
  *
@@ -73,7 +74,7 @@ export function useObservatoryData<T = unknown>(
     let status: number | null = null;
 
     try {
-      const response = await fetch(buildApiUrl(key, params));
+      const response = await apiFetch(buildApiUrl(key, params));
       if (!response.ok) {
         status = response.status;
         // 404 is "this specific record does not exist" (a stale link, a

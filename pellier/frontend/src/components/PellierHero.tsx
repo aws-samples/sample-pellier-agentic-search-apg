@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * PellierHero - the storefront's editorial first viewport.
  *
@@ -111,7 +112,7 @@ export default function PellierHero({
     let active = true
     const controller = new AbortController()
     setSuggestions([])
-    void fetch(`/api/observatory/scenarios?persona=${encodeURIComponent(persona.id)}`, {
+    void apiFetch(`/api/observatory/scenarios?persona=${encodeURIComponent(persona.id)}`, {
       signal: controller.signal,
     })
       .then(async response => {

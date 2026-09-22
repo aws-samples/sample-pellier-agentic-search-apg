@@ -1,3 +1,4 @@
+import { apiFetch } from './apiBase'
 export class PasswordAuthError extends Error {}
 
 type PasswordOperation = 'sign-in' | 'forgot' | 'reset'
@@ -12,11 +13,11 @@ export async function passwordAuth(
   body: Record<string, string>,
   signal: AbortSignal,
 ): Promise<PasswordAuthResult> {
-  const csrf = await fetch('/api/auth/password/csrf', { credentials: 'include', signal })
+  const csrf = await apiFetch('/api/auth/password/csrf', { credentials: 'include', signal })
   if (!csrf.ok) throw new PasswordAuthError('auth_unavailable')
   const { csrfToken } = await csrf.json() as { csrfToken: string }
   if (!csrfToken) throw new PasswordAuthError('auth_unavailable')
-  const response = await fetch(`/api/auth/password/${operation}`, {
+  const response = await apiFetch(`/api/auth/password/${operation}`, {
     method: 'POST', credentials: 'include', signal,
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
     body: JSON.stringify(body),

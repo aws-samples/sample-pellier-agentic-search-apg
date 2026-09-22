@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../services/apiBase'
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { EditorialTitle } from '../../components';
@@ -43,7 +44,7 @@ export default function Performance() {
     setResult(null);
     setError(null);
     try {
-      const response = await fetch(`/api/observatory/search-strategies/compare?query=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
+      const response = await apiFetch(`/api/observatory/search-strategies/compare?query=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
       if (!response.ok) throw new Error(`Comparison unavailable (HTTP ${response.status}).`);
       const payload: Comparison = await response.json();
       if (!Array.isArray(payload.strategies) || !payload.strategies.length) throw new Error('No strategy observations were returned.');

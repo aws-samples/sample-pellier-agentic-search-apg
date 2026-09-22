@@ -16,6 +16,8 @@ def _render(tmp_path: Path, private: bool, token: str = "test-origin-token") -> 
     block = source.split('log "Configuring Nginx..."', 1)[1].split("\nnginx -t", 1)[0]
     root = tmp_path / "nginx"
     block = block.replace("/etc/nginx", str(root))
+    # Certificate issuance is exercised separately with a real TLS handshake.
+    block = block.replace('bash "$(dirname "$0")/configure-origin-tls.sh"', ':')
     # Preserve sed's actual expression evaluation on macOS and Linux.
     compatibility = (
         'sed() { if [ "$1" = "-i" ]; then shift; command sed -i "" "$@"; '
@@ -23,7 +25,7 @@ def _render(tmp_path: Path, private: bool, token: str = "test-origin-token") -> 
     )
     subprocess.run(
         ["bash", "-eu", "-c", compatibility + block],
-        env={**os.environ, "PELLIER_PRIVATE_ORIGIN": str(private).lower(), "ORIGIN_VERIFY_TOKEN": token},
+        env={**os.environ, "PELLIER_PRIVATE_ORIGIN": str(private).lower(), "ORIGIN_VERIFY_TOKEN": token, "CODE_EDITOR_BASE_PATH": "/editor"},
         check=True,
         capture_output=True,
         text=True,
@@ -31,23 +33,22 @@ def _render(tmp_path: Path, private: bool, token: str = "test-origin-token") -> 
     return (root / "conf.d/code-editor.conf").read_text()
 
 
-def test_private_origin_preserves_guard_and_exposes_only_health_on_separate_port(tmp_path):
+def test_private_origin_requires_tls_and_preserves_editor_and_app_paths(tmp_path):
     config = _render(tmp_path, True)
     assert 'if ($http_x_pellier_origin_verify != "test-origin-token") { return 403; }' in config
-    assert "map $http_x_pellier_viewer_proto $pellier_forwarded_proto" in config
-    assert "$http_x_forwarded_proto" not in config
-    user, health = config.split("\nserver {", 2)[1:]
-    assert "listen 80 default_server;" in user and "listen 8081;" not in user
-    assert "proxy_http_version 1.1;" in user
-    assert "listen 8081;" in health
-    assert "location = /health {" in health
-    assert "proxy_pass http://127.0.0.1:8000/api/health;" in health
-    assert "location / { return 404; }" in health
-    assert "8080" not in health
+    assert "listen 443 ssl default_server;" in config
+    assert "ssl_protocols TLSv1.2 TLSv1.3;" in config
+    assert "ssl_certificate_key /etc/pellier/tls/origin.key;" in config
+    assert "listen 80 " not in config and "listen 8081" not in config
+    assert "location /editor/ {" in config
+    assert "proxy_pass http://127.0.0.1:8080;" in config
+    assert "location /ports/8000/ {" in config
+    assert "proxy_pass http://127.0.0.1:8000/;" in config
+    assert "proxy_buffering off;" in config
+    assert "proxy_set_header Upgrade $http_upgrade;" in config
     main = (tmp_path / "nginx/nginx.conf").read_text()
     assert str(tmp_path / "nginx/conf.d/code-editor.conf") in main
     assert "*.conf" not in main
-    assert "server {" not in main
 
 
 def test_existing_origin_default_keeps_forwarding_contract_without_health_listener(tmp_path):
@@ -63,7 +64,7 @@ def test_private_origin_configuration_fails_before_host_mutation(private, token,
     prefix = SOURCE.read_text().split("\nprobe_editor_http()", 1)[0]
     result = subprocess.run(
         ["bash", "-c", prefix],
-        env={**os.environ, "CODE_EDITOR_PASSWORD": "test-only", "PELLIER_PRIVATE_ORIGIN": private, "ORIGIN_VERIFY_TOKEN": token},
+        env={**os.environ, "CODE_EDITOR_PASSWORD": "test-only", "PELLIER_PRIVATE_ORIGIN": private, "ORIGIN_VERIFY_TOKEN": token, "CODE_EDITOR_BASE_PATH": "/editor"},
         capture_output=True,
         text=True,
     )

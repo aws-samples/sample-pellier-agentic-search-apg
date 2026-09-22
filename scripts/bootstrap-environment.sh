@@ -14,6 +14,7 @@ HOME_FOLDER="${HOME_FOLDER:-/workshop}"
 REPO_NAME="${REPO_NAME:-sample-pellier-agentic-search-apg}"
 ORIGIN_VERIFY_TOKEN="${ORIGIN_VERIFY_TOKEN:-}"
 PELLIER_PRIVATE_ORIGIN="${PELLIER_PRIVATE_ORIGIN:-false}"
+CODE_EDITOR_BASE_PATH="${CODE_EDITOR_BASE_PATH:-/}"
 CFN_WAIT_HANDLE="${CFN_WAIT_HANDLE:-}"
 STAGE2_SCRIPT_URL="${STAGE2_SCRIPT_URL:-}"
 ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}"
@@ -31,7 +32,10 @@ warn() { echo -e "${YELLOW}[$(date +'%H:%M:%S')] WARNING:${NC} $1"; }
 error() { echo -e "${RED}[$(date +'%H:%M:%S')] ERROR:${NC} $1"; exit 1; }
 
 case "$PELLIER_PRIVATE_ORIGIN" in
-    true) [ -n "$ORIGIN_VERIFY_TOKEN" ] || error "Private origin requires an origin verification token" ;;
+    true)
+        [ -n "$ORIGIN_VERIFY_TOKEN" ] || error "Private origin requires an origin verification token"
+        [ "$CODE_EDITOR_BASE_PATH" = /editor ] || error "Private editor must use /editor"
+        ;;
     false) ;;
     *) error "PELLIER_PRIVATE_ORIGIN must be true or false" ;;
 esac
@@ -415,28 +419,19 @@ else
 fi
 
 if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
-    # ALB overwrites X-Forwarded-Proto with its own HTTP origin hop. CloudFront
-    # sets this separate header after enforcing viewer HTTPS. The token guard
-    # above and private ALB-only ingress authenticate the forwarding boundary.
-    sed -i 's/\$http_x_forwarded_proto/\$http_x_pellier_viewer_proto/g' \
-        /etc/nginx/conf.d/code-editor.conf
-    # The target group probes this separate port; its security-group ingress
-    # permits only the ALB. Never bypass the token guard on user-facing :80.
-    cat >> /etc/nginx/conf.d/code-editor.conf << 'EOF'
-
-server {
-    listen 8081;
-    server_name _;
-    location = /health {
-        proxy_pass http://127.0.0.1:8000/api/health;
-        proxy_connect_timeout 3s;
-        proxy_read_timeout 5s;
-        proxy_buffering off;
-        access_log off;
-    }
-    location / { return 404; }
-}
-EOF
+    bash "$(dirname "$0")/configure-origin-tls.sh"
+    # Only the authenticated managed workspace can reach this TLS listener.
+    # All app and editor HTTP connections below remain on this host's loopback.
+    sed -i 's/listen 80 default_server;/listen 443 ssl default_server;/; s/listen \[::\]:80 default_server;/listen [::]:443 ssl default_server;/' /etc/nginx/conf.d/code-editor.conf
+    sed -i '/server_name _;/a\
+    ssl_certificate /etc/pellier/tls/origin.crt;\
+    ssl_certificate_key /etc/pellier/tls/origin.key;\
+    ssl_protocols TLSv1.2 TLSv1.3;\
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;\
+    ssl_session_tickets off;\
+    access_log off;' /etc/nginx/conf.d/code-editor.conf
+    # Preserve /editor for Code OSS; the app prefix is stripped independently.
+    sed -i 's|location / {|location /editor/ {|; s|proxy_pass http://127.0.0.1:8080/;|proxy_pass http://127.0.0.1:8080;|' /etc/nginx/conf.d/code-editor.conf
 fi
 
 nginx -t
@@ -527,7 +522,7 @@ Environment=PATH=/opt/pellier/bin:/usr/local/bin:/usr/bin:/bin:/home/$CODE_EDITO
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=AWS_REGION=$AWS_REGION
 Environment=AWS_DEFAULT_REGION=$AWS_REGION
-ExecStart=$CODE_EDITOR_CMD --accept-server-license-terms --host 127.0.0.1 --port 8080 --default-workspace $HOME_FOLDER/$REPO_NAME --default-folder $HOME_FOLDER/$REPO_NAME --connection-token $CODE_EDITOR_PASSWORD
+ExecStart=$CODE_EDITOR_CMD --accept-server-license-terms --host 127.0.0.1 --port 8080 --server-base-path $CODE_EDITOR_BASE_PATH --default-workspace $HOME_FOLDER/$REPO_NAME --default-folder $HOME_FOLDER/$REPO_NAME --connection-token $CODE_EDITOR_PASSWORD
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -555,7 +550,7 @@ RETRY_COUNT=0
 CODE_EDITOR_READY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    HTTP_CODE=$(probe_editor_http http://127.0.0.1:8080/)
+    HTTP_CODE=$(probe_editor_http "http://127.0.0.1:8080${CODE_EDITOR_BASE_PATH%/}/")
     
     if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
         log "✅ Code Editor is responding (HTTP $HTTP_CODE)"
@@ -916,7 +911,7 @@ else
 fi
 
 # Verify Code Editor responding
-HTTP_CODE=$(probe_editor_http http://127.0.0.1:8080/)
+HTTP_CODE=$(probe_editor_http "http://127.0.0.1:8080${CODE_EDITOR_BASE_PATH%/}/")
 if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "200" ]; then
     log "✅ Code Editor verified running (HTTP $HTTP_CODE)"
 else
@@ -931,10 +926,15 @@ else
 fi
 
 # Verify Nginx proxy
-NGINX_CODE=$(probe_editor_http http://127.0.0.1:80/ \
-    -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN" \
-    -H "X-Pellier-Viewer-Proto: https" \
-    -H "X-Forwarded-Proto: https")
+if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
+    NGINX_CODE=$(probe_editor_http "https://$PELLIER_ORIGIN_SERVER_NAME/editor/" \
+        --cacert /etc/pellier/tls/origin.crt \
+        --resolve "$PELLIER_ORIGIN_SERVER_NAME:443:127.0.0.1" \
+        -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN")
+else
+    NGINX_CODE=$(probe_editor_http http://127.0.0.1:80/ \
+        -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN")
+fi
 if [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "200" ]; then
     log "✅ Nginx proxy verified (HTTP $NGINX_CODE)"
 else
@@ -977,7 +977,7 @@ write_stage2_manifest() {
         AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN \
         AGENTCORE_RUNTIME_LOG_RETENTION_DAYS TS_DESIRED_SAMPLING \
         AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES \
-        ORIGIN_VERIFY_TOKEN
+        ORIGIN_VERIFY_TOKEN OAUTH_REDIRECT_URI
     do
         value="${!name:-}"
         if [ "$name" = "AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES" ]; then

@@ -1,3 +1,4 @@
+import { apiFetch, apiUrl } from '../../../services/apiBase'
 /**
  * ProofBoard - system evidence surface.
  *
@@ -1436,7 +1437,7 @@ const ProofBoard: React.FC<ProofBoardProps> = ({ focusCardId }) => {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetch('/api/observatory/proof-board', { credentials: 'include' })
+    apiFetch('/api/observatory/proof-board', { credentials: 'include' })
       .then(async (response) => {
         if (!response.ok) {
           let code: string | undefined;
@@ -1490,7 +1491,7 @@ const ProofBoard: React.FC<ProofBoardProps> = ({ focusCardId }) => {
       return;
     }
     let active = true;
-    fetch(`/api/governed-receipts/${encodeURIComponent(selectedTurnId)}`, {
+    apiFetch(`/api/governed-receipts/${encodeURIComponent(selectedTurnId)}`, {
       credentials: 'include',
     })
       .then((response) => (response.ok ? response.json() : null))
@@ -1615,7 +1616,7 @@ const ProofBoard: React.FC<ProofBoardProps> = ({ focusCardId }) => {
               </p>
               {cognitoBrowserAuthConfigured ? (
                 <a
-                  href="/api/auth/signin?provider=email"
+                  href={apiUrl('/api/auth/signin?provider=email')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',

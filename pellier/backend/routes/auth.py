@@ -133,8 +133,8 @@ def _redirect_uri(request: Request) -> str:
 
     Uses ``OAUTH_REDIRECT_URI`` when set; falls back to
     ``APP_BASE_URL + /api/auth/callback`` when configured. In Workshop Studio,
-    where the CloudFront hostname is assigned after the EC2 instance starts,
-    it derives the public origin from the validated forwarded request headers.
+    the managed workspace supplies an explicit callback beneath /ports/8000.
+    Other deployments can derive their origin from trusted proxy headers.
     """
     if settings.OAUTH_REDIRECT_URI:
         return settings.OAUTH_REDIRECT_URI

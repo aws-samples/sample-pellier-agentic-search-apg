@@ -43,7 +43,9 @@ badge reports the health of your local preview.
 Maintainers can use the [governed deployment profile](docs/GOVERNED-DEPLOYMENT.md)
 to preserve existing managed resource identities, and the
 [E2E identity guide](docs/E2E-IDENTITIES.md) to configure live browser checks and
-receipt-verified cleanup of disposable test users.
+receipt-verified cleanup of disposable test users. The
+[browser connection contract](docs/WORKSHOP-TRANSPORT.md) describes the governed
+workspace, private TLS origin and deployment checks.
 
 ---
 

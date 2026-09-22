@@ -1,3 +1,4 @@
+import { apiFetch, apiUrl } from '../services/apiBase'
 /**
  * utils/auth.ts — auth utility surface.
  *
@@ -66,7 +67,7 @@ export function redirectToSignIn(
   const returnTo = resolveReturnTo(opts)
   const url = provider === 'email'
     ? `${asset('/signin')}?returnTo=${encodeURIComponent(returnTo)}`
-    : `/api/auth/signin?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent(returnTo)}`
+    : apiUrl(`/api/auth/signin?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent(returnTo)}`)
   window.location.assign(url)
 }
 
@@ -90,14 +91,14 @@ export function openSignInChooser(opts?: SignInOptions): void {
 export async function redirectToLogout(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    await fetch('/api/auth/logout', {
+    await apiFetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
     })
   } catch {
     // Swallow. The client-side redirect below is the user-visible effect.
   }
-  window.location.assign('/')
+  window.location.assign(asset('/'))
 }
 
 /**

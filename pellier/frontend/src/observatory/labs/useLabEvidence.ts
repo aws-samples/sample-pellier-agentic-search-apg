@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 import { useCallback, useEffect, useState } from 'react';
 
 import type { ProofBoardPayload } from './evidence';
@@ -26,7 +27,7 @@ export function useLabEvidence(): LabEvidenceState {
     setLoading(true);
     setError(null);
 
-    void fetch('/api/observatory/proof-board', {
+    void apiFetch('/api/observatory/proof-board', {
       credentials: 'include',
       signal: controller.signal,
     })

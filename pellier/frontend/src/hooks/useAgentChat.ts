@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * useAgentChat — streaming chat state machine shared by the storefront
  * ChatDrawer and the transitional AIAssistant. Owns the SSE event loop, message array,
@@ -308,7 +309,7 @@ export function useAgentChat(
   useEffect(() => {
     if (!sessionId) return
     let alive = true
-    fetch(`/api/agent/session/${encodeURIComponent(sessionId)}`)
+    apiFetch(`/api/agent/session/${encodeURIComponent(sessionId)}`)
       .then(r => r.json())
       .then(data => {
         if (!alive) return

@@ -21,7 +21,7 @@
  */
 import React, { useEffect, useState } from 'react'
 
-import { API_BASE_URL } from '../services/apiBase'
+import { API_BASE_URL, apiFetch } from '../services/apiBase'
 import { checkBackendHealth } from '../services/chat'
 
 export type PresenceSurface = 'pellier' | 'observatory'
@@ -227,7 +227,7 @@ function useMemoryAge(personaId: string | null | undefined): string | null {
     setAge(null)
     if (!personaId || personaId === 'fresh') return
     const controller = new AbortController()
-    fetch(
+    apiFetch(
       `${API_BASE_URL}/api/observatory/memory/${encodeURIComponent(personaId)}`,
       {
         signal: controller.signal,

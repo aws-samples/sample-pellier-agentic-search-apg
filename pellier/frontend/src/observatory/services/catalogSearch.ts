@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * Storefront vector search — used by Observatory session Chat follow-ups.
  * POST /api/search runs embed + pgvector against pellier.product_catalog.
@@ -24,7 +25,7 @@ export async function searchCatalog(
   query: string,
   limit = 6,
 ): Promise<StorefrontSearchResponse> {
-  const res = await fetch('/api/search', {
+  const res = await apiFetch('/api/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: query.trim(), limit }),

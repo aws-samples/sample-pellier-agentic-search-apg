@@ -1,3 +1,4 @@
+import { apiUrl } from '../services/apiBase'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
@@ -37,7 +38,7 @@ export default function SignInPage() {
   const busy = useRef(false)
   const heading = useRef<HTMLHeadingElement | null>(null)
   const mounted = useRef(false)
-  const hosted = `/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}`
+  const hosted = apiUrl(`/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}`)
 
   useEffect(() => {
     const previous = document.title

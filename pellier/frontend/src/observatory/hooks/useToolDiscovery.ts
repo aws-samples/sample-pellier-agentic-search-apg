@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * useToolDiscovery — Dedicated hook for pgvector tool discovery.
  *
@@ -35,7 +36,7 @@ export function useToolDiscovery(): UseToolDiscoveryResult & {
     const startTime = performance.now();
 
     try {
-      const response = await fetch('/api/observatory/tools/discover', {
+      const response = await apiFetch('/api/observatory/tools/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, limit }),

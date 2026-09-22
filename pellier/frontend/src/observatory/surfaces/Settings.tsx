@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * Settings — Persona selection interface for the Pellier Observatory.
  *
@@ -355,7 +356,7 @@ const Settings: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/observatory/personas');
+      const res = await apiFetch('/api/observatory/personas');
       if (!res.ok) throw new Error(`Failed to load personas: ${res.status}`);
       const data: PersonaListItem[] = await res.json();
       setPersonas(data.filter((profile) => profile.id !== 'fresh'));

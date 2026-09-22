@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * PersonaContext — workshop persona state shared across storefront + Observatory.
  *
@@ -144,7 +145,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
 
     let active = true
     const controller = new AbortController()
-    void fetch(`/api/persona/current?session_id=${encodeURIComponent(sessionId)}`, {
+    void apiFetch(`/api/persona/current?session_id=${encodeURIComponent(sessionId)}`, {
       credentials: 'include',
       signal: controller.signal,
     })
@@ -198,7 +199,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     setSwitching(true)
     setSwitchError(null)
     try {
-      const res = await fetch('/api/persona/switch', {
+      const res = await apiFetch('/api/persona/switch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

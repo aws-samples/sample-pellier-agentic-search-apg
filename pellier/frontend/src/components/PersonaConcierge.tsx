@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * PersonaConcierge - the hero's profile surface.
  *
@@ -27,7 +28,7 @@ export default function PersonaConcierge() {
     let active = true
     setError(null)
     setLoading(true)
-    void fetch('/api/observatory/personas')
+    void apiFetch('/api/observatory/personas')
       .then(async (response) => {
         if (!response.ok) throw new Error('We couldn’t load the profiles. Please try again.')
         return response.json() as Promise<PersonaListItem[]>

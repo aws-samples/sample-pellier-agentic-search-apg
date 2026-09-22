@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../services/apiBase'
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
@@ -214,7 +215,7 @@ const OperatorLineage: React.FC = () => {
     setData(null)
     const reviewQuery =
       requestedReviewId == null ? '' : `?review_id=${requestedReviewId}`
-    fetch(
+    apiFetch(
       `/api/observatory/operator-lineage/${encodeURIComponent(
         requestedCustomerId,
       )}${reviewQuery}`,

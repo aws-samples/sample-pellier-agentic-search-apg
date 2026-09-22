@@ -802,17 +802,23 @@ def test_bootstrap_persists_the_secret_reference_for_a_fresh_health_process(
     proc = subprocess.run(
         [bash, "-c", writer.group(0)],
         env={
+            # Use file-backed heredocs; macOS can block writing this fixture
+            # into a pipe before its reader has started.
+            "BASH_COMPAT": "50",
             "PATH": os.environ["PATH"],
             "REPO_PATH": str(generated),
             "DB_PASSWORD": "test-password",
             "COGNITO_CLIENT_SECRET": "test-client-secret",
             "COGNITO_TEST_CREDENTIALS_SECRET_ARN": secret_arn,
+            "OAUTH_REDIRECT_URI": "https://workspace.example/ports/8000/api/auth/callback",
         },
         text=True,
         capture_output=True,
         check=False,
+        timeout=10,
     )
     assert proc.returncode == 0, proc.stderr
+    assert "OAUTH_REDIRECT_URI='https://workspace.example/ports/8000/api/auth/callback'" in (generated / ".env").read_text()
     loaded = subprocess.run(
         [
             bash,

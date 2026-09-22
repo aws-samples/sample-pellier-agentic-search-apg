@@ -68,6 +68,9 @@ describe('operator concierge stream', () => {
       (answer) => answers.push(answer.summary),
     )
 
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      credentials: 'include', headers: expect.objectContaining({ Accept: 'text/event-stream' }),
+    }))
     expect(steps).toEqual(['Local PostgreSQL'])
     expect(answers).toEqual(['The client has one open service issue.'])
     expect(complete.summary).toBe('The client has one open service issue.')

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * useBuildState — Determines shipped vs exercise status for tools and agents.
  *
@@ -80,7 +81,7 @@ export function useBuildState(): BuildStateResult {
     setApiLoading(true);
 
     try {
-      const res = await fetch('/api/observatory/build-state');
+      const res = await apiFetch('/api/observatory/build-state');
       if (!res.ok) {
         // Backend doesn't have this endpoint yet — that's fine, use fixtures
         if (currentId === requestIdRef.current) {

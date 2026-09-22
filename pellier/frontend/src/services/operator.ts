@@ -1,3 +1,4 @@
+import { apiFetch } from './apiBase'
 /**
  * Pellier Operator API client.
  *
@@ -453,7 +454,7 @@ async function request<T>(
     timeoutMs,
   )
   try {
-    const response = await fetch(path, {
+    const response = await apiFetch(path, {
       ...init,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...init.headers },
@@ -581,13 +582,13 @@ export async function streamConciergeTurn(
   const deadline = globalThis.setTimeout(cancel, 300_000)
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   try {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/operator/clients/${encodeURIComponent(clientId)}` +
       `/concierge/sessions/${encodeURIComponent(sessionId)}/turns/stream`,
     {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
       body: JSON.stringify({ message, transportKey }),
       signal: controller.signal,
     },

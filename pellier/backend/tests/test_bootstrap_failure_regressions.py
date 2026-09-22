@@ -149,6 +149,7 @@ def test_editor_readiness_requires_an_authenticated_response(
         PATH=f"{fake_bin}:{os.environ['PATH']}",
         CODE_EDITOR_PASSWORD="synthetic token&value",
         MOCK_HTTP=status,
+        CODE_EDITOR_BASE_PATH="/editor",
     )
     assert result.returncode == (0 if ready else 1), result.stderr
     assert ("EDITOR_READY" in result.stdout) is ready

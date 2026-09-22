@@ -1,3 +1,4 @@
+import { apiFetch } from '../../services/apiBase'
 /**
  * useSearchExplain — runs one query through GET /api/observatory/search/explain
  * and returns every pipeline stage (EMBED → VECTOR → LEXICAL → FUSION →
@@ -48,7 +49,7 @@ export function useSearchExplain(): UseSearchExplainResult {
     const startTime = performance.now();
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/observatory/search/explain?query=${encodeURIComponent(trimmed)}`,
       );
 

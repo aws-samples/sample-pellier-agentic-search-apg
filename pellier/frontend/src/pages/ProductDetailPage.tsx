@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * ProductDetailPage — the `/product/:productId` route.
  *
@@ -171,7 +172,7 @@ export default function ProductDetailPage() {
     const controller = new AbortController()
     setLoading(true)
     setDetail(null)
-    void fetch(`/api/products/${numericId}`, {
+    void apiFetch(`/api/products/${numericId}`, {
       credentials: 'include',
       signal: controller.signal,
     })
@@ -186,7 +187,7 @@ export default function ProductDetailPage() {
 
     // Related pieces are optional. Their read must not block or hide a
     // successfully loaded product, price, or availability receipt.
-    void fetch('/api/products', {
+    void apiFetch('/api/products', {
       credentials: 'include',
       signal: controller.signal,
     })

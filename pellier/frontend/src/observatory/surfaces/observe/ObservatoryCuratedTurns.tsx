@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../services/apiBase'
 /**
  * Guided requests are durable Aurora workshop_scenarios rows. They are not
  * browser fixtures: when the data plane is unavailable, the Workbench says so
@@ -96,7 +97,7 @@ export default function ObservatoryCuratedTurns({
       };
     }
 
-    void fetch(
+    void apiFetch(
       `/api/observatory/scenarios?persona=${encodeURIComponent(journey.anchorId)}`,
     )
       .then(async (response) => {

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * AuthContext — Cognito OAuth2 login + AgentCore Identity-backed preferences.
  *
@@ -104,7 +105,7 @@ async function authFetch(path: string, init: RequestInit): Promise<Response> {
   )
 
   try {
-    return await fetch(path, { ...init, signal: controller.signal })
+    return await apiFetch(path, { ...init, signal: controller.signal })
   } finally {
     globalThis.clearTimeout(timeout)
   }

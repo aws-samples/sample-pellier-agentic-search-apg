@@ -13,6 +13,17 @@ The source contract is `workshop/story-arc.json`. Workshop Studio owns full
 exercises. The application orients participants and shows their execution evidence.
 The presenter deck introduces the same decisions through progressive diagrams.
 
+Keep the technical lab titles as the primary headings. In `story-arc.json`,
+`title` is the lab name and `storyTitle` describes the persona-led scenario.
+Use the story wording in activities and transitions, not as a replacement lab name.
+
+| Lab | Main title | Scenario |
+|---|---|---|
+| 1 | Build a PostgreSQL-Grounded Agent | Marco: Know the facts |
+| 2 | Build and Measure PostgreSQL Hybrid Retrieval | Anna: Respect the requirements |
+| 3 | Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo: Establish the caller |
+| 4 | Build Governed Agent Actions with Cedar | Jessica: Govern the action |
+
 ## Four labs, two participant tasks each
 
 | Lab | Task A | Task B | Handoff |

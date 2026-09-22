@@ -95,8 +95,8 @@ anchored to one person, in climbing order of difficulty:
 |---|---|---|---|
 | 1. Build a PostgreSQL-Grounded Agent | Marco | Implement the inventory result contract | Wire the specialist and prove a real turn |
 | 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
-| 3. Deploy and Operate the Managed Agent Path | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
-| 4. Govern and Prove Agent Actions | Jessica | Author Cedar ownership and distinguish outcomes | Author RLS and keyed evidence, then investigate as staff |
+| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
+| 4. Build Governed Agent Actions with Cedar | Jessica | Author Cedar ownership and distinguish outcomes | Author RLS and keyed evidence, then investigate as staff |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
 task map. `tests/test_workshop_marker_contract.py` checks the nine source

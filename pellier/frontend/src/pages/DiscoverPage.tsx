@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * DiscoverPage - minimal `/discover` index route.
  *
@@ -53,7 +54,7 @@ function DiscoverCatalog() {
     setProducts([])
     setStatus('loading')
 
-    void fetch(`/api/products?persona=${encodeURIComponent(profile)}`, {
+    void apiFetch(`/api/products?persona=${encodeURIComponent(profile)}`, {
       credentials: 'include',
       signal: controller.signal,
     })

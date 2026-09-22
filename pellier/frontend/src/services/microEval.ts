@@ -7,7 +7,7 @@
  * and an absent endpoint returns `null` so the card can say so.
  */
 
-import { API_BASE_URL } from './apiBase'
+import { API_BASE_URL, apiFetch } from './apiBase'
 
 /**
  * Both pools in one request. `repetitions` is deliberately absent: the
@@ -176,7 +176,7 @@ export async function fetchMicroEval(
   signal?: AbortSignal,
 ): Promise<MicroEvalResult | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}${MICRO_EVAL_PATH}`, { signal })
+    const response = await apiFetch(`${API_BASE_URL}${MICRO_EVAL_PATH}`, { signal })
     if (!response.ok) return null
     const payload: unknown = await response.json()
     return isResult(payload) ? payload : null

@@ -1,3 +1,4 @@
+import { apiFetch } from '../services/apiBase'
 /**
  * Live concierge empty state.
  *
@@ -74,11 +75,11 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
     const timeout = window.setTimeout(() => controller.abort(new Error('Edit request timed out')), 20000)
 
     void Promise.all([
-      fetch(`/api/products?persona=${encodeURIComponent(profileId)}`, {
+      apiFetch(`/api/products?persona=${encodeURIComponent(profileId)}`, {
         credentials: 'include',
         signal: controller.signal,
       }),
-      fetch(`/api/observatory/scenarios?persona=${encodeURIComponent(profileId)}`, {
+      apiFetch(`/api/observatory/scenarios?persona=${encodeURIComponent(profileId)}`, {
         signal: controller.signal,
       }),
     ])

@@ -1,3 +1,4 @@
+import { apiFetch } from './apiBase'
 /**
  * Shared in-flight refresh promise. When multiple requests 401
  * simultaneously they all await the same /api/auth/refresh call rather
@@ -18,7 +19,7 @@ export async function refreshAuthTokens(): Promise<boolean> {
     const controller = new AbortController()
     const timeout = globalThis.setTimeout(() => controller.abort(), AUTH_REFRESH_TIMEOUT_MS)
     try {
-      const res = await fetch('/api/auth/refresh', {
+      const res = await apiFetch('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include',
         signal: controller.signal,

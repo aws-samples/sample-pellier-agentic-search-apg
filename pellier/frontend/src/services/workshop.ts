@@ -12,7 +12,7 @@
  * playEvents()). The panel renderer ports 1:1 — no transformation.
  */
 
-import { API_BASE_URL } from './apiBase'
+import { API_BASE_URL, apiFetch } from './apiBase'
 
 export type WorkshopEventType = 'plan' | 'step' | 'panel' | 'text' | 'response'
 
@@ -268,7 +268,7 @@ export async function queryWorkshopStream(
   req: WorkshopQueryRequest,
   onEvent: (ev: WorkshopEvent) => void,
 ): Promise<{ session_id: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/observatory/query`, {
+  const res = await apiFetch(`${API_BASE_URL}/api/observatory/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -362,7 +362,7 @@ export interface WorkshopResumeRequest {
 export async function resumeWorkshop(
   req: WorkshopResumeRequest,
 ): Promise<WorkshopQueryResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/observatory/resume`, {
+  const res = await apiFetch(`${API_BASE_URL}/api/observatory/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
