@@ -108,7 +108,7 @@ describe('Observatory workbench resume', () => {
       '/observatory/workbench?lab=managed-agent-path&step=inspect',
     );
     expect(resume).toHaveAccessibleName(
-      'Resume Lab 3: AgentCore managed path, Inspect evidence',
+      'Resume Lab 3: Establish the caller, Inspect evidence',
     );
     expect(localStorage.getItem(LAB_PROGRESS_KEY)).toBeTruthy();
   });

@@ -35,7 +35,7 @@ Terminology, so the surfaces can agree:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
@@ -233,18 +233,14 @@ class SearchPlan:
         return [first, widened]
 
     def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
-        return SearchPlan(
-            intent=self.intent,
-            hard=self.hard,
-            soft=self.soft,
-            exclusions=self.exclusions,
-            retrieval_strategy=self.retrieval_strategy,
-            top_k=self.top_k,
-            evidence_required=self.evidence_required,
-            relaxation_policy=self.relaxation_policy,
-            ambiguous=self.ambiguous,
-            relaxations=list(relaxations),
-        )
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+            raise ValueError("Complete Task 2B before relaxing a preference")
+        return replace(self, relaxations=[])
+        # === WORKSHOP · Search plan · preserve requirements: END ===
 
     # ------------------------------------------------------------------
     # Serialization

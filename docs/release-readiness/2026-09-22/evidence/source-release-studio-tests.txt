@@ -1,0 +1,8 @@
+.............................................................................................................
+----------------------------------------------------------------------
+Ran 109 tests in 17.536s
+
+OK
+AZ selection failed: ValueError: Need two supported available AZs and an editor instance-type offering
+AZ selection failed: ValueError: Need two supported available AZs and an editor instance-type offering
+AZ selection failed: ValueError: Existing AZ selection is unavailable; refusing subnet replacement

@@ -1886,3 +1886,163 @@ def test_the_publication_view_renders_without_aws() -> None:
     )
     assert proc.returncode == 0, proc.stderr[-800:]
     assert "baseline_permit_workshop_tools" in proc.stdout
+
+
+def _participant_state(identity: Any) -> dict[str, Any]:
+    return {
+        "targets": {
+            "default": {
+                "resources": {
+                    "runtimes": {
+                        identity.runtime_name: {"runtimeArn": "arn:runtime"},
+                        identity.operator_runtime_name: {
+                            "runtimeArn": "arn:operator"
+                        },
+                    },
+                    "mcp": {
+                        "gateways": {
+                            identity.gateway_name: {
+                                "gatewayId": "gateway-1",
+                                "gatewayArn": "arn:gateway",
+                                "gatewayUrl": "https://gateway.example/mcp",
+                            }
+                        }
+                    },
+                    "policyEngines": {
+                        identity.policy_engine_name: {
+                            "policyEngineId": "engine-1",
+                            "policyEngineArn": "arn:engine",
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+
+def test_participant_update_deploys_once_reusing_the_deployed_gateway_arn(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """One deploy, not two: the Gateway ARN the second pass waited for exists."""
+    provisioner = _load_provisioner()
+    identity = provisioner.deployment_identity()
+    root = tmp_path / "project"
+    (root / "agentcore").mkdir(parents=True)
+    (root / "agentcore" / "agentcore.json").write_text("{}")
+
+    render_calls: list[dict[str, Any]] = []
+    cli_calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
+    monkeypatch.setattr(
+        provisioner, "render_project", lambda **kwargs: render_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        provisioner,
+        "_agentcore",
+        lambda _root, *args, **_kwargs: cli_calls.append(args),
+    )
+    monkeypatch.setattr(
+        provisioner, "_read_deployed_state", lambda _root: _participant_state(identity)
+    )
+
+    returned_root, state = provisioner._redeploy_participant_edits(
+        repo=tmp_path,
+        account_id="123456789012",
+        region="us-east-1",
+        cognito_pool="pool",
+        cognito_client="client",
+        lambda_arns=_lambda_arns(),
+        model_id="model",
+        opus_model_id="opus",
+        sonnet_model_id="sonnet",
+        fast_model_id="fast",
+        workshop_id="dat416",
+        env={},
+        identity=identity,
+    )
+
+    assert returned_root == root
+    assert state == _participant_state(identity)
+    # The full path renders twice because policies need an ARN it does not yet
+    # have. Here the policies are present on the only render.
+    assert len(render_calls) == 1
+    assert render_calls[0]["include_policies"] is True
+    assert render_calls[0]["gateway_arn"] == "arn:gateway"
+    assert cli_calls == [("validate",), ("deploy", "--yes", "--json")]
+
+
+def test_participant_update_refuses_an_unprovisioned_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A participant edit cannot create the environment it is editing."""
+    provisioner = _load_provisioner()
+    identity = provisioner.deployment_identity()
+    monkeypatch.setattr(
+        provisioner, "project_root", lambda *_a, **_k: tmp_path / "absent"
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        provisioner._redeploy_participant_edits(
+            repo=tmp_path,
+            account_id="123456789012",
+            region="us-east-1",
+            cognito_pool="pool",
+            cognito_client="client",
+            lambda_arns=_lambda_arns(),
+            model_id="model",
+            opus_model_id="opus",
+            sonnet_model_id="sonnet",
+            fast_model_id="fast",
+            workshop_id="dat416",
+            env={},
+            identity=identity,
+        )
+
+    message = str(exc_info.value)
+    assert "No deployed AgentCore project" in message
+    assert "facilitator" in message
+
+
+def test_participant_update_skips_the_preparation_stages_it_cannot_change() -> None:
+    """The two 900-second waits must not sit on a participant's critical path."""
+    source = PROVISIONER_PATH.read_text(encoding="utf-8")
+    start = source.index("def _participant_update(")
+    body = source[start : source.index("\n\ndef main() -> int:", start)]
+
+    for skipped in (
+        "_deploy_lambdas(",
+        "_configure_transaction_search(",
+        "_wait_for_unified_trace(",
+        "_verify_agentcore_control_plane_audit(",
+        "_ensure_trace_log_groups(",
+        "_ensure_runtime_log_group(",
+        "_deploy_claim_trigger(",
+        "_enable_gateway_observability(",
+        "_seed_memory(",
+    ):
+        assert skipped not in body, skipped
+
+    # What it must still prove: the deploy landed, the published catalogue is
+    # live, Cedar survived, and the running revision serves the edited package.
+    for required in (
+        "_redeploy_participant_edits(",
+        "_verify_gateway_control_plane(",
+        "_discover_live_gateway_tools(",
+        "_authenticated_runtime_smoke(",
+        "runtime_build_fingerprint_match",
+        '"policyEngines", identity.policy_engine_name',
+    ):
+        assert required in body, required
+
+
+def test_participant_mode_never_overwrites_the_full_managed_receipt() -> None:
+    """lab3-start.sh and health-gate.sh validate the full receipt during Lab 3."""
+    source = PROVISIONER_PATH.read_text(encoding="utf-8")
+    start = source.index("output_path = Path(")
+    selection = source[start : source.index("\n\n", start)]
+
+    assert '"/tmp/pellier-agentcore-managed.json"' in selection
+    assert '"/tmp/pellier-agentcore-participant.json"' in selection
+    assert 'args.mode == "full"' in selection

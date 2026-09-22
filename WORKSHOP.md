@@ -2,7 +2,10 @@
 
 **Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
-Level 400. 100 minutes. Four labs, eight bounded builds, two participant workflows.
+Level 400. 100 minutes. Four labs, eight hands-on tasks, two participant workflows.
+
+The current task contract is [WORKSHOP-STORY-ARC.md](docs/WORKSHOP-STORY-ARC.md),
+backed by `workshop/story-arc.json`.
 
 This brief explains the teaching plan. Workshop Studio contains the participant
 commands, marked exercises, hints, and recovery steps. The schedule is a target
@@ -33,29 +36,38 @@ Times are elapsed minutes from the beginning of the session.
 
 | Workshop minutes | Activity | Duration |
 |---|---|---|
-| 0-5 | Introduction and Theo's first conversation | 5 minutes |
-| 5-25 | Lab 1: Build a PostgreSQL-Grounded Agent | 20 minutes |
-| 25-50 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | 25 minutes |
-| 50-75 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 25 minutes |
-| 75-95 | Lab 4: Build Governed Agent Actions with Cedar | 20 minutes |
+| 0-15 | Presenter introduction | 15 minutes |
+| 15-30 | Lab 1: Build a PostgreSQL-Grounded Agent | 15 minutes |
+| 30-45 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
+| 45-65 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 20 minutes |
+| 65-90 | Lab 4: Build Governed Agent Actions with Cedar | 25 minutes |
+| 90-95 | Recovery buffer | 5 minutes |
 | 95-100 | Summary and policy cleanup | 5 minutes |
 
-Opening context and orientation share minutes 0-5. Participants follow the complete guide and all three app surfaces. Use catch-up by minute 15 for Lab 1 and minute 40 for Lab 2; start managed deployment by minute 55 and policy deployment by minute 80. Reading, explanation, and recovery share the lab allocations. Rehearse the full path with a clock before release.
+The presentation is separate from the participant hands-on clock. Guides begin at
+minute zero after the introduction and use 15/15/20/25-minute lab budgets, five
+minutes for recovery, and five to close. Setup belongs to Lab 1. Reading,
+explanation, deployment waits, and checks share each lab's allocation. Follow the
+guide's restore-first and continuation points; unrun checks remain incomplete.
+Rehearse the full path with a clock before claiming the schedule is established.
 
 ## Introduction
 
-Participants open Code Editor and Pellier, record a run ID and source receipt,
-and attempt a Runtime hello. Facilitators own readiness checks. Participants save Theo's first conversation
-so AgentCore can extract preferences while they complete Labs 1 and 2.
+Pellier is a premium retail boutique building an agentic system for product
+discovery and customer support. Its concierge must answer from business facts,
+preserve customer requirements, establish the caller, and govern actions with
+evidence staff can verify. Four different customers introduce accumulating
+responsibilities for that same system.
 
-Pellier gives each exercise a concrete reason to exist. Marco needs inventory
-facts, Anna needs a measured recommendation, Theo needs continuity and support,
-and Jessica needs a governed service decision.
+During Lab 1 setup, participants open Code Editor and Pellier and initialize the
+supplied environment. Start Theo's supplied first conversation so AgentCore can
+extract preferences while Labs 1 and 2 run. Pre-event readiness belongs to the
+facilitator preparation, outside the participant tasks.
 
 | Surface | Participant use | Authority |
 |---|---|---|
 | Storefront | Marco, Anna, and Theo's shopping conversations | Displays results grounded by tools |
-| Code Editor | Eight marked edits and the supplied proof commands | Source, service responses, SQL results, and saved evidence |
+| Code Editor | Eight tasks and the supplied proof commands | Source, service responses, SQL results, and saved evidence |
 | Operator | Jessica's investigation under the separate staff account | Staff access and an explicit human decision boundary |
 | Observatory | Required inspection of the same shopper requests and Operator turn | Projects evidence; an interface badge alone does not prove a claim |
 
@@ -77,8 +89,9 @@ a bounded tool list. The other participant workflow is the Operator Concierge
 graph, where Case Investigator runs before Resolution Planner. Other Strands
 reference implementations in the repository are outside the required journey.
 
-Use the guide's exact prompts for the measured path. Each Storefront thread
-contains three turns with 0, 2, and 4 prior dialogue messages. Keep Anna's fixed
+Use the guide's exact prompts for the measured path. The guided Storefront threads
+offer three turns with 0, 2, and 4 prior dialogue messages; Workshop Studio sets
+the required stopping point. Keep Anna's fixed
 benchmark request separate from her natural-language Storefront conversation.
 Paraphrasing and alternative prompts are useful extensions after the checks pass.
 
@@ -110,11 +123,11 @@ session summary. A consolidated episode is optional. Resource or strategy status
 
 ### The required cross-session experiment
 
-1. During Introduction, record Theo's supplied first conversation. Preserve its
+1. During Lab 1 setup, record Theo's supplied first conversation. Preserve its
    actor and event IDs. The conversation is scripted; the long-term records are
    extracted by AgentCore rather than seeded by the application.
 2. Continue Labs 1 and 2 while extraction runs. Do not restart the experiment or
-   wait at the Introduction screen for long-term records.
+   wait at the setup screen for long-term records.
 3. In Lab 3, retrieve those records into a new conversation with no prior chat
    events. Pass the retrieved context to the deployed agent and invoke current
    catalog tools.
@@ -131,7 +144,7 @@ acquire cross-session preference sharing. A production design must choose actor
 continuity and enforce access to its namespaces; a naming convention is not an
 access-control policy.
 
-## Four labs, eight builds
+## Four labs, Tasks A and B
 
 ### Lab 1: Build a PostgreSQL-Grounded Agent
 
@@ -140,8 +153,9 @@ Marco needs a reliable answer about warehouse stock.
 **Predict:** an unknown product and a known product with zero stock require
 different answers.
 
-**Build 1a:** define the Inventory Agent so the dispatcher can select it.
-**Build 1b:** implement the bounded inventory tool against the warehouse tables.
+**Task 1A:** implement the inventory result contract against Aurora.
+**Task 1B:** select the specialist's permitted read tools and prove that a real
+turn uses them. Model and prompt configuration are supplied.
 
 **Check:** compare the Storefront answer with Aurora and the execution row written
 after the baseline. The supplied contract check invokes the participant's own
@@ -156,17 +170,26 @@ answer cannot turn missing data into a verified zero.
 
 Anna needs relevant products that satisfy her budget and stock constraints.
 
-**Predict:** changing the rerank pool may change quality, latency, and cost.
-Ranking cannot make an ineligible product eligible.
+**Story connection:** Marco established how to check a product. Anna now needs the
+concierge to find suitable products while keeping her original requirements.
 
-**Build 2a:** reconstruct the reciprocal rank fusion expression in a SQL worksheet
-and compare it with recorded ranks and scores. This verifies the calculation; it
-does not replace the application's live search implementation.
-**Build 2b:** change `DEFAULT_RERANK_POOL_K` inside the candidate-budget markers. The starter sends only three fused candidates to reranking. Keep explicit overrides and the configured ceiling.
+**Predict:** a fallback may relax a preference, but must keep budget, availability,
+and exclusions. Ranking cannot make an ineligible product eligible.
 
-**Check:** save the before/after comparison for one fixed request. Read `EXPLAIN (ANALYZE, BUFFERS)`, locate a candidate removed before reranking, and trace its exact ID after the edit. Recompute the receipt’s RRF scores and check price, stock, and archive predicates. A sequential scan can be appropriate on the small catalog; a single timing is not a production benchmark.
+**Task 2A:** reconstruct recorded reciprocal rank fusion in the SQL worksheet,
+including a zero contribution from a missing branch. This explains a saved
+calculation; it does not replace the application's retrieval implementation.
+**Task 2B:** construct each fallback attempt from the original validated plan.
+Preserve hard constraints and exclusions, avoid mutating the request, and record
+which preference changed.
 
-**Explain:** retrieval budgets and eligibility solve different problems. A reranker cannot recover a candidate outside its input pool. No evaluation-framework build is required.
+**Check:** run the local plan contract, then inspect the live comparison and exact
+receipt. Recompute recorded RRF contributions and verify the returned product IDs
+against Aurora. The local Python check and database eligibility prove different
+boundaries. Candidate-pool tuning and broader evaluation remain extensions.
+
+**Explain:** preferences may widen the search; requirements still decide which
+products are eligible. No result is better than silently changing the request.
 
 ### Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
 
@@ -176,13 +199,16 @@ customer-scoped support through the managed agent.
 **Predict:** a successful response could still come from the previous Runtime
 package. A repeated preference could still come from copied chat history.
 
-**Build 3a:** publish the customer-scoped `get_ticket_history` read. Keep
+**Task 3A:** publish the customer-scoped `get_ticket_history` read. Keep
 `restock_inventory` deferred. The separately published `issue_credit` remains
 staff-only.
-**Build 3b:** reconcile the support specialist's managed tool list and bind the
+In the same task, reconcile the support specialist's managed tool list and bind the
 read to the authenticated customer.
 
-**Check:** start deployment by minute 55. Complete the new-session Memory experiment, then
+**Task 3B:** deploy the participant update and challenge it with owned and
+foreign-customer requests. Identify the build that answered.
+
+**Check:** use a fresh Runtime session. Complete the supplied Memory experiment, then
 run Theo's signed-in Storefront thread against the deployed path. Read its Memory
 events from a separate Python process. Compare the executed and expected build
 fingerprints, and run the supplied trace contract on the thread's downloaded
@@ -206,10 +232,13 @@ return can be denied by policy, refused by a business rule, committed, or replay
 without another effect. A managed output check can suppress a credit response
 after the credit has committed.
 
-**Build 4a:** complete the Cedar identity-to-customer condition. Compare the
+**Task 4A:** complete the Cedar identity-to-customer condition. Compare the
 verified customer claim with the requested customer. Keep Aurora's independent
 row-level security intact.
-**Build 4b:** author the keyed absence query beside its positive control.
+**Task 4B:** author one RLS ownership predicate used by USING and WITH CHECK,
+then the keyed absence query with its allowed-key positive control. Investigate
+Jessica's case as separately authorized staff. RLS trusts context established
+by the application; it does not independently validate Cognito tokens.
 
 | Attempt | Expected outcome | Evidence |
 |---|---|---|
@@ -224,9 +253,11 @@ must have a matching positive control; four zeros alone could mean the query
 searched the wrong run or key.
 
 **Check:** run the guide's five-outcome proof. It includes the four return cases
-above, independent RLS read/write probes, an unsigned Gateway request, two
+above, an unsigned Gateway request, two
 one-cent workshop credits, and a credit replay. Run the participant's absence
-query with its allowed-key positive control. Inspect authorization, execution,
+query with its allowed-key positive control. Run the RLS worksheet separately
+under the supplied runtime roles; roll back its policy edits and test writes.
+Inspect authorization, execution,
 and committed effects separately; suppressing a response does not roll back a
 write. Use synthetic workshop data and retain partial or contradictory results.
 
@@ -247,7 +278,8 @@ says a shopper bought an item, but Aurora has no matching order. Which source
 establishes return eligibility, and which controls still decide whether it can
 execute?
 
-The build receipt checks eight source artifacts and run-scoped Aurora evidence.
+The build receipt inspects nine source regions supporting eight tasks and
+separately checks run-scoped Aurora evidence.
 Keep the separate Memory, trace, retrieval evaluation, five-outcome, identity,
 and RLS artifacts.
 A marker edit alone does not prove behavior; an unreadable evidence source remains

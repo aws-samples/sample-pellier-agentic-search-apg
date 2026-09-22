@@ -148,12 +148,13 @@ def _inventory_agent_definition_is_workshop_stub() -> bool:
         return True
 
 
-def _lab2_candidate_budget_is_workshop_stub() -> bool:
-    """True while the live rerank pool still has the deliberately narrow starter budget."""
+def _lab2_search_plan_is_workshop_stub() -> bool:
+    """True while the search-plan fallback is deliberately unfinished."""
     try:
-        from services.planned_hybrid_retrieval import DEFAULT_RERANK_POOL_K
+        from services.search_plan import SearchPlan
+        import inspect
 
-        return DEFAULT_RERANK_POOL_K == 3
+        return "Complete Task 2B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations)  # copy-allow: source-state sentinel, never emitted as route copy
     except Exception:
         return True
 
@@ -2392,25 +2393,21 @@ async def get_build_state():
         agent_map = {"Inventory Agent": inventory}
         tool_map = {dict(row)["name"]: "shipped" for row in tool_rows}
         tool_map["check_inventory"] = check_inventory
-        # Every guided build, keyed by the lab step the guide names. Source
-        # defined, like the two above: a participant's edit is visible here the
-        # moment the backend reloads, without a deploy or a database round trip.
+        # Source inspection only. Task 3A has two regions; Task 3B requires
+        # deployed evidence and cannot be marked complete by a local edit.
         exercises = {
-            "1a": "exercise" if inventory == "exercise" else "shipped",
-            "1b": "exercise" if check_inventory == "exercise" else "shipped",
+            "1a": "exercise" if check_inventory == "exercise" else "shipped",
+            "1b": "exercise" if inventory == "exercise" else "shipped",
             "2b": (
-                "exercise" if _lab2_candidate_budget_is_workshop_stub() else "shipped"
+                "exercise" if _lab2_search_plan_is_workshop_stub() else "shipped"
             ),
             "3a": (
                 "exercise"
-                if _lab3_gateway_catalogue_is_workshop_stub()
+                if (_lab3_gateway_catalogue_is_workshop_stub()
+                    or _lab3_support_contract_is_workshop_stub())
                 else "shipped"
             ),
-            "3b": (
-                "exercise"
-                if _lab3_support_contract_is_workshop_stub()
-                else "shipped"
-            ),
+            "3b": "evidence_required",
         }
         return {
             "agents": agent_map,

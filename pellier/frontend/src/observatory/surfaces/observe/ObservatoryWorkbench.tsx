@@ -57,6 +57,7 @@ import type {
 import ObservatoryCuratedTurns from './ObservatoryCuratedTurns';
 import WorkbenchResources from '../../components/WorkbenchResources';
 import LabHandoff from '../labs/LabHandoff';
+import LabBuildConnection from '../labs/LabBuildConnection';
 import {
   canRunTurn,
   completeTurn,
@@ -1843,6 +1844,7 @@ export default function ObservatoryWorkbench() {
           <h2>Lab {Number(selectedLab.number)}: {selectedLab.title}</h2>
           <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
           <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio. Use this workspace to run the scenario and inspect its evidence.</p>
+          <LabBuildConnection exercise={selectedLab} />
         </div>
         {focusMode ? (
           <div className="observatory-workbench-status">{runSummary}</div>

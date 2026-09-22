@@ -523,9 +523,9 @@ class HybridSearch:
 
         For each candidate that appears in either list, sum
         ``1 / (rrf_k + rank)`` over the lists it appears in. Documents
-        in both lists necessarily score higher than documents in only
-        one — that's the point. Sort descending; the result is a
-        consensus ranking.
+        in both lists receive two contributions; sufficiently low ranks can
+        still score below a high-ranked document in only one list. Sort
+        descending to obtain a consensus ranking.
 
         Returns a list of merged rows with ``vec_rank``, ``fts_rank``, and
         ``rrf_score`` fields appended. A rank is ``None`` when the candidate

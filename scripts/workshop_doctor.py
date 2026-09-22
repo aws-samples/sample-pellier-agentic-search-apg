@@ -341,7 +341,7 @@ def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
     The managed dispatcher asks the Gateway for exactly the tools it names and
     raises ``Gateway is missing support tools`` when one is absent. That error
     surfaces as an apologetic answer rather than a stack trace, so a
-    participant who has done 3a but not 3b sees a turn that "works" and a
+    participant who has published a tool but not bound its caller sees a turn that "works" and a
     receipt that never arrives. Naming the mismatch here is cheaper than
     letting them find it in a trace.
     """
@@ -379,7 +379,7 @@ def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
                 "(published for the operator desk; a shopper-facing specialist must not bind "
                 "them and the dispatcher refuses to build one that does)"
             )
-            steps.append("Lab 3b (drop the staff-only tool from the specialist)")
+            steps.append("Task 3a (drop the staff-only tool from the specialist)")
         remedy = " and ".join(steps) or "Lab 3"
         return Check(name, False, f"{'; '.join(facts)}: complete {remedy}")
     unbound = sorted(
@@ -392,7 +392,7 @@ def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
             name,
             False,
             f"{', '.join(unbound)} is published but not bound to the "
-            "authenticated caller: complete Lab 3b so the server sets "
+            "authenticated caller: complete Task 3a caller binding so the server sets "
             "customer_id instead of the model",
         )
     return Check(name, True, f"{len(published)} tools published, support serveable")

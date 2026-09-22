@@ -13,7 +13,8 @@
 #
 # Then deploy, and pair this with Lab 3b so the Runtime asks the Gateway for
 # exactly what the Gateway now publishes:
-#     python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD"
+#     python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" \
+#         --mode participant
 #
 # Verify (live, the real check): an MCP tool listing made with your own token
 # names `get_ticket_history`. Visible counts depend on the caller because the

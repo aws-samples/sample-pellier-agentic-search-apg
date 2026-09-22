@@ -18,7 +18,7 @@ would prove it.
 The honesty rule
 ----------------
 
-Every line reports one of three states, never two:
+Every line reports one of four states, never two:
 
     PROVED       a durable row exists and satisfies the claim
     NOT YET      the lab has not left its evidence
@@ -125,17 +125,17 @@ def _region_reads_as_stub(
     return any(marker in block for marker in markers)
 
 
-# The canonical build manifest: two builds per lab, eight in all, each named by
-# the file and the marked region that carries it. `docs/HANDOFF-SOURCE-CONTRACT.md`
-# and the README describe the same eight; this is the copy the receipt grades.
+# Source regions supporting four labs and eight participant tasks.
+# A task may contain several edits or a deployed investigation. Source inspection
+# alone does not establish that a participant ran the corresponding checks.
 _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ...] = (
     (
-        "01_ground_the_answer", "1a_inventory_agent_defined",
+        "01_ground_the_answer", "1b_inventory_agent_defined",
         BACKEND / "agents" / "inventory_agent.py",
         None, ("_INVENTORY_AGENT_STUBBED = True",),
     ),
     (
-        "01_ground_the_answer", "1b_inventory_tool_written",
+        "01_ground_the_answer", "1a_inventory_tool_written",
         BACKEND / "services" / "agent_tools.py",
         None, ("check_inventory is in stub state", "received_product_query"),
     ),
@@ -145,10 +145,10 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
         "PostgreSQL RRF \u00b7 fusion expression", ("0::numeric AS recomputed_rrf",),
     ),
     (
-        "02_measure_hybrid_retrieval", "2b_candidate_budget_authored",
-        BACKEND / "services" / "planned_hybrid_retrieval.py",
-        "Hybrid retrieval \u00b7 candidate budget",
-        ("DEFAULT_RERANK_POOL_K = 3",),
+        "02_measure_hybrid_retrieval", "2b_requirements_preserved",
+        BACKEND / "services" / "search_plan.py",
+        "Search plan \u00b7 preserve requirements",
+        ("Complete Task 2B before relaxing a preference",),
     ),
     (
         "03_operate_the_managed_path", "3a_gateway_tool_published",
@@ -156,7 +156,7 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
         "Gateway catalogue \u00b7 published tools", ('"get_ticket_history"',),
     ),
     (
-        "03_operate_the_managed_path", "3b_runtime_catalogue_reconciled",
+        "03_operate_the_managed_path", "3a_runtime_catalogue_reconciled",
         BACKEND / "services" / "agentcore_gateway.py",
         "Managed catalogue \u00b7 support reconcile",
         ("SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset()",),
@@ -165,6 +165,11 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
         "04_govern_and_prove", "4a_identity_rule_authored",
         REPO / "policies" / "workshop_identity_match_forbid.cedar",
         None, ("unless {\n  false\n}",),
+    ),
+    (
+        "04_govern_and_prove", "4b_rls_predicate_authored",
+        REPO / "workshop" / "lab-4-rls.sql",
+        "Row ownership · predicate", ("ownership_predicate 'false'",),
     ),
     (
         "04_govern_and_prove", "4b_absence_query_authored",
@@ -186,7 +191,7 @@ def _source_state(is_stub: Optional[bool]) -> str:
 
 
 def collect_source_state() -> Dict[str, Any]:
-    """Grade all eight authored artifacts, not only Lab 1's two.
+    """Inspect every authored source region, not only Lab 1's two.
 
     A receipt that checked Lab 1's source and nothing else could report a
     complete workshop for a participant who never opened Labs 2, 3, or 4's

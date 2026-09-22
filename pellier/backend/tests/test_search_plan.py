@@ -23,6 +23,9 @@ from services.search_plan import (
 )
 
 
+pytestmark = pytest.mark.usefixtures("completed_search_plan")
+
+
 def _golden_extract() -> dict:
     """The workshop's golden journey, as the extractor would return it."""
     return {

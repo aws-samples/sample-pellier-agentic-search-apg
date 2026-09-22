@@ -33,6 +33,12 @@ export interface LabExercise {
   evidenceHref?: string;
   objective: string;
   participantTodo: string;
+  buildConnection: {
+    files: string[];
+    requestPath: string;
+    observableChange: string;
+    counterexample: string;
+  };
   command: string;
   measurements: {
     before: LabMeasurement;
@@ -51,19 +57,23 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     number: '01',
     anchorName: 'Marco',
     title: 'Build a PostgreSQL-Grounded Agent',
-    shortTitle: 'PostgreSQL-grounded agent',
-    customerNeed: 'Marco needs a warehouse answer he can trust before his trip.',
-    nextBoundary: 'A correct stock answer is only the start. Next, help Anna find an eligible gift and measure how retrieval changes her options.',
-    summary:
-      'Complete the Inventory Agent and its Aurora tool, then prove the answer against the exact warehouse rows and execution receipt.',
+    shortTitle: "Know the facts",
+    customerNeed: "Marco needs reliable stock and dispatch facts before his trip.",
+    nextBoundary: "You can check a product. Next, help Anna find the right product without changing her requirements.",
+    summary: "Connect the inventory tool, then make the agent answer from its returned facts. Unknown product and zero stock must remain different.",
     image: '/assets/personas/marco-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
     proofCardIds: ['marco-floor-check'],
     objective:
       'Ground Marco’s warehouse answer in current Aurora rows. Reconcile the stock count and recorded ship window with the tool’s execution receipt.',
-    participantTodo:
-      'Complete the two marked source regions, verify both build markers, and replay Marco\'s warehouse request under a unique session.',
+    participantTodo: "Task 1A: implement the inventory result contract. Task 1B: wire the specialist and prove a real Storefront turn.",
+    buildConnection: {
+      files: ['pellier/backend/agents/inventory_agent.py', 'pellier/backend/services/agent_tools.py'],
+      requestPath: 'Storefront → chat API → Inventory Agent → check_inventory → Aurora',
+      observableChange: 'After the Python edit and backend restart, Marco’s warehouse request should produce live stock rows and an execution receipt.',
+      counterexample: 'An unknown product must not become a known product with zero stock. Check the direct tool result before judging the answer.',
+    },
     command:
       'psql -X -v ON_ERROR_STOP=1 -P pager=off -c "\nSELECT p.product_id, p.quantity AS catalog_units,\n       sum(wi.quantity)::int AS warehouse_units,\n       p.quantity = sum(wi.quantity) AS reconciled\n  FROM pellier.product_catalog p\n  JOIN pellier.warehouse_inventory wi USING (product_id)\n WHERE p.product_id = \'2\'\n GROUP BY p.product_id, p.quantity;"',
     measurements: {
@@ -100,25 +110,29 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     number: '02',
     anchorName: 'Anna',
     title: 'Build and Measure PostgreSQL Hybrid Retrieval',
-    shortTitle: 'PostgreSQL retrieval',
-    customerNeed: 'Anna needs a gift under $100, with availability treated as a constraint.',
-    nextBoundary: 'Now that retrieval is inspectable, take Theo’s support journey to a managed runtime and separate remembered preferences from current facts.',
-    summary:
-      'Inspect a PostgreSQL query plan, verify RRF in SQL, and repair a narrow candidate budget without relaxing eligibility.',
+    shortTitle: "Respect the requirements",
+    customerNeed: "Anna needs a gift under $100. Alternatives may change her preferences, never her requirements.",
+    nextBoundary: "You can find suitable products. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary.",
+    summary: "Explain recorded rank fusion, then preserve budget, stock and exclusions when the agent relaxes a preference.",
     image: '/assets/personas/anna-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
     proofCardIds: ['retrieval-comparison'],
     objective:
-      'Keep Anna’s gift under $100 and in stock. Trace eligible candidates through lexical search, vector retrieval, fusion, and reranking.',
-    participantTodo:
-      'Complete the RRF worksheet and candidate-budget build. Compare the same request before and after, then verify exact product IDs against Aurora.',
+      'Explain Anna’s recorded ranking, then preserve her budget, stock requirements and exclusions when the agent relaxes a preference.',
+    participantTodo: "Task 2A: reconstruct recorded RRF. Task 2B: preserve the original requirements in every fallback attempt.",
+    buildConnection: {
+      files: ['workshop/lab-2-rrf.sql', 'pellier/backend/services/search_plan.py'],
+      requestPath: 'Storefront or comparison → shared retrieval executor → Aurora candidates → Cohere Rerank',
+      observableChange: 'The SQL worksheet verifies saved fusion scores. The Python plan edit preserves original requirements when a preference is relaxed.',
+      counterexample: 'A fallback must not admit an over-budget, unavailable or excluded product. Check both the original and relaxed plans.',
+    },
     command:
       'psql -X -v ON_ERROR_STOP=1 -P pager=off -c "\nSELECT receipt_id, hard_constraints, retrieval_config,\n       latency_breakdown, modeled_cost_usd\n  FROM pellier.retrieval_receipts\n ORDER BY receipt_id DESC\n LIMIT 1;"',
     measurements: {
       before: {
         label: 'Before',
-        value: 'The live rerank stage receives only three fused candidates, even when more eligible products were retrieved.',
+        value: 'The unfinished fallback refuses to relax a preference until its requirement-preservation contract is implemented.',
       },
       after: {
         label: 'Acceptance target',
@@ -128,7 +142,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     evidenceAssertion:
       'SQL recomputes the recorded RRF contribution and finds no price, stock, or archive violation in the exact returned IDs.',
     decisionPrompt:
-      'Which measured tradeoff justifies the selected strategy for this query class?',
+      'Which preferences may change, which requirements must remain, and what evidence proves both?',
     primaryAction: {
       label: 'Open retrieval comparison',
       to: '/observatory/performance',
@@ -149,19 +163,23 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     number: '03',
     anchorName: 'Theo',
     title: 'Deploy and Operate Agents with Amazon Bedrock AgentCore',
-    shortTitle: 'AgentCore managed path',
-    customerNeed: 'Theo needs continuity across conversations without crossing into another customer’s records.',
-    nextBoundary: 'A deployed agent still needs a boundary on what it may do. Next, prove authorization, database scope, and the human review checkpoint.',
-    summary:
-      'Publish Theo\'s customer-scoped read, reconcile the Runtime tool list, and deploy. Use learned preferences in a new conversation and verify the running build.',
+    shortTitle: "Establish the caller",
+    customerNeed: "Theo wants remembered preferences and help with his own service history. Context must not become permission.",
+    nextBoundary: "You can read under the right identity. Next, follow Jessica’s action through authorization, database effects and staff review.",
+    summary: "Connect a customer-scoped support read, deploy it, then challenge the managed path with owned and foreign-customer requests.",
     image: '/assets/personas/theo-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
     proofCardIds: ['managed-rail', 'audit-ledger'],
     objective:
       'Deploy Theo’s customer-scoped support path and use learned preferences in a new conversation. Verify the running build, Memory records, and current Aurora facts separately.',
-    participantTodo:
-      'Publish get_ticket_history, bind the support read to the caller, and deploy. Complete the learned-preference check, then run Theo\'s three-turn thread and read its Memory events from a separate process.',
+    participantTodo: "Task 3A: reconcile publication, tool access and caller binding. Task 3B: deploy, challenge scope and identify the build that answered.",
+    buildConnection: {
+      files: ['scripts/deploy/gateway_tool_schemas.py', 'pellier/backend/services/agentcore_gateway.py'],
+      requestPath: 'Storefront → AgentCore Runtime → Gateway and Policy → customer-scoped Aurora tool',
+      observableChange: 'Deploy the edited package, then use a new session to verify ticket access and the executed build fingerprint. Saving locally does not update Runtime.',
+      counterexample: 'Publication does not grant permission. The cross-session Memory experiment and regular Storefront history also use different actor scopes.',
+    },
     command:
       'cd .agentcore-project/pellier\nnpx -y @aws/agentcore@0.29.0 invoke \\\n  --runtime pellier_orchestrator \\\n  --session-id "$RUNTIME_SESSION" \\\n  --bearer-token "$PELLIER_TOKEN" \\\n  --prompt "Hand-thrown ceramics for a slower morning routine" \\\n  --json',
     measurements: {
@@ -198,11 +216,10 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     number: '04',
     anchorName: 'Jessica',
     title: 'Build Governed Agent Actions with Cedar',
-    shortTitle: 'Cedar and governed actions',
-    customerNeed: 'Jessica needs a fair resolution, with account access and consequential actions controlled.',
-    nextBoundary: 'Bring the four evidence sets together: defend which layer enforces each boundary, then restore the workshop baseline and follow cleanup.',
-    summary:
-      'Bind verified identity in Cedar and prove which control acted, whether the tool executed, and whether data changed. Then investigate Jessica\'s case as separately authorized staff.',
+    shortTitle: "Govern the action",
+    customerNeed: "Jessica needs her service request resolved safely. Staff must establish what happened before choosing the next action.",
+    nextBoundary: "Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question.",
+    summary: "Author Cedar ownership and database ownership, reconcile exact operation keys, then investigate Jessica’s case through human review.",
     image: '/assets/personas/jessica-720.webp',
     imageWidth: 720,
     imageHeight: 900,
@@ -210,8 +227,13 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     evidenceHref: '/observatory/govern/verification',
     objective:
       'Prove five outcomes: authentication failure, Cedar denial, business refusal, commit, and output suppression. Verify replay and PostgreSQL RLS, then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
-    participantTodo:
-      'Complete the Cedar rule and keyed absence query. Run the combined boundary proof and RLS read and write checks, then complete one Operator investigation for Jessica. The proof creates two synthetic one-cent credits. The investigation stops at human review; reset the policy in Summary.',
+    participantTodo: "Task 4A: author Cedar and distinguish five outcomes. Task 4B: author RLS and keyed evidence, then investigate as staff.",
+    buildConnection: {
+      files: ['policies/workshop_identity_match_forbid.cedar', 'workshop/lab-4-rls.sql', 'workshop/lab-4-absence.sql'],
+      requestPath: 'Verified caller → Gateway and Cedar → tool → PostgreSQL transaction → response controls',
+      observableChange: 'Deploy the identity rule, then correlate each decision with execution and durable effects using the exact operation key.',
+      counterexample: 'A hidden or failed response can follow a commit. Inspect the saved operation before retrying; a new key can create another effect.',
+    },
     command:
       'python3 scripts/prove_governance_outcomes.py \\\n  --json /tmp/pellier-evidence/lab-4-boundaries.json\npsql -X -v ON_ERROR_STOP=1 -P pager=off \\\n  -f workshop/lab-4-rls.sql',
     measurements: {

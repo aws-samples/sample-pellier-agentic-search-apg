@@ -88,7 +88,7 @@ describe('LabsCatalog', () => {
 
     expect(managed?.objective).toContain('Theo');
     expect(managed?.objective).toContain('new conversation');
-    expect(managed?.participantTodo).toContain('three-turn');
+    expect(managed?.participantTodo).toContain('Task 3B: deploy, challenge scope');
     expect(managed?.command).toContain(
       'Hand-thrown ceramics for a slower morning routine',
     );
@@ -99,9 +99,9 @@ describe('LabsCatalog', () => {
       imageHeight: 900,
     });
     expect(governed?.objective).toContain('five outcomes');
-    expect(governed?.participantTodo).toContain('combined boundary proof');
-    expect(governed?.participantTodo).toContain('RLS read and write');
-    expect(governed?.participantTodo).toContain('one Operator investigation');
+    expect(governed?.participantTodo).toContain('distinguish five outcomes');
+    expect(governed?.participantTodo).toContain('author RLS and keyed evidence');
+    expect(governed?.participantTodo).toContain('investigate as staff');
     expect(governed?.command).toContain('scripts/prove_governance_outcomes.py');
     expect(governed?.evidenceHref).toBe('/observatory/govern/verification');
     expect(governed?.evidenceAssertion).toContain('human checkpoint');

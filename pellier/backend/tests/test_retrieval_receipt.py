@@ -142,7 +142,7 @@ def test_receipt_captures_hard_constraints_and_exclusions() -> None:
     assert row["soft_preferences"]["tags"] == ["home"]
 
 
-def test_receipt_records_applied_relaxations() -> None:
+def test_receipt_records_applied_relaxations(completed_search_plan) -> None:
     """A widened plan must say what it widened."""
     _, widened = _plan().relaxation_ladder()
     receipt = build_receipt(query="gift", plan=widened)

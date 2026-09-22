@@ -1040,7 +1040,7 @@ class TestManagedCataloguesAgree:
         )
         assert not check.passed
         assert "Lab 3a" in check.detail
-        assert "Lab 3b" in check.detail
+        assert "Task 3a" in check.detail
 
     def test_publishing_the_read_leaves_only_the_second_step(self, monkeypatch):
         """A participant who finished 3a must not be sent back to redo it."""
@@ -1051,7 +1051,7 @@ class TestManagedCataloguesAgree:
             bound={"get_ticket_history"},
         )
         assert not check.passed
-        assert "Lab 3b" in check.detail
+        assert "Task 3a" in check.detail
         assert "Lab 3a" not in check.detail
 
     def test_an_unbound_read_is_its_own_failure(self, monkeypatch):
@@ -1064,7 +1064,7 @@ class TestManagedCataloguesAgree:
         )
         assert not check.passed
         assert "not bound to the" in check.detail
-        assert "Lab 3b" in check.detail
+        assert "Task 3a" in check.detail
 
     def test_both_builds_done_passes(self, monkeypatch):
         check = self._check(

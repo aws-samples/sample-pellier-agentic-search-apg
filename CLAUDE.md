@@ -88,26 +88,27 @@ The application must continue to demonstrate:
 - Cedar authorization on sensitive tool actions.
 - Inspectable ALLOW execution and DENY non-execution evidence.
 
-The required participant path is four labs, each with two bounded builds
+The required participant path is four labs, each with Tasks A and B
 anchored to one person, in climbing order of difficulty:
 
-| Lab | Person | a | b |
+| Lab | Person | Task A | Task B |
 |---|---|---|---|
-| 1. Build a PostgreSQL-Grounded Agent | Marco | Inventory Agent definition | `check_inventory` body |
-| 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | RRF fusion expression | the live candidate budget |
-| 3. Deploy and Operate the Managed Agent Path | Theo | publish the Gateway tool | reconcile the Runtime catalogue, then deploy |
-| 4. Govern and Prove Agent Actions | Jessica | the Cedar identity rule | the keyed absence query |
+| 1. Build a PostgreSQL-Grounded Agent | Marco | Implement the inventory result contract | Wire the specialist and prove a real turn |
+| 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
+| 3. Deploy and Operate the Managed Agent Path | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
+| 4. Govern and Prove Agent Actions | Jessica | Author Cedar ownership and distinguish outcomes | Author RLS and keyed evidence, then investigate as staff |
 
-`tests/test_workshop_marker_contract.py` is the authoritative inventory of
-those builds: their marker regions, starter fragments, and reference
-solutions. Adding, moving, or renaming a build means changing that file, which
-is the point. Lab 3b edits a file inside `RUNTIME_SOURCE_FILES`, so completing
-it changes the deployed build fingerprint; that is the lab's proof and must not
-be broken by moving the exercise to an unpackaged file.
+`workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
+task map. `tests/test_workshop_marker_contract.py` checks the nine source
+regions, starter fragments, and recovery references behind the eight tasks.
+Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
+deployed build fingerprint includes that edit. Do not move the exercise to an
+unpackaged file or infer deployed completion from source inspection.
 
-Budgets: 5 minutes orientation, 20 for Lab 1, 25 for Lab 2, 25 for Lab 3,
-20 for Lab 4, and 5 to close. Reading, deployment waits, explanation, and
-recovery share these allocations. Rehearse the complete path before release.
+Budget the presenter introduction separately at 15 minutes. Participant guides
+start their hands-on clock with Labs 1–4 at 15/15/20/25 minutes, then five for
+recovery and five for closing. Reading, deployment waits, and explanation share
+those allocations. These are targets pending a timed fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.

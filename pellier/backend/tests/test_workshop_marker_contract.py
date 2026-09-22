@@ -23,12 +23,13 @@ recovery lane, which is worse, because it only fails for the participant who is 
 behind.
 
 **Lab 2 - Build and Measure PostgreSQL Hybrid Retrieval.** A runnable psql
-worksheet whose RRF expression starts degraded and a complete recovery twin.
+worksheet whose RRF expression starts degraded, plus a bounded search-plan
+fallback that must preserve the original requirements.
 
 **Lab 3 - Deploy and Operate Agents with Amazon Bedrock AgentCore.** Two marker regions and two
-fallback files. 3a publishes ``get_ticket_history`` on the Gateway; 3b reconciles the
-tools the Runtime asks the Gateway for and binds that read to the caller. One of the two
-files is a packaged runtime source, so completing 3b changes the deployed build
+fallback files. 3A publishes ``get_ticket_history`` on the Gateway and reconciles the
+tools the Runtime asks the Gateway for, binding that read to the caller. One of the two
+files is a packaged runtime source. Task 3B deploys those edits and checks the executed
 fingerprint, which is how the participant proves their own build answered.
 
 **Lab 4 - Build Governed Agent Actions with Cedar.** A starter Cedar file that must NOT contain
@@ -77,12 +78,12 @@ LAB1_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 # ---------------------------------------------------------------------------
 
 LAB2_STARTER = "workshop/lab-2-rrf.sql"
-LAB2_BUDGET_REGION = (
-    "pellier/backend/services/planned_hybrid_retrieval.py",
-    "WORKSHOP · Hybrid retrieval · candidate budget",
+LAB2_PLAN_REGION = (
+    "pellier/backend/services/search_plan.py",
+    "WORKSHOP · Search plan · preserve requirements",
 )
-LAB2_BUDGET_REFERENCE = (
-    "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py"
+LAB2_PLAN_REFERENCE = (
+    "solutions/the-quiet-search/retrieval/search_plan_solution.py"
 )
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home Decor at or under $100 tagged both `gift` and `home`.
@@ -92,9 +93,9 @@ LAB2_MARKER = "WORKSHOP · PostgreSQL RRF · fusion expression"
 
 # ---------------------------------------------------------------------------
 # Lab 3, two marker regions that together move the build onto the managed path.
-# 3a publishes a Gateway tool; 3b reconciles what the Runtime asks the Gateway
-# for. `agentcore_gateway.py` is a packaged runtime source, so 3b also flips the
-# deployed build fingerprint, which is the lab's proof.
+# 3A publishes a Gateway tool and reconciles what the Runtime asks the Gateway
+# for. `agentcore_gateway.py` is a packaged runtime source, so that edit changes
+# the deployed build fingerprint checked in Task 3B.
 # ---------------------------------------------------------------------------
 
 LAB3_REGIONS: Tuple[Tuple[str, str], ...] = (
@@ -111,8 +112,8 @@ LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
      "pellier/backend/services/agentcore_gateway.py"),
 )
 
-# The tool Lab 3a publishes and Lab 3b binds to the caller, the one that stays
-# deferred in both, and the staff-only tool the shopper specialist must drop in 3b.
+# The tool Task 3A publishes and binds to the caller, the one that stays
+# deferred, and the staff-only tool the shopper specialist must drop in 3A.
 # Getting these backwards is the whole lesson.
 LAB3_PUBLISHED_TOOL = "get_ticket_history"
 LAB3_DEFERRED_TOOL = "restock_inventory"
@@ -176,9 +177,9 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-2-rrf.sql",
         LAB2_STARTER,
     ),
-    "lab-2-candidate-budget": (
-        "workshop/starters/lab-2/candidate-budget.pyfrag",
-        "pellier/backend/services/planned_hybrid_retrieval.py",
+    "lab-2-preserve-requirements": (
+        "workshop/starters/lab-2/preserve-requirements.pyfrag",
+        "pellier/backend/services/search_plan.py",
     ),
     "lab-3-gateway-catalogue": (
         "workshop/starters/lab-3/gateway-published-tools.pyfrag",
@@ -188,6 +189,7 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-3/support-reconcile.pyfrag",
         "pellier/backend/services/agentcore_gateway.py",
     ),
+    "lab-4-rls": ("workshop/starters/lab-4-rls.sql", "workshop/lab-4-rls.sql"),
     "lab-4-absence": (
         "workshop/starters/lab-4-absence.sql",
         LAB4_ABSENCE_STARTER,
@@ -363,21 +365,28 @@ def test_the_trace_contract_is_a_provided_check_not_a_build() -> None:
 
 
 def test_lab2_golden_set_region_has_exactly_one_marker_pair() -> None:
-    rel, label = LAB2_BUDGET_REGION
+    rel, label = LAB2_PLAN_REGION
     text = _read(rel)
     assert text.count(f"# === {label}: START ===") == 1
     assert text.count(f"# === {label}: END ===") == 1
 
 
-def test_lab2_starter_limits_the_live_candidate_pool() -> None:
-    tree = ast.parse(_read(LAB2_BUDGET_REGION[0]))
-    assert _module_constant(tree, "DEFAULT_RERANK_POOL_K") == 3
-    assert _module_constant(tree, "CANONICAL_ANNA_GOLDEN_IDS") == LAB2_GOLDEN_IDS
+def test_lab2_starter_refuses_an_unfinished_fallback() -> None:
+    from services.search_plan import SearchPlan, SoftPreferences
+    plan = SearchPlan(intent="gift", soft=SoftPreferences(tags=("minimalist",)))
+    with pytest.raises(ValueError, match="Complete Task 2B"):
+        plan.relaxation_ladder()
+    assert plan.soft.tags == ("minimalist",)
+    assert plan.relaxations == []
 
 
-def test_lab2_reference_widens_the_live_candidate_pool() -> None:
-    tree = ast.parse(_read(LAB2_BUDGET_REFERENCE))
-    assert _module_constant(tree, "DEFAULT_RERANK_POOL_K") == 20
+def test_lab2_reference_preserves_the_plan_contract() -> None:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("lab2_plan_check", REPO / "scripts/lab2_plan_contract_check.py")
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    reference = checker.load_plan_module(REPO / LAB2_PLAN_REFERENCE)
+    assert checker.check(reference)["passed"] is True
 
 
 def test_lab2_golden_set_is_stated_once() -> None:
@@ -497,12 +506,12 @@ def test_lab3_reference_reconciles_the_runtime_with_the_gateway() -> None:
 
 
 def test_lab3_build_ships_to_the_managed_runtime() -> None:
-    """3b must edit a packaged source, or the deploy proof has nothing to prove."""
+    """3A must edit a packaged source for 3B to prove the executed build."""
     from services.build_fingerprint import RUNTIME_SOURCE_FILES
 
     packaged = {path.as_posix() for path in RUNTIME_SOURCE_FILES}
     assert "services/agentcore_gateway.py" in packaged, (
-        "Lab 3b's file left the runtime package, so completing it no longer "
+        "Task 3A's file left the runtime package, so completing it no longer "
         "changes the deployed build fingerprint"
     )
 
@@ -612,7 +621,10 @@ def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
         assert fragment in text, f"{LAB4_RLS_PROOF} lost {fragment!r}"
 
     assert "COMMIT" not in text
-    assert text.count("ROLLBACK") >= 3
+    assert len(re.findall(r"^BEGIN;", text, re.MULTILINE)) == 1
+    assert len(re.findall(r"^ROLLBACK;", text, re.MULTILINE)) == 1
+    assert text.index("BEGIN;") < text.index("ALTER POLICY")
+    assert text.rindex("ROLLBACK;") > text.index("RLS_PROBE_JESSICA_SQLSTATE:00000")
 
 
 def test_lab4_rls_proof_fails_when_the_positive_controls_do_not_hold() -> None:
@@ -637,8 +649,8 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
     anchors += [
         LAB2_STARTER,
         LAB2_REFERENCE,
-        LAB2_BUDGET_REFERENCE,
-        LAB2_BUDGET_REGION[0],
+        LAB2_PLAN_REFERENCE,
+        LAB2_PLAN_REGION[0],
         LAB3_TRACE_CONTRACT,
         LAB4_ABSENCE_STARTER,
         LAB4_ABSENCE_REFERENCE,
@@ -667,7 +679,8 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
     assert "_INVENTORY_AGENT_STUBBED = True" in inventory_agent
-    assert "_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = \"\"" in inventory_agent
+    assert "_INVENTORY_TOOLS = []" in inventory_agent
+    assert "_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = _INVENTORY_SYSTEM_PROMPT" in inventory_agent
     assert '"error": "check_inventory is in stub state"' in inventory_tool
     assert "result = _run_async(logic.check_inventory" not in inventory_tool
     assert "0::numeric AS recomputed_rrf" in lab2
@@ -829,9 +842,9 @@ def test_the_retired_and_canonical_title_lists_do_not_overlap() -> None:
 # ---------------------------------------------------------------------------
 
 _BUILD_STATE_DETECTORS = (
-    ("2b", "_lab2_candidate_budget_is_workshop_stub"),
+    ("2b", "_lab2_search_plan_is_workshop_stub"),
     ("3a", "_lab3_gateway_catalogue_is_workshop_stub"),
-    ("3b", "_lab3_support_contract_is_workshop_stub"),
+    ("3a-binding", "_lab3_support_contract_is_workshop_stub"),
 )
 
 
@@ -862,14 +875,14 @@ def test_build_state_detects_each_reference_solution_as_built(
 
     live_for_step = {
         "2b": (
-            "pellier/backend/services/planned_hybrid_retrieval.py",
-            "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py",
+            "pellier/backend/services/search_plan.py",
+            "solutions/the-quiet-search/retrieval/search_plan_solution.py",
         ),
         "3a": (
             "scripts/deploy/gateway_tool_schemas.py",
             "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
         ),
-        "3b": (
+        "3a-binding": (
             "pellier/backend/services/agentcore_gateway.py",
             "solutions/the-ledger/services/agentcore_gateway.py",
         ),
@@ -877,7 +890,7 @@ def test_build_state_detects_each_reference_solution_as_built(
     live_rel, solution_rel = live_for_step[step]
     live = REPO / live_rel
     backup = live.read_bytes()
-    reloaded = ("services.planned_hybrid_retrieval", "services.agentcore_gateway")
+    reloaded = ("services.search_plan", "services.agentcore_gateway")
     # Other test modules hold references to these module objects. Popping them
     # for good would leave those references stale and their monkeypatches
     # aimed at an object nothing imports any more; the originals go back.
@@ -918,7 +931,7 @@ REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
     (source, destination, _PY_MARKER_BLOCK)
     for source, destination in LAB1_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
 ) + (
-    (LAB2_BUDGET_REFERENCE, LAB2_BUDGET_REGION[0], _PY_MARKER_BLOCK),
+    (LAB2_PLAN_REFERENCE, LAB2_PLAN_REGION[0], _PY_MARKER_BLOCK),
     (LAB2_REFERENCE, LAB2_STARTER, _SQL_MARKER_BLOCK),
     (LAB4_ABSENCE_REFERENCE, "workshop/lab-4-absence.sql", _SQL_MARKER_BLOCK),
 )

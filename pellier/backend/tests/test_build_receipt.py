@@ -199,10 +199,10 @@ class TestGovernanceChain:
 
 
 class TestSourceState:
-    def test_a_fresh_checkout_reports_all_eight_builds_as_unwritten(self) -> None:
-        """Two builds per lab, eight in all, every one shipping as a starter."""
+    def test_a_fresh_checkout_reports_all_source_regions_as_unwritten(self) -> None:
+        """Four labs, eight participant tasks, nine independently inspected source regions."""
         state = receipt_module.collect_source_state()
-        assert len(state) == 8
+        assert len(state) == 9
         assert {entry["lab"] for entry in state.values()} == {
             "01_ground_the_answer",
             "02_measure_hybrid_retrieval",
@@ -212,36 +212,20 @@ class TestSourceState:
         for name, entry in state.items():
             assert entry["state"] == NOT_YET, f"{name} does not read as a starter"
 
-    def test_every_build_flips_when_its_solution_is_the_source(self) -> None:
-        """A detector that never says PROVED would pass the test above too."""
-        solutions = {
-            "1a_inventory_agent_defined":
-                "solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py",
-            "1b_inventory_tool_written":
-                "solutions/closing-marcos-gap/services/"
-                "agent_tools_check_inventory_solution.py",
-            "2a_rrf_expression_authored":
-                "solutions/the-quiet-search/sql/lab-2-rrf-solution.sql",
-            "2b_candidate_budget_authored":
-                "solutions/the-quiet-search/retrieval/planned_hybrid_retrieval_solution.py",
-            "3a_gateway_tool_published":
-                "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
-            "3b_runtime_catalogue_reconciled":
-                "solutions/the-ledger/services/agentcore_gateway.py",
-            "4a_identity_rule_authored":
-                "solutions/the-concierge/policies/identity_match_forbid.cedar",
-            "4b_absence_query_authored":
-                "solutions/the-ledger/observability/lab-4-absence-solution.sql",
-        }
-        for _lab, name, _path, region, markers in receipt_module._BUILDS:
-            solution = receipt_module.REPO / solutions[name]
-            assert solution.exists(), f"{name}: no solution at {solutions[name]}"
-            stub = (
-                receipt_module._region_reads_as_stub(solution, region, markers)
-                if region
-                else receipt_module._reads_as_stub(solution, markers)
-            )
-            assert receipt_module._source_state(stub) == PROVED, name
+    def test_each_region_detector_distinguishes_changed_missing_and_starter(self, tmp_path) -> None:
+        """Source state is deliberately narrower than runtime verification."""
+        for _, name, _, region, markers in receipt_module._BUILDS:
+            source = tmp_path / (name + ".txt")
+            header = f"# === WORKSHOP · {region}: START ===\n" if region else ""
+            footer = f"# === WORKSHOP · {region}: END ===\n" if region else ""
+            source.write_text(header + markers[0] + "\n" + footer)
+            inspect = lambda: (receipt_module._region_reads_as_stub(source, region, markers)
+                               if region else receipt_module._reads_as_stub(source, markers))
+            assert inspect() is True
+            source.write_text(header + "changed participant source\n" + footer)
+            assert inspect() is False
+            source.unlink()
+            assert inspect() is None
 
     def test_an_unreadable_file_is_unchecked(
         self, monkeypatch: pytest.MonkeyPatch

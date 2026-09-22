@@ -29,6 +29,13 @@ Start with the [four-lab teaching map](WORKSHOP.md). It connects each person,
 question, and build to the evidence you should inspect. The **`governed` branch**
 is the 100-minute workshop; `main` serves the shorter builders session.
 
+Use the [task source map](workshop/README.md) and [learning notes](workshop/learning-notes.md)
+to continue after the session. Predict an outcome, author the bounded change,
+run its check, challenge it with a counterexample, and explain the evidence.
+Workshop Studio keeps the worked answers in recovery sections; using one does
+not replace the checks. Saved retrieval captures can be evaluated without more
+service calls, while managed execution still requires a working environment.
+
 The quality badge reports GitHub's branch checks. Deployment E2E is a separate,
 manually triggered check against a real Workshop Studio environment. Neither
 badge reports the health of your local preview.
@@ -80,25 +87,28 @@ test authorization boundaries, and prove whether an action reached the database.
 
 **You do *not* need to:** build a search system from scratch, know Strands/AgentCore/MCP in advance, or have prior agentic-AI experience. We teach those during the session.
 
-**What you will build.** Each lab contains two coding exercises, `a` and `b`: eight builds in total. You edit a marked region in a supplied application, then run checks against its services and database. The environment is deployed before the workshop so you can focus on retrieval, identity, memory, and controlled actions. Each build includes a catch-up reference under `solutions/`. The L400 work is deciding which component owns a decision and checking the evidence that supports it.
+**What you will build.** Prepare one retail concierge for four growing responsibilities:
+**know the facts, respect the requirements, establish the caller, govern the action.**
+Each lab has Task A and Task B. These eight hands-on tasks combine bounded Python,
+SQL and Cedar authoring with deployment and independent investigation. Full
+instructions live in Workshop Studio. [Task contracts and rejected implementations](docs/WORKSHOP-STORY-ARC.md)
+connect the source, app, guides and presentation.
 
-| Build | You author | In |
+| Lab and task | Work you do | Evidence to keep |
 |---|---|---|
-| **1a** | the Inventory Agent definition | `pellier/backend/agents/inventory_agent.py` |
-| **1b** | the `check_inventory` tool body | `pellier/backend/services/agent_tools.py` |
-| **2a** | the Reciprocal Rank Fusion expression | `workshop/lab-2-rrf.sql` |
-| **2b** | the live pre-rerank candidate budget | `pellier/backend/services/planned_hybrid_retrieval.py` |
-| **3a** | publishing the Gateway tool the specialist needs | `scripts/deploy/gateway_tool_schemas.py` |
-| **3b** | reconciling the Runtime catalogue with the Gateway | `pellier/backend/services/agentcore_gateway.py` |
-| **4a** | the identity-to-customer Cedar rule | `policies/workshop_identity_match_forbid.cedar` |
-| **4b** | the keyed absence query that proves a denial did nothing | `workshop/lab-4-absence.sql` |
+| 1A · Marco | Connect inventory to Aurora | Exact turn, tool result, warehouse rows; unknown is not zero. |
+| 1B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows; unknown is not zero. |
+| 2A · Anna | Explain the ranking | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
+| 2B · Anna | Relax preferences, keep requirements | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
+| 3A · Theo | Connect the customer-scoped tool | Owned and foreign request results, fresh session, executed build; Memory is context. |
+| 3B · Theo | Deploy and challenge the conversation | Owned and foreign request results, fresh session, executed build; Memory is context. |
+| 4A · Jessica | Write the ownership rule | Separate RLS probes and keyed effects, allowed positive control, exact Operator turn. |
+| 4B · Jessica | Enforce ownership and reconcile the case | Separate RLS probes and keyed effects, allowed positive control, exact Operator turn. |
 
-`workshop/lab-4-rls.sql` is a **proof** artifact, not a build: Lab 4 runs it to
-show PostgreSQL refusing another shopper's rows. `scripts/build_receipt.py`
-grades all eight regions above, so `receipt` is the fastest check on which ones
-are still starters.
+The build receipt inspects source regions and independently collected evidence.
+A source region changed from its starter is not proof that its task executed.
 
-Each lab has two small builds and a documented recovery path. Predict what
+Each lab has Tasks A and B and a documented recovery path. Predict what
 should happen, run the request, and check the evidence. A convincing answer
 alone does not prove retrieval quality, authorization, or a completed write.
 
@@ -538,11 +548,11 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 
 | Section | What attendees do |
 |---|---|
-| Introduction | Open Code Editor and Pellier, record a run ID, check Aurora and the predeployed Runtime, and save Theo's first conversation for AgentCore Memory extraction. |
+| Introduction | Understand the four connected responsibilities and the participant workflow. Lab 1 setup opens the supplied environment and starts Theo's Memory experiment. |
 | Lab 1: Build a PostgreSQL-Grounded Agent | Complete Inventory Agent and `check_inventory`, then prove Marco's answer against live inventory and `tool_audit`. |
-| Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Read the SQL query plan, reconstruct RRF, and widen the live candidate budget. Compare exact candidate IDs before and after, retain SQL eligibility, and justify the tradeoff. |
+| Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Reconstruct RRF, preserve original requirements across fallback attempts, and check the exact returned product IDs against Aurora. |
 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | Publish a customer-scoped read, reconcile the Runtime tool list, and deploy. Use Theo's extracted preferences in a new conversation, verify current products in Aurora, inspect Memory from a separate process, compare build fingerprints, and run the trace contract. |
-| Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule and keyed absence query. Prove authentication failure, Cedar denial, business refusal, commit, and managed output suppression. Test replay and Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
+| Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule, RLS predicate, and keyed absence query. Prove authentication failure, Cedar denial, business refusal, commit, and managed output suppression. Test replay and Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
 | Summary | Export evidence, restore the policy baseline, explain what each boundary establishes, and map the pattern to your application. |
 
 The Lab 4 driver, `scripts/prove_governance_outcomes.py --json /tmp/pellier-evidence/lab-4-boundaries.json`,

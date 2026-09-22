@@ -333,7 +333,7 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
     assert agentic_rerank["fallbackOrder"] == "planned-hybrid-rrf"
 
 
-def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch) -> None:
+def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch, completed_search_plan) -> None:
     from services import planned_hybrid_retrieval
 
     monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 3)
@@ -351,6 +351,7 @@ def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch) -
 
 def test_exhausted_ladder_never_drops_a_hard_constraint(
     monkeypatch: pytest.MonkeyPatch,
+    completed_search_plan,
 ) -> None:
     """Even when every attempt returns nothing, price/stock/exclusions hold.
 

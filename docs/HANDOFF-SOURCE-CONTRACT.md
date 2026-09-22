@@ -7,6 +7,11 @@ number is how the eighteen-versus-three policy drift survived for weeks.
 
 Read `CLAUDE.md` first for the repository contract and the participant/maintainer modes.
 
+The current four-lab A/B task map and connected teaching narrative live in
+[`WORKSHOP-STORY-ARC.md`](WORKSHOP-STORY-ARC.md), backed by
+`workshop/story-arc.json`. Use that map for task numbering and timing; the
+contracts below describe the system those tasks investigate.
+
 ## Two tool counts, and why both are correct
 
 | number | meaning | source |

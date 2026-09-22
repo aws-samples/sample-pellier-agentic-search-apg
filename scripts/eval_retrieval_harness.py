@@ -123,13 +123,12 @@ class GoldenQuery:
 
 
 def _canonical_anna_labels() -> tuple[str, tuple[str, ...]]:
-    """Read Lab 2b's labeled golden set from the backend source, not a copy.
+    """Read the optional Anna evaluation labels from the backend source, not a copy.
 
-    The labels are a participant artifact: Lab 2b pins them in
-    ``services/planned_hybrid_retrieval.py``. A second literal here would score
-    the harness against last week's labeling and report a regression that
-    exists only in this file. Empty until the lab is built, which is the honest
-    reading of "nothing has been labeled yet".
+    These are supplied judgments for the workshop's fixed query, outside the
+    participant's plan-contract edit. They must not change between runs to
+    make a result look better. They are a small evaluation set, not universal
+    ground truth about gifts.
 
     Parsed rather than imported: importing that module constructs ``Settings``,
     so a harness that imported it could not even be read without database
@@ -1018,6 +1017,113 @@ def _print_report(report: dict[str, Any], *, no_gate: bool) -> None:
     print(f"Elapsed: {report['elapsed_s']:.1f}s")
 
 
+def compare_saved_runs(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    """Score Lab 2's existing captures; never run retrieval or infer SQL proof.
+
+    Use the same relevance functions and labels as the live harness. Refuse
+    incomparable captures rather than manufacture a before/after improvement.
+    Database eligibility and receipt correlation remain separate lab checks.
+    """
+    rows = []
+    for capture in (before, after):
+        if not isinstance(capture, dict) or capture.get("query") != _ANNA_QUERY:
+            raise ValueError("Both captures must contain the fixed Anna query.")
+        receipt = capture.get("receipt", {})
+        if (not isinstance(receipt, dict) or receipt.get("persisted") is not True
+                or not isinstance(receipt.get("comparisonId"), str)
+                or not receipt["comparisonId"].strip()):
+            raise ValueError("Each capture needs a persisted comparison ID; keep the SQL proof separately.")
+        strategies = capture.get("strategies", [])
+        if not isinstance(strategies, list):
+            raise ValueError("Capture strategies must be a list.")
+        matches = [row for row in strategies if isinstance(row, dict)
+                   and row.get("shares_storefront_executor") is True]
+        if len(matches) != 1:
+            raise ValueError("Each capture needs exactly one Storefront executor result.")
+        row = matches[0]
+        rerank = row.get("rerank", {})
+        if not isinstance(rerank, dict) or rerank.get("status") != "applied":
+            raise ValueError("Rerank must have applied in both runs; a fallback is not comparable.")
+        if not isinstance(rerank.get("model"), str) or not rerank["model"].strip():
+            raise ValueError("The executed rerank model is missing.")
+        products = row.get("products")
+        candidates = rerank.get("candidateIds")
+        if not isinstance(products, list) or not products or not isinstance(candidates, list) or not candidates:
+            raise ValueError("Both captures need returned products and rerank candidate IDs.")
+        ids = [product.get("productId") if isinstance(product, dict) else None for product in products]
+        if any(not isinstance(pid, str) or not pid.strip() for pid in ids + candidates):
+            raise ValueError("Product and candidate IDs must be non-empty strings.")
+        if len(set(ids)) != len(ids) or len(set(candidates)) != len(candidates):
+            raise ValueError("Duplicate IDs cannot count as additional evidence.")
+        if not set(ids).issubset(candidates):
+            raise ValueError("Returned products must belong to the recorded rerank pool.")
+        if not isinstance(row.get("searchPlan"), dict) or not row["searchPlan"]:
+            raise ValueError("The executed search plan is missing.")
+        rows.append(row)
+    if before["receipt"]["comparisonId"] == after["receipt"]["comparisonId"]:
+        raise ValueError("Before and after must be different comparisons.")
+    plans = [row["searchPlan"] for row in rows]
+    for plan in plans:
+        hard = plan.get("hard_constraints")
+        if (not isinstance(hard, dict) or hard.get("price_max_usd") != 100
+                or hard.get("in_stock_only") is not True):
+            raise ValueError("Both plans must retain Anna's $100 ceiling and in-stock constraint; verify the actual rows in SQL.")
+    if (plans[0]["hard_constraints"] != plans[1]["hard_constraints"]
+            or plans[0].get("exclusions") != plans[1].get("exclusions")):
+        raise ValueError("Hard constraints or exclusions changed; this is not a pool-only comparison.")
+    if rows[0]["rerank"]["model"] != rows[1]["rerank"]["model"]:
+        raise ValueError("The rerank model changed; this is not a pool-only comparison.")
+    if not _ANNA_EXPECTED:
+        raise ValueError("Anna's supplied relevance judgments are missing.")
+
+    def score(capture: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+        ids = [product["productId"] for product in row["products"]]
+        return {
+            "comparison_id": capture["receipt"]["comparisonId"],
+            "returned_ids": ids,
+            "pool_k": row["rerank"].get("poolK"),
+            "rerank_model": row["rerank"]["model"],
+            "candidate_coverage": _recall(row["rerank"]["candidateIds"], _ANNA_EXPECTED)[2],
+            "recall_at_5": _recall_at_5(ids, _ANNA_EXPECTED)[2],
+            "mrr_at_5": _mrr_at_5(ids, _ANNA_EXPECTED),
+            "hit_at_1": _hit_at_1(ids, _ANNA_EXPECTED),
+            "observed_ms": row.get("observedMs"),
+            "modeled_cost_per_thousand_usd": row.get("modeledCostPerThousandUsd"),
+        }
+
+    first, second = score(before, rows[0]), score(after, rows[1])
+    delta = {metric: round(second[metric] - first[metric], 6) for metric in
+             ("candidate_coverage", "recall_at_5", "mrr_at_5", "hit_at_1")}
+    quality = [delta[metric] for metric in ("recall_at_5", "mrr_at_5", "hit_at_1")]
+    improved, declined = any(value > 0 for value in quality), any(value < 0 for value in quality)
+    return {
+        "status": "measured",
+        "query": _ANNA_QUERY,
+        "label_source": "services/planned_hybrid_retrieval.py:CANONICAL_ANNA_GOLDEN_IDS",
+        "relevant_ids": list(_ANNA_EXPECTED),
+        "before": first,
+        "after": second,
+        "delta": delta,
+        "quality_change": "mixed" if improved and declined else "improved" if improved else "declined" if declined else "unchanged",
+        "comparison_context": {
+            "same_executed_plan": plans[0] == plans[1],
+            "before_plan": plans[0],
+            "after_plan": plans[1],
+            "interpretation": (
+                "Same recorded plan. These scores describe the two saved results, not a causal guarantee."
+                if plans[0] == plans[1] else
+                "The executed plan also changed. Compare soft preferences and relaxations; do not attribute the score difference to pool size alone."
+            ),
+        },
+        "limits": [
+            "One query with supplied relevance judgments; not a production quality gate.",
+            "Candidate coverage is not returned-result quality. Preserve unchanged and worse results.",
+            "Saved captures are not independently authenticated; verify exact receipts and eligibility in SQL.",
+            "Observed latency is one sample; modeled cost is not a bill. This command makes no service calls.",
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Pellier golden-query retrieval evaluation."
@@ -1034,6 +1140,10 @@ def main() -> int:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     parser.add_argument(
+        "--compare-saved", nargs=2, type=Path, metavar=("BEFORE", "AFTER"),
+        help="Score Lab 2's saved comparison JSON with the existing Anna labels; no AWS calls. Always emits JSON.",
+    )
+    parser.add_argument(
         "--no-gate",
         action="store_true",
         help="Report metrics without failing the run on a threshold regression.",
@@ -1044,6 +1154,15 @@ def main() -> int:
         help="Also gate on planner constraint recall (moves with model behaviour).",
     )
     args = parser.parse_args()
+
+    if args.compare_saved:
+        try:
+            captures = [json.loads(path.read_text()) for path in args.compare_saved]
+            report = compare_saved_runs(*captures)
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, indent=2))
+        return 0  # Measurements exist, not a claim that quality improved.
 
     _load_env()
     backend = _import_backend()

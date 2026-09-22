@@ -1,18 +1,19 @@
 # WORKSHOP_EXERCISE_STUB
 #
-# Field 1: set False only after the definition fields below are complete.
+# Task 1B: choose the read tools that can establish the inventory facts.
+# Prompt and model configuration are supplied. Clear the stub after the grant.
 _INVENTORY_AGENT_STUBBED = True
 
-# Field 2: Inventory Agent's system instructions.
-_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = ""
+# Provided: Inventory Agent system instructions.
+_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = _INVENTORY_SYSTEM_PROMPT
 
-# Field 3: the reporting model id for factual stock answers.
-_INVENTORY_MODEL_ID = ""
+# Provided: reporting model.
+_INVENTORY_MODEL_ID = settings.BEDROCK_REPORTING_MODEL
 
-# Field 4: the reporting max-token ceiling.
-_INVENTORY_MAX_TOKENS = 0
+# Provided: token ceiling.
+_INVENTORY_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 
-# Field 5: the two tools Inventory Agent owns.
+# Participant: permitted inventory reads.
 _INVENTORY_TOOLS = []
 #
 # Source delta: Inventory Agent has no temperature field. Sonnet 4.6 rejects the

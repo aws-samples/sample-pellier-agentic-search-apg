@@ -161,7 +161,7 @@ describe('Pellier Observatory live agent workbench', () => {
     // from the shared storefront source.
     expect(FRESH_TURNS).toHaveLength(5);
     const requiredJourney = await screen.findByRole('region', {
-      name: 'Required three-turn journey',
+      name: 'Guided conversation',
     });
     const exploreFurther = screen.getByRole('region', {
       name: 'Explore further',
@@ -169,7 +169,7 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(requiredJourney.querySelectorAll('button')).toHaveLength(3);
     expect(
       within(requiredJourney).getByText(
-        'Each turn keeps the previous conversation.',
+        'Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.',
       ),
     ).toBeInTheDocument();
     expect(exploreFurther.querySelectorAll('button')).toHaveLength(2);

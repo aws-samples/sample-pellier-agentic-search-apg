@@ -1,0 +1,344 @@
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+...........F............................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+...............................................ssssssssssss............. [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+.............................s.......................................... [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+.......................................................................s [ 44%]
+........................................................................ [ 46%]
+.......................................................sssssssssssssssss [ 48%]
+sssssssssssssssssssssssssssssssssssssss................................. [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+..................................................................F..... [ 80%]
+......................FF................................................ [ 82%]
+................sssssssssssssssssss..................................... [ 84%]
+.................................s...................................... [ 85%]
+.....................FF................................................. [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+............                                                             [100%]
+=================================== FAILURES ===================================
+_______________________ test_real_route_files_are_clean ________________________
+
+    def test_real_route_files_are_clean() -> None:
+        """Every ``pellier/backend/routes/*.py`` module must emit
+        zero user-facing hardcoded sentences. This is the CI guard: when a
+        PR introduces a ``"Sign in and ..."``-shaped string in a route, the
+        test fails until the string is moved into ``copy.py``."""
+        files = _route_files()
+        assert len(files) > 0, (
+            "No route files found - scanner has nothing to check. "
+            "Expected pellier/backend/routes/*.py to exist."
+        )
+
+        all_violations: list[str] = []
+        for path in files:
+            source = path.read_text(encoding="utf-8")
+            rel = path.relative_to(ROUTES_DIR.parent).as_posix()
+            all_violations.extend(scan_source(rel, source))
+
+        if all_violations:
+>           raise AssertionError(
+                "Found hardcoded user-facing strings in backend routes:\n  "
+                + "\n  ".join(all_violations)
+            )
+E           AssertionError: Found hardcoded user-facing strings in backend routes:
+E             routes/observatory.py:157:16: hardcoded user-facing string 'Complete Task 2B before relaxing a preference' (move to pellier_copy.py and import it, or add a '# copy-allow: <reason>' suppression on the same line)
+
+tests/test_backend_copy_hardcoded.py:467: AssertionError
+____________________ test_an_inferred_preference_stays_soft ____________________
+
+    def test_an_inferred_preference_stays_soft() -> None:
+        """A model-proposed taste tag may shape ranking; it may not gate validity."""
+        plan = _plan("something similar", {"tags": ["ceramic", "artisanal"]})
+        assert plan.search_plan.soft.tags == ("ceramic", "artisanal")
+        # The hard set contains only what Aurora established — the original's category.
+        assert plan.search_plan.hard.categories == ("Home Decor",)
+        assert "ceramic" not in " ".join(plan.describe_hard_controls())
+        # And the tag predicate is droppable by the relaxation ladder, unlike the rest.
+>       widened = plan.search_plan.relaxation_ladder()[-1]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replacement_search.py:242:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+services/search_plan.py:220: in relaxation_ladder
+    widened = self._with_relaxations(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SearchPlan(intent='Stoneware Pour-Over Set Stoneware Pour-Over Set description', hard=HardConstraints(price_max_usd=18...strategy='hybrid+rerank', top_k=3, evidence_required=True, relaxation_policy='soft_only', ambiguous=(), relaxations=[])
+relaxations = [Relaxation(step='drop_tags', reason='strict pass returned too few valid candidates; tag preferences widened (hard constraints kept)', dropped=('ceramic', 'artisanal'))]
+
+    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+>           raise ValueError("Complete Task 2B before relaxing a preference")
+E           ValueError: Complete Task 2B before relaxing a preference
+
+services/search_plan.py:241: ValueError
+________ test_a_thin_strict_pass_widens_preferences_but_not_constraints ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1167307c0>
+
+    @pytest.mark.asyncio
+    async def test_a_thin_strict_pass_widens_preferences_but_not_constraints(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Regression: a proposed tag gated validity and returned nothing.
+
+        Replacing a suede boot found zero candidates, because the extractor proposed
+        ceramic-ish tags and no Footwear row carried them. A preference is not a
+        correctness boundary, so the ladder widens it — and every rung keeps the price
+        ceiling, the category and the availability requirement.
+        """
+        calls: List[List[str]] = []
+
+        class _Hybrid:
+            def __init__(self, _db: Any) -> None:
+                pass
+
+            async def search(self, **kwargs: Any) -> List[Dict[str, Any]]:
+                clauses = list(kwargs.get("hard_clauses") or [])
+                calls.append(clauses)
+                # The strict rung (tags applied) finds nothing; the widened one finds five.
+                if any("tags ?|" in c for c in clauses):
+                    return []
+                return [_candidate(str(i), f"Option {i}", 60.0) for i in range(5)]
+
+        class _Embeddings:
+            def embed_query(self, _q: str) -> List[float]:
+                return [0.0] * 1024
+
+        class _Rerank:
+            def rerank(self, **kwargs: Any) -> List[Dict[str, Any]]:
+                return [{"index": i, "relevance_score": 1.0 - i * 0.1} for i in range(5)]
+
+        async def _resolve(_db: Any, pids: Sequence[str]) -> Dict[str, Any]:
+            return {pid: _reconciled(pid) for pid in pids}
+
+        from services import embeddings as EMB
+        from services import hybrid_search as HS
+        from services import inventory_evidence as IE
+        from services import rerank as RR
+
+        monkeypatch.setattr(EMB, "EmbeddingService", _Embeddings)
+        monkeypatch.setattr(HS, "HybridSearch", _Hybrid)
+        monkeypatch.setattr(RR, "get_rerank_service", lambda: _Rerank())
+        monkeypatch.setattr(IE, "resolve_inventory_many", _resolve)
+
+        plan = _plan("find an in-stock replacement",
+                     {"tags": ["ceramic", "artisanal"], "in_stock_only": True})
+>       result = await RS.find_replacements(FakeDb(), plan)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replacement_search.py:752:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+services/replacement_search.py:577: in find_replacements
+    for rung in plan.search_plan.relaxation_ladder():
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+services/search_plan.py:220: in relaxation_ladder
+    widened = self._with_relaxations(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SearchPlan(intent='Stoneware Pour-Over Set Stoneware Pour-Over Set description', hard=HardConstraints(price_max_usd=18...strategy='hybrid+rerank', top_k=3, evidence_required=True, relaxation_policy='soft_only', ambiguous=(), relaxations=[])
+relaxations = [Relaxation(step='drop_tags', reason='strict pass returned too few valid candidates; tag preferences widened (hard constraints kept)', dropped=('ceramic', 'artisanal'))]
+
+    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+>           raise ValueError("Complete Task 2B before relaxing a preference")
+E           ValueError: Complete Task 2B before relaxing a preference
+
+services/search_plan.py:241: ValueError
+_________________ test_a_sufficient_strict_pass_does_not_widen _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x117e2ac10>
+
+    @pytest.mark.asyncio
+    async def test_a_sufficient_strict_pass_does_not_widen(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        candidates = [_candidate(str(i), f"Option {i}", 60.0) for i in range(6)]
+        _wire_pipeline(monkeypatch, candidates=candidates,
+                       inventory={str(i): _reconciled(str(i)) for i in range(6)})
+        plan = _plan("find a replacement", {"tags": ["ceramic"]})
+>       result = await RS.find_replacements(FakeDb(), plan)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replacement_search.py:776:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+services/replacement_search.py:577: in find_replacements
+    for rung in plan.search_plan.relaxation_ladder():
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+services/search_plan.py:220: in relaxation_ladder
+    widened = self._with_relaxations(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SearchPlan(intent='Stoneware Pour-Over Set Stoneware Pour-Over Set description', hard=HardConstraints(price_max_usd=18...strategy='hybrid+rerank', top_k=3, evidence_required=True, relaxation_policy='soft_only', ambiguous=(), relaxations=[])
+relaxations = [Relaxation(step='drop_tags', reason='strict pass returned too few valid candidates; tag preferences widened (hard constraints kept)', dropped=('ceramic',))]
+
+    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+>           raise ValueError("Complete Task 2B before relaxing a preference")
+E           ValueError: Complete Task 2B before relaxing a preference
+
+services/search_plan.py:241: ValueError
+________ test_candidate_budget_comparison_exposes_exact_candidate_loss _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10db3a350>
+
+    def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch) -> None:
+        from services import planned_hybrid_retrieval
+
+        monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 3)
+>       before = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_search_strategy_compare_endpoint.py:340:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:205: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:128: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app.py:2278: in compare_search_strategies
+    agentic = await execute_search_plan(
+services/planned_hybrid_retrieval.py:626: in execute_search_plan
+    for rung in plan.relaxation_ladder()[1:]:
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+services/search_plan.py:220: in relaxation_ladder
+    widened = self._with_relaxations(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SearchPlan(intent='A gift under $100', hard=HardConstraints(price_max_usd=100.0, in_stock_only=True, categories=('Home...strategy='hybrid+rerank', top_k=5, evidence_required=True, relaxation_policy='soft_only', ambiguous=(), relaxations=[])
+relaxations = [Relaxation(step='drop_tags', reason='strict pass returned too few valid candidates; tag preferences widened (hard constraints kept)', dropped=('gift',))]
+
+    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+>           raise ValueError("Complete Task 2B before relaxing a preference")
+E           ValueError: Complete Task 2B before relaxing a preference
+
+services/search_plan.py:241: ValueError
+_____________ test_exhausted_ladder_never_drops_a_hard_constraint ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10f66e3c0>
+
+    def test_exhausted_ladder_never_drops_a_hard_constraint(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Even when every attempt returns nothing, price/stock/exclusions hold.
+
+        Regression guard for the audit's A2 finding: the previous ladder's
+        final ``drop_all`` rung removed price and in-stock entirely, so this
+        query could answer with an out-of-stock $250 candle.
+        """
+        empty = _EmptyPoolHybridSearch(object())
+        monkeypatch.setattr(hybrid_module, "HybridSearch", lambda db: empty)
+
+>       body = asyncio.run(
+            app_module.compare_search_strategies(
+                query="in-stock housewarming gift under $100, no candles"
+            )
+        )
+
+tests/test_search_strategy_compare_endpoint.py:364:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:205: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:128: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app.py:2278: in compare_search_strategies
+    agentic = await execute_search_plan(
+services/planned_hybrid_retrieval.py:626: in execute_search_plan
+    for rung in plan.relaxation_ladder()[1:]:
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+services/search_plan.py:220: in relaxation_ladder
+    widened = self._with_relaxations(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = SearchPlan(intent='in-stock housewarming gift under $100, no candles', hard=HardConstraints(price_max_usd=100.0, in_st...strategy='hybrid+rerank', top_k=5, evidence_required=True, relaxation_policy='soft_only', ambiguous=(), relaxations=[])
+relaxations = [Relaxation(step='drop_tags', reason='strict pass returned too few valid candidates; tag preferences widened (hard constraints kept)', dropped=('gift',))]
+
+    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+>           raise ValueError("Complete Task 2B before relaxing a preference")
+E           ValueError: Complete Task 2B before relaxing a preference
+
+services/search_plan.py:241: ValueError
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass/pellier/backend/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_agentcore_memory.py::test_strict_memory_never_falls_back_after_sdk_write_failure
+  /Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass/pellier/backend/.venv/lib/python3.14/site-packages/bedrock_agentcore/runtime/context.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RequestContext(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_backend_copy_hardcoded.py::test_real_route_files_are_clean
+FAILED tests/test_replacement_search.py::test_an_inferred_preference_stays_soft
+FAILED tests/test_replacement_search.py::test_a_thin_strict_pass_widens_preferences_but_not_constraints
+FAILED tests/test_replacement_search.py::test_a_sufficient_strict_pass_does_not_widen
+FAILED tests/test_search_strategy_compare_endpoint.py::test_candidate_budget_comparison_exposes_exact_candidate_loss
+FAILED tests/test_search_strategy_compare_endpoint.py::test_exhausted_ladder_never_drops_a_hard_constraint
+6 failed, 3588 passed, 90 skipped, 2 warnings in 232.07s (0:03:52)

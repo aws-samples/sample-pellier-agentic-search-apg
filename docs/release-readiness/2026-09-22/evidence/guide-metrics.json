@@ -1,0 +1,36 @@
+{
+  "pages": [
+    {
+      "page": "content/00-introduction/index.en.md",
+      "words": 672,
+      "bash": 2
+    },
+    {
+      "page": "content/10-build-a-postgresql-grounded-agent/index.en.md",
+      "words": 760,
+      "bash": 2
+    },
+    {
+      "page": "content/20-build-and-measure-postgresql-hybrid-retrieval/index.en.md",
+      "words": 880,
+      "bash": 2
+    },
+    {
+      "page": "content/30-deploy-and-operate-the-managed-agent-path/index.en.md",
+      "words": 1159,
+      "bash": 10
+    },
+    {
+      "page": "content/40-govern-and-prove-agent-actions/index.en.md",
+      "words": 1491,
+      "bash": 8
+    },
+    {
+      "page": "content/60-summary/index.en.md",
+      "words": 415,
+      "bash": 3
+    }
+  ],
+  "words": 5377,
+  "bash": 27
+}

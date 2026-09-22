@@ -25,9 +25,9 @@ export default function LabsCatalog() {
           </div>
           <div className="labs-catalog-orientation">
             <p>
-              Can you trust the answer, find eligible products, carry context
-              across conversations, and control who may act? Build those
-              boundaries in order, using four customers at the same shop.
+              Know the facts, respect the requirements, establish the caller,
+              then govern the action. Four customers introduce the next
+              responsibility for the same concierge. Each lab has Task A and Task B.
             </p>
             <div className="labs-catalog-start">
               <Link className="labs-catalog-primary" to={resumePoint ? resumeHref(resumePoint) : '/observatory/workbench?lab=grounded-inventory'}>

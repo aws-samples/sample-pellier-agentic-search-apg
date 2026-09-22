@@ -231,7 +231,7 @@ def test_a_derived_price_band_is_declared_as_a_heuristic() -> None:
     )
 
 
-def test_an_inferred_preference_stays_soft() -> None:
+def test_an_inferred_preference_stays_soft(completed_search_plan) -> None:
     """A model-proposed taste tag may shape ranking; it may not gate validity."""
     plan = _plan("something similar", {"tags": ["ceramic", "artisanal"]})
     assert plan.search_plan.soft.tags == ("ceramic", "artisanal")
@@ -704,6 +704,7 @@ async def test_the_narrative_and_the_card_cannot_disagree(
 @pytest.mark.asyncio
 async def test_a_thin_strict_pass_widens_preferences_but_not_constraints(
     monkeypatch: pytest.MonkeyPatch,
+    completed_search_plan,
 ) -> None:
     """Regression: a proposed tag gated validity and returned nothing.
 
@@ -773,6 +774,9 @@ async def test_a_sufficient_strict_pass_does_not_widen(
     _wire_pipeline(monkeypatch, candidates=candidates,
                    inventory={str(i): _reconciled(str(i)) for i in range(6)})
     plan = _plan("find a replacement", {"tags": ["ceramic"]})
+    def unexpected_fallback(_self):
+        pytest.fail("A sufficient strict result must not construct the fallback")
+    monkeypatch.setattr(type(plan.search_plan), "relaxation_ladder", unexpected_fallback)
     result = await RS.find_replacements(FakeDb(), plan)
     assert result.relaxations == [], "a sufficient strict pass was widened anyway"
 

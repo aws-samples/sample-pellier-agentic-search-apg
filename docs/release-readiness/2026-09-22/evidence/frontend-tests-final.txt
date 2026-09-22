@@ -1,0 +1,12 @@
+
+> pellier-frontend@1.0.0 test
+> vitest --run src/observatory/surfaces/labs/LabsCatalog.test.tsx src/observatory/surfaces/observe/WorkshopMap.test.tsx src/observatory/surfaces/observe/ObservatoryWorkbench.test.tsx src/observatory/__tests__/labs-interaction.test.ts
+
+
+ RUN  v4.1.11 /Users/shayons/Desktop/Workshops/sample-pellier-agentic-search-apg/.worktrees/governed-product-pass/pellier/frontend
+
+
+ Test Files  4 passed (4)
+      Tests  44 passed (44)
+   Start at  00:45:30
+   Duration  4.20s (transform 912ms, setup 1.08s, import 1.79s, tests 2.34s, environment 2.89s)

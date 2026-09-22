@@ -1,0 +1,6 @@
+        # WORKSHOP_EXERCISE_STUB
+        # Task 2B: construct the next attempt from this validated request.
+        # An unfinished fallback refuses to run; it must never broaden access.
+        if relaxations:
+            raise ValueError("Complete Task 2B before relaxing a preference")
+        return replace(self, relaxations=[])

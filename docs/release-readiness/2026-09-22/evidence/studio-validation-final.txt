@@ -1,0 +1,4 @@
+Workshop validation failed:
+- content/00-introduction/index.en.md references source path workshop/learning-notes.md, but participant pin 894b04a8a25529560f9f3706feb96488200b1b9b does not contain it
+- content/20-build-and-measure-postgresql-hybrid-retrieval/index.en.md references source path scripts/lab2_plan_contract_check.py, but participant pin 894b04a8a25529560f9f3706feb96488200b1b9b does not contain it
+- content/60-summary/index.en.md references source path workshop/README.md, but participant pin 894b04a8a25529560f9f3706feb96488200b1b9b does not contain it

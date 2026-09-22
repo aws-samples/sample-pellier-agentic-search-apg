@@ -572,11 +572,9 @@ async def find_replacements(db: Any, plan: ReplacementPlan) -> ReplacementResult
     # the predicate made it gate validity: replacing a suede boot returned zero
     # candidates because no Footwear row carried the proposed tags. Every rung keeps
     # the hard constraints, so widening can never cross a correctness boundary.
-    candidates: List[Dict[str, Any]] = []
-    rung_used = plan.search_plan
-    for rung in plan.search_plan.relaxation_ladder():
+    async def search_rung(rung: Any) -> List[Dict[str, Any]]:
         hard_clauses, hard_params = compile_replacement_predicates(plan, rung)
-        candidates = await hybrid.search(
+        return await hybrid.search(
             query=plan.retrieval_query,
             query_embedding=embedding,
             k_vector=settings.HYBRID_VECTOR_K,
@@ -585,9 +583,17 @@ async def find_replacements(db: Any, plan: ReplacementPlan) -> ReplacementResult
             hard_clauses=hard_clauses,
             hard_params=hard_params,
         )
-        rung_used = rung
-        if len(candidates) >= _MIN_POOL:
-            break
+
+    # Resolve the strict request before constructing any fallback. A sufficient
+    # result must remain usable while Task 2B's fallback is still unfinished.
+    rung_used = plan.search_plan
+    candidates = await search_rung(rung_used)
+    if len(candidates) < _MIN_POOL:
+        for rung in plan.search_plan.relaxation_ladder()[1:]:
+            candidates = await search_rung(rung)
+            rung_used = rung
+            if len(candidates) >= _MIN_POOL:
+                break
 
     result = ReplacementResult(
         plan=plan,

@@ -290,12 +290,12 @@ export default function ObservatoryCuratedTurns({
       {!loading && !error && requiredScenarios.length > 0 ? (
         <section
           className="labs-turns-group"
-          aria-label="Required three-turn journey"
+          aria-label="Guided conversation"
         >
           <div className="labs-turns-group-heading labs-turns-group-heading-context">
-            <h3>Required three-turn journey</h3>
+            <h3>Guided conversation</h3>
             <span className="labs-turns-context">
-              Each turn keeps the previous conversation.
+              Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.
             </span>
           </div>
           <ol className="labs-turns-list" data-journey-role="required">

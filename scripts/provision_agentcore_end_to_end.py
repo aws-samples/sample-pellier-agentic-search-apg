@@ -2152,15 +2152,290 @@ def _live_policy_proof(
     return proofs
 
 
+def _existing_lambda_arns(
+    *,
+    region: str,
+    identity: DeploymentIdentity,
+) -> dict[str, str]:
+    """Read the Gateway targets' Lambda ARNs without republishing them.
+
+    Neither Lab 3 edit changes Lambda code, so the participant update looks the
+    four functions up by their deterministic names instead of repackaging and
+    uploading them. A missing function means the environment was never
+    provisioned, which no participant edit can repair.
+    """
+    lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
+    arns: dict[str, str] = {}
+    for surface, config in _deployment_targets(identity).items():
+        function_name = f"{config['server_name']}-function"
+        try:
+            response = lambda_client.get_function(FunctionName=function_name)
+        except ClientError as exc:
+            raise RuntimeError(
+                f"Gateway target function {function_name} is not deployed. "
+                "The participant update edits a provisioned environment; ask a "
+                "facilitator to run the full provisioner."
+            ) from exc
+        arns[surface] = response["Configuration"]["FunctionArn"]
+    return arns
+
+
+def _redeploy_participant_edits(
+    *,
+    repo: Path,
+    account_id: str,
+    region: str,
+    cognito_pool: str,
+    cognito_client: str,
+    lambda_arns: dict[str, str],
+    model_id: str,
+    opus_model_id: str,
+    sonnet_model_id: str,
+    fast_model_id: str,
+    workshop_id: str,
+    env: dict[str, str],
+    identity: DeploymentIdentity,
+) -> tuple[Path, dict[str, Any]]:
+    """Render and deploy once, reusing the Gateway ARN already in state.
+
+    A fresh provision deploys twice because tool-scoped Cedar policies must name
+    a Gateway that does not exist until the first deploy returns. A participant
+    update already has that ARN, so the policies render in the first pass and a
+    single deploy carries both edited files: the Gateway target schemas from
+    `gateway_tool_schemas.py` and the packaged Runtime source that contains
+    `services/agentcore_gateway.py`. Resources keep their names and ARNs; this
+    updates them in place and never deletes or recreates one.
+    """
+    root = project_root(repo, identity.suffix)
+    if not (root / "agentcore" / "agentcore.json").is_file():
+        raise RuntimeError(
+            f"No deployed AgentCore project at {root}. The participant update "
+            "edits an existing deployment; ask a facilitator to run the full "
+            "provisioner first."
+        )
+    gateway_state = _require_gateway_state(
+        _read_deployed_state(root), identity.gateway_name
+    )
+    render_project(
+        repo=repo,
+        account_id=account_id,
+        region=region,
+        cognito_pool=cognito_pool,
+        cognito_client=cognito_client,
+        lambda_arns=lambda_arns,
+        model_id=model_id,
+        opus_model_id=opus_model_id,
+        sonnet_model_id=sonnet_model_id,
+        fast_model_id=fast_model_id,
+        workshop_id=workshop_id,
+        identity=identity,
+        include_policies=True,
+        action_token=INITIATE_RETURN_ACTION,
+        gateway_arn=str(gateway_state["gatewayArn"]),
+    )
+    _agentcore(root, "validate", env=env)
+    _agentcore(root, "deploy", "--yes", "--json", env=env)
+    return root, _read_deployed_state(root)
+
+
+def _participant_update(
+    *,
+    repo: Path,
+    deploy_dir: Path,
+    output_path: Path,
+    region: str,
+    required: dict[str, Any],
+    opus_model_id: str,
+    sonnet_model_id: str,
+    fast_model_id: str,
+    client_secret_arn: str | None,
+    account_id: str,
+    identity: DeploymentIdentity,
+    env: dict[str, str],
+    result: dict[str, Any],
+    checkpoint: Callable[[], None],
+) -> int:
+    """Deploy a participant's Lab 3 edits and prove only what the lab asks.
+
+    Environment preparation belongs to the facilitator's full provision. Lambda
+    packages, trace and Runtime log groups, Transaction Search activation, the
+    CloudTrail control-plane audit, the Cognito claim trigger, Gateway
+    observability and Memory seeding are all unchanged by either Lab 3 edit, and
+    each carries a wait a participant can neither shorten nor act on: the two
+    longest bound 900 seconds apiece.
+
+    This path answers the four questions the lab actually asks. The control
+    plane accepted the configuration, the package contains the participant's
+    code, the running revision serves that package, and an authenticated request
+    reaches it. It deliberately writes its own receipt: the full receipt at
+    `/tmp/pellier-agentcore-managed.json` records the facilitator's complete
+    managed contract, which `lab3-start.sh` and `health-gate.sh` both validate,
+    and a narrower document at that path would fail them.
+    """
+    result["mode"] = "participant"
+    lambda_arns = _existing_lambda_arns(region=region, identity=identity)
+    result["lambdas"] = {
+        surface: {"function_arn": arn} for surface, arn in lambda_arns.items()
+    }
+    checkpoint()
+
+    root, state = _redeploy_participant_edits(
+        repo=repo,
+        account_id=account_id,
+        region=region,
+        cognito_pool=required["cognito_pool"],
+        cognito_client=required["cognito_client"],
+        lambda_arns=lambda_arns,
+        model_id=required["model_id"],
+        opus_model_id=opus_model_id,
+        sonnet_model_id=sonnet_model_id,
+        fast_model_id=fast_model_id,
+        workshop_id=required["workshop_id"],
+        env=env,
+        identity=identity,
+    )
+    result["cli"]["project_root"] = str(root)
+
+    gateway_state = _require_gateway_state(state, identity.gateway_name)
+    runtime_state = _require_state_resource(state, "runtimes", identity.runtime_name)
+    operator_state = _require_state_resource(
+        state, "runtimes", identity.operator_runtime_name
+    )
+    gateway_id = str(gateway_state["gatewayId"])
+    gateway_url = str(gateway_state.get("gatewayUrl", ""))
+    if not gateway_url:
+        raise RuntimeError("AgentCore CLI state did not include Gateway URL")
+    result["gateway"] = {
+        "gateway_id": gateway_id,
+        "gateway_arn": str(gateway_state["gatewayArn"]),
+        "gateway_url": gateway_url,
+    }
+    result["runtime"] = {
+        "runtime_arn": str(runtime_state["runtimeArn"]),
+        "agent_model_id": required["model_id"],
+    }
+    result["operator_runtime"] = {
+        "runtime_arn": str(operator_state["runtimeArn"]),
+        "authentication": "AWS_IAM",
+    }
+    # The participant's render carries the Cedar policies, and Lab 3's own proof
+    # is that a foreign customer's ticket read is denied. A deploy that quietly
+    # dropped the policy engine would leave that read allowed, so attachment is
+    # a gate here exactly as it is on the full path.
+    policy_state = _require_state_resource(
+        state, "policyEngines", identity.policy_engine_name
+    )
+    result["policy"] = {
+        "policy_engine_id": str(policy_state["policyEngineId"]),
+        "policy_engine_arn": policy_state.get("policyEngineArn"),
+        "mode": "ENFORCE",
+        "gated_tool": "initiate_return",
+    }
+    checkpoint()
+
+    control_proof = _verify_gateway_control_plane(region=region, gateway_id=gateway_id)
+    result["verification"]["gateway_control_plane"] = control_proof
+    result["verification"]["targets_attached"] = control_proof["target_count"] == 4
+
+    access_token, smoke_username = _cognito_access_token(
+        region=region,
+        user_pool_id=required["cognito_pool"],
+        client_id=required["cognito_client"],
+        credentials_secret_arn=required["credentials_secret"],
+        client_secret_arn=client_secret_arn,
+    )
+    live_gateway = _discover_live_gateway_tools(
+        deploy_dir=deploy_dir,
+        gateway_url=gateway_url,
+        access_token=access_token,
+    )
+    result["verification"]["gateway_tools_discovered"] = True
+    result["verification"]["gateway_tool_count"] = live_gateway["count"]
+    result["verification"]["gateway_tool_names"] = live_gateway["canonical_names"]
+    result["verification"]["gateway_prefixed_tool_names"] = live_gateway[
+        "prefixed_names"
+    ]
+    checkpoint()
+
+    runtime_smoke = _authenticated_runtime_smoke(
+        root=root,
+        access_token=access_token,
+        username=smoke_username,
+        env=env,
+        expected_fingerprint=_rendered_build_fingerprint(root),
+        identity=identity,
+    )
+    result["verification"]["authenticated_runtime_invoke_smoke"] = True
+    result["verification"]["runtime_invoke_smoke"] = runtime_smoke
+    result["verification"]["runtime_build_fingerprint_match"] = runtime_smoke[
+        "build_fingerprint_match"
+    ]
+
+    # Named apart from the full run's `required_checks` on purpose: that gate is
+    # the complete managed contract, and a narrower list must never be mistaken
+    # for it by a reader or by a contract test scanning this source.
+    participant_checks = (
+        "targets_attached",
+        "gateway_tools_discovered",
+        "authenticated_runtime_invoke_smoke",
+        "runtime_build_fingerprint_match",
+    )
+    missing = [
+        check
+        for check in participant_checks
+        if result["verification"].get(check) is not True
+    ]
+    if missing:
+        raise RuntimeError(
+            "Participant update checks did not pass: " + ", ".join(missing)
+        )
+    result["status"] = "ready"
+    checkpoint()
+    print(
+        json.dumps(
+            {
+                "status": "ready",
+                "mode": "participant",
+                "gateway_tool_count": live_gateway["count"],
+                "build_fingerprint_match": runtime_smoke["build_fingerprint_match"],
+                "output_json": str(output_path),
+            }
+        )
+    )
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-path", default=os.environ.get("REPO_PATH", "."))
-    parser.add_argument("--output-json", default="/tmp/pellier-agentcore-managed.json")
+    parser.add_argument(
+        "--mode",
+        choices=("full", "participant"),
+        default="full",
+        help=(
+            "full: provision and verify the complete managed environment. "
+            "participant: deploy an already-provisioned environment's edited "
+            "tool schemas and Runtime package, then verify the published tools "
+            "and the executed build fingerprint."
+        ),
+    )
+    parser.add_argument("--output-json", default=None)
     args = parser.parse_args()
 
     repo = Path(args.repo_path).resolve()
     deploy_dir = repo / "scripts" / "deploy"
-    output_path = Path(args.output_json)
+    # The full receipt records the complete managed contract, and both
+    # lab3-start.sh and health-gate.sh validate it. A participant update proves
+    # four of those checks, so it writes its own document instead of replacing a
+    # complete receipt with a narrower one.
+    output_path = Path(
+        args.output_json
+        or (
+            "/tmp/pellier-agentcore-managed.json"
+            if args.mode == "full"
+            else "/tmp/pellier-agentcore-participant.json"
+        )
+    )
     # Before the first _require_env, or the fallback cannot help.
     _load_env_fallback(repo)
     identity = deployment_identity()
@@ -2252,21 +2527,42 @@ def main() -> int:
         checkpoint()
 
     try:
-        _require_release_log_protection(
-            required["runtime_log_kms_key_arn"], runtime_log_retention_days,
-        )
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
         caller = sts.get_caller_identity()
         account_id = caller["Account"]
         result["account_id"] = account_id
         partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
+        local_schema = _verify_local_schema()
+        result["verification"]["local_tool_schema"] = local_schema
+
+        # A participant update creates no log group and activates no telemetry,
+        # so the readiness that governs those resources is not its gate.
+        if args.mode == "participant":
+            return _participant_update(
+                repo=repo,
+                deploy_dir=deploy_dir,
+                output_path=output_path,
+                region=region,
+                required=required,
+                opus_model_id=opus_model_id,
+                sonnet_model_id=sonnet_model_id,
+                fast_model_id=fast_model_id,
+                client_secret_arn=client_secret_arn,
+                account_id=account_id,
+                identity=identity,
+                env=deploy_env,
+                result=result,
+                checkpoint=checkpoint,
+            )
+
+        _require_release_log_protection(
+            required["runtime_log_kms_key_arn"], runtime_log_retention_days,
+        )
         _verify_log_kms_key(
             required["runtime_log_kms_key_arn"], region=region,
             account_id=account_id, partition=partition,
         )
         _ensure_data_api_enabled(db_region, required["db_cluster_arn"])
-        local_schema = _verify_local_schema()
-        result["verification"]["local_tool_schema"] = local_schema
 
         lambda_arns = _deploy_lambdas(
             repo=repo,

@@ -26,13 +26,10 @@ Markers:
 # === WORKSHOP · Inventory Agent · definition: END ===
 ```
 
-Fill only the marked definition fields:
-
-1. Set the stub flag so the dispatcher uses the real specialist.
-2. Use the Inventory Agent instructions already defined in the module.
-3. Use the reporting model setting.
-4. Use the reporting/Sonnet max-token setting.
-5. Bind the Inventory Agent tools already imported in the module.
+Prompt and model configuration are supplied. Task 1B authors only the permitted
+inventory reads and clears the stub after that grant is ready. Derive the tool
+choice from the customer's required facts and the imported tool contracts.
+Task 1A implements the `check_inventory` body before Task 1B wires it into a turn.
 
 Do not add temperature. The active Sonnet profile rejects that deprecated
 argument.

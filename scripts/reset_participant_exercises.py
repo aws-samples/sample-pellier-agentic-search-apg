@@ -39,10 +39,10 @@ MARKER_EXERCISES = (
         marker="WORKSHOP · Inventory Agent · check_inventory",
     ),
     MarkerExercise(
-        exercise_id="lab-2-candidate-budget",
-        starter="workshop/starters/lab-2/candidate-budget.pyfrag",
-        destination="pellier/backend/services/planned_hybrid_retrieval.py",
-        marker="WORKSHOP · Hybrid retrieval · candidate budget",
+        exercise_id="lab-2-preserve-requirements",
+        starter="workshop/starters/lab-2/preserve-requirements.pyfrag",
+        destination="pellier/backend/services/search_plan.py",
+        marker="WORKSHOP · Search plan · preserve requirements",
     ),
     MarkerExercise(
         exercise_id="lab-3-gateway-catalogue",
@@ -59,6 +59,11 @@ MARKER_EXERCISES = (
 )
 
 FILE_EXERCISES = (
+    FileExercise(
+        exercise_id="lab-4-rls",
+        starter="workshop/starters/lab-4-rls.sql",
+        destination="workshop/lab-4-rls.sql",
+    ),
     FileExercise(
         exercise_id="lab-2-rrf",
         starter="workshop/starters/lab-2-rrf.sql",

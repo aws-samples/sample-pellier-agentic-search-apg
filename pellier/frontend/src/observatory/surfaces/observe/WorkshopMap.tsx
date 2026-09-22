@@ -74,7 +74,7 @@ const LABS: LabItem[] = [
     lab: 'Lab 2',
     title: 'Build and Measure PostgreSQL Hybrid Retrieval',
     summary:
-      "Verify recorded rank fusion, inspect a query plan, and widen Anna's rerank candidate pool. Prove one eligible candidate was recovered without relaxing price or stock constraints.",
+      "Explain Anna's recorded rank fusion, then preserve her budget, stock requirements and exclusions across preference fallback. Check the plan and the exact returned products.",
     primary: {
       to: '/observatory/performance',
       label: 'Open retrieval comparison',
@@ -120,7 +120,7 @@ const LABS: LabItem[] = [
     lab: 'Lab 4',
     title: 'Build Governed Agent Actions with Cedar',
     summary:
-      'Build the Cedar ownership rule and keyed absence query. Distinguish denial, business refusal, committed return, and replay. Test RLS independently and investigate Jessica\'s case as Operator.',
+      'Author the Cedar rule, RLS ownership predicate and keyed absence query. Distinguish denial, business refusal, committed return, and replay. Test RLS independently and investigate Jessica\'s case as Operator.',
     primary: {
       to: '/observatory/govern/policies',
       label: 'Open Cedar policies',

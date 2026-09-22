@@ -1,0 +1,20 @@
+{
+  "note": "Trailing whitespace only normalized for Git hygiene; test outcomes and text are unchanged. Original and normalized checksums are retained here; sha256.json describes the current normalized files.",
+  "files": [
+    {
+      "file": "frontend-tests-final.txt",
+      "original_sha256": "5540a4fcbcef9fbbeca1847a28d66859aadd4ad5b5c387e4b12dbaffe8c66fc6",
+      "normalized_sha256": "fc3f93fd098226f300dd54b2ccc15e593f2b905c538c6c1d2d6ea85eeac37fb9"
+    },
+    {
+      "file": "source-release-frontend-summary.txt",
+      "original_sha256": "1a405679b13bda1b5d12830beb3de9a46db543a92bef6f005ac065f90bf4d51b",
+      "normalized_sha256": "e2c95aab530bf169e2b8ceeaf3c901b206a6134a8ac6aa255cbedfb0643e1c33"
+    },
+    {
+      "file": "source-release-initial-backend.txt",
+      "original_sha256": "0224bf3e4aa2bdba5ee8b06992187dd93f46a03a03534060cdaa9f2aab2afac3",
+      "normalized_sha256": "594b6cbc94490266b3ce041997fa4e3b299173fa15f05951f3555c7fc09c2ca4"
+    }
+  ]
+}

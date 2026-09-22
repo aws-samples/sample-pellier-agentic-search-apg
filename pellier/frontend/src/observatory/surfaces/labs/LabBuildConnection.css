@@ -1,0 +1,21 @@
+.lab-build-connection {
+  margin-top: 14px;
+  border-top: 1px solid var(--obs-rule-1);
+  color: var(--obs-ink-2);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.lab-build-connection summary {
+  width: fit-content;
+  min-height: 44px;
+  padding-block: 11px;
+  cursor: pointer;
+  color: var(--obs-ink-1);
+  font-weight: 600;
+}
+.lab-build-connection > div { max-width: 85ch; padding-bottom: 8px; }
+.lab-build-connection p { margin: 0 0 10px; }
+.lab-build-connection .lab-build-path { color: var(--obs-ink-1); }
+.lab-build-connection ul { margin: 0 0 12px; padding-left: 18px; }
+.lab-build-connection code { overflow-wrap: anywhere; font-family: var(--obs-mono); font-size: 12px; }
+.lab-build-connection summary:focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 3px; }

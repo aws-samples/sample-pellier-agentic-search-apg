@@ -279,8 +279,8 @@ REVOKE ALL ON pellier.principal_customers FROM pellier_query;
 -- Both USING and WITH CHECK are specified per command rather than relying on
 -- a SELECT-shaped policy. USING governs which existing rows are visible;
 -- WITH CHECK governs which new or modified rows may be written. A policy with
--- only USING would let an authorized principal INSERT a row attributed to
--- someone else, which is a different failure from reading one.
+-- FOR ALL policy can reuse USING as WITH CHECK when the latter is omitted.
+-- Keep both explicit here to distinguish visibility from proposed-row checks.
 -- ---------------------------------------------------------------------
 
 ALTER TABLE pellier.orders  ENABLE ROW LEVEL SECURITY;

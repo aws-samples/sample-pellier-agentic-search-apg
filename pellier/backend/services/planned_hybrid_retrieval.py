@@ -58,13 +58,9 @@ CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stoc
 # build an evaluation framework or label a golden set in this workshop.
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
 
-# === WORKSHOP · Hybrid retrieval · candidate budget: START ===
-# WORKSHOP_EXERCISE_STUB
-# Lab 2b: the starter discards all but three fused candidates before reranking.
-# Choose a bounded default after comparing the candidate IDs with SQL evidence.
-# Keep explicit per-request overrides and the service ceiling in the resolver.
-DEFAULT_RERANK_POOL_K = 3
-# === WORKSHOP · Hybrid retrieval · candidate budget: END ===
+# Provided bounded candidate pool. Tune only in the optional retrieval extension;
+# Task 2B authors the search-plan contract, not a prescribed pool-size constant.
+DEFAULT_RERANK_POOL_K = 15
 
 # Optional provided diagnostics for the rerank pool size;
 # these check the choice on requests the labels never described. They are
@@ -623,10 +619,12 @@ async def execute_search_plan(
             stages=stages,
         )
 
-    rungs = plan.relaxation_ladder() if relax else [plan]
-    execution = await run_rung(rungs[0])
-    for rung in rungs[1:]:
-        if len(execution.returned) >= limit:
-            break
-        execution = await run_rung(rung)
+    # A complete strict result needs no fallback. Keep the unfinished Lab 2
+    # fallback isolated from earlier requests that already satisfy the plan.
+    execution = await run_rung(plan)
+    if relax and len(execution.returned) < limit:
+        for rung in plan.relaxation_ladder()[1:]:
+            if len(execution.returned) >= limit:
+                break
+            execution = await run_rung(rung)
     return execution

@@ -275,7 +275,7 @@ def test_rerank_fallback_keeps_rrf_order_and_says_so() -> None:
     assert execution.stage("rerank").count == 0
 
 
-def test_relaxation_widens_soft_tags_when_the_strict_pass_is_short() -> None:
+def test_relaxation_widens_soft_tags_when_the_strict_pass_is_short(completed_search_plan) -> None:
     # Rows exist only once the soft ``tags ?| %s`` predicate is gone.
     db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?| %s")
     plan = _plan(extracted={"tags": ["gift"]})
@@ -286,6 +286,19 @@ def test_relaxation_widens_soft_tags_when_the_strict_pass_is_short() -> None:
     assert [r.step for r in execution.plan.relaxations] == ["drop_tags"]
     assert [row["product_id"] for row in execution.returned] == ["2", "1"]
     assert [stage.name for stage in execution.stages].count("hybrid") == 2
+
+
+def test_complete_strict_result_does_not_require_the_unfinished_fallback(monkeypatch) -> None:
+    from services.search_plan import SearchPlan
+
+    def unavailable(self):
+        raise AssertionError("A complete strict result must not enter fallback")
+
+    monkeypatch.setattr(SearchPlan, "relaxation_ladder", unavailable)
+    execution = _run(_FakeDB([_row(1), _row(2)]),
+                     plan=_plan(extracted={"tags": ["gift"]}), limit=2)
+    assert len(execution.returned) == 2
+    assert execution.relaxation_steps == []
 
 
 def test_relaxation_is_off_when_the_caller_says_so() -> None:
@@ -349,7 +362,7 @@ def test_hard_predicates_reach_both_branches_before_fusion() -> None:
         assert "quantity > 0" in sql
 
 
-def test_latency_breakdown_sums_every_stage_by_name() -> None:
+def test_latency_breakdown_sums_every_stage_by_name(completed_search_plan) -> None:
     db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?| %s")
     plan = _plan(extracted={"tags": ["gift"]})
 

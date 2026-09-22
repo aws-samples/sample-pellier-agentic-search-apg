@@ -35,3 +35,23 @@ for _var, _placeholder in (
     ("DB_PASSWORD", "pellier_test"),
 ):
     os.environ.setdefault(_var, _placeholder)
+
+
+import pytest
+
+
+@pytest.fixture
+def completed_search_plan(monkeypatch):
+    """Provide the completed clone only while testing surrounding starter scaffolding.
+
+    Participant implementations run unchanged. The untouched starter's refusal
+    and the recovery's real contract are tested separately by marker/guide tests.
+    This fixture does not establish that the shipping exercise is completed.
+    """
+    import inspect
+    from dataclasses import replace
+    from services.search_plan import SearchPlan
+
+    if "Complete Task 2B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations):
+        monkeypatch.setattr(SearchPlan, "_with_relaxations",
+                            lambda self, relaxations: replace(self, relaxations=list(relaxations)))

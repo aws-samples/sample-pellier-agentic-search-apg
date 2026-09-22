@@ -82,7 +82,7 @@ export const REFERENCES = {
     label: 'Evaluations', path: '/observatory/evaluations', lab: 'retrieval-acceptance',
     role: 'After the labs · Evaluation design',
     question: 'What evidence would justify a broader quality claim?',
-    inspect: 'Start with Lab 2’s candidate-budget result and Lab 4’s outcome matrix. Define held-out queries, relevance labels, failure cases, and a fixed build before comparing repeated runs.',
+    inspect: 'Start with Lab 2’s preserved requirements and exact retrieval receipt and Lab 4’s outcome matrix. Define held-out queries, relevance labels, failure cases, and a fixed build before comparing repeated runs.',
     limit: 'Configured evaluators and local test definitions are not measured scorecards. Workshop acceptance covers bounded cases; it does not establish production accuracy or P95 latency.',
     sources: ['pellier/backend/services/agentcore_evals.py', 'scripts/eval_retrieval_harness.py', 'pellier/backend/tests/test_golden_journeys.py'],
   },
