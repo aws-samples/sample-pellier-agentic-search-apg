@@ -34,11 +34,18 @@ helpers or the existing Axios client. Avoid root `/api` browser navigation.
 
 ## Participant workflow
 
-Open `CodeEditorURL`, choose **Open JupyterLab**, then the **Code Editor** launcher
-under **Pellier**. Run lab commands in Code Editor's terminal. Open `PellierURL`
-after the workspace session is established. If that session expires, reopen the
-workspace through the console. The stack output is a stable console link, not
-an expiring presigned URL.
+Workshop Studio exposes two participant links: `CodeEditorURL` targets
+`/editor/open/` and `PellierURL` targets `/ports/8000/` on the managed workspace.
+The workspace root also defaults to the editor entry. Run lab commands in Code
+Editor's terminal; open Operator and Observatory from Pellier's navigation.
+The separate shopper and Operator sign-in details live in
+`/workshop/test-credentials.txt` inside Code Editor.
+
+AWS session authentication remains managed by SageMaker. The direct links contain
+neither an editor token nor an expiring presigned URL; the editor token is obtained
+only behind the authenticated proxy. Participants do not select a JupyterLab
+launcher. New-session and expired-session sign-in redirects must be verified in
+the fresh event account for both links.
 
 The paired Workshop Studio package owns notebook roles, launch permission,
 network rules, the proxy lifecycle, Cognito callback registration and the
@@ -48,9 +55,10 @@ A new template paired with older source is not a usable deployment.
 ## Proof boundary
 
 The Studio integration test uses real Jupyter server proxy and nginx with
-synthetic app responses. It checks authentication, both launcher entries,
-editor redirects, app routing, authorization headers, cookies, live SSE chunks,
-WebSockets, certificate and hostname rejection, and rejection of TLS 1.1.
+synthetic app responses. It checks authentication on both direct entries, the
+workspace root redirect, editor redirects, app routing, authorization headers,
+cookies, live SSE chunks, WebSockets, certificate and hostname rejection, and
+rejection of TLS 1.1.
 The source tests cover callback persistence, bootstrap gates and API prefixes.
 
 Those checks do not establish that a new event account has notebook capacity,
