@@ -1,7 +1,7 @@
 # Governed browser connection release checks
 
 Date: 22 September 2026. Branch: `governed`.
-Source base: `6486b6139051a3311fcf9a940797369695ed86fe`.
+Source base: `6486b613` (the preceding connected-story release).
 
 This change pairs the private EC2 editor with an authenticated SageMaker browser
 workspace. The workspace validates the EC2 origin's certificate and DNS name;
@@ -39,6 +39,12 @@ compatibility setting directly. An initial run from the wrong directory and
 the interrupted runs are retained locally under `/tmp/pellier-backend-replacement-*`;
 they are not claimed as passing checks. GitHub's ordinary Linux test command is
 a separate check whose result belongs in the Studio handoff.
+
+The first Linux CI run passed 3,593 backend tests and skipped 90, but its
+repository identifier check mistook a 12-digit substring in the historical Git
+SHA above for an AWS account ID. The historical reference now uses its unambiguous
+short SHA; the identifier check remains unchanged. The complete preceding SHA
+remains in Git history and the Studio handoff. The frontend CI job passed.
 
 ## Publication and deployment boundary
 
