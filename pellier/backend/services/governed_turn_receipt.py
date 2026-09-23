@@ -201,6 +201,9 @@ def _trace_metadata(trace: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "buildState": trace.get("buildState"),
         "traceId": trace.get("traceId"),
         "runtimeRequestId": trace.get("runtimeRequestId"),
+        # The AgentCore Runtime session, distinct from Pellier's `sessionId`.
+        # Trace lookups (`agentcore traces list`) key on this one.
+        "runtimeSessionId": trace.get("runtimeSessionId"),
         "sessionId": trace.get("sessionId"),
         # Persist service outcomes, never conversation content. The Lab 3
         # receipt must survive restart without relying on retrieval LTM IDs.
