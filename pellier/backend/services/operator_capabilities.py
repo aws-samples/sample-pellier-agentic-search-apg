@@ -7,26 +7,25 @@ The obvious implementation reads the local MCP catalog and reports everything as
 available. That catalog deliberately includes tools the managed Gateway does not
 publish. Live control-plane state remains the only authority for the operator desk.
 
-**The three cases below describe the MIGRATED LIVE Gateway, not a fresh provision.**
-That distinction is the whole point of this module and it is easy to lose: on a fresh
-stack `initiate_return` DOES have a matching permit, `initiate_return_damaged_only`, so
-the first case reads the opposite way there. `issue_credit` is unpublished in both, which
-is why only one of the two needs re-reading per environment. Do not treat this list as the
-fresh contract; `scripts/describe_workshop_publication.py` prints that.
+On a fresh provision every governed write below is published, and the Cedar baseline
+in `scripts/deploy/render_agentcore_project.py` (`baseline_policies`) decides who may
+call it:
 
-    initiate_return     published on the Gateway, but the baseline permit was
-                        narrowed to 13 unaffected actions, so it has ZERO matching
-                        permits and Cedar denies it by default.
-    escalate_to_human   same.
-    issue_credit        deliberately NOT published: it is a new privileged write
-                        whose `deny_issue_credit` policy does not exist here, so
-                        the vocabulary migration excluded it.
+    initiate_return     published; a shopper permit requires a customer claim and
+                        reason `damaged`, and a staff permit requires the
+                        `custom:staff_scope` claim the operator desk carries.
+    escalate_to_human   published; covered by the catalogue allow-list.
+    issue_credit        published for staff only; its one permit requires the
+                        staff scope claim and no shopper permit names it.
+    replace_damaged_item  published for the operator desk only.
 
-Those two situations look identical in source and are completely different in
-truth. One is a temporary migration boundary that will lift; the other is an absent
-capability that needs its own governance review first. A UI that shows both as
-"unavailable" with no distinction cannot explain itself, and a UI that shows either
-as available lies.
+A deployed Gateway can still disagree with that contract: a migrated or drifted
+account may publish an action with zero matching permits, or not publish it at all.
+Those look identical in source and are different in truth. One is a policy gap that
+a deployment can close; the other is an absent capability that needs its own
+governance review first. A UI that shows both as "unavailable" with no distinction
+cannot explain itself, and a UI that shows either as available lies.
+`scripts/describe_workshop_publication.py` prints the fresh contract.
 
 So capability state is derived from the live control plane: which actions the
 Gateway publishes, and whether any active permit can match them.

@@ -585,10 +585,12 @@ async def stream_concierge_turn(
 async def get_capabilities_route(refresh: bool = False) -> Dict[str, Any]:
     """What the Operator can actually do right now.
 
-    Derived from live Gateway and policy state, not from the source tool registry:
-    `initiate_return` is currently published and has zero matching permits, while
-    `issue_credit` is not published at all. Those are different causes with
-    different futures, and a frontend constant cannot tell them apart.
+    Derived from live Gateway and policy state, not from the source tool registry.
+    On a fresh provision `issue_credit` is published with a staff-only permit and
+    `initiate_return` has shopper and staff permits, but a drifted Gateway can
+    publish an action with zero matching permits or omit it entirely. Those are
+    different causes with different futures, and a frontend constant cannot tell
+    them apart.
 
     Cached for a short TTL so a page load never triggers a control-plane call, and
     fail-closed: if live state cannot be read, governed writes report
