@@ -353,6 +353,42 @@ def test_ready_receipt_accepts_verified_redaction_without_requiring_content() ->
     assert _load_validator().validate_receipt(_redacted_receipt()) == []
 
 
+@pytest.mark.parametrize("redacted", [False, True])
+def test_produced_trace_with_unnamed_transport_spans_passes_readiness(redacted: bool) -> None:
+    """Exercise the producer and consumer together, including live transport metadata."""
+    from tests.test_agentcore_deploy_templates import (
+        _load_provisioner,
+        _strip_content_attributes,
+        _unified_trace_records,
+    )
+
+    receipt = _redacted_receipt() if redacted else _valid_receipt()
+    prior_trace = receipt["observability"]["unified_trace"]
+    identifiers = {
+        key: prior_trace[key] for key in ("trace_id", "session_id", "runtime_arn")
+    }
+    records = _unified_trace_records(**identifiers)
+    for name in (None, "", "   ", 42):
+        records.append({"@message": {
+            "traceId": identifiers["trace_id"],
+            "name": name,
+            "resource": {"attributes": {"cloud.resource_id": identifiers["runtime_arn"]}},
+        }})
+    if redacted:
+        records = _strip_content_attributes(records)
+    trace = _load_provisioner()._summarize_trace_records(
+        records, **identifiers, content_redacted=redacted,
+    )
+    trace["runtime_log_group"] = prior_trace["runtime_log_group"]
+    receipt["observability"]["unified_trace"] = trace
+
+    assert trace["span_count"] == 7
+    assert trace["span_names"] == [
+        "chat", "execute_tool search_products_hybrid", "invoke_agent pellier_orchestrator",
+    ]
+    assert _load_validator().validate_receipt(receipt) == []
+
+
 @pytest.mark.parametrize("failure", ["content", "attribute", "unverified", "missing_span"])
 def test_redaction_does_not_bypass_trace_evidence(failure: str) -> None:
     receipt = _redacted_receipt()

@@ -1658,22 +1658,6 @@ EOF
         warn "pellier service not active after restart — check: journalctl -u pellier"
     fi
 
-    if [ "${WORKSHOP_FORMAT}" = "governed" ] && [ "$AGENTCORE_OK" = true ]; then
-        log "Restoring canonical governed state after live Runtime and Policy proof..."
-        # The reset ends with the health gate, which requires E2E_PROVED in the
-        # governed format. That state is written after STEP 19, so this run is
-        # marked as bootstrap's own proving phase.
-        if sudo -u "$CODE_EDITOR_USER" bash -c "
-            export PELLIER_REPO='$REPO_PATH'
-            export PELLIER_PROVISION_PHASE=bootstrap
-            bash '$REPO_PATH/scripts/reset-governed-workshop.sh'
-        " 2>&1 | tee /var/log/pellier-governed-reset.log; then
-            log "✅ Governed database, evidence, and Policy state reset"
-        else
-            fail "Governed reset failed; see /var/log/pellier-governed-reset.log"
-        fi
-    fi
-
     if [ "$AGENTCORE_OK" = true ]; then
         log "✅ ${WORKSHOP_FORMAT} managed path ready, pellier service restarted"
     else
@@ -1785,19 +1769,7 @@ TOKENEOF
 fi
 
 # ============================================================================
-# STEP 18: SEED SAMPLE PREFERENCES (users 1-3)
-# ============================================================================
-if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-preferences.sh" ]; then
-    log "Seeding sample preferences for test users 1-3..."
-    export COGNITO_USER_POOL_ID COGNITO_CLIENT_ID COGNITO_CLIENT_SECRET_ARN \
-           COGNITO_TEST_CREDENTIALS_SECRET_ARN AWS_REGION
-    export BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
-    bash "$REPO_PATH/scripts/seed-sample-preferences.sh" 2>&1 | tee /var/log/pellier-seed-preferences.log || \
-        warn "seed-sample-preferences.sh reported issues"
-fi
-
-# ============================================================================
-# STEP 18b: OPERATOR AUTHORIZATION GROUP
+# STEP 18: OPERATOR AUTHORIZATION GROUP
 #
 # The Pellier Operator desk is authorized by membership in one Cognito group, not by
 # holding any valid token. Before this existed, `require_operator` stopped at "the token
@@ -1887,6 +1859,41 @@ else
     warn "No Cognito pool id — skipped the $OPERATOR_GROUP seeding; the Operator desk will refuse every caller"
 fi
 export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"
+
+# ============================================================================
+# STEP 18b: RESTORE THE GOVERNED PARTICIPANT STARTING STATE
+#
+# Reset runs the full health gate. Its Operator account, group membership,
+# and saved credential must exist first, including on a brand-new pool.
+# Seed sample preferences afterwards so reset does not remove them.
+# ============================================================================
+if [ "${WORKSHOP_FORMAT}" = "governed" ] && [ "${AGENTCORE_OK:-false}" = true ]; then
+    log "Restoring canonical governed state after live Runtime and Policy proof..."
+    # The reset ends with the health gate, which requires E2E_PROVED in the
+    # governed format. That state is written after STEP 19, so this run is
+    # marked as bootstrap's own proving phase.
+    if sudo -u "$CODE_EDITOR_USER" bash -c "
+        export PELLIER_REPO='$REPO_PATH'
+        export PELLIER_PROVISION_PHASE=bootstrap
+        bash '$REPO_PATH/scripts/reset-governed-workshop.sh'
+    " 2>&1 | tee /var/log/pellier-governed-reset.log; then
+        log "✅ Governed database, evidence, and Policy state reset"
+    else
+        fail "Governed reset failed; see /var/log/pellier-governed-reset.log"
+    fi
+fi
+
+# ============================================================================
+# STEP 18c: SEED SAMPLE PREFERENCES (users 1-3)
+# ============================================================================
+if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-preferences.sh" ]; then
+    log "Seeding sample preferences for test users 1-3..."
+    export COGNITO_USER_POOL_ID COGNITO_CLIENT_ID COGNITO_CLIENT_SECRET_ARN \
+           COGNITO_TEST_CREDENTIALS_SECRET_ARN AWS_REGION
+    export BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
+    bash "$REPO_PATH/scripts/seed-sample-preferences.sh" 2>&1 | tee /var/log/pellier-seed-preferences.log || \
+        warn "seed-sample-preferences.sh reported issues"
+fi
 
 # ============================================================================
 # SUMMARY

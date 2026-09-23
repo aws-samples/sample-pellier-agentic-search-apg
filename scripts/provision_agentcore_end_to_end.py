@@ -1909,6 +1909,13 @@ def _summarize_trace_records(
             "Unified trace is missing required span classes: " + ", ".join(missing)
         )
 
+    # Service telemetry can include unnamed transport spans. Keep their count,
+    # but only report names that were actually observed for the receipt reader.
+    span_names = sorted({
+        span["name"] for span in spans
+        if isinstance(span.get("name"), str) and span["name"].strip()
+    })
+
     if content_redacted:
         leaked = _clear_text_content_keys(spans)
         if leaked:
@@ -1930,7 +1937,8 @@ def _summarize_trace_records(
             "session_id": session_id,
             "runtime_arn": runtime_arn,
             "span_count": len(spans),
-            "span_names": sorted({str(span.get("name", "")) for span in spans}),
+            "span_names": span_names,
+            "provenance": "agentcore-unified-telemetry",
             "agent_span": True,
             "model_span": True,
             "tool_span": True,
@@ -2004,7 +2012,7 @@ def _summarize_trace_records(
         "session_id": session_id,
         "runtime_arn": runtime_arn,
         "span_count": len(spans),
-        "span_names": sorted({str(span.get("name", "")) for span in spans}),
+        "span_names": span_names,
         "agent_span": True,
         "model_span": True,
         "tool_span": True,

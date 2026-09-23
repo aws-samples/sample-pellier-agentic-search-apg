@@ -2025,6 +2025,18 @@ def test_bootstrap_marks_its_own_gate_runs_as_the_proving_phase() -> None:
         assert "export PELLIER_PROVISION_PHASE=bootstrap" in bootstrap[position - 400:position]
 
 
+def test_fresh_bootstrap_creates_operator_before_the_reset_health_gate() -> None:
+    """An empty pool cannot pass reset's full health gate before staff setup."""
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    credentials = bootstrap.index('CREDENTIALS_FILE="$HOME_FOLDER/test-credentials.txt"')
+    operator = bootstrap.index('export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"')
+    reset = bootstrap.index("bash '$REPO_PATH/scripts/reset-governed-workshop.sh'")
+    preferences = bootstrap.index('bash "$REPO_PATH/scripts/seed-sample-preferences.sh"')
+    final_gate = bootstrap.index("bash '$REPO_PATH/scripts/health-gate.sh'")
+    assert credentials < operator < reset < preferences < final_gate
+    assert bootstrap.index('scripts/store_operator_credential.py') < operator
+
+
 def test_stage_one_signals_success_only_from_the_proved_state() -> None:
     source = ENVIRONMENT_BOOTSTRAP.read_text(encoding="utf-8")
     assert f"PROVISION_STATE_FILE={PROVISION_STATE_DEFAULT}" in source
