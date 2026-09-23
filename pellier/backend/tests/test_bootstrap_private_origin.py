@@ -16,8 +16,6 @@ def _render(tmp_path: Path, private: bool, token: str = "test-origin-token") -> 
     block = source.split('log "Configuring Nginx..."', 1)[1].split("\nnginx -t", 1)[0]
     root = tmp_path / "nginx"
     block = block.replace("/etc/nginx", str(root))
-    # Certificate issuance is exercised separately with a real TLS handshake.
-    block = block.replace('bash "$(dirname "$0")/configure-origin-tls.sh"', ':')
     # Preserve sed's actual expression evaluation on macOS and Linux.
     compatibility = (
         'sed() { if [ "$1" = "-i" ]; then shift; command sed -i "" "$@"; '
@@ -33,13 +31,14 @@ def _render(tmp_path: Path, private: bool, token: str = "test-origin-token") -> 
     return (root / "conf.d/code-editor.conf").read_text()
 
 
-def test_private_origin_requires_tls_and_preserves_editor_and_app_paths(tmp_path):
+def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_paths(tmp_path):
     config = _render(tmp_path, True)
     assert 'if ($http_x_pellier_origin_verify != "test-origin-token") { return 403; }' in config
-    assert "listen 443 ssl default_server;" in config
-    assert "ssl_protocols TLSv1.2 TLSv1.3;" in config
-    assert "ssl_certificate_key /etc/pellier/tls/origin.key;" in config
-    assert "listen 80 " not in config and "listen 8081" not in config
+    assert "listen 80 default_server;" in config
+    assert "ssl_certificate" not in config and "listen 8081" not in config
+    assert "access_log off;" in config
+    assert "Referrer-Policy no-referrer" in config
+    assert "proxy_set_header X-Forwarded-Host $host;" in config
     assert "location /editor/ {" in config
     assert "proxy_pass http://127.0.0.1:8080;" in config
     assert "location /ports/8000/ {" in config

@@ -132,15 +132,15 @@ def _redirect_uri(request: Request) -> str:
     """Return the configured OAuth callback URI.
 
     Uses ``OAUTH_REDIRECT_URI`` when set; falls back to
-    ``APP_BASE_URL + /api/auth/callback`` when configured. In Workshop Studio,
-    the managed workspace supplies an explicit callback beneath /ports/8000.
-    Other deployments can derive their origin from trusted proxy headers.
+    the configured base URL or the origin supplied by nginx. Include the
+    deployed application prefix because nginx removes it before forwarding.
+    CloudFormation registers this same path after CloudFront is created.
     """
     if settings.OAUTH_REDIRECT_URI:
         return settings.OAUTH_REDIRECT_URI
-    if settings.APP_BASE_URL:
-        return f"{settings.APP_BASE_URL.rstrip('/')}/api/auth/callback"
-    return f"{_request_origin(request)}/api/auth/callback"
+    origin = settings.APP_BASE_URL.rstrip("/") if settings.APP_BASE_URL else _request_origin(request)
+    prefix = "/" + settings.APP_BASE_PATH.strip("/") if settings.APP_BASE_PATH else ""
+    return f"{origin}{prefix}/api/auth/callback"
 
 
 def _safe_return_to(value: Optional[str]) -> Optional[str]:

@@ -151,6 +151,7 @@ def _wire_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "COGNITO_CLIENT_ID", CLIENT_ID, raising=False)
     monkeypatch.setattr(settings, "COGNITO_CLIENT_SECRET", CLIENT_SECRET, raising=False)
     monkeypatch.setattr(settings, "COGNITO_DOMAIN", COGNITO_DOMAIN, raising=False)
+    monkeypatch.setattr(settings, "APP_BASE_PATH", "", raising=False)
     monkeypatch.setattr(settings, "APP_BASE_URL", APP_BASE_URL, raising=False)
     monkeypatch.setattr(settings, "OAUTH_REDIRECT_URI", OAUTH_REDIRECT_URI, raising=False)
 
@@ -357,10 +358,13 @@ def test_signin_rejects_unknown_provider(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
+@pytest.mark.parametrize("prefix", ["", "/ports/8000", "/ports/8000/"])
 def test_signin_derives_cloudfront_callback_when_base_url_is_unset(
+    prefix: str,
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(settings, "APP_BASE_PATH", prefix, raising=False)
     monkeypatch.setattr(settings, "APP_BASE_URL", None, raising=False)
     monkeypatch.setattr(settings, "OAUTH_REDIRECT_URI", None, raising=False)
     resp = client.get(
@@ -376,7 +380,7 @@ def test_signin_derives_cloudfront_callback_when_base_url_is_unset(
     }
     assert (
         params["redirect_uri"]
-        == "https://d111111abcdef8.cloudfront.net/api/auth/callback"
+        == "https://d111111abcdef8.cloudfront.net" + prefix.rstrip("/") + "/api/auth/callback"
     )
 
 

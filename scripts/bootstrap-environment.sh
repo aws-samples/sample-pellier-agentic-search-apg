@@ -352,6 +352,7 @@ server {
     location /api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;
@@ -366,6 +367,7 @@ server {
     location /app/ {
         proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;
@@ -393,6 +395,7 @@ server {
     location /ports/8000/ {
         proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;
@@ -405,6 +408,7 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection upgrade;
         proxy_set_header Accept-Encoding gzip;
@@ -424,17 +428,11 @@ else
 fi
 
 if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
-    bash "$(dirname "$0")/configure-origin-tls.sh"
-    # Only the authenticated managed workspace can reach this TLS listener.
-    # All app and editor HTTP connections below remain on this host's loopback.
-    sed -i 's/listen 80 default_server;/listen 443 ssl default_server;/; s/listen \[::\]:80 default_server;/listen [::]:443 ssl default_server;/' /etc/nginx/conf.d/code-editor.conf
+    # CloudFront terminates viewer HTTPS. The VPC origin uses private HTTP,
+    # matching Mosaic; nginx still requires a separate origin credential.
     sed -i '/server_name _;/a\
-    ssl_certificate /etc/pellier/tls/origin.crt;\
-    ssl_certificate_key /etc/pellier/tls/origin.key;\
-    ssl_protocols TLSv1.2 TLSv1.3;\
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;\
-    ssl_session_tickets off;\
-    access_log off;' /etc/nginx/conf.d/code-editor.conf
+    access_log off;\
+    add_header Referrer-Policy no-referrer always;' /etc/nginx/conf.d/code-editor.conf
     # Preserve /editor for Code OSS; the app prefix is stripped independently.
     sed -i 's|location / {|location /editor/ {|; s|proxy_pass http://127.0.0.1:8080/;|proxy_pass http://127.0.0.1:8080;|' /etc/nginx/conf.d/code-editor.conf
 fi
@@ -931,15 +929,8 @@ else
 fi
 
 # Verify Nginx proxy
-if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
-    NGINX_CODE=$(probe_editor_http "https://$PELLIER_ORIGIN_SERVER_NAME/editor/" \
-        --cacert /etc/pellier/tls/origin.crt \
-        --resolve "$PELLIER_ORIGIN_SERVER_NAME:443:127.0.0.1" \
-        -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN")
-else
-    NGINX_CODE=$(probe_editor_http http://127.0.0.1:80/ \
-        -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN")
-fi
+NGINX_CODE=$(probe_editor_http "http://127.0.0.1${CODE_EDITOR_BASE_PATH%/}/" \
+    -H "X-Pellier-Origin-Verify: $ORIGIN_VERIFY_TOKEN")
 if [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "200" ]; then
     log "✅ Nginx proxy verified (HTTP $NGINX_CODE)"
 else
