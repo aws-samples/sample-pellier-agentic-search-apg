@@ -14,7 +14,16 @@ def proposed():
     return {'review': {'id': 12, 'customer_id': 'CUST-JESSICA', 'tool': 'initiate_return',
         'source_turn_id': TURN, 'action_hash': 'a' * 64, 'write_key': 'operator-review:12:' + 'a' * 32,
         'status': 'pending', 'args': {'customer_id': 'CUST-JESSICA', 'product_id': 24, 'reason': 'changed_mind'}},
-        'sourceTurnExists': True, 'toolCalls': [], 'receipts': [], 'writes': [], 'returns': []}
+        'proposals': [proposal_artifact()],
+        'toolCalls': [], 'receipts': [], 'writes': [], 'returns': []}
+
+
+def proposal_artifact(review_id=12, action_hash='a' * 64, turn=TURN):
+    # A fresh proposal: the payload's reviewSourceTurnId is empty, because only a
+    # turn that resolved to an ALREADY-open review sets it.
+    return {'session_id': 'session-jessica', 'turn_id': turn, 'proposed_action': {
+        'reviewId': review_id, 'actionHash': action_hash, 'state': 'review_required',
+        'reviewSourceTurnId': ''}}
 
 
 def executed():
@@ -32,7 +41,29 @@ def executed():
 
 
 def baseline():
-    return proof.assess(proposed(), phase='proposed', source_turn=TURN)
+    return proof.assess(proposed(), phase='proposed')
+
+
+def test_fresh_proposal_lineage_is_derived_without_a_copied_turn():
+    report = proof.assess(proposed(), phase='proposed')
+    assert report['passed']
+    assert report['sourceTurnId'] == TURN
+    assert proof.assess(proposed(), phase='proposed', source_turn=TURN)['passed']
+    assert not proof.assess(proposed(), phase='proposed', source_turn='turn-' + 'c' * 32)['passed']
+
+
+@pytest.mark.parametrize('change', [
+    lambda d: d.update(proposals=[]),
+    lambda d: d.update(proposals=[proposal_artifact(review_id=99)]),
+    lambda d: d.update(proposals=[proposal_artifact(action_hash='c' * 64)]),
+    lambda d: d.update(proposals=[proposal_artifact(turn='turn-' + 'd' * 32)]),
+    lambda d: d.update(proposals=[proposal_artifact(), proposal_artifact()]),
+    lambda d: d['review'].update(source_turn_id=''),
+])
+def test_lineage_requires_the_source_turn_artifact_to_propose_this_review(change):
+    data = proposed()
+    change(data)
+    assert not proof.assess(data, phase='proposed')['assertions']['proposalLineage']
 
 
 def test_review_confirmation_and_execution_are_separate_observations():
