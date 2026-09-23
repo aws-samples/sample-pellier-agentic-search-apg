@@ -29,6 +29,17 @@ The counterexample I checked:
 What these observations do not prove:
 The next experiment needed before production:
 
+## Jessica's case after the review
+
+| Item or issue | What the evidence establishes |
+|---|---|
+| Robe | |
+| Catchall | |
+| Claim that goods were received | |
+| Shipping-refund dispute | |
+
+A return row records a request. Say what it does not establish.
+
 ## Before retrying a write
 
 Suppose the UI reports an error, but the operation committed. Which operation

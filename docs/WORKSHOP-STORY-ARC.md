@@ -39,11 +39,22 @@ two SQL edits and independent results. Do not infer completion from marker remov
 
 ## The common learning loop
 
-Understand the customer problem. Predict an outcome. Edit or investigate. Check
-one successful case and a counterexample. Explain what the evidence establishes.
+The overarching story is **preserving business meaning across facts, requirements,
+identity and action**. Every lab runs the same four participant steps: **Spot the
+mistake → Build the contract → Challenge it → Explain the evidence.** "Challenge it"
+is the lab's existing verification step plus one decision the participant makes:
+
+| Lab | Participant decision | Independent evidence |
+|---|---|---|
+| Marco | The unknown, ambiguous and sold-out queries | The checker classifies each from the catalog before judging the tool |
+| Anna | The preference that forces a strict-empty search | Counts before the request; the receipt records the chosen tag |
+| Theo | A request, through the agent, for another customer's tickets | Lambda-written audit rows bound to Theo; direct probe denied by Cedar |
+| Jessica | Which ticket item to record, with which stated reason, and what stays open | Three review snapshots; a return request is not proof of receipt |
+
 Keep exact files, markers, commands and acceptance criteria visible. Hints reveal
-reasoning progressively; worked recovery stays collapsed. Record authored,
-recovered-and-verified, and incomplete results separately.
+reasoning progressively; worked recovery stays collapsed and is never stated in
+visible prose. Record authored, recovered-and-verified, and incomplete results
+separately.
 
 ## Acceptance and rejected implementations
 
@@ -72,8 +83,11 @@ recovered-and-verified, and incomplete results separately.
   Reject all-zero queries without the control, owner-role RLS proof, and Gateway
   denial treated as proof of RLS. RLS trusts application-established context; it
   does not independently validate a Cognito token. Investigate as the separate
-  operator account, prepare one return, capture the pending and confirmed states,
-  then execute and reconcile the exact review/hash/turn/key with one return row.
+  operator account. Jessica's ticket names two pieces and asserts both were
+  received; Aurora holds neither. Record only the robe, with the reason she stated,
+  through proposal, confirmation and governed execution. Reject a preselected
+  reason, confirmation treated as execution, and a return request treated as proof
+  of receipt. The catchall, the receipt claim and the refund dispute stay open.
   The authored RLS predicate is rollback-only; later tool calls use the supplied policy.
 
 ## Presenter timing, separate from participant guides

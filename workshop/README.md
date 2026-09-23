@@ -11,14 +11,14 @@ the same verification requirements.
 
 | Lab and task | Work you do | Evidence to keep |
 |---|---|---|
-| 1A · Marco | Connect inventory to Aurora | Exact turn, tool result, warehouse rows; unknown is not zero. |
-| 1B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows; unknown is not zero. |
-| 2A · Anna | Explain the ranking | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
-| 2B · Anna | Relax preferences, keep requirements | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
-| 3A · Theo | Connect the customer-scoped tool | Owned and foreign request results, fresh session, executed build; Memory is context. |
-| 3B · Theo | Deploy and challenge the conversation | Owned and foreign request results, fresh session, executed build; Memory is context. |
-| 4A · Jessica | Write the ownership rule | Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage. |
-| 4B · Jessica | Test ownership and reconcile the case | Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage. |
+| 1A · Marco | Connect inventory to Aurora | Test inputs you chose, classified by the catalog; unknown, ambiguous and zero stay distinct. |
+| 1B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows. |
+| 2A · Anna | Explain the ranking | Your RRF judged against the recorded scores of the exact receipt. |
+| 2B · Anna | Relax preferences, keep requirements | The preference you chose, counts proving strict-empty, unchanged requirements, eligible IDs. |
+| 3A · Theo | Connect the customer-scoped tool | Direct owned and foreign Gateway results. |
+| 3B · Theo | Deploy and challenge the conversation | Agent-path ticket reads bound to Theo, fresh session, executed build; Memory is context. |
+| 4A · Jessica | Write the ownership rule | Five control outcomes under your Cedar rule. |
+| 4B · Jessica | Test ownership and reconcile the case | Rollback-only RLS, keyed absence with a positive control, one reviewed return and what it did not settle. |
 
 Only edit the lab's markers. Python edits in Labs 1–2 need the guide's backend
 restart. Lab 3 packages its support adapter and needs a new Runtime session; it reuses

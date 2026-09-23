@@ -15,7 +15,8 @@
       "todo": "Task 1A: implement the inventory result contract. Task 1B: wire the specialist and prove a real Storefront turn.",
       "a": "Connect inventory to Aurora",
       "b": "Make the agent use the facts",
-      "proof": "Exact turn, tool result, warehouse rows; unknown is not zero."
+      "proof": "Catalog-classified test inputs, exact turn, tool result, warehouse rows; unknown, ambiguous and zero stay distinct.",
+      "challenge": "Choose the unknown, ambiguous and sold-out queries; the catalog classifies each before the tool is judged."
     },
     {
       "id": "retrieval-acceptance",
@@ -29,7 +30,8 @@
       "todo": "Task 2A: reconstruct recorded RRF. Task 2B: preserve the original requirements in every fallback attempt.",
       "a": "Explain the ranking",
       "b": "Relax preferences, keep requirements",
-      "proof": "RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility."
+      "proof": "Preference counts, recorded chosen tag, strict-empty then widened, unchanged requirements, eligible IDs, RRF against recorded scores.",
+      "challenge": "Choose the preference that makes the strict search empty; prove both sides with counts before the request."
     },
     {
       "id": "managed-agent-path",
@@ -43,7 +45,8 @@
       "todo": "Task 3A: reconcile publication, tool access and caller binding. Task 3B: deploy, challenge scope and identify the build that answered.",
       "a": "Connect the customer-scoped tool",
       "b": "Deploy and challenge the conversation",
-      "proof": "Owned and foreign request results, fresh session, executed build; Memory is context."
+      "proof": "Direct owned/foreign results, every agent-path ticket read bound to Theo, fresh session, executed build; Memory is context.",
+      "challenge": "Ask the agent for another customer's tickets; contrast server binding with the direct Cedar denial."
     },
     {
       "id": "fail-closed-policy",
@@ -57,7 +60,15 @@
       "todo": "Task 4A: author Cedar and distinguish five outcomes. Task 4B: test RLS and keyed evidence, then reconcile a human-reviewed return.",
       "a": "Write the ownership rule",
       "b": "Test ownership and reconcile the case",
-      "proof": "Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage."
+      "proof": "Rollback-only RLS probes, keyed absence with a positive control, derived review-to-return lineage; a return request is not receipt.",
+      "challenge": "Decide which ticket item can be recorded, with the customer's stated reason, and what stays open."
     }
+  ],
+  "story": "Preserve business meaning across facts, requirements, identity and action.",
+  "rhythm": [
+    "Spot the mistake",
+    "Build the contract",
+    "Challenge it",
+    "Explain the evidence"
   ]
 }
