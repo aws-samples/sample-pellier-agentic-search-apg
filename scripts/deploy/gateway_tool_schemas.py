@@ -402,11 +402,11 @@ for _target in TOOL_SCHEMAS.values():
 # schema in the catalogue above but is withheld from the Gateway, so the
 # managed rail cannot serve it.
 #
-# Publish the read; keep restock deferred. Remove exactly one name from this
-# set. `restock_inventory` stays: it moves stock, belongs to the operator desk,
-# and no shopper-facing specialist holds that grant. `issue_credit` is not in
-# this set because it is already published for staff only: its baseline permit
-# requires the staff scope claim, and no shopper permit names it.
+# Decide which deferred name is safe to publish and which must stay behind the
+# operator desk; the classification above this marker describes both. Publishing
+# makes a tool discoverable and adds it to the policy action set. It does not
+# decide whose records a call may read: that is the caller binding in
+# agentcore_gateway.py plus the owner-only permit rendered at deploy.
 #
 # Reconcile the Runtime list and caller binding in Task 3A, then deploy in
 # Task 3B so the Runtime asks for the tools the Gateway now publishes:

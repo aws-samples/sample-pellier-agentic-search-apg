@@ -1,18 +1,9 @@
     # WORKSHOP_EXERCISE_STUB
     #
-    # Wire this tool to BusinessLogic.check_inventory() so Inventory Agent
-    # can answer Marco's Turn 3: "Is the Hadley shirt at the
-    # Brooklyn warehouse?" (Hadley · Pellier Linen Shirt in ecru.)
-    #
-    # Steps:
-    #   1. Guard on _db_service being initialized (return a JSON error
-    #      if not).
-    #   2. Import BusinessLogic from services.business_logic.
-    #   3. Normalize product_query and pass it to logic.check_inventory()
-    #      via _run_async() — it's an async method.
-    #   4. Return the result as a JSON string (use json.dumps with
-    #      indent=2).
-    #   5. Catch exceptions and return a JSON error envelope.
+    # Task 1A. Marco asks whether the Hadley shirt is at the Brooklyn
+    # warehouse. A business service in this backend already owns that answer;
+    # connect this tool to it the way the sibling read tools in this file reach
+    # their services. Do not query the database from here.
     #
     # The contract this body must keep, because the agent reports whatever it
     # returns: a piece the catalog does not carry comes back as status
@@ -20,10 +11,8 @@
     # as status "success" with total_units 0 and the warehouse rows. Unknown and
     # zero are different answers to different questions. Never turn one into the
     # other, and never invent a count for a piece that was not found.
-    # Verify (live, the real check):
-    #   Click Marco's Turn 3 pill in Pellier — Inventory Agent answers
-    #   with the Brooklyn (BK-01) warehouse breakdown — and watch the
-    #   Observatory Tools strip flip from 16/17 to 17/17 shipped.
+    # Verify: `python3 scripts/lab1_contract_check.py` exercises both cases
+    # before any model runs; Marco's replayed turn is the live check.
     #
     # Note: tests/test_solutions_parity.py is a repo guard, NOT your wire
     # check — it asserts this starter file still carries the stub, so it

@@ -9,14 +9,12 @@
 # Two decisions, both governance rather than plumbing:
 #
 #   1. SUPPORT_MANAGED_TOOLS must name only tools the Gateway publishes to a
-#      shopper. Task 3A publishes `get_ticket_history`. `issue_credit` records
-#      a synthetic credit: the Gateway publishes it for the operator desk under a staff-only
-#      permit, and no shopper-facing specialist may bind it, so the dispatcher
-#      refuses to build a specialist that names it (STAFF_ONLY_GATEWAY_TOOLS).
+#      shopper. Published is not the same as shopper-safe: compare this tuple
+#      with the catalogue and with STAFF_ONLY_GATEWAY_TOOLS above. The
+#      dispatcher refuses to build a specialist that names a staff-only tool.
 #   2. SUPPORT_CALLER_BOUND_TOOLS names the tools whose `customer_id` the server
-#      overwrites with the authenticated caller's id before execution. A read of
-#      someone's support history is only safe under that ownership condition;
-#      without it the model chooses whose tickets to read.
+#      overwrites with the authenticated caller's id before execution. Which
+#      support tool would otherwise let the model choose whose records to read?
 #
 # Verify in Task 3B: deploy, ask for Theo's support-ticket history in a new
 # session, and inspect the bound customer and executed build. Direct Gateway
