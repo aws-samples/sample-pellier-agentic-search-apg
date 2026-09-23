@@ -239,7 +239,7 @@ def test_authorized_shared_changes_preserve_previous_settings(provisioner, monke
 
 
 def test_shared_group_create_race_cannot_authorize_rekeying(provisioner):
-    name = TRACE_GROUPS[0]
+    name = TRACE_GROUPS[1]
     existing = shared_group(name, key=None, days=7)
     logs = SharedLogs({}, raced_group=existing)
     checkpoints = []
@@ -258,3 +258,25 @@ def test_shared_group_create_race_cannot_authorize_rekeying(provisioner):
         "previous_kms_key_arn": None,
         "previous_retention_days": 7,
     }
+
+
+def test_reserved_span_group_is_never_created_with_logs_api(provisioner):
+    logs = SharedLogs({})
+    with pytest.raises(RuntimeError, match="created by Transaction Search"):
+        provisioner._ensure_protected_log_group(
+            logs=logs, log_group_name="aws/spans", kms_key_arn=KEY, retention_days=30,
+        )
+    assert logs.events == [("read", "aws/spans")]
+
+
+def test_activation_cannot_mutate_unapproved_existing_shared_groups(provisioner, monkeypatch):
+    logs = SharedLogs({"aws/spans": shared_group("aws/spans", key=None, days=7)})
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: logs)
+    activated = []
+    with pytest.raises(RuntimeError, match="Existing shared trace log groups"):
+        provisioner._ensure_trace_log_groups(
+            region="us-east-1", kms_key_arn=KEY, retention_days=30,
+            activate_transaction_search=lambda: activated.append(True),
+        )
+    assert not activated
+    assert all(event[0] == "read" for event in logs.events)

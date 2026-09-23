@@ -477,6 +477,8 @@ def _ensure_protected_log_group(
         on_cleanup_state(receipt())
 
     if creation_pending:
+        if log_group_name == "aws/spans":
+            raise RuntimeError("aws/spans must be created by Transaction Search, not CreateLogGroup")
         try:
             create_args: dict[str, Any] = {"logGroupName": log_group_name}
             if kms_key_arn:
@@ -663,8 +665,14 @@ def _ensure_trace_log_groups(
     retention_days: int | None,
     on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
     allow_existing_changes: bool = False,
+    activate_transaction_search: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
-    """Protect both Transaction Search destinations before X-Ray writes spans."""
+    """Preflight shared state, activate service-owned spans, then protect it.
+
+    AWS reserves aws/spans: only Transaction Search can create it. Protect the
+    ordinary destination first and the service-created group before deploying
+    workshop runtimes. Never claim deletion ownership of the reserved group.
+    """
     _validate_log_kms_key_arn(kms_key_arn)
     logs = boto3.client("logs", region_name=region, config=AWS_CONFIG)
     # Inspect both account-wide destinations before creating or changing either
@@ -680,18 +688,35 @@ def _ensure_trace_log_groups(
         retention_days=retention_days,
         allow_existing_changes=allow_existing_changes,
     )
-    groups: list[dict[str, Any]] = []
-    for name in _TRACE_LOG_GROUP_NAMES:
-        groups.append(
-            _ensure_protected_log_group(
-                logs=logs,
-                log_group_name=name,
-                kms_key_arn=kms_key_arn,
-                retention_days=retention_days,
-                on_cleanup_state=on_cleanup_state,
-                allow_existing_changes=allow_existing_changes,
-            )
-        )
+    spans_existed = any(group["logGroupName"] == "aws/spans" for group in existing)
+    if not spans_existed and activate_transaction_search is None:
+        raise RuntimeError("Missing aws/spans requires Transaction Search activation")
+    application_group = _ensure_protected_log_group(
+        logs=logs,
+        log_group_name="/aws/application-signals/data",
+        kms_key_arn=kms_key_arn,
+        retention_days=retention_days,
+        on_cleanup_state=on_cleanup_state,
+        allow_existing_changes=allow_existing_changes,
+    )
+    if activate_transaction_search is not None:
+        activate_transaction_search()
+    deadline = time.monotonic() + 120
+    while _find_runtime_log_group(logs, "aws/spans") is None:
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Transaction Search did not create aws/spans within 120 seconds")
+        time.sleep(5)
+    spans_group = _ensure_protected_log_group(
+        logs=logs,
+        log_group_name="aws/spans",
+        kms_key_arn=kms_key_arn,
+        retention_days=retention_days,
+        on_cleanup_state=on_cleanup_state,
+        # An absent reserved group is created by the activation above. Capture
+        # its service defaults for restoration, while preserving shared history.
+        allow_existing_changes=allow_existing_changes or not spans_existed,
+    )
+    groups = [spans_group, application_group]
     return {
         "groups": groups,
         "kms_key_arn": kms_key_arn,
@@ -2579,11 +2604,21 @@ def main() -> int:
             for surface, arn in lambda_arns.items()
         }
 
+        def activate_transaction_search() -> None:
+            receipt = _configure_transaction_search(
+                region=region,
+                account_id=account_id,
+                partition=partition,
+                on_cleanup_state=checkpoint_transaction_search,
+            )
+            checkpoint_transaction_search(receipt)
+
         trace_log_groups = _ensure_trace_log_groups(
             region=region,
             kms_key_arn=required["runtime_log_kms_key_arn"],
             retention_days=runtime_log_retention_days,
             on_cleanup_state=checkpoint_trace_log_group,
+            activate_transaction_search=activate_transaction_search,
             allow_existing_changes=(
                 os.environ.get(_SHARED_TRACE_LOG_CHANGES_ENV, "").strip().lower()
                 == "true"
@@ -2598,14 +2633,6 @@ def main() -> int:
         )
         result["verification"]["trace_log_groups_encrypted"] = encrypted
         result["verification"]["trace_log_groups_retention_bounded"] = bounded
-        transaction_search = _configure_transaction_search(
-            region=region,
-            account_id=account_id,
-            partition=partition,
-            on_cleanup_state=checkpoint_transaction_search,
-        )
-        result["observability"]["transaction_search"] = transaction_search
-        checkpoint()
         result["verification"]["transaction_search_ready"] = True
         agentcore_deployment_started_at = datetime.now(timezone.utc)
         root, state = _deploy_cli_project(

@@ -219,6 +219,35 @@ _TICKET_MATCH_STOPWORDS = frozenset({"pellier", "luxury", "bath", "sage"})
 _TICKET_MIN_TOKEN = 4
 
 
+def _ticket_asserts_return(ticket: Dict[str, Any]) -> bool:
+    """Recognise explicit completed-return reports in active service context.
+
+    This conservative text cue is not a parcel-receipt fact. Questions, requests,
+    conditional language and negations stay ordinary service context. Unrecognised
+    wording remains available to the operator without inventing an assertion.
+    """
+    if ticket.get("status") not in {"open", "pending"}:
+        return False
+    text = ". ".join(str(ticket.get(key) or "") for key in ("subject", "lastNote"))
+    text = text.lower().replace("’", "'")
+    claims = r"\breturns?\s+(?:(?:was|were|has been|have been)\s+)?(?:received|logged|completed)\b"
+    # A later explicit denial must not inherit a stale assertion from the subject.
+    denial = r"\b(?:not|never|nothing|no\s+\w+|\w+n't)\b[^.!?;]{0,60}\b(?:returned|sent back|received|logged)\b"
+    if re.search(denial, text):
+        return False
+    for sentence in re.findall(r"[^.!?;]+[.!?;]?", text):
+        if "?" in sentence or re.search(
+            r"\b(?:if|whether|when|could|would|should|not|never|nothing|no|\w+n't)\b",
+            sentence,
+        ):
+            continue
+        if re.search(claims, sentence):
+            return True
+        if re.search(r"\b(?:i|we|client|customer)\s+(?:(?:have|has|already)\s+)*(?:returned|sent back)\b", sentence):
+            return True
+    return False
+
+
 def _ticket_named_product_ids(
     tickets: List[Dict[str, Any]], orders: List[Dict[str, Any]]
 ) -> set[str]:
@@ -280,16 +309,15 @@ def _return_evidence(
       assertion stays unconfirmed for as long as the ticket makes it. Recording a
       request is an action; it does not settle what happened before it.
     """
-    asserts_return = any(
-        "return" in (t_.get("subject", "") + " " + t_.get("lastNote", "")).lower()
-        for t_ in tickets
-    )
-    disputed_products = _ticket_named_product_ids(tickets, orders)
+    assertion_tickets = [ticket for ticket in tickets if _ticket_asserts_return(ticket)]
+    asserts_return = bool(assertion_tickets)
+    disputed_products = _ticket_named_product_ids(assertion_tickets, orders)
     returned_products = {str(r.get("productId") or "") for r in returns}
     return {
         "authoritativeReturnCount": len(returns),
         "supportAssertsReturn": asserts_return,
         "unconfirmedReturnAssertion": asserts_return,
+        "assertionTicketIds": [str(t["ticketId"]) for t in assertion_tickets if t.get("ticketId")],
         # Named so a surface can say which products the disagreement is about,
         # rather than implying the client's whole history is in dispute.
         "disputedProductIds": sorted(disputed_products),

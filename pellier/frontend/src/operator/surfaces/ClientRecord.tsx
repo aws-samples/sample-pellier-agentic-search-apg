@@ -188,7 +188,11 @@ const ClientRecordPage: React.FC = () => {
     (ticket) => ticket.status === 'open' || ticket.status === 'pending',
   )
   const returnEvidence = client.returnEvidence
-  const unrecordedDisputed = new Set(returnEvidence?.unrecordedDisputedProductIds ?? [])
+  const requestAssertsReturn = Boolean(returnEvidence?.unconfirmedReturnAssertion &&
+    (returnEvidence.assertionTicketIds === undefined ||
+      (currentRequest && returnEvidence.assertionTicketIds.includes(currentRequest.ticketId))))
+  const unrecordedDisputed = new Set(requestAssertsReturn
+    ? returnEvidence?.unrecordedDisputedProductIds ?? [] : [])
   const unrecordedDisputedNames = [
     ...new Set(
       orders
@@ -302,7 +306,7 @@ const ClientRecordPage: React.FC = () => {
         <section
           className="operator-service-request"
           data-conflict={
-            returnEvidence?.unconfirmedReturnAssertion ? 'true' : 'false'
+            requestAssertsReturn ? 'true' : 'false'
           }
           data-testid="operator-service-request"
           aria-labelledby="operator-service-request-title"
@@ -320,7 +324,7 @@ const ClientRecordPage: React.FC = () => {
               data-status={currentRequest.status}
             >
               <span className="operator-service-request-dot" aria-hidden="true" />
-              {returnEvidence?.unconfirmedReturnAssertion
+              {requestAssertsReturn
                 ? 'Needs verification'
                 : currentRequest.status}
             </span>
@@ -365,7 +369,7 @@ const ClientRecordPage: React.FC = () => {
                   No return record for {unrecordedDisputedNames.join(' or ')}.
                 </p>
               ) : null}
-              {returnEvidence?.unconfirmedReturnAssertion ? (
+              {requestAssertsReturn ? (
                 <p
                   className="operator-service-request-caveat"
                   data-testid="operator-service-request-receipt"
@@ -377,7 +381,7 @@ const ClientRecordPage: React.FC = () => {
           </div>
           <div className="operator-service-request-foot">
             <p className="operator-service-request-next">
-              {returnEvidence?.unconfirmedReturnAssertion
+              {requestAssertsReturn
                 ? 'Reconcile the assertion before promising an outcome.'
                 : 'Investigate the request against current records.'}
             </p>

@@ -596,6 +596,28 @@ describe('ClientRecord', () => {
     )
   })
 
+  it('keeps an unrelated current request separate from another ticket\'s return assertion', async () => {
+    mockFetch((url) => ({ body: url.includes('/api/operator/clients/') ? {
+      ...RECORD,
+      client: { ...RECORD.client, returnEvidence: {
+        ...RECORD.client.returnEvidence,
+        assertionTicketIds: ['TKT-RETURN'],
+        unrecordedDisputedProductIds: ['41'],
+      } },
+      tickets: [
+        { ...RECORD.tickets[0], ticketId: 'TKT-DELIVERY', subject: 'Delivery date', lastNote: 'When will it arrive?' },
+        { ...RECORD.tickets[0], ticketId: 'TKT-RETURN', subject: 'Return received' },
+      ],
+    } : {} }))
+    renderRecord()
+    const request = await screen.findByTestId('operator-service-request')
+    expect(request).toHaveTextContent('Delivery date')
+    expect(request).not.toHaveTextContent('Needs verification')
+    expect(request).toHaveAttribute('data-conflict', 'false')
+    expect(screen.queryByTestId('operator-service-request-receipt')).toBeNull()
+    expect(screen.queryByTestId('operator-service-request-unrecorded')).toBeNull()
+  })
+
   it('uses a real persona-switch handoff for a canonical hero', async () => {
     mockFetch((url) => {
       if (url.includes('/api/operator/clients/')) {

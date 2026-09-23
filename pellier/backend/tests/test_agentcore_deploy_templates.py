@@ -709,6 +709,7 @@ def test_trace_log_groups_are_created_encrypted_and_retention_bounded(
         def create_log_group(
             self, *, logGroupName: str, kmsKeyId: str
         ) -> None:
+            assert logGroupName != "aws/spans", "AWS reserves this name"
             self.groups[logGroupName] = {
                 "logGroupName": logGroupName,
                 "kmsKeyId": kmsKeyId,
@@ -731,10 +732,15 @@ def test_trace_log_groups_are_created_encrypted_and_retention_bounded(
     logs = _Logs()
     monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: logs)
 
+    def activate() -> None:
+        assert logs.groups["/aws/application-signals/data"]["retentionInDays"] == 30
+        logs.groups["aws/spans"] = {"logGroupName": "aws/spans"}
+
     proof = provisioner._ensure_trace_log_groups(
         region="us-east-1",
         kms_key_arn=kms_key_arn,
         retention_days=30,
+        activate_transaction_search=activate,
     )
 
     assert [group["name"] for group in proof["groups"]] == [
@@ -746,7 +752,7 @@ def test_trace_log_groups_are_created_encrypted_and_retention_bounded(
     assert all(
         group["cleanup"]
         == {
-            "created_by_workshop": True,
+            "created_by_workshop": group["name"] != "aws/spans",
             "creation_pending": False,
             "previous_kms_key_arn": None,
             "previous_retention_days": None,
@@ -768,7 +774,7 @@ def test_log_group_create_race_checkpoints_existing_ownership_before_repair() ->
         "arn:aws:kms:us-east-1:123456789012:"
         "key/12345678-1234-1234-1234-1234567890ab"
     )
-    log_group_name = "aws/spans"
+    log_group_name = "/aws/application-signals/data"
     events: list[str] = []
     checkpoints: list[dict[str, Any]] = []
 
@@ -901,40 +907,28 @@ def test_trace_log_group_failure_keeps_partial_cleanup_receipts(
     logs = _Logs()
     monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: logs)
 
+    activated = []
     with pytest.raises(RuntimeError, match="injected create failure"):
         provisioner._ensure_trace_log_groups(
             region="us-east-1",
             kms_key_arn=kms_key_arn,
             retention_days=30,
+            activate_transaction_search=lambda: activated.append(True),
             on_cleanup_state=lambda group: checkpoints.append(
                 json.loads(json.dumps(group))
             ),
         )
 
-    assert [group["name"] for group in checkpoints] == [
-        "aws/spans",
-        "aws/spans",
-        "/aws/application-signals/data",
-    ]
+    assert not activated, "ordinary destination protection must precede activation"
+    assert [group["name"] for group in checkpoints] == ["/aws/application-signals/data"]
     assert checkpoints[0]["cleanup"] == {
         "created_by_workshop": False,
         "creation_pending": True,
         "previous_kms_key_arn": None,
         "previous_retention_days": None,
     }
-    assert checkpoints[1]["cleanup"] == {
-        "created_by_workshop": True,
-        "creation_pending": False,
-        "previous_kms_key_arn": None,
-        "previous_retention_days": None,
-    }
-    assert checkpoints[2]["cleanup"] == {
-        "created_by_workshop": False,
-        "creation_pending": True,
-        "previous_kms_key_arn": None,
-        "previous_retention_days": None,
-    }
-    assert logs.groups["aws/spans"]["retentionInDays"] == 30
+    assert logs.groups == {}
+
 
 
 def test_transaction_search_checkpoints_prior_state_before_policy_mutation(

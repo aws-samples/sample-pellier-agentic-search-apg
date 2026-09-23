@@ -74,6 +74,7 @@ describe('ConciergeHumanCheckpoint', () => {
     const select = screen.getByRole('combobox') as HTMLSelectElement
     expect(select.value).toBe('')
     expect(prepare.disabled).toBe(true)
+    expect(screen.getAllByRole('radio').every((radio) => !(radio as HTMLInputElement).checked)).toBe(true)
     // A disabled control names why, in text a screen reader reaches.
     expect(prepare.getAttribute('aria-describedby')).toBe('operator-concierge-checkpoint-reason-note')
     expect(screen.getByText('Use the reason the customer stated. Pellier never fills it in.')).toBeTruthy()
@@ -87,5 +88,24 @@ describe('ConciergeHumanCheckpoint', () => {
       'Prepare the return for "Luxury Bath Robe, Sage" on order #407 for review. ' +
         "Customer's stated reason: changed_mind.",
     )
+  })
+
+  it('requires an explicit item even after the reason is supplied', () => {
+    const onPrepare = vi.fn()
+    render(<ConciergeHumanCheckpoint record={record(['41', '42'])} disabled={false} onPrepare={onPrepare} />)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'changed_mind' } })
+    const prepare = screen.getByRole('button', { name: 'Prepare review' }) as HTMLButtonElement
+    expect(prepare.disabled).toBe(true)
+    fireEvent.click(prepare)
+    expect(onPrepare).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText(/Luxury Bath Robe, Sage/))
+    expect(prepare.disabled).toBe(false)
+  })
+
+  it('does not guess candidates when an assertion names no product', () => {
+    const unscoped = record([])
+    unscoped.tickets[0].lastNote = 'Item unspecified.'
+    render(<ConciergeHumanCheckpoint record={unscoped} disabled={false} onPrepare={() => {}} />)
+    expect(screen.queryByTestId('operator-concierge-human-checkpoint')).toBeNull()
   })
 })

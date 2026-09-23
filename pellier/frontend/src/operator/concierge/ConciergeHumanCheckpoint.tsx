@@ -20,6 +20,10 @@ const RETURN_REASONS = [
  * the remaining question.
  */
 export function returnCandidates(record: OperatorClientRecord): OperatorOrder[] {
+  const unrecorded = record.client.returnEvidence?.unrecordedDisputedProductIds
+  if (unrecorded) {
+    return record.orders.filter((order) => unrecorded.includes(order.productId)).slice(0, 3)
+  }
   const ticketText = record.tickets
     .filter((ticket) => ticket.status === 'open' || ticket.status === 'pending')
     .map((ticket) => `${ticket.subject} ${ticket.lastNote}`)
@@ -37,11 +41,7 @@ export function returnCandidates(record: OperatorClientRecord): OperatorOrder[] 
           ticketText.includes(token),
       ),
   )
-  const unrecorded = record.client.returnEvidence?.unrecordedDisputedProductIds
-  const open = unrecorded
-    ? mentioned.filter((order) => unrecorded.includes(order.productId))
-    : mentioned
-  return (mentioned.length ? open : record.orders.slice(0, 2)).slice(0, 3)
+  return (mentioned.length ? mentioned : record.orders.slice(0, 2)).slice(0, 3)
 }
 
 interface Props {
@@ -56,9 +56,8 @@ const ConciergeHumanCheckpoint: React.FC<Props> = ({
   onPrepare,
 }) => {
   const items = useMemo(() => returnCandidates(record), [record])
-  const [productId, setProductId] = useState(items[0]?.productId ?? '')
-  // No default. The reason is material the customer states and a person confirms;
-  // preselecting one would let the form supply it silently.
+  // Both choices belong to the person; candidate order must not choose an item.
+  const [productId, setProductId] = useState('')
   const [reason, setReason] = useState('')
   const item = items.find((candidate) => candidate.productId === productId)
 

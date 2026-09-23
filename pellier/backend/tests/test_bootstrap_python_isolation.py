@@ -181,6 +181,15 @@ def test_aws_cli_install_reentry_uses_fresh_private_staging_and_owned_cleanup(tm
         "# AL2023 also ships a Python-based AWS CLI", 1
     )[0]
     block = block.replace("/tmp/pellier-aws-cli.XXXXXXXX", str(tmp_path / "attempt.XXXXXXXX"))
+    bundle = tmp_path / "installed"
+    bundle.mkdir(mode=0o700)
+    binary = bundle / "aws"
+    binary.write_text("public executable")
+    binary.chmod(0o700)
+    secret = tmp_path / "credential"
+    secret.write_text("synthetic private file")
+    secret.chmod(0o600)
+    block = block.replace("/usr/local/aws-cli", str(bundle))
     stranded = tmp_path / "attempt.interrupted"
     stranded.mkdir()
     sentinel = stranded / "partial-installer"
@@ -198,7 +207,7 @@ unzip() {
 '''
     for rc in (9, 0):
         result = subprocess.run(
-            ["/bin/bash", "-eu", "-c", stubs + block], capture_output=True, text=True,
+            ["/bin/bash", "-eu", "-c", "umask 077\n" + stubs + block + "\ntest $(umask) = 0077"], capture_output=True, text=True,
             env={**os.environ, "MOCK_PATHS": str(calls), "MOCK_INSTALL_RC": str(rc)},
         )
         assert result.returncode == rc, result.stderr
@@ -206,3 +215,7 @@ unzip() {
     assert first != second
     assert not Path(first).exists() and not Path(second).exists()
     assert sentinel.read_text() == "prior attempt must not be reused or removed"
+
+    assert bundle.stat().st_mode & 0o777 == 0o755
+    assert binary.stat().st_mode & 0o777 == 0o755
+    assert secret.stat().st_mode & 0o777 == 0o600

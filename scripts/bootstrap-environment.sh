@@ -209,6 +209,9 @@ log "Installing AWS CLI v2..."
 # A reboot can interrupt extraction. Each attempt owns a fresh directory so
 # unzip never prompts about leftovers and cleanup cannot remove another run.
 (
+    # The worker uses 077 for secrets. This public executable bundle must also
+    # run as the participant; keep its installer mask local to this subshell.
+    umask 022
     AWS_CLI_STAGING="$(mktemp -d /tmp/pellier-aws-cli.XXXXXXXX)"
     trap 'rm -rf -- "$AWS_CLI_STAGING"' EXIT
     cd "$AWS_CLI_STAGING"
@@ -219,6 +222,8 @@ log "Installing AWS CLI v2..."
     fi
     unzip -q awscliv2.zip
     ./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+    # Repair a previous interrupted/restricted installation as well as new files.
+    chmod -R a+rX /usr/local/aws-cli
 )
 
 # AL2023 also ships a Python-based AWS CLI v1. The self-contained v2 bundle

@@ -1126,11 +1126,13 @@ describe('proposed actions', () => {
     wireWithReview({ ...PROPOSAL, reviewId: null, state: 'could_not_prepare_review' }, null)
     renderRecord()
     const prepare = await screen.findByRole('button', { name: 'Prepare review' })
-    // Still offered, and still waiting for the customer's stated reason.
+    // Still offered, with both human choices required after a failed attempt.
     expect(prepare).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Return reason'), {
       target: { value: 'damaged' },
     })
+    expect(prepare).toBeDisabled()
+    fireEvent.click(screen.getByRole('radio', { name: /Coral Lacquer Catchall/ }))
     expect(prepare).toBeEnabled()
     expect(screen.getByTestId('operator-concierge-proposal-human')).toHaveTextContent(
       'No review prepared',

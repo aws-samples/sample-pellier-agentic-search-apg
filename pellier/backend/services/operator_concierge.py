@@ -321,7 +321,7 @@ async def load_client_evidence(
         recorded = _names(
             set(return_evidence.get("disputedProductIds") or []) - set(unrecorded_ids)
         )
-        parts = ["A support ticket reports that returned goods were received."]
+        parts = ["An active support ticket reports that goods were returned."]
         if unrecorded:
             parts.append(f"No return record exists for {', '.join(unrecorded)}.")
         if recorded:
@@ -330,8 +330,8 @@ async def load_client_evidence(
                 "does not show that the parcel arrived."
             )
         parts.append(
-            "Pellier holds no receiving record, so the claim that goods were "
-            "received remains unverified. A return for a different item does not "
+            "Pellier holds no receiving record, so receipt of those goods "
+            "remains unverified. A return for a different item does not "
             "confirm this report."
         )
         evidence.append(Evidence(

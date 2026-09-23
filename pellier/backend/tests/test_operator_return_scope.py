@@ -124,7 +124,7 @@ class TestFailureDirection:
         receipt claim stays unconfirmed either way; no return row confirms it.
         """
         tickets = [
-            {"subject": "Return question", "lastNote": "No item named.", "status": "open"}
+            {"subject": "Return received", "lastNote": "Item unspecified.", "status": "open"}
         ]
         orders = JESSICA_ORDERS
         assert _ticket_named_product_ids(tickets, orders) == set()
@@ -137,3 +137,38 @@ class TestFailureDirection:
         tickets = [{"subject": "Delivery rescheduled", "lastNote": "", "status": "open"}]
         evidence = _return_evidence(tickets, JESSICA_ORDERS, [])
         assert evidence["unconfirmedReturnAssertion"] is False
+
+    def test_questions_requests_and_negations_do_not_assert_a_completed_return(self) -> None:
+        for subject, note in [
+            ("Return policy question", "What is the return window for the robe? Nothing has been sent back."),
+            ("Return request", "I want to return the robe."),
+            ("Was the return received?", "Please check the robe."),
+            ("Return not received", "The robe has not been returned."),
+            ("Return received", "Correction: the customer has not returned the robe."),
+            ("Return question", "If the return was received, when is the refund?"),
+        ]:
+            evidence = _return_evidence(
+                [{"subject": subject, "lastNote": note, "status": "pending"}], JESSICA_ORDERS, []
+            )
+            assert evidence["supportAssertsReturn"] is False, (subject, note)
+            assert evidence["unconfirmedReturnAssertion"] is False
+            assert evidence["disputedProductIds"] == []
+            assert evidence["unrecordedDisputedProductIds"] == []
+
+    def test_closed_return_does_not_contaminate_a_current_delivery_question(self) -> None:
+        evidence = _return_evidence([
+            dict(JESSICA_TICKETS[0], status="resolved"),
+            {"ticketId": "delivery", "subject": "Delivery date", "lastNote": "When does the robe arrive?", "status": "open"},
+        ], JESSICA_ORDERS, [])
+        assert evidence["unconfirmedReturnAssertion"] is False
+        assert evidence["assertionTicketIds"] == []
+        assert evidence["disputedProductIds"] == []
+
+    def test_only_asserting_tickets_supply_products_and_ticket_ids(self) -> None:
+        evidence = _return_evidence([
+            {"ticketId": "return", "subject": "Return update", "lastNote": "I sent back the robe.", "status": "pending"},
+            {"ticketId": "delivery", "subject": "Delivery date", "lastNote": "When does the catchall arrive?", "status": "open"},
+        ], JESSICA_ORDERS, [])
+        assert evidence["unconfirmedReturnAssertion"] is True
+        assert evidence["assertionTicketIds"] == ["return"]
+        assert evidence["disputedProductIds"] == ["P-002"]

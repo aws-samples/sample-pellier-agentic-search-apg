@@ -66,13 +66,13 @@ export interface OperatorClient {
     authoritativeReturnCount: number
     supportAssertsReturn: boolean
     /**
-     * True when the ticket asserts a return that no authoritative row backs,
-     * scoped to the products the ticket names. Unscoped, any return for the
-     * customer flipped this -- including one written by the Lab 4 identity
-     * matrix on an unrelated product, which silently emptied the checkpoint.
+     * An active ticket explicitly reports a completed return. A return request
+     * row cannot confirm receipt of goods, so this remains unverified.
      */
     unconfirmedReturnAssertion: boolean
-    /** The products the open tickets actually name; empty when none match. */
+    /** Active tickets making the assertion; unrelated requests retain their status. */
+    assertionTicketIds?: string[]
+    /** Products named by those assertion tickets; empty when none match. */
     disputedProductIds?: string[]
     /**
      * Named products that still have no authoritative return row. Each piece
