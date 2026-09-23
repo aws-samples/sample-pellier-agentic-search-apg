@@ -74,6 +74,11 @@ export interface OperatorClient {
     unconfirmedReturnAssertion: boolean
     /** The products the open tickets actually name; empty when none match. */
     disputedProductIds?: string[]
+    /**
+     * Named products that still have no authoritative return row. Each piece
+     * needs its own row: a recorded robe return says nothing about the catchall.
+     */
+    unrecordedDisputedProductIds?: string[]
   }
 }
 

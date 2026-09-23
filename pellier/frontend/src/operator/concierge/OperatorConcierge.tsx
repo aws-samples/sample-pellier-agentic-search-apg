@@ -20,7 +20,7 @@ import type { OperatorClientRecord } from '../../services/operator'
 import ServiceSource from '../components/ServiceSource'
 import ServiceLogo from '../components/ServiceLogo'
 import ConciergeCapabilityState from './ConciergeCapabilityState'
-import ConciergeHumanCheckpoint from './ConciergeHumanCheckpoint'
+import ConciergeHumanCheckpoint, { returnCandidates } from './ConciergeHumanCheckpoint'
 import ConciergePendingTurn from './ConciergePendingTurn'
 import ConciergeSuggestions from './ConciergeSuggestions'
 import {
@@ -77,6 +77,12 @@ const OperatorConcierge: React.FC<Props> = ({
     (message) => message.artifact?.proposedActions?.some(
       (action) => action.reviewId != null,
     ),
+  )
+  // The ticket's receipt claim stays unconfirmed after a return is recorded, so the
+  // checkpoint also needs a named piece that still has no return record.
+  const canPrepareDisputedReturn = Boolean(
+    record?.client.returnEvidence?.unconfirmedReturnAssertion &&
+      returnCandidates(record).length > 0,
   )
   // A durable proposal can precede later discussion. Keep its handoff reachable
   // without representing the historical proposal as a current pending decision.
@@ -220,7 +226,7 @@ const OperatorConcierge: React.FC<Props> = ({
       !hasPreparedAction &&
       (!guidedServiceRecovery ||
         guidedCompletedTurns === GUIDED_SERVICE_RECOVERY_PROMPTS.length) &&
-      record?.client.returnEvidence?.unconfirmedReturnAssertion ? (
+      canPrepareDisputedReturn && record ? (
         <ConciergeHumanCheckpoint
           record={record}
           disabled={!concierge.composerEnabled}
@@ -233,7 +239,7 @@ const OperatorConcierge: React.FC<Props> = ({
     Boolean(nextGuidedPrompt) ||
     (hasAnsweredTurn && !hasPreparedAction &&
       (!guidedServiceRecovery || guidedCompletedTurns === GUIDED_SERVICE_RECOVERY_PROMPTS.length) &&
-      record?.client.returnEvidence?.unconfirmedReturnAssertion)
+      canPrepareDisputedReturn)
   )
   const focusNextStep = () => {
     const el = body.current

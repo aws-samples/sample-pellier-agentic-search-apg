@@ -593,7 +593,7 @@ describe('submitting a turn', () => {
       const body = JSON.parse(String(streamCall?.[1]?.body))
       expect(body.message).toContain('Prepare the return')
       expect(body.message).toContain('Coral Lacquer Catchall')
-      expect(body.message).toContain('not as described')
+      expect(body.message).toContain("Customer's stated reason: not_as_described.")
       expect(body.message).toContain('for review')
     })
   })
@@ -1125,7 +1125,13 @@ describe('proposed actions', () => {
   it('keeps review preparation available after a preparation failure', async () => {
     wireWithReview({ ...PROPOSAL, reviewId: null, state: 'could_not_prepare_review' }, null)
     renderRecord()
-    expect(await screen.findByRole('button', { name: 'Prepare review' })).toBeEnabled()
+    const prepare = await screen.findByRole('button', { name: 'Prepare review' })
+    // Still offered, and still waiting for the customer's stated reason.
+    expect(prepare).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Return reason'), {
+      target: { value: 'damaged' },
+    })
+    expect(prepare).toBeEnabled()
     expect(screen.getByTestId('operator-concierge-proposal-human')).toHaveTextContent(
       'No review prepared',
     )

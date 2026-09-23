@@ -14,18 +14,12 @@ const RETURN_REASONS = [
   ['other', 'Other'],
 ] as const
 
-function materialReason(reason: string): string {
-  const labels: Record<string, string> = {
-    damaged: 'damaged',
-    wrong_size: 'the wrong size',
-    not_as_described: 'not as described',
-    changed_mind: 'no longer wanted',
-    other: 'another stated reason',
-  }
-  return labels[reason] ?? reason.replace(/_/g, ' ')
-}
-
-function candidates(record: OperatorClientRecord): OperatorOrder[] {
+/**
+ * The disputed pieces a reviewer can still prepare a return for: the ticket names
+ * them and no return record exists yet. Once the robe is recorded, the catchall is
+ * the remaining question.
+ */
+export function returnCandidates(record: OperatorClientRecord): OperatorOrder[] {
   const ticketText = record.tickets
     .filter((ticket) => ticket.status === 'open' || ticket.status === 'pending')
     .map((ticket) => `${ticket.subject} ${ticket.lastNote}`)
@@ -43,7 +37,11 @@ function candidates(record: OperatorClientRecord): OperatorOrder[] {
           ticketText.includes(token),
       ),
   )
-  return (mentioned.length ? mentioned : record.orders.slice(0, 2)).slice(0, 3)
+  const unrecorded = record.client.returnEvidence?.unrecordedDisputedProductIds
+  const open = unrecorded
+    ? mentioned.filter((order) => unrecorded.includes(order.productId))
+    : mentioned
+  return (mentioned.length ? open : record.orders.slice(0, 2)).slice(0, 3)
 }
 
 interface Props {
@@ -57,9 +55,11 @@ const ConciergeHumanCheckpoint: React.FC<Props> = ({
   disabled,
   onPrepare,
 }) => {
-  const items = useMemo(() => candidates(record), [record])
+  const items = useMemo(() => returnCandidates(record), [record])
   const [productId, setProductId] = useState(items[0]?.productId ?? '')
-  const [reason, setReason] = useState('not_as_described')
+  // No default. The reason is material the customer states and a person confirms;
+  // preselecting one would let the form supply it silently.
+  const [reason, setReason] = useState('')
   const item = items.find((candidate) => candidate.productId === productId)
 
   if (!record.client.returnEvidence?.unconfirmedReturnAssertion || !items.length) {
@@ -123,23 +123,36 @@ const ConciergeHumanCheckpoint: React.FC<Props> = ({
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           disabled={disabled}
+          required
+          aria-describedby="operator-concierge-checkpoint-reason-note"
         >
+          <option value="" disabled>
+            Select the customer&rsquo;s stated reason
+          </option>
           {RETURN_REASONS.map(([value, label]) => (
             <option value={value} key={value}>{label}</option>
           ))}
         </select>
       </label>
+      <p
+        id="operator-concierge-checkpoint-reason-note"
+        className="operator-concierge-human-checkpoint-reason-note"
+      >
+        Use the reason the customer stated. Pellier never fills it in.
+      </p>
 
       <button
         type="button"
         className="operator-concierge-human-checkpoint-action"
-        disabled={disabled || !item}
+        disabled={disabled || !item || !reason}
+        aria-describedby={reason ? undefined : 'operator-concierge-checkpoint-reason-note'}
         onClick={() => {
-          if (!item) return
+          if (!item || !reason) return
+          // The canonical code travels verbatim, so the backend never has to
+          // infer the reason from paraphrase.
           onPrepare(
             `Prepare the return for "${item.productName}" on order ` +
-              `#${item.orderId} for review because it was ` +
-              `${materialReason(reason)}.`,
+              `#${item.orderId} for review. Customer's stated reason: ${reason}.`,
           )
         }}
       >

@@ -254,6 +254,51 @@ def _ticket_named_product_ids(
     return named
 
 
+def _return_evidence(
+    tickets: List[Dict[str, Any]],
+    orders: List[Dict[str, Any]],
+    returns: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """What a ticket asserts about returns, against what Pellier actually records.
+
+    Three evidence kinds about returns, kept apart on purpose:
+
+      returns          authoritative domain state: a return REQUEST and its lifecycle
+      tickets          a service assertion, which may claim goods were returned
+      preferences      prose context, never authoritative
+
+    Jessica is the live case: TKT-2026-3015 says the catchall and the robe were
+    returned and received, and disputes the refund. Two facts follow, and they must
+    stay separate:
+
+    * Which named pieces have no return record at all. Scoped per product: a return
+      for the robe is not evidence about the catchall, and the Lab 4 identity
+      matrix's return on an unrelated product is evidence about neither.
+    * Whether the goods were received. `pellier.returns` statuses are pending,
+      approved, rejected and refunded; nothing in Pellier records a parcel arriving.
+      A return row therefore never confirms a ticket's claim of receipt, so the
+      assertion stays unconfirmed for as long as the ticket makes it. Recording a
+      request is an action; it does not settle what happened before it.
+    """
+    asserts_return = any(
+        "return" in (t_.get("subject", "") + " " + t_.get("lastNote", "")).lower()
+        for t_ in tickets
+    )
+    disputed_products = _ticket_named_product_ids(tickets, orders)
+    returned_products = {str(r.get("productId") or "") for r in returns}
+    return {
+        "authoritativeReturnCount": len(returns),
+        "supportAssertsReturn": asserts_return,
+        "unconfirmedReturnAssertion": asserts_return,
+        # Named so a surface can say which products the disagreement is about,
+        # rather than implying the client's whole history is in dispute.
+        "disputedProductIds": sorted(disputed_products),
+        # Empty when the ticket names no recognisable product: the scope is
+        # unknown, so no piece can be said to lack a record.
+        "unrecordedDisputedProductIds": sorted(disputed_products - returned_products),
+    }
+
+
 def _return_row(row: Dict[str, Any]) -> Dict[str, Any]:
     """One authoritative return record.
 
@@ -702,44 +747,7 @@ async def get_client(
     returns = [_return_row(dict(r)) for r in (return_rows or [])]
     record["returnCount"] = len(returns)
 
-    # Three evidence kinds about returns, kept apart on purpose:
-    #
-    #   returns          authoritative domain state
-    #   tickets          a service assertion, which may claim a return that has no row
-    #   preferences      prose context, never authoritative
-    #
-    # Jessica is the live case: TKT-2026-3015 states a return was received and its
-    # refund disputed, `returns` holds nothing, and her preferences_summary mentions
-    # a dispute. Collapsing those into "she returned it" would invent a fact. The
-    # flag below lets a surface show the disagreement instead of resolving it.
-    asserts_return = any(
-        "return" in (t_.get("subject", "") + " " + t_.get("lastNote", "")).lower()
-        for t_ in tickets
-    )
-    # Scope the conflict to the products the ticket actually names.
-    #
-    # This used to read `asserts_return and not returns` -- any return row for
-    # this customer resolved the dispute. Two problems with that. It is not
-    # true: a return for an unrelated product says nothing about a disputed
-    # refund on the catchall. And it made the Operator demonstration erasable
-    # from another lab, because Lab 4's identity matrix writes a real
-    # `pellier.returns` row for this same customer on whichever product she
-    # ordered first. Running the matrix before the Operator walkthrough
-    # silently emptied the human checkpoint -- not replayed, absent -- and only
-    # a full governed reset brought it back.
-    disputed_products = _ticket_named_product_ids(tickets, orders)
-    unresolved = [
-        r for r in returns
-        if not disputed_products or r.get("productId") in disputed_products
-    ]
-    record["returnEvidence"] = {
-        "authoritativeReturnCount": len(returns),
-        "supportAssertsReturn": asserts_return,
-        "unconfirmedReturnAssertion": asserts_return and not unresolved,
-        # Named so a surface can say which products the disagreement is about,
-        # rather than implying the client's whole history is in dispute.
-        "disputedProductIds": sorted(disputed_products),
-    }
+    record["returnEvidence"] = _return_evidence(tickets, orders, returns)
 
     return {
         "client": record,

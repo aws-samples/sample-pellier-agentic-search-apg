@@ -718,3 +718,27 @@ def test_an_absent_or_unknown_reason_gets_the_neutral_clause() -> None:
 def test_every_reason_the_write_path_accepts_has_a_clause() -> None:
     for reason in PROP.ALLOWED_REASONS:
         assert reason in RV._REASON_CLAUSES, reason
+
+
+@pytest.mark.parametrize("code", ["damaged", "wrong_size", "not_as_described",
+                                  "changed_mind", "other"])
+def test_the_checkpoint_request_carries_every_reason_verbatim(code: str) -> None:
+    """The Operator form sends this exact sentence; each reason must survive it.
+
+    A paraphrase ("it was no longer wanted") once normalised to no reason, which
+    blocks the proposal, so the form sends the canonical code itself.
+    """
+    from services.operator_proposals import classify_action_intent
+
+    request = (
+        'Prepare the return for "Luxury Bath Robe, Sage" on order #407 for review. '
+        f"Customer's stated reason: {code}."
+    )
+    intent = classify_action_intent(request)
+    assert intent is not None and intent.reason == code
+
+
+def test_no_longer_wanted_reads_as_changed_mind() -> None:
+    from services.operator_proposals import normalize_reason
+
+    assert normalize_reason("the client no longer wanted the robe") == "changed_mind"

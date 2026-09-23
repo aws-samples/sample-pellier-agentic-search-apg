@@ -103,10 +103,15 @@ test.describe('Operator client storefront handoff', () => {
     // This workshop account may already have completed return exercises.
     // Verify the seeded catchall/robe dispute against actual authoritative rows.
     expect(record.client.returnEvidence.disputedProductIds).toEqual(['41', '42'])
-    const conflict = !record.returns.some(
-      (row: { productId: string }) => ['41', '42'].includes(row.productId),
+    // A return row is a request; nothing records the parcel arriving, so the
+    // ticket's receipt claim stays unconfirmed whatever rows exist.
+    expect(record.client.returnEvidence.unconfirmedReturnAssertion).toBe(true)
+    const recorded = new Set(
+      record.returns.map((row: { productId: string }) => row.productId),
     )
-    expect(record.client.returnEvidence.unconfirmedReturnAssertion).toBe(conflict)
+    expect(record.client.returnEvidence.unrecordedDisputedProductIds).toEqual(
+      ['41', '42'].filter((id) => !recorded.has(id)),
+    )
 
     await page.goto(
       `${BASE_URL}/operator/clients/CUST-JESSICA`,

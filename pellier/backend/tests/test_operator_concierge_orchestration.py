@@ -1249,3 +1249,49 @@ def test_the_concierge_cannot_execute_a_governed_action() -> None:
         assert forbidden not in source, f"the Concierge references {forbidden}"
     # And the one call it may make.
     assert "prepare_proposal" in source
+
+
+@pytest.mark.asyncio
+async def test_a_recorded_request_is_not_reported_as_received(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After the robe is recorded, the catchall still lacks a record, and neither
+    piece is shown as received: Pellier records requests, not parcels arriving."""
+
+    async def get_client(*, client_id: str, db: Any) -> Dict[str, Any]:
+        return {
+            "client": {
+                "customerId": "CUST-JESSICA", "name": "Jessica Nakamura",
+                "membership": "circle", "spend12mo": 3940.0, "orderValue": 432.66,
+                "creditBalance": "0.00", "creditBalanceCents": 0,
+                "returnEvidence": {
+                    "unconfirmedReturnAssertion": True,
+                    "disputedProductIds": ["41", "42"],
+                    "unrecordedDisputedProductIds": ["41"],
+                },
+            },
+            "orders": [
+                {"orderId": 406, "productId": "41", "productName": "Coral Lacquer Catchall",
+                 "price": 325.36, "quantity": 1},
+                {"orderId": 407, "productId": "42", "productName": "Luxury Bath Robe, Sage",
+                 "price": 107.30, "quantity": 1},
+            ],
+            "tickets": [{
+                "ticketId": "TKT-2026-3015", "status": "pending",
+                "subject": "Return received, refund amount disputed",
+                "lastNote": "Return logged for the catchall and the robe.",
+            }],
+            "credits": [],
+            "returns": [{"returnId": 92, "productId": "42",
+                         "productName": "Luxury Bath Robe, Sage",
+                         "reason": "changed_mind", "status": "pending"}],
+        }
+
+    monkeypatch.setattr("routes.operator.get_client", get_client)
+    _record, _steps, evidence = await ORCH.load_client_evidence(object(), "CUST-JESSICA")
+
+    conflict = next(item for item in evidence if item.kind == "return_conflict")
+    assert "No return record exists for Coral Lacquer Catchall." in conflict.detail
+    assert "A return request is recorded for Luxury Bath Robe, Sage" in conflict.detail
+    assert "remains unverified" in conflict.detail
+    assert conflict.status == "unverified"

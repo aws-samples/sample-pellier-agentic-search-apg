@@ -1,20 +1,16 @@
-"""The Operator human checkpoint must survive Lab 4 writing to the same table.
+"""Ticket return claims against return records: two facts, kept apart.
 
 Lab 4's identity matrix (`scripts/prove_identity_boundary.py`) targets
 CUST-JESSICA and, on its ALLOW case, writes a real `pellier.returns` row for
-whichever product she ordered first. The Operator service-recovery walkthrough
-is built on the opposite premise: her ticket asserts a return that the
-authoritative table does not carry.
+the lowest-id product she can return. The Operator service-recovery walkthrough
+is built on her ticket asserting returns the authoritative table does not carry.
 
-Those two shared one unscoped predicate, `asserts_return and not returns`. Any
-return row for the customer -- including Lab 4's, on an unrelated product --
-flipped it, and the human checkpoint stopped rendering. Not replayed: absent.
-Nothing required the labs to run in a particular order, and only a full
-governed reset restored it.
-
-Scoping the conflict to the products the ticket names fixes the collision and
-is independently more truthful: a return for the reed diffuser has never been
-evidence about a disputed refund on the catchall.
+An unscoped `asserts_return and not returns` let any return row -- including
+Lab 4's, on an unrelated product -- erase the human checkpoint. Scoping by
+product fixed that collision. A second truth sits beside it: a return row is a
+REQUEST. Pellier records no parcel arriving, so no row can confirm a ticket's
+claim that goods were received. Which pieces lack a record is one fact; whether
+the goods arrived is another, and it stays unverified.
 """
 
 from __future__ import annotations
@@ -27,7 +23,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from routes.operator import _ticket_named_product_ids  # noqa: E402
+from routes.operator import _return_evidence, _ticket_named_product_ids  # noqa: E402
 
 # The seeded Jessica case: migration 019 logs a return for the catchall and the
 # robe; migration 018 gives her five orders.
@@ -53,19 +49,7 @@ JESSICA_ORDERS: List[Dict[str, Any]] = [
 
 
 def _evidence(returns: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Recompute the flag exactly as routes.operator does."""
-    asserts_return = any(
-        "return" in (t.get("subject", "") + " " + t.get("lastNote", "")).lower()
-        for t in JESSICA_TICKETS
-    )
-    disputed = _ticket_named_product_ids(JESSICA_TICKETS, JESSICA_ORDERS)
-    unresolved = [
-        r for r in returns if not disputed or r.get("productId") in disputed
-    ]
-    return {
-        "unconfirmedReturnAssertion": asserts_return and not unresolved,
-        "disputedProductIds": sorted(disputed),
-    }
+    return _return_evidence(JESSICA_TICKETS, JESSICA_ORDERS, returns)
 
 
 class TestTicketScoping:
@@ -103,10 +87,22 @@ class TestCollisionWithLabFour:
         lab_four_row = {"productId": "P-003", "productName": "Stoneware Pour-Over Set"}
         assert _evidence([lab_four_row])["unconfirmedReturnAssertion"] is True
 
-    def test_a_return_for_a_disputed_product_does_resolve_it(self) -> None:
-        """The flag must still fall when the dispute is genuinely answered."""
+    def test_one_named_product_does_not_answer_for_the_other(self) -> None:
+        """Recording the catchall says nothing about the robe the ticket also names."""
         catchall_row = {"productId": "P-001", "productName": "Leather Catchall Tray"}
-        assert _evidence([catchall_row])["unconfirmedReturnAssertion"] is False
+        evidence = _evidence([catchall_row])
+        assert evidence["unconfirmedReturnAssertion"] is True
+        assert evidence["unrecordedDisputedProductIds"] == ["P-002"]
+
+    def test_recorded_requests_do_not_confirm_receipt(self) -> None:
+        """Every named piece recorded: no record gap, but receipt is still unverified."""
+        rows = [
+            {"productId": "P-001", "productName": "Leather Catchall Tray"},
+            {"productId": "P-002", "productName": "Waffle Cotton Robe"},
+        ]
+        evidence = _evidence(rows)
+        assert evidence["unrecordedDisputedProductIds"] == []
+        assert evidence["unconfirmedReturnAssertion"] is True
 
     def test_several_unrelated_returns_still_do_not_resolve_it(self) -> None:
         rows = [
@@ -121,24 +117,23 @@ class TestCollisionWithLabFour:
 
 
 class TestFailureDirection:
-    def test_an_unmatchable_ticket_falls_back_to_any_return(self) -> None:
-        """Narrowing to an empty set must not auto-resolve every dispute.
+    def test_an_unmatchable_ticket_names_no_record_gap(self) -> None:
+        """Narrowing to an empty set must not claim any piece lacks a record.
 
-        When the ticket names no recognisable product we cannot scope, so the
-        conservative reading is the old one: any return answers it. The
-        alternative -- treating "no named products" as "nothing is disputed" --
-        would resolve disputes the desk has not looked at.
+        When the ticket names no recognisable product the scope is unknown. The
+        receipt claim stays unconfirmed either way; no return row confirms it.
         """
         tickets = [
             {"subject": "Return question", "lastNote": "No item named.", "status": "open"}
         ]
         orders = JESSICA_ORDERS
-        disputed = _ticket_named_product_ids(tickets, orders)
-        assert disputed == set()
+        assert _ticket_named_product_ids(tickets, orders) == set()
 
-        returns = [{"productId": "P-003"}]
-        unresolved = [
-            r for r in returns if not disputed or r.get("productId") in disputed
-        ]
-        # With no scope available, the return counts, so the flag falls.
-        assert unresolved
+        evidence = _return_evidence(tickets, orders, [{"productId": "P-003"}])
+        assert evidence["unrecordedDisputedProductIds"] == []
+        assert evidence["unconfirmedReturnAssertion"] is True
+
+    def test_a_ticket_without_a_return_claim_asserts_nothing(self) -> None:
+        tickets = [{"subject": "Delivery rescheduled", "lastNote": "", "status": "open"}]
+        evidence = _return_evidence(tickets, JESSICA_ORDERS, [])
+        assert evidence["unconfirmedReturnAssertion"] is False

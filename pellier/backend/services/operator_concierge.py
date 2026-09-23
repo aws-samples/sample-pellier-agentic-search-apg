@@ -304,14 +304,40 @@ async def load_client_evidence(
         ))
 
     if return_evidence.get("unconfirmedReturnAssertion"):
+        # Two separate facts. Which named pieces have no return record at all, and
+        # the receipt claim, which no return record can confirm: Pellier stores
+        # return requests, not parcels arriving.
+        def _names(ids: Any) -> List[str]:
+            wanted = {str(value) for value in (ids or [])}
+            return list(dict.fromkeys(
+                str(order.get("productName"))
+                for order in orders
+                if str(order.get("productId") or "") in wanted
+                and order.get("productName")
+            ))
+
+        unrecorded_ids = return_evidence.get("unrecordedDisputedProductIds") or []
+        unrecorded = _names(unrecorded_ids)
+        recorded = _names(
+            set(return_evidence.get("disputedProductIds") or []) - set(unrecorded_ids)
+        )
+        parts = ["A support ticket reports that returned goods were received."]
+        if unrecorded:
+            parts.append(f"No return record exists for {', '.join(unrecorded)}.")
+        if recorded:
+            parts.append(
+                f"A return request is recorded for {', '.join(recorded)}; a request "
+                "does not show that the parcel arrived."
+            )
+        parts.append(
+            "Pellier holds no receiving record, so the claim that goods were "
+            "received remains unverified. A return for a different item does not "
+            "confirm this report."
+        )
         evidence.append(Evidence(
             kind="return_conflict", role=ROLE_CONTEXT, status="unverified",
             source=SOURCE_AURORA, label="Unconfirmed assertion",
-            detail=(
-                "A support ticket reports a received return for the disputed items. "
-                "No authoritative return record was found for those items. "
-                "A return for a different item does not confirm this report."
-            ),
+            detail=" ".join(parts),
         ))
 
     if client.get("personaId") == "theo":

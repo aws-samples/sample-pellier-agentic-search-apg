@@ -112,6 +112,7 @@ _REASON_PHRASES: Tuple[Tuple[str, str], ...] = (
     ("changed his mind", "changed_mind"),
     ("changed their mind", "changed_mind"),
     ("no longer wants", "changed_mind"),
+    ("no longer wanted", "changed_mind"),
 )
 
 

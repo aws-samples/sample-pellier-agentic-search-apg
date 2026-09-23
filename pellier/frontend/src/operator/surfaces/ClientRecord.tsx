@@ -188,6 +188,14 @@ const ClientRecordPage: React.FC = () => {
     (ticket) => ticket.status === 'open' || ticket.status === 'pending',
   )
   const returnEvidence = client.returnEvidence
+  const unrecordedDisputed = new Set(returnEvidence?.unrecordedDisputedProductIds ?? [])
+  const unrecordedDisputedNames = [
+    ...new Set(
+      orders
+        .filter((order) => unrecordedDisputed.has(order.productId))
+        .map((order) => order.productName),
+    ),
+  ]
 
   const membershipLabel = `${MEMBERSHIP[client.membership].label} \u00b7 ${
     MEMBERSHIP[client.membership].descriptor
@@ -350,6 +358,21 @@ const ClientRecordPage: React.FC = () => {
                   : 'rows'}{' '}
                 in the returns ledger
               </p>
+              {/* Two facts, never merged: which named pieces have no return record,
+                  and receipt, which no return record can show. */}
+              {unrecordedDisputedNames.length ? (
+                <p data-testid="operator-service-request-unrecorded">
+                  No return record for {unrecordedDisputedNames.join(' or ')}.
+                </p>
+              ) : null}
+              {returnEvidence?.unconfirmedReturnAssertion ? (
+                <p
+                  className="operator-service-request-caveat"
+                  data-testid="operator-service-request-receipt"
+                >
+                  Receipt of returned goods is not recorded here.
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="operator-service-request-foot">

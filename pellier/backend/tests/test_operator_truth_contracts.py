@@ -469,39 +469,47 @@ async def test_client_record_refuses_partial_evidence_as_a_false_empty_history()
     assert "No absence claim was made" in str(raised.value.detail)
 
 
-def test_a_support_assertion_is_not_an_authoritative_return() -> None:
-    from routes import operator
-    from pathlib import Path
+_JESSICA_TICKET = [{
+    "subject": "Return received, refund amount disputed",
+    "lastNote": "Return logged for the catchall and the robe.",
+    "status": "pending",
+}]
+_JESSICA_ORDERS = [
+    {"productId": "41", "productName": "Coral Lacquer Catchall"},
+    {"productId": "42", "productName": "Luxury Bath Robe, Sage"},
+]
 
-    text = Path(operator.__file__).read_text()
-    payload = text[text.index('record["returnEvidence"]'):]
-    payload = payload[: payload.index("}")]
-    assert "authoritativeReturnCount" in payload
-    assert "supportAssertsReturn" in payload
-    assert "unconfirmedReturnAssertion" in payload, (
+
+def test_a_support_assertion_is_not_an_authoritative_return() -> None:
+    from routes.operator import _return_evidence
+
+    evidence = _return_evidence(_JESSICA_TICKET, _JESSICA_ORDERS, [])
+    assert evidence["supportAssertsReturn"] is True
+    assert evidence["authoritativeReturnCount"] == 0
+    assert evidence["unconfirmedReturnAssertion"] is True, (
         "the disagreement between ticket and returns table is not surfaced"
     )
 
 
-def test_the_unconfirmed_flag_only_fires_when_the_table_is_empty() -> None:
-    """The whole point: an assertion plus a real row is not a disagreement."""
-    from pathlib import Path
-    from routes import operator
+def test_a_return_request_is_not_evidence_of_receipt() -> None:
+    """Rows close the record gap; they cannot confirm that goods arrived."""
+    from routes.operator import _return_evidence
 
-    text = Path(operator.__file__).read_text()
-    assert "asserts_return and not returns" in text
+    rows = [{"productId": "41"}, {"productId": "42"}]
+    evidence = _return_evidence(_JESSICA_TICKET, _JESSICA_ORDERS, rows)
+    assert evidence["unrecordedDisputedProductIds"] == []
+    assert evidence["authoritativeReturnCount"] == 2
+    assert evidence["unconfirmedReturnAssertion"] is True
 
 
 def test_prose_preferences_are_never_treated_as_return_state() -> None:
-    from pathlib import Path
-    from routes import operator
+    """The evidence is computed from tickets, orders and return rows only."""
+    import inspect
+    from routes.operator import _return_evidence
 
-    text = Path(operator.__file__).read_text()
-    evidence_block = text[text.index('record["returnEvidence"]'):]
-    evidence_block = evidence_block[: evidence_block.index("return {")]
-    assert "preferences_summary" not in evidence_block, (
-        "prose is feeding the authoritative return evidence"
-    )
+    assert list(inspect.signature(_return_evidence).parameters) == [
+        "tickets", "orders", "returns",
+    ], "prose is feeding the authoritative return evidence"
 
 
 def test_an_rls_hidden_row_is_not_a_business_false() -> None:
