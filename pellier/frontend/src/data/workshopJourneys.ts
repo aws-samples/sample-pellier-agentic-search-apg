@@ -143,7 +143,7 @@ export const WORKSHOP_EVIDENCE_GUIDANCE = {
   },
   "jessica": {
     "prediction": "Reported context should remain distinct from authoritative records, and human confirmation should remain separate from authorization and execution.",
-    "evidence": "Inspect the principal/customer pairing, policy decision, correlated tool execution or absence, durable effect, replay behavior, independent RLS result, and pending human review.",
+    "evidence": "Inspect the principal/customer pairing, policy decision, correlated tool execution or absence, durable effect, replay behavior, rollback-only RLS result, and the confirmed review linked to its execution and return row.",
     "challenge": "Have we handled something similar before? Show the outcome and explain what must be checked again.",
     "inspect": "Use prior-resolution recall as context. Previous receipts grant no current authority; an empty result is valid. Resolve conflicting support notes against the authoritative ledger."
   }

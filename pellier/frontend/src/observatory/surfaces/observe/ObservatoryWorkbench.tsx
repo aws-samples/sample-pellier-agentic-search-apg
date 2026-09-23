@@ -1995,13 +1995,13 @@ export default function ObservatoryWorkbench() {
                 <p>
                   Lab 4 separates authentication failure, Cedar denial, business
                   refusal, commit, and output suppression. Its replay controls
-                  check that one operation key retains one effect. Jessica’s Operator investigation uses those
-                  distinctions to prepare a decision for human review.
+                  check that one operation key retains one effect. Continue Jessica’s investigation with
+                  an explicit return proposal, human confirmation and governed execution.
                 </p>
                 <p>
                   Open the staff desk with an Operator account, then inspect
-                  its recorded evidence. Preparing a review does not execute
-                  the proposed action.
+                  the same review, confirmed terms, execution receipt and return row.
+                  Preparing or confirming a review does not execute the proposed action.
                 </p>
                 <Link to="/observatory/govern/verification">Review the Lab 4 proof</Link>
                 <Link to="/observatory/operator-lineage">Inspect recorded Operator evidence</Link>

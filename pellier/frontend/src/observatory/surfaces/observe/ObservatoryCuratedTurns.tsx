@@ -144,7 +144,9 @@ export default function ObservatoryCuratedTurns({
     // One predicate decides both the button and the run. The explore
     // exemption lives inside it, not here, so an offered prompt always runs.
     const waitingOnEarlierTurn = !canRunTurn(index);
-    const stage = WORKSHOP_TURN_STAGES[Math.min(scenario.ordinal - 1, 2)];
+    const stage = journey.surface === 'operator'
+      ? (scenario.ordinal === 1 ? 'Investigate the case' : 'Optional investigation depth')
+      : WORKSHOP_TURN_STAGES[Math.min(scenario.ordinal - 1, 2)];
     const isBuildCheckpoint =
       journey.anchorId === 'marco' &&
       scenario.journeyStage === 'prove' &&
@@ -291,12 +293,14 @@ export default function ObservatoryCuratedTurns({
       {!loading && !error && requiredScenarios.length > 0 ? (
         <section
           className="labs-turns-group"
-          aria-label="Guided conversation"
+          aria-label={journey.surface === 'operator' ? 'Investigation prompts' : 'Guided conversation'}
         >
           <div className="labs-turns-group-heading labs-turns-group-heading-context">
-            <h3>Guided conversation</h3>
+            <h3>{journey.surface === 'operator' ? 'Investigation prompts' : 'Guided conversation'}</h3>
             <span className="labs-turns-context">
-              Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.
+              {journey.surface === 'operator'
+                ? 'Start with the investigation. The two follow-ups are optional depth; Studio then guides the required proposal, human confirmation and execution.'
+                : 'Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.'}
             </span>
           </div>
           <ol className="labs-turns-list" data-journey-role="required">
@@ -314,7 +318,7 @@ export default function ObservatoryCuratedTurns({
           <div><dt>Inspect the evidence</dt><dd>{guidance.evidence}</dd></div>
           <div><dt>Change one thing</dt><dd>{guidance.challenge}<p>{guidance.inspect}</p></dd></div>
         </dl>
-        {journey.anchorId === 'anna' ? <p className="labs-benchmark-note">The natural conversation and the retrieval benchmark serve different purposes. Compare metrics using the fixed benchmark query: “A housewarming gift under $100 that is currently in stock.” Keep its labels unchanged.</p> : null}
+        {journey.anchorId === 'anna' ? <p className="labs-benchmark-note">The conversation and controlled fallback comparison are separate executions. Use Studio’s fixed Anna scenario to prove an empty strict attempt, a recorded preference change and preserved requirements. Keep the comparison ID; do not substitute a different conversation receipt.</p> : null}
       </details>
 
       {!loading && !error && exploreScenarios.length > 0 ? (

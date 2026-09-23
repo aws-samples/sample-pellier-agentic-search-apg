@@ -193,7 +193,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       },
     },
     evidenceAssertion:
-      'Retrieved record IDs, a new session ID, zero prior chat events, and catalog-tool results support the learned-preference check. The Runtime receipt, Memory verifier, and trace contract establish the other managed checks.',
+      'Retrieved record IDs, a new session ID, zero prior chat events, and catalog-tool results support the learned-preference check. The exact support turn must show ticket history bound to Theo. The Runtime receipt and Memory verifier establish the required managed checks; traces are optional diagnostics.',
     decisionPrompt:
       'Which artifact proves each managed boundary, and which claims remain unproven when one artifact is missing?',
     primaryAction: {

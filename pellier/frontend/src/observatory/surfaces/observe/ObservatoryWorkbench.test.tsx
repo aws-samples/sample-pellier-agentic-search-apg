@@ -277,7 +277,11 @@ describe('Pellier Observatory live agent workbench', () => {
     );
 
     for (const prompt of WORKSHOP_JOURNEYS.jessica.prompts) {
-      expect(await screen.findByText(prompt)).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Investigation prompts' })).toHaveTextContent(
+      'Studio then guides the required proposal, human confirmation and execution',
+    );
+    expect(screen.getByText(/the same review, confirmed terms, execution receipt and return row/)).toBeVisible();
+    expect(await screen.findByText(prompt)).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: `Inspect: ${prompt}` }),
       ).not.toBeInTheDocument();
