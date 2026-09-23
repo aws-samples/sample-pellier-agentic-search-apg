@@ -43,20 +43,14 @@ asking what was paid out cannot answer it from the returns table. The $500
 ceiling is enforced by a CHECK constraint on ``pellier.store_credits``, not by
 prompt text.
 
-Note the asymmetry with the shopper rail, and note it precisely. A fresh Gateway
-does **not publish** ``issue_credit`` at all, so a shopper cannot reach it there:
-the action id does not exist. That is a stronger guarantee than a Cedar forbid
-and a different one, and an earlier version of this docstring claimed the forbid,
-which the current three-policy baseline does not contain. Naming a capability the
-wrong layer is denying is how each layer ends up believing the other is enforcing.
-
-On the desk, ``issue_credit`` is reachable only behind ``require_operator``, which
-means membership in ``auth.OPERATOR_GROUP`` rather than merely a valid token. For
-``initiate_return`` the Gateway enforces the same fact a second time: the
-operator's access token carries ``custom:staff_scope`` because the pre-token
-trigger saw the group membership, and the ``initiate_return_staff_scope`` permit
-requires that claim. The shopper permit requires a customer claim instead, and
-the Lab 4 forbid is scoped to customer-claim holders, so neither touches staff.
+The Gateway publishes ``issue_credit`` with a staff-only permit. Shopper tokens
+have no permit for it; the absence of shopper permission is distinct from an
+unpublished tool. On the desk, ``require_operator`` checks group membership.
+The pre-token trigger derives ``custom:staff_scope`` from that membership, and
+both ``initiate_return_staff_scope`` and ``issue_credit_staff_scope`` require it.
+The Lab 4 ownership forbid applies to customer-claim holders, not staff.
+A direct staff Gateway call does not pass through the desk's human-review
+workflow; the Gateway policy must not be described as proof of human approval.
 See the `baseline_policies` docstring in
 `scripts/deploy/render_agentcore_project.py`.
 

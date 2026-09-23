@@ -53,11 +53,11 @@
       "minutes": 25,
       "need": "Jessica needs her service request resolved safely. Staff must establish what happened before choosing the next action.",
       "next": "Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question.",
-      "summary": "Write ownership checks in Cedar and PostgreSQL, check each operation’s database changes, then investigate Jessica’s case as staff and stop at human review.",
-      "todo": "Task 4A: author Cedar and distinguish five outcomes. Task 4B: author RLS and keyed evidence, then investigate as staff.",
+      "summary": "Write ownership checks in Cedar and PostgreSQL, then follow Jessica’s staff proposal through human confirmation to one recorded return.",
+      "todo": "Task 4A: author Cedar and distinguish five outcomes. Task 4B: test RLS and keyed evidence, then reconcile a human-reviewed return.",
       "a": "Write the ownership rule",
-      "b": "Enforce ownership and reconcile the case",
-      "proof": "Separate RLS probes and keyed effects, allowed positive control, exact Operator turn."
+      "b": "Test ownership and reconcile the case",
+      "proof": "Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage."
     }
   ]
 }

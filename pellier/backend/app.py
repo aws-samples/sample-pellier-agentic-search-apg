@@ -2070,8 +2070,8 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
     }
 
 
-# Recorded on every receipt this comparison writes, and the only thing that
-# tells Lab 2's SQL which turn to read. The storefront's own retrieval writer
+# Recorded on each comparison receipt alongside its unique comparison ID.
+# Lab 2's SQL requires both when selecting the turn to read. The storefront's own retrieval writer
 # (services/agent_tools.py::_hybrid_retrieval_config) sets no ``source``, so a
 # shopper turn taken after the participant captured the high-water mark cannot
 # be mistaken for the comparison. Changing this value breaks
@@ -2079,7 +2079,10 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
 OBSERVATORY_COMPARE_RECEIPT_SOURCE = "observatory-compare"
 
 
-async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) -> Dict[str, Any]:
+async def _persist_comparison_receipt(
+    db: Any, *, query: str, execution: Any, original_plan: Any = None,
+    plan_source: str = "model-extracted",
+) -> Dict[str, Any]:
     """Write the agentic strategy's retrieval receipt for Lab 2 to read back.
 
     The receipt comes from the execution that produced the row, so the ranks,
@@ -2101,6 +2104,18 @@ async def _persist_comparison_receipt(db: Any, *, query: str, execution: Any) ->
         rerank_model=settings.BEDROCK_RERANK_MODEL,
         retrieval_config={
             "source": OBSERVATORY_COMPARE_RECEIPT_SOURCE,
+            "plan_source": plan_source,
+            # Keep the non-text input contract and observed pass counts. Do not
+            # duplicate the shopper's free text in retrieval configuration.
+            "original_contract": ({
+                key: original_plan.to_dict()[key]
+                for key in ("hard_constraints", "exclusions")
+            } if original_plan is not None else {}),
+            "original_preference_tags": list(original_plan.soft.tags) if original_plan else [],
+            "attempt_stages": [
+                {"name": stage.name, "count": stage.count}
+                for stage in execution.stages
+            ],
             "k_vector": settings.HYBRID_VECTOR_K,
             "k_fts": settings.HYBRID_FTS_K,
             "rrf_k": settings.HYBRID_RRF_K,
@@ -2200,8 +2215,14 @@ def _agentic_strategy_entry(
     }
 
 
+ANNA_FALLBACK_QUERY = (
+    "A gift under $100, in stock, and no candles. Prefer a watch, "
+    "but other gifts are fine."
+)
+
+
 @app.get("/api/observatory/search-strategies/compare")
-async def compare_search_strategies(query: str):
+async def compare_search_strategies(query: str, scenario: Optional[str] = None):
     """Run one query through four retrieval strategies and report each.
 
     Surfaces Anna's anchor-capability comparison live to the Observatory
@@ -2214,6 +2235,9 @@ async def compare_search_strategies(query: str):
     4. agentic: Sonnet proposes constraints, the planner compiles the hard
        ones into both branches before RRF, and the storefront's executor
        reranks that pool. Its receipt is persisted for Lab 2 to read back.
+
+    The bounded anna-fallback scenario supplies fixed constraints instead of
+    model extraction, then runs the same live executor and fallback code.
 
     Each strategy runs once, so these durations are observations, not
     percentile statistics. Costs are modeled incremental request costs from
@@ -2228,6 +2252,10 @@ async def compare_search_strategies(query: str):
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="query parameter required")
     q = query.strip()
+    if scenario not in (None, "anna-fallback"):
+        raise HTTPException(status_code=400, detail="Unknown comparison scenario")
+    if scenario == "anna-fallback" and q != ANNA_FALLBACK_QUERY:
+        raise HTTPException(status_code=400, detail="Use the supplied Anna fallback query")
 
     shared_embed_started = time.perf_counter()
     query_embedding = EmbeddingService().embed_query(q)
@@ -2274,10 +2302,20 @@ async def compare_search_strategies(query: str):
     # call, so on a worker thread), the planner types them, and the same
     # executor runs them with the storefront's relaxation ladder.
     t0 = time.perf_counter()
-    extracted = await asyncio.to_thread(get_structured_extractor().extract, q)
+    # This bounded workshop case isolates the participant's fallback code from
+    # extraction variability. The normal comparison still uses Sonnet. Every
+    # search, embedding, rank and receipt below remains a real execution.
+    extracted = (
+        {"categories": [], "tags": ["watch"], "price_max_usd": 100,
+         "in_stock_only": True, "exclusions": ["candle"], "soft_signal": q}
+        if scenario == "anna-fallback"
+        else await asyncio.to_thread(get_structured_extractor().extract, q)
+    )
+    original_plan = build_plan(q, extracted, top_k=5)
+    plan_source = "workshop-controlled" if scenario else "model-extracted"
     agentic = await execute_search_plan(
         db,
-        plan=build_plan(q, extracted, top_k=5),
+        plan=original_plan,
         query=q,
         limit=5,
         embed=_shared_embedding,
@@ -2285,7 +2323,10 @@ async def compare_search_strategies(query: str):
         config={},
     )
     agentic_ms = int((time.perf_counter() - t0) * 1000)
-    receipt = await _persist_comparison_receipt(db, query=q, execution=agentic)
+    receipt = await _persist_comparison_receipt(
+        db, query=q, execution=agentic, original_plan=original_plan,
+        plan_source=plan_source,
+    )
     strategies.append(
         _agentic_strategy_entry(
             agentic,
@@ -2295,8 +2336,14 @@ async def compare_search_strategies(query: str):
         )
     )
 
+    if scenario:
+        strategies[-1]["strategy"] = "controlled plan → filter → hybrid → rerank"
+        # No extraction model runs in this controlled case. Use the rerank
+        # estimate and disclose that database widening is not priced here.
+        strategies[-1]["modeledCostPerThousandUsd"] = SEARCH_STRATEGY_COST_PER_1000_USD["rerank"]
     return {
         "query": q,
+        "planSource": plan_source,
         "receipt": receipt,
         "sharedQueryEmbeddingObservedMs": shared_embedding_ms,
         "measurementAssumptions": SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS,

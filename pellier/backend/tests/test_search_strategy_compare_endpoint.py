@@ -581,3 +581,40 @@ def test_lab_2_would_select_exactly_the_receipt_the_comparison_just_wrote(
 
 def teardown_function() -> None:
     app_module.db_service = None
+
+
+def test_controlled_fallback_executes_authored_plan_and_records_both_passes(
+    monkeypatch, receipt_writes, completed_search_plan,
+):
+    class SparsePreference(_HybridSearch):
+        async def search(self, *args, **kwargs):
+            # The live seed has no eligible watch below $100. Both branches
+            # return no rows for that preference; widened branches return rows.
+            if ['watch'] in (kwargs.get('hard_params') or []):
+                return []
+            return await super().search(*args, **kwargs)
+
+    monkeypatch.setattr(hybrid_module, 'HybridSearch', SparsePreference)
+    monkeypatch.setattr(extract_module, 'get_structured_extractor',
+                        lambda: pytest.fail('controlled case must not claim model extraction'))
+    body = asyncio.run(app_module.compare_search_strategies(
+        app_module.ANNA_FALLBACK_QUERY, scenario='anna-fallback'))
+    assert body['planSource'] == 'workshop-controlled'
+    assert 'Sonnet' not in body['strategies'][-1]['strategy']
+    row = receipt_writes[0].to_row()
+    config = row['retrieval_config']
+    assert config['original_preference_tags'] == ['watch']
+    assert config['relaxation_steps'] == ['drop_tags']
+    assert row['exclusions'] == ['candle']
+    assert row['hard_constraints'] == config['original_contract']['hard_constraints']
+    counts = [stage['count'] for stage in config['attempt_stages'] if stage['name'] == 'eligibility']
+    assert len(counts) == 2 and counts[0] == 0 and counts[1] > 0
+
+
+@pytest.mark.parametrize('query, scenario', [
+    ('another query', 'anna-fallback'), ('gift', 'unbounded-test-mode'),
+])
+def test_controlled_fallback_rejects_unknown_or_mislabelled_scenarios(query, scenario):
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(app_module.compare_search_strategies(query, scenario=scenario))
+    assert exc.value.status_code == 400

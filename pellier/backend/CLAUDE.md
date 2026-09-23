@@ -6,66 +6,30 @@ AgentCore adapters, policy integration, SSE streaming, and backend tests.
 Read the repository `CLAUDE.md` first and choose participant or maintainer
 mode before editing.
 
-## Participant mode: Lab 1 only
+## Participant mode: governed Labs 1–4
 
-The participant may name one of two build sites. Work only inside the named
-marker region.
+The root guidance lists all nine permitted regions. This module contains four:
 
-### Inventory Agent definition
+| Task | File | Marker |
+|---|---|---|
+| 1A | `services/agent_tools.py` | `Inventory Agent · check_inventory` |
+| 1B | `agents/inventory_agent.py` | `Inventory Agent · definition` |
+| 2B | `services/search_plan.py` | `Search plan · preserve requirements` |
+| 3A | `services/agentcore_gateway.py` | `Managed catalogue · support reconcile` |
 
-File:
+For SQL, Cedar and Gateway publication tasks, use the root map and the guide.
+Those tasks are not forbidden because their files are outside this module.
 
-```text
-agents/inventory_agent.py
-```
+Start with the participant's prediction and named invariant. Read surrounding
+patterns, ask one question and give one hint at a time. Wait for their request
+before proposing an edit inside the selected START–END markers. Do not change
+signatures, decorators, imports or other regions. Never inspect `solutions/`.
+The participant runs verification; explain what the result establishes and
+what it does not. A successful local plan check is not managed execution proof.
 
-Markers:
-
-```text
-# === WORKSHOP · Inventory Agent · definition: START ===
-# === WORKSHOP · Inventory Agent · definition: END ===
-```
-
-Prompt and model configuration are supplied. Task 1B authors only the permitted
-inventory reads and clears the stub after that grant is ready. Derive the tool
-choice from the customer's required facts and the imported tool contracts.
-Task 1A implements the `check_inventory` body before Task 1B wires it into a turn.
-
-Do not add temperature. The active Sonnet profile rejects that deprecated
-argument.
-
-### `check_inventory` body
-
-File:
-
-```text
-services/agent_tools.py
-```
-
-Markers:
-
-```text
-# === WORKSHOP · Inventory Agent · check_inventory: START ===
-# === WORKSHOP · Inventory Agent · check_inventory: END ===
-```
-
-Derive the implementation from `get_trending_products` or `get_price_analysis` in
-the same file:
-
-1. Return a JSON error envelope when `_db_service` is unavailable.
-2. Lazily import `BusinessLogic`.
-3. Construct it with `_db_service`.
-4. Normalize `product_query` with `.strip()` and pass `None` when empty.
-5. Call `BusinessLogic.check_inventory(...)` through `_run_async(...)`.
-6. Return `json.dumps(result, indent=2)`.
-7. Catch `Exception` and return a JSON error envelope.
-
-Do not change the decorator, signature, docstring, comments, imports, tests,
-or any code outside the markers. Never inspect `solutions/`.
-
-The participant verifies through `/api/observatory/build-state`, Pellier Observatory's Tool
-Registry, and Marco's Brooklyn warehouse turn. Do not run tests or git for
-them.
+Model and prompt configuration are supplied in Task 1B. Do not add temperature;
+the configured profile does not support that argument. Task 3A's owned and
+foreign probes test Cedar separately from the managed caller binding.
 
 ## Maintainer architecture
 

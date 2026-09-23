@@ -311,13 +311,10 @@ SELECT receipt_id, turn_id, query_preview, embedding_model, rerank_model,
 # DEFAULT stamps this run on it, and the row records the rail that actually
 # served the turn. That is exactly what Lab 3 sets out to establish.
 #
-# The gateway `tool_audit` row is reported, never required. Only the three
-# mutation tools leave one -- the MCP Lambda audits them in
-# scripts/deploy/common/dataapi.py -- and Gateway reads leave no tool_audit row
-# at all. Lab 3's Theo journey ends at a pending review
-# (tests/golden/journeys.json: `endsAt: proposal`) and performs no mutation, so
-# demanding that row would make Lab 3 unprovable by completing Lab 3. The
-# mutation chain is Lab 4's contract, on Jessica's return.
+# This summary reports Gateway audit rows when present; the guide's exact-turn
+# proof separately requires the authored support read. Read and write tools can
+# both produce audits. The required Theo journey reads ticket history, while
+# Jessica's Lab 4 separately proves a human-reviewed mutation.
 _LAB3 = """
 SELECT gtr.turn_id, gtr.rail, gtr.terminal_status, gtr.created_at,
        gtr.trace->>'buildState'           AS build_state,

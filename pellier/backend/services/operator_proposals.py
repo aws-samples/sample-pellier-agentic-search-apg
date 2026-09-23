@@ -30,10 +30,9 @@ Five states that do not imply one another
     EXECUTED     a business effect occurred — later
 
 Creating a review means only the first. It does not mean the action is authorized,
-executable, or that the customer is eligible. That matters especially now: the
-governed rail is deliberately closed (``initiate_return`` is published but
-``temporarily_unavailable``), and a review created against it is honest workflow
-state, not a promise.
+executable, or that the customer is eligible. Availability is read from the
+current deployment; a prepared review is workflow state, not a promise that
+execution will be permitted.
 
 What the model may and may not establish
 ----------------------------------------
@@ -59,9 +58,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# The only action this phase may propose. `issue_credit` is reviewable in the
-# substrate but its capability is deliberately not published, so no review is created
-# for it — see `capability_blocks_proposal`.
+# This proposal parser accepts returns only. The Gateway also publishes staff
+# credits, but their availability does not extend this parser's action scope.
 ACTION_INITIATE_RETURN = "initiate_return"
 PROPOSABLE_ACTIONS: Tuple[str, ...] = (ACTION_INITIATE_RETURN,)
 

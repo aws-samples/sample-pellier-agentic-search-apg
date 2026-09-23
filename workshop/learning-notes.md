@@ -19,7 +19,7 @@ paste credentials, bearer tokens, or personal customer data.
 | 3A · Connect the customer-scoped tool | | | | | |
 | 3B · Deploy and challenge the conversation | | | | | |
 | 4A · Write the ownership rule | | | | | |
-| 4B · Enforce ownership and reconcile the case | | | | | |
+| 4B · Test ownership and reconcile the case | | | | | |
 
 ## Decision I can defend
 

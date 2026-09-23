@@ -133,7 +133,7 @@ function Overview() {
     </Section>
     <Section title="Use this alongside the workshop">
       <p>Labs 1–3 establish the facts an agent can use, how it finds them, and which managed build runs. Lab 4 asks the next question: who may act on those facts, and what proves the outcome?</p>
-      <p>Build in the Code Editor, run the required lab checks, then inspect the evidence here. Continue Jessica’s investigation in Operator and stop at human review. The reference explains intended controls; live observations report this environment.</p>
+      <p>Build in the Code Editor, run the required lab checks, then inspect the evidence here. Follow Jessica’s investigation in Operator through a human-confirmed action, then reconcile its recorded effect. The reference explains intended controls; live observations report this environment.</p>
       <EvidenceLink to="/observatory/workbench?lab=fail-closed-policy">Open the governed-action workbench</EvidenceLink>
     </Section>
   </>;

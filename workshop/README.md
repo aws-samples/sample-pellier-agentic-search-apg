@@ -17,11 +17,12 @@ the same verification requirements.
 | 2B · Anna | Relax preferences, keep requirements | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
 | 3A · Theo | Connect the customer-scoped tool | Owned and foreign request results, fresh session, executed build; Memory is context. |
 | 3B · Theo | Deploy and challenge the conversation | Owned and foreign request results, fresh session, executed build; Memory is context. |
-| 4A · Jessica | Write the ownership rule | Separate RLS probes and keyed effects, allowed positive control, exact Operator turn. |
-| 4B · Jessica | Enforce ownership and reconcile the case | Separate RLS probes and keyed effects, allowed positive control, exact Operator turn. |
+| 4A · Jessica | Write the ownership rule | Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage. |
+| 4B · Jessica | Test ownership and reconcile the case | Rollback-only RLS probes, keyed absence with a positive control, exact review-to-return lineage. |
 
 Only edit the lab's markers. Python edits in Labs 1–2 need the guide's backend
-restart. Lab 3 needs package deployment and a new Runtime session. Lab 4 needs
+restart. Lab 3 packages its support adapter and needs a new Runtime session; it reuses
+provided Lambda tools. The Lab 1 wrapper and Lab 2 planner remain in-process. Lab 4 needs
 policy validation and deployment. Changing a local file does not update AWS.
 
 ## One concierge, four growing responsibilities
@@ -37,7 +38,7 @@ implementations and evidence boundaries.
 
 - **Marco:** Storefront → chat API → specialist → tool → business logic → Aurora.
   Compare the direct tool envelope with the exact turn's execution record.
-- **Anna:** shared retrieval executor → SQL eligibility → lexical/vector ranks →
+- **Anna:** in-process retrieval executor → SQL eligibility → lexical/vector ranks →
   RRF → candidate budget → rerank. Explain where a candidate disappeared before
   changing that stage. A fallback may relax preferences, but it must carry the original hard constraints and exclusions into every attempt.
 - **Theo:** verified identity → Runtime → Gateway and Policy → scoped tool.

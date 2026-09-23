@@ -100,11 +100,11 @@ describe('LabsCatalog', () => {
     });
     expect(governed?.objective).toContain('five outcomes');
     expect(governed?.participantTodo).toContain('distinguish five outcomes');
-    expect(governed?.participantTodo).toContain('author RLS and keyed evidence');
-    expect(governed?.participantTodo).toContain('investigate as staff');
+    expect(governed?.participantTodo).toContain('test RLS and keyed evidence');
+    expect(governed?.participantTodo).toContain('human-reviewed return');
     expect(governed?.command).toContain('scripts/prove_governance_outcomes.py');
     expect(governed?.evidenceHref).toBe('/observatory/govern/verification');
-    expect(governed?.evidenceAssertion).toContain('human checkpoint');
+    expect(governed?.evidenceAssertion).toContain('confirmed terms and execution');
     expect(governed?.primaryAction).toEqual({
       label: 'Open Jessica in Operator',
       to: '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',

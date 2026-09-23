@@ -219,15 +219,15 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     shortTitle: 'Governed actions with Cedar',
     customerNeed: "Jessica needs her service request resolved safely. Staff must establish what happened before choosing the next action.",
     nextBoundary: "Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question.",
-    summary: "Write ownership checks in Cedar and PostgreSQL, check each operation’s database changes, then investigate Jessica’s case as staff and stop at human review.",
+    summary: "Write ownership checks in Cedar and PostgreSQL, then follow Jessica’s staff proposal through human confirmation to one recorded return.",
     image: '/assets/personas/jessica-720.webp',
     imageWidth: 720,
     imageHeight: 900,
     proofCardIds: ['runtime-gateway-policy'],
     evidenceHref: '/observatory/govern/verification',
     objective:
-      'Prove five outcomes: authentication failure, Cedar denial, business refusal, commit, and output suppression. Verify replay and PostgreSQL RLS, then investigate Jessica’s service issue as separately authorized staff, stopping at human review.',
-    participantTodo: "Task 4A: author Cedar and distinguish five outcomes. Task 4B: author RLS and keyed evidence, then investigate as staff.",
+      'Prove five outcomes: authentication failure, Cedar denial, business refusal, commit, and output suppression. Verify replay and PostgreSQL RLS, then follow Jessica’s staff proposal through confirmation, execution and a matching return.',
+    participantTodo: "Task 4A: author Cedar and distinguish five outcomes. Task 4B: test RLS and keyed evidence, then reconcile a human-reviewed return.",
     buildConnection: {
       files: ['policies/workshop_identity_match_forbid.cedar', 'workshop/lab-4-rls.sql', 'workshop/lab-4-absence.sql'],
       requestPath: 'Verified caller → Gateway and Cedar → tool → PostgreSQL transaction → response controls',
@@ -243,11 +243,11 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       },
       after: {
         label: 'Acceptance target',
-        value: 'All five outcomes have matched invocation and Aurora evidence. The suppressed credit remains committed and replays without a second credit. RLS enforces row scope; the Operator investigation stops at human review.',
+        value: 'All five outcomes have matched invocation and Aurora evidence. The suppressed credit remains committed and replays without a second credit. The rollback-only RLS test proves row scope; Jessica’s confirmed review links to one recorded return.',
       },
     },
     evidenceAssertion:
-      'The boundary proof separates authentication, authorization, execution, durable effect, and response delivery. A suppressed response does not undo a committed credit. RLS verifies an independent database boundary; the Operator investigation stops at the human checkpoint.',
+      'The boundary proof separates authentication, authorization, execution, durable effect, and response delivery. A suppressed response does not undo a committed credit. The rollback-only RLS test checks an independent boundary. The Operator review, confirmed terms and execution must match one return.',
     decisionPrompt:
       'Which control acted, did the tool execute, and did data change? What evidence is still needed when a response is missing or suppressed?',
     primaryAction: {

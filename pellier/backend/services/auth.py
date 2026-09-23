@@ -71,8 +71,9 @@ async def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
 # token of a group member, and the `initiate_return_staff_scope` permit in
 # `scripts/deploy/render_agentcore_project.py` requires that claim, so the
 # desk's confirmed return is authorized as a person, with the operator's own
-# token, rather than as a service. `issue_credit` stays unpublished, so it has
-# no Gateway action id and this boundary is the only one it has.
+# token, rather than as a service. `issue_credit` is also published, with its
+# own staff-scope permit and no shopper permit. Human confirmation is enforced
+# by the Operator workflow; a direct staff Gateway call does not prove review.
 OPERATOR_GROUP = "pellier-operators"
 
 

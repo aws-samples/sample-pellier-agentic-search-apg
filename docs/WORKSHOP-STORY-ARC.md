@@ -5,7 +5,7 @@ and customer support. Its concierge connects customer requests to specialist age
 current business data, and governed tools. Participants develop four connected retail
 workflows: ground answers in facts, preserve requirements, establish caller identity,
 and govern actions with evidence that staff can verify. Each customer retains a
-separate identity and conversation; the code and evidence accumulate.
+separate identity and conversation. Each lab adds a responsibility and its evidence; Lab 3 introduces a separate managed execution path.
 
 **Know the facts → respect the requirements → establish the caller → govern the action.**
 
@@ -31,7 +31,7 @@ Use the story wording in activities and transitions, not as a replacement lab na
 | 1: Marco | Connect inventory to Aurora | Make the agent use the facts | You can check a product. Next, help Anna find the right product without changing her requirements. |
 | 2: Anna | Explain the ranking | Relax preferences, keep requirements | You can find suitable products. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary. |
 | 3: Theo | Connect the customer-scoped tool | Deploy and challenge the conversation | You can read under the right identity. Next, follow Jessica’s action through authorization, database effects and staff review. |
-| 4: Jessica | Write the ownership rule | Enforce ownership and reconcile the case | Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question. |
+| 4: Jessica | Write the ownership rule | Test ownership and reconcile the case | Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question. |
 
 Eight participant tasks are not eight arbitrary source edits. Task 3A spans
 publication and caller binding; 3B is a deployed investigation. Task 4B includes
@@ -60,7 +60,9 @@ recovered-and-verified, and incomplete results separately.
 - **3A / 3B:** Reconcile Gateway publication and caller-bound support tools,
   deploy once, then use a fresh session. Reject staff credit exposed to shopper
   support, caller-supplied foreign identity, local edits presented as deployment,
-  and a remembered preference presented as permission. Existing policy is active
+  and a remembered preference presented as permission. Runtime packages the support
+  adapter, not the Lab 1 inventory wrapper or Lab 2 planner. The reused Lambda
+  retrieval tool has a different input contract; do not imply fallback parity. Existing policy is active
   before Lab 4; Lab 4 authors an additional ownership rule.
 - **4A:** Distinguish authentication, Cedar, business rejection, commit and output.
   Reject a 401 called Cedar DENY or suppressed output called a rollback.
@@ -70,7 +72,9 @@ recovered-and-verified, and incomplete results separately.
   Reject all-zero queries without the control, owner-role RLS proof, and Gateway
   denial treated as proof of RLS. RLS trusts application-established context; it
   does not independently validate a Cognito token. Investigate as the separate
-  operator account and stop at human review.
+  operator account, prepare one return, capture the pending and confirmed states,
+  then execute and reconcile the exact review/hash/turn/key with one return row.
+  The authored RLS predicate is rollback-only; later tool calls use the supplied policy.
 
 ## Presenter timing, separate from participant guides
 

@@ -38,24 +38,40 @@ or runtime skills.
 
 ### Participant mode
 
-Use participant mode when the request names Lab 1, Inventory Agent,
-`check_inventory`, the workshop markers, or asks Claude Code to complete the
-guided build.
+Use participant mode for any governed lab or bounded workshop task. Read the
+participant's named task and prediction before proposing a change.
 
-In participant mode:
+| Task | Allowed file | Allowed marker |
+|---|---|---|
+| 1A | `pellier/backend/services/agent_tools.py` | `Inventory Agent · check_inventory` |
+| 1B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent · definition` |
+| 2A | `workshop/lab-2-rrf.sql` | `PostgreSQL RRF · fusion expression` |
+| 2B | `pellier/backend/services/search_plan.py` | `Search plan · preserve requirements` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue · published tools` |
+| 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue · support reconcile` |
+| 4A | `policies/workshop_identity_match_forbid.cedar` | final `unless` block |
+| 4B | `workshop/lab-4-rls.sql` | `Row ownership · predicate` |
+| 4B | `workshop/lab-4-absence.sql` | `Keyed absence · deny proof` |
 
-- Edit only the named marker region in
-  `pellier/backend/agents/inventory_agent.py` or
-  `pellier/backend/services/agent_tools.py`.
-- Read the backend `CLAUDE.md` for the exact exercise contract.
-- Never inspect or copy from `solutions/`.
-- Do not edit tests, config, other tools, or other files.
-- Do not run git commands, install packages, or restart services.
-- Stop after one failed attempt and direct the participant to the lab guide's
-  fallback lane.
+Task 3B deploys and challenges the Task 3A edits; it adds no authoring region.
+Use the exact START–END comments in each file; for Cedar, edit only the final
+`unless` block inside its exercise boundary. This table grants access only to
+the task the participant names, never every file at once.
 
-These limits protect the learning objective. Do not relax them because a
-broader edit would be faster.
+- Ask for the prediction first. Explain the invariant, then ask one question
+  that helps the participant choose. Offer one hint at a time; do not reveal
+  a finished implementation in the first response.
+- Read surrounding source patterns and the nearest module guidance.
+- Propose only a minimal change inside the named region after the participant
+  asks for an edit. Do not inspect `solutions/` or recovery implementations.
+- Do not edit tests, dependencies, deployment configuration or infrastructure.
+  The named Cedar block and Gateway catalogue block are the explicit exercise
+  exceptions; they do not authorize other policy or deployment edits.
+- Do not read credentials, tokens, environment secrets or unrelated customer data.
+- The participant runs the guide's checks, restarts, deployments and business
+  actions. The coach does not run Git, install packages, deploy or approve actions.
+- On failure, discuss the evidence and one hint. The participant chooses the
+  documented recovery and runs it themselves; an unrun check stays incomplete.
 
 ### Maintainer mode
 
