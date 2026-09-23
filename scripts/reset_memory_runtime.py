@@ -47,7 +47,7 @@ EXIT CODES
 
   0  the Memory runtime is clean.
   1  at least one delete call failed.
-  2  a delete pass completed and a re-list still found events or preference records.
+  2  a delete pass completed and records remained after bounded verification polling.
   3  AgentCore Memory is NOT PROVISIONED here, so there is nothing to clean.
 
 3 is separate from 1 on purpose. The reset quarantines a box on a failed Memory leg,
@@ -62,6 +62,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 from typing import Any, Dict, List
 
 # Actors whose memory is canonical seeded baseline, not engineering residue. Written as
@@ -266,9 +267,35 @@ def residue(actors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ]
 
 
-def _report_residue(client: Any, memory_id: str) -> List[Dict[str, Any]]:
-    """Re-survey after the delete pass and print one RESIDUE line per leftover actor."""
-    leftovers = residue(survey(client, memory_id))
+def _report_residue(
+    client: Any, memory_id: str, *, timeout_seconds: float = 180,
+) -> List[Dict[str, Any]]:
+    """Wait for two clean surveys; persistent residue still fails the reset.
+
+    Successful deletes can remain visible to ListMemoryRecords briefly. Poll
+    without repeating deletes or broadening their scope. A second clean survey
+    also catches records that become visible while deletion is settling.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    clean_surveys = 0
+    while True:
+        leftovers = residue(survey(client, memory_id))
+        clean_surveys = 0 if leftovers else clean_surveys + 1
+        if clean_surveys >= 2 or (not leftovers and timeout_seconds == 0):
+            return []
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            if not leftovers:
+                raise RuntimeError(
+                    "Memory cleanup did not produce two clean surveys before the deadline"
+                )
+            break
+        print(
+            f"Waiting for Memory cleanup verification: {len(leftovers)} actor(s) "
+            f"with data; {clean_surveys}/2 clean surveys",
+            flush=True,
+        )
+        time.sleep(min(5, remaining))
     for entry in leftovers:
         print(
             f"RESIDUE actor={entry['actorId']} sessions={len(entry['sessions'])} "
@@ -322,7 +349,9 @@ def main() -> int:
     # Exit 2 is the verified-residue signal the reset quarantines on. It is
     # distinct from exit 1 (a delete call failed) because the delete pass can
     # report every call succeeded and the service still hold a record.
-    leftovers = _report_residue(client, memory_id) if args.apply else []
+    leftovers = _report_residue(
+        client, memory_id, timeout_seconds=0 if counts["failures"] else 180,
+    ) if args.apply else []
 
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(

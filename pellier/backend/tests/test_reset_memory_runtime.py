@@ -20,6 +20,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import pytest
@@ -156,10 +157,66 @@ def test_survey_and_cleanup_cover_every_page_of_every_list() -> None:
 
 
 def _run_main(module, monkeypatch: pytest.MonkeyPatch, client: FakeMemoryClient) -> int:
+    _virtual_clock(module, monkeypatch)
     monkeypatch.setattr(module, "_env", lambda: {"AGENTCORE_MEMORY_ID": "mem-1"})
     monkeypatch.setattr(module, "_client", lambda _region: client)
     monkeypatch.setattr(sys, "argv", ["reset_memory_runtime.py", "--apply"])
     return module.main()
+
+
+def _virtual_clock(module, monkeypatch: pytest.MonkeyPatch):
+    now = [0.0]
+    monkeypatch.setattr(module, "time", SimpleNamespace(
+        monotonic=lambda: now[0],
+        sleep=lambda seconds: now.__setitem__(0, now[0] + seconds),
+    ))
+    return now
+
+
+def test_successful_deletes_wait_for_visibility_without_repeating_writes(monkeypatch):
+    module = _load_module()
+    client = FakeMemoryClient()
+    before = module.survey(client, "mem-1")
+    observations = iter([before, before, [], []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+
+    assert _run_main(module, monkeypatch, client) == 0
+    assert sorted(client.deleted_records) == ["r1", "r2", "r3"]
+    assert sorted(client.deleted_events) == ["e1", "e2", "e3", "e4", "e5", "e9"]
+    assert client.records["CUST-MARCO"] == ["mr1"]
+
+
+def test_late_visible_record_restarts_clean_survey_count(monkeypatch):
+    module = _load_module()
+    now = _virtual_clock(module, monkeypatch)
+    pending = module.survey(FakeMemoryClient(sticky_record="r2"), "mem-1")
+    observations = iter([[], pending, [], []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+
+    assert module._report_residue(None, "mem-1") == []
+    assert now[0] == 15
+
+
+def test_verification_read_failure_is_not_treated_as_clean(monkeypatch):
+    module = _load_module()
+    _virtual_clock(module, monkeypatch)
+
+    def unreadable(*_):
+        raise PermissionError("Cannot verify Memory")
+
+    monkeypatch.setattr(module, "survey", unreadable)
+    with pytest.raises(PermissionError, match="Cannot verify"):
+        module._report_residue(None, "mem-1")
+
+
+def test_one_clean_read_at_deadline_does_not_prove_stable_cleanup(monkeypatch):
+    module = _load_module()
+    _virtual_clock(module, monkeypatch)
+    pending = module.survey(FakeMemoryClient(), "mem-1")
+    observations = iter([pending, []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+    with pytest.raises(RuntimeError, match="two clean surveys"):
+        module._report_residue(None, "mem-1", timeout_seconds=5)
 
 
 def test_apply_exits_two_and_names_the_residue_when_a_record_survives(
