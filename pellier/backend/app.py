@@ -2082,6 +2082,7 @@ OBSERVATORY_COMPARE_RECEIPT_SOURCE = "observatory-compare"
 async def _persist_comparison_receipt(
     db: Any, *, query: str, execution: Any, original_plan: Any = None,
     plan_source: str = "model-extracted",
+    scenario_input: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Write the agentic strategy's retrieval receipt for Lab 2 to read back.
 
@@ -2112,6 +2113,8 @@ async def _persist_comparison_receipt(
                 for key in ("hard_constraints", "exclusions")
             } if original_plan is not None else {}),
             "original_preference_tags": list(original_plan.soft.tags) if original_plan else [],
+            # The participant's input to a controlled case, recorded as supplied.
+            **({"scenario_input": dict(scenario_input)} if scenario_input else {}),
             "attempt_stages": [
                 {"name": stage.name, "count": stage.count}
                 for stage in execution.stages
@@ -2219,10 +2222,61 @@ ANNA_FALLBACK_QUERY = (
     "A gift under $100, in stock, and no candles. Prefer a watch, "
     "but other gifts are fine."
 )
+ANNA_FALLBACK_DEFAULT_PREFERENCE = "watch"
+ANNA_FALLBACK_EXCLUSION = "candle"
+
+
+def anna_fallback_query(preference: str) -> str:
+    """The request text for Anna's controlled case, naming the preference it tests.
+
+    The canonical `watch` keeps its original wording so the recovery path and its
+    saved receipts are unchanged. Any other preference is named in the text, so a
+    receipt can never describe one preference while the plan tests another.
+    """
+    if preference == ANNA_FALLBACK_DEFAULT_PREFERENCE:
+        return ANNA_FALLBACK_QUERY
+    return (
+        f"A gift under $100, in stock, and no candles. Prefer {preference}, "
+        "but other gifts are fine."
+    )
+
+
+def _anna_fallback_preference(scenario: Optional[str], prefer: Optional[str]) -> str:
+    """Validate the participant's chosen preference for the controlled case.
+
+    Only the soft preference varies. Budget, stock and the candle exclusion are
+    fixed by the scenario. The preference must be a tag the planner recognises and
+    cannot be the excluded tag. Whether it actually forces an empty strict attempt
+    is what the participant's own counts establish; this check does not decide it.
+    """
+    from services.structured_extract import KNOWN_TAGS
+
+    if prefer is None:
+        return ANNA_FALLBACK_DEFAULT_PREFERENCE
+    if scenario != "anna-fallback":
+        raise HTTPException(
+            status_code=400, detail="prefer applies only to scenario=anna-fallback"
+        )
+    tag = prefer.strip().lower()
+    if tag == ANNA_FALLBACK_EXCLUSION:
+        raise HTTPException(
+            status_code=400, detail="The excluded tag cannot also be the preference"
+        )
+    if tag not in KNOWN_TAGS:
+        raise HTTPException(
+            status_code=400,
+            detail="Unknown preference tag; choose one of: " + ", ".join(
+                t for t in KNOWN_TAGS if t != ANNA_FALLBACK_EXCLUSION
+            ),
+        )
+    return tag
 
 
 @app.get("/api/observatory/search-strategies/compare")
-async def compare_search_strategies(query: str, scenario: Optional[str] = None):
+async def compare_search_strategies(
+    query: Optional[str] = None, scenario: Optional[str] = None,
+    prefer: Optional[str] = None,
+):
     """Run one query through four retrieval strategies and report each.
 
     Surfaces Anna's anchor-capability comparison live to the Observatory
@@ -2237,7 +2291,9 @@ async def compare_search_strategies(query: str, scenario: Optional[str] = None):
        reranks that pool. Its receipt is persisted for Lab 2 to read back.
 
     The bounded anna-fallback scenario supplies fixed constraints instead of
-    model extraction, then runs the same live executor and fallback code.
+    model extraction, then runs the same live executor and fallback code. Its
+    optional ``prefer`` names the soft preference under test; budget, stock and
+    the candle exclusion never vary, and the chosen tag is recorded.
 
     Each strategy runs once, so these durations are observations, not
     percentile statistics. Costs are modeled incremental request costs from
@@ -2249,13 +2305,20 @@ async def compare_search_strategies(query: str, scenario: Optional[str] = None):
     from services.search_plan import build_plan
     from services.structured_extract import get_structured_extractor
 
+    if scenario not in (None, "anna-fallback"):
+        raise HTTPException(status_code=400, detail="Unknown comparison scenario")
+    preference = _anna_fallback_preference(scenario, prefer)
+    if scenario == "anna-fallback" and query is None:
+        # The controlled case owns its text, so it can always name the preference.
+        query = anna_fallback_query(preference)
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="query parameter required")
     q = query.strip()
-    if scenario not in (None, "anna-fallback"):
-        raise HTTPException(status_code=400, detail="Unknown comparison scenario")
-    if scenario == "anna-fallback" and q != ANNA_FALLBACK_QUERY:
-        raise HTTPException(status_code=400, detail="Use the supplied Anna fallback query")
+    if scenario == "anna-fallback" and q != anna_fallback_query(preference):
+        raise HTTPException(
+            status_code=400,
+            detail="Use the Anna fallback query that names the chosen preference",
+        )
 
     shared_embed_started = time.perf_counter()
     query_embedding = EmbeddingService().embed_query(q)
@@ -2306,8 +2369,9 @@ async def compare_search_strategies(query: str, scenario: Optional[str] = None):
     # extraction variability. The normal comparison still uses Sonnet. Every
     # search, embedding, rank and receipt below remains a real execution.
     extracted = (
-        {"categories": [], "tags": ["watch"], "price_max_usd": 100,
-         "in_stock_only": True, "exclusions": ["candle"], "soft_signal": q}
+        {"categories": [], "tags": [preference], "price_max_usd": 100,
+         "in_stock_only": True, "exclusions": [ANNA_FALLBACK_EXCLUSION],
+         "soft_signal": q}
         if scenario == "anna-fallback"
         else await asyncio.to_thread(get_structured_extractor().extract, q)
     )
@@ -2326,6 +2390,9 @@ async def compare_search_strategies(query: str, scenario: Optional[str] = None):
     receipt = await _persist_comparison_receipt(
         db, query=q, execution=agentic, original_plan=original_plan,
         plan_source=plan_source,
+        scenario_input=(
+            {"scenario": scenario, "preference": preference} if scenario else None
+        ),
     )
     strategies.append(
         _agentic_strategy_entry(
@@ -2344,6 +2411,7 @@ async def compare_search_strategies(query: str, scenario: Optional[str] = None):
     return {
         "query": q,
         "planSource": plan_source,
+        **({"scenarioPreference": preference} if scenario else {}),
         "receipt": receipt,
         "sharedQueryEmbeddingObservedMs": shared_embedding_ms,
         "measurementAssumptions": SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS,

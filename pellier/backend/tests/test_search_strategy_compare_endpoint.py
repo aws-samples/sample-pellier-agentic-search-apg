@@ -618,3 +618,62 @@ def test_controlled_fallback_rejects_unknown_or_mislabelled_scenarios(query, sce
     with pytest.raises(HTTPException) as exc:
         asyncio.run(app_module.compare_search_strategies(query, scenario=scenario))
     assert exc.value.status_code == 400
+
+
+def test_controlled_fallback_records_the_participants_chosen_preference(
+    monkeypatch, receipt_writes, completed_search_plan,
+):
+    class SparseLeather(_HybridSearch):
+        async def search(self, *args, **kwargs):
+            if ['leather'] in (kwargs.get('hard_params') or []):
+                return []
+            return await super().search(*args, **kwargs)
+
+    monkeypatch.setattr(hybrid_module, 'HybridSearch', SparseLeather)
+    monkeypatch.setattr(extract_module, 'get_structured_extractor',
+                        lambda: pytest.fail('controlled case must not claim model extraction'))
+    query = app_module.anna_fallback_query('leather')
+    assert 'Prefer leather' in query
+    # The controlled case derives its own text when none is supplied.
+    body = asyncio.run(app_module.compare_search_strategies(
+        scenario='anna-fallback', prefer='Leather'))
+    assert body['query'] == query
+    assert body['scenarioPreference'] == 'leather'
+    row = receipt_writes[0].to_row()
+    config = row['retrieval_config']
+    assert config['scenario_input'] == {'scenario': 'anna-fallback', 'preference': 'leather'}
+    assert config['original_preference_tags'] == ['leather']
+    # Only the preference varies; the requirements are the scenario's own.
+    assert row['exclusions'] == ['candle']
+    assert row['hard_constraints'] == config['original_contract']['hard_constraints']
+    assert row['hard_constraints']['price_max_usd'] == 100
+    assert row['hard_constraints']['in_stock_only'] is True
+    assert row['query_preview'] == query
+
+
+def test_the_canonical_watch_case_is_unchanged():
+    assert app_module.anna_fallback_query('watch') == app_module.ANNA_FALLBACK_QUERY
+
+
+@pytest.mark.parametrize('query, scenario, prefer', [
+    # The text must name the preference under test.
+    (app_module.ANNA_FALLBACK_QUERY, 'anna-fallback', 'leather'),
+    # The excluded tag cannot also be preferred.
+    ('A gift under $100, in stock, and no candles. Prefer candle, but other gifts are fine.',
+     'anna-fallback', 'candle'),
+    # Only planner tags are accepted.
+    ('A gift under $100, in stock, and no candles. Prefer rockets, but other gifts are fine.',
+     'anna-fallback', 'rockets'),
+    # A preference outside the controlled case is refused.
+    ('gift', None, 'leather'),
+])
+def test_controlled_preference_is_validated(query, scenario, prefer):
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(app_module.compare_search_strategies(query, scenario=scenario, prefer=prefer))
+    assert exc.value.status_code == 400
+
+
+def test_a_normal_comparison_still_requires_a_query():
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(app_module.compare_search_strategies())
+    assert exc.value.status_code == 400
