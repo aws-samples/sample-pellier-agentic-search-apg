@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
 
--- Lab 2 build artifact (Build 2a): RECONSTRUCT AND VERIFY RRF.
+-- Lab 2 task artifact (Task 2A): RECONSTRUCT AND VERIFY RRF.
 --
 -- Complete the fusion expression between the markers, then check your
 -- arithmetic against the score the application already recorded for this
@@ -12,23 +12,20 @@
 -- Run with:
 --   psql -X -v ON_ERROR_STOP=1 -P pager=off \
 --     -v receipt_high_water="$RECEIPT_HIGH_WATER" \
+--     -v comparison_id="$COMPARISON_ID" \
 --     -f workshop/lab-2-rrf.sql
 
 DROP TABLE IF EXISTS pg_temp.lab_2_fusion;
 
--- Two facts select the turn. The high-water mark was captured before you
--- started this lab, and retrieval_config->>'source' records which surface
--- wrote the receipt: the Observatory comparison stamps 'observatory-compare',
--- while an ordinary shopper turn stamps nothing. Both are needed. The mark
--- alone would read any storefront turn that landed after it, and matching
--- query text broke the moment the surfaces stopped sending one exact
--- sentence. The receipt reports its own query below so you can see which turn
--- you are reading.
+-- The exact comparison ID selects the request you captured. The high-water
+-- mark excludes earlier runs, and the source tag excludes Storefront receipts.
+-- A newer comparison must not replace this request while you read the guide.
 CREATE TEMP TABLE lab_2_fusion AS
 WITH receipt AS (
   SELECT *
     FROM pellier.retrieval_receipts
    WHERE receipt_id > :'receipt_high_water'::bigint
+     AND turn_id = :'comparison_id'
      AND retrieval_config->>'source' = 'observatory-compare'
    ORDER BY receipt_id DESC
    LIMIT 1
@@ -71,6 +68,7 @@ SELECT coalesce(
          count(*) > 0
          AND bool_and(
            recorded_rrf IS NOT NULL
+           AND recomputed_rrf IS NOT NULL
            AND abs(recorded_rrf - recomputed_rrf) <= 0.000001
          ),
          false

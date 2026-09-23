@@ -466,13 +466,7 @@ def _lab_2_receipt_cte() -> str:
 
 
 def test_lab_2_selects_the_comparison_surface_and_names_the_turn_it_read() -> None:
-    """No query literal survives in the selection, and the marker block is intact.
-
-    The selection is the high-water mark plus the receipt's own record of which
-    surface wrote it. Both are needed: the mark alone would read any newer
-    storefront turn, and matching the query text broke the moment the surfaces
-    stopped sending one exact sentence.
-    """
+    """Bind the worksheet to the captured request without depending on query copy."""
     text = LAB_2_SQL.read_text(encoding="utf-8")
     cte = _lab_2_receipt_cte()
 
@@ -483,6 +477,7 @@ def test_lab_2_selects_the_comparison_surface_and_names_the_turn_it_read() -> No
     ]
     assert predicates == [
         "WHERE receipt_id > :'receipt_high_water'::bigint",
+        "AND turn_id = :'comparison_id'",
         "AND retrieval_config->>'source' = "
         f"'{app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE}'",
     ]
@@ -504,6 +499,8 @@ def test_every_shipped_copy_of_lab_2_carries_the_same_receipt_selection() -> Non
     )
     for path in (LAB_2_SQL, LAB_2_STARTER_SQL, LAB_2_SOLUTION_SQL):
         assert predicate in path.read_text(encoding="utf-8"), path
+        assert "AND turn_id = :'comparison_id'" in path.read_text(encoding="utf-8"), path
+        assert "AND recomputed_rrf IS NOT NULL" in path.read_text(encoding="utf-8"), path
 
 
 def test_the_storefront_writer_leaves_the_comparison_source_unset() -> None:
@@ -522,6 +519,7 @@ def test_lab_2_would_select_exactly_the_receipt_the_comparison_just_wrote(
     retrieval receipt then lands *after* the comparison's, which is what any
     ordinary shopper turn does while the participant reads the page: a
     selection that took the newest row above the mark would read that turn.
+    A later comparison must not replace the requested comparison either.
     """
     retired = "Keep the gift under $100 and show me the strongest two options."
     storefront_config = agent_tools_module._hybrid_retrieval_config()
@@ -544,6 +542,7 @@ def test_lab_2_would_select_exactly_the_receipt_the_comparison_just_wrote(
     table.append(
         {
             "receipt_id": high_water + 1,
+            "turn_id": written["turn_id"],
             "query_preview": written["query_preview"],
             "retrieval_config": written["retrieval_config"],
         }
@@ -556,12 +555,20 @@ def test_lab_2_would_select_exactly_the_receipt_the_comparison_just_wrote(
         }
     )
 
-    # The shipped predicate, applied: above the high-water mark, written by the
-    # comparison surface, newest first, one row. Nothing reads the query text.
+    table.append({
+        "receipt_id": high_water + 3,
+        "turn_id": "another-comparison",
+        "query_preview": "a later unrelated comparison",
+        "retrieval_config": written["retrieval_config"],
+    })
+
+    # The shipped predicate selects the exact comparison ID above the high-water
+    # mark and verifies its source. Neither query text nor recency proves identity.
     candidates = [
         row
         for row in table
         if row["receipt_id"] > high_water
+        and row.get("turn_id") == written["turn_id"]
         and row["retrieval_config"].get("source")
         == app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE
     ]

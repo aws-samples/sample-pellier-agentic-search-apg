@@ -390,7 +390,7 @@ for _target in TOOL_SCHEMAS.values():
 #                       shopper token must not be able to reach it on the Gateway.
 #
 #   get_ticket_history  reads a customer's support history. The read is only safe under
-#                       an ownership condition, and binding that condition is Lab 3b.
+#                       an ownership condition, and binding that condition is Task 3A.
 #
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
@@ -398,8 +398,7 @@ for _target in TOOL_SCHEMAS.values():
 # === WORKSHOP · Gateway catalogue · published tools: START ===
 # WORKSHOP_EXERCISE_STUB
 #
-# Lab 3a. Theo's third turn asks the support specialist to file a return, and
-# that specialist reads his past tickets first. `get_ticket_history` has a
+# Task 3A. Theo asks the support specialist for his ticket history. `get_ticket_history` has a
 # schema in the catalogue above but is withheld from the Gateway, so the
 # managed rail cannot serve it.
 #
@@ -409,8 +408,8 @@ for _target in TOOL_SCHEMAS.values():
 # this set because it is already published for staff only: its baseline permit
 # requires the staff scope claim, and no shopper permit names it.
 #
-# Then deploy, and pair this with Lab 3b so the Runtime asks the Gateway for
-# exactly what the Gateway now publishes:
+# Reconcile the Runtime list and caller binding in Task 3A, then deploy in
+# Task 3B so the Runtime asks for the tools the Gateway now publishes:
 #     python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" \
 #         --mode participant
 #

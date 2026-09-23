@@ -390,7 +390,7 @@ for _target in TOOL_SCHEMAS.values():
 #                       shopper token must not be able to reach it on the Gateway.
 #
 #   get_ticket_history  reads a customer's support history. The read is only safe under
-#                       an ownership condition, and binding that condition is Lab 3b.
+#                       an ownership condition, and binding that condition is Task 3A.
 #
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
@@ -399,7 +399,7 @@ for _target in TOOL_SCHEMAS.values():
 # SOLUTION - publish the read, keep the money movement deferred.
 #
 # `get_ticket_history` is a customer-scoped read the support specialist needs
-# for Theo's return. Lab 3b binds its `customer_id` to the authenticated
+# for Theo's return. Task 3A binds its `customer_id` to the authenticated
 # caller, so the read cannot cross customers. `restock_inventory` stays
 # deferred: it moves stock and belongs to the operator desk, not to any
 # shopper-facing specialist.

@@ -48,6 +48,8 @@ INVENTORY_KEYWORDS = {
     "on the floor",
 }
 SUPPORT_KEYWORDS = {
+    "ticket",
+    "tickets",
     "return",
     "refund",
     "policy",

@@ -471,8 +471,8 @@ def main() -> int:
             "the security PRINCIPAL, not a storefront persona: it selects whose "
             "verified JWT signs the call, which is what Cedar and Row-Level "
             "Security evaluate. Resolved by name from the credential secret; an "
-            "unknown name is refused. Ignored when PELLIER_TOKEN is already set, "
-            "since that token already names its own principal."
+            "unknown name is refused. Cannot be combined with PELLIER_TOKEN; "
+            "unset it first so the requested user establishes the principal."
         ),
     )
     args = parser.parse_args()

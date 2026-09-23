@@ -1,7 +1,7 @@
 # WORKSHOP_EXERCISE_STUB
 #
-# Lab 3b. Theo's third turn ("My Wabi-Sabi Bowl arrived chipped. Please help me
-# return it.") routes to the support specialist. On the managed rail the
+# Task 3A. Theo's support-ticket request routes to the support specialist.
+# On the managed rail the
 # dispatcher asks the Gateway for exactly the tools named here and raises
 # "Gateway is missing support tools: ..." when the Gateway does not publish one
 # of them, so this tuple and the Gateway's published catalogue have to agree.
@@ -9,8 +9,8 @@
 # Two decisions, both governance rather than plumbing:
 #
 #   1. SUPPORT_MANAGED_TOOLS must name only tools the Gateway publishes to a
-#      shopper. Lab 3a publishes `get_ticket_history`. `issue_credit` moves
-#      money: the Gateway publishes it for the operator desk under a staff-only
+#      shopper. Task 3A publishes `get_ticket_history`. `issue_credit` records
+#      a synthetic credit: the Gateway publishes it for the operator desk under a staff-only
 #      permit, and no shopper-facing specialist may bind it, so the dispatcher
 #      refuses to build a specialist that names it (STAFF_ONLY_GATEWAY_TOOLS).
 #   2. SUPPORT_CALLER_BOUND_TOOLS names the tools whose `customer_id` the server
@@ -18,9 +18,9 @@
 #      someone's support history is only safe under that ownership condition;
 #      without it the model chooses whose tickets to read.
 #
-# Verify (live, the real check): after `agentcore deploy`, Theo's third turn
-# completes on the managed rail and the Observatory build-state card flips from
-# stale to match.
+# Verify in Task 3B: deploy, ask for Theo's support-ticket history in a new
+# session, and inspect the bound customer and executed build. Direct Gateway
+# probes separately check owned and foreign requests against Cedar.
 SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
     "get_return_policy",
     "search_products",

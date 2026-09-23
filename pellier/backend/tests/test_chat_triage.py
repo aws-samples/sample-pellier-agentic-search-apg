@@ -142,3 +142,12 @@ class TestIntentInventory:
 ])
 def test_availability_constraints_do_not_override_product_selection(query, expected):
     assert classify_intent(query) == expected
+
+
+@pytest.mark.parametrize("query", [
+    "Show my support ticket history.",
+    "Please list my support tickets.",
+    "What happened to my ticket?",
+])
+def test_ticket_history_routes_to_the_customer_scoped_support_specialist(query):
+    assert classify_intent(query) == "customer_support"
