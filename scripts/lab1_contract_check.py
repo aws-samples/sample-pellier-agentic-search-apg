@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
-"""Lab 1's supplied two-case check: unknown is not zero, and zero is not unknown.
+"""Lab 1's contract check: the participant chooses the test inputs, the catalog judges them.
 
-Runs the participant's own ``check_inventory`` tool body twice, through the same
-``@tool`` wrapper the Inventory Agent calls, and prints the two result envelopes
-side by side:
+Three kinds of answer must stay distinct, because the agent reports whatever the
+tool returns:
 
     a piece the catalog does not carry   -> status "not_found", no count
+    a query that matches several pieces  -> status "ambiguous", candidates, no count
     a piece it carries with no units     -> status "success", total_units 0
 
-Exit 0 when both hold, 3 when the body turns one answer into the other. Nothing
-here is inferred from the model's prose; the tool's own JSON is the evidence.
+The participant supplies one query for each case. Before the tool runs, this script
+classifies every query from its own catalog and warehouse read. A query that does not
+belong to the case it was offered for fails as a test input, so a weak test cannot
+pass. Then the participant's own ``check_inventory`` body runs through the same
+``@tool`` wrapper the Inventory Agent calls, and its envelope is judged against that
+classification. A catalog read failure is UNCHECKED and fails the run; it is never
+read as "not found".
 
-Run from the repository root on a workshop box (the backend .env supplies DB_*):
+Omitted inputs fall back to recovery defaults, and the report records which cases
+used them.
 
-    python3 scripts/lab1_contract_check.py --json /tmp/pellier-evidence/lab-1-contract.json
+    python3 scripts/lab1_contract_check.py \
+      --unknown "..." --ambiguous "..." --sold-out "..." \
+      --json /tmp/pellier-evidence/lab-1-contract.json
 """
 from __future__ import annotations
 
@@ -23,72 +31,112 @@ import json
 import os
 import pathlib
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 BACKEND = REPO / "pellier" / "backend"
 
-UNKNOWN_PIECE = "Hadley cashmere scarf"
-SOLD_OUT_PIECE = "Quilted Silk Vest"
+CASES = ("unknown", "ambiguous", "sold_out")
+DEFAULT_INPUTS = {
+    "unknown": "Hadley cashmere scarf",
+    "ambiguous": "Linen shirt",
+    "sold_out": "Quilted Silk Vest",
+}
 QUESTION = "What can the agent legitimately conclude in each case?"
 
-CASES: Tuple[Tuple[str, str, str], ...] = (
-    ("unknown", UNKNOWN_PIECE, "not_found"),
-    ("sold_out", SOLD_OUT_PIECE, "success"),
-)
+# The catalog's own answer to "which pieces does this query name?", read without
+# the participant's tool. Every whitespace token must appear in the name, which is
+# the matching contract the business service documents.
+_MATCH_SQL = """
+    SELECT "productId" AS product_id, name
+      FROM pellier.product_catalog
+     WHERE NOT (tags ? 'archive') AND {tokens}
+     ORDER BY "productId"
+"""
+_STOCK_SQL = """
+    SELECT warehouse_id, quantity
+      FROM pellier.warehouse_inventory
+     WHERE product_id = %s
+     ORDER BY warehouse_id
+"""
 
 
-def judge(envelopes: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Grade the two envelopes against the contract, and say what each allows.
+def classify(matches: List[Dict[str, Any]], stock: List[Dict[str, Any]]) -> str:
+    """Which case a query belongs to, from catalog rows alone."""
+    if not matches:
+        return "unknown"
+    if len(matches) > 1:
+        return "ambiguous"
+    if stock and all(int(row.get("quantity") or 0) == 0 for row in stock):
+        return "sold_out"
+    return "in_stock" if stock else "no_warehouse_rows"
 
-    ``envelopes`` maps the case name to the tool's parsed JSON. Returns the
-    per-case verdicts and an overall ``passed``.
-    """
-    verdicts: List[Dict[str, Any]] = []
-    unknown = envelopes.get("unknown") or {}
-    sold_out = envelopes.get("sold_out") or {}
 
-    unknown_ok = unknown.get("status") == "not_found" and "total_units" not in unknown
-    verdicts.append({
-        "case": "unknown",
-        "query": UNKNOWN_PIECE,
-        "status": unknown.get("status"),
-        "total_units": unknown.get("total_units"),
-        "passed": unknown_ok,
-        "conclusion": (
-            "the catalog does not carry this piece; the agent may say so and nothing "
-            "about stock" if unknown_ok
-            else "the tool reported a count for a piece the catalog does not carry"
-        ),
-    })
-    total = sold_out.get("total_units")
-    warehouses = sold_out.get("warehouses")
-    sold_out_ok = (
-        sold_out.get("status") == "success"
-        and isinstance(total, (int, float)) and not isinstance(total, bool) and total == 0
-        and isinstance(warehouses, list) and bool(warehouses)
-        and all(
-            isinstance(row, dict)
-            and isinstance(row.get("quantity"), (int, float))
-            and not isinstance(row["quantity"], bool)
-            and row["quantity"] == 0
-            for row in warehouses
-        )
-    )
-    verdicts.append({
-        "case": "sold_out",
-        "query": SOLD_OUT_PIECE,
-        "status": sold_out.get("status"),
-        "total_units": total,
-        "passed": sold_out_ok,
-        "conclusion": (
-            "the catalog carries this piece and every warehouse holds zero; the agent "
-            "may say it is sold out" if sold_out_ok
-            else "the tool did not report a known piece with zero units"
-        ),
-    })
-    return {"question": QUESTION, "cases": verdicts, "passed": all(v["passed"] for v in verdicts)}
+def _is_count(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _tool_keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any]) -> bool:
+    ids = {str(row["product_id"]) for row in catalog.get("matches") or []}
+    if case == "unknown":
+        return (envelope.get("status") == "not_found"
+                and "total_units" not in envelope and "warehouses" not in envelope)
+    if case == "ambiguous":
+        candidates = envelope.get("candidates")
+        return (envelope.get("status") == "ambiguous"
+                and "total_units" not in envelope and "warehouses" not in envelope
+                and isinstance(candidates, list) and len(candidates) >= 2
+                and all(isinstance(c, dict) and str(c.get("productId")) in ids
+                        for c in candidates))
+    warehouses = envelope.get("warehouses")
+    return (envelope.get("status") == "success"
+            and str((envelope.get("product") or {}).get("productId")) in ids
+            and _is_count(envelope.get("total_units")) and envelope["total_units"] == 0
+            and isinstance(warehouses, list) and bool(warehouses)
+            and all(isinstance(row, dict) and _is_count(row.get("quantity"))
+                    and row["quantity"] == 0 for row in warehouses))
+
+
+_CONCLUSIONS = {
+    "unknown": ("the catalog does not carry this piece; the agent may say so and "
+                "nothing about stock"),
+    "ambiguous": ("several pieces match; the agent must ask which one before "
+                  "reporting any stock"),
+    "sold_out": ("the catalog carries this piece and every warehouse holds zero; "
+                 "the agent may say it is sold out"),
+}
+
+
+def judge_case(case: str, query: str, chosen_by: str,
+               catalog: Dict[str, Any], envelope: Dict[str, Any]) -> Dict[str, Any]:
+    """Grade the test input against the catalog, then the tool against the input."""
+    if catalog.get("error"):
+        return {"case": case, "query": query, "chosenBy": chosen_by,
+                "catalogClass": "UNCHECKED", "status": envelope.get("status"),
+                "inputPassed": False, "toolPassed": False, "passed": False,
+                "conclusion": f"catalog read failed ({catalog['error']}); nothing was established"}
+    catalog_class = classify(catalog.get("matches") or [], catalog.get("stock") or [])
+    input_ok = catalog_class == case
+    tool_ok = input_ok and _tool_keeps_contract(case, envelope, catalog)
+    if not input_ok:
+        conclusion = (f"this query is {catalog_class.replace('_', ' ')} in the catalog, "
+                      f"so it cannot test the {case.replace('_', ' ')} case")
+    elif not tool_ok:
+        conclusion = "the tool changed the business answer for this case"
+    else:
+        conclusion = _CONCLUSIONS[case]
+    return {"case": case, "query": query, "chosenBy": chosen_by,
+            "catalogClass": catalog_class,
+            "catalogMatches": [row["name"] for row in catalog.get("matches") or []][:5],
+            "status": envelope.get("status"), "total_units": envelope.get("total_units"),
+            "inputPassed": input_ok, "toolPassed": tool_ok, "passed": input_ok and tool_ok,
+            "conclusion": conclusion}
+
+
+def judge(verdicts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {"question": QUESTION, "cases": verdicts,
+            "passed": len(verdicts) == len(CASES) and all(v["passed"] for v in verdicts)}
 
 
 def _load_env() -> Dict[str, str]:
@@ -105,7 +153,21 @@ def _load_env() -> Dict[str, str]:
     return values
 
 
-async def _run_cases() -> Dict[str, Dict[str, Any]]:
+async def _catalog(service: Any, query: str) -> Dict[str, Any]:
+    tokens = [token.lower() for token in query.split() if token]
+    if not tokens:
+        return {"matches": [], "stock": []}
+    try:
+        clause = " AND ".join(["strpos(lower(name), %s) > 0"] * len(tokens))
+        matches = await service.fetch_all(_MATCH_SQL.format(tokens=clause), *tokens)
+        stock = (await service.fetch_all(_STOCK_SQL, str(matches[0]["product_id"]))
+                 if len(matches) == 1 else [])
+    except Exception as exc:  # noqa: BLE001 - reported as UNCHECKED, never as absence
+        return {"error": f"{type(exc).__name__}: {exc}"[:200]}
+    return {"matches": [dict(row) for row in matches], "stock": [dict(row) for row in stock]}
+
+
+async def _run(inputs: Dict[str, tuple[str, str]]) -> List[Dict[str, Any]]:
     sys.path.insert(0, str(BACKEND))
     for key, value in _load_env().items():
         os.environ.setdefault(key, value)
@@ -128,35 +190,48 @@ async def _run_cases() -> Dict[str, Dict[str, Any]]:
         # thread, exactly as it does under the Strands agent.
         agent_tools.set_db_service(service)
         agent_tools.set_main_loop(asyncio.get_running_loop())
-        envelopes: Dict[str, Dict[str, Any]] = {}
-        for case, query, _expected in CASES:
+        verdicts = []
+        for case in CASES:
+            query, chosen_by = inputs[case]
+            catalog = await _catalog(service, query)
             raw = await asyncio.to_thread(agent_tools.check_inventory, product_query=query)
             try:
-                envelopes[case] = json.loads(raw)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                envelopes[case] = {"status": "unparseable", "raw": str(raw)[:200]}
-        return envelopes
+                envelope = json.loads(raw)
+            except (TypeError, ValueError):
+                envelope = {"status": "unparseable", "raw": str(raw)[:200]}
+            verdict = judge_case(case, query, chosen_by, catalog, envelope)
+            verdict["envelope"] = envelope
+            verdicts.append(verdict)
+        return verdicts
     finally:
         await service.disconnect()
 
 
-def main(argv: List[str] | None = None) -> int:
+def _inputs(args: argparse.Namespace) -> Dict[str, tuple[str, str]]:
+    chosen = {"unknown": args.unknown, "ambiguous": args.ambiguous, "sold_out": args.sold_out}
+    return {case: ((value.strip(), "participant") if value and value.strip()
+                   else (DEFAULT_INPUTS[case], "recovery-default"))
+            for case, value in chosen.items()}
+
+
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--unknown", help="A piece the catalog does not carry")
+    parser.add_argument("--ambiguous", help="A query that names several pieces")
+    parser.add_argument("--sold-out", dest="sold_out", help="A carried piece with no units")
     parser.add_argument("--json", help="Also write the report to this path")
     args = parser.parse_args(argv)
-    envelopes = asyncio.run(_run_cases())
-    report = judge(envelopes)
-    report["envelopes"] = envelopes
-    print(f"{'case':<10} {'query':<24} {'status':<12} {'total_units':<12} verdict")
+    report = judge(asyncio.run(_run(_inputs(args))))
+    print(f"{'case':<10} {'query':<24} {'chosen by':<17} {'catalog':<11} "
+          f"{'tool status':<12} verdict")
     for row in report["cases"]:
-        print(
-            f"{row['case']:<10} {row['query']:<24} {str(row['status']):<12} "
-            f"{str(row['total_units']):<12} {'PASS' if row['passed'] else 'FAIL'}"
-        )
+        print(f"{row['case']:<10} {row['query'][:24]:<24} {row['chosenBy']:<17} "
+              f"{row['catalogClass']:<11} {str(row['status']):<12} "
+              f"{'PASS' if row['passed'] else 'FAIL'}")
         print(f"           {row['conclusion']}")
     print()
     print(QUESTION)
-    print("PASSED" if report["passed"] else "FAILED: the tool body turns one answer into the other")
+    print("PASSED" if report["passed"] else "FAILED: a test input or the tool broke the contract")
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(report, indent=2, default=str))
     return 0 if report["passed"] else 3
