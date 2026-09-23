@@ -337,6 +337,10 @@ server {
     listen [::]:80 default_server;
     server_name _;
     proxy_http_version 1.1;
+    # Cognito returns multiple session cookies in one response.
+    proxy_buffer_size 32k;
+    proxy_buffers 8 32k;
+    proxy_busy_buffers_size 64k;
     # __PELLIER_ORIGIN_VERIFY__
     
     # Pellier (single-process): FastAPI on :8000 serves BOTH
