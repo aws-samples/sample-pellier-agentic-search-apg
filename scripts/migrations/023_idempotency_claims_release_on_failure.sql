@@ -284,7 +284,7 @@ DECLARE
     v_result     JSONB;
     v_rows       INTEGER;
     v_returns    INTEGER;
-    v_customer   TEXT;
+    v_customer   TEXT := 'migration-023-' || txid_current()::TEXT;
     v_product    TEXT;
 BEGIN
   -- The probe runs inside a subtransaction that ends by raising a private
@@ -324,13 +324,21 @@ BEGIN
     END IF;
 
     -- 3. A success must still be recorded once and replay exactly once.
-    SELECT o.customer_id, o.product_id INTO v_customer, v_product
-      FROM pellier.orders o
-      JOIN pellier.product_catalog p ON p."productId" = o.product_id
+    -- Own the probe's order instead of choosing an arbitrary customer's order:
+    -- that customer's entire quantity may already have been returned. Keep the
+    -- fixture inside this rollback-only subtransaction, with the real quantity
+    -- guard active. No customer, order, return, or write receipt survives it.
+    SELECT p."productId" INTO v_product
+      FROM pellier.product_catalog p
+     ORDER BY p."productId"
      LIMIT 1;
-    IF v_customer IS NULL THEN
-        RAISE NOTICE 'migration 023: no order rows available; skipping success probe';
+    IF v_product IS NULL THEN
+        RAISE NOTICE 'migration 023: no catalog rows available; skipping success probe';
     ELSE
+        INSERT INTO pellier.customers (id, name)
+        VALUES (v_customer, 'Migration 023 rollback-only probe');
+        INSERT INTO pellier.orders (customer_id, product_id, quantity)
+        VALUES (v_customer, v_product, 1);
         SELECT COUNT(*) INTO v_returns FROM pellier.returns;
         v_result := pellier.process_return_idempotent(
             v_key || '-success', repeat('e', 64), v_customer, v_product, 'changed_mind'
