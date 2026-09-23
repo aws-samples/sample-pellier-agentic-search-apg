@@ -394,6 +394,9 @@ server {
     # /ports/8000/api/... serves /api/... (SSE-safe: buffering + gzip off).
     location /ports/8000/ {
         proxy_pass http://127.0.0.1:8000/;
+        # Auth routes scope CSRF and OAuth cookies to /api/auth internally.
+        # Browsers need that scope beneath the externally visible app prefix.
+        proxy_cookie_path /api/auth /ports/8000/api/auth;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;

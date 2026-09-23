@@ -43,6 +43,7 @@ def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_
     assert "proxy_pass http://127.0.0.1:8080;" in config
     assert "location /ports/8000/ {" in config
     assert "proxy_pass http://127.0.0.1:8000/;" in config
+    assert "proxy_cookie_path /api/auth /ports/8000/api/auth;" in config
     assert "proxy_buffering off;" in config
     assert "proxy_set_header Upgrade $http_upgrade;" in config
     main = (tmp_path / "nginx/nginx.conf").read_text()

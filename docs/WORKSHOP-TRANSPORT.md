@@ -27,6 +27,8 @@ capacity, quota, lifecycle and extra-instance dependencies.
   A stack custom resource registers the generated distribution callback with
   Cognito after CloudFront exists, avoiding a bootstrap dependency cycle.
 - `apiUrl` and `apiFetch` keep requests under the deployed application prefix.
+  nginx also rewrites authentication cookie paths beneath `/ports/8000/`,
+  including cookie deletion, so CSRF and OAuth state reach their browser requests.
   SSE buffering and compression are disabled in nginx. CloudFront compression is
   also disabled. WebSocket upgrade headers reach Code Editor.
 - nginx access logging and WAF sampled requests are disabled for these launch
