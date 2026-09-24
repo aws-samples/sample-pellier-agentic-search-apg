@@ -276,12 +276,15 @@ describe('Pellier Observatory live agent workbench', () => {
       </MemoryRouter>,
     );
 
-    for (const prompt of WORKSHOP_JOURNEYS.jessica.prompts) {
-      expect(await screen.findByRole('region', { name: 'Investigation prompts' })).toHaveTextContent(
+    expect(await screen.findByRole('region', { name: 'Investigation prompts' })).toHaveTextContent(
       'Studio then guides the required proposal, human confirmation and execution',
     );
-    expect(screen.getByText(/the same review, confirmed terms, execution receipt and return row/)).toBeVisible();
-    expect(await screen.findByText(prompt)).toBeInTheDocument();
+    // The panel fades in; presence can precede visibility under suite load.
+    await waitFor(() => {
+      expect(screen.getByText(/the same review, confirmed terms, execution receipt and return row/)).toBeVisible();
+    });
+    for (const prompt of WORKSHOP_JOURNEYS.jessica.prompts) {
+      expect(await screen.findByText(prompt)).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: `Inspect: ${prompt}` }),
       ).not.toBeInTheDocument();
@@ -366,7 +369,10 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(within(metrics!).getAllByText('-')).toHaveLength(4);
   });
 
-  it('runs the real chat stream and renders only emitted evidence', async () => {
+  it.each([
+    ['global.anthropic.claude-opus-5', 'Claude Opus 5'],
+    ['global.anthropic.claude-opus-4-6-v1', 'Claude Opus 4.6'],
+  ])('renders emitted evidence for %s', async (modelId, modelLabel) => {
     mocks.sendChatMessageStreaming.mockImplementation(
       async (
         _query: string,
@@ -379,7 +385,7 @@ describe('Pellier Observatory live agent workbench', () => {
           classifier: 'deterministic',
           response_mode: 'balanced',
           model_family: 'opus',
-          model_id: 'global.anthropic.claude-opus-4-6-v1',
+          model_id: modelId,
         });
         onUpdate({
           type: 'skill_routing',
@@ -493,11 +499,11 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(toolTitle).toHaveTextContent('search_products_hybrid');
     expect(toolTitle.querySelector('wbr')).toBeNull();
     expect(screen.getByText('Recommendation')).toBeInTheDocument();
-    expect(screen.getByText('Claude Opus 4.6')).toBeInTheDocument();
+    expect(screen.getByText(modelLabel)).toBeInTheDocument();
     expect(screen.getByText('Routing decision')).toBeInTheDocument();
     expect(screen.getByText('Deterministic')).toBeInTheDocument();
     expect(
-      screen.getByText('global.anthropic.claude-opus-4-6-v1'),
+      screen.getByText(modelId),
     ).toBeInTheDocument();
     expect(screen.getByText('In process')).toBeInTheDocument();
     expect(

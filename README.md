@@ -625,11 +625,11 @@ live and reports the route actually observed.
 
 | Agent              | Role                                            | Model            |
 | ------------------ | ----------------------------------------------- | ---------------- |
-| **Search Agent**      | Interprets intent, runs semantic search         | Claude Opus 4.6  |
-| **Personalization Agent**            | Pairing, palette, occasion, editorial picks     | Claude Opus 4.6  |
-| **Pricing Agent**      | Price intelligence, deals, percentile context   | Claude Sonnet 4.6 |
-| **Inventory Agent**       | Warehouse stock and low-inventory alerts        | Claude Sonnet 4.6 |
-| **Customer Service Agent**   | Returns, care, post-purchase                    | Claude Opus 4.6  |
+| **Search Agent**      | Interprets intent, runs semantic search         | Claude Opus 5  |
+| **Personalization Agent**            | Pairing, palette, occasion, editorial picks     | Claude Opus 5  |
+| **Pricing Agent**      | Price intelligence, deals, percentile context   | Claude Sonnet 5 |
+| **Inventory Agent**       | Warehouse stock and low-inventory alerts        | Claude Sonnet 5 |
+| **Customer Service Agent**   | Returns, care, post-purchase                    | Claude Opus 5  |
 
 The Operator Concierge adds two bounded graph nodes:
 
@@ -642,7 +642,7 @@ The Operator Concierge adds two bounded graph nodes:
 decides the review, invokes the governed write, or substitutes for AgentCore
 Policy where it applies or PostgreSQL enforcement.
 
-Per-agent model choice is an architectural decision – Inventory Agent's terse warehouse answers run on Sonnet; the Personalization Agent's editorial prose earns Opus. Factories load **`BEDROCK_OPUS_MODEL`** for editorial agents, **`BEDROCK_REPORTING_MODEL`** for reporting specialists, **`BEDROCK_ROUTER_MODEL`** for routing, and **`BEDROCK_FAST_MODEL`** for the explicit Fast response mode – see `pellier/backend/config.py`. The fast profile is Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`) and is preflighted before the workshop is marked ready. **`BEDROCK_SONNET_MODEL`** is the canonical Sonnet profile (`global.anthropic.claude-sonnet-4-6`); the model-access preflight may also write it into `BEDROCK_OPUS_MODEL` when Opus 4.6 is not reachable on the account. **`BEDROCK_CHAT_MODEL`** is the legacy alias kept only for older scripts. Pellier Observatory surfaces the configured mix and the exact model used by each live run.
+Per-agent model choice is an architectural decision – Inventory Agent's terse warehouse answers run on Sonnet; the Personalization Agent's editorial prose earns Opus. Factories load **`BEDROCK_OPUS_MODEL`** for editorial agents, **`BEDROCK_REPORTING_MODEL`** for reporting specialists, **`BEDROCK_ROUTER_MODEL`** for routing, and **`BEDROCK_FAST_MODEL`** for the explicit Fast response mode – see `pellier/backend/config.py`. The fast profile is Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`) and is preflighted before the workshop is marked ready. **`BEDROCK_SONNET_MODEL`** is the canonical Sonnet profile (`global.anthropic.claude-sonnet-5`); the model-access preflight may also write it into `BEDROCK_OPUS_MODEL` when Opus 5 is not reachable on the account. **`BEDROCK_CHAT_MODEL`** is the legacy alias kept only for older scripts. Pellier Observatory surfaces the configured mix and the exact model used by each live run. Archived session fixtures retain their recorded model names; they are historical evidence, not the current release defaults.
 
 ### Tools
 
@@ -819,7 +819,7 @@ Claude Code resolves `CLAUDE.md` guidance by scope. The backend separately loads
 | Vector retrieval | pgvector 0.8.1; `vector(1024)` column; HNSW (m=16, ef_construction=64, `vector_cosine_ops`); `<=>` cosine operator |
 | Lexical retrieval | Postgres FTS – `tsvector` + GIN + `ts_rank_cd` (no native BM25; `pg_trgm` for fuzzy match) |
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) – fuses pgvector + FTS rank lists without normalizing raw scores |
-| Models           | Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`, editorial); Claude Sonnet 4.6 (`global.anthropic.claude-sonnet-4-6`, routing/reporting, no temperature override); Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, explicit Fast response mode); Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile); Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) |
+| Models           | Claude Opus 5 (`global.anthropic.claude-opus-5`, editorial); Claude Sonnet 5 (`global.anthropic.claude-sonnet-5`, routing/reporting, no temperature override); Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, explicit Fast response mode); Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile); Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) |
 | Agent framework  | Strands Agents SDK – `Agent`, `@tool`, deterministic Storefront Dispatcher, bounded Operator Concierge `GraphBuilder`, and before/after tool-call hooks |
 | Agent infra      | Bedrock AgentCore Runtime (CUSTOM_JWT and governed Gateway MCP calls); Memory (conversation events and four configured extraction strategies, with episodic extraction optional); Gateway (16 published tools at baseline, 17 after Lab 3a, from 18 defined schemas; token-scoped discovery); Policy (Cedar ENFORCE); Identity |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) pinned to `==1.1.6` and installed via `uvx`, registered against the Aurora cluster ARN over `--connection_method RDS_API --db_type APG` (enum-name flag, not the lowercase value; read-only by default; writes require opting in via `--allow_write_query`); `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |

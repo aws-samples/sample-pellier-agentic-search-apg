@@ -69,12 +69,12 @@ class Settings(BaseSettings):
     # --- Agent model config ---
     #
     # Per-agent model selection is an architectural decision, not a knob.
-    # See the Workshop Studio repo's content/90-appendix/01-reference/
-    # (the cast table) for the rationale:
+    # See the Workshop Studio repo's content/90-appendix/index.en.md
+    # (the model table) for the rationale:
     #
-    #   Claude Opus 4.6   — editorial specialists (Search Agent, Personalization Agent,
+    #   Claude Opus 5   — editorial specialists (Search Agent, Personalization Agent,
     #                  Customer Service Agent). Needs voice + personality.
-    #   Claude Sonnet 4.6 — routing, structured extraction, and reporting
+    #   Claude Sonnet 5 — routing, structured extraction, and reporting
     #                  specialists (Pricing Agent, Inventory Agent).
     #   Claude Haiku 4.5  — the explicit fast-response mode. It never replaces
     #                  the router; it composes the responding specialist only.
@@ -83,41 +83,25 @@ class Settings(BaseSettings):
     # Editorial agents (Search Agent, Personalization Agent, Customer Service Agent) read
     # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
     # preflight (scripts/check_model_access.py, run in bootstrap) detects
-    # whether Opus 4.6 is reachable on the account, and if it is NOT, writes
-    #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-4-6
-    # into .env so editorial agents fall back to Sonnet 4.6 cleanly — no code
+    # whether Opus 5 is reachable on the account, and if it is NOT, writes
+    #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-5
+    # into .env so editorial agents fall back to Sonnet 5 cleanly — no code
     # path change, no per-request retry. BEDROCK_SONNET_MODEL is the canonical
-    # fallback target (real Sonnet 4.6, not an Opus alias).
+    # fallback target (real Sonnet 5, not an Opus alias).
     #
-    # DELIBERATE BRANCH DIVERGENCE: `main` pins Opus 4.8 here; this branch
-    # stays on Opus 4.6. Both profile IDs are live and reachable
-    # (verified 2026-08-23, us-east-1), so this is a release-contract choice,
-    # not a fallback. Two reasons to keep it:
-    #
-    #   1. The Observatory ships recorded fixture sessions whose spans name
-    #      the model that actually produced each turn ("Claude Opus 4.6").
-    #      Re-pinning config without re-recording those sessions would make
-    #      shipped evidence misstate its own provenance — the opposite of
-    #      what this workshop teaches.
-    #   2. The two workshops release independently (see the branch contract
-    #      in the repository CLAUDE.md). The governed content, reference
-    #      table, and facilitator notes describe the 4.6 → Sonnet 4.6 ladder
-    #      consistently; changing one end of that alone would desynchronize
-    #      the guide from the app.
-    #
-    # Revisit only as a deliberate governed-branch model refresh: config,
-    # preflight ladder, README, Observatory fixtures, and the Workshop Studio
-    # reference/facilitator pages move together, and the fixtures are
-    # re-recorded rather than relabeled.
-    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
-    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
-    BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-4-6"
-    BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-4-6"
+    # The governed release pins global Opus 5 / Sonnet 5 / Haiku 4.5.
+    # Move config, .env.example, preflight, bootstrap and Studio pins together.
+    # Recorded Observatory sessions retain their original model provenance;
+    # the configured model catalogue and new live sessions use this release.
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5"
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-5"
+    BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-5"
+    BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5"
     BEDROCK_FAST_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     # Legacy alias — kept for tests + scripts that still reference it.
     # Prefer the role-specific Opus/Sonnet settings in agent factories.
-    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-6-v1"
+    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-5"
 
     # max_tokens is a safety ceiling, not a target — billing and latency track
     # tokens actually generated, so a higher cap costs nothing unless a reply

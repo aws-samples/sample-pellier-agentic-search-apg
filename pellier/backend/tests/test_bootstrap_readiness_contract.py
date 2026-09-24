@@ -40,7 +40,7 @@ def _load_model_check():
     return module
 
 
-def test_model_preflight_persists_sonnet_46_runtime_fallback(
+def test_model_preflight_persists_sonnet_5_runtime_fallback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     module = _load_model_check()
@@ -53,7 +53,7 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
         if model.get("role") == "editorial":
             return False
         if model.get("role") == "sonnet":
-            model["_resolved_id"] = "global.anthropic.claude-sonnet-4-6"
+            model["_resolved_id"] = "global.anthropic.claude-sonnet-5"
         if model.get("role") == "fast":
             model["_resolved_id"] = (
                 "global.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -73,27 +73,25 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
         for line in env_file.read_text(encoding="utf-8").splitlines()
         if "=" in line
     )
-    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-4-6"
-    assert values["BEDROCK_CHAT_MODEL"] == "global.anthropic.claude-sonnet-4-6"
-    assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-4-6"
+    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert values["BEDROCK_CHAT_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert (
         values["BEDROCK_FAST_MODEL"]
         == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
     )
     assert "CLAUDE_CODE_MODEL" not in values
-    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-4-6"
+    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5"
     assert values["BEDROCK_MODEL_ACCESS_READY"] == "true"
 
 
-def test_claude_code_pins_global_sonnet_46_profile() -> None:
-    """Workshop Studio does not expose Sonnet 5, so the CLI must pin the
-    global Sonnet 4.6 profile instead of the floating ``sonnet`` alias
-    (which a current CLI resolves to a denied model on the event account)."""
+def test_claude_code_pins_global_sonnet_5_profile() -> None:
+    """The CLI must use the same verified global profile as the release."""
     source = BOOTSTRAP.read_text(encoding="utf-8")
     assert "export CLAUDE_CODE_USE_BEDROCK=1" in source
     assert (
         "export ANTHROPIC_MODEL="
-        "${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-4-6}" in source
+        "${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}" in source
     )
     assert "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-sonnet}" not in source
     assert "CLAUDE_CODE_MODEL" not in source
@@ -125,16 +123,15 @@ def test_facilitator_dry_run_preflights_the_recommended_claude_lane() -> None:
 def test_facilitator_dry_run_probes_the_pinned_model_not_the_floating_alias() -> None:
     """``--model sonnet`` would override the pin with the CLI's floating alias.
 
-    A current CLI resolves that alias to a newer Sonnet than Workshop Studio
-    accounts expose, so passing it would either fail on a correctly provisioned
-    account or pass while testing a model no participant uses. Selection must
-    come from ANTHROPIC_MODEL, which bootstrap pins to the same profile.
+    That alias can change independently of the release, so passing it could
+    test a model no participant uses. Selection must come from ANTHROPIC_MODEL,
+    which bootstrap pins to the same profile.
     """
     source = FACILITATOR_DRY_RUN.read_text(encoding="utf-8")
     assert "--model sonnet" not in source
     assert 'ANTHROPIC_MODEL="$CLAUDE_MODEL_PIN"' in source
     assert (
-        'CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-4-6}"'
+        'CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"'
         in source
     )
 
@@ -347,7 +344,7 @@ def _valid_managed_receipt() -> dict[str, object]:
                 },
                 "step_latency_observed": True,
                 "step_latency_ms": {"agent": 125, "model": 80, "tool": 30},
-                "model_ids": ["global.anthropic.claude-sonnet-4-6"],
+                "model_ids": ["global.anthropic.claude-sonnet-5"],
                 "tool_names": ["search_products_hybrid"],
                 "provenance": "agentcore-unified-telemetry",
             },

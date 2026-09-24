@@ -160,10 +160,8 @@ fi
 # participant instance role — before a room discovers them.
 #
 # Model selection is left to ANTHROPIC_MODEL on purpose. Passing `--model
-# sonnet` would override the pin with the CLI's floating alias, which a current
-# CLI resolves to a newer Sonnet than Workshop Studio accounts expose; the
-# check would then fail on a correctly provisioned account or pass while
-# testing a model no participant uses. bootstrap-labs.sh pins the same
+# sonnet` would override the pin with the CLI's floating alias and could test
+# a different model than participants use. bootstrap-labs.sh pins the same
 # variable, so this exercises the participant path.
 #
 # What this deliberately does NOT do: drive a real Claude Code edit. A
@@ -172,7 +170,7 @@ fi
 # verifies through the same commands a participant runs. The AI edit path
 # itself is a manual fresh-account check; see the facilitator notes.
 echo "[1b/6] Claude Code preflight (Lab 1 recommended lane)"
-CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-4-6}"
+CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"
 if ! command -v claude >/dev/null 2>&1; then
   fail "Claude Code CLI not on PATH — Lab 1's recommended lane cannot start"
 else

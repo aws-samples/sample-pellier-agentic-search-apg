@@ -7,11 +7,9 @@ does so past the model-access preflight, which probes the ladder named in
 `config.py`. The failure that motivated this test looked like every model
 reachable, green, while the runtime invoked identifiers nobody had validated.
 
-The governed branch pins the Opus 4.6 -> Sonnet 4.6 ladder deliberately; see the
-DELIBERATE BRANCH DIVERGENCE note in `config.py`. This test does not assert
-*which* model is pinned -- that is a release decision, and hardcoding it here
-would mean editing this file every refresh. It asserts only that the three
-sources cannot disagree, which is the property that broke.
+The exact model ladder is a release decision. These tests assert that the
+runtime defaults, example environment, preflight, CLI, and frontend catalogue
+agree, so a model refresh cannot bypass the account's access checks.
 """
 
 from __future__ import annotations
@@ -96,8 +94,7 @@ def test_env_example_matches_config_defaults() -> None:
             for name, (config_value, env_value) in sorted(disagreements.items())
         )
         + ". Environment wins at runtime, so .env.example is the file that "
-        "decides. Move both together, and see the DELIBERATE BRANCH DIVERGENCE "
-        "note in config.py for what else moves with a model refresh."
+        "decides. Move config, example environment, and preflight together."
     )
 
 
@@ -109,10 +106,8 @@ def test_preflight_probes_the_models_config_actually_resolves() -> None:
     """
     defaults = _config_defaults()
     preflight = PREFLIGHT.read_text(encoding="utf-8")
-    # Only the two ends of the editorial ladder are asserted: those are the ones
-    # the preflight's fallback logic rewrites into .env, so those are the ones
-    # that must exist in its probe list.
-    for name in ("BEDROCK_OPUS_MODEL", "BEDROCK_SONNET_MODEL"):
+    # Probe both ends of the editorial ladder and the required fast profile.
+    for name in ("BEDROCK_OPUS_MODEL", "BEDROCK_SONNET_MODEL", "BEDROCK_FAST_MODEL"):
         model_id = defaults.get(name)
         assert model_id, f"config.py does not declare {name}"
         assert model_id in preflight, (
@@ -121,3 +116,18 @@ def test_preflight_probes_the_models_config_actually_resolves() -> None:
             "the runtime does not use, while the model it does use was never "
             "checked."
         )
+
+
+def test_claude_profiles_are_global_and_visible_in_the_frontend() -> None:
+    defaults = _config_defaults()
+    catalogue = (REPO / "pellier/frontend/src/observatory/constants/bedrockModels.ts").read_text()
+    for setting, model_id in defaults.items():
+        assert model_id.startswith("global.anthropic."), setting
+        assert model_id in catalogue, f"Frontend catalogue is missing {setting}: {model_id}"
+
+
+def test_cli_bootstrap_and_rehearsal_match_the_preflight_profile() -> None:
+    model_id = _config_defaults()["BEDROCK_SONNET_MODEL"]
+    pin = "${ANTHROPIC_MODEL:-" + model_id + "}"
+    for relative in ("scripts/bootstrap-labs.sh", "scripts/dry-run-builders.sh"):
+        assert pin in (REPO / relative).read_text(), relative

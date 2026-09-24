@@ -44,14 +44,14 @@ export interface PerformanceData {
    *   1. vector only            — pgvector cosine, no lexical signal
    *   2. hybrid (RRF)           — pgvector + Postgres FTS via reciprocal rank fusion (teaching foil)
    *   3. hybrid + rerank        — RRF candidates rescored by Cohere Rerank v3.5
-   *   4. agentic                — Sonnet 4.6 extracts {categories, tags, price_max_usd, in_stock_only,
+   *   4. agentic                — Sonnet 5 extracts {categories, tags, price_max_usd, in_stock_only,
    *                               soft_signal} → filtered HNSW with iterative_scan → rerank against
    *                               soft_signal (Anna's path)
    *
    * Cost notes: vector + hybrid run against Aurora after a shared query
    * embedding. Rerank
    * adds a Bedrock invoke_model call to Cohere Rerank v3.5. Agentic
-   * adds one Sonnet 4.6 structured-extraction call on top of rerank;
+   * adds one Sonnet 5 structured-extraction call on top of rerank;
    * the workshop's "is the lift worth it?" question has a real answer
    * for participants to weigh against the recall@5 + filter-respect
    * deltas.

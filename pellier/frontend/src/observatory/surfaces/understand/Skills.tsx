@@ -40,7 +40,7 @@ function filterSkillsByPersona(skills: Skill[], filter: PersonaFilter): Skill[] 
 /* -----------------------------------------------------------------------
  * Skill Router Demo Card
  *
- * Live demonstration of the SkillRouter (Sonnet 4.6).
+ * Live demonstration of the SkillRouter (Sonnet 5).
  * Mirrors the Tools page's DiscoveryDemoCard pattern: type a query,
  * see what the router would decide for that turn (which skills to
  * load + which it considered and why it rejected them).
@@ -140,7 +140,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
 
   return (
     <ExpCard>
-      <Eyebrow label="Live skill router · Sonnet 4.6" />
+      <Eyebrow label="Live skill router · Sonnet 5" />
       <h3
         style={{
           fontFamily: 'var(--obs-heading)',
@@ -747,7 +747,7 @@ const Skills: React.FC = () => {
         backToReferences
         eyebrow="Understand · Skills · five prompt overlays"
         title="Runtime skills"
-        summary="Five Markdown files. Three are persona-tied; two are shared proof and care overlays. Loaded per turn by the SkillRouter – Sonnet 4.6 with a JSON-only routing prompt – and injected into the specialist's system prompt. Skills change voice and handling, not product selection."
+        summary="Five Markdown files. Three are persona-tied; two are shared proof and care overlays. Loaded per turn by the SkillRouter – Sonnet 5 with a JSON-only routing prompt – and injected into the specialist's system prompt. Skills change voice and handling, not product selection."
       />
       <ExpCard>
         <Eyebrow label="Two routers · different jobs" />

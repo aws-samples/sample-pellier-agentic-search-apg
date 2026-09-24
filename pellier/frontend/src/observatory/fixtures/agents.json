@@ -5,7 +5,7 @@
     "role": "Interprets intent, searches the catalog, and curates options.",
     "status": "shipped",
     "tools": ["search_products", "browse_category", "compare_products", "get_related_products", "escalate_to_human"],
-    "model": "Claude Opus 4.6"
+    "model": "Claude Opus 5"
   },
   {
     "numeral": "II",
@@ -13,7 +13,7 @@
     "role": "Personalized recommendations, trending picks, gift curation. Reads persona memory.",
     "status": "shipped",
     "tools": ["search_products_hybrid", "get_trending_products", "get_customer_preferences", "get_audit_trail", "compare_products", "browse_category"],
-    "model": "Claude Opus 4.6"
+    "model": "Claude Opus 5"
   },
   {
     "numeral": "III",
@@ -21,7 +21,7 @@
     "role": "Price intelligence – deals, comparisons, value-per-dollar across collections.",
     "status": "shipped",
     "tools": ["get_price_analysis", "browse_category", "search_products"],
-    "model": "Claude Sonnet 4.6"
+    "model": "Claude Sonnet 5"
   },
   {
     "numeral": "IV",
@@ -29,7 +29,7 @@
     "role": "Inventory – stock levels, restock operations, low-stock alerts.",
     "status": "exercise",
     "tools": ["check_inventory", "restock_inventory", "get_low_stock"],
-    "model": "Claude Sonnet 4.6",
+    "model": "Claude Sonnet 5",
     "exerciseFiles": ["pellier/backend/agents/inventory_agent.py"]
   },
   {
@@ -38,6 +38,6 @@
     "role": "Returns, care instructions, post-purchase support.",
     "status": "shipped",
     "tools": ["get_return_policy", "search_products", "initiate_return", "get_audit_trail", "escalate_to_human"],
-    "model": "Claude Opus 4.6"
+    "model": "Claude Opus 5"
   }
 ]

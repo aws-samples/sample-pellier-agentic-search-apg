@@ -1,7 +1,7 @@
 """Relevance test for the recommendation specialist `recommendation` agent.
 
   The specialist is a Strands `Agent` wrapping `BedrockModel` with
-         the Opus 4.6 support factory and the four tools
+         the Opus 5 support factory and the four tools
          `[search_products, get_trending_products, compare_products,
          browse_category]`.
   The system prompt emphasizes warm, editorial, catalog-style
@@ -160,9 +160,9 @@ def test_personalization_agent_is_constructed_with_per_agent_model_mix_and_seven
     """Building the Personalization Agent SHALL match the per-agent model mix
     documented in the Workshop Studio repo's content/ model-mix sidebar:
 
-      - Claude Opus 4.6 (BEDROCK_OPUS_MODEL)
+      - Claude Opus 5 (BEDROCK_OPUS_MODEL)
       - no temperature field; Bedrock rejects that deprecated field for
-        Opus 4.6
+        Opus 5
       - exactly seven tools: search_products_hybrid + get_trending_products +
         get_customer_preferences + get_audit_trail + compare_products +
         browse_category + escalate_to_human.
@@ -181,7 +181,7 @@ def test_personalization_agent_is_constructed_with_per_agent_model_mix_and_seven
     kwargs = _StubAgent.last_kwargs
     assert "model" in kwargs, "Agent SHALL be constructed with a model= kwarg"
     assert isinstance(kwargs["model"], _StubBedrockModel)
-    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-4-6-v1"
+    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-5"
     assert kwargs["model"].kwargs["max_tokens"] == 1200
     assert "temperature" not in kwargs["model"].kwargs
 

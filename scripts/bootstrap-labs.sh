@@ -337,7 +337,7 @@ AWS_REGION='${AWS_REGION}'
 AWS_DEFAULT_REGION='${AWS_REGION}'
 BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
 BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-cohere.rerank-v3-5:0}'
-BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-6-v1}'
+BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-5}'
 BEDROCK_FAST_MODEL='${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'
 WORKSHOP_ID='${WORKSHOP_ID:-dat416}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-governed}'
@@ -967,12 +967,11 @@ export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 # CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
 # instance role (the same ambient-credential chain psql/boto3/agentcore already
 # use) — no Anthropic API key, no per-participant login, nothing to paste.
-# Model: pin the global Sonnet 4.6 profile. Workshop Studio accounts do not
-# expose the Claude 5 family, so the floating `sonnet` alias (which a current
-# CLI resolves to Sonnet 5 on Bedrock) fails with AccessDenied on the event
-# account. This is the same profile the app's Sonnet tier already requires.
+# Model: pin global Sonnet 5 explicitly. The model-access preflight verifies
+# this same profile for app routing/reporting and the participant CLI lane.
+# A floating alias could move to an untested model independently of this release.
 export CLAUDE_CODE_USE_BEDROCK=1
-export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-4-6}
+export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}
 export AWS_REGION=${AWS_REGION:-us-east-1}
 # The CLI is installed globally as root (/usr/bin/claude) but runs as the
 # participant user, so its auto-updater can't write the root-owned npm prefix
