@@ -413,6 +413,7 @@ server {
 
     # Frontend/IDE proxy (Code Editor)
     location / {
+        # __PELLIER_EDITOR_COOKIE_FLAGS__
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-Host $http_host;
@@ -442,6 +443,9 @@ if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
     add_header Referrer-Policy no-referrer always;' /etc/nginx/conf.d/code-editor.conf
     # Preserve /editor for Code OSS; the app prefix is stripped independently.
     sed -i 's|location / {|location /editor/ {|; s|proxy_pass http://127.0.0.1:8080/;|proxy_pass http://127.0.0.1:8080;|' /etc/nginx/conf.d/code-editor.conf
+    # Code OSS reads vscode-tkn in the browser to authenticate its remote
+    # connection, so HttpOnly would break the editor. Viewer access is HTTPS.
+    sed -i 's|# __PELLIER_EDITOR_COOKIE_FLAGS__|proxy_cookie_flags vscode-tkn secure samesite=lax;|' /etc/nginx/conf.d/code-editor.conf
 fi
 
 nginx -t

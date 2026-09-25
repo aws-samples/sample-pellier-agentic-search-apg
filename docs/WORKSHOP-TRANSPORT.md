@@ -34,6 +34,11 @@ capacity, quota, lifecycle and extra-instance dependencies.
 - nginx access logging and WAF sampled requests are disabled for these launch
   paths so the editor token is not recorded there. The response uses
   `Referrer-Policy: no-referrer`.
+- nginx adds `Secure` and `SameSite=Lax` to the editor's `vscode-tkn` cookie,
+  including token redirects and renewed sessions. Code OSS reads this cookie
+  in its browser remote-connection setup, so it must remain JavaScript-readable.
+  `HttpOnly` is appropriate for the application's server-managed auth cookies,
+  but would break this editor connection contract.
 
 Local development remains at `/`; an explicit `VITE_API_URL` can select a
 separate API origin. New application requests should use the shared API helpers

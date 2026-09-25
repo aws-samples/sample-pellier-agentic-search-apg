@@ -40,6 +40,8 @@ def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_
     assert "Referrer-Policy no-referrer" in config
     assert "proxy_set_header X-Forwarded-Host $host;" in config
     assert "location /editor/ {" in config
+    assert "proxy_cookie_flags vscode-tkn secure samesite=lax;" in config
+    assert "httponly" not in config.lower()
     assert "proxy_pass http://127.0.0.1:8080;" in config
     assert "location /ports/8000/ {" in config
     assert "proxy_pass http://127.0.0.1:8000/;" in config
@@ -57,6 +59,7 @@ def test_existing_origin_default_keeps_forwarding_contract_without_health_listen
     assert "$http_x_pellier_viewer_proto" not in config
     assert "listen 8081" not in config
     assert 'return 403;' in config
+    assert "proxy_cookie_flags" not in config
 
 
 @pytest.mark.parametrize("private,token,expected", [("true", "", 1), ("unexpected", "token", 1), ("true", "token", 0), ("false", "", 0)])
