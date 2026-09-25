@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from contextvars import ContextVar
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -169,6 +170,14 @@ def policy_statement(policy: Dict[str, Any]) -> str:
     body = definition.get("policy") or definition.get("cedar") or {}
     statement = body.get("statement")
     return statement if isinstance(statement, str) else ""
+
+
+def policy_effect(statement: str) -> str:
+    """Read the leading effect without mistaking comments or whitespace for it."""
+    match = re.match(r"(?:\s|//[^\n]*(?:\n|$))*(permit|forbid|suppressOutput)\s*\(", statement)
+    if not match:
+        raise ControlPlaneUnavailable("Policy effect unavailable")
+    return match.group(1)
 
 
 def policy_summaries(client: Any, engine_id: str) -> Iterator[Dict[str, Any]]:
@@ -390,7 +399,7 @@ def _read_engine_state(
         # The effect is read from the statement rather than a response field: the
         # control plane does not return `effect` on this shape, and inferring
         # "forbid" from a name would break the moment a policy is renamed.
-        effect = "forbid" if statement.lstrip().startswith("forbid") else "permit"
+        effect = policy_effect(statement)
         policies[name] = (effect, str(detail.get("enforcementMode") or ""))
         policy_ids[name] = str(summary["policyId"])
         if effect == "forbid" and action_id in statement:

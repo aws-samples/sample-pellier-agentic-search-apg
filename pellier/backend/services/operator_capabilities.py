@@ -49,11 +49,13 @@ direction where being wrong hands out a capability nobody authorized.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +173,42 @@ def _classify(published: List[str], permitted: Dict[str, int]) -> Dict[str, Capa
     return out
 
 
+def _published_tool_names(schema: Dict[str, Any]) -> List[str]:
+    """Read the deployed schema union, including the CLI's S3-backed form."""
+    definitions = schema.get("inlinePayload")
+    if definitions is None and isinstance(schema.get("s3"), dict):
+        import boto3
+        from config import settings
+        from services.managed_policy import _control_client_config
+
+        location = schema["s3"]
+        uri = urlsplit(location.get("uri", ""))
+        if uri.scheme != "s3" or not uri.netloc or not uri.path.lstrip("/"):
+            raise ValueError("Invalid deployed tool schema location")
+        request = {"Bucket": uri.netloc, "Key": uri.path.lstrip("/")}
+        if location.get("bucketOwnerAccountId"):
+            request["ExpectedBucketOwner"] = location["bucketOwnerAccountId"]
+        client = boto3.client(
+            "s3", region_name=settings.aws_region_resolved, config=_control_client_config()
+        )
+        body = client.get_object(**request)["Body"]
+        try:
+            raw = body.read(1024 * 1024 + 1)
+        finally:
+            body.close()
+        if len(raw) > 1024 * 1024:
+            raise ValueError("Deployed tool schema exceeds the read limit")
+        definitions = json.loads(raw)
+    if not isinstance(definitions, list) or any(
+        not isinstance(tool, dict)
+        or not isinstance(tool.get("name"), str)
+        or not tool["name"]
+        for tool in definitions
+    ):
+        raise ValueError("Deployed tool schema is unavailable or invalid")
+    return [tool["name"] for tool in definitions]
+
+
 def _live_gateway_facts() -> Tuple[List[str], Dict[str, int]]:
     """Published tool names and matching-permit counts, from the control plane.
 
@@ -185,27 +223,29 @@ def _live_gateway_facts() -> Tuple[List[str], Dict[str, int]]:
     if not gateway_arn or not engine_id:
         raise RuntimeError("AgentCore Gateway/policy engine not configured")
 
-    from services.managed_policy import _control_client, policy_statement, policy_summaries
+    from services.managed_policy import _control_client, policy_effect, policy_statement, policy_summaries
 
     client = _control_client()
     gateway_id = gateway_arn.rsplit("/", 1)[-1]
 
     published: List[str] = []
     target_names: List[str] = []
-    for item in client.list_gateway_targets(gatewayIdentifier=gateway_id).get("items", []):
-        detail = client.get_gateway_target(
-            gatewayIdentifier=gateway_id, targetId=item["targetId"]
-        )
-        schema = (
-            detail.get("targetConfiguration", {})
-            .get("mcp", {})
-            .get("lambda", {})
-            .get("toolSchema", {})
-            or {}
-        )
-        names = [t.get("name") for t in (schema.get("inlinePayload") or []) if t.get("name")]
-        published.extend(names)
-        target_names.extend([detail.get("name", "")] * len(names))
+    pages = client.get_paginator("list_gateway_targets").paginate(gatewayIdentifier=gateway_id)
+    for page in pages:
+        for item in page.get("items", []):
+            detail = client.get_gateway_target(
+                gatewayIdentifier=gateway_id, targetId=item["targetId"]
+            )
+            schema = (
+                detail.get("targetConfiguration", {})
+                .get("mcp", {})
+                .get("lambda", {})
+                .get("toolSchema", {})
+                or {}
+            )
+            names = _published_tool_names(schema)
+            published.extend(names)
+            target_names.extend([detail.get("name", "")] * len(names))
 
     qualified = {
         name: f"{target}___{name}"
@@ -222,7 +262,7 @@ def _live_gateway_facts() -> Tuple[List[str], Dict[str, int]]:
         if not statement.strip():
             raise RuntimeError("Policy definition unavailable")
         flat = " ".join(statement.split())
-        if not flat.startswith("permit("):
+        if policy_effect(statement) != "permit":
             continue
         unconstrained = "(principal, action," in flat
         for name, action_id in qualified.items():

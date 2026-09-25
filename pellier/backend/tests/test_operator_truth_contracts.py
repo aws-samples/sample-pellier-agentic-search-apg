@@ -8,7 +8,10 @@ surface could be confidently wrong.
 from __future__ import annotations
 
 import importlib
+import io
+import json
 from typing import Any, Dict, List, Optional
+from unittest.mock import Mock
 
 import pytest
 
@@ -73,6 +76,99 @@ def test_permitted_review_gated_tool_reports_review_required() -> None:
     assert states["initiate_return"].state == CAP.REVIEW_REQUIRED
     # Escalation is not a consequential write, so it needs no review.
     assert states["escalate_to_human"].state == CAP.AVAILABLE
+
+
+@pytest.mark.parametrize("prefix", ["permit(", "permit (", "// Published staff permit\npermit (\n"])
+def test_live_capabilities_read_paginated_targets_and_s3_schema(monkeypatch, prefix) -> None:
+    """The CLI publishes S3 schemas; the experience target may be on page two."""
+    import boto3
+    from config import settings
+    from services import managed_policy
+
+    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_ARN", "arn:aws:bedrock-agentcore:us-east-1:123:gateway/test")
+    monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "policy-test")
+    control = Mock()
+    control.get_paginator.return_value.paginate.return_value = [
+        {"items": [{"targetId": "catalog"}]},
+        {"items": [{"targetId": "experience"}]},
+    ]
+    schemas = {
+        "catalog": {"inlinePayload": [{"name": "search_products"}]},
+        "experience": {"s3": {
+            "uri": "s3://deployment-assets/schemas/experience.json",
+            "bucketOwnerAccountId": "123456789012",
+        }},
+    }
+    control.get_gateway_target.side_effect = lambda **kwargs: {
+        "name": kwargs["targetId"],
+        "targetConfiguration": {"mcp": {"lambda": {"toolSchema": schemas[kwargs["targetId"]]}}},
+    }
+    control.get_policy.return_value = {"enforcementMode": "ACTIVE"}
+    monkeypatch.setattr(managed_policy, "_control_client", lambda: control)
+    monkeypatch.setattr(managed_policy, "policy_summaries", lambda *_: [{"policyId": "staff"}])
+    monkeypatch.setattr(managed_policy, "policy_statement", lambda _: (
+        prefix + 'principal, action == AgentCore::Action::"experience___initiate_return", resource);'
+    ))
+    body = io.BytesIO(json.dumps([{"name": "initiate_return"}]).encode())
+    s3 = Mock()
+    s3.get_object.return_value = {"Body": body}
+    factory = Mock(return_value=s3)
+    monkeypatch.setattr(boto3, "client", factory)
+
+    payload = CAP.get_capabilities(force_refresh=True)
+
+    assert payload["source"] == "agentcore"
+    assert payload["capabilities"]["initiate_return"]["state"] == CAP.REVIEW_REQUIRED
+    assert payload["capabilities"]["issue_credit"]["state"] == CAP.NOT_ENABLED
+    control.get_paginator.assert_called_once_with("list_gateway_targets")
+    control.get_paginator.return_value.paginate.assert_called_once_with(gatewayIdentifier="test")
+    s3.get_object.assert_called_once_with(
+        Bucket="deployment-assets", Key="schemas/experience.json", ExpectedBucketOwner="123456789012"
+    )
+    assert factory.call_args.args == ("s3",)
+    assert factory.call_args.kwargs["region_name"] == settings.aws_region_resolved
+    assert factory.call_args.kwargs["config"].read_timeout <= 10
+    assert body.closed
+
+
+def test_commented_forbid_remains_a_matching_forbid_in_engine_state(monkeypatch) -> None:
+    from services import managed_policy
+
+    client = Mock()
+    client.get_gateway.return_value = {"policyEngineConfiguration": {"mode": "ENFORCE"}}
+    client.get_policy.return_value = {
+        "name": "identity_match", "enforcementMode": "ACTIVE",
+        "definition": {"policy": {"statement": (
+            '// Lab instructions mention permit before the actual effect.\n'
+            'forbid (principal, action == AgentCore::Action::"experience___initiate_return", resource);'
+        )}},
+    }
+    monkeypatch.setattr(managed_policy, "_control_client", lambda: client)
+    monkeypatch.setattr(managed_policy, "policy_summaries", lambda *_: [{"policyId": "identity"}])
+    result = managed_policy._read_engine_state("engine", "experience___initiate_return", "arn:gateway/test")
+    assert result["policies"]["identity_match"] == ("forbid", "ACTIVE")
+    assert result["matching"] == ["identity_match"]
+
+
+@pytest.mark.parametrize("raw", [b"not json", b"{}", b'[{}]', b" " * (1024 * 1024 + 1)])
+def test_invalid_deployed_s3_schema_fails_closed_and_closes_body(monkeypatch, raw) -> None:
+    import boto3
+
+    body = io.BytesIO(raw)
+    s3 = Mock()
+    s3.get_object.return_value = {"Body": body}
+    monkeypatch.setattr(boto3, "client", lambda *args, **kwargs: s3)
+    monkeypatch.setattr(CAP, "_live_gateway_facts", lambda: (
+        CAP._published_tool_names({"s3": {"uri": "s3://assets/schema.json"}}), {}
+    ))
+
+    payload = CAP.get_capabilities(force_refresh=True)
+
+    assert body.closed
+    assert payload["source"] == "unverified"
+    assert payload["governedActionsAvailable"] is False
+    assert all(payload["capabilities"][name]["reason"] == CAP.REASON_UNVERIFIED
+               for name in CAP.GOVERNED_WRITE_TOOLS)
 
 
 def test_capability_lookup_failure_fails_closed(monkeypatch) -> None:

@@ -43,7 +43,9 @@ def test_operator_reads_paged_policy_details_instead_of_list_summaries(monkeypat
         }
 
     client = SimpleNamespace(
-        list_gateway_targets=lambda **_: {"items": [{"targetId": "returns"}]},
+        get_paginator=lambda _: SimpleNamespace(
+            paginate=lambda **_: [{"items": [{"targetId": "returns"}]}]
+        ),
         get_gateway_target=lambda **_: {
             "name": "returns", "targetConfiguration": {"mcp": {"lambda": {
                 "toolSchema": {"inlinePayload": [{"name": "initiate_return"}]}

@@ -2,7 +2,7 @@
 SkillRouter — one-call LLM decider.
 
 Given a user message and the registry's library of skills, the router
-asks Sonnet 4.6 which skills to load for this turn. One
+asks the configured router model which skills to load for this turn. One
 LLM call. No embeddings, no scoring, no multi-call cascades. The skill
 descriptions ARE the activation contract — the router trusts them.
 
@@ -69,7 +69,6 @@ class SkillRouter:
     ) -> None:
         self._registry = registry
         self._model_id = model_id
-        self._agent = None  # Lazy — avoid Bedrock client init at import time
 
     def _build_prompt(self) -> str:
         """Compose the router system prompt with every skill's name/description."""
@@ -80,22 +79,17 @@ class SkillRouter:
         return "\n".join(lines)
 
     def _get_agent(self):
-        """
-        Build (or return cached) the Strands Agent used for routing.
+        """Build an isolated, tool-free classifier for this routing decision.
 
-        We construct a tool-free Agent with Sonnet 4.6 and a fixed system
-        prompt. The skill library is baked into the
-        system prompt at construction time; when a skill is added at
-        runtime we'd need to reset this cache (not a v1 concern — the
-        registry loads at boot).
+        Strands retains conversation history on an Agent. Reusing one would
+        let previous classifications influence an unrelated message; only the
+        explicit context passed to route() belongs in this decision.
         """
-        if self._agent is not None:
-            return self._agent
 
         from strands import Agent
         from strands.models import BedrockModel
 
-        self._agent = Agent(
+        return Agent(
             model=BedrockModel(
                 model_id=self._model_id,
                 max_tokens=settings.SKILL_ROUTER_MAX_TOKENS_SONNET,
@@ -103,7 +97,6 @@ class SkillRouter:
             system_prompt=self._build_prompt(),
             tools=[],
         )
-        return self._agent
 
     def route(
         self,

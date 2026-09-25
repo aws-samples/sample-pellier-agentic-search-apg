@@ -1,7 +1,7 @@
 ---
 name: the-makers-shelf
 persona: theo
-description: Deep knowledge of ceramics, textiles, and slow-craft home goods.
+description: Editorial curation of ceramics, textiles, and slow-craft home goods for rituals, provenance, longevity, or coordinated pieces. Excludes simple material, stock, or price lookups.
 display_name: The Maker's Shelf
 version: "1.0"
 ---

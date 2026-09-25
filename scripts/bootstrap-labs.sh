@@ -1556,6 +1556,9 @@ EOF
         upsert_env "AGENTCORE_GATEWAY_ARN" "$GATEWAY_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
         if [ "${WORKSHOP_FORMAT}" = "governed" ]; then
+            # Lab 4 requires the staff investigation composer. Enable it only
+            # after the separate Operator Runtime has passed its live proof.
+            upsert_env "OPERATOR_CONCIERGE_COMPOSER_ENABLED" "true" "$REPO_PATH/.env"
             # Labs 1 and 2 must exercise the participant's local Inventory
             # Agent and hybrid retrieval code. Lab 3 deliberately switches
             # the storefront to this already-provisioned Runtime, after the

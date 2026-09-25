@@ -452,6 +452,8 @@ def _run_health_gate(
     shopper_in_operator_group: bool = False,
     group_lookup_error_for: str | None = None,
     operator_token_ready: bool = True,
+    operator_composer_ready: bool = True,
+    operator_return_state: str = "review_required",
     shopper_claim_ready: bool = True,
     quarantine: str | None = None,
     provision_state: str | None = None,
@@ -526,9 +528,15 @@ def _run_health_gate(
 case "$*" in
   *api/health*) printf '{"status":"healthy"}' ;;
   *memory/status*) printf '{"live":true,"source":"agentcore-sdk","resource_status":"ACTIVE"}' ;;
+  *operator/concierge/config*) printf '__OPERATOR_CONFIG__' ;;
+  *operator/capabilities*) printf '__OPERATOR_CAPABILITIES__' ;;
   *) printf '<!doctype html><div id="root"></div>' ;;
 esac
-""",
+""".replace("__OPERATOR_CONFIG__", json.dumps({
+            "composerEnabled": operator_composer_ready, "orchestrationAvailable": True,
+        })).replace("__OPERATOR_CAPABILITIES__", json.dumps({
+            "source": "agentcore", "capabilities": {"initiate_return": {"state": operator_return_state}},
+        })),
     )
     _write_executable(
         fake_bin / "psql",
@@ -1670,6 +1678,25 @@ def test_the_health_gate_passes_when_only_the_operator_is_in_the_group(tmp_path)
     assert "No shopper is in pellier-operators" in proc.stdout
     assert "Hosted UI client is configured for OAuth authorization-code sign-in" in proc.stdout
     assert "Seeded Operator can complete Cognito sign-in" in proc.stdout
+    assert "Operator investigation composer is enabled and orchestration is available" in proc.stdout
+    assert "Operator return capability is published, permitted, and requires human review" in proc.stdout
+
+
+@pytest.mark.parametrize("composer_ready,return_state,expected", [
+    (False, "review_required", "Operator investigation composer is unavailable"),
+    (True, "not_enabled", "Operator return capability is unavailable"),
+    (True, "temporarily_unavailable", "Operator return capability is unavailable"),
+    (True, "available", "Operator return capability is unavailable"),
+])
+def test_health_gate_requires_working_operator_review_workflow(
+    tmp_path, composer_ready, return_state, expected,
+) -> None:
+    proc = _run_health_gate(
+        tmp_path, model_ready=True, workshop_format="governed", managed_ready=True,
+        operator_composer_ready=composer_ready, operator_return_state=return_state,
+    )
+    assert proc.returncode == 1, proc.stdout
+    assert expected in proc.stdout
 
 
 def test_the_health_gate_refuses_an_operator_that_cannot_sign_in(tmp_path) -> None:

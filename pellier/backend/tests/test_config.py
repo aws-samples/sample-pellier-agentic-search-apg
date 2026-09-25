@@ -286,7 +286,7 @@ def test_operator_capability_probe_uses_the_resolved_aws_region(monkeypatch) -> 
 
     calls = []
     client = SimpleNamespace(
-        list_gateway_targets=lambda **_: {"items": []},
+        get_paginator=lambda _: SimpleNamespace(paginate=lambda **_: [{"items": []}]),
         list_policies=lambda **_: {"policies": []},
     )
     def create(service, **kwargs):

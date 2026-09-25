@@ -302,18 +302,10 @@ class Settings(BaseSettings):
     # parameter. Both list settings below are comma-separated.
     AGENTCORE_EVALS_ENABLED: bool = False
 
-    # Operator Concierge composer. OFF by default, and it must stay off in the
-    # shipped workshop configuration until Phase 4 read orchestration exists.
-    #
-    # When True the composer submits a real turn: the request is durably persisted
-    # and rendered as an honest `incomplete` turn. Nothing is fabricated — no
-    # assistant reply, no investigation rows, no Aurora/Bedrock attribution. When
-    # False the composer renders read-only, because a submit box that visibly
-    # accepts a question and can never answer it is worse than no box.
-    #
-    # This flag gates ONLY whether an unanswered development turn may be submitted.
-    # It does not touch capability truth, session authorization, AgentCore state,
-    # review behaviour, or business capabilities.
+    # Local development starts with the staff composer disabled. Governed
+    # bootstrap enables it after proving the separate Operator Runtime.
+    # This controls submission only; staff authorization, capability discovery,
+    # human review, and governed execution retain their independent checks.
     OPERATOR_CONCIERGE_COMPOSER_ENABLED: bool = False
     AGENTCORE_EVALS_LOG_GROUPS: Optional[str] = None
     AGENTCORE_EVALS_SERVICE_NAMES: Optional[str] = None
