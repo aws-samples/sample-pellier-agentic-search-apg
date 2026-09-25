@@ -320,6 +320,7 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
     assert complete["response"]["products"][0]["productId"] == 7
     assert complete["response"]["orchestration"]["pattern"] == "dispatcher"
     assert complete["response"]["rail"] == "gateway-mcp"
+    assert complete["response"]["railDecision"]["rail"] == "gateway-mcp"
     assert complete["response"]["railDecision"]["managedRequested"] is True
     profile = _first(events, "aurora_profile_context")
     assert profile is not None

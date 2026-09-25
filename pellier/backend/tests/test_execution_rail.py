@@ -236,6 +236,7 @@ def test_storefront_complete_event_carries_the_rail(
     annotated = app_module._annotate_rail(event, decision, degraded_notice)
 
     assert annotated["response"]["rail"] == RAIL_RUNTIME
+    assert annotated["response"]["railDecision"]["rail"] == RAIL_RUNTIME
     assert annotated["response"]["railDecision"]["available"] is True
     assert "degradation" not in annotated["response"]
 

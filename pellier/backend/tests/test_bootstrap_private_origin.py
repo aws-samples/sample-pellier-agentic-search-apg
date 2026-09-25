@@ -39,6 +39,8 @@ def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_
     assert "access_log off;" in config
     assert "Referrer-Policy no-referrer" in config
     assert "proxy_set_header X-Forwarded-Host $host;" in config
+    assert config.count("proxy_set_header X-Forwarded-Proto https;") == 4
+    assert "proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;" not in config
     assert "location /editor/ {" in config
     assert "proxy_cookie_flags vscode-tkn secure samesite=lax;" in config
     assert "httponly" not in config.lower()
@@ -56,6 +58,7 @@ def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_
 def test_existing_origin_default_keeps_forwarding_contract_without_health_listener(tmp_path):
     config = _render(tmp_path, False)
     assert "map $http_x_forwarded_proto $pellier_forwarded_proto" in config
+    assert config.count("proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;") == 4
     assert "$http_x_pellier_viewer_proto" not in config
     assert "listen 8081" not in config
     assert 'return 403;' in config

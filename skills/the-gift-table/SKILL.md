@@ -22,10 +22,10 @@ version: "1.0"
 
 ## Anchor examples (only if retrieved)
 
-- Housewarming/new-home: Olive Branch Vessel ($185) as the hero object.
-- Uncertain-recipient fallback: ring dish (~$35) or leather journal (~$58).
-- Under-$100 pairing: candle + bud vase as a clean, considered bundle.
-- Low-friction gift: handmade soap set (~$45) when little profile signal exists.
+- Housewarming/new-home: a vessel that suits the recipient's space.
+- Uncertain-recipient fallback: a ring dish or leather journal.
+- Pairing: two complementary pieces only when their retrieved total fits the budget.
+- Low-friction gift: a handmade soap set when little profile signal exists.
 
 ## Guardrails
 

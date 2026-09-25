@@ -438,6 +438,11 @@ fi
 if [ "$PELLIER_PRIVATE_ORIGIN" = "true" ]; then
     # CloudFront terminates viewer HTTPS. The VPC origin uses private HTTP,
     # matching Mosaic; nginx still requires a separate origin credential.
+    # CloudFront removes X-Forwarded-Proto. Its viewer policy redirects HTTP
+    # to HTTPS, so the private origin must supply that public scheme itself.
+    # Falling back to $scheme here produces an unregistered http OAuth callback.
+    # shellcheck disable=SC2016 # Match the literal nginx variable.
+    sed -i 's|proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;|proxy_set_header X-Forwarded-Proto https;|g' /etc/nginx/conf.d/code-editor.conf
     sed -i '/server_name _;/a\
     access_log off;\
     add_header Referrer-Policy no-referrer always;' /etc/nginx/conf.d/code-editor.conf
@@ -703,6 +708,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "terminal.integrated.defaultProfile.linux": "bash",
     "task.allowAutomaticTasks": "on",
     "python.defaultInterpreterPath": "/usr/bin/python3.14",
+    "python.analysis.typeCheckingMode": "off",
     "python.testing.pytestEnabled": true,
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
@@ -842,6 +848,7 @@ cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
     "terminal.integrated.fontSize": 18,
     "window.zoomLevel": 1,
     "python.defaultInterpreterPath": "/usr/bin/python3.14",
+    "python.analysis.typeCheckingMode": "off",
     "task.autoDetect": "on",
     "task.allowAutomaticTasks": "on",
     "task.problemMatchers.neverPrompt": true,

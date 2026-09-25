@@ -879,7 +879,9 @@ def _annotate_rail(
     annotated = {
         **response,
         "rail": actual_rail or decision.rail,
-        "railDecision": decision.to_dict(),
+        # Completion carries observed execution, not just the pre-invoke
+        # selection. The UI reads this field for its governed-rail label.
+        "railDecision": {**decision.to_dict(), "rail": actual_rail or decision.rail},
     }
     if turn_id:
         annotated["turn_id"] = turn_id

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
+import json
 from pathlib import Path
 from typing import Any
 
@@ -314,6 +316,59 @@ def test_validator_follows_source_catalogue_changes(monkeypatch) -> None:
         config, "tools", [*config["tools"], {"name": "future_catalogue_read"}]
     )
     assert _load_validator().validate_receipt(_valid_receipt()) == []
+
+
+def _participant_receipt(full: dict[str, Any]) -> dict[str, Any]:
+    receipt = copy.deepcopy(full)
+    receipt["mode"] = "participant"
+    receipt.pop("memory")
+    receipt.pop("observability")
+    smoke = receipt["verification"]["runtime_invoke_smoke"]
+    smoke["build_fingerprint"] = "updated-package"
+    smoke["build_fingerprint_expected"] = "updated-package"
+    smoke["session_id"] = "participant-new-session"
+    return receipt
+
+
+def test_participant_catalogue_change_keeps_full_bootstrap_proof(monkeypatch, tmp_path) -> None:
+    validator = _load_validator()
+    full = _valid_receipt()
+    import gateway_tool_schemas as schemas
+
+    config = schemas.TOOL_SCHEMAS["search"]
+    monkeypatch.setitem(config, "tools", [*config["tools"], {"name": "future_catalogue_read"}])
+    participant = _participant_receipt(_valid_receipt())
+    assert validator.validate_receipt(full), "the historical catalogue is stale"
+    original = copy.deepcopy(full)
+    assert validator.validate_receipt(full, participant) == []
+    assert full == original, "historical evidence must not be rewritten"
+
+    full_path, update_path = tmp_path / "full.json", tmp_path / "update.json"
+    full_path.write_text(json.dumps(full))
+    update_path.write_text(json.dumps(participant))
+    monkeypatch.setattr(validator.sys, "argv", ["validator", str(full_path), "--participant", str(update_path)])
+    assert validator.main() == 0
+    full["verification"]["unified_trace_tool_span"] = False
+    assert validator.validate_receipt(full, participant), "update cannot replace missing bootstrap proof"
+
+
+@pytest.mark.parametrize("failure", ["resource", "failed", "fingerprint", "discovery", "catalogue", "policy"])
+def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str) -> None:
+    full = _valid_receipt()
+    participant = _participant_receipt(full)
+    if failure == "resource":
+        participant["gateway"]["gateway_id"] = "another-environment"
+    elif failure == "failed":
+        participant["status"] = "failed"
+    elif failure == "fingerprint":
+        participant["verification"]["runtime_invoke_smoke"]["build_fingerprint"] = "stale-package"
+    elif failure == "discovery":
+        participant["verification"]["gateway_tools_discovered"] = False
+    elif failure == "catalogue":
+        participant["verification"]["gateway_tool_names"][0] = "issue_credit"
+    else:
+        participant["verification"]["gateway_control_plane"]["policy_mode"] = "LOG_ONLY"
+    assert _load_validator().validate_receipt(full, participant)
 
 
 @pytest.mark.parametrize("failure", ["missing", "stale", "partial", "endpoint", "log"])

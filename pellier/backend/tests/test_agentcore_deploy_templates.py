@@ -1914,11 +1914,13 @@ def _participant_state(identity: Any) -> dict[str, Any]:
     }
 
 
-def test_participant_update_deploys_once_reusing_the_deployed_gateway_arn(
+@pytest.mark.parametrize("new_policy", [False, True])
+def test_participant_update_orders_new_actions_before_policies_without_dropping_enforcement(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    new_policy: bool,
 ) -> None:
-    """One deploy, not two: the Gateway ARN the second pass waited for exists."""
+    """A fresh action cannot validate until the preceding deploy publishes it."""
     provisioner = _load_provisioner()
     identity = provisioner.deployment_identity()
     root = tmp_path / "project"
@@ -1927,15 +1929,33 @@ def test_participant_update_deploys_once_reusing_the_deployed_gateway_arn(
 
     render_calls: list[dict[str, Any]] = []
     cli_calls: list[tuple[str, ...]] = []
+    deployed_configs: list[dict[str, Any]] = []
+    existing = {"name": "existing_forbid", "statement": "keep this policy unchanged"}
+    policies = [existing] + ([{"name": "new_owner_permit"}] if new_policy else [])
+    desired = {
+        "policyEngines": [{"name": identity.policy_engine_name, "policies": policies}],
+        "agentCoreGateways": [{"policyEngineConfiguration": {"mode": "ENFORCE"}}],
+    }
+
+    def render(**kwargs):
+        render_calls.append(kwargs)
+        (root / "agentcore/agentcore.json").write_text(json.dumps(desired))
+
+    def cli(_root, *args, **_kwargs):
+        cli_calls.append(args)
+        if args[0] == "deploy":
+            config = json.loads((root / "agentcore/agentcore.json").read_text())
+            staged_policies = config["policyEngines"][0]["policies"]
+            assert existing in staged_policies
+            assert config["agentCoreGateways"] == desired["agentCoreGateways"]
+            if new_policy and not deployed_configs:
+                assert staged_policies == [existing], "new policy would validate before action publication"
+            deployed_configs.append(config)
+
     monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
-    monkeypatch.setattr(
-        provisioner, "render_project", lambda **kwargs: render_calls.append(kwargs)
-    )
-    monkeypatch.setattr(
-        provisioner,
-        "_agentcore",
-        lambda _root, *args, **_kwargs: cli_calls.append(args),
-    )
+    monkeypatch.setattr(provisioner, "render_project", render)
+    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: {"existing_forbid"})
+    monkeypatch.setattr(provisioner, "_agentcore", cli)
     monkeypatch.setattr(
         provisioner, "_read_deployed_state", lambda _root: _participant_state(identity)
     )
@@ -1958,12 +1978,33 @@ def test_participant_update_deploys_once_reusing_the_deployed_gateway_arn(
 
     assert returned_root == root
     assert state == _participant_state(identity)
-    # The full path renders twice because policies need an ARN it does not yet
-    # have. Here the policies are present on the only render.
     assert len(render_calls) == 1
     assert render_calls[0]["include_policies"] is True
     assert render_calls[0]["gateway_arn"] == "arn:gateway"
-    assert cli_calls == [("validate",), ("deploy", "--yes", "--json")]
+    assert cli_calls == [("validate",), ("deploy", "--yes", "--json")] * (2 if new_policy else 1)
+    assert deployed_configs[-1] == desired
+    assert json.loads((root / "agentcore/agentcore.json").read_text()) == desired
+
+
+def test_participant_update_refuses_to_remove_an_active_policy(monkeypatch, tmp_path) -> None:
+    provisioner = _load_provisioner()
+    identity = provisioner.deployment_identity()
+    root = tmp_path / "project"
+    (root / "agentcore").mkdir(parents=True)
+    config = {"policyEngines": [{"name": identity.policy_engine_name, "policies": []}]}
+    (root / "agentcore/agentcore.json").write_text(json.dumps(config))
+    monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
+    monkeypatch.setattr(provisioner, "render_project", lambda **_k: None)
+    monkeypatch.setattr(provisioner, "_read_deployed_state", lambda _r: _participant_state(identity))
+    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: {"workshop_identity_match_forbid"})
+    monkeypatch.setattr(provisioner, "_agentcore", lambda *_a, **_k: pytest.fail("must not deploy"))
+    with pytest.raises(RuntimeError, match="would remove active policies: workshop_identity_match_forbid"):
+        provisioner._redeploy_participant_edits(
+            repo=tmp_path, account_id="123456789012", region="us-east-1",
+            cognito_pool="pool", cognito_client="client", lambda_arns=_lambda_arns(),
+            model_id="model", opus_model_id="opus", sonnet_model_id="sonnet", fast_model_id="fast",
+            workshop_id="dat416", env={}, identity=identity,
+        )
 
 
 def test_participant_update_refuses_an_unprovisioned_environment(

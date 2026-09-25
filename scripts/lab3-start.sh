@@ -35,6 +35,7 @@ PYTHON="${PELLIER_PYTHON:-python3}"
 BASE="${BASE_URL:-http://localhost:8000}"
 HEALTH_URL="${HEALTH_URL:-$BASE/api/health}"
 MANAGED_RECEIPT="${AGENTCORE_MANAGED_OUTPUT_JSON:-/tmp/pellier-agentcore-managed.json}"
+PARTICIPANT_RECEIPT="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
 RECEIPT_VALIDATOR="$SCRIPT_DIR/validate_agentcore_receipt.py"
 TOKEN_HELPER="${PELLIER_TOKEN_HELPER:-$HOME/pellier-token.sh}"
 PERSONA="${1:-theo}"
@@ -209,7 +210,11 @@ if [ ! -f "$MANAGED_RECEIPT" ]; then
   fail "Managed provisioning receipt not found: $MANAGED_RECEIPT"
   exit 1
 fi
-if receipt_error="$("$PYTHON" "$RECEIPT_VALIDATOR" "$MANAGED_RECEIPT" 2>&1)"; then
+receipt_args=("$MANAGED_RECEIPT")
+if [ -f "$PARTICIPANT_RECEIPT" ]; then
+  receipt_args+=(--participant "$PARTICIPANT_RECEIPT")
+fi
+if receipt_error="$("$PYTHON" "$RECEIPT_VALIDATOR" "${receipt_args[@]}" 2>&1)"; then
   pass "Provisioning receipt validates (Gateway targets, Policy, gateway-mcp smoke)"
 else
   fail "Provisioning receipt is incomplete: ${receipt_error:-unknown contract failure}"

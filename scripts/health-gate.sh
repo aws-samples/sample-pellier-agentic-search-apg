@@ -426,10 +426,15 @@ fi
 # log group uses a customer-managed KMS key with bounded retention, and unified
 # telemetry delivered agent/model/tool spans, redacted tool I/O, and step latency.
 managed_receipt="${AGENTCORE_MANAGED_OUTPUT_JSON:-/tmp/pellier-agentcore-managed.json}"
+participant_receipt="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
+receipt_args=("$managed_receipt")
+if [[ -f "$participant_receipt" ]]; then
+  receipt_args+=(--participant "$participant_receipt")
+fi
 receipt_validator="$SCRIPT_DIR/validate_agentcore_receipt.py"
 if [[ -f "$managed_receipt" ]] && [[ -f "$receipt_validator" ]] \
     && command -v python3 >/dev/null 2>&1; then
-  if receipt_error="$(python3 "$receipt_validator" "$managed_receipt" 2>&1)"; then
+  if receipt_error="$(python3 "$receipt_validator" "${receipt_args[@]}" 2>&1)"; then
     pass "Managed receipt proves AgentCore resources, Policy ALLOW/DENY, gateway-mcp Runtime smoke, encrypted bounded Runtime logs, and sanitized trace delivery"
   else
     managed_missing "Managed provisioning receipt is incomplete or degraded: ${receipt_error:-unknown contract failure}"

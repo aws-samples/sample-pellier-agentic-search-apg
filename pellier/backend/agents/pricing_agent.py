@@ -22,6 +22,7 @@ from services.agent_tools import (
     compare_products,
     get_trending_products,
 )
+from pellier_copy import PRODUCT_REQUIREMENTS_PROMPT
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 from services.response_mode import resolve_specialist_model
@@ -52,10 +53,8 @@ _PRICING_SYSTEM_PROMPT = (
     "selected piece, naming it exactly as returned and explaining the price fit "
     "with returned facts. Do not name unselected results. "
     "The named pieces render as visual cards automatically. "
-    "Calculate the exact returned prices before calling a bundle under or "
-    "within a stated budget. If it exceeds the limit, say so plainly and "
-    "offer only qualifying alternatives. "
-    "If the tool returns zero products or an error, say what went wrong briefly "
+    + PRODUCT_REQUIREMENTS_PROMPT
+    + "If the tool returns zero products or an error, say what went wrong briefly "
     "(e.g. 'No pricing data available for that category right now.'). "
     "Never use markdown tables, numbered lists, headers, emojis, or em dashes. Never ask follow-up questions."
     "</output-rules>"

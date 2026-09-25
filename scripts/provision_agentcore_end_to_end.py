@@ -200,22 +200,18 @@ def _run(
 
 
 def _load_env_fallback(repo: Path) -> None:
-    """Fill missing variables from the backend `.env`, never overriding the real ones.
+    """Load saved runtime and provisioning inputs for a fresh participant shell.
 
-    This provisioner is invoked through `sudo -u <participant> bash -c "..."`, and sudo
-    strips the parent environment: only the variables that block explicitly re-exports
-    survive. That list was one short. `check_model_access.py` resolves the model ids at
-    bootstrap time and writes them into `pellier/backend/.env` (they are not static: an
-    account without Opus access gets a documented fallback), but nothing carried
-    `AGENT_MODEL_ID` from that file into this process, so `_require_env` raised and the
-    entire managed path died. Runtime, Memory, Gateway and Policy all failed on one
-    missing string, and the nine readiness failures that followed all had the same cause.
-
-    Reading the file here removes the whole class rather than one variable, and matches
-    what `gateway_initiate_return.py` and `reset_memory_runtime.py` already do. The real
-    environment still wins, so an explicit export always overrides the file.
+    Bootstrap exports additional inputs that an interactive Lab 3 deployment
+    does not inherit. It also saves them in `.provision.env` as `export KEY=value`.
+    Read those assignments as literal data, after the runtime configuration;
+    an explicit environment value always wins, including an empty suffix.
     """
-    for candidate in (repo / "pellier" / "backend" / ".env", repo / ".env"):
+    for candidate in (
+        repo / "pellier" / "backend" / ".env",
+        repo / ".env",
+        repo / ".provision.env",
+    ):
         if not candidate.is_file():
             continue
         for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
@@ -224,7 +220,13 @@ def _load_env_fallback(repo: Path) -> None:
                 continue
             key, _, value = line.partition("=")
             key = key.strip()
-            value = value.strip().strip("'\"")
+            if key.startswith("export "):
+                key = key.removeprefix("export ").strip()
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                value = value[1:-1]
             # setdefault, not assignment: a variable the caller exported is the caller's
             # decision and a stale file must never quietly win over it.
             if key == "PELLIER_DEPLOYMENT_SUFFIX" and key in os.environ:
@@ -2213,6 +2215,20 @@ def _existing_lambda_arns(
     return arns
 
 
+def _active_policy_names(*, region: str, policy_engine_id: str) -> set[str]:
+    """Read the policies a participant update must preserve at every stage."""
+    control = boto3.client("bedrock-agentcore-control", region_name=region, config=AWS_CONFIG)
+    names: set[str] = set()
+    for page in control.get_paginator("list_policies").paginate(policyEngineId=policy_engine_id):
+        for policy in page.get("policies", []):
+            if policy.get("status") != "ACTIVE":
+                raise RuntimeError(f"Policy {policy.get('name')} is not ACTIVE; finish its deployment first")
+            names.add(str(policy["name"]))
+    if not names:
+        raise RuntimeError("Participant deployment requires an active policy baseline")
+    return names
+
+
 def _redeploy_participant_edits(
     *,
     repo: Path,
@@ -2229,15 +2245,13 @@ def _redeploy_participant_edits(
     env: dict[str, str],
     identity: DeploymentIdentity,
 ) -> tuple[Path, dict[str, Any]]:
-    """Render and deploy once, reusing the Gateway ARN already in state.
+    """Publish new tool schemas before policies that refer to their actions.
 
-    A fresh provision deploys twice because tool-scoped Cedar policies must name
-    a Gateway that does not exist until the first deploy returns. A participant
-    update already has that ARN, so the policies render in the first pass and a
-    single deploy carries both edited files: the Gateway target schemas from
-    `gateway_tool_schemas.py` and the packaged Runtime source that contains
-    `services/agentcore_gateway.py`. Resources keep their names and ARNs; this
-    updates them in place and never deletes or recreates one.
+    The pinned CLI makes Gateway targets depend on policies. Adding both at once
+    therefore validates a new action before its schema exists. First deploy the
+    edited schemas with every existing policy retained and ENFORCE unchanged;
+    the new action remains default-denied. Then deploy its new owner-only permit.
+    An update with no new policies needs only the final deployment.
     """
     root = project_root(repo, identity.suffix)
     if not (root / "agentcore" / "agentcore.json").is_file():
@@ -2246,8 +2260,11 @@ def _redeploy_participant_edits(
             "edits an existing deployment; ask a facilitator to run the full "
             "provisioner first."
         )
-    gateway_state = _require_gateway_state(
-        _read_deployed_state(root), identity.gateway_name
+    deployed_state = _read_deployed_state(root)
+    gateway_state = _require_gateway_state(deployed_state, identity.gateway_name)
+    policy_state = _require_state_resource(deployed_state, "policyEngines", identity.policy_engine_name)
+    active_policies = _active_policy_names(
+        region=region, policy_engine_id=str(policy_state["policyEngineId"])
     )
     render_project(
         repo=repo,
@@ -2266,6 +2283,26 @@ def _redeploy_participant_edits(
         action_token=INITIATE_RETURN_ACTION,
         gateway_arn=str(gateway_state["gatewayArn"]),
     )
+    config_path = root / "agentcore" / "agentcore.json"
+    desired = json.loads(config_path.read_text())
+    engine = next(item for item in desired["policyEngines"] if item["name"] == identity.policy_engine_name)
+    desired_names = {policy["name"] for policy in engine["policies"]}
+    if missing := active_policies - desired_names:
+        raise RuntimeError(
+            "Participant render would remove active policies: " + ", ".join(sorted(missing))
+        )
+    if desired_names - active_policies:
+        staged = json.loads(json.dumps(desired))
+        staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
+        staged_engine["policies"] = [policy for policy in engine["policies"] if policy["name"] in active_policies]
+        print("Publishing Gateway schemas with the active policy baseline retained", flush=True)
+        try:
+            config_path.write_text(json.dumps(staged, indent=2) + "\n")
+            _agentcore(root, "validate", env=env)
+            _agentcore(root, "deploy", "--yes", "--json", env=env)
+        finally:
+            config_path.write_text(json.dumps(desired, indent=2) + "\n")
+        print("Publishing policies for the newly registered Gateway actions", flush=True)
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
     return root, _read_deployed_state(root)

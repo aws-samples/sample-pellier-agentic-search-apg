@@ -423,6 +423,19 @@ ERROR_CODES = {
 # no "search" used as a standalone noun. Phrasing uses "specialist",
 # "Pellier", "concierge", and verbs like "find" or "look up".
 
+# Shared by specialists that recommend current-catalog products.
+PRODUCT_REQUIREMENTS_PROMPT = (
+    "Treat budget, stock requirements, and exclusions as binding for every "
+    "recommendation, including alternatives. Present pieces as individual "
+    "options by default. Before suggesting any pair, bundle, or set, add its "
+    "exact returned prices and compare that total with the shopper's ceiling; "
+    "'under' means strictly less. Do not recommend a combination that exceeds "
+    "the limit even if each piece qualifies individually. If no combination "
+    "fits, offer one qualifying piece. A filtered empty result means no piece "
+    "met those requirements; it does not prove the catalog has none in that "
+    "category. Broaden a preference only, and keep every requirement.\n"
+)
+
 # Recommendation specialist prompt (Requirement 2.4.4). Emphasizes warm,
 # editorial, catalog-style reasoning grounded in specific product
 # attributes (brand, color, fabric, tags, price). Grounded recommendations
@@ -511,11 +524,8 @@ RECOMMENDATION_SYSTEM_PROMPT = (
     "Never recommend an irrelevant piece just because it is popular. "
     "Only name current-catalog recommendations that the tool actually "
     "returned, so every named recommendation can render as a product card. "
-    "For any stated budget, calculate the exact total from returned prices "
-    "before saying a set is under or within budget. When a requested bundle "
-    "exceeds the ceiling, say so plainly and offer a valid single-piece or "
-    "smaller bundle instead.\n"
-    "</grounding-rules>\n"
+    + PRODUCT_REQUIREMENTS_PROMPT
+    + "</grounding-rules>\n"
     "\n"
     "<output-rules>\n"
     "For forward-looking queries: ALWAYS call a tool first. Do NOT write "

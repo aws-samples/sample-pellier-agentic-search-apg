@@ -29,7 +29,9 @@ added by someone who has never read this file.
 from __future__ import annotations
 
 import re
+import ast
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Set
 
 REPO = Path(__file__).resolve().parents[3]
@@ -109,6 +111,60 @@ def test_the_env_fallback_never_overrides_a_real_variable() -> None:
         "the fallback assigns unconditionally, so a stale .env would override an "
         "explicitly exported value"
     )
+
+
+def _load_saved_inputs(repo: Path, environment: dict[str, str]) -> None:
+    """Execute the actual loader without importing deployment side effects."""
+    tree = ast.parse(PROVISIONER.read_text())
+    function = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "_load_env_fallback")
+    namespace = {"Path": Path, "os": SimpleNamespace(environ=environment), "re": re}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), str(PROVISIONER), "exec"), namespace)
+    namespace["_load_env_fallback"](repo)
+
+
+def test_clean_participant_shell_loads_bootstrap_provisioning_inputs(tmp_path) -> None:
+    (tmp_path / ".env").write_text("AGENT_MODEL_ID='resolved-model'\nDB_CLUSTER_ARN='cluster'\n")
+    (tmp_path / ".provision.env").write_text(
+        "export AWS_REGION='us-east-1'\n"
+        "export COGNITO_POOL='fresh-pool'\n"
+        "export COGNITO_CLIENT='fresh-client'\n"
+        "export AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN='log-key'\n"
+    )
+    environment = {}
+    _load_saved_inputs(tmp_path, environment)
+    assert environment == {
+        "AGENT_MODEL_ID": "resolved-model", "DB_CLUSTER_ARN": "cluster",
+        "AWS_REGION": "us-east-1", "COGNITO_POOL": "fresh-pool",
+        "COGNITO_CLIENT": "fresh-client", "AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN": "log-key",
+    }
+
+
+def test_saved_provisioning_inputs_preserve_caller_and_runtime_precedence(tmp_path) -> None:
+    (tmp_path / ".env").write_text("AGENT_MODEL_ID='runtime-model'\n")
+    (tmp_path / ".provision.env").write_text(
+        "export COGNITO_POOL='saved-pool'\n"
+        "export AGENT_MODEL_ID='stale-model'\n"
+        "export PELLIER_DEPLOYMENT_SUFFIX='stale-suffix'\n"
+        "export AWS_REGION='us-east-1'\n"
+    )
+    environment = {"COGNITO_POOL": "caller-pool", "PELLIER_DEPLOYMENT_SUFFIX": "", "AWS_REGION": ""}
+    _load_saved_inputs(tmp_path, environment)
+    assert environment == {
+        "COGNITO_POOL": "caller-pool", "PELLIER_DEPLOYMENT_SUFFIX": "",
+        "AWS_REGION": "us-east-1", "AGENT_MODEL_ID": "runtime-model",
+    }
+
+
+def test_saved_assignments_are_literal_data_and_invalid_names_are_ignored(tmp_path) -> None:
+    literal = '${OTHER} $(touch should-not-exist) `echo nope` \\ path'
+    (tmp_path / ".provision.env").write_text(
+        f"export VALUE='{literal}'\nexport INVALID NAME=ignored\nexport EMPTY=''\n"
+    )
+    environment = {}
+    _load_saved_inputs(tmp_path, environment)
+    assert environment == {"VALUE": literal}
+    assert not (tmp_path / "should-not-exist").exists()
 
 
 def test_the_model_id_is_resolved_not_hardcoded() -> None:

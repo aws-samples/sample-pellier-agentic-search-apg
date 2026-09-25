@@ -23,6 +23,7 @@ from services.agent_tools import (
     get_related_products,
     get_trending_products,
 )
+from pellier_copy import PRODUCT_REQUIREMENTS_PROMPT
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
 from services.response_mode import resolve_specialist_model
@@ -62,10 +63,8 @@ _SEARCH_SYSTEM_PROMPT = (
     "each selected piece, naming it exactly as returned and grounding the reason "
     "in a returned attribute. Do not name unselected results. "
     "The named pieces render as visual cards automatically. "
-    "For any budget, calculate the exact returned prices before saying a "
-    "set is under or within it. If a requested set exceeds the limit, state "
-    "that directly and offer a qualifying alternative. "
-    "If the tool returns zero products or an error, say what went wrong briefly "
+    + PRODUCT_REQUIREMENTS_PROMPT
+    + "If the tool returns zero products or an error, say what went wrong briefly "
     "(e.g. 'No results found — try broadening your search.'). "
     "Never use markdown tables, numbered lists, headers, emojis, or em dashes. Never ask follow-up questions."
     "</output-rules>"

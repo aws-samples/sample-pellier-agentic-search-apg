@@ -19,8 +19,10 @@ capacity, quota, lifecycle and extra-instance dependencies.
   strips `/ports/8000/` before forwarding to Pellier. Both services listen on
   loopback. The origin token differs from the editor connection token.
 - CloudFront disables caching and forwards headers, cookies and query strings.
-  It sets the trusted HTTPS scheme; nginx overwrites forwarded Host to prevent
-  a caller-supplied header from changing OAuth callback construction.
+  Its viewer policy redirects HTTP to HTTPS. CloudFront removes the incoming
+  `X-Forwarded-Proto` header, so private-origin nginx supplies `https` explicitly
+  and overwrites forwarded Host. The private HTTP hop must never become the
+  public OAuth callback scheme.
 - `scripts/bootstrap-labs.sh` builds the frontend for `/ports/8000/` and persists
   `APP_BASE_PATH`. An explicit `OAUTH_REDIRECT_URI` remains supported. When unset,
   the backend derives the callback from the browser origin plus that prefix.

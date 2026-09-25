@@ -69,8 +69,8 @@ separately.
   mutating the original request, and an unrecorded widening. The local checker
   proves the plan contract; live receipt/SQL checks prove different boundaries.
 - **3A / 3B:** Reconcile Gateway publication and caller-bound support tools,
-  deploy once, then use a fresh session. Reject staff credit exposed to shopper
-  support, caller-supplied foreign identity, local edits presented as deployment,
+  run the participant deployment command, then use a fresh session. Reject staff
+  credit exposed to shopper support, caller-supplied foreign identity, local edits presented as deployment,
   and a remembered preference presented as permission. Runtime packages the support
   adapter, not the Lab 1 inventory wrapper or Lab 2 planner. The reused Lambda
   retrieval tool has a different input contract; do not imply fallback parity. Existing policy is active

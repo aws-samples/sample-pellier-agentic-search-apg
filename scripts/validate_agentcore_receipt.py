@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
-import os
-
+import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -74,9 +74,58 @@ def _expected_policy_mode() -> str:
     return expected
 
 
-def validate_receipt(payload: dict[str, Any]) -> list[str]:
+def _validate_participant_receipt(
+    payload: dict[str, Any], participant: dict[str, Any]
+) -> list[str]:
+    """Bind a later catalogue/build proof to the original provisioned resources."""
+    errors: list[str] = []
+    expected = {
+        "status": "ready",
+        "mode": "participant",
+        "cli.package": EXPECTED_CLI,
+        "policy.mode": _expected_policy_mode(),
+        "verification.gateway_control_plane.policy_mode": _expected_policy_mode(),
+        "verification.runtime_invoke_smoke.rail": "gateway-mcp",
+        "verification.targets_attached": True,
+        "verification.gateway_tools_discovered": True,
+        "verification.authenticated_runtime_invoke_smoke": True,
+        "verification.runtime_build_fingerprint_match": True,
+        "verification.runtime_invoke_smoke.build_fingerprint_match": True,
+    }
+    for path, value in expected.items():
+        actual = _value(participant, path)
+        if actual != value or (isinstance(value, bool) and actual is not value):
+            errors.append(f"participant.{path} must be {value!r}")
+    for path in (
+        "runtime.runtime_arn", "operator_runtime.runtime_arn",
+        "gateway.gateway_id", "gateway.gateway_arn", "gateway.gateway_url",
+        "policy.policy_engine_id",
+    ):
+        if not _value(participant, path) or _value(participant, path) != _value(payload, path):
+            errors.append(f"participant.{path} must match the full provisioning receipt")
+    for path in (
+        "verification.runtime_invoke_smoke.session_id",
+        "verification.runtime_invoke_smoke.response_preview",
+        "verification.runtime_invoke_smoke.build_fingerprint",
+        "verification.runtime_invoke_smoke.build_fingerprint_expected",
+    ):
+        value = _value(participant, path)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"participant.{path} must be a non-empty string")
+    if _value(participant, "verification.runtime_invoke_smoke.build_fingerprint") != _value(
+        participant, "verification.runtime_invoke_smoke.build_fingerprint_expected"
+    ):
+        errors.append("participant Runtime smoke must match the updated package fingerprint")
+    return errors
+
+
+def validate_receipt(
+    payload: dict[str, Any], participant: dict[str, Any] | None = None
+) -> list[str]:
     """Return human-readable contract violations; an empty list means ready."""
     errors: list[str] = []
+    if participant is not None:
+        errors.extend(_validate_participant_receipt(payload, participant))
     content_redacted = _value(
         payload, "observability.unified_trace.content_redacted"
     ) is True
@@ -204,8 +253,10 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
 
     # Provisioning publishes the catalogue but proves discovery with a seeded
     # shopper token. Staff-only tools must remain absent from that listing.
-    # Derive both contracts from the deployed source, including participant
-    # catalogue edits, rather than accepting a receipt's own expected count.
+    # A participant deploy changes the catalogue, not the historical bootstrap
+    # trace/Memory proof. Validate that current catalogue against the separate,
+    # resource-bound update receipt while retaining every full-provision gate.
+    catalogue_receipt = participant if participant is not None else payload
     target_tools = workshop_target_tools()
     published_tools = {name for names in target_tools.values() for name in names}
     shopper_tools = discoverable_tools_for_claims(
@@ -223,7 +274,7 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         "verification.gateway_tool_count": len(shopper_tools),
     }
     for path, expected in expected_counts.items():
-        actual = _value(payload, path)
+        actual = _value(catalogue_receipt, path)
         if type(actual) is not int or actual != expected:
             errors.append(f"{path}={actual!r}, expected {expected}")
 
@@ -234,7 +285,7 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
         "verification.gateway_prefixed_tool_names": prefixed_tools,
     }
     for path, expected in expected_lists.items():
-        actual = _value(payload, path)
+        actual = _value(catalogue_receipt, path)
         if (
             not isinstance(actual, list)
             or not all(isinstance(name, str) for name in actual)
@@ -470,21 +521,26 @@ def validate_receipt(payload: dict[str, Any]) -> list[str]:
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"usage: {Path(sys.argv[0]).name} RECEIPT.json", file=sys.stderr)
-        return 2
-
-    receipt_path = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("receipt", type=Path)
+    parser.add_argument("--participant", type=Path)
+    args = parser.parse_args()
     try:
-        payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+        payload = json.loads(args.receipt.read_text(encoding="utf-8"))
+        participant = (
+            json.loads(args.participant.read_text(encoding="utf-8"))
+            if args.participant else None
+        )
     except (OSError, json.JSONDecodeError) as exc:
         print(f"cannot read receipt: {exc}", file=sys.stderr)
         return 1
-    if not isinstance(payload, dict):
-        print("receipt root must be a JSON object", file=sys.stderr)
+    if not isinstance(payload, dict) or (
+        args.participant and not isinstance(participant, dict)
+    ):
+        print("each receipt root must be a JSON object", file=sys.stderr)
         return 1
 
-    errors = validate_receipt(payload)
+    errors = validate_receipt(payload, participant)
     if errors:
         print("; ".join(errors), file=sys.stderr)
         return 1
