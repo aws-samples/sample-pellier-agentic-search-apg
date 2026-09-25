@@ -45,7 +45,7 @@ to preserve existing managed resource identities, and the
 [E2E identity guide](docs/E2E-IDENTITIES.md) to configure live browser checks and
 receipt-verified cleanup of disposable test users. The
 [browser connection contract](docs/WORKSHOP-TRANSPORT.md) describes the governed
-workspace, private TLS origin and deployment checks.
+workspace, private origin behind CloudFront and deployment checks.
 
 ---
 

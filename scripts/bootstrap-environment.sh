@@ -589,19 +589,24 @@ log "Installing VS Code extensions..."
 install_extension() {
     local EXT_ID=$1
     local EXT_NAME=$2
+    local installed_extensions
     
     log "Installing extension: $EXT_NAME ($EXT_ID)..."
     
     if [ -f "$CODE_EDITOR_CMD" ]; then
-        sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --install-extension "$EXT_ID" --force 2>&1 | tee -a /tmp/extension_install.log || true
-        
-        if grep -q "successfully installed" /tmp/extension_install.log 2>/dev/null; then
+        sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --install-extension "$EXT_ID" --force 2>&1 || true
+
+        # The installer can return success even when a registry lookup fails.
+        # Verify this exact extension, including on reentry, instead of matching
+        # an earlier extension's success message in a shared log.
+        if installed_extensions="$(sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --list-extensions 2>/dev/null)" &&
+            printf '%s\n' "$installed_extensions" | grep -Fxiq -- "$EXT_ID"; then
             log "  ✅ $EXT_NAME"
             return 0
         fi
     fi
     
-    warn "  ⚠️  $EXT_NAME may require manual install"
+    warn "  ⚠️  $EXT_NAME is not installed; cannot mark editor setup complete"
     return 1
 }
 
@@ -615,7 +620,9 @@ install_extension() {
 # uninstalled removes the pop-ups at the source; the amazonQ.*/aws.suppressPrompts
 # settings below are kept as defense-in-depth in case it's ever re-enabled.
 install_extension "ms-python.python" "Python"
-install_extension "ms-python.vscode-pylance" "Pylance"
+# Pylance is not distributed by Open VSX, the Code Editor's registry.
+# Pyright supplies Python language support in this editor distribution.
+install_extension "ms-pyright.pyright" "Pyright"
 install_extension "dbaeumer.vscode-eslint" "ESLint"
 install_extension "esbenp.prettier-vscode" "Prettier"
 install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
