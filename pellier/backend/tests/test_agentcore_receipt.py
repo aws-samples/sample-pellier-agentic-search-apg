@@ -227,10 +227,26 @@ def _valid_receipt() -> dict[str, Any]:
         },
     }
     observability = receipt["observability"]
+    for kind, identifier, prefix in (
+        ("gateway", "gateway-1", "/aws/vendedlogs/bedrock-agentcore/"),
+        ("memory", "memory-1", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
+    ):
+        group = copy.deepcopy(observability["runtime_log_group"])
+        group["name"] = prefix + identifier
+        observability[kind] = {
+            "log_group": group["name"], "log_group_protection": group,
+            "logs_delivery_id": kind + "-logs", "traces_delivery_id": kind + "-traces",
+        }
+    receipt["verification"].update({
+        "gateway_tracing_enabled": True, "memory_tracing_enabled": True,
+        "service_log_groups_encrypted": True, "service_log_groups_retention_bounded": True,
+    })
     for group in [
         observability["runtime_log_group"],
         observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
+        observability["gateway"]["log_group_protection"],
+        observability["memory"]["log_group_protection"],
     ]:
         settings = {
             "kms_key_arn": group["kms_key_arn"],
@@ -255,6 +271,27 @@ def _valid_receipt() -> dict[str, Any]:
     }
     receipt["verification"]["memory_extraction_verified"] = True
     return receipt
+
+
+@pytest.mark.parametrize("kind", ["gateway", "memory"])
+@pytest.mark.parametrize("failure", ["missing", "delivery", "wrong_resource", "encryption", "retention", "readback"])
+def test_service_log_evidence_cannot_be_missing_or_inconsistent(kind, failure) -> None:
+    receipt = _valid_receipt()
+    telemetry = receipt["observability"][kind]
+    group = telemetry["log_group_protection"]
+    if failure == "missing":
+        del receipt["observability"][kind]
+    elif failure == "delivery":
+        telemetry["logs_delivery_id"] = ""
+    elif failure == "wrong_resource":
+        group["name"] += "-other"
+    elif failure == "encryption":
+        group["observed"]["kms_key_arn"] = None
+    elif failure == "retention":
+        group["retention_days"] = None
+    else:
+        del group["observed"]
+    assert _load_validator().validate_receipt(receipt)
 
 
 def test_ready_receipt_requires_managed_observability_proof() -> None:

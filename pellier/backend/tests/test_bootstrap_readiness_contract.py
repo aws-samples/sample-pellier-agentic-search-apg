@@ -415,10 +415,30 @@ def _valid_managed_receipt() -> dict[str, object]:
         },
     }
     observability = receipt["observability"]
+    for kind, prefix in (
+        ("gateway", "/aws/vendedlogs/bedrock-agentcore/"),
+        ("memory", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
+    ):
+        group = {
+            "name": prefix + str(receipt[kind][kind + "_id"]),
+            "kms_key_arn": observability["runtime_log_group"]["kms_key_arn"],
+            "retention_days": 30,
+            "cleanup": {"created_by_workshop": True},
+        }
+        observability[kind] = {
+            "log_group": group["name"], "log_group_protection": group,
+            "logs_delivery_id": kind + "-logs", "traces_delivery_id": kind + "-traces",
+        }
+    receipt["verification"].update({
+        "gateway_tracing_enabled": True, "memory_tracing_enabled": True,
+        "service_log_groups_encrypted": True, "service_log_groups_retention_bounded": True,
+    })
     log_groups = [
         observability["runtime_log_group"],
         observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
+        observability["gateway"]["log_group_protection"],
+        observability["memory"]["log_group_protection"],
     ]
     for group in log_groups:
         protection = {

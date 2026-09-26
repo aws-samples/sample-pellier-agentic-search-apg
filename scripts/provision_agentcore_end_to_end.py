@@ -582,36 +582,70 @@ def _enable_gateway_observability(
     account_id: str,
     gateway_arn: str,
     gateway_id: str,
+    kms_key_arn: str,
+    retention_days: int,
+    on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Deliver the Gateway's application logs and traces to CloudWatch.
+    """Deliver Gateway telemetry only after protecting its log destination."""
+    return _enable_resource_observability(
+        region=region, account_id=account_id, resource_arn=gateway_arn,
+        resource_id=gateway_id,
+        log_group=f"/aws/vendedlogs/bedrock-agentcore/{gateway_id}",
+        kms_key_arn=kms_key_arn, retention_days=retention_days,
+        on_cleanup_state=on_cleanup_state,
+    )
+
+
+def _enable_memory_observability(
+    *, region: str, account_id: str, memory_arn: str, memory_id: str,
+    kms_key_arn: str, retention_days: int,
+    on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    """Expose real extraction/consolidation diagnostics before CreateEvent."""
+    return _enable_resource_observability(
+        region=region, account_id=account_id, resource_arn=memory_arn,
+        resource_id=memory_id,
+        log_group=f"/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/{memory_id}",
+        kms_key_arn=kms_key_arn, retention_days=retention_days,
+        on_cleanup_state=on_cleanup_state,
+    )
+
+
+def _enable_resource_observability(
+    *, region: str, account_id: str, resource_arn: str, resource_id: str,
+    log_group: str, kms_key_arn: str, retention_days: int,
+    on_cleanup_state: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    """Deliver a resource's application logs and traces to CloudWatch.
 
     Vended-log deliveries, as the AgentCore observability guide configures them:
-    a delivery source per log type on the Gateway ARN, a CloudWatch Logs
+    a delivery source per log type on the resource ARN, a CloudWatch Logs
     destination for application logs, an X-Ray destination for traces, and one
     delivery joining each pair. Every call is an upsert or tolerates an existing
     delivery, so a re-run leaves the configuration as it is.
     """
+    _require_release_log_protection(kms_key_arn, retention_days)
     logs = boto3.client("logs", region_name=region, config=AWS_CONFIG)
-    log_group = f"/aws/vendedlogs/bedrock-agentcore/{gateway_id}"
-    try:
-        logs.create_log_group(logGroupName=log_group)
-    except logs.exceptions.ResourceAlreadyExistsException:
-        pass
-    log_group_arn = f"arn:aws:logs:{region}:{account_id}:log-group:{log_group}"
+    protection = _ensure_protected_log_group(
+        logs=logs, log_group_name=log_group, kms_key_arn=kms_key_arn,
+        retention_days=retention_days, on_cleanup_state=on_cleanup_state,
+    )
+    partition = resource_arn.split(":", 2)[1]
+    log_group_arn = f"arn:{partition}:logs:{region}:{account_id}:log-group:{log_group}"
 
     logs_source = logs.put_delivery_source(
-        name=f"{gateway_id}-logs-source", logType="APPLICATION_LOGS", resourceArn=gateway_arn
+        name=f"{resource_id}-logs-source", logType="APPLICATION_LOGS", resourceArn=resource_arn
     )["deliverySource"]["name"]
     traces_source = logs.put_delivery_source(
-        name=f"{gateway_id}-traces-source", logType="TRACES", resourceArn=gateway_arn
+        name=f"{resource_id}-traces-source", logType="TRACES", resourceArn=resource_arn
     )["deliverySource"]["name"]
     logs_destination = logs.put_delivery_destination(
-        name=f"{gateway_id}-logs-destination",
+        name=f"{resource_id}-logs-destination",
         deliveryDestinationType="CWL",
         deliveryDestinationConfiguration={"destinationResourceArn": log_group_arn},
     )["deliveryDestination"]["arn"]
     traces_destination = logs.put_delivery_destination(
-        name=f"{gateway_id}-traces-destination", deliveryDestinationType="XRAY"
+        name=f"{resource_id}-traces-destination", deliveryDestinationType="XRAY"
     )["deliveryDestination"]["arn"]
 
     def _deliver(source: str, destination: str) -> str:
@@ -620,16 +654,23 @@ def _enable_gateway_observability(
                 deliverySourceName=source, deliveryDestinationArn=destination
             )["delivery"]["id"])
         except logs.exceptions.ConflictException:
-            for delivery in logs.describe_deliveries().get("deliveries", []):
-                if (
-                    delivery.get("deliverySourceName") == source
-                    and delivery.get("deliveryDestinationArn") == destination
-                ):
-                    return str(delivery["id"])
+            next_token = None
+            while True:
+                page = logs.describe_deliveries(**({"nextToken": next_token} if next_token else {}))
+                for delivery in page.get("deliveries", []):
+                    if (
+                        delivery.get("deliverySourceName") == source
+                        and delivery.get("deliveryDestinationArn") == destination
+                    ):
+                        return str(delivery["id"])
+                next_token = page.get("nextToken")
+                if not next_token:
+                    break
             raise
 
     return {
         "log_group": log_group,
+        "log_group_protection": protection,
         "logs_delivery_id": _deliver(logs_source, logs_destination),
         "traces_delivery_id": _deliver(traces_source, traces_destination),
     }
@@ -2596,6 +2637,10 @@ def main() -> int:
         result["observability"]["runtime_log_group"] = group
         checkpoint()
 
+    def checkpoint_service_log_group(kind: str, group: dict[str, Any]) -> None:
+        result["observability"].setdefault(kind, {})["log_group_protection"] = group
+        checkpoint()
+
     try:
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
         caller = sts.get_caller_identity()
@@ -2822,11 +2867,32 @@ def main() -> int:
             account_id=account_id,
             gateway_arn=gateway_arn,
             gateway_id=gateway_id,
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+            on_cleanup_state=lambda group: checkpoint_service_log_group("gateway", group),
         )
         result["observability"]["gateway"] = gateway_observability
         result["verification"]["gateway_tracing_enabled"] = bool(
             gateway_observability.get("traces_delivery_id")
         )
+        checkpoint()
+
+        memory_observability = _enable_memory_observability(
+            region=region, account_id=account_id,
+            memory_arn=str(memory_state["memoryArn"]), memory_id=memory_id,
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+            on_cleanup_state=lambda group: checkpoint_service_log_group("memory", group),
+        )
+        result["observability"]["memory"] = memory_observability
+        result["verification"]["memory_tracing_enabled"] = bool(memory_observability["traces_delivery_id"])
+        encrypted, bounded = _log_protection_checks(
+            [gateway_observability["log_group_protection"], memory_observability["log_group_protection"]],
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+        )
+        result["verification"]["service_log_groups_encrypted"] = encrypted
+        result["verification"]["service_log_groups_retention_bounded"] = bounded
         checkpoint()
 
         access_token, smoke_username = _cognito_access_token(
@@ -2947,6 +3013,9 @@ def main() -> int:
             "trace_log_groups_retention_bounded",
             "control_plane_audit_verified",
             "runtime_log_group_encrypted",
+            "memory_tracing_enabled",
+            "service_log_groups_encrypted",
+            "service_log_groups_retention_bounded",
             "runtime_log_group_retention_bounded",
             "unified_trace_delivered",
             "unified_trace_agent_span",

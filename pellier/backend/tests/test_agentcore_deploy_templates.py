@@ -1668,14 +1668,21 @@ def test_the_provisioner_attaches_identity_and_tracing_before_any_proof() -> Non
     assert "claim_trigger_attached" in source and "gateway_tracing_enabled" in source
 
 
-def test_gateway_observability_is_idempotent_over_an_existing_delivery(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("kind", ["gateway", "memory"])
+def test_service_observability_protects_logs_before_delivery_and_reuses_paginated_delivery(
+    monkeypatch: pytest.MonkeyPatch, kind: str,
 ) -> None:
     provisioner = _load_provisioner()
+    resource_id = "gw-1" if kind == "gateway" else "memory-1"
+    log_group = "/aws/vendedlogs/bedrock-agentcore/" + (
+        resource_id if kind == "gateway" else "memory/APPLICATION_LOGS/" + resource_id
+    )
+    key = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-1234567890ab"
 
     class _Logs:
         def __init__(self) -> None:
             self.calls: list[str] = []
+            self.group = {"logGroupName": log_group}
             self.exceptions = types.SimpleNamespace(
                 ResourceAlreadyExistsException=type("RAE", (Exception,), {}),
                 ConflictException=type("Conflict", (Exception,), {}),
@@ -1685,7 +1692,19 @@ def test_gateway_observability_is_idempotent_over_an_existing_delivery(
             self.calls.append("create_log_group")
             raise self.exceptions.ResourceAlreadyExistsException()
 
+        def get_paginator(self, operation):
+            assert operation == "describe_log_groups"
+            return types.SimpleNamespace(paginate=lambda **kw: iter([{"logGroups": [dict(self.group)]}]))
+
+        def associate_kms_key(self, **kw):
+            self.group["kmsKeyId"] = kw["kmsKeyId"]
+
+        def put_retention_policy(self, **kw):
+            self.group["retentionInDays"] = kw["retentionInDays"]
+
         def put_delivery_source(self, **kw):
+            assert self.group.get("kmsKeyId") == key
+            assert self.group.get("retentionInDays") == 30
             self.calls.append(f"source:{kw['logType']}")
             return {"deliverySource": {"name": kw["name"]}}
 
@@ -1698,22 +1717,26 @@ def test_gateway_observability_is_idempotent_over_an_existing_delivery(
             raise self.exceptions.ConflictException()
 
         def describe_deliveries(self, **kw):
+            if not kw.get("nextToken"):
+                return {"deliveries": [], "nextToken": "page-2"}
             return {"deliveries": [
-                {"id": "d-logs", "deliverySourceName": "gw-1-logs-source", "deliveryDestinationArn": "arn:dest:gw-1-logs-destination"},
-                {"id": "d-traces", "deliverySourceName": "gw-1-traces-source", "deliveryDestinationArn": "arn:dest:gw-1-traces-destination"},
+                {"id": "d-logs", "deliverySourceName": f"{resource_id}-logs-source", "deliveryDestinationArn": f"arn:dest:{resource_id}-logs-destination"},
+                {"id": "d-traces", "deliverySourceName": f"{resource_id}-traces-source", "deliveryDestinationArn": f"arn:dest:{resource_id}-traces-destination"},
             ]}
 
     logs = _Logs()
     monkeypatch.setattr(provisioner.boto3, "client", lambda *a, **k: logs)
-    receipt = provisioner._enable_gateway_observability(
+    enable = getattr(provisioner, f"_enable_{kind}_observability")
+    receipt = enable(
         region="us-east-1", account_id="123456789012",
-        gateway_arn="arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/gw-1", gateway_id="gw-1",
+        kms_key_arn=key, retention_days=30,
+        **{f"{kind}_arn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:{kind}/{resource_id}", f"{kind}_id": resource_id},
     )
-    assert receipt == {
-        "log_group": "/aws/vendedlogs/bedrock-agentcore/gw-1",
-        "logs_delivery_id": "d-logs",
-        "traces_delivery_id": "d-traces",
-    }
+    assert receipt["log_group"] == log_group
+    assert receipt["logs_delivery_id"] == "d-logs"
+    assert receipt["traces_delivery_id"] == "d-traces"
+    assert receipt["log_group_protection"]["observed"] == {"kms_key_arn": key, "retention_days": 30}
+    assert receipt["log_group_protection"]["cleanup"]["created_by_workshop"] is False
     assert "source:TRACES" in logs.calls and "destination:XRAY" in logs.calls
 
 
@@ -2057,6 +2080,7 @@ def test_participant_update_skips_the_preparation_stages_it_cannot_change() -> N
         "_ensure_runtime_log_group(",
         "_deploy_claim_trigger(",
         "_enable_gateway_observability(",
+        "_enable_memory_observability(",
         "_seed_memory(",
     ):
         assert skipped not in body, skipped

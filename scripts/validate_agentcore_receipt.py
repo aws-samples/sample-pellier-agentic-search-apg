@@ -254,6 +254,10 @@ def validate_receipt(
         "verification.control_plane_audit_verified",
         "verification.runtime_log_group_encrypted",
         "verification.runtime_log_group_retention_bounded",
+        "verification.gateway_tracing_enabled",
+        "verification.memory_tracing_enabled",
+        "verification.service_log_groups_encrypted",
+        "verification.service_log_groups_retention_bounded",
         "verification.unified_trace_delivered",
         "verification.unified_trace_agent_span",
         "verification.unified_trace_model_span",
@@ -452,10 +456,36 @@ def validate_receipt(
                     f"trace log group {group.get('name')!r} must capture cleanup ownership"
                 )
 
+    service_groups = []
+    for kind, identifier_path, prefix in (
+        ("gateway", "gateway.gateway_id", "/aws/vendedlogs/bedrock-agentcore/"),
+        ("memory", "memory.memory_id", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
+    ):
+        path = f"observability.{kind}"
+        expected_name = prefix + str(_value(payload, identifier_path))
+        for field in ("logs_delivery_id", "traces_delivery_id"):
+            value = _value(payload, f"{path}.{field}")
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{path}.{field} must identify a real delivery")
+        group = _value(payload, f"{path}.log_group_protection")
+        if not isinstance(group, dict):
+            errors.append(f"{path}.log_group_protection must capture log settings")
+            continue
+        service_groups.append(group)
+        if group.get("name") != expected_name or _value(payload, f"{path}.log_group") != expected_name:
+            errors.append(f"{path} log destination must match its resource ID")
+        for setting in ("kms_key_arn", "retention_days"):
+            if group.get(setting) != _value(payload, f"observability.runtime_log_group.{setting}"):
+                errors.append(f"{path} must use the Runtime log {setting}")
+        cleanup = group.get("cleanup")
+        if not isinstance(cleanup, dict) or type(cleanup.get("created_by_workshop")) is not bool or cleanup.get("creation_pending") is True:
+            errors.append(f"{path}.log_group_protection.cleanup must capture ownership")
+
     observed_groups = [
         _value(payload, "observability.runtime_log_group"),
         _value(payload, "observability.operator_runtime_log_group"),
         *(trace_groups if isinstance(trace_groups, list) else []),
+        *service_groups,
     ]
     for group in observed_groups:
         if not isinstance(group, dict):

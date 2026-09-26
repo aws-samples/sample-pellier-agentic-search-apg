@@ -75,6 +75,7 @@ def _receipt_account(receipt: dict[str, Any], region: str) -> str:
             ("runtime", "runtime_arn"),
             ("operator_runtime", "runtime_arn"),
             ("gateway", "gateway_arn"),
+            ("memory", "memory_arn"),
         )
         if isinstance(receipt.get(key) or {}, dict)
     ]
@@ -283,6 +284,24 @@ def cleanup_plan(
         groups.append(operator)
     elif operator_group:
         raise ValueError("operator log group requires captured ownership and configuration")
+
+    for kind, field, prefix in (
+        ("gateway", "gateway_id", "/aws/vendedlogs/bedrock-agentcore/"),
+        ("memory", "memory_id", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
+    ):
+        telemetry = observability.get(kind)
+        if not isinstance(telemetry, dict):
+            continue
+        group = telemetry.get("log_group_protection")
+        if group is None:
+            continue  # Older receipts do not authorize changes to these groups.
+        identity = receipt.get(kind) or {}
+        identifier = identity.get(field) if isinstance(identity, dict) else None
+        if not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
+            raise ValueError(f"{kind} log group requires its captured resource ID")
+        if not isinstance(group, dict) or group.get("name") != prefix + identifier:
+            raise ValueError(f"{kind} log group must match its captured resource ID")
+        groups.append(group)
 
     seen_groups: set[str] = set()
     for group in groups:

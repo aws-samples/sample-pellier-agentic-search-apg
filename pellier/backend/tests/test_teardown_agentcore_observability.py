@@ -82,6 +82,26 @@ def _receipt() -> dict[str, Any]:
     }
 
 
+@pytest.mark.parametrize("kind", ["memory", "gateway"])
+def test_service_log_cleanup_requires_the_exact_resource_destination(kind) -> None:
+    receipt = _receipt()
+    resource_id = "pellier-test-abc123"
+    prefix = "/aws/vendedlogs/bedrock-agentcore/"
+    if kind == "memory":
+        prefix += "memory/APPLICATION_LOGS/"
+    receipt[kind] = {f"{kind}_id": resource_id}
+    group = {
+        "name": prefix + resource_id, "kms_key_arn": WORKSHOP_KMS_KEY,
+        "retention_days": 30, "cleanup": {"created_by_workshop": True},
+    }
+    receipt["observability"][kind] = {"log_group_protection": group}
+    module = _load_script()
+    assert any(item.get("log_group_name") == group["name"] for item in module.cleanup_plan(receipt))
+    group["name"] += "-other"
+    with pytest.raises(ValueError, match="captured resource ID"):
+        module.cleanup_plan(receipt)
+
+
 def test_cleanup_plan_is_bounded_to_workshop_observability() -> None:
     module = _load_script()
 
