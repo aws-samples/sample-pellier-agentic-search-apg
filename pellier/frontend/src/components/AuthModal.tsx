@@ -10,12 +10,10 @@
  *     "Sign in for a storefront built for you".
  *   - Body: `PERSONALIZED VISIONS` eyebrow + Instrument Sans headline
  *     "Let the storefront find you.".
- *   - Three provider buttons: `Continue with Google`, `Continue with Apple`,
- *     `Continue with email`. Each calls `redirectToSignIn(<provider>)`
- *     with the current URL passed through as `returnTo` so the user lands
- *     back where they started after Cognito Hosted UI.
- *   - Disclaimer line + `Secured by AgentCore Identity` 10px mono footer
- *     with shield icon and `v2.4` version stamp.
+ *   - The provisioned workshop account opens Cognito-backed password sign-in.
+ *     Preserve the current URL as `returnTo` after authentication.
+ *   - Explain where to find the generated credentials and identify Cognito
+ *     as the shopper identity provider. Social providers are not provisioned.
  *
  * Visibility is coordinated by UIContext - the modal renders only when
  * `activeModal === 'auth'` (Task 4.1). Escape + backdrop click both close
@@ -234,20 +232,8 @@ export default function AuthModal() {
           </span>
         </div>
 
-        {/* Three provider buttons - all visible, none preselected */}
+        {/* Offer the account type that bootstrap actually provisions. */}
         <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <ProviderButton
-            provider="google"
-            label={AUTH_MODAL.BUTTON_GOOGLE}
-            testId="auth-modal-button-google"
-            onClick={go('google')}
-          />
-          <ProviderButton
-            provider="apple"
-            label={AUTH_MODAL.BUTTON_APPLE}
-            testId="auth-modal-button-apple"
-            onClick={go('apple')}
-          />
           <ProviderButton
             provider="email"
             label={AUTH_MODAL.BUTTON_EMAIL}
@@ -270,7 +256,7 @@ export default function AuthModal() {
           {AUTH_MODAL.DISCLAIMER}
         </p>
 
-        {/* Footer strip: shield + AgentCore Identity + version */}
+        {/* Shopper authentication is provided by Cognito. */}
         <div
           data-testid="auth-modal-footer"
           style={{
@@ -302,7 +288,6 @@ export default function AuthModal() {
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <span>{AUTH_MODAL.FOOTER}</span>
-          <span style={{ color: c.muted }}>{AUTH_MODAL.VERSION}</span>
         </div>
       </div>
     </div>

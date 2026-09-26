@@ -8,9 +8,7 @@
  *   - Modal renders only when UIContext.activeModal === 'auth'.
  *   - Structure present per storefront.md: B mark, header, subheader,
  *     eyebrow, italic headline, disclaimer, footer strip.
- *   - Three provider buttons each invoke `redirectToSignIn` with the
- *     correct provider value.
- *   - All three providers visible simultaneously (no preselection), so
+ *   - The provisioned account button invokes `redirectToSignIn`, so
  *     a user arriving via `/signin?returnTo=...` can choose freely.
  *   - Clicking the backdrop closes the modal.
  */
@@ -168,7 +166,7 @@ describe('AuthModal structure (storefront.md)', () => {
     )
   })
 
-  it('renders the disclaimer and the 10px mono AgentCore Identity footer', async () => {
+  it('identifies Cognito and the generated workshop credentials', async () => {
     const user = userEvent.setup()
     renderModal()
     await user.click(screen.getByText('open-auth'))
@@ -179,7 +177,6 @@ describe('AuthModal structure (storefront.md)', () => {
 
     const footer = screen.getByTestId('auth-modal-footer')
     expect(footer).toHaveTextContent(AUTH_MODAL.FOOTER)
-    expect(footer).toHaveTextContent(AUTH_MODAL.VERSION)
     // 10px mono strip per storefront.md.
     expect(footer.style.fontSize).toBe('10px')
     expect(footer.style.fontFamily.toLowerCase()).toMatch(/mono/)
@@ -190,57 +187,14 @@ describe('AuthModal structure (storefront.md)', () => {
 })
 
 describe('AuthModal provider buttons (Req 2.6.6)', () => {
-  it('renders all three providers simultaneously with no preselection', async () => {
+  it('offers only the provisioned workshop account', async () => {
     const user = userEvent.setup()
     renderModal()
     await user.click(screen.getByText('open-auth'))
-
-    const google = screen.getByTestId('auth-modal-button-google')
-    const apple = screen.getByTestId('auth-modal-button-apple')
-    const email = screen.getByTestId('auth-modal-button-email')
-
-    expect(google).toBeInTheDocument()
-    expect(apple).toBeInTheDocument()
-    expect(email).toBeInTheDocument()
-
-    // Copy matches storefront.md.
-    expect(google).toHaveTextContent(AUTH_MODAL.BUTTON_GOOGLE)
-    expect(apple).toHaveTextContent(AUTH_MODAL.BUTTON_APPLE)
-    expect(email).toHaveTextContent(AUTH_MODAL.BUTTON_EMAIL)
-
-    // No button carries an "active/selected" marker - they are peers.
-    for (const btn of [google, apple, email]) {
-      expect(btn.getAttribute('aria-pressed')).toBeNull()
-      expect(btn.getAttribute('data-selected')).toBeNull()
-    }
-  })
-
-  it('invokes redirectToSignIn("google") with the current URL as returnTo', async () => {
-    installLocation('/discover', '?ref=hero')
-    const user = userEvent.setup()
-    renderModal()
-    await user.click(screen.getByText('open-auth'))
-
-    await user.click(screen.getByTestId('auth-modal-button-google'))
-
-    expect(mockedRedirectToSignIn).toHaveBeenCalledTimes(1)
-    expect(mockedRedirectToSignIn).toHaveBeenCalledWith('google', {
-      returnTo: '/discover?ref=hero',
-    })
-  })
-
-  it('invokes redirectToSignIn("apple") with the current URL as returnTo', async () => {
-    installLocation('/cart', '')
-    const user = userEvent.setup()
-    renderModal()
-    await user.click(screen.getByText('open-auth'))
-
-    await user.click(screen.getByTestId('auth-modal-button-apple'))
-
-    expect(mockedRedirectToSignIn).toHaveBeenCalledTimes(1)
-    expect(mockedRedirectToSignIn).toHaveBeenCalledWith('apple', {
-      returnTo: '/cart',
-    })
+    expect(screen.getByTestId('auth-modal-button-email')).toHaveTextContent(AUTH_MODAL.BUTTON_EMAIL)
+    expect(screen.queryByTestId('auth-modal-button-google')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('auth-modal-button-apple')).not.toBeInTheDocument()
+    expect(screen.getByTestId('auth-modal-footer')).not.toHaveTextContent('AgentCore Identity')
   })
 
   it('invokes redirectToSignIn("email") with the current URL as returnTo', async () => {
@@ -268,9 +222,9 @@ describe('AuthModal focus containment', () => {
     await user.click(screen.getByText('open-auth'))
 
     const dialog = screen.getByTestId('auth-modal')
-    const google = screen.getByTestId('auth-modal-button-google')
-    google.focus()
-    expect(document.activeElement).toBe(google)
+    const account = screen.getByTestId('auth-modal-button-email')
+    account.focus()
+    expect(document.activeElement).toBe(account)
 
     await user.tab({ shift: true })
 

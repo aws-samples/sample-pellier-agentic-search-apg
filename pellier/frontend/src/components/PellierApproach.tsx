@@ -15,6 +15,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PELLIER_APPROACH } from '../copy'
 import { splitHeadlineAtAccent } from '../utils/headlineAccent'
+import { routePath } from '../utils/assetPath'
 import ResponsiveImage from './ResponsiveImage'
 
 /** Icons are positional, matching `PELLIER_APPROACH.PILLARS` order. */
@@ -83,7 +84,7 @@ export default function PellierApproach() {
                 <h3>{pillar.title}</h3>
                 <p>{pillar.body}</p>
                 {pillar.href.startsWith('/#') ? (
-                  <a className="pellier-pillar-link" href={pillar.href}>
+                  <a className="pellier-pillar-link" href={routePath(pillar.href)}>
                     {pillar.linkLabel}
                   </a>
                 ) : (

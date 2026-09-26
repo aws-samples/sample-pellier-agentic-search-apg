@@ -681,12 +681,9 @@ export const AUTH_MODAL = {
   SUBHEADER: "Sign in for a storefront built for you",
   EYEBROW: "PERSONALIZED VISIONS",
   ITALIC_HEADLINE: "Let Pellier find the right pieces.",
-  BUTTON_GOOGLE: "Continue with Google",
-  BUTTON_APPLE: "Continue with Apple",
-  BUTTON_EMAIL: "Continue with email",
-  DISCLAIMER: "By continuing, you agree to our terms and privacy policy.",
-  FOOTER: "Secured by AgentCore Identity",
-  VERSION: "v2.4",
+  BUTTON_EMAIL: "Continue with workshop account",
+  DISCLAIMER: "Use the username and password provided in your workshop workspace.",
+  FOOTER: "Sign-in with Amazon Cognito",
 } as const;
 
 // Preferences onboarding modal (storefront.md "Preferences onboarding modal")
