@@ -14,6 +14,8 @@ interface RecordEvidence {
 }
 interface ShowcaseState {
   resourceStatus: string;
+  configurationErrors: string[];
+  reflections: { namespace: string | null; records: RecordEvidence[] };
   strategies: Record<Kind, { strategyStatus: string; state: string; namespace: string | null; records: RecordEvidence[] }>;
   proof: null | {
     sourceSessionId: string; sourceEventId: string;
@@ -28,9 +30,9 @@ const TABS: { id: Kind; label: string }[] = [
   { id: 'preferences', label: 'Preferences' },
   { id: 'facts', label: 'Facts' },
   { id: 'summary', label: 'Summary' },
-  { id: 'episodic', label: 'Episodic (optional)' },
+  { id: 'episodic', label: 'Episodic' },
 ];
-const REQUIRED_TYPES: Kind[] = ['facts', 'preferences', 'summary'];
+const REQUIRED_TYPES: Kind[] = ['facts', 'preferences', 'summary', 'episodic'];
 
 export default function MemoryShowcase({ persona }: { persona: string }) {
   const [tab, setTab] = useState<Kind>('preferences');
@@ -39,7 +41,9 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
   const proof = data?.proof;
   const recall = proof?.recall;
   const complete = panel?.state === 'completed';
-  const returnedTypes = REQUIRED_TYPES.filter(kind => data?.strategies[kind].records.length).length;
+  const returnedTypes = REQUIRED_TYPES.filter(kind => kind === 'episodic'
+    ? data?.strategies[kind].records.some(record => record.episode)
+    : data?.strategies[kind].records.length).length;
   const independentConversation = recall?.historyEventsLoaded === 0
     && recall.sessionId !== proof?.sourceSessionId;
   return (
@@ -51,16 +55,17 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
       </div>
       <p className="memory-showcase-intro">Follow a preference from the first conversation into a new recommendation. Check the records returned by each service.</p>
       <dl className="memory-showcase-owners" aria-label="Service roles">
-        <div><dt>AgentCore Memory</dt><dd>Conversation events and extracted preferences.</dd></div>
+        <div><dt>AgentCore Memory</dt><dd>Conversation events, facts, preferences, summaries and episodes.</dd></div>
         <div><dt>Aurora PostgreSQL</dt><dd>Current products, prices, stock, and order records.</dd></div>
       </dl>
       <p className="memory-showcase-scope">This exercise shares one verified actor across two conversations with different session IDs. Regular Storefront conversations keep their existing session scope.</p>
       {error && <div className="memory-showcase-notice" role="alert"><strong>Memory evidence unavailable</strong><p>{error}</p></div>}
       {loading && <p role="status">Reading AgentCore evidence…</p>}
       {data && <>
+        {!!data.configurationErrors?.length && <div className="memory-showcase-notice" role="alert"><strong>Memory configuration needs attention</strong><ul>{data.configurationErrors.map(message => <li key={message}>{message}</li>)}</ul></div>}
         <ol className="memory-showcase-steps">
           <li><strong>Share preferences</strong><span>{proof ? 'Conversation recorded' : 'Ready to begin'}</span></li>
-          <li><strong>Extract memory</strong><span>{returnedTypes} of 3 required record types returned. Episodic is optional.</span></li>
+          <li><strong>Extract memory</strong><span>{returnedTypes} of 4 required record types returned.</span></li>
           <li><strong>Recall and recommend</strong><span>{recall ? (recall.products.length ? 'Answer and products returned' : 'Answer returned without product citations') : 'Waiting for a new conversation'}</span></li>
         </ol>
         {proof && <details className="memory-showcase-details"><summary>First conversation: share preferences</summary>
@@ -73,7 +78,7 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
           <div className="memory-showcase-status"><StateBadge tone={panel?.strategyStatus === 'ACTIVE' ? 'live' : 'attention'}>Strategy {panel?.strategyStatus.toLowerCase().replace(/_/g, ' ')}</StateBadge>
             <span>{complete ? 'Completed episode returned by AgentCore' : panel?.records.length ? `${panel.records.length} extracted record${panel.records.length === 1 ? '' : 's'}` : !proof ? 'No conversation recorded' : panel?.strategyStatus === 'ACTIVE' ? 'Waiting for extraction' : 'Strategy is not ready'}</span>
           </div>
-          {!panel?.records.length && <p>{tab === 'episodic' ? 'An active strategy is not a completed episode. This optional tab waits for a consolidated AgentCore record; Aurora orders and seeded history do not count.' : !proof ? 'Record the first conversation in the Code Editor, then refresh this view.' : 'Extraction runs asynchronously. Continue the workshop and refresh later; the app does not supply substitute records.'}</p>}
+          {!panel?.records.length && <p>{tab === 'episodic' ? 'An active strategy is not a completed episode. This tab requires a consolidated AgentCore record; Aurora orders and seeded history do not count.' : !proof ? 'Record the first conversation in the Code Editor, then refresh this view.' : 'Extraction runs asynchronously. Continue the workshop and refresh later; the app does not supply substitute records.'}</p>}
           {panel?.records.map(record => <article key={record.id} className="memory-showcase-record">
             <p>{record.content}</p>
             {record.episode && <p><strong>Outcome assessment:</strong> {record.episode.assessment}</p>}
@@ -87,6 +92,11 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
             </details>
           </article>)}
         </div>
+        {proof && <details className="memory-showcase-details"><summary>Go deeper: reflections across episodes</summary>
+          <p>Reflections are extracted by AgentCore in the actor namespace. They can arrive after the completed episode; an empty result is still waiting.</p>
+          <code>{data.reflections?.namespace}</code>
+          {data.reflections?.records.length ? data.reflections.records.map(record => <article key={record.id}><code>{record.id}</code><pre>{record.raw}</pre></article>) : <p>No reflection records returned.</p>}
+        </details>}
         {proof && recall && <div className="memory-showcase-answer">
           <h3>{independentConversation ? 'New conversation' : 'Recall result'}</h3>
           <dl className="memory-showcase-inputs" aria-label="Context supplied to this answer">
@@ -117,8 +127,8 @@ export default function MemoryShowcase({ persona }: { persona: string }) {
       </>}
       <details className="memory-showcase-details"><summary>Run this exercise in the Code Editor</summary>
         <p>From the source repository root, with the backend Python environment active. Use the matching shopper sign-in to view the result here.</p>
-        <pre tabIndex={0} role="region" aria-label="Memory exercise commands">{`python scripts/showcase_agentcore_memory.py learn --persona ${persona}\npython scripts/showcase_agentcore_memory.py status --persona ${persona}\n# Wait for facts, preferences and summary records, then:\npython scripts/showcase_agentcore_memory.py recall --persona ${persona}\n# Optional episode: review the answer, then send the scripted acknowledgement:\npython scripts/showcase_agentcore_memory.py finish --persona ${persona}`}</pre>
-        <p>The workshop deployment configures four managed strategies. Learn writes a scripted first conversation. Recall invokes the live agent and can incur model charges. Refresh only reads evidence. Episode consolidation is optional and can take longer.</p>
+        <pre tabIndex={0} role="region" aria-label="Memory exercise commands">{`python scripts/showcase_agentcore_memory.py learn --persona ${persona}\npython scripts/showcase_agentcore_memory.py status --persona ${persona}\n# Wait for facts, preferences, summary and a completed episode, then:\npython scripts/showcase_agentcore_memory.py recall --persona ${persona}\n# Optional follow-up: close the new recommendation conversation:\npython scripts/showcase_agentcore_memory.py finish --persona ${persona}`}</pre>
+        <p>The workshop deployment configures four managed strategies. Learn writes a scripted first conversation. Recall invokes the live agent and can incur model charges. Refresh only reads evidence. All four record types are required for recall. Extraction runs asynchronously; pending records stay pending.</p>
       </details>
     </section>
   );

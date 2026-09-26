@@ -8,6 +8,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from mcp.types import Tool
+from botocore.paginate import Paginator
+from botocore.session import Session
 from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
 
 from routes import observatory
@@ -18,13 +20,39 @@ from services.memory_showcase import MemoryShowcase, STRATEGIES, owner_actor, re
 
 def service():
     data, control = MagicMock(), MagicMock()
-    strategies = [{"name": v[1], "type": v[0], "strategyId": k + "-strategy", "status": "ACTIVE"} for k, v in STRATEGIES.items()]
-    control.get_memory.return_value = {"memory": {"status": "ACTIVE", "strategies": strategies}}
+    strategies = [{"name": v[1], "type": v[0], "strategyId": k + "-strategy", "status": "ACTIVE", "namespaces": [v[3]]} for k, v in STRATEGIES.items()]
+    strategies[-1]["configuration"] = {"reflection": {"episodicReflectionConfiguration": {"namespaces": [module.REFLECTION_NAMESPACE]}}}
+    control.get_memory.return_value = {"memory": {"status": "ACTIVE", "eventExpiryDuration": 30, "strategies": strategies}}
+    session = Session()
+    api_model = session.get_service_model("bedrock-agentcore")
+    paginator_model = session.get_paginator_model("bedrock-agentcore")
+    def paginator(operation):
+        api_name = ''.join(word.title() for word in operation.split('_'))
+        return Paginator(getattr(data, operation), paginator_model.get_paginator(api_name), api_model.operation_model(api_name))
+    data.get_paginator.side_effect = paginator
     data.create_event.return_value = {"event": {"eventId": "event-1"}}
     data.list_events.return_value = {"events": []}
     data.list_memory_records.return_value = {"memoryRecordSummaries": []}
     return MemoryShowcase(data=data, control=control, memory_id="test-memory")
 
+
+
+def managed_record(kind, actor="owned", session="learn"):
+    raw = json.dumps({"situation": "Shopping brief", "intent": "Record preferences", "assessment": "Yes", "justification": "The brief was recorded"}) if kind == "episodic" else "RETRIEVED_" + kind
+    return {"memoryRecordId": kind + "-record", "memoryStrategyId": kind + "-strategy",
+            "content": {"text": raw}, "namespaces": [module.namespace(kind, actor, session)]}
+
+
+def populated_service(monkeypatch):
+    s = service()
+    proof = {"actorId": "owned", "sourceSessionId": "learn", "conversation": [{"content": "RAW_HISTORY_MUST_NOT_BE_REPLAYED"}], "recall": None}
+    monkeypatch.setattr(s, "latest", lambda sub: proof)
+    def response(**kwargs):
+        kind = next((k for k in STRATEGIES if module.namespace(k, "owned", "learn") == kwargs["namespace"]), None)
+        return {"memoryRecordSummaries": [managed_record(kind)] if kind else []}
+    s.data.list_memory_records.side_effect = response
+    s.data.retrieve_memory_records.side_effect = response
+    return s
 
 def test_source_conversation_has_separate_completion_event_and_blob_proof():
     s = service()
@@ -102,16 +130,7 @@ def test_recall_refuses_to_invoke_before_extraction(monkeypatch):
 
 
 def test_recall_passes_retrieved_records_without_replaying_source_chat(monkeypatch):
-    s = service()
-    proof = {"actorId": "owned", "sourceSessionId": "learn", "conversation": [{"content": "RAW_HISTORY_MUST_NOT_BE_REPLAYED"}], "recall": None}
-    monkeypatch.setattr(s, "latest", lambda sub: proof)
-    s.data.list_memory_records.return_value = {"memoryRecordSummaries": [{"memoryRecordId": "listed", "content": {"text": "extracted"}}]}
-
-    def retrieve(**kwargs):
-        kind = next(k for k in STRATEGIES if module.namespace(k, "owned", "learn") == kwargs["namespace"])
-        return {"memoryRecordSummaries": [{"memoryRecordId": kind + "-record", "memoryStrategyId": kind + "-strategy", "content": {"text": "RETRIEVED_" + kind}}]}
-
-    s.data.retrieve_memory_records.side_effect = retrieve
+    s = populated_service(monkeypatch)
     calls = []
 
     async def invoke(**kwargs):
@@ -185,3 +204,98 @@ def test_memory_xml_entities_remain_untrusted_text(kind):
     result = record_view({"content": {"text": raw}}, kind)
     assert result["content"] == raw
     assert result["episode"] is None
+
+
+@pytest.mark.parametrize("kind", STRATEGIES)
+def test_recall_requires_each_of_the_four_retrieved_types(kind, monkeypatch):
+    s = populated_service(monkeypatch)
+    retrieve = s.data.retrieve_memory_records.side_effect
+    s.data.retrieve_memory_records.side_effect = lambda **kw: {"memoryRecordSummaries": []} if kw["namespace"] == module.namespace(kind, "owned", "learn") else retrieve(**kw)
+    with pytest.raises(RuntimeError, match="all four required"):
+        asyncio.run(s.recall("marco-sub", "token", "CUST-MARCO"))
+
+
+@pytest.mark.parametrize("field,value", [("namespaces", ["/someone-else/"]), ("memoryStrategyId", "wrong-strategy"), ("memoryRecordId", "")])
+def test_inspection_rejects_unidentified_or_foreign_records(field, value, monkeypatch):
+    s = populated_service(monkeypatch)
+    bad = managed_record("preferences")
+    bad[field] = value
+    s.data.list_memory_records.side_effect = None
+    s.data.list_memory_records.return_value = {"memoryRecordSummaries": [bad]}
+    assert s.inspect("marco-sub")["strategies"]["preferences"]["records"] == []
+
+
+def test_partial_episode_blocks_recall_even_with_all_other_records(monkeypatch):
+    s = populated_service(monkeypatch)
+    response = s.data.list_memory_records.side_effect
+    def partial(**kw):
+        result = response(**kw)
+        for record in result["memoryRecordSummaries"]:
+            if record["memoryStrategyId"] == "episodic-strategy":
+                record["content"]["text"] = '<summary><summary_turn>Still working</summary_turn></summary>'
+        return result
+    s.data.list_memory_records.side_effect = partial
+    with pytest.raises(RuntimeError, match="completed episode must be extracted"):
+        asyncio.run(s.recall("marco-sub", "token", "CUST-MARCO"))
+
+
+@pytest.mark.parametrize("kind", STRATEGIES)
+def test_learning_refuses_namespace_drift(kind):
+    s = service()
+    strategy = next(x for x in s.control.get_memory.return_value["memory"]["strategies"] if x["type"] == STRATEGIES[kind][0])
+    strategy["namespaces"] = ["/wrong/{actorId}/"]
+    with pytest.raises(RuntimeError, match="namespace must be"):
+        s.learn("marco-sub", "marco")
+    s.data.create_event.assert_not_called()
+
+
+def readiness_module():
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[3] / 'scripts/deploy/verify_memory_readiness.py'
+    spec = importlib.util.spec_from_file_location('verify_memory_readiness_test', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_provisioning_requires_extraction_not_just_accepted_events():
+    s = service()
+    s.data.create_event.side_effect = [{"event": {"eventId": "source"}}, {"event": {"eventId": "closure"}}]
+    with pytest.raises(RuntimeError, match="extraction/retrieval timed out"):
+        readiness_module().verify_memory_readiness(s.control, s.data, "test-memory", timeout=0)
+    assert s.data.create_event.call_count == 2
+    s.data.get_memory_record.assert_not_called()
+
+
+def test_provisioning_proves_readback_retrieval_and_isolation():
+    s = service()
+    s.data.create_event.side_effect = [{"event": {"eventId": "source"}}, {"event": {"eventId": "closure"}}]
+    records = {}
+    def listing(**kw):
+        if "readiness-control-" in kw["namespace"]:
+            return {"memoryRecordSummaries": []}
+        kind = next(k for k, v in STRATEGIES.items() if kw["namespace"].startswith(v[3].split('{')[0]))
+        actor = kw["namespace"].split('/')[3]
+        record = managed_record(kind, actor, 'learn-' + actor.removeprefix('readiness-'))
+        records[record['memoryRecordId']] = record
+        return {"memoryRecordSummaries": [record]}
+    s.data.list_memory_records.side_effect = listing
+    s.data.retrieve_memory_records.side_effect = listing
+    s.data.get_memory_record.side_effect = lambda **kw: {"memoryRecord": records[kw['memoryRecordId']]}
+    s.data.list_events.side_effect = lambda **kw: {"events": [{"eventId": "source"}, {"eventId": "closure"}]} if kw['sessionId'].startswith('learn-') else {"events": []}
+    result = readiness_module().verify_memory_readiness(s.control, s.data, 'test-memory', timeout=0)
+    assert result['status'] == 'ready'
+    assert set(result['strategies']) == set(STRATEGIES)
+    assert s.data.get_memory_record.call_count == 4
+    assert result['namespaceIsolation'] is True
+    assert result['sourceSessionId'] != result['recallSessionId']
+    assert all(v['retrievedRecordIds'] for v in result['strategies'].values())
+
+
+def test_configuration_failure_never_seeds_conversations():
+    s = service()
+    s.control.get_memory.return_value['memory']['strategies'][0]['status'] = 'FAILED'
+    with pytest.raises(RuntimeError, match='configuration failed'):
+        readiness_module().verify_memory_readiness(s.control, s.data, 'test-memory', timeout=0)
+    s.data.create_event.assert_not_called()

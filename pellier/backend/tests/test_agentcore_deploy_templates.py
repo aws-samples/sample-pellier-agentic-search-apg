@@ -269,7 +269,9 @@ def test_memory_gateway_targets_and_policy_engine_share_one_project(
 
     memory = project["memories"][0]
     assert memory["name"] == renderer.MEMORY_NAME
-    assert memory["strategies"][0]["type"] == "USER_PREFERENCE"
+    assert [s["type"] for s in memory["strategies"]] == ["USER_PREFERENCE", "SEMANTIC", "SUMMARIZATION", "EPISODIC"]
+    assert memory["eventExpiryDuration"] == 30
+    assert memory["strategies"][-1]["reflectionNamespaceTemplates"] == ["/pellier/episodes/{actorId}/"]
 
     gateway = project["agentCoreGateways"][0]
     assert gateway["name"] == renderer.GATEWAY_NAME

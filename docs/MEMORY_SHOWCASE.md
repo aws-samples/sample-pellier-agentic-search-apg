@@ -9,9 +9,9 @@ recalls his preferences in Lab 3. The optional **Observatory > Memory** view
 The source conversation is scripted and visible in the page. Its long-term
 records are not seeded. Facts, preferences, a session summary, and completed
 episodes must come back from the real AgentCore Memory APIs.
-The required exercise uses facts, preferences, and the summary to produce a new
-recommendation. Sending the final acknowledgement and waiting for a completed
-episode are optional extensions.
+The required exercise uses facts, preferences, the summary and a completed
+episode to produce a new recommendation. Closing the second conversation and
+inspecting actor-level reflections are optional extensions.
 
 ## Before you start
 
@@ -32,21 +32,22 @@ python scripts/showcase_agentcore_memory.py learn --persona marco
 # Inspect actual resource, strategy, and extraction state.
 python scripts/showcase_agentcore_memory.py status --persona marco
 
-# After facts, preferences and the summary appear, start a new conversation.
+# After all four record types, including a completed episode, appear:
 python scripts/showcase_agentcore_memory.py recall --persona marco
 
 # Optional: review the answer, then send this scripted acknowledgement.
 python scripts/showcase_agentcore_memory.py finish --persona marco
 
-# Optional: wait for AgentCore to detect and consolidate an episode.
+# Optional: inspect the second episode and actor-level reflections.
 python scripts/showcase_agentcore_memory.py status --persona marco
 ```
 
 On a local checkout, use `pellier/backend/.venv/bin/python` if that environment
 is not active. Click **Refresh** on the Memory page after each step.
 
-`learn` creates a new isolated run. `recall` reuses an existing cited answer;
-an answer without structured products can be retried. `finish` writes an
+`learn` creates a new isolated run. `recall` reuses an existing cited answer
+only if it used all four record types; an incomplete answer can be retried.
+`finish` writes an
 explicit closing message and refuses an answer without product citations.
 It does **not** set the episode to completed. Only AgentCore's consolidated
 episode record can do that.
@@ -61,11 +62,11 @@ Memory extraction and Runtime model invocations can incur AWS charges.
 | Evidence | What it establishes |
 |---|---|
 | First conversation and its event IDs | A scripted conversation was stored in AgentCore short-term memory. |
-| Fact, preference and summary record IDs | AgentCore returned extracted long-term records. |
+| Fact, preference, summary and completed-episode record IDs | AgentCore returned all four required long-term record types. |
 | New conversation with a different session ID and zero prior chat events | The new invocation did not receive the first conversation's raw chat history. |
 | Retrieved record IDs passed to the model | Context came from Memory retrieval, not a repeated shopper brief. |
 | Live agent answer, tool results and product IDs | Product grounding came from the managed agent's catalog tools. Memory is not current price or stock truth. |
-| An active episodic strategy **and** a consolidated episode record | An episode was returned. An active strategy alone proves only readiness. |
+| An active episodic strategy **and** a consolidated episode record | An episode was returned. An active strategy alone proves only configuration readiness. |
 
 Episode completion and outcome success are different facts. A completed
 episode can assess the outcome as unsuccessful. Reflections and in-progress
@@ -76,6 +77,13 @@ recognizes both schemas and preserves the raw record. Actor-level facts and
 preferences can consolidate after later conversations; the source summary and
 episode remain session-scoped. The answer's evidence keeps the exact record
 IDs and text retrieved for that invocation, even if the live records evolve.
+The status response exposes `configurationErrors` and reads reflections separately
+under `.reflections.records`; an empty list is not completed extraction.
+
+Fresh-account provisioning also requires an isolated all-four extraction and
+retrieval probe. See the [AgentCore readiness contract](AGENTCORE-READINESS.md)
+for its record-ID checks, receipt and failure behavior. Participant recall still
+uses its own conversation and actual managed product results.
 
 ## Identity and source boundaries
 

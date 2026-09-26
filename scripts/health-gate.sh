@@ -360,10 +360,11 @@ fi
 memory_json="$(curl -fs --max-time 5 "${MEMORY_STATUS_URL:-http://localhost:8000/api/agentcore/memory/status}" 2>/dev/null || true)"
 if echo "$memory_json" | grep -q '"live"[[:space:]]*:[[:space:]]*true' \
     && echo "$memory_json" | grep -q '"source"[[:space:]]*:[[:space:]]*"agentcore-sdk"' \
-    && echo "$memory_json" | grep -q '"resource_status"[[:space:]]*:[[:space:]]*"ACTIVE"'; then
-  pass "AgentCore Memory resource is ACTIVE through the SDK path"
+    && echo "$memory_json" | grep -q '"resource_status"[[:space:]]*:[[:space:]]*"ACTIVE"' \
+    && echo "$memory_json" | grep -q '"strategies_ready"[[:space:]]*:[[:space:]]*true'; then
+  pass "AgentCore Memory resource and all four strategies are ready through the SDK path"
 else
-  managed_missing "AgentCore Memory is not ACTIVE through the SDK path (got: ${memory_json:-no response})"
+  managed_missing "AgentCore Memory resource or four-strategy configuration is not ready through the SDK path (got: ${memory_json:-no response})"
 fi
 
 # 7. AgentCore Runtime endpoint and intended starting rail

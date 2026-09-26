@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import Any, NamedTuple
 from output_guardrail import policy as output_guardrail_policy
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pellier" / "backend"))
+from services.memory_contract import EVENT_EXPIRY_DAYS, strategy_configurations
+
 from gateway_tool_schemas import (
     OWNER_SCOPED_GATEWAY_TOOLS,
     TOOL_SCHEMAS,
@@ -553,31 +556,8 @@ def render_project(
         "memories": [
             {
                 "name": identity.memory_name,
-                "eventExpiryDuration": 30,
-                "strategies": [
-                    {
-                        "type": "USER_PREFERENCE",
-                        "name": "PellierUserPreferences",
-                        "description": "Extract durable shopper preferences",
-                        "namespaceTemplates": ["/pellier/preferences/{actorId}/"],
-                    },
-                    {
-                        "type": "SEMANTIC",
-                        "name": "PellierFacts",
-                        "namespaceTemplates": ["/pellier/facts/{actorId}/"],
-                    },
-                    {
-                        "type": "SUMMARIZATION",
-                        "name": "PellierSessionSummary",
-                        "namespaceTemplates": ["/pellier/summaries/{actorId}/{sessionId}/"],
-                    },
-                    {
-                        "type": "EPISODIC",
-                        "name": "PellierEpisodes",
-                        "namespaceTemplates": ["/pellier/episodes/{actorId}/{sessionId}/"],
-                        "reflectionNamespaceTemplates": ["/pellier/episodes/{actorId}/"],
-                    }
-                ],
+                "eventExpiryDuration": EVENT_EXPIRY_DAYS,
+                "strategies": strategy_configurations(),
                 "tags": tags,
             }
         ],

@@ -2857,8 +2857,12 @@ def main() -> int:
             env=deploy_env,
         )
         result["memory"]["seed"] = memory_seed
-        result["verification"]["memory_seeded"] = (
-            memory_seed.get("status") == "ready"
+        result["verification"]["memory_seeded"] = memory_seed.get("status") == "ready"
+        result["verification"]["memory_extraction_verified"] = (
+            memory_seed.get("acceptance", {}).get("status") == "ready"
+            and memory_seed["acceptance"].get("memoryId") == memory_id
+            and set(memory_seed["acceptance"].get("strategies", {}))
+            == {"facts", "preferences", "summary", "episodic"}
         )
 
         proof_env = deploy_env.copy()
@@ -2933,6 +2937,7 @@ def main() -> int:
             "targets_attached",
             "gateway_tools_discovered",
             "memory_seeded",
+            "memory_extraction_verified",
             "live_policy_allow",
             "live_policy_deny",
             "authenticated_runtime_invoke_smoke",

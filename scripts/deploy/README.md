@@ -10,35 +10,52 @@ helpers seed Memory, authenticate test users, and verify the deployed path.
 
 ## What Gets Deployed
 
-1. **4 Lambda MCP Servers** — 15 canonical tools packaged as Lambda functions:
+1. **4 Lambda MCP servers** — 18 defined schemas, 16 tools published at baseline
+   and 17 after Lab 3A:
    - `pellier-search-server` — Hybrid search + inventory tools
    - `pellier-pricing-server` — Price analysis + deal finding
    - `pellier-recommend-server` — Curation, preferences, and audit reads
    - `pellier-experience-server` — Returns and stylist escalation
 
-2. **AgentCore Memory** — Short-term session events plus a
-   `USER_PREFERENCE` semantic strategy.
+2. **AgentCore Memory** — Short-term conversation events with 30-day expiry,
+   plus `USER_PREFERENCE`, `SEMANTIC`, `SUMMARIZATION` and `EPISODIC` strategies.
+   Bootstrap writes an isolated conversation, then requires extracted records
+   to pass list, get-by-ID and retrieval checks in all four namespaces. Missing
+   records, incomplete episodes, namespace drift or timeout fail readiness.
+   The check does not write long-term records or reuse participant evidence.
 
 3. **AgentCore Gateway** — MCP Gateway that registers all four Lambda targets with:
    - Cognito JWT authentication
    - Runtime tool discovery over MCP streamable HTTP
-   - Exact parity with the governed 15-tool Gateway subset
+   - Exact parity with the published catalog for the authenticated caller
 
    Docs: [Gateway overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html)
 
 4. **AgentCore Policy** — A managed Cedar engine attached to Gateway in
    `ENFORCE` mode:
-   - Baseline permit for this Gateway's tool catalog
-   - `initiate_return` allowed only for `reason == "damaged"`
+   - Explicit permits for the reviewed catalog and owner-scoped customer reads
+   - Shopper returns require `reason == "damaged"`; Lab 4 adds ownership.
+     Staff returns and credits use separate staff-scoped permits
+   - A managed output guardrail can suppress a tool response after execution
    - Provisioning executes a real ALLOW and DENY before reporting ready
 
-5. **AgentCore Runtime** — The orchestrator deployed as a managed HTTP runtime:
-   - Requires a Cognito access token through `CUSTOM_JWT`
+5. **AgentCore Runtime** — Separate shopper and staff managed HTTP runtimes:
+   - Shopper invocation requires a Cognito access token through `CUSTOM_JWT`
+   - Staff investigation is invoked with IAM after staff authentication
+   - Both executing packages carry verified build fingerprints
    - Discovers tools via Gateway
    - Fails closed if identity or Gateway is unavailable
    - Uses AgentCore Memory context supplied by the application request path
 
    Docs: [Runtime overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime.html)
+
+6. **AgentCore Observability** — Runtime/Gateway delivery, correlated agent,
+   model and tool spans, CloudWatch Transaction Search, encrypted bounded logs,
+   and control-plane audit. Readiness requires actual trace delivery.
+
+Runtime and Gateway have service-managed workload identities. The workshop does
+not configure outbound credential providers or managed AgentCore Evaluations.
+See the [implementation and exercise map](../../docs/AGENTCORE-READINESS.md).
 
 ## Prerequisites
 
@@ -57,7 +74,7 @@ npm install -g @aws/agentcore@0.29.0
 
 CLI repo: https://github.com/aws/agentcore-cli
 
-## Quick Deploy (15 min workshop version)
+## Deployment and recovery
 
 ```bash
 source deploy_all.sh
@@ -70,7 +87,8 @@ backend environment.
 
 ## Deployment Sequence
 
-`deploy_all.sh` is the executable source of truth. It runs these phases:
+`scripts/provision_agentcore_end_to_end.py` is the canonical orchestrator.
+`deploy_all.sh` calls it. The full provisioning path runs these phases:
 
 1. Package and deploy the search, pricing, recommendation, and experience
    Lambda functions.
@@ -82,8 +100,9 @@ backend environment.
 4. Run `agentcore validate` and `agentcore deploy`.
 5. After Gateway has published its action catalog, render the baseline Cedar
    set and run the same validate/deploy sequence again.
-6. Authenticate with Cognito, discover all 15 live MCP tools, seed Memory,
-   prove Policy ALLOW/DENY, and invoke Runtime with `rail=gateway-mcp`.
+6. Authenticate with Cognito, verify the caller-scoped live catalog, prove
+   extraction and retrieval for all four Memory strategies, prove Policy
+   ALLOW/DENY, invoke both runtimes, and verify correlated trace delivery.
 
 For unattended bootstrap, use
 `scripts/provision_agentcore_end_to_end.py`; it adds target/tool verification,
@@ -102,9 +121,10 @@ value, `30` in the workshop template).
 | `pellier_recommend_server.py`      | Lambda MCP server for curation + evidence      |
 | `pellier_experience_server.py`     | Lambda MCP server for returns + escalation     |
 | `deploy_lambda.py`                | Lambda deployment script (adapted from DAT403) |
-| `gateway_tool_schemas.py`         | Governed four-target, 15-tool Gateway subset   |
+| `gateway_tool_schemas.py`         | Four-target catalog and participant publication boundary   |
 | `render_agentcore_project.py`     | Writes the declarative AgentCore CLI project   |
-| `seed_agentcore_memory.py`        | Seeds managed preference records after deploy  |
+| `seed_agentcore_memory.py`        | Proves all-four extraction, then seeds source conversations  |
+| `verify_memory_readiness.py`    | Isolated real extraction, record-ID and namespace proof |
 | `gateway_initiate_return.py`       | Live ALLOW/DENY and JWT-bound receipt proof    |
 | `../../pellier/backend/agentcore_runtime.py` | **Deployed** BYO Runtime entrypoint; JWT + Gateway required |
 | `../../pellier/backend/pyproject.toml` | CodeZip dependencies for the BYO agent         |
@@ -124,5 +144,6 @@ value, `30` in the workshop template).
 - **Runtime traces** — run `npx -y @aws/agentcore@0.29.0 traces list --runtime pellier_orchestrator --limit 10 --since 1h --json`, then correlate on the session ID. Readiness requires correlated agent, model, and tool spans, per-step latency, matching Runtime builds, and content handling that matches the configured redaction mode. Redacted traces must not expose model or tool payloads.
 
 Run `bash scripts/health-gate.sh` for the governed readiness verdict. It also
-requires active Memory, exactly 180 warehouse rows, Policy `ENFORCE`, and the
-structured provisioning receipt.
+requires all four Memory strategies with the expected configuration and a
+complete extraction receipt, exactly 180 warehouse rows, Policy `ENFORCE`,
+and the structured provisioning receipt.

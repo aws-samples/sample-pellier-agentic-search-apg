@@ -361,7 +361,7 @@ const MemoryDetail: React.FC = () => {
         },
         {
           numeral: 'iii.',
-          text: 'Customer history: Aurora orders and returns record business activity. The customer_episodic_seed table supplies curated scenario context. These rows are separate from records extracted by the optional AgentCore EPISODIC strategy.',
+          text: 'Customer history: Aurora orders and returns record business activity. The customer_episodic_seed table supplies curated scenario context. These rows are separate from records extracted by the AgentCore EPISODIC strategy.',
         },
         {
           numeral: 'iv.',
@@ -428,7 +428,7 @@ prefs = await memory.get_semantic_memories(
               category="live"
               title="Per-customer events"
               role="What this customer has done over time"
-              prose="Orders and returns are authoritative business records. The customer_episodic_seed table holds curated context for the workshop scenario. Its name does not mean these rows were extracted by AgentCore Memory; the optional EPISODIC strategy has its own records and namespaces."
+              prose="Orders and returns are authoritative business records. The customer_episodic_seed table holds curated context for the workshop scenario. Its name does not mean these rows were extracted by AgentCore Memory; the EPISODIC strategy has its own records and namespaces."
               codeSnippet={`# Curated scenario context in Aurora
 seed = await fetch_episodic_seed(customer_id)
 # -> [{summary_text, ts_offset_days}, ...]

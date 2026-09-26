@@ -128,6 +128,8 @@ def probe_memory_backend_status(
     region: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Verify that the configured AgentCore Memory resource is ACTIVE."""
+    from services.memory_contract import configuration_errors
+
     resolved_id = (
         memory_id if memory_id is not None else settings.AGENTCORE_MEMORY_ID
     ) or ""
@@ -194,6 +196,8 @@ def probe_memory_backend_status(
         "memory_id": resolved_id,
         "sdk_available": True,
         "resource_status": resource_status,
+        "strategies_ready": not configuration_errors(response["memory"]),
+        "strategy_errors": configuration_errors(response["memory"]),
         "fallback_reason": None,
     }
 

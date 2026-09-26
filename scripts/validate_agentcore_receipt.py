@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pellier" / "backend"))
+from services.memory_contract import STRATEGIES, namespace
+
 
 DEPLOY_DIR = Path(__file__).resolve().parent / "deploy"
 if str(DEPLOY_DIR) not in sys.path:
@@ -119,11 +122,58 @@ def _validate_participant_receipt(
     return errors
 
 
+def validate_memory_acceptance(payload: dict[str, Any]) -> list[str]:
+    """A seed acknowledgement or ACTIVE flag cannot stand in for extraction."""
+    proof = _value(payload, "memory.seed.acceptance")
+    if not isinstance(proof, dict):
+        return ["memory.seed.acceptance must contain real extraction and retrieval evidence"]
+    errors = []
+    for key, expected in {"status": "ready", "source": "agentcore-service", "historyEventsLoaded": 0,
+                          "namespaceIsolation": True, "eventExpiryDuration": 30}.items():
+        if proof.get(key) != expected or type(proof.get(key)) is not type(expected):
+            errors.append(f"memory acceptance {key} must be {expected!r}")
+    if proof.get("memoryId") != _value(payload, "memory.memory_id"):
+        errors.append("memory acceptance must match the provisioned memory ID")
+    for key in ("actorId", "sourceSessionId", "recallSessionId", "verifiedAt"):
+        if not isinstance(proof.get(key), str) or not proof[key]:
+            errors.append(f"memory acceptance requires {key}")
+    if proof.get("sourceSessionId") == proof.get("recallSessionId"):
+        errors.append("memory acceptance must use a new recall session")
+    events = proof.get("sourceEventIds")
+    if not isinstance(events, list) or len(set(str(x) for x in events)) < 2 or not all(isinstance(x, str) and x for x in events):
+        errors.append("memory acceptance requires distinct conversation and completion event IDs")
+    panels = proof.get("strategies", {})
+    if not isinstance(panels, dict):
+        return errors + ["memory acceptance strategies must be an object"]
+    for kind, spec in STRATEGIES.items():
+        panel = panels.get(kind, {})
+        if not isinstance(panel, dict):
+            errors.append(f"memory acceptance {kind} evidence is missing")
+            continue
+        path = namespace(kind, proof.get("actorId", ""), proof.get("sourceSessionId", ""))
+        records = panel.get("records", [])
+        valid_ids = {r["id"] for r in records if isinstance(r, dict)
+                     and isinstance(r.get("id"), str) and r["id"]
+                     and isinstance(r.get("raw"), str) and r["raw"].strip()
+                     and r.get("strategyId") == panel.get("strategyId")
+                     and path in r.get("namespaces", [])
+                     and (kind != "episodic" or isinstance(r.get("episode"), dict)
+                          and all(isinstance(r["episode"].get(k), str) and r["episode"][k].strip()
+                                  for k in ("situation", "intent", "assessment", "justification")))} if isinstance(records, list) else set()
+        retrieved = panel.get("retrievedRecordIds")
+        if (panel.get("type") != spec[0] or not panel.get("strategyId") or panel.get("namespace") != path
+                or not isinstance(retrieved, list) or not retrieved
+                or not all(isinstance(i, str) and i in valid_ids for i in retrieved)):
+            errors.append(f"memory acceptance {kind} must include scoped, read and retrieved records")
+    return errors
+
+
 def validate_receipt(
     payload: dict[str, Any], participant: dict[str, Any] | None = None
 ) -> list[str]:
     """Return human-readable contract violations; an empty list means ready."""
     errors: list[str] = []
+    errors.extend(validate_memory_acceptance(payload))
     if participant is not None:
         errors.extend(_validate_participant_receipt(payload, participant))
     content_redacted = _value(
@@ -192,6 +242,7 @@ def validate_receipt(
         "verification.targets_attached",
         "verification.gateway_tools_discovered",
         "verification.memory_seeded",
+        "verification.memory_extraction_verified",
         "verification.live_policy_allow",
         "verification.live_policy_deny",
         "verification.authenticated_runtime_invoke_smoke",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed preference events into the CLI-managed Pellier AgentCore Memory."""
+"""Seed scenario conversations and prove all four managed Memory strategies."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from typing import Any
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
+from verify_memory_readiness import verify_memory_readiness
 
 
 SEED_TURNS = {
@@ -74,32 +76,7 @@ def _wait_for_memory(control: Any, memory_id: str, timeout: int = 300) -> dict[s
     raise RuntimeError(f"AgentCore Memory {memory_id} did not become ACTIVE")
 
 
-def _wait_for_preference_strategy(
-    control: Any,
-    memory_id: str,
-    timeout: int = 300,
-) -> bool:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        memory = _memory(control, memory_id)
-        strategies = memory.get("strategies", [])
-        strategy = next(
-            (
-                item
-                for item in strategies
-                if item.get("type") == "USER_PREFERENCE"
-            ),
-            None,
-        )
-        if strategy and strategy.get("status") == "ACTIVE":
-            return True
-        if strategy and strategy.get("status") == "FAILED":
-            raise RuntimeError("AgentCore USER_PREFERENCE strategy failed")
-        time.sleep(5)
-    return False
-
-
-def seed(memory_id: str, region: str) -> dict[str, Any]:
+def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
     control = boto3.client(
         "bedrock-agentcore-control",
         region_name=region,
@@ -111,9 +88,7 @@ def seed(memory_id: str, region: str) -> dict[str, Any]:
         config=AWS_CONFIG,
     )
     memory = _wait_for_memory(control, memory_id)
-    strategy_active = _wait_for_preference_strategy(control, memory_id)
-    if not strategy_active:
-        raise RuntimeError("AgentCore USER_PREFERENCE strategy did not become ACTIVE")
+    acceptance = verify_memory_readiness(control, data, memory_id, timeout=timeout)
 
     created = 0
     duplicates = 0
@@ -153,7 +128,8 @@ def seed(memory_id: str, region: str) -> dict[str, Any]:
         "status": "ready",
         "memory_id": memory_id,
         "resource_status": memory.get("status"),
-        "strategy": "USER_PREFERENCE",
+        "strategies": [item["type"] for item in acceptance["strategies"].values()],
+        "acceptance": acceptance,
         "events_created": created,
         "events_already_present": duplicates,
         "actors": sorted(SEED_TURNS),
@@ -164,9 +140,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--memory-id", required=True)
     parser.add_argument("--region", required=True)
+    parser.add_argument("--timeout", type=int, default=1200, help="Maximum seconds for managed extraction and retrieval")
     args = parser.parse_args()
     try:
-        print(json.dumps(seed(args.memory_id, args.region)))
+        print(json.dumps(seed(args.memory_id, args.region, timeout=args.timeout)))
         return 0
     except (ClientError, RuntimeError) as exc:
         print(f"Memory seed failed: {exc}", file=sys.stderr)

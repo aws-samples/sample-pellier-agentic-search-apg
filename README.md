@@ -272,7 +272,7 @@ a recommendation; its price, stock, and permitted actions require current eviden
 |---|---|---|---|---|
 | **Conversation events** | AgentCore Memory | actor and session | 30-day event expiry | The first conversation is recorded; the new conversation has zero prior chat events |
 | **Learned preferences and facts** | AgentCore Memory `USER_PREFERENCE` and `SEMANTIC` strategies | actor | stored beyond one session | An extracted preference is supplied to the new conversation and used in a recommendation |
-| **Summaries and optional episodes** | AgentCore Memory `SUMMARIZATION` and `EPISODIC` strategies | configured actor and session namespaces | stored beyond one session | Returned records and their IDs; an active strategy alone does not establish extraction |
+| **Summaries and completed episodes** | AgentCore Memory `SUMMARIZATION` and `EPISODIC` strategies | configured actor and session namespaces | stored beyond one session | Returned records and their IDs; an active strategy alone does not establish extraction |
 | **Business records and execution evidence** | Aurora products, inventory, orders, returns, and audit tables | product, customer, action, and turn identifiers | database retention policy | Current product facts, authorized business changes, and keyed evidence |
 | **Runtime instructions** | Checked-in skills and MCP tool schemas | file path | changes with the deployed artifact | Reviewed instructions and accepted tool arguments |
 
@@ -282,7 +282,7 @@ calls retain their existing conversation-specific actor scope; this exercise
 makes the separate identity choices visible.
 
 Extraction runs asynchronously. Check strategy state, namespace, and returned
-record IDs before claiming a preference was learned. The optional AgentCore
+record IDs before claiming a preference was learned. The AgentCore
 `EPISODIC` strategy is separate from Aurora's curated `customer_episodic_seed`
 rows. Memory supplies context; authorization and database checks still control
 which records a caller can read and which actions can commit.
@@ -541,6 +541,11 @@ VITE_BASE_PATH=/app/   # bake the prefix into the bundle at build time
 The app moves to `/app/`, `GET /app` 307-redirects to `/app/`, and the real API stays at `/api/*`. Do not register new FastAPI routes below the SPA catch-all – its `{full_path:path}` pattern shadows everything under the mount.
 
 ---
+
+See the [AgentCore implementation and exercise map](docs/AGENTCORE-READINESS.md)
+for supplied services, participant edit boundaries, recovery expectations and
+fresh-event acceptance.
+
 
 ## Workshop path
 
@@ -821,7 +826,7 @@ Claude Code resolves `CLAUDE.md` guidance by scope. The backend separately loads
 | Hybrid merge     | Reciprocal Rank Fusion (RRF) – fuses pgvector + FTS rank lists without normalizing raw scores |
 | Models           | Claude Opus 5 (`global.anthropic.claude-opus-5`, editorial); Claude Sonnet 5 (`global.anthropic.claude-sonnet-5`, routing/reporting, no temperature override); Claude Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`, explicit Fast response mode); Cohere Embed v4 (`us.cohere.embed-v4:0`, 1024-dim via output_dimension, inference profile); Cohere Rerank v3.5 (`cohere.rerank-v3-5:0`) |
 | Agent framework  | Strands Agents SDK – `Agent`, `@tool`, deterministic Storefront Dispatcher, bounded Operator Concierge `GraphBuilder`, and before/after tool-call hooks |
-| Agent infra      | Bedrock AgentCore Runtime (CUSTOM_JWT and governed Gateway MCP calls); Memory (conversation events and four configured extraction strategies, with episodic extraction optional); Gateway (16 published tools at baseline, 17 after Lab 3a, from 18 defined schemas; token-scoped discovery); Policy (Cedar ENFORCE); Identity |
+| Agent infra      | Bedrock AgentCore Runtime (CUSTOM_JWT and governed Gateway MCP calls); Memory (conversation events and four configured extraction strategies, all four required for recall); Gateway (16 published tools at baseline, 17 after Lab 3a, from 18 defined schemas; token-scoped discovery); Policy (Cedar ENFORCE); Observability (CloudWatch/OTEL). Cognito JWT and IAM authentication; service-managed workload identities, without outbound credential providers |
 | MCP              | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) pinned to `==1.1.6` and installed via `uvx`, registered against the Aurora cluster ARN over `--connection_method RDS_API --db_type APG` (enum-name flag, not the lowercase value; read-only by default; writes require opting in via `--allow_write_query`); `pellier/config/mcp-server-config.json` is the literal contract; AgentCore Gateway is the managed-host counterpart |
 | Backend          | FastAPI; Python 3.14; psycopg3; boto3; SSE streaming                                                  |
 | Frontend         | React 18; TypeScript 5; Vite 6; Tailwind CSS 3; Framer Motion 12                                                      |

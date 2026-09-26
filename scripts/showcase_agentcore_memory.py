@@ -4,7 +4,8 @@
 Run from the repository root with pellier/backend/.venv/bin/python.
 No long-term records are seeded. `learn` writes a visible, scripted conversation;
 `recall` retrieves extracted records and invokes the live product agent.
-`finish` is the optional extension for episodic consolidation.
+`recall` requires all four record types, including a completed source episode.
+`finish` closes the recommendation conversation so its later episode can form.
 """
 from __future__ import annotations
 

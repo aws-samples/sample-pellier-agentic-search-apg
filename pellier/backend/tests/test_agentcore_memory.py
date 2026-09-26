@@ -319,7 +319,9 @@ def test_memory_status_accepts_active_control_plane_resource(
         region="us-east-1",
     )
 
-    assert status == {
+    assert status["strategies_ready"] is False
+    assert len(status["strategy_errors"]) == 5
+    assert {k: v for k, v in status.items() if k not in {"strategies_ready", "strategy_errors"}} == {
         "live": True,
         "source": "agentcore-sdk",
         "memory_id": "memory-active",

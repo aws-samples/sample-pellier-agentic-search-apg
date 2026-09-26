@@ -52,7 +52,7 @@ describe('Memory showcase evidence', () => {
 
   it('does not call an active strategy a completed episode', () => {
     render(<MemoryShowcase persona="marco" />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Episodic (optional)' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Episodic' }));
     expect(screen.getByText('No conversation recorded')).toBeInTheDocument();
     expect(screen.queryByText('Completed episode returned by AgentCore')).not.toBeInTheDocument();
     expect(screen.getByText(/Aurora orders and seeded history do not count/)).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('Memory showcase evidence', () => {
     data.strategies.episodic = { ...data.strategies.episodic, state: 'completed', records: [{ id: 'aws-episode-id', strategyId: 'episodic-strategy', content: 'The gift request concluded.', raw: '<summary>real service output</summary>', episode: { assessment: 'Yes' } }] } as typeof data.strategies.episodic;
     read.mockReturnValue({ data, loading: false, error: null, refetch: vi.fn() });
     render(<MemoryShowcase persona="marco" />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Episodic (optional)' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Episodic' }));
     expect(screen.getByText('Completed episode returned by AgentCore')).toBeInTheDocument();
     expect(screen.getByText('aws-episode-id')).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe('Memory showcase evidence', () => {
   it('supports keyboard movement between the memory types', () => {
     render(<MemoryShowcase persona="marco" />);
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Facts' }), { key: 'End' });
-    expect(screen.getByRole('tab', { name: 'Episodic (optional)' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Episodic' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('reads the selected identity scope and does not render evidence on error', () => {
@@ -86,9 +86,9 @@ describe('Memory showcase evidence', () => {
     read.mockReturnValue({ data: recalledSnapshot(), loading: false, error: null, refetch: vi.fn() });
     render(<MemoryShowcase persona="theo" />);
     expect(screen.getByRole('tab', { name: 'Preferences' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('3 of 3 required record types returned. Episodic is optional.')).toBeInTheDocument();
+    expect(screen.getByText('3 of 4 required record types returned.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'New conversation' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Episodic (optional)' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Episodic' }));
     expect(screen.getByText('Waiting for extraction')).toBeInTheDocument();
   });
 

@@ -54,19 +54,23 @@ def _read(path: pathlib.Path) -> str:
 
 def test_agentcore_memory_declares_four_distinct_showcase_strategies() -> None:
     """The showcase distinguishes every record shape in its own tab."""
-    source = _read(RENDERER)
-    strategies = re.findall(r'"type":\s*"(USER_PREFERENCE|SEMANTIC|SUMMARIZATION|EPISODIC)"', source)
+    from services.memory_contract import strategy_configurations
+
+    assert '"strategies": strategy_configurations()' in _read(RENDERER)
+    strategies = [item["type"] for item in strategy_configurations()]
     assert strategies == ["USER_PREFERENCE", "SEMANTIC", "SUMMARIZATION", "EPISODIC"]
 
 
 def test_preferences_and_facts_share_an_actor_while_summaries_identify_sessions() -> None:
     """Session metadata in a durable namespace does not make it short-term."""
-    source = _read(RENDERER)
-    assert '"/pellier/preferences/{actorId}/"' in source
-    assert '"/pellier/facts/{actorId}/"' in source
-    assert '"/pellier/summaries/{actorId}/{sessionId}/"' in source
-    assert '"/pellier/episodes/{actorId}/{sessionId}/"' in source
-    assert '"reflectionNamespaceTemplates": ["/pellier/episodes/{actorId}/"]' in source
+    from services.memory_contract import strategy_configurations
+
+    configured = {item["type"]: item for item in strategy_configurations()}
+    assert configured["USER_PREFERENCE"]["namespaceTemplates"] == ["/pellier/preferences/{actorId}/"]
+    assert configured["SEMANTIC"]["namespaceTemplates"] == ["/pellier/facts/{actorId}/"]
+    assert configured["SUMMARIZATION"]["namespaceTemplates"] == ["/pellier/summaries/{actorId}/{sessionId}/"]
+    assert configured["EPISODIC"]["namespaceTemplates"] == ["/pellier/episodes/{actorId}/{sessionId}/"]
+    assert configured["EPISODIC"]["reflectionNamespaceTemplates"] == ["/pellier/episodes/{actorId}/"]
 
 
 def test_short_term_events_expire() -> None:

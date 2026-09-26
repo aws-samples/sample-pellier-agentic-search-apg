@@ -238,6 +238,22 @@ def _valid_receipt() -> dict[str, Any]:
         }
         group["requested"] = dict(settings)
         group["observed"] = dict(settings)
+    from services.memory_contract import STRATEGIES, namespace
+    actor, session = "readiness-test", "learn-test"
+    panels = {}
+    for kind, spec in STRATEGIES.items():
+        path = namespace(kind, actor, session)
+        record = {"id": kind + "-record", "strategyId": kind + "-strategy", "raw": "service content", "namespaces": [path],
+                  "episode": {key: "observed" for key in ("situation", "intent", "assessment", "justification")} if kind == "episodic" else None}
+        panels[kind] = {"type": spec[0], "strategyId": record["strategyId"], "namespace": path,
+                        "records": [record], "retrievedRecordIds": [record["id"]]}
+    receipt["memory"]["seed"]["acceptance"] = {
+        "status": "ready", "source": "agentcore-service", "memoryId": "memory-1",
+        "actorId": actor, "sourceSessionId": session, "recallSessionId": "recall-test", "verifiedAt": "2026-09-26",
+        "sourceEventIds": ["source-event", "closure-event"], "historyEventsLoaded": 0,
+        "namespaceIsolation": True, "eventExpiryDuration": 30, "strategies": panels,
+    }
+    receipt["verification"]["memory_extraction_verified"] = True
     return receipt
 
 
@@ -519,3 +535,22 @@ def test_ready_receipt_rejects_unprotected_trace_log_group() -> None:
     errors = validator.validate_receipt(receipt)
 
     assert "trace log group 'aws/spans' must use the receipt KMS key" in errors
+
+
+@pytest.mark.parametrize("kind", ["facts", "preferences", "summary", "episodic"])
+def test_each_memory_strategy_needs_read_and_retrieved_record_ids(kind):
+    receipt = _valid_receipt()
+    receipt["memory"]["seed"]["acceptance"]["strategies"][kind]["retrievedRecordIds"] = []
+    assert any(kind in error for error in _load_validator().validate_receipt(receipt))
+
+
+def test_active_memory_or_successful_seed_alone_cannot_pass_readiness():
+    receipt = _valid_receipt()
+    del receipt["memory"]["seed"]["acceptance"]
+    assert any("memory.seed.acceptance" in error for error in _load_validator().validate_receipt(receipt))
+
+
+def test_partial_episode_does_not_satisfy_provisioning_receipt():
+    receipt = _valid_receipt()
+    receipt["memory"]["seed"]["acceptance"]["strategies"]["episodic"]["records"][0]["episode"] = None
+    assert any("episodic" in error for error in _load_validator().validate_receipt(receipt))

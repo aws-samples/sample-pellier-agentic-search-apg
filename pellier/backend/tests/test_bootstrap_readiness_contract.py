@@ -427,6 +427,22 @@ def _valid_managed_receipt() -> dict[str, object]:
         }
         group["requested"] = dict(protection)
         group["observed"] = dict(protection)
+    from services.memory_contract import STRATEGIES, namespace
+    actor, session = "readiness-test", "learn-test"
+    panels = {}
+    for kind, spec in STRATEGIES.items():
+        path = namespace(kind, actor, session)
+        record = {"id": kind + "-record", "strategyId": kind + "-strategy", "raw": "service content", "namespaces": [path],
+                  "episode": {key: "observed" for key in ("situation", "intent", "assessment", "justification")} if kind == "episodic" else None}
+        panels[kind] = {"type": spec[0], "strategyId": record["strategyId"], "namespace": path,
+                        "records": [record], "retrievedRecordIds": [record["id"]]}
+    receipt["memory"]["seed"]["acceptance"] = {
+        "status": "ready", "source": "agentcore-service", "memoryId": "memory-123",
+        "actorId": actor, "sourceSessionId": session, "recallSessionId": "recall-test", "verifiedAt": "2026-09-26",
+        "sourceEventIds": ["source-event", "closure-event"], "historyEventsLoaded": 0,
+        "namespaceIsolation": True, "eventExpiryDuration": 30, "strategies": panels,
+    }
+    receipt["verification"]["memory_extraction_verified"] = True
     return receipt
 
 
@@ -527,7 +543,7 @@ def _run_health_gate(
         """#!/bin/bash
 case "$*" in
   *api/health*) printf '{"status":"healthy"}' ;;
-  *memory/status*) printf '{"live":true,"source":"agentcore-sdk","resource_status":"ACTIVE"}' ;;
+  *memory/status*) printf '{"live":true,"source":"agentcore-sdk","resource_status":"ACTIVE","strategies_ready":true}' ;;
   *operator/concierge/config*) printf '__OPERATOR_CONFIG__' ;;
   *operator/capabilities*) printf '__OPERATOR_CAPABILITIES__' ;;
   *) printf '<!doctype html><div id="root"></div>' ;;
