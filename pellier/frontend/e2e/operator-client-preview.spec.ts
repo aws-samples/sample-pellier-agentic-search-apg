@@ -106,6 +106,7 @@ test.describe('Operator client storefront handoff', () => {
     // A return row is a request; nothing records the parcel arriving, so the
     // ticket's receipt claim stays unconfirmed whatever rows exist.
     expect(record.client.returnEvidence.unconfirmedReturnAssertion).toBe(true)
+    const conflict: boolean = record.client.returnEvidence.unconfirmedReturnAssertion
     const recorded = new Set(
       record.returns.map((row: { productId: string }) => row.productId),
     )
