@@ -3694,6 +3694,34 @@
 }
 
 /*
+ * One scroller per pane. A recorded trace is its own bounded scroll box where it
+ * stands alone (Observatory replay, the showcase loop), and there it contains its
+ * overscroll so the page does not move. Nested inside this thread it became a
+ * third scroll layer: once a trace list reached its end, `overscroll-behavior:
+ * contain` refused to hand the wheel back, and the thread stopped moving under
+ * the pointer. Here the trace flows in the thread and the thread does the
+ * scrolling.
+ */
+.operator-concierge-body .resolution-trace-list {
+  max-height: none;
+  overflow: visible;
+}
+
+/*
+ * Beside the record, the thread keeps its own scroll. Without containment the
+ * wheel spilled into the page at the thread's end, moved the record behind the
+ * sticky pane, and stayed latched to the page for the rest of the gesture, so
+ * scrolling back up did not return to the conversation. Stacked (at 1080px and
+ * below) the pane is nearly a full screen tall, and containing it there would
+ * trap touch scrolling inside it, so chaining stays on.
+ */
+@media (min-width: 1081px) {
+  .operator-concierge-body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/*
  * Scrolled content leaving at the TOP was cut square against the capability
  * block above it, so a half-height row of capitals read as a broken glyph
  * rather than as "there is more above". The fade exists only once the scroller

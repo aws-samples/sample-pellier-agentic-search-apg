@@ -115,6 +115,52 @@ test('a newer client conversation surfaces its own pending review from the queue
   expect(api.mutations).toEqual([])
 })
 
+test('the concierge thread keeps scrolling under the wheel across recorded traces', async ({ page }) => {
+  await wire(page)
+  const investigation = Array.from({ length: 14 }, (_, i) => ({
+    kind: 'tool', label: `Read source record ${i + 1}`, source: 'Aurora PostgreSQL', status: 'complete',
+    durationMs: 40, result: 'Fixture row read for a long recorded investigation.',
+  }))
+  const turns = Array.from({ length: 6 }, (_, i) => ({
+    messageId: 100 + i, role: 'assistant', turnId: `trace-turn-${i}`, turnState: 'complete',
+    content: `Recorded answer ${i + 1}. The order is recorded; a proposal is not an approval.`,
+    artifact: { investigation },
+  }))
+  await page.route('**/concierge/sessions/case-session', route => route.fulfill({ json: {
+    sessionId: 'case-session', customerId: client.customerId, messages: turns,
+  } }))
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/operator/clients/CUST-JESSICA#operator-concierge')
+  const body = page.getByTestId('operator-concierge-body')
+  await expect(page.getByTestId('operator-concierge-investigation')).toHaveCount(6)
+  const max = await body.evaluate(node => { node.scrollTop = 0; return node.scrollHeight - node.clientHeight })
+  expect(max).toBeGreaterThan(2000)
+  const box = await body.boundingBox()
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  // A recorded trace under the pointer must not capture the wheel: the thread
+  // is the one scroller in the pane, so every step has to move it.
+  for (let i = 0; i < 30; i += 1) {
+    await page.mouse.wheel(0, 150)
+    await page.waitForTimeout(40)
+  }
+  expect(await body.evaluate(node => node.scrollTop)).toBeGreaterThan(Math.min(max - 10, 4000))
+  for (let i = 0; i < 30; i += 1) {
+    await page.mouse.wheel(0, -150)
+    await page.waitForTimeout(40)
+  }
+  expect(await body.evaluate(node => node.scrollTop)).toBeLessThan(500)
+
+  // At the thread's end the wheel stays with the thread: it must not spill into
+  // the page and move the client record behind the sticky pane.
+  await body.evaluate(node => { node.scrollTop = node.scrollHeight })
+  const pageBefore = await page.evaluate(() => scrollY)
+  for (let i = 0; i < 6; i += 1) {
+    await page.mouse.wheel(0, 150)
+    await page.waitForTimeout(40)
+  }
+  expect(await page.evaluate(() => scrollY)).toBe(pageBefore)
+})
+
 for (const width of [1440, 768, 390]) {
   test(`client chat, prepared review, and exact conversation return stay connected at ${width}px`, async ({ page }) => {
     const api = await wire(page)
