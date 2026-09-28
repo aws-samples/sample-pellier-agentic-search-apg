@@ -165,31 +165,29 @@ describe('StatusDot', () => {
 // ---------------------------------------------------------------------------
 // `Eyebrow` is an adapter over `shared/SectionEyebrow`, so what is worth
 // pinning is that it resolves to the one shared register -- not the literal
-// values it used to set itself. It carried 12px and a 6px dot against the
-// primitive's 11px and 5px, which is the drift this convergence closed.
+// values it used to set itself: sans 13/600 in sentence case.
 describe('Eyebrow', () => {
   it('renders the shared section-label register', () => {
-    render(<Eyebrow label="SESSIONS" />);
+    render(<Eyebrow label="Sessions" />);
 
-    const eyebrow = screen.getByText('SESSIONS');
+    const eyebrow = screen.getByText('Sessions');
     expect(eyebrow.style.fontFamily).toBe('var(--obs-heading)');
-    expect(eyebrow.style.textTransform).toBe('uppercase');
-    expect(eyebrow.style.letterSpacing).toBe('0.08em');
-    expect(eyebrow.style.fontSize).toBe('11px');
+    expect(eyebrow.style.textTransform).toBe('');
+    expect(eyebrow.style.fontSize).toBe('13px');
     expect(eyebrow.style.fontWeight).toBe('600');
   });
 
   it('opens a section in the brand tone with a leading dot', () => {
-    const { container } = render(<Eyebrow label="OBSERVE" />);
+    const { container } = render(<Eyebrow label="Observe" />);
 
-    const eyebrow = screen.getByText('OBSERVE');
+    const eyebrow = screen.getByText('Observe');
     expect(eyebrow).toHaveAttribute('data-tone', 'brand');
-    expect(eyebrow.style.color).toBe('var(--pellier-burgundy)');
+    expect(eyebrow.style.color).toBe('var(--obs-ink-2)');
 
     const dot = container.querySelector('[aria-hidden="true"]') as HTMLElement;
     expect(dot).toBeTruthy();
-    // The dot takes the label's own colour, so the two can never disagree.
-    expect(dot.style.background).toBe('currentcolor');
+    // The brand mark lives on the dot; the label stays in ink.
+    expect(dot.style.background).toBe('var(--pellier-burgundy)');
   });
 
   it('renders muted variant with ink-4 color', () => {

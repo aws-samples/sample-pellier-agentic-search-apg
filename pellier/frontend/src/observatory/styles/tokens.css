@@ -53,19 +53,9 @@
   --obs-dot-empty-border: var(--obs-red-1);
 
   /* ------------------------------------------------------------------
-   * Sidebar — dark espresso surface that contrasts the cream page
+   * Page gutter — the one left edge every Observatory route shares
    * ---------------------------------------------------------------- */
-  --obs-sidebar-bg: var(--obs-espresso-1);
-  --obs-sidebar-active-bg: var(--obs-espresso-2);
-  --obs-sidebar-text: rgba(250, 243, 232, 0.75);
-  --obs-sidebar-text-active: var(--cream-warm);
-  --obs-sidebar-accent: var(--obs-red-1);
-  /* Rail width. 440px consumed a third of a 1280px workshop laptop before
-     canvas padding, leaving the evidence surface — the thing an attendee is
-     actually reading — unnecessarily narrow. 300px fits the five-lab spine
-     without truncating labels. Overridden per breakpoint in base.css. */
-  --obs-sidebar-width: 300px;
-  --obs-sidebar-width-compact: 76px;
+  --obs-gutter: clamp(16px, 3vw, 48px);
 
   /* ------------------------------------------------------------------
    * Category badges (Architecture index)

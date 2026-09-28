@@ -895,7 +895,7 @@ const Routing: React.FC = () => {
   const scenarioHint = ROUTING_SCENARIOS[scenarioIdx]?.hint;
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
+    <div style={{ padding: '40px 0', maxWidth: '1100px' }}>
       <EditorialTitle
         backToReferences
         eyebrow="Optional pattern read"

@@ -3,7 +3,7 @@ import { EditorialTitle, ExpCard } from '../../components';
 
 /** Source-backed design reference. No synthetic metrics or unavailable API. */
 export default function ProductionPatterns() {
-  return <div style={{ padding: '40px clamp(20px, 4vw, 48px)', maxWidth: '1100px' }}>
+  return <div style={{ padding: '40px 0', maxWidth: '1100px' }}>
     <EditorialTitle referenceId="production" backToReferences eyebrow="Design reference · Governed L400"
       title="Production patterns"
       summary="Follow identity, memory, tool permission, and committed effects across the governed path. These are implementation contracts; use your run evidence to establish what actually happened." />

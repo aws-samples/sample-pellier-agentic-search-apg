@@ -61,16 +61,15 @@ function renderTable(props: Partial<React.ComponentProps<typeof DataTable<Row>>>
 }
 
 describe('DataTable', () => {
-  it('renders one header recipe: sans 11/600/0.08em uppercase', () => {
+  it('renders one header recipe: sans 12/600 in sentence case', () => {
     renderTable()
     const header = screen.getByRole('columnheader', { name: 'Recall' })
     expect(header).toHaveStyle({
       fontFamily: 'var(--obs-heading)',
-      fontSize: '11px',
+      fontSize: '12px',
       fontWeight: '600',
-      letterSpacing: '0.08em',
-      textTransform: 'uppercase',
     })
+    expect(header.style.textTransform).toBe('')
   })
 
   it('sets numerics in mono with tabular figures', () => {

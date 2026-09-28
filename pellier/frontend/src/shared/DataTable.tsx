@@ -9,8 +9,8 @@
  *
  * The register:
  *
- *   header    Instrument Sans, 11px, 600, 0.08em, uppercase. Same recipe as
- *             SectionEyebrow, because a column head is a label.
+ *   header    Instrument Sans, 12px, 600, sentence case. A column head is a
+ *             label, set in the same register as SectionEyebrow at table size.
  *   text      Instrument Sans, 13px.
  *   numeric   JetBrains Mono, 13px, right-aligned, tabular figures. Right
  *             alignment plus tabular figures is what makes digits line up by
@@ -86,10 +86,8 @@ const ALIGN_STYLE: Record<DataTableAlign, React.CSSProperties> = {
 
 const HEADER_STYLE: React.CSSProperties = {
   fontFamily: 'var(--obs-heading)',
-  fontSize: '11px',
+  fontSize: '12px',
   fontWeight: 600,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
   color: 'var(--obs-ink-4)',
   whiteSpace: 'nowrap',
 }

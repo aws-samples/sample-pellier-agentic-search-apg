@@ -358,7 +358,24 @@ export default function Header({
 
         <AnimatePresence initial={false}>
           {mobileMenuOpen ? (
+            // The page under the open menu is dimmed the way the chooser and
+            // the bag dim theirs; without it the menu's last link read as the
+            // first line of the content beneath.
             <motion.div
+              key="mobile-navigation-scrim"
+              aria-hidden="true"
+              data-testid="mobile-menu-scrim"
+              className="absolute left-0 right-0 top-full h-[100dvh] bg-[rgba(31,20,16,0.2)] lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0.12 : 0.18, ease: MENU_EASE }}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          ) : null}
+          {mobileMenuOpen ? (
+            <motion.div
+              key="mobile-navigation"
               id="pellier-mobile-navigation"
               data-testid="mobile-menu"
               className="

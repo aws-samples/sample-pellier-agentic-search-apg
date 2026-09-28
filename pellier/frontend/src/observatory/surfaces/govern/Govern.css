@@ -26,17 +26,17 @@
 .govern-home { display: flex; min-height: 44px; align-items: center; gap: 9px; font-size: 19px; font-weight: 600; text-decoration: none; color: var(--obs-ink-1); }
 .govern-topics-toggle { display: none; }
 .govern-sidebar > p { font-size: 13px; color: var(--obs-ink-4); margin: 5px 0 28px; }
-.govern-eyebrow { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--obs-burgundy); }
+.govern-eyebrow { display: block; font-size: 13px; font-weight: 600; color: var(--obs-ink-2); }
 .govern-nav-group { display: grid; gap: 4px; margin-bottom: 26px; }
 .govern-nav-group > .govern-eyebrow { margin: 0 10px 8px; }
 .govern-nav-group > a { display: flex; align-items: center; min-height: 44px; padding: 9px 10px; border-radius: 6px; color: var(--obs-ink-2); font-size: 14px; line-height: 1.4; text-decoration: none; }
 .govern-nav-group > a:hover { background: var(--obs-cream-2); color: var(--obs-ink-1); }
 .govern-nav-group > a[aria-current="page"] { background: var(--obs-red-soft); color: var(--obs-burgundy); font-weight: 600; }
-.govern-back { display: flex; min-height: 44px; align-items: center; font-size: 13px; color: var(--obs-ink-4); text-decoration: none; }
+.govern-back { display: flex; min-height: 44px; align-items: center; gap: 6px; font-size: 13px; color: var(--obs-ink-4); text-decoration: none; }
 .govern-content { min-width: 0; width: 100%; max-width: 960px; }
 .govern-content:has(.govern-overview-demo) { max-width: none; }
 .govern-page-heading { margin-bottom: 24px; }
-.govern-page-heading h1 { font-family: var(--obs-display); font-size: clamp(32px, 3.6vw, 45px); line-height: 1.14; font-weight: 400; letter-spacing: -.015em; margin: 12px 0 0; scroll-margin-top: 24px; }
+.govern-page-heading h1 { font-family: var(--obs-display); font-size: var(--obs-title-size); line-height: var(--obs-title-leading); font-weight: 400; letter-spacing: var(--obs-title-tracking); margin: 0; scroll-margin-top: 24px; }
 .govern-page-heading h1:focus { outline: none; }
 .govern-title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
 /* Cedar's .cedar-green background on cedarpolicy.com. */
@@ -138,7 +138,7 @@
   .govern-sidebar nav[data-open="false"] { display: none; }
   .govern-nav-group { margin-bottom: 12px; }
   .govern-nav-group > a { font-size: 13px; padding: 9px 8px; }
-  .govern-nav-group > .govern-eyebrow { font-size: 11px; margin-inline: 8px; }
+  .govern-nav-group > .govern-eyebrow { margin-inline: 8px; }
   .govern-observation { padding: 19px 16px; }
   .govern-facts { grid-template-columns: minmax(0, 1fr); gap: 15px; }
   .govern-policy > summary { flex-wrap: wrap; gap: 9px; }

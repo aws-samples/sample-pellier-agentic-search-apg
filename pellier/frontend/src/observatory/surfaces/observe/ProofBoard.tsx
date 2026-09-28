@@ -20,10 +20,12 @@ import {
 } from 'lucide-react';
 import { EditorialTitle, Eyebrow } from '../../components';
 import {
+  DataTable,
   EvidenceCard,
   PolicyDecisionBadge,
   SectionEyebrow,
   StateBadge,
+  type DataTableColumn,
   type EvidenceCardTone,
   type PolicyDecision,
   type StateBadgeTone,
@@ -497,6 +499,44 @@ const CheckPill: React.FC<{ state: CheckState }> = ({ state }) => (
   <StateBadge tone={CHECK_TONE[state].tone}>{CHECK_TONE[state].label}</StateBadge>
 );
 
+const READINESS_COLUMNS: ReadonlyArray<DataTableColumn<ReadinessCheck>> = [
+  {
+    key: 'check',
+    header: 'Check',
+    rowHeader: true,
+    render: (check) => (
+      <span style={{ display: 'grid', gap: '4px' }}>
+        <span
+          style={{
+            color: 'var(--obs-ink-1)',
+            fontFamily: 'var(--obs-heading)',
+            fontSize: '15px',
+            fontWeight: 600,
+          }}
+        >
+          {check.label}
+        </span>
+        <span style={{ color: 'var(--obs-ink-3)', fontWeight: 400 }}>{check.detail}</span>
+      </span>
+    ),
+  },
+  {
+    key: 'scope',
+    header: 'Scope',
+    width: '128px',
+    render: (check) => (check.required ? 'Baseline' : 'Managed'),
+  },
+  {
+    key: 'state',
+    header: 'State',
+    width: '148px',
+    render: (check) => <CheckPill state={check.state} />,
+  },
+];
+
+/* Nine checks with one shape are a table, not nine cards: a reader compares
+   them down a column, and a grid of identical rounded boxes made the board's
+   busiest section its least legible one. */
 const ReadinessPanel: React.FC<{ checks: ReadinessCheck[] }> = ({ checks }) => {
   return (
     <section aria-label="Environment readiness" style={{ marginBottom: '32px' }}>
@@ -517,62 +557,13 @@ const ReadinessPanel: React.FC<{ checks: ReadinessCheck[] }> = ({ checks }) => {
           Read only
         </SectionEyebrow>
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '12px',
-        }}
-      >
-        {checks.map((check) => (
-          <EvidenceCard
-            key={check.id}
-            padding="compact"
-            style={{
-              minHeight: '126px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                flexWrap: 'wrap',
-              }}
-            >
-              <CheckPill state={check.state} />
-              <SectionEyebrow tone="muted" dot={false}>
-                {check.required ? 'Baseline' : 'Managed'}
-              </SectionEyebrow>
-            </div>
-            <h3
-              style={{
-                margin: 0,
-                color: 'var(--obs-ink-1)',
-                fontFamily: 'var(--obs-heading)',
-                fontSize: '20px',
-                fontWeight: 600,
-              }}
-            >
-              {check.label}
-            </h3>
-            <p
-              style={{
-                margin: 0,
-                color: 'var(--obs-ink-2)',
-                fontFamily: 'var(--obs-sans)',
-                fontSize: '13px',
-                lineHeight: 1.5,
-              }}
-            >
-              {check.detail}
-            </p>
-          </EvidenceCard>
-        ))}
-      </div>
+      <DataTable
+        columns={READINESS_COLUMNS}
+        rows={checks}
+        rowKey={(check) => check.id}
+        ariaLabel="Environment readiness checks"
+        data-testid="proof-board-readiness"
+      />
     </section>
   );
 };

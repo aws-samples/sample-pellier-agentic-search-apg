@@ -623,7 +623,7 @@ const BriefTab: React.FC = () => {
        * ================================================================ */}
       {brief.products && brief.products.length > 0 && (
         <section style={{ marginBottom: '40px' }}>
-          <Eyebrow label="Recommended Products" variant="muted" />
+          <Eyebrow label="Recommended products" variant="muted" />
           <div
             style={{
               display: 'grid',

@@ -108,10 +108,13 @@
   line-height: 1.08;
 }
 
+/* The Workbench is the widest tool in the Observatory, but it starts at the
+   same gutter as every other route so the page does not jump sideways when a
+   participant moves between it and the Lab Collection. */
 .observatory-workbench .labs-index-inner {
   width: 100%;
   max-width: none;
-  padding: 14px clamp(12px, 1.2vw, 22px) 0;
+  padding: 24px var(--obs-gutter) 0;
 }
 
 .observatory-workbench-intro {
@@ -121,7 +124,7 @@
   align-items: start;
   justify-content: space-between;
   gap: 24px;
-  margin: 0 2px 12px;
+  margin: 0 0 12px;
 }
 
 .observatory-workbench-intro-copy {
@@ -319,10 +322,11 @@
 }
 
 /* Panel titles name the room and are interface structure, so they hold the
-   sans register. Burgundy and scale carry the hierarchy instead. Family,
-   weight, and tracking are set by the heading reset in base.css. */
+   sans register in ink; scale carries the hierarchy. Burgundy stays with the
+   selected lab and the primary action. Family, weight, and tracking are set by
+   the heading reset in base.css. */
 .observatory-section-heading h2 {
-  color: var(--pl-accent);
+  color: var(--pl-ink);
   font-size: 25px;
   line-height: 1.14;
 }
@@ -696,11 +700,9 @@
 }
 
 .observatory-run-contract > header > div > span {
-  color: var(--pl-accent-2);
-  font-size: var(--text-label);
+  color: var(--pl-muted);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .observatory-run-contract > header strong {
@@ -1019,12 +1021,10 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  color: var(--pl-accent-2);
+  color: var(--pl-muted);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--pl-label-track);
-  text-transform: uppercase;
 }
 
 /* Status becomes an olive pill, the reference's `badge success`. */
@@ -1147,12 +1147,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--pl-accent-2);
+  color: var(--pl-muted);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .observatory-proof-block-heading strong {
@@ -1233,10 +1231,8 @@
 .observatory-proof-receipt dt {
   color: var(--pl-faint);
   font-family: var(--pl-sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
 }
 
 .observatory-proof-receipt dd {
@@ -1368,12 +1364,10 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--pl-accent);
-  font-family: var(--mono, var(--obs-mono));
-  font-size: var(--pl-label-size);
+  color: var(--pl-muted);
+  font-family: var(--pl-sans);
+  font-size: 12px;
   font-weight: 650;
-  letter-spacing: var(--pl-label-track);
-  text-transform: uppercase;
 }
 
 .observatory-agent-sparkle {
@@ -1529,11 +1523,9 @@
 
 .observatory-evidence-sufficiency em {
   color: var(--pl-faint);
-  font-family: var(--pl-mono);
-  font-size: var(--text-label);
+  font-family: var(--pl-sans);
+  font-size: 12px;
   font-style: normal;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .observatory-evidence-sufficiency li[data-status='satisfied'] em {
@@ -1885,10 +1877,8 @@
 
 .observatory-session-metrics dt {
   color: var(--pl-faint);
-  font-family: var(--pl-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-family: var(--pl-sans);
+  font-size: 12px;
 }
 
 .observatory-session-metrics dd {
@@ -1969,10 +1959,8 @@
   background: var(--pl-terracotta-soft);
   color: var(--pl-accent-deep);
   font-family: var(--pl-sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   cursor: pointer;
   transition:
     border-color 150ms ease,
@@ -2139,10 +2127,8 @@
   margin: 0;
   padding: 0 16px 10px;
   color: var(--pl-faint);
-  font-family: var(--pl-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--pl-sans);
+  font-size: 12px;
 }
 
 .spin {
@@ -2316,7 +2302,7 @@
 
 @media (max-width: 560px) {
   .observatory-workbench .labs-index-inner {
-    padding: 10px;
+    padding: 16px var(--obs-gutter) 0;
   }
 
   .observatory-workbench::before {
@@ -2489,9 +2475,7 @@
 
 .observatory-root .observatory-retrieval-table thead th {
   border-top: 0;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--obs-ink-3);
   background: var(--obs-cream-2);
 }
@@ -2516,10 +2500,8 @@
 }
 
 .observatory-root .observatory-receipt-strip dt {
-  font-family: var(--obs-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--pl-sans);
+  font-size: 12px;
   color: var(--obs-ink-3);
 }
 

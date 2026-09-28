@@ -164,7 +164,7 @@ function BrandColumn() {
           >
             <span
               aria-hidden="true"
-              className="mt-[6px] block h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+              className="mt-[6px] block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ink-quiet)] opacity-50"
             />
             {item}
           </li>

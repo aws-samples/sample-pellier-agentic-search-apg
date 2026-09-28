@@ -38,7 +38,7 @@
 
 /* Matches .observatory-section-heading h2 so all three panels title alike. */
 .labs-turns-heading h2 {
-  color: var(--pl-accent);
+  color: var(--pl-ink);
   font-family: var(--pl-serif);
   font-size: 24px;
   font-style: normal;
@@ -74,14 +74,12 @@
 .labs-turns-group-heading h3,
 .labs-turns-group-heading span {
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .labs-turns-group-heading h3 {
-  color: var(--pl-accent-2);
+  color: var(--pl-ink-soft);
 }
 
 .labs-turns-group-heading span {
@@ -227,12 +225,10 @@
   max-width: 9ch;
   color: var(--pl-muted);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1em;
   line-height: 1.3;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .labs-turn-media > .labs-turn-build-checkpoint {
@@ -263,7 +259,7 @@
 
 /* The complete request and its constraint must remain readable before a run. */
 .labs-turn-stage {
-  color: var(--pl-accent-2);
+  color: var(--pl-muted);
   font-family: var(--pl-sans);
   font-size: 12px;
   font-weight: 600;
@@ -404,21 +400,17 @@
 }
 
 .labs-lens-heading h3 {
-  color: var(--pl-accent-2);
+  color: var(--pl-ink-soft);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--pl-label-track);
-  text-transform: uppercase;
 }
 
 .labs-lens-heading p {
   color: var(--pl-faint);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .labs-lens-stages {
@@ -448,11 +440,9 @@
   overflow: hidden;
   color: var(--pl-ink);
   font-family: var(--pl-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.16em;
   text-overflow: ellipsis;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 

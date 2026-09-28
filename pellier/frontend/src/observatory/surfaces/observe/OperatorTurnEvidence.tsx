@@ -59,7 +59,7 @@ export default function OperatorTurnEvidence() {
     <div className="observatory-turn-workbench" data-testid="operator-turn-evidence">
       <header className="observatory-turn-heading">
         <div>
-          <h1>Operator turn evidence</h1>
+          <h1 className="observatory-page-title font-display">Operator turn evidence</h1>
           <p>The request, service activity, and answer from one persisted conversation.</p>
         </div>
         <Link className="pellier-action-quiet" to={back}>Return to client</Link>

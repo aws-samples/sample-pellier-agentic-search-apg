@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowRight, Check, Copy, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Check, Copy, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import IdentityBoundaryCard from '../understand/IdentityBoundaryCard';
@@ -388,12 +388,12 @@ export default function Govern() {
           {CHAPTERS.filter(c => c.group === group).map(c => <Link key={c.id} to={`${BASE}/${c.id}`} aria-current={section === c.id ? 'page' : undefined}>{c.label}</Link>)}
         </div>)}
       </nav>
-      <Link className="govern-back" to="/observatory/workbench?lab=fail-closed-policy">← Back to Lab 4</Link>
+      <Link className="govern-back" to="/observatory/workbench?lab=fail-closed-policy"><ArrowLeft size={14} aria-hidden="true" />Back to Lab 4</Link>
     </aside>
     <article className="govern-content">
-      <header className="govern-page-heading"><span className="govern-eyebrow">Pellier Observatory / Govern</span>
+      <header className="govern-page-heading">
         <div className="govern-title-row">
-          <h1 className="font-display" ref={heading} tabIndex={-1}>{section && !chapter ? 'Topic not found' : chapter?.label || 'Governed agent access'}</h1>
+          <h1 className="observatory-page-title font-display" ref={heading} tabIndex={-1}>{section && !chapter ? 'Topic not found' : chapter?.label || 'Governed agent access'}</h1>
           {chapter?.id === 'policies' && <a className="govern-cedar-link" href="https://cedarpolicy.com/en" target="_blank" rel="noopener noreferrer" aria-label="Cedar policy language (opens in a new tab)">
             <img src={imageSrc('/assets/icons/cedar/cedar-wordmark.svg')} alt="Cedar" width={84} height={20} />
             <span>Policy language <ArrowRight size={12} aria-hidden="true" /></span>

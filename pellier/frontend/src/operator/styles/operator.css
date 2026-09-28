@@ -113,12 +113,9 @@
      surface ends up reading as a different product from the one beside it. */
   --op-radius: 14px;
 
-  /* One warm resting shadow for every raised container on the desk. Daylight's
-     own paper shadow, so a card here and a card on the storefront are lit from
-     the same place. Elevation is not decoration: only a container that rests
-     on the page takes it, and nothing on this surface lifts on hover unless it
-     is pressable. */
-  --op-shadow-paper: var(--dl-sh-paper);
+  /* Containers on the desk are flat: paper on canvas plus a one-pixel rule.
+     DESIGN.md gives the Operator paper contrast and rules rather than
+     elevation, so no resting container carries a shadow. */
 
   /* Type on the photographic record band. Both are warm neutrals derived from
      the paper family, never grey: at the 0.66 scrim floor the cream measures
@@ -251,14 +248,16 @@
   min-width: 0;
 }
 
+/* The surface name is interface structure, set like the Observatory's: the
+   shared bar above already carries the Pellier wordmark in the display face. */
 .operator-wordmark {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  font-family: var(--display);
-  font-size: 19px;
-  font-weight: 400;
-  letter-spacing: var(--op-display-track);
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   color: var(--op-ink);
   text-decoration: none;
   white-space: nowrap;
@@ -381,11 +380,11 @@
 .operator-title {
   font-family: var(--display);
   font-weight: 400;
-  /* The shared section step, so the desk's page title and the Observatory's
-     are the same size rather than two values that happen to land near each
+  /* The shared page-title step, so the desk's page title and the
+     Observatory's are one size rather than two values that land near each
      other. */
-  font-size: var(--text-section);
-  line-height: 1.08;
+  font-size: var(--text-page-title);
+  line-height: 1.04;
   letter-spacing: var(--op-display-track);
   margin: 0;
   color: var(--op-ink);
@@ -747,7 +746,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   overflow: hidden;
 }
 
@@ -965,7 +963,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   overflow: hidden;
 }
 
@@ -1105,11 +1102,46 @@
   display: block;
   margin-bottom: 3px;
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
+}
+
+/*
+ * At desktop the book reads as a table: the first row under each membership
+ * strip (or the first row of a filtered book) names the columns once, and the
+ * rest carry their labels for assistive technology only. The visible label is
+ * lifted out of flow into the row's top padding, so every row keeps the same
+ * height and every figure the same baseline. Stacked phone rows keep their
+ * own labels because they no longer share columns.
+ */
+@media (min-width: 761px) {
+  .operator-book-row .operator-figure {
+    position: relative;
+  }
+
+  .operator-book-row .operator-figure-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .operator-section + .operator-book-row .operator-figure-label,
+  .operator-book > .operator-book-row:first-of-type .operator-figure-label {
+    right: 0;
+    bottom: calc(100% + 6px);
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--op-muted);
+  }
 }
 
 /* --------------------------------------------------- the standing quad */
@@ -1126,7 +1158,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   overflow: hidden;
 }
 
@@ -1145,10 +1176,8 @@
 }
 
 .operator-quad-label {
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -1197,7 +1226,6 @@
   padding: clamp(22px, 3.2vw, 34px);
   border: 1px solid var(--op-rule);
   border-radius: 18px;
-  box-shadow: var(--op-shadow-paper);
   background: var(--op-paper);
 }
 
@@ -1222,10 +1250,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   /* The section's label, in the label register every other eyebrow uses. The
      status pill beside it owns the colour. */
   color: var(--op-label);
@@ -1350,10 +1376,8 @@
 
 .operator-service-request-claim-label {
   display: block;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -1482,7 +1506,6 @@
   margin-bottom: 18px;
   border-radius: var(--pellier-image-radius-lg);
   background: var(--op-band-ground);
-  box-shadow: var(--op-shadow-paper);
 
   --op-ink: var(--op-band-ink);
   --op-ink-2: var(--op-band-muted);
@@ -1655,10 +1678,8 @@
 
 .operator-standing-row span:first-child {
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -1666,7 +1687,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   padding: 22px 24px 24px;
   margin-bottom: 20px;
 }
@@ -1679,10 +1699,8 @@
   gap: 12px;
   margin: 0 0 14px;
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-muted);
 }
 
@@ -1720,10 +1738,8 @@
 
 .operator-table th {
   text-align: left;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
   padding: 0 12px 9px 0;
   border-bottom: 1px solid var(--op-rule);
@@ -1918,9 +1934,7 @@
 
 .operator-receipt-head {
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
-  font-size: var(--text-label);
+  font-size: 12px;
   margin-bottom: 7px;
   color: var(--op-ink);
 }
@@ -1950,10 +1964,8 @@
 
 .operator-receipt-rows dt {
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-muted);
 }
 
@@ -2019,7 +2031,6 @@
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
   background: var(--op-paper);
-  box-shadow: var(--op-shadow-paper);
   color: var(--op-ink-2);
   font-size: 13px;
   line-height: 1.65;
@@ -2287,7 +2298,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   overflow: hidden;
 }
 
@@ -2305,10 +2315,8 @@
 .operator-review-cell-label {
   display: block;
   margin: 0 0 6px;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -2339,7 +2347,6 @@
   background: var(--op-paper);
   border: 1px solid var(--op-rule);
   border-radius: var(--op-radius);
-  box-shadow: var(--op-shadow-paper);
   overflow: hidden;
 }
 
@@ -2645,10 +2652,8 @@
 }
 
 .operator-review-audit-identity dt {
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -2796,10 +2801,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
   color: var(--op-label);
-  text-transform: uppercase;
 }
 
 .operator-handoff-route dd {
@@ -2840,10 +2844,9 @@
 }
 
 .operator-handoff-transcript li > span {
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
   color: var(--op-label);
-  text-transform: uppercase;
 }
 
 .operator-handoff-transcript li p {
@@ -2960,10 +2963,8 @@
 .operator-assurance-label {
   margin: 0 0 6px;
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -3231,7 +3232,8 @@
     bottom: 0;
   }
 
-  .operator-topbar-count[data-count='sign-in'],
+  /* "Locked" stays visible: a signed-out queue must name its boundary on a
+     phone as it does on a desktop. Only the long unavailable note gives way. */
   .operator-topbar-count[data-count='unavailable'] {
     display: none;
   }
@@ -3563,10 +3565,8 @@
 .operator-concierge-eyebrow,
 .operator-concierge-state-eyebrow {
   display: block;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -3786,10 +3786,8 @@
 
 .operator-concierge-suggestion-group {
   grid-area: group;
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: var(--text-label);
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 12px;
   color: var(--op-label);
 }
 
@@ -4229,11 +4227,9 @@
 
 .operator-concierge-guided-next span {
   color: var(--op-accent);
-  font-family: var(--mono);
-  font-size: var(--text-label);
+  font-family: var(--sans);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
 }
 
 .operator-concierge-guided-next p {
@@ -4366,10 +4362,8 @@
 .operator-concierge-human-checkpoint-reason > span {
   margin-bottom: 8px;
   color: var(--op-label);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
 }
 
 .operator-concierge-human-checkpoint-items label {
@@ -4577,9 +4571,7 @@
 }
 
 .operator-concierge-evidence-row dt {
-  font-size: 11px;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--op-label);
 }
 
@@ -4912,10 +4904,8 @@
   gap: 10px;
   margin: 8px 0 0;
   font-family: var(--sans);
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-muted);
 }
 
@@ -4981,10 +4971,8 @@
 }
 
 .operator-concierge-proposal-rows dt {
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: var(--text-label);
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 12px;
   color: var(--op-label);
 }
 
@@ -5247,10 +5235,8 @@
 }
 
 .operator-concierge-retrieval dt {
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: var(--text-label);
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 12px;
   color: var(--op-label);
   padding-top: 2px;
 }
@@ -5339,10 +5325,8 @@
   max-width: 360px;
   margin: 22px 0 18px;
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--op-label-track);
-  text-transform: uppercase;
   color: var(--op-label);
 }
 
@@ -5464,7 +5448,7 @@
 @media (max-width: 760px) {
   .operator-root [id] { scroll-margin-top: 128px; }
   .operator-record-jumps { justify-content: space-between; border-bottom: 1px solid var(--op-rule); }
-  .operator-record-jumps a { flex: 1; justify-content: center; }
+  .operator-record-jumps a { flex: 1; justify-content: center; padding-inline: 6px; font-size: 13px; white-space: nowrap; }
   .operator-concierge-recovery { padding-inline: 16px; }
   .operator-service-sources { flex-direction: column; gap: 16px; }
   .operator-review-overview { align-items: flex-start; }

@@ -11,12 +11,11 @@
 /* The surface gave up its padding so the band can bleed; the mode banner
    still needs the surface inset or it sits against the viewport edge. */
 .observatory-surface[data-labs='true'] > .labs-mode-banner {
-  margin-inline: clamp(20px, 3vw, 48px);
+  margin-inline: var(--obs-gutter);
   padding-top: 20px;
 }
 
-.labs-catalog,
-.lab-detail {
+.labs-catalog {
   color: var(--obs-ink-1);
 }
 
@@ -35,16 +34,14 @@
    the surrounding padding and the atmosphere image so the band bleeds. */
 .labs-catalog-hero {
   display: grid;
-  width: min(1380px, 100%);
-  margin-inline: auto;
-  padding: clamp(28px, 3vw, 44px) clamp(16px, 4vw, 56px) 0;
+  padding: clamp(28px, 3vw, 44px) var(--obs-gutter) 0;
   background: var(--obs-canvas);
 }
 
 .labs-catalog-hero-copy {
   display: grid;
   width: min(1380px, 100%);
-  margin: 0 auto;
+  margin: 0;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);
   gap: 16px clamp(34px, 7vw, 110px);
   align-items: start;
@@ -125,7 +122,7 @@
 .labs-catalog-contact-sheet {
   display: grid;
   width: min(1380px, 100%);
-  margin: 0 auto;
+  margin: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(8px, 1vw, 14px);
 }
@@ -167,13 +164,15 @@
   color: var(--obs-ink-2);
 }
 
+/* Customer and lab number are labels, not identifiers: the reading face at
+   caption size, in ink rather than the authority colour the card's primary
+   action already carries. */
 .labs-catalog-contact-sheet figcaption span {
-  color: var(--obs-red-1);
-  font-family: var(--obs-mono);
+  color: var(--obs-ink-3);
+  font-family: var(--obs-heading);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .labs-catalog-contact-sheet figcaption strong {
@@ -183,9 +182,9 @@
 }
 
 .labs-catalog-body {
-  width: min(1380px, 100%);
-  margin: 0 auto;
-  padding: clamp(28px, 4vw, 48px) clamp(16px, 4vw, 56px) 28px;
+  width: 100%;
+  margin: 0;
+  padding: clamp(28px, 4vw, 48px) var(--obs-gutter) 28px;
 }
 
 .labs-catalog-intro {
@@ -253,16 +252,6 @@
   flex-direction: column;
   align-items: flex-start;
   padding: clamp(22px, 3vw, 34px);
-}
-
-.labs-catalog-card-number,
-.lab-detail-number {
-  color: var(--obs-red-1);
-  font-family: var(--obs-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .labs-catalog-card h3 {
@@ -410,11 +399,6 @@
   color: #594217;
 }
 
-.lab-detail > .lab-load-notice {
-  width: min(1380px, calc(100% - 32px));
-  margin: 22px auto 0;
-}
-
 .lab-load-notice strong {
   font-size: 13px;
 }
@@ -436,109 +420,6 @@
   border-radius: 4px !important;
   font-size: 12px;
   font-weight: 600;
-}
-
-.lab-detail {
-  width: min(1480px, 100%);
-  margin: 0 auto;
-  padding: 22px clamp(16px, 3vw, 44px) 72px;
-}
-
-.lab-detail-breadcrumb {
-  display: flex;
-  min-height: 36px;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-  color: var(--obs-ink-4);
-  font-size: 11px;
-}
-
-.lab-detail-breadcrumb a {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 6px;
-  color: var(--obs-ink-2) !important;
-}
-
-.lab-detail-hero {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
-  gap: clamp(30px, 5vw, 72px);
-  align-items: center;
-  padding-bottom: clamp(38px, 6vw, 72px);
-  border-bottom: 1px solid var(--obs-rule-1);
-}
-
-.lab-detail-hero-media {
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border-radius: var(--pellier-image-radius-lg);
-  background: var(--obs-cream-2);
-}
-
-.lab-detail-hero-media img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 50%;
-}
-
-.lab-detail-summary {
-  display: grid;
-  min-width: 0;
-  gap: 16px;
-}
-
-.lab-detail-summary h1 {
-  max-width: 850px;
-  font-family: var(--obs-heading);
-  font-size: clamp(34px, 4.3vw, 62px);
-  font-weight: 600;
-  line-height: 1.02;
-}
-
-.lab-detail-summary > p {
-  max-width: 720px;
-  color: var(--obs-ink-3);
-  font-size: clamp(15px, 1.5vw, 18px);
-  line-height: 1.55;
-}
-
-.lab-detail-summary .lab-status-mark {
-  margin-top: 4px;
-  padding: 14px 0;
-  border-top: 1px solid var(--obs-rule-1);
-  border-bottom: 1px solid var(--obs-rule-1);
-}
-
-.lab-detail-contract {
-  display: grid;
-  gap: 14px;
-}
-
-.lab-detail-contract div {
-  display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 16px;
-}
-
-.lab-detail-contract dt {
-  color: var(--obs-ink-4);
-  font-family: var(--obs-mono);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.lab-detail-contract dd {
-  margin: 0;
-  color: var(--obs-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 .lab-workbench-grid {
@@ -1021,7 +902,7 @@
 
 @media (max-width: 820px) {
   .labs-catalog-hero {
-    padding-inline: 16px;
+    padding-inline: var(--obs-gutter);
   }
 
   .labs-catalog-hero-copy {
@@ -1042,15 +923,6 @@
     grid-template-rows: 224px auto;
   }
 
-  .lab-detail-hero {
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-
-  .lab-detail-hero-media {
-    max-height: 460px;
-  }
-
   .lab-workbench-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1067,10 +939,6 @@
   .labs-catalog-hero-copy {
     gap: 12px;
     padding: 0 0 28px;
-  }
-
-  .labs-catalog-hero-copy h1 {
-    font-size: 39px;
   }
 
   .labs-catalog-hero-copy p {
@@ -1102,27 +970,6 @@
 
   .lab-load-notice button {
     justify-content: center;
-  }
-
-  .lab-detail {
-    padding: 16px 14px 52px;
-  }
-
-  .lab-detail-breadcrumb {
-    margin-bottom: 12px;
-  }
-
-  .lab-detail-hero {
-    padding-bottom: 36px;
-  }
-
-  .lab-detail-summary h1 {
-    font-size: 35px;
-  }
-
-  .lab-detail-contract div {
-    grid-template-columns: 1fr;
-    gap: 5px;
   }
 
   .lab-workbench-grid {
@@ -1192,15 +1039,12 @@
     padding-inline: 12px;
   }
 
-  .labs-catalog-hero-copy,
-  .lab-detail {
+  .labs-catalog-hero-copy {
     padding-inline: 12px;
   }
 
-  .labs-catalog-hero-copy h1,
-  .lab-detail-summary h1 {
+  .labs-catalog-hero-copy h1 {
     overflow-wrap: anywhere;
-    font-size: 33px;
   }
 
   .lab-status-mark-meta,
@@ -1283,6 +1127,7 @@
   overflow-wrap: anywhere;
 }
 .labs-catalog-card-open { margin-top: 6px; }
+.labs-catalog-contact-sheet .labs-catalog-workbench-link { font-size: 13px; }
 
 /* One portrait and one compact description per lab, read left to right. */
 .labs-catalog-body { padding-top: 8px; }
@@ -1305,12 +1150,12 @@
 .labs-catalog-contact-sheet .labs-catalog-card-copy > p { margin-top: 10px; font-size: 13px; line-height: 1.55; }
 .labs-catalog-contact-sheet .lab-status-mark { padding-top: 18px; }
 .labs-catalog-contact-sheet .lab-status-mark-main { flex-wrap: wrap; gap: 5px; font-size: 11px; }
-.labs-catalog .workbench-resources { margin-inline: clamp(16px, 4vw, 56px); padding-bottom: 36px; }
+.labs-catalog .workbench-resources { margin-inline: var(--obs-gutter); padding-bottom: 36px; }
 .labs-catalog-hero-copy .labs-catalog-eyebrow { margin: 0 0 14px; color: var(--obs-red-1); font-size: 13px; font-weight: 600; }
 .labs-catalog-start { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
 .labs-catalog-start > a:not(.labs-catalog-primary) { display: inline-flex; align-items: center; min-height: 44px; color: var(--obs-red-1); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .labs-catalog-contact-sheet .labs-catalog-card-copy > .labs-catalog-customer-need { color: var(--obs-ink-1); font-weight: 500; padding-bottom: 12px; border-bottom: 1px solid var(--obs-rule-1); }
-.labs-catalog-close { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; margin: 8px clamp(16px, 4vw, 56px) 24px; padding: 28px 0; border-block: 1px solid var(--obs-rule-1); }
+.labs-catalog-close { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; margin: 8px var(--obs-gutter) 24px; padding: 28px 0; border-block: 1px solid var(--obs-rule-1); }
 .labs-catalog-close > div { flex: 1 1 480px; }
 .labs-catalog-close h2 { font-size: 24px; font-weight: 400; }
 .labs-catalog-close p { margin-top: 10px; max-width: 75ch; color: var(--obs-ink-3); font-size: 14px; line-height: 1.6; }

@@ -66,7 +66,7 @@ describe('EmptyState', () => {
     render(<EmptyState eyebrow="No telemetry" headline="Nothing yet." />)
     const eyebrow = screen.getByText('No telemetry')
     expect(eyebrow).toHaveAttribute('data-tone', 'muted')
-    expect(eyebrow).toHaveStyle({ fontSize: '11px', fontWeight: '600' })
+    expect(eyebrow).toHaveStyle({ fontSize: '13px', fontWeight: '600' })
   })
 
   it('keeps the reason line in mono and apart from the prose', () => {

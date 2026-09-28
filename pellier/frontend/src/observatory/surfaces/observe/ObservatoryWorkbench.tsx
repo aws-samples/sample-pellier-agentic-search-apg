@@ -316,6 +316,17 @@ const TRACE_SKELETON: StepKind[] = [
   'observability',
 ];
 
+/** Ledger kinds are wire values ("sql", "tool_audit"); the kicker shows words. */
+const TRACE_KIND_ACRONYMS = new Set(['sql', 'mcp', 'sse', 'id', 'rrf', 'jwt']);
+
+function traceKindLabel(kind: string): string {
+  const words = kind.split('_').map((word) =>
+    TRACE_KIND_ACRONYMS.has(word) ? word.toUpperCase() : word,
+  );
+  const [first = '', ...rest] = words;
+  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(' ');
+}
+
 const TRACE_LINE_TOP = 28;
 
 interface DbQuery {
@@ -2281,7 +2292,7 @@ export default function ObservatoryWorkbench() {
                       </span>
                       <div className="observatory-trace-content">
                         <div className="observatory-trace-kicker">
-                          <span>{step.eventKind ?? step.kind}</span>
+                          <span>{traceKindLabel(step.eventKind ?? step.kind)}</span>
                           <em>{evidenceStateLabel(step)}</em>
                         </div>
                         <h3 aria-label={step.title}>{step.title}</h3>
@@ -2451,7 +2462,7 @@ export default function ObservatoryWorkbench() {
                       >
                         <div className="observatory-trace-content">
                           <div className="observatory-trace-kicker">
-                            <span>{kind}</span>
+                            <span>{traceKindLabel(kind)}</span>
                             <em>{runStatus === 'running' ? 'Waiting' : 'Not run'}</em>
                           </div>
                         </div>

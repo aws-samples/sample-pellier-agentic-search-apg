@@ -400,7 +400,8 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                       onClick={() =>
                                         updateQuantity(item.productId, Math.max(1, item.quantity - 1))
                                       }
-                                      className="px-2.5 py-1.5 transition-colors duration-150"
+                                      type="button"
+                                      className="inline-flex h-11 w-11 items-center justify-center transition-colors duration-150"
                                       style={{
                                         color: item.quantity <= 1 ? TEXT_QUIET : TEXT,
                                         background: 'transparent',
@@ -420,7 +421,8 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                     </motion.span>
                                     <button
                                       onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                                      className="px-2.5 py-1.5 transition-colors duration-150"
+                                      type="button"
+                                      className="inline-flex h-11 w-11 items-center justify-center transition-colors duration-150"
                                       style={{ color: TEXT, background: 'transparent' }}
                                       aria-label="Increase quantity"
                                     >
@@ -431,7 +433,8 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                   {/* Remove */}
                                   <button
                                     onClick={() => removeFromCart(item.productId)}
-                                    className="text-[11px] font-medium px-2 py-1 rounded-md transition-all duration-200
+                                    type="button"
+                                    className="inline-flex min-h-11 items-center rounded-md px-3 text-[13px] font-medium transition-all duration-200
                                              hover:bg-[rgba(168,66,58,0.08)] active:scale-95"
                                     style={{ color: TEXT_QUIET }}
                                   >

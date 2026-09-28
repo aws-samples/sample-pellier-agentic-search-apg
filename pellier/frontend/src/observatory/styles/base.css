@@ -234,13 +234,13 @@
  * different rhythm should change the token, not the element. */
 .observatory-root .observatory-page-title {
   font-family: var(--obs-display);
-  font-size: clamp(30px, 3vw, 44px);
+  font-size: var(--obs-title-size);
   /* 400, not 650: Fraunces at semibold reads as a different typeface from the
      storefront's page titles, which is the whole voice the display face is
      here to carry. Tracking does the optical work at this size. */
   font-weight: var(--weight-body);
-  line-height: 1.02;
-  letter-spacing: var(--tracking-display);
+  line-height: var(--obs-title-leading);
+  letter-spacing: var(--obs-title-tracking);
   color: var(--obs-ink-1);
 }
 
@@ -922,37 +922,12 @@
  * Layout primitives
  * ----------------------------------------------------------------------- */
 
-/* Two-column shell: wide workshop navigator + flexible canvas */
-.observatory-frame {
-  display: grid;
-  /* minmax(0, 1fr) rather than 1fr: a bare 1fr floors at min-content, so a
-     wide table or SQL block inside the canvas would push the whole grid
-     wider than the viewport instead of scrolling within its own panel. */
-  grid-template-columns: var(--obs-sidebar-width) minmax(0, 1fr);
-  min-height: 100vh;
-}
-
-/* Canvas area (right of sidebar) */
-.observatory-canvas {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  overflow-y: auto;
-}
-
-/* Surface content area (below top bar) */
-.observatory-surface {
-  flex: 1;
-  padding: 32px 40px;
-  background: var(--obs-canvas);
-}
-
 .observatory-context-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 14px 40px;
+  padding: 14px var(--obs-gutter);
   border-bottom: 1px solid var(--obs-rule-1);
   background: color-mix(in srgb, var(--obs-red-1) 4%, var(--obs-panel));
   color: var(--obs-ink-1);
@@ -1129,96 +1104,14 @@
 /* -----------------------------------------------------------------------
  * Responsive shell
  *
- * The Observatory previously enforced `min-width: 1280px` with a 440px rail,
- * so a 14-inch laptop or an embedded workshop browser scrolled
- * horizontally before the attendee read anything. The rules below make the
- * shell adapt instead:
- *
- *   >= 1280px   full 300px rail
- *   1024-1279   compact icon rail (labels hidden, destinations intact)
- *   < 1024px    rail becomes an off-canvas drawer over the canvas
- *
- * Destinations are never removed at any width — only their presentation
- * changes. Hiding a lab on a narrow screen would silently make part of the
- * workshop unreachable.
+ * One gutter, `--obs-gutter`, sets the left edge of every route, the topbar
+ * and the context banner, so a participant moving between Lab Collection,
+ * Workbench, Govern and the reference views never sees the page jump.
  * ----------------------------------------------------------------------- */
 
-.observatory-sidebar {
-  width: var(--obs-sidebar-width);
-}
-
-/* --- Compact icon rail (tablet landscape / small laptop) --------------- */
-@media (max-width: 1440px) and (min-width: 1081px) {
-  .observatory-frame {
-    grid-template-columns: var(--obs-sidebar-width-compact) minmax(0, 1fr);
-  }
-
-  .observatory-sidebar {
-    width: var(--obs-sidebar-width-compact);
-    align-items: center;
-  }
-
-  /* Labels collapse; the icon and its accessible name remain. */
-  .observatory-sidebar [data-nav-label],
-  .observatory-sidebar [data-nav-eyebrow],
-  .observatory-sidebar [data-sidebar-footer] {
-    display: none;
-  }
-
-  .observatory-surface {
-    padding: 24px 24px;
-  }
-
-  .observatory-context-banner {
-    padding: 12px 24px;
-  }
-}
-
-/* --- Drawer (tablet portrait and below) -------------------------------- */
 @media (max-width: 1080px) {
-  .observatory-frame {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .observatory-sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 60;
-    width: min(320px, 86vw);
-    transform: translateX(-100%);
-    transition: transform var(--gov-motion-base) var(--gov-motion-ease);
-    box-shadow: var(--gov-shadow-md);
-    overflow-y: auto;
-  }
-
-  .observatory-root[data-nav-open='true'] .observatory-sidebar {
-    transform: translateX(0);
-  }
-
-  /* Scrim closes the drawer and prevents interaction behind it. */
-  .observatory-root[data-nav-open='true']::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    background: rgba(28, 25, 23, 0.42);
-  }
-
-  .observatory-surface {
-    padding: 20px 18px;
-  }
-
   .observatory-context-banner {
-    padding: 12px 18px;
     flex-wrap: wrap;
-  }
-}
-
-/* --- Phone ------------------------------------------------------------- */
-@media (max-width: 760px) {
-  .observatory-surface {
-    /* Respect the home-indicator inset so the last card is not clipped. */
-    padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1236,13 +1129,17 @@
 }
 
 .observatory-canvas {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 100vh;
   overflow: visible;
 }
 
 .observatory-surface {
-  padding: 32px clamp(20px, 3vw, 48px) 56px;
+  flex: 1;
+  padding: 32px var(--obs-gutter) calc(56px + env(safe-area-inset-bottom, 0px));
+  background: var(--obs-canvas);
 }
 
 .observatory-surface[data-workbench='true'] {
@@ -1263,34 +1160,6 @@
 .observatory-surface:not([data-workbench='true']) > * {
   position: relative;
   z-index: 1;
-}
-
-.observatory-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 70;
-  width: min(340px, 88vw);
-  transform: translateX(-102%);
-  transition: transform var(--gov-motion-base) var(--gov-motion-ease);
-  box-shadow: 18px 0 48px rgba(31, 20, 16, 0.18);
-  overflow-y: auto;
-}
-
-.observatory-root[data-nav-open='true'] .observatory-sidebar {
-  transform: translateX(0);
-}
-
-.observatory-nav-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 65;
-  border: 0;
-  background: rgba(31, 20, 16, 0.42) !important;
-  cursor: pointer;
-}
-
-.observatory-nav-toggle {
-  display: inline-flex !important;
 }
 
 .observatory-topbar {
@@ -1387,10 +1256,12 @@
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--obs-ink-4) !important;
-  font-family: var(--display);
+  /* The reading face, like the surface switcher directly above: two adjacent
+     navigation rows in two families read as two products. */
+  font-family: var(--obs-sans);
   font-size: var(--pellier-nav-font-size);
-  font-weight: 400;
-  letter-spacing: -0.012em;
+  font-weight: 500;
+  letter-spacing: 0;
   line-height: 1.2;
   text-decoration: none !important;
   white-space: nowrap;
@@ -1778,7 +1649,7 @@
 
 @media (max-width: 760px) {
   .observatory-surface:not([data-workbench='true']) {
-    padding: 20px 14px calc(28px + env(safe-area-inset-bottom, 0px));
+    padding: 20px var(--obs-gutter) calc(28px + env(safe-area-inset-bottom, 0px));
   }
 
   .observatory-topbar {
@@ -1839,10 +1710,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .observatory-sidebar {
-    transition: none;
-  }
-
   .observatory-view-menu[data-state='open'],
   .observatory-view-menu[data-state='closed'] {
     animation: none;
@@ -1850,13 +1717,15 @@
 }
 
 /* Interaction contract: the workbench states its purpose in the masthead;
-   every other view gets an immediate indication of whether it can be operated. */
+   every other view gets an immediate indication of whether it can be operated.
+   It is a status line, not a control: a filled pill here read as a button and
+   out-shouted the page's real primary action. */
 .labs-mode-banner {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 26px;
-  padding-bottom: 16px;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--obs-rule-1);
 }
 
@@ -1864,18 +1733,11 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 8px 14px;
-  border: 1px solid var(--rule-2);
-  border-radius: 999px;
-  background: var(--cream-elev);
-  color: var(--pellier-burgundy);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 65%), 0 3px 10px rgb(60 40 10 / 4%);
+  gap: 6px;
+  color: var(--obs-ink-1);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -1922,13 +1784,15 @@
   outline-offset: 3px;
 }
 
-/* Shared page shells keep the reference surfaces aligned and remove the
-   duplicate fixed padding that previously collapsed two-column pages on
-   workshop-width and phone viewports. */
+/* Shared page shell for the reference surfaces. It starts at the surface
+   gutter like every other route: a centred column plus its own 48px inset put
+   these pages 50px to 180px right of the Lab Collection and the Workbench, so
+   the page appeared to jump sideways on every navigation. Pages that read
+   better narrower cap their width and stay left-aligned. */
 .observatory-reading-page {
   width: min(100%, 1400px);
-  margin: 0 auto;
-  padding: 40px 48px;
+  margin: 0;
+  padding: 40px 0;
 }
 
 .observatory-sessions-page {
@@ -1955,6 +1819,21 @@
   top: 100px;
 }
 
+/* Tool chips in the registry are real buttons: a comfortable desktop target,
+   and the full touch target where the pointer is a finger. Structure lives
+   here rather than inline so the media query can reach it. */
+.observatory-root .observatory-tool-chip {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+}
+
+@media (pointer: coarse) {
+  .observatory-root .observatory-tool-chip {
+    min-height: 44px;
+  }
+}
+
 .observatory-root .observatory-card-action {
   display: inline-flex;
   min-height: 44px;
@@ -1964,7 +1843,7 @@
 
 @media (max-width: 1080px) {
   .observatory-reading-page {
-    padding: 28px 16px;
+    padding: 28px 0;
   }
 
   .observatory-architecture-layout {
@@ -2002,23 +1881,16 @@
 }
 
 .labs-mode-banner[data-mode='interactive'] .labs-mode-banner-label {
-  border-color: var(--pellier-burgundy);
-  background: var(--pellier-burgundy);
-  color: var(--cream-elev);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 3px 10px rgba(var(--pellier-burgundy-rgb), 0.1);
+  color: var(--pellier-burgundy);
 }
 
 .labs-mode-banner-detail {
   min-width: 0;
   margin: 0;
-  color: var(--obs-ink-2);
+  color: var(--obs-ink-3);
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-.labs-mode-banner[data-mode='interactive'] .labs-mode-banner-detail {
-  color: var(--obs-ink-2);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .observatory-surface[data-workbench='true'] .labs-mode-banner {
@@ -2029,7 +1901,7 @@
   .labs-mode-banner {
     align-items: flex-start;
     flex-direction: column;
-    gap: 9px;
+    gap: 4px;
   }
 }
 
@@ -2048,30 +1920,12 @@
   }
 }
 
-/* The nav toggle only exists in drawer mode; above it the rail is present. */
-.observatory-nav-toggle {
-  display: none;
-}
-
-@media (max-width: 1080px) {
-  .observatory-nav-toggle {
-    display: inline-flex;
-  }
-}
-
-/* Reduced motion: the drawer still opens, it simply does not slide. */
-@media (prefers-reduced-motion: reduce) {
-  .observatory-sidebar {
-    transition: none;
-  }
-}
-
 /* -----------------------------------------------------------------------
  * Proof Board
  *
- * This is a reference reading surface, so it uses the same centered shell
- * and plain editorial title as Sessions. Checkpoint cards remain the source
- * of record for every operational claim.
+ * This is a reference reading surface, so it uses the same left-aligned
+ * shell and page title as Sessions. Checkpoint cards remain the source of
+ * record for every operational claim.
  * ----------------------------------------------------------------------- */
 
 .observatory-proof-board-page {

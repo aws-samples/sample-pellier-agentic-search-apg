@@ -32,7 +32,7 @@ export default function ReplacementEvidence() {
   const back = customer ? `/operator/clients/${encodeURIComponent(customer)}#operator-replacement-care` : '/operator'
   return <div className="observatory-turn-workbench" data-testid="replacement-evidence">
     <header className="observatory-turn-heading">
-      <div><h1>Replacement recovery</h1><p>Follow one approved remedy through its durable records.</p></div>
+      <div><h1 className="observatory-page-title font-display">Replacement recovery</h1><p>Follow one approved remedy through its durable records.</p></div>
       <Link className="pellier-action-quiet" to={back}>Return to client</Link>
     </header>
     <ReferenceBrief id="replacement" />

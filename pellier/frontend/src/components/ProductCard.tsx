@@ -250,7 +250,7 @@ export default function ProductCard({
       <div className={`product-card-copy flex flex-col gap-3 ${editorial ? '' : 'p-5'}`}>
         <div className="flex justify-between gap-3 font-sans text-[12px] text-ink-quiet">
           <span>{product.brand}</span>
-          <span>{editorial ? String(product.id).padStart(2, '0') : product.color}</span>
+          {editorial ? null : <span>{product.color}</span>}
         </div>
 
         <div>

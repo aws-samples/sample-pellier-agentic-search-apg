@@ -2,7 +2,7 @@
  * SectionEyebrow contract.
  *
  * The whole point of the primitive is that one recipe replaces five, so the
- * recipe itself is what is asserted: sans, 11px, 600, 0.08em, uppercase. A
+ * recipe itself is what is asserted: sans, 13px, 600, sentence case. A
  * snapshot would pass while someone quietly moved it to mono at 10px, which is
  * exactly the drift this component exists to end.
  */
@@ -12,16 +12,16 @@ import { describe, expect, it } from 'vitest'
 import { SectionEyebrow } from './SectionEyebrow'
 
 describe('SectionEyebrow', () => {
-  it('renders the one recipe: sans 11/600/0.08em uppercase', () => {
+  it('renders the one recipe: sans 13/600 in sentence case', () => {
     render(<SectionEyebrow data-testid="eyebrow">Reference views</SectionEyebrow>)
 
-    expect(screen.getByTestId('eyebrow')).toHaveStyle({
+    const eyebrow = screen.getByTestId('eyebrow')
+    expect(eyebrow).toHaveStyle({
       fontFamily: 'var(--obs-heading)',
-      fontSize: '11px',
+      fontSize: '13px',
       fontWeight: '600',
-      letterSpacing: '0.08em',
-      textTransform: 'uppercase',
     })
+    expect(eyebrow.style.textTransform).toBe('')
   })
 
   it('never renders in the monospace register', () => {
@@ -40,7 +40,10 @@ describe('SectionEyebrow', () => {
     )
     const brand = screen.getByTestId('brand')
     expect(brand).toHaveAttribute('data-tone', 'brand')
-    expect(brand).toHaveStyle({ color: 'var(--pellier-burgundy)' })
+    expect(brand).toHaveStyle({ color: 'var(--obs-ink-2)' })
+    // Burgundy is the mark, not the text: it stays on the dot only.
+    const dot = brand.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(dot.style.background).toBe('var(--pellier-burgundy)')
     unmount()
 
     render(

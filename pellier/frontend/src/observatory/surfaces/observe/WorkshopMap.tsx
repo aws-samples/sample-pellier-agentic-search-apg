@@ -333,7 +333,7 @@ const LabCard: React.FC<LabItem> = ({ lab, title, summary, primary, secondary })
 
 const WorkshopMap: React.FC = () => {
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1180px' }}>
+    <div style={{ padding: '40px 0', maxWidth: '1180px' }}>
       <section
         aria-labelledby="workshop-map-title"
         style={{

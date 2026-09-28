@@ -21,7 +21,7 @@ export default function LabsCatalog() {
         <div className="labs-catalog-hero-copy">
           <div>
             <p className="labs-catalog-eyebrow">One shop. Four engineering questions.</p>
-            <h1 className="font-display">Governed Lab Collection</h1>
+            <h1 className="observatory-page-title font-display">Governed Lab Collection</h1>
           </div>
           <div className="labs-catalog-orientation">
             <p>

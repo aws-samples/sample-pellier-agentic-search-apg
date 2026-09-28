@@ -381,7 +381,7 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '720px' }}>
+    <div style={{ padding: '40px 0', maxWidth: '720px' }}>
       <EditorialTitle
         eyebrow="Settings · Persona · workshop identity"
         title="Persona"

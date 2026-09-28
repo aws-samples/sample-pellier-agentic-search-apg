@@ -44,7 +44,7 @@ const conceptComponents: Record<string, React.LazyExoticComponent<React.FC>> = {
  * ----------------------------------------------------------------------- */
 
 const LoadingFallback: React.FC = () => (
-  <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
+  <div style={{ padding: '40px 0', maxWidth: '1100px' }}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Eyebrow skeleton */}
       <div
@@ -108,7 +108,7 @@ const NotFoundState: React.FC<{ concept: string }> = ({ concept }) => {
   return (
     <div
       style={{
-        padding: '40px 48px',
+        padding: '40px 0',
         maxWidth: '1100px',
         display: 'flex',
         flexDirection: 'column',

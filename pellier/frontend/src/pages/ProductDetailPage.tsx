@@ -310,17 +310,17 @@ export default function ProductDetailPage() {
       <main className="bg-cream">
         <nav
           aria-label="Breadcrumb"
-          className="mx-auto max-w-[1200px] px-container-x pt-6 font-sans text-[12px] text-ink-quiet"
+          className="mx-auto max-w-[1200px] px-container-x pt-3 font-sans text-[13px] text-ink-quiet"
         >
           <ol className="flex flex-wrap items-center gap-2">
             <li>
-              <Link to="/" className="transition-colors hover:text-espresso">
+              <Link to="/" className="inline-flex min-h-11 items-center transition-colors hover:text-espresso">
                 {PRODUCT_DETAIL.BREADCRUMB_ROOT}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link to="/#shop" className="transition-colors hover:text-espresso">
+              <Link to="/#shop" className="inline-flex min-h-11 items-center transition-colors hover:text-espresso">
                 {view.category}
               </Link>
             </li>

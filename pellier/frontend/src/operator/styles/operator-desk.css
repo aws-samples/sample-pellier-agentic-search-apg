@@ -85,7 +85,6 @@
 .operator-review-record-layout>.operator-review-requester { grid-column: 1 / -1; margin: 0; }
 .operator-review-record-layout>.operator-review-origin { margin: 0; }
 .operator-review-record-layout>.operator-card { background: var(--op-paper-2); box-shadow: none; }
-.operator-review-record-layout .operator-title { font-size: 34px; }
 .operator-review-record-layout .operator-review-head-state { white-space: normal; min-width: 120px; }
 .operator-review-record-layout .operator-review-standing { font-size: 12px; }
 .operator-review-proof-link { grid-column: 1 / -1; margin: 0; }
@@ -213,6 +212,9 @@
   .operator-chat-client-row { grid-template-columns: 56px minmax(0, 1fr); gap: 10px 14px; }
   .operator-client-chat-label { grid-column: 2; justify-self: start; }
   .operator-sidebar { padding-inline: 12px; }
+  /* The book's own rung ladder filters by membership on a phone; repeating it
+     as a third header row pushed the page title below a third of the screen. */
+  .operator-membership-nav { display: none; }
   .operator-sidebar .operator-book-navigation>.operator-topbar-link .operator-book-nav-count { display: none; }
 }
 @media (max-width: 380px) {

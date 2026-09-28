@@ -361,7 +361,7 @@ const ArchitectureIndex: React.FC = () => {
     <div className="observatory-reading-page observatory-architecture-page">
       <EditorialTitle referenceId="architecture"
         backToReferences
-        eyebrow="Start Here · Architecture Brief"
+        eyebrow="Start here · Architecture brief"
         title="Architecture"
         summary="A short map of the pieces the labs ask you to prove: Aurora grounding, dispatcher routing, skills, tool registry, memory, Runtime, and Gateway. Use it as orientation, then return to Code Editor or Pellier."
       />

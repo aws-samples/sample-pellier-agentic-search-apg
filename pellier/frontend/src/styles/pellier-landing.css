@@ -383,12 +383,13 @@
   padding-top: 16px;
 }
 
+/* The maker line is a quiet caption in the reading face. It was 10px tracked
+   mono, which is the register for identifiers, and it sat below the type
+   floor. */
 .product-card--editorial .product-card-copy > div:first-child {
   color: var(--ink-quiet);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 12px;
 }
 
 .product-card--editorial .product-name {

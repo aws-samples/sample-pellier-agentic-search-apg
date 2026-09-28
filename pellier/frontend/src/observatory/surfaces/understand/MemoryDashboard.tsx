@@ -381,7 +381,7 @@ const MemoryDashboard: React.FC = () => {
     : 0;
 
   return (
-    <div style={{ padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px)', maxWidth: '1100px' }}>
+    <div style={{ padding: 'clamp(24px, 4vw, 40px) 0', maxWidth: '1100px' }}>
       <EditorialTitle referenceId="memory"
         backToReferences
         eyebrow="Understand: Memory"

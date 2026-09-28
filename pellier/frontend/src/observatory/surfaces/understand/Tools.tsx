@@ -921,7 +921,9 @@ const AgentRoster: React.FC<AgentRosterProps> = ({ agents, tools, onToolSelect }
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+          // 220px, not 170px: at 170 five agents shared a 950px panel and two-
+          // word names broke mid-word ("Persona / lization").
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '10px',
         }}
       >
@@ -995,13 +997,14 @@ const AgentRoster: React.FC<AgentRosterProps> = ({ agents, tools, onToolSelect }
                 {agent.role}
               </p>
 
+              {/* Model ids are case-sensitive identifiers: shown as written,
+                  and allowed to wrap rather than being cut mid-id. */}
               <div
                 style={{
                   fontFamily: 'var(--obs-mono)',
-                  fontSize: 'var(--text-label)',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  fontSize: '12px',
                   color: 'var(--obs-ink-4)',
+                  overflowWrap: 'anywhere',
                 }}
               >
                 {agent.model} · {shippedOwned}/{agent.tools.length} shipped
@@ -1024,16 +1027,17 @@ const AgentRoster: React.FC<AgentRosterProps> = ({ agents, tools, onToolSelect }
                       type="button"
                       onClick={() => onToolSelect(toolName)}
                       disabled={!tool}
+                      className="observatory-tool-chip"
                       style={{
                         fontFamily: 'var(--obs-mono)',
-                        fontSize: '11px',
+                        fontSize: '12px',
                         borderRadius: '999px',
                         border: toolIsExercise
                           ? '1px dashed var(--obs-red-1)'
                           : '1px solid var(--obs-rule-2)',
                         background: toolIsExercise ? 'transparent' : 'var(--obs-cream-1)',
                         color: toolIsExercise ? 'var(--obs-red-1)' : 'var(--obs-ink-1)',
-                        padding: '3px 7px',
+                        padding: '4px 10px',
                         cursor: tool ? 'pointer' : 'default',
                       }}
                     >
@@ -1277,7 +1281,7 @@ const Tools: React.FC = () => {
       : undefined;
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
+    <div style={{ padding: '40px 0', maxWidth: '1100px' }}>
       <EditorialTitle referenceId="tools"
         backToReferences
         eyebrow="Understand · Tools · five agents · live MCP registry"

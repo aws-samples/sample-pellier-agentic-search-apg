@@ -205,6 +205,9 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             textDecoration: 'none',
             marginTop: 4,
             alignSelf: 'flex-start',
+            display: 'inline-flex',
+            alignItems: 'center',
+            minHeight: 44,
           }}
         >
           {card.link}

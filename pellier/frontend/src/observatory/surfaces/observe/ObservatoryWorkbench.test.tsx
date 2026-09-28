@@ -1495,7 +1495,7 @@ describe('Pellier Observatory live agent workbench', () => {
       screen.getAllByText(/governed_turn_receipt:turn-1/).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText('Operator review opened')).toBeInTheDocument();
-    expect(screen.getByText('operator_review')).toBeInTheDocument();
+    expect(screen.getByText('Operator review')).toBeInTheDocument();
     expect(
       tracePanel(container).querySelector('.observatory-append-only')
         ?.textContent,

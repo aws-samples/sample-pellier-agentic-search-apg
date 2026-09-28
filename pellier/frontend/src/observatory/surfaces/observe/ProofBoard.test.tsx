@@ -244,7 +244,7 @@ describe('ProofBoard', () => {
     });
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: 'Aurora PostgreSQL' }),
+        screen.getByRole('rowheader', { name: /Aurora PostgreSQL/ }),
       ).toBeInTheDocument();
     });
     expect(screen.getByText('AgentCore Gateway')).toBeInTheDocument();

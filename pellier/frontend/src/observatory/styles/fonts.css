@@ -30,9 +30,9 @@
    * ---------------------------------------------------------------- */
 
   /* The one page title per screen. Set on `.observatory-page-title`. */
-  --obs-title-size: clamp(30px, 3.2vw, 40px);
+  --obs-title-size: var(--text-page-title);
   --obs-title-weight: 400;
-  --obs-title-leading: 1.08;
+  --obs-title-leading: 1.04;
   --obs-title-tracking: -0.012em;
 
   /* Section titles (e.g., card headings) */

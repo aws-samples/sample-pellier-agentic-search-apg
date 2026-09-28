@@ -1,6 +1,6 @@
-.observatory-turn-workbench { padding: 30px var(--pellier-gutter) 56px; color: var(--obs-ink-1); font-family: var(--obs-sans); }
+.observatory-turn-workbench { padding: 30px 0 56px; color: var(--obs-ink-1); font-family: var(--obs-sans); }
 .observatory-turn-heading { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.observatory-turn-heading h1 { margin: 0; font-family: var(--obs-heading); font-size: clamp(30px, 3vw, 42px); font-weight: 400; letter-spacing: -.02em; }
+.observatory-turn-heading h1 { margin: 0; }
 .observatory-turn-heading p { margin: 10px 0 0; color: var(--obs-ink-3); font-size: 14px; line-height: 1.6; }
 .observatory-turn-heading>a { flex-shrink: 0; }
 .observatory-turn-context { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 20px; font-size: 12px; color: var(--obs-ink-3); }
@@ -8,7 +8,7 @@
 .observatory-turn-grid { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(320px, 1.3fr) minmax(240px, 1fr); gap: 18px; align-items: start; }
 .observatory-turn-panel { min-width: 0; overflow: hidden; border: 1px solid var(--obs-rule-2); border-radius: 14px; background: var(--cream-elev); }
 .observatory-turn-panel>header { padding: 19px 22px; border-bottom: 1px solid var(--obs-rule-2); }
-.observatory-turn-panel h2 { margin: 0; font: 500 20px/1.25 var(--obs-heading); color: var(--accent); }
+.observatory-turn-panel h2 { margin: 0; font: 500 20px/1.25 var(--obs-heading); color: var(--obs-ink-1); }
 .observatory-turn-panel>header p { margin: 7px 0 0; font-size: 12px; color: var(--obs-ink-3); line-height: 1.4; }
 .observatory-turn-content { padding: 20px 22px; }
 .observatory-turn-content p { margin: 0 0 16px; font-size: 14px; line-height: 1.7; white-space: pre-line; }
@@ -41,7 +41,7 @@
 .observatory-turn-workbench :is(a,button,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media (max-width: 1000px) { .observatory-turn-grid { grid-template-columns: 1fr 1fr; } .observatory-turn-grid>section:last-child { grid-column: 1 / -1; } }
 @media (max-width: 640px) {
-  .observatory-turn-workbench { padding: 24px 16px 40px; }
+  .observatory-turn-workbench { padding: 24px 0 40px; }
   .observatory-turn-heading { flex-direction: column; gap: 16px; }
   .observatory-turn-grid,.observatory-turn-facts dl>div { grid-template-columns: minmax(0,1fr); }
   .observatory-turn-panel>header,.observatory-turn-content { padding: 18px; }

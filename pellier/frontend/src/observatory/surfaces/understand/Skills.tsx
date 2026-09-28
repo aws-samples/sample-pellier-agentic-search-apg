@@ -742,7 +742,7 @@ const Skills: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: '1100px' }}>
+    <div style={{ padding: '40px 0', maxWidth: '1100px' }}>
       <EditorialTitle
         backToReferences
         eyebrow="Understand · Skills · five prompt overlays"
