@@ -23,6 +23,8 @@ export interface TelemetryPanel {
     | 'complete'
     | 'running'
     | 'queued'
+    /** The tool ran and returned data without stating an outcome. */
+    | 'recorded'
     | EvidenceLedgerStatus;
   durationMs: number;
   agent?: string;

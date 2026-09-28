@@ -52,6 +52,7 @@ from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
 from services.auth import authorize_customer_read, get_current_user, require_operator
 from services.observatory_copy import OBSERVATORY_COPY
+from services.operator_review import is_boundary_refusal
 
 logger = logging.getLogger(__name__)
 
@@ -1325,9 +1326,17 @@ async def _collect_proof_board(
 
 
 def _audit_result_status(result: Any) -> str:
-    """An audit proves invocation; only an explicit outcome proves success."""
+    """An audit proves invocation; only an explicit outcome proves success.
+
+    A structured result with no stated outcome is ``recorded``: the tool ran
+    and returned data, which is all the row proves. The governed boundary
+    declining a shopper-rail mutation is ``denied``, because it refused before
+    execution rather than failing.
+    """
     if not isinstance(result, dict):
         return "unavailable"
+    if is_boundary_refusal(result):
+        return "denied"
     status = str(result.get("status") or "").lower()
     if result.get("error") or result.get("success") is False or status in {"failed", "error"}:
         return "failed"
@@ -1335,7 +1344,21 @@ def _audit_result_status(result: Any) -> str:
         return "denied"
     if result.get("success") is True or status in {"succeeded", "success", "complete", "completed"}:
         return "succeeded"
-    return "unavailable"
+    return "recorded"
+
+
+# A session failed when any recorded tool call failed. The governed boundary
+# declining a shopper-rail mutation is excluded: it is the intended Lab 3 and
+# Lab 4 outcome, and the review it opens is the proof, not a fault. The literal
+# is services.operator_review.MANAGED_RAIL_REFUSAL; a test holds them equal.
+_SESSION_FAILED_PREDICATE = """bool_or(
+                    ta.result->>'success' = 'false'
+                    OR (
+                        NULLIF(ta.result->>'error', '') IS NOT NULL
+                        AND ta.result->>'error' <> 'managed_rail_required'
+                    )
+                    OR ta.result->>'status' IN ('failed', 'error', 'denied')
+                )"""
 
 
 # Gateway read receipts correlate by route-minted turn id. Resolve their
@@ -1388,11 +1411,7 @@ async def list_sessions(
                     ELSE 'Storefront Dispatcher'
                 END AS "routingPattern",
                 max(ta.created_at) AS timestamp,
-                CASE WHEN bool_or(
-                    ta.result->>'success' = 'false'
-                    OR NULLIF(ta.result->>'error', '') IS NOT NULL
-                    OR ta.result->>'status' IN ('failed', 'error', 'denied')
-                ) THEN 'failed'
+                CASE WHEN """ + _SESSION_FAILED_PREDICATE + """ THEN 'failed'
                 ELSE COALESCE((
                     SELECT terminal_status FROM pellier.governed_turn_receipts terminal
                      WHERE terminal.session_id = ta.session_id
@@ -1486,11 +1505,7 @@ async def get_session(
                     ELSE 'Storefront Dispatcher'
                 END AS "routingPattern",
                 max(ta.created_at) AS timestamp,
-                CASE WHEN bool_or(
-                    ta.result->>'success' = 'false'
-                    OR NULLIF(ta.result->>'error', '') IS NOT NULL
-                    OR ta.result->>'status' IN ('failed', 'error', 'denied')
-                ) THEN 'failed'
+                CASE WHEN """ + _SESSION_FAILED_PREDICATE + """ THEN 'failed'
                 ELSE COALESCE((
                     SELECT terminal_status FROM pellier.governed_turn_receipts terminal
                      WHERE terminal.session_id = ta.session_id

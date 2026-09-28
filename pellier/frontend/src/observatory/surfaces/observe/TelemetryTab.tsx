@@ -101,6 +101,8 @@ function getStatusColor(status: TelemetryPanel['status']): string {
       return 'var(--obs-red-1)';
     case 'not_enforced':
       return '#9a6f21';
+    case 'recorded':
+      return 'var(--obs-ink-3)';
     case 'queued':
     case 'planned':
     case 'not_reached':
@@ -133,6 +135,8 @@ function getStatusLabel(status: TelemetryPanel['status']): string {
       return 'Not enforced';
     case 'unavailable':
       return 'Unavailable';
+    case 'recorded':
+      return 'Recorded';
     default:
       return status;
   }
@@ -599,7 +603,7 @@ const ProductRecommendationCard: React.FC<ProductRecommendationCardProps> = ({
   const imageUrl = resolveProductImageUrl(product.imageUrl);
   return (
   <ExpCard>
-    <Eyebrow label="Top Pick" />
+    <Eyebrow label="Top pick" />
 
     {/* Product image */}
     <div

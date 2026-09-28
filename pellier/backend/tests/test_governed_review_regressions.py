@@ -11,6 +11,7 @@ from routes import observatory, workshop
 from services.auth import get_current_user
 from services.agentcore_identity import AgentCoreIdentityService
 from services.governed_turn_receipt import _trace_metadata
+from services.operator_review import MANAGED_RAIL_REFUSAL
 
 
 @pytest.mark.parametrize("principal,status", [
@@ -63,11 +64,42 @@ def test_memory_dashboard_uses_authenticated_writer_namespace(monkeypatch):
     ({"success": False}, "failed"),
     ({"status": "denied"}, "denied"),
     ({"success": True}, "succeeded"),
-    ({"rows": []}, "unavailable"),
+    # A structured result without a stated outcome proves the tool ran and
+    # returned data, not that it succeeded; "unavailable" read as the tool
+    # having been unreachable.
+    ({"rows": []}, "recorded"),
+    ({"category": "Home Decor", "return_window_days": 30}, "recorded"),
+    # The governed boundary declining a shopper-rail mutation is a refusal
+    # before execution, not a failure of the turn.
+    ({"tool": "initiate_return", "error": "managed_rail_required"}, "denied"),
     (None, "unavailable"),
+    ("not json", "unavailable"),
 ])
 def test_audit_outcome_never_invents_success(result, expected):
     assert observatory._audit_result_status(result) == expected
+
+
+def test_session_list_does_not_mark_a_boundary_refusal_as_failure(monkeypatch):
+    """Lab 3 turn 3 ends in the intended managed-rail refusal. The session list
+    must not report that correct outcome as "Failure recorded"."""
+    captured = []
+
+    class DB:
+        async def fetch_all(self, sql, *params):
+            captured.append(sql)
+            return []
+
+    async def live_db():
+        return DB()
+
+    monkeypatch.setattr(observatory, "_live_db", live_db)
+    app = FastAPI()
+    app.include_router(observatory.router)
+    app.dependency_overrides[get_current_user] = lambda: None
+    response = TestClient(app).get("/api/observatory/sessions")
+    assert response.status_code == 200
+    failure_predicate = captured[0].split("THEN 'failed'")[0].rsplit("CASE WHEN bool_or(", 1)[1]
+    assert f"<> '{MANAGED_RAIL_REFUSAL}'" in failure_predicate
 
 
 def test_memory_receipt_survives_projection_without_content():
