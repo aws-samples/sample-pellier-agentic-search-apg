@@ -29,6 +29,10 @@
  * is a plain class selector. That combination keeps Fraunces on both surfaces
  * without giving up the heading.
  *
+ * The Operator desk passes `face="sans"`: its type is Instrument Sans
+ * throughout, so its states set the headline in the desk's own heading voice
+ * rather than the storefront's display face.
+ *
  * It matters because the desk's signed-out state is a whole page whose only
  * sentence is this one: rendered as a paragraph, `/operator` reached a reader
  * with no headings at all. `level` names where the state sits — `1` when the
@@ -54,6 +58,8 @@ export interface EmptyStateProps {
   /** Editorial scale for a state replacing the page, rather than a small panel. */
   size?: 'panel' | 'page'
   align?: 'start' | 'center'
+  /** Headline face. `sans` is the Operator desk's heading voice. */
+  face?: 'display' | 'sans'
   className?: string
   'data-testid'?: string
 }
@@ -67,12 +73,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   level = 2,
   size = 'panel',
   align = 'start',
+  face = 'display',
   className,
   'data-testid': testId,
 }) => {
   const centered = align === 'center'
   const pageSize = size === 'page'
   const Headline = `h${level}` as 'h1' | 'h2' | 'h3'
+  const sans = face === 'sans'
 
   return (
     <div
@@ -94,11 +102,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         style={{
           margin: 0,
           maxWidth: pageSize ? '28ch' : '46ch',
-          fontFamily: 'var(--display)',
+          fontFamily: sans ? 'var(--sans)' : 'var(--display)',
           fontSize: pageSize ? 'clamp(26px, 2.5vw, 32px)' : 'clamp(22px, 2vw, 24px)',
-          fontWeight: 400,
+          fontWeight: sans ? 600 : 400,
           lineHeight: 1.25,
-          letterSpacing: '-0.012em',
+          letterSpacing: sans ? '-0.02em' : '-0.012em',
           color: 'var(--obs-ink-1)',
         }}
       >

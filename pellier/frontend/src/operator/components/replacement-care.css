@@ -1,6 +1,6 @@
 .operator-replacement-care { min-width: 0; border-radius: 20px; }
 .operator-replacement-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 12px; }
-.operator-replacement-heading h2 { margin: 0; font: 400 25px/1.25 var(--display); letter-spacing: var(--op-display-track); }
+.operator-replacement-heading h2 { margin: 0; font: 600 20px/1.25 var(--sans); letter-spacing: var(--op-heading-track); }
 .operator-replacement-heading h3 { margin: 0; font: 500 17px/1.35 var(--sans); }
 .operator-replacement-care p { color: var(--op-muted); font: 400 13px/1.65 var(--sans); }
 .operator-replacement-heading p { margin: 6px 0 0; }

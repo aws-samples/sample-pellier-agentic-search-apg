@@ -6,10 +6,10 @@
  * consistency outrank expression; the brand lives in the figures, the rules,
  * and the browser surfaces.
  *
- * Type: headings use `var(--display)` (Fraunces Variable) at the storefront's
- * own -0.012em tracking, so the desk and the shop speak in one voice. An
- * earlier revision used `--obs-serif` (Instrument Serif) and read as a
- * different house.
+ * Type: Instrument Sans throughout, headings at 600 with -0.02em tracking.
+ * Fraunces is the storefront's editorial voice; on the desk it sat beside
+ * controls set in sans, so every screen changed register mid-glance. The
+ * tools speak one face, and JetBrains Mono carries IDs and values.
  *
  * Tokens: `--op-*` semantic aliases onto the Daylight `--dl-*` primitives,
  * mirroring how `observatory/styles/tokens.css` aliases `--obs-*`. An alias
@@ -127,14 +127,19 @@
      the band resolves to near-white. The house gradient did exactly
      that and rendered cream text on a cream ground. */
   --op-band-ground: #1f1410;
-  /* The sticky topbar is 65px. Anything pinned below it clears that plus a
-     16px breath, in one place so the two values cannot drift apart. */
+  /* Anything pinned while the page scrolls clears the sticky shared surface
+     bar plus a 16px breath, in one place so the values cannot drift apart.
+     operator-desk.css derives the live value from --pellier-surface-bar-height;
+     this is the fallback. */
   --op-topbar-clearance: 81px;
   --op-band-muted: #ded5c8;
   --op-band-rule: rgb(251 248 242 / 0.24);
 
-  /* One tracking value for display type, taken from the storefront. */
-  --op-display-track: -0.012em;
+  /* One tracking value for headings, set for Instrument Sans at 600. */
+  --op-heading-track: -0.02em;
+  /* The desk's page title. Smaller than the storefront's display step because
+     a semibold sans carries at a size a light serif does not. */
+  --op-title-size: clamp(26px, 2.2vw, 32px);
   /* One tracking value for the small letterspaced data labels. */
   --op-label-track: 0.08em;
 }
@@ -218,67 +223,6 @@
 .operator-root {
   scrollbar-color: var(--op-rule-strong) transparent;
   scrollbar-width: thin;
-}
-
-.operator-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  padding: 0 28px;
-  background: color-mix(in srgb, var(--op-paper) 94%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--op-rule);
-}
-
-.operator-topbar-inner {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  max-width: 1184px;
-  min-height: 64px;
-  margin: 0 auto;
-}
-
-.operator-topbar-start {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  min-width: 0;
-}
-
-/* The surface name is interface structure, set like the Observatory's: the
-   shared bar above already carries the Pellier wordmark in the display face. */
-.operator-wordmark {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  font-family: var(--sans);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--op-ink);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.operator-wordmark:hover {
-  color: var(--op-authority);
-}
-
-.operator-topbar-context {
-  font-size: 13px;
-  color: var(--op-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.operator-topbar-end {
-  display: flex;
-  align-items: center;
-  gap: 18px;
 }
 
 .operator-topbar-nav {
@@ -378,14 +322,11 @@
 /* --------------------------------------------------------------- header */
 
 .operator-title {
-  font-family: var(--display);
-  font-weight: 400;
-  /* The shared page-title step, so the desk's page title and the
-     Observatory's are one size rather than two values that land near each
-     other. */
-  font-size: var(--text-page-title);
-  line-height: 1.04;
-  letter-spacing: var(--op-display-track);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: var(--op-title-size);
+  line-height: 1.12;
+  letter-spacing: var(--op-heading-track);
   margin: 0;
   color: var(--op-ink);
   text-wrap: balance;
@@ -497,10 +438,10 @@
 .operator-case-entry h2 {
   margin: 4px 0 0;
   color: var(--op-ink);
-  font-family: var(--display);
-  font-size: 20px;
-  font-weight: 400;
-  letter-spacing: var(--op-display-track);
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: var(--op-heading-track);
 }
 
 .operator-case-entry p {
@@ -644,14 +585,6 @@
   background: var(--op-rank-maison);
   border-color: var(--op-rank-maison);
   color: var(--cream-elev);
-  font-family: var(--display);
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.1;
-  text-transform: none;
-  font-variant-caps: small-caps;
-  letter-spacing: var(--op-label-track);
-  padding: 3px 12px;
 }
 
 /*
@@ -1042,9 +975,10 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--op-authority) 12%, var(--op-paper-2));
   color: var(--op-authority);
-  font-family: var(--display);
-  font-size: 22px;
+  font-family: var(--sans);
+  font-size: 20px;
   line-height: 1;
+  font-weight: 600;
 }
 
 /* Both are spans inside a span, so block display is set explicitly: as
@@ -1088,14 +1022,15 @@
  * already display type; the desk now has one voice for money.
  */
 .operator-figure {
-  font-family: var(--display);
-  font-size: 19px;
-  font-weight: 400;
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: var(--op-display-track);
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .operator-figure-label {
@@ -1183,12 +1118,13 @@
 
 .operator-quad-value {
   margin-top: 7px;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(24px, 2.6vw, 31px);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: clamp(22px, 2.2vw, 27px);
   line-height: 1;
-  letter-spacing: var(--op-display-track);
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .operator-quad-value[data-tone='authority'] {
@@ -1266,14 +1202,15 @@
 .operator-service-request h2 {
   max-width: 26ch;
   margin: 14px 0 0;
-  font-family: var(--display);
+  font-family: var(--sans);
   /* The headline carries the card. At 22px it was the same size as the body
      around it and nothing led. */
-  font-size: clamp(25px, 2.4vw, 31px);
-  font-weight: 400;
+  font-size: clamp(21px, 1.9vw, 24px);
+  font-weight: 600;
   line-height: 1.25;
   color: var(--op-ink);
   text-wrap: balance;
+  letter-spacing: var(--op-heading-track);
 }
 
 .operator-service-request-note {
@@ -1628,9 +1565,10 @@
   background: rgb(251 248 242 / 0.12);
   color: var(--op-band-ink);
   box-shadow: 0 0 0 1px rgb(251 248 242 / 0.28);
-  font-family: var(--display);
-  font-size: 40px;
+  font-family: var(--sans);
+  font-size: 34px;
   line-height: 1;
+  font-weight: 600;
 }
 
 /*
@@ -1791,7 +1729,7 @@
   font-weight: 500;
   font-size: 17px;
   line-height: 1.2;
-  letter-spacing: var(--op-display-track);
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
   text-wrap: pretty;
 }
@@ -1826,9 +1764,10 @@
     var(--op-paper-2)
   );
   color: var(--op-authority);
-  font-family: var(--display);
-  font-size: 20px;
+  font-family: var(--sans);
+  font-size: 18px;
   line-height: 1;
+  font-weight: 600;
 }
 
 .operator-status {
@@ -2291,27 +2230,6 @@
   color: var(--op-authority);
 }
 
-.operator-queue-summary {
-  display: grid;
-  grid-template-columns: minmax(140px, 0.65fr) minmax(140px, 0.65fr) minmax(220px, 1.7fr);
-  margin: 24px 0 28px;
-  background: var(--op-paper);
-  border: 1px solid var(--op-rule);
-  border-radius: var(--op-radius);
-  overflow: hidden;
-}
-
-.operator-queue-summary > div {
-  min-width: 0;
-  padding: 17px 22px 18px;
-  border-right: 1px solid var(--op-rule);
-}
-
-.operator-queue-summary > div:last-child {
-  border-right: 0;
-}
-
-.operator-queue-summary dt,
 .operator-review-cell-label {
   display: block;
   margin: 0 0 6px;
@@ -2320,27 +2238,15 @@
   color: var(--op-label);
 }
 
-.operator-queue-summary dd {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 25px;
-  line-height: 1;
-  color: var(--op-ink);
-}
-
-.operator-queue-summary dd[data-tone='authority'] {
-  color: var(--op-authority);
-}
-
-.operator-queue-summary dd[data-tone='quiet'] {
-  color: var(--op-muted);
-}
-
-.operator-queue-summary .operator-queue-boundary {
-  padding-top: 4px;
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 500;
+/* The list names its columns once; each row keeps its labels for assistive
+   technology only. */
+.operator-review-row .operator-review-cell-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .operator-action-list {
@@ -2350,16 +2256,18 @@
   overflow: hidden;
 }
 
-/* One operational row, not a card inside another framed list. */
-.operator-review-row {
+/* One operational row, not a card inside another framed list. The column
+   template is shared with the list's heading row so the two cannot drift. */
+.operator-review-row,
+.operator-review-columns {
   display: grid;
   grid-template-columns:
-    56px minmax(240px, 1.35fr) minmax(170px, 0.85fr)
-    minmax(150px, 0.65fr);
+    40px minmax(220px, 1.5fr) minmax(170px, 1fr)
+    minmax(150px, 0.8fr) 16px;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   width: 100%;
-  padding: 20px 24px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--op-rule);
   background: var(--op-paper);
   text-align: left;
@@ -2376,16 +2284,59 @@
   background: var(--op-paper-2);
 }
 
+.operator-review-columns {
+  padding-block: 10px;
+  border-bottom: 1px solid var(--op-rule);
+  background: var(--op-paper-2);
+  font: 500 12px/1.4 var(--sans);
+  color: var(--op-muted);
+}
+
 .operator-review-row .operator-avatar,
 .operator-review-row .operator-monogram {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
 }
 
 .operator-review-body {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
+}
+
+.operator-review-subject,
+.operator-review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.operator-review-subject .operator-client-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.operator-review-piece {
+  font-size: 15px;
+  color: var(--op-ink-2);
+}
+
+.operator-review-meta {
+  font-size: var(--text-label);
+  color: var(--op-muted);
+}
+
+.operator-review-piece::before,
+.operator-review-meta > * + *::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--op-faint);
+}
+
+.operator-review-meta .operator-review-requester {
+  margin: 0;
 }
 
 /* The origin line. Quiet and small: it is orientation, not the headline, and
@@ -2468,17 +2419,17 @@
   color: var(--op-caution, var(--dl-warn));
 }
 
-.operator-review-open {
-  width: 17px;
-  height: 17px;
+.operator-review-chevron {
+  width: 16px;
+  height: 16px;
   color: var(--op-faint);
-  stroke-width: 1.6;
+  stroke-width: 1.8;
   transition: transform 140ms ease-out, color 140ms ease-out;
 }
 
-.operator-review-row:hover .operator-review-open {
+.operator-review-row:hover .operator-review-chevron {
   color: var(--op-ink);
-  transform: translate(2px, -2px);
+  transform: translateX(2px);
 }
 
 .operator-review-record-layout {
@@ -2566,11 +2517,12 @@
 
 .operator-review-issue-text {
   margin: 0;
-  font-family: var(--display);
-  font-size: 19px;
-  font-weight: 400;
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 600;
   line-height: 1.35;
   color: var(--op-ink);
+  letter-spacing: -0.01em;
 }
 
 .operator-review-action-name {
@@ -2601,9 +2553,9 @@
 }
 
 .operator-review-decision-summary strong {
-  font-family: var(--display);
-  font-size: 17px;
-  font-weight: 400;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -2730,11 +2682,11 @@
 
 .operator-handoff-heading h2 {
   margin: 0;
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 400;
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.2;
-  letter-spacing: var(--op-display-track);
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
 }
 
@@ -2771,10 +2723,10 @@
 
 .operator-handoff-request p {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--sans);
   font-size: 17px;
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--op-ink);
   text-wrap: pretty;
 }
@@ -3041,9 +2993,14 @@
   }
 
   .operator-review-row {
-    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-columns: 40px minmax(0, 1fr);
     align-items: start;
-    gap: 12px 16px;
+    gap: 10px 14px;
+  }
+
+  .operator-review-columns,
+  .operator-review-chevron {
+    display: none;
   }
 
   .operator-review-row .operator-avatar,
@@ -3054,11 +3011,6 @@
   .operator-review-action-cell,
   .operator-review-state {
     grid-column: 2;
-  }
-
-  .operator-review-open {
-    grid-column: 3;
-    grid-row: 1;
   }
 
   .operator-review-record-layout {
@@ -3140,73 +3092,6 @@
     width: 100%;
   }
 
-  .operator-topbar {
-    padding: 0 12px;
-  }
-
-  .operator-topbar-inner {
-    grid-template-areas:
-      'brand auth home'
-      'nav nav nav';
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    min-height: 0;
-    gap: 0 8px;
-    padding-top: 8px;
-  }
-
-  .operator-topbar-start {
-    grid-area: brand;
-    gap: 0;
-    overflow: hidden;
-  }
-
-  .operator-topbar-context {
-    display: none;
-  }
-
-  .operator-topbar-end {
-    display: contents;
-  }
-
-  .operator-topbar-nav {
-    grid-area: nav;
-    display: grid;
-    width: 100%;
-    min-height: 44px;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-self: auto;
-    gap: 0;
-    margin-top: 8px;
-    border-top: 1px solid var(--op-rule);
-  }
-
-  .operator-wordmark {
-    overflow: hidden;
-    font-size: 17px;
-    text-overflow: ellipsis;
-  }
-
-  .operator-auth-account,
-  .operator-auth-control {
-    grid-area: auth;
-    min-height: 44px;
-  }
-
-  .operator-auth-account .operator-auth-identity {
-    display: none;
-  }
-
-  .operator-topbar-end > .pellier-home-link {
-    grid-area: home;
-    width: 44px;
-    height: 44px;
-    justify-content: center;
-  }
-
-  .operator-topbar .pellier-home-wordmark {
-    display: none;
-  }
-
   .operator-topbar-label {
     position: static;
     width: auto;
@@ -3224,10 +3109,6 @@
     padding: 8px;
   }
 
-  .operator-topbar-link + .operator-topbar-link {
-    border-left: 1px solid var(--op-rule);
-  }
-
   .operator-topbar-link::after {
     bottom: 0;
   }
@@ -3236,23 +3117,6 @@
      phone as it does on a desktop. Only the long unavailable note gives way. */
   .operator-topbar-count[data-count='unavailable'] {
     display: none;
-  }
-
-  .operator-queue-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .operator-queue-summary > div {
-    padding: 15px 16px 16px;
-  }
-
-  .operator-queue-summary > div:nth-child(2) {
-    border-right: 0;
-  }
-
-  .operator-queue-summary > div:last-child {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--op-rule);
   }
 
   .operator-review-head {
@@ -3361,12 +3225,14 @@
 
 .operator-workbench {
   display: grid;
-  /* 52/48. Both halves are first class; the record is never a sidebar. */
-  grid-template-columns: minmax(0, 52fr) minmax(0, 48fr);
-  /* Row gap is not the column gap. 34px between the panes is measure; 34px
-     under the breadcrumb is just the panes sitting low, and it stacked on the
-     crumb's own margin for 52px of air above the fold. */
-  gap: 16px 34px;
+  /* 42/58. The conversation is what an operator reads line by line, so it
+     takes the larger share; the record beside it stays whole, never a
+     sidebar. At 52/48 on a 1280px laptop the thread was 427px wide. */
+  grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
+  /* Row gap is not the column gap. The column gap is measure between the
+     panes; the same value under the breadcrumb only sat the panes low, stacked
+     on the crumb's own margin above the fold. */
+  gap: 16px 28px;
   align-items: start;
   /* Named rows so the Concierge can span them. `grid-row: 1 / -1` against an
      implicit grid resolves to `1 / 1`: the pane lands in row one, its fixed
@@ -3495,11 +3361,11 @@
 
 .operator-concierge-title {
   margin: 0;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(24px, 2.4vw, 29px);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
 }
 
@@ -3550,13 +3416,14 @@
 }
 
 .operator-concierge-scope-name {
-  font-family: var(--display);
-  font-size: 17px;
+  font-family: var(--sans);
+  font-size: 15px;
   color: var(--op-ink);
+  font-weight: 500;
 }
 
 .operator-concierge-scope-meta {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--op-muted);
 }
 
@@ -3579,8 +3446,8 @@
  * 34px of rule and margin above them, so the pane spent 154px saying "Read
  * only" while the conversation it describes had 245. The facts are unchanged
  * and the disclosure still opens the per-tool list underneath; they simply
- * share a line. The rule above is dropped because the service row already
- * carries one directly above this.
+ * share a line, directly under the title line, and carry the header's one
+ * divider.
  */
 .operator-concierge-state {
   position: relative;
@@ -3589,9 +3456,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 10px;
-  margin: 10px 0 0;
-  padding: 0;
+  margin: 4px 0 0;
+  padding: 0 0 6px;
   border-top: 0;
+  border-bottom: 1px solid var(--op-rule);
 }
 
 .operator-concierge-state > .operator-concierge-state-eyebrow {
@@ -3821,9 +3689,9 @@
 
 .operator-concierge-suggestion-label {
   grid-area: label;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 17px;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 15px;
   line-height: 1.3;
   color: var(--op-ink);
 }
@@ -3895,7 +3763,7 @@
 
 .operator-concierge-request-body {
   margin: 6px 0 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
   color: var(--op-ink);
 }
@@ -3921,8 +3789,8 @@
      read, not another display heading. */
   font-family: var(--sans);
   font-weight: 400;
-  font-size: 15px;
-  line-height: 1.68;
+  font-size: 16px;
+  line-height: 1.65;
   color: var(--op-ink);
   text-wrap: pretty;
 }
@@ -4320,10 +4188,10 @@
 .operator-concierge-human-checkpoint-head h3 {
   margin: 0;
   color: var(--op-ink);
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: var(--op-display-track);
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: var(--op-heading-track);
 }
 
 .operator-concierge-human-checkpoint-head p {
@@ -4651,9 +4519,18 @@
   white-space: nowrap;
 }
 
+/* The send control sits inside the field, so the composer is one row at rest
+   instead of a two-row box above a footer holding the button. */
+.operator-concierge-field {
+  position: relative;
+}
+
 .operator-concierge-input {
+  display: block;
   width: 100%;
-  padding: 11px 13px;
+  min-height: 56px;
+  max-height: 168px;
+  padding: 15px 60px 15px 16px;
   border: 1px solid var(--op-rule-strong);
   border-radius: 8px;
   background: var(--op-paper);
@@ -4661,7 +4538,8 @@
   font: inherit;
   font-size: 15px;
   line-height: 1.5;
-  resize: vertical;
+  overflow-y: auto;
+  resize: none;
 }
 
 .operator-concierge-input::placeholder {
@@ -4679,23 +4557,17 @@
   cursor: default;
 }
 
-.operator-concierge-composer-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 9px;
-}
-
 .operator-concierge-composer-note {
-  margin: 0;
+  margin: 6px 0 0;
   font-size: 11px;
   line-height: 1.5;
   color: var(--op-muted);
 }
 
 .operator-concierge-ask {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
   display: grid;
   place-items: center;
   width: 44px;
@@ -4839,7 +4711,7 @@
 .operator-concierge-section-body {
   margin: 6px 0 0;
   max-width: 62ch;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--op-ink-2);
   text-wrap: pretty;
@@ -4978,9 +4850,9 @@
 
 .operator-concierge-proposal-title {
   margin: 2px 0 0;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 17px;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 16px;
   line-height: 1.25;
   color: var(--op-ink);
 }
@@ -5133,12 +5005,11 @@
    named in Fraunces italic wherever it appears. */
 .operator-concierge-product-name {
   margin: 2px 0 0;
-  font-family: var(--display);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 17px;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 15px;
   line-height: 1.25;
-  letter-spacing: var(--op-display-track);
+  letter-spacing: var(--op-heading-track);
   color: var(--op-ink);
 }
 
@@ -5289,14 +5160,14 @@
   padding-top: 4px;
 }
 
-/* Editorial, because a recommendation is the one place the surface takes a
-   position. Facts stay in sans; this is the sentence an operator acts on. */
+/* Weight, not a second typeface, marks the one sentence where the surface
+   takes a position: this is the line an operator acts on. */
 .operator-concierge-recommendation-body {
   margin: 6px 0 0;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 17px;
-  line-height: 1.5;
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.55;
   color: var(--op-ink);
   text-wrap: pretty;
 }
@@ -5381,7 +5252,27 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 18px 0 20px;
+  margin: 20px 0 16px;
+}
+
+/* Title and lede on the left, freshness and Refresh on the right: one band
+   instead of a title, a lede and a toolbar row stacked above the list. */
+.operator-queue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.operator-queue-head .operator-queue-toolbar {
+  margin: 0;
+}
+
+.operator-queue-toolbar .operator-button {
+  border-color: var(--op-rule-strong);
+  background: transparent;
+  color: var(--op-ink);
 }
 
 .operator-outcome-filter {
@@ -5402,6 +5293,14 @@
   transition:
     border-color var(--gov-motion-fast, 120ms) ease-out,
     color var(--gov-motion-fast, 120ms) ease-out;
+}
+
+/* An outcome with nothing in it stays in the set, because the set is the
+   taxonomy, but steps back so the ones with actions read first. */
+.operator-outcome-filter[data-empty='true'] {
+  border-color: var(--op-rule);
+  background: transparent;
+  color: var(--op-muted);
 }
 
 .operator-outcome-filter:hover {
@@ -5437,9 +5336,9 @@
 .operator-service-source > span { display: grid; gap: 2px; }
 .operator-service-source strong { font-weight: 600; }
 .operator-service-source > span > span { color: var(--op-ink-2); }
-/* The card already pads itself; the old 22px inset indented this row past the
-   title it belongs under. One line, at the title's left edge. */
-.operator-concierge-service { padding: 9px 0 11px; border-bottom: 1px solid var(--op-rule); }
+/* Part of the orientation shown before a conversation: one line at the
+   title's left edge. */
+.operator-concierge-service { flex: 1 0 100%; padding: 8px 0 0; }
 .operator-concierge-service .operator-service-source { gap: 8px; font-size: 12px; }
 .operator-concierge-service .operator-service-source img { flex-basis: 18px; width: 18px; height: 18px; }
 .operator-concierge-service .operator-service-source > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; }
@@ -5451,7 +5350,7 @@
 .operator-record-jumps a:hover,
 .operator-activity-nav a:hover { background: var(--op-paper-2); }
 .operator-activity-nav { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
-.operator-workbench :is(.operator-card-title, .operator-concierge-title),
+.operator-workbench .operator-card-title,
 .operator-review-record-layout .operator-card-title { font-family: var(--sans); font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
 .operator-queue-toolbar,
 .operator-review-overview { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-block: 20px; font-family: var(--sans); font-size: 14px; }

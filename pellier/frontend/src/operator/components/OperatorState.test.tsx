@@ -48,12 +48,11 @@ describe('OperatorState', () => {
     // Every one of these states replaces the whole page, so each is that
     // page's h1. The desk's signed-out state is the case that mattered:
     // rendered as a paragraph it left `/operator` with no headings at all,
-    // which is the first thing an unauthenticated operator meets. Fraunces
-    // survives via `.font-display` plus the inline family, so the heading
-    // costs nothing.
+    // which is the first thing an unauthenticated operator meets. The desk
+    // sets it in its own heading voice, Instrument Sans at 600.
     const headline = screen.getByRole('heading', { level: 1 })
     expect(headline).toHaveTextContent('No clients seeded')
-    expect(headline).toHaveStyle({ fontFamily: 'var(--display)' })
+    expect(headline).toHaveStyle({ fontFamily: 'var(--sans)', fontWeight: '600' })
   })
 
   it('rests on paper by default and carries no photograph', () => {

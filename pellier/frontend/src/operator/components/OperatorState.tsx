@@ -9,8 +9,8 @@
  *
  * One shape now, built on the shared `EmptyState` primitive so the desk and
  * the Observatory answer an absence the same way: which panel is empty, one
- * sentence in the display face, what would fill it, and the identifier an
- * attendee can go and check.
+ * sentence in the desk's heading voice, what would fill it, and the
+ * identifier an attendee can go and check.
  *
  * Two surfaces:
  *
@@ -86,6 +86,7 @@ const OperatorState: React.FC<OperatorStateProps> = ({
         action={action}
         level={level}
         size="page"
+        face="sans"
       />
     </div>
   </div>

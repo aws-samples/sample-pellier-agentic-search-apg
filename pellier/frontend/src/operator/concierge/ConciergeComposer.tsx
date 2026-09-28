@@ -9,7 +9,7 @@
  * button: none of those capabilities exist, so offering them would be theatre.
  */
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowUp, LoaderCircle } from 'lucide-react'
 
 interface Props {
@@ -31,6 +31,17 @@ const ConciergeComposer: React.FC<Props> = ({
   onSubmit,
 }) => {
   const [value, setValue] = useState('')
+  const input = useRef<HTMLTextAreaElement>(null)
+
+  // One line at rest, growing with the draft up to the stylesheet's
+  // max-height. A fixed two-row box held 72px of an 800px laptop window
+  // whether or not anything was typed in it.
+  useLayoutEffect(() => {
+    const el = input.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`
+  }, [value])
 
   const send = useCallback(async () => {
     const text = value.trim()
@@ -61,35 +72,29 @@ const ConciergeComposer: React.FC<Props> = ({
       <label className="operator-concierge-composer-label" htmlFor="concierge-input">
         Ask the Concierge
       </label>
-      <textarea
-        id="concierge-input"
-        className="operator-concierge-input"
-        rows={2}
-        value={value}
-        readOnly={!enabled && !submitting}
-        placeholder={
-          // Three states, not two. Claiming "not yet available" while the config read
-          // is still in flight is the same unverified-vs-closed conflation this
-          // surface exists to avoid — and it flipped to enabled a second later.
-          loading
-            ? 'Reading client context…'
-            : enabled
-              ? 'Ask about this client, an order, or a resolution…'
-              : 'Investigation is not yet available on this surface.'
-        }
-        onChange={(event) => setValue(event.target.value)}
-        onKeyDown={onKeyDown}
-        aria-describedby="concierge-composer-note"
-        data-testid="operator-concierge-input"
-      />
-      <div className="operator-concierge-composer-foot">
-        <p className="operator-concierge-composer-note" id="concierge-composer-note">
-          {error
-            ? 'The request may already be saved. Use Retry history to check its outcome.'
-            : submitting
-              ? 'Working on the request…'
-              : note}
-        </p>
+      <div className="operator-concierge-field">
+        <textarea
+          ref={input}
+          id="concierge-input"
+          className="operator-concierge-input"
+          rows={1}
+          value={value}
+          readOnly={!enabled && !submitting}
+          placeholder={
+            // Three states, not two. Claiming "not yet available" while the config read
+            // is still in flight is the same unverified-vs-closed conflation this
+            // surface exists to avoid — and it flipped to enabled a second later.
+            loading
+              ? 'Reading client context…'
+              : enabled
+                ? 'Ask about this client, an order, or a resolution…'
+                : 'Investigation is not yet available on this surface.'
+          }
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={onKeyDown}
+          aria-describedby="concierge-composer-note"
+          data-testid="operator-concierge-input"
+        />
         {enabled ? (
           <button
             type="button"
@@ -109,6 +114,13 @@ const ConciergeComposer: React.FC<Props> = ({
           </button>
         ) : null}
       </div>
+      <p className="operator-concierge-composer-note" id="concierge-composer-note">
+        {error
+          ? 'The request may already be saved. Use Retry history to check its outcome.'
+          : submitting
+            ? 'Working on the request…'
+            : note}
+      </p>
     </div>
   )
 }

@@ -259,16 +259,28 @@ const OperatorConcierge: React.FC<Props> = ({
       data-testid="operator-concierge"
     >
       <header className="operator-concierge-head">
+        {/* Title, subject and the way back to the record share one line. They
+            were three stacked rows, and with the service line and the status
+            row the pane spent 150px on a 644px laptop pane before any of the
+            conversation showed. */}
         <div className="operator-concierge-heading-row">
-        <h2 className="operator-concierge-title" id="operator-concierge-title">
-          Operator Concierge
-        </h2>
-        <a href="#operator-client-record" className="operator-concierge-record-link">Client record</a>
+          <h2 className="operator-concierge-title" id="operator-concierge-title">
+            Operator Concierge
+          </h2>
+          {/* Scope, not a second profile: enough to make the conversation's
+              subject unambiguous without repeating the record beside it. */}
+          <p className="operator-concierge-scope" data-testid="operator-concierge-scope">
+            <span className="operator-concierge-scope-name">{clientName}</span>
+            <span className="operator-concierge-scope-meta">
+              {membershipLabel}, {spendLabel}
+            </span>
+          </p>
+          <a href="#operator-client-record" className="operator-concierge-record-link">Client record</a>
         </div>
         {/*
           * Orientation, and only until it is no longer needed.
           *
-          * Both of these sat above the scroller for the life of the pane, so
+          * These sat above the scroller for the life of the pane, so
           * roughly seventy pixels of a viewport-height column explained what
           * the Concierge is while an operator was trying to read what it
           * found. The evidence block below could then show two lines at a
@@ -297,19 +309,13 @@ const OperatorConcierge: React.FC<Props> = ({
               <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" />
               <span>Resolution Planner</span>
             </div>
+            {/* Orientation too: once a turn exists, its own evidence names the
+                AgentCore services it used. */}
+            <div className="operator-concierge-service"><ServiceSource service="agentcore">Governed tool access and policy</ServiceSource></div>
           </>
         )}
-        {/* Scope, not a second profile: enough to make the conversation's subject
-            unambiguous without repeating the record on the left. */}
-        <p className="operator-concierge-scope" data-testid="operator-concierge-scope">
-          <span className="operator-concierge-scope-name">{clientName}</span>
-          <span className="operator-concierge-scope-meta">
-            {membershipLabel}, {spendLabel}
-          </span>
-        </p>
       </header>
 
-      <div className="operator-concierge-service"><ServiceSource service="agentcore">Governed tool access and policy</ServiceSource></div>
       <ConciergeCapabilityState
         status={concierge.status}
         capabilities={concierge.capabilities}

@@ -12,7 +12,7 @@
  */
 
 import React, { useState } from 'react'
-import { CircleCheck, CircleDashed, CircleMinus, Clock3, ShieldAlert, ShieldX } from 'lucide-react'
+import { ChevronRight, CircleCheck, CircleDashed, CircleMinus, Clock3, ShieldAlert, ShieldX } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   type OperatorReview,
@@ -181,22 +181,28 @@ const ReviewCard: React.FC<{ review: OperatorReview }> = ({ review }) => {
         name={review.customerName}
         personaId={review.personaId}
       />
+      {/* Two lines: who and what, then where it came from. Five stacked lines
+          made each row 160px, so a 13-inch laptop showed one pending action. */}
       <span className="operator-review-body">
-        <span className="operator-client-name">{review.customerName}</span>
-        <span className="operator-review-origin">
-          Review #{review.reviewId}{review.orderId ? `, order #${review.orderId}` : ''}
+        <span className="operator-review-subject">
+          <span className="operator-client-name">{review.customerName}</span>
+          <span className="operator-review-piece">
+            {review.productName || review.issue || 'Action details awaiting inspection'}
+          </span>
         </span>
-        <span className="operator-cell-note">
-          {review.productName || review.issue || 'Action details awaiting inspection'}
+        <span className="operator-review-meta">
+          <span className="operator-review-origin">
+            Review #{review.reviewId}{review.orderId ? `, order #${review.orderId}` : ''}
+          </span>
+          {when ? <span>Prepared {when}</span> : null}
+          <span className="operator-review-requester"
+            data-testid="operator-review-requester-flag"
+            data-requester={review.requesterKind}
+            title={requesterLine(review)}
+          >
+            {requesterLabel(review)}
+          </span>
         </span>
-        <span className="operator-cell-note operator-review-requester"
-          data-testid="operator-review-requester-flag"
-          data-requester={review.requesterKind}
-          title={requesterLine(review)}
-        >
-          {requesterLabel(review)}
-        </span>
-        {when ? <span className="operator-cell-note">Prepared {when}</span> : null}
       </span>
       <span className="operator-review-action-cell">
         <span className="operator-review-cell-label">Prepared action</span>
@@ -222,9 +228,22 @@ const ReviewCard: React.FC<{ review: OperatorReview }> = ({ review }) => {
           {humanState}
         </span>
       </span>
+      <ChevronRight className="operator-review-chevron" aria-hidden />
     </Link>
   )
 }
+
+/* Column names once per list, for sighted scanning. Each row still names its
+   own cells for assistive technology, so this header is presentation only. */
+const ReviewColumns: React.FC = () => (
+  <div className="operator-review-columns" aria-hidden="true">
+    <span />
+    <span>Client and piece</span>
+    <span>Prepared action</span>
+    <span>Decision</span>
+    <span />
+  </div>
+)
 
 const OUTCOME_FILTERS: ReadonlyArray<{ id: ReviewOutcomeKind; label: string }> = [
   { id: 'pending', label: 'Needs decision' },
@@ -320,15 +339,18 @@ const ReviewQueue: React.FC = () => {
 
   return (
     <div data-testid="operator-reviews">
-      <h1 className="operator-title">Actions awaiting decision</h1>
-      <p className="operator-lede">
-        Pellier stops consequential work here. Decide the exact terms;
-        authorization and execution remain separate.
-      </p>
-
-      <div className="operator-queue-toolbar">
-        <p role="status">{error ? 'Refresh unavailable. Showing the last successful read.' : updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Reading queue…'}</p>
-        <button type="button" className="operator-button operator-button-inline" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+      <div className="operator-queue-head">
+        <div>
+          <h1 className="operator-title">Actions awaiting decision</h1>
+          <p className="operator-lede">
+            Pellier stops consequential work here. Decide the exact terms;
+            authorization and execution remain separate.
+          </p>
+        </div>
+        <div className="operator-queue-toolbar">
+          <p role="status">{error ? 'Refresh unavailable. Showing the last successful read.' : updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Reading queue…'}</p>
+          <button type="button" className="operator-button operator-button-inline" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+        </div>
       </div>
       <div
         className="operator-outcome-filters"
@@ -343,6 +365,7 @@ const ReviewQueue: React.FC = () => {
             className="operator-outcome-filter"
             aria-pressed={outcomeFilter === filter.id}
             data-outcome={filter.id}
+            data-empty={counts[filter.id] === 0 ? 'true' : undefined}
             data-testid={`operator-outcome-filter-${filter.id}`}
             onClick={() =>
               setOutcomeFilter((current) => (current === filter.id ? null : filter.id))
@@ -354,23 +377,6 @@ const ReviewQueue: React.FC = () => {
           </button>
         ))}
       </div>
-
-      <dl className="operator-queue-summary" aria-label="Action queue summary">
-        <div>
-          <dt>Needs decision</dt>
-          <dd data-tone={counts.pending > 0 ? 'authority' : 'quiet'}>
-            {counts.pending}
-          </dd>
-        </div>
-        <div>
-          <dt>Decided</dt>
-          <dd>{queue.reviews.length - counts.pending}</dd>
-        </div>
-        <div>
-          <dt>Current boundary</dt>
-          <dd className="operator-queue-boundary">Human confirmation</dd>
-        </div>
-      </dl>
 
       {/* A clean environment starts here: nothing seeds this table, so an empty
           queue is the designed first impression rather than a failure to load.
@@ -389,6 +395,7 @@ const ReviewQueue: React.FC = () => {
         />
       ) : (
         <div className="operator-action-list" data-testid="operator-review-pending">
+          <ReviewColumns />
           {pending.map((review) => (
             <ReviewCard review={review} key={review.reviewId} />
           ))}
@@ -402,6 +409,7 @@ const ReviewQueue: React.FC = () => {
             <span className="operator-section-count">{decided.length}</span>
           </div>
           <div className="operator-action-list" data-testid="operator-review-decided">
+            <ReviewColumns />
             {decided.map((review) => (
               <ReviewCard review={review} key={review.reviewId} />
             ))}

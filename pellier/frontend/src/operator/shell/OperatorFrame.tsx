@@ -1,15 +1,19 @@
 /**
  * Pellier Operator shell.
  *
- * A compact work-area rail beneath the shared three-surface navigation.
+ * A work-area rail beneath the shared three-surface navigation, and nothing
+ * else above the page. The rail carries the sections and, at its foot, the
+ * operator's account. A second header bar used to hold the desk's name and the
+ * account, and on a 13-inch laptop it took 60px from a Concierge pane that had
+ * 166px left to show the conversation. On a laptop the rail folds to icons.
+ *
  * An open review keeps the authenticated queue beside the case, so inspecting
  * one request does not lose the rest of the desk.
  *
- * Mounted on `.operator-root`, which is intentionally not nested inside
- * `.pellier-page-surface` or `.observatory-root`. Both of those force headings
- * to sans, one of them with `!important`, so an editorial serif heading is
- * only reachable from a scope outside them. All tokens live on `:root`, so
- * nothing is lost by sitting outside.
+ * Mounted on `.operator-root`, outside `.pellier-page-surface` and
+ * `.observatory-root`, so neither surface's heading resets reach the desk; the
+ * desk sets its own. All tokens live on `:root`, so nothing is lost by sitting
+ * outside.
  */
 
 import React, {
@@ -17,7 +21,7 @@ import React, {
   useContext,
   useEffect,
 } from 'react'
-import { ClipboardCheck, MessageCircle, User } from 'lucide-react'
+import { ClipboardCheck, LogOut, MessageCircle, User } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import ReviewQueuePanel from '../components/ReviewQueuePanel'
 import ClientBookNavigation from '../components/ClientBookNavigation'
@@ -139,20 +143,23 @@ const OperatorAuthControl: React.FC = () => {
   }
 
   if (isAuthenticated && user) {
+    const identity = presentIdentity(user.givenName || user.email)
     return (
       <div className="operator-auth-account">
         <span
           className="operator-auth-identity"
           title={`Signed in as ${user.email}`}
         >
-          {presentIdentity(user.givenName || user.email)}
+          {identity}
         </span>
         <button
           type="button"
           className="pellier-account-pill operator-auth-control"
           onClick={logout}
+          title={`Sign out ${identity}`}
         >
-          Sign out
+          <LogOut className="operator-topbar-icon" aria-hidden />
+          <span className="operator-auth-label">Sign out</span>
         </button>
       </div>
     )
@@ -164,9 +171,10 @@ const OperatorAuthControl: React.FC = () => {
       className="pellier-account-pill operator-auth-signin"
       onClick={() => redirectToSignIn('email')}
       data-testid="operator-sign-in"
+      title="Sign in as an operator"
     >
       <User className="operator-topbar-icon" aria-hidden />
-      <span>Sign in</span>
+      <span className="operator-auth-label">Sign in</span>
     </button>
   )
 }
@@ -215,6 +223,7 @@ const OperatorFrame: React.FC = () => {
                   className={`operator-topbar-link operator-chat-nav-link${chatActive ? ' operator-topbar-link-active' : ''}`}
                   aria-current={chatActive ? 'page' : undefined}
                   data-testid="operator-chat-link"
+                  title="Operator chat"
                 >
                   <MessageCircle className="operator-topbar-icon" aria-hidden />
                   <span className="operator-topbar-label">Operator chat</span>
@@ -222,23 +231,11 @@ const OperatorFrame: React.FC = () => {
                 <PendingReviewLink />
               </nav>
             <p className="operator-sidebar-note">The client, the request, and the evidence for a considered decision.</p>
-          </aside>
-          <div className="operator-workspace-content">
-        <header className="operator-topbar" data-testid="operator-topbar">
-          <div className="operator-topbar-inner">
-            <div className="operator-topbar-start">
-              <Link to="/operator" className="operator-wordmark">
-                Pellier Operator
-              </Link>
-              <span className="operator-topbar-context">
-                Clienteling and service recovery
-              </span>
-            </div>
-            <div className="operator-topbar-end">
+            <div className="operator-sidebar-account">
               <OperatorAuthControl />
             </div>
-          </div>
-        </header>
+          </aside>
+          <div className="operator-workspace-content">
         <main className="operator-shell">
           {pathname.startsWith('/operator/reviews/') ? (
             <div className="operator-desk-layout">
