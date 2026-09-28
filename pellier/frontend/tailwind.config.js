@@ -1,5 +1,18 @@
 import tailwindcssAnimate from 'tailwindcss-animate'
 
+/*
+ * A colour that resolves to a CSS variable cannot take Tailwind's `/NN`
+ * opacity modifier on its own: v3 needs colour channels and a hex variable has
+ * none, so classes such as `border-sand/50` or `bg-espresso/95` were never
+ * generated and those borders and fills silently disappeared. Handing Tailwind
+ * a function keeps every unmodified class a plain `var()` and resolves a
+ * modifier with `color-mix()`.
+ */
+const withAlpha = (variable) => ({ opacityValue }) =>
+  opacityValue === undefined || String(opacityValue).startsWith('var(')
+    ? `var(${variable})`
+    : `color-mix(in srgb, var(${variable}) calc(${opacityValue} * 100%), transparent)`
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -14,18 +27,18 @@ export default {
         // --cream → --dl-bg, --ink → --dl-ink, --accent → --dl-accent,
         // etc. Override at scope to re-skin a section without
         // touching this file. See DAYLIGHT_INTEGRATION.md.
-        'cream': 'var(--cream)',
-        'cream-warm': 'var(--cream-warm)',
-        'ink': 'var(--ink)',
-        'ink-soft': 'var(--ink-soft)',
-        'ink-quiet': 'var(--ink-quiet)',
-        'accent': 'var(--accent)',
-        'accent-ink': 'var(--accent-ink)',
-        'dusk': 'var(--dusk)',
+        'cream': withAlpha('--cream'),
+        'cream-warm': withAlpha('--cream-warm'),
+        'ink': withAlpha('--ink'),
+        'ink-soft': withAlpha('--ink-soft'),
+        'ink-quiet': withAlpha('--ink-quiet'),
+        'accent': withAlpha('--accent'),
+        'accent-ink': withAlpha('--accent-ink'),
+        'dusk': withAlpha('--dusk'),
 
         // Theme-aware via CSS variables
-        'bg-primary': 'var(--bg-primary)',
-        'bg-secondary': 'var(--bg-secondary)',
+        'bg-primary': withAlpha('--bg-primary'),
+        'bg-secondary': withAlpha('--bg-secondary'),
         'text-primary': 'var(--text-primary, #f5f5f7)',
         'text-secondary': 'var(--text-secondary, #a1a1a6)',
         'text-tertiary': 'var(--text-tertiary, #636366)',
@@ -47,22 +60,22 @@ export default {
         // 'sand' has no direct Daylight counterpart; we map it onto
         // --dl-paper-2 (recessed surface) which is visually the same
         // recessed-cream role.
-        'cream-50': 'var(--cream)',
-        'sand': 'var(--cream-2)',
-        'espresso': 'var(--ink)',
+        'cream-50': withAlpha('--cream'),
+        'sand': withAlpha('--cream-2'),
+        'espresso': withAlpha('--ink'),
         'olive': '#6B705C',
-        'espresso-dark': 'var(--ink-1)',
+        'espresso-dark': withAlpha('--ink-1'),
         'espresso-mid': '#2A1E18',
       },
       borderColor: {
-        'cream': 'var(--cream)',
-        'cream-warm': 'var(--cream-warm)',
-        'ink': 'var(--ink)',
-        'ink-soft': 'var(--ink-soft)',
-        'ink-quiet': 'var(--ink-quiet)',
-        'accent': 'var(--accent)',
-        'accent-ink': 'var(--accent-ink)',
-        'dusk': 'var(--dusk)',
+        'cream': withAlpha('--cream'),
+        'cream-warm': withAlpha('--cream-warm'),
+        'ink': withAlpha('--ink'),
+        'ink-soft': withAlpha('--ink-soft'),
+        'ink-quiet': withAlpha('--ink-quiet'),
+        'accent': withAlpha('--accent'),
+        'accent-ink': withAlpha('--accent-ink'),
+        'dusk': withAlpha('--dusk'),
         'warm': 'rgba(107, 74, 53, 0.08)',
       },
       boxShadow: {
