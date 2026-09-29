@@ -179,6 +179,42 @@
   font-weight: 600;
 }
 
+/* A declared merchandising rule is disclosed beside the ranking in the
+   neutral register: a legitimate, declared signal, not a verified or blocked
+   state. */
+.observatory-evidence-merch {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--obs-rule-1);
+  border-radius: 8px;
+  background: var(--obs-canvas);
+  color: var(--obs-ink-2);
+  font: 400 13px/1.5 var(--obs-sans);
+}
+
+.observatory-evidence-merch strong {
+  color: var(--obs-ink-1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.observatory-evidence-merch p {
+  margin: 0;
+}
+
+.observatory-evidence-merch code {
+  font: 400 12px/1.5 var(--obs-mono);
+  color: var(--obs-ink-1);
+}
+
+.observatory-evidence-promoted {
+  display: block;
+  margin-top: 2px;
+  color: var(--obs-ink-3);
+  font: 500 12px/1.4 var(--obs-sans);
+}
+
 .observatory-evidence-table-wrap {
   overflow-x: auto;
 }

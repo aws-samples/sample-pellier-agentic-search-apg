@@ -2,10 +2,16 @@
  * The recorded result of one `search_products_hybrid` call, as a ranked view.
  *
  * The tool_audit row carries the exact arguments and the returned products,
- * each with its fused (RRF) score and its rerank score. Printed as JSON that is
- * a 760px block with the answer to "why is this product second?" buried in it.
- * This reads the same structured row the backend returns, never display text,
- * and derives nothing it cannot see: a missing score stays missing.
+ * each with its fused (RRF) score and, when the reranker ran, its rerank score.
+ * This reads that structured row, never display text, and derives nothing it
+ * cannot see: a missing score stays missing.
+ *
+ * What ordered the list depends on the recorded `search_method`
+ * (services/planned_hybrid_retrieval.py): `hybrid+rerank` returns rerank order;
+ * `hybrid` and `hybrid (rerank fallback to RRF order)` return fused RRF order.
+ * A declared merchandising rule (services/agent_tools.py) can then promote a
+ * product, and the result records it in `merchandising_rules_applied`. Each
+ * movement is credited to the step that caused it.
  */
 
 export interface HybridPlanField {
@@ -16,23 +22,54 @@ export interface HybridPlanField {
   full?: string | null;
 }
 
+/** What produced the returned order, per the recorded search method. */
+export type HybridOrdering = 'rerank' | 'rrf' | 'rrf-fallback' | 'unrecorded';
+
+export const SEARCH_METHOD_ORDERING: Record<string, HybridOrdering> = {
+  'hybrid+rerank': 'rerank',
+  hybrid: 'rrf',
+  'hybrid (rerank fallback to RRF order)': 'rrf-fallback',
+};
+
+/** One entry of the recorded `merchandising_rules_applied` list. */
+export interface MerchandisingRule {
+  ruleId: string | null;
+  signal: string | null;
+  product: string | null;
+  /** Rank before the rule ran, as recorded. */
+  fromRank: number | null;
+  toRank: number | null;
+  reason: string | null;
+}
+
 export interface HybridResultRow {
   productId: string | null;
   name: string;
-  /** Position in the returned list, which is the order after rerank. */
+  /** Position in the returned list. */
   final: number;
   rrfScore: number | null;
-  /** Order among the returned products by fused score, 1 = highest. */
+  /** Order among the shown products by fused score, 1 = highest. */
   rrfRank: number | null;
   rerankScore: number | null;
-  /** Places gained from RRF order to final order; negative means it dropped. */
-  moved: number | null;
+  /** Order among the shown products by rerank score, when rerank ordered them. */
+  rerankRank: number | null;
+  /** Places the reranker moved it, RRF rank to rerank rank; negative is down. */
+  movedByRerank: number | null;
+  /** The recorded rule that promoted this product, if one did. */
+  merchandising: MerchandisingRule | null;
   price: number | null;
 }
 
 export interface HybridSearchView {
   plan: HybridPlanField[];
   rows: HybridResultRow[];
+  /** The recorded `search_method` label, verbatim. */
+  searchMethod: string | null;
+  ordering: HybridOrdering;
+  merchandising: MerchandisingRule[];
+  /** True when a rule left the returned order different from the ranking order. */
+  merchandisingReordered: boolean;
+  /** Size of the fused candidate pool, when recorded. Shown ranks are not pool ranks. */
   poolSize: number | null;
   /** Size of the raw args and result as recorded, in characters of JSON. */
   rawCharacters: number;
@@ -60,6 +97,31 @@ function truncateId(value: unknown): string | null {
   return text.length > 14 ? `${text.slice(0, 14)}…` : text;
 }
 
+/** 1-based order of each row by a score, highest first; rows without one get null. */
+function rankBy(products: Json[], field: string): (number | null)[] {
+  const order = products
+    .map((product, index) => ({ index, score: asNumber(product[field]) }))
+    .filter((entry): entry is { index: number; score: number } => entry.score !== null)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.index);
+  return products.map((_, index) => {
+    const at = order.indexOf(index);
+    return at === -1 ? null : at + 1;
+  });
+}
+
+function parseRules(value: unknown): MerchandisingRule[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(asObject).filter((rule): rule is Json => rule !== null).map((rule) => ({
+    ruleId: display(rule.ruleId),
+    signal: display(rule.signal),
+    product: display(rule.product),
+    fromRank: asNumber(rule.fromRank),
+    toRank: asNumber(rule.toRank),
+    reason: display(rule.reason),
+  }));
+}
+
 /**
  * Parse one recorded tool row (`{ args, result }`).
  *
@@ -80,31 +142,43 @@ export function parseHybridSearchResult(row: Json): HybridSearchView | null {
 
   const plan = asObject(result.search_plan) ?? {};
   const hard = asObject(plan.hard_constraints) ?? {};
+  const searchMethod = display(result.search_method);
+  const ordering: HybridOrdering = (searchMethod && SEARCH_METHOD_ORDERING[searchMethod]) || 'unrecorded';
+  const merchandising = parseRules(result.merchandising_rules_applied);
 
-  const byRrf = scored
-    .map((product, index) => ({ index, score: asNumber(product.rrf_score) }))
-    .filter((entry): entry is { index: number; score: number } => entry.score !== null)
-    .sort((a, b) => b.score - a.score)
-    .map((entry) => entry.index);
+  const rrfRanks = rankBy(scored, 'rrf_score');
+  const rerankRanks = ordering === 'rerank' ? rankBy(scored, 'rerank_score') : scored.map(() => null);
 
   const rows = scored.map((product, index): HybridResultRow => {
-    const rankIndex = byRrf.indexOf(index);
-    const rrfRank = rankIndex === -1 ? null : rankIndex + 1;
+    const name = display(product.name) ?? '—';
+    const rrfRank = rrfRanks[index];
+    const rerankRank = rerankRanks[index];
     return {
       productId: display(product.productId ?? product.product_id),
-      name: display(product.name) ?? '—',
+      name,
       final: index + 1,
       rrfScore: asNumber(product.rrf_score),
       rrfRank,
       rerankScore: asNumber(product.rerank_score),
-      moved: rrfRank === null ? null : rrfRank - (index + 1),
+      rerankRank,
+      movedByRerank: rrfRank !== null && rerankRank !== null ? rrfRank - rerankRank : null,
+      merchandising: merchandising.find((rule) => rule.product !== null && rule.product === name) ?? null,
       price: asNumber(product.price),
     };
   });
 
+  // The order the ranking step produced, before any rule: rerank rank when the
+  // reranker ordered the list, RRF rank when fused order did.
+  const rankingOrder = (item: HybridResultRow) => (ordering === 'rerank' ? item.rerankRank : item.rrfRank);
+  const merchandisingReordered = merchandising.length > 0 && rows.some((item) => {
+    const ranked = rankingOrder(item);
+    return ranked !== null && ranked !== item.final;
+  });
+
+  const relaxations = display(plan.relaxations);
   return {
     plan: [
-      { field: 'search_method', value: display(result.search_method ?? plan.retrieval_strategy) },
+      { field: 'search_method', value: searchMethod },
       { field: 'pool_size', value: display(result.pool_size) },
       { field: 'rerank_pool_k', value: display(result.rerank_pool_k ?? plan.rerank_pool_k) },
       { field: 'top_k', value: display(plan.top_k) },
@@ -114,9 +188,14 @@ export function parseHybridSearchResult(row: Json): HybridSearchView | null {
         field: 'constraints_applied_before_rerank',
         value: display(result.constraints_applied_before_rerank),
       },
+      ...(relaxations ? [{ field: 'relaxations', value: relaxations }] : []),
       { field: 'turn_id', value: truncateId(args.turn_id), full: display(args.turn_id) },
     ],
     rows,
+    searchMethod,
+    ordering,
+    merchandising,
+    merchandisingReordered,
     poolSize: asNumber(result.pool_size),
     rawCharacters: JSON.stringify(row.args ?? {}).length + JSON.stringify(row.result ?? {}).length,
   };

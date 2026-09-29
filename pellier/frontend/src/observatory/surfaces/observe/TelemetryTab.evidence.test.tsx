@@ -48,6 +48,44 @@ const refused: TelemetryPanel = {
   rows: [{ args: {}, result: { tool: 'initiate_return', error: 'managed_rail_required' } }],
 };
 
+const merchandised: TelemetryPanel = {
+  ...hybrid,
+  index: 3,
+  rows: [{
+    args: { query: 'housewarming gift slow morning ritual ceramic pour-over coffee' },
+    result: {
+      pool_size: 21,
+      search_method: 'hybrid+rerank',
+      merchandising_rules_applied: [{
+        ruleId: 'merch.milestone-home-gift.v1', signal: 'curated_hero', product: 'Olive Branch Vessel',
+        fromRank: 2, toRank: 1, reason: 'Declared merchandising rule: curated housewarming hero promoted above pure relevance order.',
+      }],
+      products: [
+        { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03055, rerank_score: 0.2184 },
+        { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03279, rerank_score: 0.542 },
+        { productId: '12', name: 'Ceramic Tumblers', price: 78, rrf_score: 0.03200, rerank_score: 0.1102 },
+        { productId: '19', name: 'Wabi-Sabi Bowl', price: 65, rrf_score: 0.03126, rerank_score: 0.0544 },
+      ],
+    },
+  }],
+};
+
+const withoutRerank = (method: string): TelemetryPanel => ({
+  ...hybrid,
+  index: 4,
+  rows: [{
+    args: {},
+    result: {
+      pool_size: 12,
+      search_method: method,
+      products: [
+        { name: 'First by RRF', rrf_score: 0.033, rerank_score: null, price: 40 },
+        { name: 'Second by RRF', rrf_score: 0.031, rerank_score: null, price: 55 },
+      ],
+    },
+  }],
+});
+
 const session: SessionDetail = {
   id: 'persona-theo-test',
   personaId: 'theo',
@@ -63,8 +101,8 @@ const session: SessionDetail = {
   brief: { folioNumber: 0, headline: 'Recorded', filedTime: '2026-09-28T02:11:00.000Z', sections: [], products: [] },
 };
 
-function renderTab() {
-  const Harness = () => <Outlet context={{ session, replayNonce: 0 } satisfies SessionOutletContext} />;
+function renderTab(telemetry: TelemetryPanel[] = session.telemetry) {
+  const Harness = () => <Outlet context={{ session: { ...session, telemetry }, replayNonce: 0 } satisfies SessionOutletContext} />;
   return render(
     <MemoryRouter initialEntries={['/telemetry']}>
       <Routes>
@@ -105,13 +143,48 @@ describe('session evidence at depth', () => {
     expect(screen.queryByText(/Claude Opus 5/)).not.toBeInTheDocument();
   });
 
-  it('shows the recorded ranking with movement named, not coloured only', () => {
+  it('shows the recorded ranking with rerank movement named, not coloured only', () => {
     renderTab();
     const table = within(screen.getByTestId('hybrid-search-result')).getByRole('table');
+    expect(within(table).getByText(/Recorded method hybrid\+rerank: the reranker ordered the list, so Final is the returned order after rerank\./)).toBeInTheDocument();
     const olive = within(table).getByRole('row', { name: /Olive Branch Vessel/ });
-    expect(within(olive).getByLabelText('Up 1 place from RRF order')).toHaveTextContent('▲ 1');
-    expect(screen.getByText(/the fused pool held 21 candidates/)).toBeInTheDocument();
+    expect(within(olive).getByLabelText('Up 1 place from RRF order to rerank order')).toHaveTextContent('▲ 1');
+    // Shown ranks are scoped to the shown products, never presented as pool ranks.
+    expect(within(table).getByRole('columnheader', { name: 'RRF rank of 3 shown' })).toBeInTheDocument();
+    expect(screen.getByText(/the fused pool held 21 candidates, and this record does not give each product’s rank in that pool/)).toBeInTheDocument();
+    expect(screen.queryByRole('note', { name: 'Merchandising disclosed in this result' })).not.toBeInTheDocument();
     expect(screen.getByText(/Raw arguments and result \(\d[\d,]* characters\)/)).toBeInTheDocument();
+  });
+
+  it('discloses a merchandising promotion and does not credit it to rerank', () => {
+    renderTab([merchandised]);
+    const result = screen.getByTestId('hybrid-search-result');
+    const note = within(result).getByRole('note', { name: 'Merchandising disclosed in this result' });
+    expect(note).toHaveTextContent('merch.milestone-home-gift.v1 (curated_hero) promoted Olive Branch Vessel from 2 to 1.');
+    const table = within(result).getByRole('table');
+    expect(within(table).getByText(/that move is the rule’s, not the reranker’s/)).toBeInTheDocument();
+    const olive = within(table).getByRole('row', { name: /Olive Branch Vessel/ });
+    expect(olive).toHaveTextContent('Promoted by rule, 2 to 1');
+    // RRF 4, rerank 2: the reranker's share is two places; the last place is the rule's.
+    expect(within(olive).getByLabelText('Up 2 places from RRF order to rerank order')).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'After rerank' })).toBeInTheDocument();
+    const stoneware = within(table).getByRole('row', { name: /Stoneware Pour-Over Set/ });
+    expect(stoneware).not.toHaveTextContent('Promoted');
+  });
+
+  it.each([
+    ['hybrid', /no reranker ran, so Final is fused RRF order/],
+    ['hybrid (rerank fallback to RRF order)', /the reranker returned no ranking, so Final falls back to fused RRF order/],
+  ])('explains a %s result by fused order, with no rerank columns', (method, caption) => {
+    renderTab([withoutRerank(method)]);
+    const result = screen.getByTestId('hybrid-search-result');
+    expect(result).toHaveAttribute('data-ordering', method === 'hybrid' ? 'rrf' : 'rrf-fallback');
+    const table = within(result).getByRole('table');
+    expect(within(table).getByText(caption)).toBeInTheDocument();
+    expect(within(table).queryByText(/after rerank/)).not.toBeInTheDocument();
+    for (const header of ['Rerank score', 'Moved by rerank', 'After rerank']) {
+      expect(within(table).queryByRole('columnheader', { name: header })).not.toBeInTheDocument();
+    }
   });
 
   it('counts successes as a count over the steps it saw', () => {
