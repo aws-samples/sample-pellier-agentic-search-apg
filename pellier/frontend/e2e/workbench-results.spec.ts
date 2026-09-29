@@ -3,7 +3,7 @@ import type { EvidenceLedger, EvidenceLedgerEvent } from '../src/shared/evidence
 
 // Deterministic browser coverage of the real UI and SSE parser. Every API
 // request is intercepted, so these scenarios never execute workshop actions.
-test.use({ reducedMotion: 'reduce' });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const route = '/observatory/workbench?lab=grounded-inventory';
 const prompt = 'Inspect the current warehouse stock.';

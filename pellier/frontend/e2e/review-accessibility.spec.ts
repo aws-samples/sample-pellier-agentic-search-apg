@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import {createRequire} from 'node:module'
 import type {AxeResults} from 'axe-core'
 const require = createRequire(import.meta.url)
-test.use({trace:'off',screenshot:'off',reducedMotion:'reduce'})
+test.use({trace:'off',screenshot:'off',contextOptions:{reducedMotion:'reduce'}})
 test('release accessibility and current public screenshots',async({page},testInfo)=>{
  test.setTimeout(180000)
  await page.emulateMedia({reducedMotion:'reduce'})

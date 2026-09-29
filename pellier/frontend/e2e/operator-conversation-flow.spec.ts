@@ -100,7 +100,7 @@ async function capture(page: Page, name: string) {
   await page.screenshot({ path: `${directory}/${name}.png` })
 }
 
-test.use({ reducedMotion: 'reduce', trace: 'off' })
+test.use({ contextOptions: { reducedMotion: 'reduce' }, trace: 'off' })
 test('a newer client conversation surfaces its own pending review from the queue', async ({ page }) => {
   const api = await wire(page, false)
   await page.setViewportSize({ width: 768, height: 960 })

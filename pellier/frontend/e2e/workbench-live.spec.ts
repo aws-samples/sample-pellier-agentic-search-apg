@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 
 // Credentials stay in process memory. Never record the sign-in surface or
 // request bodies. Only the settled, seeded workshop result is screenshotted.
-test.use({ trace: 'off', screenshot: 'off', video: 'off', reducedMotion: 'reduce' });
+test.use({ trace: 'off', screenshot: 'off', video: 'off', contextOptions: { reducedMotion: 'reduce' } });
 
 test('a signed-in shopper turn reconciles to a real principal-scoped ledger', async ({ page }, testInfo) => {
   test.setTimeout(240_000);

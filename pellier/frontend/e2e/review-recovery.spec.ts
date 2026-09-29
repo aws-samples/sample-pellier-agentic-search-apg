@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test.use({ trace: 'off', reducedMotion: 'reduce' })
+test.use({ trace: 'off', contextOptions: { reducedMotion: 'reduce' } })
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')

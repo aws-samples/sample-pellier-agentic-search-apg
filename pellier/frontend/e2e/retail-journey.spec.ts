@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 
 // Live credentials never belong in screenshots, traces, or recordings.
-test.use({ trace: 'off', screenshot: 'off', video: 'off', reducedMotion: 'reduce' })
+test.use({ trace: 'off', screenshot: 'off', video: 'off', contextOptions: { reducedMotion: 'reduce' } })
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
