@@ -263,7 +263,14 @@ def test_voice_transcription_is_not_shipped_when_no_voice_control_exists() -> No
 
 def test_observatory_never_substitutes_browser_or_hardcoded_data() -> None:
     """A failed live read is visible; it is never simulated in the browser."""
-    settings = (FRONTEND / "observatory" / "surfaces" / "Settings.tsx").read_text()
+    # Personas are listed by the Storefront's chooser and concierge, both from the
+    # API. The Observatory Settings page that also listed them is retired, and must
+    # stay retired rather than return with a local fallback list.
+    assert not (FRONTEND / "observatory" / "surfaces" / "Settings.tsx").exists()
+    persona_lists = [
+        (FRONTEND / "components" / name).read_text()
+        for name in ("PersonaModal.tsx", "PersonaConcierge.tsx")
+    ]
     tool_discovery = (
         FRONTEND / "observatory" / "hooks" / "useToolDiscovery.ts"
     ).read_text()
@@ -274,7 +281,9 @@ def test_observatory_never_substitutes_browser_or_hardcoded_data() -> None:
         FRONTEND / "observatory" / "surfaces" / "observe" / "ChatTab.tsx"
     ).read_text()
 
-    assert "FALLBACK_PERSONAS" not in settings
+    for persona_list in persona_lists:
+        assert "FALLBACK_PERSONAS" not in persona_list
+        assert "apiFetch('/api/observatory/personas')" in persona_list
     assert "discoverToolsLocally" not in tool_discovery
     assert "routeSkillsOffline" not in skills
     assert "SHOWCASE_PRODUCTS" not in session_chat

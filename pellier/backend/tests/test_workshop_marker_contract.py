@@ -779,11 +779,14 @@ RETIRED_LAB_TITLES: Tuple[str, ...] = (
 )
 
 # Surfaces a participant actually reads a lab title on, plus the API that supplies one.
+# The Workshop Map is retired; the Workbench heading and the lab guide replaced it.
 LAB_TITLE_SURFACES: Tuple[str, ...] = (
     "pellier/backend/routes/observatory.py",
-    "pellier/frontend/src/observatory/surfaces/observe/WorkshopMap.tsx",
+    "pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.tsx",
     "pellier/frontend/src/observatory/surfaces/observe/ProofBoard.tsx",
     "pellier/frontend/src/observatory/labs/labCatalog.ts",
+    "pellier/frontend/src/components/LabJourneyBar.tsx",
+    "pellier/frontend/src/shared/labJourney.ts",
 )
 
 
@@ -802,22 +805,24 @@ def test_no_shipped_surface_names_a_retired_lab_title() -> None:
     )
 
 
-def test_the_workshop_map_and_proof_board_use_the_canonical_titles() -> None:
+def test_the_workbench_lab_guide_and_proof_board_use_the_canonical_titles() -> None:
     """Absence of the old name is not presence of the new one.
 
     A surface that dropped its lab labels entirely would satisfy the check above while
-    telling a participant less than before.
+    telling a participant less than before. The Workshop Map that named every lab is
+    retired; its route redirects, and the Workbench heading and the lab guide name the
+    labs from the catalog instead.
     """
-    workshop_map = _read(
-        "pellier/frontend/src/observatory/surfaces/observe/WorkshopMap.tsx"
+    assert not (REPO / "pellier/frontend/src/observatory/surfaces/observe/WorkshopMap.tsx").exists()
+    assert "'workshop-map'" in _read("pellier/frontend/src/App.tsx")
+    workbench = _read("pellier/frontend/src/observatory/surfaces/observe/ObservatoryWorkbench.tsx")
+    assert "Lab {Number(selectedLab.number)}: {selectedLab.title}" in workbench, (
+        "the Workbench heading no longer names the lab from the catalog"
     )
-    for primary, subtitle in CANONICAL_LAB_TITLE_PARTS:
-        assert primary in workshop_map, (
-            f"the Workshop Map no longer names {primary!r}"
-        )
-        assert subtitle in workshop_map, (
-            f"the Workshop Map no longer names {subtitle!r}"
-        )
+    guide = _read("pellier/frontend/src/components/LabJourneyBar.tsx")
+    assert "${Number(item.number)} ${item.anchorName}: ${item.title}" in guide, (
+        "the lab guide's lab switch no longer names each lab from the catalog"
+    )
 
     api = _read("pellier/backend/routes/observatory.py")
     catalog = _read("pellier/frontend/src/observatory/labs/labCatalog.ts")
