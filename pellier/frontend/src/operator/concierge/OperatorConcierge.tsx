@@ -344,6 +344,7 @@ const OperatorConcierge: React.FC<Props> = ({
               nextStep={nextStep}
               onRetry={!inFlight && concierge.composerEnabled
                 ? (request) => void concierge.submit(request) : undefined}
+              openTurn={concierge.openTurn}
             />
             {inFlight ? (
               <ol className="operator-concierge-thread">
@@ -407,7 +408,21 @@ const OperatorConcierge: React.FC<Props> = ({
           {concierge.config?.composerEnabled ? <button type="button" onClick={concierge.startNew}>Start a new conversation</button> : null}
         </div>
       ) : null}
-      {concierge.status === 'submitting' ? <div className="operator-concierge-recovery"><button type="button" onClick={concierge.stopReceiving}>Stop receiving</button><p>Stops updates here. The server may continue; refresh history before retrying.</p></div> : null}
+      {concierge.status === 'working' ? (
+        <div className="operator-concierge-recovery" role="status"
+             data-testid="operator-concierge-working">
+          <p>
+            Still working on the last request. Its answer appears here when it is saved,
+            and you can ask again after that.
+          </p>
+        </div>
+      ) : null}
+      {concierge.status === 'submitting' ? (
+        <div className="operator-concierge-recovery">
+          <button type="button" onClick={concierge.stopReceiving}>Stop receiving</button>
+          <p>Stops live steps here. The request keeps running, and its answer appears when it is saved.</p>
+        </div>
+      ) : null}
       <ConciergeComposer
         loading={concierge.status === 'loading'}
         enabled={concierge.composerEnabled}

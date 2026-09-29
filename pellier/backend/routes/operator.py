@@ -533,11 +533,17 @@ async def read_concierge_session(
 
     `require_session` proves the session belongs to BOTH this surface and this
     client, so a session id from another client's record cannot be read here.
+
+    `openTurn` reports a request still being answered, so the reader can wait for
+    it. A request whose worker is gone is settled before the history is returned:
+    its `interrupted` answer names any review it prepared, and the session accepts
+    requests again.
     """
+    from services import operator_concierge_runner as runner
     from services import operator_concierge_sessions as sessions
 
     try:
-        return await sessions.load_history(
+        return await runner.load_settled_history(
             db, session_id=session_id, customer_id=client_id, limit=limit
         )
     except sessions.SessionError as exc:
@@ -557,11 +563,14 @@ async def start_concierge_turn(
     The operator's request is durable before any model call, so a synthesis failure
     leaves a recoverable turn rather than losing what was asked. Read-only: no
     review is proposed and no governed write is attempted.
+
+    The turn runs in its own task, so a client that disconnects does not stop it.
     """
-    from services import operator_concierge, operator_concierge_sessions as sessions
+    from services import operator_concierge_runner as runner
+    from services import operator_concierge_sessions as sessions
 
     try:
-        return await operator_concierge.run_turn(
+        run = runner.start(
             db,
             customer_id=client_id,
             session_id=session_id,
@@ -569,6 +578,7 @@ async def start_concierge_turn(
             request=payload.message,
             transport_key=(payload.transportKey or ""),
         )
+        return await runner.result(run)
     except sessions.SessionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
 
@@ -623,19 +633,28 @@ async def stream_concierge_turn(
     Every event follows work that actually finished. The one exception is a single
     `running` event when the request goes to Bedrock, which is a real state rather
     than a simulated tick — nothing is ever reported `complete` before it is.
+
+    The response only reads the turn's events. Closing it stops the reading, not
+    the turn, and a retry with the same transport key follows the same work.
     """
-    from services import operator_concierge
+    from services import operator_concierge_runner as runner
+    from services import operator_concierge_sessions as sessions
+
+    try:
+        run = runner.start(
+            db,
+            customer_id=client_id,
+            session_id=session_id,
+            operator_sub=str(operator.get("sub") or ""),
+            request=payload.message,
+            transport_key=(payload.transportKey or ""),
+        )
+    except sessions.SessionError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
 
     async def events() -> Any:
         try:
-            async for kind, data in operator_concierge.stream_turn(
-                db,
-                customer_id=client_id,
-                session_id=session_id,
-                operator_sub=str(operator.get("sub") or ""),
-                request=payload.message,
-                transport_key=(payload.transportKey or ""),
-            ):
+            async for kind, data in run.follow():
                 yield f"event: {kind}\ndata: {json.dumps(data, default=str)}\n\n"
         except Exception as exc:  # noqa: BLE001 - the stream must close cleanly
             detail = getattr(exc, "code", None) or "operator_unavailable"

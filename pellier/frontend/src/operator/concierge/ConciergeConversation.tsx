@@ -16,7 +16,7 @@ import ConciergeRecommendations from './ConciergeRecommendations'
 import ConciergePriorResolutions from './ConciergePriorResolutions'
 import ConciergeProposedActions from './ConciergeProposedAction'
 import ShopperHandoffView from '../components/ShopperHandoffView'
-import type { ConciergeMessage } from '../../services/operatorConcierge'
+import type { ConciergeMessage, ConciergeOpenTurn } from '../../services/operatorConcierge'
 
 const TURN_STATE_COPY: Record<string, { label: string; detail: string }> = {
   incomplete: {
@@ -29,15 +29,26 @@ const TURN_STATE_COPY: Record<string, { label: string; detail: string }> = {
   },
 }
 
+// A request the server is still answering. Saved, so leaving the page loses nothing.
+const RUNNING_COPY = {
+  label: 'Working',
+  detail:
+    'Still preparing the answer. It appears here when it is saved, even if you leave this page.',
+}
+
 interface Props {
   messages: ConciergeMessage[]
   customerId?: string
   sessionId?: string | null
   nextStep?: React.ReactNode
   onRetry?: (request: string) => void
+  /** The saved request still being answered, from the server's `openTurn`. */
+  openTurn?: ConciergeOpenTurn | null
 }
 
-const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionId, nextStep, onRetry }) => {
+const ConciergeConversation: React.FC<Props> = ({
+  messages, customerId, sessionId, nextStep, onRetry, openTurn,
+}) => {
   // Which turns received an answer. The operator message's own `turnState` is
   // written once as `incomplete` and never updated, because history is append-only
   // and editing what was said would be rewriting the transcript. So completion is
@@ -55,9 +66,10 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
   <ol className="operator-concierge-thread" data-testid="operator-concierge-thread">
     {messages.map((message) => {
       if (message.role === 'user') {
+        const running = openTurn?.state === 'running' && openTurn.turnId === message.turnId
         const state = answered.has(message.turnId)
           ? undefined
-          : TURN_STATE_COPY[message.turnState]
+          : running ? RUNNING_COPY : TURN_STATE_COPY[message.turnState]
         return (
           <li className="operator-concierge-turn" key={message.messageId}>
             <div className="operator-concierge-request"
@@ -68,8 +80,9 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
             {state ? (
               <div
                 className="operator-concierge-turnstate"
-                data-turn-state={message.turnState}
+                data-turn-state={running ? 'running' : message.turnState}
                 data-testid="operator-concierge-turnstate"
+                role={running ? 'status' : undefined}
               >
                 <span className="operator-concierge-eyebrow">{state.label}</span>
                 <p className="operator-concierge-turnstate-copy">{state.detail}</p>
@@ -81,6 +94,9 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
 
       const artifact = message.artifact ?? {}
       const failed = message.turnState === 'failed'
+      // Recorded by the server for a turn that stopped before its answer was saved.
+      // Its summary says whether it prepared a review, and the review is listed below.
+      const interrupted = message.turnState === 'interrupted'
       const originalRequest = messages.find(
         (request) => request.role === 'user' && request.turnId === message.turnId,
       )
@@ -88,7 +104,8 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
         <li className="operator-concierge-turn" key={message.messageId} data-role="assistant" data-turn-id={message.turnId} tabIndex={-1}>
           {message.content ? (
             <div className="operator-concierge-primary"
-                 data-workflow={artifact.workflow || 'client_summary'}>
+                 data-workflow={artifact.workflow || 'client_summary'}
+                 data-turn-state={message.turnState}>
               {/* A draft is labelled; a summary is not. The label is what stops
                   customer-facing copy from reading as something already sent. */}
               {artifact.primaryLabel || failed ? (
@@ -98,7 +115,8 @@ const ConciergeConversation: React.FC<Props> = ({ messages, customerId, sessionI
                 </span>
               ) : null}
               <p className="operator-concierge-conclusion">{message.content}</p>
-              {failed && message === latestResponse && originalRequest && onRetry ? (
+              {(failed || interrupted) && message === latestResponse &&
+                originalRequest && onRetry ? (
                 <button
                   type="button"
                   className="operator-concierge-latest"

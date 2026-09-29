@@ -97,6 +97,10 @@ interface Wiring {
   latestSessionId?: string | null
   /** Frames the stream emits, in order. */
   stream?: string[]
+  /** Keeps the stream open after its frames, as a turn still in flight does. */
+  holdOpen?: boolean
+  /** The unanswered turn the session GET reports. */
+  openTurn?: unknown
   /** Overrides the client id the session GET claims to be bound to. */
   boundCustomerId?: string
 }
@@ -121,11 +125,13 @@ function wire(w: Wiring = {}): ReturnType<typeof vi.fn> {
           body: {
             getReader: () => ({
               read: () =>
-                Promise.resolve(
-                  i < chunks.length
-                    ? { value: chunks[i++], done: false }
-                    : { value: undefined, done: true },
-                ),
+                i >= chunks.length && w.holdOpen
+                  ? new Promise(() => {})
+                  : Promise.resolve(
+                    i < chunks.length
+                      ? { value: chunks[i++], done: false }
+                      : { value: undefined, done: true },
+                  ),
             }),
           },
         } as unknown as Response)
@@ -145,7 +151,7 @@ function wire(w: Wiring = {}): ReturnType<typeof vi.fn> {
           sessionId: 'sess-1',
           customerId: w.boundCustomerId ?? 'CUST-JESSICA',
           surface: 'operator_concierge', createdBy: 'op-1', messages,
-          truncated: false,
+          truncated: false, openTurn: w.openTurn ?? null,
         })
       }
       if (url.includes('/concierge/config')) return json(CONFIG)
@@ -360,7 +366,7 @@ describe('submitting a turn', () => {
   it('yields the orientation copy once there is a turn to read', async () => {
     // Steps only, no completion frame: the turn stays in flight, which is the
     // state this is about.
-    wire({ stream: STREAM.slice(0, 2), messages: [] })
+    wire({ stream: STREAM.slice(0, 2), messages: [], holdOpen: true })
     renderRecord()
 
     // Before there is anything to read, the pane explains itself.
@@ -635,6 +641,45 @@ describe('resuming a conversation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry this request' }))
     expect(retry).toHaveBeenCalledExactlyOnceWith(HISTORY[0].content)
     expect(screen.queryByText('Established by the records')).not.toBeInTheDocument()
+  })
+
+  it('shows a request the server is still answering as working and holds the composer', async () => {
+    wire({
+      latestSessionId: 'sess-1', messages: [HISTORY[0]],
+      openTurn: { turnId: 'turn-0', messageId: 1, state: 'running' },
+    })
+    renderRecord()
+    const state = await screen.findByTestId('operator-concierge-turnstate')
+    expect(state).toHaveAttribute('data-turn-state', 'running')
+    expect(state).toHaveTextContent('Working')
+    expect(state).not.toHaveTextContent('has not started')
+    expect(await screen.findByTestId('operator-concierge-working')).toHaveTextContent(
+      'Still working on the last request',
+    )
+    expect(screen.getByRole('textbox')).toHaveAttribute('readonly')
+    expect(screen.queryByRole('button', { name: 'Start a new conversation' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Retry history' })).toBeNull()
+  })
+
+  it('shows an interrupted turn the server settled and lets the operator ask again', async () => {
+    const settled = 'This request stopped before an answer was saved. ' +
+      'No review was prepared and nothing changed for this client. You can send it again.'
+    wire({
+      latestSessionId: 'sess-1',
+      messages: [HISTORY[0], {
+        ...HISTORY[1], turnState: 'interrupted', content: settled,
+        artifact: { primaryLabel: 'Request interrupted', proposedActions: [] },
+      }],
+    })
+    renderRecord()
+    expect(await screen.findByTestId('operator-concierge-primary-label')).toHaveTextContent(
+      'Request interrupted',
+    )
+    expect(screen.getByText(settled)).toBeInTheDocument()
+    expect(screen.queryByTestId('operator-concierge-turnstate')).toBeNull()
+    await waitFor(() => expect(screen.getByRole('textbox')).not.toHaveAttribute('readonly'))
+    expect(screen.getByRole('button', { name: 'Retry this request' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Retry history' })).toBeNull()
   })
 
   it('replays the stored thread instead of the empty state', async () => {

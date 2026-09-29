@@ -32,6 +32,26 @@ class FakeDb:
         self.messages: List[Dict[str, Any]] = []
         self._next_id = 1
         self.updated: List[str] = []
+        # The database clock, in epoch seconds, that leases are compared against.
+        self.clock = 1_000_000.0
+
+    def answered(self, session_id: str, turn_id: str) -> bool:
+        return any(
+            m["session_id"] == session_id and m["role"] == "assistant"
+            and m["metadata"].get("turn_id") == turn_id
+            for m in self.messages
+        )
+
+    def open_turns(self, session_id: str) -> List[Dict[str, Any]]:
+        return [
+            m for m in self.messages
+            if m["session_id"] == session_id and m["role"] == "user"
+            and not self.answered(session_id, m["metadata"].get("turn_id"))
+        ]
+
+    def lease(self, session_id: str) -> Tuple[Optional[Dict[str, Any]], bool]:
+        active = self.conversations[session_id]["metadata"].get("active_turn")
+        return active, bool(active) and active["lease_until"] > self.clock
 
     # Seed a legacy dispatcher session, as production has.
     def seed_legacy(self, session_id: str = "persona-theo-abc") -> None:
@@ -53,7 +73,7 @@ class FakeDb:
 
 
 class _Cur:
-    """A tiny interpreter for this module's four statements.
+    """A tiny interpreter for this module's statements.
 
     Returns MAPPINGS, not tuples: the pool configures `dict_row`, and an earlier
     tuple-based fake let a `row[2]`-style access pass every test and then fail on the
@@ -93,9 +113,50 @@ class _Cur:
             "created_by": meta.get("created_by") if eligible else None,
         }
 
+    def _append(self, session_id: str, role: str, content: str, metadata: str) -> int:
+        inserted_id = self.db._next_id
+        self.db._next_id += 1
+        self.db.messages.append({
+            "id": inserted_id, "session_id": session_id, "role": role,
+            "content": content, "metadata": json.loads(metadata), "created_at": None,
+        })
+        self.db.updated.append(session_id)
+        return inserted_id
+
+    def _release(self, session_id: str, turn_id: str) -> None:
+        meta = self.db.conversations[session_id]["metadata"]
+        if (meta.get("active_turn") or {}).get("turn_id") == turn_id:
+            meta.pop("active_turn")
+
     async def execute(self, sql: str, params: Any = ()) -> None:
         s = " ".join(sql.split())
-        if s.startswith("INSERT INTO pellier.conversations"):
+        if "FOR UPDATE" in s:
+            # _LOCK_SESSION_SQL. One task at a time, so the lock itself is a no-op.
+            row = self._target(params["session_id"])
+            self._result = dict(row) if row else None
+        elif "released AS (" in s:
+            # _SETTLE_TURN_SQL: append only while the turn is still unanswered.
+            inserted_id = None
+            if not self.db.answered(params["session_id"], params["turn_id"]):
+                inserted_id = self._append(params["session_id"], params["assistant_role"],
+                                           params["content"], params["metadata"])
+                self._release(params["session_id"], params["turn_id"])
+            self._result = {"inserted_id": inserted_id}
+        elif s.startswith("SELECT u.id AS message_id"):
+            # _OPEN_TURNS_SQL. This fake holds no approvals; the PostgreSQL suite does.
+            active, live = self.db.lease(params["session_id"])
+            self._rows = [
+                {"message_id": m["id"], "turn_id": m["metadata"].get("turn_id"),
+                 "active_turn": active, "lease_live": live, "reviews": []}
+                for m in self.db.open_turns(params["session_id"])
+            ]
+        elif s.startswith("UPDATE pellier.conversations SET metadata = jsonb_set"):
+            # _RENEW_LEASE_SQL
+            active, _live = self.db.lease(params["session_id"])
+            if active and active["owner"] == params["owner"]:
+                active["lease_until"] = self.db.clock + params["lease_seconds"]
+            self._result = None
+        elif s.startswith("INSERT INTO pellier.conversations"):
             sid, agent, meta = params
             self.db.conversations[sid] = {
                 "session_id": sid, "agent_name": agent,
@@ -147,28 +208,35 @@ class _Cur:
         elif "existing AS (" in s and "inserted AS (" in s:
             # _APPEND_TURN_SQL
             gate = self._gate(params)
+            sid = params["session_id"]
             existing = None
             if gate["eligible"] and params["transport_key"]:
                 for m in self.db.messages:
-                    if (m["session_id"] == params["session_id"]
+                    if (m["session_id"] == sid
                             and m["metadata"].get("transport_idempotency_key")
                             == params["transport_key"]):
                         existing = m
                         break
+            open_turns = self.db.open_turns(sid) if gate["eligible"] else []
             inserted_id = None
-            if gate["eligible"] and existing is None:
-                inserted_id = self.db._next_id
-                self.db._next_id += 1
-                self.db.messages.append({
-                    "id": inserted_id, "session_id": params["session_id"],
-                    "role": params["role"], "content": params["content"],
-                    "metadata": json.loads(params["metadata"]), "created_at": None,
-                })
-                self.db.updated.append(params["session_id"])
+            if gate["eligible"] and existing is None and not open_turns:
+                inserted_id = self._append(sid, params["role"], params["content"],
+                                           params["metadata"])
+                self.db.conversations[sid]["metadata"]["active_turn"] = {
+                    "turn_id": params["turn_id"], "owner": params["owner"],
+                    "lease_until": self.db.clock + params["lease_seconds"],
+                }
             self._result = dict(
                 gate,
                 existing_id=existing["id"] if existing else None,
                 existing_metadata=existing["metadata"] if existing else None,
+                existing_answered=(
+                    self.db.answered(sid, existing["metadata"].get("turn_id"))
+                    if existing else None
+                ),
+                open_turn_id=(
+                    open_turns[-1]["metadata"].get("turn_id") if open_turns else None
+                ),
                 inserted_id=inserted_id,
                 touched=1 if inserted_id else 0,
             )
@@ -177,14 +245,9 @@ class _Cur:
             gate = self._gate(params)
             inserted_id = None
             if gate["eligible"]:
-                inserted_id = self.db._next_id
-                self.db._next_id += 1
-                self.db.messages.append({
-                    "id": inserted_id, "session_id": params["session_id"],
-                    "role": params["role"], "content": params["content"],
-                    "metadata": json.loads(params["metadata"]), "created_at": None,
-                })
-                self.db.updated.append(params["session_id"])
+                inserted_id = self._append(params["session_id"], params["role"],
+                                           params["content"], params["metadata"])
+                self._release(params["session_id"], params["turn_id"])
             self._result = dict(gate, inserted_id=inserted_id)
         elif "LEFT JOIN pellier.messages" in s:
             # _HISTORY_SQL
@@ -192,6 +255,8 @@ class _Cur:
             if not gate["eligible"]:
                 self._rows = []
                 return
+            active, live = self.db.lease(params["session_id"])
+            gate = dict(gate, active_turn=active, lease_live=live)
             rows = [m for m in self.db.messages if m["session_id"] == params["session_id"]]
             rows.sort(key=lambda m: m["id"], reverse=True)
             self._rows = [dict(gate, **dict(m)) for m in rows[: params["limit"]]]
@@ -334,6 +399,10 @@ async def test_two_turns_get_different_ids_and_the_session_is_stable(db: FakeDb)
         db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
         operator_sub="op-1", message="first",
     )
+    await SESSIONS.append_assistant_artifact(
+        db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
+        turn_id=a["turnId"], summary="answered", artifact={},
+    )
     b = await SESSIONS.append_operator_turn(
         db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
         operator_sub="op-1", message="second",
@@ -367,6 +436,18 @@ async def test_a_retry_with_the_same_transport_key_does_not_duplicate(db: FakeDb
     first = await SESSIONS.append_operator_turn(
         db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
         operator_sub="op-1", message="Summarize", transport_key="tk-1",
+    )
+    # Unanswered, a replay must follow or settle the first attempt, never rerun it.
+    with pytest.raises(SESSIONS.OpenTurnError) as pending:
+        await SESSIONS.append_operator_turn(
+            db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
+            operator_sub="op-1", message="Summarize", transport_key="tk-1",
+        )
+    assert pending.value.turn_id == first["turnId"]
+    assert pending.value.status_code == 409
+    await SESSIONS.append_assistant_artifact(
+        db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
+        turn_id=first["turnId"], summary="done", artifact={},
     )
     again = await SESSIONS.append_operator_turn(
         db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
@@ -422,10 +503,14 @@ async def test_replay_is_ordered_by_the_serial_primary_key(db: FakeDb) -> None:
 @pytest.mark.asyncio
 async def test_history_is_bounded_and_reports_truncation(db: FakeDb) -> None:
     s = await SESSIONS.create_session(db, customer_id="CUST-JESSICA", operator_sub="op-1")
-    for n in range(12):
-        await SESSIONS.append_operator_turn(
+    for n in range(6):
+        turn = await SESSIONS.append_operator_turn(
             db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
             operator_sub="op-1", message=f"m{n}",
+        )
+        await SESSIONS.append_assistant_artifact(
+            db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
+            turn_id=turn["turnId"], summary=f"a{n}", artifact={},
         )
     history = await SESSIONS.load_history(
         db, session_id=s["sessionId"], customer_id="CUST-JESSICA", limit=5
@@ -433,7 +518,7 @@ async def test_history_is_bounded_and_reports_truncation(db: FakeDb) -> None:
     assert len(history["messages"]) == 5
     assert history["truncated"] is True
     # The most recent five, still in ascending order.
-    assert [m["content"] for m in history["messages"]] == ["m7", "m8", "m9", "m10", "m11"]
+    assert [m["content"] for m in history["messages"]] == ["a3", "m4", "a4", "m5", "a5"]
 
 
 @pytest.mark.asyncio
@@ -444,10 +529,13 @@ async def test_history_is_append_only(db: FakeDb) -> None:
     src = Path(SESSIONS.__file__).read_text()
     assert "UPDATE pellier.messages" not in src
     assert "DELETE FROM pellier.messages" not in src
-    # The only UPDATEs stamp the conversation, one per write path. Both live inside
-    # a CTE now, so the statement reads `UPDATE pellier.conversations c SET ...`.
-    assert src.count("UPDATE pellier.conversations c") == 2
-    assert "UPDATE pellier.conversations" in src
+    # Every UPDATE targets the conversation row, which carries `updated_at` and the
+    # turn lease: one per write path, plus the lease renewal.
+    import re
+
+    targets = re.findall(r"^\s*UPDATE\s+(\S+)", src, re.M)
+    assert targets and set(targets) == {"pellier.conversations"}, targets
+    assert src.count("UPDATE pellier.conversations c") == 3
 
 
 @pytest.mark.asyncio
@@ -691,3 +779,194 @@ def test_propose_review_accepts_a_concierge_turn_id_unchanged() -> None:
     assert "turn-[0-9a-f]{32}" in migration.read_text(), (
         "the execution turn format no longer matches what turn_identity mints"
     )
+
+
+# ---------------------------------------------------------------------------
+# Running and abandoned turns
+# ---------------------------------------------------------------------------
+
+async def _open_turn(db: FakeDb, message: str = "investigate") -> Tuple[str, str]:
+    s = await SESSIONS.create_session(db, customer_id="CUST-JESSICA", operator_sub="op-1")
+    turn = await SESSIONS.append_operator_turn(
+        db, session_id=s["sessionId"], customer_id="CUST-JESSICA",
+        operator_sub="op-1", message=message,
+    )
+    return s["sessionId"], turn["turnId"]
+
+
+async def _state(db: FakeDb, sid: str, running_here: Any = SESSIONS._nowhere) -> Any:
+    history = await SESSIONS.load_history(
+        db, session_id=sid, customer_id="CUST-JESSICA", running_here=running_here,
+    )
+    return history["openTurn"]
+
+
+@pytest.mark.asyncio
+async def test_a_new_request_waits_for_the_unanswered_turn(db: FakeDb) -> None:
+    sid, turn_id = await _open_turn(db)
+    with pytest.raises(SESSIONS.OpenTurnError) as blocked:
+        await SESSIONS.append_operator_turn(
+            db, session_id=sid, customer_id="CUST-JESSICA",
+            operator_sub="op-1", message="a second request",
+        )
+    assert blocked.value.turn_id == turn_id
+    assert [m["content"] for m in db.messages if m["session_id"] == sid] == ["investigate"]
+
+
+@pytest.mark.asyncio
+async def test_the_saved_request_carries_this_workers_lease(db: FakeDb) -> None:
+    sid, turn_id = await _open_turn(db)
+    lease = db.conversations[sid]["metadata"]["active_turn"]
+    assert lease["turn_id"] == turn_id
+    assert lease["owner"] == SESSIONS.WORKER_ID
+    assert lease["lease_until"] == db.clock + SESSIONS.LEASE_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_the_answer_releases_the_lease(db: FakeDb) -> None:
+    sid, turn_id = await _open_turn(db)
+    await SESSIONS.append_assistant_artifact(
+        db, session_id=sid, customer_id="CUST-JESSICA", turn_id=turn_id,
+        summary="done", artifact={},
+    )
+    assert "active_turn" not in db.conversations[sid]["metadata"]
+    assert await _state(db, sid) is None
+
+
+@pytest.mark.asyncio
+async def test_a_turn_running_in_this_worker_is_running(db: FakeDb) -> None:
+    sid, turn_id = await _open_turn(db)
+    state = await _state(db, sid, running_here=lambda s, t: (s, t) == (sid, turn_id))
+    assert state == {"turnId": turn_id, "messageId": state["messageId"], "state": "running"}
+
+
+@pytest.mark.asyncio
+async def test_this_workers_lease_without_its_task_is_abandoned(db: FakeDb) -> None:
+    """The task ended without an answer; its unexpired lease does not keep it alive."""
+    sid, _turn_id = await _open_turn(db)
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_ABANDONED
+
+
+@pytest.mark.asyncio
+async def test_another_workers_lease_is_running_until_it_expires(
+    db: FakeDb, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A restart is a new worker: the old lease is honoured, then lapses."""
+    monkeypatch.setattr(SESSIONS, "WORKER_ID", "worker-before-restart")
+    sid, _turn_id = await _open_turn(db)
+    monkeypatch.setattr(SESSIONS, "WORKER_ID", "worker-after-restart")
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_RUNNING
+    db.clock += SESSIONS.LEASE_SECONDS - 1
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_RUNNING
+    db.clock += 2
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_ABANDONED
+
+
+@pytest.mark.asyncio
+async def test_renewal_keeps_a_long_turn_owned(
+    db: FakeDb, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(SESSIONS, "WORKER_ID", "worker-a")
+    sid, _turn_id = await _open_turn(db)
+    for _ in range(5):
+        db.clock += SESSIONS.LEASE_SECONDS - 5
+        await SESSIONS.renew_lease(db, session_id=sid)
+    monkeypatch.setattr(SESSIONS, "WORKER_ID", "worker-b")
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_RUNNING
+
+
+@pytest.mark.asyncio
+async def test_a_turn_from_before_leases_is_abandoned(db: FakeDb) -> None:
+    sid, _turn_id = await _open_turn(db)
+    db.conversations[sid]["metadata"].pop("active_turn")
+    assert (await _state(db, sid))["state"] == SESSIONS.OPEN_TURN_ABANDONED
+
+
+@pytest.mark.asyncio
+async def test_settling_appends_an_interrupted_answer_and_keeps_the_request(
+    db: FakeDb,
+) -> None:
+    sid, turn_id = await _open_turn(db, "Prepare a return for the throw")
+    request_before = json.dumps(
+        [m for m in db.messages if m["session_id"] == sid], default=str
+    )
+
+    settled = await SESSIONS.settle_abandoned_turns(
+        db, session_id=sid, customer_id="CUST-JESSICA",
+    )
+
+    assert [t["turnId"] for t in settled] == [turn_id]
+    rows = [m for m in db.messages if m["session_id"] == sid]
+    assert json.dumps(rows[:1], default=str) == request_before, "the request was rewritten"
+    answer = rows[1]
+    assert answer["role"] == "assistant"
+    assert answer["metadata"]["turn_id"] == turn_id
+    assert answer["metadata"]["turn_state"] == SESSIONS.TURN_INTERRUPTED
+    assert answer["content"].startswith("This request stopped before an answer was saved.")
+    assert "No review was prepared" in answer["content"]
+    assert "—" not in answer["content"]
+    assert answer["metadata"]["artifact"]["proposedActions"] == []
+    assert "active_turn" not in db.conversations[sid]["metadata"]
+
+    history = await SESSIONS.load_history(db, session_id=sid, customer_id="CUST-JESSICA")
+    assert history["openTurn"] is None
+    # The session takes requests again.
+    await SESSIONS.append_operator_turn(
+        db, session_id=sid, customer_id="CUST-JESSICA",
+        operator_sub="op-1", message="Prepare a return for the throw",
+    )
+
+
+@pytest.mark.asyncio
+async def test_settling_leaves_a_running_turn_alone_and_runs_once(db: FakeDb) -> None:
+    sid, turn_id = await _open_turn(db)
+    running = await SESSIONS.settle_abandoned_turns(
+        db, session_id=sid, customer_id="CUST-JESSICA",
+        running_here=lambda s, t: t == turn_id,
+    )
+    assert running == []
+    assert not db.answered(sid, turn_id)
+
+    first = await SESSIONS.settle_abandoned_turns(
+        db, session_id=sid, customer_id="CUST-JESSICA",
+    )
+    again = await SESSIONS.settle_abandoned_turns(
+        db, session_id=sid, customer_id="CUST-JESSICA",
+    )
+    assert len(first) == 1 and again == []
+    assert sum(1 for m in db.messages if m["role"] == "assistant"
+               and m["session_id"] == sid) == 1
+
+
+@pytest.mark.asyncio
+async def test_settling_is_scoped_to_the_sessions_client(db: FakeDb) -> None:
+    sid, _turn_id = await _open_turn(db)
+    with pytest.raises(SESSIONS.SessionError) as exc:
+        await SESSIONS.settle_abandoned_turns(db, session_id=sid, customer_id="CUST-THEO")
+    assert exc.value.code == "session_client_mismatch"
+
+
+def test_the_interruption_names_what_each_review_became() -> None:
+    reviews = [
+        {"reviewId": 12, "tool": "initiate_return", "status": "pending",
+         "args": {"customer_id": "CUST-JESSICA", "product_id": 7, "reason": "damaged"},
+         "actionHash": "h-12", "orderId": 301, "productName": "Linen throw"},
+        {"reviewId": 9, "tool": "initiate_return", "status": "approved",
+         "args": {"customer_id": "CUST-JESSICA", "product_id": 3, "reason": "wrong_size"},
+         "actionHash": "h-9", "orderId": 290, "productName": "Wool wrap"},
+    ]
+    artifact = SESSIONS.interruption_artifact(
+        customer_id="CUST-JESSICA", reviews=reviews, cause=SESSIONS.CAUSE_DEADLINE,
+    )
+    summary = artifact["summary"]
+    assert summary.startswith("This request ran past its time limit")
+    assert "review #12, awaiting a decision" in summary
+    assert "instead of opening a second one" in summary
+    assert "review #9, which has since been confirmed" in summary
+    assert "—" not in summary
+    first = artifact["proposedActions"][0]
+    assert first["reviewId"] == 12 and first["actionHash"] == "h-12"
+    assert first["product"] == {"productId": "7", "name": "Linen throw"}
+    assert first["order"] == {"orderId": 301}
+    assert first["material"]["reason"] == "damaged"
+    assert artifact["interruption"] == {"cause": "deadline", "reviewIds": [12, 9]}

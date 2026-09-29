@@ -16,6 +16,12 @@
  *                      they run together. The client record itself is already a
  *                      ~1s parallel read; turning the right pane into a serial
  *                      waterfall on top of it would undo that.
+ *
+ * A turn runs on the server whether or not this page is still reading it. When the
+ * stream ends early, or the page loads while a turn is unanswered, the conversation
+ * is reread: a running turn is waited for, and one whose worker stopped arrives
+ * already settled by the server as `interrupted`. Starting a new conversation is
+ * never the automatic way out.
  */
 
 import { upsertInvestigationStep } from './traceSteps'
@@ -34,14 +40,18 @@ import type {
   ConciergeConfig,
   ConciergeInvestigationStep,
   ConciergeMessage,
+  ConciergeSession,
   ConciergeStreamAnswer,
 } from '../../services/operator'
+import type { ConciergeOpenTurn } from '../../services/operatorConcierge'
 
 export type ConciergeStatus =
   | 'loading'
   | 'ready'
   | 'read_only'
   | 'submitting'
+  /** A saved request is still being answered on the server; this page is waiting. */
+  | 'working'
   | 'capability_unverified'
   | 'conversation_unavailable'
   | 'config_unavailable'
@@ -62,6 +72,8 @@ export interface ConciergeController {
   pendingRequest: string | null
   /** Durable server answer, visible while post-answer work and history reload finish. */
   liveAnswer: ConciergeStreamAnswer | null
+  /** The saved request still waiting for its answer, when there is one. */
+  openTurn: ConciergeOpenTurn | null
   submit: (message: string) => Promise<boolean>
   retryHistory: () => Promise<void>
   startNew: () => void
@@ -81,6 +93,36 @@ function transportKey(): string {
   return random ?? `tk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** How often a page waiting on a running turn rereads the conversation. */
+export const WORKING_POLL_MS = 2500
+
+export const UNSETTLED_TURN =
+  'The last request stopped before its answer was saved. Retry history to record what it left behind.'
+
+const INCOMPLETE_TURN =
+  'The saved turn is still incomplete. Refresh history before sending another request.'
+
+/** What a loaded conversation leaves the composer free to do. */
+function resumedState(session: ConciergeSession): 'idle' | 'working' | 'unsettled' {
+  if (session.openTurn?.state === 'running') return 'working'
+  if (session.openTurn) return 'unsettled'
+  // A server that does not report open turns cannot say whether this one is running.
+  if (session.messages.at(-1)?.turnState === 'incomplete') return 'unsettled'
+  return 'idle'
+}
+
+function unsettledCopy(session: ConciergeSession): string {
+  return session.openTurn ? UNSETTLED_TURN : INCOMPLETE_TURN
+}
+
+/** The conversation after a stream ended early, when it says what the turn did. */
+async function rereadAfterStream(clientId: string, sessionId: string) {
+  const session = await fetchConciergeSession(clientId, sessionId)
+  if (session.customerId !== clientId || session.sessionId !== sessionId) return null
+  const state = resumedState(session)
+  return state === 'unsettled' ? null : { session, state }
+}
+
 export function useOperatorConcierge(
   clientId: string,
   options: ConciergeOptions = {},
@@ -96,6 +138,7 @@ export function useOperatorConcierge(
   const [liveSteps, setLiveSteps] = useState<ConciergeInvestigationStep[]>([])
   const [pendingRequest, setPendingRequest] = useState<string | null>(null)
   const [liveAnswer, setLiveAnswer] = useState<ConciergeStreamAnswer | null>(null)
+  const [openTurn, setOpenTurn] = useState<ConciergeOpenTurn | null>(null)
   const [loadedClientId, setLoadedClientId] = useState<string | null>(null)
   const active = useRef(true)
   const busy = useRef(false)
@@ -127,6 +170,7 @@ export function useOperatorConcierge(
     setLiveSteps([])
     setPendingRequest(null)
     setLiveAnswer(null)
+    setOpenTurn(null)
 
     // Independent reads, so concurrently. `allSettled` because a capability
     // read failing must not hide the conversation, and vice versa.
@@ -163,6 +207,7 @@ export function useOperatorConcierge(
       let resumed: string | null = null
       if (latest.status === 'fulfilled') resumed = latest.value
 
+      let working = false
       if (resumed) {
         try {
           const session = await fetchConciergeSession(clientId, resumed)
@@ -171,11 +216,14 @@ export function useOperatorConcierge(
           if (session.customerId !== clientId || session.sessionId !== resumed) throw new Error('conversation_scope_mismatch')
           setSessionId(session.sessionId)
           setMessages(session.messages)
-          if (session.messages.at(-1)?.turnState === 'incomplete') {
-            setError('The saved turn is still incomplete. Refresh history before sending another request.')
+          setOpenTurn(session.openTurn ?? null)
+          const state = resumedState(session)
+          if (state === 'unsettled') {
+            setError(unsettledCopy(session))
             setStatus('conversation_unavailable')
             return
           }
+          working = state === 'working'
         } catch {
           if (!isCurrentClient()) return
           setStatus('conversation_unavailable')
@@ -184,7 +232,9 @@ export function useOperatorConcierge(
       }
 
       if (!isCurrentClient()) return
-      if (caps.status !== 'fulfilled') {
+      if (working) {
+        setStatus('working')
+      } else if (caps.status !== 'fulfilled') {
         setStatus('capability_unverified')
       } else {
         setStatus(caps.value.governedActionsAvailable ? 'ready' : 'read_only')
@@ -195,7 +245,7 @@ export function useOperatorConcierge(
 
   const governedActionsAvailable = Boolean(capabilities?.governedActionsAvailable)
   const composerEnabled = Boolean(
-    config?.composerEnabled && loadedClientId === clientId &&
+    config?.composerEnabled && loadedClientId === clientId && status !== 'working' &&
     status !== 'conversation_unavailable' && status !== 'config_unavailable' && status !== 'loading',
   )
 
@@ -217,9 +267,11 @@ export function useOperatorConcierge(
       // Enter is the single worst part of the experience, and the request is a fact
       // as soon as it is sent.
       setPendingRequest(text)
+      let id = sessionId
+      let saved = false
       try {
         // Lazy creation: the first submission is what makes a thread exist.
-        const id = sessionId ?? (await createConciergeSession(clientId)).sessionId
+        id = sessionId ?? (await createConciergeSession(clientId)).sessionId
         if (!isCurrentClient()) return false
         setSessionId(id)
         if (controller.signal.aborted) throw new Error('Receiving stopped; the server may still be working.')
@@ -231,6 +283,9 @@ export function useOperatorConcierge(
           transportKey(),
           (step) => {
             if (!isCurrentClient()) return false
+            // The server saves the request before reporting it, so from here the
+            // request outlives this page whatever happens to the stream.
+            if (step.kind === 'request') saved = true
             setLiveSteps((prev) => upsertInvestigationStep(prev, step))
           },
           (answer) => {
@@ -246,10 +301,9 @@ export function useOperatorConcierge(
         const session = await fetchConciergeSession(clientId, id)
         if (!isCurrentClient()) return false
         if (session.customerId !== clientId) throw new Error('conversation_scope_mismatch')
-        if (session.messages.at(-1)?.turnState === 'incomplete') {
-          throw new Error('The saved turn is still incomplete. Refresh history before sending another request.')
-        }
+        if (resumedState(session) !== 'idle') throw new Error(unsettledCopy(session))
         setMessages(session.messages)
+        setOpenTurn(null)
         setPendingRequest(null)
         setLiveSteps([])
         setLiveAnswer(null)
@@ -257,6 +311,24 @@ export function useOperatorConcierge(
         return true
       } catch (err) {
         if (!isCurrentClient()) return false
+        // The stream is not the turn. Stopped here, dropped, or refused because a
+        // turn is already running: the server may still be answering, or may have
+        // answered. Reread before reporting anything as failed.
+        const resumed = id ? await rereadAfterStream(clientId, id).catch(() => null) : null
+        if (!isCurrentClient()) return false
+        // A saved request is either still open or answered, so with nothing open it
+        // has its answer. An unsaved one never reached the server and is kept here.
+        if (resumed && (resumed.state === 'working' || saved)) {
+          setMessages(resumed.session.messages)
+          setOpenTurn(resumed.session.openTurn ?? null)
+          setPendingRequest(null)
+          setLiveSteps([])
+          setLiveAnswer(null)
+          setError(null)
+          setStatus(resumed.state === 'working' ? 'working' : governedActionsAvailable ? 'ready' : 'read_only')
+          // Clear the draft only when the server holds it.
+          return saved
+        }
         setError(err instanceof Error ? err.message : 'operator_unavailable')
         // Preserve the request and any durable streamed answer until history reconciles.
         setStatus('conversation_unavailable')
@@ -289,9 +361,10 @@ export function useOperatorConcierge(
       setConfig(cfg)
       setSessionId(session?.sessionId ?? null)
       setMessages(session?.messages ?? [])
-      const incomplete = session?.messages.at(-1)?.turnState === 'incomplete'
-      if (incomplete) {
-        setError('The saved turn is still incomplete. Refresh history again before sending another request.')
+      setOpenTurn(session?.openTurn ?? null)
+      const state = session ? resumedState(session) : 'idle'
+      if (session && state === 'unsettled') {
+        setError(unsettledCopy(session))
         setStatus('conversation_unavailable')
         return
       }
@@ -300,7 +373,7 @@ export function useOperatorConcierge(
       setPendingRequest(null)
       setError(null)
       setLoadedClientId(clientId)
-      setStatus(caps.governedActionsAvailable ? 'ready' : 'read_only')
+      setStatus(state === 'working' ? 'working' : caps.governedActionsAvailable ? 'ready' : 'read_only')
     } catch {
       if (current()) setStatus('conversation_unavailable')
     } finally {
@@ -312,6 +385,7 @@ export function useOperatorConcierge(
     if (busy.current || !config?.composerEnabled) return
     setSessionId(null)
     setMessages([])
+    setOpenTurn(null)
     setLiveSteps([])
     setLiveAnswer(null)
     setPendingRequest(null)
@@ -320,6 +394,44 @@ export function useOperatorConcierge(
     setStatus(governedActionsAvailable ? 'ready' : 'read_only')
   }, [clientId, config?.composerEnabled, governedActionsAvailable])
   const stopReceiving = useCallback(() => { turnController.current?.abort() }, [])
+
+  useEffect(() => {
+    // Wait for a running turn by rereading its conversation. The server settles one
+    // whose worker stopped, so this ends in an answer or an interruption, never a
+    // turn left open.
+    if (status !== 'working' || !sessionId) return
+    const generation = clientGeneration.current
+    let current = true
+    let reading = false
+    const reread = async () => {
+      if (reading) return
+      reading = true
+      try {
+        const session = await fetchConciergeSession(clientId, sessionId)
+        if (!current || !active.current || clientGeneration.current !== generation) return
+        if (session.customerId !== clientId || session.sessionId !== sessionId) throw new Error('conversation_scope_mismatch')
+        setMessages(session.messages)
+        setOpenTurn(session.openTurn ?? null)
+        const state = resumedState(session)
+        if (state === 'working') return
+        if (state === 'unsettled') {
+          setError(unsettledCopy(session))
+          setStatus('conversation_unavailable')
+          return
+        }
+        setError(null)
+        setStatus(governedActionsAvailable ? 'ready' : 'read_only')
+      } catch {
+        if (current && active.current && clientGeneration.current === generation) {
+          setStatus('conversation_unavailable')
+        }
+      } finally {
+        reading = false
+      }
+    }
+    const timer = window.setInterval(() => void reread(), WORKING_POLL_MS)
+    return () => { current = false; window.clearInterval(timer) }
+  }, [status, sessionId, clientId, governedActionsAvailable])
 
   useEffect(() => {
     // Honour the server's capability TTL; never refresh the conversation on this timer.
@@ -354,6 +466,7 @@ export function useOperatorConcierge(
       liveSteps,
       pendingRequest,
       liveAnswer,
+      openTurn,
       submit,
       retryHistory,
       startNew,
@@ -371,6 +484,7 @@ export function useOperatorConcierge(
       liveSteps,
       pendingRequest,
       liveAnswer,
+      openTurn,
       submit,
       retryHistory,
       startNew,

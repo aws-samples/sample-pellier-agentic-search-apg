@@ -7,7 +7,11 @@
  * owns them.
  */
 
-export type TurnState = 'incomplete' | 'complete' | 'failed' | ''
+/**
+ * `interrupted` is recorded by the server for a turn that stopped before saving its
+ * answer (a restart, its deadline, or an error), and names any review it prepared.
+ */
+export type TurnState = 'incomplete' | 'complete' | 'failed' | 'interrupted' | ''
 
 export interface ConciergeInvestigationStep {
   kind: string
@@ -309,6 +313,16 @@ export interface ConciergeMessage {
   createdAt: string | null
 }
 
+/**
+ * The newest request without an answer. `running` while a worker still owns it;
+ * `abandoned` only when the server could not yet record what it left behind.
+ */
+export interface ConciergeOpenTurn {
+  turnId: string
+  messageId: number
+  state: 'running' | 'abandoned'
+}
+
 export interface ConciergeSession {
   sessionId: string
   customerId: string
@@ -316,6 +330,7 @@ export interface ConciergeSession {
   createdBy: string
   messages: ConciergeMessage[]
   truncated: boolean
+  openTurn?: ConciergeOpenTurn | null
 }
 
 export interface ConciergeConfig {

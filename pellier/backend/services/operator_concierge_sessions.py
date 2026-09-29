@@ -55,8 +55,9 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,28 @@ ROLE_ASSISTANT = "assistant"
 TURN_INCOMPLETE = "incomplete"
 TURN_COMPLETE = "complete"
 TURN_FAILED = "failed"
+# The work stopped before it saved an answer: the worker restarted, the turn ran past
+# its deadline, or it raised. Distinct from `failed`, where the turn itself reported
+# that it could not produce the deliverable.
+TURN_INTERRUPTED = "interrupted"
+
+# What an unanswered turn is doing now. Derived on every read, never stored.
+OPEN_TURN_RUNNING = "running"
+OPEN_TURN_ABANDONED = "abandoned"
+
+# Why an interrupted turn stopped, as recorded on its settling artifact.
+CAUSE_STOPPED = "stopped"
+CAUSE_DEADLINE = "deadline"
+CAUSE_ERROR = "error"
+
+# A running turn renews its lease every few seconds. One that goes this long without a
+# renewal has no live worker, so a reader may settle it. Measured Concierge turns take
+# 13.5s at the median and 28s at the slowest, and renewal keeps a longer one owned.
+LEASE_SECONDS = 30
+
+# Names this worker process on the leases it writes. A restarted worker has a new id,
+# so a lease written before a restart is never mistaken for work still running here.
+WORKER_ID = uuid.uuid4().hex
 
 _MAX_HISTORY = 100
 
@@ -92,6 +115,25 @@ class SessionError(Exception):
         super().__init__(code)
         self.code = code
         self.status_code = status_code
+
+
+class OpenTurnError(SessionError):
+    """The session already has a turn without an answer.
+
+    A new request waits until that turn is answered or settled, and a replayed
+    transport key never starts its turn a second time.
+    """
+
+    def __init__(self, turn_id: str) -> None:
+        super().__init__("turn_in_progress", 409)
+        self.turn_id = turn_id
+
+
+def _nowhere(_session_id: str, _turn_id: str) -> bool:
+    return False
+
+
+RunningHere = Callable[[str, str], bool]
 
 
 def _now() -> datetime:
@@ -118,8 +160,6 @@ async def create_session(
     the client thread; each appended turn records the operator who actually authored
     it, so ``created_by`` is not an ownership or read-authorization boundary.
     """
-    import uuid
-
     if not customer_id:
         raise SessionError("customer_id_required", 422)
     if not operator_sub:
@@ -293,6 +333,11 @@ async def load_graph_artifact_for_review(
 # Validation is not weakened: `target` is the gate, and nothing inserts unless the
 # session matches this surface AND this customer. The returned row carries enough
 # state to raise the same precise errors as before.
+#
+# Two more gates, in the same trip. A session with an unanswered turn takes no new
+# request until that turn is answered or settled, so a retry can never start while
+# the first attempt might still write a review. And the insert writes the lease that
+# says a worker owns the new turn.
 _APPEND_TURN_SQL = """
 WITH target AS (
     SELECT session_id,
@@ -309,7 +354,13 @@ eligible AS (
        AND bound_customer = %(customer_id)s
 ),
 existing AS (
-    SELECT m.id, m.metadata
+    SELECT m.id, m.metadata,
+           EXISTS (
+               SELECT 1 FROM pellier.messages a
+                WHERE a.session_id = m.session_id
+                  AND a.role = %(assistant_role)s
+                  AND a.metadata->>'turn_id' = m.metadata->>'turn_id'
+           ) AS answered
       FROM pellier.messages m
       JOIN eligible e ON e.session_id = m.session_id
      WHERE %(transport_key)s <> ''
@@ -317,16 +368,40 @@ existing AS (
      ORDER BY m.id ASC
      LIMIT 1
 ),
+open_turn AS (
+    SELECT u.metadata->>'turn_id' AS turn_id
+      FROM pellier.messages u
+      JOIN eligible e ON e.session_id = u.session_id
+     WHERE u.role = %(role)s
+       AND NOT EXISTS (
+           SELECT 1 FROM pellier.messages a
+            WHERE a.session_id = u.session_id
+              AND a.role = %(assistant_role)s
+              AND a.metadata->>'turn_id' = u.metadata->>'turn_id'
+       )
+     ORDER BY u.id DESC
+     LIMIT 1
+),
 inserted AS (
     INSERT INTO pellier.messages (session_id, role, content, metadata)
     SELECT e.session_id, %(role)s, %(content)s, %(metadata)s::jsonb
       FROM eligible e
      WHERE NOT EXISTS (SELECT 1 FROM existing)
+       AND NOT EXISTS (SELECT 1 FROM open_turn)
     RETURNING id, metadata
 ),
 touched AS (
     UPDATE pellier.conversations c
-       SET updated_at = now()
+       SET updated_at = now(),
+           metadata = jsonb_set(
+               c.metadata, '{active_turn}',
+               jsonb_build_object(
+                   'turn_id', %(turn_id)s::text,
+                   'owner', %(owner)s::text,
+                   'lease_until',
+                   extract(epoch FROM clock_timestamp())::float8 + %(lease_seconds)s::float8
+               )
+           )
       FROM inserted i
      WHERE c.session_id = %(session_id)s
     RETURNING c.session_id
@@ -338,6 +413,8 @@ SELECT (SELECT COUNT(*) FROM target)                       AS session_exists,
        (SELECT COUNT(*) FROM eligible)                      AS eligible,
        (SELECT id FROM existing)                            AS existing_id,
        (SELECT metadata FROM existing)                      AS existing_metadata,
+       (SELECT answered FROM existing)                      AS existing_answered,
+       (SELECT turn_id FROM open_turn)                      AS open_turn_id,
        (SELECT id FROM inserted)                            AS inserted_id,
        (SELECT COUNT(*) FROM touched)                       AS touched
 """
@@ -361,6 +438,10 @@ async def append_operator_turn(
     Executed as ONE round trip. The previous four-trip version cost 2145ms against
     the remote cluster; the semantics are unchanged, including append-only writes and
     the surface/customer gate.
+
+    Raises ``OpenTurnError`` when the session already holds an unanswered turn, and
+    when the transport key names a turn that has no answer yet: replaying that key
+    must follow or settle the first attempt, never run it again.
     """
     text = (message or "").strip()
     if not text:
@@ -386,8 +467,12 @@ async def append_operator_turn(
         "customer_id": customer_id,
         "transport_key": transport_key or "",
         "role": ROLE_OPERATOR,
+        "assistant_role": ROLE_ASSISTANT,
         "content": text,
         "metadata": json.dumps(metadata),
+        "turn_id": turn_id,
+        "owner": WORKER_ID,
+        "lease_seconds": LEASE_SECONDS,
     }
     async with db.get_connection() as conn:
         async with conn.cursor() as cur:
@@ -405,6 +490,8 @@ async def append_operator_turn(
     if row.get("existing_id") is not None:
         raw = row.get("existing_metadata")
         meta = raw if isinstance(raw, dict) else json.loads(raw or "{}")
+        if not row.get("existing_answered"):
+            raise OpenTurnError(meta.get("turn_id", ""))
         return {
             "messageId": int(row["existing_id"]),
             "sessionId": session_id,
@@ -415,6 +502,8 @@ async def append_operator_turn(
             "replayed": True,
         }
 
+    if row.get("open_turn_id"):
+        raise OpenTurnError(str(row["open_turn_id"]))
     if row.get("inserted_id") is None:
         raise SessionError("turn_not_persisted", 500)
 
@@ -482,7 +571,13 @@ inserted AS (
     RETURNING id
 ),
 touched AS (
-    UPDATE pellier.conversations c SET updated_at = now()
+    UPDATE pellier.conversations c
+       SET updated_at = now(),
+           metadata = CASE
+               WHEN c.metadata->'active_turn'->>'turn_id' = %(turn_id)s
+               THEN c.metadata - 'active_turn'
+               ELSE c.metadata
+           END
       FROM inserted i WHERE c.session_id = %(session_id)s
     RETURNING c.session_id
 )
@@ -542,6 +637,7 @@ async def append_assistant_artifact(
                     "role": ROLE_ASSISTANT,
                     "content": summary or "",
                     "metadata": json.dumps(metadata),
+                    "turn_id": turn_id,
                 },
             )
             row = dict(await cur.fetchone() or {})
@@ -584,12 +680,18 @@ WITH target AS (
            agent_name,
            metadata->>'customer_id' AS bound_customer,
            metadata->>'surface'     AS bound_surface,
-           metadata->>'created_by'  AS created_by
+           metadata->>'created_by'  AS created_by,
+           metadata->'active_turn'  AS active_turn,
+           COALESCE(
+               (metadata->'active_turn'->>'lease_until')::float8
+                   > extract(epoch FROM clock_timestamp())::float8,
+               false
+           ) AS lease_live
       FROM pellier.conversations
      WHERE session_id = %(session_id)s
 ),
 eligible AS (
-    SELECT session_id, created_by FROM target
+    SELECT session_id, created_by, active_turn, lease_live FROM target
      WHERE agent_name = %(surface)s
        AND bound_surface = %(surface)s
        AND bound_customer = %(customer_id)s
@@ -599,6 +701,8 @@ SELECT (SELECT COUNT(*) FROM target)           AS session_exists,
        (SELECT bound_surface FROM target)      AS bound_surface,
        (SELECT agent_name FROM target)         AS agent_name,
        (SELECT created_by FROM eligible)       AS created_by,
+       (SELECT active_turn FROM eligible)      AS active_turn,
+       (SELECT lease_live FROM eligible)       AS lease_live,
        m.id, m.role, m.content, m.metadata, m.created_at
   FROM eligible e
   LEFT JOIN pellier.messages m ON m.session_id = e.session_id
@@ -607,8 +711,42 @@ SELECT (SELECT COUNT(*) FROM target)           AS session_exists,
 """
 
 
+def _json(raw: Any) -> Any:
+    return json.loads(raw) if isinstance(raw, str) else raw
+
+
+def classify_open_turn(
+    *,
+    session_id: str,
+    turn_id: str,
+    active_turn: Optional[Dict[str, Any]],
+    lease_live: bool,
+    running_here: RunningHere = _nowhere,
+) -> str:
+    """Whether an unanswered turn still has a worker, from facts a reader can check.
+
+    Running when this process is working on it, or when another worker holds an
+    unexpired lease on it. Anything else is abandoned: no lease (a turn from before
+    leases existed), an expired lease (the worker stopped renewing it), or this
+    worker's own lease on a turn it no longer runs (the task ended without an
+    answer). A restart gives the worker a new id, so its old leases count as another
+    worker's and are honoured only until they expire.
+    """
+    if running_here(session_id, turn_id):
+        return OPEN_TURN_RUNNING
+    lease = active_turn or {}
+    if lease.get("turn_id") == turn_id and lease.get("owner") != WORKER_ID and lease_live:
+        return OPEN_TURN_RUNNING
+    return OPEN_TURN_ABANDONED
+
+
 async def load_history(
-    db: Any, *, session_id: str, customer_id: str, limit: int = 40
+    db: Any,
+    *,
+    session_id: str,
+    customer_id: str,
+    limit: int = 40,
+    running_here: RunningHere = _nowhere,
 ) -> Dict[str, Any]:
     """Bounded, deterministically ordered replay of one Concierge session.
 
@@ -619,6 +757,10 @@ async def load_history(
     One round trip. The validation is the same surface/customer gate, expressed as a
     CTE the message join depends on, so a mismatched session returns no rows rather
     than another client's transcript.
+
+    ``openTurn`` names the newest request without an answer and whether a worker
+    still owns it, so a reader can wait for a running turn instead of reporting it
+    as broken. ``running_here`` answers for this process's own in-flight turns.
     """
     bounded = max(1, min(int(limit or 40), _MAX_HISTORY))
     async with db.get_connection() as conn:
@@ -651,6 +793,7 @@ async def load_history(
             "createdBy": probe["metadata"].get("created_by", ""),
             "messages": [],
             "truncated": False,
+            "openTurn": None,
         }
 
     head = rows[0]
@@ -680,6 +823,26 @@ async def load_history(
             }
         )
 
+    answered = {m["turnId"] for m in messages if m["role"] == ROLE_ASSISTANT}
+    unanswered = [
+        m for m in messages
+        if m["role"] == ROLE_OPERATOR and m["turnId"] and m["turnId"] not in answered
+    ]
+    open_turn = None
+    if unanswered:
+        newest = unanswered[-1]
+        open_turn = {
+            "turnId": newest["turnId"],
+            "messageId": newest["messageId"],
+            "state": classify_open_turn(
+                session_id=session_id,
+                turn_id=newest["turnId"],
+                active_turn=_json(head.get("active_turn")),
+                lease_live=bool(head.get("lease_live")),
+                running_here=running_here,
+            ),
+        }
+
     return {
         "sessionId": session_id,
         "customerId": head.get("bound_customer") or customer_id,
@@ -687,7 +850,309 @@ async def load_history(
         "createdBy": head.get("created_by") or "",
         "messages": messages,
         "truncated": len(messages) >= bounded,
+        "openTurn": open_turn,
     }
+
+
+# ---------------------------------------------------------------------------
+# Settling turns whose worker stopped
+# ---------------------------------------------------------------------------
+#
+# A turn saves the operator's request, may prepare a review, and then saves its
+# answer. When the worker stops in between, the request stays saved with no answer,
+# and any review it prepared stays in `pellier.approvals` under its turn id. Settling
+# appends an `interrupted` answer that says which of those happened. Nothing is
+# deleted or rewritten: the request row is untouched, and the review keeps its own
+# lifecycle.
+#
+# A review is the only lasting effect a Concierge turn can leave before its answer.
+# It does not write `tool_audit`, `write_operations` or domain rows, and its Memory
+# mirror runs only after the answer is saved.
+
+# Taken first, in its own statement, so every later statement in the transaction reads
+# a snapshot from after any other writer of this session has committed. Two readers
+# settling the same turn therefore append one answer, not two.
+_LOCK_SESSION_SQL = """
+SELECT session_id, agent_name, metadata
+  FROM pellier.conversations
+ WHERE session_id = %(session_id)s
+   FOR UPDATE
+"""
+
+_OPEN_TURNS_SQL = """
+SELECT u.id AS message_id,
+       u.metadata->>'turn_id' AS turn_id,
+       c.metadata->'active_turn' AS active_turn,
+       COALESCE(
+           (c.metadata->'active_turn'->>'lease_until')::float8
+               > extract(epoch FROM clock_timestamp())::float8,
+           false
+       ) AS lease_live,
+       COALESCE((
+           SELECT jsonb_agg(
+                      jsonb_build_object(
+                          'reviewId', r.id,
+                          'tool', r.tool,
+                          'status', r.status,
+                          'args', r.args,
+                          'actionHash', r.action_hash,
+                          'orderId', r.order_id,
+                          'productName', p.name
+                      )
+                      ORDER BY r.id
+                  )
+             FROM pellier.approvals r
+             LEFT JOIN pellier.product_catalog p
+               ON p.product_id::text = r.args->>'product_id'
+            WHERE r.source_turn_id = u.metadata->>'turn_id'
+              AND r.customer_id = %(customer_id)s
+       ), '[]'::jsonb) AS reviews
+  FROM pellier.messages u
+  JOIN pellier.conversations c ON c.session_id = u.session_id
+ WHERE u.session_id = %(session_id)s
+   AND u.role = %(role)s
+   AND NOT EXISTS (
+       SELECT 1 FROM pellier.messages a
+        WHERE a.session_id = u.session_id
+          AND a.role = %(assistant_role)s
+          AND a.metadata->>'turn_id' = u.metadata->>'turn_id'
+   )
+ ORDER BY u.id
+"""
+
+_SETTLE_TURN_SQL = """
+WITH inserted AS (
+    INSERT INTO pellier.messages (session_id, role, content, metadata)
+    SELECT %(session_id)s::varchar, %(assistant_role)s::varchar, %(content)s::text,
+           %(metadata)s::jsonb
+     WHERE NOT EXISTS (
+         SELECT 1 FROM pellier.messages a
+          WHERE a.session_id = %(session_id)s
+            AND a.role = %(assistant_role)s
+            AND a.metadata->>'turn_id' = %(turn_id)s
+     )
+    RETURNING id
+),
+released AS (
+    UPDATE pellier.conversations c
+       SET updated_at = now(),
+           metadata = CASE
+               WHEN c.metadata->'active_turn'->>'turn_id' = %(turn_id)s
+               THEN c.metadata - 'active_turn'
+               ELSE c.metadata
+           END
+      FROM inserted i
+     WHERE c.session_id = %(session_id)s
+    RETURNING c.session_id
+)
+SELECT (SELECT id FROM inserted) AS inserted_id
+"""
+
+# Keyed by session and owner rather than by turn: a session holds at most one open
+# turn, and the runner renews only after its own request is saved, so the lease this
+# matches is always the one it wrote.
+_RENEW_LEASE_SQL = """
+UPDATE pellier.conversations
+   SET metadata = jsonb_set(
+           metadata, '{active_turn,lease_until}',
+           to_jsonb(extract(epoch FROM clock_timestamp())::float8 + %(lease_seconds)s::float8)
+       )
+ WHERE session_id = %(session_id)s
+   AND metadata->'active_turn'->>'owner' = %(owner)s
+"""
+
+_CAUSE_COPY = {
+    CAUSE_STOPPED: "This request stopped before an answer was saved.",
+    CAUSE_DEADLINE: "This request ran past its time limit before an answer was saved.",
+    CAUSE_ERROR: "This request hit an error before an answer was saved.",
+}
+
+_DECISION_COPY = {"approved": "confirmed", "rejected": "declined"}
+
+
+def _review_refs(reviews: List[Dict[str, Any]]) -> str:
+    refs = [f"#{r['reviewId']}" for r in reviews]
+    label = "review" if len(refs) == 1 else "reviews"
+    listed = refs[0] if len(refs) == 1 else ", ".join(refs[:-1]) + " and " + refs[-1]
+    return f"{label} {listed}"
+
+
+def _interruption_outcome(reviews: List[Dict[str, Any]]) -> str:
+    if not reviews:
+        return (
+            "No review was prepared and nothing changed for this client. "
+            "You can send it again."
+        )
+    pending = [r for r in reviews if r.get("status") == "pending"]
+    decided = [r for r in reviews if r.get("status") != "pending"]
+    sentences: List[str] = []
+    if pending:
+        sentences.append(
+            f"It had already prepared {_review_refs(pending)}, awaiting a decision. "
+            "Sending the request again reuses an open review for the same action "
+            "instead of opening a second one."
+        )
+    for review in decided:
+        outcome = _DECISION_COPY.get(str(review.get("status")), str(review.get("status")))
+        sentences.append(
+            f"It had already prepared review #{review['reviewId']}, which has since "
+            f"been {outcome}. Open it before sending the request again."
+        )
+    return " ".join(sentences)
+
+
+def interruption_artifact(
+    *, customer_id: str, reviews: List[Dict[str, Any]], cause: str
+) -> Dict[str, Any]:
+    """The answer recorded for a turn that stopped, built only from rows that exist.
+
+    A review the turn prepared is carried as its proposed action, so the operator can
+    open it from the conversation. Its decision is read live by the review card; the
+    artifact only records that this turn prepared it.
+    """
+    from services.operator_proposals import STATE_REVIEW_REQUIRED
+
+    opening = _CAUSE_COPY.get(cause, _CAUSE_COPY[CAUSE_STOPPED])
+    summary = f"{opening} {_interruption_outcome(reviews)}"
+    actions = []
+    for review in reviews:
+        args = _json(review.get("args")) or {}
+        actions.append({
+            "tool": review.get("tool", ""),
+            "state": STATE_REVIEW_REQUIRED,
+            "reviewId": review.get("reviewId"),
+            "customer": {"customerId": customer_id},
+            "order": {"orderId": review.get("orderId")},
+            "product": {
+                "productId": str(args.get("product_id", "")),
+                "name": review.get("productName") or "",
+            },
+            "material": args,
+            "actionHash": review.get("actionHash") or "",
+            # The capability observed when it was prepared was not saved.
+            "executionCapability": {"state": "capability_state_unverified"},
+            "reviewSourceTurnId": "",
+            "note": "Prepared by this request before it was interrupted.",
+        })
+    return {
+        "summary": summary,
+        "primaryLabel": "Request interrupted",
+        "primaryNote": "",
+        "sections": [],
+        "recommendation": None,
+        "investigation": [],
+        "evidence": [],
+        "products": [],
+        "proposedActions": actions,
+        "sources": [],
+        "interruption": {
+            "cause": cause,
+            "reviewIds": [r.get("reviewId") for r in reviews],
+        },
+    }
+
+
+def _check_binding(row: Optional[Dict[str, Any]], customer_id: str) -> None:
+    if row is None:
+        raise SessionError("session_not_found", 404)
+    metadata = _json(row.get("metadata")) or {}
+    if row.get("agent_name") != SURFACE or metadata.get("surface") != SURFACE:
+        raise SessionError("not_a_concierge_session", 404)
+    if metadata.get("customer_id") != customer_id:
+        raise SessionError("session_client_mismatch", 403)
+
+
+async def settle_abandoned_turns(
+    db: Any,
+    *,
+    session_id: str,
+    customer_id: str,
+    running_here: RunningHere = _nowhere,
+    cause: str = CAUSE_STOPPED,
+) -> List[Dict[str, Any]]:
+    """Record an ``interrupted`` answer for every unanswered turn with no live worker.
+
+    Returns what it settled: each turn id, its new answer's message id, and the
+    reviews it had prepared. A turn some worker still owns is left alone, and a turn
+    answered meanwhile is skipped, because the insert re-checks under the row lock.
+    """
+    settled: List[Dict[str, Any]] = []
+    async with db.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(_LOCK_SESSION_SQL, {"session_id": session_id})
+            locked = await cur.fetchone()
+            _check_binding(dict(locked) if locked else None, customer_id)
+
+            await cur.execute(
+                _OPEN_TURNS_SQL,
+                {
+                    "session_id": session_id,
+                    "customer_id": customer_id,
+                    "role": ROLE_OPERATOR,
+                    "assistant_role": ROLE_ASSISTANT,
+                },
+            )
+            for turn in [dict(r) for r in await cur.fetchall()]:
+                turn_id = turn.get("turn_id") or ""
+                state = classify_open_turn(
+                    session_id=session_id,
+                    turn_id=turn_id,
+                    active_turn=_json(turn.get("active_turn")),
+                    lease_live=bool(turn.get("lease_live")),
+                    running_here=running_here,
+                )
+                if not turn_id or state != OPEN_TURN_ABANDONED:
+                    continue
+                reviews = list(_json(turn.get("reviews")) or [])
+                artifact = interruption_artifact(
+                    customer_id=customer_id, reviews=reviews, cause=cause
+                )
+                metadata = {
+                    "surface": SURFACE,
+                    "turn_id": turn_id,
+                    "actor_type": "assistant",
+                    "turn_state": TURN_INTERRUPTED,
+                    "artifact_version": ARTIFACT_VERSION,
+                    "artifact": artifact,
+                }
+                await cur.execute(
+                    _SETTLE_TURN_SQL,
+                    {
+                        "session_id": session_id,
+                        "turn_id": turn_id,
+                        "assistant_role": ROLE_ASSISTANT,
+                        "content": artifact["summary"],
+                        "metadata": json.dumps(metadata),
+                    },
+                )
+                inserted = dict(await cur.fetchone() or {}).get("inserted_id")
+                if inserted is None:
+                    continue
+                review_ids = [r.get("reviewId") for r in reviews]
+                logger.info(
+                    "Concierge turn %s in %s settled as interrupted (%s, reviews=%s)",
+                    turn_id, session_id, cause, review_ids,
+                )
+                settled.append({
+                    "turnId": turn_id,
+                    "messageId": int(inserted),
+                    "reviewIds": review_ids,
+                })
+    return settled
+
+
+async def renew_lease(db: Any, *, session_id: str) -> None:
+    """Extend this worker's lease on the session's running turn."""
+    async with db.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                _RENEW_LEASE_SQL,
+                {
+                    "session_id": session_id,
+                    "owner": WORKER_ID,
+                    "lease_seconds": LEASE_SECONDS,
+                },
+            )
 
 
 # ---------------------------------------------------------------------------
