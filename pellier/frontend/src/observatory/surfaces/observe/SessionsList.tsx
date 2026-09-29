@@ -16,6 +16,7 @@ import { useObservatoryData } from '../../hooks/useObservatoryData';
 import type { Session } from '../../types';
 import { StateBadge } from '../../../shared';
 import { usePersona } from '../../../contexts/PersonaContext';
+import '../../styles/evidence-depth.css';
 
 export const SESSION_PAGE_SIZE = 8;
 
@@ -69,104 +70,25 @@ interface SessionCardProps {
   onClick: () => void;
 }
 
+/**
+ * One recorded session in two lines: what the shopper asked and how it ended,
+ * then its id, time, duration, agents and route. Five stacked rows made each
+ * card 174px, so a 13-inch laptop showed one session in its first screen.
+ */
 const SessionCard: React.FC<SessionCardProps> = ({ session, onClick }) => (
   <ExpCard onClick={onClick}>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Top row: hex ID + timestamp */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--obs-mono)',
-            fontSize: 'var(--obs-mono-size)',
-            color: 'var(--obs-ink-4)',
-            letterSpacing: '0.06em',
-          }}
-        >
-          #{session.id}
-        </span>
-        <span
-          style={{
-            fontFamily: 'var(--obs-mono)',
-            fontSize: 'var(--obs-mono-size)',
-            color: 'var(--obs-ink-4)',
-          }}
-        >
-          {formatTimestamp(session.timestamp)}
-        </span>
-      </div>
-
-      <div><StateBadge tone={session.status === 'complete' ? 'ok' : session.status === 'failed' || session.status === 'denied-before-execution' ? 'attention' : 'neutral'}>
+    <div className="observatory-session-row">
+      <p className="observatory-session-row-query">{session.openingQuery}</p>
+      <StateBadge tone={session.status === 'complete' ? 'ok' : session.status === 'failed' || session.status === 'denied-before-execution' ? 'attention' : 'neutral'}>
         {session.status === 'complete' ? 'Completed' : session.status === 'failed' ? 'Failure recorded' : session.status === 'denied-before-execution' ? 'Denied before execution' : session.status === 'active' ? 'In progress' : 'Outcome not recorded'}
-      </StateBadge></div>
-      {/* Opening query */}
-      <p
-        style={{
-          fontFamily: 'var(--obs-sans)',
-          fontSize: '18px',
-          lineHeight: 1.35,
-          color: 'var(--obs-ink-1)',
-          margin: 0,
-        }}
-      >
-        {session.openingQuery}
-      </p>
-
-      {/* Metadata row: elapsed, agents, routing pattern */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--obs-mono)',
-            fontSize: 'var(--obs-mono-size)',
-            color: 'var(--obs-ink-1)',
-          }}
-        >
-          {formatElapsed(session.elapsedMs)}
-        </span>
-
-        <span
-          style={{
-            fontFamily: 'var(--obs-mono)',
-            fontSize: 'var(--obs-mono-size)',
-            color: 'var(--obs-ink-1)',
-          }}
-        >
-          {session.agentCount} agent{session.agentCount !== 1 ? 's' : ''}
-        </span>
-
-        {/* Routing pattern badge */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--obs-red-soft)',
-            color: 'var(--obs-red-1)',
-            fontFamily: 'var(--obs-mono)',
-            fontSize: 'var(--text-label)',
-            fontWeight: 600,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            lineHeight: 1.4,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {session.routingPattern}
-        </span>
+      </StateBadge>
+      <div className="observatory-session-row-meta">
+        <code>#{session.id}</code>
+        <span>{formatTimestamp(session.timestamp)}</span>
+        <span>{formatElapsed(session.elapsedMs)}</span>
+        <span>{session.agentCount} agent{session.agentCount !== 1 ? 's' : ''}</span>
       </div>
+      <span className="observatory-session-row-route">{session.routingPattern}</span>
     </div>
   </ExpCard>
 );
@@ -426,10 +348,10 @@ const SessionsList: React.FC = () => {
             aria-label="Find a session"
             data-testid="observatory-sessions-search"
             style={{
-              fontFamily: 'var(--obs-mono)',
-              fontSize: '12px',
-              padding: '8px 10px',
-              minWidth: '240px',
+              fontFamily: 'var(--obs-sans)',
+              fontSize: '13px',
+              padding: '7px 12px',
+              minWidth: '200px',
               border: '1px solid var(--obs-rule-2)',
               borderRadius: '6px',
               background: 'var(--obs-panel)',
@@ -440,23 +362,12 @@ const SessionsList: React.FC = () => {
             <button
               key={value}
               type="button"
+              className="observatory-sessions-filter"
               aria-pressed={statusFilter === value}
               data-testid={`observatory-sessions-status-${value}`}
               onClick={() => setStatusFilter(value)}
-              style={{
-                fontFamily: 'var(--obs-mono)',
-                fontSize: '11px',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                padding: '7px 10px',
-                border: '1px solid var(--obs-rule-2)',
-                borderRadius: '999px',
-                background: statusFilter === value ? 'var(--obs-ink-1)' : 'transparent',
-                color: statusFilter === value ? 'var(--obs-cream-1)' : 'var(--obs-ink-2)',
-                cursor: 'pointer',
-              }}
             >
-              {value}
+              {value.charAt(0).toUpperCase() + value.slice(1)}
             </button>
           ))}
         </div>
@@ -467,10 +378,9 @@ const SessionsList: React.FC = () => {
             aria-label={showAllPersonas ? `View ${activePersonaLabel} only` : 'View all personas'}
             aria-pressed={showAllPersonas}
             style={{
-              fontFamily: 'var(--obs-mono)',
-              fontSize: '11px',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
+              fontFamily: 'var(--obs-sans)',
+              fontSize: '13px',
+              fontWeight: 500,
               color: 'var(--obs-cream-1)',
               background: 'var(--obs-ink-1)',
               border: 'none',
@@ -493,10 +403,11 @@ const SessionsList: React.FC = () => {
 
       {!loading && !error && scopedSessions.length > 0 && (
         <div
+          className="observatory-session-list"
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
+            gap: '8px',
           }}
         >
           {visibleSessions.map((session) => (

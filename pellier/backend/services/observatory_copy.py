@@ -19,6 +19,13 @@ OBSERVATORY_COPY = {
     ),
     "SESSION_EVIDENCE_NOT_FOUND": "Session evidence not found.",
     "EVIDENCE_RECORDED": "Evidence recorded.",
+    # A tool_audit row whose result is the governed boundary declining a
+    # shopper-rail write. It is not a Cedar DENY (which leaves no row); the
+    # caption says the call was refused before it ran.
+    "BOUNDARY_REFUSAL_RECORDED": (
+        "Refused before execution: governed writes run on the managed rail. "
+        "The refusal is recorded in Aurora."
+    ),
     "AGENT_TOPOLOGY_UNAVAILABLE": (
         "The running agent topology could not be inspected."
     ),

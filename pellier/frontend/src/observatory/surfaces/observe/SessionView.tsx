@@ -21,6 +21,7 @@ import { TabNav, Eyebrow } from '../../components';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import type { SessionDetail } from '../../types';
 import { usePersona } from '../../../contexts/PersonaContext';
+import '../../styles/evidence-depth.css';
 
 /** Context shape passed to child tabs via useOutletContext. */
 export interface SessionOutletContext {

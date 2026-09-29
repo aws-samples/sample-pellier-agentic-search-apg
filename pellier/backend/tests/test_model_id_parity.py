@@ -8,8 +8,8 @@ does so past the model-access preflight, which probes the ladder named in
 reachable, green, while the runtime invoked identifiers nobody had validated.
 
 The exact model ladder is a release decision. These tests assert that the
-runtime defaults, example environment, preflight, CLI, and frontend catalogue
-agree, so a model refresh cannot bypass the account's access checks.
+runtime defaults, example environment, preflight and CLI agree, so a model
+refresh cannot bypass the account's access checks.
 """
 
 from __future__ import annotations
@@ -118,12 +118,12 @@ def test_preflight_probes_the_models_config_actually_resolves() -> None:
         )
 
 
-def test_claude_profiles_are_global_and_visible_in_the_frontend() -> None:
-    defaults = _config_defaults()
-    catalogue = (REPO / "pellier/frontend/src/observatory/constants/bedrockModels.ts").read_text()
-    for setting, model_id in defaults.items():
+def test_claude_profiles_are_global() -> None:
+    # The Observatory no longer keeps its own model catalogue: its Evidence tab
+    # reads /api/observatory/models, which reports these settings (and any .env
+    # override) directly, so there is no frontend copy left to drift.
+    for setting, model_id in _config_defaults().items():
         assert model_id.startswith("global.anthropic."), setting
-        assert model_id in catalogue, f"Frontend catalogue is missing {setting}: {model_id}"
 
 
 def test_cli_bootstrap_and_rehearsal_match_the_preflight_profile() -> None:

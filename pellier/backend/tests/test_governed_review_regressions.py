@@ -79,6 +79,43 @@ def test_audit_outcome_never_invents_success(result, expected):
     assert observatory._audit_result_status(result) == expected
 
 
+def test_replay_captions_a_boundary_refusal_as_refused_before_execution():
+    """A Denied step captioned "invocation recorded in Aurora" read as a Cedar
+    DENY that left an execution row, which Lab 4 teaches cannot happen."""
+    refused = observatory._audit_step_description({
+        "caller": "agent",
+        "result": {"tool": "initiate_return", "error": MANAGED_RAIL_REFUSAL},
+    })
+    assert refused.startswith("Refused before execution")
+    assert "invocation" not in refused
+    ran = observatory._audit_step_description({
+        "caller": "agent", "result": {"count": 5, "status": "success"},
+    })
+    assert ran == "agent invocation recorded in Aurora."
+
+
+def test_configured_models_report_settings_including_env_overrides(monkeypatch):
+    """The Evidence tab's model card reads this, so an .env override shows."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "BEDROCK_OPUS_MODEL", "global.anthropic.override-for-test")
+    monkeypatch.setattr(settings, "BEDROCK_RERANK_MODEL", "")
+    app = FastAPI()
+    app.include_router(observatory.router)
+    response = TestClient(app).get("/api/observatory/models")
+    assert response.status_code == 200
+    models = {row["setting"]: row for row in response.json()["models"]}
+    assert models["BEDROCK_OPUS_MODEL"]["modelId"] == "global.anthropic.override-for-test"
+    assert models["BEDROCK_OPUS_MODEL"]["label"] == "Editorial specialists"
+    # An empty setting is reported as absent, never as a stale default.
+    assert models["BEDROCK_RERANK_MODEL"]["modelId"] is None
+    assert set(models) == {
+        "BEDROCK_OPUS_MODEL", "BEDROCK_REPORTING_MODEL", "BEDROCK_SONNET_MODEL",
+        "BEDROCK_ROUTER_MODEL", "BEDROCK_FAST_MODEL", "BEDROCK_EMBEDDING_MODEL",
+        "BEDROCK_RERANK_MODEL",
+    }
+
+
 def test_session_list_does_not_mark_a_boundary_refusal_as_failure(monkeypatch):
     """Lab 3 turn 3 ends in the intended managed-rail refusal. The session list
     must not report that correct outcome as "Failure recorded"."""

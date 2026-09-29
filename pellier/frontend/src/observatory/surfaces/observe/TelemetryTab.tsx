@@ -21,10 +21,13 @@ import type { SessionOutletContext } from './SessionView';
 import type { ProductCard, TelemetryPanel } from '../../types';
 import { RetrievalReceipt } from '../../components/RetrievalReceipt';
 import { parseRetrievalReceipt } from '../../labs/retrievalReceipt';
-import { BEDROCK_INFERENCE_PROFILES } from '../../constants/bedrockModels';
+import { HybridSearchResult } from '../../components/HybridSearchResult';
+import { parseHybridSearchResult } from '../../labs/hybridSearchResult';
+import { useObservatoryData } from '../../hooks/useObservatoryData';
 import { EmptyState } from '../../../shared';
 import type { EvidenceSufficiencyStatus } from '../../../shared/evidenceLedger';
 import { resolveProductImageUrl } from '../../../utils/resolveProductImageUrl';
+import '../../styles/evidence-depth.css';
 import {
   blurbForProduct,
   buildWhyThisPickReasons,
@@ -548,7 +551,7 @@ const PanelDetails: React.FC<{ panel: TelemetryPanel }> = ({ panel }) => {
     return true;
   });
   if (entries.length === 0) return null;
-  return (
+  const details = (
     <dl
       data-testid="telemetry-panel-details"
       style={{
@@ -576,6 +579,8 @@ const PanelDetails: React.FC<{ panel: TelemetryPanel }> = ({ panel }) => {
       })}
     </dl>
   );
+  const hybrid = parseHybridSearchResult(row as Record<string, unknown>);
+  return hybrid ? <HybridSearchResult view={hybrid} raw={details} /> : details;
 };
 
 
@@ -1058,13 +1063,25 @@ const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
  * Footer strip
  * ======================================================================= */
 
+/**
+ * Counts for the footer, each named for what it counts.
+ *
+ * Success used to count only `complete`, the illustrative status, so every
+ * recorded session (whose ledger says `succeeded`) read 0%. It is now a count,
+ * not a rate: a denied or recorded step is not a failed one, and a percentage
+ * over them would say it was.
+ */
+export function evidenceFooterStats(panels: TelemetryPanel[]) {
+  return {
+    agents: new Set(panels.filter((p) => p.agent).map((p) => p.agent)).size,
+    stepsWithSql: panels.filter((p) => p.sql).length,
+    steps: panels.length,
+    succeeded: panels.filter((p) => p.status === 'complete' || p.status === 'succeeded').length,
+  };
+}
+
 const FooterStrip: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
-  const activeAgents = new Set(panels.filter((p) => p.agent).map((p) => p.agent)).size;
-  const dataSources = panels.filter((p) => p.sql).length;
-  const completePanels = panels.filter((p) => p.status === 'complete').length;
-  const successRate = panels.length > 0
-    ? Math.round((completePanels / panels.length) * 100)
-    : 0;
+  const stats = evidenceFooterStats(panels);
 
   return (
     <div
@@ -1094,45 +1111,16 @@ const FooterStrip: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      <div className="observatory-evidence-stats">
         {[
-          { label: 'Active agents', value: String(activeAgents) },
-          { label: 'Data sources', value: String(dataSources) },
-          { label: 'Decisions today', value: String(panels.length) },
-          { label: 'Success rate', value: `${successRate}%` },
+          { label: 'Agents', value: String(stats.agents) },
+          { label: 'Steps with SQL', value: String(stats.stepsWithSql) },
+          { label: 'Steps', value: String(stats.steps) },
+          { label: 'Succeeded', value: `${stats.succeeded} of ${stats.steps}` },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '2px',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--obs-heading)',
-                fontSize: '22px',
-                fontWeight: 400,
-                color: 'var(--obs-ink-1)',
-                lineHeight: 1,
-              }}
-            >
-              {stat.value}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--obs-mono)',
-                fontSize: '11px',
-                color: 'var(--obs-ink-2)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {stat.label}
-            </span>
+          <div key={stat.label}>
+            <strong>{stat.value}</strong>
+            <span>{stat.label}</span>
           </div>
         ))}
       </div>
@@ -1334,64 +1322,48 @@ const RoutingPatternIntro: React.FC = () => (
   </div>
 );
 
-/** Mono strip so Telemetry names the same Bedrock profiles as the workshop stack. */
-function WorkshopBedrockProfilesStrip() {
-  const rows: Array<[string, string]> = [
-    ['Claude Opus 5', BEDROCK_INFERENCE_PROFILES.CLAUDE_OPUS_5],
-    ['Claude Sonnet 5', BEDROCK_INFERENCE_PROFILES.CLAUDE_SONNET_5],
-    ['Claude Haiku 4.5', BEDROCK_INFERENCE_PROFILES.CLAUDE_HAIKU_4_5],
-    ['Cohere Embed v4', BEDROCK_INFERENCE_PROFILES.COHERE_EMBED_V4],
-    ['Cohere Rerank v3.5', BEDROCK_INFERENCE_PROFILES.COHERE_RERANK_V35],
-  ];
+interface ConfiguredModel {
+  role: string;
+  label: string;
+  setting: string;
+  modelId: string | null;
+}
+
+/**
+ * The models this deployment is configured to use, read from the backend.
+ *
+ * This used to be a frontend constant labelled as the workshop's profiles, so
+ * an .env override (the model-access preflight writes one when Opus is not
+ * reachable) left the card naming models the running system was not using.
+ */
+function ConfiguredModelsStrip() {
+  const { data, loading, error } = useObservatoryData<{ models: ConfiguredModel[] }>({
+    key: 'models',
+  });
+  const models = data?.models ?? [];
   return (
-    <div
-      role="region"
-      aria-label="Bedrock inference profiles used in this workshop"
-      style={{
-        marginBottom: '20px',
-        padding: '12px 16px',
-        borderRadius: 'var(--obs-card-radius)',
-        border: '1px solid var(--obs-rule-1)',
-        background: 'var(--obs-cream-2)',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '10px 20px',
-      }}
+    <section
+      className="observatory-evidence-models"
+      aria-label="Models this deployment is configured to use"
     >
-      {rows.map(([label, id]) => (
-        <div
-          key={id}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: 'var(--obs-sans)',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--obs-ink-1)',
-            }}
-          >
-            {label}
-          </span>
-          <code
-            style={{
-              fontFamily: 'var(--obs-mono)',
-              fontSize: '11px',
-              color: 'var(--obs-ink-2)',
-              wordBreak: 'break-all',
-              lineHeight: 1.35,
-            }}
-          >
-            {id}
-          </code>
-        </div>
-      ))}
-    </div>
+      <p>
+        {loading
+          ? 'Reading the configured models…'
+          : error || models.length === 0
+            ? 'Configured models are unavailable.'
+            : 'Configured on this deployment now. A recorded session may have run on an earlier configuration.'}
+      </p>
+      {models.length > 0 ? (
+        <dl>
+          {models.map((model) => (
+            <div key={model.role}>
+              <dt>{model.label}</dt>
+              <dd title={model.setting}>{model.modelId ?? '—'}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </section>
   );
 }
 
@@ -1549,35 +1521,33 @@ const TelemetryTab: React.FC = () => {
       <div className="observatory-session-replay-layout">
         {/* Left column — timeline */}
         <div className="observatory-session-replay-main">
-          <RoutingPatternIntro />
-          <WorkshopBedrockProfilesStrip />
-          <ModeStrip
-            patterns={[...ROUTING_PATTERNS]}
-            active={activePattern}
-            onSelect={handlePatternSelect}
-          />
-          <div
-            style={{
-              marginTop: '10px',
-              fontFamily: 'var(--obs-sans)',
-              fontSize: '12px',
-              lineHeight: 1.45,
-              color: 'var(--obs-ink-4)',
-            }}
-          >
+          {/* Context, not evidence: it explains the pattern and the models,
+              and chooses what the timeline shows. Open it on demand so the
+              first recorded tool call reaches the first screen. */}
+          <details className="observatory-evidence-context">
+            <summary>Routing pattern, configured models and timeline mode</summary>
+            <RoutingPatternIntro />
+            <ConfiguredModelsStrip />
+            <ModeStrip
+              patterns={[...ROUTING_PATTERNS]}
+              active={activePattern}
+              onSelect={handlePatternSelect}
+            />
             {showingSessionTrace ? (
-              <>
+              <p className="observatory-evidence-mode-note">
                 Timeline matches this session&apos;s recorded trace (
-                <span style={{ color: 'var(--obs-ink-2)' }}>{sessionCanonical}</span>).
-              </>
-            ) : (
-              <>
-                Illustrative <span style={{ color: 'var(--obs-ink-2)' }}>{activePattern}</span> steps
-                – not this session&apos;s backend trace. This session was recorded as{' '}
-                <span style={{ color: 'var(--obs-ink-2)' }}>{sessionCanonical}</span>.
-              </>
-            )}
-          </div>
+                <strong>{sessionCanonical}</strong>).
+              </p>
+            ) : null}
+          </details>
+          {/* An illustrative timeline must say so even with the context closed. */}
+          {showingSessionTrace ? null : (
+            <p className="observatory-evidence-mode-note" role="status">
+              Illustrative <strong>{activePattern}</strong> steps, not this
+              session&apos;s backend trace. This session was recorded as{' '}
+              <strong>{sessionCanonical ?? session.routingPattern}</strong>.
+            </p>
+          )}
 
           {showingSessionTrace && session.evidenceLedger ? (
             <section
@@ -1655,7 +1625,7 @@ const TelemetryTab: React.FC = () => {
           ) : null}
 
           {/* Eyebrow with panel count */}
-          <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+          <div style={{ marginTop: '12px', marginBottom: '14px' }}>
             <Eyebrow label={eyebrowLabel} />
           </div>
 

@@ -1347,6 +1347,19 @@ def _audit_result_status(result: Any) -> str:
     return "recorded"
 
 
+def _audit_step_description(row: dict[str, Any]) -> str:
+    """Caption one tool_audit row in a session replay.
+
+    A boundary refusal is recorded in tool_audit, but the tool never ran. The
+    generic "invocation recorded" caption beside a Denied status read as a
+    Cedar DENY that left an execution row, which the workshop teaches cannot
+    happen, so a refusal says what it is.
+    """
+    if is_boundary_refusal(row.get("result")):
+        return OBSERVATORY_COPY["BOUNDARY_REFUSAL_RECORDED"]
+    return f"{row['caller']} invocation recorded in Aurora."
+
+
 # A session failed when any recorded tool call failed. The governed boundary
 # declining a shopper-rail mutation is excluded: it is the intended Lab 3 and
 # Lab 4 outcome, and the review it opens is the proof, not a fault. The literal
@@ -1672,7 +1685,7 @@ async def get_session(
                     "index": index,
                     "category": "managed" if row["caller"] == "gateway" else "owned",
                     "title": row["tool"],
-                    "description": f"{row['caller']} invocation recorded in Aurora.",
+                    "description": _audit_step_description(row),
                     "status": _audit_result_status(row.get("result")),
                     "durationMs": int(row.get("latency_ms") or 0),
                     "agent": row["caller"],
@@ -1823,6 +1836,38 @@ async def list_agents():
             status_code=503,
             detail=OBSERVATORY_COPY["AGENT_TOPOLOGY_UNAVAILABLE"],
         ) from exc
+
+
+@router.get("/models")
+async def list_configured_models():
+    """Return the model ids this deployment is configured to use, by role.
+
+    Read from settings, so an .env override is what the Observatory shows.
+    Recorded sessions keep the ids that produced their evidence; this is the
+    configuration now, not a claim about any past turn.
+    """
+    from config import settings
+
+    roles = (
+        ("editorial", "Editorial specialists", "BEDROCK_OPUS_MODEL"),
+        ("reporting", "Reporting specialists", "BEDROCK_REPORTING_MODEL"),
+        ("reporting_editorial", "Reporting specialists, Editorial mode", "BEDROCK_SONNET_MODEL"),
+        ("router", "Dispatcher and skill router", "BEDROCK_ROUTER_MODEL"),
+        ("fast", "Fast mode", "BEDROCK_FAST_MODEL"),
+        ("embedding", "Embeddings", "BEDROCK_EMBEDDING_MODEL"),
+        ("rerank", "Rerank", "BEDROCK_RERANK_MODEL"),
+    )
+    return {
+        "models": [
+            {
+                "role": role,
+                "label": label,
+                "setting": setting,
+                "modelId": getattr(settings, setting, None) or None,
+            }
+            for role, label, setting in roles
+        ]
+    }
 
 
 @router.get("/tools/list")
