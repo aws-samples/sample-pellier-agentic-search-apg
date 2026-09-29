@@ -21,6 +21,8 @@ export interface Session {
   routingPattern: string;
   timestamp: string;
   status: 'complete' | 'active' | 'failed' | 'denied-before-execution' | 'unknown';
+  /** Recorded by the chat pipeline, or a direct run: a probe, proof, or Gateway or Operator call. */
+  provenance?: 'conversation' | 'direct';
 }
 
 export interface SessionDetail extends Session {

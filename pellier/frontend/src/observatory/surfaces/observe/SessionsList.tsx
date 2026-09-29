@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { EditorialTitle, ExpCard, Eyebrow } from '../../components';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import type { Session } from '../../types';
@@ -87,6 +87,9 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onClick }) => (
         <span>{formatTimestamp(session.timestamp)}</span>
         <span>{formatElapsed(session.elapsedMs)}</span>
         <span>{session.agentCount} agent{session.agentCount !== 1 ? 's' : ''}</span>
+        {session.provenance === 'direct' ? (
+          <span className="observatory-session-row-direct">Outside a conversation</span>
+        ) : null}
       </div>
       <span className="observatory-session-row-route">{session.routingPattern}</span>
     </div>
@@ -252,8 +255,20 @@ const SessionsList: React.FC = () => {
   // opening query and id, plus a status chip, narrows without a round trip.
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | Session['status']>('all');
+  // Conversations by default. Direct runs (probes, proofs, Gateway and Operator
+  // calls) are one explicit choice away, kept in the URL so a shared link shows
+  // the same list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const includeDirect = searchParams.get('direct') === '1';
+  const toggleDirect = () => {
+    const next = new URLSearchParams(searchParams);
+    if (includeDirect) next.delete('direct');
+    else next.set('direct', '1');
+    setSearchParams(next, { replace: true });
+  };
   const { data, loading, error, errorStatus, refetch } = useObservatoryData<Session[]>({
     key: 'sessions',
+    params: includeDirect ? { include_direct: 'true' } : undefined,
   });
 
   const sorted = useMemo(
@@ -331,7 +346,9 @@ const SessionsList: React.FC = () => {
           >
             {showingScopedSessions
               ? 'Recorded turns only — no fixture replays are mixed into this view.'
-              : 'Showing all durable Aurora session evidence recorded by the workshop.'}
+              : includeDirect
+                ? 'Including runs outside a conversation: probes, proofs, and direct Gateway and Operator calls.'
+                : 'Conversations recorded by Pellier’s chat. Probes, proofs, and direct Gateway and Operator calls are left out.'}
           </p>
         </div>
         <div
@@ -370,6 +387,15 @@ const SessionsList: React.FC = () => {
               {value.charAt(0).toUpperCase() + value.slice(1)}
             </button>
           ))}
+          <button
+            type="button"
+            className="observatory-sessions-filter"
+            aria-pressed={includeDirect}
+            data-testid="observatory-sessions-direct"
+            onClick={toggleDirect}
+          >
+            Include runs outside a conversation
+          </button>
         </div>
         {scopedPersona && (
           <button

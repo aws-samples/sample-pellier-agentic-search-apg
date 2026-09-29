@@ -11,7 +11,7 @@ owns ``/query``, ``/resume``, ``/tool-registry``; this router owns the
 observatory surface endpoints listed below.
 
 Endpoints:
-    GET  /sessions             — session list for persona
+    GET  /sessions             — conversations; ?include_direct=true adds direct runs
     GET  /sessions/{id}        — full session detail or 404
     GET  /agents               — 5 agents with status, tools, model config
     GET  /tools/list           — tools with signatures, status, metadata
@@ -1390,12 +1390,38 @@ WITH session_audit AS (
 """
 
 
+# A conversation is a session the chat pipeline recorded: the Storefront opens a
+# `shopper_sessions` row, every chat turn writes a governed turn receipt, and every
+# tool a turn runs carries that turn's route-minted id. The last one still stands
+# when a turn ended before its receipt was written. Direct runs leave none of the
+# three: test probes (`grant-probe-*`), policy and identity proofs and review
+# executions in the per-customer Gateway ledger (`gateway-CUST-*`), and Operator
+# REST actions (`operator-<sub>`). Elapsed time cannot tell the two apart: a
+# one-tool conversation also spans zero milliseconds.
+_SESSION_IS_CONVERSATION = """(
+    EXISTS (SELECT 1 FROM pellier.shopper_sessions opened
+             WHERE opened.session_id = ta.session_id)
+    OR EXISTS (SELECT 1 FROM pellier.governed_turn_receipts recorded
+                WHERE recorded.session_id = ta.session_id)
+    OR EXISTS (SELECT 1 FROM session_audit in_turn
+                WHERE in_turn.session_id = ta.session_id
+                  AND in_turn.args->>'turn_id' LIKE 'turn-%%')
+)"""
+
+
 @router.get("/sessions")
 async def list_sessions(
     persona: Optional[str] = Query(default=None, description="Filter by persona ID"),
+    include_direct: bool = Query(
+        default=False,
+        description="Also list direct runs (probes, proofs, Gateway and Operator calls)",
+    ),
     user: Optional[dict[str, Any]] = Depends(get_current_user),
 ):
-    """Return sessions evidenced by the live Aurora tool ledger."""
+    """Return conversations evidenced by the live Aurora tool ledger.
+
+    Direct runs are listed only when asked for, each marked with its provenance.
+    """
     db = await _live_db()
     try:
         rows = await db.fetch_all(
@@ -1421,7 +1447,8 @@ async def list_sessions(
                 count(DISTINCT ta.caller)::integer AS "agentCount",
                 CASE
                     WHEN bool_or(ta.caller = 'gateway') THEN 'Managed Gateway'
-                    ELSE 'Storefront Dispatcher'
+                    WHEN bool_or(ta.caller = 'agent') THEN 'Storefront Dispatcher'
+                    ELSE 'Direct tool call'
                 END AS "routingPattern",
                 max(ta.created_at) AS timestamp,
                 CASE WHEN """ + _SESSION_FAILED_PREDICATE + """ THEN 'failed'
@@ -1429,7 +1456,9 @@ async def list_sessions(
                     SELECT terminal_status FROM pellier.governed_turn_receipts terminal
                      WHERE terminal.session_id = ta.session_id
                      ORDER BY terminal.created_at DESC, terminal.turn_id DESC LIMIT 1
-                ), 'unknown') END AS status
+                ), 'unknown') END AS status,
+                CASE WHEN """ + _SESSION_IS_CONVERSATION + """ THEN 'conversation'
+                ELSE 'direct' END AS provenance
               FROM session_audit ta
               LEFT JOIN pellier.shopper_sessions ss ON ss.session_id = ta.session_id
              -- Both placeholders carry an explicit ::text cast. An uncast
@@ -1440,6 +1469,7 @@ async def list_sessions(
              -- 503 for every unfiltered request. Keep literal placeholder
              -- tokens out of these comments: psycopg counts them.
              WHERE (%s::text IS NULL OR ss.persona_id = %s::text)
+               AND (%s::boolean OR """ + _SESSION_IS_CONVERSATION + """)
                AND (
                    (%s::text IS NULL AND NOT EXISTS (
                        SELECT 1 FROM pellier.governed_turn_receipts claim
@@ -1469,6 +1499,7 @@ async def list_sessions(
             """,
             persona,
             persona,
+            include_direct,
             (user or {}).get("sub"),
             (user or {}).get("sub"),
             (user or {}).get("sub"),
@@ -1515,7 +1546,8 @@ async def get_session(
                 count(DISTINCT ta.caller)::integer AS "agentCount",
                 CASE
                     WHEN bool_or(ta.caller = 'gateway') THEN 'Managed Gateway'
-                    ELSE 'Storefront Dispatcher'
+                    WHEN bool_or(ta.caller = 'agent') THEN 'Storefront Dispatcher'
+                    ELSE 'Direct tool call'
                 END AS "routingPattern",
                 max(ta.created_at) AS timestamp,
                 CASE WHEN """ + _SESSION_FAILED_PREDICATE + """ THEN 'failed'

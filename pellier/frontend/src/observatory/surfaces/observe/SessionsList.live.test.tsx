@@ -3,46 +3,64 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { Session } from '../../types'
 
+const { dataRequests } = vi.hoisted(() => ({
+  dataRequests: [] as Array<{ key: string; params?: Record<string, string> }>,
+}))
+
 vi.mock('../../hooks/useObservatoryData', () => ({
-  useObservatoryData: () => ({
-    data: [
-      {
-        id: 'aurora-session-7',
-        personaId: 'anna',
-        openingQuery: 'Durable live Aurora session',
-        elapsedMs: 4200,
-        agentCount: 2,
-        routingPattern: 'Storefront Dispatcher',
-        timestamp: '2026-08-30T12:00:00.000Z',
-        status: 'complete',
-      },
-      ...Array.from({ length: 9 }, (_, index) => ({
-        id: `aurora-session-anna-${index + 1}`,
-        personaId: 'anna',
-        openingQuery: `Anna durable session ${index + 1}`,
-        elapsedMs: 1800 + index,
-        agentCount: 2,
-        routingPattern: 'Storefront Dispatcher',
-        timestamp: new Date(
-          Date.parse('2026-08-30T12:01:00.000Z') + index * 60_000,
-        ).toISOString(),
-        status: 'complete' as const,
-      })),
-      {
-        id: 'aurora-session-8',
-        personaId: 'marco',
-        openingQuery: 'A different live Aurora session',
-        elapsedMs: 1300,
-        agentCount: 1,
-        routingPattern: 'Managed Gateway',
-        timestamp: '2026-08-30T13:00:00.000Z',
-        status: 'complete',
-      },
-    ] satisfies Session[],
-    loading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
+  useObservatoryData: (options: { key: string; params?: Record<string, string> }) => {
+    dataRequests.push(options)
+    return {
+      data: [
+        {
+          id: 'aurora-session-7',
+          personaId: 'anna',
+          openingQuery: 'Durable live Aurora session',
+          elapsedMs: 4200,
+          agentCount: 2,
+          routingPattern: 'Storefront Dispatcher',
+          timestamp: '2026-08-30T12:00:00.000Z',
+          status: 'complete',
+        },
+        ...Array.from({ length: 9 }, (_, index) => ({
+          id: `aurora-session-anna-${index + 1}`,
+          personaId: 'anna',
+          openingQuery: `Anna durable session ${index + 1}`,
+          elapsedMs: 1800 + index,
+          agentCount: 2,
+          routingPattern: 'Storefront Dispatcher',
+          timestamp: new Date(
+            Date.parse('2026-08-30T12:01:00.000Z') + index * 60_000,
+          ).toISOString(),
+          status: 'complete' as const,
+        })),
+        {
+          id: 'aurora-session-8',
+          personaId: 'marco',
+          openingQuery: 'A different live Aurora session',
+          elapsedMs: 1300,
+          agentCount: 1,
+          routingPattern: 'Managed Gateway',
+          timestamp: '2026-08-30T13:00:00.000Z',
+          status: 'complete',
+        },
+        {
+          id: 'grant-probe-1',
+          personaId: 'anonymous',
+          openingQuery: 'grant_probe',
+          elapsedMs: 0,
+          agentCount: 1,
+          routingPattern: 'Storefront Dispatcher',
+          timestamp: '2026-08-30T14:00:00.000Z',
+          status: 'unknown',
+          provenance: 'direct',
+        },
+      ] satisfies Session[],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    }
+  },
 }))
 
 vi.mock('../../../contexts/PersonaContext', () => ({
@@ -103,6 +121,37 @@ describe('SessionsList live data boundary', () => {
     expect(screen.getByText('Showing 10 of 10 recorded sessions')).toBeInTheDocument()
     expect(screen.getByText('Durable live Aurora session')).toBeInTheDocument()
     expect(screen.queryByTestId('sessions-load-more')).not.toBeInTheDocument()
+  })
+
+  it('asks for conversations only until direct runs are explicitly included', () => {
+    dataRequests.length = 0
+    render(
+      <MemoryRouter initialEntries={['/observatory/sessions']}>
+        <SessionsList />
+      </MemoryRouter>,
+    )
+    expect(dataRequests.at(-1)).toEqual({ key: 'sessions', params: undefined })
+    const include = screen.getByTestId('observatory-sessions-direct')
+    expect(include).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(include)
+
+    expect(include).toHaveAttribute('aria-pressed', 'true')
+    expect(dataRequests.at(-1)).toEqual({ key: 'sessions', params: { include_direct: 'true' } })
+    fireEvent.click(screen.getByRole('button', { name: 'View all personas' }))
+    expect(screen.getByText(/Including runs outside a conversation/)).toBeInTheDocument()
+    expect(screen.getByText('Outside a conversation')).toBeInTheDocument()
+  })
+
+  it('keeps the choice in the address so a shared link shows the same list', () => {
+    dataRequests.length = 0
+    render(
+      <MemoryRouter initialEntries={['/observatory/sessions?direct=1']}>
+        <SessionsList />
+      </MemoryRouter>,
+    )
+    expect(dataRequests.at(-1)).toEqual({ key: 'sessions', params: { include_direct: 'true' } })
+    expect(screen.getByTestId('observatory-sessions-direct')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('describes the cross-persona record as shared workshop evidence', () => {

@@ -352,6 +352,11 @@
   overflow-wrap: anywhere;
 }
 
+.observatory-session-row-direct {
+  color: var(--obs-ink-2);
+  font-weight: 600;
+}
+
 .observatory-session-row-route {
   justify-self: end;
   padding: 2px 8px;
