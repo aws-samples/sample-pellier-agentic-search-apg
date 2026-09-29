@@ -77,7 +77,7 @@ const PROVENANCE_COPY: Record<
 
 const PROOF_COPY: Record<ProofState, { label: string; color: string }> = {
   pass: { label: 'PASS', color: 'var(--obs-green-1)' },
-  fail: { label: 'FAIL', color: 'var(--obs-red-1)' },
+  fail: { label: 'FAIL', color: 'var(--gov-deny-fg)' },
   pending: { label: 'NOT RUN YET', color: 'var(--obs-ink-3)' },
 };
 

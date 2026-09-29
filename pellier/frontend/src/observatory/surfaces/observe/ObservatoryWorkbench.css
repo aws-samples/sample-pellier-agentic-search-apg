@@ -32,10 +32,10 @@
   /* Semantic accents */
   /* Shared burgundy family. Hover and pressed states deepen toward plum;
      secondary labels use the softer tone without introducing another hue. */
-  --pl-accent: var(--pellier-burgundy);
-  --pl-accent-2: var(--pellier-burgundy-soft);
-  --pl-accent-deep: var(--pellier-burgundy-deep);
-  --pl-accent-rgb: var(--pellier-burgundy-rgb);
+  --pl-accent: var(--pellier-accent);
+  --pl-accent-2: var(--pellier-accent-soft);
+  --pl-accent-deep: var(--pellier-accent-hover);
+  --pl-accent-rgb: var(--pellier-accent-rgb);
   --pl-olive: #6a7a4d;
   --pl-olive-soft: #edf2e7;
   --pl-olive-line: #c9d6bc;
@@ -2686,7 +2686,7 @@
 .labs-turns-scenario-setup p { font-size: 13px; line-height: 1.6; color: var(--obs-ink-3); }
 .observatory-root .labs-turns-select-scenario { width: fit-content; min-height: 44px; padding: 10px 18px; border: 1px solid var(--obs-red-1); border-radius: var(--control-radius); background: var(--obs-red-1); color: var(--cream); font-size: 13px; font-weight: 600; cursor: pointer; }
 .observatory-root .labs-turns-select-scenario { box-shadow: var(--pellier-action-shadow); transition: background-color 160ms ease, border-color 160ms ease; }
-.observatory-root .labs-turns-select-scenario:hover { border-color: var(--pellier-burgundy-deep); background: var(--pellier-burgundy-deep); }
+.observatory-root .labs-turns-select-scenario:hover { border-color: var(--pellier-accent-hover); background: var(--pellier-accent-hover); }
 .observatory-root .labs-turns-select-scenario:focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 3px; }
 .observatory-root .labs-turns-select-scenario:disabled { opacity: .6; cursor: wait; }
 .observatory-focus-steps button { min-height: 44px; transition: background-color 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out; }

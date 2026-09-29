@@ -2,10 +2,10 @@
 .trace-scenario-tabs { display: flex; gap: 5px; padding: 0 0 14px; flex-wrap: wrap; }
 .trace-scenario-tabs button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 8px 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; font: 500 12px/1.4 var(--sans); color: var(--ink-soft); cursor: pointer; }
 .trace-scenario-tabs button span { font: 11px var(--mono); }
-.trace-scenario-tabs button[aria-pressed="true"] { color: var(--pellier-burgundy); border-color: var(--sand); background: var(--cream-elev); }
-.trace-scenario-tabs button:hover { color: var(--pellier-burgundy); }
+.trace-scenario-tabs button[aria-pressed="true"] { color: var(--pellier-accent); border-color: var(--sand); background: var(--cream-elev); }
+.trace-scenario-tabs button:hover { color: var(--pellier-accent); }
 /* What this chapter adds, and what it is added to. */
-.trace-scenario-layer { margin: 0 0 16px; padding-left: 13px; border-left: 2px solid var(--pellier-burgundy); }
+.trace-scenario-layer { margin: 0 0 16px; padding-left: 13px; border-left: 2px solid var(--pellier-accent); }
 .trace-scenario-adds { margin: 0 !important; font: 500 13px/1.6 var(--sans); color: var(--ink); }
 .trace-scenario-builds { margin: 5px 0 0 !important; font: 12px/1.6 var(--sans); color: var(--ink-soft); }
 .trace-scenario-stage { min-width: 0; }
@@ -16,7 +16,7 @@
 .trace-scenario-loop .resolution-trace-head { min-height: 53px; }
 .trace-scenario-loop .resolution-trace-kicker { letter-spacing: .055em; }
 .trace-scenario-loop .resolution-trace-mode { flex-shrink: 0; }
-.trace-scenario-loop .resolution-trace-outcome[data-outcome="blocked"] { color: var(--pellier-burgundy); }
+.trace-scenario-loop .resolution-trace-outcome[data-outcome="blocked"] { color: var(--pellier-accent); }
 /* Source excerpt, opened in place by the step it belongs to. Espresso panel on
    warm paper: the same treatment the evidence panel already used for code, so
    a SQL excerpt reads as the recessed, quoted thing it is wherever it appears. */
@@ -29,11 +29,11 @@
 
 .trace-scenario-all { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .trace-scenario-all > div { min-width: 0; }
-.trace-scenario-loop .trace-scenario-inspect { display: flex; width: fit-content; gap: 8px; margin: -2px 0 17px; color: var(--pellier-burgundy); font: 12px/1.6 var(--sans); text-decoration: none; }
+.trace-scenario-loop .trace-scenario-inspect { display: flex; width: fit-content; gap: 8px; margin: -2px 0 17px; color: var(--pellier-accent); font: 12px/1.6 var(--sans); text-decoration: none; }
 .trace-scenario-inspect:hover { text-decoration: underline; text-underline-offset: 4px; }
 .trace-scenario-foot { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 0 3px 15px; font: 12px/1.6 var(--sans); color: var(--ink-soft); }
-.trace-scenario-foot button { flex-shrink: 0; min-height: 44px; background: transparent; border: 0; padding: 8px 4px; font: 500 12px var(--sans); color: var(--pellier-burgundy); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
-.trace-scenario-loop :is(button, a):focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 4px; }
+.trace-scenario-foot button { flex-shrink: 0; min-height: 44px; background: transparent; border: 0; padding: 8px 4px; font: 500 12px var(--sans); color: var(--pellier-accent); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.trace-scenario-loop :is(button, a):focus-visible { outline: 2px solid var(--pellier-accent); outline-offset: 4px; }
 @media (max-width: 640px) {
   .trace-scenario-tabs { gap: 3px; }
   .trace-scenario-tabs button { padding-inline: 10px; font-size: 12px; }

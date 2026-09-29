@@ -43,7 +43,7 @@ describe('SectionEyebrow', () => {
     expect(brand).toHaveStyle({ color: 'var(--obs-ink-2)' })
     // Burgundy is the mark, not the text: it stays on the dot only.
     const dot = brand.querySelector('[aria-hidden="true"]') as HTMLElement
-    expect(dot.style.background).toBe('var(--pellier-burgundy)')
+    expect(dot.style.background).toBe('var(--pellier-accent)')
     unmount()
 
     render(

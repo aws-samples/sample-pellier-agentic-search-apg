@@ -105,9 +105,9 @@
 }
 
 .labs-catalog-primary:hover {
-  border-color: var(--pellier-burgundy-deep);
-  background: var(--pellier-burgundy-deep);
-  box-shadow: 0 3px 10px rgba(var(--pellier-burgundy-rgb), 0.16);
+  border-color: var(--pellier-accent-hover);
+  background: var(--pellier-accent-hover);
+  box-shadow: 0 3px 10px rgba(var(--pellier-accent-rgb), 0.16);
   transform: translateY(-1px);
 }
 

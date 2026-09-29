@@ -245,7 +245,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--obs-burgundy);
+  color: var(--obs-accent-2);
   text-decoration: none;
 }
 

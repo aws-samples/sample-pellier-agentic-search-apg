@@ -55,7 +55,7 @@ export interface EvidenceCardProps {
 
 const TONE_COLOR: Record<EvidenceCardTone, string> = {
   neutral: 'transparent',
-  brand: 'var(--pellier-burgundy)',
+  brand: 'var(--pellier-accent)',
   ok: 'var(--obs-status-ok-fg, var(--dl-ok))',
   attention: 'var(--obs-status-attention-fg, var(--dl-accent))',
   degraded: 'var(--obs-status-degraded-fg, var(--dl-warn))',

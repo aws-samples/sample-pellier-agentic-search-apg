@@ -232,17 +232,17 @@ const STEP_TYPE_COLORS: Record<StepType, { color: string; bg: string }> = {
   Plan: { color: 'var(--obs-green-1)', bg: 'var(--obs-green-soft)' },
   Memory: { color: '#7b5f92', bg: 'rgba(123, 95, 146, 0.12)' },
   Skill: { color: '#b88a3a', bg: 'rgba(184, 138, 58, 0.12)' },
-  Query: { color: 'var(--obs-burgundy)', bg: 'var(--obs-red-soft)' },
-  Tool: { color: 'var(--obs-burgundy)', bg: 'var(--obs-red-soft)' },
+  Query: { color: 'var(--obs-accent-2)', bg: 'var(--obs-red-soft)' },
+  Tool: { color: 'var(--obs-accent-2)', bg: 'var(--obs-red-soft)' },
   Policy: { color: '#7b5f21', bg: 'rgba(123, 95, 33, 0.12)' },
   'Operator review': {
     color: 'var(--obs-red-1)',
     bg: 'var(--obs-red-soft)',
   },
   Model: { color: 'var(--obs-ink-2)', bg: 'rgba(31, 20, 16, 0.06)' },
-  Rerank: { color: 'var(--obs-burgundy)', bg: 'var(--obs-red-soft)' },
+  Rerank: { color: 'var(--obs-accent-2)', bg: 'var(--obs-red-soft)' },
   Reply: { color: 'var(--obs-ink-2)', bg: 'rgba(31, 20, 16, 0.06)' },
-  Write: { color: 'var(--obs-burgundy)', bg: 'var(--obs-red-soft)' },
+  Write: { color: 'var(--obs-accent-2)', bg: 'var(--obs-red-soft)' },
   Event: { color: 'var(--obs-ink-2)', bg: 'rgba(31, 20, 16, 0.06)' },
 };
 
@@ -890,7 +890,7 @@ const ExpansionArea: React.FC<{ panels: TelemetryPanel[] }> = ({ panels }) => {
               fontSize: '11px',
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
-              color: 'var(--obs-burgundy)',
+              color: 'var(--obs-accent-2)',
               textDecoration: 'none',
             }}
           >

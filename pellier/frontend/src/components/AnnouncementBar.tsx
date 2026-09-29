@@ -23,7 +23,7 @@ const MONO_STACK = 'var(--mono)'
 /* The strip is espresso, so it takes the burgundy raised for dark grounds.
    `--accent` here measured 1.61:1 against the bar and neither the label nor
    the presence dot could be read. */
-const ON_DARK_ACCENT = 'var(--pellier-burgundy-on-dark)'
+const ON_DARK_ACCENT = 'var(--pellier-accent-on-dark)'
 
 const CYCLE_MS = 5000
 
@@ -103,7 +103,7 @@ export default function AnnouncementBar() {
                   inset: -6,
                   borderRadius: 999,
                   background:
-                    'color-mix(in srgb, var(--pellier-burgundy-on-dark) 35%, transparent)',
+                    'color-mix(in srgb, var(--pellier-accent-on-dark) 35%, transparent)',
                   animation: reduceMotion
                     ? 'none'
                     : 'pelliers-floor-pulse 1.8s ease-out infinite',

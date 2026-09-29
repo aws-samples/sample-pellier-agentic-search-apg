@@ -44,7 +44,7 @@ const TONE_COLOR: Record<SectionEyebrowTone, string> = {
 }
 
 const DOT_COLOR: Record<SectionEyebrowTone, string> = {
-  brand: 'var(--pellier-burgundy)',
+  brand: 'var(--pellier-accent)',
   muted: 'currentColor',
 }
 

@@ -186,13 +186,13 @@
     --rule-1: var(--dl-line);
     --rule-2: var(--dl-line);
     --rule-3: var(--dl-line-strong);
-    /* Aliases of the one house burgundy declared in pellier-landing.css.
+    /* Aliases of the one house accent (chocolate) declared in pellier-landing.css.
        `.operator-root` is in this selector list, so the desk's --op-accent
        and --op-authority resolve to the same swatch as the wordmark. */
-    --accent: var(--pellier-burgundy);
-    --accent-ink: var(--pellier-burgundy-deep);
-    --red-1: var(--pellier-burgundy);
-    --red-soft: var(--pellier-burgundy-tint);
+    --accent: var(--pellier-accent);
+    --accent-ink: var(--pellier-accent-hover);
+    --red-1: var(--pellier-accent);
+    --red-soft: var(--pellier-accent-tint);
     --dusk: var(--dl-ink);
     --bg-primary: var(--dl-bg);
     --bg-secondary: var(--dl-paper-2);
@@ -202,8 +202,8 @@
     --header-bg: color-mix(in srgb, var(--dl-bg) 92%, transparent);
     --input-bg: color-mix(in srgb, var(--dl-paper) 82%, transparent);
     --input-border: color-mix(in srgb, var(--dl-ink) 16%, transparent);
-    --link-color: var(--pellier-burgundy);
-    --link-hover: var(--pellier-burgundy-deep);
+    --link-color: var(--pellier-accent);
+    --link-hover: var(--pellier-accent-hover);
     --pellier-atmosphere-image: url('/products/hero-fresh-2-1600.webp');
     background: var(--cream);
     color: var(--ink);
@@ -1163,9 +1163,9 @@
   transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
 .pellier-action:hover { text-decoration: none; }
-.pellier-action:focus-visible { outline: 2px solid var(--pellier-burgundy); outline-offset: 3px; }
-.pellier-action--primary { background: var(--pellier-burgundy); color: var(--cream-1, #faf7f2); }
-.pellier-action--primary:hover { border-color: var(--pellier-burgundy-deep); background: var(--pellier-burgundy-deep); }
+.pellier-action:focus-visible { outline: 2px solid var(--pellier-accent); outline-offset: 3px; }
+.pellier-action--primary { background: var(--pellier-accent); color: var(--cream-1, #faf7f2); }
+.pellier-action--primary:hover { border-color: var(--pellier-accent-hover); background: var(--pellier-accent-hover); }
 .pellier-action--ghost { background: var(--cream-elev, #fbf8f2); border-color: var(--sand); color: var(--ink); }
-.pellier-action--ghost:hover { border-color: var(--pellier-burgundy); color: var(--pellier-burgundy); }
+.pellier-action--ghost:hover { border-color: var(--pellier-accent); color: var(--pellier-accent); }
 .pellier-action--sm { min-height: 40px; padding: 10px 18px; font-size: 13px; }

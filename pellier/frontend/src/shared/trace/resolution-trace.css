@@ -3,7 +3,7 @@
   --trace-ink: var(--dl-ink, #221810);
   --trace-muted: var(--ink-soft, #6b6259);
   --trace-line: var(--dl-line, #e3dbd0);
-  --trace-accent: var(--pellier-burgundy, #702d3b);
+  --trace-accent: var(--pellier-accent, #1f1410);
   min-width: 0;
   border: 1px solid var(--trace-line);
   border-radius: 14px;

@@ -443,7 +443,7 @@ const MemoryDashboard: React.FC = () => {
       >
         <Link
           to="/observatory/architecture/memory"
-          style={{ color: 'var(--obs-burgundy)', textDecoration: 'none' }}
+          style={{ color: 'var(--obs-accent-2)', textDecoration: 'none' }}
         >
           → Architecture brief: Memory
         </Link>

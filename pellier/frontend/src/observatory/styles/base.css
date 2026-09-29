@@ -57,13 +57,12 @@
      guaranteed-invalid and never falls back to a losing declaration, so they
      were not a safety net either. */
   /* One accent per role, same roles the storefront documents in
-     pellier-landing.css: burgundy is brand and authority, terracotta is
-     "active or in flight", olive is verified. Burgundy is never a status and
-     terracotta is never a brand mark. `--obs-red-1` is the brand accent (188
-     call sites: eyebrows, links, active tab rule, card accents), so it takes
-     the storefront's burgundy rather than the Daylight terracotta it used to
-     inherit — three different reds rendered on one surface before this. */
-  --obs-red-1: var(--pellier-burgundy);
+     pellier-landing.css: chocolate is brand and authority, terracotta is
+     "active or in flight", olive is verified, red is blocked. `--obs-red-1` is
+     the brand accent (eyebrows, links, active states, card accents), so it
+     takes the storefront's chocolate. It is never a failure colour: FAIL and
+     error text use `--gov-deny-fg` / `--dl-err`. */
+  --obs-red-1: var(--pellier-accent);
   /* Named here because the same literals recurred across Workbench, Index and
      Labs stylesheets; a palette change now stays in one place. */
   --obs-red-deep: #8f1d16;
@@ -71,7 +70,7 @@
   --obs-paper-bright: #fffdfa;
   --obs-sand-2: #f8f1df;
   --obs-sand-line: #d8c9a9;
-  --obs-red-soft: var(--pellier-burgundy-tint);
+  --obs-red-soft: var(--pellier-accent-tint);
   /* `--display` and `--obs-display` are deliberately NOT remapped here. The
      comment above already documents the two-register system: Fraunces carries
      the one page-level title per screen (`.observatory-page-title`,
@@ -84,7 +83,6 @@
   --obs-card-border: var(--obs-rule-1);
   /* See observatory/styles/tokens.css: one card radius, `--gov-radius-lg`. */
   --obs-card-radius: var(--gov-radius-lg);
-  --obs-accent-2: var(--pellier-burgundy-soft);
   --obs-olive: #4f6f5a;
   --obs-olive-soft: #eaf2ed;
   --obs-olive-line: #bfd1c5;
@@ -1280,14 +1278,14 @@
 }
 
 .observatory-tab[data-active='true'] {
-  border-color: color-mix(in srgb, var(--pellier-burgundy) 16%, var(--rule-1));
-  background: color-mix(in srgb, var(--pellier-burgundy) 8%, var(--cream-elev));
-  color: var(--pellier-burgundy) !important;
+  border-color: color-mix(in srgb, var(--pellier-accent) 16%, var(--rule-1));
+  background: color-mix(in srgb, var(--pellier-accent) 8%, var(--cream-elev));
+  color: var(--pellier-accent) !important;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%);
 }
 
 .observatory-tab:focus-visible {
-  outline: 2px solid var(--pellier-burgundy);
+  outline: 2px solid var(--pellier-accent);
   outline-offset: 3px;
 }
 
@@ -1881,7 +1879,7 @@
 }
 
 .labs-mode-banner[data-mode='interactive'] .labs-mode-banner-label {
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
 }
 
 .labs-mode-banner-detail {
@@ -2295,7 +2293,7 @@
 }
 
 .observatory-reference-source:hover {
-  color: var(--obs-burgundy) !important;
+  color: var(--obs-accent-2) !important;
   text-decoration: none !important;
 }
 

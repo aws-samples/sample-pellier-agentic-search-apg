@@ -52,11 +52,11 @@ html:has(.observatory-root) {
   transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.pellier-nav-link:hover, .pellier-nav-link[aria-current='page'] { color: var(--accent-ink, #651f31); }
+.pellier-nav-link:hover, .pellier-nav-link[aria-current='page'] { color: var(--accent-ink, #3b2a21); }
 .pellier-nav-link[aria-current='page'] { font-weight: 600; }
 .pellier-nav-link:hover::after, .pellier-nav-link[aria-current='page']::after { transform: scaleX(1); }
 .pellier-nav-link:focus-visible, .pellier-retry:focus-visible {
-  outline: 2px solid var(--accent-ink, #651f31);
+  outline: 2px solid var(--accent-ink, #3b2a21);
   outline-offset: 4px;
   border-radius: 3px;
 }
@@ -80,10 +80,10 @@ html:has(.observatory-root) {
   justify-content: center;
   flex-shrink: 0;
   padding: 10px 18px;
-  border: 1px solid var(--accent-ink, #651f31);
+  border: 1px solid var(--accent-ink, #3b2a21);
   border-radius: 999px;
   background: transparent;
-  color: var(--accent-ink, #651f31);
+  color: var(--accent-ink, #3b2a21);
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 600;
@@ -91,7 +91,7 @@ html:has(.observatory-root) {
   cursor: pointer;
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }
-.pellier-retry:hover { background: var(--accent-ink, #651f31); color: var(--cream, #f7f3ec); }
+.pellier-retry:hover { background: var(--accent-ink, #3b2a21); color: var(--cream, #f7f3ec); }
 .pellier-profile-loading { min-height: 120px; display: grid; align-items: center; color: var(--ink-soft); font-size: 14px; }
 
 @media (max-width: 1023px) {

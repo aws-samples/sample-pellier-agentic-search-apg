@@ -330,7 +330,7 @@ export const PresencePill: React.FC<PresencePillProps> = ({
         padding: isObservatory ? '8px 14px' : '6px 12px',
         borderRadius: 999,
         border: isObservatory
-          ? '1px solid color-mix(in srgb, var(--pellier-burgundy) 18%, var(--rule-1))'
+          ? '1px solid color-mix(in srgb, var(--pellier-accent) 18%, var(--rule-1))'
           : '1px solid color-mix(in srgb, var(--dl-ink) 16%, transparent)',
         background: isObservatory
           ? 'var(--cream-elev)'
@@ -342,7 +342,7 @@ export const PresencePill: React.FC<PresencePillProps> = ({
         letterSpacing: isObservatory ? '0.01em' : '0.12em',
         textTransform: isObservatory ? 'none' : 'uppercase',
         lineHeight: 1.3,
-        color: isObservatory ? 'var(--pellier-burgundy)' : 'var(--ink)',
+        color: isObservatory ? 'var(--pellier-accent)' : 'var(--ink)',
         fontWeight: 500,
       }}
     >
@@ -354,7 +354,7 @@ export const PresencePill: React.FC<PresencePillProps> = ({
           height: 7,
           borderRadius: 999,
           background: isObservatory
-            ? reachable === true ? 'var(--gov-allow-fg)' : 'var(--pellier-burgundy)'
+            ? reachable === true ? 'var(--gov-allow-fg)' : 'var(--pellier-accent)'
             : ACCENT,
           animation,
           flexShrink: 0,

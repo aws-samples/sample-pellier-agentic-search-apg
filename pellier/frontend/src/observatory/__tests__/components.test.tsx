@@ -187,7 +187,7 @@ describe('Eyebrow', () => {
     const dot = container.querySelector('[aria-hidden="true"]') as HTMLElement;
     expect(dot).toBeTruthy();
     // The brand mark lives on the dot; the label stays in ink.
-    expect(dot.style.background).toBe('var(--pellier-burgundy)');
+    expect(dot.style.background).toBe('var(--pellier-accent)');
   });
 
   it('renders muted variant with ink-4 color', () => {

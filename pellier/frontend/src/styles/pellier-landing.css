@@ -3,10 +3,10 @@
  *
  * Extends the Daylight bridge rather than forking it. Two things live here:
  *
- *   1. The burgundy brand tokens. Daylight's `--dl-accent` is terracotta and
+ *   1. The brand accent tokens. Daylight's `--dl-accent` is terracotta and
  *      is load-bearing: `governed-tokens.css` maps it to `--gov-terracotta`
  *      and the Observatory aliases it to `--obs-red-1`. Repointing it would
- *      re-colour every status chip in the product, so burgundy is added as
+ *      re-colour every status chip in the product, so the accent is added as
  *      its own token instead of an override. The value matches `--pl-accent`
  *      in `ObservatoryWorkbench.css` so the storefront and Labs agree on one
  *      brand swatch.
@@ -15,12 +15,12 @@
  *      hero grid, the mood rail, the approach module, the service strip.
  *
  * COLOUR ROLES (the whole product speaks one language):
- *   burgundy    brand and authority. Wordmark, accent word, primary action.
+ *   chocolate   brand and authority. Accent word, primary action, selection.
  *   copper      the signature dot and numbered surface navigation.
  *   terracotta  active or in flight. Focus, hover, a running step.
  *   olive       verified. A claim with evidence behind it.
  *   neutral     not evaluated.
- * Burgundy is never a status and terracotta is never a brand mark.
+ * Chocolate is never a status and terracotta is never a brand mark.
  *
  * SHAPE: photography uses shared thumbnail, card and hero corner tokens.
  * Portraits stay circular; interactive controls stay pill-shaped.
@@ -33,21 +33,23 @@
  * ======================================================================== */
 
 :root {
-  /* Bordeaux: the shared brand swatch for the whole product.
-     `--accent` (storefront + operator desk),
-     `--obs-red-1` (Observatory) and `--pl-accent` (workbench) are all
-     aliases of it. The dark wine has a quiet plum undertone beside ivory and
-     espresso without borrowing the red used for blocked outcomes. */
-  --pellier-burgundy: #481626;
-  --pellier-burgundy-soft: #713348;
-  --pellier-burgundy-tint: #f2e9eb;
-  /* Pressed, hovered and visited authority. Deep enough to read as the same
-     colour under pressure rather than as a second hue. */
-  --pellier-burgundy-deep: #30101b;
-  --pellier-burgundy-rgb: 72, 22, 38;
-  /* A lighter wine for legible accents on espresso grounds. */
-  --pellier-burgundy-on-dark: #c99aa9;
-  --pellier-action-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 2px 5px rgba(var(--pellier-burgundy-rgb), 0.12);
+  /* Chocolate: the shared brand swatch for the whole product, the same
+     espresso as filled controls and the surface bar. `--accent` (storefront +
+     operator desk), `--obs-red-1` (Observatory) and `--pl-accent` (workbench)
+     are all aliases of it, so an action, a selected state and a brand mark
+     read as one colour on every surface. It replaced a Bordeaux that read as
+     a second, maroon brand beside the chocolate controls. Red stays reserved
+     for blocked outcomes (`--dl-err`). */
+  --pellier-accent: #1f1410;
+  --pellier-accent-soft: #5a4638;
+  --pellier-accent-tint: #efe8e0;
+  /* Hovered and pressed. Lighter than the resting chocolate, because a darker
+     step beside espresso would not read as a change. */
+  --pellier-accent-hover: #3b2a21;
+  --pellier-accent-rgb: 31, 20, 16;
+  /* A warm light for legible accents on chocolate grounds. */
+  --pellier-accent-on-dark: #e6d3c1;
+  --pellier-action-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 2px 5px rgba(var(--pellier-accent-rgb), 0.12);
   /* Signature copper: light on chocolate, deeper on the selected ivory pill. */
   --pellier-copper-on-dark: #da9562;
   --pellier-copper: #9a4d20;
@@ -84,7 +86,7 @@
 
 .pellier-statement em {
   padding-bottom: 0.06em;
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
   font-style: italic;
   font-weight: 400;
 }
@@ -109,9 +111,9 @@
   justify-content: center;
   gap: 8px;
   padding: 0 26px;
-  border: 1px solid var(--pellier-burgundy);
+  border: 1px solid var(--pellier-accent);
   border-radius: 999px;
-  background: var(--pellier-burgundy);
+  background: var(--pellier-accent);
   color: var(--cream);
   font-family: var(--sans);
   font-size: 13.5px;
@@ -126,8 +128,8 @@
 }
 
 .pellier-action:hover {
-  border-color: var(--pellier-burgundy-deep);
-  background: var(--pellier-burgundy-deep);
+  border-color: var(--pellier-accent-hover);
+  background: var(--pellier-accent-hover);
 }
 
 .pellier-action:active {
@@ -159,7 +161,7 @@
 }
 
 .pellier-action-quiet:hover {
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
 }
 
 .pellier-action-quiet:focus-visible {
@@ -199,7 +201,7 @@
   gap: 14px;
   padding-block: 24px;
 }
-.pellier-hero-copy .pellier-eyebrow { color: var(--pellier-burgundy); }
+.pellier-hero-copy .pellier-eyebrow { color: var(--pellier-accent); }
 .pellier-hero-copy .pellier-statement { max-width: 13ch; font-size: clamp(34px, 3.4vw, 50px); }
 .pellier-hero-lede {
   max-width: 40ch;
@@ -284,7 +286,7 @@
   text-align: left;
   cursor: pointer;
 }
-.pellier-prompt-pill:hover { border-color: var(--pellier-burgundy); background: var(--cream-warm); }
+.pellier-prompt-pill:hover { border-color: var(--pellier-accent); background: var(--cream-warm); }
 .pellier-prompt-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .pellier-hero-copy .pellier-concierge {
   width: 100%;
@@ -515,7 +517,7 @@
 /* Active profile is named by a burgundy hairline and a label, never by
    colour alone. */
 .pellier-profile[data-active='true'] {
-  border-color: rgba(var(--pellier-burgundy-rgb), 0.34);
+  border-color: rgba(var(--pellier-accent-rgb), 0.34);
   background: var(--cream);
 }
 
@@ -537,7 +539,7 @@
 }
 
 .pellier-profile[data-active='true'] .pellier-profile-portrait {
-  box-shadow: 0 0 0 2px var(--cream-warm), 0 0 0 4px var(--pellier-burgundy);
+  box-shadow: 0 0 0 2px var(--cream-warm), 0 0 0 4px var(--pellier-accent);
 }
 
 .pellier-profile-name {
@@ -561,7 +563,7 @@
 
 .pellier-profile-state {
   display: block;
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
   font-family: var(--sans);
   font-size: 10.5px;
   font-weight: 700;
@@ -887,7 +889,7 @@
   align-items: center;
   align-self: flex-start;
   margin-top: 2px;
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
   font-family: var(--sans);
   font-size: 12px;
   font-weight: 600;
@@ -996,11 +998,11 @@
 }
 
 .pellier-service-labs:hover .pellier-service-copy strong {
-  color: var(--pellier-burgundy);
+  color: var(--pellier-accent);
 }
 
 .pellier-service-labs:focus-visible {
-  outline: 2px solid var(--pellier-burgundy);
+  outline: 2px solid var(--pellier-accent);
   outline-offset: -2px;
 }
 
@@ -1017,8 +1019,8 @@
 }
 
 .pellier-service-labs:hover .pellier-service-labs-arrow {
-  border-color: var(--pellier-burgundy);
-  color: var(--pellier-burgundy);
+  border-color: var(--pellier-accent);
+  color: var(--pellier-accent);
 }
 
 @media (min-width: 900px) {

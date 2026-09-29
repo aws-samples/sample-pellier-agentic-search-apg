@@ -763,7 +763,7 @@ const ReplayOnlyNotice: React.FC = () => (
     }}
   >
     This is a durable Aurora replay. Run a new request in the{' '}
-    <Link to="/observatory/workbench" style={{ color: 'var(--obs-burgundy)' }}>
+    <Link to="/observatory/workbench" style={{ color: 'var(--obs-accent-2)' }}>
       Labs & Workbench
     </Link>{' '}
     or storefront to create fresh evidence.

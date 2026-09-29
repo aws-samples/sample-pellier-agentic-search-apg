@@ -31,7 +31,7 @@
 .govern-nav-group > .govern-eyebrow { margin: 0 10px 8px; }
 .govern-nav-group > a { display: flex; align-items: center; min-height: 44px; padding: 9px 10px; border-radius: 6px; color: var(--obs-ink-2); font-size: 14px; line-height: 1.4; text-decoration: none; }
 .govern-nav-group > a:hover { background: var(--obs-cream-2); color: var(--obs-ink-1); }
-.govern-nav-group > a[aria-current="page"] { background: var(--obs-red-soft); color: var(--obs-burgundy); font-weight: 600; }
+.govern-nav-group > a[aria-current="page"] { background: var(--obs-red-soft); color: var(--obs-accent-2); font-weight: 600; }
 .govern-back { display: flex; min-height: 44px; align-items: center; gap: 6px; font-size: 13px; color: var(--obs-ink-4); text-decoration: none; }
 .govern-content { min-width: 0; width: 100%; max-width: 960px; }
 .govern-content:has(.govern-overview-demo) { max-width: none; }
@@ -57,17 +57,17 @@
 .govern-notice strong { font-weight: 600; }
 .govern-chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; list-style: none; padding: 24px 0; margin: 0 0 24px; border-block: 1px solid var(--obs-rule-1); }
 .govern-chain li { min-width: 0; }
-.govern-step { display: block; color: var(--obs-burgundy); font-family: var(--obs-mono); font-size: 12px; margin-bottom: 12px; }
+.govern-step { display: block; color: var(--obs-accent-2); font-family: var(--obs-mono); font-size: 12px; margin-bottom: 12px; }
 .govern-chain strong { display: block; font-weight: 600; font-size: 14px; }
 .govern-chain p { font-size: 13px; line-height: 1.6; color: var(--obs-ink-4); margin: 6px 0 0; }
 .govern-chapters > a { display: flex; align-items: center; gap: 22px; padding: 22px 0; border-bottom: 1px solid var(--obs-rule-1); text-decoration: none; color: inherit; }
-.govern-chapters > a:hover h3 { color: var(--obs-burgundy); }
+.govern-chapters > a:hover h3 { color: var(--obs-accent-2); }
 .govern-chapter-number { font-family: var(--obs-mono); font-size: 12px; color: var(--obs-ink-4); align-self: start; padding-top: 5px; }
 .govern-chapters > a > div { flex: 1; }
 .govern-chapters h3 { margin-bottom: 5px; }
 .govern-chapters p { color: var(--obs-ink-4); font-size: 14px; line-height: 1.6; margin: 0; }
-.govern-chapters svg { flex-shrink: 0; color: var(--obs-burgundy); }
-.govern-evidence-link { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--obs-burgundy); text-decoration: none; font-weight: 500; padding: 11px 0; border-bottom: 1px solid var(--obs-rule-1); }
+.govern-chapters svg { flex-shrink: 0; color: var(--obs-accent-2); }
+.govern-evidence-link { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--obs-accent-2); text-decoration: none; font-weight: 500; padding: 11px 0; border-bottom: 1px solid var(--obs-rule-1); }
 .govern-evidence-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .govern-evidence-link svg { flex-shrink: 0; }
 .govern-table-scroll { width: 100%; overflow: auto; margin: 22px 0; border: 1px solid var(--obs-rule-1); border-radius: 6px; }
@@ -105,7 +105,7 @@
 .govern-policy { border-top: 1px solid var(--obs-rule-1); }
 .govern-policy > summary { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 18px 0; cursor: pointer; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .govern-policy > summary > span:first-child { min-width: 0; }
-.govern-policy > summary > span:first-child::before { content: '+'; display: inline-block; width: 19px; color: var(--obs-burgundy); font-family: var(--obs-mono); }
+.govern-policy > summary > span:first-child::before { content: '+'; display: inline-block; width: 19px; color: var(--obs-accent-2); font-family: var(--obs-mono); }
 .govern-policy[open] > summary > span:first-child::before { content: '−'; }
 .govern-policy small { display: block; margin-top: 7px; color: var(--obs-ink-4); font-size: 13px; font-weight: 400; line-height: 1.6; }
 .govern-policy-body { padding-bottom: 18px; }
@@ -120,7 +120,7 @@
 .govern-prose-list li { margin-bottom: 18px; padding-left: 7px; }
 .govern-next { border-top: 1px solid var(--obs-rule-1); margin-top: 44px; padding-top: 22px; }
 .govern-next .govern-evidence-link { border-bottom: 0; font-size: 18px; }
-.govern-layout :is(a, button, input, summary, [tabindex="0"]):focus-visible { outline: 2px solid var(--obs-burgundy); outline-offset: 4px; }
+.govern-layout :is(a, button, input, summary, [tabindex="0"]):focus-visible { outline: 2px solid var(--obs-accent-2); outline-offset: 4px; }
 .govern-code :is(button, pre):focus-visible { outline-color: var(--dl-paper); outline-offset: -3px; }
 @media (max-width: 1000px) {
   .govern-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 28px; }
@@ -133,7 +133,7 @@
   .govern-layout { display: block; padding: 16px 0 32px; }
   .govern-sidebar { position: static; max-height: none; overflow: visible; border-right: 0; padding-right: 0; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--obs-rule-1); }
   .govern-sidebar > p { margin-bottom: 8px; }
-  .govern-topics-toggle { display: flex; align-items: center; min-height: 44px; padding: 6px 0; color: var(--obs-burgundy); font: 500 14px var(--obs-sans); text-decoration: underline; text-underline-offset: 4px; }
+  .govern-topics-toggle { display: flex; align-items: center; min-height: 44px; padding: 6px 0; color: var(--obs-accent-2); font: 500 14px var(--obs-sans); text-decoration: underline; text-underline-offset: 4px; }
   .govern-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .govern-sidebar nav[data-open="false"] { display: none; }
   .govern-nav-group { margin-bottom: 12px; }

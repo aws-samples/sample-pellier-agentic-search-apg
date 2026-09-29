@@ -1015,7 +1015,7 @@ const Routing: React.FC = () => {
       >
         <Link
           to="/observatory/architecture/state-management"
-          style={{ color: 'var(--obs-burgundy)', textDecoration: 'none' }}
+          style={{ color: 'var(--obs-accent-2)', textDecoration: 'none' }}
         >
           → Architecture brief: Routing & State
         </Link>

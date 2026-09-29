@@ -57,7 +57,7 @@ const Toast = ({ message, show, onClose, duration = 3000 }: ToastProps) => {
       >
         <CheckCircle
           className="h-[18px] w-[18px] flex-shrink-0"
-          style={{ color: 'var(--pellier-burgundy)' }}
+          style={{ color: 'var(--pellier-accent)' }}
           strokeWidth={2}
         />
         <span

@@ -222,7 +222,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
             padding: '10px 18px',
             borderRadius: '6px',
             border: 'none',
-            background: 'var(--obs-burgundy)',
+            background: 'var(--obs-accent-2)',
             color: 'var(--obs-cream-1)',
             cursor: running || !query.trim() ? 'not-allowed' : 'pointer',
             opacity: running || !query.trim() ? 0.5 : 1,
@@ -677,7 +677,7 @@ const LoadingState: React.FC = () => (
 
 const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
   <div style={{ padding: '32px', textAlign: 'center' }}>
-    <p style={{ color: 'var(--obs-red-1)', marginBottom: '12px' }}>Failed to load skills: {message}</p>
+    <p style={{ color: 'var(--dl-err)', marginBottom: '12px' }}>Failed to load skills: {message}</p>
     <button onClick={onRetry} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--obs-rule-2)', background: 'var(--obs-cream-1)', cursor: 'pointer' }}>
       Retry
     </button>
@@ -825,7 +825,7 @@ const Skills: React.FC = () => {
       >
         <Link
           to="/observatory/architecture/skills"
-          style={{ color: 'var(--obs-burgundy)', textDecoration: 'none' }}
+          style={{ color: 'var(--obs-accent-2)', textDecoration: 'none' }}
         >
           → Read the architecture brief on Skills
         </Link>
