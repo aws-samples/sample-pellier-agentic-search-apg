@@ -246,15 +246,21 @@ export default function ObservatoryCuratedTurns({
       </header>
 
       {!loading && !error && journey.surface === 'operator' ? (
-        <Link
-          className="labs-turns-operator-link"
-          to="/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title"
-        >
-          <span>
-            <strong>Open Jessica in Operator</strong>
-            <small>Continue with the separately authenticated staff desk.</small>
-          </span>
-        </Link>
+        <>
+          {/* The lab path is Jessica's ordinary Operator chat: ask the investigation
+              prompt, inspect its evidence, then prepare a review. The guided replay
+              submits the first prompt itself and holds the preparation panel until
+              all three prompts finish, so it is offered only as an optional route. */}
+          <Link className="labs-turns-operator-link" to="/operator/clients/CUST-JESSICA#operator-concierge">
+            <span>
+              <strong>Open Jessica in Operator</strong>
+              <small>Continue with the separately authenticated staff desk.</small>
+            </span>
+          </Link>
+          <Link className="labs-turns-guided-replay" to="/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title">
+            Optional: guided replay, which sends the three prompts in order before preparation opens
+          </Link>
+        </>
       ) : null}
 
       {loading ? (

@@ -37,7 +37,7 @@ describe('LabJourneyBar', () => {
     const guide = screen.getByRole('navigation', { name: 'Lab 4 guide' })
     const steps = within(guide).getAllByRole('listitem').filter(item => item.closest('.pellier-journey-steps'))
     expect(steps).toHaveLength(LAB_JOURNEYS['fail-closed-policy'].length)
-    expect(steps.map(step => step.dataset.state)).toEqual(['visited', 'visited', 'visited', 'visited', 'visited', 'current', 'upcoming', 'upcoming'])
+    expect(steps.map(step => step.dataset.state)).toEqual(['visited', 'visited', 'visited', 'visited', 'visited', 'current', 'upcoming', 'upcoming', 'upcoming'])
     expect(within(steps[5]).getByRole('button')).toHaveAttribute('aria-current', 'step')
     expect(screen.queryByTestId('surface-labs-link')).not.toBeInTheDocument()
   })
@@ -81,5 +81,39 @@ describe('LabJourneyBar', () => {
     openLabJourney('grounded-inventory')
     renderAt('/signin')
     expect(screen.queryByTestId('lab-journey')).not.toBeInTheDocument()
+  })
+
+  it('never sends Lab 1 to a Proof Board without the turn that Why this answer? carries', () => {
+    openLabJourney('grounded-inventory')
+    const receipt = LAB_JOURNEYS['grounded-inventory'].findIndex(step => step.label === 'Read the receipt')
+    setLabJourneyStep('grounded-inventory', receipt)
+    for (const path of ['/', '/observatory/proof-board?turn=turn-abc']) {
+      const { unmount } = renderAt(path)
+      // The step's own action: the menu may still list Proof Board as Lab 1's
+      // reference view, which is the view, not this turn's receipt.
+      const action = document.querySelector('.pellier-journey-action')
+      expect(action?.getAttribute('href') ?? '', path).not.toMatch(/^\/observatory\/proof-board/)
+      expect(screen.getByRole('button', { name: 'Next: Record lab-1.json' })).toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('prepares Jessica’s review in her chat, then leaves confirmation to the review’s own link', () => {
+    openLabJourney('fail-closed-policy')
+    const steps = LAB_JOURNEYS['fail-closed-policy']
+    const prepare = steps.findIndex(step => step.label === 'Prepare the review')
+    setLabJourneyStep('fail-closed-policy', prepare)
+    const { unmount } = renderAt('/observatory/workbench')
+    expect(screen.getByRole('link', { name: 'Open in Operator' })).toHaveAttribute('href', '/operator/clients/CUST-JESSICA#operator-concierge')
+    unmount()
+
+    renderAt('/operator/clients/CUST-JESSICA')
+    fireEvent.click(screen.getByRole('button', { name: 'Next: Confirm, execute' }))
+    expect(readLabJourney().steps['fail-closed-policy']).toBe(prepare + 1)
+    // No queue link: before preparation there may be no review to open, and
+    // afterwards the review's own link carries its id.
+    expect(document.querySelector('.pellier-journey-action')?.getAttribute('href') ?? '').not.toMatch(/^\/operator\/reviews/)
+    expect(document.querySelector('[data-testid="lab-journey"] a[href^="/operator/reviews"]')).toBeNull()
+    expect(screen.getByText(/Open the review from its link in the chat/)).toBeInTheDocument()
   })
 })

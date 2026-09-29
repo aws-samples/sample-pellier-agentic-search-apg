@@ -56,8 +56,11 @@ export const LAB_JOURNEYS: Record<LabExerciseId, JourneyStep[]> = {
     { surface: 'storefront', label: 'Ask again', href: '/',
       action: 'Replay the stock question, open Match details, then Why this answer?, and copy the turn.',
       detail: 'Match details › Why this answer?' },
-    { surface: 'observatory', label: 'Read the receipt', href: '/observatory/proof-board',
-      action: 'Why this answer? opens this turn’s receipt on the Proof Board.' },
+    // No link: the Proof Board loads a receipt only for a turn id, and the answer's
+    // own Why this answer? control is what carries it there.
+    { surface: 'observatory', label: 'Read the receipt',
+      action: 'From the reply, open Match details › Why this answer?; it opens this turn’s receipt on the Proof Board.',
+      detail: 'Proof Board ?turn= from Why this answer?' },
     { surface: 'terminal', label: 'Record lab-1.json',
       action: 'Reconcile the turn with Aurora in psql and save lab-1.json.',
       detail: 'psql · jq' },
@@ -121,9 +124,15 @@ export const LAB_JOURNEYS: Record<LabExerciseId, JourneyStep[]> = {
     { surface: 'observatory', label: 'Inspect the turn',
       action: 'In the reply, open Inspect this turn in Observatory › Recorded artifact.',
       detail: 'case-investigator precedes resolution-planner; fingerprintMatches is true' },
-    { surface: 'operator', label: 'Review and execute', href: '/operator/reviews',
-      action: 'Prepare the return review, then Confirm and Execute, checking each phase; reopen Jessica’s record.',
-      detail: 'python3 scripts/prove_operator_review.py' },
+    // Preparation happens in Jessica's conversation, which is where the panel lives;
+    // before it, the queue may hold no review to open.
+    { surface: 'operator', label: 'Prepare the review', href: '/operator/clients/CUST-JESSICA#operator-concierge',
+      action: 'In Jessica’s chat, use Prepare a return review: choose the piece and her stated reason, then Prepare review.',
+      detail: 'Prepare a return review › Prepare review' },
+    // No link: the review's own link in the chat carries its id.
+    { surface: 'operator', label: 'Confirm, execute',
+      action: 'Open the review from its link in the chat, then Confirm and Execute, running the checker after each phase; reopen Jessica’s record.',
+      detail: 'python3 scripts/prove_operator_review.py --phase proposed · confirmed · executed' },
   ],
 }
 

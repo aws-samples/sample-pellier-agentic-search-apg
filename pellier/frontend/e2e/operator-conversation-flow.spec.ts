@@ -161,6 +161,27 @@ test('the concierge thread keeps scrolling under the wheel across recorded trace
   expect(await page.evaluate(() => scrollY)).toBe(pageBefore)
 })
 
+test('the Lab 4 guide goes to Jessica’s chat to prepare, then the review’s own link confirms', async ({ page }) => {
+  const api = await wire(page)
+  const prepare = 7
+  await page.addInitScript((step) => {
+    localStorage.setItem('pellier-lab-journey', JSON.stringify({ lab: 'fail-closed-policy', steps: { 'fail-closed-policy': step } }))
+  }, prepare)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/observatory/workbench?lab=fail-closed-policy')
+  const guide = page.getByRole('navigation', { name: 'Lab 4 guide' })
+  await expect(guide.getByRole('button', { name: /Prepare the review/ })).toHaveAttribute('aria-current', 'step')
+  await guide.getByRole('link', { name: 'Open in Operator' }).click()
+  await expect(page).toHaveURL(/\/operator\/clients\/CUST-JESSICA#operator-concierge$/)
+  await guide.getByRole('button', { name: 'Next: Confirm, execute' }).click()
+  await expect(guide.locator('a[href^="/operator/reviews"]')).toHaveCount(0)
+  // The review is reached through the link its preparation left in the chat.
+  await page.getByRole('navigation', { name: 'Prepared reviews' }).getByRole('link', { name: 'Open review #901' }).click()
+  await expect(page).toHaveURL(/\/operator\/reviews\/901\?/)
+  await expect(page.getByTestId('operator-review-confirm')).toBeVisible()
+  expect(api.mutations).toEqual([])
+})
+
 for (const width of [1440, 768, 390]) {
   test(`client chat, prepared review, and exact conversation return stay connected at ${width}px`, async ({ page }) => {
     const api = await wire(page)

@@ -280,6 +280,11 @@ describe('Pellier Observatory live agent workbench', () => {
       screen.getByRole('link', { name: /Open Jessica in Operator/i }),
     ).toHaveAttribute(
       'href',
+      '/operator/clients/CUST-JESSICA#operator-concierge',
+    );
+    // The guided replay stays reachable, and says it is optional.
+    expect(screen.getByRole('link', { name: /^Optional: guided replay/ })).toHaveAttribute(
+      'href',
       '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',
     );
     expect(

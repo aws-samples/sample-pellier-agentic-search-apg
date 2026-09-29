@@ -107,7 +107,7 @@ describe('LabsCatalog', () => {
     expect(governed?.evidenceAssertion).toContain('confirmed terms and execution');
     expect(governed?.primaryAction).toEqual({
       label: 'Open Jessica in Operator',
-      to: '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',
+      to: '/operator/clients/CUST-JESSICA#operator-concierge',
     });
   });
 });

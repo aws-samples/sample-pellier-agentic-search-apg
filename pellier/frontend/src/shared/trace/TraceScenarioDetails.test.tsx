@@ -28,7 +28,7 @@ describe('recorded persona evidence', () => {
   it('links Jessica’s actual investigation to her guided Operator case', () => {
     render(<MemoryRouter><TraceScenarioDetails example={examples[1]} /></MemoryRouter>)
     expect(screen.getByText('5 orders · 1 ticket · 1 return · 0 proposed actions')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open the guided Operator turns' })).toHaveAttribute('href', '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title')
+    expect(screen.getByRole('link', { name: 'Optional guided replay in Operator' })).toHaveAttribute('href', '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title')
   })
 
   it('keeps missing timing, historical policy, and unlinked execution distinct', () => {

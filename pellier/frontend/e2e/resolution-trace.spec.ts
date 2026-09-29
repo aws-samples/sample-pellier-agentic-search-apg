@@ -141,7 +141,7 @@ test('technical details follow the persona, SQL source, and matching exercise', 
   await expect(jessica.getByText('5 orders · 1 ticket · 1 return · 0 proposed actions')).toBeVisible()
   await loop.locator('[data-step-id="history"] .resolution-trace-step-head').click()
   await expect(loop.getByLabel('Source SQL · authoritative returns')).toContainText('WHERE r.customer_id = %s')
-  await expect(jessica.getByRole('link', { name: 'Open the guided Operator turns' })).toHaveAttribute('href', /CUST-JESSICA\?guided=service-recovery/)
+  await expect(jessica.getByRole('link', { name: 'Optional guided replay in Operator' })).toHaveAttribute('href', /CUST-JESSICA\?guided=service-recovery/)
   await page.screenshot({ path: '/tmp/pellier-how-jessica-details.png', fullPage: true, animations: 'disabled' })
 
   await loop.getByRole('button', { name: 'Refuse the crossing', exact: true }).click()

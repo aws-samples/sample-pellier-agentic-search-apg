@@ -300,6 +300,21 @@
     transform 160ms ease;
 }
 
+/* A quiet text link under the primary action: the replay is optional. */
+.observatory-root .labs-turns-guided-replay {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0 20px 8px;
+  color: var(--pl-ink-soft);
+  font: 500 13px/1.4 var(--pl-sans);
+  text-underline-offset: 4px;
+}
+
+.observatory-root .labs-turns-guided-replay:hover {
+  color: var(--pl-ink);
+}
+
 .observatory-root .labs-turns-operator-link > span {
   display: grid;
   gap: 3px;

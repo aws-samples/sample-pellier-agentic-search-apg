@@ -253,7 +253,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       'Which control acted, did the tool execute, and did data change? What evidence is still needed when a response is missing or suppressed?',
     primaryAction: {
       label: 'Open Jessica in Operator',
-      to: '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',
+      to: '/operator/clients/CUST-JESSICA#operator-concierge',
     },
     supportingActions: [
       {

@@ -43,7 +43,7 @@ export default function TraceScenarioDetails({ example }: { example: Example }) 
           </Link>
           {journey.surface === 'operator' && (
             <Link className="pellier-action pellier-action--ghost pellier-action--sm" to={`/operator/clients/${journey.customerId}?guided=service-recovery#operator-concierge-title`}>
-              Open the guided Operator turns
+              Optional guided replay in Operator
             </Link>
           )}
         </div>
