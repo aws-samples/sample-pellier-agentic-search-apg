@@ -892,6 +892,7 @@ SELECT u.id AS message_id,
            SELECT jsonb_agg(
                       jsonb_build_object(
                           'reviewId', r.id,
+                          'sourceTurnId', r.source_turn_id,
                           'tool', r.tool,
                           'status', r.status,
                           'args', r.args,
@@ -1031,7 +1032,7 @@ def interruption_artifact(
             "actionHash": review.get("actionHash") or "",
             # The capability observed when it was prepared was not saved.
             "executionCapability": {"state": "capability_state_unverified"},
-            "reviewSourceTurnId": "",
+            "reviewSourceTurnId": review.get("sourceTurnId") or "",
             "note": "Prepared by this request before it was interrupted.",
         })
     return {

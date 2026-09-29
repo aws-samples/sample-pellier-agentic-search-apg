@@ -157,21 +157,45 @@ def _as_rows(rows: Iterable[Any]) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows or []]
 
 
-def _model_config(retrieval: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Return model identifiers, never prompt or response content."""
-    try:
-        from config import settings
+def _model_config(
+    retrieval: Optional[Dict[str, Any]],
+    *,
+    agent_execution: Optional[Dict[str, Any]],
+    specialist_route: str,
+    managed_model_id: Optional[str],
+) -> Dict[str, Any]:
+    """Record observed models, never substitute the backend's router setting.
 
-        agent_model = (
-            getattr(settings, "BEDROCK_ROUTER_MODEL", None)
-            or getattr(settings, "AGENT_MODEL_ID", None)
-            or None
-        )
-    except Exception:
-        agent_model = None
+    Local completion's legacy ``model`` field describes the chat service, not
+    necessarily the specialist. Use its recorded invocation instead. The managed
+    Runtime explicitly returns the selected specialist's model. Missing or
+    ambiguous evidence stays null; configuration is not invocation evidence.
+    """
+    from services.model_invocation_receipt import invocation_rows
+
+    rows = invocation_rows(
+        turn_id="", session_id=None, principal_sub=None,
+        agent_execution=agent_execution, default_model_id=None, source="otel",
+    )
+    models = sorted({
+        row["model_id"] for row in rows
+        if row["purpose"] == f"agent:{specialist_route}"
+        and row["model_id"] and row["outcome"] == "succeeded"
+    })
+    agent_model = models[0] if len(models) == 1 else None
+    if not models and managed_model_id:
+        agent_model = managed_model_id
 
     return {
         "agent_model": agent_model,
+        "agent_model_source": (
+            "otel" if models else "agentcore-runtime" if managed_model_id else None
+        ),
+        "model_invocations": [
+            {"model_id": row["model_id"], "purpose": row["purpose"],
+             "outcome": row["outcome"]}
+            for row in rows
+        ],
         "embedding_model": (retrieval or {}).get("embedding_model"),
         "rerank_model": (retrieval or {}).get("rerank_model"),
         "retrieval_config": _decode_json(
@@ -521,6 +545,9 @@ async def persist_turn_receipt(
     terminal_error_code: Optional[str] = None,
     handoff_context: Optional[Dict[str, Any]] = None,
     answer_text: Optional[str] = None,
+    agent_execution: Optional[Dict[str, Any]] = None,
+    specialist_route: str = "",
+    managed_model_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Persist one immutable turn record and return its truthful summary.
 
@@ -599,7 +626,10 @@ async def persist_turn_receipt(
             principal_sub,
             bool(principal_sub),
             rail,
-            _json(_model_config(retrieval_row)),
+            _json(_model_config(
+                retrieval_row, agent_execution=agent_execution,
+                specialist_route=specialist_route, managed_model_id=managed_model_id,
+            )),
             receipt_id,
             _json(citations),
             _json(

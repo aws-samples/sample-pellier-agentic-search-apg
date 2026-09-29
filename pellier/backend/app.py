@@ -953,6 +953,11 @@ async def _persist_terminal_turn_receipt(
             terminal_error_code=terminal_error_code,
             handoff_context=handoff_context,
             answer_text=assistant_response,
+            agent_execution=agent_execution,
+            specialist_route=specialist_route,
+            managed_model_id=(
+                model_id if model_source == "agentcore-service-telemetry" else None
+            ),
         )
         if receipt is None:
             return None

@@ -41,8 +41,9 @@ Event = Tuple[str, Dict[str, Any]]
 class TurnRun:
     """One turn's work and the events it has produced, for any number of readers."""
 
-    def __init__(self, *, session_id: str, transport_key: str) -> None:
+    def __init__(self, *, session_id: str, customer_id: str, transport_key: str) -> None:
         self.session_id = session_id
+        self.customer_id = customer_id
         self.transport_key = transport_key
         self.events: List[Event] = []
         self.error: Optional[sessions.SessionError] = None
@@ -114,11 +115,15 @@ def start(
     """
     current = _RUNS.get(session_id)
     if current is not None and not current.done:
+        if customer_id != current.customer_id:
+            raise sessions.SessionError("session_client_mismatch", 403)
         if transport_key and transport_key == current.transport_key:
             return current
         raise sessions.SessionError("turn_in_progress", 409)
 
-    run = TurnRun(session_id=session_id, transport_key=transport_key)
+    run = TurnRun(
+        session_id=session_id, customer_id=customer_id, transport_key=transport_key,
+    )
     _RUNS[session_id] = run
     run.task = asyncio.create_task(
         _drive(

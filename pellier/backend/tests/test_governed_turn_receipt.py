@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any
+
+import pytest
 
 from services.governed_turn_receipt import (
     _receipt_citations,
@@ -16,6 +19,63 @@ from services.governed_turn_receipt import (
 )
 from services.managed_policy import recent_decisions
 from services.retrieval_receipt import citation_snapshot_hash
+
+
+def _model_execution(*models: tuple[str, str]) -> dict[str, Any]:
+    return {"spans": [
+        {"name": f"invoke_agent {agent}", "attributes": {
+            "gen_ai.agent.name": agent,
+            "gen_ai.request.model": model,
+            "gen_ai.usage.input_tokens": 10,
+            "gen_ai.usage.output_tokens": 5,
+            "gen_ai.input.messages": "private prompt",
+        }}
+        for agent, model in models
+    ]}
+
+
+@pytest.mark.parametrize("models,route,managed,expected", [
+    ([("router", "sonnet"), ("search", "opus")], "search", None, "opus"),
+    ([("inventory", "sonnet")], "inventory", None, "sonnet"),
+    ([("search", "fast-model")], "search", None, "fast-model"),
+    ([("router", "sonnet")], "search", None, None),
+    ([("search", "first"), ("search", "second")], "search", None, None),
+    ([], "search", None, None),
+    ([], "Search Agent", "managed-specialist", "managed-specialist"),
+])
+def test_receipt_attributes_the_observed_specialist_model(
+    models, route, managed, expected,
+) -> None:
+    db = _ReceiptDB()
+    receipt = asyncio.run(persist_turn_receipt(
+        db, turn_id="turn-persisted", session_id="session-1", principal_sub=None,
+        rail="in-process", terminal_status="complete", latency_ms=32,
+        agent_execution=_model_execution(*models), specialist_route=route,
+        managed_model_id=managed,
+    ))
+    assert receipt is not None
+    config = json.loads(db.calls[-1][6])
+    assert config["agent_model"] == expected
+    assert "private prompt" not in json.dumps(config)
+    assert [(r["purpose"], r["model_id"]) for r in config["model_invocations"]] == [
+        (f"agent:{agent}", model) for agent, model in models
+    ]
+
+
+def test_terminal_receipt_forwards_execution_instead_of_legacy_router_model(monkeypatch):
+    import app
+
+    db = _ReceiptDB()
+    monkeypatch.setattr(app, "db_service", db)
+    result = asyncio.run(app._persist_terminal_turn_receipt(
+        turn_id="turn-persisted", session_id="session-1", user=None,
+        rail="in-process", terminal_status="complete", started_at=time.perf_counter(),
+        skip_handoff_lookup=True, specialist_route="search", model_id="sonnet",
+        agent_execution=_model_execution(("router", "sonnet"), ("search", "opus")),
+    ))
+    assert result is not None
+    inserted = next(c for c in db.calls if "INSERT INTO pellier.governed_turn_receipts" in c[0])
+    assert json.loads(inserted[6])["agent_model"] == "opus"
 
 
 def _citation_snapshots() -> list[dict[str, Any]]:

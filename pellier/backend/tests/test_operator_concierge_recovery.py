@@ -274,6 +274,7 @@ async def test_an_interrupted_turn_shows_its_review_and_a_retry_reuses_it(
     assert f"review #{review_id}, awaiting a decision" in answer["content"]
     (action,) = answer["artifact"]["proposedActions"]
     assert action["reviewId"] == review_id
+    assert action["reviewSourceTurnId"] == first_turn
     assert action["product"]["name"] == "Linen throw"
     assert action["material"] == THROW
     assert action["actionHash"] == REVIEW.action_fingerprint("initiate_return", THROW)
@@ -389,6 +390,36 @@ async def _released(run: RUNNER.TurnRun, release: asyncio.Event) -> AsyncIterato
             started = True
             release.set()
         yield event
+
+
+@pytest.mark.asyncio
+async def test_inflight_retry_preserves_the_client_binding(pg, monkeypatch) -> None:
+    release = asyncio.Event()
+
+    async def script(db, turn, turn_id):
+        await release.wait()
+        await SESSIONS.append_assistant_artifact(
+            db, session_id=turn["session_id"], customer_id=CUSTOMER, turn_id=turn_id,
+            summary="Done.", artifact={},
+        )
+        yield "complete", {"turnId": turn_id}
+
+    monkeypatch.setattr(operator_concierge, "stream_turn", _scripted_turn(pg, script))
+    sid = await _session(pg)
+    run = _start(pg, sid)
+    try:
+        assert _start(pg, sid) is run
+        with pytest.raises(SESSIONS.SessionError) as rejected:
+            RUNNER.start(
+                pg, customer_id="CUST-ANNA", session_id=sid, operator_sub="op-1",
+                request="Prepare a return", transport_key="tk-1",
+            )
+        assert (rejected.value.code, rejected.value.status_code) == (
+            "session_client_mismatch", 403,
+        )
+    finally:
+        release.set()
+        await _drain(run)
 
 
 @pytest.mark.asyncio
