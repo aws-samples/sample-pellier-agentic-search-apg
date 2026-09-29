@@ -3,11 +3,9 @@
  *
  * Two things must hold or the primitive is pointless.
  *
- * The headline keeps the display face. On the Observatory that is fragile:
- * `base.css` forces every heading to sans with `!important`, and `index.css`
- * forces `.font-display` back to sans on top of that. A paragraph carrying an
- * inline family is the one form that survives both, so the test pins the tag
- * as well as the family.
+ * The headline is a real heading in the tools' heading voice, Instrument Sans
+ * at 600. The storefront's Fraunces does not appear on the Observatory or the
+ * Operator desk, so the test pins the tag as well as the family.
  *
  * And the reason line stays monospace and separate from the prose, because it
  * is the part naming a source an attendee can go and query.
@@ -18,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 import { EmptyState } from './EmptyState'
 
 describe('EmptyState', () => {
-  it('sets the headline in the display face at 22 to 24px', () => {
+  it('sets the headline in Instrument Sans at 22 to 24px', () => {
     render(
       <EmptyState
         eyebrow="No telemetry"
@@ -31,24 +29,18 @@ describe('EmptyState', () => {
       'No telemetry panels have been recorded for this session.',
     )
     expect(headline).toHaveStyle({
-      fontFamily: 'var(--display)',
+      fontFamily: 'var(--sans)',
       fontSize: 'clamp(22px, 2vw, 24px)',
-      fontWeight: '400',
+      fontWeight: '600',
     })
   })
 
-  it('renders the headline as a heading that keeps the display face', () => {
-    // Both halves matter and they used to be in tension. `.font-display`
-    // exempts the element from the Observatory's !important family rule, and
-    // the inline family outranks the storefront's plain-class rule that would
-    // otherwise pull it back to sans. Losing either one silently costs the
-    // page its heading or its voice.
+  it('renders the headline as a heading in the tools heading voice', () => {
     render(<EmptyState eyebrow="Empty" headline="Nothing was recorded." />)
     const headline = screen.getByRole('heading', { level: 2 })
     expect(headline.tagName).toBe('H2')
     expect(headline).toHaveTextContent('Nothing was recorded.')
-    expect(headline.classList.contains('font-display')).toBe(true)
-    expect(headline).toHaveStyle({ fontFamily: 'var(--display)' })
+    expect(headline).toHaveStyle({ fontFamily: 'var(--sans)', fontWeight: '600' })
   })
 
   it('takes the rank of the thing it stands in for', () => {

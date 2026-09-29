@@ -176,7 +176,7 @@
   width: 100%;
   /* Finish the opening viewport before the next editorial photograph.
      The local navigation adds a one-pixel border beneath its fixed height. */
-  min-height: calc(100svh - var(--pellier-surface-bar-height, 64px) - var(--pellier-storefront-nav-height, 60px) - 1px);
+  min-height: calc(100svh - var(--pellier-chrome-height, 64px) - var(--pellier-storefront-nav-height, 60px) - 1px);
   padding-bottom: 36px;
   background: var(--cream);
 }

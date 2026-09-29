@@ -1,7 +1,7 @@
 /**
  * EditorialTitle — the one page-title block on the Observatory.
  *
- * Back link, section label, Fraunces title, summary. Three title grammars
+ * Back link, section label, title, summary. Three title grammars
  * used to ship at once: this one, the architecture detail pages' italic
  * 56px with a mono roman-numeral label, and the workbench's sans 38/600.
  * The detail pages now come through here, so the surface has one page-title
@@ -17,8 +17,9 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Eyebrow } from './Eyebrow';
-import ReferenceBrief, { referenceReturnHref } from './ReferenceBrief';
-import type { ReferenceId } from './referenceCatalog';
+import ReferenceBrief from './ReferenceBrief';
+import { LAB_REFERENCE_GROUPS, labGroupFor, type ReferenceId } from './referenceCatalog';
+import { useLabJourney } from '../../shared/labJourney';
 
 export interface EditorialTitleBackLink {
   /** Route to return to. */
@@ -58,7 +59,18 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
   backTo,
   aside,
 }) => {
-  const back = backTo ?? (backToReferences ? { ...REFERENCES_BACK_LINK, to: referenceReturnHref() } : undefined);
+  // A lab's reference view returns to the Workbench of the lab being followed
+  // (Anna's Proof Board visit returns to Lab 2), else to the view's own lab.
+  // Any other reference returns to the full index on the Lab Collection.
+  const { lab: activeLab } = useLabJourney();
+  const ownGroup = referenceId ? labGroupFor(referenceId) : undefined;
+  const group = ownGroup
+    ? LAB_REFERENCE_GROUPS.find(item => item.lab === activeLab) ?? ownGroup
+    : undefined;
+  const labBack: EditorialTitleBackLink | undefined = group
+    ? { to: `/observatory/workbench?lab=${group.lab}`, label: `Lab ${group.number} Workbench`, ariaLabel: `Back to the Lab ${group.number} Workbench` }
+    : undefined;
+  const back = backTo ?? (backToReferences ? labBack ?? REFERENCES_BACK_LINK : undefined);
 
   return (
     <>
@@ -67,8 +79,8 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        marginBottom: '32px',
+        gap: '10px',
+        marginBottom: '20px',
       }}
     >
       {back ? (
@@ -103,7 +115,7 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
           Inline values here previously won over the class and let each surface
           drift to its own size. */}
       <h1
-        className="observatory-page-title font-display text-espresso"
+        className="observatory-page-title text-espresso"
         style={{ margin: 0 }}
       >
         {title}

@@ -1,4 +1,4 @@
-.trace-evidence { min-width: 0; margin-top: 18px; padding: 22px 24px; border: 1px solid var(--sand); border-radius: 12px; background: var(--cream-elev); font: 13px/1.65 var(--sans); scroll-margin-top: calc(var(--pellier-surface-bar-height, 64px) + 84px); }
+.trace-evidence { min-width: 0; margin-top: 18px; padding: 22px 24px; border: 1px solid var(--sand); border-radius: 12px; background: var(--cream-elev); font: 13px/1.65 var(--sans); scroll-margin-top: calc(var(--pellier-chrome-height, 64px) + 84px); }
 .trace-evidence:focus-visible { outline: 2px solid var(--pellier-accent); outline-offset: 4px; }
 .trace-evidence-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .trace-evidence-eyebrow { font: 600 11px/1.6 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }

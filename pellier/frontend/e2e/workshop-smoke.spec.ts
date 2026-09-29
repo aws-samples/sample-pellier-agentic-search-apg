@@ -26,14 +26,18 @@ test.describe('Public governed workshop journey', () => {
     for (let i = 0; i < LABS.length; i++) {
       await page.getByRole('link', { name: `Open Lab ${i + 1} in Workbench`, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`lab=${LABS[i]}`));
-      await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: new RegExp(`^Lab ${i + 1}: `) })).toBeVisible();
+      await expect(page.getByText('You will learn', { exact: true })).toBeVisible();
       await expect(page.getByText(`Follow Lab ${i + 1} in Workshop Studio.`, { exact: false })).toBeVisible();
+      // Opening a lab opens its guide under the shared navigation.
+      const guide = page.getByRole('navigation', { name: `Lab ${i + 1} guide` });
+      await expect(guide).toBeVisible();
       if (i === 1) {
-        await page.getByRole('button', { name: 'Explore reference views', exact: true }).click();
-        await page.getByRole('link', { name: 'Search pipeline', exact: true }).click();
-        await page.getByText('Reason through failure cases', { exact: true }).click();
+        await guide.getByLabel('Step details, reference views and labs').click();
+        await page.getByRole('region', { name: 'Lab 2 views' }).getByRole('link', { name: 'Search pipeline', exact: true }).click();
+        await page.getByText('Failure cases', { exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Reranking never returns the expected product.' })).toBeVisible();
-        await page.getByRole('link', { name: 'Return to Lab 2 in Workbench', exact: true }).click();
+        await page.getByRole('link', { name: 'Back to the Lab 2 Workbench', exact: true }).click();
         await expect(page).toHaveURL(/lab=retrieval-acceptance/);
       }
       await page.getByRole('navigation', { name: 'Pellier Observatory views' }).getByRole('link', { name: 'Lab Collection' }).click();
@@ -66,7 +70,7 @@ test.describe('Public governed workshop journey', () => {
     for (const lab of LABS) {
       await page.goto(`${BASE_URL}/observatory/labs/${lab}#steps-and-checkpoints`);
       await expect(page).toHaveURL(new RegExp(`/observatory/workbench\\?lab=${lab}`));
-      await expect(page.getByRole('heading', { name: 'Workbench', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: /^Lab \d: / })).toBeVisible();
       await expect(page.locator('.lab-guide')).toHaveCount(0);
     }
   });

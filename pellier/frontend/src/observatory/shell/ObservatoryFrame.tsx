@@ -37,13 +37,10 @@ const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
   ['/observatory/tools', 'Tool Registry'],
   ['/observatory/search', 'Search pipeline'], // copy-allow: route title
   ['/observatory/skills', 'Skills'],
-  ['/observatory/routing', 'Routing'],
   ['/observatory/memory', 'Memory'],
   ['/observatory/performance', 'Retrieval comparison'],
   ['/observatory/evaluations', 'Evaluations'],
   ['/observatory/production-patterns', 'Production patterns'],
-  ['/observatory/workshop-map', 'Workshop map'],
-  ['/observatory/settings', 'Settings'],
 ];
 
 export function observatoryTitleForPath(pathname: string): string {

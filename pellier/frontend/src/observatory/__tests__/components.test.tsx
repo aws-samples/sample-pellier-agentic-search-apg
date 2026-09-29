@@ -190,12 +190,12 @@ describe('Eyebrow', () => {
     expect(dot.style.background).toBe('var(--pellier-accent)');
   });
 
-  it('renders muted variant with ink-4 color', () => {
+  it('renders muted variant with ink-3 color, above the 4.5:1 floor', () => {
     render(<Eyebrow label="MUTED" variant="muted" />);
 
     const label = screen.getByText('MUTED');
     expect(label).toHaveAttribute('data-tone', 'muted');
-    expect(label.style.color).toBe('var(--obs-ink-4)');
+    expect(label.style.color).toBe('var(--obs-ink-3)');
   });
 });
 

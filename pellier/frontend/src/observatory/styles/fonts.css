@@ -29,11 +29,13 @@
    * matched what any route actually rendered.
    * ---------------------------------------------------------------- */
 
-  /* The one page title per screen. Set on `.observatory-page-title`. */
-  --obs-title-size: var(--text-page-title);
-  --obs-title-weight: 400;
-  --obs-title-leading: 1.04;
-  --obs-title-tracking: -0.012em;
+  /* The one page title per screen. Set on `.observatory-page-title`. The same
+     step as the Operator desk's title: a semibold sans carries at a size a
+     light serif does not. */
+  --obs-title-size: clamp(26px, 2.2vw, 32px);
+  --obs-title-weight: 600;
+  --obs-title-leading: 1.15;
+  --obs-title-tracking: -0.02em;
 
   /* Section titles (e.g., card headings) */
   --obs-section-size: 24px;

@@ -105,10 +105,30 @@ export const REFERENCES = {
 } satisfies Record<string, WorkshopReference>;
 export type ReferenceId = keyof typeof REFERENCES;
 
-export const LAB_REFERENCE_GROUPS: { lab: LabExerciseId; title: string; question: string; refs: ReferenceId[] }[] = [
-  { lab: 'grounded-inventory', title: 'Lab 1 · Marco · Ground the answer', question: 'Which database fact supports the answer?', refs: ['sessions', 'proof'] },
-  { lab: 'retrieval-acceptance', title: 'Lab 2 · Anna · Explain retrieval', question: 'Which candidates survive, and why?', refs: ['search', 'performance'] },
-  { lab: 'managed-agent-path', title: 'Lab 3 · Theo · Prove the managed path', question: 'What crossed the tool and memory boundaries?', refs: ['tools', 'memory'] },
-  { lab: 'fail-closed-policy', title: 'Lab 4 · Jessica · Defend the outcome', question: 'What was authorized, executed, and committed?', refs: ['govern', 'architecture'] },
+export interface LabReferenceGroup {
+  lab: LabExerciseId;
+  number: number;
+  person: string;
+  /** The lab's task in a few words, shown beside its number and person. */
+  focus: string;
+  title: string;
+  question: string;
+  refs: ReferenceId[];
+}
+
+function labGroup(lab: LabExerciseId, number: number, person: string, focus: string, question: string, refs: ReferenceId[]): LabReferenceGroup {
+  return { lab, number, person, focus, title: `Lab ${number} · ${person} · ${focus}`, question, refs };
+}
+
+export const LAB_REFERENCE_GROUPS: LabReferenceGroup[] = [
+  labGroup('grounded-inventory', 1, 'Marco', 'Ground the answer', 'Which database fact supports the answer?', ['sessions', 'proof']),
+  labGroup('retrieval-acceptance', 2, 'Anna', 'Explain retrieval', 'Which candidates survive, and why?', ['search', 'performance']),
+  labGroup('managed-agent-path', 3, 'Theo', 'Prove the managed path', 'What crossed the tool and memory boundaries?', ['tools', 'memory']),
+  labGroup('fail-closed-policy', 4, 'Jessica', 'Defend the outcome', 'What was authorized, executed, and committed?', ['govern', 'architecture']),
 ];
+
+/** The lab whose Workbench a reference view belongs to; extensions have none. */
+export function labGroupFor(id: ReferenceId): LabReferenceGroup | undefined {
+  return LAB_REFERENCE_GROUPS.find(group => group.refs.includes(id));
+}
 export const EXTENSION_REFERENCES: ReferenceId[] = ['evaluations', 'production', 'replacement'];

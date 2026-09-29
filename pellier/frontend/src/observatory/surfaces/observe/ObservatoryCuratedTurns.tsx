@@ -6,7 +6,7 @@ import { apiFetch } from '../../../services/apiBase'
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Loader2, Play, Wrench } from 'lucide-react';
+import { AlertCircle, Headset, ImageOff, Loader2, Play, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResponsiveImage from '../../../components/ResponsiveImage';
 import {
@@ -168,7 +168,11 @@ export default function ObservatoryCuratedTurns({
               <span>Build</span>
             </span>
           ) : (
-            <span>{journey.surface === 'operator' ? 'Operator case' : 'No catalog image'}</span>
+            // A 48px thumbnail holds an icon, not a word: "Operator case"
+            // was cut to "Operato". The row's own copy names the case.
+            journey.surface === 'operator'
+              ? <Headset size={20} strokeWidth={1.6} />
+              : <ImageOff size={20} strokeWidth={1.6} />
           )}
         </span>
         <span className="labs-turn-copy">
@@ -277,8 +281,8 @@ export default function ObservatoryCuratedTurns({
       ) : null}
       {!loading && !error && !ready && journey.surface === 'storefront' ? (
         <div className="labs-turns-state labs-turns-scenario-setup">
-          <strong>Start with {journey.anchorName}’s scenario</strong>
-          <p>This starts a new shopping session and clears the previous conversation. It does not sign you in as {journey.anchorName}; account access still needs verified sign-in.</p>
+          <strong>Optional: replay {journey.anchorName}’s scenario here</strong>
+          <p>The lab runs these turns in the Storefront; the lab guide above the page shows when. Replaying here starts a new shopping session and clears the previous conversation. It does not sign you in as {journey.anchorName}; account access still needs verified sign-in.</p>
           {onSelectScenario ? <button type="button" className="labs-turns-select-scenario" disabled={selectingScenario || running} onClick={() => { selectionRequested.current = true; onSelectScenario(); }}>
             {selectingScenario ? 'Opening scenario…' : `Choose ${journey.anchorName}’s scenario`}
           </button> : <Link to="/">Choose a scenario in Storefront</Link>}

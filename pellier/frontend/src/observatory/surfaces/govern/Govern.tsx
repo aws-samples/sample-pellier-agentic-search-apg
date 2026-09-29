@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, Check, Copy, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowDown, ArrowRight, Check, Copy, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useObservatoryData } from '../../hooks/useObservatoryData';
 import IdentityBoundaryCard from '../understand/IdentityBoundaryCard';
@@ -388,7 +388,6 @@ export default function Govern() {
           {CHAPTERS.filter(c => c.group === group).map(c => <Link key={c.id} to={`${BASE}/${c.id}`} aria-current={section === c.id ? 'page' : undefined}>{c.label}</Link>)}
         </div>)}
       </nav>
-      <Link className="govern-back" to="/observatory/workbench?lab=fail-closed-policy"><ArrowLeft size={14} aria-hidden="true" />Back to Lab 4</Link>
     </aside>
     <article className="govern-content">
       <header className="govern-page-heading">

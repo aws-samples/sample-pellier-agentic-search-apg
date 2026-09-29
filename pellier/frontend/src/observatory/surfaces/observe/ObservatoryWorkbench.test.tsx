@@ -103,10 +103,16 @@ describe('Pellier Observatory live agent workbench', () => {
       </MemoryRouter>,
     );
 
+    // The page opens on the lab, with the lesson it teaches ahead of the task.
     expect(
       screen.getByRole('heading', {
-        name: 'Workbench',
+        level: 1,
+        name: 'Lab 1: Build a PostgreSQL-Grounded Agent',
       }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('You will learn')).toBeInTheDocument();
+    expect(
+      screen.getByText(/An agent can only claim what its tool returns/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -116,28 +122,10 @@ describe('Pellier Observatory live agent workbench', () => {
     // The run state is reported once, by the ledger panel that runs.
     expect(screen.queryByText('Live trace surface')).not.toBeInTheDocument();
     expect(screen.getAllByText('Ready')).toHaveLength(1);
+    // The lab switch belongs to the lab guide (LabJourneyBar.test.tsx).
     expect(
-      screen.getByRole('link', {
-        name: 'Lab 1 Marco: Build a PostgreSQL-Grounded Agent',
-      }),
-    ).toHaveAttribute('aria-current', 'step');
-    /*
-     * A switcher, not a second lab gallery. The portraits introduce the four
-     * scenarios on the Lab Collection; repeating them here opened the Workbench
-     * with a copy of that tab. Four named options, the selected one marked, and
-     * still links so deep links and Back/Forward are unchanged.
-     */
-    const labSwitch = screen.getByRole('navigation', { name: 'Select a lab' });
-    expect(labSwitch).toBeVisible();
-    expect(labSwitch.querySelectorAll('[data-lab-portrait]')).toHaveLength(0);
-    expect(
-      Array.from(labSwitch.querySelectorAll('a')).map((option) =>
-        option.textContent?.trim(),
-      ),
-    ).toEqual(['1Marco', '2Anna', '3Theo', '4Jessica']);
-    expect(
-      labSwitch.querySelectorAll('a[data-selected="true"]'),
-    ).toHaveLength(1);
+      screen.queryByRole('navigation', { name: 'Select a lab' }),
+    ).not.toBeInTheDocument();
     expect(
       tracePanel(document.body).querySelector('canvas.labs-hero-field'),
     ).not.toBeInTheDocument();
@@ -217,14 +205,13 @@ describe('Pellier Observatory live agent workbench', () => {
       screen.queryByText('Grounded products from this turn will appear here.'),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Captured SQL')).not.toBeInTheDocument();
+    // This lab's views are in the strip; the Workbench keeps only the
+    // after-the-labs extensions, closed until asked for.
     expect(
-      screen.getByRole('button', { name: /Explore reference views/i }),
-    ).toHaveAttribute('aria-expanded', 'false');
-    expect(
-      screen.queryByRole('heading', {
-        name: 'Telemetry & system references',
-      }),
+      screen.queryByRole('button', { name: /Explore reference views/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByText('After the labs: evaluation and recovery')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Evaluations', hidden: true })).not.toBeVisible();
   });
 
   it('anchors guided requests without changing the active shopper scenario', async () => {

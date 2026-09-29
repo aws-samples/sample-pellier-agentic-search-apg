@@ -1,25 +1,35 @@
-.reference-brief { margin: 0 0 28px; padding: 20px 0; border-block: 1px solid var(--obs-rule-1); color: var(--obs-ink-2); }
-.reference-brief-role { margin: 0 0 8px; color: var(--obs-red-1); font: 600 12px/1.5 var(--obs-sans); }
-.reference-brief h2 { margin: 0 0 14px; color: var(--obs-ink-1); font: 500 20px/1.4 var(--obs-heading); }
-.reference-brief-reading { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-.reference-brief-reading p { margin: 0; font: 400 14px/1.65 var(--obs-sans); }
-.reference-brief-reading strong { display: block; color: var(--obs-ink-1); margin-bottom: 4px; }
-.reference-brief footer { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; margin-top: 14px; }
-.reference-brief footer > a, .reference-brief summary { display: inline-block; min-height: 44px; align-content: center; font: 600 13px/1.5 var(--obs-sans); color: var(--obs-red-1); cursor: pointer; }
-.reference-brief summary { display: list-item; }
-.reference-brief details { min-width: 0; }
-.reference-brief ul { padding-left: 18px; margin: 8px 0; }
+/* One card: the question and its evidence boundary open, the rest on demand. */
+.reference-brief { display: grid; gap: 10px; margin: 0 0 24px; padding: 16px 20px; border: 1px solid var(--obs-rule-1); border-radius: 12px; background: var(--obs-panel); color: var(--obs-ink-2); }
+.reference-brief-role { margin: 0; color: var(--obs-red-1); font: 600 12px/1.5 var(--obs-sans); }
+.reference-brief h2 { margin: 0; color: var(--obs-ink-1); font: 600 18px/1.35 var(--obs-heading); letter-spacing: -0.015em; }
+.reference-brief-limit { max-width: 88ch; margin: 0; font: 400 14px/1.6 var(--obs-sans); }
+.reference-brief-limit strong { margin-right: 8px; color: var(--obs-ink-1); font-weight: 600; }
+.reference-brief-more { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; padding-top: 4px; }
+/* An opened chip drops below the closed ones and takes the full width, so the
+   row of choices never reflows under the pointer. */
+.reference-brief-chip { min-width: 0; }
+.reference-brief-chip[open] { order: 1; flex-basis: 100%; }
+.reference-brief-chip > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 14px; border: 1px solid var(--obs-rule-1); border-radius: 999px; background: var(--obs-canvas); color: var(--obs-ink-1); font: 500 13px/1.3 var(--obs-sans); list-style: none; cursor: pointer; transition: border-color 140ms ease-out; }
+.reference-brief-chip > summary::-webkit-details-marker { display: none; }
+.reference-brief-chip > summary::after { content: '+'; color: var(--obs-ink-3); font-weight: 400; }
+.reference-brief-chip[open] > summary::after { content: '−'; }
+.reference-brief-chip > summary:hover { border-color: var(--obs-ink-3); }
+.reference-brief-chip[open] > summary { border-color: var(--obs-ink-2); }
+.reference-brief-inspect { max-width: 88ch; margin: 12px 0 4px; font: 400 14px/1.65 var(--obs-sans); }
+.reference-brief-return { display: inline-flex; align-items: center; min-height: 36px; margin-left: auto; font: 600 13px/1.4 var(--obs-sans); color: var(--obs-red-1); }
+.reference-brief ul { padding-left: 18px; margin: 12px 0 4px; }
 .reference-brief li { margin-bottom: 10px; overflow-wrap: anywhere; font-size: 12px; }
 .reference-brief code { font-family: var(--obs-mono); }
-.reference-brief :is(a, summary):focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 4px; }
-.reference-diagnostics { margin-top: 16px; border-top: 1px solid var(--obs-rule-1); }
-.reference-diagnostics > summary { padding-block: 12px; }
-.reference-brief .reference-diagnostics-intro { max-width: 72ch; margin: 4px 0 20px; color: var(--obs-ink-3); font: 400 13px/1.6 var(--obs-sans); }
-.reference-diagnostics-list { display: grid; gap: 24px; margin: 0 0 16px; padding: 0; list-style: none; }
+.reference-brief :is(a, summary):focus-visible { outline: 2px solid var(--obs-red-1); outline-offset: 3px; }
+.reference-brief .reference-diagnostics-intro { max-width: 72ch; margin: 12px 0 16px; color: var(--obs-ink-3); font: 400 13px/1.6 var(--obs-sans); }
+.reference-diagnostics-list { display: grid; gap: 20px; margin: 0 0 8px; padding: 0; list-style: none; }
 .reference-brief .reference-diagnostics-list > li { margin: 0; }
-.reference-diagnostics h3 { margin: 0 0 10px; color: var(--obs-ink-1); font: 600 16px/1.4 var(--obs-sans); }
+.reference-diagnostics h3 { margin: 0 0 10px; color: var(--obs-ink-1); font: 600 15px/1.4 var(--obs-sans); }
 .reference-diagnostics dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 0; }
 .reference-diagnostics dt { margin-bottom: 4px; color: var(--obs-ink-1); font: 600 13px/1.5 var(--obs-sans); }
 .reference-diagnostics dd { max-width: 72ch; margin: 0; color: var(--obs-ink-2); font: 400 14px/1.65 var(--obs-sans); }
-@media (max-width: 700px) { .reference-diagnostics dl { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
-@media (max-width: 700px) { .reference-brief-reading { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+@media (max-width: 700px) {
+  .reference-brief { padding: 14px 16px; }
+  .reference-diagnostics dl { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .reference-brief-chip > summary { transition: none; } }

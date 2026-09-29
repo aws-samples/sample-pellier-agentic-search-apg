@@ -24,8 +24,10 @@ test.describe('Govern connected reference', () => {
     page.on('request', request => {
       if (request.method() === 'POST' && /\/(chat|execute|tool-call)(?:\/|\?|$)/.test(request.url())) toolCalls.push(request.url());
     });
-    await page.goto('/observatory');
-    await page.getByRole('navigation', { name: 'Pellier Observatory views' }).getByRole('link', { name: 'Govern', exact: true }).click();
+    // Govern is Lab 4's reference view, reached from that lab's guide.
+    await page.goto('/observatory/workbench?lab=fail-closed-policy');
+    await page.getByLabel('Step details, reference views and labs').click();
+    await page.getByRole('region', { name: 'Lab 4 views' }).getByRole('link', { name: 'Govern', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Governed agent access');
     await expect(page).toHaveTitle('Govern · Pellier Observatory');
     for (const [slug, label] of topics) {

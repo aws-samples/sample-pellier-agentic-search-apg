@@ -40,7 +40,7 @@ export interface SectionEyebrowProps {
 
 const TONE_COLOR: Record<SectionEyebrowTone, string> = {
   brand: 'var(--obs-ink-2)',
-  muted: 'var(--obs-ink-4)',
+  muted: 'var(--obs-ink-3)',
 }
 
 const DOT_COLOR: Record<SectionEyebrowTone, string> = {

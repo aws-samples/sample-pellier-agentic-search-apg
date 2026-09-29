@@ -15,7 +15,7 @@
 /* ---- Drawer shell ---- */
 .cd-drawer {
   position: fixed;
-  top: var(--pellier-surface-bar-height, 64px);
+  top: var(--pellier-chrome-height, 64px);
   right: 0;
   bottom: 0;
   width: clamp(480px, 39vw, 560px);
@@ -312,12 +312,12 @@
 /* ---- Mobile bottom sheet (< 768px) ---- */
 @media (max-width: 767.98px) {
   .cd-drawer {
-    top: var(--pellier-surface-bar-height, 56px);
+    top: var(--pellier-chrome-height, 56px);
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    height: calc(100dvh - var(--pellier-surface-bar-height, 56px));
+    height: calc(100dvh - var(--pellier-chrome-height, 56px));
     border-radius: 14px 14px 0 0;
     box-shadow: 0 -24px 64px -20px rgba(107, 74, 53, 0.14), 0 -8px 16px rgba(107, 74, 53, 0.08);
   }

@@ -28,6 +28,7 @@ import ChatDrawer from './components/ChatDrawer'
 import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
 import SurfaceNavigation from './components/SurfaceNavigation'
+import LabJourneyBar from './components/LabJourneyBar'
 import { routerBasename } from './utils/assetPath'
 import './styles/premium-heading-styles.css'
 import RouteExperience from './shared/RouteExperience'
@@ -47,7 +48,6 @@ const SessionView = lazy(() => import('./observatory/surfaces/observe/SessionVie
 const ChatTab = lazy(() => import('./observatory/surfaces/observe/ChatTab'))
 const TelemetryTab = lazy(() => import('./observatory/surfaces/observe/TelemetryTab'))
 const BriefTab = lazy(() => import('./observatory/surfaces/observe/BriefTab'))
-const WorkshopMap = lazy(() => import('./observatory/surfaces/observe/WorkshopMap'))
 const ProofBoard = lazy(() => import('./observatory/surfaces/observe/ProofBoard'))
 const OperatorLineage = lazy(
   () => import('./observatory/surfaces/observe/OperatorLineage'),
@@ -76,7 +76,6 @@ const ArchitectureDetail = lazy(
 const Tools = lazy(() => import('./observatory/surfaces/understand/Tools'))
 const Search = lazy(() => import('./observatory/surfaces/understand/Search'))
 const Skills = lazy(() => import('./observatory/surfaces/understand/Skills'))
-const Routing = lazy(() => import('./observatory/surfaces/understand/Routing'))
 const MemoryDashboard = lazy(
   () => import('./observatory/surfaces/understand/MemoryDashboard'),
 )
@@ -86,7 +85,6 @@ const Evaluations = lazy(() => import('./observatory/surfaces/measure/Evaluation
 const ProductionPatterns = lazy(
   () => import('./observatory/surfaces/measure/ProductionPatterns'),
 )
-const ObservatorySettings = lazy(() => import('./observatory/surfaces/Settings'))
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'))
 const StoryboardPage = lazy(() => import('./pages/StoryboardPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
@@ -266,7 +264,7 @@ export function AppRoutes() {
           <Route path="workbench" element={<ObservatoryWorkbench />} />
           <Route
             path="references"
-            element={<Navigate to="/observatory/workbench#resources" replace />}
+            element={<Navigate to="/observatory#resources" replace />}
           />
           <Route path="proof-board" element={<ProofBoard />} />
           <Route path="operator-lineage" element={<OperatorLineage />} />
@@ -292,7 +290,6 @@ export function AppRoutes() {
           <Route path="tools" element={<Tools />} />
           <Route path="search" element={<Search />} />
           <Route path="skills" element={<Skills />} />
-          <Route path="routing" element={<Routing />} />
           <Route path="memory" element={<MemoryDashboard />} />
           <Route path="govern" element={<Govern />} />
           <Route path="govern/:section" element={<Govern />} />
@@ -300,20 +297,16 @@ export function AppRoutes() {
           <Route path="performance" element={<Performance />} />
           <Route path="evaluations" element={<Evaluations />} />
           <Route path="production-patterns" element={<ProductionPatterns />} />
-          <Route path="workshop-map" element={<WorkshopMap />} />
-          {/* The page was routed at `observatory` while the navigation
-              called it "Workshop Map". The shell now owns that name, so the
-              old path redirects rather than 404s for anyone holding a link
-              or a screenshot of it. */}
-          <Route
-            path="observatory"
-            element={<Navigate to="/observatory/workshop-map" replace />}
-          />
+          {/* Retired views. Each lab's path is in the lab guide; these held
+              no step a participant takes, so old links land on the Lab
+              Collection rather than 404. */}
+          {['routing', 'workshop-map', 'observatory', 'settings'].map(path => (
+            <Route key={path} path={path} element={<Navigate to="/observatory" replace />} />
+          ))}
           <Route
             path="persona-journeys"
             element={<Navigate to="/observatory/sessions" replace />}
           />
-          <Route path="settings" element={<ObservatorySettings />} />
         </Route>
         {/* Stories and About are real destinations again: the header and
             footer link to them on every storefront page, and a nav item that
@@ -363,6 +356,7 @@ function App() {
                     ever reaching it. */}
                 <RouteExperience />
                 <SurfaceNavigation />
+                <LabJourneyBar />
                 <SessionStatusNotice />
                 <ModalRouteGuard />
                 <ShopperChatSlot />

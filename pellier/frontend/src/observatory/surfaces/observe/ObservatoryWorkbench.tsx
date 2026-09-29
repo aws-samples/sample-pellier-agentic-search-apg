@@ -78,6 +78,7 @@ import {
   type LabProgress,
   type LabProgressStep,
 } from '../../../shared/labProgress';
+import { openLabJourney, readLabJourney } from '../../../shared/labJourney';
 import './ObservatoryIndex.css';
 import './ObservatoryWorkbench.css';
 
@@ -945,8 +946,11 @@ export default function ObservatoryWorkbench() {
   const { persona, switchPersona, switching, switchError } = usePersona();
   const reduceMotion = useReducedMotion() !== false;
   const [searchParams, setSearchParams] = useSearchParams();
+  // An explicit ?lab= wins; otherwise the lab the guide is open on, then Lab 1.
   const selectedLab =
-    findLabExercise(searchParams.get('lab') ?? undefined) ?? LAB_EXERCISES[0];
+    findLabExercise(searchParams.get('lab') ?? undefined) ??
+    findLabExercise(readLabJourney().lab ?? undefined) ??
+    LAB_EXERCISES[0];
   const selectedJourney = journeyForLab(selectedLab.id)!;
   const selectedPersona =
     persona?.id === selectedJourney.anchorId ? persona : null;
@@ -1711,6 +1715,11 @@ export default function ObservatoryWorkbench() {
     });
   }, [selectedLab.id, selectedLab.participantTodo, currentStep]);
 
+  // Opening a lab here opens its guide on every surface, at its last step.
+  useEffect(() => {
+    openLabJourney(selectedLab.id);
+  }, [selectedLab.id]);
+
   const activeFocusPanel = FOCUS_PANELS[focusStep] ?? FOCUS_PANELS[0];
   /** In focus mode only the current step's panel is mounted-visible. */
   const focusProps = (panel: 'requests' | 'trace' | 'results') =>
@@ -1789,27 +1798,29 @@ export default function ObservatoryWorkbench() {
   return (
     <div className="observatory-workbench labs-index">
       <div className="labs-index-inner">
-        <header className="observatory-workbench-intro">
-          <div className="observatory-workbench-intro-copy">
-            <h1 className="observatory-page-title font-display">
-              Workbench
-            </h1>
-          </div>
-          {resumeElsewhere ? <div className="observatory-workbench-intro-aside">
+        {/* The lab strip above names the lab and switches between labs, so the
+            page opens on the lab itself: its title, the lesson it teaches, and
+            the task. The lesson comes first because it is what a participant
+            should be able to say when the lab is done. */}
+        <header className="observatory-workbench-task">
+          <div className="observatory-workbench-task-head">
+            <h1 className="observatory-page-title">Lab {Number(selectedLab.number)}: {selectedLab.title}</h1>
             {resumeElsewhere ? (
               <Link
                 className="observatory-resume"
                 to={resumeHref(resumePoint as LabProgress)}
                 aria-label={`Resume ${resumeLabel(resumePoint as LabProgress)}`}
+                title={`Resume ${resumeLabel(resumePoint as LabProgress)}`}
               >
                 <RotateCcw size={14} aria-hidden="true" />
-                <span>
-                  Resume
-                  <small>{resumeLabel(resumePoint as LabProgress)}</small>
-                </span>
+                <span>Resume Lab {Number(LAB_EXERCISES.find(exercise => exercise.id === (resumePoint as LabProgress).lab)?.number ?? 0)}</span>
               </Link>
             ) : null}
-          </div> : null}
+          </div>
+          <p className="observatory-workbench-lesson"><strong>You will learn</strong>{selectedLab.lesson}</p>
+          <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
+          <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio. Use this workspace to run the scenario and inspect its evidence.</p>
+          <LabBuildConnection exercise={selectedLab} />
         </header>
         {focusMode ? (
           <nav
@@ -1830,34 +1841,6 @@ export default function ObservatoryWorkbench() {
             ))}
           </nav>
         ) : null}
-        {/* The portraits introduce the scenarios on the Lab Collection. Here the
-            same four destinations are a switcher, so the Workbench does not
-            open with a second copy of that gallery. Still links: deep links,
-            Back/Forward and keyboard focus behave exactly as before. */}
-        <nav className="observatory-lab-switch" aria-label="Select a lab">
-          {LAB_EXERCISES.map((exercise) => {
-            const selected = exercise.id === selectedLab.id;
-            return (
-              <Link
-                key={exercise.id}
-                to={`/observatory/workbench?lab=${exercise.id}`}
-                className="observatory-lab-switch-option"
-                data-selected={selected ? 'true' : undefined}
-                aria-current={selected ? 'step' : undefined}
-                aria-label={`Lab ${Number(exercise.number)} ${exercise.anchorName}: ${exercise.title}`}
-              >
-                <span aria-hidden="true">{Number(exercise.number)}</span>
-                {exercise.anchorName}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="observatory-workbench-task">
-          <h2>Lab {Number(selectedLab.number)}: {selectedLab.title}</h2>
-          <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
-          <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio. Use this workspace to run the scenario and inspect its evidence.</p>
-          <LabBuildConnection exercise={selectedLab} />
-        </div>
         {focusMode ? (
           <div className="observatory-workbench-status">{runSummary}</div>
         ) : null}
@@ -2756,7 +2739,7 @@ export default function ObservatoryWorkbench() {
           </> : null}
         </div>
         {(!storefrontJourney || (runStatus === 'complete' && turnEntries.slice(0, 3).filter(Boolean).length === 3)) && <LabHandoff exercise={selectedLab} />}
-        <WorkbenchResources compact collapsible defaultExpanded={false} labId={selectedLab.id} />
+        <WorkbenchResources scope="extensions" />
       </div>
     </div>
   );

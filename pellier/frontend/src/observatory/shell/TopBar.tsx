@@ -1,13 +1,14 @@
 /**
  * Pellier Observatory top bar.
  *
- * The governed workbench is the primary destination. Deeper evidence routes
- * are linked from the collection and workbench rather than becoming another
- * first-level navigation surface.
+ * Two places: the Lab Collection, where the labs start, and the Workbench.
+ * Every other view belongs to a lab and is reached from the lab guide under
+ * the shared navigation, or from the page that needs it. Govern was a third
+ * tab and also Lab 4's reference view; it now lives with Lab 4 only.
  */
 
 import React from 'react';
-import { LibraryBig, ScanLine, ShieldCheck } from 'lucide-react';
+import { LibraryBig, ScanLine } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePersona } from '../../contexts/PersonaContext';
 import { PresencePill } from '../../shared';
@@ -20,14 +21,11 @@ const OBSERVATORY_TABS = [
     icon: LibraryBig,
   },
   { label: 'Workbench', path: '/observatory/workbench', icon: ScanLine },
-  { label: 'Govern', path: '/observatory/govern', icon: ShieldCheck },
 ] as const;
 
 const TopBar: React.FC = () => {
   const { pathname } = useLocation();
   const { persona } = usePersona();
-  const isGovern = pathname === '/observatory/govern' ||
-    pathname.startsWith('/observatory/govern/') || pathname === '/observatory/write-path';
   const isCollection = pathname === '/observatory' || pathname === '/observatory/' ||
     pathname.startsWith('/observatory/labs');
 
@@ -41,9 +39,7 @@ const TopBar: React.FC = () => {
 
       <nav className="observatory-tabs" aria-label="Pellier Observatory views">
         {OBSERVATORY_TABS.map((tab) => {
-          const isActive = tab.path === '/observatory'
-            ? isCollection
-            : tab.path === '/observatory/govern' ? isGovern : !isGovern && !isCollection;
+          const isActive = tab.path === '/observatory' ? isCollection : !isCollection;
           const TabIcon = tab.icon;
           return (
             <Link

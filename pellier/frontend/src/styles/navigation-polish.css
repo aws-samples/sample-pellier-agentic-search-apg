@@ -16,11 +16,11 @@ main, [id='shop'] { scroll-margin-top: 88px; }
 
 /* Reserve both sticky navigation rows when the browser scrolls keyboard focus. */
 html:has(.observatory-root) {
-  scroll-padding-block-start: calc(var(--pellier-surface-bar-height, 64px) + 88px);
+  scroll-padding-block-start: calc(var(--pellier-chrome-height, 64px) + 88px);
 }
 @media (max-width: 820px) {
   html:has(.observatory-root) {
-    scroll-padding-block-start: calc(var(--pellier-surface-bar-height, 56px) + 140px);
+    scroll-padding-block-start: calc(var(--pellier-chrome-height, 56px) + 140px);
   }
 }
 

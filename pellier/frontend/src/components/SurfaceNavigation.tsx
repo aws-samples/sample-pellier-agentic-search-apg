@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useLabJourney } from '../shared/labJourney'
 import '../styles/surface-navigation.css'
 
 type Surface = 'storefront' | 'operator' | 'observatory'
@@ -25,6 +26,7 @@ function surfaceFor(path: string): Surface {
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
   const active = surfaceFor(pathname)
+  const { lab } = useLabJourney()
   const [destinations, setDestinations] = useState<Record<Surface, string>>({
     storefront: '/',
     operator: '/operator/reviews',
@@ -63,6 +65,13 @@ export default function SurfaceNavigation() {
           </Link>
         ))}
       </nav>
+      {/* The way into a guided lab when none is open; while one is, the lab
+          guide below this bar carries it. */}
+      {lab ? null : (
+        <Link to="/observatory" className="pellier-surface-labs" data-testid="surface-labs-link">
+          Labs
+        </Link>
+      )}
     </div>
   )
 }

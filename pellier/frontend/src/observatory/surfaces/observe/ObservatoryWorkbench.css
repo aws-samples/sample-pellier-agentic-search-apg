@@ -94,16 +94,10 @@
 }
 
 /* Layout only. Typography belongs to `.observatory-root .observatory-page-title`
-   in observatory/styles/base.css, which is the single title step for the whole
-   surface — this route was the one outlier, forcing sans/600 with `!important`
-   while every other Observatory title rendered in the display face.
-   The `font-size: 28px` that used to sit here never applied: base.css matches at
-   (0,2,0) against this rule's (0,1,0), so only the `!important` declarations
-   were ever in effect. Removing them is what makes the route consistent; a
-   route needing a different rhythm should move the token, not re-declare the
+   in observatory/styles/base.css, the single title step for the whole surface.
+   A route needing a different rhythm should move the token, not re-declare the
    element. */
 .observatory-page-title {
-  flex: 0 0 auto;
   margin: 0;
   line-height: 1.08;
 }
@@ -117,32 +111,50 @@
   padding: 24px var(--obs-gutter) 0;
 }
 
-.observatory-workbench-intro {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 0;
-  align-items: start;
-  justify-content: space-between;
-  gap: 24px;
-  margin: 0 0 12px;
-}
-
-.observatory-workbench-intro-copy {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
 .observatory-workbench-task {
+  display: grid;
+  gap: 6px;
   margin: 0 2px 16px;
 }
 
-.observatory-root .observatory-workbench-task h2 {
-  margin: 0 0 5px;
+.observatory-workbench-task-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.observatory-workbench-task-head > .observatory-page-title {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* The lesson is the line a participant should be able to say back at the end
+   of the lab, so it reads as the lead, not as a caption. */
+.observatory-root .observatory-workbench-lesson {
+  max-width: 88ch;
+  margin: 2px 0 2px;
+  padding-left: 12px;
+  border-left: 2px solid var(--pl-accent);
   color: var(--pl-ink);
-  font-size: 18px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.observatory-workbench-lesson strong {
+  display: block;
+  color: var(--pl-accent);
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.5;
+}
+
+.observatory-root .observatory-workbench-studio-note {
+  margin: 0;
+  color: var(--pl-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .observatory-root .observatory-workbench-purpose {
@@ -191,67 +203,9 @@
   font-weight: 600;
 }
 
-.observatory-lab-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 2px 14px;
-}
-
-.observatory-lab-switch-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 15px;
-  border: 1px solid var(--pl-line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--pl-ink-soft);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    border-color 160ms ease-out,
-    background-color 160ms ease-out,
-    color 160ms ease-out;
-}
-
-.observatory-lab-switch-option > span {
-  font-family: var(--pl-mono);
-  font-size: 12px;
-  color: var(--pl-ink-faint);
-}
-
-.observatory-lab-switch-option:hover {
-  border-color: var(--pl-accent);
-  color: var(--pl-ink);
-}
-
-.observatory-lab-switch-option[data-selected='true'] {
-  border-color: var(--pl-accent);
-  background: var(--pl-accent);
-  color: var(--pl-paper);
-  font-weight: 600;
-}
-
-.observatory-lab-switch-option[data-selected='true'] > span {
-  color: color-mix(in srgb, var(--pl-paper) 76%, transparent);
-}
-
-@media (max-width: 720px) {
-  .observatory-lab-switch-option {
-    flex: 1 1 auto;
-    justify-content: center;
-    padding-inline: 10px;
-  }
-}
-
 .observatory-workbench-grid {
   display: grid;
-  height: calc(100dvh - 248px);
+  height: calc(100dvh - var(--pellier-chrome-height) - 184px);
   min-height: 0;
   max-height: none;
   grid-template-columns:
@@ -2311,18 +2265,6 @@
     opacity: 0.17;
   }
 
-  .observatory-workbench-intro {
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    gap: 7px;
-    margin: 2px 2px 12px;
-  }
-
-  .observatory-workbench-intro-copy {
-    gap: 4px;
-  }
-
   .observatory-page-title {
     font-size: 22px;
     white-space: normal;
@@ -2549,13 +2491,6 @@
 /* ---------------------------------------------------------------------------
  * Narrow layout: one panel at a time. Wide screens show all three panels.
  * ------------------------------------------------------------------------- */
-.observatory-workbench-intro-aside {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 12px;
-}
-
 .observatory-focus-steps {
   display: flex;
   flex-wrap: wrap;
@@ -2666,18 +2601,10 @@
 }
 
 .observatory-resume > span {
-  display: grid;
-  gap: 1px;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
-}
-
-.observatory-resume small {
-  color: var(--pl-muted);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .labs-turns-state { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px; }
@@ -2696,8 +2623,6 @@
 }
 
 @media (max-width: 560px) {
-  .observatory-workbench-intro-aside { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
-  .observatory-resume { flex: 1; min-width: 0; border-radius: 10px; }
   .observatory-focus-steps {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -86,7 +86,6 @@ const OperatorState: React.FC<OperatorStateProps> = ({
         action={action}
         level={level}
         size="page"
-        face="sans"
       />
     </div>
   </div>

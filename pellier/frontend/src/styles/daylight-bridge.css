@@ -129,7 +129,6 @@
      reaching 800 on tracked uppercase, which is why it read as louder
      while using identical colours. */
   --text-display:  clamp(40px, 4.2vw, 49px);  /* page title, Fraunces 400 */
-  --text-page-title: clamp(30px, 3vw, 44px);  /* Observatory + Operator page title, Fraunces 400 */
   --text-section:  clamp(30px, 3vw, 38px);    /* section head, Fraunces 400 */
   --text-sub:      24px;                      /* sub-section, Fraunces 400 */
   --text-card:     20px;                      /* card title, sans 500 */

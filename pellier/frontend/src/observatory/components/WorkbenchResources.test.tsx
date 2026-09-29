@@ -16,13 +16,14 @@ describe('Lab reference directory', () => {
     expect(screen.getByRole('link', { name: 'Governed workshop source' })).toHaveAttribute('href', 'https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/governed');
     expect(screen.getByRole('link', { name: 'Replacement recovery' })).not.toBeVisible();
   });
-  it('keeps current lab references first without losing other destinations', async () => {
-    renderIndex({ labId: 'retrieval-acceptance' });
-    expect(screen.getByRole('link', { name: 'Search pipeline' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Retrieval comparison' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Tool Registry' })).not.toBeVisible();
-    await userEvent.click(screen.getByText('References for the other labs'));
-    expect(screen.getByRole('link', { name: 'Tool Registry' })).toBeVisible();
+  it('keeps only the after-the-labs extensions on the Workbench', async () => {
+    // Each lab's own views are in the lab strip; repeating them here would be
+    // a second navigation for the same destinations.
+    renderIndex({ scope: 'extensions' });
+    expect(screen.queryByRole('link', { name: 'Search pipeline' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Telemetry & system references' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('After the labs: evaluation and recovery'));
+    for (const label of ['Evaluations', 'Production patterns', 'Replacement recovery']) expect(screen.getByRole('link', { name: label })).toBeVisible();
   });
   it('discloses advanced material explicitly after the labs', async () => {
     renderIndex();

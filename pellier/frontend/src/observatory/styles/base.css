@@ -35,15 +35,17 @@
   --dl-accent: var(--accent);
   --dl-accent-soft: var(--red-soft);
   --dl-accent-ink: var(--accent-ink);
-  /* `--dl-font-display` is deliberately NOT remapped to the sans stack. The
-     Observatory shares the storefront's two-register system: Fraunces carries
-     the one page-level title per screen, Instrument Sans carries every
-     operational heading, label, and control. Remapping it here forced page
-     titles to sans while sibling rules that read `var(--display)` still
-     resolved to Fraunces (that token is declared on `:root`, so it
-     substitutes there), which split one surface across two display voices.
-     `--dl-font-serif` / `--serif` / `--obs-serif` stay on sans on purpose:
-     Instrument Serif reads poorly at prose sizes on this surface. */
+  /* One face for the tools. Fraunces is the storefront's editorial voice; the
+     Observatory, like the Operator desk, sets every heading and title in
+     Instrument Sans. All three display tokens are remapped here, together:
+     `--display` is declared on `:root`, so remapping only the Observatory's
+     own token once left sibling rules that read `var(--display)` in Fraunces
+     and split one screen across two voices. `--dl-font-serif` / `--serif` /
+     `--obs-serif` stay on sans too: Instrument Serif reads poorly at prose
+     sizes on this surface. */
+  --display: var(--obs-heading);
+  --obs-display: var(--obs-heading);
+  --dl-font-display: var(--dl-font-heading);
   --dl-font-serif: var(--sans);
   --serif: var(--sans);
   /* Surface and ink come from the warm-paper block further down this file,
@@ -71,13 +73,6 @@
   --obs-sand-2: #f8f1df;
   --obs-sand-line: #d8c9a9;
   --obs-red-soft: var(--pellier-accent-tint);
-  /* `--display` and `--obs-display` are deliberately NOT remapped here. The
-     comment above already documents the two-register system: Fraunces carries
-     the one page-level title per screen (`.observatory-page-title`,
-     `.font-display`), Instrument Sans carries every operational heading, label
-     and control through `--obs-heading`. Remapping the display tokens to sans
-     made the restore rule below read an already-sans variable, so no title on
-     the surface ever rendered in the display face. */
   --obs-serif: var(--sans);
   --obs-card-bg: var(--obs-panel);
   --obs-card-border: var(--obs-rule-1);
@@ -195,35 +190,17 @@
   color: var(--obs-ink-1);
 }
 
-/* Operational headings share one readable UI voice. Editorial headings opt
- * into Fraunces with `font-display`; the exclusion keeps those page-level
- * moments intact while overriding legacy inline serif styles elsewhere. */
-.observatory-root h1:not(.font-display),
-.observatory-root h2:not(.font-display),
-.observatory-root h3:not(.font-display),
-.observatory-root h4:not(.font-display),
-.observatory-root h5:not(.font-display),
-.observatory-root h6:not(.font-display) {
+/* Every heading shares one readable UI voice, overriding legacy inline serif
+ * styles. `.font-display` no longer opts out: the tools have no display face. */
+.observatory-root h1,
+.observatory-root h2,
+.observatory-root h3,
+.observatory-root h4,
+.observatory-root h5,
+.observatory-root h6 {
   font-family: var(--obs-heading) !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
-}
-
-/* The exclusion above only protects `.font-display` from THIS rule. index.css
- * separately forces `.pellier-page-surface .font-display` to the sans stack
- * with `font-style: normal`, and `.observatory-root` carries that class — so
- * every editorial title rendered upright sans and the opt-in above described
- * behaviour that did not happen. Restore the display voice here rather than
- * editing the shared rule, which also governs the storefront, the operator
- * desk, and ProductDetailPage. */
-.observatory-root .font-display,
-.pellier-page-surface .observatory-root .font-display {
-  font-family: var(--obs-display);
-  letter-spacing: -0.012em;
-}
-
-.observatory-root .font-display.italic {
-  font-style: italic;
 }
 
 /* One page title per screen, one size. h1 previously rendered at seven
@@ -231,12 +208,9 @@
  * its own. `--obs-title-size` is the single step; routes that need a
  * different rhythm should change the token, not the element. */
 .observatory-root .observatory-page-title {
-  font-family: var(--obs-display);
+  font-family: var(--obs-heading);
   font-size: var(--obs-title-size);
-  /* 400, not 650: Fraunces at semibold reads as a different typeface from the
-     storefront's page titles, which is the whole voice the display face is
-     here to carry. Tracking does the optical work at this size. */
-  font-weight: var(--weight-body);
+  font-weight: var(--obs-title-weight);
   line-height: var(--obs-title-leading);
   letter-spacing: var(--obs-title-tracking);
   color: var(--obs-ink-1);
@@ -1136,7 +1110,7 @@
 
 .observatory-surface {
   flex: 1;
-  padding: 32px var(--obs-gutter) calc(56px + env(safe-area-inset-bottom, 0px));
+  padding: 24px var(--obs-gutter) calc(56px + env(safe-area-inset-bottom, 0px));
   background: var(--obs-canvas);
 }
 
@@ -1160,19 +1134,19 @@
   z-index: 1;
 }
 
+/* Scrolls with the page. The shared navigation and, in a lab, the lab guide
+   stay pinned above it; a third pinned row cost too much of a laptop screen. */
 .observatory-topbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 50;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  min-height: 64px;
+  min-height: 52px;
   align-items: center;
   gap: 20px;
-  padding: 10px clamp(18px, 3vw, 44px);
+  padding: 4px var(--obs-gutter);
   border-bottom: 1px solid var(--obs-rule-1);
   background: color-mix(in srgb, var(--obs-panel) 94%, transparent);
-  box-shadow: 0 8px 30px rgb(60 40 10 / 0.05);
   backdrop-filter: saturate(125%) blur(16px) !important;
   -webkit-backdrop-filter: saturate(125%) blur(16px) !important;
 }
@@ -1244,15 +1218,17 @@
   justify-self: center;
 }
 
+/* Underlined, not pill-filled: the tab row reads as one quiet control, and the
+   filled pill is kept for the lab strip's views directly below it. */
 .observatory-tab {
   position: relative;
   display: inline-flex;
   min-width: 0;
   align-items: center;
   gap: 8px;
-  padding: 0 18px;
-  border: 1px solid transparent;
-  border-radius: 999px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
   color: var(--obs-ink-4) !important;
   /* The reading face, like the surface switcher directly above: two adjacent
      navigation rows in two families read as two products. */
@@ -1269,19 +1245,28 @@
 }
 
 .observatory-tab::after {
-  content: none;
+  position: absolute;
+  right: 14px;
+  bottom: -4px;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+  content: '';
+  transition: background-color 160ms ease;
 }
 
 .observatory-tab:hover {
-  background: var(--obs-panel-muted);
   color: var(--obs-ink-1) !important;
 }
 
 .observatory-tab[data-active='true'] {
-  border-color: color-mix(in srgb, var(--pellier-accent) 16%, var(--rule-1));
-  background: color-mix(in srgb, var(--pellier-accent) 8%, var(--cream-elev));
-  color: var(--pellier-accent) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%);
+  color: var(--obs-ink-1) !important;
+  font-weight: 600;
+}
+
+.observatory-tab[data-active='true']::after {
+  background: var(--pellier-accent);
 }
 
 .observatory-tab:focus-visible {
@@ -1722,8 +1707,8 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 24px;
-  padding-bottom: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--obs-rule-1);
 }
 
@@ -1787,10 +1772,12 @@
    these pages 50px to 180px right of the Lab Collection and the Workbench, so
    the page appeared to jump sideways on every navigation. Pages that read
    better narrower cap their width and stay left-aligned. */
+/* The surface above already pads the page; the reading column adds only a
+   little more at the top, so the title sits close under the lab strip. */
 .observatory-reading-page {
   width: min(100%, 1400px);
   margin: 0;
-  padding: 40px 0;
+  padding: 12px 0 40px;
 }
 
 .observatory-sessions-page {
@@ -1814,7 +1801,7 @@
 
 .observatory-architecture-legend {
   position: sticky;
-  top: 100px;
+  top: calc(var(--pellier-chrome-height) + 24px);
 }
 
 /* Tool chips in the registry are real buttons: a comfortable desktop target,
@@ -1841,7 +1828,7 @@
 
 @media (max-width: 1080px) {
   .observatory-reading-page {
-    padding: 28px 0;
+    padding: 8px 0 28px;
   }
 
   .observatory-architecture-layout {
@@ -1855,7 +1842,7 @@
 
 @media (max-width: 760px) {
   .observatory-reading-page {
-    padding: 22px 0;
+    padding: 4px 0 22px;
   }
 
   .observatory-architecture-grid,

@@ -60,7 +60,7 @@ export default function LabsCatalog() {
                 <div className="labs-catalog-card-copy">
                   <h3 id={`collection-${exercise.id}`}><Link to={to}>{exercise.title}</Link></h3>
                   <p className="labs-catalog-customer-need">{exercise.customerNeed}</p>
-                  <p>{exercise.summary}</p>
+                  <p className="labs-catalog-lesson"><strong>You will learn</strong>{exercise.lesson}</p>
                   <LabStatusMark status={statusForExercise(exercise, data)} loading={loading} discloseDetails />
                   <Link className="labs-catalog-card-open" to={to} aria-label={`Open Lab ${Number(exercise.number)} in Workbench`}>
                     Open Lab {Number(exercise.number)} in Workbench

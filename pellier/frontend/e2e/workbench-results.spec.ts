@@ -121,6 +121,8 @@ for (const width of [1440, 1024, 768, 390]) {
       await settlePanels(page);
       await page.screenshot({ path: `/tmp/pellier-playwright/workbench-final-idle-${width}.png`, fullPage: true });
     }
+    // Labs switch from the lab guide's menu under the shared navigation.
+    await page.getByLabel('Step details, reference views and labs').click();
     await page.getByRole('link', { name: /^Lab 4 Jessica:/ }).click();
     await expect(page.getByRole('link', { name: /Open Jessica in Operator/ })).toBeVisible();
     await expect(page.getByRole('status', { name: 'Run proof summary' })).toHaveCount(0);
@@ -240,6 +242,7 @@ test('running and verified-empty states are distinct, and a late run cannot ente
   });
   await run(page);
   await expect(page.getByRole('status', { name: 'Run proof summary' })).toContainText('Running');
+  await page.getByLabel('Step details, reference views and labs').click();
   await page.getByRole('link', { name: /^Lab 2 Anna:/ }).click();
   const response = page.waitForResponse('**/api/chat/stream');
   finish();

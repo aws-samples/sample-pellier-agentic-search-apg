@@ -24,9 +24,10 @@ describe('Pellier Observatory TopBar', () => {
     ['/observatory/labs/grounded-inventory', 'Lab Collection'],
     ['/observatory/workbench', 'Workbench'],
     ['/observatory/proof-board', 'Workbench'],
-    ['/observatory/govern', 'Govern'],
-    ['/observatory/govern/policies', 'Govern'],
-    ['/observatory/write-path', 'Govern'],
+    // Govern is Lab 4's reference view, not a tab of its own.
+    ['/observatory/govern', 'Workbench'],
+    ['/observatory/govern/policies', 'Workbench'],
+    ['/observatory/write-path', 'Workbench'],
   ])('marks exactly one destination current at %s', (route, label) => {
     render(<MemoryRouter initialEntries={[route]}><TopBar /></MemoryRouter>)
     const current = screen.getAllByRole('link', { current: 'page' })
@@ -111,5 +112,15 @@ describe('Pellier Observatory TopBar', () => {
     expect(
       screen.queryByTestId('observatory-persona-switcher'),
     ).not.toBeInTheDocument()
+  })
+
+  it('offers two places, not a third tab for a lab reference', () => {
+    render(
+      <MemoryRouter initialEntries={['/observatory']}>
+        <TopBar />
+      </MemoryRouter>,
+    )
+    const tabs = screen.getByRole('navigation', { name: 'Pellier Observatory views' })
+    expect(Array.from(tabs.querySelectorAll('a')).map(link => link.textContent)).toEqual(['Lab Collection', 'Workbench'])
   })
 })

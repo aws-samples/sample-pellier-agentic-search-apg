@@ -23,7 +23,8 @@ export interface LabExercise {
   anchorName: 'Marco' | 'Anna' | 'Theo' | 'Jessica';
   title: string;
   shortTitle: string;
-  summary: string;
+  /** The transferable idea the lab teaches, in two sentences. Shown first. */
+  lesson: string;
   customerNeed: string;
   nextBoundary: string;
   image: string;
@@ -60,7 +61,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     shortTitle: 'PostgreSQL-grounded agent',
     customerNeed: "Marco needs reliable stock and dispatch facts before his trip.",
     nextBoundary: "You can check a product. Next, help Anna find the right product without changing her requirements.",
-    summary: "Connect the inventory tool, then check that the agent answers from its returned facts. Keep an unknown product distinct from a known product with zero stock.",
+    lesson: 'An agent can only claim what its tool returns, so the tool must pass the database’s answer through unchanged. Unknown, ambiguous and zero stock are three different answers.',
     image: '/assets/personas/marco-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
@@ -113,7 +114,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     shortTitle: 'PostgreSQL hybrid retrieval',
     customerNeed: "Anna needs a gift under $100. Alternatives may change her preferences, never her requirements.",
     nextBoundary: "You can find suitable products. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary.",
-    summary: "Explain how search results are ranked, then keep budget, stock and exclusions unchanged when the agent retries with a different preference.",
+    lesson: 'Ranking is arithmetic you can recompute, and a retry may relax a preference but never a requirement. Similarity decides the order; SQL decides what is eligible.',
     image: '/assets/personas/anna-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
@@ -166,7 +167,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     shortTitle: 'Managed agents with AgentCore',
     customerNeed: "Theo wants remembered preferences and help with his own service history. Context must not become permission.",
     nextBoundary: "You can read under the right identity. Next, follow Jessica’s action through authorization, database effects and staff review.",
-    summary: "Connect a tool that reads the signed-in customer’s support records, deploy it, and test access to their own records and another customer’s records.",
+    lesson: 'The caller comes from the signed token, not the conversation. The server binds it onto every customer-scoped call, and publishing, deploying and remembering are each separate from permission.',
     image: '/assets/personas/theo-720.webp',
     imageWidth: 720,
     imageHeight: 1080,
@@ -219,7 +220,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     shortTitle: 'Governed actions with Cedar',
     customerNeed: "Jessica needs her service request resolved safely. Staff must establish what happened before choosing the next action.",
     nextBoundary: "Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question.",
-    summary: "Write ownership checks in Cedar and PostgreSQL, then follow Jessica’s staff proposal through human confirmation to one recorded return.",
+    lesson: 'Each boundary an action crosses needs its own evidence. An ALLOW is not a commit, hiding a response is not a rollback, and an absence counts only beside a positive control.',
     image: '/assets/personas/jessica-720.webp',
     imageWidth: 720,
     imageHeight: 900,

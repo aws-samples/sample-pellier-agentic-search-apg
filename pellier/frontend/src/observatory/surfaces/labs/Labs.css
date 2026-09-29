@@ -433,7 +433,7 @@
 
 .lab-exercise-rail {
   position: sticky;
-  top: 84px;
+  top: calc(var(--pellier-chrome-height) + 20px);
   display: grid;
   min-width: 0;
   gap: 10px;
@@ -1154,6 +1154,9 @@
 .labs-catalog-hero-copy .labs-catalog-eyebrow { margin: 0 0 14px; color: var(--obs-red-1); font-size: 13px; font-weight: 600; }
 .labs-catalog-start { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 18px; }
 .labs-catalog-start > a:not(.labs-catalog-primary) { display: inline-flex; align-items: center; min-height: 44px; color: var(--obs-red-1); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+/* The lesson is the card's argument: named, then stated in the reading face. */
+.labs-catalog-lesson { margin: 0; color: var(--obs-ink-2); }
+.labs-catalog-lesson strong { display: block; margin-bottom: 4px; color: var(--obs-red-1); font: 600 12px/1.4 var(--obs-sans); }
 .labs-catalog-contact-sheet .labs-catalog-card-copy > .labs-catalog-customer-need { color: var(--obs-ink-1); font-weight: 500; padding-bottom: 12px; border-bottom: 1px solid var(--obs-rule-1); }
 .labs-catalog-close { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; margin: 8px var(--obs-gutter) 24px; padding: 28px 0; border-block: 1px solid var(--obs-rule-1); }
 .labs-catalog-close > div { flex: 1 1 480px; }

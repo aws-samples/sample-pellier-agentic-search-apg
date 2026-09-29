@@ -231,6 +231,10 @@
   text-align: center;
 }
 
+.labs-turn-media > svg {
+  color: var(--pl-muted);
+}
+
 .labs-turn-media > .labs-turn-build-checkpoint {
   display: grid;
   width: 100%;

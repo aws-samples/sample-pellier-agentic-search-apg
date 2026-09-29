@@ -10,10 +10,9 @@
  * Four parts, and the order is the argument:
  *
  *   eyebrow   which panel is empty
- *   headline  one sentence, in the display face at 22-24px. Fraunces here is
- *             deliberate: an empty state is the one moment a technical surface
- *             has nothing to be dense about, so it gets the product's own
- *             voice rather than shrinking apologetically.
+ *   headline  one sentence, Instrument Sans 600 at 22-24px (26-32px when the
+ *             state is the page). Large enough to read as an answer rather
+ *             than shrinking apologetically; the tools' own heading voice.
  *   body      optional prose: what would fill it
  *   reason    optional mono line: the table, service or window that came back
  *             empty. Mono because this one is an identifier, and it is the
@@ -21,17 +20,8 @@
  *   action    at most one. Two actions in an empty state means the surface
  *             does not know what it wants the reader to do.
  *
- * The headline is a real heading. Two stylesheets fight over it: `base.css`
- * forces every `h1`-`h6` under `.observatory-root` to the sans stack with
- * `!important` unless it carries `.font-display`, and `index.css` then forces
- * `.pellier-page-surface .font-display` back to sans. Carrying `.font-display`
- * opts out of the first rule, and the inline family outranks the second, which
- * is a plain class selector. That combination keeps Fraunces on both surfaces
- * without giving up the heading.
- *
- * The Operator desk passes `face="sans"`: its type is Instrument Sans
- * throughout, so its states set the headline in the desk's own heading voice
- * rather than the storefront's display face.
+ * The headline is a real heading, in the same face as every other heading on
+ * the Observatory and the Operator desk. Fraunces belongs to the storefront.
  *
  * It matters because the desk's signed-out state is a whole page whose only
  * sentence is this one: rendered as a paragraph, `/operator` reached a reader
@@ -58,8 +48,6 @@ export interface EmptyStateProps {
   /** Editorial scale for a state replacing the page, rather than a small panel. */
   size?: 'panel' | 'page'
   align?: 'start' | 'center'
-  /** Headline face. `sans` is the Operator desk's heading voice. */
-  face?: 'display' | 'sans'
   className?: string
   'data-testid'?: string
 }
@@ -73,14 +61,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   level = 2,
   size = 'panel',
   align = 'start',
-  face = 'display',
   className,
   'data-testid': testId,
 }) => {
   const centered = align === 'center'
   const pageSize = size === 'page'
   const Headline = `h${level}` as 'h1' | 'h2' | 'h3'
-  const sans = face === 'sans'
 
   return (
     <div
@@ -98,15 +84,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <SectionEyebrow tone="muted">{eyebrow}</SectionEyebrow>
 
       <Headline
-        className="font-display"
         style={{
           margin: 0,
           maxWidth: pageSize ? '28ch' : '46ch',
-          fontFamily: sans ? 'var(--sans)' : 'var(--display)',
+          fontFamily: 'var(--sans)',
           fontSize: pageSize ? 'clamp(26px, 2.5vw, 32px)' : 'clamp(22px, 2vw, 24px)',
-          fontWeight: sans ? 600 : 400,
+          fontWeight: 600,
           lineHeight: 1.25,
-          letterSpacing: sans ? '-0.02em' : '-0.012em',
+          letterSpacing: '-0.02em',
           color: 'var(--obs-ink-1)',
         }}
       >

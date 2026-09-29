@@ -14,7 +14,7 @@
  * with a count in the message.
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { Link, MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -81,6 +81,9 @@ function workbench() {
     <MemoryRouter
       initialEntries={['/observatory/workbench?lab=grounded-inventory']}
     >
+      {/* The lab switch lives in the frame's lab strip; here a plain link makes
+          the same URL change the strip makes. */}
+      <Link to="/observatory/workbench?lab=retrieval-acceptance">Switch to Lab 2</Link>
       <ObservatoryWorkbench />
     </MemoryRouter>
   );
@@ -136,7 +139,7 @@ describe('Observatory workbench persona identity', () => {
     const { container } = render(workbench());
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect: First guided turn' }));
     await waitFor(() => expect(mocks.sendChatMessageStreaming).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('link', { name: 'Lab 2 Anna: Build and Measure PostgreSQL Hybrid Retrieval' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Switch to Lab 2' }));
     await act(async () => {
       mocks.sendChatMessageStreaming.mock.calls[0][2]({
         type: 'content_delta', delta: 'Late answer from Marco.',
@@ -147,8 +150,8 @@ describe('Observatory workbench persona identity', () => {
         reject(new Error('Late failure from Marco.'));
       }
     });
-    expect(screen.getByRole('link', { name: 'Lab 2 Anna: Build and Measure PostgreSQL Hybrid Retrieval' }))
-      .toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('heading', { level: 1, name: 'Lab 2: Build and Measure PostgreSQL Hybrid Retrieval' }))
+      .toBeInTheDocument();
     expect(screen.queryByText('Late answer from Marco.')).toBeNull();
     expect(screen.queryByText('Late failure from Marco.')).toBeNull();
     expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Ready');

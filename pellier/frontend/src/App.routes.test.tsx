@@ -133,18 +133,24 @@ describe('canonical application routes', () => {
     expect(routes).not.toMatch(/(stories|about):\s*'\/#shop'/)
   })
 
-  it('redirects the retired references surface into workbench resources', async () => {
+  it('redirects the retired references surface into the Lab Collection index', async () => {
+    // The full reference index lives on the Lab Collection; the Workbench
+    // keeps only the after-the-labs extensions.
     renderRoute('/observatory/references')
 
-    expect(
-      await screen.findByText('Pellier Observatory workbench'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent(
-        '/observatory/workbench#resources',
-      )
+      expect(screen.getByTestId('location')).toHaveTextContent('/observatory')
     })
   })
+
+  it.each(['routing', 'workshop-map', 'observatory', 'settings'])(
+    'sends the retired /observatory/%s view to the Lab Collection',
+    async (path) => {
+      renderRoute(`/observatory/${path}`)
+      expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
+    },
+  )
 
   it('serves one piece at its own deep-linkable route', async () => {
     renderRoute('/product/11')

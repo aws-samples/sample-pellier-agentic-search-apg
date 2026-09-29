@@ -53,7 +53,9 @@ describe('SectionEyebrow', () => {
     )
     const muted = screen.getByTestId('muted')
     expect(muted).toHaveAttribute('data-tone', 'muted')
-    expect(muted).toHaveStyle({ color: 'var(--obs-ink-4)' })
+    // ink-3, not ink-4: at 13px, ink-4 on the cream card measured 3.85:1 against
+    // the 4.5:1 floor (axe, /observatory/architecture/runtime).
+    expect(muted).toHaveStyle({ color: 'var(--obs-ink-3)' })
   })
 
   it('hides the dot from assistive technology and can drop it entirely', () => {
