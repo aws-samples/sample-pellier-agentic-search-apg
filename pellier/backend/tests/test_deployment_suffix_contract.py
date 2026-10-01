@@ -203,17 +203,26 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
     state = {"targets": {"default": {"resources": {
         "mcp": {"gateways": {identity.gateway_name: {"gatewayArn": "arn:fixture:gateway"}}},
         "policyEngines": {identity.policy_engine_name: {"policyEngineId": "fixture"}},
+        "runtimes": {
+            name: {"runtimeArn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{name}-abc123"}
+            for name in (identity.runtime_name, identity.operator_runtime_name)
+        },
     }}}}
     rendered = []
     monkeypatch.setattr(module, "_read_deployed_state", lambda _: state)
-    monkeypatch.setattr(module, "render_project", lambda **kwargs: rendered.append(kwargs["identity"]))
+    monkeypatch.setattr(module, "render_project", lambda **kwargs: rendered.append(kwargs))
     deployed_root, deployed_state = module._deploy_cli_project(
         repo=tmp_path, account_id="123456789012", region="us-east-1",
         cognito_pool="fixture", cognito_client="fixture", lambda_arns={},
         model_id="fixture", workshop_id="fixture", env={}, identity=identity,
     )
     assert deployed_root == root and deployed_state is state
-    assert rendered == [identity, identity]
+    assert [inputs["identity"] for inputs in rendered] == [identity, identity]
+    assert "runtime_arns" not in rendered[0]
+    assert rendered[1]["runtime_arns"] == {
+        name: resource["runtimeArn"]
+        for name, resource in state["targets"]["default"]["resources"]["runtimes"].items()
+    }
 
 
 @pytest.mark.parametrize("explicit,expected", [(None, "rctest"), ("", "")])

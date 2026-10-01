@@ -158,7 +158,7 @@ Every claim in the workshop abstract maps to something runnable in this repo:
 | **Agentic AI – reasoning + tool use** | Strands Agents SDK; deterministic Storefront Dispatcher routes intent to one of 5 specialists; each specialist receives an explicit tool allowlist; Operator Concierge uses `GraphBuilder` for an ordered Case Investigator -> Resolution Planner graph |
 | **Model Context Protocol (MCP)** | [`awslabs.postgres-mcp-server`](https://github.com/awslabs/mcp/tree/main/src/postgres-mcp-server) installed via `uvx`, read-only against the Aurora cluster ARN; `pellier/config/mcp-server-config.json` is the literal contract; any MCP host (VS Code chat extension, Claude Code, Strands `MCPClient`, AgentCore Gateway) consumes the same JSON |
 | **Managed tool catalog (AgentCore Gateway)** | `services/agentcore_gateway.py` lists the Gateway catalog via `MCPClient.list_tools_sync()`, then selects the routed specialist's explicit allowlist; governed Runtime requests pass the shopper's access token through (`Authorization: Bearer`) and fail closed if Gateway is unavailable |
-| **Memory and personalization** | The [Memory experiment](docs/MEMORY_SHOWCASE.md) uses an extracted preference in a new conversation in Lab 3. Participants inspect facts, preferences, and summaries; episodic extraction is optional. Aurora supplies current business records, and reviewed runtime skills supply instructions. |
+| **Memory and personalization** | The [Memory experiment](docs/MEMORY_SHOWCASE.md) uses extracted context in a new conversation in Lab 3. Participants inspect facts, preferences, summaries, and a completed episode. Aurora supplies current business records, and reviewed runtime skills supply instructions. |
 | **Managed AgentCore path** | One `@aws/agentcore@0.29.0` project owns Runtime, Memory, Gateway, four Lambda target registrations, AgentCore-managed service roles, the Policy engine, and Cedar policies; `deploy_lambda.py` separately creates the external Lambda functions and their Lambda execution roles; `@app.entrypoint` in `pellier/backend/agentcore_runtime.py`; CUSTOM_JWT invocation must return `rail=gateway-mcp`; encrypted, retention-bounded Runtime and trace log groups carry correlated agent, model, and structured tool spans |
 | **Durable human handoff** | The shopper turn stores an immutable, explicitly untrusted `handoff_context` beside its terminal receipt; `pellier.approvals` owns the pending review and exact action hash; the graph persists only operator-safe artifacts; confirmation and execution are later authenticated requests |
 
@@ -437,7 +437,12 @@ for migration in \
   047_evidence_immutability.sql \
   048_policy_decisions.sql \
   049_workshop_runs.sql \
-  050_refine_guided_questions.sql
+  050_refine_guided_questions.sql \
+  051_review_requester.sql \
+  052_replacement_recovery.sql \
+  053_replacement_follow_up.sql \
+  054_query_statistics.sql \
+  055_governance_boundary_observations.sql
 do
   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" \

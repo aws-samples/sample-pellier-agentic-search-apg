@@ -15,3 +15,8 @@ dependencies = [
     "httpx>=0.28.1",
     "bedrock-agentcore>=1.4.3",
 ]
+
+[tool.uv]
+# Keep transitive authentication and HTTP dependencies above the same security
+# floors as the database-bound application without adding Runtime import roots.
+constraint-dependencies = ["PyJWT>=2.15.1", "urllib3>=2.8.0"]

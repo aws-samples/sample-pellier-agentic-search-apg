@@ -202,6 +202,15 @@ def test_entrypoint_rejects_truncated_model_output(
     }
 
 
+@pytest.mark.parametrize("payload_session", [None, "different-payload-session"])
+def test_entrypoint_correlates_with_the_actual_runtime_session(monkeypatch, payload_session):
+    handler, dispatcher, _ = _load_entrypoint(monkeypatch, response=_Response("A linen item."))
+    context = _Context()
+    context.session_id = "actual-runtime-session"
+    handler({"prompt": "Find linen", "session_id": payload_session}, context)
+    assert dispatcher.trace_attributes["session.id"] == "actual-runtime-session"
+
+
 def test_entrypoint_installs_model_content_redaction_before_the_tracer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

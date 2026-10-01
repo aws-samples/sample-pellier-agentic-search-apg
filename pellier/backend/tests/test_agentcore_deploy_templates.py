@@ -68,7 +68,7 @@ def _seed_runtime_sources(repo: Path) -> None:
         shutil.copy2(source, destination)
 
 
-def _render(tmp_path: Path, *, include_policies: bool) -> tuple[Path, dict[str, Any]]:
+def _render(tmp_path: Path, *, include_policies: bool, runtime_arns=None) -> tuple[Path, dict[str, Any]]:
     repo = tmp_path / "repo"
     _seed_runtime_sources(repo)
     root = renderer.render_project(
@@ -83,12 +83,29 @@ def _render(tmp_path: Path, *, include_policies: bool) -> tuple[Path, dict[str, 
         workshop_id="p12345678",
         include_policies=include_policies,
         gateway_arn=TEST_GATEWAY_ARN if include_policies else "",
+        runtime_arns=runtime_arns,
     )
     config = json.loads((root / "agentcore" / "agentcore.json").read_text())
     return root, config
 
 
 TEST_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"
+
+
+def test_both_codezip_runtimes_export_to_the_group_the_cli_queries(tmp_path):
+    identity = renderer.deployment_identity()
+    arns = {
+        identity.runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123",
+        identity.operator_runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-def456",
+    }
+    _, project = _render(tmp_path, include_policies=False, runtime_arns=arns)
+    for runtime in project["runtimes"]:
+        env = {item["name"]: item["value"] for item in runtime["envVars"]}
+        identifier = arns[runtime["name"]].rsplit("/", 1)[-1]
+        group = "/aws/bedrock-agentcore/runtimes/" + identifier + "-DEFAULT"
+        assert env["OTEL_EXPORTER_OTLP_TRACES_HEADERS"] == f"x-aws-log-group={group},x-aws-log-stream=spans"
+        assert "x-aws-log-stream=runtime-logs" in env["OTEL_EXPORTER_OTLP_LOGS_HEADERS"]
+        assert group in env["OTEL_EXPORTER_OTLP_LOGS_HEADERS"]
 
 
 def test_agentcore_cli_is_pinned_once() -> None:
@@ -636,6 +653,14 @@ def test_runtime_log_group_is_customer_encrypted_and_retention_bounded(
             self.group["retentionInDays"] = retentionInDays
 
     logs = _Logs()
+    def initialize_delivery(client: Any, arn: str, **_: Any) -> dict[str, bool]:
+        assert client is logs
+        assert arn == runtime_arn
+        assert logs.group["kmsKeyId"] == kms_key_arn
+        assert logs.group["retentionInDays"] == 30
+        return {"initialized_after_protection": True}
+
+    monkeypatch.setattr(provisioner, "ensure_runtime_log_delivery", initialize_delivery)
     monkeypatch.setattr(
         provisioner.boto3,
         "client",
@@ -649,6 +674,7 @@ def test_runtime_log_group_is_customer_encrypted_and_retention_bounded(
         retention_days=30,
     )
 
+    assert proof.pop("delivery") == {"initialized_after_protection": True}
     assert proof == {
         "name": "/aws/bedrock-agentcore/runtimes/pellier_orchestrator-abc123-DEFAULT",
         "kms_key_arn": kms_key_arn,
@@ -1334,10 +1360,15 @@ def test_deploy_sequence_validates_both_cli_phases(
     root = tmp_path / "project"
     calls: list[tuple[str, ...]] = []
     render_phases: list[bool] = []
+    rendered_runtime_arns = []
     state = {
         "targets": {
             "default": {
                 "resources": {
+                    "runtimes": {
+                        renderer.RUNTIME_NAME: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123"},
+                        renderer.deployment_identity().operator_runtime_name: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-def456"},
+                    },
                     "mcp": {
                         "gateways": {
                             renderer.GATEWAY_NAME: {
@@ -1360,11 +1391,11 @@ def test_deploy_sequence_validates_both_cli_phases(
     monkeypatch.setattr(
         provisioner, "_scaffold_cli_project", lambda **_: root
     )
-    monkeypatch.setattr(
-        provisioner,
-        "render_project",
-        lambda **kwargs: render_phases.append(kwargs["include_policies"]),
-    )
+    def render(**kwargs):
+        render_phases.append(kwargs["include_policies"])
+        rendered_runtime_arns.append(kwargs.get("runtime_arns"))
+
+    monkeypatch.setattr(provisioner, "render_project", render)
     monkeypatch.setattr(
         provisioner,
         "_agentcore",
@@ -1388,6 +1419,11 @@ def test_deploy_sequence_validates_both_cli_phases(
     assert returned_root == root
     assert returned_state is state
     assert render_phases == [False, True]
+    assert rendered_runtime_arns[0] is None
+    assert rendered_runtime_arns[1] == {
+        name: resource["runtimeArn"]
+        for name, resource in state["targets"]["default"]["resources"]["runtimes"].items()
+    }
     assert calls == [
         ("validate",),
         ("deploy", "--yes", "--json"),

@@ -9,7 +9,7 @@
  * only way to move between surfaces; this names the order the lab visits them.
  */
 import { useRef, type ReactNode } from 'react'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
 import {
@@ -72,9 +72,9 @@ export default function LabJourneyBar() {
       </p>
       <ol className="pellier-journey-steps">
         {steps.map((item, index) => {
-          const state = index < step ? 'visited' : index === step ? 'current' : 'upcoming'
+          const state = index < step ? 'earlier' : index === step ? 'current' : 'upcoming'
           return (
-            <li key={item.label} data-state={state} data-optional={item.optional ? 'true' : undefined}>
+            <li key={item.id} data-state={state} data-optional={item.optional ? 'true' : undefined}>
               <button
                 type="button"
                 onClick={() => setStep(index)}
@@ -82,10 +82,10 @@ export default function LabJourneyBar() {
                 title={`${SURFACE_LABELS[item.surface]}: ${item.action}`}
               >
                 <span className="pellier-journey-marker" aria-hidden="true">
-                  {state === 'visited' ? <Check size={13} strokeWidth={2.4} /> : index + 1}
+                  {index + 1}
                 </span>
                 <span className="pellier-journey-label">{item.label}</span>
-                <span className="sr-only">, step {index + 1} of {steps.length}, {SURFACE_LABELS[item.surface]}{item.optional ? ', optional' : ''}{state === 'visited' ? ', visited' : ''}</span>
+                <span className="sr-only">, step {index + 1} of {steps.length}, {SURFACE_LABELS[item.surface]}{item.optional ? ', optional' : ''}</span>
               </button>
             </li>
           )
@@ -106,7 +106,7 @@ export default function LabJourneyBar() {
           </section>
           <ol className="pellier-journey-panel-steps" aria-label={`Lab ${number} steps`}>
             {steps.map((item, index) => (
-              <li key={item.label} data-state={index < step ? 'visited' : index === step ? 'current' : 'upcoming'}>
+              <li key={item.id} data-state={index < step ? 'earlier' : index === step ? 'current' : 'upcoming'}>
                 <button type="button" onClick={() => setStep(index)}>
                   <span className="pellier-journey-surface">{SURFACE_LABELS[item.surface]}</span>
                   <span>{index + 1}. {item.label}{item.optional ? ' (optional)' : ''}</span>

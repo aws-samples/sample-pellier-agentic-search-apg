@@ -18,7 +18,9 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any, NamedTuple
+
 from output_guardrail import policy as output_guardrail_policy
+from runtime_log_delivery import runtime_telemetry_environment
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pellier" / "backend"))
 from services.memory_contract import EVENT_EXPIRY_DAYS, strategy_configurations
@@ -442,6 +444,7 @@ def render_project(
     action_token: str = INITIATE_RETURN_ACTION,
     gateway_arn: str = "",
     identity: DeploymentIdentity | None = None,
+    runtime_arns: dict[str, str] | None = None,
 ) -> Path:
     """Write agentcore.json, aws-targets.json, and four tool-schema files."""
     governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() == "governed"
@@ -622,6 +625,19 @@ def render_project(
         "protocol": "HTTP",
         "tags": tags,
     })
+    # CodeZip's platform defaults can still send ADOT spans to aws/spans even
+    # with unified tracing enabled. Once deployment supplies the Runtime IDs,
+    # render exact headers so the exporter and CLI query the same destination.
+    for runtime in project["runtimes"]:
+        arn = (runtime_arns or {}).get(runtime["name"])
+        if arn:
+            parts = arn.split(":", 5)
+            if len(parts) != 6 or parts[3:5] != [region, account_id]:
+                raise ValueError("Runtime telemetry ARN must match the deployment account and region")
+            runtime["envVars"].extend(
+                {"name": key, "value": value}
+                for key, value in runtime_telemetry_environment(arn).items()
+            )
     _write_json(config_dir / "agentcore.json", project)
     _write_json(
         config_dir / "aws-targets.json",

@@ -36,9 +36,11 @@ defusedxml>=0.7.1
 tiktoken>=0.5.0
 
 # Lab 4: AgentCore
-PyJWT>=2.8.0
+PyJWT>=2.15.1
 cryptography>=50.0.0
 requests>=2.31.0
+# Security floor for Requests and the AWS SDK's shared HTTP transport.
+urllib3>=2.8.0
 bedrock-agentcore>=1.4.3
 
 # Caching — Valkey (ElastiCache)

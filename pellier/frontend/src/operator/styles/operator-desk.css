@@ -250,6 +250,8 @@
   .operator-chat-client-row { grid-template-columns: 56px minmax(0, 1fr); gap: 10px 14px; }
   .operator-client-chat-label { grid-column: 2; justify-self: start; }
   .operator-sidebar { padding-inline: 12px; }
+  .operator-sidebar .operator-topbar-nav { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .operator-sidebar .operator-topbar-nav>.operator-topbar-link:last-child { grid-column: 1 / -1; grid-row: 2; }
   /* The book's own rung ladder filters by membership on a phone; repeating it
      as a third header row pushed the page title below a third of the screen. */
   .operator-membership-nav { display: none; }

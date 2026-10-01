@@ -18,8 +18,8 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
   `shared/labJourney.ts` holds each lab's steps, copied from the Workshop Studio
   guide's required path in its order and words, and the current step per lab in
   localStorage. Code Editor and terminal steps carry no in-app link and are never
-  marked done: a step behind the current one was visited, and the guide's terminal
-  checks remain the proof. `labJourney.test.ts` fails if a step names a file or script
+  marked done: the selected step is a bookmark, and the guide's terminal checks
+  remain the proof. `labJourney.test.ts` fails if a step names a file or script
   missing from the repository, or links to a route the app does not serve; when the
   guide's steps change, change them here too. Its height joins
   `--pellier-chrome-height`; pin or size anything below the shared navigation from

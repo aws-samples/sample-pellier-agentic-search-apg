@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any, Dict, List, Optional
 
 import boto3
@@ -201,6 +202,14 @@ class StructuredExtractor:
     def _sanitize(
         self, parsed: Dict[str, Any], fallback_query: str,
     ) -> Dict[str, Any]:
+        # Malformed requirements cannot be treated as absent. The caller
+        # catches validation errors and marks this as extraction_failed.
+        for name in ("categories", "tags", "exclusions"):
+            if parsed.get(name) is not None and not isinstance(parsed[name], list):
+                raise ValueError(f"{name} must be a list")
+        stock_raw = parsed.get("in_stock_only", False)
+        if not isinstance(stock_raw, bool):
+            raise ValueError("in_stock_only must be a boolean")
         cat_set = {c.lower(): c for c in KNOWN_CATEGORIES}
         categories = [
             cat_set[c.lower()]
@@ -226,11 +235,18 @@ class StructuredExtractor:
         ]
         price_raw = parsed.get("price_max_usd")
         price_max: Optional[float]
-        if isinstance(price_raw, (int, float)) and price_raw > 0:
+        if price_raw is not None:
+            if (
+                isinstance(price_raw, bool)
+                or not isinstance(price_raw, (int, float))
+                or not math.isfinite(price_raw)
+                or price_raw < 0
+            ):
+                raise ValueError("price_max_usd must be a finite, nonnegative price")
             price_max = float(price_raw)
         else:
             price_max = None
-        in_stock = bool(parsed.get("in_stock_only", False))
+        in_stock = stock_raw
         soft_signal = parsed.get("soft_signal")
         if not isinstance(soft_signal, str) or not soft_signal.strip():
             soft_signal = fallback_query.strip()

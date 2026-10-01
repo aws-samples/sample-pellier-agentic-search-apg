@@ -25,6 +25,7 @@ import sys
 import tempfile
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -44,6 +45,7 @@ from gateway_tool_schemas import (  # noqa: E402
     discoverable_tools_for_claims,
     schema_for,
 )
+from runtime_log_delivery import ensure_runtime_log_delivery  # noqa: E402
 from render_agentcore_project import (  # noqa: E402
     DeploymentIdentity,
     deployment_identity,
@@ -177,15 +179,41 @@ def _run(
     *,
     cwd: Path,
     env: dict[str, str] | None = None,
+    stream_stderr: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        env=env or os.environ.copy(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    if stream_stderr:
+        # The Memory verifier reports bounded progress on stderr. Relay that
+        # progress while preserving stdout as its private JSON result. Drain
+        # both pipes concurrently so a large acceptance result cannot deadlock.
+        with subprocess.Popen(
+            cmd, cwd=str(cwd), env=env or os.environ.copy(),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        ) as child:
+            def relay() -> str:
+                lines = []
+                assert child.stderr is not None
+                for line in child.stderr:
+                    lines.append(line)
+                    sys.stderr.write(line)
+                    sys.stderr.flush()
+                return "".join(lines)
+
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                pending = pool.submit(relay)
+                assert child.stdout is not None
+                stdout = child.stdout.read()
+                returncode = child.wait()
+                stderr = pending.result()
+            proc = subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+    else:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(cwd),
+            env=env or os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
     if proc.returncode != 0:
         redacted = list(cmd)
         for index, value in enumerate(redacted[:-1]):
@@ -692,13 +720,22 @@ def _ensure_runtime_log_group(
     """
     _validate_log_kms_key_arn(kms_key_arn)
     logs = boto3.client("logs", region_name=region, config=AWS_CONFIG)
-    return _ensure_protected_log_group(
+    protection = _ensure_protected_log_group(
         logs=logs,
         log_group_name=_runtime_log_group_name(runtime_arn),
         kms_key_arn=kms_key_arn,
         retention_days=retention_days,
         on_cleanup_state=on_cleanup_state,
     )
+
+    def checkpoint_delivery(delivery: dict[str, Any]) -> None:
+        if on_cleanup_state is not None:
+            on_cleanup_state({**protection, "delivery": delivery})
+
+    protection["delivery"] = ensure_runtime_log_delivery(
+        logs, runtime_arn, on_checkpoint=checkpoint_delivery,
+    )
+    return protection
 
 
 def _ensure_trace_log_groups(
@@ -1135,7 +1172,7 @@ def _deploy_cli_project(
     fast_model_id: str | None = None,
     identity: DeploymentIdentity | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    """Deploy infrastructure first, then add Gateway-scoped Cedar policies."""
+    """Deploy resources, then bind Cedar policies and telemetry to their IDs."""
     identity = identity or deployment_identity()
     root = _scaffold_cli_project(repo=repo, env=env, identity=identity)
     common = {
@@ -1160,14 +1197,19 @@ def _deploy_cli_project(
     state = _read_deployed_state(root)
     gateway_state = _require_gateway_state(state, identity.gateway_name)
     _require_state_resource(state, "policyEngines", identity.policy_engine_name)
+    runtime_arns = {
+        name: str(_require_state_resource(state, "runtimes", name)["runtimeArn"])
+        for name in (identity.runtime_name, identity.operator_runtime_name)
+    }
 
-    # Tool-specific Cedar policies must name the Gateway by ARN, which exists
-    # only after the first deploy; that is the reason for the second render.
+    # The first deploy supplies physical Gateway and Runtime IDs. Bind Cedar
+    # policies and both Runtime exporters to those IDs in the second render.
     render_project(
         **common,
         include_policies=True,
         action_token=INITIATE_RETURN_ACTION,
         gateway_arn=str(gateway_state["gatewayArn"]),
+        runtime_arns=runtime_arns,
     )
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
@@ -1540,6 +1582,7 @@ def _seed_memory(
         ],
         cwd=repo,
         env=env,
+        stream_stderr=True,
     )
     return json.loads(proc.stdout)
 
@@ -2099,10 +2142,19 @@ def _wait_for_unified_trace(
 ) -> dict[str, Any]:
     """Poll the pinned CLI until the smoke invocation has a complete trace."""
     identity = identity or deployment_identity()
-    deadline = time.monotonic() + TRACE_DELIVERY_TIMEOUT_SECONDS
+    started = time.monotonic()
+    deadline = started + TRACE_DELIVERY_TIMEOUT_SECONDS
+    next_progress = started
     last_error = "trace not listed yet"
 
-    while time.monotonic() < deadline:
+    while (now := time.monotonic()) < deadline:
+        if now >= next_progress:
+            print(
+                f"Waiting for unified agent, model and tool trace: "
+                f"elapsed={int(now - started)}s, timeout={TRACE_DELIVERY_TIMEOUT_SECONDS}s",
+                flush=True,
+            )
+            next_progress = now + 30
         try:
             listed = _agentcore(
                 root,
@@ -2304,6 +2356,10 @@ def _redeploy_participant_edits(
     deployed_state = _read_deployed_state(root)
     gateway_state = _require_gateway_state(deployed_state, identity.gateway_name)
     policy_state = _require_state_resource(deployed_state, "policyEngines", identity.policy_engine_name)
+    runtime_arns = {
+        name: str(_require_state_resource(deployed_state, "runtimes", name)["runtimeArn"])
+        for name in (identity.runtime_name, identity.operator_runtime_name)
+    }
     active_policies = _active_policy_names(
         region=region, policy_engine_id=str(policy_state["policyEngineId"])
     )
@@ -2323,6 +2379,7 @@ def _redeploy_participant_edits(
         include_policies=True,
         action_token=INITIATE_RETURN_ACTION,
         gateway_arn=str(gateway_state["gatewayArn"]),
+        runtime_arns=runtime_arns,
     )
     config_path = root / "agentcore" / "agentcore.json"
     desired = json.loads(config_path.read_text())
@@ -2596,7 +2653,7 @@ def main() -> int:
     deploy_env.update({"AWS_REGION": region, "AWS_DEFAULT_REGION": region})
 
     result: dict[str, Any] = {
-        "status": "failed",
+        "status": "provisioning",
         "region": region,
         "cli": {"package": AGENTCORE_CLI},
         "lambdas": {},
@@ -2609,7 +2666,13 @@ def main() -> int:
     }
 
     def checkpoint() -> None:
+        result["updated_at"] = datetime.now(timezone.utc).isoformat()
         _write_result(output_path, result)
+
+    def stage(name: str) -> None:
+        result["stage"] = name
+        checkpoint()
+        print(f"Managed AgentCore stage: {name}", flush=True)
 
     def checkpoint_trace_log_group(group: dict[str, Any]) -> None:
         trace_log_groups = result["observability"].setdefault(
@@ -2642,6 +2705,7 @@ def main() -> int:
         checkpoint()
 
     try:
+        stage("managed resource provisioning")
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
         caller = sts.get_caller_identity()
         account_id = caller["Account"]
@@ -2916,6 +2980,7 @@ def main() -> int:
             "prefixed_names"
         ]
 
+        stage("memory extraction and retrieval (maximum 1200s)")
         memory_seed = _seed_memory(
             repo=repo,
             memory_id=memory_id,
@@ -2931,6 +2996,7 @@ def main() -> int:
             == {"facts", "preferences", "summary", "episodic"}
         )
 
+        stage("live policy allow and deny")
         proof_env = deploy_env.copy()
         proof_env.update(
             {
@@ -2949,6 +3015,7 @@ def main() -> int:
         result["verification"]["live_policy_deny"] = True
         result["verification"]["live_policy_proof"] = policy_proof
 
+        stage("authenticated shopper Runtime")
         runtime_smoke = _authenticated_runtime_smoke(
             root=root,
             access_token=access_token,
@@ -2962,12 +3029,14 @@ def main() -> int:
         result["verification"]["runtime_build_fingerprint_match"] = runtime_smoke[
             "build_fingerprint_match"
         ]
+        stage("Operator Runtime")
         operator_smoke = _operator_runtime_smoke(
             runtime_arn=operator_runtime_arn, region=region,
             expected_fingerprint=_rendered_build_fingerprint(root),
         )
         result["verification"]["operator_runtime_invoke_smoke"] = operator_smoke
         result["verification"]["operator_runtime_build_fingerprint_match"] = True
+        stage("unified agent, model and tool trace (maximum 900s)")
         trace_proof = _wait_for_unified_trace(
             root=root,
             session_id=runtime_smoke["session_id"],
@@ -3052,6 +3121,7 @@ def main() -> int:
         print(json.dumps({"status": "ready", "output_json": str(output_path)}))
         return 0
     except (ClientError, RuntimeError, OSError, ValueError) as exc:
+        result["status"] = "failed"
         result["error"] = str(exc)
         checkpoint()
         print(

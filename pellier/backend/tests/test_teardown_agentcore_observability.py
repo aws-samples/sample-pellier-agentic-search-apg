@@ -221,6 +221,58 @@ def test_cleanup_rejects_duplicate_log_groups() -> None:
         module.cleanup_plan(receipt)
 
 
+def test_runtime_delivery_cleanup_is_bound_to_the_captured_runtime():
+    module = _load_script()
+    receipt = _receipt()
+    group = receipt["observability"]["runtime_log_group"]
+    resource = "arn:aws:logs:us-east-1:123456789012:log-group:" + group["name"]
+    group["delivery"] = {
+        "resource_arn": resource, "policy_document": WORKSHOP_POLICY,
+        "revision_id": "revision-1", "cleanup": {"policy_changed": True, "policy_created": True},
+    }
+    plan = module.cleanup_plan(receipt)
+    step = next(s for s in plan if s.get("resource_arn"))
+    assert step["operation"] == "delete_resource_policy"
+    assert step["resource_arn"] == resource
+    group["delivery"]["resource_arn"] = resource.replace("123456789012", "999999999999")
+    with pytest.raises(ValueError, match="captured log group"):
+        module.cleanup_plan(receipt)
+
+
+@pytest.mark.parametrize("current_revision", ["revision-1", "external-revision"])
+def test_scoped_policy_cleanup_uses_revision_lock_and_preserves_external_changes(monkeypatch, current_revision):
+    module = _load_script()
+    resource = "arn:aws:logs:us-east-1:123456789012:log-group:/aws/bedrock-agentcore/runtimes/pellier_orchestrator-abc123-DEFAULT"
+
+    class Logs:
+        class exceptions:
+            class ResourceNotFoundException(Exception):
+                pass
+
+        calls = []
+
+        def get_paginator(self, name):
+            assert name == "describe_resource_policies"
+            return self
+
+        def paginate(self, **request):
+            assert request == {"resourceArn": resource, "policyScope": "RESOURCE"}
+            return [{"resourcePolicies": [{"policyDocument": WORKSHOP_POLICY, "revisionId": current_revision}]}]
+
+        def delete_resource_policy(self, **request):
+            assert request == {"resourceArn": resource, "expectedRevisionId": "revision-1"}
+            self.calls.append(request)
+
+    logs = Logs()
+    monkeypatch.setattr(module.boto3, "client", lambda service, **_: logs if service == "logs" else None)
+    results = module.execute_cleanup(region="us-east-1", plan=[{
+        "operation": "delete_resource_policy", "resource_arn": resource,
+        "expected_policy_document": WORKSHOP_POLICY, "expected_revision_id": "revision-1",
+    }])
+    assert results[0]["status"] == ("removed" if current_revision == "revision-1" else "skipped_external_change")
+    assert len(logs.calls) == (1 if current_revision == "revision-1" else 0)
+
+
 def test_dry_run_does_not_create_aws_clients(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

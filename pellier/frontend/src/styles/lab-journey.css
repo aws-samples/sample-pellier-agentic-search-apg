@@ -74,7 +74,7 @@
   content: '';
 }
 
-.pellier-journey-steps li:is([data-state='visited'], [data-state='current']) + li:is([data-state='visited'], [data-state='current'])::before {
+.pellier-journey-steps li:is([data-state='earlier'], [data-state='current']) + li:is([data-state='earlier'], [data-state='current'])::before {
   background: var(--pellier-accent);
 }
 
@@ -116,11 +116,11 @@
   border-style: dashed;
 }
 
-.pellier-journey-steps [data-state='visited'] button {
+.pellier-journey-steps [data-state='earlier'] button {
   color: var(--dl-ink-2);
 }
 
-.pellier-journey-steps [data-state='visited'] .pellier-journey-marker {
+.pellier-journey-steps [data-state='earlier'] .pellier-journey-marker {
   border-color: var(--pellier-accent-tint);
   background: var(--pellier-accent-tint);
   color: var(--pellier-accent);
@@ -162,7 +162,7 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--pellier-accent);
   border-radius: 999px;
@@ -187,8 +187,8 @@
 
 .pellier-journey-menu > summary {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid var(--dl-line);
   border-radius: 50%;
@@ -264,7 +264,7 @@
   align-items: baseline;
   gap: 8px;
   width: 100%;
-  min-height: 36px;
+  min-height: 44px;
   padding: 6px 8px;
   border: 0;
   border-radius: 8px;
@@ -298,7 +298,9 @@
 }
 
 .pellier-journey-panel-links section > a {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   padding: 4px 0;
   color: var(--dl-ink);
   font-size: 13px;
@@ -313,8 +315,8 @@
 
 .pellier-journey-labs a {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid var(--dl-line);
   border-radius: 50%;
@@ -334,7 +336,7 @@
   align-items: center;
   justify-self: start;
   gap: 6px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -377,6 +379,54 @@
   .pellier-journey-now {
     display: block;
     flex: 1 1 auto;
+  }
+}
+
+/* Give the complete current step its own line on a phone. The action and
+   details stay within reach without truncating the participant's place. */
+@media (max-width: 640px) {
+  .pellier-journey {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    padding-block: 4px;
+  }
+
+  .pellier-journey-lab {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pellier-journey-lab strong {
+    display: block;
+  }
+
+  .pellier-journey-now {
+    display: block;
+    grid-column: 2 / -1;
+    grid-row: 1;
+    overflow: visible;
+    line-height: 1.35;
+    white-space: normal;
+  }
+
+  .pellier-journey-action {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    justify-self: start;
+    max-width: 100%;
+    padding-block: 8px;
+    line-height: 1.3;
+    white-space: normal;
+  }
+
+  .pellier-journey-menu {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .pellier-journey-panel-links {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

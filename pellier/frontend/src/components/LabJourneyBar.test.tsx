@@ -37,8 +37,10 @@ describe('LabJourneyBar', () => {
     const guide = screen.getByRole('navigation', { name: 'Lab 4 guide' })
     const steps = within(guide).getAllByRole('listitem').filter(item => item.closest('.pellier-journey-steps'))
     expect(steps).toHaveLength(LAB_JOURNEYS['fail-closed-policy'].length)
-    expect(steps.map(step => step.dataset.state)).toEqual(['visited', 'visited', 'visited', 'visited', 'visited', 'current', 'upcoming', 'upcoming', 'upcoming'])
+    expect(steps.map(step => step.dataset.state)).toEqual(['earlier', 'earlier', 'earlier', 'earlier', 'earlier', 'current', 'upcoming', 'upcoming', 'upcoming'])
     expect(within(steps[5]).getByRole('button')).toHaveAttribute('aria-current', 'step')
+    expect(within(steps[0]).getByRole('button')).not.toHaveAccessibleName(/visited|complete/i)
+    expect(steps[0].querySelector('.pellier-journey-marker')).toHaveTextContent('1')
     expect(screen.queryByTestId('surface-labs-link')).not.toBeInTheDocument()
   })
 

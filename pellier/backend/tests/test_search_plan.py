@@ -101,12 +101,80 @@ def test_negative_price_is_ambiguous() -> None:
     assert "price_max_usd" in plan.ambiguous
 
 
+@pytest.mark.parametrize("price", [float("nan"), float("inf"), -float("inf"), True])
+def test_nonfinite_or_boolean_price_never_reaches_sql(price) -> None:
+    plan = build_plan("gift", {"price_max_usd": price})
+    assert plan.hard.price_max_usd is None
+    assert "price_max_usd" in plan.ambiguous
+
+
+@pytest.mark.parametrize("price", [float("nan"), float("inf"), -1, True])
+def test_invalid_explicit_price_refuses_instead_of_removing_the_requirement(price) -> None:
+    with pytest.raises(ValueError, match="finite, nonnegative"):
+        build_plan("gift", price_max_usd=price)
+
+
+def test_zero_price_ceiling_survives_extraction_planning_and_sql() -> None:
+    from services.structured_extract import StructuredExtractor
+
+    extracted = StructuredExtractor._sanitize(
+        StructuredExtractor, {"price_max_usd": 0}, "free gift",
+    )
+    plan = build_plan("free gift", extracted)
+    assert plan.hard.price_max_usd == 0
+    assert plan.compile_predicates() == (["price <= %s"], [0.0])
+
+
+@pytest.mark.parametrize("payload", [[], "invalid", {"tags": 42, "categories": 42, "exclusions": 42}])
+def test_malformed_model_fields_do_not_crash_the_planner(payload) -> None:
+    plan = build_plan("gift", payload)
+    assert plan.hard.is_empty()
+    assert plan.exclusions == ()
+
+
+@pytest.mark.parametrize("top_k", [float("inf"), float("nan")])
+def test_nonfinite_result_count_uses_the_default(top_k) -> None:
+    assert build_plan("gift", top_k=top_k).top_k == 5
+
+
+@pytest.mark.parametrize("payload", [
+    {"in_stock_only": "false"},
+    {"categories": "Gifts"},
+    {"exclusions": "candle"},
+    {"price_max_usd": float("inf")},
+    {"price_max_usd": True},
+])
+def test_malformed_extraction_cannot_claim_a_valid_plan(payload) -> None:
+    from services.structured_extract import StructuredExtractor
+
+    with pytest.raises(ValueError):
+        StructuredExtractor._sanitize(StructuredExtractor, payload, "gift")
+
+
 def test_empty_extraction_degrades_to_unconstrained() -> None:
     plan = build_plan("something nice", None)
 
     assert plan.hard.is_empty()
     assert plan.exclusions == ()
     assert plan.soft.soft_signal == "something nice"
+
+
+@pytest.mark.parametrize("value", ["false", "true", 1, [], {}])
+def test_malformed_stock_requirement_is_surfaced_without_coercion(value) -> None:
+    plan = build_plan("gift", {"in_stock_only": value})
+
+    assert plan.hard.in_stock_only is False
+    assert "in_stock_only" in plan.ambiguous
+
+
+def test_explicit_empty_catalog_facets_do_not_fall_back_to_defaults() -> None:
+    plan = build_plan(
+        "gift", {"categories": ["Gifts"], "tags": ["linen"]},
+        known_categories=[], known_tags=[],
+    )
+
+    assert plan.hard.categories == ()
+    assert plan.soft.tags == ()
 
 
 def test_missing_soft_signal_falls_back_to_the_raw_query() -> None:

@@ -109,7 +109,11 @@ try:
     def invoke(payload: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
         """Handle the prompt, identity/session ids, and prior Memory history."""
         prompt = (payload or {}).get("prompt", "")
-        session_id = (payload or {}).get("session_id", "runtime-session")
+        session_id = (
+            getattr(context, "session_id", None)
+            or (payload or {}).get("session_id")
+            or "runtime-session"
+        )
         user_id = (payload or {}).get("user_id", "anonymous")
         history = (payload or {}).get("history", [])
         turn_id = (payload or {}).get("turn_id")

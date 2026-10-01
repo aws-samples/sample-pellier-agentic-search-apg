@@ -158,11 +158,14 @@ def _policy_document(value: Any) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _find_resource_policy(logs: Any, policy_name: str) -> dict[str, Any] | None:
+def _find_resource_policy(
+    logs: Any, policy_name: str | None, *, resource_arn: str | None = None,
+) -> dict[str, Any] | None:
     paginator = logs.get_paginator("describe_resource_policies")
-    for page in paginator.paginate():
+    request = {"resourceArn": resource_arn, "policyScope": "RESOURCE"} if resource_arn else {}
+    for page in paginator.paginate(**request):
         for policy in page.get("resourcePolicies", []):
-            if policy.get("policyName") == policy_name:
+            if resource_arn or policy.get("policyName") == policy_name:
                 return policy
     return None
 
@@ -174,6 +177,23 @@ def _find_log_group(logs: Any, log_group_name: str) -> dict[str, Any] | None:
             if group.get("logGroupName") == log_group_name:
                 return group
     return None
+
+
+def _policy_unchanged(current: dict[str, Any], step: dict[str, Any]) -> bool:
+    return (
+        _policy_document(current.get("policyDocument"))
+        == _policy_document(step.get("expected_policy_document"))
+        and (step.get("expected_revision_id") is None
+             or current.get("revisionId") == step["expected_revision_id"])
+    )
+
+
+def _policy_request(step: dict[str, Any], current: dict[str, Any]) -> dict[str, str]:
+    if not step.get("resource_arn"):
+        return {"policyName": step["policy_name"]}
+    if not current.get("revisionId"):
+        raise ValueError("Runtime delivery cleanup requires the current policy revision")
+    return {"resourceArn": step["resource_arn"], "expectedRevisionId": current["revisionId"]}
 
 
 def cleanup_plan(
@@ -263,6 +283,31 @@ def cleanup_plan(
                 "expected_policy_document": expected_policy_document,
             }
         )
+
+    for runtime_key, name in (("runtime", runtime_group), ("operator_runtime", operator_group)):
+        group = observability.get(f"{runtime_key}_log_group")
+        delivery = group.get("delivery") if isinstance(group, dict) else None
+        if not isinstance(delivery, dict):
+            continue
+        cleanup = delivery.get("cleanup") or {}
+        if cleanup.get("policy_changed") is not True:
+            continue
+        arn = receipt[runtime_key]["runtime_arn"].split(":", 5)
+        expected_resource = f"arn:{arn[1]}:logs:{arn[3]}:{arn[4]}:log-group:{name}"
+        if delivery.get("resource_arn") != expected_resource or not _policy_document(delivery.get("policy_document")):
+            raise ValueError("Runtime delivery policy must match its captured log group")
+        step = {
+            "service": "logs", "resource_arn": expected_resource,
+            "expected_policy_document": delivery["policy_document"],
+            "expected_revision_id": delivery.get("revision_id"),
+        }
+        if cleanup.get("policy_created") is True:
+            plan.append({**step, "operation": "delete_resource_policy"})
+        else:
+            previous = cleanup.get("previous_policy_document")
+            if not _policy_document(previous):
+                raise ValueError("Runtime delivery policy has no valid previous document")
+            plan.append({**step, "operation": "restore_resource_policy", "policy_document": previous})
 
     groups: list[dict[str, Any]] = []
     trace_log_groups = observability.get("trace_log_groups")
@@ -407,29 +452,25 @@ def execute_cleanup(
                         {**step, "status": "skipped_external_change"}
                     )
             elif operation == "delete_resource_policy":
-                current = _find_resource_policy(logs, step["policy_name"])
+                current = _find_resource_policy(logs, step.get("policy_name"), resource_arn=step.get("resource_arn"))
                 if current is None:
                     results.append({**step, "status": "already_absent"})
-                elif _policy_document(current.get("policyDocument")) != (
-                    _policy_document(step.get("expected_policy_document"))
-                ):
+                elif not _policy_unchanged(current, step):
                     results.append(
                         {**step, "status": "skipped_external_change"}
                     )
                 else:
-                    logs.delete_resource_policy(policyName=step["policy_name"])
+                    logs.delete_resource_policy(**_policy_request(step, current))
                     results.append({**step, "status": "removed"})
             elif operation == "restore_resource_policy":
-                current = _find_resource_policy(logs, step["policy_name"])
-                if current is None or _policy_document(
-                    current.get("policyDocument")
-                ) != _policy_document(step.get("expected_policy_document")):
+                current = _find_resource_policy(logs, step.get("policy_name"), resource_arn=step.get("resource_arn"))
+                if current is None or not _policy_unchanged(current, step):
                     results.append(
                         {**step, "status": "skipped_external_change"}
                     )
                 else:
                     logs.put_resource_policy(
-                        policyName=step["policy_name"],
+                        **_policy_request(step, current),
                         policyDocument=step["policy_document"],
                     )
                     results.append({**step, "status": "restored"})

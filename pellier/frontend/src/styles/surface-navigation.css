@@ -13,6 +13,12 @@
   --pellier-journey-height: 52px;
 }
 
+@media (max-width: 640px) {
+  :root:has(.pellier-journey) {
+    --pellier-journey-height: 96px;
+  }
+}
+
 .pellier-surface-bar {
   position: sticky;
   top: 0;

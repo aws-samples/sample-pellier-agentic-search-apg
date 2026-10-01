@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
 
 import {
   LAB_JOURNEYS,
@@ -10,6 +11,7 @@ import {
   openLabJourney,
   readLabJourney,
   setLabJourneyStep,
+  useLabJourney,
 } from './labJourney'
 import { LAB_EXERCISE_IDS } from '../observatory/labs/labCatalog'
 
@@ -17,7 +19,10 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..', '..', '..')
 const APP = readFileSync(join(HERE, '..', 'App.tsx'), 'utf8')
 
-afterEach(() => localStorage.clear())
+afterEach(() => {
+  vi.restoreAllMocks()
+  localStorage.clear()
+})
 
 describe('lab journeys', () => {
   it('covers every lab with its own ordered steps', () => {
@@ -25,6 +30,7 @@ describe('lab journeys', () => {
     for (const steps of Object.values(LAB_JOURNEYS)) {
       expect(steps.length).toBeGreaterThanOrEqual(5)
       expect(new Set(steps.map(step => step.label)).size).toBe(steps.length)
+      expect(new Set(steps.map(step => step.id)).size).toBe(steps.length)
       // Short enough to sit on the stepper beside its neighbours.
       for (const step of steps) expect(step.label.length).toBeLessThanOrEqual(18)
     }
@@ -57,6 +63,47 @@ describe('lab journeys', () => {
 })
 
 describe('lab journey store', () => {
+  it('migrates earlier numeric bookmarks and writes stable step IDs', () => {
+    localStorage.setItem(LAB_JOURNEY_KEY, JSON.stringify({
+      lab: 'fail-closed-policy', steps: { 'fail-closed-policy': 7 },
+    }))
+    expect(LAB_JOURNEYS['fail-closed-policy'][readLabJourney().steps['fail-closed-policy']!].id).toBe('prepare-review')
+    hideLabJourney()
+    expect(JSON.parse(localStorage.getItem(LAB_JOURNEY_KEY)!)).toEqual({
+      version: 2, lab: null, steps: { 'fail-closed-policy': 'prepare-review' },
+    })
+  })
+
+  it('resumes a saved ID and falls back safely when that step no longer exists', () => {
+    localStorage.setItem(LAB_JOURNEY_KEY, JSON.stringify({
+      version: 2, lab: 'retrieval-acceptance',
+      steps: { 'retrieval-acceptance': 'prove-fallback', 'grounded-inventory': 'removed-step' },
+    }))
+    expect(readLabJourney().steps).toEqual({ 'retrieval-acceptance': 3, 'grounded-inventory': 0 })
+  })
+
+  it('keeps the guide usable in memory when browser storage is blocked', () => {
+    readLabJourney()
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    openLabJourney('grounded-inventory')
+    setLabJourneyStep('grounded-inventory', 2)
+    expect(readLabJourney()).toEqual({ lab: 'grounded-inventory', steps: { 'grounded-inventory': 2 } })
+    hideLabJourney()
+    expect(readLabJourney()).toEqual({ lab: null, steps: { 'grounded-inventory': 2 } })
+  })
+
+  it('responds to another tab clearing the saved journey', () => {
+    openLabJourney('grounded-inventory')
+    const { result } = renderHook(() => useLabJourney())
+    expect(result.current.lab).toBe('grounded-inventory')
+    act(() => {
+      localStorage.clear()
+      window.dispatchEvent(new StorageEvent('storage', { key: null }))
+    })
+    expect(result.current.lab).toBeNull()
+  })
+
   it('opens a lab at its first step and resumes each lab where it was left', () => {
     openLabJourney('retrieval-acceptance')
     expect(readLabJourney()).toMatchObject({ lab: 'retrieval-acceptance' })

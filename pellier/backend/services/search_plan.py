@@ -37,6 +37,7 @@ Terminology, so the surfaces can agree:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -274,6 +275,8 @@ def _clean_tags(values: Any, allowed: Sequence[str]) -> Tuple[str, ...]:
     """Keep only known catalog tags, lowercased and de-duplicated."""
     allowed_set = {str(tag).lower() for tag in allowed}
     seen: List[str] = []
+    if not isinstance(values, (list, tuple)):
+        return ()
     for value in values or []:
         if not isinstance(value, str):
             continue
@@ -287,6 +290,8 @@ def _clean_categories(values: Any, allowed: Sequence[str]) -> Tuple[str, ...]:
     """Map extracted categories onto canonical catalog casing."""
     canonical = {str(cat).lower(): str(cat) for cat in allowed}
     seen: List[str] = []
+    if not isinstance(values, (list, tuple)):
+        return ()
     for value in values or []:
         if not isinstance(value, str):
             continue
@@ -300,11 +305,13 @@ def _clean_price(value: Any) -> Tuple[Optional[float], bool]:
     """Return ``(price_max, was_ambiguous)`` for an extracted ceiling."""
     if value is None:
         return None, False
+    if isinstance(value, bool):
+        return None, True
     try:
         price = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None, True
-    if price <= 0:
+    if not math.isfinite(price) or price < 0:
         return None, True
     return price, False
 
@@ -318,7 +325,7 @@ def _clamp_top_k(value: Any) -> int:
     """
     try:
         requested = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 5
     return max(1, min(requested, 50))
 
@@ -348,7 +355,8 @@ def build_plan(
         known_tags: Allowed catalog tags. Same default.
         price_max_usd: Caller-supplied ceiling. A caller-supplied value is
             authoritative and overrides the extracted one — the agent
-            passed it explicitly, so it is not a guess.
+            passed it explicitly, so it is not a guess. Invalid caller
+            ceilings raise ValueError rather than remove that requirement.
         category: Caller-supplied explicit category, treated as hard.
         top_k: Number of final results requested.
         retrieval_strategy: One of ``vector``, ``hybrid``,
@@ -362,19 +370,27 @@ def build_plan(
     """
     from services.structured_extract import KNOWN_CATEGORIES, KNOWN_TAGS
 
-    categories_allowed = known_categories or KNOWN_CATEGORIES
-    tags_allowed = known_tags or KNOWN_TAGS
-    payload = extracted or {}
+    categories_allowed = KNOWN_CATEGORIES if known_categories is None else known_categories
+    tags_allowed = KNOWN_TAGS if known_tags is None else known_tags
+    payload = extracted if isinstance(extracted, dict) else {}
     ambiguous: List[str] = []
 
     extracted_price, price_ambiguous = _clean_price(payload.get("price_max_usd"))
     if price_ambiguous:
         ambiguous.append("price_max_usd")
 
+    stock_only = payload.get("in_stock_only", False)
+    if not isinstance(stock_only, bool):
+        if stock_only is not None:
+            ambiguous.append("in_stock_only")
+        stock_only = False
+
     # A caller-supplied ceiling wins: the agent named it explicitly.
-    resolved_price = (
-        float(price_max_usd) if price_max_usd is not None else extracted_price
-    )
+    resolved_price = extracted_price
+    if price_max_usd is not None:
+        resolved_price, invalid_price = _clean_price(price_max_usd)
+        if invalid_price:
+            raise ValueError("price_max_usd must be a finite, nonnegative price")
 
     hard_categories = _clean_categories(payload.get("categories"), categories_allowed)
     if category:
@@ -409,7 +425,7 @@ def build_plan(
         intent=(query or "").strip(),
         hard=HardConstraints(
             price_max_usd=resolved_price,
-            in_stock_only=bool(payload.get("in_stock_only", False)),
+            in_stock_only=stock_only,
             categories=hard_categories,
         ),
         soft=SoftPreferences(tags=soft_tags, soft_signal=soft_signal.strip()),

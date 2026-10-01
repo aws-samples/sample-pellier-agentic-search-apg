@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import stat
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -66,3 +67,61 @@ def test_failed_replacement_preserves_prior_receipt_and_removes_temp(
 
     assert json.loads(output.read_text()) == {"status": "previous"}
     assert not list(tmp_path.glob(".receipt.json.*.tmp"))
+
+
+def test_memory_progress_is_visible_before_the_child_finishes(provisioner, tmp_path, monkeypatch):
+    signal = tmp_path / "progress-observed"
+    lines = []
+
+    class Progress:
+        def write(self, line):
+            lines.append(line)
+            if "Memory extraction pending" in line:
+                signal.touch()
+
+        def flush(self):
+            pass
+
+    monkeypatch.setattr(provisioner.sys, "stderr", Progress())
+    script = (
+        "import sys,time,json; from pathlib import Path; "
+        "print('Memory extraction pending: episodic',file=sys.stderr,flush=True); "
+        f"signal=Path({str(signal)!r}); deadline=time.monotonic()+5\n"
+        "while not signal.exists():\n"
+        " assert time.monotonic()<deadline, 'progress was buffered'\n"
+        " time.sleep(.01)\n"
+        "print(json.dumps({'status':'ready','private_result':'x'*256000}))"
+    )
+    result = provisioner._run([sys.executable, "-c", script], cwd=tmp_path, stream_stderr=True)
+    assert json.loads(result.stdout)["status"] == "ready"
+    assert result.stderr == "Memory extraction pending: episodic\n"
+    assert "private_result" not in "".join(lines)
+
+
+def test_failed_provisioning_is_distinct_from_an_active_checkpoint(provisioner, tmp_path, monkeypatch):
+    output = tmp_path / "receipt.json"
+    snapshots = []
+    original_write = provisioner._write_result
+
+    def checkpoint(path, payload):
+        snapshots.append(json.loads(json.dumps(payload)))
+        original_write(path, payload)
+
+    class Sts:
+        def get_caller_identity(self):
+            return {"Account": "123456789012", "Arn": "arn:aws:iam::123456789012:role/fixture"}
+
+    def failed_schema():
+        raise RuntimeError("fixture schema validation failed")
+
+    monkeypatch.setattr(provisioner, "_write_result", checkpoint)
+    monkeypatch.setattr(provisioner, "_load_env_fallback", lambda *_: None)
+    monkeypatch.setattr(provisioner, "_require_env", lambda name: "us-east-1" if name == "AWS_REGION" else "fixture")
+    monkeypatch.setattr(provisioner, "_verify_local_schema", failed_schema)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: Sts())
+    monkeypatch.setenv("AGENTCORE_RUNTIME_LOG_RETENTION_DAYS", "30")
+    monkeypatch.setattr(sys, "argv", ["provisioner", "--repo-path", str(tmp_path), "--output-json", str(output)])
+    assert provisioner.main() == 1
+    assert snapshots[0]["status"] == "provisioning"
+    assert snapshots[-1]["status"] == "failed"
+    assert json.loads(output.read_text())["error"] == "fixture schema validation failed"
