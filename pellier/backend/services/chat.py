@@ -1267,14 +1267,25 @@ CURRENT REQUEST: {message}"""
                 clean_text,
                 flags=re.MULTILINE,
             )
-            # Lines with star ratings (⭐, ★, or "x.x stars")
-            clean_text = re.sub(r'^.*[⭐★].*$', '', clean_text, flags=re.MULTILINE)
-            clean_text = re.sub(r'^.*\d+\.\d+\s*stars?.*$', '', clean_text, flags=re.MULTILINE | re.IGNORECASE)
+            # Remove standalone card metadata. A rating inside editorial
+            # prose must survive: cards are selected from this same text,
+            # while the browser may already have streamed the full paragraph.
+            rating_line = (
+                r'^\s*(?:[⭐★]+(?:\s*\d+(?:\.\d+)?)?'
+                r'|\d+(?:\.\d+)?\s*(?:[⭐★]+|stars?))'
+                r'(?:\s*(?:/5|out of 5))?'
+                r'(?:\s*[·|–-]?\s*\(?\d[\d,]*(?:\s*reviews?)?\)?)?\s*$'
+            )
+            clean_text = re.sub(
+                rating_line, '', clean_text, flags=re.MULTILINE | re.IGNORECASE
+            )
             # Lines with "View Product" or product links
             clean_text = re.sub(r'^.*\[View Product\].*$', '', clean_text, flags=re.MULTILINE | re.IGNORECASE)
             clean_text = re.sub(r'^.*🔗.*$', '', clean_text, flags=re.MULTILINE)
-            # Lines with "reviews)" pattern
-            clean_text = re.sub(r'^.*\d+[\d,]*\s*reviews?\).*$', '', clean_text, flags=re.MULTILINE | re.IGNORECASE)
+            clean_text = re.sub(
+                r'^\s*\(?\d[\d,]*\s*reviews?\)?\s*$', '', clean_text,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
             # Lines that are just product names with em dash or bullet formatting
             clean_text = re.sub(r'^[-•]\s+\*\*.*$', '', clean_text, flags=re.MULTILINE)
 

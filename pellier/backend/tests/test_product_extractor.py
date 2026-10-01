@@ -163,6 +163,57 @@ async def test_parser_preserves_full_specialist_reply_when_cards_exist():
 
 
 @pytest.mark.asyncio
+async def test_inline_rating_cannot_replace_recommendations_with_past_purchase():
+    from agents.specialist_hooks import select_products_for_reply
+
+    service = EnhancedChatService.__new__(EnhancedChatService)
+    candle = {"productId": "4", "name": "Santal & Fig Candle"}
+    recommendations = [
+        {"productId": "31", "name": "Stoneware Pour-Over Set"},
+        {"productId": "36", "name": "Ceramic Tumblers"},
+        {"productId": "1", "name": "Olive Branch Vessel"},
+    ]
+    prose = (
+        "This sits in the register of the Santal & Fig Candle you've sent before.\n\n"
+        "The Stoneware Pour-Over Set at $165 is the clear one to lead with, "
+        "an Editors' Pick at 4.9 stars. Add Ceramic Tumblers at $78, or "
+        "the Olive Branch Vessel at $185 for the mantel."
+    )
+    parsed = await service._parse_agent_response(
+        prose, "A housewarming gift for slow morning rituals", has_tool_products=True,
+    )
+    assert parsed["text"] == prose
+    assert select_products_for_reply(
+        parsed["text"], [candle, *recommendations], owned_products=[candle],
+    ) == recommendations
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("metadata", [
+    "★ 4.9 (134 reviews)", "4.9 stars", "4.9 stars (134 reviews)",
+    "4.9 ★ (134)", "★★★★★", "(134 reviews)",
+])
+async def test_parser_removes_standalone_rating_metadata(metadata):
+    service = EnhancedChatService.__new__(EnhancedChatService)
+    prose = "Lead with the Stoneware Pour-Over Set."
+    parsed = await service._parse_agent_response(
+        prose + "\n" + metadata, "A housewarming gift", has_tool_products=True,
+    )
+    assert parsed["text"] == prose
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("detail", ["4.9 stars", "★ 4.9", "134 reviews)"])
+async def test_parser_preserves_ratings_and_review_counts_inside_prose(detail):
+    service = EnhancedChatService.__new__(EnhancedChatService)
+    prose = f"The Ceramic Tumblers are rated {detail}, with a hand-thrown finish."
+    parsed = await service._parse_agent_response(
+        prose, "A housewarming gift", has_tool_products=True,
+    )
+    assert parsed["text"] == prose
+
+
+@pytest.mark.asyncio
 async def test_format_products_preserves_quantity_and_owned_status():
     service = EnhancedChatService.__new__(EnhancedChatService)
     service.db_service = None
