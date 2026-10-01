@@ -401,16 +401,18 @@ def _span_trace_id(span: Any) -> Optional[int]:
     return None
 
 
-def _filter_spans_for_session(spans: List[Any], session_id: Optional[str]) -> List[Any]:
-    """Return spans in traces tagged for ``session_id`` when supplied."""
-    if not session_id:
+def _filter_tagged_traces(
+    spans: List[Any], attribute: str, value: Optional[str]
+) -> List[Any]:
+    """Keep complete traces whose tagged span names the requested scope."""
+    if not value:
         return spans
 
-    wanted = str(session_id)
+    wanted = str(value)
     directly_tagged = [
         span
         for span in spans
-        if str((getattr(span, "attributes", None) or {}).get("session.id") or "")
+        if str((getattr(span, "attributes", None) or {}).get(attribute) or "")
         == wanted
     ]
     directly_tagged_ids = {id(span) for span in directly_tagged}
@@ -430,7 +432,14 @@ def _filter_spans_for_session(spans: List[Any], session_id: Optional[str]) -> Li
     ]
 
 
-def extract_agent_execution_from_otel(session_id: Optional[str] = None) -> Dict[str, Any]:
+def _filter_spans_for_session(spans: List[Any], session_id: Optional[str]) -> List[Any]:
+    """Return spans in traces tagged for ``session_id`` when supplied."""
+    return _filter_tagged_traces(spans, "session.id", session_id)
+
+
+def extract_agent_execution_from_otel(
+    session_id: Optional[str] = None, *, turn_id: Optional[str] = None
+) -> Dict[str, Any]:
     """Backward-compatible bridge used by ``services.chat`` and the
     existing ``AgentReasoningTraces`` frontend component.
 
@@ -438,6 +447,11 @@ def extract_agent_execution_from_otel(session_id: Optional[str] = None) -> Dict[
     ``agent_steps`` / ``tool_calls`` / ``waterfall`` keys so the older
     SSE payload stays intact while the inspector consumes the new
     ``spans`` / ``totalMs`` / ``specialistRoute`` fields.
+
+    A terminal turn supplies ``turn_id`` so earlier turns in the same
+    conversation cannot become its model, tool or trace evidence. Children
+    without scope tags are recovered by trace id. Reads leave other turns
+    and concurrent sessions in the shared exporter intact.
 
     When OTEL is not working, returns ``otel_enabled=False`` with a
     ``reason`` string. Callers MUST NOT synthesize replacement spans —
@@ -454,6 +468,7 @@ def extract_agent_execution_from_otel(session_id: Optional[str] = None) -> Dict[
         return _failed_execution(reason)
 
     spans = _filter_spans_for_session(spans, session_id)
+    spans = _filter_tagged_traces(spans, "pellier.turn_id", turn_id)
 
     if not spans:
         return _empty_execution()

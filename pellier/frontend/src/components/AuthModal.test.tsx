@@ -6,7 +6,7 @@
  *
  * Coverage:
  *   - Modal renders only when UIContext.activeModal === 'auth'.
- *   - Structure present per storefront.md: B mark, header, subheader,
+ *   - Structure present per storefront.md: Pellier mark, header, subheader,
  *     eyebrow, italic headline, disclaimer, footer strip.
  *   - The provisioned account button invokes `redirectToSignIn`, so
  *     a user arriving via `/signin?returnTo=...` can choose freely.
@@ -139,12 +139,12 @@ describe('AuthModal visibility (UIContext singleton)', () => {
 })
 
 describe('AuthModal structure (storefront.md)', () => {
-  it('renders the B mark, header, and subheader from copy.ts', async () => {
+  it('renders the Pellier mark, header, and subheader from copy.ts', async () => {
     const user = userEvent.setup()
     renderModal()
     await user.click(screen.getByText('open-auth'))
 
-    expect(screen.getByTestId('auth-modal-b-mark')).toHaveTextContent('B')
+    expect(screen.getByTestId('auth-modal-mark')).toHaveTextContent('p')
     expect(screen.getByTestId('auth-modal-header')).toHaveTextContent(
       AUTH_MODAL.HEADER,
     )

@@ -393,9 +393,9 @@ function AgentMessage({
   const loadedSkills = message.skillRouting?.loaded_skills ?? []
   const sourceActivity = message.sourceActivity ?? []
   const traceReference = message.agentExecution?.trace_id ?? undefined
-  // The trace id is the preferred reference; a turn that emitted none still
-  // has a turn id worth copying into the Observatory.
-  const receiptReference = traceReference ?? message.turnId
+  // The guide and durable ledger join on the turn id. A trace id locates
+  // telemetry and is only a fallback for older messages without a turn id.
+  const receiptReference = message.turnId ?? traceReference
   // A failed turn has no match to detail: the failure card is the whole story.
   const hasAttribution =
     !message.failure &&
@@ -413,7 +413,7 @@ function AgentMessage({
     dedupedToolCalls.length
       ? `${dedupedToolCalls.length} check${dedupedToolCalls.length === 1 ? '' : 's'}`
       : null,
-    receiptReference ? 'turn reference' : null,
+    receiptReference ? (message.turnId ? 'turn reference' : 'trace reference') : null,
   ].filter(Boolean).join(' · ')
 
   useEffect(() => {
@@ -566,7 +566,7 @@ function AgentMessage({
               {receiptReference && (
                 <div className="ec-worked-section">
                   <div className="ec-worked-section-label">
-                    {CHAT_TRUST.TURN_RECEIPT}
+                    {message.turnId ? CHAT_TRUST.TURN_RECEIPT : CHAT_TRUST.TRACE_REFERENCE}
                   </div>
                   <TurnReceipt
                     reference={receiptReference}

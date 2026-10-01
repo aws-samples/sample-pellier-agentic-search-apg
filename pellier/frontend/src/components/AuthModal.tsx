@@ -6,9 +6,9 @@
  *
  * Contract (per storefront.md):
  *   - Centered cream rounded-3xl card over a glass backdrop-blur overlay.
- *   - Header row: B mark + "Welcome to Pellier" + subheader
+ *   - Header row: Pellier mark + "Welcome to Pellier" + subheader
  *     "Sign in for a storefront built for you".
- *   - Body: `PERSONALIZED VISIONS` eyebrow + Instrument Sans headline
+ *   - Body: account eyebrow + Instrument Sans headline
  *     "Let the storefront find you.".
  *   - The provisioned workshop account opens Cognito-backed password sign-in.
  *     Preserve the current URL as `returnTo` after authentication.
@@ -157,10 +157,10 @@ export default function AuthModal() {
           color: c.ink,
         }}
       >
-        {/* Header: B mark + title + subtitle */}
+        {/* Header: Pellier mark + title + subtitle */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
           <span
-            data-testid="auth-modal-b-mark"
+            data-testid="auth-modal-mark"
             aria-hidden="true"
             style={{
               display: 'inline-flex',
@@ -171,12 +171,12 @@ export default function AuthModal() {
               borderRadius: '50%',
               background: c.ink,
               color: c.bg,
-              fontFamily: SANS_STACK,
-              fontSize: 20,
+              fontFamily: 'var(--serif)',
+              fontSize: 26,
               lineHeight: 1,
             }}
           >
-            B
+            p
           </span>
           <h2
             id="auth-modal-title"

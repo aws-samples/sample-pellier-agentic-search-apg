@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -19,6 +20,29 @@ def test_observatory_has_no_fixture_loader() -> None:
 class _ProofDB:
     def __init__(self) -> None:
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.support_turn = {
+            "turn_id": "turn-support",
+            "session_id": "managed-proof",
+            "run_id": "run-0123456789ab",
+            "principal_verified": True,
+            "rail": "gateway-mcp",
+            "terminal_status": "complete",
+            "caller_bound": True,
+            "audit_ids": [207, 208],
+            "created_at": None,
+            "trace": {
+                "traceKind": "managed-runtime-receipt",
+                "runtime": "agentcore-managed",
+                "rail": "gateway-mcp",
+                "runtimeRequestId": "support-request",
+                "evidenceProvenance": "agentcore-service-telemetry",
+                "jwtPassthrough": True,
+                "gatewayPassthrough": True,
+                "buildState": "current",
+                "buildFingerprint": "a" * 64,
+                "localBuildFingerprint": "a" * 64,
+            },
+        }
 
     async def fetch_all(self, query: str, *params: Any) -> list[dict]:
         """A fully provisioned stack, which is what the ready-status test asserts.
@@ -46,6 +70,8 @@ class _ProofDB:
 
     async def fetch_one(self, query: str, *params: Any) -> dict | None:
         self.calls.append((query, params))
+        if "AS caller_bound" in query:
+            return self.support_turn
         if "catalog_count" in query:
             return {
                 "catalog_count": 60,
@@ -221,6 +247,8 @@ def _configure_managed(monkeypatch) -> None:
     monkeypatch.setattr(settings, "AGENTCORE_RUNTIME_ENDPOINT", "runtime-arn", raising=False)
     monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "https://gateway.example/mcp", raising=False)
     monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "policy-1", raising=False)
+    from services import workshop_run
+    monkeypatch.setattr(workshop_run, "current_run_id", lambda: "run-0123456789ab")
 
 
 def test_readiness_reports_live_pillars(monkeypatch) -> None:
@@ -418,7 +446,7 @@ def test_proof_board_returns_cards_receipt_and_fallbacks(monkeypatch) -> None:
         in cards["managed-rail"]["fallback"]["command"]
     )
     assert "retrieval_receipts" in cards["retrieval-comparison"]["fallback"]["command"]
-    assert "initiate_return" in cards["audit-ledger"]["fallback"]["command"]
+    assert "get_ticket_history" in cards["audit-ledger"]["fallback"]["command"]
 
 
 def test_proof_board_fallbacks_use_psql_and_agentcore_cli(
@@ -445,6 +473,73 @@ def test_proof_board_fallbacks_use_psql_and_agentcore_cli(
     assert '--bearer-token "$PELLIER_TOKEN"' in managed
     assert "curl " not in inventory
     assert "curl " not in managed
+
+
+def test_support_proof_survives_a_restart_without_a_cached_trace(monkeypatch) -> None:
+    _configure_managed(monkeypatch)
+    monkeypatch.setattr(
+        observatory, "_latest_managed_receipt",
+        lambda session_id=None, *, principal_sub: observatory._empty_managed_receipt(session_id),
+    )
+    db = _ProofDB()
+    body = _client(db).get("/api/observatory/proof-board").json()
+    cards = {card["id"]: card for card in body["cards"]}
+    assert cards["audit-ledger"]["status"] == "complete"
+    assert cards["managed-rail"]["status"] == "complete"
+    assert body["managedReceipt"]["runtimeRequestId"] == "support-request"
+    assert body["managedReceipt"]["sessionId"] == "managed-proof"
+    queries = [(q, p) for q, p in db.calls if "AS caller_bound" in q]
+    assert queries[0][1] == ("CUST-MARCO", "run-0123456789ab", None, None)
+    assert "ta.args->>'turn_id' = gtr.turn_id" in queries[0][0]
+    assert "pc.principal_sub = gtr.principal_sub" in queries[0][0]
+
+
+def test_return_and_policy_receipts_cannot_complete_support_read(monkeypatch) -> None:
+    _configure_managed(monkeypatch)
+    db = _ProofDB()
+    db.support_turn = None
+    body = _client(db).get("/api/observatory/proof-board?session_id=other-session").json()
+    cards = {card["id"]: card for card in body["cards"]}
+    assert body["managedReceipt"]["governedReceiptPresent"] is True
+    assert cards["audit-ledger"]["status"] == "needs_run"
+    assert any(
+        p == ("CUST-MARCO", "run-0123456789ab", "other-session", "other-session")
+        for q, p in db.calls if "AS caller_bound" in q
+    )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("principal_verified", False), ("caller_bound", False),
+    ("terminal_status", "failed"), ("rail", "inprocess"),
+    ("trace.jwtPassthrough", None), ("trace.gatewayPassthrough", False),
+    ("trace.runtimeRequestId", ""), ("trace.runtime", "inprocess"),
+    ("trace.evidenceProvenance", "reconstructed"),
+    ("trace.buildState", "stale"), ("trace.buildFingerprint", ""),
+    ("trace.localBuildFingerprint", "b" * 64),
+])
+def test_incomplete_or_mismatched_support_evidence_never_passes(
+    monkeypatch, field, value
+) -> None:
+    _configure_managed(monkeypatch)
+    db = _ProofDB()
+    if field.startswith("trace."):
+        db.support_turn["trace"][field.split(".")[1]] = value
+    else:
+        db.support_turn[field] = value
+    body = _client(db).get("/api/observatory/proof-board").json()
+    card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
+    assert card["status"] == "needs_data"
+
+
+def test_support_proof_requires_a_current_valid_run(monkeypatch) -> None:
+    _configure_managed(monkeypatch)
+    from services import workshop_run
+    monkeypatch.setattr(workshop_run, "current_run_id", lambda: None)
+    db = _ProofDB()
+    body = _client(db).get("/api/observatory/proof-board").json()
+    card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
+    assert card["status"] == "needs_run"
+    assert not any("AS caller_bound" in q for q, _ in db.calls)
 
 
 def test_proof_board_is_available_without_a_principal_specific_receipt() -> None:

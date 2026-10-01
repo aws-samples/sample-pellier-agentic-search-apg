@@ -12,6 +12,7 @@ import pytest
 
 from services.governed_turn_receipt import (
     _receipt_citations,
+    _trace_metadata,
     get_turn_receipt,
     get_visible_tool_audit,
     map_answer_claims,
@@ -19,6 +20,21 @@ from services.governed_turn_receipt import (
 )
 from services.managed_policy import recent_decisions
 from services.retrieval_receipt import citation_snapshot_hash
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_durable_trace_preserves_observed_transport_flags(value: bool) -> None:
+    trace = _trace_metadata({
+        "jwtPassthrough": value, "gatewayPassthrough": value,
+        "authorization": "private-token", "spans": [{"prompt": "private-text"}],
+    })
+    assert trace == {"jwtPassthrough": value, "gatewayPassthrough": value}
+
+
+def test_durable_trace_does_not_infer_missing_transport_flags() -> None:
+    trace = _trace_metadata({"runtime": "agentcore-managed", "rail": "gateway-mcp"})
+    assert "jwtPassthrough" not in trace
+    assert "gatewayPassthrough" not in trace
 
 
 def _model_execution(*models: tuple[str, str]) -> dict[str, Any]:

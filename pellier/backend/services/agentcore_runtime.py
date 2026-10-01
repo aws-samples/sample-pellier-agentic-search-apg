@@ -300,6 +300,8 @@ async def _run_orchestrator_inprocess(
     session_id: str,
     user_id: Optional[str],
     history: Optional[List[Dict[str, Any]]] = None,
+    *,
+    turn_id: Optional[str] = None,
 ) -> str:
     """Run the local Strands orchestrator in-process.
 
@@ -308,6 +310,10 @@ async def _run_orchestrator_inprocess(
     worker thread to avoid stalling the event loop.
     """
     from agents.orchestrator import create_orchestrator
+    from services.turn_identity import new_turn_id, turn_id_var
+
+    turn_id = turn_id or new_turn_id()
+    turn_id_var.set(turn_id)
 
     orchestrator = create_orchestrator()
     if orchestrator is None:
@@ -322,6 +328,7 @@ async def _run_orchestrator_inprocess(
     try:
         orchestrator.trace_attributes = {
             "session.id": session_id,
+            "pellier.turn_id": turn_id,
             "user.id": user_id or "anonymous",
             "runtime": "in-process",
             "workshop": "pellier",
@@ -334,15 +341,17 @@ async def _run_orchestrator_inprocess(
         build_conversation_prompt(message, history),
     )
 
-    # Drain the captured OpenTelemetry spans into the latest-trace slot
+    # Read this turn's OpenTelemetry spans into the latest-trace slot
     # so the ``/inspector`` view can render this run's waterfall
     # immediately. Importing lazily keeps the dispatcher self-contained
     # and avoids a hard dependency on the OTEL SDK at module load.
     try:
-        from services.otel_trace_extractor import extract_trace
+        from services.otel_trace_extractor import extract_agent_execution_from_otel
 
         global _latest_trace
-        _latest_trace = extract_trace()
+        _latest_trace = extract_agent_execution_from_otel(
+            session_id=session_id, turn_id=turn_id
+        )
         _store_latest_trace(session_id, _latest_trace)
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("trace extraction skipped: %s", exc)
@@ -627,5 +636,5 @@ async def run_agent(
             runtime_kwargs["customer_id"] = customer_id
         return await run_agent_on_runtime(**runtime_kwargs)
     return await _run_orchestrator_inprocess(
-        message, session_id, user_id, history
+        message, session_id, user_id, history, turn_id=turn_id
     )

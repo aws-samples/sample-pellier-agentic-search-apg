@@ -22,11 +22,12 @@ Why Sonnet 4.6 specifically:
   - Already configured at ``config.BEDROCK_REPORTING_MODEL``; no new
     model wiring.
 
-Failure mode: if Sonnet returns malformed JSON or an unknown enum
-value, the caller drops the filter and falls back to vector+rerank
-with the raw query. The empty-extract path is *not* an error — it's
-a query that has no structured signal (e.g. "something nice"), and
-the pipeline degrades to plain vector+rerank cleanly.
+Failure mode: malformed requirement fields or JSON are marked
+``extraction_failed`` so the planner can refuse to treat failed extraction
+as an unconstrained request. Unknown enum values are omitted rather than
+interpolated into SQL. A successfully parsed query with no structured
+signal (e.g. "something nice") may still use unconstrained retrieval;
+that is distinct from losing requirements because extraction failed.
 """
 
 from __future__ import annotations

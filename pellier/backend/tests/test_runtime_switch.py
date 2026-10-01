@@ -142,6 +142,7 @@ def test_run_agent_dispatches_to_inprocess_when_flag_false(
             message="show me linen pieces",
             session_id="sess-1",
             user_id="user-abc",
+            turn_id="turn-inprocess",
         )
     )
 
@@ -158,6 +159,7 @@ def test_run_agent_dispatches_to_inprocess_when_flag_false(
     # sees the session + user context on the in-process path too.
     assert stub.trace_attributes == {
         "session.id": "sess-1",
+        "pellier.turn_id": "turn-inprocess",
         "user.id": "user-abc",
         "runtime": "in-process",
         "workshop": "pellier",

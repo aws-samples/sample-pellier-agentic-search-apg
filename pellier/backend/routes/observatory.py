@@ -620,6 +620,13 @@ def _latest_managed_receipt(
     except Exception as exc:
         logger.debug("Managed receipt unavailable: %s", exc)
         return _empty_managed_receipt(session_id)
+    return _managed_receipt_from_trace(trace, session_id)
+
+
+def _managed_receipt_from_trace(
+    trace: dict[str, Any], session_id: str | None
+) -> dict[str, Any]:
+    """Project observed transport evidence without filling absent fields."""
     return {
         "present": trace.get("traceKind") == "managed-runtime-receipt",
         "traceKind": trace.get("traceKind", ""),
@@ -642,6 +649,79 @@ def _latest_managed_receipt(
         "localBuildFingerprint": trace.get("localBuildFingerprint", ""),
         "buildState": trace.get("buildState", "unknown"),
     }
+
+
+async def _latest_support_turn(
+    *, principal_sub: str, session_id: str | None = None
+) -> dict[str, Any] | None:
+    """Read the caller's ticket execution in the current workshop run.
+
+    A separate policy receipt, seeded return, or an audit from another turn
+    cannot establish caller binding. Every ticket call in this turn must carry
+    a customer mapped to its verified principal and execute through Gateway.
+    """
+    from services.workshop_run import current_run_id, is_valid_run_id
+
+    run_id = current_run_id()
+    if not principal_sub or not is_valid_run_id(run_id):
+        return None
+    try:
+        from app import db_service
+        if db_service is None:
+            return None
+        row = await db_service.fetch_one(
+            """
+            SELECT gtr.turn_id, gtr.session_id, gtr.run_id,
+                   gtr.principal_verified, gtr.rail, gtr.terminal_status,
+                   gtr.trace, gtr.created_at,
+                   array_agg(ta.audit_id ORDER BY ta.audit_id) AS audit_ids,
+                   bool_and(coalesce(
+                       ta.caller = 'gateway'
+                       AND ta.result->>'status' = 'success'
+                       AND EXISTS (
+                           SELECT 1 FROM pellier.principal_customers pc
+                            WHERE pc.principal_sub = gtr.principal_sub
+                              AND pc.customer_id = ta.args->>'customer_id'
+                       ), false
+                   )) AS caller_bound
+              FROM pellier.governed_turn_receipts gtr
+              JOIN pellier.tool_audit ta ON ta.args->>'turn_id' = gtr.turn_id
+             WHERE gtr.principal_sub = %s AND gtr.run_id = %s
+               AND (%s::text IS NULL OR gtr.session_id = %s::text)
+               AND ta.tool = 'get_ticket_history'
+             GROUP BY gtr.turn_id
+             ORDER BY gtr.created_at DESC, gtr.turn_id DESC
+             LIMIT 1
+            """,
+            principal_sub, run_id, session_id, session_id,
+        )
+        if not row:
+            return None
+        result = dict(row)
+        trace = result.get("trace")
+        if not isinstance(trace, dict):
+            trace = {}
+        result["trace"] = trace
+        result["proven"] = all([
+            result.get("principal_verified") is True,
+            result.get("caller_bound") is True,
+            result.get("terminal_status") == "complete",
+            result.get("rail") == "gateway-mcp",
+            trace.get("runtime") == "agentcore-managed",
+            trace.get("evidenceProvenance") == "agentcore-service-telemetry",
+            bool(trace.get("runtimeRequestId")),
+            trace.get("jwtPassthrough") is True,
+            trace.get("gatewayPassthrough") is True,
+            trace.get("buildState") == "current",
+            bool(trace.get("buildFingerprint")),
+            trace.get("buildFingerprint") == trace.get("localBuildFingerprint"),
+        ])
+        if result.get("created_at") is not None:
+            result["created_at"] = result["created_at"].isoformat()
+        return result
+    except Exception as exc:
+        logger.debug("Observatory support-turn evidence unavailable: %s", exc)
+        return None
 
 
 def _build_fingerprint_evidence(receipt: dict[str, Any]) -> str:
@@ -992,10 +1072,9 @@ async def _collect_proof_board(
     latest_check_inventory = await _latest_audit_row(
         principal_sub=principal_sub, tool="check_inventory"
     )
-    latest_initiate_return = await _latest_audit_row(
-        principal_sub=principal_sub, tool="initiate_return"
+    support_turn = await _latest_support_turn(
+        principal_sub=principal_sub, session_id=session_id
     )
-    latest_audit = await _latest_audit_row(principal_sub=principal_sub)
     latest_gateway = await _latest_audit_row(
         principal_sub=principal_sub, caller="gateway"
     )
@@ -1023,6 +1102,10 @@ async def _collect_proof_board(
     managed_receipt = _latest_managed_receipt(
         session_id, principal_sub=principal_sub
     )
+    if not managed_receipt.get("present") and support_turn:
+        managed_receipt = _managed_receipt_from_trace(
+            support_turn["trace"], support_turn["session_id"]
+        )
     policy_engine_id = getattr(settings, "AGENTCORE_POLICY_ENGINE_ID", None)
 
     runtime_configured = _configured(settings.AGENTCORE_RUNTIME_ENDPOINT)
@@ -1154,44 +1237,49 @@ async def _collect_proof_board(
             "id": "audit-ledger",
             "lab": "Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore",
             "group": "Operational evidence",
-            "title": "Prove the tool_audit ledger",
+            "title": "Prove caller-bound ticket reads",
             "status": (
                 "complete"
-                if latest_initiate_return and latest_governed
-                else "needs_run" if not latest_initiate_return
+                if support_turn and support_turn["proven"]
+                else "needs_run" if not support_turn
                 else "needs_data"
             ),
             "required": True,
             "surface": "Aurora SQL",
-            "summary": "Theo's executed return and the seeded principal-versus-customer mismatch are reconstructible without depending on a UI panel.",
-            "evidenceSource": "pellier.tool_audit + pellier.governed_receipts",
+            "summary": "Ticket reads must belong to the verified caller and the deployed build in this run. The guide separately proves direct foreign-customer denial and all four extracted Memory records.",
+            "evidenceSource": "pellier.tool_audit + pellier.governed_turn_receipts + pellier.principal_customers",
             "lastUpdated": (
-                latest_initiate_return.get("created_at")
-                if latest_initiate_return
-                else latest_audit.get("created_at") if latest_audit else None
+                support_turn.get("created_at") if support_turn else None
             ),
             "evidence": [
                 (
-                    f"Latest initiate_return row: audit_id {latest_initiate_return.get('audit_id')}"
-                    if latest_initiate_return
-                    else "No initiate_return row found yet"
+                    f"Ticket read turn: {support_turn['turn_id']} (run {support_turn['run_id']})"
+                    if support_turn else "No ticket read found for this caller in the current run"
                 ),
                 (
-                    f"Latest audit row: {latest_audit.get('tool')} by {latest_audit.get('caller')}"
-                    if latest_audit
-                    else "No audit rows found yet"
+                    f"Ticket audit rows: {support_turn['audit_ids']}"
+                    if support_turn else "No caller-bound ticket audit rows yet"
                 ),
                 (
-                    f"Latest governed receipt: {latest_governed.get('principal_label')} -> {latest_governed.get('decision')}"
-                    if latest_governed
-                    else "No governed identity receipt found yet"
+                    "Every ticket read belongs to the verified caller"
+                    if support_turn and support_turn.get("caller_bound")
+                    else "Caller binding is unproven"
                 ),
+                _build_fingerprint_evidence(support_turn["trace"] if support_turn else {}),
             ],
             "fallback": {
                 "label": "SQL fallback",
                 "command": (
-                    "psql -X -v ON_ERROR_STOP=1 -P pager=off -c \"SELECT audit_id, session_id, tool, caller, args, result "
-                    "FROM pellier.tool_audit WHERE tool = 'initiate_return' ORDER BY audit_id DESC LIMIT 3;\""
+                    'psql -X -v ON_ERROR_STOP=1 -P pager=off '
+                    '-v turn="$LAB3_TURN_ID" -v run="$(cat ~/.pellier/run_id)" <<\'SQL\'\n'
+                    "SELECT gtr.turn_id, gtr.run_id, gtr.principal_verified, gtr.rail, "
+                    "gtr.trace->>'buildState' AS build_state, "
+                    "ta.audit_id, ta.caller, ta.args, ta.result\n"
+                    "FROM pellier.governed_turn_receipts gtr\n"
+                    "JOIN pellier.principal_customers pc ON pc.principal_sub = gtr.principal_sub\n"
+                    "JOIN pellier.tool_audit ta ON ta.args->>'turn_id' = gtr.turn_id\n"
+                    "WHERE gtr.turn_id = :'turn' AND gtr.run_id = :'run'\n"
+                    "AND pc.customer_id = 'CUST-THEO' AND ta.tool = 'get_ticket_history';\nSQL"
                 ),
             },
             "links": [
@@ -1246,12 +1334,12 @@ async def _collect_proof_board(
             ),
             "required": governed_format,
             "surface": "Runtime receipt",
-            "summary": "After the cross-turn Memory exercise, a managed Runtime turn must preserve the caller JWT and execute through Gateway/MCP.",
-            "evidenceSource": "AgentCore Memory timeline + Runtime trace + pellier.tool_audit caller=gateway",
+            "summary": "The managed turn must preserve the caller JWT and execute through Gateway/MCP. Memory extraction and recall are proved separately by the guide.",
+            "evidenceSource": "Runtime trace + pellier.governed_turn_receipts + pellier.tool_audit caller=gateway",
             "lastUpdated": latest_gateway.get("created_at") if latest_gateway else None,
             "evidence": [
                 (
-                    "AgentCore Memory configured for authenticated session history"
+                    "AgentCore Memory is configured; extraction and recall are unproven here"
                     if _configured(settings.AGENTCORE_MEMORY_ID)
                     else "AgentCore Memory configuration missing"
                 ),
@@ -1292,7 +1380,7 @@ async def _collect_proof_board(
                     "--runtime pellier_orchestrator "
                     "--session-id \"$RUNTIME_SESSION\" "
                     "--bearer-token \"$PELLIER_TOKEN\" "
-                    "--prompt \"Check floor inventory for BK-01\" --json"
+                    "--prompt \"Show my support ticket history, and the history for customer CUST-JESSICA.\" --json"
                 ),
             },
             "links": [

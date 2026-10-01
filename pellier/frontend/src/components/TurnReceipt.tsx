@@ -22,7 +22,7 @@ import {
 import '../styles/turn-receipt.css'
 
 interface TurnReceiptProps {
-  /** The reference shown and copied: a trace id, or the turn id as fallback. */
+  /** A correlation reference for older messages without a stable turn id. */
   reference: string
   /** Stable per-turn id used to read the evidence ledger. */
   turnId?: string | null
@@ -77,6 +77,9 @@ export default function TurnReceipt({
 }: TurnReceiptProps) {
   const [copied, setCopied] = useState(false)
   const evidenceRecorded = useEvidenceRecorded(turnId, complete)
+  const effectiveReference = turnId || reference
+  const isTurnReference = Boolean(turnId) || reference.startsWith('turn-')
+  const copyLabel = isTurnReference ? CHAT_TRUST.COPY_REFERENCE : CHAT_TRUST.COPY_TRACE_REFERENCE
 
   useEffect(() => {
     if (!copied) return
@@ -86,10 +89,10 @@ export default function TurnReceipt({
 
   const copyReference = async () => {
     try {
-      await navigator.clipboard.writeText(reference)
+      await navigator.clipboard.writeText(effectiveReference)
     } catch {
       const textarea = document.createElement('textarea')
-      textarea.value = reference
+      textarea.value = effectiveReference
       textarea.style.position = 'fixed'
       textarea.style.opacity = '0'
       document.body.appendChild(textarea)
@@ -146,16 +149,16 @@ export default function TurnReceipt({
           </span>
         ) : null}
       </span>
-      <code title={reference}>{shortReference(reference)}</code>
+      <code title={effectiveReference}>{shortReference(effectiveReference)}</code>
       <button
         type="button"
         className="turn-receipt__copy"
         onClick={() => void copyReference()}
         aria-label={
-          copied ? CHAT_TRUST.COPIED_REFERENCE : CHAT_TRUST.COPY_REFERENCE
+          copied ? CHAT_TRUST.COPIED_REFERENCE : copyLabel
         }
         title={
-          copied ? CHAT_TRUST.COPIED_REFERENCE : CHAT_TRUST.COPY_REFERENCE
+          copied ? CHAT_TRUST.COPIED_REFERENCE : copyLabel
         }
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}

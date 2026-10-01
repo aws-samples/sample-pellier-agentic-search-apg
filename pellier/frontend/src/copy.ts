@@ -419,7 +419,7 @@ export const INTENTS: Intent[] = [
 
 // Sign-in strip (Requirement 1.4.1)
 export const SIGN_IN_STRIP = {
-  EYEBROW: "PERSONALIZED VISIONS",
+  EYEBROW: "YOUR ACCOUNT",
   HEADLINE: "Sign in and watch Pellier tailor the storefront to you.",
   CTA: "Sign in for personalized visions",
   DISMISS: "Not now",
@@ -831,6 +831,7 @@ export const CHAT_FAILURES = {
 export const CHAT_TRUST = {
   MATCH_DETAILS: "Match details",
   TURN_RECEIPT: "Turn receipt",
+  TRACE_REFERENCE: "Trace reference",
   /** The stream finished. Says nothing about evidence. */
   RESPONSE_COMPLETE: "Response complete",
   /** Every required evidence-sufficiency check for the turn is satisfied. */
@@ -845,6 +846,7 @@ export const CHAT_TRUST = {
    */
   EVIDENCE_INCOMPLETE: "Evidence incomplete",
   COPY_REFERENCE: "Copy turn reference",
+  COPY_TRACE_REFERENCE: "Copy trace reference",
   COPIED_REFERENCE: "Reference copied",
 } as const;
 

@@ -261,9 +261,9 @@ const GOVERNED_PROOF_STAGES: GovernedProofStage[] = [
   {
     id: 'managed',
     number: '03',
-    title: 'Runtime & memory',
-    question: 'Can managed execution and state be correlated to a receipt?',
-    description: 'The managed Runtime boundary carries the session and trace evidence forward.',
+    title: 'Establish the caller',
+    question: 'Whose records did the deployed build read?',
+    description: 'Connect the verified caller, managed turn, and ticket reads. Prove Memory extraction and recall separately in the guide.',
     cardIds: ['managed-rail', 'audit-ledger'],
     icon: Cpu,
   },
@@ -327,16 +327,14 @@ function stageReceiptDetail(
   receipt: ManagedReceipt,
 ) {
   if (stage.id === 'managed' && receipt.present) {
-    const memoryEvidence = card?.evidence.find((item) => /memory/i.test(item));
     const detail = [
-      memoryEvidence,
       receipt.runtime || 'Managed Runtime',
       receipt.rail || 'managed rail',
       receipt.sessionId ? `session ${receipt.sessionId}` : undefined,
       receipt.traceId || receipt.managedTrace?.traceId,
     ].filter(Boolean).join(' · ');
     return {
-      label: memoryEvidence ? 'Memory and managed receipt' : 'Managed receipt',
+      label: 'Managed caller receipt',
       detail,
     };
   }

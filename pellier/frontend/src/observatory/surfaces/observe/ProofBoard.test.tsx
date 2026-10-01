@@ -414,11 +414,13 @@ describe('ProofBoard', () => {
       'aria-selected',
       'true',
     );
-    fireEvent.click(screen.getByRole('tab', { name: /Runtime & memory/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Establish the caller/i }));
     expect(screen.getByRole('tabpanel')).toHaveTextContent(
-      'AgentCore Memory configured for authenticated session history',
+      'Whose records did the deployed build read?',
     );
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('Memory and managed receipt');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Managed caller receipt');
+    expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Memory and managed receipt');
+    expect(screen.getByRole('tabpanel')).not.toHaveTextContent('AgentCore Memory configured');
 
     fireEvent.click(screen.getByRole('tab', { name: /Policy & receipt/i }));
 

@@ -86,7 +86,7 @@ describe('TurnReceipt', () => {
       configurable: true,
       value: { writeText },
     })
-    const reference = 'trace-0123456789-abcdefghijklmnopqrstuvwxyz'
+    const reference = 'turn-0123456789-abcdefghijklmnopqrstuvwxyz'
 
     render(<TurnReceipt reference={reference} surface="observatory" />)
 

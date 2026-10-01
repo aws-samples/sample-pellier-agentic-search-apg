@@ -1033,6 +1033,7 @@ class EnhancedChatService:
             # span. Nothing read this attribute.
             orchestrator.trace_attributes = {
                 "session.id": session_id or "anonymous",
+                "pellier.turn_id": turn_id_var.get() or "",
                 "session.user": user.get("sub", "anonymous") if user else "anonymous",
                 "workshop": "pellier",
                 "service": "pellier"
@@ -1127,7 +1128,9 @@ CURRENT REQUEST: {message}"""
             # instead of synthesizing fake spans (see Bug 3 audit note).
             from services.otel_trace_extractor import extract_agent_execution_from_otel
 
-            agent_execution = extract_agent_execution_from_otel(session_id=session_id)
+            agent_execution = extract_agent_execution_from_otel(
+                session_id=session_id, turn_id=turn_id_var.get()
+            )
 
             if agent_execution.get("otel_enabled") and agent_execution.get("trace_id"):
                 logger.info(f"✨ OpenTelemetry trace_id: {agent_execution['trace_id']}")
@@ -2020,6 +2023,7 @@ CURRENT REQUEST: {message}"""
         # is correlation, not payload.
         trace_attributes = {
             "session.id": session_id or "anonymous",
+            "pellier.turn_id": turn_id or "",
             "session.user": user.get("sub", "anonymous") if user else "anonymous",
             "workshop": "pellier",
             "service": "pellier",
@@ -3010,7 +3014,9 @@ CURRENT REQUEST: {message}"""
         # synthesize agent_steps.
         try:
             from services.otel_trace_extractor import extract_agent_execution_from_otel
-            agent_execution = extract_agent_execution_from_otel(session_id=session_id)
+            agent_execution = extract_agent_execution_from_otel(
+                session_id=session_id, turn_id=turn_id
+            )
         except Exception as e:
             logger.error(f"OTEL extraction raised: {e}")
             agent_execution = {

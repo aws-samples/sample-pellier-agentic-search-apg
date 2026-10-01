@@ -402,7 +402,10 @@ def test_extract_trace_returns_empty_shape_when_no_spans(
     assert trace["otel_enabled"] is True
 
 
-def _emit_session_trace(session_id: str, specialist: str) -> None:
+def _emit_session_trace(
+    session_id: str, specialist: str, *, turn_id: str | None = None,
+    leaf_tool: str = "search_products", input_tokens: int | None = None,
+) -> None:
     """Emit a minimal Strands-shaped trace tagged to one session.
 
     Strands only applies ``Agent.trace_attributes`` to spans owned by
@@ -414,10 +417,15 @@ def _emit_session_trace(session_id: str, specialist: str) -> None:
     with tracer.start_as_current_span("invoke_agent orchestrator") as root:
         root.set_attribute("gen_ai.agent.name", "orchestrator")
         root.set_attribute("session.id", session_id)
+        if turn_id:
+            root.set_attribute("pellier.turn_id", turn_id)
+        if input_tokens is not None:
+            root.set_attribute("gen_ai.request.model", "test-model")
+            root.set_attribute("gen_ai.usage.input_tokens", input_tokens)
         with tracer.start_as_current_span(f"execute_tool {specialist}") as span:
             span.set_attribute("gen_ai.tool.name", specialist)
-            with tracer.start_as_current_span("execute_tool search_products") as leaf:
-                leaf.set_attribute("gen_ai.tool.name", "search_products")
+            with tracer.start_as_current_span(f"execute_tool {leaf_tool}") as leaf:
+                leaf.set_attribute("gen_ai.tool.name", leaf_tool)
 
 
 def test_agent_execution_filters_by_session_and_keeps_trace_children(
@@ -477,6 +485,58 @@ def test_agent_execution_missing_session_keeps_existing_spans(
     assert otel_spans.get_finished_spans()
 
 
+def test_terminal_turn_excludes_previous_turns_in_the_same_session(
+    otel_spans: InMemorySpanExporter,
+) -> None:
+    """A new inventory answer must not claim the prior search's evidence."""
+    from services.otel_trace_extractor import extract_agent_execution_from_otel
+
+    _emit_session_trace("same-conversation", "search", turn_id="turn-first", input_tokens=100)
+    _emit_session_trace(
+        "same-conversation", "inventory", turn_id="turn-next",
+        leaf_tool="check_inventory", input_tokens=5,
+    )
+    _emit_session_trace("another-conversation", "support", turn_id="turn-other")
+
+    current = extract_agent_execution_from_otel(
+        session_id="same-conversation", turn_id="turn-next"
+    )
+    previous = extract_agent_execution_from_otel(
+        session_id="same-conversation", turn_id="turn-first"
+    )
+    other = extract_agent_execution_from_otel(
+        session_id="another-conversation", turn_id="turn-other"
+    )
+
+    assert current["specialistRoute"] == "inventory"
+    assert previous["specialistRoute"] == "search"
+    assert other["specialistRoute"] == "support"
+    assert current["span_count"] == previous["span_count"] == other["span_count"] == 3
+    assert len({span["traceId"] for span in current["spans"]}) == 1
+    assert current["trace_id"] != previous["trace_id"]
+    assert current["usage"]["prompt_tokens"] == 5
+    assert {s["tool"] for s in current["spans"] if s["kind"] == "tool"} == {"check_inventory"}
+    assert len(otel_spans.get_finished_spans()) == 9
+
+
+def test_missing_turn_does_not_reuse_session_history(
+    otel_spans: InMemorySpanExporter,
+) -> None:
+    from services.otel_trace_extractor import extract_agent_execution_from_otel
+
+    _emit_session_trace("same-conversation", "search", turn_id="turn-first")
+
+    missing = extract_agent_execution_from_otel(
+        session_id="same-conversation", turn_id="turn-missing"
+    )
+    wrong_session = extract_agent_execution_from_otel(
+        session_id="another-conversation", turn_id="turn-first"
+    )
+
+    assert missing["spans"] == wrong_session["spans"] == []
+    assert len(otel_spans.get_finished_spans()) == 3
+
+
 def test_waterfall_filters_by_session_and_keeps_trace_children(
     otel_spans: InMemorySpanExporter,
 ) -> None:
@@ -499,7 +559,7 @@ def test_waterfall_filters_by_session_and_keeps_trace_children(
     assert otel_spans.get_finished_spans()
 
 
-def test_agentcore_runtime_drains_trace_after_inprocess_run(
+def test_agentcore_runtime_reads_only_its_turn_without_draining_other_traces(
     otel_spans: InMemorySpanExporter,
     stubbed_orchestrator,
     stubbed_specialists,
@@ -511,17 +571,24 @@ def test_agentcore_runtime_drains_trace_after_inprocess_run(
 
     import services.agentcore_runtime as rt
 
+    _emit_session_trace("sess-otel-2", "inventory", turn_id="turn-old")
+    _emit_session_trace("another-session", "support", turn_id="turn-other")
+
     asyncio.run(
         rt.run_agent(
             message="pieces that travel well",
             session_id="sess-otel-2",
             user_id=None,
+            turn_id="turn-current",
         )
     )
 
     trace = rt.get_latest_trace()
     assert trace["spans"], "latest trace SHALL be populated after a run"
     assert any(s["kind"] == "orchestrator" for s in trace["spans"])
+    assert all(s["attributes"].get("pellier.turn_id") != "turn-old" for s in trace["spans"])
+    assert trace["specialistRoute"] == "recommendation"
+    assert any(s.attributes.get("session.id") == "another-session" for s in otel_spans.get_finished_spans())
     assert any(s["kind"] == "specialist" for s in trace["spans"])
     assert any(s["kind"] == "tool" for s in trace["spans"])
 
