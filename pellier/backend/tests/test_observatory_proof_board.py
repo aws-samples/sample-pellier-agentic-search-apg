@@ -249,6 +249,8 @@ def _configure_managed(monkeypatch) -> None:
     monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "policy-1", raising=False)
     from services import workshop_run
     monkeypatch.setattr(workshop_run, "current_run_id", lambda: "run-0123456789ab")
+    from services import build_fingerprint
+    monkeypatch.setattr(build_fingerprint, "compute_fingerprint", lambda _path: "a" * 64)
 
 
 def test_readiness_reports_live_pillars(monkeypatch) -> None:
@@ -492,6 +494,47 @@ def test_support_proof_survives_a_restart_without_a_cached_trace(monkeypatch) ->
     assert queries[0][1] == ("CUST-MARCO", "run-0123456789ab", None, None)
     assert "ta.args->>'turn_id' = gtr.turn_id" in queries[0][0]
     assert "pc.principal_sub = gtr.principal_sub" in queries[0][0]
+
+
+@pytest.mark.parametrize("current,state,status", [
+    ("a" * 64, "current", "complete"),
+    ("b" * 64, "stale", "needs_data"),
+    ("", "unknown", "needs_data"),
+])
+def test_persisted_support_proof_compares_the_checkout_present_now(
+    monkeypatch, current, state, status,
+) -> None:
+    _configure_managed(monkeypatch)
+    from services import build_fingerprint
+    monkeypatch.setattr(build_fingerprint, "compute_fingerprint", lambda _path: current)
+    monkeypatch.setattr(
+        observatory, "_latest_managed_receipt",
+        lambda session_id=None, *, principal_sub: observatory._empty_managed_receipt(session_id),
+    )
+    db = _ProofDB()
+    body = _client(db).get("/api/observatory/proof-board").json()
+    card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
+
+    assert card["status"] == status
+    assert body["managedReceipt"]["buildState"] == state
+    assert body["managedReceipt"]["localBuildFingerprint"] == current
+    # The original evidence still describes the files at execution time.
+    assert db.support_turn["trace"]["buildState"] == "current"
+    assert db.support_turn["trace"]["localBuildFingerprint"] == "a" * 64
+
+
+def test_cached_managed_projection_detects_an_edit_without_restart(monkeypatch) -> None:
+    _configure_managed(monkeypatch)
+    from services import build_fingerprint
+    trace = _ProofDB().support_turn["trace"]
+    assert observatory._managed_receipt_from_trace(trace, "managed-proof")["buildState"] == "current"
+
+    monkeypatch.setattr(build_fingerprint, "compute_fingerprint", lambda _path: "b" * 64)
+    projected = observatory._managed_receipt_from_trace(trace, "managed-proof")
+    assert projected["buildState"] == "stale"
+    assert projected["localBuildFingerprint"] == "b" * 64
+    assert projected["runtimeRequestId"] == "support-request"
+    assert trace["localBuildFingerprint"] == "a" * 64
 
 
 def test_return_and_policy_receipts_cannot_complete_support_read(monkeypatch) -> None:

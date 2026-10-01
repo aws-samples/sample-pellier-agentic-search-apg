@@ -623,10 +623,37 @@ def _latest_managed_receipt(
     return _managed_receipt_from_trace(trace, session_id)
 
 
+def _current_build_comparison(trace: dict[str, Any]) -> dict[str, Any]:
+    """Compare an immutable execution fingerprint with the current source.
+
+    A persisted receipt describes the checkout at execution time. Its stored
+    comparison cannot establish that the files still match after an edit or
+    application restart. Only this read projection changes; the receipt does
+    not.
+    """
+    if trace.get("traceKind") != "managed-runtime-receipt":
+        return dict(trace)
+    try:
+        from services.build_fingerprint import compute_fingerprint
+
+        local = compute_fingerprint(Path(__file__).resolve().parents[1])
+    except Exception:
+        local = ""
+    deployed = str(trace.get("buildFingerprint") or "")
+    return {
+        **trace,
+        "localBuildFingerprint": local,
+        "buildState": (
+            "current" if deployed == local else "stale"
+        ) if deployed and local else "unknown",
+    }
+
+
 def _managed_receipt_from_trace(
     trace: dict[str, Any], session_id: str | None
 ) -> dict[str, Any]:
     """Project observed transport evidence without filling absent fields."""
+    trace = _current_build_comparison(trace)
     return {
         "present": trace.get("traceKind") == "managed-runtime-receipt",
         "traceKind": trace.get("traceKind", ""),
@@ -701,6 +728,12 @@ async def _latest_support_turn(
         trace = result.get("trace")
         if not isinstance(trace, dict):
             trace = {}
+        recorded_build_matches = bool(
+            trace.get("buildState") == "current"
+            and trace.get("buildFingerprint")
+            and trace.get("buildFingerprint") == trace.get("localBuildFingerprint")
+        )
+        trace = _current_build_comparison(trace)
         result["trace"] = trace
         result["proven"] = all([
             result.get("principal_verified") is True,
@@ -712,6 +745,7 @@ async def _latest_support_turn(
             bool(trace.get("runtimeRequestId")),
             trace.get("jwtPassthrough") is True,
             trace.get("gatewayPassthrough") is True,
+            recorded_build_matches,
             trace.get("buildState") == "current",
             bool(trace.get("buildFingerprint")),
             trace.get("buildFingerprint") == trace.get("localBuildFingerprint"),
