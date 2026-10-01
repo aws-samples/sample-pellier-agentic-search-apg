@@ -4,7 +4,60 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Iterable
+
+
+def select_products_for_reply(
+    reply: str,
+    candidates: Iterable[dict],
+    *,
+    owned_products: Iterable[dict] = (),
+) -> list[dict]:
+    """Select grounded cards named in the answer, preferring new pieces.
+
+    Retrieval results remain the full candidate set in the tool evidence.
+    Cards show the specialist's selections in prose order; prior purchases
+    mentioned as context do not displace a new recommendation.
+    """
+    normalized_reply = (reply or "").casefold()
+    product_rows = [product for product in candidates if isinstance(product, dict)]
+    if not normalized_reply or not product_rows:
+        return product_rows
+
+    def product_name(product: dict) -> str:
+        return str(product.get("name") or product.get("product_description") or "").strip()
+
+    def product_identity(product: dict) -> tuple[str, str] | None:
+        product_id = product.get("id") or product.get("productId") or product.get("product_id")
+        if product_id is not None and str(product_id).strip():
+            return ("id", str(product_id).strip())
+        name = product_name(product)
+        return ("name", name.casefold()) if name else None
+
+    owned_identities = {
+        identity
+        for product in owned_products
+        if isinstance(product, dict)
+        and (identity := product_identity(product)) is not None
+    }
+    mentioned = []
+    for index, product in enumerate(product_rows):
+        name = product_name(product)
+        mention_index = normalized_reply.find(name.casefold()) if name else -1
+        if mention_index >= 0:
+            mentioned.append((mention_index, index, product))
+
+    if not mentioned:
+        return product_rows
+
+    mentioned.sort(key=lambda item: (item[0], item[1]))
+    selected = [product for _mention_index, _index, product in mentioned]
+    novel = [
+        product
+        for product in selected
+        if product_identity(product) not in owned_identities
+    ]
+    return novel or selected
 
 
 def _safe_float(value: Any) -> float:

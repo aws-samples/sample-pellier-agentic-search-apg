@@ -198,6 +198,75 @@ def test_dispatcher_selects_real_sdk_tools(monkeypatch):
     assert adapted[0].mcp_client is client
 
 
+@pytest.mark.parametrize("profile_customer,status,expected_ids", [
+    ("CUST-THEO", "success", ["23", "1"]),
+    ("CUST-JESSICA", "success", ["31", "36", "37", "23", "1"]),
+    ("CUST-THEO", "error", ["31", "36", "37", "23", "1"]),
+])
+def test_managed_cards_follow_prose_without_promoting_owned_context(
+    monkeypatch, profile_customer, status, expected_ids,
+):
+    from services import agentcore_gateway as gateway
+
+    candidates = [
+        {"productId": "31", "name": "Stoneware Pour-Over Set"},
+        {"productId": "36", "name": "Ceramic Tumblers"},
+        {"productId": "37", "name": "Wabi-Sabi Bowl"},
+        {"productId": "23", "name": "Ceramic Ring Dish"},
+        {"productId": "1", "name": "Olive Branch Vessel"},
+    ]
+    client = MagicMock()
+    names = ["get_customer_preferences", "search_products_hybrid"]
+    client.list_tools_sync.return_value = [
+        MCPAgentTool(Tool(name="target___" + name, inputSchema={"type": "object"}), client)
+        for name in names
+    ]
+    hooks = []
+    prose = (
+        "You already own the Stoneware Pour-Over Set, Ceramic Tumblers, and "
+        "Wabi-Sabi Bowl. Extend the ritual with the Ceramic Ring Dish "
+        "or the Olive Branch Vessel."
+    )
+
+    def invoke(_prompt):
+        after_tool = hooks[1]
+        for tool_name, payload in [
+            ("get_customer_preferences", {
+                "status": status, "customer": {"id": profile_customer},
+                "recent_orders": [
+                    {"product_id": row["productId"], "name": row["name"]}
+                    for row in candidates[:3]
+                ],
+            }),
+            ("search_products_hybrid", {"status": "success", "products": candidates}),
+        ]:
+            after_tool(SimpleNamespace(
+                tool_use={"name": tool_name, "toolUseId": tool_name, "input": {}},
+                result={"status": "success", "content": [{"text": json.dumps(payload)}]},
+                exception=None,
+            ))
+        return prose
+
+    agent = MagicMock(side_effect=invoke)
+    agent.add_hook.side_effect = hooks.append
+    monkeypatch.setattr(gateway, "_managed_specialist_spec", lambda *a, **kw: ("recommendation", "Find pieces", names))
+    monkeypatch.setattr(gateway, "_runtime_or_app_setting", lambda key: "https://gateway.example/mcp")
+    monkeypatch.setattr("services.response_mode.response_model_for_intent", lambda *a: ("model", 1000, None))
+    monkeypatch.setattr("strands.tools.mcp.mcp_client.MCPClient", lambda transport: client)
+    monkeypatch.setattr("strands.Agent", lambda **kw: agent)
+    monkeypatch.setattr("strands.models.BedrockModel", lambda **kw: object())
+    dispatcher = gateway.ManagedGatewayDispatcher("token", customer_id="CUST-THEO")
+
+    assert dispatcher("Hand-thrown ceramics") == prose
+    assert [row["productId"] for row in dispatcher.last_products] == expected_ids
+    # The retrieval receipt retains every observed candidate, independently
+    # of the smaller set displayed alongside the answer.
+    result = dispatcher.last_tool_events[1]["result"]
+    assert result["product_count"] == 5
+    assert result["product_ids"] == [row["productId"] for row in candidates]
+    client.stop.assert_called_once()
+
+
 @pytest.mark.parametrize("kind", ["summary", "episodic"])
 def test_memory_xml_entities_remain_untrusted_text(kind):
     raw = '<!DOCTYPE summary [<!ENTITY secret "expanded-secret">]><summary>&secret;</summary>'

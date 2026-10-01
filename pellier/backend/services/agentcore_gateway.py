@@ -32,7 +32,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any, Sequence
 
-from services.product_envelope import ProductExtractor
+from services.product_envelope import ProductExtractor, select_products_for_reply
 
 logger = logging.getLogger(__name__)
 
@@ -587,6 +587,7 @@ class ManagedGatewayDispatcher:
             )
             tool_events: list[Dict[str, Any]] = []
             products: list[dict[str, Any]] = []
+            owned_products: list[dict[str, Any]] = []
             started_by_id: Dict[str, float] = {}
 
             def before_tool(event: BeforeToolCallEvent) -> None:
@@ -617,6 +618,25 @@ class ManagedGatewayDispatcher:
                 observed_products: list[dict[str, Any]] = []
                 for value in _tool_result_values(event.result):
                     observed_products.extend(ProductExtractor.extract(value))
+                    if tool_name == "get_customer_preferences" and event.exception is None:
+                        if isinstance(value, str):
+                            import json
+
+                            try:
+                                value = json.loads(value)
+                            except (TypeError, ValueError):
+                                continue
+                        if (
+                            isinstance(value, dict)
+                            and value.get("status") == "success"
+                            and isinstance(value.get("customer"), dict)
+                            and value["customer"].get("id") == self.customer_id
+                            and isinstance(value.get("recent_orders"), list)
+                        ):
+                            owned_products.extend(
+                                order for order in value["recent_orders"]
+                                if isinstance(order, dict)
+                            )
                 existing = {
                     str(product.get("productId") or product.get("name"))
                     for product in products
@@ -666,7 +686,9 @@ class ManagedGatewayDispatcher:
             self.last_tool_names = selected_names
             response = agent(prompt)
             self.last_tool_events = tool_events
-            self.last_products = products
+            self.last_products = select_products_for_reply(
+                str(response), products, owned_products=owned_products,
+            )
             return response
         finally:
             _stop_mcp_client(mcp_client)

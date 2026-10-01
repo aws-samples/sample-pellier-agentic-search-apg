@@ -17,7 +17,9 @@ import json
 import logging
 import re
 from contextvars import ContextVar, Token
-from typing import Iterable, List, Optional
+from typing import List, Optional
+
+from services.product_envelope import select_products_for_reply as select_products_for_reply
 
 logger = logging.getLogger(__name__)
 
@@ -79,63 +81,6 @@ def forward_or_append_products(text: str, products: List[dict]) -> str:
     if re.search(r"```json\s*\[", text, re.IGNORECASE):
         return text
     return text + f"\n\n```json\n{json.dumps(products)}\n```"
-
-
-def select_products_for_reply(
-    reply: str,
-    candidates: Iterable[dict],
-    *,
-    owned_products: Iterable[dict] = (),
-) -> List[dict]:
-    """Return the catalog pieces the specialist actually selected in prose.
-
-    Tool calls intentionally return a small candidate set so the model can
-    choose an editorial answer. Product cards are the answer's visual
-    counterpart, not an unlabelled dump of that candidate set. In a
-    personalized reply, previous purchases can be named only as context; they
-    must not displace the new recommendation as the leading card.
-    """
-    normalized_reply = (reply or "").casefold()
-    product_rows = [product for product in candidates if isinstance(product, dict)]
-    if not normalized_reply or not product_rows:
-        return product_rows
-
-    def product_name(product: dict) -> str:
-        return str(product.get("name") or product.get("product_description") or "").strip()
-
-    def product_identity(product: dict) -> tuple[str, str] | None:
-        product_id = product.get("id") or product.get("productId") or product.get("product_id")
-        if product_id is not None and str(product_id).strip():
-            return ("id", str(product_id).strip())
-        name = product_name(product)
-        return ("name", name.casefold()) if name else None
-
-    owned_identities = {
-        identity
-        for product in owned_products
-        if isinstance(product, dict)
-        and (identity := product_identity(product)) is not None
-    }
-    mentioned = []
-    for index, product in enumerate(product_rows):
-        name = product_name(product)
-        mention_index = normalized_reply.find(name.casefold()) if name else -1
-        if mention_index >= 0:
-            mentioned.append((mention_index, index, product))
-
-    if not mentioned:
-        # A model that did not name a result is still better served by the
-        # grounded candidate cards than by an empty result surface.
-        return product_rows
-
-    mentioned.sort(key=lambda item: (item[0], item[1]))
-    selected = [product for _mention_index, _index, product in mentioned]
-    novel = [
-        product
-        for product in selected
-        if product_identity(product) not in owned_identities
-    ]
-    return novel or selected
 
 
 def extract_escalation_payload(tool_results: List[str]) -> Optional[dict]:

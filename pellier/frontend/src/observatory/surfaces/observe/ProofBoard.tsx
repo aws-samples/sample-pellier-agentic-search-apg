@@ -901,7 +901,7 @@ const ReceiptStrip: React.FC<{ receipt: ManagedReceipt }> = ({ receipt }) => {
           : 'No policy decision is available yet.',
       evidence: receipt.governedVerifiedUsername
         ? `${receipt.governedVerifiedUsername} via ${receipt.governedIdentitySource || 'Cognito JWT'}`
-        : receipt.governedPrincipalLabel || 'No verified principal on the latest receipt',
+        : receipt.governedPrincipalLabel || 'No governed action identity receipt recorded yet.',
       state: receipt.governedReceiptPresent
         ? 'pass'
         : receipt.policyConfigured ? 'warn' : 'pending',

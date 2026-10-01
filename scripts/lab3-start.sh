@@ -309,5 +309,5 @@ else
 fi
 
 echo "------------------------------------------------------------"
-info "Lab 3 may proceed. Theo's three turns now travel Runtime -> Gateway -> Aurora."
+info "Lab 3 may proceed. Theo's requests now travel Runtime -> Gateway -> Aurora."
 exit 0
