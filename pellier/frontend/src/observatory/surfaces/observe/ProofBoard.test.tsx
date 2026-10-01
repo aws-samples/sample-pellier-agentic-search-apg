@@ -436,6 +436,42 @@ describe('ProofBoard', () => {
       .toHaveAttribute('href', '#runtime-gateway-policy');
   });
 
+  it.each([
+    ['needs_data', 'Data'],
+    ['needs_run', 'Run'],
+  ])('does not complete the caller stage from transport alone when ticket proof is %s', async (status, label) => {
+    const cards = proofBoardPayload.cards.map((card) =>
+      card.id === 'audit-ledger' ? { ...card, status } : card,
+    );
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ ...proofBoardPayload, cards }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )));
+    render(<MemoryRouter><ProofBoard /></MemoryRouter>);
+
+    const tab = await screen.findByRole('tab', { name: /Establish the caller/i });
+    expect(tab).toHaveTextContent(label);
+    expect(tab).not.toHaveTextContent('Observed');
+    fireEvent.click(tab);
+    expect(screen.getByRole('link', { name: 'Open checkpoint' }))
+      .toHaveAttribute('href', '#audit-ledger');
+  });
+
+  it('keeps caller proof unavailable when an older backend reports transport without ticket proof', async () => {
+    const cards = proofBoardPayload.cards.filter((card) => card.id !== 'audit-ledger');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ ...proofBoardPayload, cards }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )));
+    render(<MemoryRouter><ProofBoard /></MemoryRouter>);
+
+    const tab = await screen.findByRole('tab', { name: /Establish the caller/i });
+    expect(tab).toHaveTextContent('Unavailable');
+    expect(tab).not.toHaveTextContent('Observed');
+    fireEvent.click(tab);
+    expect(screen.queryByRole('link', { name: 'Open checkpoint' })).not.toBeInTheDocument();
+  });
+
   it('fails closed when a proof-board response is missing a required checkpoint', async () => {
     const cards = proofBoardPayload.cards.filter((card) => card.id !== 'retrieval-comparison');
     vi.stubGlobal(

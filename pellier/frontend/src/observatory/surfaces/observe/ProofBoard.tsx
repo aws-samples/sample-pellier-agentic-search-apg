@@ -264,7 +264,7 @@ const GOVERNED_PROOF_STAGES: GovernedProofStage[] = [
     title: 'Establish the caller',
     question: 'Whose records did the deployed build read?',
     description: 'Connect the verified caller, managed turn, and ticket reads. Prove Memory extraction and recall separately in the guide.',
-    cardIds: ['managed-rail', 'audit-ledger'],
+    cardIds: ['audit-ledger'],
     icon: Cpu,
   },
   {
