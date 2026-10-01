@@ -1,5 +1,5 @@
 /**
- * Conversation history for the guided three-turn journey.
+ * Conversation history for the guided requests returned by Aurora.
  *
  * The journey advertises that each turn keeps the previous conversation, so
  * turn N must be sent with the N-1 completed exchanges before it, and it
@@ -33,8 +33,8 @@ export function completeTurn(
 }
 
 /**
- * The ordered journey is three turns. The request rail lists them first, so
- * every index at or past this one is an explore prompt.
+ * Legacy scenario responses have three required turns. Current responses
+ * carry explicit roles; their actual count is passed by the request rail.
  */
 export const REQUIRED_TURN_COUNT = 3;
 
@@ -49,8 +49,12 @@ export const REQUIRED_TURN_COUNT = 3;
  * this one answer. Two spellings of the rule drifted once already and left an
  * enabled button that did nothing when pressed.
  */
-export function canRunTurn(entries: GuidedTurnEntries, index: number): boolean {
-  if (index >= REQUIRED_TURN_COUNT) return true;
+export function canRunTurn(
+  entries: GuidedTurnEntries,
+  index: number,
+  requiredTurnCount = REQUIRED_TURN_COUNT,
+): boolean {
+  if (index >= requiredTurnCount) return true;
   return index === 0 || Boolean(entries[index - 1]);
 }
 

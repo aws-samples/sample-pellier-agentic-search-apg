@@ -137,7 +137,7 @@ describe('Observatory workbench persona identity', () => {
       reject = no;
     }));
     const { container } = render(workbench());
-    fireEvent.click(await screen.findByRole('button', { name: 'Inspect: First guided turn' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Run request: First guided turn' }));
     await waitFor(() => expect(mocks.sendChatMessageStreaming).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('link', { name: 'Switch to Lab 2' }));
     await act(async () => {

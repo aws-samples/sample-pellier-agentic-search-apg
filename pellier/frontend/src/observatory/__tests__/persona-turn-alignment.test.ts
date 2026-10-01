@@ -83,7 +83,7 @@ const FIXTURE_ENTRYPOINTS = [
 ] as const
 
 describe('persona turn alignment', () => {
-  it('keeps three required workshop turns followed by two exploration turns', () => {
+  it('keeps the historical authored conversations stable for their recordings', () => {
     for (const persona of CANONICAL_PERSONAS) {
       expect(PERSONA_HERO_PILLS[persona]).toHaveLength(5)
       expect(PERSONA_HERO_PILLS[persona]).toEqual(EXPECTED_TURNS[persona])

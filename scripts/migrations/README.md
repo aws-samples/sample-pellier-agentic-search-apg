@@ -140,6 +140,11 @@ FKs.
     snapshots, kept separate from `pellier.governed_receipts` because a
     Gateway authentication failure has no authenticated principal or Cedar
     decision for that table to hold.
+56. **`056_align_required_lab_requests.sql`** aligns the authored request rail
+    with the guide: Marco goes directly to inventory, Anna's controlled
+    fallback proof stays a separate execution, and Theo tests caller scope.
+    Extra pairing, comparison, and return conversations are optional. The
+    forward migration preserves participant-authored prompt variations.
 
 The replacement path also needs its Gateway target, Cedar policy, and worker.
 Follow `scripts/deploy/REPLACEMENT_RECOVERY.md` for that activation order.
@@ -210,7 +215,9 @@ for migration in \
     051_review_requester.sql \
     052_replacement_recovery.sql \
     053_replacement_follow_up.sql \
-    054_query_statistics.sql
+    054_query_statistics.sql \
+    055_governance_boundary_observations.sql \
+    056_align_required_lab_requests.sql
 do
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
         -U "$DB_USER" -d "$DB_NAME" \

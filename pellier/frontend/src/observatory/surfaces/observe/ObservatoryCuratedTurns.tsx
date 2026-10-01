@@ -32,7 +32,7 @@ export interface ObservatoryCuratedTurnsProps {
   onInspect: (query: string, index: number) => void;
   ready?: boolean;
   /**
-   * Whether the request at this index may run yet. The three-turn journey is
+   * Whether the request at this index may run yet. The required journey is
    * a conversation, so turn N waits for turn N-1; a turn offered out of order
    * would be answered by an agent that never saw the turns it refers to.
    * Explore prompts are side excursions and the predicate exempts them.
@@ -41,6 +41,7 @@ export interface ObservatoryCuratedTurnsProps {
    * the button is pressable, so a looser answer here is a dead click.
    */
   canRunTurn?: (index: number) => boolean;
+  onScenarioLayout?: (layout: { anchorId: string; requiredCount: number }) => void;
   anchorError?: string | null;
   onSelectScenario?: () => void;
   selectingScenario?: boolean;
@@ -54,6 +55,7 @@ export default function ObservatoryCuratedTurns({
   onInspect,
   ready = true,
   canRunTurn = () => true,
+  onScenarioLayout,
   anchorError = null,
   onSelectScenario,
   selectingScenario = false,
@@ -85,7 +87,7 @@ export default function ObservatoryCuratedTurns({
           id: index + 1,
           ordinal: index + 1,
           prompt,
-          journeyRole: 'required',
+          journeyRole: index === 0 ? 'required' : 'explore',
           journeyStage: (['establish', 'exercise', 'prove'] as const)[index],
           productName: null,
           imageUrl: null,
@@ -139,14 +141,23 @@ export default function ObservatoryCuratedTurns({
       : scenario.ordinal > 3,
   );
 
+  useEffect(() => {
+    onScenarioLayout?.({
+      anchorId: journey.anchorId,
+      requiredCount: loading || error ? 0 : requiredScenarios.length,
+    });
+  }, [journey.anchorId, loading, error, requiredScenarios.length, onScenarioLayout]);
+
   const renderScenario = (scenario: LiveScenario, index: number) => {
     const isActive = activeIndex === index;
     // One predicate decides both the button and the run. The explore
     // exemption lives inside it, not here, so an offered prompt always runs.
     const waitingOnEarlierTurn = !canRunTurn(index);
     const stage = journey.surface === 'operator'
-      ? (scenario.ordinal === 1 ? 'Investigate the case' : 'Optional investigation depth')
-      : WORKSHOP_TURN_STAGES[Math.min(scenario.ordinal - 1, 2)];
+      ? 'Investigate the case'
+      : WORKSHOP_TURN_STAGES[scenario.journeyStage === 'establish' ? 0
+        : scenario.journeyStage === 'exercise' ? 1
+          : scenario.journeyStage === 'prove' ? 2 : Math.min(index, 2)];
     const isBuildCheckpoint =
       journey.anchorId === 'marco' &&
       scenario.journeyStage === 'prove' &&
@@ -178,11 +189,11 @@ export default function ObservatoryCuratedTurns({
         <span className="labs-turn-copy">
           <span className="labs-turn-stage">
             {scenario.journeyRole === 'explore'
-              ? `Explore ${scenario.ordinal - 3}`
-              : `Turn ${scenario.ordinal} · ${stage}`}
+              ? `Explore ${index - requiredScenarios.length + 1}`
+              : `Turn ${index + 1} · ${stage}`}
             {waitingOnEarlierTurn ? (
               <em className="labs-turn-waiting">
-                {`after turn ${scenario.ordinal - 1}`}
+                {`after turn ${index}`}
               </em>
             ) : null}
           </span>
@@ -196,6 +207,9 @@ export default function ObservatoryCuratedTurns({
                 ? `Catalog preview · ${scenario.productName}`
                 : 'Aurora scenario'}
           </small>
+          {journey.surface === 'storefront' ? (
+            <span className="labs-turn-run-label">{isActive && running ? 'Running…' : 'Run request'}</span>
+          ) : null}
         </span>
       </>
     );
@@ -217,7 +231,7 @@ export default function ObservatoryCuratedTurns({
         data-running={isActive && running ? 'true' : undefined}
         data-waiting={waitingOnEarlierTurn ? 'true' : undefined}
         disabled={running || !ready || waitingOnEarlierTurn}
-        aria-label={`Inspect: ${scenario.prompt}`}
+        aria-label={`Run request: ${scenario.prompt}`}
         onClick={() => onInspect(scenario.prompt, index)}
       >
         {content}
@@ -288,7 +302,7 @@ export default function ObservatoryCuratedTurns({
       {!loading && !error && !ready && journey.surface === 'storefront' ? (
         <div className="labs-turns-state labs-turns-scenario-setup">
           <strong>Optional: replay {journey.anchorName}’s scenario here</strong>
-          <p>The lab runs these turns in the Storefront; the lab guide above the page shows when. Replaying here starts a new shopping session and clears the previous conversation. It does not sign you in as {journey.anchorName}; account access still needs verified sign-in.</p>
+          <p>The guide runs these requests in Storefront. Replaying here starts a new session and clears the conversation. Account access still needs verified sign-in.</p>
           {onSelectScenario ? <button type="button" className="labs-turns-select-scenario" disabled={selectingScenario || running} onClick={() => { selectionRequested.current = true; onSelectScenario(); }}>
             {selectingScenario ? 'Opening scenario…' : `Choose ${journey.anchorName}’s scenario`}
           </button> : <Link to="/">Choose a scenario in Storefront</Link>}
@@ -309,8 +323,8 @@ export default function ObservatoryCuratedTurns({
             <h3>{journey.surface === 'operator' ? 'Investigation prompts' : 'Guided conversation'}</h3>
             <span className="labs-turns-context">
               {journey.surface === 'operator'
-                ? 'Start with the investigation. The two follow-ups are optional depth; Studio then guides the required proposal, human confirmation and execution.'
-                : 'Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.'}
+                ? 'Start with the investigation. Studio then guides the proposal, human confirmation and execution.'
+                : 'Run these requests in order. Each keeps the previous conversation; Studio guides the build and proof steps.'}
             </span>
           </div>
           <ol className="labs-turns-list" data-journey-role="required">
@@ -332,11 +346,8 @@ export default function ObservatoryCuratedTurns({
       </details>
 
       {!loading && !error && exploreScenarios.length > 0 ? (
-        <section className="labs-turns-group" aria-label="Explore further">
-          <div className="labs-turns-group-heading">
-            <h3>Explore further</h3>
-            <span>Optional extensions</span>
-          </div>
+        <details className="labs-turns-group labs-turns-explore" aria-label="Explore further">
+          <summary>Explore further <span>Optional requests</span></summary>
           <ol className="labs-turns-list labs-turns-list-explore" data-journey-role="explore">
             {exploreScenarios.map((scenario, index) => (
               <li key={scenario.id}>
@@ -344,7 +355,7 @@ export default function ObservatoryCuratedTurns({
               </li>
             ))}
           </ol>
-        </section>
+        </details>
       ) : null}
 
     </section>

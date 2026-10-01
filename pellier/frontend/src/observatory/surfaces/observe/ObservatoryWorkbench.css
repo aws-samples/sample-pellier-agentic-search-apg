@@ -1235,6 +1235,26 @@
   line-height: 1.45;
 }
 
+.observatory-idle-categories {
+  width: 100%;
+  text-align: left;
+}
+
+.observatory-idle-categories > summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--pl-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.observatory-idle-categories > summary:focus-visible {
+  outline: 3px solid rgba(var(--pl-accent-rgb), 0.38);
+  outline-offset: 3px;
+}
+
 .observatory-trace-skeleton-note {
   margin: 14px 0 8px 84px;
   color: var(--pl-muted);

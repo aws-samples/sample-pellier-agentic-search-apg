@@ -100,9 +100,9 @@ describe('Observatory guided runs send real history', () => {
     );
 
     const turn = (index: number) =>
-      screen.getByRole('button', { name: `Inspect: ${PROMPTS[index]}` });
+      screen.getByRole('button', { name: `Run request: ${PROMPTS[index]}` });
 
-    await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` });
+    await screen.findByRole('button', { name: `Run request: ${PROMPTS[0]}` });
     expect(turn(1)).toBeDisabled();
     expect(turn(2)).toBeDisabled();
 

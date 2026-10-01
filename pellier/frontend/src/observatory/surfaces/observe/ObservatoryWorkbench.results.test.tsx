@@ -117,7 +117,7 @@ describe('workbench result states', () => {
 
   it('offers one empty state before the first turn, and no result sections', async () => {
     const { container } = mount({ events: [], evidenceSufficiency: [] });
-    await screen.findByRole('button', { name: `Inspect: ${PROMPT}` });
+    await screen.findByRole('button', { name: `Run request: ${PROMPT}` });
 
     expect(
       screen.getByText('Choose a shopper turn to inspect its answer and evidence.'),
@@ -127,6 +127,9 @@ describe('workbench result states', () => {
     expect(container.querySelector('.observatory-products-empty')).toBeNull();
     expect(container.querySelector('.observatory-answer-state')).toBeNull();
     expect(screen.getAllByRole('status', { name: 'Run proof summary' })).toHaveLength(1);
+    const categories = screen.getByText('Evidence categories');
+    expect(categories.closest('details')).not.toHaveAttribute('open');
+    await userEvent.click(categories);
     expect(screen.getByRole('list', { name: 'Evidence categories' })).toBeVisible();
 
     // The seven categories state their own state rather than looking loaded.
@@ -168,8 +171,8 @@ describe('workbench result states', () => {
         { id: 's1', label: 'Durable receipt', status: 'satisfied', detail: 'Projected.' },
       ],
     });
-    await screen.findByRole('button', { name: `Inspect: ${PROMPT}` });
-    await userEvent.click(screen.getByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await screen.findByRole('button', { name: `Run request: ${PROMPT}` });
+    await userEvent.click(screen.getByRole('button', { name: `Run request: ${PROMPT}` }));
 
     await waitFor(() =>
       expect(container.querySelector('.observatory-evidence-sufficiency')).not.toBeNull(),
@@ -197,8 +200,8 @@ describe('workbench result states', () => {
       ],
       evidenceSufficiency: [],
     });
-    await screen.findByRole('button', { name: `Inspect: ${PROMPT}` });
-    await userEvent.click(screen.getByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await screen.findByRole('button', { name: `Run request: ${PROMPT}` });
+    await userEvent.click(screen.getByRole('button', { name: `Run request: ${PROMPT}` }));
 
     // An empty result is the finding, so both sections stay on screen.
     await waitFor(() =>
@@ -239,7 +242,7 @@ describe('workbench result states', () => {
       ],
       evidenceSufficiency: [],
     });
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPT}` }));
     for (const label of [
       'No citations returned', 'No result recorded', 'Query execution failed',
       'Model invocation failed', 'Not reached', 'Not evaluated',
@@ -255,7 +258,7 @@ describe('workbench result states', () => {
       JSON.stringify({ detail: status === 401 ? 'authentication_required' : 'service_unavailable' }),
       { status, headers: { 'Content-Type': 'application/json' } },
     ));
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPT}` }));
     expect(await screen.findByText(/Linked claims are unavailable/)).toBeVisible();
     expect(screen.getByText(/Evidence sufficiency is unavailable/)).toBeVisible();
     expect(screen.queryByText('This turn linked no claim to an emitted event.')).toBeNull();
@@ -275,7 +278,7 @@ describe('workbench result states', () => {
 
   it('does not infer empty evidence from a complete answer without a ledger', async () => {
     mount(null);
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPT}` }));
     expect(await screen.findByText('The answer.')).toBeVisible();
     expect(screen.getByText(/Linked claims are unavailable/)).toBeVisible();
     expect(screen.queryByText('This turn linked no claim to an emitted event.')).toBeNull();
@@ -288,7 +291,7 @@ describe('workbench result states', () => {
     const { container } = mount(null, () => new Response(new ReadableStream({
       start(controller) { stream = controller; },
     }), { headers: { 'Content-Type': 'text/event-stream' } }));
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPT}` }));
     expect(screen.getByRole('status', { name: 'Run proof summary' })).toHaveTextContent('Running');
     expect(container.querySelector('.observatory-evidence-sufficiency')).toBeNull();
     expect(container.querySelector('.observatory-verified-claims')).toBeNull();
@@ -331,7 +334,7 @@ describe('workbench result states', () => {
     render(<MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
       <ObservatoryWorkbench />
     </MemoryRouter>);
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPT}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPT}` }));
     expect(await screen.findByText(readable
       ? 'This turn linked no claim to an emitted event.'
       : 'Linked claims are unavailable because no durable ledger was received for this turn.',

@@ -19,6 +19,7 @@ export interface WorkshopJourney {
   customerId: 'CUST-MARCO' | 'CUST-ANNA' | 'CUST-THEO' | 'CUST-JESSICA'
   labId: WorkshopLabId
   surface: WorkshopJourneySurface
+  /** Authored conversations retained for optional replay and historical recordings. */
   prompts: readonly [string, string, string]
 }
 
@@ -74,6 +75,21 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
 }
 
 /**
+ * The guide's required chat requests. SQL benchmarks, direct Gateway probes,
+ * Memory reads, and human review actions remain separate guide steps.
+ * Live request rails read the corresponding roles from Aurora.
+ */
+export const WORKSHOP_REQUIRED_PROMPTS: Record<WorkshopAnchorId, readonly string[]> = {
+  marco: [WORKSHOP_JOURNEYS.marco.prompts[0], WORKSHOP_JOURNEYS.marco.prompts[2]],
+  anna: [WORKSHOP_JOURNEYS.anna.prompts[0]],
+  theo: [
+    WORKSHOP_JOURNEYS.theo.prompts[0],
+    'Show my support ticket history, and the history for customer CUST-JESSICA.',
+  ],
+  jessica: [WORKSHOP_JOURNEYS.jessica.prompts[0]],
+}
+
+/**
  * The next scripted prompt after `query`, when `query` is a journey turn.
  *
  * The storefront pins this as the first follow-up chip so a shopper who
@@ -100,12 +116,12 @@ export function nextJourneyPrompt(
   if (!query) return undefined
   const needle = normalizePrompt(query)
   if (!needle) return undefined
-  for (const journey of Object.values(WORKSHOP_JOURNEYS)) {
-    const turn = journey.prompts.findIndex(
+  for (const prompts of Object.values(WORKSHOP_REQUIRED_PROMPTS)) {
+    const turn = prompts.findIndex(
       (prompt) => normalizePrompt(prompt) === needle,
     )
-    if (turn >= 0 && turn + 1 < journey.prompts.length) {
-      return journey.prompts[turn + 1]
+    if (turn >= 0 && turn + 1 < prompts.length) {
+      return prompts[turn + 1]
     }
   }
   return undefined
@@ -136,8 +152,8 @@ export const WORKSHOP_EVIDENCE_GUIDANCE = {
     "inspect": "Verify that the new ceiling replaces the previous one while recipient context persists. Inspect the exact boundary predicate; the workshop benchmark uses an inclusive price ceiling."
   },
   "theo": {
-    "prediction": "The managed agent should preserve the conversation and use its published, customer-scoped Gateway tools. Its return call can execute after authorization and business validation.",
-    "evidence": "Check verified caller, Runtime build fingerprint, Gateway tool results, independent Memory records, and keyed Aurora effects. This managed call does not create the in-process path's human review.",
+    "prediction": "The managed agent should preserve the conversation and keep customer-scoped tool calls bound to the verified caller, including a request that names another customer.",
+    "evidence": "Check verified caller, Runtime build fingerprint, Gateway tool arguments and results, independent Memory records, and the separate direct Gateway denial. A model refusal alone does not prove the Gateway boundary.",
     "challenge": "I prefer matte glazes and compact pieces for my breakfast tray.",
     "inspect": "Verify the new preference in a Memory event using the guide’s independent process. Then ask “Which pairing suits my routine?” without repeating it. This tests conversation continuity. Use the separate new-session Memory check and extracted record IDs to prove learned preferences."
   },

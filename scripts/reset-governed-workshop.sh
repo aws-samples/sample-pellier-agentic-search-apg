@@ -557,7 +557,8 @@ for migration in \
   052_replacement_recovery.sql \
   053_replacement_follow_up.sql \
   054_query_statistics.sql \
-  055_governance_boundary_observations.sql
+  055_governance_boundary_observations.sql \
+  056_align_required_lab_requests.sql
 do
   if [[ ! -f "$REPO/scripts/migrations/$migration" ]]; then
     fail "Missing scripts/migrations/$migration"

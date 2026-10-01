@@ -295,14 +295,13 @@ export function editorialForPersona(
 // Fresh visitors see the canonical set.
 // ---------------------------------------------------------------------
 
-// Hero pills — the first pill in each persona's list is their
-// canonical Turn 1 query, matching the Observatory session fixture
-// and the PellierWelcome primary pick. The remaining pills are
-// Turn 2/3 follow-ups so the demo flows as one coherent journey.
+// Historical editorial conversations, retained for recorded session fixtures.
+// Current Storefront and Workbench requests read explicit journey roles from
+// Aurora; WORKSHOP_REQUIRED_PROMPTS defines the guide's bounded follow-ups.
 export const PERSONA_HERO_PILLS: Record<string, string[]> = {
   marco: [
-    // Marco's first three turns are the Lab 1 journey. The remaining two are
-    // optional pricing and human-handoff extensions.
+    // Marco's recorded three-turn conversation predates the bounded lab rail.
+    // Keep its strings stable so historical evidence retains its original ask.
     // See the Workshop Studio repo's content/ for Marco's arc — these pill
     // strings must match the demo-conversation fixtures exactly.
     // Turn 3 clicks twice per session: once during the opening demo

@@ -1013,6 +1013,12 @@ export default function ObservatoryWorkbench() {
   const [turnEntries, setTurnEntries] = useState<
     Array<GuidedTurnEntry | undefined>
   >([]);
+  const [scenarioLayout, setScenarioLayout] = useState<{
+    anchorId: string;
+    requiredCount: number;
+  } | null>(null);
+  const requiredTurnCount = scenarioLayout?.anchorId === selectedJourney.anchorId
+    ? scenarioLayout.requiredCount : 0;
   const startedAtRef = useRef<number | null>(null);
   const eventSequenceRef = useRef(0);
   const runGenerationRef = useRef(0);
@@ -1359,7 +1365,7 @@ export default function ObservatoryWorkbench() {
     // completed, because it is sent with that turn's exchange behind it.
     // Explore prompts are exempt, which is the predicate's business, not
     // this call site's: the request rail disables exactly what this refuses.
-    if (turnIndex !== null && !canRunTurn(turnEntries, turnIndex)) return;
+    if (turnIndex !== null && !canRunTurn(turnEntries, turnIndex, requiredTurnCount)) return;
 
     const conversationHistory =
       turnIndex === null ? [] : historyForTurn(turnEntries, turnIndex);
@@ -1761,6 +1767,21 @@ export default function ObservatoryWorkbench() {
     runStatus === 'complete' ||
     runStatus === 'error';
 
+  const evidenceCategories = (
+    <ol className="observatory-trace-list" data-skeleton="true" aria-label="Evidence categories">
+      {TRACE_SKELETON.map((kind) => (
+        <li key={kind} className="observatory-trace-step" data-kind={kind} data-status="not-run">
+          <div className="observatory-trace-content">
+            <div className="observatory-trace-kicker">
+              <span>{traceKindLabel(kind)}</span>
+              <em>{runStatus === 'running' ? 'Waiting' : 'Not run'}</em>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+
   // One visible run summary in either mode. Focus mode keeps it above the
   // panels so status remains available while Run or Reconcile is selected.
   const runSummary = (
@@ -1818,8 +1839,7 @@ export default function ObservatoryWorkbench() {
             ) : null}
           </div>
           <p className="observatory-workbench-lesson"><strong>You will learn</strong>{selectedLab.lesson}</p>
-          <p className="observatory-workbench-purpose">{selectedLab.objective}</p>
-          <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio. Use this workspace to run the scenario and inspect its evidence.</p>
+          <p className="observatory-workbench-studio-note">Follow Lab {Number(selectedLab.number)} in Workshop Studio, then run its request and inspect the evidence here.</p>
           <LabBuildConnection exercise={selectedLab} />
         </header>
         {focusMode ? (
@@ -1873,7 +1893,8 @@ export default function ObservatoryWorkbench() {
               running={runStatus === 'running'}
               activeIndex={activeTurn}
               ready={profileReady}
-              canRunTurn={(index) => canRunTurn(turnEntries, index)}
+              canRunTurn={(index) => canRunTurn(turnEntries, index, requiredTurnCount)}
+              onScenarioLayout={setScenarioLayout}
               anchorError={switchError}
               selectingScenario={switching}
               onSelectScenario={() => { void switchPersona(selectedJourney.anchorId); }}
@@ -1979,8 +2000,7 @@ export default function ObservatoryWorkbench() {
 
               <div className="observatory-run-foot">
                 <p className="observatory-provenance">
-                  Live SSE from <code>/api/chat/stream</code>, reconciled to
-                  principal-scoped Aurora receipts when the turn completes.
+                  Run a request, then compare its answer with the received events and caller-scoped receipts.
                 </p>
               </div>
             </section> : (
@@ -2424,34 +2444,22 @@ export default function ObservatoryWorkbench() {
                       ? 'The recorded ledger contains no events for this turn.'
                       : 'No evidence events were received. The execution outcome is not established by this view.'}
                 </p>
+              ) : runStatus === 'idle' ? (
+                <div className="observatory-idle-state">
+                  <strong>No request has run yet</strong>
+                  <p>Run a guided request to see its emitted events and receipts here.</p>
+                  <details className="observatory-idle-categories">
+                    <summary>Evidence categories</summary>
+                    <p>The seven categories of evidence this turn can emit. A turn does not visit them in order, and does not have to reach all of them.</p>
+                    {evidenceCategories}
+                  </details>
+                </div>
               ) : (
                 <div className="observatory-trace-skeleton">
                   <p className="observatory-trace-skeleton-note">
-                    {runStatus === 'running'
-                      ? 'Waiting for the first emitted event.'
-                      : 'The seven categories of evidence this turn can emit. A turn does not visit them in order, and does not have to reach all of them.'}
+                    Waiting for the first emitted event.
                   </p>
-                  <ol
-                    className="observatory-trace-list"
-                    data-skeleton="true"
-                    aria-label="Evidence categories"
-                  >
-                    {TRACE_SKELETON.map((kind) => (
-                      <li
-                        key={kind}
-                        className="observatory-trace-step"
-                        data-kind={kind}
-                        data-status="not-run"
-                      >
-                        <div className="observatory-trace-content">
-                          <div className="observatory-trace-kicker">
-                            <span>{traceKindLabel(kind)}</span>
-                            <em>{runStatus === 'running' ? 'Waiting' : 'Not run'}</em>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
+                  {evidenceCategories}
                 </div>
               )}
             </div>
@@ -2738,7 +2746,7 @@ export default function ObservatoryWorkbench() {
           </motion.section>
           </> : null}
         </div>
-        {(!storefrontJourney || (runStatus === 'complete' && turnEntries.slice(0, 3).filter(Boolean).length === 3)) && <LabHandoff exercise={selectedLab} />}
+        {(!storefrontJourney || (runStatus === 'complete' && requiredTurnCount > 0 && turnEntries.slice(0, requiredTurnCount).filter(Boolean).length === requiredTurnCount)) && <LabHandoff exercise={selectedLab} />}
         <WorkbenchResources scope="extensions" />
       </div>
     </div>

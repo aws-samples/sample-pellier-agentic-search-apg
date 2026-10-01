@@ -442,7 +442,8 @@ for migration in \
   052_replacement_recovery.sql \
   053_replacement_follow_up.sql \
   054_query_statistics.sql \
-  055_governance_boundary_observations.sql
+  055_governance_boundary_observations.sql \
+  056_align_required_lab_requests.sql
 do
   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" \
@@ -922,7 +923,7 @@ sample-pellier-agentic-search-apg/
 │   └── retrieval-eval/                      Retrieval evaluation reference
 │
 └── scripts/
-    ├── migrations/                         Ordered fresh-cluster SQL (001-049)
+    ├── migrations/                         Ordered fresh-cluster SQL (001-056)
     ├── seed_pellier_catalog.py             60 story products + 940 retrieval distractors
     ├── seed_local_golden_journeys.py       Local Theo handoff + Jessica evidence rehearsal
     ├── bootstrap-environment.sh             Code Editor + nginx + systemd

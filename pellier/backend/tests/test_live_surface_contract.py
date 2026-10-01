@@ -81,7 +81,7 @@ def test_live_surface_migration_provisions_profiles_sessions_and_scenarios() -> 
     assert "'explore'" in body
 
 
-def test_theo_required_journey_closes_on_the_governed_return() -> None:
+def test_historical_theo_seed_retains_its_recorded_return_conversation() -> None:
     seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
     repair = (
         ROOT / "scripts" / "migrations" / "040_resequence_theo_governed_turn.sql"
@@ -108,7 +108,7 @@ def test_theo_required_journey_closes_on_the_governed_return() -> None:
     assert "041_align_theo_pairing_preview.sql" in reset
 
 
-def test_anna_required_journey_distinguishes_retrieval_from_the_build_checkpoint() -> None:
+def test_historical_anna_seed_retains_its_recorded_retrieval_previews() -> None:
     seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
     repair = (
         ROOT / "scripts" / "migrations" / "042_align_anna_guided_previews.sql"

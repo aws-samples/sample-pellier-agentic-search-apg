@@ -44,7 +44,7 @@ async function inspectTurn(
   query: string,
 ) {
   await user.click(
-    await screen.findByRole('button', { name: `Inspect: ${query}` }),
+    await screen.findByRole('button', { name: `Run request: ${query}` }),
   );
 }
 
@@ -116,7 +116,7 @@ describe('Pellier Observatory live agent workbench', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Ground Marco’s warehouse answer in current Aurora rows/i,
+        /Follow Lab 1 in Workshop Studio, then run its request and inspect the evidence here/i,
       ),
     ).toBeInTheDocument();
     // The run state is reported once, by the ledger panel that runs.
@@ -151,31 +151,33 @@ describe('Pellier Observatory live agent workbench', () => {
     const requiredJourney = await screen.findByRole('region', {
       name: 'Guided conversation',
     });
-    const exploreFurther = screen.getByRole('region', {
+    const exploreFurther = screen.getByRole('group', {
       name: 'Explore further',
     });
     expect(requiredJourney.querySelectorAll('button')).toHaveLength(3);
     expect(
       within(requiredJourney).getByText(
-        'Each turn keeps the previous conversation. Workshop Studio sets the required stopping point.',
+        'Run these requests in order. Each keeps the previous conversation; Studio guides the build and proof steps.',
       ),
     ).toBeInTheDocument();
     expect(exploreFurther.querySelectorAll('button')).toHaveLength(2);
+    expect(exploreFurther).not.toHaveAttribute('open');
+    await userEvent.click(screen.getByText('Explore further'));
     // The required journey is a conversation: turn 1 is open, and turns 2 and
     // 3 wait for the turn before them. The explore prompts are optional
     // extensions and are never gated.
     expect(
-      await screen.findByRole('button', { name: `Inspect: ${FRESH_TURNS[0]}` }),
+      await screen.findByRole('button', { name: `Run request: ${FRESH_TURNS[0]}` }),
     ).toBeEnabled();
     for (const query of FRESH_TURNS.slice(1, 3)) {
       expect(
-        await screen.findByRole('button', { name: `Inspect: ${query}` }),
+        await screen.findByRole('button', { name: `Run request: ${query}` }),
       ).toBeDisabled();
     }
     expect(within(requiredJourney).getByText('after turn 1')).toBeInTheDocument();
     for (const query of FRESH_TURNS.slice(3)) {
       expect(
-        await screen.findByRole('button', { name: `Inspect: ${query}` }),
+        await screen.findByRole('button', { name: `Run request: ${query}` }),
       ).toBeEnabled();
     }
 
@@ -230,7 +232,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     expect(
       await screen.findByRole('button', {
-        name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}`,
+        name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}`,
       }),
     ).toBeInTheDocument();
     expect(mocks.fetch).toHaveBeenCalledWith(
@@ -239,12 +241,12 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(mocks.switchPersona).not.toHaveBeenCalled();
     expect(
       screen.queryByRole('button', {
-        name: `Inspect: ${WORKSHOP_JOURNEYS.marco.prompts[0]}`,
+        name: `Run request: ${WORKSHOP_JOURNEYS.marco.prompts[0]}`,
       }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', {
-        name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}`,
+        name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}`,
       }),
     ).toBeDisabled();
     expect(
@@ -264,7 +266,7 @@ describe('Pellier Observatory live agent workbench', () => {
     );
 
     expect(await screen.findByRole('region', { name: 'Investigation prompts' })).toHaveTextContent(
-      'Studio then guides the required proposal, human confirmation and execution',
+      'Studio then guides the proposal, human confirmation and execution',
     );
     // The panel fades in; presence can precede visibility under suite load.
     await waitFor(() => {
@@ -273,7 +275,7 @@ describe('Pellier Observatory live agent workbench', () => {
     for (const prompt of WORKSHOP_JOURNEYS.jessica.prompts) {
       expect(await screen.findByText(prompt)).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: `Inspect: ${prompt}` }),
+        screen.queryByRole('button', { name: `Run request: ${prompt}` }),
       ).not.toBeInTheDocument();
     }
     expect(
@@ -305,21 +307,21 @@ describe('Pellier Observatory live agent workbench', () => {
     const { rerender } = render(content);
     const select = await screen.findByRole('button', { name: 'Choose Anna’s scenario' });
     expect(mocks.switchPersona).not.toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByText(/It does not sign you in as Anna/)).toBeVisible());
-    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
+    await waitFor(() => expect(screen.getByText(/Account access still needs verified sign-in/)).toBeVisible());
+    expect(screen.getByRole('button', { name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
     await user.click(select);
     expect(mocks.switchPersona).toHaveBeenCalledWith('anna');
     expect(mocks.sendChatMessageStreaming).not.toHaveBeenCalled();
     // A successful request alone is insufficient: wait for the shared context.
-    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
+    expect(screen.getByRole('button', { name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeDisabled();
     mocks.persona = { id: 'anna', display_name: 'Anna', customer_id: 'CUST-ANNA' };
     rerender(<MemoryRouter initialEntries={['/observatory/workbench?lab=retrieval-acceptance']}><ObservatoryWorkbench /></MemoryRouter>);
-    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeEnabled();
-    expect(screen.getByRole('button', { name: `Inspect: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toHaveFocus();
+    expect(screen.getByRole('button', { name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toBeEnabled();
+    expect(screen.getByRole('button', { name: `Run request: ${WORKSHOP_JOURNEYS.anna.prompts[0]}` })).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Choose Anna’s scenario' })).toBeNull();
   });
 
-  it('keeps the idle ledger and metrics honest before a run', () => {
+  it('keeps the idle ledger compact and metrics honest before a run', async () => {
     const { container } = render(
       <MemoryRouter>
         <ObservatoryWorkbench />
@@ -329,6 +331,10 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(
       screen.queryByRole('heading', { name: 'Execution summary' }),
     ).not.toBeInTheDocument();
+    const categories = within(tracePanel(container)).getByText('Evidence categories');
+    expect(categories.closest('details')).not.toHaveAttribute('open');
+    await waitFor(() => expect(within(tracePanel(container)).getByText('No request has run yet')).toBeVisible());
+    await userEvent.click(categories);
     // The seven rows are evidence categories, not a seven-step checklist a turn
     // walks in order, and the note now says so.
     expect(
@@ -1158,7 +1164,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     expect(
       await screen.findByRole('button', {
-        name: `Inspect: ${PERSONA_HERO_PILLS.marco[2]}`,
+        name: `Run request: ${PERSONA_HERO_PILLS.marco[2]}`,
       }),
     ).toBeInTheDocument();
   });
@@ -1769,7 +1775,7 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(panel.querySelectorAll('fieldset')).toHaveLength(0);
     expect(within(panel).queryAllByRole('radio')).toHaveLength(0);
     expect(panel).toHaveTextContent(
-      'reconciled to principal-scoped Aurora receipts when the turn completes',
+      'compare its answer with the received events and caller-scoped receipts',
     );
 
     await user.click(toggle);

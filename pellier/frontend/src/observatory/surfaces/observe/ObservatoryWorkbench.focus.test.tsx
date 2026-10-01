@@ -122,7 +122,7 @@ describe('Observatory workbench responsive layout', () => {
     );
     renderWorkbench();
 
-    await user.click(await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` }));
+    await user.click(await screen.findByRole('button', { name: `Run request: ${PROMPTS[0]}` }));
 
     await waitFor(() => expect(settle).not.toBeNull());
     expect(activePanel()).toBe('requests');
@@ -149,7 +149,7 @@ describe('Observatory workbench responsive layout', () => {
 
   it('adapts to screen width without losing the current answer or active panel', async () => {
     renderWorkbench();
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPTS[0]}` }));
     await waitFor(() => expect(activePanel()).toBe('trace'));
     await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
     expect(screen.getByText('A grounded answer.')).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('Observatory workbench responsive layout', () => {
       },
     });
     renderWorkbench();
-    await userEvent.click(await screen.findByRole('button', { name: `Inspect: ${PROMPTS[0]}` }));
+    await userEvent.click(await screen.findByRole('button', { name: `Run request: ${PROMPTS[0]}` }));
     await waitFor(() => expect(activePanel()).toBe('trace'));
     await userEvent.click(screen.getByRole('button', { name: 'Reconcile answer' }));
     await userEvent.click(screen.getByRole('button', { name: 'Open event' }));

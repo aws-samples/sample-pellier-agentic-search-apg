@@ -104,10 +104,11 @@ describe('Observatory explore prompts', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('button', { name: `Inspect: ${REQUIRED[0]}` });
+    await screen.findByRole('button', { name: `Run request: ${REQUIRED[0]}` });
+    await user.click(screen.getByText('Explore further'));
 
     const secondExplore = screen.getByRole('button', {
-      name: `Inspect: ${EXPLORE[1]}`,
+      name: `Run request: ${EXPLORE[1]}`,
     });
     // The rail offers it, so pressing it has to do something.
     expect(secondExplore).toBeEnabled();
@@ -126,11 +127,49 @@ describe('Observatory explore prompts', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('button', { name: `Inspect: ${REQUIRED[0]}` });
+    await screen.findByRole('button', { name: `Run request: ${REQUIRED[0]}` });
+    await userEvent.click(screen.getByText('Explore further'));
 
-    expect(screen.getByRole('button', { name: `Inspect: ${REQUIRED[0]}` })).toBeEnabled();
-    expect(screen.getByRole('button', { name: `Inspect: ${REQUIRED[1]}` })).toBeDisabled();
-    expect(screen.getByRole('button', { name: `Inspect: ${REQUIRED[2]}` })).toBeDisabled();
-    expect(screen.getByRole('button', { name: `Inspect: ${EXPLORE[0]}` })).toBeEnabled();
+    expect(screen.getByRole('button', { name: `Run request: ${REQUIRED[0]}` })).toBeEnabled();
+    expect(screen.getByRole('button', { name: `Run request: ${REQUIRED[1]}` })).toBeDisabled();
+    expect(screen.getByRole('button', { name: `Run request: ${REQUIRED[2]}` })).toBeDisabled();
+    expect(screen.getByRole('button', { name: `Run request: ${EXPLORE[0]}` })).toBeEnabled();
+  });
+
+  it('uses explicit roles when required requests have nonconsecutive seed ordinals', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.includes('/api/chat/stream')) {
+        chatBodies.push(JSON.parse(String(init?.body)));
+        return streamResponse();
+      }
+      return new Response(JSON.stringify({ scenarios: [
+        { id: 1, ordinal: 1, prompt: REQUIRED[0], journeyRole: 'required', journeyStage: 'establish' },
+        { id: 2, ordinal: 2, prompt: EXPLORE[0], journeyRole: 'explore' },
+        { id: 3, ordinal: 3, prompt: REQUIRED[1], journeyRole: 'required', journeyStage: 'prove' },
+      ] }), { status: 200 });
+    }));
+    render(<MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
+      <ObservatoryWorkbench />
+    </MemoryRouter>);
+    await screen.findByRole('button', { name: `Run request: ${REQUIRED[0]}` });
+    expect(screen.getByText('Turn 2 · Prove outcome')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Defend the result' })).not.toBeInTheDocument();
+    await user.click(screen.getByText('Explore further'));
+    expect(screen.getByText('Explore 1')).toBeInTheDocument();
+    const optional = screen.getByRole('button', { name: `Run request: ${EXPLORE[0]}` });
+    expect(optional).toBeEnabled();
+    await user.click(optional);
+    await waitFor(() => expect(chatBodies).toHaveLength(1));
+    expect(chatBodies[0].message).toBe(EXPLORE[0]);
+    expect(screen.getByRole('button', { name: `Run request: ${REQUIRED[1]}` })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: `Run request: ${REQUIRED[0]}` }));
+    await waitFor(() => expect(screen.getByRole('button', { name: `Run request: ${REQUIRED[1]}` })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: `Run request: ${REQUIRED[1]}` }));
+    await screen.findByRole('heading', { name: 'Defend the result' });
+    expect(chatBodies.at(-1)?.conversation_history).toHaveLength(2);
+    expect(chatBodies.at(-1)?.message).toBe(REQUIRED[1]);
+    expect(screen.getByText(/A finished conversation alone does not complete the lab/)).toBeInTheDocument();
   });
 });

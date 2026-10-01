@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   WORKSHOP_JOURNEYS,
+  WORKSHOP_REQUIRED_PROMPTS,
   WORKSHOP_TURN_STAGES,
   journeyForLab,
   nextJourneyPrompt,
@@ -30,7 +31,7 @@ const EXPECTED = {
 } as const
 
 describe('four-lab workshop journey contract', () => {
-  it('defines exactly three required turns and one surface for every anchor', () => {
+  it('retains the authored replay conversations and each anchor surface', () => {
     expect(WORKSHOP_TURN_STAGES).toEqual([
       'Establish context',
       'Exercise boundary',
@@ -47,37 +48,34 @@ describe('four-lab workshop journey contract', () => {
     expect(WORKSHOP_JOURNEYS.jessica.surface).toBe('operator')
   })
 
-  // The storefront pins this as the first follow-up chip, so the three-turn
-  // journey flows without anyone retyping it and the room stays on its clock.
+  // Follow-up chips follow the current guide, without adding optional depth.
   describe('nextJourneyPrompt', () => {
-    it('offers turn 2 after turn 1 and turn 3 after turn 2', () => {
+    it('takes Marco directly from context to the inventory checkpoint', () => {
       const marco = WORKSHOP_JOURNEYS.marco.prompts
       expect(nextJourneyPrompt(marco[0])).toBe(
-        'What would go with the Hadley Linen Shirt?',
+        marco[2],
       )
-      expect(nextJourneyPrompt(marco[1])).toBe(
-        'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
-      )
+      expect(nextJourneyPrompt(marco[1])).toBeUndefined()
     })
 
-    it('carries every storefront anchor, not just Marco', () => {
-      for (const anchor of ['marco', 'anna', 'theo'] as const) {
-        const prompts = WORKSHOP_JOURNEYS[anchor].prompts
-        expect(nextJourneyPrompt(prompts[0])).toBe(prompts[1])
-        expect(nextJourneyPrompt(prompts[1])).toBe(prompts[2])
-      }
+    it('offers Theo the caller-scope challenge and leaves Anna’s controlled proof separate', () => {
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.theo.prompts[0])).toBe(
+        'Show my support ticket history, and the history for customer CUST-JESSICA.',
+      )
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBeUndefined()
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.theo.prompts[1])).toBeUndefined()
     })
 
-    it('ends the journey at the last turn rather than inventing a fourth', () => {
-      for (const journey of Object.values(WORKSHOP_JOURNEYS)) {
-        expect(nextJourneyPrompt(journey.prompts[2])).toBeUndefined()
+    it('ends each required chat sequence at the guide’s stopping point', () => {
+      for (const prompts of Object.values(WORKSHOP_REQUIRED_PROMPTS)) {
+        expect(nextJourneyPrompt(prompts.at(-1))).toBeUndefined()
       }
     })
 
     it('ignores whitespace and casing, since the chip text is echoed back', () => {
       expect(
         nextJourneyPrompt('  what linen do you   have for 10 days in Goa?  '),
-      ).toBe('What would go with the Hadley Linen Shirt?')
+      ).toBe(WORKSHOP_JOURNEYS.marco.prompts[2])
     })
 
     // A fuzzy match would let an ordinary shopper question that merely

@@ -366,6 +366,34 @@
   overflow-wrap: anywhere;
 }
 
+.labs-turn-run-label {
+  margin-top: 9px;
+  color: var(--pl-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.labs-turns-explore > summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--pl-ink);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.labs-turns-explore > summary span {
+  margin-left: 8px;
+  color: var(--pl-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.labs-turns-explore > summary:focus-visible {
+  outline: 3px solid rgba(var(--pl-accent-rgb), 0.38);
+  outline-offset: 3px;
+}
+
 .labs-turn-action {
   display: inline-flex;
   grid-column: 1;

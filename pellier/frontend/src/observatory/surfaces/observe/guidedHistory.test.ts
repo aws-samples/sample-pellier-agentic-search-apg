@@ -47,6 +47,13 @@ describe('guided turn history', () => {
     expect(canRunTurn([], REQUIRED_TURN_COUNT + 1)).toBe(true);
   });
 
+  it('uses the current required count rather than treating every third request as required', () => {
+    expect(canRunTurn([], 1, 1)).toBe(true);
+    expect(canRunTurn([], 1, 2)).toBe(false);
+    expect(canRunTurn([], 2, 2)).toBe(true);
+    expect(canRunTurn(completeTurn([], 0, entry(0)), 1, 2)).toBe(true);
+  });
+
   it('restarts the thread when an earlier turn is rerun', () => {
     let entries = completeTurn([], 0, entry(0));
     entries = completeTurn(entries, 1, entry(1));
