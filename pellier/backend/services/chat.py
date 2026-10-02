@@ -1270,10 +1270,14 @@ CURRENT REQUEST: {message}"""
             # Remove standalone card metadata. A rating inside editorial
             # prose must survive: cards are selected from this same text,
             # while the browser may already have streamed the full paragraph.
+            # Star glyphs include the emoji variation selector, empty and half
+            # stars; a list bullet may lead and a bare "4.5/5" is metadata too.
             rating_line = (
-                r'^\s*(?:[⭐★]+(?:\s*\d+(?:\.\d+)?)?'
-                r'|\d+(?:\.\d+)?\s*(?:[⭐★]+|stars?))'
-                r'(?:\s*(?:/5|out of 5))?'
+                r'^\s*(?:[-•*]\s*)?'
+                r'(?:[⭐★☆½\ufe0f]+(?:\s*\d+(?:\.\d+)?)?'
+                r'|\d+(?:\.\d+)?\s*(?:[⭐★\ufe0f]+|stars?)'
+                r'|\d+(?:\.\d+)?\s*(?=/\s*5|out of 5))'
+                r'(?:\s*(?:/\s*5|out of 5))?'
                 r'(?:\s*[·|–-]?\s*\(?\d[\d,]*(?:\s*reviews?)?\)?)?\s*$'
             )
             clean_text = re.sub(

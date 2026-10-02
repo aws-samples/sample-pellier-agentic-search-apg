@@ -192,6 +192,8 @@ async def test_inline_rating_cannot_replace_recommendations_with_past_purchase()
 @pytest.mark.parametrize("metadata", [
     "★ 4.9 (134 reviews)", "4.9 stars", "4.9 stars (134 reviews)",
     "4.9 ★ (134)", "★★★★★", "(134 reviews)",
+    "\u2b50\ufe0f" * 4 + " 4.5", "★★★★☆ 4.2 (88)", "★★★★½", "- 4.8 stars", "4.5/5",
+    "4.6 out of 5", "* 4.9 ★",
 ])
 async def test_parser_removes_standalone_rating_metadata(metadata):
     service = EnhancedChatService.__new__(EnhancedChatService)
@@ -203,7 +205,7 @@ async def test_parser_removes_standalone_rating_metadata(metadata):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("detail", ["4.9 stars", "★ 4.9", "134 reviews)"])
+@pytest.mark.parametrize("detail", ["4.9 stars", "★ 4.9", "134 reviews)", "4.5/5 by 88 shoppers"])
 async def test_parser_preserves_ratings_and_review_counts_inside_prose(detail):
     service = EnhancedChatService.__new__(EnhancedChatService)
     prose = f"The Ceramic Tumblers are rated {detail}, with a hand-thrown finish."
