@@ -113,7 +113,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
         level={1}
         data-testid="operator-book-error"
         surface={authenticationRequired ? 'plate' : 'paper'}
-        eyebrow="Client book"
+        eyebrow="Clients"
         headline={
           authenticationRequired
             ? 'Operator sign-in required'
@@ -121,13 +121,13 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
               ? 'Operator access required'
               : unavailable
                 ? 'Operator is temporarily unavailable'
-                : 'The book is unavailable'
+                : 'The client list is unavailable'
         }
         body={
           authenticationRequired ? (
             <>
               Sign in with the workshop operator account to read the client
-              book. No database request was attempted.
+              list. No database request was attempted.
             </>
           ) : operatorRequired ? (
             <>
@@ -137,7 +137,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
           ) : unavailable ? (
             <>
               The governed service could not be reached, so no current client
-              book was returned.
+              list was returned.
             </>
           ) : (
             <>
@@ -148,7 +148,7 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
           )
         }
         reason={unavailable ? undefined : error}
-        action={authenticationRequired ? <OperatorSignInAction unlocks="read the client book" /> : !operatorRequired ? <button type="button" className="operator-button operator-button-inline" onClick={refresh}>Try again</button> : undefined}
+        action={authenticationRequired ? <OperatorSignInAction unlocks="read the client list" /> : !operatorRequired ? <button type="button" className="operator-button operator-button-inline" onClick={refresh}>Try again</button> : undefined}
       />
     )
   }
@@ -158,8 +158,8 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
       <OperatorState
         level={1}
         data-testid="operator-book-loading"
-        eyebrow="Client book"
-        headline="Reading the live client book…"
+        eyebrow="Clients"
+        headline="Reading the live client list…"
       />
     )
   }
@@ -206,13 +206,13 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
       <OperatorState
         level={1}
         data-testid="operator-book-empty"
-        eyebrow="Client book"
+        eyebrow="Clients"
         headline="No clients seeded"
         body={
           <>
             The desk is wired but <code>pellier.customers</code> holds no
             client rows. Apply <code>018_client_book.sql</code> to seed the
-            book.
+            client list.
           </>
         }
       />

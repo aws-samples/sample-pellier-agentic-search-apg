@@ -21,7 +21,7 @@ describe('OperatorState', () => {
     render(
       <OperatorState
         data-testid="operator-book-empty"
-        eyebrow="Client book"
+        eyebrow="Clients"
         headline="No clients seeded"
         body="Apply the migration to seed the book."
         reason="client_book_empty"
@@ -29,7 +29,7 @@ describe('OperatorState', () => {
     )
 
     const state = screen.getByTestId('operator-book-empty')
-    expect(state).toHaveTextContent('Client book')
+    expect(state).toHaveTextContent('Clients')
     expect(state).toHaveTextContent('No clients seeded')
     expect(state).toHaveTextContent('Apply the migration to seed the book.')
     expect(state).toHaveTextContent('client_book_empty')
@@ -40,7 +40,7 @@ describe('OperatorState', () => {
       <OperatorState
         level={1}
         data-testid="operator-book-empty"
-        eyebrow="Client book"
+        eyebrow="Clients"
         headline="No clients seeded"
       />,
     )
@@ -76,7 +76,7 @@ describe('OperatorState', () => {
       <OperatorState
         data-testid="operator-book-error"
         surface="plate"
-        eyebrow="Client book"
+        eyebrow="Clients"
         headline="Operator sign-in required"
       />,
     )

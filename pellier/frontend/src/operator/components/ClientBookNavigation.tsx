@@ -21,7 +21,7 @@ export default function ClientBookNavigation() {
         title="All clients"
       >
         <UsersRound className="operator-topbar-icon" aria-hidden />
-        <span className="operator-topbar-label">Client book</span>
+        <span className="operator-topbar-label">Clients</span>
         {book ? <span className="operator-book-nav-count">{book.total}</span> : null}
       </Link>
       <nav className="operator-membership-nav" aria-label="Client tiers">

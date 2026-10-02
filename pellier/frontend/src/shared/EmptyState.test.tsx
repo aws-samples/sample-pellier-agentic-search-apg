@@ -47,7 +47,7 @@ describe('EmptyState', () => {
     // `/operator` signed out is a whole page whose only sentence is this one;
     // rendered at the default rank it reached a reader with no h1 at all.
     render(
-      <EmptyState eyebrow="Client book" headline="Sign in required." level={1} />,
+      <EmptyState eyebrow="Clients" headline="Sign in required." level={1} />,
     )
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'Sign in required.',

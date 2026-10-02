@@ -16,7 +16,7 @@ export function useClientBookResource(enabled = true) {
       .then(data => {
         if (!active) return
         if (!Array.isArray(data.clients) || !data.byMembership || !Number.isFinite(data.total)) {
-          throw new Error('Invalid client book response')
+          throw new Error('Invalid client list response')
         }
         setBook(data)
       })
