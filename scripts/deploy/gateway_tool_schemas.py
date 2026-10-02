@@ -429,7 +429,8 @@ WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
 # permitted to invoke, never the whole published catalogue. Live on 2026-09-10: a
 # shopper token saw 14 of 15 published tools (no `issue_credit`), and a staff token
 # with no customer mapping saw 13 (it gained `issue_credit` and lost the two
-# owner-scoped reads).
+# owner-scoped reads). The catalogue has since grown: 16 published before Task 3a
+# and 17 after, of which a shopper token discovers 14 and 15.
 #
 # These two sets name why a tool can be missing from one caller's listing. They are
 # claim shapes, not a second catalogue: every name here is published.
