@@ -419,6 +419,27 @@ def _bind_server_tool_context(
     return bound
 
 
+def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any]:
+    """Record who chose a call's customer, read before the server binds it.
+
+    A caller-bound tool's ``customer_id`` is overwritten by the server, so the
+    executed call alone cannot show whether the server or the model chose it.
+    Only the verdict is kept, never the customer the model asked for.
+    """
+    logical_name = _logical_gateway_tool_name(str(tool_use.get("name") or ""))
+    requested = (tool_use.get("input") or {}).get("customer_id")
+    if logical_name in _CUSTOMER_SCOPED_TOOL_NAMES:
+        scope = "server"
+    elif requested:
+        scope = "model"
+    else:
+        return {}
+    return {
+        "customer_scope": scope,
+        "requested_other_customer": bool(requested) and requested != customer_id,
+    }
+
+
 def _safe_tool_input(tool_use: Dict[str, Any]) -> Dict[str, Any]:
     """Return only documented scalar tool arguments for inspection."""
     raw = tool_use.get("input")
@@ -589,9 +610,11 @@ class ManagedGatewayDispatcher:
             products: list[dict[str, Any]] = []
             owned_products: list[dict[str, Any]] = []
             started_by_id: Dict[str, float] = {}
+            scope_by_id: Dict[str, Dict[str, Any]] = {}
 
             def before_tool(event: BeforeToolCallEvent) -> None:
                 tool_use = event.tool_use
+                scope = _customer_scope(tool_use, self.customer_id)
                 try:
                     bound_tool_use = _bind_server_tool_context(
                         tool_use,
@@ -608,6 +631,8 @@ class ManagedGatewayDispatcher:
                 tool_use_id = str(tool_use.get("toolUseId") or "")
                 if tool_use_id:
                     started_by_id[tool_use_id] = time.monotonic()
+                    if scope:
+                        scope_by_id[tool_use_id] = scope
 
             def after_tool(event: AfterToolCallEvent) -> None:
                 tool_use = event.tool_use
@@ -665,6 +690,7 @@ class ManagedGatewayDispatcher:
                         "duration_ms": duration_ms,
                         "input": _safe_tool_input(tool_use),
                         "result": _result_summary(event.result, observed_products),
+                        **scope_by_id.pop(tool_use_id, {}),
                     }
                 )
 

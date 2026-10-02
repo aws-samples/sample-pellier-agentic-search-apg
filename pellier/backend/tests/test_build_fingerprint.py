@@ -173,6 +173,39 @@ def test_receipt_reports_stale_when_the_deployed_digest_differs(
     assert trace["buildState"] == "stale"
 
 
+def test_receipt_records_who_chose_each_customer_but_never_the_customer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+    import services.agentcore_runtime as runtime
+
+    monkeypatch.setattr(runtime, "_local_fingerprint_cache", "local-digest")
+    runtime._store_managed_runtime_receipt(
+        "session-3",
+        principal_sub="sub-3",
+        rail="gateway-mcp",
+        auth_token_present=True,
+        build_fingerprint="local-digest",
+        tool_calls=[
+            {"tool": "get_ticket_history", "status": "success",
+             "input": {"customer_id": "CUST-THEO"},
+             "customer_scope": "server", "requested_other_customer": True},
+            {"tool": "search_products", "status": "success", "input": {"query": "bowl"}},
+            {"tool": "get_ticket_history", "status": "error",
+             "customer_scope": "model", "requested_other_customer": False},
+            "not-a-call",
+        ],
+    )
+    trace = runtime.get_latest_trace("session-3", principal_sub="sub-3")
+    assert trace["customerBindings"] == [
+        {"tool": "get_ticket_history", "status": "success",
+         "customerScope": "server", "requestedOtherCustomer": True},
+        {"tool": "get_ticket_history", "status": "error",
+         "customerScope": "model", "requestedOtherCustomer": False},
+    ]
+    assert "CUST-" not in json.dumps(trace["customerBindings"])
+
+
 def test_renderer_and_backend_share_one_file_list() -> None:
     """The packaged set and the digested set must not drift apart.
 

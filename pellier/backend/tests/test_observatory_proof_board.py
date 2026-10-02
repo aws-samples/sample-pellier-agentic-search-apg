@@ -41,6 +41,12 @@ class _ProofDB:
                 "buildState": "current",
                 "buildFingerprint": "a" * 64,
                 "localBuildFingerprint": "a" * 64,
+                "customerBindings": [
+                    {"tool": "get_ticket_history", "status": "success",
+                     "customerScope": "server", "requestedOtherCustomer": False},
+                    {"tool": "get_ticket_history", "status": "success",
+                     "customerScope": "server", "requestedOtherCustomer": True},
+                ],
             },
         }
 
@@ -559,6 +565,17 @@ def test_return_and_policy_receipts_cannot_complete_support_read(monkeypatch) ->
     ("trace.evidenceProvenance", "reconstructed"),
     ("trace.buildState", "stale"), ("trace.buildFingerprint", ""),
     ("trace.localBuildFingerprint", "b" * 64),
+    ("trace.customerBindings", []),
+    ("trace.customerBindings", [
+        {"tool": "get_ticket_history", "status": "success",
+         "customerScope": "model", "requestedOtherCustomer": False},
+    ]),
+    ("trace.customerBindings", [
+        {"tool": "get_ticket_history", "status": "success",
+         "customerScope": "server", "requestedOtherCustomer": False},
+        {"tool": "get_ticket_history", "status": "error",
+         "customerScope": "model", "requestedOtherCustomer": True},
+    ]),
 ])
 def test_incomplete_or_mismatched_support_evidence_never_passes(
     monkeypatch, field, value
@@ -572,6 +589,44 @@ def test_incomplete_or_mismatched_support_evidence_never_passes(
     body = _client(db).get("/api/observatory/proof-board").json()
     card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
     assert card["status"] == "needs_data"
+
+
+def test_a_published_but_unbound_ticket_read_names_the_missing_binding(monkeypatch) -> None:
+    _configure_managed(monkeypatch)
+    db = _ProofDB()
+    db.support_turn["trace"]["customerBindings"] = [
+        {"tool": "get_ticket_history", "status": "success",
+         "customerScope": "model", "requestedOtherCustomer": False},
+    ]
+    body = _client(db).get("/api/observatory/proof-board").json()
+    card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
+    assert card["status"] == "needs_data"
+    assert "Every ticket read belongs to the verified caller" in card["evidence"]
+    assert any("Caller binding is unproven" in line for line in card["evidence"])
+
+
+def test_unreadable_support_evidence_is_reported_instead_of_asking_for_a_rerun(
+    monkeypatch, caplog
+) -> None:
+    import logging
+
+    _configure_managed(monkeypatch)
+
+    class _FailingDB(_ProofDB):
+        async def fetch_one(self, query: str, *params: Any) -> dict | None:
+            if "AS caller_bound" in query:
+                raise RuntimeError("permission denied for table principal_customers")
+            return await super().fetch_one(query, *params)
+
+    with caplog.at_level(logging.WARNING):
+        body = _client(_FailingDB()).get("/api/observatory/proof-board").json()
+    card = next(card for card in body["cards"] if card["id"] == "audit-ledger")
+    assert card["status"] == "needs_data"
+    assert card["evidence"] == [
+        "Ticket evidence could not be read (RuntimeError); run the SQL fallback "
+        "and check the backend log"
+    ]
+    assert "support-turn evidence query failed" in caplog.text
 
 
 def test_support_proof_requires_a_current_valid_run(monkeypatch) -> None:

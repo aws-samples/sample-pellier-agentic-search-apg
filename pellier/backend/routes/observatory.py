@@ -735,9 +735,21 @@ async def _latest_support_turn(
         )
         trace = _current_build_comparison(trace)
         result["trace"] = trace
+        # Ownership of what was read is not binding: a published but unbound
+        # tool also reads the caller's own tickets when the model happens to
+        # pass the right id. Only the Runtime's own record of who chose the
+        # customer shows the server bound it.
+        ticket_bindings = [
+            binding for binding in trace.get("customerBindings") or []
+            if isinstance(binding, dict) and binding.get("tool") == "get_ticket_history"
+        ]
+        result["server_bound"] = bool(ticket_bindings) and all(
+            binding.get("customerScope") == "server" for binding in ticket_bindings
+        )
         result["proven"] = all([
             result.get("principal_verified") is True,
             result.get("caller_bound") is True,
+            result["server_bound"],
             result.get("terminal_status") == "complete",
             result.get("rail") == "gateway-mcp",
             trace.get("runtime") == "agentcore-managed",
@@ -754,8 +766,10 @@ async def _latest_support_turn(
             result["created_at"] = result["created_at"].isoformat()
         return result
     except Exception as exc:
-        logger.debug("Observatory support-turn evidence unavailable: %s", exc)
-        return None
+        # Not "no turn yet": a missing grant or schema drift must not send the
+        # participant back to rerun a lab whose evidence cannot be read.
+        logger.warning("Observatory support-turn evidence query failed: %s", exc)
+        return {"evidence_error": type(exc).__name__, "proven": False}
 
 
 def _build_fingerprint_evidence(receipt: dict[str, Any]) -> str:
@@ -1109,6 +1123,9 @@ async def _collect_proof_board(
     support_turn = await _latest_support_turn(
         principal_sub=principal_sub, session_id=session_id
     )
+    support_error = (support_turn or {}).get("evidence_error")
+    if support_error:
+        support_turn = None
     latest_gateway = await _latest_audit_row(
         principal_sub=principal_sub, caller="gateway"
     )
@@ -1275,17 +1292,21 @@ async def _collect_proof_board(
             "status": (
                 "complete"
                 if support_turn and support_turn["proven"]
+                else "needs_data" if support_error
                 else "needs_run" if not support_turn
                 else "needs_data"
             ),
             "required": True,
             "surface": "Aurora SQL",
-            "summary": "Ticket reads must belong to the verified caller and the deployed build in this run. The guide separately proves direct foreign-customer denial and all four extracted Memory records.",
+            "summary": "Ticket reads must belong to the verified caller, with the customer set by the server rather than the model, in the deployed build of this run. The guide separately proves direct foreign-customer denial and all four extracted Memory records.",
             "evidenceSource": "pellier.tool_audit + pellier.governed_turn_receipts + pellier.principal_customers",
             "lastUpdated": (
                 support_turn.get("created_at") if support_turn else None
             ),
             "evidence": [
+                f"Ticket evidence could not be read ({support_error}); run the SQL fallback "
+                "and check the backend log",
+            ] if support_error else [
                 (
                     f"Ticket read turn: {support_turn['turn_id']} (run {support_turn['run_id']})"
                     if support_turn else "No ticket read found for this caller in the current run"
@@ -1297,7 +1318,12 @@ async def _collect_proof_board(
                 (
                     "Every ticket read belongs to the verified caller"
                     if support_turn and support_turn.get("caller_bound")
-                    else "Caller binding is unproven"
+                    else "Ticket ownership is unproven"
+                ),
+                (
+                    "The server set the customer on every ticket read"
+                    if support_turn and support_turn.get("server_bound")
+                    else "Caller binding is unproven: no ticket read shows a server-set customer"
                 ),
                 _build_fingerprint_evidence(support_turn["trace"] if support_turn else {}),
             ],
@@ -1308,6 +1334,7 @@ async def _collect_proof_board(
                     '-v turn="$LAB3_TURN_ID" -v run="$(cat ~/.pellier/run_id)" <<\'SQL\'\n'
                     "SELECT gtr.turn_id, gtr.run_id, gtr.principal_verified, gtr.rail, "
                     "gtr.trace->>'buildState' AS build_state, "
+                    "gtr.trace->'customerBindings' AS customer_bindings, "
                     "ta.audit_id, ta.caller, ta.args, ta.result\n"
                     "FROM pellier.governed_turn_receipts gtr\n"
                     "JOIN pellier.principal_customers pc ON pc.principal_sub = gtr.principal_sub\n"

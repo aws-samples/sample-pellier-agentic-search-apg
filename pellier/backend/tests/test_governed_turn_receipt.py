@@ -31,6 +31,26 @@ def test_durable_trace_preserves_observed_transport_flags(value: bool) -> None:
     assert trace == {"jwtPassthrough": value, "gatewayPassthrough": value}
 
 
+def test_durable_trace_keeps_customer_bindings_without_customer_ids() -> None:
+    trace = _trace_metadata({
+        "runtime": "agentcore-managed",
+        "customerBindings": [
+            {"tool": "get_ticket_history", "status": "success", "customerScope": "server",
+             "requestedOtherCustomer": True, "customer_id": "CUST-JESSICA"},
+            {"tool": "get_ticket_history", "customerScope": "invented"},
+            "not-a-binding",
+        ],
+    })
+    assert trace["customerBindings"] == [
+        {"tool": "get_ticket_history", "status": "success",
+         "customerScope": "server", "requestedOtherCustomer": True},
+    ]
+
+
+def test_durable_trace_omits_customer_bindings_when_none_were_observed() -> None:
+    assert "customerBindings" not in _trace_metadata({"runtime": "agentcore-managed"})
+
+
 def test_durable_trace_does_not_infer_missing_transport_flags() -> None:
     trace = _trace_metadata({"runtime": "agentcore-managed", "rail": "gateway-mcp"})
     assert "jwtPassthrough" not in trace

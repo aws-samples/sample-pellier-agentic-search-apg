@@ -129,6 +129,51 @@ def test_server_context_overrides_model_identity_and_correlation(
     }
 
 
+def test_customer_scope_records_a_server_bound_customer_without_the_requested_id() -> None:
+    scope = gateway._customer_scope(
+        {
+            "name": "support-target___get_audit_trail",
+            "input": {"customer_id": "CUST-JESSICA"},
+        },
+        "CUST-THEO",
+    )
+
+    assert scope == {"customer_scope": "server", "requested_other_customer": True}
+    assert "CUST-JESSICA" not in json.dumps(scope)
+
+
+def test_customer_scope_marks_an_unbound_tool_as_chosen_by_the_model(monkeypatch) -> None:
+    monkeypatch.setattr(
+        gateway, "_CUSTOMER_SCOPED_TOOL_NAMES",
+        gateway._CUSTOMER_SCOPED_TOOL_NAMES - {"get_ticket_history"},
+    )
+    call = {"name": "support-target___get_ticket_history", "input": {"customer_id": "CUST-THEO"}}
+
+    assert gateway._customer_scope(call, "CUST-THEO") == {
+        "customer_scope": "model",
+        "requested_other_customer": False,
+    }
+
+
+def test_customer_scope_follows_the_caller_bound_set(monkeypatch) -> None:
+    monkeypatch.setattr(
+        gateway, "_CUSTOMER_SCOPED_TOOL_NAMES",
+        gateway._CUSTOMER_SCOPED_TOOL_NAMES | {"get_ticket_history"},
+    )
+    call = {"name": "support-target___get_ticket_history", "input": {"customer_id": "CUST-JESSICA"}}
+
+    assert gateway._customer_scope(call, "CUST-THEO") == {
+        "customer_scope": "server",
+        "requested_other_customer": True,
+    }
+
+
+def test_customer_scope_is_empty_for_a_tool_with_no_customer() -> None:
+    call = {"name": "search-target___search_products", "input": {"query": "linen"}}
+
+    assert gateway._customer_scope(call, "CUST-MARCO") == {}
+
+
 def test_customer_scoped_tool_requires_verified_customer_context() -> None:
     with pytest.raises(ValueError, match="verified Aurora customer context"):
         gateway._bind_server_tool_context(

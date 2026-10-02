@@ -241,6 +241,19 @@ def _trace_metadata(trace: Optional[Dict[str, Any]]) -> Dict[str, Any]:
             )
             if isinstance(trace.get("memory"), dict) and key in trace["memory"]
         },
+        # Who chose each customer-scoped call's customer (server or model).
+        # Lab 3's caller-binding proof reads this; it never holds customer ids.
+        "customerBindings": [
+            {
+                "tool": str(binding.get("tool") or ""),
+                "status": str(binding.get("status") or ""),
+                "customerScope": binding.get("customerScope"),
+                "requestedOtherCustomer": binding.get("requestedOtherCustomer") is True,
+            }
+            for binding in (trace.get("customerBindings") or [])
+            if isinstance(binding, dict)
+            and binding.get("customerScope") in ("server", "model")
+        ],
         "managedTrace": {
             key: managed.get(key)
             for key in (
@@ -256,7 +269,7 @@ def _trace_metadata(trace: Optional[Dict[str, Any]]) -> Dict[str, Any]:
             if managed.get(key) is not None
         },
     }
-    return {key: value for key, value in allowed.items() if value not in (None, {}, "")}
+    return {key: value for key, value in allowed.items() if value not in (None, {}, "", [])}
 
 
 def _receipt_citations(

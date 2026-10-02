@@ -241,6 +241,26 @@ def _build_state(deployed: str, local: str) -> str:
     return "current" if deployed == local else "stale"
 
 
+def _customer_bindings(tool_calls: Any) -> List[Dict[str, Any]]:
+    """Keep, per customer-scoped call, who chose the customer; never the customer.
+
+    The Runtime reports ``customer_scope`` as ``server`` when it overwrote the
+    call's customer with the verified caller's, and ``model`` when the model's
+    choice reached the Gateway unchanged. Lab 3 proves binding from this.
+    """
+    bindings: List[Dict[str, Any]] = []
+    for call in tool_calls if isinstance(tool_calls, list) else []:
+        if not isinstance(call, dict) or call.get("customer_scope") not in ("server", "model"):
+            continue
+        bindings.append({
+            "tool": str(call.get("tool") or ""),
+            "status": str(call.get("status") or ""),
+            "customerScope": call["customer_scope"],
+            "requestedOtherCustomer": call.get("requested_other_customer") is True,
+        })
+    return bindings[:24]
+
+
 def _store_managed_runtime_receipt(
     session_id: str,
     *,
@@ -251,6 +271,7 @@ def _store_managed_runtime_receipt(
     request_id: Optional[str] = None,
     build_fingerprint: Optional[str] = None,
     runtime_session_id: Optional[str] = None,
+    tool_calls: Any = None,
 ) -> None:
     """Expose a truthful managed-runtime receipt without synthesizing OTEL spans.
 
@@ -291,6 +312,7 @@ def _store_managed_runtime_receipt(
         "managedTrace": _cloudwatch_trace_links(
             session_id=runtime_session_id or session_id, trace_id=trace_id, request_id=request_id
         ),
+        "customerBindings": _customer_bindings(tool_calls),
     }
     _store_managed_trace(session_id, principal_sub, _latest_trace)
 
@@ -520,6 +542,7 @@ async def run_agent_on_runtime_result(
             request_id=response_headers.get("x-amzn-requestid"),
             build_fingerprint=str(parsed.get("build_fingerprint") or ""),
             runtime_session_id=runtime_session_id,
+            tool_calls=parsed.get("tool_calls"),
         )
         products = parsed.get("products")
         tool_calls = parsed.get("tool_calls")
