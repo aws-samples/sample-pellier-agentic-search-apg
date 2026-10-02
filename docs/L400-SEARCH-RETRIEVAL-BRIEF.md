@@ -117,7 +117,7 @@ For the 100-minute rehearsal:
 
 ## Gaps to close before publishing this abstract
 
-- The current Lab 2 RRF worksheet reconstructs recorded scores; it does not
+- The current Lab 1 RRF worksheet reconstructs recorded scores; it does not
   modify the application's live retrieval implementation. The revised lab
   needs a bounded live code or SQL build to support the stronger promise.
 - Include Cohere Rerank explicitly in Anna's experiment. Keep retrieval,

@@ -111,6 +111,7 @@ def _float_env(name: str, default: float) -> float:
 
 
 SEARCH_STRATEGY_COST_PER_1000_USD = {
+    "keyword": _float_env("PELLIER_COST_KEYWORD_PER_1000_USD", 0.0),
     "vector": _float_env("PELLIER_COST_VECTOR_PER_1000_USD", 0.18),
     "hybrid": _float_env("PELLIER_COST_HYBRID_PER_1000_USD", 0.18),
     "rerank": _float_env("PELLIER_COST_RERANK_PER_1000_USD", 1.18),
@@ -2078,11 +2079,11 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
 
 
 # Recorded on each comparison receipt alongside its unique comparison ID.
-# Lab 2's SQL requires both when selecting the turn to read. The storefront's own retrieval writer
+# Lab 1's SQL requires both when selecting the turn to read. The storefront's own retrieval writer
 # (services/agent_tools.py::_hybrid_retrieval_config) sets no ``source``, so a
 # shopper turn taken after the participant captured the high-water mark cannot
 # be mistaken for the comparison. Changing this value breaks
-# workshop/lab-2-rrf.sql and its two sibling copies.
+# workshop/lab-1-rrf.sql and its two sibling copies.
 OBSERVATORY_COMPARE_RECEIPT_SOURCE = "observatory-compare"
 
 
@@ -2091,7 +2092,7 @@ async def _persist_comparison_receipt(
     plan_source: str = "model-extracted",
     scenario_input: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Write the agentic strategy's retrieval receipt for Lab 2 to read back.
+    """Write the agentic strategy's retrieval receipt for Lab 1 to read back.
 
     The receipt comes from the execution that produced the row, so the ranks,
     the rerank scores, and the cited rows are the ones the surface showed. It
@@ -2161,9 +2162,17 @@ SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS = {
 async def _baseline_strategy_entries(
     db: Any, *, query: str, query_embedding: List[float]
 ) -> List[Dict[str, Any]]:
-    """Run strategies 1 (vector only) and 2 (hybrid RRF, no reranker)."""
+    """Run strategies 1 (keyword only), 2 (vector only) and 3 (hybrid RRF).
+
+    The keyword row runs the full-text branch of the hybrid executor alone,
+    so it makes no model call and its modeled cost is zero.
+    """
     from services.hybrid_search import HybridSearch
     from services.vector_search import VectorSearch
+
+    t0 = time.perf_counter()
+    keyword_rows = await HybridSearch(db).keyword_only(query, 5)
+    keyword_ms = int((time.perf_counter() - t0) * 1000)
 
     t0 = time.perf_counter()
     vec_rows = await VectorSearch(db).vector_search(
@@ -2177,6 +2186,12 @@ async def _baseline_strategy_entries(
     )
     hybrid_ms = int((time.perf_counter() - t0) * 1000)
     return [
+        {
+            "strategy": "keyword only",
+            "observedMs": keyword_ms,
+            "modeledCostPerThousandUsd": SEARCH_STRATEGY_COST_PER_1000_USD["keyword"],
+            "products": _strategy_products(keyword_rows),
+        },
         {
             "strategy": "vector only",
             "observedMs": vec_ms,
@@ -2284,18 +2299,19 @@ async def compare_search_strategies(
     query: Optional[str] = None, scenario: Optional[str] = None,
     prefer: Optional[str] = None,
 ):
-    """Run one query through four retrieval strategies and report each.
+    """Run one query through five retrieval strategies and report each.
 
     Surfaces Anna's anchor-capability comparison live to the Observatory
     Performance page: a duration and top-5 per strategy, plus the agentic
     row's extracted filters and plan.
 
-    1. vector only: pgvector cosine. Marco's path.
-    2. hybrid (RRF): vector + Postgres FTS, RRF-merged, no reranker.
-    3. hybrid + rerank: the shared executor on an unconstrained plan.
-    4. agentic: Sonnet proposes constraints, the planner compiles the hard
+    1. keyword only: the Postgres full-text branch alone.
+    2. vector only: pgvector cosine.
+    3. hybrid (RRF): vector + Postgres FTS, RRF-merged, no reranker.
+    4. hybrid + rerank: the shared executor on an unconstrained plan.
+    5. agentic: Sonnet proposes constraints, the planner compiles the hard
        ones into both branches before RRF, and the storefront's executor
-       reranks that pool. Its receipt is persisted for Lab 2 to read back.
+       reranks that pool. Its receipt is persisted for Lab 1 to read back.
 
     The bounded anna-fallback scenario supplies fixed constraints instead of
     model extraction, then runs the same live executor and fallback code. Its
@@ -2341,12 +2357,12 @@ async def compare_search_strategies(
         db, query=q, query_embedding=query_embedding
     )
 
-    # Strategies 3 and 4 run the storefront's executor on the shared embedding.
+    # Strategies 4 and 5 run the storefront's executor on the shared embedding.
     def _shared_embedding(_: str) -> List[float]:
         return query_embedding
 
     rerank_fn = get_rerank_service().rerank
-    # Strategy 3: hybrid + rerank over an unconstrained plan, no widening.
+    # Strategy 4: hybrid + rerank over an unconstrained plan, no widening.
     t0 = time.perf_counter()
     rerank_execution = await execute_search_plan(
         db,
@@ -2368,7 +2384,7 @@ async def compare_search_strategies(
         }
     )
 
-    # Strategy 4: agentic. Sonnet proposes constraints (a synchronous boto3
+    # Strategy 5: agentic. Sonnet proposes constraints (a synchronous boto3
     # call, so on a worker thread), the planner types them, and the same
     # executor runs them with the storefront's relaxation ladder.
     t0 = time.perf_counter()
@@ -2549,7 +2565,7 @@ async def micro_eval_search_strategies(
     The same pool sizes are then scored once each on the provided held-out
     labels (``CANONICAL_HELD_OUT_GOLDEN_IDS``, a different query), which adds
     one Rerank call per distinct pool size. ``generalizes`` says whether the
-    pool that wins on Lab 2b's labels also wins there: the tuning labels choose
+    pool that wins on Lab 1b's labels also wins there: the tuning labels choose
     the knob, the held-out labels check the choice.
 
     Args:
@@ -2689,7 +2705,7 @@ async def micro_eval_search_strategies(
         "repetitions": passes,
         # The frozen labels are the reference judgments. Coverage divides by the
         # label count, precision by the returned count, and MRR is a rank. When
-        # Lab 2b has not been built the label set is empty, so coverage,
+        # Lab 1b has not been built the label set is empty, so coverage,
         # precision and MRR read 0.0 for want of labels rather than because
         # retrieval failed. The surface needs to be able to tell those apart.
         "golden_set_size": len(CANONICAL_ANNA_GOLDEN_IDS),

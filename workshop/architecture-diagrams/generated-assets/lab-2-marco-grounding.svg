@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Title: Lab1MarcoGrounding Pages: 1 -->
+<!-- Title: Lab2MarcoGrounding Pages: 1 -->
 <svg width="1679pt" height="1080pt"
  viewBox="0.00 0.00 1679.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <g id="graph0" class="graph" transform="scale(1.65229 1.65229) rotate(0) translate(24.48 629.16)">
-<title>Lab1MarcoGrounding</title>
+<title>Lab2MarcoGrounding</title>
 <polygon fill="#f7f3ec" stroke="none" points="-24.48,24.48 -24.48,-629.16 991.9,-629.16 991.9,24.48 -24.48,24.48"/>
-<text xml:space="preserve" text-anchor="middle" x="236.75" y="-579.78" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 1 · MARCO</text>
+<text xml:space="preserve" text-anchor="middle" x="236.75" y="-579.78" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 2 · MARCO</text>
 <text xml:space="preserve" text-anchor="middle" x="236.75" y="-553.53" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Build a PostgreSQL&#45;grounded Inventory Agent</text>
 <!-- marco&#45;&gt;dispatcher -->
 <g id="edge1" class="edge">
@@ -102,7 +102,7 @@
 <g id="node7" class="node">
 <title>not_claimed</title>
 <polygon fill="#f1ece1" stroke="#e3ddd1" stroke-width="1.2" points="967.42,-69.8 702.38,-69.8 702.38,-18.2 967.42,-18.2 967.42,-69.8"/>
-<text xml:space="preserve" text-anchor="middle" x="834.9" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#6b665d">NOT CLAIMED IN LAB 1</text>
+<text xml:space="preserve" text-anchor="middle" x="834.9" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#6b665d">NOT CLAIMED IN LAB 2</text>
 <text xml:space="preserve" text-anchor="middle" x="834.9" y="-32.6" font-family="Helvetica Neue" font-size="12.00" fill="#6b665d">AgentCore Runtime · Gateway · Cedar · RLS</text>
 </g>
 </g>

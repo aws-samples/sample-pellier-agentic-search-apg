@@ -36,7 +36,7 @@ search applications.
 
 ## Required path
 
-1. Lab 1: Build a PostgreSQL-Grounded Agent
-2. Lab 2: Choose a Search Strategy You Can Defend
+1. Lab 1: Choose a Search Strategy You Can Defend
+2. Lab 2: Build a PostgreSQL-Grounded Agent
 3. Lab 3: Move the Agent into Managed Runtime
 4. Lab 4: Enforce Who Can Act on What

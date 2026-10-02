@@ -17,12 +17,12 @@ anchor means changing both repositories, which is the point.
 What each lab needs from the source tree
 ----------------------------------------
 
-**Lab 1 - Ground the Answer.** Two marker regions to fill and two fallback
+**Lab 2 - Ground the Answer.** Two marker regions to fill and two fallback
 files to copy. A missing marker breaks the primary lane; a missing fallback breaks the
 recovery lane, which is worse, because it only fails for the participant who is already
 behind.
 
-**Lab 2 - Build and Measure PostgreSQL Hybrid Retrieval.** A runnable psql
+**Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** A runnable psql
 worksheet whose RRF expression starts degraded, plus a bounded search-plan
 fallback that must preserve the original requirements.
 
@@ -54,10 +54,10 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 
 # ---------------------------------------------------------------------------
-# Lab 1, "10-ground-answers-in-live-data", steps 1 and 2 plus the pacing fallback.
+# Lab 2, "10-ground-answers-in-live-data", steps 1 and 2 plus the pacing fallback.
 # ---------------------------------------------------------------------------
 
-LAB1_REGIONS: Tuple[Tuple[str, str], ...] = (
+LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("pellier/backend/agents/inventory_agent.py",
      "WORKSHOP · Inventory Agent · definition"),
     ("pellier/backend/services/agent_tools.py",
@@ -66,7 +66,7 @@ LAB1_REGIONS: Tuple[Tuple[str, str], ...] = (
 
 # The exact `cp` sources in the guide's pacing fallback. A participant runs these
 # verbatim, so a renamed solution file is a dead recovery lane.
-LAB1_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
+LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
     ("solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py",
      "pellier/backend/agents/inventory_agent.py"),
     ("solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py",
@@ -74,22 +74,22 @@ LAB1_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 )
 
 # ---------------------------------------------------------------------------
-# Lab 2, bounded build artifact plus pacing fallback.
+# Lab 1, bounded build artifact plus pacing fallback.
 # ---------------------------------------------------------------------------
 
-LAB2_STARTER = "workshop/lab-2-rrf.sql"
-LAB2_PLAN_REGION = (
+LAB1_STARTER = "workshop/lab-1-rrf.sql"
+LAB1_PLAN_REGION = (
     "pellier/backend/services/search_plan.py",
     "WORKSHOP · Search plan · preserve requirements",
 )
-LAB2_PLAN_REFERENCE = (
+LAB1_PLAN_REFERENCE = (
     "solutions/the-quiet-search/retrieval/search_plan_solution.py"
 )
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home Decor at or under $100 tagged both `gift` and `home`.
-LAB2_GOLDEN_IDS = ("21", "22", "23", "25", "27", "29")
-LAB2_REFERENCE = "solutions/the-quiet-search/sql/lab-2-rrf-solution.sql"
-LAB2_MARKER = "WORKSHOP · PostgreSQL RRF · fusion expression"
+LAB1_GOLDEN_IDS = ("21", "22", "23", "25", "27", "29")
+LAB1_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
+LAB1_MARKER = "WORKSHOP · PostgreSQL RRF · fusion expression"
 
 # ---------------------------------------------------------------------------
 # Lab 3, two marker regions that together move the build onto the managed path.
@@ -165,20 +165,20 @@ LAB4_IDENTITY_PAIRS = (
 
 PARTICIPANT_EXERCISE_RESET = "scripts/reset_participant_exercises.py"
 PARTICIPANT_STARTERS = {
-    "lab-1-inventory-agent": (
-        "workshop/starters/lab-1/inventory-agent-definition.pyfrag",
+    "lab-2-inventory-agent": (
+        "workshop/starters/lab-2/inventory-agent-definition.pyfrag",
         "pellier/backend/agents/inventory_agent.py",
     ),
-    "lab-1-inventory-tool": (
-        "workshop/starters/lab-1/check-inventory-tool.pyfrag",
+    "lab-2-inventory-tool": (
+        "workshop/starters/lab-2/check-inventory-tool.pyfrag",
         "pellier/backend/services/agent_tools.py",
     ),
-    "lab-2-rrf": (
-        "workshop/starters/lab-2-rrf.sql",
-        LAB2_STARTER,
+    "lab-1-rrf": (
+        "workshop/starters/lab-1-rrf.sql",
+        LAB1_STARTER,
     ),
-    "lab-2-preserve-requirements": (
-        "workshop/starters/lab-2/preserve-requirements.pyfrag",
+    "lab-1-preserve-requirements": (
+        "workshop/starters/lab-1/preserve-requirements.pyfrag",
         "pellier/backend/services/search_plan.py",
     ),
     "lab-3-gateway-catalogue": (
@@ -247,16 +247,16 @@ def _marker_pair(text: str, label: str) -> Tuple[int, int]:
     return start, end
 
 
-@pytest.mark.parametrize("rel,label", LAB1_REGIONS)
-def test_lab1_region_has_exactly_one_marker_pair(rel: str, label: str) -> None:
+@pytest.mark.parametrize("rel,label", LAB2_REGIONS)
+def test_lab2_region_has_exactly_one_marker_pair(rel: str, label: str) -> None:
     """Two pairs would make "edit between the markers" ambiguous; zero makes it false."""
     text = _read(rel)
     assert text.count(f"{label}: START ===") == 1, f"{rel}: expected one START for {label}"
     assert text.count(f"{label}: END ===") == 1, f"{rel}: expected one END for {label}"
 
 
-@pytest.mark.parametrize("rel,label", LAB1_REGIONS)
-def test_lab1_region_is_ordered_and_not_empty(rel: str, label: str) -> None:
+@pytest.mark.parametrize("rel,label", LAB2_REGIONS)
+def test_lab2_region_is_ordered_and_not_empty(rel: str, label: str) -> None:
     """An inverted or empty region reads as "nothing to do here"."""
     text = _read(rel)
     start, end = _marker_pair(text, label)
@@ -265,8 +265,8 @@ def test_lab1_region_is_ordered_and_not_empty(rel: str, label: str) -> None:
     assert body.strip(), f"{rel}: the {label} region is empty"
 
 
-@pytest.mark.parametrize("rel,label", LAB1_REGIONS)
-def test_lab1_marker_uses_the_middle_dot_the_guide_quotes(rel: str, label: str) -> None:
+@pytest.mark.parametrize("rel,label", LAB2_REGIONS)
+def test_lab2_marker_uses_the_middle_dot_the_guide_quotes(rel: str, label: str) -> None:
     """The guide quotes the marker with U+00B7.
 
     A participant searching the file for the string in the guide finds nothing if this
@@ -278,14 +278,14 @@ def test_lab1_marker_uses_the_middle_dot_the_guide_quotes(rel: str, label: str) 
     assert label in text
 
 
-@pytest.mark.parametrize("source,destination", LAB1_FALLBACK_COPIES)
-def test_lab1_fallback_copy_exists_at_both_ends(source: str, destination: str) -> None:
+@pytest.mark.parametrize("source,destination", LAB2_FALLBACK_COPIES)
+def test_lab2_fallback_copy_exists_at_both_ends(source: str, destination: str) -> None:
     assert (REPO / source).is_file(), f"the guide copies {source}, which is absent"
     assert (REPO / destination).is_file(), f"the guide copies onto {destination}, which is absent"
 
 
-@pytest.mark.parametrize("source,destination", LAB1_FALLBACK_COPIES)
-def test_lab1_fallback_copy_keeps_the_markers(source: str, destination: str) -> None:
+@pytest.mark.parametrize("source,destination", LAB2_FALLBACK_COPIES)
+def test_lab2_fallback_copy_keeps_the_markers(source: str, destination: str) -> None:
     """The recovery lane must not destroy the anchor.
 
     A participant who takes the fallback and then wants to read what changed needs the
@@ -293,8 +293,8 @@ def test_lab1_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
     recovery into a dead end for the rest of the lab.
     """
     text = (REPO / source).read_text(encoding="utf-8")
-    labels = [label for rel, label in LAB1_REGIONS if rel == destination]
-    assert labels, f"{destination} is not a Lab 1 marker file"
+    labels = [label for rel, label in LAB2_REGIONS if rel == destination]
+    assert labels, f"{destination} is not a Lab 2 marker file"
     for label in labels:
         assert f"{label}: START ===" in text, f"{source} lost the {label} START marker"
         assert f"{label}: END ===" in text, f"{source} lost the {label} END marker"
@@ -303,7 +303,7 @@ def test_lab1_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
 @pytest.mark.parametrize(
     "starter,reference,label",
     (
-        (LAB2_STARTER, LAB2_REFERENCE, LAB2_MARKER),
+        (LAB1_STARTER, LAB1_REFERENCE, LAB1_MARKER),
         (LAB4_ABSENCE_STARTER, LAB4_ABSENCE_REFERENCE, LAB4_ABSENCE_MARKER),
     ),
 )
@@ -318,9 +318,9 @@ def test_labs_2_and_3_have_matching_build_markers(
         assert text.count(f"{label}: END ===") == 1
 
 
-def test_lab2_starter_fails_until_rrf_is_authored() -> None:
-    starter = _read(LAB2_STARTER)
-    reference = _read(LAB2_REFERENCE)
+def test_lab1_starter_fails_until_rrf_is_authored() -> None:
+    starter = _read(LAB1_STARTER)
+    reference = _read(LAB1_REFERENCE)
     assert "0::numeric AS recomputed_rrf" in starter
     assert "0::numeric AS recomputed_rrf" not in reference
     assert reference.count("1.0 / (60 +") == 2
@@ -364,32 +364,32 @@ def test_the_trace_contract_is_a_provided_check_not_a_build() -> None:
     assert ": false" not in contract
 
 
-def test_lab2_golden_set_region_has_exactly_one_marker_pair() -> None:
-    rel, label = LAB2_PLAN_REGION
+def test_lab1_golden_set_region_has_exactly_one_marker_pair() -> None:
+    rel, label = LAB1_PLAN_REGION
     text = _read(rel)
     assert text.count(f"# === {label}: START ===") == 1
     assert text.count(f"# === {label}: END ===") == 1
 
 
-def test_lab2_starter_refuses_an_unfinished_fallback() -> None:
+def test_lab1_starter_refuses_an_unfinished_fallback() -> None:
     from services.search_plan import SearchPlan, SoftPreferences
     plan = SearchPlan(intent="gift", soft=SoftPreferences(tags=("minimalist",)))
-    with pytest.raises(ValueError, match="Complete Task 2B"):
+    with pytest.raises(ValueError, match="Complete Task 1B"):
         plan.relaxation_ladder()
     assert plan.soft.tags == ("minimalist",)
     assert plan.relaxations == []
 
 
-def test_lab2_reference_preserves_the_plan_contract() -> None:
+def test_lab1_reference_preserves_the_plan_contract() -> None:
     import importlib.util
-    spec = importlib.util.spec_from_file_location("lab2_plan_check", REPO / "scripts/lab2_plan_contract_check.py")
+    spec = importlib.util.spec_from_file_location("lab1_plan_check", REPO / "scripts/lab1_plan_contract_check.py")
     checker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(checker)
-    reference = checker.load_plan_module(REPO / LAB2_PLAN_REFERENCE)
+    reference = checker.load_plan_module(REPO / LAB1_PLAN_REFERENCE)
     assert checker.check(reference)["passed"] is True
 
 
-def test_lab2_golden_set_is_stated_once() -> None:
+def test_lab1_golden_set_is_stated_once() -> None:
     """The eval harness must derive the labels, not carry a second copy.
 
     A duplicate literal would score the harness against a labeling the backend
@@ -397,7 +397,7 @@ def test_lab2_golden_set_is_stated_once() -> None:
     """
     harness = _read("scripts/eval_retrieval_harness.py")
     assert "CANONICAL_ANNA_GOLDEN_IDS" in harness
-    for product_id in LAB2_GOLDEN_IDS:
+    for product_id in LAB1_GOLDEN_IDS:
         assert f'"{product_id}", "' not in harness.split("GOLDEN_QUERIES")[0], (
             "the harness appears to carry its own copy of the golden ids"
         )
@@ -643,14 +643,14 @@ def test_lab4_rls_proof_fails_when_the_positive_controls_do_not_hold() -> None:
 
 def test_no_lab_anchor_is_a_broken_path() -> None:
     """One list, so a future anchor cannot be added without an existence check."""
-    anchors: List[str] = [rel for rel, _ in LAB1_REGIONS]
-    anchors += [source for source, _ in LAB1_FALLBACK_COPIES]
-    anchors += [destination for _, destination in LAB1_FALLBACK_COPIES]
+    anchors: List[str] = [rel for rel, _ in LAB2_REGIONS]
+    anchors += [source for source, _ in LAB2_FALLBACK_COPIES]
+    anchors += [destination for _, destination in LAB2_FALLBACK_COPIES]
     anchors += [
-        LAB2_STARTER,
-        LAB2_REFERENCE,
-        LAB2_PLAN_REFERENCE,
-        LAB2_PLAN_REGION[0],
+        LAB1_STARTER,
+        LAB1_REFERENCE,
+        LAB1_PLAN_REFERENCE,
+        LAB1_PLAN_REGION[0],
         LAB3_TRACE_CONTRACT,
         LAB4_ABSENCE_STARTER,
         LAB4_ABSENCE_REFERENCE,
@@ -672,9 +672,9 @@ def test_participant_exercise_reset_declares_every_incomplete_artifact() -> None
 
 
 def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
-    inventory_agent = _read(PARTICIPANT_STARTERS["lab-1-inventory-agent"][0])
-    inventory_tool = _read(PARTICIPANT_STARTERS["lab-1-inventory-tool"][0])
-    lab2 = _read(PARTICIPANT_STARTERS["lab-2-rrf"][0])
+    inventory_agent = _read(PARTICIPANT_STARTERS["lab-2-inventory-agent"][0])
+    inventory_tool = _read(PARTICIPANT_STARTERS["lab-2-inventory-tool"][0])
+    lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
     absence = _read(PARTICIPANT_STARTERS["lab-4-absence"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
@@ -683,7 +683,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     assert "_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = _INVENTORY_SYSTEM_PROMPT" in inventory_agent
     assert '"error": "check_inventory is in stub state"' in inventory_tool
     assert "result = _run_async(logic.check_inventory" not in inventory_tool
-    assert "0::numeric AS recomputed_rrf" in lab2
+    assert "0::numeric AS recomputed_rrf" in lab1
     assert all(placeholder in absence for placeholder in LAB4_ABSENCE_PLACEHOLDERS)
     assert "FROM pellier.tool_audit" not in absence
     assert re.search(r"unless\s*\{\s*false\s*\}", lab4)
@@ -724,7 +724,7 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
             )
 
         inventory_destination = (
-            repo / PARTICIPANT_STARTERS["lab-1-inventory-agent"][1]
+            repo / PARTICIPANT_STARTERS["lab-2-inventory-agent"][1]
         )
         inventory_destination.write_text(
             inventory_destination.read_text(encoding="utf-8").replace(
@@ -762,8 +762,8 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
 # ---------------------------------------------------------------------------
 
 CANONICAL_LAB_TITLE_PARTS: Tuple[Tuple[str, str], ...] = (
-    ("Lab 1", "Build a PostgreSQL-Grounded Agent"),
-    ("Lab 2", "Build and Measure PostgreSQL Hybrid Retrieval"),
+    ("Lab 2", "Build a PostgreSQL-Grounded Agent"),
+    ("Lab 1", "Build and Measure PostgreSQL Hybrid Retrieval"),
     ("Lab 3", "Deploy and Operate Agents with Amazon Bedrock AgentCore"),
     ("Lab 4", "Build Governed Agent Actions with Cedar"),
 )
@@ -847,7 +847,7 @@ def test_the_retired_and_canonical_title_lists_do_not_overlap() -> None:
 # ---------------------------------------------------------------------------
 
 _BUILD_STATE_DETECTORS = (
-    ("2b", "_lab2_search_plan_is_workshop_stub"),
+    ("1b", "_lab1_search_plan_is_workshop_stub"),
     ("3a", "_lab3_gateway_catalogue_is_workshop_stub"),
     ("3a-binding", "_lab3_support_contract_is_workshop_stub"),
 )
@@ -879,7 +879,7 @@ def test_build_state_detects_each_reference_solution_as_built(
     from routes import observatory
 
     live_for_step = {
-        "2b": (
+        "1b": (
             "pellier/backend/services/search_plan.py",
             "solutions/the-quiet-search/retrieval/search_plan_solution.py",
         ),
@@ -920,7 +920,7 @@ def test_build_state_detects_each_reference_solution_as_built(
 # Every reference solution the guide copies over a live file must be that live
 # file plus the answer. On 2026-09-19 three twins had drifted outside their
 # marker regions: the Lab 3a schema twin lacked `replace_damaged_item`, the Lab 3b
-# runtime twin lacked the traceparent injection, and the Lab 1a agent twin carried
+# runtime twin lacked the traceparent injection, and the Lab 2a agent twin carried
 # older instructions. A participant taking the documented catch-up lane silently
 # regressed the running application. This is the tripwire.
 # ---------------------------------------------------------------------------
@@ -934,10 +934,10 @@ _SQL_MARKER_BLOCK = re.compile(
 
 REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
     (source, destination, _PY_MARKER_BLOCK)
-    for source, destination in LAB1_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
+    for source, destination in LAB2_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
 ) + (
-    (LAB2_PLAN_REFERENCE, LAB2_PLAN_REGION[0], _PY_MARKER_BLOCK),
-    (LAB2_REFERENCE, LAB2_STARTER, _SQL_MARKER_BLOCK),
+    (LAB1_PLAN_REFERENCE, LAB1_PLAN_REGION[0], _PY_MARKER_BLOCK),
+    (LAB1_REFERENCE, LAB1_STARTER, _SQL_MARKER_BLOCK),
     (LAB4_ABSENCE_REFERENCE, "workshop/lab-4-absence.sql", _SQL_MARKER_BLOCK),
 )
 

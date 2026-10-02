@@ -83,7 +83,7 @@ function workbench() {
     >
       {/* The lab switch lives in the frame's lab strip; here a plain link makes
           the same URL change the strip makes. */}
-      <Link to="/observatory/workbench?lab=retrieval-acceptance">Switch to Lab 2</Link>
+      <Link to="/observatory/workbench?lab=retrieval-acceptance">Switch to Lab 1</Link>
       <ObservatoryWorkbench />
     </MemoryRouter>
   );
@@ -139,7 +139,7 @@ describe('Observatory workbench persona identity', () => {
     const { container } = render(workbench());
     fireEvent.click(await screen.findByRole('button', { name: 'Run request: First guided turn' }));
     await waitFor(() => expect(mocks.sendChatMessageStreaming).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('link', { name: 'Switch to Lab 2' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Switch to Lab 1' }));
     await act(async () => {
       mocks.sendChatMessageStreaming.mock.calls[0][2]({
         type: 'content_delta', delta: 'Late answer from Marco.',
@@ -150,7 +150,7 @@ describe('Observatory workbench persona identity', () => {
         reject(new Error('Late failure from Marco.'));
       }
     });
-    expect(screen.getByRole('heading', { level: 1, name: 'Lab 2: Build and Measure PostgreSQL Hybrid Retrieval' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Lab 1: Build and Measure PostgreSQL Hybrid Retrieval' }))
       .toBeInTheDocument();
     expect(screen.queryByText('Late answer from Marco.')).toBeNull();
     expect(screen.queryByText('Late failure from Marco.')).toBeNull();

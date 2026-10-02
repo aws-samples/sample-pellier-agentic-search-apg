@@ -34,17 +34,18 @@ export interface PerformanceData {
     status: 'enabled' | 'available';
   }[];
   /**
-   * Anna's anchor capability comparison: four retrieval strategies
+   * Anna's anchor capability comparison: five retrieval strategies
    * measured against the live catalog. Numbers come from
    * /api/observatory/search-strategies/compare when a query is supplied;
    * the fixture below seeds reasonable defaults so the card always
    * renders.
    *
    * Strategies:
-   *   1. vector only            — pgvector cosine, no lexical signal
-   *   2. hybrid (RRF)           — pgvector + Postgres FTS via reciprocal rank fusion (teaching foil)
-   *   3. hybrid + rerank        — RRF candidates rescored by Cohere Rerank v3.5
-   *   4. agentic                — Sonnet 5 extracts {categories, tags, price_max_usd, in_stock_only,
+   *   1. keyword only           — Postgres full-text search alone, no semantic signal
+   *   2. vector only            — pgvector cosine, no lexical signal
+   *   3. hybrid (RRF)           — pgvector + Postgres FTS via reciprocal rank fusion (teaching foil)
+   *   4. hybrid + rerank        — RRF candidates rescored by Cohere Rerank v3.5
+   *   5. agentic                — Sonnet 5 extracts {categories, tags, price_max_usd, in_stock_only,
    *                               soft_signal} → filtered HNSW with iterative_scan → rerank against
    *                               soft_signal (Anna's path)
    *
@@ -61,6 +62,7 @@ export interface PerformanceData {
     // emits, and the card merges live rows onto fixture rows by matching
     // them, so a stale label here silently drops the live numbers.
     strategy:
+      | 'keyword only'
       | 'vector only'
       | 'hybrid (RRF)'
       | 'hybrid + rerank'

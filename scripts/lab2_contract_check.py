@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lab 1's contract check: the participant chooses the test inputs, the catalog judges them.
+"""Lab 2's contract check: the participant chooses the test inputs, the catalog judges them.
 
 Three kinds of answer must stay distinct, because the agent reports whatever the
 tool returns:
@@ -19,9 +19,9 @@ read as "not found".
 Omitted inputs fall back to recovery defaults, and the report records which cases
 used them.
 
-    python3 scripts/lab1_contract_check.py \
+    python3 scripts/lab2_contract_check.py \
       --unknown "..." --ambiguous "..." --sold-out "..." \
-      --json /tmp/pellier-evidence/lab-1-contract.json
+      --json /tmp/pellier-evidence/lab-2-contract.json
 """
 from __future__ import annotations
 

@@ -222,8 +222,8 @@ const TRACE_TONE: Record<TraceStepState, { label: string; card: ProofTone }> = {
 
 // Four-lab workshop spine.
 const LAB_BY_CARD_ID: Record<string, string> = {
-  'marco-floor-check': 'Lab 1: Build a PostgreSQL-Grounded Agent',
-  'retrieval-comparison': 'Lab 2: Build and Measure PostgreSQL Hybrid Retrieval',
+  'marco-floor-check': 'Lab 2: Build a PostgreSQL-Grounded Agent',
+  'retrieval-comparison': 'Lab 1: Build and Measure PostgreSQL Hybrid Retrieval',
   'managed-rail': 'Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore',
   'audit-ledger': 'Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore',
   'runtime-gateway-policy': 'Lab 4: Build Governed Agent Actions with Cedar',
@@ -241,22 +241,22 @@ interface GovernedProofStage {
 
 const GOVERNED_PROOF_STAGES: GovernedProofStage[] = [
   {
-    id: 'ground',
-    number: '01',
-    title: 'Ground answers',
-    question: 'Can Pellier answer from a verified operational fact?',
-    description: 'Start with the Aurora-backed tool result that makes the answer inspectable.',
-    cardIds: ['marco-floor-check'],
-    icon: Database,
-  },
-  {
     id: 'retrieval',
-    number: '02',
+    number: '01',
     title: 'Retrieval',
     question: 'Can the answer show why these records were selected?',
     description: 'Inspect the retrieval comparison before any model explanation is accepted.',
     cardIds: ['retrieval-comparison'],
     icon: Search,
+  },
+  {
+    id: 'ground',
+    number: '02',
+    title: 'Ground answers',
+    question: 'Can Pellier answer from a verified operational fact?',
+    description: 'Start with the Aurora-backed tool result that makes the answer inspectable.',
+    cardIds: ['marco-floor-check'],
+    icon: Database,
   },
   {
     id: 'managed',

@@ -2,7 +2,7 @@
  * Where the participant left off.
  *
  * A workshop is interrupted constantly: a question from the next seat, a
- * browser closed at the break, a laptop that slept through Lab 2. This store
+ * browser closed at the break, a laptop that slept through Lab 1. This store
  * keeps the one fact needed to come back, in the browser that was used, so
  * Resume is a link rather than a memory test.
  *

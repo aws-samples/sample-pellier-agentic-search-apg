@@ -86,7 +86,7 @@ and validate parity across the paths.
 - `WORKSHOP.md`: existing participant builds and evidence contracts.
 
 The [revised curriculum brief](../L400-SEARCH-RETRIEVAL-BRIEF.md) proposes a live
-retrieval build because the current Lab 2 worksheet only reconstructs recorded
+retrieval build because the current Lab 1 worksheet only reconstructs recorded
 RRF scores. The diagrams do not implement that change. Theo's fulfillment
 recovery, Step Functions workflow, and replacement action are outside this
 required search path.

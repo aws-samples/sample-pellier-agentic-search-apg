@@ -1,4 +1,4 @@
-"""Lab 1's contract check grades the participant's test inputs, then the tool."""
+"""Lab 2's contract check grades the participant's test inputs, then the tool."""
 from __future__ import annotations
 
 import argparse
@@ -6,11 +6,11 @@ import importlib.util
 from pathlib import Path
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "lab1_contract_check.py"
+SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "lab2_contract_check.py"
 
 
 def _load():
-    spec = importlib.util.spec_from_file_location("lab1_contract_check", SCRIPT)
+    spec = importlib.util.spec_from_file_location("lab2_contract_check", SCRIPT)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader
     spec.loader.exec_module(module)

@@ -1018,7 +1018,7 @@ def _print_report(report: dict[str, Any], *, no_gate: bool) -> None:
 
 
 def compare_saved_runs(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
-    """Score Lab 2's existing captures; never run retrieval or infer SQL proof.
+    """Score Lab 1's existing captures; never run retrieval or infer SQL proof.
 
     Use the same relevance functions and labels as the live harness. Refuse
     incomparable captures rather than manufacture a before/after improvement.
@@ -1141,7 +1141,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     parser.add_argument(
         "--compare-saved", nargs=2, type=Path, metavar=("BEFORE", "AFTER"),
-        help="Score Lab 2's saved comparison JSON with the existing Anna labels; no AWS calls. Always emits JSON.",
+        help="Score Lab 1's saved comparison JSON with the existing Anna labels; no AWS calls. Always emits JSON.",
     )
     parser.add_argument(
         "--no-gate",

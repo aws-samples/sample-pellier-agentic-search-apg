@@ -1,4 +1,4 @@
-"""Lab 1b's contract: unknown is not zero, and zero is not unknown.
+"""Lab 2b's contract: unknown is not zero, and zero is not unknown.
 
 ``BusinessLogic.check_inventory`` is what the participant's tool body wires in.
 These pin the two envelopes the Inventory Agent reports from, so a build that

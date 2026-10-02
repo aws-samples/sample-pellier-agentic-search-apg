@@ -17,7 +17,7 @@ Why Cohere Rerank v3.5 specifically:
     as a 0.4 -- Cohere's own guidance is that the scores order results
     and that any threshold has to be chosen against labelled data for
     the corpus it will run on, not read off the number.
-  - Adds one extra Bedrock call per request; the Lab 2 compare
+  - Adds one extra Bedrock call per request; the Lab 1 compare
     endpoint reports the observed latency per strategy, so the
     workshop's "is the extra spend worth it?" question has a live
     answer instead of a hand-wave.

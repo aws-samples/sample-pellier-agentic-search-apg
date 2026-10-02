@@ -12,9 +12,9 @@ The root guidance lists all nine permitted regions. This module contains four:
 
 | Task | File | Marker |
 |---|---|---|
-| 1A | `services/agent_tools.py` | `Inventory Agent · check_inventory` |
-| 1B | `agents/inventory_agent.py` | `Inventory Agent · definition` |
-| 2B | `services/search_plan.py` | `Search plan · preserve requirements` |
+| 1B | `services/search_plan.py` | `Search plan · preserve requirements` |
+| 2A | `services/agent_tools.py` | `Inventory Agent · check_inventory` |
+| 2B | `agents/inventory_agent.py` | `Inventory Agent · definition` |
 | 3A | `services/agentcore_gateway.py` | `Managed catalogue · support reconcile` |
 
 For SQL, Cedar and Gateway publication tasks, use the root map and the guide.
@@ -27,7 +27,7 @@ signatures, decorators, imports or other regions. Never inspect `solutions/`.
 The participant runs verification; explain what the result establishes and
 what it does not. A successful local plan check is not managed execution proof.
 
-Model and prompt configuration are supplied in Task 1B. Do not add temperature;
+Model and prompt configuration are supplied in Task 2B. Do not add temperature;
 the configured profile does not support that argument. Task 3A's owned and
 foreign probes test Cedar separately from the managed caller binding.
 

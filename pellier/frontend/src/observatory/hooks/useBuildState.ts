@@ -4,7 +4,7 @@ import { apiFetch } from '../../services/apiBase'
  *
  * Two sources, in precedence order:
  *   1. GET /api/observatory/build-state — authoritative. Merges overlays: when
- *      each Lab 1 scaffold is complete, promotes the Inventory Agent definition
+ *      each Lab 2 scaffold is complete, promotes the Inventory Agent definition
  *      and check_inventory tool independently without editing JSON fixtures.
  *   2. Fixture data (agents.json / tools.json) — used when the endpoint is
  *      unreachable. Callers must treat a zero total as "unknown" rather than
@@ -110,7 +110,7 @@ export function useBuildState(): BuildStateResult {
     fetchBuildState();
   }, [fetchBuildState]);
 
-  // After completing either Lab 1 scaffold, revisit the tab or focus the
+  // After completing either Lab 2 scaffold, revisit the tab or focus the
   // window so build-state re-fetches once uvicorn has reloaded.
   useEffect(() => {
     const refetchBuildState = () => {

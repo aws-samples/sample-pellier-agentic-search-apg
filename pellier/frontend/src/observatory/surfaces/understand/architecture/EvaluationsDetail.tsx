@@ -14,8 +14,8 @@ export default function EvaluationsDetail() {
     ]}>
     <div style={{ display: 'grid', gap: '20px', lineHeight: 1.65 }}>
       <ExpCard><h2>Retrieval: explain the candidate budget</h2>
-        <p>Lab 2 records how candidate generation changes the retrieved rows. Use its budget sweep to explain recall, ranking, and query cost. A broader relevance claim needs held-out queries with explicit labels and a fixed corpus.</p>
-        <Link to="/observatory/workbench?lab=retrieval-acceptance">Return to Lab 2 in Workbench</Link>
+        <p>Lab 1 records how candidate generation changes the retrieved rows. Use its budget sweep to explain recall, ranking, and query cost. A broader relevance claim needs held-out queries with explicit labels and a fixed corpus.</p>
+        <Link to="/observatory/workbench?lab=retrieval-acceptance">Return to Lab 1 in Workbench</Link>
       </ExpCard>
       <ExpCard><h2>Actions: distinguish four outcomes</h2>
         <p>Lab 4 tests policy denial, database refusal, commit, and replay. Compare the receipt with database effects. An HTTP success or a fluent response does not establish that the authorized effect committed exactly once.</p>

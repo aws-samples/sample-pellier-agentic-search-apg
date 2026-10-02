@@ -14,7 +14,7 @@ Four rules, all enforced below.
 2. **The build-state agent key must exist in the fixture.**
    ``GET /api/observatory/build-state`` exposes the Inventory Agent's
    source-controlled exercise state. If that literal drifts from the fixture,
-   Lab 1 shows an unrecognised status row instead of updating the intended
+   Lab 2 shows an unrecognised status row instead of updating the intended
    agent. Nothing raises.
 
 3. **No agent label may appear in a specialist's own system prompt.**
@@ -176,7 +176,7 @@ def test_build_state_agent_key_exists_in_the_agents_fixture() -> None:
     for key in (match.group(1),):
         assert key in fixture_names, (
             f"build-state exposes agent_map[{key!r}], which is not a name in "
-            "agents.json. Lab 1 would no longer update the intended agent."
+            "agents.json. Lab 2 would no longer update the intended agent."
         )
 
 

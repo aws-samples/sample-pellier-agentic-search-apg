@@ -98,10 +98,10 @@ connect the source, app, guides and presentation.
 
 | Lab and task | Work you do | Evidence to keep |
 |---|---|---|
-| 1A · Marco | Connect inventory to Aurora | Exact turn, tool result, warehouse rows; unknown is not zero. |
-| 1B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows; unknown is not zero. |
-| 2A · Anna | Explain the ranking | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
-| 2B · Anna | Relax preferences, keep requirements | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
+| 1A · Anna | Explain the ranking | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
+| 1B · Anna | Relax preferences, keep requirements | RRF arithmetic, fallback contract, exact returned IDs and SQL eligibility. |
+| 2A · Marco | Connect inventory to Aurora | Exact turn, tool result, warehouse rows; unknown is not zero. |
+| 2B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows; unknown is not zero. |
 | 3A · Theo | Connect the customer-scoped tool | Owned and foreign request results, fresh session, executed build; Memory is context. |
 | 3B · Theo | Deploy and challenge the conversation | Owned and foreign request results, fresh session, executed build; Memory is context. |
 | 4A · Jessica | Write the ownership rule | Separate RLS probes and keyed effects, allowed positive control, exact Operator turn. |
@@ -562,8 +562,8 @@ The session content (lab manual, CloudFormation, prereq images) lives in the sep
 | Section | What attendees do |
 |---|---|
 | Introduction | Understand the four connected responsibilities and the participant workflow. Lab 1 setup opens the supplied environment and starts Theo's Memory experiment. |
-| Lab 1: Build a PostgreSQL-Grounded Agent | Complete Inventory Agent and `check_inventory`, then prove Marco's answer against live inventory and `tool_audit`. |
-| Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | Reconstruct RRF, preserve original requirements across fallback attempts, and check the exact returned product IDs against Aurora. |
+| Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | Reconstruct RRF, preserve original requirements across fallback attempts, and check the exact returned product IDs against Aurora. |
+| Lab 2: Build a PostgreSQL-Grounded Agent | Complete Inventory Agent and `check_inventory`, then prove Marco's answer against live inventory and `tool_audit`. |
 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | Publish a customer-scoped read, reconcile the Runtime tool list, and deploy. Use Theo's extracted preferences in a new conversation, verify current products in Aurora, inspect Memory from a separate process, compare build fingerprints, and run the trace contract. |
 | Lab 4: Build Governed Agent Actions with Cedar | Author the Cedar ownership rule, RLS predicate, and keyed absence query. Prove authentication failure, Cedar denial, business refusal, commit, and managed output suppression. Test replay and Aurora RLS independently; complete one Operator investigation and stop before a consequential action. |
 | Summary | Export evidence, restore the policy baseline, explain what each boundary establishes, and map the pattern to your application. |
@@ -586,7 +586,7 @@ The app's reference directory follows the same four lab questions. Workbench
 shows the current lab's references first; each view states what to inspect,
 what its evidence can establish, and how to return to the saved lab and step.
 Search pipeline runs an unconstrained mechanism experiment. Retrieval comparison
-runs the four strategies explicitly and exposes the comparison ID and persistence status;
+runs the five strategies explicitly and exposes the comparison ID and persistence status;
 it does not require existing telemetry or seed results from fixture scores.
 Evaluations, production patterns, and replacement recovery are extensions after
 the labs. They do not add required steps to the Workshop Studio path.
@@ -672,7 +672,7 @@ entire published catalog. The 16 initially published names are:
 behind the shipped path: a typed plan, hard predicates pushed into **both**
 branches, vector and full-text retrieval, RRF, a bounded rerank, a final
 eligibility recheck, then the rows returned. The storefront's
-`search_products_hybrid`, the Observatory's strategy comparison, the Lab 2
+`search_products_hybrid`, the Observatory's strategy comparison, the Lab 1
 receipt and `scripts/eval_retrieval_harness.py` all call it, which is what lets
 the evaluation speak for the shipped path rather than for a parallel copy of it.
 
@@ -892,7 +892,7 @@ sample-pellier-agentic-search-apg/
 ├── VOICE.md                                Pellier editorial voice contract
 ├── pellier/
 │   ├── backend/                           FastAPI server, agents, services
-│   │   ├── CLAUDE.md                        Backend and Lab 1 rules
+│   │   ├── CLAUDE.md                        Backend and Lab 2 rules
 │   │   ├── agents/                          Search Agent, Personalization Agent, Inventory Agent, ...
 │   │   ├── services/                        Dispatcher, Operator graph, handoff, tools, AgentCore, database
 │   │   ├── routes/                          FastAPI routers (agent, auth, commerce,
@@ -908,16 +908,16 @@ sample-pellier-agentic-search-apg/
 │           ├── observatory/                 Shopper and operator orchestration evidence
 │           └── data/                        36 displayed product records + persona curation
 │
-├── workshop/                              Participant build surface: lab-2-rrf.sql,
+├── workshop/                              Participant build surface: lab-1-rrf.sql,
 │                                          lab-4-absence.sql, lab-4-rls.sql, the provided
 │                                          lab-3-otel-contract.jq,
 │                                          starters/, architecture-diagrams/
 ├── policies/                              Cedar policy set applied to the policy engine
 ├── skills/                                Strands runtime skills (5) + scoped guidance
 ├── solutions/                             Reference implementations (drop-in escape hatches)
-│   ├── waking-the-stock-keeper/             Lab 1 Inventory Agent reference
-│   ├── closing-marcos-gap/                  Lab 1 check_inventory reference
-│   ├── the-quiet-search/                    Lab 2 RRF reference
+│   ├── the-quiet-search/                    Lab 1 RRF reference
+│   ├── waking-the-stock-keeper/             Lab 2 Inventory Agent reference
+│   ├── closing-marcos-gap/                  Lab 2 check_inventory reference
 │   ├── the-ledger/                          Lab 3 forensic SQL + OTEL contract reference
 │   ├── the-concierge/                       Lab 4 MCP and Gateway reference
 │   └── retrieval-eval/                      Retrieval evaluation reference

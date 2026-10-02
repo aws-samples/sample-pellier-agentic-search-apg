@@ -17,7 +17,7 @@ it('returns an extension to the saved lab and step, which no strip offers', () =
 });
 it('returns an extension to its own lab when there is no saved place', () => {
   render(<MemoryRouter><ReferenceBrief id="evaluations" /></MemoryRouter>);
-  expect(screen.getByRole('link', { name: 'Return to Lab 2 in Workbench' })).toHaveAttribute('href', '/observatory/workbench?lab=retrieval-acceptance');
+  expect(screen.getByRole('link', { name: 'Return to Lab 1 in Workbench' })).toHaveAttribute('href', '/observatory/workbench?lab=retrieval-acceptance');
 });
 describe('Evidence boundaries', () => {
   it('discloses technical reasoning without presenting it as a recorded result', async () => {

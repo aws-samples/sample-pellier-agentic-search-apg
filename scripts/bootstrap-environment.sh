@@ -146,7 +146,7 @@ if [ "$_node24_ok" = true ]; then
             warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript' then re-run scripts/deploy/deploy_all.sh."
         fi
 
-        # Claude Code CLI (global), for the primary build lane in Lab 1.
+        # Claude Code CLI (global), for the primary build lane in Lab 2.
         # It runs entirely against Bedrock via the box's instance
         # role (CLAUDE_CODE_USE_BEDROCK=1 + ANTHROPIC_MODEL are exported in the
         # participant .bashrc by bootstrap-labs), so there is NO per-participant
@@ -158,7 +158,7 @@ if [ "$_node24_ok" = true ]; then
         # that made the floating `sonnet` alias resolve to a denied model.
         # Updating this version is a deliberate release action followed by a
         # provisioned-environment rehearsal.
-        log "Installing Claude Code CLI ${CLAUDE_CODE_VERSION} globally for Lab 1..."
+        log "Installing Claude Code CLI ${CLAUDE_CODE_VERSION} globally for Lab 2..."
         if npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1; then
             # Same /usr/bin symlink defense as tsc above: the CLI runs as the
             # PARTICIPANT user, whose PATH may not include npm's global prefix.
@@ -168,7 +168,7 @@ if [ "$_node24_ok" = true ]; then
             fi
             log "✅ Claude Code CLI installed: $(claude --version 2>/dev/null || echo 'version check skipped') ($(command -v claude 2>/dev/null))"
         else
-            warn "Claude Code CLI ${CLAUDE_CODE_VERSION} install failed - use the copy-reference pacing fallback in Lab 1. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
+            warn "Claude Code CLI ${CLAUDE_CODE_VERSION} install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
         fi
     fi
 else

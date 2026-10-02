@@ -74,7 +74,7 @@ fi
 # in the lenient branch every managed AgentCore check downgrades from fail to
 # warn AND the whole Aurora verification block below is skipped -- customers,
 # orders, the JSONB tool audit, retrieval receipts, governed turn receipts, the
-# evidence ledger and commerce receipts, which are the exact tables Labs 2-4
+# evidence ledger and commerce receipts, which are the exact tables Labs 1-4
 # query. The gate then exits 0 and prints READY, so bootstrap's governed fatal
 # check never fires. Defaulting the other way makes an unset variable produce a
 # noisy failure instead of a quiet, green, wrong answer.

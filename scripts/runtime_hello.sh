@@ -12,7 +12,7 @@
 #
 # The prompt is a catalog search on purpose. It routes to the search
 # specialist, which is fully built at orientation; the inventory specialist is
-# Lab 1's exercise and is meant to be missing.
+# Lab 2's exercise and is meant to be missing.
 #
 # Tool names come from the turn's own execution events, never from the model's
 # prose. An answer that names a warehouse is not evidence a tool ran.

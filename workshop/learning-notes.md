@@ -12,10 +12,10 @@ paste credentials, bearer tokens, or personal customer data.
 
 | Task | Prediction | Change or investigation | Exact evidence ID | Result and explanation | Authored / recovered / incomplete |
 |---|---|---|---|---|---|
-| 1A · Connect inventory to Aurora | | | | | |
-| 1B · Make the agent use the facts | | | | | |
-| 2A · Explain the ranking | | | | | |
-| 2B · Relax preferences, keep requirements | | | | | |
+| 1A · Explain the ranking | | | | | |
+| 1B · Relax preferences, keep requirements | | | | | |
+| 2A · Connect inventory to Aurora | | | | | |
+| 2B · Make the agent use the facts | | | | | |
 | 3A · Connect the customer-scoped tool | | | | | |
 | 3B · Deploy and challenge the conversation | | | | | |
 | 4A · Write the ownership rule | | | | | |

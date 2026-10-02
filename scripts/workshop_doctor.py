@@ -7,10 +7,10 @@ lab has a short list of things that must already be true before its exercise
 can leave evidence, and each one is checked directly rather than inferred from
 a symptom.
 
-    Lab 1  Aurora reachable; check_inventory wired past the stub; the Inventory
-           Agent definition no longer stubbed.
-    Lab 2  Migration 046's citation columns present; a retrieval receipt exists
+    Lab 1  Migration 046's citation columns present; a retrieval receipt exists
            for this run.
+    Lab 2  Aurora reachable; check_inventory wired past the stub; the Inventory
+           Agent definition no longer stubbed.
     Lab 3  The service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a turn
            receipt in this run records the gateway-mcp rail, and a turn in this
@@ -219,7 +219,7 @@ def _row_for_run(
 
 
 # ---------------------------------------------------------------------------
-# Lab 1
+# Lab 2
 # ---------------------------------------------------------------------------
 
 
@@ -238,7 +238,7 @@ def _tool_wired(source: str) -> Check:
     return Check(name, True, "marker block calls into the inventory read")
 
 
-def lab1_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
+def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
     checks = [_db_reachable(evidence)]
     try:
         tool_source = (backend / "services" / "agent_tools.py").read_text(encoding="utf-8")
@@ -262,11 +262,11 @@ def lab1_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[
 
 
 # ---------------------------------------------------------------------------
-# Lab 2
+# Lab 1
 # ---------------------------------------------------------------------------
 
 
-def lab2_checks(
+def lab1_checks(
     evidence: Evidence, run_id: Optional[str], *, include_proof: bool = True,
 ) -> List[Check]:
     name = "migration 046 columns present"
@@ -577,9 +577,9 @@ def run_lab(
     phase: str = "proof",
 ) -> List[Check]:
     if lab == 1:
-        return lab1_checks(evidence)
+        return lab1_checks(evidence, run_id, include_proof=phase == "proof")
     if lab == 2:
-        return lab2_checks(evidence, run_id, include_proof=phase == "proof")
+        return lab2_checks(evidence)
     if lab == 3:
         return lab3_checks(evidence, run_id, run_env=run_env, env_path=env_path, include_proof=phase == "proof")
     return lab4_checks(evidence, run_id, include_proof=phase == "proof")

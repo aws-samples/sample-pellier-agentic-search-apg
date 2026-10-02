@@ -1,7 +1,7 @@
 """Contract tests for the shared search executor.
 
 ``execute_search_plan`` is the retrieval pipeline the storefront tool, the
-Observatory strategies, the Lab 2 receipt, the micro-eval, and the eval harness
+Observatory strategies, the Lab 1 receipt, the micro-eval, and the eval harness
 all run. These tests pin its stage order, its pool bound, its tolerance for a
 row value it cannot read, and its refusal to return a row that breaks a hard
 constraint even when the reranker put it first.

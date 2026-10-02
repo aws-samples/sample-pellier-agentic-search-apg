@@ -7,7 +7,7 @@ workflows: ground answers in facts, preserve requirements, establish caller iden
 and govern actions with evidence that staff can verify. Each customer retains a
 separate identity and conversation. Each lab adds a responsibility and its evidence; Lab 3 introduces a separate managed execution path.
 
-**Know the facts → respect the requirements → establish the caller → govern the action.**
+**Respect the requirements → know the facts → establish the caller → govern the action.**
 
 The source contract is `workshop/story-arc.json`. Workshop Studio owns full
 exercises. The application orients participants and shows their execution evidence.
@@ -19,8 +19,8 @@ Use the story wording in activities and transitions, not as a replacement lab na
 
 | Lab | Main title | Scenario |
 |---|---|---|
-| 1 | Build a PostgreSQL-Grounded Agent | Marco: Know the facts |
-| 2 | Build and Measure PostgreSQL Hybrid Retrieval | Anna: Respect the requirements |
+| 1 | Build and Measure PostgreSQL Hybrid Retrieval | Anna: Respect the requirements |
+| 2 | Build a PostgreSQL-Grounded Agent | Marco: Know the facts |
 | 3 | Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo: Establish the caller |
 | 4 | Build Governed Agent Actions with Cedar | Jessica: Govern the action |
 
@@ -28,10 +28,10 @@ Use the story wording in activities and transitions, not as a replacement lab na
 
 | Lab | Task A | Task B | Handoff |
 |---|---|---|---|
-| 1: Marco | Connect inventory to Aurora | Make the agent use the facts | You can check a product. Next, help Anna find the right product without changing her requirements. |
-| 2: Anna | Explain the ranking | Relax preferences, keep requirements | You can find suitable products. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary. |
+| 1: Anna | Explain the ranking | Relax preferences, keep requirements | You can find suitable products. Next, ground Marco’s stock answer in Aurora. |
+| 2: Marco | Connect inventory to Aurora | Make the agent use the facts | You can check a product. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary. |
 | 3: Theo | Connect the customer-scoped tool | Deploy and challenge the conversation | You can read under the right identity. Next, follow Jessica’s action through authorization, database effects and staff review. |
-| 4: Jessica | Write the ownership rule | Test ownership and reconcile the case | Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question. |
+| 4: Jessica | Write the ownership rule | Test ownership and reconcile the case | Bring the four claims together: requirements, facts, caller and effect. Save your evidence and the next production question. |
 
 Eight participant tasks are not eight arbitrary source edits. Task 3A spans
 publication and caller binding; 3B is a deployed investigation. Task 4B includes
@@ -46,8 +46,8 @@ is the lab's existing verification step plus one decision the participant makes:
 
 | Lab | Participant decision | Independent evidence |
 |---|---|---|
-| Marco | The unknown, ambiguous and sold-out queries | The checker classifies each from the catalog before judging the tool |
 | Anna | The preference that forces a strict-empty search | Counts before the request; the receipt records the chosen tag |
+| Marco | The unknown, ambiguous and sold-out queries | The checker classifies each from the catalog before judging the tool |
 | Theo | A request, through the agent, for another customer's tickets | Lambda-written audit rows bound to Theo; direct probe denied by Cedar |
 | Jessica | Which ticket item to record, with which stated reason, and what stays open | Three review snapshots; a return request is not proof of receipt |
 
@@ -58,21 +58,21 @@ separately.
 
 ## Acceptance and rejected implementations
 
-- **1A / 1B:** Preserve the business tool envelope and use it in a real agent turn.
-  Reject unknown products represented as stock zero, invented stock, or a tool
-  grant treated as database authorization. Supply model/prompt boilerplate.
-- **2A:** Reconstruct recorded RRF with zero contribution from a missing branch.
+- **1A:** Reconstruct recorded RRF with zero contribution from a missing branch.
   Reject integer division and a missing branch becoming rank zero.
-- **2B:** Every attempt keeps the original hard constraints and exclusions. Only
+- **1B:** Every attempt keeps the original hard constraints and exclusions. Only
   the declared preference changes; preserve the original plan and the recorded
   relaxation. Reject dropping budget, availability or exclusions to obtain hits,
   mutating the original request, and an unrecorded widening. The local checker
   proves the plan contract; live receipt/SQL checks prove different boundaries.
+- **2A / 2B:** Preserve the business tool envelope and use it in a real agent turn.
+  Reject unknown products represented as stock zero, invented stock, or a tool
+  grant treated as database authorization. Supply model/prompt boilerplate.
 - **3A / 3B:** Reconcile Gateway publication and caller-bound support tools,
   run the participant deployment command, then use a fresh session. Reject staff
   credit exposed to shopper support, caller-supplied foreign identity, local edits presented as deployment,
   and a remembered preference presented as permission. Runtime packages the support
-  adapter, not the Lab 1 inventory wrapper or Lab 2 planner. The reused Lambda
+  adapter, not the Lab 2 inventory wrapper or Lab 1 planner. The reused Lambda
   retrieval tool has a different input contract; do not imply fallback parity. Existing policy is active
   before Lab 4; Lab 4 authors an additional ownership rule.
 - **4A:** Distinguish authentication, Cedar, business rejection, commit and output.

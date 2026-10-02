@@ -2,7 +2,33 @@
 
 These files are facilitator recovery paths and readable reference implementations. A participant who uses a reference still runs the same live proof.
 
-## Lab 1: Build a PostgreSQL-Grounded Agent
+## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
+
+If the live comparison endpoint stalls, use:
+
+```bash
+sed -n '1,120p' solutions/retrieval-eval/reference-output.txt
+```
+
+The required Lab 1 build is the psql RRF worksheet. If the room reaches its
+cut line, restore only that bounded expression:
+
+```bash
+cp solutions/the-quiet-search/sql/lab-1-rrf-solution.sql \
+  workshop/lab-1-rrf.sql
+```
+
+Lab 1b labels the rows the micro-eval divides by. Its recovery copy restores
+only that tuple:
+
+```bash
+cp solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py \
+  pellier/backend/services/planned_hybrid_retrieval.py
+```
+
+The reference supports the quality, latency, and cost decision. It does not prove the participant's live endpoint passed.
+
+## Lab 2: Build a PostgreSQL-Grounded Agent
 
 Complete the Inventory Agent definition:
 
@@ -19,32 +45,6 @@ cp solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py
 ```
 
 After copying, both `/api/observatory/build-state` markers must read `shipped`. Replay Marco and query the uniquely keyed `check_inventory` row from `pellier.tool_audit`.
-
-## Lab 2: Build and Measure PostgreSQL Hybrid Retrieval
-
-If the live comparison endpoint stalls, use:
-
-```bash
-sed -n '1,120p' solutions/retrieval-eval/reference-output.txt
-```
-
-The required Lab 2 build is the psql RRF worksheet. If the room reaches its
-cut line, restore only that bounded expression:
-
-```bash
-cp solutions/the-quiet-search/sql/lab-2-rrf-solution.sql \
-  workshop/lab-2-rrf.sql
-```
-
-Lab 2b labels the rows the micro-eval divides by. Its recovery copy restores
-only that tuple:
-
-```bash
-cp solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py \
-  pellier/backend/services/planned_hybrid_retrieval.py
-```
-
-The reference supports the quality, latency, and cost decision. It does not prove the participant's live endpoint passed.
 
 ## Lab 3: Deploy and Operate the Managed Agent Path
 
@@ -121,7 +121,7 @@ ALLOW, inspect both receipts, and remove the participant policy through the CLI.
 The one-hour builders format pre-applies selected reference files. The governed
 format leaves every participant build incomplete and restores them with
 `scripts/reset_participant_exercises.py`: the Inventory Agent definition and
-`check_inventory` body for Lab 1, the golden set for Lab 2b, the Gateway
+`check_inventory` body for Lab 2, the golden set for Lab 1b, the Gateway
 catalogue and the Runtime support contract for Lab 3, and the RRF worksheet,
 absence query and Cedar rule as whole-file starters.
 `scripts/bootstrap-labs.sh` is the source of truth for that branch-specific

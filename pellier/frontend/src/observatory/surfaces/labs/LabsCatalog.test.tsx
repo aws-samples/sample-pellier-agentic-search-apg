@@ -38,7 +38,7 @@ describe('LabsCatalog', () => {
         .getAllByRole('link')
         .filter((link) => link.classList.contains('labs-catalog-card-open')),
     ).toHaveLength(4);
-    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/workbench?lab=grounded-inventory');
+    expect(screen.getByRole('link', { name: 'Start Lab 1' })).toHaveAttribute('href', '/observatory/workbench?lab=retrieval-acceptance');
     for (const lab of LAB_EXERCISES) {
       expect(screen.getByRole('link', { name: `Open Lab ${Number(lab.number)} in Workbench` })).toHaveAttribute('href', `/observatory/workbench?lab=${lab.id}`);
     }
@@ -62,12 +62,12 @@ describe('LabsCatalog', () => {
       LAB_EXERCISES.map(({ anchorName, image }) => ({ anchorName, image })),
     ).toEqual([
       {
-        anchorName: 'Marco',
-        image: '/assets/personas/marco-720.webp',
-      },
-      {
         anchorName: 'Anna',
         image: '/assets/personas/anna-720.webp',
+      },
+      {
+        anchorName: 'Marco',
+        image: '/assets/personas/marco-720.webp',
       },
       {
         anchorName: 'Theo',

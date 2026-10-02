@@ -97,7 +97,7 @@ export interface MicroEvalResult {
    *
    * Every quality metric is a ratio against that set, so zero labels make
    * coverage, precision and MRR read 0.0 for want of a denominator rather
-   * than because retrieval failed. Lab 2b pins the labels; until then the
+   * than because retrieval failed. Lab 1b pins the labels; until then the
    * surface has to say which of the two it is looking at.
    *
    * Optional because a runtime deployed before this field existed does not

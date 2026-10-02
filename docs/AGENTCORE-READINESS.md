@@ -12,7 +12,7 @@ each participant must still run the checks for their own changes.
 | **Runtime** | Two Python CodeZip runtimes: shopper dispatcher/specialists and a separate staff investigation graph. Shopper invocation uses Cognito `CUSTOM_JWT`; the backend invokes the staff runtime with IAM after authenticating staff. Both packages have build fingerprints. | Lab 3 deploys the changed support adapter and proves the executing shopper build and `gateway-mcp` rail. Lab 4 investigates Jessica through the staff runtime and checks its fingerprint and graph order. |
 | **Gateway** | Four Lambda targets; 18 defined tool schemas, 16 published at baseline and 17 after Lab 3A. MCP discovery is scoped to the authenticated caller. Managed execution fails closed when Gateway is unavailable. | Lab 3A publishes `get_ticket_history` and repairs the support adapter's binding. Lab 3B deploys, discovers the catalog, checks owned/foreign customer access and compares build fingerprints. `restock_inventory` stays unpublished. |
 | **Memory** | Conversation events with 30-day expiry; four real extraction strategies, listed below. Configuration, extraction and retrieval are separate checks. | Introduction records Theo's source conversation. Extraction runs during Labs 1–2. Lab 3 inspects all four record types and recalls them in a new session with no prior chat events. Product recommendations are checked against current Aurora records. |
-| **Observability** | OpenTelemetry agent/model/tool spans, CloudWatch Runtime, Gateway and Memory delivery, Transaction Search, encrypted logs with bounded retention, and control-plane audit. Memory service logs expose extraction and consolidation. Aurora separately stores queryable application execution evidence. | Lab 1 retains a structured tool result; Lab 2 reconstructs ranking from recorded candidates; Lab 3 requires correlated managed traces and matching builds; Lab 4 reconciles policy, execution and committed effects. The Observatory reads evidence; a UI indicator is not a provider decision. |
+| **Observability** | OpenTelemetry agent/model/tool spans, CloudWatch Runtime, Gateway and Memory delivery, Transaction Search, encrypted logs with bounded retention, and control-plane audit. Memory service logs expose extraction and consolidation. Aurora separately stores queryable application execution evidence. | Lab 2 retains a structured tool result; Lab 1 reconstructs ranking from recorded candidates; Lab 3 requires correlated managed traces and matching builds; Lab 4 reconciles policy, execution and committed effects. The Observatory reads evidence; a UI indicator is not a provider decision. |
 | **Policy** | Gateway-attached managed Cedar engine in `ENFORCE`. Explicit catalog permits, owner-scoped customer reads, staff-scoped writes, and a managed output guardrail. The shopper return permit deliberately leaves ownership for Lab 4. | Lab 4A supplies the bounded ownership forbid. Lab 4B distinguishes authentication failure, policy denial, tool refusal, committed effect and output suppression; direct SQL proves RLS and keyed absence with an allowed positive control. |
 | **Identity** | Runtime/Gateway service-managed workload identities, Cognito person identity and IAM service authentication. Verified customer/staff claims drive the caller boundary. | Identity is exercised throughout Labs 3–4. There is no separate outbound OAuth/API-key credential-provider exercise; the rendered project's `credentials` list is empty. |
 
@@ -70,18 +70,18 @@ AWS evidence, approve a staff action or mark an unrun check complete.
 
 | Task | Intentionally incomplete surface / supplied operation | Acceptance after an attempt or recovery |
 |---|---|---|
-| **1A** | Inventory envelope in `services/agent_tools.py` | Direct tool contract distinguishes unknown product, zero stock and stocked product; independent current SQL confirms inventory. |
-| **1B** | Inventory specialist tool list in `agents/inventory_agent.py` | Agent calls the intended tool and its answer agrees with the retained result. |
-| **2A** | RRF expression in `workshop/lab-2-rrf.sql` | Participant reconstructs fusion scores from recorded candidate ranks. |
-| **2B** | Requirement preservation in `services/search_plan.py` | Local contract check plus live Aurora eligibility for exact returned product IDs; fallback relaxes preferences without losing requirements. |
+| **1A** | RRF expression in `workshop/lab-1-rrf.sql` | Participant reconstructs fusion scores from recorded candidate ranks. |
+| **1B** | Requirement preservation in `services/search_plan.py` | Local contract check plus live Aurora eligibility for exact returned product IDs; fallback relaxes preferences without losing requirements. |
+| **2A** | Inventory envelope in `services/agent_tools.py` | Direct tool contract distinguishes unknown product, zero stock and stocked product; independent current SQL confirms inventory. |
+| **2B** | Inventory specialist tool list in `agents/inventory_agent.py` | Agent calls the intended tool and its answer agrees with the retained result. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py` and caller binding in `services/agentcore_gateway.py` | Required support tool is published and bound to the verified customer's input. |
 | **3B** | Deploy/investigate the 3A changes; no additional authoring region | Live discovery, scope challenge, executing fingerprint, all-four Memory recall, Aurora product check and trace contract. |
 | **4A** | Final `unless` in `policies/workshop_identity_match_forbid.cedar` | CLI deployment followed by real owned/foreign caller outcomes; retained denial is attributed to the participant's policy. |
 | **4B** | Ownership predicate in `workshop/lab-4-rls.sql` and absence counts in `workshop/lab-4-absence.sql`; supplied Operator workflow | Direct RLS probes roll back; denied-key counts are zero and the allowed-key control is one. One staff review preserves source turn, action hash and write key across proposal, confirmation and execution. |
 
-The Lab 1 wrapper and Lab 2 search-plan implementation run in the application
+The Lab 2 wrapper and Lab 1 search-plan implementation run in the application
 process; they are not moved into Runtime by Lab 3. The managed search Lambda is
-supplied separately and does not implement Lab 2's exclusion/preference ladder.
+supplied separately and does not implement Lab 1's exclusion/preference ladder.
 The progression builds connected contracts and evidence across one application;
 guides must not claim that every prior participant edit migrates unchanged.
 Lab 3 packages the support adapter; the Lambda tool implementations are supplied.

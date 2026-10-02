@@ -170,10 +170,10 @@ Two rules follow from that table and both have already been learned the hard way
     Search Agent · Personalization Agent · Pricing Agent · Inventory Agent
     Customer Service Agent
 
-`Inventory Agent` is the Lab 1 exercise and reports `"exercise"` in build-state until it
+`Inventory Agent` is the Lab 2 exercise and reports `"exercise"` in build-state until it
 is wired.
 
-## Lab 1 edit points, the only safe edit sites
+## Lab 2 edit points, the only safe edit sites
 
 | file | markers |
 |---|---|
@@ -198,7 +198,7 @@ body calls `BusinessLogic.check_inventory` through `_run_async`.
       -> policies/workshop_identity_match_forbid.cedar
 
 Directory names keep their historical form deliberately; the **file** names are canonical.
-Both Lab 1 copies retain the marker regions, so a participant who takes the fallback can
+Both Lab 2 copies retain the marker regions, so a participant who takes the fallback can
 still read what changed.
 
 `pellier/backend/tests/test_workshop_marker_contract.py` asserts every anchor above from

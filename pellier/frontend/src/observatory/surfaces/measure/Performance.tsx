@@ -57,12 +57,12 @@ export default function Performance() {
   }
 
   return <div className="observatory-reading-page retrieval-comparison">
-    <EditorialTitle backToReferences referenceId="performance" eyebrow="Lab 2 · Measured retrieval" title="Retrieval comparison"
-      summary="Compare four strategies on one query, then investigate the candidate budget. Every result below comes from an explicit run against this deployment." />
+    <EditorialTitle backToReferences referenceId="performance" eyebrow="Lab 1 · Measured retrieval" title="Retrieval comparison"
+      summary="Compare five strategies on one query, then investigate the candidate budget. Every result below comes from an explicit run against this deployment." />
     <section className="retrieval-comparison-section" aria-labelledby="strategy-heading">
       <h2 id="strategy-heading">Compare the retrieval choices</h2>
       <p>Vector finds semantic neighbours. Full-text search adds lexical matches; RRF combines their ranks. Reranking reorders that pool. The model proposes retrieval controls. PostgreSQL enforces the hard constraints. The agentic strategy applies typed predicates before fusion and rechecks them after reranking.</p>
-      <p>The first three strategies in this experiment use unconstrained inputs. A price phrase in the query does not itself become a SQL predicate. Compare their returned rows with the agentic plan before choosing a strategy.</p>
+      <p>The first four strategies in this experiment use unconstrained inputs. A price phrase in the query does not itself become a SQL predicate. Compare their returned rows with the agentic plan before choosing a strategy.</p>
       <form onSubmit={run} className="retrieval-comparison-form">
         <label htmlFor="strategy-query">Query to compare</label>
         <div><input id="strategy-query" value={query} onChange={event => setQuery(event.target.value)} disabled={running} />
@@ -91,8 +91,8 @@ export default function Performance() {
         <div className="retrieval-comparison-receipt">
           <h3>Retain the comparison receipt</h3>
           {result.receipt ? <p>Comparison <code>{result.receipt.comparisonId}</code>: {result.receipt.persisted ? 'persisted to Aurora.' : 'not persisted. Do not treat this response as durable evidence.'}</p> : <p>No receipt was reported. Durable evidence is unconfirmed.</p>}
-          <p>Use this identifier with the Lab 2 SQL checks in Workshop Studio. Recompute RRF, check eligibility, and compare candidate counts with the returned rows.</p>
-          <Link to="/observatory/proof-board#retrieval-comparison">Inspect the Lab 2 proof checkpoint</Link>
+          <p>Use this identifier with the Lab 1 SQL checks in Workshop Studio. Recompute RRF, check eligibility, and compare candidate counts with the returned rows.</p>
+          <Link to="/observatory/proof-board#retrieval-comparison">Inspect the Lab 1 proof checkpoint</Link>
         </div>
         {result.measurementAssumptions && <details><summary>Measurement assumptions returned by the service</summary>{Object.entries(result.measurementAssumptions).map(([key, value]) => <p key={key}><strong>{key}: </strong>{value}</p>)}</details>}
       </div>}

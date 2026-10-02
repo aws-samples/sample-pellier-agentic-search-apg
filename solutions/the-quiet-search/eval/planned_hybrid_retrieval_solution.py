@@ -2,7 +2,7 @@
 
 Five callers run :func:`execute_search_plan`: the storefront tool
 (``services.agent_tools.search_products_hybrid``), the Observatory strategy
-comparison's strategies 3 and 4 (``app.compare_search_strategies``), the Lab 2
+comparison's strategies 4 and 5 (``app.compare_search_strategies``), the Lab 1
 receipt written from strategy 4, the micro-eval
 (``app.micro_eval_search_strategies``), and the eval harness
 (``scripts/eval_retrieval_harness.py``). For those five, one pipeline means one
@@ -50,7 +50,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from config import settings
 from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
 
-# The canonical Lab 2 query. The eval harness pins the same entry;
+# The canonical Lab 1 query. The eval harness pins the same entry;
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
@@ -63,7 +63,7 @@ CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stoc
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
 # === WORKSHOP · Retrieval eval · golden set: END ===
 
-# The held-out checks. Lab 2b's labels tune one knob, the rerank pool size;
+# The held-out checks. Lab 1b's labels tune one knob, the rerank pool size;
 # these check the choice on requests the labels never described. They are
 # provided rather than authored. A pool size chosen on Anna's labels has to
 # hold here, or it is a hypothesis rather than a decision.

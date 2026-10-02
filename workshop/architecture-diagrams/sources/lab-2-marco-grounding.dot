@@ -1,11 +1,11 @@
-digraph Lab1MarcoGrounding {
+digraph Lab2MarcoGrounding {
   graph [
     bgcolor="#f7f3ec",
     dpi=144,
     fontcolor="#1f1410",
     fontname="Helvetica Neue",
     fontsize=22,
-    label="LAB 1 · MARCO\nBuild a PostgreSQL-grounded Inventory Agent",
+    label="LAB 2 · MARCO\nBuild a PostgreSQL-grounded Inventory Agent",
     labelloc=t,
     labeljust=l,
     margin=0,
@@ -77,7 +77,7 @@ digraph Lab1MarcoGrounding {
     width=3.25
   ];
   not_claimed [
-    label="NOT CLAIMED IN LAB 1\nAgentCore Runtime · Gateway · Cedar · RLS",
+    label="NOT CLAIMED IN LAB 2\nAgentCore Runtime · Gateway · Cedar · RLS",
     color="#e3ddd1",
     fillcolor="#f1ece1",
     fontcolor="#6b665d",

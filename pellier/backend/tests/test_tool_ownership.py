@@ -28,7 +28,7 @@ appears in `UNBOUND_BY_DECISION` with a reason. That makes both directions fail 
     decision has to be revisited rather than silently reversed.
 
 The scan is import-based rather than runtime-based on purpose. `inventory_agent.py` binds
-its two tools inside the Lab 1 marker region, which is empty until a participant fills
+its two tools inside the Lab 2 marker region, which is empty until a participant fills
 it, but the module-level import names them in either state. A runtime check would report
 the Inventory Agent's tools as orphaned on every unstarted workshop box.
 """

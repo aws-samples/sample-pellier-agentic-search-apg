@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Title: Lab2AnnaRetrieval Pages: 1 -->
+<!-- Title: Lab1AnnaRetrieval Pages: 1 -->
 <svg width="1678pt" height="1080pt"
  viewBox="0.00 0.00 1678.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <g id="graph0" class="graph" transform="scale(1.66292 1.66292) rotate(0) translate(24.48 624.98)">
-<title>Lab2AnnaRetrieval</title>
+<title>Lab1AnnaRetrieval</title>
 <polygon fill="#f7f3ec" stroke="none" points="-24.48,24.48 -24.48,-624.98 984.48,-624.98 984.48,24.48 -24.48,24.48"/>
-<text xml:space="preserve" text-anchor="middle" x="285.12" y="-575.6" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 2 · ANNA</text>
+<text xml:space="preserve" text-anchor="middle" x="285.12" y="-575.6" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 1 · ANNA</text>
 <text xml:space="preserve" text-anchor="middle" x="285.12" y="-549.35" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Build and measure bounded PostgreSQL hybrid retrieval</text>
 <!-- anna&#45;&gt;planner -->
 <g id="edge1" class="edge">
@@ -66,9 +66,9 @@
 <polygon fill="#3f6212" stroke="#3f6212" stroke-width="2.3" points="167.01,-466.43 169.74,-474.23 172.47,-466.43 167.01,-466.43"/>
 <text xml:space="preserve" text-anchor="middle" x="441.09" y="-424.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">choice + evidence ID</text>
 </g>
-<!-- receipt&#45;&gt;lab2a -->
+<!-- receipt&#45;&gt;lab1a -->
 <g id="edge7" class="edge">
-<title>receipt&#45;&gt;lab2a</title>
+<title>receipt&#45;&gt;lab1a</title>
 <path fill="none" stroke="#9a3412" stroke-width="1.7" stroke-dasharray="5,2" d="M226.59,-163.42C226.59,-163.42 226.59,-96.06 226.59,-96.06"/>
 <polygon fill="#9a3412" stroke="#9a3412" stroke-width="1.7" points="229.32,-96.06 226.59,-88.26 223.86,-96.06 229.32,-96.06"/>
 <text xml:space="preserve" text-anchor="middle" x="295.97" y="-116.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">READ · recorded ranks + score</text>
@@ -128,12 +128,12 @@
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-193.1" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">candidate IDs · vector rank · FTS rank · RRF</text>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-178.1" font-family="Helvetica Neue" font-size="12.00" fill="#3f6212">price · stock · selected IDs</text>
 </g>
-<!-- lab2a -->
+<!-- lab1a -->
 <g id="node8" class="node">
-<title>lab2a</title>
+<title>lab1a</title>
 <polygon fill="#fff7ed" stroke="#9a3412" stroke-width="2" points="356.19,-84.8 96.99,-84.8 96.99,-3.2 356.19,-3.2 356.19,-84.8"/>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-62.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">BUILD 2a · RECONSTRUCT AND VERIFY</text>
-<text xml:space="preserve" text-anchor="middle" x="226.59" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">workshop/lab&#45;2&#45;rrf.sql</text>
+<text xml:space="preserve" text-anchor="middle" x="226.59" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">workshop/lab&#45;1&#45;rrf.sql</text>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-32.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">Recompute RRF from the recorded ranks</text>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-17.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">and check it against recorded_rrf</text>
 </g>

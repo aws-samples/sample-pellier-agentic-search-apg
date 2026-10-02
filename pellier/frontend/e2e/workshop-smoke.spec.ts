@@ -34,10 +34,10 @@ test.describe('Public governed workshop journey', () => {
       await expect(guide).toBeVisible();
       if (i === 1) {
         await guide.getByLabel('Step details, reference views and labs').click();
-        await page.getByRole('region', { name: 'Lab 2 views' }).getByRole('link', { name: 'Search pipeline', exact: true }).click();
+        await page.getByRole('region', { name: 'Lab 1 views' }).getByRole('link', { name: 'Search pipeline', exact: true }).click();
         await page.getByText('Failure cases', { exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Reranking never returns the expected product.' })).toBeVisible();
-        await page.getByRole('link', { name: 'Back to the Lab 2 Workbench', exact: true }).click();
+        await page.getByRole('link', { name: 'Back to the Lab 1 Workbench', exact: true }).click();
         await expect(page).toHaveURL(/lab=retrieval-acceptance/);
       }
       await page.getByRole('navigation', { name: 'Pellier Observatory views' }).getByRole('link', { name: 'Lab Collection' }).click();

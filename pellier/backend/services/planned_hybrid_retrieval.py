@@ -2,7 +2,7 @@
 
 Five callers run :func:`execute_search_plan`: the storefront tool
 (``services.agent_tools.search_products_hybrid``), the Observatory strategy
-comparison's strategies 3 and 4 (``app.compare_search_strategies``), the Lab 2
+comparison's strategies 4 and 5 (``app.compare_search_strategies``), the Lab 1
 receipt written from strategy 4, the micro-eval
 (``app.micro_eval_search_strategies``), and the eval harness
 (``scripts/eval_retrieval_harness.py``). For those five, one pipeline means one
@@ -50,7 +50,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from config import settings
 from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
 
-# The canonical Lab 2 query. The eval harness pins the same entry;
+# The canonical Lab 1 query. The eval harness pins the same entry;
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
@@ -59,7 +59,7 @@ CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stoc
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
 
 # Provided bounded candidate pool. Tune only in the optional retrieval extension;
-# Task 2B authors the search-plan contract, not a prescribed pool-size constant.
+# Task 1B authors the search-plan contract, not a prescribed pool-size constant.
 DEFAULT_RERANK_POOL_K = 15
 
 # Optional provided diagnostics for the rerank pool size;
@@ -619,7 +619,7 @@ async def execute_search_plan(
             stages=stages,
         )
 
-    # A complete strict result needs no fallback. Keep the unfinished Lab 2
+    # A complete strict result needs no fallback. Keep the unfinished Lab 1
     # fallback isolated from earlier requests that already satisfy the plan.
     execution = await run_rung(plan)
     if relax and len(execution.returned) < limit:

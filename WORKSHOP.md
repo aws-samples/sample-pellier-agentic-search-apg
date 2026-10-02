@@ -37,8 +37,8 @@ Times are elapsed minutes from the beginning of the session.
 | Workshop minutes | Activity | Duration |
 |---|---|---|
 | 0-15 | Presenter introduction | 15 minutes |
-| 15-30 | Lab 1: Build a PostgreSQL-Grounded Agent | 15 minutes |
-| 30-45 | Lab 2: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
+| 15-30 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
+| 30-45 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
 | 45-65 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 20 minutes |
 | 65-90 | Lab 4: Build Governed Agent Actions with Cedar | 25 minutes |
 | 90-95 | Recovery buffer | 5 minutes |
@@ -146,40 +146,17 @@ access-control policy.
 
 ## Four labs, Tasks A and B
 
-### Lab 1: Build a PostgreSQL-Grounded Agent
-
-Marco needs a reliable answer about warehouse stock.
-
-**Predict:** an unknown product and a known product with zero stock require
-different answers.
-
-**Task 1A:** implement the inventory result contract against Aurora.
-**Task 1B:** select the specialist's permitted read tools and prove that a real
-turn uses them. Model and prompt configuration are supplied.
-
-**Check:** compare the Storefront answer with Aurora and the execution row written
-after the baseline. The supplied contract check invokes the participant's own
-body for a product absent from the catalog and a sold-out product. The unknown
-product carries no count. The sold-out product returns zero with every warehouse
-accounted for.
-
-**Explain:** the tool contract determines what the agent may conclude. A fluent
-answer cannot turn missing data into a verified zero.
-
-### Lab 2: Build and Measure PostgreSQL Hybrid Retrieval
+### Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
 Anna needs relevant products that satisfy her budget and stock constraints.
-
-**Story connection:** Marco established how to check a product. Anna now needs the
-concierge to find suitable products while keeping her original requirements.
 
 **Predict:** a fallback may relax a preference, but must keep budget, availability,
 and exclusions. Ranking cannot make an ineligible product eligible.
 
-**Task 2A:** reconstruct recorded reciprocal rank fusion in the SQL worksheet,
+**Task 1A:** reconstruct recorded reciprocal rank fusion in the SQL worksheet,
 including a zero contribution from a missing branch. This explains a saved
 calculation; it does not replace the application's retrieval implementation.
-**Task 2B:** construct each fallback attempt from the original validated plan.
+**Task 1B:** construct each fallback attempt from the original validated plan.
 Preserve hard constraints and exclusions, avoid mutating the request, and record
 which preference changed.
 
@@ -190,6 +167,29 @@ boundaries. Candidate-pool tuning and broader evaluation remain extensions.
 
 **Explain:** preferences may widen the search; requirements still decide which
 products are eligible. No result is better than silently changing the request.
+
+### Lab 2: Build a PostgreSQL-Grounded Agent
+
+Marco needs a reliable answer about warehouse stock.
+
+**Story connection:** Anna's search kept her requirements across a fallback. Marco now
+needs the concierge to report stock facts exactly as the database returns them.
+
+**Predict:** an unknown product and a known product with zero stock require
+different answers.
+
+**Task 2A:** implement the inventory result contract against Aurora.
+**Task 2B:** select the specialist's permitted read tools and prove that a real
+turn uses them. Model and prompt configuration are supplied.
+
+**Check:** compare the Storefront answer with Aurora and the execution row written
+after the baseline. The supplied contract check invokes the participant's own
+body for a product absent from the catalog and a sold-out product. The unknown
+product carries no count. The sold-out product returns zero with every warehouse
+accounted for.
+
+**Explain:** the tool contract determines what the agent may conclude. A fluent
+answer cannot turn missing data into a verified zero.
 
 ### Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
 

@@ -255,6 +255,33 @@ class HybridSearch:
             row["rrf_score"] = None
         return rows
 
+    async def keyword_only(
+        self,
+        query: str,
+        k: int = 0,
+        hard_clauses: Sequence[str] = (),
+        hard_params: Sequence[Any] = (),
+    ) -> List[Dict[str, Any]]:
+        """Run the full-text branch alone, annotated like a fused row.
+
+        Rows carry ``fts_rank`` (1-based) with ``vec_rank`` and ``rrf_score``
+        set to ``None``, mirroring ``vector_only``. A query made only of stop
+        words has no lexical tokens and returns no rows.
+
+        Args:
+            query: Raw user query text.
+            k: Pool size for the full-text branch (default ``HYBRID_FTS_K``).
+            hard_clauses: Compiled hard predicates ANDed into the WHERE.
+            hard_params: Bound parameters for ``hard_clauses``.
+        """
+        k = max(5, min(int(k or settings.HYBRID_FTS_K), 100))
+        rows = await self._fts_search(query, k, hard_clauses, hard_params)
+        for rank_zero, row in enumerate(rows):
+            row["vec_rank"] = None
+            row["fts_rank"] = rank_zero + 1
+            row["rrf_score"] = None
+        return rows
+
     # -----------------------------------------------------------------
     # Teaching surface — explain the merge with per-branch ranks
     # -----------------------------------------------------------------

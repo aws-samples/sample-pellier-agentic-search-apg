@@ -19,8 +19,8 @@ DEFAULT_OUTPUT_DIR = ROOT / "generated-assets"
 
 DIAGRAMS = (
     "pellier-deployed-topology",
-    "lab-1-marco-grounding",
-    "lab-2-anna-retrieval",
+    "lab-2-marco-grounding",
+    "lab-1-anna-retrieval",
     "lab-3-theo-managed-path",
     "lab-4-jessica-governance",
     "lab-4-deny-allow-sequence",

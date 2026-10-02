@@ -149,13 +149,13 @@ def _inventory_agent_definition_is_workshop_stub() -> bool:
         return True
 
 
-def _lab2_search_plan_is_workshop_stub() -> bool:
+def _lab1_search_plan_is_workshop_stub() -> bool:
     """True while the search-plan fallback is deliberately unfinished."""
     try:
         from services.search_plan import SearchPlan
         import inspect
 
-        return "Complete Task 2B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations)  # copy-allow: source-state sentinel, never emitted as route copy
+        return "Complete Task 1B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations)  # copy-allow: source-state sentinel, never emitted as route copy
     except Exception:
         return True
 
@@ -1219,7 +1219,7 @@ async def _collect_proof_board(
     cards = [
         {
             "id": "marco-floor-check",
-            "lab": "Lab 1: Build a PostgreSQL-Grounded Agent",
+            "lab": "Lab 2: Build a PostgreSQL-Grounded Agent",
             "group": "Agent and tool evidence",
             "title": "Wire Marco to check_inventory",
             "status": _card_status(check_inventory_wired and bool(latest_check_inventory), "needs_run" if check_inventory_wired else "needs_build"),
@@ -1252,7 +1252,7 @@ async def _collect_proof_board(
         },
         {
             "id": "retrieval-comparison",
-            "lab": "Lab 2: Build and Measure PostgreSQL Hybrid Retrieval",
+            "lab": "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval",
             "group": "Retrieval evidence",
             "title": "Reconstruct Anna's hybrid retrieval receipt",
             "status": (
@@ -1453,8 +1453,8 @@ async def _collect_proof_board(
     ]
 
     card_order = {
-        "marco-floor-check": 1,
-        "retrieval-comparison": 2,
+        "retrieval-comparison": 1,
+        "marco-floor-check": 2,
         "managed-rail": 3,
         "audit-ledger": 4,
         "runtime-gateway-policy": 5,
@@ -2630,17 +2630,17 @@ async def get_build_state():
         # The inventory exercise is source-defined rather than discovered from
         # the optional Aurora tool catalog. That catalog describes additional
         # registered tools; it must not erase the one tool a participant is
-        # editing and proving in Lab 1.
+        # editing and proving in Lab 2.
         agent_map = {"Inventory Agent": inventory}
         tool_map = {dict(row)["name"]: "shipped" for row in tool_rows}
         tool_map["check_inventory"] = check_inventory
         # Source inspection only. Task 3A has two regions; Task 3B requires
         # deployed evidence and cannot be marked complete by a local edit.
         exercises = {
-            "1a": "exercise" if check_inventory == "exercise" else "shipped",
-            "1b": "exercise" if inventory == "exercise" else "shipped",
-            "2b": (
-                "exercise" if _lab2_search_plan_is_workshop_stub() else "shipped"
+            "2a": "exercise" if check_inventory == "exercise" else "shipped",
+            "2b": "exercise" if inventory == "exercise" else "shipped",
+            "1b": (
+                "exercise" if _lab1_search_plan_is_workshop_stub() else "shipped"
             ),
             "3a": (
                 "exercise"

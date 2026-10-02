@@ -1,5 +1,5 @@
 /**
- * The canonical Lab 2 query.
+ * The canonical Lab 1 query.
  *
  * One string, used by the golden set, the micro-eval endpoint, the strategy
  * comparison card and the lab guide. It is not decorative copy: the labeled

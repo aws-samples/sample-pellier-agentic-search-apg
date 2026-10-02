@@ -27,20 +27,20 @@ class FileExercise:
 
 MARKER_EXERCISES = (
     MarkerExercise(
-        exercise_id="lab-1-inventory-agent",
-        starter="workshop/starters/lab-1/inventory-agent-definition.pyfrag",
+        exercise_id="lab-2-inventory-agent",
+        starter="workshop/starters/lab-2/inventory-agent-definition.pyfrag",
         destination="pellier/backend/agents/inventory_agent.py",
         marker="WORKSHOP · Inventory Agent · definition",
     ),
     MarkerExercise(
-        exercise_id="lab-1-inventory-tool",
-        starter="workshop/starters/lab-1/check-inventory-tool.pyfrag",
+        exercise_id="lab-2-inventory-tool",
+        starter="workshop/starters/lab-2/check-inventory-tool.pyfrag",
         destination="pellier/backend/services/agent_tools.py",
         marker="WORKSHOP · Inventory Agent · check_inventory",
     ),
     MarkerExercise(
-        exercise_id="lab-2-preserve-requirements",
-        starter="workshop/starters/lab-2/preserve-requirements.pyfrag",
+        exercise_id="lab-1-preserve-requirements",
+        starter="workshop/starters/lab-1/preserve-requirements.pyfrag",
         destination="pellier/backend/services/search_plan.py",
         marker="WORKSHOP · Search plan · preserve requirements",
     ),
@@ -65,9 +65,9 @@ FILE_EXERCISES = (
         destination="workshop/lab-4-rls.sql",
     ),
     FileExercise(
-        exercise_id="lab-2-rrf",
-        starter="workshop/starters/lab-2-rrf.sql",
-        destination="workshop/lab-2-rrf.sql",
+        exercise_id="lab-1-rrf",
+        starter="workshop/starters/lab-1-rrf.sql",
+        destination="workshop/lab-1-rrf.sql",
     ),
     FileExercise(
         exercise_id="lab-4-absence",

@@ -130,25 +130,25 @@ def _region_reads_as_stub(
 # alone does not establish that a participant ran the corresponding checks.
 _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ...] = (
     (
-        "01_ground_the_answer", "1b_inventory_agent_defined",
+        "01_measure_hybrid_retrieval", "1a_rrf_expression_authored",
+        REPO / "workshop" / "lab-1-rrf.sql",
+        "PostgreSQL RRF \u00b7 fusion expression", ("0::numeric AS recomputed_rrf",),
+    ),
+    (
+        "01_measure_hybrid_retrieval", "1b_requirements_preserved",
+        BACKEND / "services" / "search_plan.py",
+        "Search plan \u00b7 preserve requirements",
+        ("Complete Task 1B before relaxing a preference",),
+    ),
+    (
+        "02_ground_the_answer", "2b_inventory_agent_defined",
         BACKEND / "agents" / "inventory_agent.py",
         None, ("_INVENTORY_AGENT_STUBBED = True",),
     ),
     (
-        "01_ground_the_answer", "1a_inventory_tool_written",
+        "02_ground_the_answer", "2a_inventory_tool_written",
         BACKEND / "services" / "agent_tools.py",
         None, ("check_inventory is in stub state", "received_product_query"),
-    ),
-    (
-        "02_measure_hybrid_retrieval", "2a_rrf_expression_authored",
-        REPO / "workshop" / "lab-2-rrf.sql",
-        "PostgreSQL RRF \u00b7 fusion expression", ("0::numeric AS recomputed_rrf",),
-    ),
-    (
-        "02_measure_hybrid_retrieval", "2b_requirements_preserved",
-        BACKEND / "services" / "search_plan.py",
-        "Search plan \u00b7 preserve requirements",
-        ("Complete Task 2B before relaxing a preference",),
     ),
     (
         "03_operate_the_managed_path", "3a_gateway_tool_published",
@@ -191,10 +191,10 @@ def _source_state(is_stub: Optional[bool]) -> str:
 
 
 def collect_source_state() -> Dict[str, Any]:
-    """Inspect every authored source region, not only Lab 1's two.
+    """Inspect every authored source region, not only Lab 2's two.
 
-    A receipt that checked Lab 1's source and nothing else could report a
-    complete workshop for a participant who never opened Labs 2, 3, or 4's
+    A receipt that checked Lab 2's source and nothing else could report a
+    complete workshop for a participant who never opened Labs 1, 3, or 4's
     starters, because their evidence rows can be produced by the shipped
     reference implementation running underneath them.
     """
@@ -270,24 +270,9 @@ SELECT principal_sub, MAX(created_at) AS last_seen
  LIMIT 8;
 """
 
-# Lab 1 -- the tool ran and left an execution row.
-_LAB1 = """
-SELECT ta.audit_id, ta.session_id, ta.args->>'turn_id' AS turn_id,
-       ta.caller, ta.latency_ms, ta.created_at
-  FROM pellier.tool_audit ta
-  LEFT JOIN pellier.governed_turn_receipts gtr
-         ON gtr.turn_id = ta.args->>'turn_id'
- WHERE ta.tool = 'check_inventory'
-   AND ta.result IS NOT NULL
-   AND (%(sub)s::text IS NULL OR gtr.principal_sub = %(sub)s)
-   {run_scope}
- ORDER BY ta.audit_id DESC
- LIMIT 1;
-"""
-
-# Lab 2 -- a receipt carrying BOTH retrieval ranks and their fusion. Vector or
+# Lab 1 -- a receipt carrying BOTH retrieval ranks and their fusion. Vector or
 # lexical alone is not hybrid retrieval, so all three must be populated.
-_LAB2 = """
+_LAB1 = """
 SELECT receipt_id, turn_id, query_preview, embedding_model, rerank_model,
        retrieval_config, latency_breakdown, modeled_cost_usd,
        jsonb_array_length(COALESCE(citation_ids, '[]'::jsonb)) AS citations,
@@ -299,6 +284,21 @@ SELECT receipt_id, turn_id, query_preview, embedding_model, rerank_model,
    AND lexical_ranks <> '{}'::jsonb
    {run_scope}
  ORDER BY receipt_id DESC
+ LIMIT 1;
+"""
+
+# Lab 2 -- the tool ran and left an execution row.
+_LAB2 = """
+SELECT ta.audit_id, ta.session_id, ta.args->>'turn_id' AS turn_id,
+       ta.caller, ta.latency_ms, ta.created_at
+  FROM pellier.tool_audit ta
+  LEFT JOIN pellier.governed_turn_receipts gtr
+         ON gtr.turn_id = ta.args->>'turn_id'
+ WHERE ta.tool = 'check_inventory'
+   AND ta.result IS NOT NULL
+   AND (%(sub)s::text IS NULL OR gtr.principal_sub = %(sub)s)
+   {run_scope}
+ ORDER BY ta.audit_id DESC
  LIMIT 1;
 """
 
@@ -411,8 +411,8 @@ SELECT
 # Unattributed historical rows cannot prove this run, even if timestamps overlap.
 _RUN_CLAUSES = {
     "principals": "AND run_id = %(run)s",
-    "lab1": "AND ta.run_id = %(run)s",
-    "lab2": "AND run_id = %(run)s",
+    "lab2": "AND ta.run_id = %(run)s",
+    "lab1": "AND run_id = %(run)s",
     "lab3": "AND gtr.run_id = %(run)s",
     "lab3_memory": "AND run_id = %(run)s",
     "lab4": "AND gr.run_id = %(run)s",
@@ -721,14 +721,14 @@ def assemble(evidence: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "provenance": provenance,
         "labs": {
-            "01_ground_the_answer": {
-                **builds_for("01_ground_the_answer"),
-                "execution_row": row_state("lab1"),
+            "01_measure_hybrid_retrieval": {
+                **builds_for("01_measure_hybrid_retrieval"),
+                "hybrid_receipt": row_state("lab1"),
                 "detail": evidence.get("lab1") if available else None,
             },
-            "02_measure_hybrid_retrieval": {
-                **builds_for("02_measure_hybrid_retrieval"),
-                "hybrid_receipt": row_state("lab2"),
+            "02_ground_the_answer": {
+                **builds_for("02_ground_the_answer"),
+                "execution_row": row_state("lab2"),
                 "detail": evidence.get("lab2") if available else None,
             },
             "03_operate_the_managed_path": {
@@ -814,10 +814,10 @@ def render_markdown(receipt: Dict[str, Any]) -> str:
     # hybrid retrieval" and "Build and Measure PostgreSQL Hybrid Retrieval"
     # are the same lab.
     titles = {
-        "01_ground_the_answer": "Lab 1: Build a PostgreSQL-Grounded Agent",
-        "02_measure_hybrid_retrieval": (
-            "Lab 2: Build and Measure PostgreSQL Hybrid Retrieval"
+        "01_measure_hybrid_retrieval": (
+            "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval"
         ),
+        "02_ground_the_answer": "Lab 2: Build a PostgreSQL-Grounded Agent",
         "03_operate_the_managed_path": (
             "Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore"
         ),

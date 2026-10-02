@@ -115,7 +115,7 @@ for (const width of [1440, 1024, 768, 390]) {
     await expect(page.getByRole('list', { name: 'Evidence categories' }).locator('li')).toHaveCount(7);
     await expect(page.locator('.observatory-products-empty, .observatory-answer-state')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Evidence sufficiency' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: /^Lab 1:/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Lab 2:/ })).toBeVisible();
     await noOverflow(page);
     if (width === 1440 || width === 390) {
       await settlePanels(page);
@@ -243,11 +243,11 @@ test('running and verified-empty states are distinct, and a late run cannot ente
   await run(page);
   await expect(page.getByRole('status', { name: 'Run proof summary' })).toContainText('Running');
   await page.getByLabel('Step details, reference views and labs').click();
-  await page.getByRole('link', { name: /^Lab 2 Anna:/ }).click();
+  await page.getByRole('link', { name: /^Lab 1 Anna:/ }).click();
   const response = page.waitForResponse('**/api/chat/stream');
   finish();
   await response;
-  await expect(page.getByRole('heading', { name: /^Lab 2:/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Lab 1:/ })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Run proof summary' })).toContainText('Ready');
   await expect(page.getByText('The recorded warehouse result is ready to inspect.')).toHaveCount(0);
 });

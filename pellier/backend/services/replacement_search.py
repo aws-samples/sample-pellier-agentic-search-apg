@@ -585,7 +585,7 @@ async def find_replacements(db: Any, plan: ReplacementPlan) -> ReplacementResult
         )
 
     # Resolve the strict request before constructing any fallback. A sufficient
-    # result must remain usable while Task 2B's fallback is still unfinished.
+    # result must remain usable while Task 1B's fallback is still unfinished.
     rung_used = plan.search_plan
     candidates = await search_rung(rung_used)
     if len(candidates) < _MIN_POOL:

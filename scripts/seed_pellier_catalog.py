@@ -387,7 +387,7 @@ HOUSE_PRODUCTS: List[Product] = [
             "Waffle-weave cotton bath robe in muted sage. Long-staple cotton that softens with every wash, with patch pockets and a self-tie belt.",
             CAT_HOME, ["cotton", "bath", "home", "loungewear", "wellness", "gift"],
             4.6, 289, "house-sage-bath-robe.png", persona="house"),
-    # Sold out on purpose. Lab 1's check_inventory contract separates a piece the
+    # Sold out on purpose. Lab 2's check_inventory contract separates a piece the
     # catalog does not carry (not_found) from a piece it carries with no units
     # (success, total_units 0); this is the second case, live, for every box.
     Product(43, "Quilted Silk Vest", "Pellier Atelier", "Ivory", 193.13,

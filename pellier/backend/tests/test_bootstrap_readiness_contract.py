@@ -108,7 +108,7 @@ def test_managed_runtime_handoff_preserves_the_fast_model_profile() -> None:
 
 
 def test_facilitator_dry_run_preflights_the_recommended_claude_lane() -> None:
-    """Lab 1 recommends Claude Code, so the release gate must prove it starts.
+    """Lab 2 recommends Claude Code, so the release gate must prove it starts.
 
     The two things that drift per account are the CLI package and Bedrock model
     access under the participant instance role. Both fail silently for a
@@ -136,7 +136,7 @@ def test_facilitator_dry_run_probes_the_pinned_model_not_the_floating_alias() ->
     )
 
 
-def test_facilitator_dry_run_covers_both_lab1_build_sites() -> None:
+def test_facilitator_dry_run_covers_both_lab2_build_sites() -> None:
     source = FACILITATOR_DRY_RUN.read_text(encoding="utf-8")
     assert "agents/inventory_agent.py" in source
     assert "agents/inventory_agent_solution.py" in source
@@ -1613,7 +1613,7 @@ def test_provenance_survives_removing_git() -> None:
 def test_participant_psql_is_proven_during_bootstrap() -> None:
     """Every SQL step in the guide is typed as a bare `psql`.
 
-    If that path is broken, Lab 1 is where a participant finds out. The check
+    If that path is broken, Lab 2 is where a participant finds out. The check
     must run as the participant with no PGPASSWORD, so a pass means `.pgpass`
     was found and readable; running it as root with the script's own password
     would prove something no participant does.

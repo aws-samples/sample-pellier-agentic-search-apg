@@ -732,7 +732,7 @@ def check_inventory(product_query: str = "") -> str:
     # === WORKSHOP · Inventory Agent · check_inventory: START ===
     # WORKSHOP_EXERCISE_STUB
     #
-    # Task 1A. Marco asks whether the Hadley shirt is at the Brooklyn
+    # Task 2A. Marco asks whether the Hadley shirt is at the Brooklyn
     # warehouse. A business service in this backend already owns that answer;
     # connect this tool to it the way the sibling read tools in this file reach
     # their services. Do not query the database from here.
@@ -743,7 +743,7 @@ def check_inventory(product_query: str = "") -> str:
     # as status "success" with total_units 0 and the warehouse rows. Unknown and
     # zero are different answers to different questions. Never turn one into the
     # other, and never invent a count for a piece that was not found.
-    # Verify: `python3 scripts/lab1_contract_check.py` exercises both cases
+    # Verify: `python3 scripts/lab2_contract_check.py` exercises both cases
     # before any model runs; Marco's replayed turn is the live check.
     #
     # Note: tests/test_solutions_parity.py is a repo guard, NOT your wire

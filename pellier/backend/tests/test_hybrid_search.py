@@ -346,3 +346,38 @@ class TestHybridSearchEndToEnd:
         assert "hybrid_vector_branch" in types
         # No FTS SQL executed.
         assert "hybrid_fts_branch" not in types
+
+
+class TestKeywordOnly:
+    """The keyword strategy is the full-text branch alone, ranked from 1."""
+
+    def test_returns_only_the_fts_branch_with_one_based_ranks(self) -> None:
+        v_rows = [_make_row(1), _make_row(2)]
+        b_rows = [_make_row(3, fts_rank_score=0.9), _make_row(4, fts_rank_score=0.4)]
+        svc = HybridSearch(FakeDB(v_rows, b_rows))  # type: ignore[arg-type]
+        results = _run(svc.keyword_only("linen shirt"))
+        assert [row["product_id"] for row in results] == [3, 4]
+        assert [row["fts_rank"] for row in results] == [1, 2]
+        assert all(row["vec_rank"] is None for row in results)
+        assert all(row["rrf_score"] is None for row in results)
+
+    def test_never_runs_the_vector_branch(
+        self, isolated_query_logger: SQLQueryLogger
+    ) -> None:
+        db = FakeDB([_make_row(1)], [_make_row(2)])
+        _run(HybridSearch(db).keyword_only("linen shirt"))  # type: ignore[arg-type]
+        types = [q.query_type for q in isolated_query_logger.queries]
+        assert types == ["hybrid_fts_branch"]
+        assert all("<=>" not in sql for sql, _ in db.cursor.calls)
+
+    def test_pure_stop_word_query_returns_nothing_without_running_sql(self) -> None:
+        db = FakeDB([_make_row(1)], [_make_row(2)])
+        results = _run(HybridSearch(db).keyword_only("the and for what who"))  # type: ignore[arg-type]
+        assert results == []
+        assert db.cursor.calls == []
+
+    def test_pool_size_is_bounded(self) -> None:
+        db = FakeDB([], [_make_row(2)])
+        _run(HybridSearch(db).keyword_only("linen shirt", k=10_000))  # type: ignore[arg-type]
+        _, params = db.cursor.calls[-1]
+        assert params[-1] == 100

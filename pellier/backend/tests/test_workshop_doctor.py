@@ -188,15 +188,15 @@ def _scratch_backend(tmp_path: Path, *, tool_source: str, agent_stubbed: bool) -
     return backend
 
 
-class TestLab1:
+class TestLab2:
     def test_unreachable_database_fails_with_the_reason(self) -> None:
-        checks = doctor.lab1_checks(FakeEvidence(reason="connection refused"))
+        checks = doctor.lab2_checks(FakeEvidence(reason="connection refused"))
         db = _by_name(checks)["database reachable"]
         assert db.passed is False
         assert "connection refused" in db.detail
 
     def test_this_checkout_still_ships_both_lab_one_stubs(self) -> None:
-        checks = _by_name(doctor.lab1_checks(FakeEvidence({"SELECT 1": {"ok": 1}})))
+        checks = _by_name(doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}})))
         assert checks["database reachable"].passed is True
         assert checks["check_inventory wired"].passed is False
         assert checks["Inventory Agent defined"].passed is False
@@ -204,7 +204,7 @@ class TestLab1:
     def test_a_wired_tool_and_agent_pass(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_source=WIRED_TOOL, agent_stubbed=False)
         checks = _by_name(
-            doctor.lab1_checks(FakeEvidence({"SELECT 1": {"ok": 1}}), backend=backend)
+            doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}}), backend=backend)
         )
         assert checks["check_inventory wired"].passed is True
         assert checks["Inventory Agent defined"].passed is True
@@ -218,7 +218,7 @@ class TestLab1:
             "    return json.dumps({})\n",
         )
         backend = _scratch_backend(tmp_path, tool_source=hollow, agent_stubbed=False)
-        checks = _by_name(doctor.lab1_checks(FakeEvidence(), backend=backend))
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
         assert checks["check_inventory wired"].passed is False
         assert "no query" in checks["check_inventory wired"].detail
 
@@ -234,28 +234,28 @@ class TestLab1:
             "    return json.dumps({'note': 'selected nothing', 'selection': []})\n",
         )
         backend = _scratch_backend(tmp_path, tool_source=prose, agent_stubbed=False)
-        checks = _by_name(doctor.lab1_checks(FakeEvidence(), backend=backend))
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
         assert checks["check_inventory wired"].passed is False
         assert "no query" in checks["check_inventory wired"].detail
 
     def test_missing_markers_fail_rather_than_pass(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_source="def x(): pass\n", agent_stubbed=False)
-        checks = _by_name(doctor.lab1_checks(FakeEvidence(), backend=backend))
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
         assert checks["check_inventory wired"].passed is False
         assert "marker" in checks["check_inventory wired"].detail
 
 
-class TestLab2:
+class TestLab1:
     def test_prerequisites_do_not_require_a_completed_run(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
-        checks = doctor.run_lab(2, evidence, None, phase="prerequisites")
+        checks = doctor.run_lab(1, evidence, None, phase="prerequisites")
         assert len(checks) == 1
         assert checks[0].name == "migration 046 columns present"
         assert checks[0].passed is True
 
     def test_no_run_id_names_the_start_script(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
-        checks = _by_name(doctor.lab2_checks(evidence, None))
+        checks = _by_name(doctor.lab1_checks(evidence, None))
         assert checks["retrieval receipt for this run"].passed is False
         assert "workshop-start" in checks["retrieval receipt for this run"].detail
 
@@ -263,7 +263,7 @@ class TestLab2:
         evidence = FakeEvidence(
             {"information_schema": {"n": 2}, "FROM pellier.retrieval_receipts": {"receipt_id": 12}}
         )
-        checks = _by_name(doctor.lab2_checks(evidence, RUN_ID))
+        checks = _by_name(doctor.lab1_checks(evidence, RUN_ID))
         assert checks["migration 046 columns present"].passed is True
         assert checks["retrieval receipt for this run"].passed is True
         assert "12" in checks["retrieval receipt for this run"].detail
@@ -276,7 +276,7 @@ class TestLab2:
 
     def test_a_partial_046_fails(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 1}})
-        checks = _by_name(doctor.lab2_checks(evidence, RUN_ID))
+        checks = _by_name(doctor.lab1_checks(evidence, RUN_ID))
         assert checks["migration 046 columns present"].passed is False
 
 
@@ -623,7 +623,7 @@ class TestEvidenceLifecycle:
     ) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
         monkeypatch.setattr(doctor, "open_evidence", lambda env_path: evidence)
-        doctor.main(["--lab", "2", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
         assert evidence.closed is True
 
 
@@ -634,7 +634,7 @@ class TestMain:
         monkeypatch.setattr(
             doctor, "open_evidence", lambda env_path: FakeEvidence({"information_schema": {"n": 2}})
         )
-        code = doctor.main(["--lab", "2", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        code = doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
         out = capsys.readouterr().out
         assert code == 1
         lines = [line for line in out.splitlines() if line.startswith(("PASS", "FAIL"))]
@@ -650,14 +650,14 @@ class TestMain:
             "FROM pellier.retrieval_receipts": {"receipt_id": 1},
         }
         monkeypatch.setattr(doctor, "open_evidence", lambda env_path: FakeEvidence(rows))
-        code = doctor.main(["--lab", "2", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        code = doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
         assert code == 0
         assert "FAIL" not in capsys.readouterr().out
 
     def test_malformed_run_id_is_refused_before_any_query(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert doctor.main(["--lab", "2", "--run-id", "run-nope"]) == 2
+        assert doctor.main(["--lab", "1", "--run-id", "run-nope"]) == 2
         assert "run-<12 hex>" in capsys.readouterr().err
 
 

@@ -15,8 +15,8 @@ GENERATED_DIR = ROOT / "generated-assets"
 
 DIAGRAMS = (
     "pellier-deployed-topology",
-    "lab-1-marco-grounding",
-    "lab-2-anna-retrieval",
+    "lab-2-marco-grounding",
+    "lab-1-anna-retrieval",
     "lab-3-theo-managed-path",
     "lab-4-jessica-governance",
     "lab-4-deny-allow-sequence",
@@ -54,8 +54,8 @@ class DiagramSourceTests(unittest.TestCase):
 
     def test_lab_overlays_name_persona_and_primary_boundary(self) -> None:
         expected = {
-            "lab-1-marco-grounding": ("MARCO", "tool_audit", "NOT CLAIMED"),
-            "lab-2-anna-retrieval": ("ANNA", "RRF", "retrieval_receipts"),
+            "lab-2-marco-grounding": ("MARCO", "tool_audit", "NOT CLAIMED"),
+            "lab-1-anna-retrieval": ("ANNA", "RRF", "retrieval_receipts"),
             "lab-3-theo-managed-path": ("THEO", "AGENTCORE MEMORY", "OTEL"),
             "lab-4-jessica-governance": ("JESSICA", "CEDAR", "POSTGRESQL RLS"),
         }

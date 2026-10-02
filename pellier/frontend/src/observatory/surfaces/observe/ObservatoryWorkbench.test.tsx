@@ -98,7 +98,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('opens as an inspectable doorway with no request to compose', async () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -107,7 +107,7 @@ describe('Pellier Observatory live agent workbench', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Lab 1: Build a PostgreSQL-Grounded Agent',
+        name: 'Lab 2: Build a PostgreSQL-Grounded Agent',
       }),
     ).toBeInTheDocument();
     expect(screen.getByText('You will learn')).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('Pellier Observatory live agent workbench', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Follow Lab 1 in Workshop Studio, then run its request and inspect the evidence here/i,
+        /Follow Lab 2 in Workshop Studio, then run its request and inspect the evidence here/i,
       ),
     ).toBeInTheDocument();
     // The run state is reported once, by the ledger panel that runs.
@@ -323,7 +323,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('keeps the idle ledger compact and metrics honest before a run', async () => {
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -458,7 +458,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -577,7 +577,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -616,7 +616,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -666,7 +666,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -716,7 +716,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -738,7 +738,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -772,7 +772,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -797,7 +797,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('keeps operator actions out of the shopper workbench', () => {
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -874,7 +874,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -937,7 +937,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1038,7 +1038,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1334,7 +1334,7 @@ describe('Pellier Observatory live agent workbench', () => {
     ]);
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1356,7 +1356,7 @@ describe('Pellier Observatory live agent workbench', () => {
       policyEvent('issue_credit', 'DENY', 'denied', auditId),
       { ...toolEvent('issue_credit'), turnId: toolTurn },
     ]);
-    render(<MemoryRouter><ObservatoryWorkbench /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}><ObservatoryWorkbench /></MemoryRouter>);
     await inspectTurn(userEvent.setup(), FRESH_TURNS[0]);
     expect(await screen.findByTestId('observatory-receipt-strip')).toBeInTheDocument();
     expect(screen.queryByTestId('observatory-receipt-conflict')).toBeNull();
@@ -1364,7 +1364,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('reports missing receipts without asserting that nothing executed', async () => {
     streamLedger([routeEvent]);
-    render(<MemoryRouter><ObservatoryWorkbench /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}><ObservatoryWorkbench /></MemoryRouter>);
     await inspectTurn(userEvent.setup(), FRESH_TURNS[0]);
     const strip = await screen.findByTestId('observatory-receipt-strip');
     expect(strip).toHaveTextContent('no tool receipt recorded');
@@ -1382,7 +1382,7 @@ describe('Pellier Observatory live agent workbench', () => {
     ]);
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1480,7 +1480,7 @@ describe('Pellier Observatory live agent workbench', () => {
     );
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1505,7 +1505,7 @@ describe('Pellier Observatory live agent workbench', () => {
     mockTwoReceiptRun();
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1557,7 +1557,7 @@ describe('Pellier Observatory live agent workbench', () => {
     mockTwoReceiptRun();
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1590,7 +1590,7 @@ describe('Pellier Observatory live agent workbench', () => {
     mockTwoReceiptRun();
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1649,7 +1649,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1679,7 +1679,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1695,7 +1695,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('presents the production shopper path as fixed rather than editable', () => {
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1713,7 +1713,7 @@ describe('Pellier Observatory live agent workbench', () => {
   it('states the one model trade-off once per section', async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1741,7 +1741,7 @@ describe('Pellier Observatory live agent workbench', () => {
 
   it('keeps the generic workbench free of an operator route', () => {
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );
@@ -1759,7 +1759,7 @@ describe('Pellier Observatory live agent workbench', () => {
   it('keeps tunable setup collapsed until the participant explicitly expands it', async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/observatory/workbench?lab=grounded-inventory']}>
         <ObservatoryWorkbench />
       </MemoryRouter>,
     );

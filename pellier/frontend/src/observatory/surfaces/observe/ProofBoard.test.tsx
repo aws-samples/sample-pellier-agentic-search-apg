@@ -63,7 +63,7 @@ const proofBoardPayload = {
   cards: [
     {
       id: 'marco-floor-check',
-      lab: 'Lab 1: Build a PostgreSQL-Grounded Agent',
+      lab: 'Lab 2: Build a PostgreSQL-Grounded Agent',
       group: 'Agent and tool evidence',
       title: 'Wire Marco to check_inventory',
       status: 'complete',
@@ -79,7 +79,7 @@ const proofBoardPayload = {
     },
     {
       id: 'retrieval-comparison',
-      lab: 'Lab 2: Build and Measure PostgreSQL Hybrid Retrieval',
+      lab: 'Lab 1: Build and Measure PostgreSQL Hybrid Retrieval',
       group: 'Retrieval evidence',
       title: 'Compare retrieval strategies',
       status: 'available',
@@ -287,7 +287,7 @@ describe('ProofBoard', () => {
       'Wire Marco to check_inventory',
     );
     expect(
-      screen.getAllByText('Lab 1: Build a PostgreSQL-Grounded Agent'),
+      screen.getAllByText('Lab 2: Build a PostgreSQL-Grounded Agent'),
     ).toHaveLength(2);
     expect(
       screen.getAllByText(
@@ -568,7 +568,7 @@ describe('ProofBoard', () => {
 
     // Four-lab spine: managed execution and audit share Lab 3.
     expect(
-      await screen.findAllByText('Lab 1: Build a PostgreSQL-Grounded Agent'),
+      await screen.findAllByText('Lab 2: Build a PostgreSQL-Grounded Agent'),
     ).toHaveLength(2);
     expect(
       screen.getAllByText(

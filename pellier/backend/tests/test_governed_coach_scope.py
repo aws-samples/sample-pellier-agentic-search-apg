@@ -20,6 +20,6 @@ def test_coach_scope_covers_every_marker_without_revealing_answers():
             assert exercise.destination.removeprefix('pellier/backend/') in backend
     for exercise in module.FILE_EXERCISES:
         assert exercise.destination in root
-    assert 'Lab 1 only' not in backend
+    assert 'Lab 2 only' not in backend
     assert 'prediction' in root and 'one hint' in root
     assert 'Never inspect `solutions/`' in backend

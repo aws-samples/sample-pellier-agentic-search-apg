@@ -1,4 +1,4 @@
-"""Contract tests for the live four-strategy retrieval comparison."""
+"""Contract tests for the live five-strategy retrieval comparison."""
 
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ import services.vector_search as vector_module
 import services.agent_tools as agent_tools_module
 
 REPO = Path(__file__).resolve().parents[3]
-LAB_2_SQL = REPO / "workshop" / "lab-2-rrf.sql"
-LAB_2_STARTER_SQL = REPO / "workshop" / "starters" / "lab-2-rrf.sql"
-LAB_2_SOLUTION_SQL = (
-    REPO / "solutions" / "the-quiet-search" / "sql" / "lab-2-rrf-solution.sql"
+LAB_1_SQL = REPO / "workshop" / "lab-1-rrf.sql"
+LAB_1_STARTER_SQL = REPO / "workshop" / "starters" / "lab-1-rrf.sql"
+LAB_1_SOLUTION_SQL = (
+    REPO / "solutions" / "the-quiet-search" / "sql" / "lab-1-rrf-solution.sql"
 )
-LAB_2_MARKERS = (
+LAB_1_MARKERS = (
     "-- === WORKSHOP · PostgreSQL RRF · fusion expression: START ===",
     "-- === WORKSHOP · PostgreSQL RRF · fusion expression: END ===",
 )
@@ -83,10 +83,18 @@ class _HybridSearch:
     def __init__(self, db: Any) -> None:
         self.db = db
         self.search_calls: list[dict[str, Any]] = []
+        self.keyword_calls: list[dict[str, Any]] = []
 
     async def search(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         self.search_calls.append(kwargs)
         return self._rows()
+
+    async def keyword_only(self, query: str, k: int = 0) -> list[dict[str, Any]]:
+        self.keyword_calls.append({"query": query, "k": k})
+        return [
+            {"name": f"Keyword {index}", "product_id": 100 + index}
+            for index in range(1, 4)
+        ]
 
     async def search_explained(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         rows = self._rows()
@@ -198,7 +206,7 @@ def test_comparison_labels_single_run_latency_and_modeled_cost_honestly() -> Non
     assert "not a billing measurement" in body["measurementAssumptions"]["cost"]
     assert "not calculated" in body["measurementAssumptions"]["quality"]
 
-    assert len(body["strategies"]) == 4
+    assert len(body["strategies"]) == 5
     for strategy in body["strategies"]:
         assert strategy["observedMs"] >= 0
         assert strategy["modeledCostPerThousandUsd"] >= 0
@@ -215,14 +223,64 @@ def test_comparison_labels_single_run_latency_and_modeled_cost_honestly() -> Non
     assert plan["hard_constraints"]["in_stock_only"] is True
     assert plan["exclusions"] == ["candle"]
     assert agentic["relaxations"] == []
-    for strategy in (body["strategies"][2], body["strategies"][3]):
+    for strategy in (body["strategies"][3], body["strategies"][4]):
         assert strategy["rerank"]["status"] == "applied"
         assert strategy["rerank"]["model"] == "cohere.rerank-v3-5:0"
         assert strategy["rerank"]["candidates"] >= strategy["rerank"]["returned"] > 0
         assert strategy["rerank"]["poolK"] >= 3
     assert agentic["strategy"] == "agentic (Sonnet → filter → hybrid → rerank)"
     assert agentic["shares_storefront_executor"] is True
-    assert "shares_storefront_executor" not in body["strategies"][2]
+    assert "shares_storefront_executor" not in body["strategies"][3]
+
+
+def test_comparison_lists_keyword_vector_and_hybrid_side_by_side_in_order() -> None:
+    body = asyncio.run(
+        app_module.compare_search_strategies(query="linen shirt for a trip")
+    )
+
+    assert [s["strategy"] for s in body["strategies"][:3]] == [
+        "keyword only", "vector only", "hybrid (RRF)",
+    ]
+    keyword, vector, hybrid = body["strategies"][:3]
+    assert [p["productId"] for p in keyword["products"]] == [101, 102, 103]
+    assert [p["productId"] for p in vector["products"]] == [1, 2]
+    assert [p["productId"] for p in hybrid["products"]] == [1, 2, 3, 4, 5]
+    assert keyword["observedMs"] >= 0
+    assert keyword["modeledCostPerThousandUsd"] == 0.0
+    assert "rerank" not in keyword and "extractedFilters" not in keyword
+
+
+def test_keyword_strategy_reads_the_raw_query_through_the_full_text_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instances: list[_HybridSearch] = []
+
+    class _Recording(_HybridSearch):
+        def __init__(self, db: Any) -> None:
+            super().__init__(db)
+            instances.append(self)
+
+    monkeypatch.setattr(hybrid_module, "HybridSearch", _Recording)
+    asyncio.run(app_module.compare_search_strategies(query="  linen shirt  "))
+
+    keyword_calls = [call for inst in instances for call in inst.keyword_calls]
+    assert keyword_calls == [{"query": "linen shirt", "k": 5}]
+
+
+def test_keyword_strategy_with_no_lexical_match_reports_an_empty_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _NoLexicalMatch(_HybridSearch):
+        async def keyword_only(self, query: str, k: int = 0) -> list[dict[str, Any]]:
+            return []
+
+    monkeypatch.setattr(hybrid_module, "HybridSearch", _NoLexicalMatch)
+    body = asyncio.run(app_module.compare_search_strategies(query="something quiet"))
+
+    keyword = body["strategies"][0]
+    assert keyword["strategy"] == "keyword only"
+    assert keyword["products"] == []
+    assert len(body["strategies"]) == 5
 
 
 def test_hybrid_rerank_strategy_runs_an_unconstrained_plan_without_widening() -> None:
@@ -232,7 +290,7 @@ def test_hybrid_rerank_strategy_runs_an_unconstrained_plan_without_widening() ->
         )
     )
 
-    hybrid_rerank = body["strategies"][2]
+    hybrid_rerank = body["strategies"][3]
     assert hybrid_rerank["strategy"] == "hybrid + rerank"
     assert hybrid_rerank["rerank"]["candidates"] == 6
     assert "extractedFilters" not in hybrid_rerank
@@ -242,7 +300,7 @@ def test_hybrid_rerank_strategy_runs_an_unconstrained_plan_without_widening() ->
 def test_agentic_strategy_persists_one_receipt_citing_its_returned_rows(
     receipt_writes: list[Any],
 ) -> None:
-    """Lab 2's SQL reads this receipt; it must describe the rows the row shows."""
+    """Lab 1's SQL reads this receipt; it must describe the rows the row shows."""
     body = asyncio.run(
         app_module.compare_search_strategies(
             query="A housewarming gift under $100 that is currently in stock."
@@ -251,7 +309,7 @@ def test_agentic_strategy_persists_one_receipt_citing_its_returned_rows(
 
     assert len(receipt_writes) == 1
     row = receipt_writes[0].to_row()
-    agentic = body["strategies"][3]
+    agentic = body["strategies"][4]
     shown = [str(product["productId"]) for product in agentic["products"]]
     assert row["citation_ids"] == shown
     assert [s["entity_id"] for s in row["citation_snapshots"]] == shown
@@ -308,7 +366,7 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
         )
     )
 
-    hybrid_rerank = body["strategies"][2]["rerank"]
+    hybrid_rerank = body["strategies"][3]["rerank"]
     # An unconfigured pool resolves to the reranker's own document cap, which
     # is the value the fallback disclosure must report: the pool the reranker
     # was offered, not the zero documents it came back with.
@@ -328,7 +386,7 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
         row["productId"] for row in hybrid_rerank["fusedCandidates"]
     ]
     assert settings.RERANK_MAX_DOCUMENTS == 30
-    agentic_rerank = body["strategies"][3]["rerank"]
+    agentic_rerank = body["strategies"][4]["rerank"]
     assert agentic_rerank["status"] == "fallback"
     assert agentic_rerank["fallbackOrder"] == "planned-hybrid-rrf"
 
@@ -340,8 +398,8 @@ def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch, c
     before = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
     monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 20)
     after = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
-    narrow = before["strategies"][3]
-    wide = after["strategies"][3]
+    narrow = before["strategies"][4]
+    wide = after["strategies"][4]
     assert len(narrow["rerank"]["candidateIds"]) == 3
     assert len(wide["rerank"]["candidateIds"]) > 3
     assert narrow["extractedFilters"]["priceMaxUsd"] == wide["extractedFilters"]["priceMaxUsd"]
@@ -431,7 +489,7 @@ def test_the_comparison_runs_both_planned_strategies_through_the_shared_executor
     # Both strategies embed once for the whole request, not once each.
     assert unconstrained["embed"] is agentic["embed"]
     # And the rows the executor returned are the rows the surface reports.
-    assert [product["name"] for product in body["strategies"][3]["products"]]
+    assert [product["name"] for product in body["strategies"][4]["products"]]
 
 
 def test_the_search_explain_surface_deliberately_does_not_run_the_executor(
@@ -457,18 +515,18 @@ def test_the_search_explain_surface_deliberately_does_not_run_the_executor(
     assert [stage["stage"] for stage in body["stages"]][:2] == ["embed", "vector"]
 
 
-def _lab_2_receipt_cte() -> str:
-    """The ``receipt`` CTE from the Lab 2 build artifact, as shipped."""
-    text = LAB_2_SQL.read_text(encoding="utf-8")
+def _lab_1_receipt_cte() -> str:
+    """The ``receipt`` CTE from the Lab 1 build artifact, as shipped."""
+    text = LAB_1_SQL.read_text(encoding="utf-8")
     start = text.index("WITH receipt AS (")
     end = text.index(")", text.index("LIMIT 1", start)) + 1
     return text[start:end]
 
 
-def test_lab_2_selects_the_comparison_surface_and_names_the_turn_it_read() -> None:
+def test_lab_1_selects_the_comparison_surface_and_names_the_turn_it_read() -> None:
     """Bind the worksheet to the captured request without depending on query copy."""
-    text = LAB_2_SQL.read_text(encoding="utf-8")
-    cte = _lab_2_receipt_cte()
+    text = LAB_1_SQL.read_text(encoding="utf-8")
+    cte = _lab_1_receipt_cte()
 
     predicates = [
         line.strip()
@@ -486,18 +544,18 @@ def test_lab_2_selects_the_comparison_surface_and_names_the_turn_it_read() -> No
     assert "LIMIT 1" in cte
     # The participant can see which turn the fusion table came from.
     assert "r.query_preview," in text
-    assert "\\echo 'Lab 2 fusion source query:' :lab_2_query" in text
-    for marker in LAB_2_MARKERS:
+    assert "\\echo 'Lab 1 fusion source query:' :lab_1_query" in text
+    for marker in LAB_1_MARKERS:
         assert text.count(marker) == 1
 
 
-def test_every_shipped_copy_of_lab_2_carries_the_same_receipt_selection() -> None:
+def test_every_shipped_copy_of_lab_1_carries_the_same_receipt_selection() -> None:
     """Starter and solution differ by the fusion expression, never by the source."""
     predicate = (
         "AND retrieval_config->>'source' = "
         f"'{app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE}'"
     )
-    for path in (LAB_2_SQL, LAB_2_STARTER_SQL, LAB_2_SOLUTION_SQL):
+    for path in (LAB_1_SQL, LAB_1_STARTER_SQL, LAB_1_SOLUTION_SQL):
         assert predicate in path.read_text(encoding="utf-8"), path
         assert "AND turn_id = :'comparison_id'" in path.read_text(encoding="utf-8"), path
         assert "AND recomputed_rrf IS NOT NULL" in path.read_text(encoding="utf-8"), path
@@ -508,10 +566,10 @@ def test_the_storefront_writer_leaves_the_comparison_source_unset() -> None:
     assert "source" not in agent_tools_module._hybrid_retrieval_config()
 
 
-def test_lab_2_would_select_exactly_the_receipt_the_comparison_just_wrote(
+def test_lab_1_would_select_exactly_the_receipt_the_comparison_just_wrote(
     receipt_writes: list[Any],
 ) -> None:
-    """The one coupling that matters: endpoint writes it, Lab 2 reads it.
+    """The one coupling that matters: endpoint writes it, Lab 1 reads it.
 
     The simulated table starts with three older receipts, including one
     carrying the retired literal the SQL used to pin, so a selection that

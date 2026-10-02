@@ -9,12 +9,12 @@
 #   1b. Claude Code   — CLI present + pinned Bedrock model reachable
 #   2. Apply solutions — complete Inventory Agent and wire check_inventory
 #   3. Build + trace  — POST /api/chat/stream; assert Brooklyn, count, ship window
-#   4. Retrieval      — run the exact four-strategy Lab 2 request
+#   4. Retrieval      — run the exact five-strategy Lab 1 request
 #   5. Audit ledger   — run initiate_return and query its exact session receipt
 #   6. SQL claims     — Beeswax 40/30/30 split (pin run-of-show number) +
 #                       pg_trgm index presence/plan (migration 008 claim)
 #
-# This applies both Lab 1 marker-scoped solutions temporarily and creates the
+# This applies both Lab 2 marker-scoped solutions temporarily and creates the
 # same return and audit evidence rows as a participant. It backs both source
 # files up and restores them on exit unless --keep is passed. Run it on a
 # workshop environment, not a production database.
@@ -78,7 +78,7 @@ restore() {
     restored=true
   fi
   if $restored; then
-    info "Restored both Lab 1 source files. Backend will reload."
+    info "Restored both Lab 2 source files. Backend will reload."
   fi
 }
 trap restore EXIT
@@ -152,9 +152,9 @@ else
   exit 1
 fi
 
-# --- 1b. Claude Code preflight (Lab 1's recommended participant path) --------
+# --- 1b. Claude Code preflight (Lab 2's recommended participant path) --------
 #
-# Lab 1 recommends Claude Code as the default build lane, so the release gate
+# Lab 2 recommends Claude Code as the default build lane, so the release gate
 # has to prove the lane can start. This checks the two things that actually
 # drift between accounts — the CLI package and Bedrock model access under the
 # participant instance role — before a room discovers them.
@@ -169,10 +169,10 @@ fi
 # tool implementation plus its proof — which stage 2 applies and stage 3
 # verifies through the same commands a participant runs. The AI edit path
 # itself is a manual fresh-account check; see the facilitator notes.
-echo "[1b/6] Claude Code preflight (Lab 1 recommended lane)"
+echo "[1b/6] Claude Code preflight (Lab 2 recommended lane)"
 CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"
 if ! command -v claude >/dev/null 2>&1; then
-  fail "Claude Code CLI not on PATH — Lab 1's recommended lane cannot start"
+  fail "Claude Code CLI not on PATH — Lab 2's recommended lane cannot start"
 else
   pass "Claude Code CLI present ($(claude --version 2>/dev/null | head -1))"
   claude_smoke="$(
@@ -245,8 +245,8 @@ if echo "$reply" | grep -qi 'check_inventory is in stub state'; then
   fail "Stub envelope still present — solution did not take effect"
 fi
 
-# --- 4a. Lab 2 retrieval comparison ----------------------------------------
-echo "[4a/6] Lab 2 — GET /api/observatory/search-strategies/compare"
+# --- 4a. Lab 1 retrieval comparison ----------------------------------------
+echo "[4a/6] Lab 1 — GET /api/observatory/search-strategies/compare"
 QUERY='A milestone gift for a new homeowner'
 retrieval=""
 if retrieval="$(curl --fail --silent --show-error --max-time 75 \
@@ -254,7 +254,7 @@ if retrieval="$(curl --fail --silent --show-error --max-time 75 \
     "${BASE}/api/observatory/search-strategies/compare" 2>/tmp/dryrun-retrieval.err)"; then
   printf '%s\n' "$retrieval" > /tmp/retrieval-comparison.json
   if printf '%s' "$retrieval" | jq -e '
-      (.strategies | length) == 4
+      (.strategies | length) == 5
       and all(.strategies[];
         (.observedMs | type) == "number"
         and (.modeledCostPerThousandUsd | type) == "number"
@@ -262,13 +262,13 @@ if retrieval="$(curl --fail --silent --show-error --max-time 75 \
       and (.strategies[-1].extractedFilters | type) == "object"
       and (.measurementAssumptions.latency | contains("not a percentile"))
     ' >/dev/null 2>&1; then
-    pass "Four retrieval rows returned with observed latency and modeled cost"
+    pass "Five retrieval rows returned with observed latency and modeled cost"
   else
     fail "Retrieval comparison response contract is incomplete"
     info "First 300 chars: ${retrieval:0:300}"
   fi
 else
-  fail "Lab 2 comparison failed — see /tmp/dryrun-retrieval.err"
+  fail "Lab 1 comparison failed — see /tmp/dryrun-retrieval.err"
 fi
 
 # --- 4b. Ledger write rail --------------------------------------------------

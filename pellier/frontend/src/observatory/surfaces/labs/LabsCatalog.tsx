@@ -25,13 +25,13 @@ export default function LabsCatalog() {
           </div>
           <div className="labs-catalog-orientation">
             <p>
-              Know the facts, respect the requirements, establish the caller,
+              Respect the requirements, know the facts, establish the caller,
               then govern the action. Four customers introduce the next
               responsibility for the same concierge. Each lab has Task A and Task B.
             </p>
             <div className="labs-catalog-start">
-              <Link className="labs-catalog-primary" to={resumePoint ? resumeHref(resumePoint) : '/observatory/workbench?lab=grounded-inventory'}>
-                {resumeLab ? `Resume Lab ${Number(resumeLab.number)}` : 'Start Lab 1'}
+              <Link className="labs-catalog-primary" to={resumePoint ? resumeHref(resumePoint) : `/observatory/workbench?lab=${LAB_EXERCISES[0].id}`}>
+                {resumeLab ? `Resume Lab ${Number(resumeLab.number)}` : `Start Lab ${Number(LAB_EXERCISES[0].number)}`}
               </Link>
             </div>
           </div>

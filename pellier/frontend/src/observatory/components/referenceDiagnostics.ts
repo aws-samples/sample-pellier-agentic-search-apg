@@ -41,7 +41,7 @@ export const REFERENCE_DIAGNOSTICS: Record<ReferenceId, DiagnosticCase[]> = {
     {
       observation: 'Reranking never returns the expected product.',
       mechanism: 'The reranker only sees the supplied candidate pool. A product removed by branch limits, eligibility, or the fused candidate budget cannot be restored by changing its rerank position.',
-      evidence: 'Locate the product ID in each branch, the fused pool, and the rerank input. Use the constrained Lab 2 receipt to determine where eligibility or truncation removed it.',
+      evidence: 'Locate the product ID in each branch, the fused pool, and the rerank input. Use the constrained Lab 1 receipt to determine where eligibility or truncation removed it.',
     },
   ],
   performance: [

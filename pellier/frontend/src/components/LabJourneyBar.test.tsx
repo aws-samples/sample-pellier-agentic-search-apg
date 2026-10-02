@@ -66,7 +66,7 @@ describe('LabJourneyBar', () => {
     renderAt('/observatory/workbench')
     const views = screen.getByRole('region', { name: 'Lab 3 views' })
     expect(within(views).getAllByRole('link').map(link => link.textContent)).toEqual(['Workbench', 'Tool Registry', 'Memory'])
-    fireEvent.click(screen.getByRole('link', { name: 'Lab 1 Marco: Build a PostgreSQL-Grounded Agent' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Lab 2 Marco: Build a PostgreSQL-Grounded Agent' }))
     expect(readLabJourney().lab).toBe('grounded-inventory')
     expect(screen.getByTestId('where')).toHaveTextContent('/observatory/workbench')
   })
@@ -85,17 +85,17 @@ describe('LabJourneyBar', () => {
     expect(screen.queryByTestId('lab-journey')).not.toBeInTheDocument()
   })
 
-  it('never sends Lab 1 to a Proof Board without the turn that Why this answer? carries', () => {
+  it('never sends Lab 2 to a Proof Board without the turn that Why this answer? carries', () => {
     openLabJourney('grounded-inventory')
     const receipt = LAB_JOURNEYS['grounded-inventory'].findIndex(step => step.label === 'Read the receipt')
     setLabJourneyStep('grounded-inventory', receipt)
     for (const path of ['/', '/observatory/proof-board?turn=turn-abc']) {
       const { unmount } = renderAt(path)
-      // The step's own action: the menu may still list Proof Board as Lab 1's
+      // The step's own action: the menu may still list Proof Board as Lab 2's
       // reference view, which is the view, not this turn's receipt.
       const action = document.querySelector('.pellier-journey-action')
       expect(action?.getAttribute('href') ?? '', path).not.toMatch(/^\/observatory\/proof-board/)
-      expect(screen.getByRole('button', { name: 'Next: Record lab-1.json' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Next: Record lab-2.json' })).toBeInTheDocument()
       unmount()
     }
   })

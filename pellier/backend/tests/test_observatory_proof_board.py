@@ -434,9 +434,9 @@ def test_proof_board_returns_cards_receipt_and_fallbacks(monkeypatch) -> None:
     assert "act" not in cards["marco-floor-check"]
     assert cards["audit-ledger"]["status"] == "complete"
     assert cards["managed-rail"]["status"] == "complete"
-    assert cards["marco-floor-check"]["lab"] == "Lab 1: Build a PostgreSQL-Grounded Agent"
+    assert cards["marco-floor-check"]["lab"] == "Lab 2: Build a PostgreSQL-Grounded Agent"
     assert cards["retrieval-comparison"]["lab"] == (
-        "Lab 2: Build and Measure PostgreSQL Hybrid Retrieval"
+        "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval"
     )
     assert cards["retrieval-comparison"]["status"] == "available"
     assert cards["managed-rail"]["lab"] == (

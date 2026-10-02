@@ -532,7 +532,7 @@ export const PERSONA_BECAUSE_CHIPS: Record<string, BecauseChip[]> = {
     {
       kind: 'memory',
       text: 'you were shopping for a milestone gift',
-      // Fires Anna's canonical Lab 2 retrieval query verbatim so the lab
+      // Fires Anna's canonical Lab 1 retrieval query verbatim so the lab
       // guide's "click, don't type" path, the golden journey entryPrompt
       // (backend/tests/golden/journeys.json), the search-strategies
       // comparison, and the eval harness golden set all measure the same

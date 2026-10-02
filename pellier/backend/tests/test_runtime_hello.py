@@ -67,7 +67,7 @@ def test_the_evidence_file_is_labelled_so_two_runs_do_not_collide() -> None:
     assert 'LABEL="baseline"' in body
 
 
-def test_the_prompt_avoids_the_specialist_lab_1_has_not_built_yet() -> None:
+def test_the_prompt_avoids_the_specialist_lab_2_has_not_built_yet() -> None:
     """At orientation the inventory specialist is a stub. Routing there would
     make provisioning look broken when it is the exercise."""
     body = _hello()

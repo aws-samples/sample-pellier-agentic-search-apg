@@ -1,6 +1,6 @@
 export const LAB_EXERCISE_IDS = [
-  'grounded-inventory',
   'retrieval-acceptance',
+  'grounded-inventory',
   'managed-agent-path',
   'fail-closed-policy',
 ] as const;
@@ -54,13 +54,66 @@ export interface LabExercise {
 
 export const LAB_EXERCISES: readonly LabExercise[] = [
   {
-    id: 'grounded-inventory',
+    id: 'retrieval-acceptance',
     number: '01',
+    anchorName: 'Anna',
+    title: 'Build and Measure PostgreSQL Hybrid Retrieval',
+    shortTitle: 'PostgreSQL hybrid retrieval',
+    customerNeed: "Anna needs a gift under $100. Alternatives may change her preferences, never her requirements.",
+    nextBoundary: "You can find suitable products. Next, ground Marco’s stock answer in Aurora.",
+    lesson: 'Ranking is arithmetic you can recompute, and a retry may relax a preference but never a requirement. Similarity decides the order; SQL decides what is eligible.',
+    image: '/assets/personas/anna-720.webp',
+    imageWidth: 720,
+    imageHeight: 1080,
+    proofCardIds: ['retrieval-comparison'],
+    objective:
+      'Explain Anna’s recorded ranking, then preserve her budget, stock requirements and exclusions when the agent relaxes a preference.',
+    participantTodo: "Task 1A: reconstruct recorded RRF. Task 1B: preserve the original requirements in every fallback attempt.",
+    buildConnection: {
+      files: ['workshop/lab-1-rrf.sql', 'pellier/backend/services/search_plan.py'],
+      requestPath: 'Storefront or comparison → shared retrieval executor → Aurora candidates → Cohere Rerank',
+      observableChange: 'The SQL worksheet verifies saved fusion scores. The Python plan edit preserves original requirements when a preference is relaxed.',
+      counterexample: 'A fallback must not admit an over-budget, unavailable or excluded product. Check both the original and relaxed plans.',
+    },
+    command:
+      'psql -X -v ON_ERROR_STOP=1 -P pager=off -c "\nSELECT receipt_id, hard_constraints, retrieval_config,\n       latency_breakdown, modeled_cost_usd\n  FROM pellier.retrieval_receipts\n ORDER BY receipt_id DESC\n LIMIT 1;"',
+    measurements: {
+      before: {
+        label: 'Before',
+        value: 'The unfinished fallback refuses to relax a preference until its requirement-preservation contract is implemented.',
+      },
+      after: {
+        label: 'Acceptance target',
+        value: 'One receipt exposes branch ranks, RRF, rerank, observed latency, modeled cost, returned products, and enforced eligibility.',
+      },
+    },
+    evidenceAssertion:
+      'SQL recomputes the recorded RRF contribution and finds no price, stock, or archive violation in the exact returned IDs.',
+    decisionPrompt:
+      'Which preferences may change, which requirements must remain, and what evidence proves both?',
+    primaryAction: {
+      label: 'Open retrieval comparison',
+      to: '/observatory/performance',
+    },
+    supportingActions: [
+      {
+        label: 'Inspect retrieval proof',
+        to: '/observatory/proof-board#retrieval-comparison',
+      },
+      {
+        label: 'Open search reference',
+        to: '/observatory/search',
+      },
+    ],
+  },
+  {
+    id: 'grounded-inventory',
+    number: '02',
     anchorName: 'Marco',
     title: 'Build a PostgreSQL-Grounded Agent',
     shortTitle: 'PostgreSQL-grounded agent',
     customerNeed: "Marco needs reliable stock and dispatch facts before his trip.",
-    nextBoundary: "You can check a product. Next, help Anna find the right product without changing her requirements.",
+    nextBoundary: "You can check a product. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary.",
     lesson: 'An agent can only claim what its tool returns, so the tool must pass the database’s answer through unchanged. Unknown, ambiguous and zero stock are three different answers.',
     image: '/assets/personas/marco-720.webp',
     imageWidth: 720,
@@ -68,7 +121,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     proofCardIds: ['marco-floor-check'],
     objective:
       'Ground Marco’s warehouse answer in current Aurora rows. Reconcile the stock count and recorded ship window with the tool’s execution receipt.',
-    participantTodo: "Task 1A: implement the inventory result contract. Task 1B: wire the specialist and prove a real Storefront turn.",
+    participantTodo: "Task 2A: implement the inventory result contract. Task 2B: wire the specialist and prove a real Storefront turn.",
     buildConnection: {
       files: ['pellier/backend/agents/inventory_agent.py', 'pellier/backend/services/agent_tools.py'],
       requestPath: 'Storefront → chat API → Inventory Agent → check_inventory → Aurora',
@@ -103,59 +156,6 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       {
         label: 'Open tool reference',
         to: '/observatory/tools',
-      },
-    ],
-  },
-  {
-    id: 'retrieval-acceptance',
-    number: '02',
-    anchorName: 'Anna',
-    title: 'Build and Measure PostgreSQL Hybrid Retrieval',
-    shortTitle: 'PostgreSQL hybrid retrieval',
-    customerNeed: "Anna needs a gift under $100. Alternatives may change her preferences, never her requirements.",
-    nextBoundary: "You can find suitable products. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary.",
-    lesson: 'Ranking is arithmetic you can recompute, and a retry may relax a preference but never a requirement. Similarity decides the order; SQL decides what is eligible.',
-    image: '/assets/personas/anna-720.webp',
-    imageWidth: 720,
-    imageHeight: 1080,
-    proofCardIds: ['retrieval-comparison'],
-    objective:
-      'Explain Anna’s recorded ranking, then preserve her budget, stock requirements and exclusions when the agent relaxes a preference.',
-    participantTodo: "Task 2A: reconstruct recorded RRF. Task 2B: preserve the original requirements in every fallback attempt.",
-    buildConnection: {
-      files: ['workshop/lab-2-rrf.sql', 'pellier/backend/services/search_plan.py'],
-      requestPath: 'Storefront or comparison → shared retrieval executor → Aurora candidates → Cohere Rerank',
-      observableChange: 'The SQL worksheet verifies saved fusion scores. The Python plan edit preserves original requirements when a preference is relaxed.',
-      counterexample: 'A fallback must not admit an over-budget, unavailable or excluded product. Check both the original and relaxed plans.',
-    },
-    command:
-      'psql -X -v ON_ERROR_STOP=1 -P pager=off -c "\nSELECT receipt_id, hard_constraints, retrieval_config,\n       latency_breakdown, modeled_cost_usd\n  FROM pellier.retrieval_receipts\n ORDER BY receipt_id DESC\n LIMIT 1;"',
-    measurements: {
-      before: {
-        label: 'Before',
-        value: 'The unfinished fallback refuses to relax a preference until its requirement-preservation contract is implemented.',
-      },
-      after: {
-        label: 'Acceptance target',
-        value: 'One receipt exposes branch ranks, RRF, rerank, observed latency, modeled cost, returned products, and enforced eligibility.',
-      },
-    },
-    evidenceAssertion:
-      'SQL recomputes the recorded RRF contribution and finds no price, stock, or archive violation in the exact returned IDs.',
-    decisionPrompt:
-      'Which preferences may change, which requirements must remain, and what evidence proves both?',
-    primaryAction: {
-      label: 'Open retrieval comparison',
-      to: '/observatory/performance',
-    },
-    supportingActions: [
-      {
-        label: 'Inspect retrieval proof',
-        to: '/observatory/proof-board#retrieval-comparison',
-      },
-      {
-        label: 'Open search reference',
-        to: '/observatory/search',
       },
     ],
   },
@@ -219,7 +219,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
     title: 'Build Governed Agent Actions with Cedar',
     shortTitle: 'Governed actions with Cedar',
     customerNeed: "Jessica needs her service request resolved safely. Staff must establish what happened before choosing the next action.",
-    nextBoundary: "Bring the four claims together: facts, requirements, caller and effect. Save your evidence and the next production question.",
+    nextBoundary: "Bring the four claims together: requirements, facts, caller and effect. Save your evidence and the next production question.",
     lesson: 'Each boundary an action crosses needs its own evidence. An ALLOW is not a commit, hiding a response is not a rollback, and an absence counts only beside a positive control.',
     image: '/assets/personas/jessica-720.webp',
     imageWidth: 720,

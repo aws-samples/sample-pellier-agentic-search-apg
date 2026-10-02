@@ -283,7 +283,7 @@ describe('MicroEvalCard', () => {
 });
 
 describe('an unlabelled golden set', () => {
-  // Lab 2b pins the labels. Before it is built the backend reports
+  // Lab 1b pins the labels. Before it is built the backend reports
   // `golden_set_size: 0` and every quality ratio is 0.0 for want of a
   // denominator. Rendering those bare reads as "retrieval is broken", which is
   // the opposite of what the numbers mean.

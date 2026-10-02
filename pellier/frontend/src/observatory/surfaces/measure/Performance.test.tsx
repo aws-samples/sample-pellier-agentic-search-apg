@@ -41,6 +41,26 @@ describe('Retrieval experiments without existing telemetry', () => {
     await userEvent.click(screen.getByText('Inspect the typed plan and enforced constraints'));
     expect(screen.getByText(/"price_max_usd": 100/)).toBeVisible();
   });
+  it('shows keyword, vector and hybrid rows side by side in the order returned', async () => {
+    const result = payload();
+    const row = (strategy: string, name: string, productId: number) => ({
+      strategy, observedMs: 3, modeledCostPerThousandUsd: 0, products: [{ productId, name }],
+    });
+    result.strategies = [
+      row('keyword only', 'Keyword hit', 11),
+      row('vector only', 'Vector hit', 12),
+      row('hybrid (RRF)', 'Hybrid hit', 13),
+      ...result.strategies,
+    ] as typeof result.strategies;
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => result } as Response);
+    view(); await userEvent.click(screen.getByRole('button', { name: 'Run on Aurora' }));
+    const headings = (await screen.findAllByRole('heading', { level: 3 })).map(h => h.textContent);
+    const compared = ['keyword only', 'vector only', 'hybrid (RRF)'];
+    expect(headings.filter(heading => compared.includes(heading ?? ''))).toEqual(compared);
+    expect(screen.getByRole('list', { name: 'keyword only product order' })).toHaveTextContent('Keyword hit');
+    expect(screen.getByRole('list', { name: 'vector only product order' })).toHaveTextContent('Vector hit');
+    expect(screen.getByRole('list', { name: 'hybrid (RRF) product order' })).toHaveTextContent('Hybrid hit');
+  });
   it('never upgrades an unpersisted response into durable proof', async () => {
     const result = payload(); result.receipt.persisted = false;
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => result } as Response);

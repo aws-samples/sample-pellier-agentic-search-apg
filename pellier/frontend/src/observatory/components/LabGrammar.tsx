@@ -31,7 +31,7 @@ export type EvidenceProvenance = 'live' | 'fixture' | 'modeled' | 'unavailable';
 export type ProofState = 'pass' | 'fail' | 'pending';
 
 export interface LabGrammarProps {
-  /** Persistent "you are here" indicator, e.g. "Lab 1 · Build a PostgreSQL-Grounded Agent". */
+  /** Persistent "you are here" indicator, e.g. "Lab 2 · Build a PostgreSQL-Grounded Agent". */
   labLabel: string;
   /** What the attendee does in Pellier. */
   try: React.ReactNode;

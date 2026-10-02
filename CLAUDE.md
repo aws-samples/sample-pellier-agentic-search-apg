@@ -43,10 +43,10 @@ participant's named task and prediction before proposing a change.
 
 | Task | Allowed file | Allowed marker |
 |---|---|---|
-| 1A | `pellier/backend/services/agent_tools.py` | `Inventory Agent · check_inventory` |
-| 1B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent · definition` |
-| 2A | `workshop/lab-2-rrf.sql` | `PostgreSQL RRF · fusion expression` |
-| 2B | `pellier/backend/services/search_plan.py` | `Search plan · preserve requirements` |
+| 1A | `workshop/lab-1-rrf.sql` | `PostgreSQL RRF · fusion expression` |
+| 1B | `pellier/backend/services/search_plan.py` | `Search plan · preserve requirements` |
+| 2A | `pellier/backend/services/agent_tools.py` | `Inventory Agent · check_inventory` |
+| 2B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent · definition` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue · published tools` |
 | 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue · support reconcile` |
 | 4A | `policies/workshop_identity_match_forbid.cedar` | final `unless` block |
@@ -109,8 +109,8 @@ anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
 |---|---|---|---|
-| 1. Build a PostgreSQL-Grounded Agent | Marco | Implement the inventory result contract | Wire the specialist and prove a real turn |
-| 2. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | Implement the inventory result contract | Wire the specialist and prove a real turn |
 | 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
 | 4. Build Governed Agent Actions with Cedar | Jessica | Author Cedar ownership and distinguish outcomes | Author RLS and keyed evidence, then investigate as staff |
 

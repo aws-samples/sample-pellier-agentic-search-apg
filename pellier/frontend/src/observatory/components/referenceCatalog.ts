@@ -32,15 +32,15 @@ export const REFERENCES = {
   },
   search: {
     label: 'Search pipeline', path: '/observatory/search', lab: 'retrieval-acceptance',
-    role: 'Mechanism experiment · Lab 2',
+    role: 'Mechanism experiment · Lab 1',
     question: 'Why did a candidate move between retrieval and reranking?',
     inspect: 'Compare vector and lexical ranks, recompute a fused score, and inspect the rerank position change. RRF adds reciprocal ranks; a candidate absent from the pool cannot be recovered by reranking.',
-    limit: 'This is a new, unconstrained query. It does not replay a shopper turn, enforce Anna’s typed price and stock constraints, or persist a retrieval receipt. Use Retrieval comparison and the Lab 2 receipt for those checks.',
+    limit: 'This is a new, unconstrained query. It does not replay a shopper turn, enforce Anna’s typed price and stock constraints, or persist a retrieval receipt. Use Retrieval comparison and the Lab 1 receipt for those checks.',
     sources: ['pellier/backend/app.py', 'pellier/backend/services/hybrid_search.py', 'pellier/backend/services/planned_hybrid_retrieval.py'],
   },
   performance: {
     label: 'Retrieval comparison', path: '/observatory/performance', lab: 'retrieval-acceptance',
-    role: 'Controlled comparison · Lab 2',
+    role: 'Controlled comparison · Lab 1',
     question: 'What does each retrieval strategy buy for this query?',
     inspect: 'Compare returned products, constraint enforcement, observed time, and modeled request cost. Read the agentic row’s typed plan and retain its comparison receipt before defending the candidate budget.',
     limit: 'Each strategy runs once after a shared embedding. These times are not percentiles and the costs are not a bill. Product order alone does not measure recall; the separate pool experiment uses a bounded labelled query set.',
@@ -48,7 +48,7 @@ export const REFERENCES = {
   },
   tools: {
     label: 'Tool Registry', path: '/observatory/tools', lab: 'managed-agent-path',
-    role: 'Contract inspection · Labs 1 & 3',
+    role: 'Contract inspection · Labs 2 & 3',
     question: 'Is this tool implemented, published, visible, and permitted?',
     inspect: 'Inspect check_inventory’s input contract, then get_ticket_history’s canonical schema. Lab 3 separately checks Gateway publication, the Runtime catalogue, and owned versus foreign customer reads.',
     limit: 'A source build count or pgvector discovery match is not the caller-visible Gateway catalogue. Neither establishes invocation permission. Match the managed invocation to its build fingerprint and execution receipt.',
@@ -82,7 +82,7 @@ export const REFERENCES = {
     label: 'Evaluations', path: '/observatory/evaluations', lab: 'retrieval-acceptance',
     role: 'After the labs · Evaluation design',
     question: 'What evidence would justify a broader quality claim?',
-    inspect: 'Start with Lab 2’s preserved requirements and exact retrieval receipt and Lab 4’s outcome matrix. Define held-out queries, relevance labels, failure cases, and a fixed build before comparing repeated runs.',
+    inspect: 'Start with Lab 1’s preserved requirements and exact retrieval receipt and Lab 4’s outcome matrix. Define held-out queries, relevance labels, failure cases, and a fixed build before comparing repeated runs.',
     limit: 'Configured evaluators and local test definitions are not measured scorecards. Workshop acceptance covers bounded cases; it does not establish production accuracy or P95 latency.',
     sources: ['pellier/backend/services/agentcore_evals.py', 'scripts/eval_retrieval_harness.py', 'pellier/backend/tests/test_golden_journeys.py'],
   },
@@ -121,8 +121,8 @@ function labGroup(lab: LabExerciseId, number: number, person: string, focus: str
 }
 
 export const LAB_REFERENCE_GROUPS: LabReferenceGroup[] = [
-  labGroup('grounded-inventory', 1, 'Marco', 'Ground the answer', 'Which database fact supports the answer?', ['sessions', 'proof']),
-  labGroup('retrieval-acceptance', 2, 'Anna', 'Explain retrieval', 'Which candidates survive, and why?', ['search', 'performance']),
+  labGroup('retrieval-acceptance', 1, 'Anna', 'Explain retrieval', 'Which candidates survive, and why?', ['search', 'performance']),
+  labGroup('grounded-inventory', 2, 'Marco', 'Ground the answer', 'Which database fact supports the answer?', ['sessions', 'proof']),
   labGroup('managed-agent-path', 3, 'Theo', 'Prove the managed path', 'What crossed the tool and memory boundaries?', ['tools', 'memory']),
   labGroup('fail-closed-policy', 4, 'Jessica', 'Defend the outcome', 'What was authorized, executed, and committed?', ['govern', 'architecture']),
 ];

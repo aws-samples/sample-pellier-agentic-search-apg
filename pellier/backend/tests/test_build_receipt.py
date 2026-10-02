@@ -46,7 +46,7 @@ class TestUncheckedIsNotFailure:
             {"available": False, "reason": "connection refused"}
         )
         labs = built["labs"]
-        assert labs["02_measure_hybrid_retrieval"]["hybrid_receipt"] == UNCHECKED
+        assert labs["01_measure_hybrid_retrieval"]["hybrid_receipt"] == UNCHECKED
         assert labs["03_operate_the_managed_path"]["managed_rail"] == UNCHECKED
         assert labs["04_govern_and_prove"]["decisions"] == UNCHECKED
         # The reason travels with the receipt, so a reader can act on it.
@@ -58,15 +58,15 @@ class TestUncheckedIsNotFailure:
             {
                 "available": True,
                 "principal_sub": "sub-1",
-                "lab1": None,
                 "lab2": None,
+                "lab1": None,
                 "lab3": None,
                 "lab3_memory": None,
                 "lab4": [],
             }
         )
         labs = built["labs"]
-        assert labs["02_measure_hybrid_retrieval"]["hybrid_receipt"] == NOT_YET
+        assert labs["01_measure_hybrid_retrieval"]["hybrid_receipt"] == NOT_YET
         assert labs["03_operate_the_managed_path"]["managed_rail"] == NOT_YET
         assert labs["04_govern_and_prove"]["decisions"] == NOT_YET
 
@@ -75,16 +75,16 @@ class TestUncheckedIsNotFailure:
             {
                 "available": True,
                 "principal_sub": "sub-1",
-                "lab1": {"audit_id": 4099, "turn_id": "turn-abc"},
-                "lab2": {"receipt_id": 12, "reranked": True},
+                "lab2": {"audit_id": 4099, "turn_id": "turn-abc"},
+                "lab1": {"receipt_id": 12, "reranked": True},
                 "lab3": {"turn_id": "turn-abc", "rail": "gateway-mcp"},
                 "lab3_memory": {"receipt_id": 12, "records": 3},
                 "lab4": [],
             }
         )
         labs = built["labs"]
-        assert labs["01_ground_the_answer"]["execution_row"] == PROVED
-        assert labs["02_measure_hybrid_retrieval"]["hybrid_receipt"] == PROVED
+        assert labs["02_ground_the_answer"]["execution_row"] == PROVED
+        assert labs["01_measure_hybrid_retrieval"]["hybrid_receipt"] == PROVED
         assert labs["03_operate_the_managed_path"]["managed_rail"] == PROVED
         assert labs["03_operate_the_managed_path"]["memory_informed_a_turn"] == PROVED
 
@@ -204,8 +204,8 @@ class TestSourceState:
         state = receipt_module.collect_source_state()
         assert len(state) == 9
         assert {entry["lab"] for entry in state.values()} == {
-            "01_ground_the_answer",
-            "02_measure_hybrid_retrieval",
+            "02_ground_the_answer",
+            "01_measure_hybrid_retrieval",
             "03_operate_the_managed_path",
             "04_govern_and_prove",
         }
@@ -268,8 +268,8 @@ class TestReporting:
             {
                 "available": True,
                 "principal_sub": "sub-1",
-                "lab1": {"audit_id": 1},
-                "lab2": {"receipt_id": 1},
+                "lab2": {"audit_id": 1},
+                "lab1": {"receipt_id": 1},
                 "lab3": {"turn_id": "t"},
                 "lab3_memory": {"receipt_id": 1},
                 "lab4": [
@@ -459,8 +459,8 @@ def _complete_evidence() -> dict[str, Any]:
         "principal_sub": "sub-1",
         "run_id": RUN_ID,
         "run_scope": "run_id",
-        "lab1": {"audit_id": 1},
-        "lab2": {"receipt_id": 1},
+        "lab2": {"audit_id": 1},
+        "lab1": {"receipt_id": 1},
         # A complete run's managed turn carries the fingerprint comparison,
         # so "the Runtime executed MY package" is answerable rather than
         # assumed from a successful invocation.
@@ -730,8 +730,8 @@ class TestEveryQueryParsesOnPostgres:
     def test_every_receipt_query_executes(self, pg: Any, sub: Any, scoped: bool) -> None:
         queries = (
             ("principals", receipt_module._RUN_PRINCIPALS),
-            ("lab1", receipt_module._LAB1),
             ("lab2", receipt_module._LAB2),
+            ("lab1", receipt_module._LAB1),
             ("lab3", receipt_module._LAB3),
             ("lab3_memory", receipt_module._LAB3_MEMORY),
             ("lab4", receipt_module._LAB4),
@@ -758,7 +758,7 @@ class TestAnonymousLabsSurviveTheDefaultScope:
         schema = pg.schema
         with pg.cursor() as cur:
             cur.execute(f'SET search_path TO "{schema}"')
-            # Lab 1: anonymous.
+            # Lab 2: anonymous.
             cur.execute(
                 "INSERT INTO tool_audit (session_id, tool, caller, args, result, run_id)"
                 " VALUES ('s1','check_inventory','inprocess',"
@@ -767,7 +767,7 @@ class TestAnonymousLabsSurviveTheDefaultScope:
                 "INSERT INTO governed_turn_receipts"
                 " (turn_id, principal_sub, rail, terminal_status, run_id)"
                 " VALUES ('t1', NULL, 'inprocess', 'complete', %s)", (RUN_ID,))
-            # Lab 2: anonymous.
+            # Lab 1: anonymous.
             cur.execute(
                 "INSERT INTO retrieval_receipts (principal_sub, turn_id, vector_ranks,"
                 " lexical_ranks, rrf_scores, run_id) VALUES (NULL,'t2',"
@@ -781,15 +781,15 @@ class TestAnonymousLabsSurviveTheDefaultScope:
                 " '{\"buildState\":\"current\"}'::jsonb,%s)", (SUB, RUN_ID))
         pg.commit()
 
-        lab1 = _run_lab_sql(pg, receipt_module._LAB1, "lab1", sub=None, scoped=True)
         lab2 = _run_lab_sql(pg, receipt_module._LAB2, "lab2", sub=None, scoped=True)
-        assert lab1, "Marco's anonymous execution row was dropped"
-        assert lab2, "Anna's anonymous retrieval receipt was dropped"
+        lab1 = _run_lab_sql(pg, receipt_module._LAB1, "lab1", sub=None, scoped=True)
+        assert lab2, "Marco's anonymous execution row was dropped"
+        assert lab1, "Anna's anonymous retrieval receipt was dropped"
 
         # And the old behaviour, reproduced: filtering on the signed-in
         # identity discards both.
-        assert not _run_lab_sql(pg, receipt_module._LAB1, "lab1", sub=SUB, scoped=True)
         assert not _run_lab_sql(pg, receipt_module._LAB2, "lab2", sub=SUB, scoped=True)
+        assert not _run_lab_sql(pg, receipt_module._LAB1, "lab1", sub=SUB, scoped=True)
 
 
 class _Lab3Rows:

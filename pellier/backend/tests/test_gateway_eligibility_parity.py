@@ -5,7 +5,7 @@ retrieval-quality distractors. Every in-process catalog read filters them out
 with ``NOT (tags ? 'archive')``. The Gateway Lambda promises that swapping the
 rail is "invisible to the agent's prompt", so its catalog reads must carry the
 same predicate; otherwise the managed rail can surface retired pieces the
-storefront never would, and Lab 2's strategy comparison is no longer comparing
+storefront never would, and Lab 1's strategy comparison is no longer comparing
 like with like.
 
 Both sides are checked from source, the way ``test_rrf_parity`` pins the RRF

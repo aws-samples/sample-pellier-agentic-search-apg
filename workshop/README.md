@@ -11,10 +11,10 @@ the same verification requirements.
 
 | Lab and task | Work you do | Evidence to keep |
 |---|---|---|
-| 1A · Marco | Connect inventory to Aurora | Test inputs you chose, classified by the catalog; unknown, ambiguous and zero stay distinct. |
-| 1B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows. |
-| 2A · Anna | Explain the ranking | Your RRF judged against the recorded scores of the exact receipt. |
-| 2B · Anna | Relax preferences, keep requirements | The preference you chose, counts proving strict-empty, unchanged requirements, eligible IDs. |
+| 1A · Anna | Explain the ranking | Your RRF judged against the recorded scores of the exact receipt. |
+| 1B · Anna | Relax preferences, keep requirements | The preference you chose, counts proving strict-empty, unchanged requirements, eligible IDs. |
+| 2A · Marco | Connect inventory to Aurora | Test inputs you chose, classified by the catalog; unknown, ambiguous and zero stay distinct. |
+| 2B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows. |
 | 3A · Theo | Connect the customer-scoped tool | Direct owned and foreign Gateway results. |
 | 3B · Theo | Deploy and challenge the conversation | Agent-path ticket reads bound to Theo, fresh session, executed build; Memory is context. |
 | 4A · Jessica | Write the ownership rule | Five control outcomes under your Cedar rule. |
@@ -22,12 +22,12 @@ the same verification requirements.
 
 Only edit the lab's markers. Python edits in Labs 1–2 need the guide's backend
 restart. Lab 3 packages its support adapter and needs a new Runtime session; it reuses
-provided Lambda tools. The Lab 1 wrapper and Lab 2 planner remain in-process. Lab 4 needs
+provided Lambda tools. The Lab 2 wrapper and Lab 1 planner remain in-process. Lab 4 needs
 policy validation and deployment. Changing a local file does not update AWS.
 
 ## One concierge, four growing responsibilities
 
-**Know the facts → respect the requirements → establish the caller → govern the action.**
+**Respect the requirements → know the facts → establish the caller → govern the action.**
 
 Each customer introduces the next responsibility. Keep the code and evidence from
 each chapter, while using a separate identity and conversation for each customer.
@@ -49,14 +49,14 @@ implementations and evidence boundaries.
   suppressed after a commit must not be retried with a new operation key. Compare
   the existing operation, domain effect, and audit evidence first.
 
-## Revisit Lab 2 without more model calls
+## Revisit Lab 1 without more model calls
 
-The required guide saves one comparison. For an optional pool experiment, first save two same-query comparisons as `lab-2-before.json` and `lab-2-comparison.json`, changing only the candidate budget. Then score the saved returned IDs against the supplied Anna relevance labels:
+The required guide saves one comparison. For an optional pool experiment, first save two same-query comparisons as `lab-1-before.json` and `lab-1-comparison.json`, changing only the candidate budget. Then score the saved returned IDs against the supplied Anna relevance labels:
 
 ```bash
 python3 scripts/eval_retrieval_harness.py --compare-saved \
-  /tmp/pellier-evidence/lab-2-before.json \
-  /tmp/pellier-evidence/lab-2-comparison.json
+  /tmp/pellier-evidence/lab-1-before.json \
+  /tmp/pellier-evidence/lab-1-comparison.json
 ```
 
 This mode makes no service calls. Candidate coverage, Recall@5, MRR@5, and Hit@1 answer different

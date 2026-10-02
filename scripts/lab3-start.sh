@@ -74,7 +74,7 @@ fi
 
 # Each smoke message is that persona's shipped first storefront turn, pinned by
 # frontend/src/observatory/__tests__/persona-turn-alignment.test.ts. Anna's opener
-# is the morning-ritual request, not the canonical Lab 2 comparison query: that one
+# is the morning-ritual request, not the canonical Lab 1 comparison query: that one
 # is what the retrieval comparison and the eval harness measure, not what she says
 # first. Keep these in step with the fixtures rather than with a lab guide.
 case "$PERSONA" in

@@ -60,7 +60,7 @@ export const EditorialTitle: React.FC<EditorialTitleProps> = ({
   aside,
 }) => {
   // A lab's reference view returns to the Workbench of the lab being followed
-  // (Anna's Proof Board visit returns to Lab 2), else to the view's own lab.
+  // (Anna's Proof Board visit returns to Lab 1), else to the view's own lab.
   // Any other reference returns to the full index on the Lab Collection.
   const { lab: activeLab } = useLabJourney();
   const ownGroup = referenceId ? labGroupFor(referenceId) : undefined;

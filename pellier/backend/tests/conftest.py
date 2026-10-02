@@ -52,6 +52,6 @@ def completed_search_plan(monkeypatch):
     from dataclasses import replace
     from services.search_plan import SearchPlan
 
-    if "Complete Task 2B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations):
+    if "Complete Task 1B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations):
         monkeypatch.setattr(SearchPlan, "_with_relaxations",
                             lambda self, relaxations: replace(self, relaxations=list(relaxations)))

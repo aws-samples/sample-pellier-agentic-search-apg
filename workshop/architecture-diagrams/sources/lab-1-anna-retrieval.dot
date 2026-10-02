@@ -1,11 +1,11 @@
-digraph Lab2AnnaRetrieval {
+digraph Lab1AnnaRetrieval {
   graph [
     bgcolor="#f7f3ec",
     dpi=144,
     fontcolor="#1f1410",
     fontname="Helvetica Neue",
     fontsize=22,
-    label="LAB 2 · ANNA\nBuild and measure bounded PostgreSQL hybrid retrieval",
+    label="LAB 1 · ANNA\nBuild and measure bounded PostgreSQL hybrid retrieval",
     labelloc=t,
     labeljust=l,
     margin=0,
@@ -80,15 +80,15 @@ digraph Lab2AnnaRetrieval {
     fontcolor="#3f6212",
     width=3.6
   ];
-  lab2a [
-    label="BUILD 2a · RECONSTRUCT AND VERIFY\nworkshop/lab-2-rrf.sql\nRecompute RRF from the recorded ranks\nand check it against recorded_rrf",
+  lab1a [
+    label="BUILD 2a · RECONSTRUCT AND VERIFY\nworkshop/lab-1-rrf.sql\nRecompute RRF from the recorded ranks\nand check it against recorded_rrf",
     color="#9a3412",
     fillcolor="#fff7ed",
     fontcolor="#7c2d12",
     width=3.6,
     penwidth=2
   ];
-  receipt -> lab2a [
+  receipt -> lab1a [
     label="READ · recorded ranks + score",
     color="#9a3412",
     fontcolor="#7c2d12",

@@ -126,7 +126,7 @@ def test_micro_eval_envelope_matches_the_frontend_contract(stub_services: _Reran
         "query",
         "limit",
         "repetitions",
-        # Lab 2b's labelled set. Every quality ratio below divides by it, so
+        # Lab 1b's labelled set. Every quality ratio below divides by it, so
         # the surface needs the count to tell "unlabelled" from "scored zero".
         "golden_set_size",
         "variants",
@@ -425,7 +425,7 @@ def test_micro_eval_scores_the_same_knob_on_the_held_out_labels(
 
 
 def _reference_tuning_ids() -> set[str]:
-    """The labels Lab 2b arrives at, read from the reference solution.
+    """The labels Lab 1b arrives at, read from the reference solution.
 
     The starter ships the tuning set empty, so a disjointness check against the
     live constant is vacuous; the solution's ids are what the held-out slice

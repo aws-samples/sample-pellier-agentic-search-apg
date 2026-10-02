@@ -98,7 +98,7 @@ _INVENTORY_SYSTEM_PROMPT = (
 # === WORKSHOP · Inventory Agent · definition: START ===
 # WORKSHOP_EXERCISE_STUB
 #
-# Task 1B: choose the read tools that can establish the inventory facts.
+# Task 2B: choose the read tools that can establish the inventory facts.
 # Prompt and model configuration are supplied. Clear the stub after the grant.
 _INVENTORY_AGENT_STUBBED = True
 
