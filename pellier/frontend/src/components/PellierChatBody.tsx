@@ -408,7 +408,7 @@ function AgentMessage({
       ? `${sourceActivity.length} ${sourceActivity.length === 1 ? 'source' : 'sources'}`
       : null,
     loadedSkills.length > 0
-      ? `${loadedSkills.length} specialty edit${loadedSkills.length === 1 ? '' : 's'}`
+      ? `${loadedSkills.length} skill${loadedSkills.length === 1 ? '' : 's'}`
       : null,
     dedupedToolCalls.length
       ? `${dedupedToolCalls.length} check${dedupedToolCalls.length === 1 ? '' : 's'}`
@@ -506,7 +506,7 @@ function AgentMessage({
 
               {loadedSkills.length > 0 && (
                 <div className="ec-worked-section">
-                  <div className="ec-worked-section-label">Specialty edit</div>
+                  <div className="ec-worked-section-label">Skill</div>
                   <div className="ec-msg-attribution">
                     {loadedSkills.map((skill) => (
                       <TraceChip key={skill} tool={skillTraceTool(skill)} compact labelMode="label" />
