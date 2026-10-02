@@ -76,3 +76,48 @@ def test_reply_selection_does_not_promote_owned_context_to_best_match():
     )
 
     assert selected == [{"productId": "34", "name": "Terracotta Planter"}]
+
+
+def test_reply_selection_does_not_card_a_name_inside_a_longer_name():
+    hadley = {"productId": "2", "name": "Hadley Linen Shirt"}
+    linen = {"productId": "9", "name": "Linen Shirt"}
+
+    selected = select_products_for_reply(
+        "I recommend the Hadley Linen Shirt for the trip.", [linen, hadley]
+    )
+
+    assert selected == [hadley]
+
+
+def test_reply_selection_keeps_both_when_each_name_appears_on_its_own():
+    hadley = {"productId": "2", "name": "Hadley Linen Shirt"}
+    linen = {"productId": "9", "name": "Linen Shirt"}
+
+    selected = select_products_for_reply(
+        "Pack the Linen Shirt for the beach and the Hadley Linen Shirt for dinner.",
+        [hadley, linen],
+    )
+
+    assert selected == [linen, hadley]
+
+
+def test_reply_selection_requires_whole_words():
+    tee = {"productId": "5", "name": "Tee"}
+    trousers = {"productId": "6", "name": "Linen Trousers"}
+
+    selected = select_products_for_reply(
+        "The Linen Trousers steer the evening look.", [tee, trousers]
+    )
+
+    assert selected == [trousers]
+
+
+def test_reply_selection_lets_same_named_variants_share_a_mention():
+    charcoal = {"productId": "36", "name": "Ceramic Tumblers"}
+    ivory = {"productId": "38", "name": "Ceramic Tumblers"}
+
+    selected = select_products_for_reply(
+        "The Ceramic Tumblers are the gentler price.", [charcoal, ivory]
+    )
+
+    assert selected == [charcoal, ivory]

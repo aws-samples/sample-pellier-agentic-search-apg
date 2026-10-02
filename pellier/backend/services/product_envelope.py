@@ -40,12 +40,25 @@ def select_products_for_reply(
         if isinstance(product, dict)
         and (identity := product_identity(product)) is not None
     }
+    # Longer names claim their text first and matches respect word edges, so a
+    # "Linen Shirt" candidate is not selected by the words of "Hadley Linen
+    # Shirt". Candidates with the same name may share one mention.
+    by_length = sorted(
+        ((product_name(product).casefold(), index, product)
+         for index, product in enumerate(product_rows) if product_name(product)),
+        key=lambda item: -len(item[0]),
+    )
+    claimed: list[tuple[int, int, str]] = []
     mentioned = []
-    for index, product in enumerate(product_rows):
-        name = product_name(product)
-        mention_index = normalized_reply.find(name.casefold()) if name else -1
-        if mention_index >= 0:
-            mentioned.append((mention_index, index, product))
+    for name, index, product in by_length:
+        for match in re.finditer(rf"(?<!\w){re.escape(name)}(?!\w)", normalized_reply):
+            start, end = match.span()
+            if any(start < other_end and other_start < end and other != name
+                   for other_start, other_end, other in claimed):
+                continue
+            claimed.append((start, end, name))
+            mentioned.append((start, index, product))
+            break
 
     if not mentioned:
         return product_rows
