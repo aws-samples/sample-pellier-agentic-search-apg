@@ -90,7 +90,7 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
         )
 
 
-# === WORKSHOP · Managed catalogue · support reconcile: START ===
+# === WORKSHOP - Managed catalogue - support reconcile: START ===
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo's support-ticket request routes to the support specialist.
@@ -122,7 +122,7 @@ SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
     "escalate_to_human",
 )
 SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset()
-# === WORKSHOP · Managed catalogue · support reconcile: END ===
+# === WORKSHOP - Managed catalogue - support reconcile: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
     "search": (

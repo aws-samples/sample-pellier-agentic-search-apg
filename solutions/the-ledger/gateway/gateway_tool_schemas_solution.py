@@ -395,7 +395,7 @@ for _target in TOOL_SCHEMAS.values():
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
 #
-# === WORKSHOP · Gateway catalogue · published tools: START ===
+# === WORKSHOP - Gateway catalogue - published tools: START ===
 # SOLUTION - publish the read, keep the money movement deferred.
 #
 # `get_ticket_history` is a customer-scoped read the support specialist needs
@@ -406,7 +406,7 @@ for _target in TOOL_SCHEMAS.values():
 WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
     "restock_inventory",
 })
-# === WORKSHOP · Gateway catalogue · published tools: END ===
+# === WORKSHOP - Gateway catalogue - published tools: END ===
 
 
 # Publication is not visibility. AgentCore Gateway evaluates Cedar on MCP tool

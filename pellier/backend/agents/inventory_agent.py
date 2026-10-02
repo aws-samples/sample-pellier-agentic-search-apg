@@ -95,7 +95,7 @@ _INVENTORY_SYSTEM_PROMPT = (
     "</output-rules>"
 )
 
-# === WORKSHOP · Inventory Agent · definition: START ===
+# === WORKSHOP - Inventory Agent - definition: START ===
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 2B: choose the read tools that can establish the inventory facts.
@@ -116,7 +116,7 @@ _INVENTORY_TOOLS = []
 #
 # Source delta: Inventory Agent has no temperature field. Sonnet 4.6 rejects the
 # deprecated temperature kwarg, so the correct definition omits it.
-# === WORKSHOP · Inventory Agent · definition: END ===
+# === WORKSHOP - Inventory Agent - definition: END ===
 
 
 def _ensure_products_in_output(text: str, tool_results: list) -> str:

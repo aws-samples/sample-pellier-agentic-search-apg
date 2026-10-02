@@ -28,7 +28,7 @@
   DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
 \endif
 
--- === WORKSHOP · Keyed absence · deny proof: START ===
+-- === WORKSHOP - Keyed absence - deny proof: START ===
 -- Every count is read from the tables an executed initiate_return writes, for
 -- the exact keys passed in. The allowed key's finalized write is the positive
 -- control: the same search finds the one write the allowed call made, so an
@@ -50,7 +50,7 @@ SELECT
         AND completed_at IS NOT NULL
         AND result->>'status' = 'success')                   AS allowed_finalized_writes
 \gset lab_4_
--- === WORKSHOP · Keyed absence · deny proof: END ===
+-- === WORKSHOP - Keyed absence - deny proof: END ===
 
 -- A NULL placeholder leaves its variable unset, so an unauthored region
 -- fails here rather than reading as four reassuring zeros.

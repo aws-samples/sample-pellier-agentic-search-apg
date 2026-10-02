@@ -384,8 +384,8 @@ def _tool_signatures(path: Path) -> dict[str, str]:
 def _outside_check_inventory_block(path: Path) -> str:
     """Mask the only participant-editable block so all other bytes can compare."""
     source = path.read_text()
-    start = "# === WORKSHOP · Inventory Agent · check_inventory: START ==="
-    end = "# === WORKSHOP · Inventory Agent · check_inventory: END ==="
+    start = "# === WORKSHOP - Inventory Agent - check_inventory: START ==="
+    end = "# === WORKSHOP - Inventory Agent - check_inventory: END ==="
     assert source.count(start) == 1, f"{path} must contain exactly one START marker"
     assert source.count(end) == 1, f"{path} must contain exactly one END marker"
     before, remainder = source.split(start, 1)

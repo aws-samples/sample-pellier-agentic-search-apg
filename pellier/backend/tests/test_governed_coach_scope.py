@@ -15,7 +15,7 @@ def test_coach_scope_covers_every_marker_without_revealing_answers():
     backend = (ROOT / 'pellier/backend/CLAUDE.md').read_text().split('## Maintainer architecture')[0]
     for exercise in module.MARKER_EXERCISES:
         assert exercise.destination in root
-        assert exercise.marker.removeprefix('WORKSHOP · ') in root
+        assert exercise.marker.removeprefix('WORKSHOP - ') in root
         if exercise.destination.startswith('pellier/backend/'):
             assert exercise.destination.removeprefix('pellier/backend/') in backend
     for exercise in module.FILE_EXERCISES:

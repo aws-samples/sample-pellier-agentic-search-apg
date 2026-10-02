@@ -729,7 +729,7 @@ def check_inventory(product_query: str = "") -> str:
         product_query: Product name (or partial name) to check stock
             for. Empty string falls back to the aggregate summary mode.
     """
-    # === WORKSHOP · Inventory Agent · check_inventory: START ===
+    # === WORKSHOP - Inventory Agent - check_inventory: START ===
     # WORKSHOP_EXERCISE_STUB
     #
     # Task 2A. Marco asks whether the Hadley shirt is at the Brooklyn
@@ -755,7 +755,7 @@ def check_inventory(product_query: str = "") -> str:
         "hint": "Implement the tool body or run the cp command.",
         "received_product_query": product_query,
     })
-    # === WORKSHOP · Inventory Agent · check_inventory: END ===
+    # === WORKSHOP - Inventory Agent - check_inventory: END ===
 
 @tool
 def get_trending_products(limit: int = 5, category: str = None) -> str:

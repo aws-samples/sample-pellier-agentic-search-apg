@@ -165,14 +165,14 @@ class SqlEvidence:
 
 
 WIRED_TOOL = (
-    "    # === WORKSHOP · Inventory Agent · check_inventory: START ===\n"
+    "    # === WORKSHOP - Inventory Agent - check_inventory: START ===\n"
     "    if _db_service is None:\n"
     "        return json.dumps({'error': 'db unavailable'})\n"
     "    from services.business_logic import BusinessLogic\n"
     "    logic = BusinessLogic(_db_service)\n"
     "    result = _run_async(logic.check_inventory(product_query.strip() or None))\n"
     "    return json.dumps(result, indent=2)\n"
-    "    # === WORKSHOP · Inventory Agent · check_inventory: END ===\n"
+    "    # === WORKSHOP - Inventory Agent - check_inventory: END ===\n"
 )
 
 

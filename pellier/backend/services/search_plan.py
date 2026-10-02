@@ -236,14 +236,14 @@ class SearchPlan:
         return [first, widened]
 
     def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
-        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # === WORKSHOP - Search plan - preserve requirements: START ===
         # WORKSHOP_EXERCISE_STUB
         # Task 1B: construct the next attempt from this validated request.
         # An unfinished fallback refuses to run; it must never broaden access.
         if relaxations:
             raise ValueError("Complete Task 1B before relaxing a preference")
         return replace(self, relaxations=[])
-        # === WORKSHOP · Search plan · preserve requirements: END ===
+        # === WORKSHOP - Search plan - preserve requirements: END ===
 
     # ------------------------------------------------------------------
     # Serialization

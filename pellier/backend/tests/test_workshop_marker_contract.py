@@ -59,9 +59,9 @@ REPO = Path(__file__).resolve().parents[3]
 
 LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("pellier/backend/agents/inventory_agent.py",
-     "WORKSHOP · Inventory Agent · definition"),
+     "WORKSHOP - Inventory Agent - definition"),
     ("pellier/backend/services/agent_tools.py",
-     "WORKSHOP · Inventory Agent · check_inventory"),
+     "WORKSHOP - Inventory Agent - check_inventory"),
 )
 
 # The exact `cp` sources in the guide's pacing fallback. A participant runs these
@@ -80,7 +80,7 @@ LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 LAB1_STARTER = "workshop/lab-1-rrf.sql"
 LAB1_PLAN_REGION = (
     "pellier/backend/services/search_plan.py",
-    "WORKSHOP · Search plan · preserve requirements",
+    "WORKSHOP - Search plan - preserve requirements",
 )
 LAB1_PLAN_REFERENCE = (
     "solutions/the-quiet-search/retrieval/search_plan_solution.py"
@@ -89,7 +89,7 @@ LAB1_PLAN_REFERENCE = (
 # in-stock Home Decor at or under $100 tagged both `gift` and `home`.
 LAB1_GOLDEN_IDS = ("21", "22", "23", "25", "27", "29")
 LAB1_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
-LAB1_MARKER = "WORKSHOP · PostgreSQL RRF · fusion expression"
+LAB1_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 
 # ---------------------------------------------------------------------------
 # Lab 3, two marker regions that together move the build onto the managed path.
@@ -100,9 +100,9 @@ LAB1_MARKER = "WORKSHOP · PostgreSQL RRF · fusion expression"
 
 LAB3_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("scripts/deploy/gateway_tool_schemas.py",
-     "WORKSHOP · Gateway catalogue · published tools"),
+     "WORKSHOP - Gateway catalogue - published tools"),
     ("pellier/backend/services/agentcore_gateway.py",
-     "WORKSHOP · Managed catalogue · support reconcile"),
+     "WORKSHOP - Managed catalogue - support reconcile"),
 )
 
 LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
@@ -126,7 +126,7 @@ LAB3_STAFF_ONLY_TOOL = "issue_credit"
 
 LAB4_ABSENCE_STARTER = "workshop/lab-4-absence.sql"
 LAB4_ABSENCE_REFERENCE = "solutions/the-ledger/observability/lab-4-absence-solution.sql"
-LAB4_ABSENCE_MARKER = "WORKSHOP · Keyed absence · deny proof"
+LAB4_ABSENCE_MARKER = "WORKSHOP - Keyed absence - deny proof"
 LAB4_ABSENCE_PLACEHOLDERS = (
     "NULL::bigint AS denied_execution_rows",
     "NULL::bigint AS denied_write_rows",
@@ -266,15 +266,15 @@ def test_lab2_region_is_ordered_and_not_empty(rel: str, label: str) -> None:
 
 
 @pytest.mark.parametrize("rel,label", LAB2_REGIONS)
-def test_lab2_marker_uses_the_middle_dot_the_guide_quotes(rel: str, label: str) -> None:
-    """The guide quotes the marker with U+00B7.
+def test_lab2_marker_uses_the_hyphen_the_guide_quotes(rel: str, label: str) -> None:
+    """The guide quotes the marker with a plain hyphen, never a middle dot.
 
-    A participant searching the file for the string in the guide finds nothing if this
-    ever becomes a hyphen or an ASCII dot, and "search for this text" is the only
-    instruction that lane gives.
+    A participant searching the file for the string in the guide finds nothing if the
+    separators drift apart, and "search for this text" is the only instruction that
+    lane gives.
     """
     text = _read(rel)
-    assert "·" in label
+    assert " - " in label and "\u00b7" not in label
     assert label in text
 
 
@@ -358,7 +358,7 @@ def test_lab4_starter_fails_until_the_absence_query_is_authored() -> None:
 
 def test_the_trace_contract_is_a_provided_check_not_a_build() -> None:
     contract = _read(LAB3_TRACE_CONTRACT)
-    assert "WORKSHOP ·" not in contract, "the trace contract is provided; it carries no build markers"
+    assert "WORKSHOP -" not in contract, "the trace contract is provided; it carries no build markers"
     for predicate in ("invoke_agent", "gen_ai.request.model", "execute_tool", "gen_ai.tool.name", 'attributes["session.id"]'):
         assert predicate in contract
     assert ": false" not in contract
@@ -926,10 +926,10 @@ def test_build_state_detects_each_reference_solution_as_built(
 # ---------------------------------------------------------------------------
 
 _PY_MARKER_BLOCK = re.compile(
-    r"# === WORKSHOP · [^\n]*: START ===.*?# === WORKSHOP · [^\n]*: END ===", re.S
+    r"# === WORKSHOP - [^\n]*: START ===.*?# === WORKSHOP - [^\n]*: END ===", re.S
 )
 _SQL_MARKER_BLOCK = re.compile(
-    r"-- === WORKSHOP · [^\n]*: START ===.*?-- === WORKSHOP · [^\n]*: END ===", re.S
+    r"-- === WORKSHOP - [^\n]*: START ===.*?-- === WORKSHOP - [^\n]*: END ===", re.S
 )
 
 REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(

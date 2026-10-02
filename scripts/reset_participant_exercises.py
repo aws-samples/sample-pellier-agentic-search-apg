@@ -30,31 +30,31 @@ MARKER_EXERCISES = (
         exercise_id="lab-2-inventory-agent",
         starter="workshop/starters/lab-2/inventory-agent-definition.pyfrag",
         destination="pellier/backend/agents/inventory_agent.py",
-        marker="WORKSHOP · Inventory Agent · definition",
+        marker="WORKSHOP - Inventory Agent - definition",
     ),
     MarkerExercise(
         exercise_id="lab-2-inventory-tool",
         starter="workshop/starters/lab-2/check-inventory-tool.pyfrag",
         destination="pellier/backend/services/agent_tools.py",
-        marker="WORKSHOP · Inventory Agent · check_inventory",
+        marker="WORKSHOP - Inventory Agent - check_inventory",
     ),
     MarkerExercise(
         exercise_id="lab-1-preserve-requirements",
         starter="workshop/starters/lab-1/preserve-requirements.pyfrag",
         destination="pellier/backend/services/search_plan.py",
-        marker="WORKSHOP · Search plan · preserve requirements",
+        marker="WORKSHOP - Search plan - preserve requirements",
     ),
     MarkerExercise(
         exercise_id="lab-3-gateway-catalogue",
         starter="workshop/starters/lab-3/gateway-published-tools.pyfrag",
         destination="scripts/deploy/gateway_tool_schemas.py",
-        marker="WORKSHOP · Gateway catalogue · published tools",
+        marker="WORKSHOP - Gateway catalogue - published tools",
     ),
     MarkerExercise(
         exercise_id="lab-3-support-reconcile",
         starter="workshop/starters/lab-3/support-reconcile.pyfrag",
         destination="pellier/backend/services/agentcore_gateway.py",
-        marker="WORKSHOP · Managed catalogue · support reconcile",
+        marker="WORKSHOP - Managed catalogue - support reconcile",
     ),
 )
 

@@ -54,14 +54,14 @@ from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
-# === WORKSHOP · Retrieval eval · golden set: START ===
+# === WORKSHOP - Retrieval eval - golden set: START ===
 # SOLUTION - the labeled relevant rows for Anna's canonical query.
 #
 # The in-stock Home Decor pieces tagged both `gift` and `home` at or under
 # $100 in `scripts/seed_pellier_catalog.py`. Labeled by definition rather than
 # by taste, so the metrics are reproducible and the labeling is arguable.
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
-# === WORKSHOP · Retrieval eval · golden set: END ===
+# === WORKSHOP - Retrieval eval - golden set: END ===
 
 # The held-out checks. Lab 1b's labels tune one knob, the rerank pool size;
 # these check the choice on requests the labels never described. They are

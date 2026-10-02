@@ -729,7 +729,7 @@ def check_inventory(product_query: str = "") -> str:
         product_query: Product name (or partial name) to check stock
             for. Empty string falls back to the aggregate summary mode.
     """
-    # === WORKSHOP · Inventory Agent · check_inventory: START ===
+    # === WORKSHOP - Inventory Agent - check_inventory: START ===
     if not _db_service:
         return json.dumps({"error": "Database service not initialized"})
 
@@ -742,7 +742,7 @@ def check_inventory(product_query: str = "") -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
-    # === WORKSHOP · Inventory Agent · check_inventory: END ===
+    # === WORKSHOP - Inventory Agent - check_inventory: END ===
 
 @tool
 def get_trending_products(limit: int = 5, category: str = None) -> str:

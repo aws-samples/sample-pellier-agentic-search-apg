@@ -216,8 +216,8 @@ class TestSourceState:
         """Source state is deliberately narrower than runtime verification."""
         for _, name, _, region, markers in receipt_module._BUILDS:
             source = tmp_path / (name + ".txt")
-            header = f"# === WORKSHOP · {region}: START ===\n" if region else ""
-            footer = f"# === WORKSHOP · {region}: END ===\n" if region else ""
+            header = f"# === WORKSHOP - {region}: START ===\n" if region else ""
+            footer = f"# === WORKSHOP - {region}: END ===\n" if region else ""
             source.write_text(header + markers[0] + "\n" + footer)
             inspect = lambda: (receipt_module._region_reads_as_stub(source, region, markers)
                                if region else receipt_module._reads_as_stub(source, markers))

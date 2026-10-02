@@ -35,7 +35,7 @@ SELECT keys.product_id,
        r.query_preview,
        (r.vector_ranks->>keys.product_id)::int AS vector_rank,
        (r.lexical_ranks->>keys.product_id)::int AS lexical_rank,
-       -- === WORKSHOP · PostgreSQL RRF · fusion expression: START ===
+       -- === WORKSHOP - PostgreSQL RRF - fusion expression: START ===
        coalesce(
          1.0 / (60 + (r.vector_ranks->>keys.product_id)::int),
          0
@@ -43,7 +43,7 @@ SELECT keys.product_id,
          1.0 / (60 + (r.lexical_ranks->>keys.product_id)::int),
          0
        ) AS recomputed_rrf,
-       -- === WORKSHOP · PostgreSQL RRF · fusion expression: END ===
+       -- === WORKSHOP - PostgreSQL RRF - fusion expression: END ===
        (r.rrf_scores->>keys.product_id)::numeric AS recorded_rrf
   FROM receipt r
  CROSS JOIN LATERAL jsonb_object_keys(

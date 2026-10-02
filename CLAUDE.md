@@ -43,15 +43,15 @@ participant's named task and prediction before proposing a change.
 
 | Task | Allowed file | Allowed marker |
 |---|---|---|
-| 1A | `workshop/lab-1-rrf.sql` | `PostgreSQL RRF · fusion expression` |
-| 1B | `pellier/backend/services/search_plan.py` | `Search plan · preserve requirements` |
-| 2A | `pellier/backend/services/agent_tools.py` | `Inventory Agent · check_inventory` |
-| 2B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent · definition` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue · published tools` |
-| 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue · support reconcile` |
+| 1A | `workshop/lab-1-rrf.sql` | `PostgreSQL RRF - fusion expression` |
+| 1B | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
+| 2A | `pellier/backend/services/agent_tools.py` | `Inventory Agent - check_inventory` |
+| 2B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent - definition` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
+| 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
 | 4A | `policies/workshop_identity_match_forbid.cedar` | final `unless` block |
-| 4B | `workshop/lab-4-rls.sql` | `Row ownership · predicate` |
-| 4B | `workshop/lab-4-absence.sql` | `Keyed absence · deny proof` |
+| 4B | `workshop/lab-4-rls.sql` | `Row ownership - predicate` |
+| 4B | `workshop/lab-4-absence.sql` | `Keyed absence - deny proof` |
 
 Task 3B deploys and challenges the Task 3A edits; it adds no authoring region.
 Use the exact START–END comments in each file; for Cedar, edit only the final

@@ -90,7 +90,7 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
         )
 
 
-# === WORKSHOP · Managed catalogue · support reconcile: START ===
+# === WORKSHOP - Managed catalogue - support reconcile: START ===
 # SOLUTION - the support specialist's managed contract, reconciled.
 #
 # `issue_credit` is gone: the Gateway does not publish it, so naming it here
@@ -106,7 +106,7 @@ SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
     "escalate_to_human",
 )
 SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_ticket_history"})
-# === WORKSHOP · Managed catalogue · support reconcile: END ===
+# === WORKSHOP - Managed catalogue - support reconcile: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
     "search": (

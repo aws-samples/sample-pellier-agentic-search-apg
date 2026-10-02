@@ -139,7 +139,7 @@ def test_marco_tool_is_the_lab_one_build_target() -> None:
     tools = (BACKEND / "services" / "agent_tools.py").read_text()
     assert f"def {ARC['marco']['tool']}(" in tools
     # The guided exercise markers name the same tool.
-    assert "WORKSHOP · Inventory Agent · check_inventory: START" in tools
+    assert "WORKSHOP - Inventory Agent - check_inventory: START" in tools
 
 
 # ---------------------------------------------------------------------------

@@ -115,8 +115,8 @@ def _region_reads_as_stub(
         source = path.read_text(encoding="utf-8")
     except OSError:
         return None
-    start = source.find(f"WORKSHOP \u00b7 {region}: START ===")
-    end = source.find(f"WORKSHOP \u00b7 {region}: END ===")
+    start = source.find(f"WORKSHOP - {region}: START ===")
+    end = source.find(f"WORKSHOP - {region}: END ===")
     if start == -1 or end == -1 or end <= start:
         # The region is gone. That is not a starter, and it is not a finished
         # build either -- it is a file this receipt can no longer speak about.
@@ -132,12 +132,12 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
     (
         "01_measure_hybrid_retrieval", "1a_rrf_expression_authored",
         REPO / "workshop" / "lab-1-rrf.sql",
-        "PostgreSQL RRF \u00b7 fusion expression", ("0::numeric AS recomputed_rrf",),
+        "PostgreSQL RRF - fusion expression", ("0::numeric AS recomputed_rrf",),
     ),
     (
         "01_measure_hybrid_retrieval", "1b_requirements_preserved",
         BACKEND / "services" / "search_plan.py",
-        "Search plan \u00b7 preserve requirements",
+        "Search plan - preserve requirements",
         ("Complete Task 1B before relaxing a preference",),
     ),
     (
@@ -153,12 +153,12 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
     (
         "03_operate_the_managed_path", "3a_gateway_tool_published",
         REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
-        "Gateway catalogue \u00b7 published tools", ('"get_ticket_history"',),
+        "Gateway catalogue - published tools", ('"get_ticket_history"',),
     ),
     (
         "03_operate_the_managed_path", "3a_runtime_catalogue_reconciled",
         BACKEND / "services" / "agentcore_gateway.py",
-        "Managed catalogue \u00b7 support reconcile",
+        "Managed catalogue - support reconcile",
         ("SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset()",),
     ),
     (
@@ -169,12 +169,12 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
     (
         "04_govern_and_prove", "4b_rls_predicate_authored",
         REPO / "workshop" / "lab-4-rls.sql",
-        "Row ownership · predicate", ("ownership_predicate 'false'",),
+        "Row ownership - predicate", ("ownership_predicate 'false'",),
     ),
     (
         "04_govern_and_prove", "4b_absence_query_authored",
         REPO / "workshop" / "lab-4-absence.sql",
-        "Keyed absence \u00b7 deny proof",
+        "Keyed absence - deny proof",
         ("NULL::bigint AS denied_execution_rows",
          "NULL::bigint AS denied_write_rows",
          "NULL::bigint AS denied_finalized_writes",

@@ -236,9 +236,9 @@ class SearchPlan:
         return [first, widened]
 
     def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
-        # === WORKSHOP · Search plan · preserve requirements: START ===
+        # === WORKSHOP - Search plan - preserve requirements: START ===
         return replace(self, relaxations=list(relaxations))
-        # === WORKSHOP · Search plan · preserve requirements: END ===
+        # === WORKSHOP - Search plan - preserve requirements: END ===
 
     # ------------------------------------------------------------------
     # Serialization

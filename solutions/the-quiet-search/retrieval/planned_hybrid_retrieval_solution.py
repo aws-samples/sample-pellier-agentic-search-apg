@@ -58,10 +58,10 @@ CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stoc
 # build an evaluation framework or label a golden set in this workshop.
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
 
-# === WORKSHOP · Hybrid retrieval · candidate budget: START ===
+# === WORKSHOP - Hybrid retrieval - candidate budget: START ===
 # A bounded pool retains more candidates while respecting the service ceiling.
 DEFAULT_RERANK_POOL_K = 20
-# === WORKSHOP · Hybrid retrieval · candidate budget: END ===
+# === WORKSHOP - Hybrid retrieval - candidate budget: END ===
 
 # Optional provided diagnostics for the rerank pool size;
 # these check the choice on requests the labels never described. They are

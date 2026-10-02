@@ -28,7 +28,7 @@
   DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
 \endif
 
--- === WORKSHOP · Keyed absence · deny proof: START ===
+-- === WORKSHOP - Keyed absence - deny proof: START ===
 -- WORKSHOP_EXERCISE_STUB
 --
 -- Replace the five NULL placeholders with counts read from the tables an
@@ -52,7 +52,7 @@ SELECT
     NULL::bigint AS denied_ledger_rows,
     NULL::bigint AS allowed_finalized_writes
 \gset lab_4_
--- === WORKSHOP · Keyed absence · deny proof: END ===
+-- === WORKSHOP - Keyed absence - deny proof: END ===
 
 -- A NULL placeholder leaves its variable unset, so an unauthored region
 -- fails here rather than reading as four reassuring zeros.

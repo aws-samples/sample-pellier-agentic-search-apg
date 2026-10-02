@@ -79,9 +79,9 @@ SET LOCAL statement_timeout = '15s';
 -- Task 4B. Author one ownership predicate used by both USING and WITH CHECK.
 -- RLS trusts the principal context established by the application. It does not
 -- independently validate a Cognito token. These direct SQL probes set test context.
--- === WORKSHOP · Row ownership · predicate: START ===
+-- === WORKSHOP - Row ownership - predicate: START ===
 \set ownership_predicate 'false'
--- === WORKSHOP · Row ownership · predicate: END ===
+-- === WORKSHOP - Row ownership - predicate: END ===
 
 ALTER POLICY orders_principal_scope ON pellier.orders
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);

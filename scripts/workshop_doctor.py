@@ -51,8 +51,8 @@ import build_receipt  # noqa: E402  (sibling script: dotenv, DSN, run id shape)
 PASS = "PASS"
 FAIL = "FAIL"
 
-TOOL_BLOCK_START = "# === WORKSHOP · Inventory Agent · check_inventory: START ==="
-TOOL_BLOCK_END = "# === WORKSHOP · Inventory Agent · check_inventory: END ==="
+TOOL_BLOCK_START = "# === WORKSHOP - Inventory Agent - check_inventory: START ==="
+TOOL_BLOCK_END = "# === WORKSHOP - Inventory Agent - check_inventory: END ==="
 TOOL_STUB_MARKERS = ("check_inventory is in stub state", "received_product_query")
 AGENT_STUB_MARKER = "_INVENTORY_AGENT_STUBBED = True"
 # The SQL keyword, not the English words `selected` and `selection`, which a

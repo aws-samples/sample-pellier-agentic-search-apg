@@ -195,8 +195,8 @@ echo "[2/6] Complete Inventory Agent and wire check_inventory"
 if grep -q '^_INVENTORY_AGENT_STUBBED = True$' "$AGENT"; then
   patch_marker_block \
     "$AGENT" "$AGENT_REFERENCE" \
-    "# === WORKSHOP · Inventory Agent · definition: START ===" \
-    "# === WORKSHOP · Inventory Agent · definition: END ===" \
+    "# === WORKSHOP - Inventory Agent - definition: START ===" \
+    "# === WORKSHOP - Inventory Agent - definition: END ===" \
     "Inventory Agent definition" || exit 1
 else
   info "Inventory Agent definition already complete — leaving inventory_agent.py as-is"
@@ -205,8 +205,8 @@ fi
 if grep -q "check_inventory is in stub state" "$TOOLS"; then
   patch_marker_block \
     "$TOOLS" "$TOOLS_REFERENCE" \
-    "# === WORKSHOP · Inventory Agent · check_inventory: START ===" \
-    "# === WORKSHOP · Inventory Agent · check_inventory: END ===" \
+    "# === WORKSHOP - Inventory Agent - check_inventory: START ===" \
+    "# === WORKSHOP - Inventory Agent - check_inventory: END ===" \
     "check_inventory body" || exit 1
 else
   info "check_inventory already wired — leaving agent_tools.py as-is"

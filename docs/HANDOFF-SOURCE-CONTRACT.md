@@ -177,8 +177,8 @@ is wired.
 
 | file | markers |
 |---|---|
-| `pellier/backend/agents/inventory_agent.py` | `# === WORKSHOP · Inventory Agent · definition: START ===` / `: END ===` |
-| `pellier/backend/services/agent_tools.py` | `# === WORKSHOP · Inventory Agent · check_inventory: START ===` / `: END ===` |
+| `pellier/backend/agents/inventory_agent.py` | `# === WORKSHOP - Inventory Agent - definition: START ===` / `: END ===` |
+| `pellier/backend/services/agent_tools.py` | `# === WORKSHOP - Inventory Agent - check_inventory: START ===` / `: END ===` |
 
 The separator is U+00B7. A participant searches the file for the string the guide quotes,
 so an ASCII substitution breaks the only instruction that lane gives.

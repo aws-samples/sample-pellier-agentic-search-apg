@@ -28,8 +28,8 @@ LAB_1_SOLUTION_SQL = (
     REPO / "solutions" / "the-quiet-search" / "sql" / "lab-1-rrf-solution.sql"
 )
 LAB_1_MARKERS = (
-    "-- === WORKSHOP · PostgreSQL RRF · fusion expression: START ===",
-    "-- === WORKSHOP · PostgreSQL RRF · fusion expression: END ===",
+    "-- === WORKSHOP - PostgreSQL RRF - fusion expression: START ===",
+    "-- === WORKSHOP - PostgreSQL RRF - fusion expression: END ===",
 )
 
 
