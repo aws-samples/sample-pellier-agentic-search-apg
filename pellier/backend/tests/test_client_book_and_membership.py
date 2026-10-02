@@ -326,7 +326,7 @@ def test_new_buckets_have_a_search_text_persona_context():
 
 
 def test_curated_price_ceiling_supports_the_top_rung():
-    """A Maison rung and a private appointment need pieces behind them."""
+    """A Gold rung and a private appointment need pieces behind them."""
     seed = _load_seed_module()
     ceiling = max(p.price for p in seed.ALL_PRODUCTS)
     assert ceiling >= 1000, f"catalog ceiling is only {ceiling}"
@@ -367,7 +367,7 @@ def test_frontend_threshold_copy_matches_the_migration_rule() -> None:
 def test_every_rung_pairs_a_label_with_a_functional_descriptor() -> None:
     """Premium branding plus instant comprehension, not one without the other.
 
-    "Maison" tells an advisor the house's name for the rung; "private client"
+    "Gold" tells an advisor the rung; "private client"
     tells them what it means. Wherever the tier matters operationally both are
     shown, so both must exist.
     """
@@ -384,9 +384,9 @@ def test_every_rung_pairs_a_label_with_a_functional_descriptor() -> None:
             f"{rung} should describe itself as '{descriptor}'"
         )
 
-    # The short label reads cleanly in the ladder: Registered / Circle / Maison.
-    assert "label: 'Circle'" in ts
-    assert "label: 'The Circle'" not in ts
+    # The short labels read cleanly in the ladder: Member / Silver / Gold.
+    for label in ("Member", "Silver", "Gold"):
+        assert f"label: '{label}'" in ts
 
 
 def test_the_console_states_that_standing_is_not_authorization() -> None:

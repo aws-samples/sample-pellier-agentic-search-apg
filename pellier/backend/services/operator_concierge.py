@@ -151,6 +151,16 @@ class Evidence:
         }
 
 
+# Display names for the stored membership values; mirrors
+# frontend/src/data/membership.ts. The stored values are unchanged.
+_MEMBERSHIP_LABELS = {"registered": "Member", "circle": "Silver", "maison": "Gold"}
+
+
+def _membership_label(value: Any) -> str:
+    text = str(value or "").strip()
+    return _MEMBERSHIP_LABELS.get(text.lower(), text)
+
+
 def _money(value: Any) -> str:
     """USD, formatted the way the client record beside it formats the same figure.
 
@@ -231,7 +241,7 @@ async def load_client_evidence(
     evidence.append(Evidence(
         kind="client", role=ROLE_FACT, status="verified", source=SOURCE_AURORA,
         label="Client standing", record_id=str(client.get("customerId") or ""),
-        detail=f"{client.get('membership', '')} · "
+        detail=f"{_membership_label(client.get('membership'))} · "
                f"{_money(client.get('spend12mo', 0))} in 12-month spend",
         data={
             "membership": client.get("membership"),

@@ -1295,3 +1295,11 @@ async def test_a_recorded_request_is_not_reported_as_received(
     assert "A return request is recorded for Luxury Bath Robe, Sage" in conflict.detail
     assert "remains unverified" in conflict.detail
     assert conflict.status == "unverified"
+
+
+def test_client_standing_detail_uses_membership_display_names() -> None:
+    """Stored rung values stay in the data; the visible detail uses the labels."""
+    assert [ORCH._membership_label(v) for v in ("registered", "circle", "maison")] == [
+        "Member", "Silver", "Gold",
+    ]
+    assert ORCH._membership_label(None) == ""

@@ -38,18 +38,18 @@ describe('client book tier navigation', () => {
     </MemoryRouter>)
     await screen.findByTestId('operator-client-amara')
     expect(screen.queryByTestId('operator-client-marco')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Maison 1' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Gold 1' })).toHaveAttribute('aria-current', 'page')
     expect(fetch).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('link', { name: 'Circle 1' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Silver 1' }))
     expect(screen.getByTestId('book-location')).toHaveTextContent('membership=circle')
     expect(screen.getByTestId('operator-client-marco')).toBeInTheDocument()
     expect(screen.queryByTestId('operator-client-amara')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Browser back' }))
     await waitFor(() => expect(screen.getByTestId('operator-client-amara')).toBeInTheDocument())
-    expect(screen.getByRole('link', { name: 'Maison 1' })).toHaveAttribute('aria-current', 'page')
-    fireEvent.click(screen.getByRole('link', { name: 'Client book 3' }))
+    expect(screen.getByRole('link', { name: 'Gold 1' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(screen.getByRole('link', { name: 'Clients 3' }))
     expect(screen.getByTestId('operator-client-marco')).toBeInTheDocument()
     expect(screen.getByTestId('operator-client-amara')).toBeInTheDocument()
     expect(fetch).toHaveBeenCalledTimes(1)
@@ -61,8 +61,8 @@ describe('client book tier navigation', () => {
     }))
     render(<MemoryRouter><ClientBookNavigation /></MemoryRouter>)
     await screen.findByText('Counts available after operator sign-in.')
-    expect(screen.getByRole('link', { name: 'Maison' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Maison 0/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Gold' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Gold 0/ })).not.toBeInTheDocument()
   })
 
   it('keeps chat selection scoped to the chosen client while filtering tiers', async () => {
@@ -75,7 +75,7 @@ describe('client book tier navigation', () => {
     expect(screen.getByTestId('operator-client-marco')).toHaveAttribute(
       'href', '/operator/clients/CUST-MARCO#operator-concierge',
     )
-    fireEvent.click(screen.getByRole('link', { name: 'Maison 1' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Gold 1' }))
     expect(screen.getByTestId('book-location')).toHaveTextContent('/operator/chat?membership=maison')
     expect(screen.getByTestId('operator-client-amara')).toHaveAttribute(
       'href', '/operator/clients/CUST-AMARA#operator-concierge',

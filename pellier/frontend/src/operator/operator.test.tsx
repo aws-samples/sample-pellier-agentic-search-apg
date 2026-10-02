@@ -173,11 +173,11 @@ describe('ClientBook', () => {
     const summary = await screen.findByTestId('operator-book-summary')
 
     // One of each, straight from byMembership.
-    expect(summary).toHaveTextContent('Maison')
-    expect(summary).toHaveTextContent('Circle')
+    expect(summary).toHaveTextContent('Gold')
+    expect(summary).toHaveTextContent('Silver')
     // The descriptor rides with the label wherever the tier matters.
     expect(summary).toHaveTextContent('priority client')
-    expect(summary).toHaveTextContent('Registered')
+    expect(summary).toHaveTextContent('Member')
   })
 
   it('pairs every rung label with a plain functional descriptor', async () => {
@@ -186,7 +186,7 @@ describe('ClientBook', () => {
     expect(MEMBERSHIP.registered.descriptor).toBe('standard client')
     expect(MEMBERSHIP.circle.descriptor).toBe('priority client')
     expect(MEMBERSHIP.maison.descriptor).toBe('private client')
-    expect(MEMBERSHIP.circle.label).toBe('Circle')
+    expect(MEMBERSHIP.circle.label).toBe('Silver')
   })
 
   it('defines each rung with its threshold and what it earns', async () => {
@@ -197,7 +197,7 @@ describe('ClientBook', () => {
     )
     const ladder = await screen.findByTestId('operator-book-summary')
 
-    // The pills are jargon without this: an operator can read "Maison" and
+    // The pills are jargon without this: an operator can read "Gold" and
     // still not know what the house owes that client.
     expect(ladder).toHaveTextContent('Above $7,500 in 12 months')
     expect(ladder).toHaveTextContent(
@@ -238,7 +238,7 @@ describe('ClientBook', () => {
 
     const note = screen.getByTestId('operator-filter-note')
     expect(note).toHaveTextContent('Showing 1 of 3')
-    expect(note).toHaveTextContent('Circle')
+    expect(note).toHaveTextContent('Silver')
   })
 
   it('clears the filter by pressing the same cell again', async () => {

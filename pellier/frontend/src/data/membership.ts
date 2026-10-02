@@ -1,7 +1,7 @@
 /**
  * The Pellier membership ladder.
  *
- * Three rungs, stored authoritatively on `pellier.customers.membership` by
+ * Three rungs, shown as Member, Silver and Gold and stored authoritatively on `pellier.customers.membership` by
  * scripts/migrations/018_client_book.sql. This module owns the shopper-facing
  * label and the one line of copy that explains what a rung earns, so that copy
  * lives in exactly one place instead of being retyped per surface.
@@ -13,7 +13,7 @@
  * This is presentation only. Membership is an authorization input, and the
  * value a policy decision reads comes from Aurora, never from here.
  *
- * A rung is BUSINESS CONTEXT, never authorization. Maison may qualify a client
+ * A rung is BUSINESS CONTEXT, never authorization. Gold may qualify a client
  * for an expedited replacement or a larger courtesy allowance, but AgentCore
  * Policy still decides whether the requested action is permitted and Aurora RLS
  * still decides whether the data may be touched. Three independent questions:
@@ -52,21 +52,21 @@ interface MembershipDetail {
 
 export const MEMBERSHIP: Record<Membership, MembershipDetail> = {
   registered: {
-    label: 'Registered',
+    label: 'Member',
     descriptor: 'standard client',
     earns: 'Order history and saved sizes',
     threshold: 'Under $1,500 in 12 months',
     rank: 0,
   },
   circle: {
-    label: 'Circle',
+    label: 'Silver',
     descriptor: 'priority client',
     earns: 'Early access and free returns',
     threshold: '$1,500 to $7,500 in 12 months',
     rank: 1,
   },
   maison: {
-    label: 'Maison',
+    label: 'Gold',
     descriptor: 'private client',
     earns: 'Private appointments, repairs, and a dedicated advisor',
     threshold: 'Above $7,500 in 12 months',

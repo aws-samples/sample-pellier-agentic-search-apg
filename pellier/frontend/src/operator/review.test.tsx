@@ -615,7 +615,7 @@ describe('ReviewRecord', () => {
     // an unscoped text query finds both.
     const header = screen.getByTestId('operator-review-client')
     expect(header.textContent).toContain('Theo')
-    expect(header.textContent).toContain('Registered')
+    expect(header.textContent).toContain('Member')
     expect(header.textContent).toContain('standard client')
     expect(header.textContent).toContain('$940.00 in 12 months')
     expect(screen.getByTestId('operator-rung-registered')).toBeInTheDocument()

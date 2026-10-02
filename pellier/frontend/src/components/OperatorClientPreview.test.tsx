@@ -102,7 +102,7 @@ describe('OperatorClientPreview', () => {
 
     const preview = await screen.findByTestId('operator-client-preview')
     expect(preview).toHaveTextContent('Jessica Nakamura')
-    expect(preview).toHaveTextContent('Circle')
+    expect(preview).toHaveTextContent('Silver')
     expect(preview).toHaveTextContent('Coral Lacquer Catchall')
     expect(preview).toHaveTextContent('Return received, refund amount disputed')
     expect(preview).toHaveTextContent('Read-only')

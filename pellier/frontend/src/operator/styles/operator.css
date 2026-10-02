@@ -567,11 +567,11 @@
  * and once per section header — never stamped on every client row, and never
  * with a rating glyph.
  *
- * Maison is solid espresso; the other two are outlines in their own tone. Only
+ * Gold is solid espresso; the other two are outlines in their own tone. Only
  * the top rung earns a fill.
  */
 /*
- * Move 6: the desk's one ornament. Maison is the house's own name, so it is
+ * Move 6: the desk's one ornament. Gold is the top rung, so it takes
  * the house's own face — Fraunces, small caps, not the tracked sans the other
  * two pills share. Everything else on this surface earns its emphasis from
  * size and weight; this is the single place a different voice is allowed, and
@@ -588,10 +588,10 @@
 }
 
 /*
- * Registered and Circle are ONE treatment — outline, transparent fill, the same
+ * Member and Silver are ONE treatment — outline, transparent fill, the same
  * border strength — differing only in tone. They previously used 45% and 55%
  * border opacity, which made two rungs of the same kind read as two unrelated
- * designs. Only Maison, the top rung, earns a different treatment.
+ * designs. Only Gold, the top rung, earns a different treatment.
  */
 .operator-rung[data-rung='circle'],
 .operator-rung[data-rung='registered'] {
@@ -664,7 +664,7 @@
 /*
  * The three rungs defined once, on the surface where an advisor has to choose
  * between them. Without this the pills are jargon: an operator can read
- * "Maison" and still not know what the house owes that client.
+ * "Gold" and still not know what the house owes that client.
  */
 /*
  * One sheet of paper divided by hairlines, not three tiles floating on a grey
@@ -1573,7 +1573,7 @@
 
 /*
  * On the band the rung tones (espresso, olive, taupe) are unreadable, so the
- * pill inverts: cream on all three, and Maison keeps its fill. The tone cue is
+ * pill inverts: cream on all three, and Gold keeps its fill. The tone cue is
  * the one thing that goes; the label never was optional, so nothing that was
  * carried by colour alone is lost.
  */
