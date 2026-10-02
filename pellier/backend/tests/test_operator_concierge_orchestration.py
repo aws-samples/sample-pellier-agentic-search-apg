@@ -12,6 +12,7 @@ skipped the evidence rules or invented its own persistence should fail here.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import threading
@@ -1303,3 +1304,24 @@ def test_client_standing_detail_uses_membership_display_names() -> None:
         "Member", "Silver", "Gold",
     ]
     assert ORCH._membership_label(None) == ""
+
+
+@pytest.mark.parametrize(
+    ("stored", "label"), [("registered", "Member"), ("circle", "Silver"), ("maison", "Gold")]
+)
+def test_model_prompt_carries_the_tier_label_not_the_stored_value(
+    monkeypatch: pytest.MonkeyPatch, stored: str, label: str
+) -> None:
+    """The model sees Silver, never circle; the evidence payload keeps the stored value."""
+    async def get_client(*, client_id: str, db: Any) -> Dict[str, Any]:
+        return {"client": {"customerId": "CUST-X", "name": "X", "membership": stored,
+                           "spend12mo": 100.0}}
+
+    monkeypatch.setattr("routes.operator.get_client", get_client)
+    _record, _steps, evidence = asyncio.run(ORCH.load_client_evidence(object(), "CUST-X"))
+
+    prompt = ORCH._evidence_for_prompt(evidence)
+    assert label in prompt
+    assert stored not in prompt.lower()
+    standing = next(e for e in evidence if e.label == "Client standing")
+    assert standing.to_payload()["data"]["membership"] == stored
