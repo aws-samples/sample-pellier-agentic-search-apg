@@ -267,17 +267,17 @@ describe('Integration — chip toggles drive a grid re-fetch', () => {
     // Initial mount triggers the first fetch (no params).
     await waitFor(() => expect(fetchImpl).toHaveBeenCalledWith('/api/products'))
 
-    // Click the Linen category.
-    await user.click(screen.getByTestId('category-chip-linen'))
+    // Click a department whose name carries spaces.
+    await user.click(screen.getByTestId('category-chip-bags-and-travel'))
     await waitFor(() =>
-      expect(fetchImpl).toHaveBeenCalledWith('/api/products?category=Linen'),
+      expect(fetchImpl).toHaveBeenCalledWith('/api/products?category=Bags+and+travel'),
     )
 
     // Add an Under $100 refinement.
     await user.click(screen.getByTestId('refinement-chip-under-dollar100'))
     await waitFor(() =>
       expect(fetchImpl).toHaveBeenCalledWith(
-        '/api/products?category=Linen&filter=Under+%24100',
+        '/api/products?category=Bags+and+travel&filter=Under+%24100',
       ),
     )
 
@@ -285,7 +285,7 @@ describe('Integration — chip toggles drive a grid re-fetch', () => {
     await user.click(screen.getByTestId('refinement-chip-ships-by-friday'))
     await waitFor(() =>
       expect(fetchImpl).toHaveBeenCalledWith(
-        '/api/products?category=Linen&filter=Under+%24100&filter=Ships+by+Friday',
+        '/api/products?category=Bags+and+travel&filter=Under+%24100&filter=Ships+by+Friday',
       ),
     )
 

@@ -37,7 +37,7 @@ def _plan() -> Any:
     return build_plan(
         "in-stock housewarming gift under $100, no candles",
         {
-            "categories": ["Home Decor"],
+            "categories": ["Home"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -96,7 +96,7 @@ def test_persisted_plan_carries_no_full_query_text() -> None:
     plan = build_plan(
         long_query,
         {
-            "categories": ["Home Decor"],
+            "categories": ["Home"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -465,7 +465,7 @@ def _hybrid_rows() -> List[Dict[str, Any]]:
             "product_id": index,
             "name": f"Product {index}",
             "description": f"Description {index}",
-            "category": "Home Decor",
+            "category": "Home",
             "price": 50.0 + index * 10,
             "rating": 4.7,
             "reviews": "12",

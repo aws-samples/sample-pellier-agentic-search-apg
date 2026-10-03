@@ -114,7 +114,7 @@ def _row(product_id: int, **extra: Any) -> Dict[str, Any]:
         "product_id": str(product_id),
         "name": f"Product {product_id}",
         "description": f"Description {product_id}",
-        "category": "Home Decor",
+        "category": "Home",
         "price": 40.0 + product_id,
         "tags": ["home", "gift"],
         "quantity": 12,

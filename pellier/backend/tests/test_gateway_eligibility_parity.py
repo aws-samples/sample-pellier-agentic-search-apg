@@ -82,11 +82,11 @@ def test_gateway_lambda_rechecks_eligibility_after_the_reranker(
     module = _load_lambda(monkeypatch)
     rows = [
         {"productId": 1, "name": "Linen Shirt", "price": 120, "stars": 4.5,
-         "category_name": "Apparel", "quantity": 3, "product_description": "linen"},
+         "category_name": "Clothing", "quantity": 3, "product_description": "linen"},
         {"productId": 2, "name": "Cashmere Coat", "price": 900, "stars": 4.9,
-         "category_name": "Apparel", "quantity": 3, "product_description": "wool"},
+         "category_name": "Clothing", "quantity": 3, "product_description": "wool"},
         {"productId": 3, "name": "Linen Tunic", "price": 80, "stars": 4.1,
-         "category_name": "Apparel", "quantity": 0, "product_description": "linen"},
+         "category_name": "Clothing", "quantity": 0, "product_description": "linen"},
     ]
     monkeypatch.setattr(module, "_get_embedding", lambda _q: [0.0, 0.0])
     monkeypatch.setattr(module, "_execute_sql", lambda _sql, _params: [dict(r) for r in rows])
@@ -114,10 +114,10 @@ def test_gateway_lambda_search_products_filters_category_in_sql(
 
     monkeypatch.setattr(module, "_get_embedding", lambda _q: [0.0, 0.0])
     monkeypatch.setattr(module, "_execute_sql", _execute)
-    module.search_products("bowls", category="Home Decor", limit=5)
+    module.search_products("bowls", category="Kitchen and table", limit=5)
     assert "lower(category) LIKE :category" in captured["sql"]
     bound = {p["name"]: p["value"] for p in captured["params"]}
-    assert bound["category"] == {"stringValue": module._prepare_like_pattern("Home Decor")}
+    assert bound["category"] == {"stringValue": module._prepare_like_pattern("Kitchen and table")}
     assert "category.lower() in" not in _function_source(_LAMBDA_PATH, "search_products")
 
 

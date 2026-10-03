@@ -64,7 +64,7 @@ GUARDRAILS (ACTIVE):
 SINGLE_AGENT_PROMPT = """You are Pellier AI, the shopping assistant for Pellier.
 
 TOOL SELECTION:
-- get_trending_products → When user asks about trending, popular, or best-selling items. Pass category if they mention one (e.g. "trending home decor" → category="Home Decor").
+- get_trending_products → When user asks about trending, popular, or best-selling items. Pass category if they mention one (e.g. "trending items for the home" → category="Home").
 - search_products → Descriptive or intent-based product queries (e.g. "gift for a new homeowner", "linen shirt under $200")
 - get_price_analysis → Pricing statistics and category comparisons
 

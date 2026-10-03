@@ -57,7 +57,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Italian Linen Camp Shirt",
             color="Sand",
             price=128,
-            category="Linen",
+            category="Clothing",
             tags=[
                 "minimal", "serene", "classic", "warm",
                 "neutral", "everyday", "slow", "linen",
@@ -68,7 +68,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Wide-Leg Linen Trousers",
             color="Terracotta",
             price=98,
-            category="Linen",
+            category="Clothing",
             tags=["creative", "bold", "warm", "earth", "everyday", "travel", "linen"],
         ),
         _product(
@@ -76,7 +76,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Signature Straw Tote",
             color="Natural",
             price=68,
-            category="Accessories",
+            category="Bags and travel",
             tags=["classic", "serene", "neutral", "soft", "travel", "everyday", "accessories"],
         ),
         _product(
@@ -84,7 +84,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Relaxed Oxford Shirt",
             color="Warm Ivory",
             price=88,
-            category="Linen",
+            category="Clothing",
             tags=["classic", "minimal", "neutral", "soft", "everyday", "work", "linen"],
         ),
         _product(
@@ -92,7 +92,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Sundress in Washed Linen",
             color="Golden Ochre",
             price=148,
-            category="Dresses",
+            category="Clothing",
             tags=["creative", "bold", "warm", "earth", "evening", "dresses", "linen"],
         ),
         _product(
@@ -100,7 +100,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Leather Slide Sandal",
             color="Chestnut",
             price=112,
-            category="Footwear",
+            category="Shoes",
             tags=["minimal", "classic", "earth", "warm", "everyday", "travel", "footwear"],
         ),
         _product(
@@ -108,7 +108,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Cashmere-Blend Cardigan",
             color="Driftwood",
             price=158,
-            category="Outerwear",
+            category="Clothing",
             tags=[
                 "minimal", "serene", "classic", "neutral",
                 "earth", "slow", "evening", "outerwear",
@@ -127,7 +127,7 @@ def showcase_catalog() -> List[StorefrontProduct]:
             name="Linen Utility Jacket",
             color="Faded Olive",
             price=178,
-            category="Outerwear",
+            category="Clothing",
             tags=["adventurous", "creative", "earth", "neutral", "outdoor", "travel", "outerwear"],
         ),
     ]

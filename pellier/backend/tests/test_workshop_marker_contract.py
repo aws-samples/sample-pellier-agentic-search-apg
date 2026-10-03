@@ -86,8 +86,8 @@ LAB1_PLAN_REFERENCE = (
     "solutions/the-quiet-search/retrieval/search_plan_solution.py"
 )
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
-# in-stock Home Decor at or under $100 tagged both `gift` and `home`.
-LAB1_GOLDEN_IDS = ("21", "22", "23", "25", "27", "29")
+# in-stock Home at or under $100 tagged both `gift` and `home`.
+LAB1_GOLDEN_IDS = ("21", "23", "25", "27", "29", "80", "83")
 LAB1_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
 LAB1_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 

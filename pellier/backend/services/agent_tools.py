@@ -763,7 +763,7 @@ def get_trending_products(limit: int = 5, category: str = None) -> str:
 
     Args:
         limit: Maximum number of products to return (default: 5)
-        category: Optional category filter (e.g. "Home Decor", "Apparel")
+        category: Optional department filter (e.g. "Home", "Clothing")
 
     Returns:
         JSON string with trending products
@@ -978,41 +978,47 @@ def escalate_to_human(reason: str, customer_id: str = "") -> str:
 
 
 _CATEGORY_MAP = {
-    # Pellier catalog categories (92 products, 9 categories)
-    'linen': 'Linen', 'camp shirt': 'Linen', 'oxford': 'Linen',
-    'dress': 'Dresses', 'gown': 'Dresses', 'sundress': 'Dresses', 'maxi': 'Dresses',
-    'slip dress': 'Dresses', 'kaftan': 'Dresses', 'shirtdress': 'Dresses',
-    'outerwear': 'Outerwear', 'jacket': 'Outerwear', 'cardigan': 'Outerwear',
-    'vest': 'Outerwear', 'sweater': 'Outerwear', 'blazer': 'Outerwear',
-    'trench': 'Outerwear', 'anorak': 'Outerwear', 'puffer': 'Outerwear',
-    'shoe': 'Footwear', 'sneaker': 'Footwear', 'sandal': 'Footwear',
-    'boot': 'Footwear', 'loafer': 'Footwear', 'runner': 'Footwear',
-    'espadrille': 'Footwear', 'mule': 'Footwear', 'derby': 'Footwear',
-    'footwear': 'Footwear', 'trail runner': 'Footwear',
+    # Shopper keyword -> store department (DEPARTMENTS in scripts/seed_pellier_catalog.py).
+    # Materials such as linen span departments, so they are not keywords.
+    'clothing': 'Clothing', 'shirt': 'Clothing', 'camp shirt': 'Clothing',
+    'oxford': 'Clothing', 'dress': 'Clothing', 'gown': 'Clothing',
+    'sundress': 'Clothing', 'maxi': 'Clothing', 'slip dress': 'Clothing',
+    'kaftan': 'Clothing', 'shirtdress': 'Clothing',
+    'outerwear': 'Clothing', 'jacket': 'Clothing', 'cardigan': 'Clothing',
+    'vest': 'Clothing', 'sweater': 'Clothing', 'blazer': 'Clothing',
+    'trench': 'Clothing', 'anorak': 'Clothing', 'puffer': 'Clothing',
+    'top': 'Clothing', 'tee': 'Clothing', 'blouse': 'Clothing', 'camisole': 'Clothing',
+    'henley': 'Clothing', 'polo': 'Clothing', 'tank': 'Clothing', 'shell': 'Clothing',
+    'button-down': 'Clothing',
+    'bottom': 'Clothing', 'bottoms': 'Clothing', 'trouser': 'Clothing',
+    'pant': 'Clothing', 'skirt': 'Clothing', 'denim': 'Clothing',
+    'palazzo': 'Clothing', 'chino': 'Clothing', 'corduroy': 'Clothing',
+    'shoe': 'Shoes', 'sneaker': 'Shoes', 'sandal': 'Shoes',
+    'boot': 'Shoes', 'loafer': 'Shoes', 'runner': 'Shoes',
+    'espadrille': 'Shoes', 'mule': 'Shoes', 'derby': 'Shoes',
+    'footwear': 'Shoes', 'trail runner': 'Shoes',
+    'bag': 'Bags and travel', 'tote': 'Bags and travel', 'backpack': 'Bags and travel',
+    'crossbody': 'Bags and travel', 'clutch': 'Bags and travel',
+    'duffle': 'Bags and travel', 'weekender': 'Bags and travel',
+    'pouch': 'Bags and travel', 'handbag': 'Bags and travel', 'purse': 'Bags and travel',
     'accessory': 'Accessories', 'accessories': 'Accessories', 'hat': 'Accessories',
     'bracelet': 'Accessories', 'cuff': 'Accessories', 'earring': 'Accessories',
     'scarf': 'Accessories', 'pocket square': 'Accessories',
-    'bag': 'Bags', 'tote': 'Bags', 'backpack': 'Bags', 'crossbody': 'Bags',
-    'clutch': 'Bags', 'duffle': 'Bags', 'weekender': 'Bags', 'pouch': 'Bags',
-    'handbag': 'Bags', 'purse': 'Bags',
     'home': 'Home', 'candle': 'Home', 'throw': 'Home', 'blanket': 'Home',
-    'towel': 'Home', 'rug': 'Home', 'vase': 'Home', 'pillow': 'Home',
-    'incense': 'Home', 'tumbler': 'Home', 'napkin': 'Home', 'duvet': 'Home',
-    'pitcher': 'Home',
-    'top': 'Tops', 'tee': 'Tops', 'blouse': 'Tops', 'camisole': 'Tops',
-    'henley': 'Tops', 'polo': 'Tops', 'tank': 'Tops', 'shell': 'Tops',
-    'button-down': 'Tops',
-    'bottom': 'Bottoms', 'bottoms': 'Bottoms', 'trouser': 'Bottoms',
-    'pant': 'Bottoms', 'skirt': 'Bottoms', 'denim': 'Bottoms',
-    'palazzo': 'Bottoms', 'chino': 'Bottoms', 'corduroy': 'Bottoms',
+    'rug': 'Home', 'vase': 'Home', 'pillow': 'Home', 'incense': 'Home', 'duvet': 'Home',
+    'kitchen': 'Kitchen and table', 'tumbler': 'Kitchen and table',
+    'napkin': 'Kitchen and table', 'pitcher': 'Kitchen and table',
+    'table runner': 'Kitchen and table',
+    'bath': 'Bath and body', 'towel': 'Bath and body',
+    'stationery': 'Stationery and gifts',
 }
 
 def _detect_category(query: str) -> str | None:
     """Auto-detect product category from query keywords.
     
     Uses word-boundary matching so "what" doesn't match "hat".
-    Prefers longer (more specific) keyword matches so "linen shirt"
-    maps to Linen, not Tops. Handles common plural forms (s, es).
+    Prefers longer (more specific) keyword matches so "table runner"
+    maps to Kitchen and table, not Shoes. Handles common plural forms (s, es).
     """
     query_lower = query.lower()
     for keyword, cat_name in sorted(_CATEGORY_MAP.items(), key=lambda x: -len(x[0])):
@@ -1048,9 +1054,9 @@ def search_products(
 
         # Track whether the category was explicitly passed by the
         # agent vs. auto-detected from a keyword map. Auto-detected
-        # categories (e.g. "linen" → "Linen") are speculative — the
-        # Pellier catalog uses higher-level taxonomy ("Apparel",
-        # "Home Decor", "Accessories"), so a strict substring filter
+        # categories (e.g. "vase" → "Home") are speculative — the
+        # Pellier catalog uses eight broad departments (Clothing,
+        # Home, Kitchen and table, ...), so a strict substring filter
         # on an auto-detected category drops every vector-search hit.
         # The query embedding already encodes the user's intent; we
         # use the detected category only for pool sizing, not as a
@@ -1471,7 +1477,7 @@ def get_return_policy(category: str = "default") -> str:
     """Look up the return and refund policy for a specific product category. Use when customers ask about returns, refunds, warranties, or return windows.
 
     Args:
-        category: Product category name (e.g., "Home Decor", "Apparel")
+        category: Store department name (e.g., "Home", "Clothing")
 
     Returns:
         JSON string with return policy details

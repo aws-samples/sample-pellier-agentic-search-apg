@@ -37,7 +37,7 @@ def candidates() -> List[Dict[str, Any]]:
             "color": "Sand",
             "description": f"Description for product {i}",
             "img_url": f"https://example.com/{i}.jpg",
-            "category": "Apparel",
+            "category": "Clothing",
             "price": 50.0 + i * 10,  # 60, 70, 80, 90, 100
             "rating": 4.7,
             "reviews": "50",
@@ -375,7 +375,7 @@ class TestFilters:
         # Explicit category that doesn't match → drops all results.
         result_explicit = json.loads(
             agent_tools.search_products_hybrid(
-                query="q", category="Footwear", limit=5,
+                query="q", category="Shoes", limit=5,
             )
         )
         assert result_explicit["count"] == 0
@@ -418,11 +418,11 @@ class TestHardConstraintsRunBeforeRerank:
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        agent_tools.search_products_hybrid(query="q", category="Footwear", limit=5)
+        agent_tools.search_products_hybrid(query="q", category="Shoes", limit=5)
 
         kwargs = patch_hybrid.search_calls[-1]
         assert "category = ANY(%s)" in kwargs["hard_clauses"]
-        assert ["Footwear"] in kwargs["hard_params"]
+        assert ["Shoes"] in kwargs["hard_params"]
 
     def test_no_constraints_means_no_predicates(
         self,

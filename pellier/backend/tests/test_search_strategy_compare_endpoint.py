@@ -56,7 +56,7 @@ class _VectorSearch:
                 "name": f"Filtered {index}",
                 "product_id": index,
                 "description": "A filtered result",
-                "category": "Home Decor",
+                "category": "Home",
             }
             for index in range(1, 7)
         ]
@@ -73,7 +73,7 @@ class _VectorSearch:
                 "name": f"Planned {index}",
                 "product_id": index,
                 "description": "A planned result",
-                "category": "Home Decor",
+                "category": "Home",
             }
             for index in range(1, 7)
         ]
@@ -114,7 +114,7 @@ class _HybridSearch:
                 "name": f"Hybrid {index}",
                 "product_id": index,
                 "description": "A hybrid result",
-                "category": "Home Decor",
+                "category": "Home",
             }
             for index in range(1, 7)
         ]
@@ -141,7 +141,7 @@ class _Extractor:
 
     def extract(self, query: str) -> dict[str, Any]:
         return {
-            "categories": ["Home Decor"],
+            "categories": ["Home"],
             "tags": ["gift"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -443,7 +443,7 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
     assert agentic["hardConstraintsEnforced"] == [
         "price <= $100",
         "in stock",
-        "category in Home Decor",
+        "category in Home",
     ]
     # Widening happened, and it is disclosed rather than silent.
     assert [r["step"] for r in agentic["relaxations"]] == ["drop_tags"]

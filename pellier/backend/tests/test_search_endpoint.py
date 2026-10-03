@@ -46,7 +46,7 @@ from routes.search import (
 #
 # These mimic what ``HybridSearchService._vector_search`` returns: rows
 # aliased for the legacy search explorer (``product_id``,
-# ``product_description``, ``img_url``, ``category_name``, ``rating``,
+# ``product_description``, ``img_url``, ``category``, ``rating``,
 # etc.) with a trailing ``similarity`` column. The route projects them
 # onto ``StorefrontProduct`` before the response; the test asserts the
 # projection is lossless for id/price/rating/imageUrl and falls back
@@ -60,7 +60,7 @@ def _synthetic_vector_rows() -> List[Dict[str, Any]]:
             "product_description": "Italian Linen Camp Shirt\nMade in Portugal",
             "img_url": "https://example.com/linen-shirt-01.jpg",
             "product_url": "https://example.com/p/linen-shirt-01",
-            "category_name": "Linen Shirts",
+            "category": "Clothing",
             "price": 128.0,
             "reviews": 142,
             "rating": 4.7,
@@ -74,7 +74,7 @@ def _synthetic_vector_rows() -> List[Dict[str, Any]]:
             "product_description": "Wide-Leg Linen Trousers",
             "img_url": "https://example.com/linen-trousers-02.jpg",
             "product_url": "https://example.com/p/linen-trousers-02",
-            "category_name": "Linen Bottoms",
+            "category": "Clothing",
             "price": 98.0,
             "reviews": 87,
             "rating": 4.5,
@@ -88,7 +88,7 @@ def _synthetic_vector_rows() -> List[Dict[str, Any]]:
             "product_description": "Relaxed Oxford Shirt",
             "img_url": "https://example.com/oxford-shirt-03.jpg",
             "product_url": "https://example.com/p/oxford-shirt-03",
-            "category_name": "Linen Shirts",
+            "category": "Clothing",
             "price": 88.0,
             "reviews": 54,
             "rating": 4.4,
@@ -102,7 +102,7 @@ def _synthetic_vector_rows() -> List[Dict[str, Any]]:
             "product_description": "Cashmere-Blend Cardigan",
             "img_url": "https://example.com/cardigan-04.jpg",
             "product_url": "https://example.com/p/cardigan-04",
-            "category_name": "Outerwear",
+            "category": "Clothing",
             "price": 158.0,
             "reviews": 31,
             "rating": 4.8,
@@ -116,7 +116,7 @@ def _synthetic_vector_rows() -> List[Dict[str, Any]]:
             "product_description": "Sundress in Washed Linen",
             "img_url": "https://example.com/sundress-05.jpg",
             "product_url": "https://example.com/p/sundress-05",
-            "category_name": "Dresses",
+            "category": "Clothing",
             "price": 148.0,
             "reviews": 66,
             "rating": 4.6,
@@ -296,6 +296,7 @@ def test_products_list_is_projected_onto_storefront_shape(
     assert sample["reviewCount"] == 142
     assert sample["imageUrl"] == "https://example.com/linen-shirt-01.jpg"
     assert sample["name"] == "Italian Linen Camp Shirt"
+    assert sample["category"] == "Clothing"
 
 
 def test_timing_fields_are_populated(client: TestClient) -> None:

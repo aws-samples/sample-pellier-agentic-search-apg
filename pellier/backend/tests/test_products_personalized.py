@@ -81,7 +81,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Italian Linen Camp Shirt",
             color="Sand",
             price=128.0,
-            category="Linen",
+            category="Clothing",
             tags=[
                 "minimal", "serene", "classic", "warm",
                 "neutral", "everyday", "slow", "linen",
@@ -92,7 +92,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Wide-Leg Linen Trousers",
             color="Terracotta",
             price=98.0,
-            category="Linen",
+            category="Clothing",
             tags=["creative", "bold", "warm", "earth", "everyday", "travel", "linen"],
         ),
         dict(
@@ -100,7 +100,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Signature Straw Tote",
             color="Natural",
             price=68.0,
-            category="Accessories",
+            category="Bags and travel",
             tags=[
                 "classic", "serene", "neutral", "soft",
                 "travel", "everyday", "accessories",
@@ -111,7 +111,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Relaxed Oxford Shirt",
             color="Warm Ivory",
             price=88.0,
-            category="Linen",
+            category="Clothing",
             tags=["classic", "minimal", "neutral", "soft", "everyday", "work", "linen"],
         ),
         dict(
@@ -119,7 +119,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Sundress in Washed Linen",
             color="Golden Ochre",
             price=148.0,
-            category="Dresses",
+            category="Clothing",
             tags=["creative", "bold", "warm", "earth", "evening", "dresses", "linen"],
         ),
         dict(
@@ -127,7 +127,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Leather Slide Sandal",
             color="Chestnut",
             price=112.0,
-            category="Footwear",
+            category="Shoes",
             tags=[
                 "minimal", "classic", "earth", "warm",
                 "everyday", "travel", "footwear",
@@ -138,7 +138,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Cashmere-Blend Cardigan",
             color="Driftwood",
             price=158.0,
-            category="Outerwear",
+            category="Clothing",
             tags=[
                 "minimal", "serene", "classic", "neutral",
                 "earth", "slow", "evening", "outerwear",
@@ -157,7 +157,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
             name="Linen Utility Jacket",
             color="Faded Olive",
             price=178.0,
-            category="Outerwear",
+            category="Clothing",
             tags=[
                 "adventurous", "creative", "earth", "neutral",
                 "outdoor", "travel", "outerwear",
@@ -648,10 +648,10 @@ def test_category_filter_uses_ilike_and_narrows_results(
     client: TestClient, fake_db: FakeDatabaseService
 ) -> None:
     """Req 3.3.4: ``category=<name>`` SHALL filter via ILIKE per database.md."""
-    resp = client.get("/api/products?category=Linen")
+    resp = client.get("/api/products?category=Clothing")
     assert resp.status_code == 200
     categories = {p["category"] for p in resp.json()}
-    assert categories == {"Linen"}
+    assert categories == {"Clothing"}
 
     # Confirm the SQL path actually uses ILIKE (database.md steering).
     last_query = fake_db.calls[-1]["query"].upper()
@@ -795,16 +795,8 @@ def test_inventory_returns_counts_and_timestamp(client: TestClient) -> None:
     body = resp.json()
 
     assert set(body.keys()) == {"last_refreshed", "counts", "stale", "freshness"}
-    # All 6 storefront categories have at least one in-stock row in
-    # the seeded showcase.
-    assert set(body["counts"].keys()) == {
-        "Linen",
-        "Accessories",
-        "Dresses",
-        "Footwear",
-        "Outerwear",
-        "Home",
-    }
+    # One entry per department the seeded showcase carries.
+    assert set(body["counts"].keys()) == {"Clothing", "Bags and travel", "Shoes", "Home"}
     # ISO-8601 with tz.
     parsed = datetime.fromisoformat(body["last_refreshed"])
     assert parsed.tzinfo is not None
@@ -829,22 +821,18 @@ def test_inventory_stale_field_is_evidence_not_server_clock(
 
 
 # ---------------------------------------------------------------------------
-# Schema/data drift — converter boundary
+# Converter boundary
 # ---------------------------------------------------------------------------
 #
-# The Pellier catalog seed still uses the personalization_agent-import taxonomy
-# ("Apparel", "Home Decor", "Beauty", "Gifts"; see
-# ``services/structured_extract.KNOWN_CATEGORIES``) while the wire shape
-# uses the editorial Literal in ``models/search.StorefrontCategory``. The
-# converter coerces at the boundary; a regression here would resurface
-# the production 500 we hit on /api/products?limit=30.
+# The catalog stores the eight store departments
+# (``services/structured_extract.KNOWN_CATEGORIES``) and the wire shape uses
+# the same Literal (``models/search.StorefrontCategory``), so the converter
+# passes the department through. tests/test_api_smoke_postgres.py proves the
+# same thing against a real database.
 
 
-def test_row_to_storefront_product_coerces_legacy_category() -> None:
-    """Legacy DB category ``Home Decor`` SHALL project onto wire ``Home``."""
-    from routes.products import _row_to_storefront_product
-
-    product = _row_to_storefront_product({
+def _stoneware_pitcher(category: str) -> Dict[str, Any]:
+    return {
         "id": 99,
         "brand": "Pellier Home",
         "name": "Stoneware Pitcher",
@@ -852,12 +840,29 @@ def test_row_to_storefront_product_coerces_legacy_category() -> None:
         "price": 78.0,
         "rating": 4.6,
         "reviews": "12",
-        "category": "Home Decor",
+        "category": category,
         "image_url": "https://example.com/99.jpg",
         "badge": None,
         "tags": ["home", "ceramic"],
-    })
-    assert product.category == "Home"
+    }
+
+
+def test_row_to_storefront_product_passes_the_department_through() -> None:
+    """A department SHALL reach the wire unchanged."""
+    from routes.products import _row_to_storefront_product
+
+    product = _row_to_storefront_product(_stoneware_pitcher("Kitchen and table"))
+    assert product.category == "Kitchen and table"
+
+
+def test_row_to_storefront_product_refuses_a_category_outside_the_departments() -> None:
+    """A row outside the eight departments fails loudly instead of being relabelled."""
+    from pydantic import ValidationError
+
+    from routes.products import _row_to_storefront_product
+
+    with pytest.raises(ValidationError):
+        _row_to_storefront_product(_stoneware_pitcher("Tops"))
 
 
 def test_row_to_storefront_product_drops_empty_badge() -> None:
@@ -874,7 +879,7 @@ def test_row_to_storefront_product_drops_empty_badge() -> None:
         "price": 220.0,
         "rating": 4.8,
         "reviews": "47",
-        "category": "Linen",
+        "category": "Clothing",
         "image_url": "https://example.com/100.jpg",
         "badge": "",
         "tags": ["linen"],

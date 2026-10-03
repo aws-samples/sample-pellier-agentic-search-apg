@@ -764,9 +764,9 @@ describe('before server truth arrives', () => {
 describe('replacement recommendations', () => {
   const RECONCILED = {
     productId: '37', name: 'Wabi-Sabi Bowl', brand: 'Pellier Home',
-    category: 'Home Decor', price: 65, imgUrl: '/products/theo-wabi-sabi-bowl.png',
+    category: 'Kitchen and table', price: 65, imgUrl: '/products/theo-wabi-sabi-bowl.png',
     role: 'best_match',
-    fitReasons: ['Same category as the original (Home Decor)',
+    fitReasons: ['Same category as the original (Kitchen and table)',
                  '$100.00 below the $165.00 paid'],
     priceDeltaUsd: -100,
     inventoryEvidence: {
@@ -812,7 +812,7 @@ describe('replacement recommendations', () => {
       },
       {
         messageId: 2, role: 'assistant' as const,
-        content: 'Three Home Decor options with reconciled availability.',
+        content: 'Three Kitchen and table options with reconciled availability.',
         turnId: 'turn-r', turnState: 'complete' as const, actorType: 'assistant',
         artifact: {
           workflow: 'replacement_search',
@@ -1009,7 +1009,7 @@ describe('proposed actions', () => {
     customer: { customerId: 'CUST-RACHEL' },
     order: { orderId: 325, placedAt: '2026-08-08T16:53:54Z' },
     product: {
-      productId: '47', name: 'Vetiver Quietude', category: 'Beauty', price: 186,
+      productId: '47', name: 'Vetiver Quietude', category: 'Bath and body', price: 186,
       imgUrl: '/products/maison-vetiver-quietude.png',
     },
     material: {

@@ -149,7 +149,7 @@ def _catalog_row(product_id: int) -> dict[str, Any]:
         "product_id": str(product_id),
         "name": f"Product {product_id}",
         "description": f"Description {product_id}",
-        "category": "Home Decor",
+        "category": "Home",
         "price": 40.0 + product_id,
         "tags": ["home", "gift"],
         "quantity": 12,
@@ -229,7 +229,7 @@ class _StubExecution:
 class _StubExtractor:
     def extract(self, query: str) -> dict[str, Any]:
         return {
-            "categories": ["Home Decor"],
+            "categories": ["Home"],
             "tags": ["gift"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -414,9 +414,9 @@ def test_planner_score_credits_a_recovered_constraint(harness: Any) -> None:
 
     plan = build_plan(
         "linen under $200",
-        {"categories": ["Apparel"], "price_max_usd": 200, "in_stock_only": True},
+        {"categories": ["Clothing"], "price_max_usd": 200, "in_stock_only": True},
     )
-    expected = harness.Filters(categories=("Apparel",), price_max=200.0)
+    expected = harness.Filters(categories=("Clothing",), price_max=200.0)
 
     score = harness._score_plan(plan, expected)
 
@@ -433,9 +433,9 @@ def test_planner_score_flags_a_dropped_stock_requirement(harness: Any) -> None:
 
     plan = build_plan(
         "linen under $200",
-        {"categories": ["Apparel"], "price_max_usd": 200},  # no in_stock_only
+        {"categories": ["Clothing"], "price_max_usd": 200},  # no in_stock_only
     )
-    expected = harness.Filters(categories=("Apparel",), price_max=200.0)
+    expected = harness.Filters(categories=("Clothing",), price_max=200.0)
 
     score = harness._score_plan(plan, expected)
 
@@ -466,7 +466,7 @@ def test_planner_score_flags_a_missed_constraint(harness: Any) -> None:
     from services.search_plan import build_plan
 
     plan = build_plan("linen shirts", {})
-    expected = harness.Filters(categories=("Apparel",), price_max=200.0)
+    expected = harness.Filters(categories=("Clothing",), price_max=200.0)
 
     score = harness._score_plan(plan, expected)
 
@@ -493,8 +493,8 @@ def test_compliance_counts_an_over_budget_row(harness: Any) -> None:
 
     plan = build_plan("gift under $100", {"price_max_usd": 100})
     rows = [
-        {"price": 90.0, "category": "Gifts", "tags": []},
-        {"price": 250.0, "category": "Gifts", "tags": []},
+        {"price": 90.0, "category": "Stationery and gifts", "tags": []},
+        {"price": 250.0, "category": "Stationery and gifts", "tags": []},
     ]
 
     score = harness._score_compliance(rows, plan)
@@ -513,8 +513,8 @@ def test_compliance_counts_an_out_of_stock_row(harness: Any) -> None:
 
     plan = build_plan("gift, ready to ship", {"in_stock_only": True})
     rows = [
-        {"price": 40.0, "category": "Gifts", "tags": [], "quantity": 4},
-        {"price": 40.0, "category": "Gifts", "tags": [], "quantity": 0},
+        {"price": 40.0, "category": "Stationery and gifts", "tags": [], "quantity": 4},
+        {"price": 40.0, "category": "Stationery and gifts", "tags": [], "quantity": 0},
     ]
 
     score = harness._score_compliance(rows, plan)
@@ -528,8 +528,8 @@ def test_compliance_counts_an_excluded_tag(harness: Any) -> None:
 
     plan = build_plan("gift, no candles", {"exclusions": ["candle"]})
     rows = [
-        {"price": 20.0, "category": "Gifts", "tags": ["candle"]},
-        {"price": 20.0, "category": "Gifts", "tags": ["home"]},
+        {"price": 20.0, "category": "Stationery and gifts", "tags": ["candle"]},
+        {"price": 20.0, "category": "Stationery and gifts", "tags": ["home"]},
     ]
 
     score = harness._score_compliance(rows, plan)
@@ -544,7 +544,7 @@ def test_compliance_is_clean_when_every_row_is_valid(harness: Any) -> None:
         "in-stock gift under $100, no candles",
         {"price_max_usd": 100, "in_stock_only": True, "exclusions": ["candle"]},
     )
-    rows = [{"price": 40.0, "category": "Gifts", "tags": ["home"]}]
+    rows = [{"price": 40.0, "category": "Stationery and gifts", "tags": ["home"]}]
 
     score = harness._score_compliance(rows, plan)
 

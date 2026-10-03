@@ -94,7 +94,7 @@ describe('the review-pending notice', () => {
           {
             id: 37,
             name: 'Wabi-Sabi Bowl',
-            category: 'Home Decor',
+            category: 'Kitchen and table',
             price: 65,
             image: '',
             rating: 4.9,

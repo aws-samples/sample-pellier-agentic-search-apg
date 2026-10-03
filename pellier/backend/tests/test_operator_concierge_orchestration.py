@@ -1072,7 +1072,7 @@ def _replacement_artifact() -> Dict[str, Any]:
         "replacement": {
             "plan": {"original": {"orderId": 306, "productId": "31",
                                   "name": "Stoneware Pour-Over Set",
-                                  "category": "Home Decor", "price": 165.0},
+                                  "category": "Kitchen and table", "price": 165.0},
                      "describeHardControls": ["price ≤ $189.75"]},
             "available": [{"productId": "37", "name": "Wabi-Sabi Bowl", "price": 65.0}],
             "closeMatches": [],

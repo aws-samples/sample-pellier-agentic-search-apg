@@ -8,7 +8,7 @@ describe('catalog follow-ups', () => {
   it('never invents a colorway for a named catalog product', () => {
     const actions = productQuickActions({
       name: 'Italian Linen Camp Shirt',
-      category: 'Apparel',
+      category: 'Clothing',
       price: 228,
     })
 

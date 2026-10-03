@@ -48,7 +48,7 @@ def _vector_rows() -> List[Dict[str, Any]]:
          "description": "Breezy Italian linen", "category": "Shirts",
          "similarity": 0.91},
         {"product_id": 2, "name": "Wide-Leg Trousers", "brand": "Hadley",
-         "description": "Relaxed linen trouser", "category": "Bottoms",
+         "description": "Relaxed linen trouser", "category": "Clothing",
          "similarity": 0.84},
         {"product_id": 3, "name": "Oxford Shirt", "brand": "Pellier",
          "description": "Cotton oxford", "category": "Shirts",
@@ -59,13 +59,13 @@ def _vector_rows() -> List[Dict[str, Any]]:
 def _fts_rows() -> List[Dict[str, Any]]:
     return [
         {"product_id": 2, "name": "Wide-Leg Trousers", "brand": "Hadley",
-         "description": "Relaxed linen trouser", "category": "Bottoms",
+         "description": "Relaxed linen trouser", "category": "Clothing",
          "fts_rank_score": 0.61},
         {"product_id": 1, "name": "Linen Camp Shirt", "brand": "Hadley",
          "description": "Breezy Italian linen", "category": "Shirts",
          "fts_rank_score": 0.55},
         {"product_id": 9, "name": "Linen Sundress", "brand": "Pellier",
-         "description": "Washed linen dress", "category": "Dresses",
+         "description": "Washed linen dress", "category": "Clothing",
          "fts_rank_score": 0.40},
     ]
 

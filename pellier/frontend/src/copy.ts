@@ -450,12 +450,14 @@ export const CONFIRMED_TOTALS = "Confirmed totals";
 // Category chips (Requirement 1.5.3)
 export const CATEGORY_CHIPS = [
   "All",
-  "Linen",
-  "Dresses",
+  "Clothing",
+  "Shoes",
+  "Bags and travel",
   "Accessories",
-  "Outerwear",
-  "Footwear",
   "Home",
+  "Kitchen and table",
+  "Bath and body",
+  "Stationery and gifts",
 ] as const;
 
 // Refinement panel (Requirement 1.8.1)
@@ -743,7 +745,7 @@ export const PREFERENCES_MODAL = {
       kind: "pill",
       chips: [
         { label: "Linen" },
-        { label: "Footwear" },
+        { label: "Shoes" },
         { label: "Outerwear" },
         { label: "Accessories" },
         { label: "Home" },

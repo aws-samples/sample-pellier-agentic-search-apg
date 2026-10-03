@@ -26,7 +26,7 @@
           "toolName": "search_products",
           "description": "Semantic search: hand-thrown ceramics + morning ritual",
           "durationMs": 284,
-          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home Decor%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+          "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Kitchen and table%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
           "resultSummary": "3 slow-craft pieces returned by cosine distance"
         }
       ],
@@ -106,7 +106,7 @@
       "description": "Claude Opus 4.6 - slow-craft search",
       "status": "complete",
       "durationMs": 284,
-      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Home Decor%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
+      "sql": "SELECT name, brand, price, 1 - (embedding <=> $1::vector) AS similarity\nFROM product_catalog\nWHERE category ILIKE '%Kitchen and table%'\n  AND quantity > 0\nORDER BY embedding <=> $1::vector\nLIMIT 10;",
       "agent": "Personalization Agent"
     },
     {

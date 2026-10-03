@@ -364,7 +364,7 @@ def test_gateway_like_helper_matches_the_in_process_escaping(
 
     server = _load_server(monkeypatch)
 
-    for term in ("Resort", "100% linen", "a_b", "back\\slash", "Home Decor"):
+    for term in ("Resort", "100% linen", "a_b", "back\\slash", "Kitchen and table"):
         assert server._prepare_like_pattern(term) == app_module._prepare_like_pattern(
             term.lower()
         )

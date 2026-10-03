@@ -309,9 +309,10 @@ class ReasoningChip(BaseModel):
     )
 
 
+# The eight store departments, stored as-is in pellier.product_catalog.category.
 StorefrontCategory = Literal[
-    "Linen", "Dresses", "Accessories", "Outerwear", "Footwear",
-    "Home", "Tops", "Bottoms", "Bags",
+    "Clothing", "Shoes", "Bags and travel", "Accessories",
+    "Home", "Kitchen and table", "Bath and body", "Stationery and gifts",
 ]
 StorefrontBadge = Literal["EDITORS_PICK", "BESTSELLER", "JUST_IN"]
 

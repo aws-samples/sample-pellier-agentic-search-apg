@@ -86,7 +86,7 @@ def _make_row(product_id: int, similarity: float) -> Dict[str, Any]:
         "color": "Sand",
         "description": f"Full description for test product {product_id}",
         "img_url": f"https://example.com/{product_id}.jpg",
-        "category": "Linen",
+        "category": "Clothing",
         "price": 128.0,
         "reviews": "50",
         "rating": 4.7,

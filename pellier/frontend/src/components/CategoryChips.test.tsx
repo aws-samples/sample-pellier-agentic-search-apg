@@ -4,7 +4,7 @@
  * Validates Requirements 1.5.3 and 1.5.4.
  *
  * Coverage:
- *   - Renders exactly the 7 chips from copy.ts in the documented order
+ *   - Renders All plus the eight store departments from copy.ts in order
  *     (Req 1.5.3).
  *   - `All` is selected by default and carries the dusk-fill visual state
  *     (Req 1.5.3, 1.5.4).
@@ -18,23 +18,25 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import CategoryChips from './CategoryChips'
+import CategoryChips, { categoryChipTestId } from './CategoryChips'
 import { CATEGORY_CHIPS } from '../copy'
 
 describe('CategoryChips — ordering and default selection (Req 1.5.3)', () => {
-  it('renders all 7 chips in the storefront-documented order', () => {
+  it('renders All and the eight store departments in order', () => {
     render(<CategoryChips />)
 
     const chips = screen.getAllByRole('button')
     expect(chips).toHaveLength(CATEGORY_CHIPS.length)
     expect(chips.map(c => c.textContent)).toEqual([
       'All',
-      'Linen',
-      'Dresses',
+      'Clothing',
+      'Shoes',
+      'Bags and travel',
       'Accessories',
-      'Outerwear',
-      'Footwear',
       'Home',
+      'Kitchen and table',
+      'Bath and body',
+      'Stationery and gifts',
     ])
   })
 
@@ -48,7 +50,7 @@ describe('CategoryChips — ordering and default selection (Req 1.5.3)', () => {
   it('all other chips are inactive by default', () => {
     render(<CategoryChips />)
     for (const label of CATEGORY_CHIPS.filter(l => l !== 'All')) {
-      const chip = screen.getByTestId(`category-chip-${label.toLowerCase()}`)
+      const chip = screen.getByTestId(categoryChipTestId(label))
       expect(chip).toHaveAttribute('data-active', 'false')
       expect(chip).toHaveAttribute('aria-pressed', 'false')
     }
@@ -62,11 +64,11 @@ describe('CategoryChips — click behavior (Req 1.5.4)', () => {
 
     render(<CategoryChips onChange={onChange} />)
 
-    await user.click(screen.getByTestId('category-chip-linen'))
+    await user.click(screen.getByTestId('category-chip-bags-and-travel'))
 
     expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange).toHaveBeenCalledWith('Linen')
-    expect(screen.getByTestId('category-chip-linen')).toHaveAttribute(
+    expect(onChange).toHaveBeenCalledWith('Bags and travel')
+    expect(screen.getByTestId('category-chip-bags-and-travel')).toHaveAttribute(
       'data-active',
       'true',
     )
@@ -83,7 +85,7 @@ describe('CategoryChips — click behavior (Req 1.5.4)', () => {
 
     render(<CategoryChips onChange={onChange} />)
 
-    await user.click(screen.getByTestId('category-chip-dresses'))
+    await user.click(screen.getByTestId('category-chip-clothing'))
     await user.click(screen.getByTestId('category-chip-all'))
 
     expect(onChange).toHaveBeenNthCalledWith(2, 'All')
@@ -91,7 +93,7 @@ describe('CategoryChips — click behavior (Req 1.5.4)', () => {
       'data-active',
       'true',
     )
-    expect(screen.getByTestId('category-chip-dresses')).toHaveAttribute(
+    expect(screen.getByTestId('category-chip-clothing')).toHaveAttribute(
       'data-active',
       'false',
     )
@@ -101,13 +103,13 @@ describe('CategoryChips — click behavior (Req 1.5.4)', () => {
     const user = userEvent.setup()
     render(<CategoryChips />)
 
-    await user.click(screen.getByTestId('category-chip-footwear'))
+    await user.click(screen.getByTestId('category-chip-shoes'))
     await user.click(screen.getByTestId('category-chip-home'))
 
     const actives = CATEGORY_CHIPS.filter(
       l =>
         screen
-          .getByTestId(`category-chip-${l.toLowerCase()}`)
+          .getByTestId(categoryChipTestId(l))
           .getAttribute('data-active') === 'true',
     )
     expect(actives).toEqual(['Home'])
@@ -128,22 +130,22 @@ describe('CategoryChips — controlled mode', () => {
       'true',
     )
 
-    await user.click(screen.getByTestId('category-chip-outerwear'))
+    await user.click(screen.getByTestId('category-chip-kitchen-and-table'))
     // Parent controls the value: without a rerender, the active chip
     // stays pinned to Accessories.
-    expect(onChange).toHaveBeenCalledWith('Outerwear')
+    expect(onChange).toHaveBeenCalledWith('Kitchen and table')
     expect(screen.getByTestId('category-chip-accessories')).toHaveAttribute(
       'data-active',
       'true',
     )
-    expect(screen.getByTestId('category-chip-outerwear')).toHaveAttribute(
+    expect(screen.getByTestId('category-chip-kitchen-and-table')).toHaveAttribute(
       'data-active',
       'false',
     )
 
     // Rerender with the new value to confirm it picks up.
-    rerender(<CategoryChips selected="Outerwear" onChange={onChange} />)
-    expect(screen.getByTestId('category-chip-outerwear')).toHaveAttribute(
+    rerender(<CategoryChips selected="Kitchen and table" onChange={onChange} />)
+    expect(screen.getByTestId('category-chip-kitchen-and-table')).toHaveAttribute(
       'data-active',
       'true',
     )

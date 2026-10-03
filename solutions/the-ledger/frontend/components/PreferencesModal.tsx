@@ -79,7 +79,7 @@ const OCCASION_LABEL_TO_TAG: Record<string, OccasionTag> = {
 
 const CATEGORY_LABEL_TO_TAG: Record<string, CategoryTag> = {
   Linen: 'linen',
-  Footwear: 'footwear',
+  Shoes: 'footwear',
   Outerwear: 'outerwear',
   Accessories: 'accessories',
   Home: 'home',

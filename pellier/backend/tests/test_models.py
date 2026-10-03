@@ -94,7 +94,7 @@ def test_search_response_round_trip_with_product() -> None:
         price=128.0,
         rating=4.8,
         review_count=142,
-        category="Linen",
+        category="Clothing",
         image_url="https://example.com/linen-camp-shirt.jpg",
         badge="EDITORS_PICK",
         tags=["minimal", "serene", "classic", "warm", "neutral", "linen"],

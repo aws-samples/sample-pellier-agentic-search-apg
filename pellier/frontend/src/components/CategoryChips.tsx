@@ -3,9 +3,8 @@
  *
  * Validates Requirements 1.5.3 and 1.5.4.
  *
- * Renders the 7 chips from `copy.ts` in the order:
- *   All (dusk fill, selected by default), Linen, Dresses, Accessories,
- *   Outerwear, Footwear, Home.
+ * Renders the chips from `copy.ts` in order: All (dusk fill, selected by
+ * default), then the eight store departments.
  *
  * Behavior:
  *   - Single-select. Clicking a chip sets it as the new selection; clicking
@@ -28,6 +27,10 @@ export const ALL_CATEGORY = 'All'
 
 // Exported union-ish type so callers can safely narrow before hitting the API.
 export type CategoryLabel = (typeof CATEGORY_CHIPS)[number]
+
+export function categoryChipTestId(label: CategoryLabel): string {
+  return `category-chip-${label.toLowerCase().replace(/ /g, '-')}`
+}
 
 interface CategoryChipsProps {
   /**
@@ -97,7 +100,7 @@ export default function CategoryChips({
             <li key={label}>
               <button
                 type="button"
-                data-testid={`category-chip-${label.toLowerCase()}`}
+                data-testid={categoryChipTestId(label)}
                 data-active={isActive ? 'true' : 'false'}
                 aria-pressed={isActive}
                 onClick={() => handleClick(label)}

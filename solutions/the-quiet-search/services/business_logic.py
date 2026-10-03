@@ -279,13 +279,13 @@ class BusinessLogic:
         if not category:
             query_lower = query.lower()
             category_map = {
-                'fragrance': 'Home Fragrance', 'diffuser': 'Home Fragrance',
-                'watch': 'Watches & Jewelry', 'jewel': 'Watches & Jewelry',
-                'shoe': 'Footwear', 'sneaker': 'Footwear', 'espadrille': 'Footwear',
-                'bag': 'Accessories', 'wallet': 'Accessories', 'scarf': 'Accessories',
-                'hat': 'Accessories', 'journal': 'Accessories',
-                'shirt': 'Apparel', 'trouser': 'Apparel', 'tee': 'Apparel',
-                'beauty': 'Beauty', 'soap': 'Beauty', 'apothecary': 'Beauty',
+                'fragrance': 'Bath and body', 'diffuser': 'Home',
+                'watch': 'Accessories', 'jewel': 'Accessories',
+                'shoe': 'Shoes', 'sneaker': 'Shoes', 'espadrille': 'Shoes',
+                'bag': 'Bags and travel', 'wallet': 'Accessories', 'scarf': 'Accessories',
+                'hat': 'Accessories', 'journal': 'Stationery and gifts',
+                'shirt': 'Clothing', 'trouser': 'Clothing', 'tee': 'Clothing',
+                'beauty': 'Bath and body', 'soap': 'Bath and body', 'apothecary': 'Bath and body',
                 'home': 'Home', 'ceramic': 'Home', 'candle': 'Home',
             }
             for keyword, cat_name in category_map.items():

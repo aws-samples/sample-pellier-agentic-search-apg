@@ -45,15 +45,19 @@ logger = logging.getLogger(__name__)
 
 
 # Catalog facets — kept in sync with pellier.product_catalog seed data.
-# If migrations add a category or tag, update both lists. The enum
-# whitelist below uses these to drop hallucinated model values.
+# The categories are the eight store departments (`DEPARTMENTS` in
+# scripts/seed_pellier_catalog.py). If the catalog adds a department or tag,
+# update both lists. The enum whitelist below uses these to drop
+# hallucinated model values.
 KNOWN_CATEGORIES: List[str] = [
+    "Clothing",
+    "Shoes",
+    "Bags and travel",
     "Accessories",
-    "Apparel",
-    "Beauty",
-    "Footwear",
-    "Gifts",
-    "Home Decor",
+    "Home",
+    "Kitchen and table",
+    "Bath and body",
+    "Stationery and gifts",
 ]
 
 KNOWN_TAGS: List[str] = [

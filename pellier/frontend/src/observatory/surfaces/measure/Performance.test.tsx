@@ -11,7 +11,7 @@ const payload = () => ({
   strategies: [{ strategy: 'agentic (Sonnet → filter → hybrid → rerank)', observedMs: 127, modeledCostPerThousandUsd: 4.2,
     products: [{ productId: 4, name: 'Live candle' }],
     rerank: { status: 'fallback', candidates: 20, returned: 5, model: 'cohere', fallbackOrder: 'rrf' },
-    extractedFilters: { priceMaxUsd: 100, inStockOnly: true, filterUsed: 'drop_tags', categories: ['Home Decor'], tags: ['gift'], softSignal: 'morning ritual' },
+    extractedFilters: { priceMaxUsd: 100, inStockOnly: true, filterUsed: 'drop_tags', categories: ['Home'], tags: ['gift'], softSignal: 'morning ritual' },
     searchPlan: { hard: { price_max_usd: 100 } }, hardConstraintsEnforced: ['price'], relaxations: [{ step: 'drop_tags' }],
   }],
 });

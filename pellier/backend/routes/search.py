@@ -120,33 +120,16 @@ async def get_embedding_service() -> EmbeddingService:
 # ---------------------------------------------------------------------------
 
 
-_FALLBACK_CATEGORY = "Accessories"
-_STOREFRONT_CATEGORIES = {
-    "Linen", "Dresses", "Accessories", "Outerwear", "Footwear",
-    "Home", "Tops", "Bottoms", "Bags",
-}
-
-
 def _vector_row_to_storefront_product(row: dict) -> StorefrontProduct:
     """Project a ``vector_search`` row onto the storefront wire shape.
 
     The Pellier catalog exposes ``name``, ``brand``, ``color``,
     ``category``, ``tags`` and ``badge`` directly, so the projection is
-    largely a 1:1 copy. We retain fallbacks for legacy fixture rows
-    (``product_description``, ``category_name``) so the search endpoint
-    tests — which still synthesise legacy-shaped rows — keep working
+    largely a 1:1 copy. ``category`` is the store department and passes
+    through unchanged. We retain a name fallback for legacy fixture rows
+    (``product_description``) so the search endpoint tests keep working
     without a second pass.
     """
-    raw_category = row.get("category") or row.get("category_name") or _FALLBACK_CATEGORY
-    if str(raw_category) in _STOREFRONT_CATEGORIES:
-        category: str = str(raw_category)
-    else:
-        category = _FALLBACK_CATEGORY
-        for storefront_cat in _STOREFRONT_CATEGORIES:
-            if storefront_cat.lower() in str(raw_category).lower():
-                category = storefront_cat
-                break
-
     name = row.get("name")
     if not name:
         # Legacy fixture path: derive a name from the description column.
@@ -169,7 +152,7 @@ def _vector_row_to_storefront_product(row: dict) -> StorefrontProduct:
         price=float(row.get("price") or 0),
         rating=float(row.get("rating") or 0),
         review_count=review_count,
-        category=category,  # type: ignore[arg-type]
+        category=row.get("category") or "",
         image_url=str(row.get("img_url") or row.get("imgurl") or ""),
         badge=badge,
         tags=list(row.get("tags") or []),

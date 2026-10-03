@@ -168,7 +168,7 @@ def _make_row(product_id: int, **extra: Any) -> Dict[str, Any]:
         "color": "Sand",
         "description": f"Description for product {product_id}",
         "img_url": f"https://example.com/{product_id}.jpg",
-        "category": "Apparel",
+        "category": "Clothing",
         "price": 100.0,
         "rating": 4.7,
         "reviews": "50",

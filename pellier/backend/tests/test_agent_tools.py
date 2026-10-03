@@ -44,7 +44,7 @@ def trending_payload() -> Dict[str, Any]:
                 "price": 128.0,
                 "stars": 4.8,
                 "reviews": 420,
-                "category_name": "Linen",
+                "category_name": "Clothing",
                 "quantity": 12,
                 "trending_score": 2016.0,
             },
@@ -54,7 +54,7 @@ def trending_payload() -> Dict[str, Any]:
                 "price": 148.0,
                 "stars": 4.9,
                 "reviews": 310,
-                "category_name": "Dresses",
+                "category_name": "Clothing",
                 "quantity": 8,
                 "trending_score": 1519.0,
             },
@@ -172,12 +172,12 @@ def test_happy_path_forwards_limit_and_category_to_business_logic(
     agent_tools._main_loop = None
     _install_stub_business_logic(monkeypatch, payload=trending_payload)
 
-    out = _invoke_tool(limit=7, category="Dresses")
+    out = _invoke_tool(limit=7, category="Clothing")
 
     parsed = json.loads(out)
     # The stub echoes the forwarded args into metadata so we can assert wiring.
     assert parsed["metadata"]["limit"] == 7
-    assert parsed["metadata"]["category_filter"] == "Dresses"
+    assert parsed["metadata"]["category_filter"] == "Clothing"
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ def test_related_products_accepts_pgvector_vector_embeddings() -> None:
                         "name": "Hadley Linen Shirt",
                         "brand": "Pellier",
                         "price": 128.0,
-                        "category": "Apparel",
+                        "category": "Clothing",
                         "embedding": Vector([0.25, -0.5, 0.75]),
                     }
                 ]
@@ -259,7 +259,7 @@ def test_related_products_accepts_pgvector_vector_embeddings() -> None:
                     "price": 118.0,
                     "rating": 4.7,
                     "reviews": 81,
-                    "category": "Apparel",
+                    "category": "Clothing",
                     "imgUrl": "/products/trouser.webp",
                     "similarity_score": 0.91,
                 }

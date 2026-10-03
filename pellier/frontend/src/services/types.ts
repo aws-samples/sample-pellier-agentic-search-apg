@@ -108,20 +108,10 @@ export interface ReasoningChip {
   urgentClause?: string
 }
 
+// The eight store departments, as stored in pellier.product_catalog.category.
 export type PellierCategory =
-  | 'Linen'
-  | 'Dresses'
-  | 'Accessories'
-  | 'Outerwear'
-  | 'Footwear'
-  | 'Home'
-  | 'Home Decor'
-  | 'Apparel'
-  | 'Bags & Travel'
-  | 'Home Fragrance'
-  | 'Watches & Jewelry'
-  | 'Beauty'
-  | 'Wellness'
+  | 'Clothing' | 'Shoes' | 'Bags and travel' | 'Accessories'
+  | 'Home' | 'Kitchen and table' | 'Bath and body' | 'Stationery and gifts'
 
 export type PellierBadge = 'EDITORS_PICK' | 'BESTSELLER' | 'JUST_IN'
 
@@ -172,11 +162,6 @@ export interface ProductAvailability {
  * `GET /api/products/{id}` response — the card fields plus catalog copy and
  * live stock.
  *
- * `category` is widened to `string` on purpose: the wire taxonomy
- * (`Tops`, `Bottoms`, `Bags`) and the editorial `PellierCategory` taxonomy
- * do not have the same members, and the product page only ever displays
- * this value. Nothing branches on it.
- *
  * `availability: null` means the inventory read did not happen. It must
  * never be rendered as zero stock.
  */
@@ -188,7 +173,7 @@ export interface PellierProductDetail {
   price: number
   rating: number
   reviewCount: number
-  category: string
+  category: PellierCategory
   imageUrl: string
   badge?: PellierBadge | null
   tags: string[]

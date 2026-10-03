@@ -30,7 +30,7 @@ def business_logic_class():
     [
         (None, 7, (7,)),
         ("", 2, (2,)),
-        ("Home Decor", 3, ("%Home Decor%", 3)),
+        ("Kitchen and table", 3, ("%Kitchen and table%", 3)),
         ("Home' OR TRUE; --", 4, ("%Home' OR TRUE; --%", 4)),
     ],
     ids=["no-category", "empty-category", "category", "quoted-category"],

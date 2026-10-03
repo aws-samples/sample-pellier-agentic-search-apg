@@ -104,11 +104,11 @@ class _Conn:
         return False
 
 
-POUR_OVER = _order_row(306, "31", "Stoneware Pour-Over Set", "Home Decor", 165.0,
+POUR_OVER = _order_row(306, "31", "Stoneware Pour-Over Set", "Kitchen and table", 165.0,
                        tags=("ceramic", "home", "slow", "artisanal"))
-CATCHALL = _order_row(315, "41", "Coral Lacquer Catchall", "Home Decor", 325.36,
+CATCHALL = _order_row(315, "41", "Coral Lacquer Catchall", "Home", 325.36,
                       brand="Pellier Maison", tags=("home", "gift"))
-ROBE = _order_row(316, "42", "Luxury Bath Robe, Sage", "Home Decor", 107.3)
+ROBE = _order_row(316, "42", "Luxury Bath Robe, Sage", "Bath and body", 107.3)
 
 
 def _inventory_row(
@@ -164,8 +164,8 @@ async def test_an_explicit_order_number_wins() -> None:
 @pytest.mark.asyncio
 async def test_an_ambiguous_reference_is_not_guessed() -> None:
     """Two order lines fitting equally well is a question, not a coin flip."""
-    wool_a = _order_row(1, "51", "Camel Wool Overcoat", "Apparel", 895.0)
-    wool_b = _order_row(2, "45", "Tailored Wool Blazer", "Apparel", 346.38)
+    wool_a = _order_row(1, "51", "Camel Wool Overcoat", "Clothing", 895.0)
+    wool_b = _order_row(2, "45", "Tailored Wool Blazer", "Clothing", 346.38)
     db = FakeDb(orders=[wool_a, wool_b])
     grounding = await RS.resolve_order_item(
         db, customer_id="CUST-CATHERINE", request="Find a replacement for her wool piece."
@@ -236,18 +236,18 @@ def test_an_inferred_preference_stays_soft(completed_search_plan) -> None:
     plan = _plan("something similar", {"tags": ["ceramic", "artisanal"]})
     assert plan.search_plan.soft.tags == ("ceramic", "artisanal")
     # The hard set contains only what Aurora established — the original's category.
-    assert plan.search_plan.hard.categories == ("Home Decor",)
+    assert plan.search_plan.hard.categories == ("Kitchen and table",)
     assert "ceramic" not in " ".join(plan.describe_hard_controls())
     # And the tag predicate is droppable by the relaxation ladder, unlike the rest.
     widened = plan.search_plan.relaxation_ladder()[-1]
     assert widened.soft.tags == ()
-    assert widened.hard.categories == ("Home Decor",)
+    assert widened.hard.categories == ("Kitchen and table",)
     assert widened.hard.price_max_usd == plan.search_plan.hard.price_max_usd
 
 
 def test_the_original_category_is_hard_because_aurora_established_it() -> None:
     plan = _plan("find a replacement", {})
-    assert plan.search_plan.hard.categories == ("Home Decor",)
+    assert plan.search_plan.hard.categories == ("Kitchen and table",)
 
 
 def test_a_replacement_is_never_the_item_it_replaces() -> None:
@@ -454,7 +454,7 @@ def test_no_upgrade_role_is_claimed() -> None:
 def _candidate(pid: str, name: str, price: float, **extra: Any) -> Dict[str, Any]:
     row = {
         "product_id": pid, "name": name, "price": price, "brand": "Pellier Home",
-        "category": "Home Decor", "description": f"{name} description",
+        "category": "Kitchen and table", "description": f"{name} description",
         "img_url": f"/products/{pid}.png", "tags": ["ceramic", "home"],
         "rrf_score": 0.03,
     }

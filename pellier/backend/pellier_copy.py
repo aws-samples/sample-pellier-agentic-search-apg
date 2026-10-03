@@ -189,7 +189,10 @@ RETURNS = "Returns"
 SECURE_CHECKOUT = "Secure checkout"
 
 # Category chips (Requirement 1.5.3)
-CATEGORY_CHIPS = ["All", "Linen", "Dresses", "Accessories", "Outerwear", "Footwear", "Home"]
+CATEGORY_CHIPS = [
+    "All", "Clothing", "Shoes", "Bags and travel", "Accessories",
+    "Home", "Kitchen and table", "Bath and body", "Stationery and gifts",
+]
 
 # Refinement panel (Requirement 1.8.1)
 REFINEMENT = {
@@ -371,7 +374,7 @@ PREFERENCES_MODAL = {
             "kind": "pill",
             "chips": [
                 {"label": "Linen"},
-                {"label": "Footwear"},
+                {"label": "Shoes"},
                 {"label": "Outerwear"},
                 {"label": "Accessories"},
                 {"label": "Home"},

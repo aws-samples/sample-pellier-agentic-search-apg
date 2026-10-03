@@ -102,7 +102,7 @@ const LIVE_CATALOG = [
     price: 148,
     rating: 4.8,
     reviewCount: 91,
-    category: 'Apparel',
+    category: 'Clothing',
     imageUrl: '/products/marco-linen-camp-shirt-indigo.webp',
     tags: ['linen', 'travel'],
   },

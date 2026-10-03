@@ -10,11 +10,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from typing import Any
-
-import os
 
 import pytest
 
@@ -24,6 +23,7 @@ import services.hybrid_search as hybrid_module
 import services.planned_hybrid_retrieval as retrieval_module
 import services.rerank as rerank_module
 import services.structured_extract as extract_module
+from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
 REPO = Path(__file__).resolve().parents[3]
 HARNESS = REPO / "scripts" / "eval_retrieval_harness.py"
@@ -42,7 +42,7 @@ def _rows(count: int) -> list[dict[str, Any]]:
             "product_id": str(index),
             "name": f"Gift {index}",
             "description": "A considered housewarming object",
-            "category": "Home Decor",
+            "category": "Home",
             "price": 40.0 + index,
             "tags": ["gift", "home"],
             "quantity": 6,
@@ -82,7 +82,7 @@ class _Reranker:
 class _Extractor:
     def extract(self, query: str) -> dict[str, Any]:
         return {
-            "categories": ["Home Decor"],
+            "categories": ["Home"],
             "tags": [],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -324,8 +324,7 @@ def test_micro_eval_declares_the_observatory_authentication_dependency() -> None
     assert parameter.default.dependency is get_current_user
 
 
-def test_harness_golden_set_pins_the_canonical_anna_query() -> None:
-    """The harness and the micro-eval must label the same query the same way."""
+def _load_harness() -> Any:
     spec = importlib.util.spec_from_file_location("pellier_eval_harness", HARNESS)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -336,12 +335,21 @@ def test_harness_golden_set_pins_the_canonical_anna_query() -> None:
         spec.loader.exec_module(module)
     finally:
         sys.modules.pop(spec.name, None)
+    return module
+
+
+def test_harness_golden_set_pins_the_canonical_anna_query() -> None:
+    """The harness and the micro-eval must label the same query the same way."""
+    module = _load_harness()
 
     entries = [g for g in module.GOLDEN_QUERIES if g.query == retrieval_module.CANONICAL_ANNA_QUERY]
     assert len(entries) == 1
     assert entries[0].query == CANONICAL_QUERY
     assert entries[0].expected == retrieval_module.CANONICAL_ANNA_GOLDEN_IDS
     assert entries[0].filters.price_max == 100
+    no_candles = next(g for g in module.GOLDEN_QUERIES if g.label == "housewarming_no_candles")
+    exclusion = next(c for c in retrieval_module.HELD_OUT_CASES if c["id"] == "exclusion")
+    assert no_candles.expected == exclusion["golden_ids"], "one request, one set of labels"
     for name in ("_where_for_filters", "_vector_search", "_fts_search", "_rrf_merge", "_rerank"):
         assert not hasattr(module, name), f"harness still owns private retrieval: {name}"
 
@@ -460,20 +468,26 @@ def test_the_held_out_query_cases_cover_the_four_agreed_failure_modes() -> None:
     exclusion = set(cases["exclusion"]["golden_ids"])
     assert exclusion < reference, "the exclusion case is the tuning set minus the excluded piece"
     assert "21" not in exclusion, "the candle must be excluded"
-    assert set(cases["tight_budget"]["golden_ids"]) == {"23", "30"}
+    assert set(cases["tight_budget"]["golden_ids"]) == {
+        "21", "23", "25", "26", "27", "29", "30", "73", "76", "77", "80"}
     assert cases["unavailable"]["must_not_return"] == ("43",), "the sold-out vest"
     assert cases["no_result"]["kind"] == "no_result"
     for case in cases.values():
         assert case["query"] != retrieval_module.CANONICAL_ANNA_QUERY
 
 
+_ANNA_DEFINITION = """SELECT "productId" FROM pellier.product_catalog
+                       WHERE category = 'Home' AND price <= 100 AND quantity > 0
+                         AND tags @> '["gift","home"]'::jsonb
+                       ORDER BY "productId"::int"""
+
 _HELD_OUT_DEFINITIONS = {
     "slice": """SELECT "productId" FROM pellier.product_catalog
-                 WHERE category = 'Beauty' AND quantity > 0
+                 WHERE category = 'Bath and body' AND quantity > 0
                    AND tags @> '["gift"]'::jsonb
                  ORDER BY "productId"::int""",
     "exclusion": """SELECT "productId" FROM pellier.product_catalog
-                     WHERE category = 'Home Decor' AND price <= 100 AND quantity > 0
+                     WHERE category = 'Home' AND price <= 100 AND quantity > 0
                        AND tags @> '["gift","home"]'::jsonb AND NOT (tags ? 'candle')
                      ORDER BY "productId"::int""",
     "tight_budget": """SELECT "productId" FROM pellier.product_catalog
@@ -487,19 +501,32 @@ _HELD_OUT_DEFINITIONS = {
 }
 
 
-def test_the_held_out_definitions_match_the_pinned_ids_on_a_live_catalog() -> None:
-    """The pinned ids are the rows each documented rule selects, on the real catalog."""
-    dsn = os.environ.get("PELLIER_LIVE_POSTGRES_URL") or os.environ.get("PELLIER_TEST_DSN")
-    if not dsn:
-        pytest.skip("set PELLIER_LIVE_POSTGRES_URL to check the held-out definitions live")
-    psycopg = pytest.importorskip("psycopg")
+def test_the_golden_definitions_match_the_pinned_ids_on_a_fresh_catalog(fresh_db) -> None:
+    """The pinned ids are the rows each documented rule selects, on a freshly set-up catalog."""
+    anna = tuple(fresh_db.psql(_ANNA_DEFINITION).split())
+    assert anna == retrieval_module.CANONICAL_ANNA_GOLDEN_IDS
     cases = {c["id"]: c for c in retrieval_module.HELD_OUT_CASES}
-    with psycopg.connect(dsn) as conn:
-        for case_id, sql in _HELD_OUT_DEFINITIONS.items():
-            rows = tuple(str(r[0]) for r in conn.execute(sql).fetchall())
-            expected = tuple(cases[case_id].get("golden_ids") or ())
-            assert rows == expected, f"{case_id}: catalog selects {rows}, pinned {expected}"
-        sold_out = conn.execute(
-            "SELECT quantity FROM pellier.product_catalog WHERE \"productId\" = '43'"
-        ).fetchone()
-        assert sold_out and int(sold_out[0]) == 0, "the unavailable case needs the vest sold out"
+    for case_id, sql in _HELD_OUT_DEFINITIONS.items():
+        rows = tuple(fresh_db.psql(sql).split())
+        expected = tuple(cases[case_id].get("golden_ids") or ())
+        assert rows == expected, f"{case_id}: catalog selects {rows}, pinned {expected}"
+    sold_out = fresh_db.psql(
+        "SELECT quantity FROM pellier.product_catalog WHERE \"productId\" = '43'")
+    assert sold_out == "0", "the unavailable case needs the vest sold out"
+
+
+def test_harness_labels_meet_their_requested_filters_on_a_fresh_catalog(fresh_db) -> None:
+    """A labeled row that breaks its own query's filters scores a correct answer as a violation."""
+    module = _load_harness()
+    for golden in module.GOLDEN_QUERIES:
+        if not golden.expected:
+            continue
+        ids = ",".join(f"'{pid}'" for pid in golden.expected)
+        rows = json.loads(fresh_db.psql(
+            "SELECT COALESCE(json_agg(json_build_object("
+            "'category', category, 'price', price, 'quantity', quantity, 'tags', tags)), '[]')"
+            f' FROM pellier.product_catalog WHERE "productId" IN ({ids})'))
+        assert len(rows) == len(golden.expected), golden.label
+        violations = module._score_requested_compliance(rows, golden.filters)
+        assert violations["hard_violations"] == 0, (golden.label, rows)
+        assert violations["exclusion_violations"] == 0, (golden.label, rows)

@@ -9,7 +9,7 @@ const PRODUCT: ChatProduct = {
   name: 'Coral Lacquer Catchall',
   price: 325.36,
   image: '',
-  category: 'Home Decor',
+  category: 'Home',
 }
 
 describe('ProductArtifactCard shopping details', () => {
@@ -27,7 +27,7 @@ describe('ProductArtifactCard shopping details', () => {
 
     const details = screen.getByLabelText('Shopping details')
     expect(within(details).getByText('Category')).toBeInTheDocument()
-    expect(within(details).getByText('Home Decor')).toBeInTheDocument()
+    expect(within(details).getByText('Home')).toBeInTheDocument()
     expect(within(details).queryByText('Material')).not.toBeInTheDocument()
     expect(within(details).queryByText('Service')).not.toBeInTheDocument()
   })

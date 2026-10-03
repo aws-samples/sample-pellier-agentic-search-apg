@@ -161,7 +161,7 @@ export function rankProductsForPersona<T extends PellierProduct>(
 //
 // Each persona gets a hand-picked set of cards that echo the language
 // they'd have used in chat. The fresh persona falls back to the
-// canonical generic set (Gifts / Performance / Linen / Home Rituals).
+// canonical generic set (Stationery and gifts / Performance / Linen / Home Rituals).
 // ---------------------------------------------------------------------
 
 export interface EditorialCard {
@@ -172,7 +172,7 @@ export interface EditorialCard {
 
 export const CANONICAL_EDITORIAL: EditorialCard[] = [
   {
-    category: 'Gifts',
+    category: 'Stationery and gifts',
     title: 'The art of giving well.',
     description:
       'Thoughtful pieces that arrive wrapped in tissue and tied with intention. For the person who notices the details.',

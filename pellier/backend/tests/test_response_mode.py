@@ -43,7 +43,7 @@ def test_chat_history_retains_bounded_rendered_product_identity() -> None:
                         "id": 41,
                         "name": "Beeswax Pillar Candle",
                         "price": 38,
-                        "category": "Home Decor",
+                        "category": "Home",
                         "availability": "in_stock",
                     },
                     {
@@ -125,7 +125,7 @@ def test_inventory_refresh_preserves_prior_card_media() -> None:
                     "name": "Wabi-Sabi Bowl",
                     "price": 65,
                     "brand": "Pellier Home",
-                    "category": "Home Decor",
+                    "category": "Home",
                     "image": "/products/wabi-sabi-bowl.png",
                     "rating": 4.9,
                     "reviews": 167,
@@ -177,7 +177,7 @@ def test_inventory_refresh_preserves_prior_card_media() -> None:
     assert products[0]["image"] == "/products/wabi-sabi-bowl.png"
     assert products[0]["rating"] == 4.9
     assert products[0]["reviews"] == 167
-    assert products[0]["category"] == "Home Decor"
+    assert products[0]["category"] == "Home"
     assert products[1]["image"] == "/products/brass-incense-holder.png"
 
 

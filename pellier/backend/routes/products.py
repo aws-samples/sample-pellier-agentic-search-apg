@@ -187,19 +187,6 @@ _WAREHOUSE_SELECT = """
 """
 
 
-# The Pellier catalog still uses the personalization_agent-import taxonomy
-# ("Apparel", "Home Decor", "Beauty", "Gifts" — see
-# ``services/structured_extract.KNOWN_CATEGORIES``). The wire shape
-# uses the editorial Literal in ``models/search.StorefrontCategory``.
-# This is the boundary projection from one to the other; rows that are
-# already in the editorial set pass through unchanged.
-_CATEGORY_DB_TO_WIRE: Dict[str, str] = {
-    "Home Decor": "Home",
-    "Apparel": "Tops",
-    "Beauty": "Accessories",
-    "Gifts": "Accessories",
-}
-
 _VALID_BADGES = {"EDITORS_PICK", "BESTSELLER", "JUST_IN"}
 
 
@@ -218,9 +205,6 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
     except (TypeError, ValueError):
         review_count = 0
 
-    raw_category = row.get("category") or ""
-    category = _CATEGORY_DB_TO_WIRE.get(raw_category, raw_category)
-
     raw_badge = row.get("badge")
     badge = raw_badge if raw_badge in _VALID_BADGES else None
 
@@ -232,7 +216,7 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
         price=float(row.get("price") or 0),
         rating=float(row.get("rating") or 0),
         review_count=review_count,
-        category=category,
+        category=row.get("category") or "",
         image_url=row.get("image_url") or "",
         badge=badge,
         tags=list(row.get("tags") or []),
@@ -443,7 +427,7 @@ async def get_inventory_signal(
     Shape per Req 3.5.1:
         {
             "last_refreshed": "2025-06-18T14:22:07.123Z",
-            "counts": {"Linen": 42, "Dresses": 7, ...},
+            "counts": {"Clothing": 19, "Home": 21, ...},
             "stale": false,
         }
     ``stale`` is set to True when ``last_refreshed`` is older than 24h

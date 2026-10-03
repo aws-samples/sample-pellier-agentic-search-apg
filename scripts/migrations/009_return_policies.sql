@@ -16,8 +16,8 @@
 --   'default' row when a category has no specific policy, so the 'default'
 --   row is required; the per-category rows make the answer feel curated.
 --
--- Category names match seed_pellier_catalog.py CATEGORY_NAMES
--- (Apparel, Accessories, Home Decor, Footwear, ...), plus 'default'.
+-- Category names are the eight store departments (DEPARTMENTS in
+-- scripts/seed_pellier_catalog.py), plus 'default'.
 --
 -- Idempotent: CREATE TABLE IF NOT EXISTS + INSERT ... ON CONFLICT DO NOTHING.
 -- Run: psql $DATABASE_URL -f scripts/migrations/009_return_policies.sql
@@ -38,11 +38,15 @@ CREATE TABLE IF NOT EXISTS pellier.return_policies (
 INSERT INTO pellier.return_policies
     (category_name, return_window_days, conditions, refund_method)
 VALUES
-    ('default',     30, 'Unworn and unused, with original tags and packaging.',                 'Original payment method'),
-    ('Apparel',     30, 'Unworn, with tags attached, in resaleable condition.',                 'Original payment method'),
-    ('Accessories', 30, 'Unused, in original packaging; final sale on pierced jewelry.',        'Original payment method'),
-    ('Home Decor',  45, 'Unused and undamaged; ceramics and glassware inspected on return.',    'Original payment method or store credit'),
-    ('Footwear',    30, 'Unworn, in the original box, with no sole wear.',                       'Original payment method')
+    ('default',              30, 'Unworn and unused, with original tags and packaging.',              'Original payment method'),
+    ('Clothing',             30, 'Unworn, with tags attached, in resaleable condition.',              'Original payment method'),
+    ('Shoes',                30, 'Unworn, in the original box, with no sole wear.',                    'Original payment method'),
+    ('Bags and travel',      30, 'Unused, with tags attached, in the original packaging.',            'Original payment method'),
+    ('Accessories',          30, 'Unused, in original packaging; final sale on pierced jewelry.',     'Original payment method'),
+    ('Home',                 45, 'Unused and undamaged; ceramics and glassware inspected on return.', 'Original payment method or store credit'),
+    ('Kitchen and table',    45, 'Unused and undamaged; ceramics and glassware inspected on return.', 'Original payment method or store credit'),
+    ('Bath and body',        30, 'Unopened and unused, in the original packaging.',                   'Original payment method'),
+    ('Stationery and gifts', 30, 'Unused, in the original packaging.',                                'Original payment method')
 ON CONFLICT (category_name) DO NOTHING;
 
 -- Confirm reachability so the bootstrap transcript shows the seed landed.

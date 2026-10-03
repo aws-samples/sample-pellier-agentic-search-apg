@@ -55,8 +55,17 @@ from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
 # Provided labels support the optional diagnostic comparison; participants do not
-# build an evaluation framework or label a golden set in this workshop.
-CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29")
+# build an evaluation framework or label a golden set in this workshop. Labeled by
+# definition, the in-stock Home pieces tagged both gift and home at or under $100:
+#
+#   SELECT "productId"
+#     FROM pellier.product_catalog
+#    WHERE category = 'Home'
+#      AND price <= 100
+#      AND quantity > 0
+#      AND tags @> '["gift","home"]'::jsonb
+#    ORDER BY "productId"::int;
+CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "23", "25", "27", "29", "80", "83")
 
 # Provided bounded candidate pool. Tune only in the optional retrieval extension;
 # Task 1B authors the search-plan contract, not a prescribed pool-size constant.
@@ -72,12 +81,12 @@ DEFAULT_RERANK_POOL_K = 15
 #
 #   SELECT "productId"
 #     FROM pellier.product_catalog
-#    WHERE category = 'Beauty'
+#    WHERE category = 'Bath and body'
 #      AND quantity > 0
 #      AND tags @> '["gift"]'::jsonb
 #    ORDER BY "productId";
 CANONICAL_HELD_OUT_QUERY = "A beauty gift for someone who loves a slow morning ritual."
-CANONICAL_HELD_OUT_GOLDEN_IDS: tuple[str, ...] = ("26", "47", "55", "56")
+CANONICAL_HELD_OUT_GOLDEN_IDS: tuple[str, ...] = ("26",)
 
 # Four query cases, each exercising a different way retrieval can be wrong while
 # the ranking looks fine. ``labels`` cases are scored like the tuning set; the
@@ -91,7 +100,7 @@ HELD_OUT_CASES: tuple[dict, ...] = (
         "kind": HELD_OUT_KIND_LABELS,
         "query": CANONICAL_HELD_OUT_QUERY,
         "golden_ids": CANONICAL_HELD_OUT_GOLDEN_IDS,
-        "rule": "in-stock Beauty pieces tagged gift",
+        "rule": "in-stock Bath and body pieces tagged gift",
     },
     {
         # An exclusion the shopper states. The candle in the housewarming set must
@@ -99,15 +108,15 @@ HELD_OUT_CASES: tuple[dict, ...] = (
         "id": "exclusion",
         "kind": HELD_OUT_KIND_LABELS,
         "query": "A housewarming gift under $100, but no candles.",
-        "golden_ids": ("22", "23", "25", "27", "29"),
-        "rule": "in-stock Home Decor pieces tagged gift and home at or under $100, not tagged candle",
+        "golden_ids": ("23", "25", "27", "29", "83"),
+        "rule": "in-stock Home pieces tagged gift and home at or under $100, not tagged candle",
     },
     {
-        # A ceiling low enough that most gifts fall out; the two that remain must lead.
+        # A ceiling that drops about half the gifts; the ones at or under it must lead.
         "id": "tight_budget",
         "kind": HELD_OUT_KIND_LABELS,
         "query": "A small gift under $40.",
-        "golden_ids": ("23", "30"),
+        "golden_ids": ("21", "23", "25", "26", "27", "29", "30", "73", "76", "77", "80"),
         "rule": "in-stock pieces tagged gift at or under $40",
     },
     {

@@ -4,14 +4,14 @@ import { parseHybridSearchResult } from './hybridSearchResult';
 // Shape of a recorded search_products_hybrid tool_audit row (Theo's ceramics
 // turn), trimmed to the fields the view reads.
 const recorded = {
-  args: { query: 'hand-thrown ceramics', turn_id: 'turn-d224e15a874145eebe8545ca10be82f2', category: 'Home Decor' },
+  args: { query: 'hand-thrown ceramics', turn_id: 'turn-d224e15a874145eebe8545ca10be82f2', category: 'Home' },
   result: {
     status: 'success',
     pool_size: 21,
     rerank_pool_k: 30,
     search_method: 'hybrid+rerank',
     constraints_applied_before_rerank: true,
-    search_plan: { top_k: 5, relaxations: [], hard_constraints: { categories: ['Home Decor'], in_stock_only: false } },
+    search_plan: { top_k: 5, relaxations: [], hard_constraints: { categories: ['Home'], in_stock_only: false } },
     products: [
       { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03279, rerank_score: 0.797 },
       { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03008, rerank_score: 0.286 },
@@ -111,7 +111,7 @@ describe('recorded hybrid search result', () => {
   it('reports the plan by its recorded field names', () => {
     const plan = Object.fromEntries(parseHybridSearchResult(recorded)!.plan.map((f) => [f.field, f]));
     expect(plan.search_method.value).toBe('hybrid+rerank');
-    expect(plan.categories.value).toBe('Home Decor');
+    expect(plan.categories.value).toBe('Home');
     expect(plan.in_stock_only.value).toBe('false');
     expect(plan.constraints_applied_before_rerank.value).toBe('true');
     expect(plan.turn_id.value).toBe('turn-d224e15a8…');

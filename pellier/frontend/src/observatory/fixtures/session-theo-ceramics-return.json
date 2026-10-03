@@ -25,16 +25,16 @@
       "toolCalls": [
         {
           "toolName": "search_products",
-          "description": "Resolve 'ceramics' \u2192 Wabi-Sabi Bowl, productId 7, category 'Home Decor'",
+          "description": "Resolve 'ceramics' \u2192 Wabi-Sabi Bowl, productId 7, category 'Kitchen and table'",
           "durationMs": 312,
           "sql": "SELECT product_id, name, brand, category, price, quantity\nFROM product_catalog\nWHERE name ILIKE '%Wabi-Sabi Bowl%'\n   OR category ILIKE '%ceramics%'\nORDER BY CASE WHEN name ILIKE '%Wabi-Sabi Bowl%' THEN 0 ELSE 1 END,\n         embedding <=> $1::vector\nLIMIT 5;",
-          "resultSummary": "1 product matched: Wabi-Sabi Bowl ($65, Home Decor)"
+          "resultSummary": "1 product matched: Wabi-Sabi Bowl ($65, Kitchen and table)"
         },
         {
           "toolName": "get_return_policy",
-          "description": "Lookup return window + care for Home Decor category",
+          "description": "Lookup return window + care for Kitchen and table category",
           "durationMs": 48,
-          "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Home Decor'\nLIMIT 1;",
+          "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Kitchen and table'\nLIMIT 1;",
           "resultSummary": "30-day window; ceramics: hand-wash, no dishwasher"
         },
         {
@@ -142,10 +142,10 @@
       "index": 5,
       "category": "both",
       "title": "get_return_policy",
-      "description": "30-day return window for Home Decor",
+      "description": "30-day return window for Kitchen and table",
       "status": "complete",
       "durationMs": 48,
-      "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Home Decor'\nLIMIT 1;",
+      "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Kitchen and table'\nLIMIT 1;",
       "agent": "Customer Service Agent"
     },
     {

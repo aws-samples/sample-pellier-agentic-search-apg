@@ -29,7 +29,7 @@ pytestmark = pytest.mark.usefixtures("completed_search_plan")
 def _golden_extract() -> dict:
     """The workshop's golden journey, as the extractor would return it."""
     return {
-        "categories": ["Home Decor"],
+        "categories": ["Home"],
         "tags": ["home", "artisanal"],
         "price_max_usd": 100,
         "in_stock_only": True,
@@ -46,7 +46,7 @@ def test_price_and_availability_are_hard_not_hints() -> None:
 
     assert plan.hard.price_max_usd == 100.0
     assert plan.hard.in_stock_only is True
-    assert plan.hard.categories == ("Home Decor",)
+    assert plan.hard.categories == ("Home",)
 
 
 def test_tags_are_soft_preferences() -> None:
@@ -139,7 +139,7 @@ def test_nonfinite_result_count_uses_the_default(top_k) -> None:
 
 @pytest.mark.parametrize("payload", [
     {"in_stock_only": "false"},
-    {"categories": "Gifts"},
+    {"categories": "Stationery and gifts"},
     {"exclusions": "candle"},
     {"price_max_usd": float("inf")},
     {"price_max_usd": True},
@@ -169,7 +169,7 @@ def test_malformed_stock_requirement_is_surfaced_without_coercion(value) -> None
 
 def test_explicit_empty_catalog_facets_do_not_fall_back_to_defaults() -> None:
     plan = build_plan(
-        "gift", {"categories": ["Gifts"], "tags": ["linen"]},
+        "gift", {"categories": ["Stationery and gifts"], "tags": ["linen"]},
         known_categories=[], known_tags=[],
     )
 
@@ -228,7 +228,7 @@ def test_no_ladder_rung_ever_drops_a_hard_constraint() -> None:
     for rung in ladder:
         assert rung.hard.price_max_usd == 100.0
         assert rung.hard.in_stock_only is True
-        assert rung.hard.categories == ("Home Decor",)
+        assert rung.hard.categories == ("Home",)
         assert rung.exclusions == ("candle",)
 
         clauses, params = rung.compile_predicates()
@@ -298,7 +298,7 @@ def test_predicates_are_parameterized_never_interpolated() -> None:
     plan = build_plan(
         "gift",
         {
-            "categories": ["Gifts"],
+            "categories": ["Stationery and gifts"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -309,12 +309,12 @@ def test_predicates_are_parameterized_never_interpolated() -> None:
     clauses, params = plan.compile_predicates()
 
     for clause in clauses:
-        assert "Gifts" not in clause
+        assert "Stationery and gifts" not in clause
         assert "100" not in clause
         assert "candle" not in clause
     assert clauses.count("%s") == 0  # placeholders live inside the fragments
     assert [list(p) if isinstance(p, list) else p for p in params] == [
-        ["Gifts"], 100.0, ["candle"], ["home"],
+        ["Stationery and gifts"], 100.0, ["candle"], ["home"],
     ]
 
 
@@ -323,7 +323,7 @@ def test_clause_and_param_counts_line_up() -> None:
     plan = build_plan(
         "gift",
         {
-            "categories": ["Gifts"],
+            "categories": ["Stationery and gifts"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -389,10 +389,10 @@ def test_to_dict_carries_the_full_plan_for_receipts() -> None:
 
 def test_hard_constraints_describe_reads_cleanly() -> None:
     described = HardConstraints(
-        price_max_usd=100.0, in_stock_only=True, categories=("Gifts",)
+        price_max_usd=100.0, in_stock_only=True, categories=("Stationery and gifts",)
     ).describe()
 
-    assert described == ["price <= $100", "in stock", "category in Gifts"]
+    assert described == ["price <= $100", "in stock", "category in Stationery and gifts"]
 
 
 def test_empty_hard_constraints_describe_to_nothing() -> None:

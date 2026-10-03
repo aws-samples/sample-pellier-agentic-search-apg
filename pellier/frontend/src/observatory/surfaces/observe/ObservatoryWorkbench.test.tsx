@@ -414,7 +414,7 @@ describe('Pellier Observatory live agent workbench', () => {
             productId: 7,
             name: 'Pellier Linen Shirt',
             price: 128,
-            category: 'Linen',
+            category: 'Clothing',
             imgurl: '/products/fresh-pellier-linen-shirt.png',
           },
         });
@@ -1199,7 +1199,7 @@ describe('Pellier Observatory live agent workbench', () => {
             productId: 7,
             name: 'Pellier Linen Shirt',
             price: 128,
-            category: 'Linen',
+            category: 'Clothing',
           },
         });
         onUpdate({

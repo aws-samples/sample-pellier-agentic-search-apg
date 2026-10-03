@@ -276,7 +276,7 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
                     "imgUrl": "/products/brass-incense-holder.png",
                     "rating": 4.8,
                     "reviews": 189,
-                    "category": "Home Decor",
+                    "category": "Home",
                     "badge": None,
                     "tags": ["ritual"],
                 },
@@ -287,7 +287,7 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
                     "imgUrl": "/products/wabi-sabi-bowl.png",
                     "rating": 4.9,
                     "reviews": 167,
-                    "category": "Home Decor",
+                    "category": "Home",
                     "badge": "Editor's Pick",
                     "tags": ["stoneware"],
                 },
@@ -315,7 +315,7 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
     await service._hydrate_catalog_card_metadata(products)
 
     assert products[0]["image"] == "/products/brass-incense-holder.png"
-    assert products[0]["category"] == "Home Decor"
+    assert products[0]["category"] == "Home"
     assert products[0]["rating"] == 4.8
     assert products[0]["quantity"] == 50
     assert products[0]["inStock"] is True

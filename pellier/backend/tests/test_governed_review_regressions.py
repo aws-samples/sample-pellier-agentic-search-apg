@@ -68,7 +68,7 @@ def test_memory_dashboard_uses_authenticated_writer_namespace(monkeypatch):
     # returned data, not that it succeeded; "unavailable" read as the tool
     # having been unreachable.
     ({"rows": []}, "recorded"),
-    ({"category": "Home Decor", "return_window_days": 30}, "recorded"),
+    ({"category": "Home", "return_window_days": 30}, "recorded"),
     # The governed boundary declining a shopper-rail mutation is a refusal
     # before execution, not a failure of the turn.
     ({"tool": "initiate_return", "error": "managed_rail_required"}, "denied"),
