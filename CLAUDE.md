@@ -155,8 +155,8 @@ documentation.
   assert them, which must name the old paths to do their job, plus the one-time
   `ALTER TABLE` in migration 002 that converges an existing cluster.
   `tests/test_surface_naming.py` enforces this by scanning the repository.
-- Boutique is fully retired on the same terms. "boutique" survives only as an
-  ordinary noun in shopper copy and model prompts, which `VOICE.md` sanctions.
+- Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
+  shopper copy, model prompts, runtime skills, and product descriptions.
 - Editorial specialists use the configured Opus profile when available;
   reporting and routing specialists use the configured Sonnet profile.
 - Never hardcode credentials, JWTs, account IDs, endpoints, or `.env` values
