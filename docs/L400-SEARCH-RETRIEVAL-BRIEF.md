@@ -98,7 +98,7 @@ For the 100-minute rehearsal:
 - Make each change alter observable behavior. Avoid edits that only rename a
   variable or reproduce a completed implementation.
 - Separate eligibility from ranking. A relevant product can still be
-  ineligible because of stock, archive status, or caller scope.
+  ineligible because of stock or caller scope.
 - Require participants to inspect at least one real PostgreSQL query plan.
   Explain what the plan says about rows considered, filtering, index use,
   buffers, and latency. Do not prescribe one latency number for every account.

@@ -238,11 +238,15 @@ def test_renamed_products_list_matches_the_table():
 def test_nothing_in_source_mentions_archive_rows():
     import subprocess
 
+    pattern = (
+        r"tags \? 'archive'|distractor|DISTRACTOR"
+        r"|archive (row|rows|product|products|status|distractor|distractors|variant|variants)"
+    )
     hits = subprocess.run(
-        ["git", "grep", "-n", "-I", "-E", r"tags \? 'archive'|distractor|DISTRACTOR",
-         "--", "pellier", "scripts", ":!*node_modules*",
-         ":!pellier/backend/tests/test_catalog_contract.py",
-         ":!pellier/backend/tests/test_fresh_setup_postgres.py"],
+        ["git", "grep", "-n", "-I", "-i", "-E", pattern,
+         "--", "pellier", "scripts", "README.md", "VOICE.md", "data", "solutions", "docs",
+         ":!*node_modules*", ":!docs/release-readiness",
+         ":!pellier/backend/tests/test_catalog_contract.py"],
         cwd=REPO, capture_output=True, text=True,
     ).stdout.strip()
     assert hits == "", hits
