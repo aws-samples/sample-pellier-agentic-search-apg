@@ -24,19 +24,6 @@ describe('catalog follow-ups', () => {
     )
   })
 
-  it('steers archive variants back to named workshop products', () => {
-    const actions = productQuickActions({
-      name: 'Pellier Archive Garment 138 - Gift Edit in Oat',
-      category: 'Apparel',
-      price: 71.23,
-    })
-    const prompts = actions.map(action => action.prompt).join(' ')
-
-    expect(prompts).toContain('non-archive apparel pieces')
-    expect(prompts).toContain('named workshop products')
-    expect(prompts).not.toMatch(/another (?:size|color)|colorway/i)
-  })
-
   it('builds turn follow-ups from products actually returned', () => {
     const prompts = catalogTurnFollowUps(
       [

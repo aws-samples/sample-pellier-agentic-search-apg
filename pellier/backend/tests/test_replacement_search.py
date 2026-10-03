@@ -272,7 +272,7 @@ def test_the_aggregate_cache_can_never_satisfy_an_in_stock_request() -> None:
 
     `SearchPlan.compile_predicates` renders `in_stock_only` as a bare `quantity > 0`
     on `product_catalog.quantity` — the aggregate cache, which carries a seed constant
-    for 960 of 1,000 rows. If that predicate ever reappears here, "in stock" stops
+    for most rows. If that predicate ever reappears here, "in stock" stops
     meaning anything.
     """
     plan = _plan("find an in-stock replacement", {"in_stock_only": True})
@@ -360,7 +360,7 @@ async def test_a_disagreement_is_preserved_rather_than_resolved() -> None:
 
 @pytest.mark.asyncio
 async def test_no_ledger_evidence_is_neither_in_stock_nor_out_of_stock() -> None:
-    """960 of 1,000 catalog rows are in this state. Both wrong answers are tempting."""
+    """Most catalog rows are in this state. Both wrong answers are tempting."""
     db = FakeDb(inventory=[
         _inventory_row("41", has_ledger=False, locations=None, aggregate_cache=50),
     ])
@@ -441,7 +441,7 @@ def test_no_external_search_service_is_introduced() -> None:
 
 
 def test_no_upgrade_role_is_claimed() -> None:
-    """`tier` is 1 for all 1,000 rows, so nothing establishes an upgrade."""
+    """`tier` is 1 for every row, so nothing establishes an upgrade."""
     assert not hasattr(RS, "ROLE_UPGRADE")
     assert RS.ROLE_BEST_MATCH == "best_match"
     assert RS.ROLE_ALTERNATIVE == "alternative"
@@ -653,7 +653,7 @@ async def test_sparse_coverage_is_reported_as_coverage_not_failure(
     assert result.available == []
     assert len(result.close_matches) == 1
     assert "ledger" in result.coverage_note
-    assert "40 of 1,000" in result.coverage_note
+    assert "40 of 100" in result.coverage_note
 
 
 @pytest.mark.asyncio
@@ -842,7 +842,7 @@ async def test_nothing_reconciled_yields_no_best_match_and_a_coverage_note(
     assert result.available == []
     # No card claims to be the recommendation when none can be promised.
     assert all(r.role == RS.ROLE_ALTERNATIVE for r in result.close_matches)
-    assert "40 of 1,000" in result.coverage_note
+    assert "40 of 100" in result.coverage_note
 
 
 @pytest.mark.asyncio

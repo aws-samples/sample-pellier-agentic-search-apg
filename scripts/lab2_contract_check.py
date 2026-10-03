@@ -51,7 +51,7 @@ QUESTION = "What can the agent legitimately conclude in each case?"
 _MATCH_SQL = """
     SELECT "productId" AS product_id, name
       FROM pellier.product_catalog
-     WHERE NOT (tags ? 'archive') AND {tokens}
+     WHERE {tokens}
      ORDER BY "productId"
 """
 _STOCK_SQL = """

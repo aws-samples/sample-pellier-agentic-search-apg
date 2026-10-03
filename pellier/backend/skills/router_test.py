@@ -13,8 +13,7 @@ The tool reads skills from the default /skills/ directory, constructs
 a ``SkillRouter``, and prints the ``RouterDecision`` in a readable
 format — what loaded, what was considered with reasons, elapsed ms.
 
-Test cases are grounded in the 60 curated Pellier story products; generated
-archive distractors do not change skill-routing expectations.
+Test cases are grounded in the curated Pellier catalog.
 Each case pairs a query against the skill(s) we expect to load, with
 a short rationale the router should agree with.
 """

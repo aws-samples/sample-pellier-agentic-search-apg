@@ -8,7 +8,7 @@
 #
 # Checks:
 #   1. Backend /api/health is green (DB connected)
-#   2. Catalog row count == expected (1,000 by default: 60 curated + 940 archive)
+#   2. Catalog row count == expected (100 by default)
 #   3. Warehouse inventory present (180 rows: 60 curated x 3 warehouses)
 #   3b. Governed customer, order, and JSONB audit evidence present
 #   4. node --version is 24 LTS                   (required for governed format;
@@ -35,7 +35,7 @@ export PATH="/opt/pellier/bin:$PATH"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
-EXPECTED_CATALOG="${EXPECTED_CATALOG:-1000}"
+EXPECTED_CATALOG="${EXPECTED_CATALOG:-100}"
 HEALTH_URL="${HEALTH_URL:-http://localhost:8000/api/health}"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'

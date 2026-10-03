@@ -169,7 +169,6 @@ class CommerceService:
                       LEFT JOIN pellier.warehouse_inventory wi
                         ON wi.product_id = pc."productId"
                      WHERE pc."productId" = ANY(%s)
-                       AND NOT (pc.tags ? 'archive')
                      GROUP BY pc."productId", pc.name, pc."imgUrl",
                               pc.price, pc.quantity
                      ORDER BY pc."productId"

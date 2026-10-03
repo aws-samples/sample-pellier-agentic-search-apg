@@ -936,14 +936,14 @@ describe('replacement recommendations', () => {
         available: [], closeMatches: [UNVERIFIED],
         coverageNote:
           'No candidate has current availability reconciled to the inventory ' +
-          'ledger. Ledger coverage exists for 40 of 1,000 catalog products, so ' +
+          'ledger. Ledger coverage exists for 40 of 100 catalog products, so ' +
           'close matches are shown with availability unverified.',
       }),
     })
     renderRecord()
     const rail = await screen.findByTestId('operator-concierge-recommendations')
 
-    expect(rail.textContent).toContain('40 of 1,000 catalog products')
+    expect(rail.textContent).toContain('40 of 100 catalog products')
     expect(rail.textContent).not.toMatch(/error|failed|unavailable service/i)
   })
 

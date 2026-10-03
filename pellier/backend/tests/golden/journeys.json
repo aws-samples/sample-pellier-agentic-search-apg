@@ -71,7 +71,7 @@
         {
           "id": "data_enforcement",
           "proof": "source_contract",
-          "teaches": "The read path excludes archive distractors from the storefront."
+          "teaches": "The storefront read path serves only real catalog products."
         },
         {
           "id": "durable_evidence",

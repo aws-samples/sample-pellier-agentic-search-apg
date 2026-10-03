@@ -321,7 +321,6 @@ def get_related_products(
                 LOWER(TRIM(name)) = LOWER(:source_product_name)
                 OR LOWER(name) LIKE :source_product_pattern ESCAPE '\\'
                )
-           AND NOT (tags ? 'archive')
          ORDER BY CASE
                     WHEN LOWER(TRIM(name)) = LOWER(:source_product_name) THEN 0
                     ELSE 1

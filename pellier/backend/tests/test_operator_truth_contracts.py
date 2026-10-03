@@ -400,11 +400,11 @@ async def test_per_location_rows_produce_an_OBSERVED_fact_not_a_verified_one() -
 async def test_no_per_location_rows_is_not_verified_even_with_a_catalog_number() -> None:
     """Jessica's catchall: catalog says 50, warehouse has nothing.
 
-    Outside the curated set the catalog column holds a seeded constant across
-    940 archive products, so it cannot support an availability claim.
+    The catalog quantity column is a seed value, not inventory, so it cannot
+    support an availability claim.
     """
-    db = _FakeDb([_row("1000", has_ledger=False, locations=None, aggregate_cache=35)])
-    ev = await INV.resolve_inventory(db, "1000")
+    db = _FakeDb([_row("100", has_ledger=False, locations=None, aggregate_cache=35)])
+    ev = await INV.resolve_inventory(db, "100")
     assert ev.status == INV.NOT_VERIFIED
     assert ev.available_quantity is None, "an unverified fact must carry no quantity"
     assert ev.catalog_cache_quantity == 35

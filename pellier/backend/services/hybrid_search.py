@@ -94,8 +94,7 @@ def _vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
                 updated_at,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
             FROM pellier.product_catalog
-            WHERE "imgUrl" IS NOT NULL
-              AND NOT (tags ? 'archive'){_indent_clauses(extra_clauses)}
+            WHERE "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
         """
@@ -126,7 +125,6 @@ def _fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
             FROM pellier.product_catalog
             CROSS JOIN q
             WHERE "imgUrl" IS NOT NULL
-              AND NOT (tags ? 'archive')
               AND description_tsv @@ q.ts_q{_indent_clauses(extra_clauses)}
             ORDER BY fts_rank_score DESC
             LIMIT %s

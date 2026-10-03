@@ -18,9 +18,8 @@ Established from the migrations rather than assumed:
                                     ``check_inventory`` reads.
 
     product_catalog.quantity        migration 001 creates it as the AGGREGATE
-                                    cache. Outside the curated range it is a seed
-                                    constant, not inventory: measured 2026-08-26,
-                                    940 archive products carry the constant 35.
+                                    cache. It is a seed value, not inventory, so it
+                                    cannot support an availability claim.
 
 How the ledger is reconciled
 ----------------------------
@@ -56,7 +55,7 @@ The five states
     reading and nothing to reconcile it against. ``authority="cache"``.
 
 ``availability_not_verified``
-    No per-location evidence at all - the case for 940 of 1000 catalog rows - or the
+    No per-location evidence at all - the case for most catalog rows - or the
     read failed. ``available_quantity`` is None, so a caller cannot render a number
     that was never established.
 
@@ -161,7 +160,7 @@ SELECT t.product_id,
 #
 # Two predicates, both required. `product_catalog.quantity > 0` — what the shopper
 # planner compiles for `in_stock_only` — is deliberately NOT used: it is the
-# aggregate cache, it carries a seed constant for 940 of 1000 rows, and letting it
+# aggregate cache, it carries a seed constant for most rows, and letting it
 # satisfy an explicit "in stock" request would make the phrase mean nothing.
 #
 # Correlates on `product_catalog."productId"`, so it composes with any query whose
@@ -365,10 +364,9 @@ def _evidence_from_row(pid: str, row: Dict[str, Any]) -> InventoryEvidence:
             })
 
     if not locations:
-        # No per-location rows means this product sits outside the curated set that
-        # has ledger and warehouse coverage - 940 of 1000 catalog rows. The
-        # aggregate column is reported but cannot support a claim: outside the
-        # curated range it holds one of two seeded constants across the catalog.
+        # No per-location rows means no ledger or warehouse coverage. The
+        # aggregate column is reported but cannot support a claim: it holds a
+        # seeded value, not a measured count.
         return InventoryEvidence(
             product_id=pid,
             status=NOT_VERIFIED,

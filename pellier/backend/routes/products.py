@@ -252,7 +252,7 @@ async def _fetch_editorial_catalog(
     if the migration or catalog is unavailable, this read fails and the
     caller renders an explicit unavailable state.
     """
-    clauses = ["NOT (tags ? 'archive')"]
+    clauses: list[str] = []
     params: list[Any] = []
     if category:
         clauses.append("category ILIKE %s ESCAPE '\\'")
@@ -267,12 +267,8 @@ async def _fetch_editorial_catalog(
         if persona_id
         else 'tier NULLS LAST, "productId" ASC'
     )
-    query = (
-        _PRODUCT_SELECT
-        + " WHERE "
-        + " AND ".join(clauses)
-        + f" ORDER BY {order}"
-    )
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    query = _PRODUCT_SELECT + where + f" ORDER BY {order}"
     rows = await db.fetch_all(query, *params)
     return [_row_to_storefront_product(dict(r)) for r in rows]
 

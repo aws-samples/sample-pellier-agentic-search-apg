@@ -80,7 +80,7 @@ class _ProofDB:
             return self.support_turn
         if "catalog_count" in query:
             return {
-                "catalog_count": 60,
+                "catalog_count": 100,
                 "warehouse_count": 180,
                 "audit_count": 7,
             }
@@ -274,7 +274,7 @@ def test_readiness_reports_live_pillars(monkeypatch) -> None:
     assert checks["runtime"]["state"] == "pass"
     assert checks["gateway"]["state"] == "pass"
     assert checks["policy"]["state"] == "pass"
-    assert body["counts"]["catalog_count"] == 60
+    assert body["counts"]["catalog_count"] == 100
 
 
 def test_governed_readiness_fails_without_managed_policy(monkeypatch) -> None:
@@ -297,7 +297,7 @@ def test_governed_readiness_requires_exact_warehouse_seed(monkeypatch) -> None:
         async def fetch_one(self, query: str, *params: Any) -> dict | None:
             if "catalog_count" in query:
                 return {
-                    "catalog_count": 60,
+                    "catalog_count": 100,
                     "warehouse_count": 179,
                     "audit_count": 7,
                 }

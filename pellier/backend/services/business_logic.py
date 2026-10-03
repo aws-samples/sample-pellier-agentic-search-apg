@@ -86,7 +86,6 @@ class BusinessLogic:
             'rating >= 4.0',
             "reviews::int > 50",
             '"imgUrl" IS NOT NULL',
-            "NOT (tags ? 'archive')",
         ]
         params: List[Any] = []
 
@@ -158,7 +157,6 @@ class BusinessLogic:
                 COUNT(*) FILTER (WHERE quantity = 0)      AS out_of_stock_count,
                 ROUND(AVG(quantity), 1)                   AS avg_quantity
             FROM pellier.product_catalog
-            WHERE NOT (tags ? 'archive')
         """)
         stats = convert_decimals(dict(stats))
 
@@ -166,7 +164,6 @@ class BusinessLogic:
             SELECT "productId", name, category, price, quantity
             FROM pellier.product_catalog
             WHERE quantity <= 5
-              AND NOT (tags ? 'archive')
             ORDER BY quantity ASC, rating DESC
             LIMIT 5
         """)
@@ -222,7 +219,6 @@ class BusinessLogic:
             SELECT "productId", name, brand, color, price
               FROM pellier.product_catalog
              WHERE {clause}
-               AND NOT (tags ? 'archive')
              ORDER BY rating DESC NULLS LAST
              LIMIT 5
             """,
@@ -310,7 +306,6 @@ class BusinessLogic:
                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
                 FROM pellier.product_catalog
                 WHERE {cat_condition}
-                  AND NOT (tags ? 'archive')
                 GROUP BY category
             """
             results = await self.db.fetch_all(query, *params)
@@ -324,7 +319,6 @@ class BusinessLogic:
                     AVG(price) as avg_price,
                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
                 FROM pellier.product_catalog
-                WHERE NOT (tags ? 'archive')
                 GROUP BY category
                 ORDER BY product_count DESC
                 LIMIT 10
@@ -341,7 +335,6 @@ class BusinessLogic:
                 AVG(price) as avg_price,
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price
             FROM pellier.product_catalog
-            WHERE NOT (tags ? 'archive')
         """
 
         overall = await self.db.fetch_one(overall_query)
@@ -589,7 +582,7 @@ class BusinessLogic:
         query_embedding = self._embedding_service.embed_query(query)
         embedding_time_ms = (time.time() - start_time) * 1000
 
-        conditions = ['"imgUrl" IS NOT NULL', "NOT (tags ? 'archive')"]
+        conditions = ['"imgUrl" IS NOT NULL']
         params: List[Any] = [str(query_embedding)]
 
         if max_price:
@@ -669,7 +662,6 @@ class BusinessLogic:
         conditions = [
             "lower(category) LIKE %s ESCAPE '\\'",
             '"imgUrl" IS NOT NULL',
-            "NOT (tags ? 'archive')",
         ]
         params: List[Any] = [prepare_like_pattern(category)]
 
@@ -724,7 +716,6 @@ class BusinessLogic:
             SELECT "productId", name, category, price, rating, quantity
             FROM pellier.product_catalog
             WHERE quantity <= 10
-              AND NOT (tags ? 'archive')
             ORDER BY quantity ASC, rating DESC
             LIMIT %s
             """,

@@ -1556,7 +1556,6 @@ def get_related_products(
             'FROM pellier.product_catalog '
             'WHERE (LOWER(TRIM(name)) = LOWER(%s) '
             "OR LOWER(name) LIKE %s ESCAPE '\\') "
-            "AND NOT (tags ? 'archive') "
             'ORDER BY CASE WHEN LOWER(TRIM(name)) = LOWER(%s) THEN 0 ELSE 1 END, '
             '"productId" '
             "LIMIT 2",
@@ -1630,7 +1629,6 @@ def get_related_products(
             '1 - (embedding <=> %s::vector) AS similarity_score '
             'FROM pellier.product_catalog '
             'WHERE "productId" != %s '
-            "AND NOT (tags ? 'archive') "
             'ORDER BY embedding <=> %s::vector '
             'LIMIT %s',
             emb_literal, product_id_text,

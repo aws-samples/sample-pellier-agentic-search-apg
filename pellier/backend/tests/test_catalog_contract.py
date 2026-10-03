@@ -233,3 +233,16 @@ def test_images_keep_their_filenames_or_use_the_placeholder():
 def test_renamed_products_list_matches_the_table():
     catalog = _catalog()
     assert {pid: catalog[pid].name for pid in RENAMED} == {pid: new for pid, (old, new) in RENAMED.items()}
+
+
+def test_nothing_in_source_mentions_archive_rows():
+    import subprocess
+
+    hits = subprocess.run(
+        ["git", "grep", "-n", "-I", "-E", r"tags \? 'archive'|distractor|DISTRACTOR",
+         "--", "pellier", "scripts", ":!*node_modules*",
+         ":!pellier/backend/tests/test_catalog_contract.py",
+         ":!pellier/backend/tests/test_fresh_setup_postgres.py"],
+        cwd=REPO, capture_output=True, text=True,
+    ).stdout.strip()
+    assert hits == "", hits

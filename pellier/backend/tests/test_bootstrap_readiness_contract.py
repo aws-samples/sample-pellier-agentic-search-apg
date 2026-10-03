@@ -598,7 +598,7 @@ relation_result() {{
 case "$*" in
   *inventory_consistency_check*) printf '0\n' ;;
   *"principal_customers WHERE principal_sub"*) printf 'CUST-MARCO\n' ;;
-  *product_catalog*) printf '1000\n' ;;
+  *product_catalog*) printf '100\n' ;;
   *warehouse_inventory*) printf '180\n' ;;
   *governed_receipts*) printf '1\n' ;;
   *customers*) printf '{customer_count}\n' ;;

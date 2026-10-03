@@ -1017,7 +1017,7 @@ async def get_review(
             "replacementAvailable": total_units > 0,
             # Whether there is any per-location evidence at all. Without this the
             # surface reported "No replacement stock is available right now" for a
-            # product that simply has no warehouse rows — 960 of 1,000 catalog rows —
+            # product that simply has no warehouse rows,
             # which states an inventory fact the database never established. The
             # distinction is the same one `services/inventory_evidence.py` draws
             # between an observed zero and an unverified absence.

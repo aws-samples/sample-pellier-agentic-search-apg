@@ -122,8 +122,7 @@ export interface InventoryEvidence {
   observedAt: string
   /**
    * The aggregate column, carried for transparency and NOT an availability claim.
-   * Outside the curated product range it holds a seeded constant across 940
-   * archive products, so it establishes nothing about real stock.
+   * It is a seed value, so it establishes nothing about real stock.
    */
   catalogCacheQuantity: number | null
   /** 'cache' or 'source_of_truth'. Never present a cache reading as reconciled. */

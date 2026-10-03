@@ -88,7 +88,7 @@ export const LAB_EXERCISES: readonly LabExercise[] = [
       },
     },
     evidenceAssertion:
-      'SQL recomputes the recorded RRF contribution and finds no price, stock, or archive violation in the exact returned IDs.',
+      'SQL recomputes the recorded RRF contribution and finds no price or stock violation in the exact returned IDs.',
     decisionPrompt:
       'Which preferences may change, which requirements must remain, and what evidence proves both?',
     primaryAction: {

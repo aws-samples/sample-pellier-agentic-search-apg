@@ -470,20 +470,19 @@ def test_the_held_out_query_cases_cover_the_four_agreed_failure_modes() -> None:
 _HELD_OUT_DEFINITIONS = {
     "slice": """SELECT "productId" FROM pellier.product_catalog
                  WHERE category = 'Beauty' AND quantity > 0
-                   AND tags @> '["gift"]'::jsonb AND NOT (tags ? 'archive')
+                   AND tags @> '["gift"]'::jsonb
                  ORDER BY "productId"::int""",
     "exclusion": """SELECT "productId" FROM pellier.product_catalog
                      WHERE category = 'Home Decor' AND price <= 100 AND quantity > 0
                        AND tags @> '["gift","home"]'::jsonb AND NOT (tags ? 'candle')
-                       AND NOT (tags ? 'archive')
                      ORDER BY "productId"::int""",
     "tight_budget": """SELECT "productId" FROM pellier.product_catalog
                         WHERE price <= 40 AND quantity > 0
-                          AND tags @> '["gift"]'::jsonb AND NOT (tags ? 'archive')
+                          AND tags @> '["gift"]'::jsonb
                         ORDER BY "productId"::int""",
     "no_result": """SELECT "productId" FROM pellier.product_catalog
                      WHERE price <= 30 AND quantity > 0
-                       AND tags @> '["cashmere"]'::jsonb AND NOT (tags ? 'archive')
+                       AND tags @> '["cashmere"]'::jsonb
                      ORDER BY "productId"::int""",
 }
 

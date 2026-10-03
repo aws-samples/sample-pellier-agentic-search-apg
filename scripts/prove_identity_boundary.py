@@ -209,8 +209,7 @@ def _ineligible_product(cfg: Dict[str, str]) -> Optional[int]:
         cfg,
         "SELECT min(pc.product_id) "
         "  FROM pellier.product_catalog pc "
-        " WHERE NOT (pc.tags ? 'archive') "
-        "   AND pc.product_id NOT IN ("
+        " WHERE pc.product_id NOT IN ("
         f"       SELECT o.product_id FROM pellier.orders o WHERE {owner_filter})",
     )
     return int(value) if value and str(value).strip().isdigit() else None

@@ -76,7 +76,6 @@ CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "22", "23", "25", "27", "29"
 #    WHERE category = 'Beauty'
 #      AND quantity > 0
 #      AND tags @> '["gift"]'::jsonb
-#      AND NOT (tags ? 'archive')
 #    ORDER BY "productId";
 CANONICAL_HELD_OUT_QUERY = "A beauty gift for someone who loves a slow morning ritual."
 CANONICAL_HELD_OUT_GOLDEN_IDS: tuple[str, ...] = ("26", "47", "55", "56")

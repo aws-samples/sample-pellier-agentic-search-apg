@@ -24,9 +24,9 @@ def test_catalog_loads_from_the_json_file():
 
 def test_seeder_has_no_generated_rows():
     seed = _seed()
-    for symbol in ("generate_distractor_products", "derive_distractor_embeddings",
-                   "DEFAULT_DISTRACTOR_COUNT", "build_catalog"):
-        assert not hasattr(seed, symbol), symbol
+    assert not hasattr(seed, "build_catalog")
+    generated = [name for name in dir(seed) if "distract" in name.lower()]
+    assert generated == []
 
 
 def test_search_text_carries_no_shopper_persona_sentence():

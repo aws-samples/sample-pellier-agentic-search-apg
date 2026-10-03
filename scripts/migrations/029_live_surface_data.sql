@@ -37,7 +37,7 @@ UPDATE pellier.product_catalog
             AND "productId"::integer BETWEEN 41 AND 50 THEN 'house'
        WHEN "productId" ~ '^[0-9]+$'
             AND "productId"::integer BETWEEN 51 AND 60 THEN 'signature'
-       ELSE COALESCE(persona_id, 'archive')
+       ELSE persona_id
    END
  WHERE persona_id IS NULL
     OR persona_id = '';

@@ -36,12 +36,6 @@ pellier/config/mcp-server-config.json
 !.claude/skills/
 !.claude/skills/**
 
-# The distractor-inclusive catalog. `seed_pellier_catalog.py` writes it whenever
-# distractors are included, it is 13 MB, and nothing reads it from the repository: the
-# committed artifact is the 60-row curated CSV. Untracked AND unignored, it lands in the
-# next `git add -A` as a 13 MB accident. That nearly happened.
-data/pellier_catalog_expanded.csv
-
 # Internal design docs — working notes, not shipping content.
 # Written as `docs/*` rather than `docs/`: git cannot re-include a file whose parent
 # directory is itself excluded, so excluding the CONTENTS is what makes the negation

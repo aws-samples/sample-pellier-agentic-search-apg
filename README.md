@@ -336,20 +336,14 @@ opens the staff desk.
 
 The **signed-out state** is the editorial baseline – a nine-piece grid anchored by the Nocturne Leather Weekender, no prior context, no profile embedding. It is the hero state, not a fourth persona.
 
-Each of the three personas ships with 10 curated products carrying real Cohere
-Embed v4 1024-dim embeddings, alongside 10 pieces for the signed-out edit, 10
-house pieces the client book owns, and 10 signature investment pieces. Those 60
-story products stay stable for persona
-grids, orders, inventory, and policy exercises. The governed retrieval lab
-expands `pellier.product_catalog` to 1,000 rows with generated high-ID archive
-distractors and deterministic derived vectors. The extra rows create enough
-near-miss candidates to compare retrieval strategies without adding 940 images
-or concepts for participants to learn. They are excluded from shopper-facing
-tools and included only by the evaluation path.
+`pellier.product_catalog` holds 100 products, seeded from
+`data/pellier_catalog.json` with real Cohere Embed v4 1024-dim embeddings. The
+catalog stays stable for persona grids, orders, inventory, and policy exercises,
+and every row is a real product that shoppers, tools, and retrieval all see.
 
-This split is deliberate, not a scale benchmark: 60 products are the
-participant-facing domain; 1,000 rows are a compact retrieval test corpus.
-Pellier does not use that corpus to teach HNSW capacity planning. That deeper
+This is deliberate, not a scale benchmark: 100 products are the
+participant-facing domain. Pellier does not use the catalog to teach HNSW
+capacity planning. That deeper
 retrieval-engineering work belongs in the separate Mosaic Builder Session.
 
 ---
@@ -924,7 +918,7 @@ sample-pellier-agentic-search-apg/
 │
 └── scripts/
     ├── migrations/                         Ordered fresh-cluster SQL (001-056)
-    ├── seed_pellier_catalog.py             60 story products + 940 retrieval distractors
+    ├── seed_pellier_catalog.py             The 100-product catalog seeder
     ├── seed_local_golden_journeys.py       Local Theo handoff + Jessica evidence rehearsal
     ├── bootstrap-environment.sh             Code Editor + nginx + systemd
     └── bootstrap-labs.sh                    DB seed + frontend build + service start

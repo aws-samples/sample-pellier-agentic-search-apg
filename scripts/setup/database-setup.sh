@@ -28,17 +28,15 @@ apply() {
 # pellier.product_catalog and assumes the vector(1024) column exists.
 apply 001_schema.sql
 
-# 2. Pellier catalog seeder: 60 hand-curated products across the four personas (Marco /
-# Anna / Theo / Fresh), plus generated high-ID archive distractors for retrieval
-# measurement. Authoritative source for pellier.product_catalog.
+# 2. Pellier catalog seeder: the 100 products in data/pellier_catalog.json.
+# Authoritative source for pellier.product_catalog.
 #
 # Embeddings come from the COMMITTED cache (data/embeddings_cache.json) via --from-cache.
-# The cache stores the real Cohere vectors; the archive distractors derive deterministic
-# vectors from that committed cache. This keeps the slowest, most throttle-prone step off
-# the bootstrap critical path and makes the seed a deterministic SQL load. To regenerate
-# the cache after a curated catalog change, run
-# `python scripts/seed_pellier_catalog.py --csv-only --no-distractors` on a machine with
-# Bedrock access and commit the updated cache.
+# The cache stores the real Cohere vectors. This keeps the slowest, most throttle-prone
+# step off the bootstrap critical path and makes the seed a deterministic SQL load. To
+# regenerate the cache after a catalog change, run
+# `python scripts/seed_pellier_catalog.py --csv-only` on a machine with Bedrock access
+# and commit the updated cache.
 echo "Seeding catalog from cache"
 (cd "$REPO" && "$PYTHON" scripts/seed_pellier_catalog.py --from-cache)
 

@@ -47,7 +47,7 @@ export const REFERENCE_DIAGNOSTICS: Record<ReferenceId, DiagnosticCase[]> = {
   performance: [
     {
       observation: 'A wider candidate budget changes the top result.',
-      mechanism: 'More candidates can improve coverage while increasing rerank work. One better-looking answer does not establish recall, and a budget change must preserve price, stock, and archive constraints.',
+      mechanism: 'More candidates can improve coverage while increasing rerank work. One better-looking answer does not establish recall, and a budget change must preserve price and stock constraints.',
       evidence: 'Hold the query, constraints, strategy, and data snapshot fixed. Compare exact candidate IDs, returned IDs, observed stage times, and modeled cost. Use relevance labels for a quality claim.',
     },
     {

@@ -650,7 +650,6 @@ async def browse_category(
             FROM pellier.product_catalog
             WHERE (category ILIKE %s OR name ILIKE %s OR description ILIKE %s)
               AND "imgUrl" IS NOT NULL
-              AND NOT (tags ? 'archive')
             ORDER BY rating DESC, reviews::int DESC
             LIMIT %s
         """
@@ -1718,7 +1717,6 @@ async def autocomplete(
             SELECT name, category
             FROM pellier.product_catalog
             WHERE name ILIKE %s
-              AND NOT (tags ? 'archive')
             ORDER BY reviews DESC
             LIMIT %s
         """

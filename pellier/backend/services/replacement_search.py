@@ -61,7 +61,7 @@ enforcement.
 
 **"In stock" means reconciled against the ledger.** The shopper planner compiles
 ``in_stock_only`` to ``quantity > 0`` on the aggregate cache, which holds a seed
-constant for 940 of 1000 catalog rows. This module refuses that predicate and uses
+constant for most catalog rows. This module refuses that predicate and uses
 ``inventory_evidence.RECONCILED_AVAILABLE_SQL`` instead, so the phrase means
 something. Where no reconciled candidate exists, the answer says so rather than
 quietly widening to a cache reading.
@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 #
 # There is deliberately no UPGRADE role. An upgrade needs a factual improvement
 # established by catalog attributes, and this catalog has none to offer: `tier` is
-# 1 for all 1000 rows (measured 2026-08-27), and `rating`/`reviews` are review
+# 1 for every row (measured 2026-08-27), and `rating`/`reviews` are review
 # aggregates rather than construction specifications. Calling something an upgrade
 # because a reranker put it first would be exactly the invented claim this surface
 # exists to avoid. If the catalog later carries material, capacity or specification
@@ -773,7 +773,7 @@ def _coverage_note(result: ReplacementResult) -> str:
     if result.close_matches:
         return (
             "No candidate has current availability reconciled to the inventory "
-            "ledger. Ledger coverage exists for 40 of 1,000 catalog products, so "
+            "ledger. Ledger coverage exists for 40 of 100 catalog products, so "
             "close matches are shown with availability unverified."
         )
     return "No catalog candidate satisfied the hard constraints."

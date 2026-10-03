@@ -119,7 +119,7 @@ export const TEMPLATES: ConciergeTemplate[] = [
     group: 'Catalog',
     label: 'Find a replacement',
     // Never "in-stock alternatives" in the label. Ledger coverage exists for 40 of
-    // 1,000 catalog products, so promising availability before the workflow has
+    // 100 catalog products, so promising availability before the workflow has
     // established it would be a claim the result often cannot honour. The row names
     // the real item and the real order; availability is reported per option, after.
     description: (ctx) =>

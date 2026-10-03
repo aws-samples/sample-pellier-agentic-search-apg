@@ -68,7 +68,7 @@
       "codeLabel": "Source SQL excerpt · vector lookup",
       "codeStepId": "catalog",
       "language": "SQL",
-      "code": "WITH query_embedding AS (\n  SELECT %s::vector AS emb\n)\nSELECT \"productId\", name, color, price,\n       1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity\nFROM pellier.product_catalog\nWHERE \"imgUrl\" IS NOT NULL\n  AND embedding IS NOT NULL\n  AND NOT (tags ? 'archive')\nORDER BY embedding <=> (SELECT emb FROM query_embedding)\nLIMIT %s;",
+      "code": "WITH query_embedding AS (\n  SELECT %s::vector AS emb\n)\nSELECT \"productId\", name, color, price,\n       1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity\nFROM pellier.product_catalog\nWHERE \"imgUrl\" IS NOT NULL\n  AND embedding IS NOT NULL\nORDER BY embedding <=> (SELECT emb FROM query_embedding)\nLIMIT %s;",
       "codeNote": "Source excerpt from services/vector_search.py; selected columns abbreviated. The two bind parameters are the query embedding and candidate limit. Category filtering happens in the tool after this baseline query.",
       "provenance": "Recorded 16 Sep 2026. SQL log: 277 ms. Tool audit: 2249 ms. Terminal receipt: 25183 ms. These measurements cover different scopes. The two chat spans belong to the specialist, not a complete count of all model calls. Source SQL checked at revision 9298587f; the streamed SQL text was truncated.",
       "recordRef": "turn-e251083b4af14d1ebf2f45a5d5c3e619 · tool_audit 223"

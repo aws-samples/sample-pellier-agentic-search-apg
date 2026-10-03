@@ -43,15 +43,13 @@ async def catalog_stats() -> CatalogStatsResponse:
                 count(*)::integer AS product_count,
                 count(DISTINCT category)::integer AS category_count
               FROM pellier.product_catalog
-             WHERE NOT (tags ? 'archive')
             """
         )
         standout = await db_service.fetch_one(
             """
             SELECT name, category
               FROM pellier.product_catalog
-             WHERE NOT (tags ? 'archive')
-               AND "imgUrl" IS NOT NULL
+             WHERE "imgUrl" IS NOT NULL
              ORDER BY tier NULLS LAST, rating DESC NULLS LAST,
                       reviews::integer DESC NULLS LAST, "productId"
              LIMIT 1
