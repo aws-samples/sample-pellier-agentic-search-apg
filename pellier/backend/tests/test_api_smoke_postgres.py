@@ -100,10 +100,11 @@ def _run_app(cluster) -> tuple[dict[str, dict], str]:
 
 
 def _failures(results: dict[str, dict]) -> dict[str, dict]:
-    """Every route that did not answer 200, returned no listing, or showed a non-department."""
+    """Every route that did not answer 200, returned no listing or search hits, or showed a non-department."""
     failures = {}
     for route, result in results.items():
-        empty_listing = route.startswith("products?") and not result["count"]
+        listing = route.startswith("products?") or route == "search"
+        empty_listing = listing and not result["count"]
         foreign = set(result["categories"]) - set(KNOWN_CATEGORIES)
         if result["status"] != 200 or empty_listing or foreign:
             failures[route] = result

@@ -188,19 +188,6 @@ SHIPPING = "Shipping"
 RETURNS = "Returns"
 SECURE_CHECKOUT = "Secure checkout"
 
-# Category chips (Requirement 1.5.3)
-CATEGORY_CHIPS = [
-    "All", "Clothing", "Shoes", "Bags and travel", "Accessories",
-    "Home", "Kitchen and table", "Bath and body", "Stationery and gifts",
-]
-
-# Refinement panel (Requirement 1.8.1)
-REFINEMENT = {
-    "B_MARK_PREFIX": "B",
-    "PROMPT": "Pellier here, want me to narrow this down?",
-    "CHIPS": ["Under $100", "Ships by Friday", "Gift-wrappable", "From smaller makers"],
-}
-
 # Reasoning chip copy (Requirement 1.7). The pricing style exposes its urgent
 # clause separately so the UI can render it in terracotta.
 def reasoning_picked(reason: str) -> str:
@@ -489,14 +476,15 @@ RECOMMENDATION_SYSTEM_PROMPT = (
     "cards.\n"
     "- get_trending_products: Use when the shopper asks for bestsellers, "
     "popular picks, or what is in the Edit right now. Pass the category "
-    "parameter when they name one (e.g. 'popular dresses').\n"
+    "parameter when they name one (e.g. 'popular shoes').\n"
     "- compare_products: Use when the shopper wants a side-by-side look at "
     "two specific pieces. Requires product IDs; if the shopper names pieces "
     "instead, call search_products_hybrid first to resolve each productId, then "
     "compare.\n"
-    "- browse_category: Use for browsing a named category (linen, "
-    "dresses, outerwear, accessories, footwear, home) when the shopper is "
-    "browsing rather than pursuing a specific intent.\n"
+    "- browse_category: Use for browsing a named department (Clothing, "
+    "Shoes, Bags and travel, Accessories, Home, Kitchen and table, Bath and "
+    "body, Stationery and gifts) when the shopper is browsing rather than "
+    "pursuing a specific intent.\n"
     "- get_customer_preferences: Use when the shopper asks what Pellier "
     "remembers, why a recommendation reflects their taste, or which prior "
     "orders/preferences informed the turn. This is read-only; do not use it "

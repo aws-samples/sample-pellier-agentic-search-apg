@@ -24,7 +24,7 @@
         "id": "catalog",
         "title": "Look up the catalog",
         "status": "completed",
-        "summary": "search_products returned 10 Apparel pieces for warm-weather travel.",
+        "summary": "search_products returned 10 Clothing pieces for warm-weather travel.",
         "source": "Aurora PostgreSQL · tool audit",
         "durationMs": 2249,
         "detail": "Query: linen pieces for warm weather travel. The SQL read was separately recorded at 277 ms."

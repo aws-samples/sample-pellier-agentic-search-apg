@@ -6,7 +6,7 @@ live product data. The agent uses AgentCore Code Interpreter for secure,
 sandboxed code execution — no local Python process, no security risks.
 
 Use cases:
-  - "Show me a price distribution chart for home decor"
+  - "Show me a price distribution chart for Kitchen and table"
   - "What's the average rating by category?"
   - "Calculate the correlation between price and reviews"
   - "Generate a CSV export of trending products"

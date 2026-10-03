@@ -447,30 +447,6 @@ export const SHIPPING = "Free shipping over $150";
 export const RETURNS = "Ships within 1 to 2 days";
 export const CONFIRMED_TOTALS = "Confirmed totals";
 
-// Category chips (Requirement 1.5.3)
-export const CATEGORY_CHIPS = [
-  "All",
-  "Clothing",
-  "Shoes",
-  "Bags and travel",
-  "Accessories",
-  "Home",
-  "Kitchen and table",
-  "Bath and body",
-  "Stationery and gifts",
-] as const;
-
-// Refinement panel (Requirement 1.8.1)
-export const REFINEMENT = {
-  PROMPT: "Pellier here, want me to narrow this down?",
-  CHIPS: [
-    "Under $100",
-    "Ships by Friday",
-    "Gift-wrappable",
-    "From smaller makers",
-  ],
-} as const;
-
 // Reasoning chip copy (Requirement 1.7). The pricing style exposes its urgent
 // clause separately so the UI can render it in terracotta.
 export const reasoningPicked = (reason: string): string =>

@@ -75,8 +75,6 @@ const SPEC_FILES: string[] = [
   'components/Header.tsx',
   'components/AuthStateBand.tsx',
   'components/LiveStatusStrip.tsx',
-  'components/CategoryChips.tsx',
-  'components/RefinementPanel.tsx',
   'components/ProductGrid.tsx',
   'components/ProductCard.tsx',
   'components/ReasoningChip.tsx',

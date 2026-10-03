@@ -1529,7 +1529,7 @@ CURRENT REQUEST: {message}"""
         elif any(w in query_lower for w in ['skin care', 'lotion', 'moisturizer']):
             suggestions = ["What's the best for daily use?", "Find a skincare set under $50", "Show me the highest rated"]
         elif any(w in query_lower for w in ['deal', 'cheap', 'budget', 'affordable']):
-            suggestions = ["Find the best value in home decor", "Show me hidden gems under $50", "What's on sale right now?"]
+            suggestions = ["Find the best value in Home", "Show me hidden gems under $50", "What's on sale right now?"]
         elif any(w in query_lower for w in ['trending', 'popular', 'best seller']):
             suggestions = ["Why is this one trending?", "Find me something similar but cheaper", "What else is popular today?"]
         elif any(w in query_lower for w in ['recommend', 'suggest', 'gift']):

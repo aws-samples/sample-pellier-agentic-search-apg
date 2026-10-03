@@ -16,7 +16,7 @@
     },
     {
       "role": "assistant",
-      "content": "I'm sorry - that shouldn't have happened. I've filed the return for the Wabi-Sabi Bowl under reason 'damaged'. Aurora dropped its on-floor count by one and tagged your return as pending; you'll see a refund confirmation once the warehouse logs the package. The bowl has a 30-day return window for this category, so you're well inside it.",
+      "content": "I'm sorry - that shouldn't have happened. I've filed the return for the Wabi-Sabi Bowl under reason 'damaged'. Aurora dropped its on-floor count by one and tagged your return as pending; you'll see a refund confirmation once the warehouse logs the package. The bowl has a 45-day return window for this category, so you're well inside it.",
       "timestamp": "2026-05-25T18:22:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 support intent \u2192 Customer Service Agent \u2192 search_products (resolve productId) \u2192 get_return_policy (window/care) \u2192 initiate_return (Cedar-gated write + audit)",
@@ -35,7 +35,7 @@
           "description": "Lookup return window + care for Kitchen and table category",
           "durationMs": 48,
           "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Kitchen and table'\nLIMIT 1;",
-          "resultSummary": "30-day window; ceramics: hand-wash, no dishwasher"
+          "resultSummary": "45-day window; ceramics: hand-wash, no dishwasher"
         },
         {
           "toolName": "initiate_return",
@@ -81,7 +81,7 @@
         },
         {
           "tier": "episodic",
-          "content": "Bought Wabi-Sabi Bowl ($64) 9d ago - within 30-day window"
+          "content": "Bought Wabi-Sabi Bowl ($64) 9d ago - within 45-day window"
         },
         {
           "tier": "procedural",
@@ -123,7 +123,7 @@
       "index": 3,
       "category": "owned",
       "title": "Memory Recall – Episodic",
-      "description": "Read Aurora episodic memory: Wabi-Sabi Bowl purchased 9d ago. Confirms ownership and 30-day return window before write path opens.",
+      "description": "Read Aurora episodic memory: Wabi-Sabi Bowl purchased 9d ago. Confirms ownership and 45-day return window before write path opens.",
       "status": "complete",
       "durationMs": 46,
       "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
@@ -142,7 +142,7 @@
       "index": 5,
       "category": "both",
       "title": "get_return_policy",
-      "description": "30-day return window for Kitchen and table",
+      "description": "45-day return window for Kitchen and table",
       "status": "complete",
       "durationMs": 48,
       "sql": "SELECT category, return_window_days, care_instructions\nFROM return_policies\nWHERE category = 'Kitchen and table'\nLIMIT 1;",
@@ -212,7 +212,7 @@
         "numeral": "i.",
         "title": "What happened",
         "paragraphs": [
-          "Theo's bowl arrived chipped and the Customer Service Agent moved through the call in three concrete steps: search_products resolved the catalog id, get_return_policy confirmed the 30-day window, and initiate_return wrote the return row to Aurora.",
+          "Theo's bowl arrived chipped and the Customer Service Agent moved through the call in three concrete steps: search_products resolved the catalog id, get_return_policy confirmed the 45-day window, and initiate_return wrote the return row to Aurora.",
           "The voice stayed empathetic and specific. The action - 'I've filed the return for the Wabi-Sabi Bowl' - names the table the agent wrote to, in customer-readable terms."
         ]
       },

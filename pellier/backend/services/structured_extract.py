@@ -17,7 +17,7 @@ through Cohere Rerank using ``soft_signal`` as the query.
 
 Why Sonnet 4.6 specifically:
 
-  - Reliable JSON-shaped output against a 6-category / 28-tag enum.
+  - Reliable JSON-shaped output against a eight-department / 28-tag enum.
   - Reporting-profile behavior: the structured path, not the editorial one.
   - Already configured at ``config.BEDROCK_REPORTING_MODEL``; no new
     model wiring.

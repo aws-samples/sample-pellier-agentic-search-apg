@@ -37,7 +37,7 @@ _SEARCH_SYSTEM_PROMPT = (
     "Extract price limits from the query and pass as max_price. "
     "Extract category hints and pass as category. "
     "- browse_category: Use when the user wants to browse a specific category "
-    "(e.g. 'show me linen', 'browse home decor'). "
+    "(e.g. 'show me linen', 'browse kitchen and table'). "
     "- compare_products: Use when the user wants a side-by-side comparison of two products. "
     "This tool requires product IDs. If the user mentions product names instead of IDs, "
     "first use search_products to find each product's productId, then call compare_products "

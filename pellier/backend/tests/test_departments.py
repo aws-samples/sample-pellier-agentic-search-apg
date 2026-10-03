@@ -43,3 +43,29 @@ def test_seed_storefront_and_keyword_map_share_the_departments():
     assert seeded == DEPARTMENTS
     assert get_args(StorefrontCategory) == DEPARTMENTS
     assert set(_CATEGORY_MAP.values()) <= set(DEPARTMENTS)
+
+
+def test_recommendation_prompt_browse_departments_are_known():
+    import re
+
+    from pellier_copy import RECOMMENDATION_SYSTEM_PROMPT
+
+    line = next(
+        entry for entry in RECOMMENDATION_SYSTEM_PROMPT.split("\n- ")
+        if entry.lstrip("- ").startswith("browse_category")
+    )
+    listed = re.search(r"named department \((.+?)\)", line, re.S).group(1)
+    names = {name.strip() for name in listed.split(",")}
+    assert names == set(KNOWN_CATEGORIES)
+
+
+def test_backend_prompts_do_not_name_retired_categories():
+    from pellier_copy import RECOMMENDATION_SYSTEM_PROMPT
+
+    backend = REPO / "pellier" / "backend"
+    texts = {"RECOMMENDATION_SYSTEM_PROMPT": RECOMMENDATION_SYSTEM_PROMPT}
+    for path in [*(backend / "agents").glob("*.py"), backend / "services" / "chat.py"]:
+        texts[path.name] = path.read_text()
+    for name, text in texts.items():
+        for retired in ("home decor", "footwear"):
+            assert retired not in text.lower(), f"{name} names retired category {retired!r}"
