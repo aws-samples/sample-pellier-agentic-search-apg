@@ -152,13 +152,13 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         -- Jessica: the return dispute. The catchall and the robe are the two
         -- items the operator queue asks about, ordered on the same day.
         ('CUST-JESSICA', 'Coral Lacquer Catchall', 34),
-        ('CUST-JESSICA', 'Luxury Bath Robe, Sage', 34),
+        ('CUST-JESSICA', 'Waffle Bath Robe, Sage', 34),
         ('CUST-JESSICA', 'Stoneware Pour-Over Set', 120),
         ('CUST-JESSICA', 'Quilted Silk Vest', 210),
         ('CUST-JESSICA', 'Oat Merino Crew', 300),
 
         -- Sarah: buys a room at a time.
-        ('CUST-SARAH', 'Hand-Knotted Wool Rug', 45),
+        ('CUST-SARAH', 'Wool Rug', 45),
         ('CUST-SARAH', 'Stonewashed Linen Set', 60),
         ('CUST-SARAH', 'Ivory Cashmere Throw', 150),
         ('CUST-SARAH', 'Blown Glass Decanter', 200),
@@ -167,15 +167,15 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         ('CUST-CATHERINE', 'Camel Wool Overcoat', 30),
         ('CUST-CATHERINE', 'Tailored Wool Blazer', 75),
         ('CUST-CATHERINE', 'Double-Pleat Wool Trouser', 75),
-        ('CUST-CATHERINE', 'Silk Charmeuse Slip Dress', 140),
+        ('CUST-CATHERINE', 'Silk Slip Dress', 140),
         ('CUST-CATHERINE', 'Suede Chelsea Boot', 190),
 
         -- Amara: investment pieces.
-        ('CUST-AMARA', 'Hand-Knotted Wool Rug', 20),
+        ('CUST-AMARA', 'Wool Rug', 20),
         ('CUST-AMARA', 'Signet Ring, Brushed Gold', 55),
         ('CUST-AMARA', 'Camel Wool Overcoat', 110),
         ('CUST-AMARA', 'Ivory Cashmere Throw', 160),
-        ('CUST-AMARA', 'Cognac Market Tote', 240),
+        ('CUST-AMARA', 'Leather Market Tote', 240),
 
         -- Julian: everything goes to alterations.
         ('CUST-JULIAN', 'Tailored Wool Blazer', 25),
@@ -186,25 +186,25 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         -- David: the sustainable edit.
         ('CUST-DAVID', 'Stonewashed Linen Set', 40),
         ('CUST-DAVID', 'Oat Merino Crew', 100),
-        ('CUST-DAVID', 'Solstice Woven Mat Set', 165),
+        ('CUST-DAVID', 'Jute Placemats, Set of 4', 165),
         ('CUST-DAVID', 'Charcoal Soap Bar', 220),
 
         -- Priya: gifting at volume.
         ('CUST-PRIYA', 'Fig and Cedar Eau de Parfum', 28),
         ('CUST-PRIYA', 'Rose Absolute Body Oil', 28),
-        ('CUST-PRIYA', 'Vetiver Quietude', 90),
+        ('CUST-PRIYA', 'Vetiver Eau de Parfum', 90),
         ('CUST-PRIYA', 'Blown Glass Decanter', 150),
         ('CUST-PRIYA', 'Gift Wrapping Kit', 150),
 
         -- Elena: one rung below, worth an early-access nudge.
         ('CUST-ELENA', 'Cashmere Travel Wrap', 35),
         ('CUST-ELENA', 'Oat Merino Crew', 105),
-        ('CUST-ELENA', 'Vetiver Quietude', 180),
+        ('CUST-ELENA', 'Vetiver Eau de Parfum', 180),
 
         -- Thomas: objects that photograph well.
         ('CUST-THOMAS', 'Suede Chelsea Boot', 50),
         ('CUST-THOMAS', 'Travertine Wall Clock', 130),
-        ('CUST-THOMAS', 'Heritage Rectangular Watch', 220),
+        ('CUST-THOMAS', 'Rectangular Leather Watch', 220),
 
         -- Michael: repeat basics.
         ('CUST-MICHAEL', 'Oat Merino Crew', 42),
@@ -212,7 +212,7 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         ('CUST-MICHAEL', 'Washed Canvas Tote', 230),
 
         -- Rachel: fragrance, with an open ticket.
-        ('CUST-RACHEL', 'Vetiver Quietude', 18),
+        ('CUST-RACHEL', 'Vetiver Eau de Parfum', 18),
         ('CUST-RACHEL', 'Rose Absolute Body Oil', 85),
         ('CUST-RACHEL', 'Santal & Fig Candle', 175),
 
@@ -265,7 +265,7 @@ BEGIN
       FROM pellier.orders o
       JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
      WHERE o.customer_id = 'CUST-JESSICA'
-       AND pc.name IN ('Coral Lacquer Catchall', 'Luxury Bath Robe, Sage');
+       AND pc.name IN ('Coral Lacquer Catchall', 'Waffle Bath Robe, Sage');
 
     -- The stored rung must still agree with the thresholds documented at the
     -- top of this file. If someone edits a spend figure without moving the
@@ -311,7 +311,7 @@ BEGIN
         RAISE EXCEPTION
             'Jessica return-dispute orders missing (got % of 2). The operator '
             'walkthrough needs both "Coral Lacquer Catchall" and '
-            '"Luxury Bath Robe, Sage" in pellier.product_catalog.', n_jessica;
+            '"Waffle Bath Robe, Sage" in pellier.product_catalog.', n_jessica;
     END IF;
 
     IF n_drift > 0 THEN

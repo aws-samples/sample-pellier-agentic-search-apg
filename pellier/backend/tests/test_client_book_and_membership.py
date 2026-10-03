@@ -128,11 +128,11 @@ def test_jessica_owns_both_items_the_return_dispute_names():
 
     jessica = re.findall(r"\('CUST-JESSICA',\s*'((?:[^']|'')+)'", block)
     assert "Coral Lacquer Catchall" in jessica
-    assert "Luxury Bath Robe, Sage" in jessica
+    assert "Waffle Bath Robe, Sage" in jessica
 
     seed = _load_seed_module()
     catalog_names = {p.name for p in seed.load_catalog()}
-    assert {"Coral Lacquer Catchall", "Luxury Bath Robe, Sage"} <= catalog_names
+    assert {"Coral Lacquer Catchall", "Waffle Bath Robe, Sage"} <= catalog_names
 
 
 # ---------------------------------------------------------------------------
@@ -262,12 +262,12 @@ def test_migration_is_transactional_and_idempotent_in_shape():
 # The new catalog buckets
 # ---------------------------------------------------------------------------
 
-def test_house_and_signature_buckets_have_ten_products_each():
+def test_home_comforts_and_made_to_last_moments_hold_their_products():
     seed = _load_seed_module()
     house = [p for p in seed.load_catalog() if p.persona == "house"]
     signature = [p for p in seed.load_catalog() if p.persona == "signature"]
 
-    assert [p.productId for p in house] == list(range(41, 51))
+    assert [p.productId for p in house] == [*range(41, 51), 81, 82, 84, 99, 100]
     assert [p.productId for p in signature] == list(range(51, 61))
 
 
@@ -296,10 +296,11 @@ def test_every_curated_product_has_a_committed_embedding():
     assert len(cache["embeddings"]) == len(curated_ids)
 
 
-def test_new_product_images_follow_the_bucket_slug_convention():
+def test_photographed_house_and_signature_images_follow_the_slug_convention():
+    """Products 1 to 60 have photos; 61 to 100 use the placeholder until theirs land."""
     seed = _load_seed_module()
     for p in seed.load_catalog():
-        if p.persona not in ("house", "signature"):
+        if p.persona not in ("house", "signature") or p.productId > 60:
             continue
         assert p.imgPath.startswith(f"{p.persona}-"), (
             f"product {p.productId} image '{p.imgPath}' does not start with "
@@ -308,11 +309,11 @@ def test_new_product_images_follow_the_bucket_slug_convention():
         assert p.imgPath.endswith(".png"), p.imgPath
 
 
-def test_curated_price_ceiling_supports_the_top_rung():
-    """A Gold rung and a private appointment need pieces behind them."""
+def test_catalog_prices_stay_everyday():
+    """Pellier is an everyday-price store: nothing costs more than $450."""
     seed = _load_seed_module()
     ceiling = max(p.price for p in seed.load_catalog())
-    assert ceiling >= 1000, f"catalog ceiling is only {ceiling}"
+    assert ceiling <= 450, f"catalog ceiling is {ceiling}"
 
 
 def test_frontend_threshold_copy_matches_the_migration_rule() -> None:

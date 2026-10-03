@@ -88,7 +88,7 @@ WITH order_seed(customer_id, product_name, days_ago) AS (
         ('CUST-MARCO', 'Merino Travel Socks', 8),
 
         -- Anna: gift-shaped history across price bands.
-        ('CUST-ANNA', 'Solstice Woven Mat Set', 40),
+        ('CUST-ANNA', 'Jute Placemats, Set of 4', 40),
         ('CUST-ANNA', 'Santal & Fig Candle', 32),
         ('CUST-ANNA', 'Ceramic Bud Vase', 24),
         ('CUST-ANNA', 'Handmade Soap Set', 16),
