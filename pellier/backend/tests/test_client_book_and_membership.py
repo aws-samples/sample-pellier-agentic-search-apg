@@ -107,7 +107,7 @@ def _seeded_memberships() -> dict[str, tuple[str, float]]:
 def test_every_seeded_order_names_a_real_catalog_product():
     """A typo here yields zero rows, not an error. Catch it in CI."""
     seed = _load_seed_module()
-    catalog_names = {p.name for p in seed.ALL_PRODUCTS}
+    catalog_names = {p.name for p in seed.load_catalog()}
 
     ordered = _ordered_product_names()
     missing = sorted({n for n in ordered if n not in catalog_names})
@@ -131,7 +131,7 @@ def test_jessica_owns_both_items_the_return_dispute_names():
     assert "Luxury Bath Robe, Sage" in jessica
 
     seed = _load_seed_module()
-    catalog_names = {p.name for p in seed.ALL_PRODUCTS}
+    catalog_names = {p.name for p in seed.load_catalog()}
     assert {"Coral Lacquer Catchall", "Luxury Bath Robe, Sage"} <= catalog_names
 
 
@@ -264,8 +264,8 @@ def test_migration_is_transactional_and_idempotent_in_shape():
 
 def test_house_and_signature_buckets_have_ten_products_each():
     seed = _load_seed_module()
-    house = [p for p in seed.ALL_PRODUCTS if p.persona == "house"]
-    signature = [p for p in seed.ALL_PRODUCTS if p.persona == "signature"]
+    house = [p for p in seed.load_catalog() if p.persona == "house"]
+    signature = [p for p in seed.load_catalog() if p.persona == "signature"]
 
     assert [p.productId for p in house] == list(range(41, 51))
     assert [p.productId for p in signature] == list(range(51, 61))
@@ -289,16 +289,16 @@ def test_new_buckets_have_real_cached_embeddings():
 def test_every_curated_product_has_a_committed_embedding():
     seed = _load_seed_module()
     cache = json.loads((REPO / "data" / "embeddings_cache.json").read_text())
-    curated_ids = {p.productId for p in seed.ALL_PRODUCTS}
+    curated_ids = {p.productId for p in seed.load_catalog()}
 
     missing = sorted(pid for pid in curated_ids if str(pid) not in cache["embeddings"])
     assert not missing, f"curated products with no committed embedding: {missing}"
-    assert len(cache["embeddings"]) == len(curated_ids) == seed.CURATED_PRODUCT_COUNT
+    assert len(cache["embeddings"]) == len(curated_ids)
 
 
 def test_new_product_images_follow_the_bucket_slug_convention():
     seed = _load_seed_module()
-    for p in seed.ALL_PRODUCTS:
+    for p in seed.load_catalog():
         if p.persona not in ("house", "signature"):
             continue
         assert p.imgPath.startswith(f"{p.persona}-"), (
@@ -308,27 +308,10 @@ def test_new_product_images_follow_the_bucket_slug_convention():
         assert p.imgPath.endswith(".png"), p.imgPath
 
 
-def test_new_buckets_have_a_search_text_persona_context():
-    """Without a context entry these products embed with a bare tail."""
-    seed = _load_seed_module()
-    for p in seed.ALL_PRODUCTS:
-        if p.persona not in ("house", "signature"):
-            continue
-        text = p.search_text
-        assert text.strip().endswith("."), p.productId
-        # The persona clause is appended after the tag list.
-        assert "Tags:" in text
-        tail = text.split("Tags:", 1)[1]
-        assert len(tail.split(".")) > 2, (
-            f"product {p.productId} has no persona context clause; add "
-            f"'{p.persona}' to persona_context in search_text"
-        )
-
-
 def test_curated_price_ceiling_supports_the_top_rung():
     """A Gold rung and a private appointment need pieces behind them."""
     seed = _load_seed_module()
-    ceiling = max(p.price for p in seed.ALL_PRODUCTS)
+    ceiling = max(p.price for p in seed.load_catalog())
     assert ceiling >= 1000, f"catalog ceiling is only {ceiling}"
 
 

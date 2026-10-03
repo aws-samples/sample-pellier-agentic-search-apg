@@ -105,7 +105,7 @@ def _load_seed_module():
 
 
 def _catalog_by_id():
-    return {p.productId: p for p in _load_seed_module().ALL_PRODUCTS}
+    return {p.productId: p for p in _load_seed_module().load_catalog()}
 
 
 # ---------------------------------------------------------------------------
@@ -152,10 +152,10 @@ def test_anna_query_has_a_real_mixed_constraint_pool() -> None:
     An empty or near-empty pool makes every strategy look identical, which
     destroys the comparison the lab is built on.
     """
-    catalog = _load_seed_module().ALL_PRODUCTS
+    catalog = _load_seed_module().load_catalog()
     affordable = [
         p for p in catalog
-        if p.price <= ARC["anna"]["price_max_usd"] and "archive" not in p.tags
+        if p.price <= ARC["anna"]["price_max_usd"]
     ]
     assert len(affordable) >= 10, (
         f"only {len(affordable)} curated products are within "

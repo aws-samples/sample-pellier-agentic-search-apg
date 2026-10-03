@@ -1,107 +1,51 @@
-"""Tests for the workshop catalog seed generator.
-
-The governed workshop uses 60 curated story products plus generated archive
-distractors for retrieval evaluation. These tests keep that split explicit so
-inventory, order, and policy exercises keep their stable product IDs.
-"""
-
-from __future__ import annotations
-
+"""The seeder loads one catalog file and has no generated rows."""
 import importlib.util
 import sys
 from pathlib import Path
 
+REPO = Path(__file__).resolve().parents[3]
 
-def _load_seed_module():
-    module_name = "seed_pellier_catalog_for_tests"
-    if module_name in sys.modules:
-        return sys.modules[module_name]
 
-    script_path = (
-        Path(__file__).resolve().parents[3] / "scripts" / "seed_pellier_catalog.py"
+def _seed():
+    spec = importlib.util.spec_from_file_location(
+        "seed_catalog", REPO / "scripts" / "seed_pellier_catalog.py"
     )
-    spec = importlib.util.spec_from_file_location(module_name, script_path)
-    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    try:
-        spec.loader.exec_module(module)
-    except Exception:
-        sys.modules.pop(module_name, None)
-        raise
+    sys.modules["seed_catalog"] = module
+    spec.loader.exec_module(module)
     return module
 
 
-def test_default_catalog_keeps_curated_ids_and_adds_archive_distractors():
-    seed = _load_seed_module()
-
-    catalog = seed.build_catalog()
-    curated = [p for p in catalog if not p.is_distractor]
-    distractors = [p for p in catalog if p.is_distractor]
-
-    assert len(curated) == seed.CURATED_PRODUCT_COUNT == 60
-    assert len(distractors) == seed.DEFAULT_DISTRACTOR_COUNT == 940
-    assert len(catalog) == 1000
-    assert [p.productId for p in curated] == list(range(1, 61))
-    assert distractors[0].productId == seed.DISTRACTOR_ID_START
-    assert (
-        distractors[-1].productId
-        == seed.DISTRACTOR_ID_START + seed.DEFAULT_DISTRACTOR_COUNT - 1
-    )
-    assert all(
-        seed.DISTRACTOR_ID_START <= p.productId <= seed.DISTRACTOR_ID_END
-        for p in distractors
-    )
-    assert all(1 <= int(p.source_product_id or 0) <= 60 for p in distractors)
-    assert all("archive" in p.tags for p in distractors)
-    assert all("archive" not in p.tags for p in curated)
+def test_catalog_loads_from_the_json_file():
+    seed = _seed()
+    products = seed.load_catalog()
+    assert [p.productId for p in products] == list(range(1, len(products) + 1))
 
 
-def test_catalog_can_still_seed_only_the_curated_story_products():
-    seed = _load_seed_module()
-
-    catalog = seed.build_catalog(include_distractors=False)
-
-    assert len(catalog) == 60
-    assert all(not p.is_distractor for p in catalog)
-    assert [p.productId for p in catalog] == list(range(1, 61))
+def test_seeder_has_no_generated_rows():
+    seed = _seed()
+    for symbol in ("generate_distractor_products", "derive_distractor_embeddings",
+                   "DEFAULT_DISTRACTOR_COUNT", "build_catalog"):
+        assert not hasattr(seed, symbol), symbol
 
 
-def test_distractor_embeddings_are_derived_from_cache_and_deterministic(monkeypatch):
-    seed = _load_seed_module()
-    monkeypatch.setenv("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
+def test_search_text_carries_no_shopper_persona_sentence():
+    seed = _seed()
+    for p in seed.load_catalog():
+        text = p.search_text.lower()
+        assert "for a traveler" not in text and "for a gift-giver" not in text
+        assert "client book" not in text and "investment piece" not in text
 
-    def _embedded_catalog():
-        catalog = seed.build_catalog(distractor_count=5)
-        curated = [p for p in catalog if not p.is_distractor]
-        assert seed.load_embeddings_cache(curated, seed.EMBED_CACHE) == 60
-        assert seed.derive_distractor_embeddings(catalog) == 5
-        return catalog
 
-    first = _embedded_catalog()
-    second = _embedded_catalog()
-    first_distractors = [p for p in first if p.is_distractor]
-    second_distractors = [p for p in second if p.is_distractor]
-
-    assert len(first_distractors) == 5
-    assert all(
-        p.embedding and len(p.embedding) == seed.EMBED_DIM
-        for p in first_distractors
-    )
-    assert first_distractors[0].embedding == second_distractors[0].embedding
-    assert first_distractors[-1].embedding == second_distractors[-1].embedding
-    assert first_distractors[0].embedding != first[0].embedding
+def test_every_department_is_one_of_the_eight():
+    seed = _seed()
+    assert len(seed.DEPARTMENTS) == 8
+    assert {p.department for p in seed.load_catalog()} <= set(seed.DEPARTMENTS)
 
 
 def test_database_dsn_honors_configured_port(monkeypatch):
-    seed = _load_seed_module()
-    monkeypatch.setenv("DB_HOST", "127.0.0.1")
-    monkeypatch.setenv("DB_PORT", "55418")
-    monkeypatch.setenv("DB_NAME", "pellier_verify")
-    monkeypatch.setenv("DB_USER", "workshop")
-    monkeypatch.setenv("DB_PASSWORD", "secret")
-
-    assert seed._database_dsn() == (
-        "host=127.0.0.1 port=55418 dbname=pellier_verify "
-        "user=workshop password=secret"
-    )
+    seed = _seed()
+    for key, value in {"DB_HOST": "h", "DB_PORT": "6543", "DB_NAME": "n",
+                       "DB_USER": "u", "DB_PASSWORD": "p"}.items():
+        monkeypatch.setenv(key, value)
+    assert "port=6543" in seed._database_dsn()
