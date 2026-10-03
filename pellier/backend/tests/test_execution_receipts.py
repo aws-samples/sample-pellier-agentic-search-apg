@@ -36,7 +36,7 @@ from routes import operator as OP
 from services import governed_execution as GE
 
 MIGRATION = pathlib.Path("../../scripts/migrations/025_execution_receipts.sql")
-BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
+DATABASE_SETUP = pathlib.Path("../../scripts/setup/database-setup.sh")
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +444,7 @@ def _migration_sql() -> str:
 
 
 def test_the_migration_is_registered() -> None:
-    assert "025_execution_receipts.sql" in BOOTSTRAP.read_text()
+    assert "025_execution_receipts.sql" in DATABASE_SETUP.read_text()
 
 
 def test_the_vocabularies_match_the_service() -> None:

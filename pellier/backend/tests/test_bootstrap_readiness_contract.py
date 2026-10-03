@@ -22,6 +22,8 @@ PROVISIONER = REPO / "scripts" / "provision_agentcore_end_to_end.py"
 AGENTCORE_RENDERER = REPO / "scripts" / "deploy" / "render_agentcore_project.py"
 BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
 RESET_GOVERNED = REPO / "scripts" / "reset-governed-workshop.sh"
+DATABASE_SETUP = REPO / "scripts" / "setup" / "database-setup.sh"
+DATABASE_RESET = REPO / "scripts" / "setup" / "database-reset.sh"
 CATALOG_SEED = REPO / "scripts" / "seed_pellier_catalog.py"
 WAREHOUSE_MIGRATION = REPO / "scripts" / "migrations" / "006_warehouse_inventory.sql"
 SEED_PREFERENCES = REPO / "scripts" / "seed-sample-preferences.sh"
@@ -1247,7 +1249,7 @@ def test_deploy_wrapper_requires_runtime_log_protection_inputs() -> None:
 
 
 def test_governed_reset_restores_catalog_before_exact_warehouse_matrix() -> None:
-    reset = RESET_GOVERNED.read_text(encoding="utf-8")
+    reset = DATABASE_RESET.read_text(encoding="utf-8")
     seeder = CATALOG_SEED.read_text(encoding="utf-8")
     warehouse = WAREHOUSE_MIGRATION.read_text(encoding="utf-8")
 
@@ -1311,8 +1313,13 @@ def test_rls_migration_and_seeder_exist() -> None:
     assert PRINCIPAL_SEED.is_file(), "principal mapping seeder is missing"
 
 
+def test_bootstrap_delegates_database_setup() -> None:
+    body = BOOTSTRAP.read_text()
+    assert "scripts/setup/database-setup.sh" in body
+
+
 def test_bootstrap_applies_the_rls_migration() -> None:
-    assert "016_runtime_roles_rls.sql" in BOOTSTRAP.read_text(), (
+    assert "016_runtime_roles_rls.sql" in DATABASE_SETUP.read_text(), (
         "bootstrap must apply migration 016, or pellier_agent, pellier_query, "
         "and the RLS policies never exist on a fresh box"
     )
@@ -1322,8 +1329,8 @@ def test_query_statistics_extension_is_created_during_bootstrap_and_reset() -> N
     name = "054_query_statistics.sql"
     sql = (REPO / "scripts/migrations" / name).read_text()
     assert "CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;" in sql
-    assert name in BOOTSTRAP.read_text()
-    assert name in RESET_GOVERNED.read_text()
+    assert name in DATABASE_SETUP.read_text()
+    assert name in DATABASE_RESET.read_text()
 
 
 def test_bootstrap_seeds_the_principal_mappings() -> None:
@@ -1335,7 +1342,7 @@ def test_bootstrap_seeds_the_principal_mappings() -> None:
 
 
 def test_reset_reapplies_the_rls_migration() -> None:
-    assert "016_runtime_roles_rls.sql" in RESET_GOVERNED.read_text(), (
+    assert "016_runtime_roles_rls.sql" in DATABASE_RESET.read_text(), (
         "reset must re-apply migration 016 so a disabled policy or altered "
         "grant returns to the shipped state"
     )
@@ -1390,7 +1397,7 @@ def test_reset_does_not_truncate_the_authorization_mapping() -> None:
     Truncating it would make every reset break every signed-in shopper until
     someone re-ran the seeder.
     """
-    body = RESET_GOVERNED.read_text()
+    body = DATABASE_RESET.read_text()
     truncate_block = body.split("TRUNCATE TABLE", 1)
     assert len(truncate_block) == 2, "reset no longer truncates evidence tables"
     statement = truncate_block[1].split(";", 1)[0]
@@ -1430,7 +1437,7 @@ def test_reset_truncates_every_evidence_table_its_migrations_create() -> None:
     Rather than pin today's list, this derives it: every table created by a
     migration reset applies must be truncated or exempted with a reason.
     """
-    body = RESET_GOVERNED.read_text()
+    body = DATABASE_RESET.read_text()
     migrations_dir = REPO / "scripts" / "migrations"
 
     applied = [
@@ -1816,6 +1823,9 @@ def _run_reset(
     )
     for migration in (REPO / "scripts" / "migrations").glob("*.sql"):
         (repo / "scripts" / "migrations" / migration.name).touch()
+    # The real database reset runs against the faked psql and interpreter below.
+    (repo / "scripts" / "setup").mkdir()
+    shutil.copy2(DATABASE_RESET, repo / "scripts" / "setup" / DATABASE_RESET.name)
     _write_executable(repo / "scripts" / "health-gate.sh", "#!/bin/bash\nexit 0\n")
     _write_executable(
         repo / "pellier" / "backend" / ".venv" / "bin" / "python",

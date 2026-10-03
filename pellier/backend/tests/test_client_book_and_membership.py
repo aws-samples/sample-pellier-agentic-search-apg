@@ -28,8 +28,8 @@ REPO = Path(__file__).resolve().parents[3]
 MIGRATION = REPO / "scripts" / "migrations" / "018_client_book.sql"
 LIVE_PERSONAS = REPO / "scripts" / "migrations" / "029_live_surface_data.sql"
 FRONTEND_MEMBERSHIP = REPO / "pellier" / "frontend" / "src" / "data" / "membership.ts"
-BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
-RESET_GOVERNED = REPO / "scripts" / "reset-governed-workshop.sh"
+DATABASE_SETUP = REPO / "scripts" / "setup" / "database-setup.sh"
+DATABASE_RESET = REPO / "scripts" / "setup" / "database-reset.sh"
 
 RUNGS = ("registered", "circle", "maison")
 
@@ -239,12 +239,12 @@ def test_frontend_membership_module_lists_exactly_the_three_rungs():
 # ---------------------------------------------------------------------------
 
 def test_migration_is_registered_in_both_runners():
-    assert "018_client_book.sql" in BOOTSTRAP.read_text(), (
-        "018_client_book.sql is not applied by scripts/bootstrap-labs.sh, so a "
+    assert "018_client_book.sql" in DATABASE_SETUP.read_text(), (
+        "018_client_book.sql is not applied by scripts/setup/database-setup.sh, so a "
         "fresh account would have no client book."
     )
-    assert "018_client_book.sql" in RESET_GOVERNED.read_text(), (
-        "018_client_book.sql is not applied by scripts/reset-governed-workshop.sh, "
+    assert "018_client_book.sql" in DATABASE_RESET.read_text(), (
+        "018_client_book.sql is not applied by scripts/setup/database-reset.sh, "
         "so a reset would drop the client book."
     )
 

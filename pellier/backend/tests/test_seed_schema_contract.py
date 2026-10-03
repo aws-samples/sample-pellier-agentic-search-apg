@@ -1,11 +1,11 @@
 """The catalog seeder runs before the 002-onward migrations, so 001 must satisfy it.
 
-`bootstrap-labs.sh::setup_database` applies `001_schema.sql`, then runs
-`scripts/seed_pellier_catalog.py`, and only then loops over migrations 002
-onward. A column the seeder writes that 001 does not define therefore fails on
-a fresh cluster, and because the seeder's non-zero return leaves that function
-early, the whole migration loop is skipped too: the box comes up with an empty
-catalog and no workshop schema, behind a warning.
+`scripts/setup/database-setup.sh` (which bootstrap calls) applies `001_schema.sql`,
+then runs `scripts/seed_pellier_catalog.py`, and only then loops over migrations
+002 onward. A column the seeder writes that 001 does not define therefore fails on
+a fresh cluster, and because the script exits on the seeder's non-zero return, the
+whole migration loop is skipped too: the box comes up with an empty catalog and no
+workshop schema.
 
 That shipped once. `persona_id` was added to the seeder's INSERT while the
 column was created by migration 029, which runs after the seed. These tests
@@ -20,7 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 SCHEMA = REPO / "scripts" / "migrations" / "001_schema.sql"
 SEEDER = REPO / "scripts" / "seed_pellier_catalog.py"
-BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
+DATABASE_SETUP = REPO / "scripts" / "setup" / "database-setup.sh"
 
 _TABLE = "pellier.product_catalog"
 
@@ -61,9 +61,9 @@ def test_the_base_schema_defines_every_column_the_seeder_writes() -> None:
     missing = sorted(written - defined)
     assert not missing, (
         f"{sorted(missing)} are written by scripts/seed_pellier_catalog.py but not "
-        "defined in scripts/migrations/001_schema.sql. Bootstrap seeds before the "
-        "002-onward migration loop, so the seed fails on a fresh cluster, "
-        "setup_database returns early, and no later migration is applied. Add the "
+        "defined in scripts/migrations/001_schema.sql. Database setup seeds before "
+        "the 002-onward migration loop, so the seed fails on a fresh cluster, "
+        "database-setup.sh exits, and no later migration is applied. Add the "
         "column to 001 as an idempotent ADD COLUMN IF NOT EXISTS; the migration "
         "that assigns its values can still land later."
     )
@@ -71,12 +71,12 @@ def test_the_base_schema_defines_every_column_the_seeder_writes() -> None:
 
 def test_the_seeder_still_runs_before_the_migration_loop() -> None:
     """Pin the ordering the first test assumes, so it cannot silently stop applying."""
-    body = BOOTSTRAP.read_text()
+    body = DATABASE_SETUP.read_text()
     seed = body.index("seed_pellier_catalog.py --from-cache")
-    schema = body.index("Applying migration 001_schema.sql")
+    schema = body.index("apply 001_schema.sql")
     loop = body.index("for migration in", seed)
     assert schema < seed < loop, (
-        "bootstrap no longer applies 001, then seeds, then loops over the rest. "
+        "database setup no longer applies 001, then seeds, then loops over the rest. "
         "If the seeder now runs after the migration loop, this contract is obsolete "
         "and both tests in this file should be reconsidered."
     )

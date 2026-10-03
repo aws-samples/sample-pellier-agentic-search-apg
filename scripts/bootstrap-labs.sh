@@ -578,51 +578,20 @@ setup_database() {
             return 1
         fi
 
-        # ---- 1. Schema bootstrap (CREATE EXTENSION vector + schema +
-        # product_catalog table + HNSW index). pellier-database.yml
-        # provisions an empty Aurora cluster; this migration is what
-        # makes the cluster Pellier-ready. Runs first because the
-        # seeder INSERTs into pellier.product_catalog and assumes the
-        # vector(1024) column exists. ----
-        if [ -f "$REPO_PATH/scripts/migrations/001_schema.sql" ]; then
-            log "Applying migration 001_schema.sql..."
-            PGPASSWORD="$DB_PASSWORD" psql \
-                -h "$DB_HOST" -p "$DB_PORT" \
-                -U "$DB_USER" -d "$DB_NAME" \
-                -v ON_ERROR_STOP=1 \
-                -f "$REPO_PATH/scripts/migrations/001_schema.sql" \
-                2>&1 | tee /var/log/database-schema.log
-            local rc=${PIPESTATUS[0]}
-            if [ "$rc" -ne 0 ]; then
-                warn "Schema bootstrap failed (rc=$rc) — see /var/log/database-schema.log"
-                return "$rc"
-            fi
-        else
-            warn "001_schema.sql not found — seeder will fail without the table"
-        fi
-
-        # ---- 2. Pellier catalog seeder - 60 hand-curated products
-        # across the four personas (Marco / Anna / Theo / Fresh), plus
-        # generated high-ID archive distractors for retrieval measurement.
-        # Authoritative source for pellier.product_catalog.
+        # ---- 1-3. Schema, catalog seed and every fresh-cluster migration.
+        # scripts/setup/database-setup.sh owns the sequence and its ordering
+        # rationale; the fresh-setup test harness runs the same script against
+        # PostgreSQL 18 with pgvector. ----
         #
-        # Embeddings come from the COMMITTED cache (data/embeddings_cache.json)
-        # via --from-cache. The cache stores the 40 real Cohere vectors; the
-        # archive distractors derive deterministic vectors from that committed
-        # cache. This removes the slowest, most throttle-prone step from the
-        # bootstrap critical path and makes the seed a deterministic SQL load.
-        # To regenerate the cache after a curated catalog change, run
-        # `python scripts/seed_pellier_catalog.py --csv-only --no-distractors`
-        # on a machine with Bedrock access and commit the updated cache.
-        #
-        # Must run as $CODE_EDITOR_USER: psycopg is installed via
-        # `pip install --user` for that user in Stage 1, so root's python3.14
-        # cannot import it. Without sudo -u the seeder dies with
-        # ModuleNotFoundError and the catalog stays empty — cascading silent
-        # failures into 003's persona-orders JOIN. ----
+        # Must run as $CODE_EDITOR_USER: the script runs the catalog seeder,
+        # and psycopg is installed via `pip install --user` for that user in
+        # Stage 1, so root's python3.14 cannot import it. Without sudo -u the
+        # seeder dies with ModuleNotFoundError and the catalog stays empty —
+        # cascading silent failures into 003's persona-orders JOIN. psql runs
+        # as that user too and authenticates with PGPASSWORD, as it did as root.
         # DB_USER/DB_PASSWORD are passed via `env NAME=value`, never
-        # interpolated into the bash -c string, so a literal ' or \ in the
-        # generated password cannot break out of shell quoting here. (The
+        # interpolated into a string a nested shell parses, so a literal ' or \
+        # in the generated password cannot break out of shell quoting here. (The
         # master secret's ExcludeCharacters excludes " @ / \ ' today — see
         # MasterSecret.GenerateSecretString in assets/pellier-database.yml,
         # both Workshop Studio repos — but this site does not depend on it.)
@@ -633,97 +602,14 @@ setup_database() {
             ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}" \
             ASSETS_BUCKET_PREFIX="${ASSETS_BUCKET_PREFIX:-}" \
             DATABASE_URL="$DATABASE_URL" \
-            REPO_PATH="$REPO_PATH" \
-            bash -c 'cd "$REPO_PATH" && python3.14 scripts/seed_pellier_catalog.py --from-cache' \
+            PYTHON=python3.14 REPO="$REPO_PATH" \
+            bash "$REPO_PATH/scripts/setup/database-setup.sh" \
             2>&1 | tee /var/log/database-setup.log
-        local seed_rc=${PIPESTATUS[0]}
-        if [ "$seed_rc" -ne 0 ]; then
-            warn "Pellier catalog seed failed (rc=$seed_rc) — see /var/log/database-setup.log"
-            return "$seed_rc"
+        local setup_rc=${PIPESTATUS[0]}
+        if [ "$setup_rc" -ne 0 ]; then
+            warn "Database setup failed (rc=$setup_rc) — see /var/log/database-setup.log"
+            return "$setup_rc"
         fi
-
-        # ---- 3. Required fresh-cluster migrations. These are intentionally
-        # idempotent and run after the catalog exists because several
-        # tables FK into pellier.product_catalog. Ordering matters:
-        # telemetry creates customers/orders, persona seed populates them,
-        # Theo returns references them, and warehouse inventory powers
-        # check_inventory. ----
-        local migration
-        for migration in \
-            002_workshop_telemetry.sql \
-            003_persona_seed.sql \
-            004_anna_hybrid_search.sql \
-            005_theo_returns.sql \
-            006_warehouse_inventory.sql \
-            007_chat_session_tables.sql \
-            008_search_performance_indexes.sql \
-            009_return_policies.sql \
-            010_governed_receipts.sql \
-            011_governed_write_integrity.sql \
-            012_retrieval_receipts.sql \
-            013_inventory_ledger.sql \
-            014_governed_turn_receipts.sql \
-            015_proof_carrying_commerce.sql \
-            016_runtime_roles_rls.sql \
-            017_governed_query_receipts.sql \
-            018_client_book.sql \
-            019_operator_desk.sql \
-            020_operator_review.sql \
-            021_governed_execution.sql \
-            022_write_operation_vocabulary.sql \
-            023_idempotency_claims_release_on_failure.sql \
-            024_operator_episodes.sql \
-            025_execution_receipts.sql \
-            026_episode_outcome_lineage.sql \
-            027_canonical_span_table.sql \
-            028_shopper_operator_handoff.sql \
-            029_live_surface_data.sql \
-            030_storefront_editorial_order.sql \
-            031_refine_fresh_storefront_edit.sql \
-            032_restore_fresh_runner_edit.sql \
-            033_extend_curated_inventory.sql \
-            034_refine_persona_personalities.sql \
-            035_expand_persona_discovery_grids.sql \
-            036_refresh_persona_hero_alt_text.sql \
-            037_serve_persona_hero_masters.sql \
-            038_principal_customer_cardinality.sql \
-            039_return_replay_scope.sql \
-            040_resequence_theo_governed_turn.sql \
-            041_align_theo_pairing_preview.sql \
-            042_align_anna_guided_previews.sql \
-            043_evidence_ledger.sql \
-            044_operator_lifecycle_ledger.sql \
-            045_persona_blurbs.sql \
-            046_retrieval_citation_snapshots.sql \
-            047_evidence_immutability.sql \
-            048_policy_decisions.sql \
-            049_workshop_runs.sql \
-            050_refine_guided_questions.sql \
-            051_review_requester.sql \
-            052_replacement_recovery.sql \
-            053_replacement_follow_up.sql \
-            054_query_statistics.sql \
-            055_governance_boundary_observations.sql \
-            056_align_required_lab_requests.sql
-        do
-            if [ -f "$REPO_PATH/scripts/migrations/$migration" ]; then
-                log "Applying migration $migration..."
-                PGPASSWORD="$DB_PASSWORD" psql \
-                    -h "$DB_HOST" -p "$DB_PORT" \
-                    -U "$DB_USER" -d "$DB_NAME" \
-                    -v ON_ERROR_STOP=1 \
-                    -f "$REPO_PATH/scripts/migrations/$migration" \
-                    2>&1 | tee -a /var/log/database-setup.log
-                local migration_rc=${PIPESTATUS[0]}
-                if [ "$migration_rc" -ne 0 ]; then
-                    warn "Migration $migration failed (rc=$migration_rc) — see /var/log/database-setup.log"
-                    return "$migration_rc"
-                fi
-            else
-                warn "Required migration $migration not found"
-                return 1
-            fi
-        done
 
         # ---- 4. Tool registry seed — populates pellier.tools (created
         # empty by migration 002) with the 15 canonical Gateway tool names
@@ -733,7 +619,7 @@ setup_database() {
         # render zero rows if the seed is skipped. ----
         if [ -f "$REPO_PATH/scripts/seed_tool_registry.py" ]; then
             log "Seeding pellier.tools registry..."
-            # Same env-passing rationale as the seeder call above — no
+            # Same env-passing rationale as the database setup call above — no
             # credential is interpolated into a string a nested shell parses.
             sudo -u "$CODE_EDITOR_USER" env \
                 DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" \

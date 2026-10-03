@@ -86,8 +86,8 @@ def test_historical_theo_seed_retains_its_recorded_return_conversation() -> None
     repair = (
         ROOT / "scripts" / "migrations" / "040_resequence_theo_governed_turn.sql"
     ).read_text()
-    bootstrap = (ROOT / "scripts" / "bootstrap-labs.sh").read_text()
-    reset = (ROOT / "scripts" / "reset-governed-workshop.sh").read_text()
+    setup = (ROOT / "scripts" / "setup" / "database-setup.sh").read_text()
+    reset = (ROOT / "scripts" / "setup" / "database-reset.sh").read_text()
 
     required_turn = (
         "('theo', 3, 'My Wabi-Sabi Bowl arrived chipped. Please help me return it.', "
@@ -102,8 +102,8 @@ def test_historical_theo_seed_retains_its_recorded_return_conversation() -> None
     assert "WHERE persona_id = 'theo'" in repair
     assert "AND ordinal = 2" in repair
     assert "AND ordinal = 3" in repair
-    assert "040_resequence_theo_governed_turn.sql" in bootstrap
-    assert "041_align_theo_pairing_preview.sql" in bootstrap
+    assert "040_resequence_theo_governed_turn.sql" in setup
+    assert "041_align_theo_pairing_preview.sql" in setup
     assert "040_resequence_theo_governed_turn.sql" in reset
     assert "041_align_theo_pairing_preview.sql" in reset
 
@@ -113,8 +113,8 @@ def test_historical_anna_seed_retains_its_recorded_retrieval_previews() -> None:
     repair = (
         ROOT / "scripts" / "migrations" / "042_align_anna_guided_previews.sql"
     ).read_text()
-    bootstrap = (ROOT / "scripts" / "bootstrap-labs.sh").read_text()
-    reset = (ROOT / "scripts" / "reset-governed-workshop.sh").read_text()
+    setup = (ROOT / "scripts" / "setup" / "database-setup.sh").read_text()
+    reset = (ROOT / "scripts" / "setup" / "database-reset.sh").read_text()
 
     retrieval_turn = (
         "('anna', 2, 'Keep it under $100 and in stock. Show me the strongest two options.', "
@@ -132,7 +132,7 @@ def test_historical_anna_seed_retains_its_recorded_retrieval_previews() -> None:
     assert "Build checkpoint · inventory proof" in (
         FRONTEND / "observatory" / "surfaces" / "observe" / "ObservatoryCuratedTurns.tsx"
     ).read_text()
-    assert "042_align_anna_guided_previews.sql" in bootstrap
+    assert "042_align_anna_guided_previews.sql" in setup
     assert "042_align_anna_guided_previews.sql" in reset
 
 

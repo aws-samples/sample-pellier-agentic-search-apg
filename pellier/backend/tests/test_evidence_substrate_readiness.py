@@ -24,7 +24,7 @@ import re
 import pytest
 
 MIGRATIONS = pathlib.Path("../../scripts/migrations")
-BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
+DATABASE_SETUP = pathlib.Path("../../scripts/setup/database-setup.sh")
 RETIRE = MIGRATIONS / "027_canonical_span_table.sql"
 
 
@@ -41,7 +41,7 @@ def _sql(path: pathlib.Path) -> str:
 
 
 def test_the_migration_is_registered_after_the_others() -> None:
-    body = BOOTSTRAP.read_text()
+    body = DATABASE_SETUP.read_text()
     assert "027_canonical_span_table.sql" in body
     assert body.index("026_episode_outcome_lineage.sql") < body.index(
         "027_canonical_span_table.sql"

@@ -87,7 +87,7 @@ def test_privileged_dependency_install_ignores_sudo_default_python(interpreters,
 
 
 @pytest.mark.parametrize("script", [
-    "check_model_access.py", "seed_pellier_catalog.py", "seed_tool_registry.py",
+    "check_model_access.py", "seed_tool_registry.py",
     "provision_agentcore_end_to_end.py", "reset_participant_exercises.py",
 ])
 def test_stage2_commands_select_versioned_python_after_sudo_resets_path(
@@ -110,6 +110,30 @@ def test_stage2_commands_select_versioned_python_after_sudo_resets_path(
     )
     assert calls.read_text().splitlines()[0] == "3.14"
     assert script in calls.read_text()
+
+
+def test_database_setup_seeds_on_workshop_python_after_sudo_resets_path(interpreters):
+    """Bootstrap names python3.14 and scripts/setup/database-setup.sh runs the seeder with it.
+
+    The interpreter choice and the seeder call now live in two files, so execute both:
+    Stage 2's invocation under the clean PATH sudo supplies, then the real setup script
+    it calls, with psql stubbed. No database is reached.
+    """
+    system, _, calls = interpreters
+    psql = system / "psql"
+    psql.write_text("#!/bin/bash\nexit 0\n")
+    psql.chmod(0o755)
+    end = STAGE2.index('bash "$REPO_PATH/scripts/setup/database-setup.sh"')
+    start = STAGE2.rindex('sudo -u "$CODE_EDITOR_USER" env', 0, end)
+    command = STAGE2[start:STAGE2.index("\n", end)].rstrip(" \\")
+    run('sudo() { shift 2; env -i PATH="$OS_PATH" "$@"; }\n' + command,
+        OS_PATH=f"{system}:/usr/bin:/bin", REPO_PATH=str(REPO),
+        CODE_EDITOR_USER="participant", DB_HOST="db.invalid", DB_PORT="5432",
+        DB_NAME="pellier", DB_USER="pellier", DB_PASSWORD="synthetic",
+        AWS_REGION="us-east-1", DATABASE_URL="postgresql://synthetic")
+    assert calls.read_text().splitlines() == [
+        "3.14", "scripts/seed_pellier_catalog.py --from-cache",
+    ]
 
 
 def test_backend_service_and_editor_select_workshop_python(interpreters, tmp_path):

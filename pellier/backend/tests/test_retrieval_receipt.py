@@ -539,29 +539,24 @@ def test_storefront_receipt_cites_the_returned_rows_only(
 # Migration registration
 # ---------------------------------------------------------------------------
 def test_every_migration_is_applied_by_bootstrap() -> None:
-    """Every migration file must appear in bootstrap's apply list.
+    """Every migration file must appear in the fresh database setup's apply list.
 
     A migration that exists on disk but is not enumerated in
-    ``scripts/bootstrap-labs.sh`` never runs on a fresh box, so the table
-    is missing in production while every local test passes. This guard
-    fails the moment the two drift.
+    ``scripts/setup/database-setup.sh`` (which bootstrap runs) never runs on a
+    fresh box, so the table is missing in production while every local test
+    passes. This guard fails the moment the two drift.
     """
     from pathlib import Path
 
     repo_root = Path(__file__).resolve().parents[3]
     migrations_dir = repo_root / "scripts" / "migrations"
-    bootstrap = (repo_root / "scripts" / "bootstrap-labs.sh").read_text()
+    setup = (repo_root / "scripts" / "setup" / "database-setup.sh").read_text()
 
     on_disk = sorted(p.name for p in migrations_dir.glob("0*.sql"))
     assert on_disk, "no migrations found — check the path"
 
-    # 001_schema.sql is applied separately, ahead of the loop.
-    missing = [
-        name
-        for name in on_disk
-        if name != "001_schema.sql" and name not in bootstrap
-    ]
+    missing = [name for name in on_disk if name not in setup]
     assert not missing, (
-        "migrations exist but bootstrap-labs.sh never applies them: "
+        "migrations exist but database-setup.sh never applies them: "
         f"{missing}. A fresh box would boot without these tables."
     )

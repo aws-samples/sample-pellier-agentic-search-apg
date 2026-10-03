@@ -23,6 +23,8 @@ import re
 
 RESET = pathlib.Path("../../scripts/reset-governed-workshop.sh")
 BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
+DATABASE_SETUP = pathlib.Path("../../scripts/setup/database-setup.sh")
+DATABASE_RESET = pathlib.Path("../../scripts/setup/database-reset.sh")
 MIGRATIONS = pathlib.Path("../../scripts/migrations")
 MEMORY_RESET = pathlib.Path("../../scripts/reset_memory_runtime.py")
 
@@ -31,9 +33,13 @@ def _reset_body() -> str:
     return RESET.read_text()
 
 
+def _database_reset_body() -> str:
+    return DATABASE_RESET.read_text()
+
+
 def _truncate_list() -> set[str]:
     """The tables the reset clears, parsed from the TRUNCATE statement itself."""
-    body = _reset_body()
+    body = _database_reset_body()
     start = body.index("TRUNCATE TABLE")
     block = body[start: body.index("RESTART IDENTITY", start)]
     return set(re.findall(r"pellier\.([a-z_]+)", block))
@@ -138,8 +144,13 @@ def test_the_reset_preserves_the_authorization_mapping() -> None:
     assert "principal_customers" not in _truncate_list()
 
 
+def test_reset_delegates_database_reset() -> None:
+    body = RESET.read_text()
+    assert "scripts/setup/database-reset.sh" in body
+
+
 def test_the_reset_reapplies_every_migration_through_027() -> None:
-    body = _reset_body()
+    body = _database_reset_body()
     for n in range(23, 28):
         prefix = f"0{n}_"
         assert any(prefix in line for line in body.splitlines()), prefix
@@ -148,9 +159,9 @@ def test_the_reset_reapplies_every_migration_through_027() -> None:
 def test_every_migration_in_the_chain_is_reachable_from_bootstrap() -> None:
     """A migration that exists but is never applied is a table nobody has."""
     on_disk = {p.name for p in MIGRATIONS.glob("0*.sql")}
-    registered = BOOTSTRAP.read_text()
+    registered = DATABASE_SETUP.read_text()
     missing = sorted(name for name in on_disk if name not in registered)
-    assert not missing, f"migrations not registered in bootstrap: {missing}"
+    assert not missing, f"migrations not registered in database setup: {missing}"
 
 
 def test_recovery_reset_keeps_foreign_keys_complete_and_refuses_existing_operations() -> None:
@@ -160,7 +171,7 @@ def test_recovery_reset_keeps_foreign_keys_complete_and_refuses_existing_operati
         "replacement_callbacks", "replacement_simulator_operations",
     } <= _truncate_list()
     for migration in ("052_replacement_recovery.sql", "053_replacement_follow_up.sql"):
-        assert migration in body
+        assert migration in _database_reset_body()
     # The guard must run before catalog reseeding or any truncate. A database
     # activity snapshot alone cannot establish that a callback workflow is idle.
     guard = body[body.index("_assert_no_active_execution()"):body.index("# Restore the STARTING")]
@@ -168,7 +179,9 @@ def test_recovery_reset_keeps_foreign_keys_complete_and_refuses_existing_operati
     assert 'if [[ "$recovery_records" != "0" ]]' in guard
     assert "cannot quiesce the recovery worker and Step Functions" in guard
     calls = body[body.index('echo "Pellier governed reset'): ]
-    assert calls.index("_assert_no_active_execution") < calls.index("seed_pellier_catalog.py")
+    assert calls.index("_assert_no_active_execution") < calls.index(
+        'bash "$REPO/scripts/setup/database-reset.sh"'
+    )
 
 
 NEW_EVIDENCE_MIGRATIONS = (
@@ -185,8 +198,8 @@ def test_the_new_evidence_migrations_are_registered_everywhere() -> None:
     (`pellier.workshop_runs`) are registered by name in every apply list before
     the files land, so bootstrap, reset and the operator README agree on the chain.
     """
-    bootstrap = BOOTSTRAP.read_text()
-    reset = _reset_body()
+    bootstrap = DATABASE_SETUP.read_text()
+    reset = _database_reset_body()
     readme = (MIGRATIONS / "README.md").read_text()
     health = pathlib.Path("../../scripts/health-gate.sh").read_text()
     for name in NEW_EVIDENCE_MIGRATIONS:
@@ -234,9 +247,9 @@ def test_the_reset_uses_truncate_rather_than_delete() -> None:
     ledger history while trying to clear history, and would be refused outright by
     `reject_governed_turn_receipt_mutation` on governed_turn_receipts.
     """
-    body = _reset_body()
-    assert "TRUNCATE TABLE" in body
-    assert not re.search(r"^\s*DELETE FROM pellier\.", body, re.MULTILINE)
+    assert "TRUNCATE TABLE" in _database_reset_body()
+    for body in (_reset_body(), _database_reset_body()):
+        assert not re.search(r"^\s*DELETE FROM pellier\.", body, re.MULTILINE)
 
 
 def test_the_reset_does_not_require_control_plane_authority() -> None:
@@ -336,7 +349,8 @@ def test_the_reset_quiesces_before_it_truncates() -> None:
         "_assert_no_active_execution does not run after _quiesce_services"
     )
     assert_no_active = body.index("_assert_no_active_execution\n", quiesce)
-    truncate = body.index("TRUNCATE TABLE")
+    # The TRUNCATE lives in the database reset, so its call site is the truncate point.
+    truncate = body.index('bash "$REPO/scripts/setup/database-reset.sh"')
     assert quiesce < assert_no_active < truncate, (
         "the reset must stop the application and prove nothing is executing BEFORE it "
         "truncates"
@@ -607,13 +621,14 @@ def test_the_reset_still_truncates_rather_than_deletes() -> None:
     A DELETE here fires `record_inventory_movement` and the receipt-immutability
     trigger, writing fresh history while trying to clear history.
     """
-    body = _reset_body()
+    body = _database_reset_body()
     assert "TRUNCATE TABLE" in body
     assert "RESTART IDENTITY" in body
-    assert not re.search(r"\bDELETE FROM pellier\.", body), (
-        "a DELETE reappeared in the reset; that fires the row-level triggers TRUNCATE "
-        "deliberately bypasses"
-    )
+    for text in (_reset_body(), body):
+        assert not re.search(r"\bDELETE FROM pellier\.", text), (
+            "a DELETE reappeared in the reset; that fires the row-level triggers "
+            "TRUNCATE deliberately bypasses"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -723,9 +738,14 @@ def test_every_psql_invocation_ignores_a_developer_psqlrc() -> None:
     running. A workshop box has no psqlrc, which is exactly why this only appears
     off-box, and off-box is where the reset gets tested.
     """
-    body = _reset_body()
-    invocations = len(re.findall(r"^\s*PGPASSWORD=.* psql \\\\?$", body, re.MULTILINE))
-    hardened = body.count("-X -v ON_ERROR_STOP=1")
-    assert hardened >= 3, f"only {hardened} psql invocations pass -X"
-    assert "-v ON_ERROR_STOP=1" in body
-    assert not re.search(r"psql \\\n(?!.*-X)", body) or hardened >= 3
+    for path in (RESET, DATABASE_RESET):
+        # One logical line per command, so a flag on a continuation line still counts.
+        commands = path.read_text().replace("\\\n", " ").splitlines()
+        invocations = [
+            line.strip() for line in commands
+            if re.search(r"(?:^|\s)psql\s+-", line) and not line.lstrip().startswith("#")
+        ]
+        assert invocations, f"{path.name} no longer runs psql"
+        for line in invocations:
+            assert re.search(r"\s-X\s", line), f"{path.name} runs psql without -X: {line}"
+            assert "-v ON_ERROR_STOP=1" in line, f"{path.name} psql may continue past an error"

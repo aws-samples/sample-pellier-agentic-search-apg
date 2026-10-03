@@ -34,7 +34,7 @@ from services import governed_execution as GE
 from services import operator_episodes as EP
 
 MIGRATION = pathlib.Path("../../scripts/migrations/026_episode_outcome_lineage.sql")
-BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
+DATABASE_SETUP = pathlib.Path("../../scripts/setup/database-setup.sh")
 
 
 def _module_source(name: str) -> str:
@@ -558,7 +558,7 @@ def _sql() -> str:
 
 
 def test_the_migration_is_registered() -> None:
-    assert "026_episode_outcome_lineage.sql" in BOOTSTRAP.read_text()
+    assert "026_episode_outcome_lineage.sql" in DATABASE_SETUP.read_text()
 
 
 def test_the_outcome_index_is_the_idempotency_contract() -> None:

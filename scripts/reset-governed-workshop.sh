@@ -117,28 +117,12 @@ AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 : "${DB_NAME:?DB_NAME is not set in $ENV_FILE — refusing to run a destructive reset against a guessed database}"
 : "${DB_USER:?DB_USER is not set in $ENV_FILE — refusing to run a destructive reset against a guessed role}"
 
-# -X on every invocation. A developer's ~/.psqlrc printed "Null display is (null). Timing
-# is on." into the scalar reads below, so an in-flight count of 0 parsed as noise and the
-# reset refused a database with nothing running at all. A workshop box has no .psqlrc,
-# which is precisely why a defect like this only ever appears off-box.
-_psql_file() {
-  local file="$1"
-  PGPASSWORD="${DB_PASSWORD:-}" psql \
-    -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" \
-    -U "$DB_USER" -d "$DB_NAME" \
-    -X -v ON_ERROR_STOP=1 \
-    -f "$file"
-}
-
-_psql_exec() {
-  local sql="$1"
-  PGPASSWORD="${DB_PASSWORD:-}" psql \
-    -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" \
-    -U "$DB_USER" -d "$DB_NAME" \
-    -X -v ON_ERROR_STOP=1 \
-    -c "$sql"
-}
-
+# -X on every invocation, here and in scripts/setup/database-reset.sh. A developer's
+# ~/.psqlrc printed "Null display is (null). Timing is on." into the scalar reads below,
+# so an in-flight count of 0 parsed as noise and the reset refused a database with nothing
+# running at all. A workshop box has no .psqlrc, which is precisely why a defect like this
+# only ever appears off-box.
+#
 # One value, no headers, no padding. The lifecycle checks below compare counts, and a
 # formatted table would make every comparison a string-trimming exercise.
 _psql_scalar() {
@@ -504,156 +488,30 @@ if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
 fi
 pass "Labs 1-4 restored to their incomplete participant starters"
 
-if ! "$PYTHON" "$REPO/scripts/seed_pellier_catalog.py" \
-    --from-cache >/tmp/pellier-governed-reset-catalog.log 2>&1; then
-  fail "Deterministic catalog reset failed; see /tmp/pellier-governed-reset-catalog.log"
+# Aurora runtime state: catalog quantities, the reset migrations, the evidence TRUNCATE,
+# then the seed migrations the TRUNCATE empties and the HNSW index.
+# scripts/setup/database-reset.sh owns that sequence; the fresh-setup test harness runs
+# the same script against PostgreSQL 18 with pgvector.
+if ! env DB_HOST="${DB_HOST:-localhost}" DB_PORT="${DB_PORT:-5432}" \
+    DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="${DB_PASSWORD:-}" \
+    PYTHON="$PYTHON" REPO="$REPO" bash "$REPO/scripts/setup/database-reset.sh" \
+    >/tmp/pellier-governed-reset-db.log 2>&1; then
+  fail "Database reset failed; see /tmp/pellier-governed-reset-db.log"
   exit 1
 fi
 pass "Catalog quantities restored from committed embedding cache"
-
-for migration in \
-  006_warehouse_inventory.sql \
-  011_governed_write_integrity.sql \
-  012_retrieval_receipts.sql \
-  013_inventory_ledger.sql \
-  014_governed_turn_receipts.sql \
-  015_proof_carrying_commerce.sql \
-  016_runtime_roles_rls.sql \
-  017_governed_query_receipts.sql \
-  018_client_book.sql \
-  019_operator_desk.sql \
-  020_operator_review.sql \
-  021_governed_execution.sql \
-  022_write_operation_vocabulary.sql \
-  023_idempotency_claims_release_on_failure.sql \
-  024_operator_episodes.sql \
-  025_execution_receipts.sql \
-  026_episode_outcome_lineage.sql \
-  027_canonical_span_table.sql \
-  028_shopper_operator_handoff.sql \
-  029_live_surface_data.sql \
-  030_storefront_editorial_order.sql \
-  031_refine_fresh_storefront_edit.sql \
-  032_restore_fresh_runner_edit.sql \
-  033_extend_curated_inventory.sql \
-  034_refine_persona_personalities.sql \
-  035_expand_persona_discovery_grids.sql \
-  036_refresh_persona_hero_alt_text.sql \
-  037_serve_persona_hero_masters.sql \
-  038_principal_customer_cardinality.sql \
-  039_return_replay_scope.sql \
-  040_resequence_theo_governed_turn.sql \
-  041_align_theo_pairing_preview.sql \
-  042_align_anna_guided_previews.sql \
-  043_evidence_ledger.sql \
-  044_operator_lifecycle_ledger.sql \
-  045_persona_blurbs.sql \
-  046_retrieval_citation_snapshots.sql \
-  047_evidence_immutability.sql \
-  048_policy_decisions.sql \
-  049_workshop_runs.sql \
-  050_refine_guided_questions.sql \
-  051_review_requester.sql \
-  052_replacement_recovery.sql \
-  053_replacement_follow_up.sql \
-  054_query_statistics.sql \
-  055_governance_boundary_observations.sql \
-  056_align_required_lab_requests.sql
-do
-  if [[ ! -f "$REPO/scripts/migrations/$migration" ]]; then
-    fail "Missing scripts/migrations/$migration"
-    exit 1
-  fi
-  _psql_file "$REPO/scripts/migrations/$migration" \
-    >>/tmp/pellier-governed-reset-db.log
-done
 pass "Exactly three warehouse rows per curated product reseeded"
-
-_psql_exec "
-TRUNCATE TABLE
-    -- The guard above requires these to be empty. Naming every child keeps
-    -- TRUNCATE referentially complete without CASCADE or a cloud-workflow reset.
-    pellier.replacement_callbacks,
-    pellier.replacement_simulator_operations,
-    pellier.replacement_events,
-    pellier.replacement_outbox,
-    pellier.replacements,
-    pellier.commerce_payment_events,
-    pellier.commerce_receipts,
-    pellier.commerce_outbox,
-    pellier.commerce_inventory_reservations,
-    pellier.commerce_payment_attempts,
-    pellier.commerce_order_lines,
-    pellier.commerce_orders,
-    pellier.commerce_confirmation_grants,
-    pellier.commerce_quote_lines,
-    pellier.commerce_quotes,
-    pellier.governed_receipts,
-    pellier.governed_turn_receipts,
-    pellier.governed_query_receipts,
-    pellier.model_invocation_receipts,
-    pellier.tool_audit,
-    pellier.retrieval_receipts,
-    pellier.inventory_ledger,
-    pellier.write_operations,
-    pellier.returns,
-    pellier.store_credits,
-    pellier.support_tickets,
-    pellier.semantic_cache,
-    -- Evidence and memory tables added after this script was first written. Each was
-    -- absent from the list, so a reset cluster kept rows a fresh one has never had:
-    --   execution_receipts  policy verdicts from engineering runs (migration 025)
-    --   operator_episodes   derived memories of those runs (024/026)
-    --   conversations       shopper AND Operator Concierge threads (007). Nothing
-    --   messages            seeds these, so the fresh baseline is zero and every row
-    --                       here is runtime state.
-    --   observatory_spans   OTEL spans (002)
-    --   session_metadata    per-session scratch (007)
-    --   tool_uses           per-turn tool records (007)
-    pellier.execution_receipts,
-    pellier.operator_episodes,
-    pellier.messages,
-    pellier.conversations,
-    pellier.observatory_spans,
-    pellier.session_metadata,
-    -- Persona profiles and workshop scenarios are provisioned source data.
-    -- Shopper sessions are runtime state and must not survive a reset.
-    pellier.shopper_sessions,
-    pellier.tool_uses,
-    -- Per-run evidence added by 048 and 049. Gateway Policy decision events are
-    -- ingested per turn and a workshop run is minted per participant, so a fresh
-    -- box has neither. (No semicolon in this comment: the contract test reads
-    -- the statement up to the first one.)
-    pellier.policy_decisions,
-    pellier.governance_boundary_observations,
-    pellier.workshop_runs,
-    -- LAST in the list, because execution_receipts and operator_episodes reference it.
-    -- One TRUNCATE covers them together, so no CASCADE is needed and nothing is
-    -- orphaned. TRUNCATE also fires no row-level triggers: a DELETE here would run
-    -- record_inventory_movement and reject_governed_turn_receipt_mutation, writing
-    -- new ledger history while trying to clear history.
-    pellier.approvals
-RESTART IDENTITY;
-" >/tmp/pellier-governed-reset-evidence.log
 pass "Cleared: returns, stock movements, write keys, audits, receipts, episodes, conversations, spans, and operator reviews"
-
-_psql_file "$REPO/scripts/migrations/013_inventory_ledger.sql" \
-  >>/tmp/pellier-governed-reset-db.log
 pass "Inventory ledger reseeded from deterministic warehouse state"
-
-# 019 is re-applied after the TRUNCATE above for the same reason 013 and 015
-# are: the truncate empties the operator desk, and the seeded tickets plus
-# Sarah's credit on file are the starting state the client book describes. The
-# semantic cache is deliberately left empty, so the first paraphrase of the
-# run is a real miss and the second is a real hit.
-_psql_file "$REPO/scripts/migrations/019_operator_desk.sql" \
-  >>/tmp/pellier-governed-reset-db.log
 pass "Operator desk reseeded: support tickets, credit on file, empty semantic cache"
+pass "Proof-carrying commerce lifecycle restored"
+pass "Canonical governed forensic incident reseeded"
+pass "HNSW index present: product_catalog_embedding_hnsw"
 
 # Row-Level Security authorization mapping.
 #
 # `pellier.principal_customers` is authorization configuration, not turn
-# evidence, so it is deliberately absent from the TRUNCATE above. It still
+# evidence, so it is deliberately absent from the database reset's TRUNCATE. It still
 # gets verified here: an empty mapping denies every signed-in shopper their
 # own orders, which presents as a broken application rather than as
 # governance, and reset is where a deterministic starting state is asserted.
@@ -681,27 +539,6 @@ else
   _quarantine claim-trigger "Customer claim trigger not refreshed"
   exit 1
 fi
-
-_psql_file "$REPO/scripts/migrations/015_proof_carrying_commerce.sql" \
-  >>/tmp/pellier-governed-reset-db.log
-pass "Proof-carrying commerce lifecycle restored"
-
-if [[ ! -f "$REPO/scripts/migrations/010_governed_receipts.sql" ]]; then
-  fail "Missing scripts/migrations/010_governed_receipts.sql"
-  exit 1
-fi
-_psql_file "$REPO/scripts/migrations/010_governed_receipts.sql" \
-  >>/tmp/pellier-governed-reset-db.log
-pass "Canonical governed forensic incident reseeded"
-
-_psql_exec '
-CREATE INDEX IF NOT EXISTS product_catalog_embedding_hnsw
-    ON pellier.product_catalog
-    USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
-ANALYZE pellier.product_catalog;
-' >/tmp/pellier-governed-reset-index.log
-pass "HNSW index present: product_catalog_embedding_hnsw"
 
 # The AgentCore leg restores participant-mutated Cedar state through the CLI project,
 # which means `agentcore deploy`. That is right on a workshop box a participant has been
