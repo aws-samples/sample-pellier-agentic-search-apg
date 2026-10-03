@@ -16,7 +16,7 @@ and disables older non-canonical rows without deleting them. Run after
 Usage:
     PGPASSWORD="$DB_PASSWORD" python scripts/seed_tool_registry.py
 
-Environment (same as ``scripts/generate-embeddings.py``):
+Environment:
     DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD — Aurora connection
     AWS_REGION — defaults to us-east-1
 
