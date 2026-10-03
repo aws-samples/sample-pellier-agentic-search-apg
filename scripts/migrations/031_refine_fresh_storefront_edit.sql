@@ -1,6 +1,6 @@
 -- Migration 031: refine the unsigned Pellier edit.
 --
--- Cloudform Studio Runner remains a searchable catalog product, but it is not
+-- Everyday Runner remains a searchable catalog product, but it is not
 -- part of the house's first-visit editorial floor. The nine-piece unsigned
 -- edit stays material-led: leather, linen, ceramic, apothecary, and everyday
 -- carry. This upgrade also changes the guided guest request, so Observatory

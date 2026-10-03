@@ -145,7 +145,7 @@ async def test_parser_preserves_grounded_editorial_price_sentence():
 async def test_parser_preserves_full_specialist_reply_when_cards_exist():
     service = EnhancedChatService.__new__(EnhancedChatService)
     prose = (
-        "The Olive Branch Vessel is the strongest anchor for the table. "
+        "The Tall Stoneware Vase is the strongest anchor for the table. "
         "Pair it with the Ceramic Ring Dish for a smaller echo of the same glaze. "
         "The Wabi-Sabi Bowl you already own belongs in the background, not as the "
         "new recommendation."
@@ -171,13 +171,13 @@ async def test_inline_rating_cannot_replace_recommendations_with_past_purchase()
     recommendations = [
         {"productId": "31", "name": "Stoneware Pour-Over Set"},
         {"productId": "36", "name": "Ceramic Tumblers"},
-        {"productId": "1", "name": "Olive Branch Vessel"},
+        {"productId": "1", "name": "Tall Stoneware Vase"},
     ]
     prose = (
         "This sits in the register of the Santal & Fig Candle you've sent before.\n\n"
         "The Stoneware Pour-Over Set at $165 is the clear one to lead with, "
         "an Editors' Pick at 4.9 stars. Add Ceramic Tumblers at $78, or "
-        "the Olive Branch Vessel at $185 for the mantel."
+        "the Tall Stoneware Vase at $185 for the mantel."
     )
     parsed = await service._parse_agent_response(
         prose, "A housewarming gift for slow morning rituals", has_tool_products=True,
@@ -271,7 +271,7 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
             return [
                 {
                     "productId": 35,
-                    "brand": "Pellier Home",
+                    "brand": "Pellier",
                     "color": "Brass",
                     "imgUrl": "/products/brass-incense-holder.png",
                     "rating": 4.8,
@@ -282,7 +282,7 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
                 },
                 {
                     "productId": 37,
-                    "brand": "Pellier Home",
+                    "brand": "Pellier",
                     "color": "Cream",
                     "imgUrl": "/products/wabi-sabi-bowl.png",
                     "rating": 4.9,

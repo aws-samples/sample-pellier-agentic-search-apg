@@ -106,7 +106,7 @@ INTENTS = [
         "matchedOn": ["athletic", "footwear", "gift"],
         "productOverride": {
             "name": "Featherweight Trail Runner",
-            "brand": "Pellier Editions",
+            "brand": "Pellier",
             "color": "Stone",
             "price": 168,
             "rating": 4.9,

@@ -202,7 +202,7 @@ def test_theo_owns_the_bowl_under_both_customer_ids() -> None:
     sql = (MIGRATIONS / "003_persona_seed.sql").read_text()
     for customer_id in ARC["theo"]["customer_ids"]:
         assert (
-            f"('{customer_id}', '{ARC['theo']['product_name']}'" in sql
+            f"('{customer_id}', '{ARC['theo']['product_id']}'" in sql
         ), f"{customer_id} has no seeded {ARC['theo']['product_name']} order"
 
 

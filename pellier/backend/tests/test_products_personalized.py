@@ -174,7 +174,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
         enriched.append(
             {
                 **row,
-                "brand": "Pellier Editions" if row["category"] != "Home" else "Pellier Home",
+                "brand": "Pellier" if row["category"] != "Home" else "Pellier",
                 "rating": 4.7,
                 # Live schema stores reviews as TEXT (numeric strings).
                 "reviews": str(100 + idx),
@@ -834,7 +834,7 @@ def test_inventory_stale_field_is_evidence_not_server_clock(
 def _stoneware_pitcher(category: str) -> Dict[str, Any]:
     return {
         "id": 99,
-        "brand": "Pellier Home",
+        "brand": "Pellier",
         "name": "Stoneware Pitcher",
         "color": "sand",
         "price": 78.0,
@@ -873,7 +873,7 @@ def test_row_to_storefront_product_drops_empty_badge() -> None:
 
     product = _row_to_storefront_product({
         "id": 100,
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "name": "Linen Robe",
         "color": "cream",
         "price": 220.0,

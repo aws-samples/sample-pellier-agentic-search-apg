@@ -52,19 +52,19 @@
       "products": [
         {
           "name": "Beeswax Taper Candles",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 48,
           "imageUrl": "/products/anna-beeswax-taper-candles.png"
         },
         {
           "name": "Ceramic Ring Dish",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 35,
           "imageUrl": "/products/anna-ceramic-ring-dish.png"
         },
         {
           "name": "Botanical Silk Scarf",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 128,
           "imageUrl": "/products/anna-botanical-silk-scarf.png"
         }
@@ -212,19 +212,19 @@
     "products": [
       {
         "name": "Beeswax Taper Candles",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 48,
         "imageUrl": "/products/anna-beeswax-taper-candles.png"
       },
       {
         "name": "Ceramic Ring Dish",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 35,
         "imageUrl": "/products/anna-ceramic-ring-dish.png"
       },
       {
         "name": "Botanical Silk Scarf",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 128,
         "imageUrl": "/products/anna-botanical-silk-scarf.png"
       }

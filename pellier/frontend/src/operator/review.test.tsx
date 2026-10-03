@@ -133,7 +133,7 @@ const REVIEW_DETAIL = {
     orderId: 305,
     productId: '37',
     productName: 'Wabi-Sabi Bowl',
-    brand: 'Pellier Maison',
+    brand: 'Pellier',
     price: 65,
     quantity: 1,
     placedAt: '2026-08-18T00:00:00Z',
@@ -142,7 +142,7 @@ const REVIEW_DETAIL = {
   product: {
     productId: '37',
     name: 'Wabi-Sabi Bowl',
-    brand: 'Pellier Maison',
+    brand: 'Pellier',
     price: 65,
     catalogQuantity: 50,
     imageUrl: '/p/37.png',
@@ -1611,7 +1611,7 @@ describe('issueLine', () => {
 
   it('falls back to whichever half exists', () => {
     expect(issueLine(undefined, 'arrived damaged')).toBe('arrived damaged')
-    expect(issueLine('Vetiver Quietude', '')).toBe('Vetiver Quietude')
+    expect(issueLine('Vetiver Eau de Parfum', '')).toBe('Vetiver Eau de Parfum')
     expect(issueLine(undefined, '')).toBe('')
   })
 })

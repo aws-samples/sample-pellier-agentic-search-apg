@@ -213,7 +213,7 @@ def test_managed_cards_follow_prose_without_promoting_owned_context(
         {"productId": "36", "name": "Ceramic Tumblers"},
         {"productId": "37", "name": "Wabi-Sabi Bowl"},
         {"productId": "23", "name": "Ceramic Ring Dish"},
-        {"productId": "1", "name": "Olive Branch Vessel"},
+        {"productId": "1", "name": "Tall Stoneware Vase"},
     ]
     client = MagicMock()
     names = ["get_customer_preferences", "search_products_hybrid"]
@@ -225,7 +225,7 @@ def test_managed_cards_follow_prose_without_promoting_owned_context(
     prose = (
         "You already own the Stoneware Pour-Over Set, Ceramic Tumblers, and "
         "Wabi-Sabi Bowl. Extend the ritual with the Ceramic Ring Dish "
-        "or the Olive Branch Vessel."
+        "or the Tall Stoneware Vase."
     )
 
     def invoke(_prompt):

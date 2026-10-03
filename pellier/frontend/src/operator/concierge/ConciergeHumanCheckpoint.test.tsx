@@ -29,9 +29,9 @@ function record(unrecorded?: string[]): OperatorClientRecord {
     },
     orders: [
       { orderId: 406, productId: '41', productName: 'Coral Lacquer Catchall',
-        brand: 'Pellier Maison', price: 325.36, quantity: 1, placedAt: null,
+        brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
         imageUrl: '' },
-      { orderId: 407, productId: '42', productName: 'Luxury Bath Robe, Sage',
+      { orderId: 407, productId: '42', productName: 'Waffle Bath Robe, Sage',
         brand: 'NestWell', price: 107.3, quantity: 1, placedAt: null, imageUrl: '' },
     ],
     tickets: [{
@@ -48,13 +48,13 @@ describe('ConciergeHumanCheckpoint', () => {
   it('offers both named pieces while neither has a return row', () => {
     render(<ConciergeHumanCheckpoint record={record(['41', '42'])} disabled={false} onPrepare={() => {}} />)
     expect(screen.getByText('Coral Lacquer Catchall')).toBeTruthy()
-    expect(screen.getByText('Luxury Bath Robe, Sage')).toBeTruthy()
+    expect(screen.getByText('Waffle Bath Robe, Sage')).toBeTruthy()
   })
 
   it('offers only the piece still unrecorded after one return is recorded', () => {
     render(<ConciergeHumanCheckpoint record={record(['41'])} disabled={false} onPrepare={() => {}} />)
     expect(screen.getByText('Coral Lacquer Catchall')).toBeTruthy()
-    expect(screen.queryByText('Luxury Bath Robe, Sage')).toBeNull()
+    expect(screen.queryByText('Waffle Bath Robe, Sage')).toBeNull()
   })
 
   it('retires once every named piece has a return record, though receipt stays unverified', () => {
@@ -64,7 +64,7 @@ describe('ConciergeHumanCheckpoint', () => {
 
   it('keeps the earlier behaviour when the backend predates the per-item field', () => {
     render(<ConciergeHumanCheckpoint record={record()} disabled={false} onPrepare={() => {}} />)
-    expect(screen.getByText('Luxury Bath Robe, Sage')).toBeTruthy()
+    expect(screen.getByText('Waffle Bath Robe, Sage')).toBeTruthy()
   })
 
   it('requires the customer\'s stated reason and sends it verbatim', () => {
@@ -79,13 +79,13 @@ describe('ConciergeHumanCheckpoint', () => {
     expect(prepare.getAttribute('aria-describedby')).toBe('operator-concierge-checkpoint-reason-note')
     expect(screen.getByText('Use the reason the customer stated. Pellier never fills it in.')).toBeTruthy()
 
-    fireEvent.click(screen.getByLabelText(/Luxury Bath Robe, Sage/))
+    fireEvent.click(screen.getByLabelText(/Waffle Bath Robe, Sage/))
     fireEvent.change(select, { target: { value: 'changed_mind' } })
     expect(prepare.disabled).toBe(false)
     expect(prepare.hasAttribute('aria-describedby')).toBe(false)
     fireEvent.click(prepare)
     expect(onPrepare).toHaveBeenCalledWith(
-      'Prepare the return for "Luxury Bath Robe, Sage" on order #407 for review. ' +
+      'Prepare the return for "Waffle Bath Robe, Sage" on order #407 for review. ' +
         "Customer's stated reason: changed_mind.",
     )
   })
@@ -98,7 +98,7 @@ describe('ConciergeHumanCheckpoint', () => {
     expect(prepare.disabled).toBe(true)
     fireEvent.click(prepare)
     expect(onPrepare).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText(/Luxury Bath Robe, Sage/))
+    fireEvent.click(screen.getByLabelText(/Waffle Bath Robe, Sage/))
     expect(prepare.disabled).toBe(false)
   })
 

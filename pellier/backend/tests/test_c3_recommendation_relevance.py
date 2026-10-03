@@ -239,7 +239,7 @@ def test_warm_evenings_recommendation_tags_overlap_evening_set(
     `Sundress in Washed Linen` SHALL have tags intersecting the evening /
     warm set `{evening, warm, dresses, outerwear}`."""
     _StubAgent.canned_reply = (
-        "Try the Sundress in Washed Linen by Pellier Editions in Golden Ochre "
+        "Try the Sundress in Washed Linen by Pellier in Golden Ochre "
         "at $148. Linen that catches the late light, cut for still-warm "
         "evenings out."
     )

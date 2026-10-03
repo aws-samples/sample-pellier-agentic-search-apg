@@ -78,7 +78,7 @@ def test_get_customer_preferences_reads_safe_customer_memory() -> None:
             {
                 "product_id": "11",
                 "name": "Italian Linen Camp Shirt",
-                "brand": "Pellier Editions",
+                "brand": "Pellier",
                 "category": "Clothing",
                 "color": "Indigo",
                 "price": 228,

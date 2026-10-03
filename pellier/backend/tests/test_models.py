@@ -88,7 +88,7 @@ def test_search_response_accepts_camel_case_input() -> None:
 def test_search_response_round_trip_with_product() -> None:
     product = StorefrontProduct(
         id=1,
-        brand="Pellier Editions",
+        brand="Pellier",
         name="Italian Linen Camp Shirt",
         color="Sand",
         price=128.0,

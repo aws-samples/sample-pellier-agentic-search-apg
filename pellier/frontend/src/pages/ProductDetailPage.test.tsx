@@ -102,7 +102,7 @@ class NoopIntersectionObserver {
 /** A representative live catalog row. Test data remains inside the API stub. */
 const SUBJECT = {
   id: 11,
-  brand: 'Pellier Editions',
+  brand: 'Pellier',
   name: 'Italian Linen Camp Shirt',
   color: 'Indigo',
   price: 148,
@@ -118,7 +118,7 @@ const CATALOG = [
   SUBJECT,
   {
     id: 12,
-    brand: 'Pellier Editions',
+    brand: 'Pellier',
     name: 'Relaxed Drawstring Trousers',
     color: 'Oat',
     price: 138,
@@ -131,7 +131,7 @@ const CATALOG = [
   },
   {
     id: 13,
-    brand: 'Pellier Editions',
+    brand: 'Pellier',
     name: 'Canvas Dopp Kit',
     color: 'Olive',
     price: 74,
@@ -144,7 +144,7 @@ const CATALOG = [
   },
   {
     id: 14,
-    brand: 'Pellier Editions',
+    brand: 'Pellier',
     name: 'Merino Travel Socks',
     color: 'Charcoal',
     price: 38,
@@ -492,7 +492,7 @@ describe('ProductDetailPage — arbitrary live catalog ids', () => {
     stubFetch(() =>
       jsonResponse({
         id: 10,
-        brand: 'Pellier Home',
+        brand: 'Pellier',
         name: 'Aurora Only Piece',
         color: 'Ivory',
         price: 120,

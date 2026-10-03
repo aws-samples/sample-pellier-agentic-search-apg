@@ -25,7 +25,7 @@ from services import replacement_search as RS
 
 def _order_row(
     order_id: int, product_id: str, name: str, category: str, price: float,
-    *, brand: str = "Pellier Home", tags: Sequence[str] = ("ceramic", "home"),
+    *, brand: str = "Pellier", tags: Sequence[str] = ("ceramic", "home"),
 ) -> Dict[str, Any]:
     return {
         "order_id": order_id, "product_id": product_id, "name": name,
@@ -107,8 +107,8 @@ class _Conn:
 POUR_OVER = _order_row(306, "31", "Stoneware Pour-Over Set", "Kitchen and table", 165.0,
                        tags=("ceramic", "home", "slow", "artisanal"))
 CATCHALL = _order_row(315, "41", "Coral Lacquer Catchall", "Home", 325.36,
-                      brand="Pellier Maison", tags=("home", "gift"))
-ROBE = _order_row(316, "42", "Luxury Bath Robe, Sage", "Bath and body", 107.3)
+                      brand="Pellier", tags=("home", "gift"))
+ROBE = _order_row(316, "42", "Waffle Bath Robe, Sage", "Bath and body", 107.3)
 
 
 def _inventory_row(
@@ -453,7 +453,7 @@ def test_no_upgrade_role_is_claimed() -> None:
 
 def _candidate(pid: str, name: str, price: float, **extra: Any) -> Dict[str, Any]:
     row = {
-        "product_id": pid, "name": name, "price": price, "brand": "Pellier Home",
+        "product_id": pid, "name": name, "price": price, "brand": "Pellier",
         "category": "Kitchen and table", "description": f"{name} description",
         "img_url": f"/products/{pid}.png", "tags": ["ceramic", "home"],
         "rrf_score": 0.03,

@@ -76,34 +76,34 @@ ON CONFLICT (id) DO UPDATE SET
 DELETE FROM pellier.orders
  WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH', 'theo');
 
-WITH order_seed(customer_id, product_name, days_ago) AS (
+WITH order_seed(customer_id, product_id, days_ago) AS (
     VALUES
         -- Marco: linen / travel wardrobe history.
-        ('CUST-MARCO', 'Hadley Linen Shirt', 56),
-        ('CUST-MARCO', 'Italian Linen Camp Shirt', 48),
-        ('CUST-MARCO', 'Linen Drawstring Trousers', 40),
-        ('CUST-MARCO', 'Linen Overshirt', 32),
-        ('CUST-MARCO', 'Cotton-Linen Crew Tee', 24),
-        ('CUST-MARCO', 'Leather Weekend Holdall', 16),
-        ('CUST-MARCO', 'Merino Travel Socks', 8),
+        ('CUST-MARCO', '2', 56),
+        ('CUST-MARCO', '11', 48),
+        ('CUST-MARCO', '14', 40),
+        ('CUST-MARCO', '16', 32),
+        ('CUST-MARCO', '18', 24),
+        ('CUST-MARCO', '17', 16),
+        ('CUST-MARCO', '20', 8),
 
         -- Anna: gift-shaped history across price bands.
-        ('CUST-ANNA', 'Jute Placemats, Set of 4', 40),
-        ('CUST-ANNA', 'Santal & Fig Candle', 32),
-        ('CUST-ANNA', 'Ceramic Bud Vase', 24),
-        ('CUST-ANNA', 'Handmade Soap Set', 16),
-        ('CUST-ANNA', 'Gift Wrapping Kit', 8),
+        ('CUST-ANNA', '7', 40),
+        ('CUST-ANNA', '4', 32),
+        ('CUST-ANNA', '27', 24),
+        ('CUST-ANNA', '26', 16),
+        ('CUST-ANNA', '30', 8),
 
         -- Theo: slow-craft home history. Wabi-Sabi Bowl is required
         -- for the chipped-return demo.
-        ('CUST-THEO', 'Wabi-Sabi Bowl', 8),
-        ('CUST-THEO', 'Stoneware Pour-Over Set', 21),
-        ('CUST-THEO', 'Ceramic Tumblers', 45),
-        ('CUST-THEO', 'Brass Incense Holder', 90),
-        ('theo', 'Wabi-Sabi Bowl', 8),
-        ('theo', 'Stoneware Pour-Over Set', 21),
-        ('theo', 'Ceramic Tumblers', 45),
-        ('theo', 'Brass Incense Holder', 90)
+        ('CUST-THEO', '37', 8),
+        ('CUST-THEO', '31', 21),
+        ('CUST-THEO', '36', 45),
+        ('CUST-THEO', '35', 90),
+        ('theo', '37', 8),
+        ('theo', '31', 21),
+        ('theo', '36', 45),
+        ('theo', '35', 90)
 )
 INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
 SELECT
@@ -113,7 +113,7 @@ SELECT
     now() - make_interval(days => os.days_ago)
 FROM order_seed os
 JOIN pellier.product_catalog pc
-  ON pc.name = os.product_name;
+  ON pc."productId" = os.product_id;
 
 DELETE FROM pellier.customer_episodic_seed
  WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH');
@@ -159,13 +159,13 @@ BEGIN
       FROM pellier.orders o
       JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
      WHERE o.customer_id IN ('CUST-THEO', 'theo')
-       AND pc.name = 'Wabi-Sabi Bowl';
+       AND pc."productId" = '37';
 
     IF n_orders < 15 THEN
         RAISE EXCEPTION
             'Persona seed produced only % orders (expected >= 15). '
             'Most likely cause: pellier.product_catalog is empty or '
-            'product names do not match the order_seed VALUES list. '
+            'product IDs do not match the order_seed VALUES list. '
             'Check that scripts/seed_pellier_catalog.py succeeded before '
             'this migration ran.', n_orders;
     END IF;

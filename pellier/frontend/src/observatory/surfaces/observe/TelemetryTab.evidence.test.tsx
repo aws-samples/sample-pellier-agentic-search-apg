@@ -28,7 +28,7 @@ const hybrid: TelemetryPanel = {
       search_method: 'hybrid+rerank',
       products: [
         { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03279, rerank_score: 0.797 },
-        { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03008, rerank_score: 0.286 },
+        { productId: '44', name: 'Tall Stoneware Vase', price: 185, rrf_score: 0.03008, rerank_score: 0.286 },
         { productId: '12', name: 'Ceramic Tumblers', price: 78, rrf_score: 0.03226, rerank_score: 0.231 },
       ],
     },
@@ -57,11 +57,11 @@ const merchandised: TelemetryPanel = {
       pool_size: 21,
       search_method: 'hybrid+rerank',
       merchandising_rules_applied: [{
-        ruleId: 'merch.milestone-home-gift.v1', signal: 'curated_hero', product: 'Olive Branch Vessel',
+        ruleId: 'merch.milestone-home-gift.v1', signal: 'curated_hero', product: 'Tall Stoneware Vase',
         fromRank: 2, toRank: 1, reason: 'Declared merchandising rule: curated housewarming hero promoted above pure relevance order.',
       }],
       products: [
-        { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03055, rerank_score: 0.2184 },
+        { productId: '44', name: 'Tall Stoneware Vase', price: 185, rrf_score: 0.03055, rerank_score: 0.2184 },
         { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03279, rerank_score: 0.542 },
         { productId: '12', name: 'Ceramic Tumblers', price: 78, rrf_score: 0.03200, rerank_score: 0.1102 },
         { productId: '19', name: 'Wabi-Sabi Bowl', price: 65, rrf_score: 0.03126, rerank_score: 0.0544 },
@@ -147,7 +147,7 @@ describe('session evidence at depth', () => {
     renderTab();
     const table = within(screen.getByTestId('hybrid-search-result')).getByRole('table');
     expect(within(table).getByText(/Recorded method hybrid\+rerank: the reranker ordered the list, so Final is the returned order after rerank\./)).toBeInTheDocument();
-    const olive = within(table).getByRole('row', { name: /Olive Branch Vessel/ });
+    const olive = within(table).getByRole('row', { name: /Tall Stoneware Vase/ });
     expect(within(olive).getByLabelText('Up 1 place from RRF order to rerank order')).toHaveTextContent('▲ 1');
     // Shown ranks are scoped to the shown products, never presented as pool ranks.
     expect(within(table).getByRole('columnheader', { name: 'RRF rank of 3 shown' })).toBeInTheDocument();
@@ -160,10 +160,10 @@ describe('session evidence at depth', () => {
     renderTab([merchandised]);
     const result = screen.getByTestId('hybrid-search-result');
     const note = within(result).getByRole('note', { name: 'Merchandising disclosed in this result' });
-    expect(note).toHaveTextContent('merch.milestone-home-gift.v1 (curated_hero) promoted Olive Branch Vessel from 2 to 1.');
+    expect(note).toHaveTextContent('merch.milestone-home-gift.v1 (curated_hero) promoted Tall Stoneware Vase from 2 to 1.');
     const table = within(result).getByRole('table');
     expect(within(table).getByText(/that move is the rule’s, not the reranker’s/)).toBeInTheDocument();
-    const olive = within(table).getByRole('row', { name: /Olive Branch Vessel/ });
+    const olive = within(table).getByRole('row', { name: /Tall Stoneware Vase/ });
     expect(olive).toHaveTextContent('Promoted by rule, 2 to 1');
     // RRF 4, rerank 2: the reranker's share is two places; the last place is the rule's.
     expect(within(olive).getByLabelText('Up 2 places from RRF order to rerank order')).toBeInTheDocument();

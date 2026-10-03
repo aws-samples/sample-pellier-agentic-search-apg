@@ -114,18 +114,18 @@ EXPECTED_CATALOG = {
     100: ('Waffle Bath Mat', 'Bath and body', 'house', 'NestWell', 28.0, 24),
 }
 RENAMED = {
-    1: ('Olive Branch Vessel', 'Tall Stoneware Vase'),
-    3: ('Nocturne Leather Weekender', 'Leather Weekender'),
-    5: ('Heritage Rectangular Watch', 'Rectangular Leather Watch'),
-    6: ('Neroli Apothecary Bottle', 'Neroli Oil'),
-    7: ('Solstice Woven Mat Set', 'Jute Placemats, Set of 4'),
-    8: ('Alba Linen Lounge Set', 'Linen Lounge Set'),
-    9: ('Cloudform Studio Runner', 'Everyday Runner'),
-    42: ('Luxury Bath Robe, Sage', 'Waffle Bath Robe, Sage'),
-    47: ('Vetiver Quietude', 'Vetiver Eau de Parfum'),
-    48: ('Cognac Market Tote', 'Leather Market Tote'),
-    52: ('Silk Charmeuse Slip Dress', 'Silk Slip Dress'),
-    59: ('Hand-Knotted Wool Rug', 'Wool Rug'),
+    1: ('Tall Stoneware Vase', 'Tall Stoneware Vase'),
+    3: ('Leather Weekender', 'Leather Weekender'),
+    5: ('Rectangular Leather Watch', 'Rectangular Leather Watch'),
+    6: ('Neroli Oil', 'Neroli Oil'),
+    7: ('Jute Placemats, Set of 4', 'Jute Placemats, Set of 4'),
+    8: ('Linen Lounge Set', 'Linen Lounge Set'),
+    9: ('Everyday Runner', 'Everyday Runner'),
+    42: ('Waffle Bath Robe, Sage', 'Waffle Bath Robe, Sage'),
+    47: ('Vetiver Eau de Parfum', 'Vetiver Eau de Parfum'),
+    48: ('Leather Market Tote', 'Leather Market Tote'),
+    52: ('Silk Slip Dress', 'Silk Slip Dress'),
+    59: ('Wool Rug', 'Wool Rug'),
 }
 SEMANTIC_CANDIDATES = {31, 33, 36, 65, 66, 67}
 HOUSEWARMING = {79, 83, 84}

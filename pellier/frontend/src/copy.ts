@@ -347,7 +347,7 @@ export interface Intent {
 }
 
 // The 8 rotating intents (Requirement 1.3.1, storefront.md). Intent 2 carries
-// a productOverride for the Cloudform Studio Runner.
+// a productOverride for the Everyday Runner.
 export const INTENTS: Intent[] = [
   {
     id: 1,
@@ -362,8 +362,8 @@ export const INTENTS: Intent[] = [
     matchedOn: ["athletic", "footwear", "gift"],
     latency: "412 ms",
     productOverride: {
-      name: "Cloudform Studio Runner",
-      brand: "Pellier Editions",
+      name: "Everyday Runner",
+      brand: "Pellier",
       color: "Ember \u00b7 9.5",
       price: 168,
       rating: 4.9,

@@ -67,7 +67,7 @@ FKs.
 31. **`031_refine_fresh_storefront_edit.sql`** — keeps the unsigned edit
     material-led by promoting the Washed Canvas Tote and aligns its guided
     Observatory request with that Aurora-owned edit.
-32. **`032_restore_fresh_runner_edit.sql`** — restores Cloudform Studio Runner
+32. **`032_restore_fresh_runner_edit.sql`** — restores Everyday Runner
     as the ninth promoted guest piece while keeping the full ten-product Fresh
     cohort searchable.
 33. **`033_extend_curated_inventory.sql`** — converges existing clusters on

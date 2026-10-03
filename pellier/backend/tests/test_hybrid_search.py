@@ -164,7 +164,7 @@ def _make_row(product_id: int, **extra: Any) -> Dict[str, Any]:
     base = {
         "product_id": product_id,
         "name": f"Product {product_id}",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "color": "Sand",
         "description": f"Description for product {product_id}",
         "img_url": f"https://example.com/{product_id}.jpg",

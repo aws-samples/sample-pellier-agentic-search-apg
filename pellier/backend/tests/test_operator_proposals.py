@@ -162,7 +162,7 @@ def test_review_required_is_a_known_gate_not_an_unknown_capability() -> None:
 def _order_row(order_id: int, product_id: str, name: str, price: float) -> Dict[str, Any]:
     return {
         "order_id": order_id, "product_id": product_id, "name": name,
-        "category": "Bath and body", "price": price, "quantity": 1, "brand": "Pellier Parfum",
+        "category": "Bath and body", "price": price, "quantity": 1, "brand": "Pellier",
         "color": "", "description": f"{name} description", "tags": [],
         "img_url": f"/products/{product_id}.png", "placed_at": None,
     }
@@ -226,7 +226,7 @@ class _Conn:
         return False
 
 
-VETIVER = _order_row(325, "47", "Vetiver Quietude", 186.0)
+VETIVER = _order_row(325, "47", "Vetiver Eau de Parfum", 186.0)
 ROSE = _order_row(344, "56", "Rose Absolute Body Oil", 118.0)
 
 OPEN_RAIL = {"state": "temporarily_unavailable", "reason": "governed_action_unavailable"}
@@ -253,7 +253,7 @@ async def test_material_arguments_are_established_from_aurora(
     outcome = await PROP.prepare_proposal(
         db, customer_id="CUST-RACHEL",
         # A wrong product id and a wrong price in the request must not survive.
-        request="Prepare a damaged return for the Vetiver Quietude, product 999 at $1.",
+        request="Prepare a damaged return for the Vetiver Eau de Parfum, product 999 at $1.",
         turn_id="turn-abc",
         intent=PROP.ProposalIntent(action="initiate_return", reason="damaged"),
         capability=OPEN_RAIL,
@@ -299,7 +299,7 @@ async def test_an_ambiguous_item_prepares_nothing(
     outcome = await PROP.prepare_proposal(
         db, customer_id="CUST-RACHEL",
         # "parfum" matches the brand on both order lines, so neither wins.
-        request="Prepare a damaged return for the Pellier Parfum piece.",
+        request="Prepare a damaged return for the Pellier piece.",
         turn_id="turn-abc",
         intent=PROP.ProposalIntent(action="initiate_return", reason="damaged"),
         capability=OPEN_RAIL,
@@ -628,7 +628,7 @@ def test_the_concierge_supplies_its_own_recommendation() -> None:
     )
     assert "damaged on arrival" in theo_default["rationale"]
 
-    item = type("Item", (), {"name": "Vetiver Quietude", "order_id": 325})()
+    item = type("Item", (), {"name": "Vetiver Eau de Parfum", "order_id": 325})()
     ours = PROP._recommendation_for(
         item, PROP.ProposalIntent(action="initiate_return", reason="not_as_described")
     )
@@ -731,7 +731,7 @@ def test_the_checkpoint_request_carries_every_reason_verbatim(code: str) -> None
     from services.operator_proposals import classify_action_intent
 
     request = (
-        'Prepare the return for "Luxury Bath Robe, Sage" on order #407 for review. '
+        'Prepare the return for "Waffle Bath Robe, Sage" on order #407 for review. '
         f"Customer's stated reason: {code}."
     )
     intent = classify_action_intent(request)

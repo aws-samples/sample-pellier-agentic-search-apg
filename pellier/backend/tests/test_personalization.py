@@ -36,7 +36,7 @@ def _product(
 ) -> StorefrontProduct:
     return StorefrontProduct(
         id=id,
-        brand="Pellier Editions",
+        brand="Pellier",
         name=name,
         color=color,
         price=price,

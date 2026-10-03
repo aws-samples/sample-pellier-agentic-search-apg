@@ -15,7 +15,7 @@
     },
     {
       "role": "assistant",
-      "content": "Three worth reaching for: the Stoneware Pour-Over Set ($95) - hand-thrown, ash-grey, built for a slow pour. The Ceramic Tumblers in charcoal ($78) pair with it - same kiln run, no two quite alike. And the Woven Mat Set ($42) under both of them finishes the table.",
+      "content": "Three worth reaching for: the Stoneware Pour-Over Set ($95) - hand-thrown, ash-grey, built for a slow pour. The Ceramic Tumblers in charcoal ($78) pair with it - same kiln run, no two quite alike. And the Jute Placemats, Set of 4 ($42) under both of them finishes the table.",
       "timestamp": "2026-05-25T18:10:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Personalization Agent + the-makers-shelf \u2192 search_products",
@@ -33,19 +33,19 @@
       "products": [
         {
           "name": "Stoneware Pour-Over Set",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 95,
           "imageUrl": "/products/theo-stoneware-pour-over.png"
         },
         {
           "name": "Ceramic Tumblers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 78,
           "imageUrl": "/products/theo-ceramic-tumblers.png"
         },
         {
-          "name": "Woven Mat Set",
-          "brand": "Pellier Editions",
+          "name": "Jute Placemats, Set of 4",
+          "brand": "Pellier",
           "price": 42,
           "imageUrl": "/products/theo-woven-mat-set.png"
         }
@@ -134,19 +134,19 @@
     "products": [
       {
         "name": "Stoneware Pour-Over Set",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 95,
         "imageUrl": "/products/theo-stoneware-pour-over.png"
       },
       {
         "name": "Ceramic Tumblers",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 78,
         "imageUrl": "/products/theo-ceramic-tumblers.png"
       },
       {
-        "name": "Woven Mat Set",
-        "brand": "Pellier Editions",
+        "name": "Jute Placemats, Set of 4",
+        "brand": "Pellier",
         "price": 42,
         "imageUrl": "/products/theo-woven-mat-set.png"
       }

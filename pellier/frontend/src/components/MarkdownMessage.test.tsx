@@ -44,7 +44,7 @@ describe('MarkdownMessage editorial streaming', () => {
 
   it('preserves bold product names inside recommendation lists', () => {
     const { container } = render(
-      <MarkdownMessage content="- **Merino Travel Socks** by Pellier Active" />,
+      <MarkdownMessage content="- **Merino Travel Socks** by Pellier" />,
     )
 
     expect(container.querySelector('strong')).toHaveTextContent(

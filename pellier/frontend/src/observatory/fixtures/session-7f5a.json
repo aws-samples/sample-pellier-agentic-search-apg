@@ -41,21 +41,21 @@
       "products": [
         {
           "name": "Italian Linen Camp Shirt",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 228,
           "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
           "traceRef": "panel-2"
         },
         {
           "name": "Pellier Linen Shirt",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 148,
           "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png",
           "traceRef": "panel-2"
         },
         {
           "name": "Linen Drawstring Trousers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 118,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
           "traceRef": "panel-2"
@@ -316,21 +316,21 @@
     "products": [
       {
         "name": "Italian Linen Camp Shirt",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 228,
         "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
         "traceRef": "panel-2"
       },
       {
         "name": "Pellier Linen Shirt",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 148,
         "imageUrl": "/products/marco-pellier-linen-shirt-ecru.png",
         "traceRef": "panel-2"
       },
       {
         "name": "Linen Drawstring Trousers",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 118,
         "imageUrl": "/products/marco-linen-drawstring-trousers.png",
         "traceRef": "panel-2"

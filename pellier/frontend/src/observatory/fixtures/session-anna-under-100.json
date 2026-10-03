@@ -34,13 +34,13 @@
       "products": [
         {
           "name": "Santal & Fig Candle",
-          "brand": "Pellier Home",
+          "brand": "Pellier",
           "price": 92,
           "imageUrl": "/products/fresh-santal-fig-candle.png"
         },
         {
           "name": "Ceramic Ring Dish",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 35,
           "imageUrl": "/products/anna-ceramic-ring-dish.png"
         }
@@ -168,13 +168,13 @@
     "products": [
       {
         "name": "Santal & Fig Candle",
-        "brand": "Pellier Home",
+        "brand": "Pellier",
         "price": 92,
         "imageUrl": "/products/fresh-santal-fig-candle.png"
       },
       {
         "name": "Ceramic Ring Dish",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 35,
         "imageUrl": "/products/anna-ceramic-ring-dish.png"
       }

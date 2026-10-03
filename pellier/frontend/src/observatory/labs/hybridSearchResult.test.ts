@@ -14,7 +14,7 @@ const recorded = {
     search_plan: { top_k: 5, relaxations: [], hard_constraints: { categories: ['Home'], in_stock_only: false } },
     products: [
       { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03279, rerank_score: 0.797 },
-      { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03008, rerank_score: 0.286 },
+      { productId: '44', name: 'Tall Stoneware Vase', price: 185, rrf_score: 0.03008, rerank_score: 0.286 },
       { productId: '12', name: 'Ceramic Tumblers', price: 78, rrf_score: 0.03226, rerank_score: 0.231 },
       { productId: '9', name: 'Ceramic Ring Dish', price: 35, rrf_score: 0.03102, rerank_score: 0.188 },
       { productId: '7', name: 'Linen Runner', price: 90, rrf_score: 0.03175, rerank_score: 0.101 },
@@ -22,7 +22,7 @@ const recorded = {
   },
 };
 
-// tool_audit 314: Anna's housewarming turn. Rerank put Olive Branch Vessel
+// tool_audit 314: Anna's housewarming turn. Rerank put Tall Stoneware Vase
 // second; the declared rule then promoted it to first.
 const merchandised = {
   args: { query: 'housewarming gift slow morning ritual ceramic pour-over coffee', turn_id: 'turn-5011ef8fbb554291a86da6d9245155e3' },
@@ -33,13 +33,13 @@ const merchandised = {
     merchandising_rules_applied: [{
       ruleId: 'merch.milestone-home-gift.v1',
       signal: 'curated_hero',
-      product: 'Olive Branch Vessel',
+      product: 'Tall Stoneware Vase',
       fromRank: 2,
       toRank: 1,
       reason: 'Declared merchandising rule: curated housewarming hero promoted above pure relevance order.',
     }],
     products: [
-      { productId: '44', name: 'Olive Branch Vessel', price: 185, rrf_score: 0.03055037313432836, rerank_score: 0.21842791140079496 },
+      { productId: '44', name: 'Tall Stoneware Vase', price: 185, rrf_score: 0.03055037313432836, rerank_score: 0.21842791140079496 },
       { productId: '31', name: 'Stoneware Pour-Over Set', price: 165, rrf_score: 0.03278688524590164, rerank_score: 0.542015552520752 },
       { productId: '12', name: 'Ceramic Tumblers', price: 78, rrf_score: 0.03200204813108039, rerank_score: 0.1102125272154808 },
       { productId: '19', name: 'Wabi-Sabi Bowl', price: 65, rrf_score: 0.03125763125763126, rerank_score: 0.05436427518725395 },
@@ -67,7 +67,7 @@ describe('recorded hybrid search result', () => {
     const view = parseHybridSearchResult(recorded)!;
     expect(view.ordering).toBe('rerank');
     const olive = view.rows[1];
-    expect(olive).toMatchObject({ name: 'Olive Branch Vessel', final: 2, rrfRank: 5, rerankRank: 2, movedByRerank: 3, merchandising: null });
+    expect(olive).toMatchObject({ name: 'Tall Stoneware Vase', final: 2, rrfRank: 5, rerankRank: 2, movedByRerank: 3, merchandising: null });
     expect(view.rows[0]).toMatchObject({ final: 1, rrfRank: 1, rerankRank: 1, movedByRerank: 0 });
     expect(view.rows[2]).toMatchObject({ final: 3, rrfRank: 2, movedByRerank: -1 });
     expect(view.merchandisingReordered).toBe(false);
@@ -78,7 +78,7 @@ describe('recorded hybrid search result', () => {
     const view = parseHybridSearchResult(merchandised)!;
     expect(view.ordering).toBe('rerank');
     expect(view.merchandisingReordered).toBe(true);
-    expect(view.merchandising).toEqual([expect.objectContaining({ ruleId: 'merch.milestone-home-gift.v1', product: 'Olive Branch Vessel', fromRank: 2, toRank: 1 })]);
+    expect(view.merchandising).toEqual([expect.objectContaining({ ruleId: 'merch.milestone-home-gift.v1', product: 'Tall Stoneware Vase', fromRank: 2, toRank: 1 })]);
     const olive = view.rows[0];
     // RRF put it fourth, rerank second: rerank moved it two places. The rule,
     // not rerank, took it from second to first.

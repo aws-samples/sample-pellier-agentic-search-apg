@@ -93,7 +93,7 @@ export default function ProductArtifactCard({
       : name.substring(0, 72).replace(/\s+\S*$/, '') + '\u2026'
   })()
 
-  const brand = product.category || 'Pellier Editions'
+  const brand = product.category || 'Pellier'
   const rating = product.rating ?? product.reviews
   const isOwned = product.ownership === 'owned'
 

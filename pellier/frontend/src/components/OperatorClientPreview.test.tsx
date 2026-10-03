@@ -30,7 +30,7 @@ const RECORD = {
       orderId: 1,
       productId: '41',
       productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier Maison',
+      brand: 'Pellier',
       price: 325.36,
       quantity: 1,
       placedAt: null,
@@ -39,7 +39,7 @@ const RECORD = {
     {
       orderId: 2,
       productId: '42',
-      productName: 'Luxury Bath Robe, Sage',
+      productName: 'Waffle Bath Robe, Sage',
       brand: 'NestWell',
       price: 107.3,
       quantity: 1,

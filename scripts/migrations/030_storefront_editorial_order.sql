@@ -22,7 +22,7 @@ UPDATE pellier.product_catalog
 
 WITH storefront_edit (persona_id, product_id, storefront_rank) AS (
     VALUES
-        -- Fresh: Nocturne Weekender, then a material-led first-visit edit.
+        -- Fresh: Leather Weekender, then a material-led first-visit edit.
         ('fresh', '3', 1), ('fresh', '1', 2), ('fresh', '2', 3),
         ('fresh', '4', 4), ('fresh', '5', 5), ('fresh', '6', 6),
         ('fresh', '7', 7), ('fresh', '8', 8), ('fresh', '10', 9),

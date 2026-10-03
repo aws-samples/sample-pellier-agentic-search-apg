@@ -1,8 +1,8 @@
 """Guards for the membership ladder and the operator client book.
 
-Migration 018 seeds client order history by joining on product *name*:
+Migration 018 seeds client order history by joining on product *ID*:
 
-    JOIN pellier.product_catalog pc ON pc.name = os.product_name
+    JOIN pellier.product_catalog pc ON pc."productId" = os.product_id
 
 That join is silent when it fails. A renamed or missing SKU does not raise;
 it produces zero rows, and the failure surfaces much later as an operator
@@ -60,8 +60,8 @@ def _migration_sql() -> str:
     return MIGRATION.read_text()
 
 
-def _ordered_product_names() -> list[str]:
-    """Every product_name in the migration's order_seed VALUES list."""
+def _ordered_product_ids() -> list[str]:
+    """Every product_id in the migration's order_seed VALUES list."""
     sql = _migration_sql()
     start = sql.index("WITH order_seed(")
     end = sql.index("INSERT INTO pellier.orders", start)
@@ -69,7 +69,7 @@ def _ordered_product_names() -> list[str]:
     # ('CUST-JESSICA', 'Coral Lacquer Catchall', 34),
     rows = re.findall(r"\(\s*'([^']+)'\s*,\s*'((?:[^']|'')+)'\s*,\s*(\d+)\s*\)", block)
     assert rows, "no order_seed rows parsed from migration 018"
-    return [name.replace("''", "'") for _cust, name, _days in rows]
+    return [product_id for _cust, product_id, _days in rows]
 
 
 def _seeded_memberships() -> dict[str, tuple[str, float]]:
@@ -107,14 +107,14 @@ def _seeded_memberships() -> dict[str, tuple[str, float]]:
 def test_every_seeded_order_names_a_real_catalog_product():
     """A typo here yields zero rows, not an error. Catch it in CI."""
     seed = _load_seed_module()
-    catalog_names = {p.name for p in seed.load_catalog()}
+    catalog_ids = {str(p.productId) for p in seed.load_catalog()}
 
-    ordered = _ordered_product_names()
-    missing = sorted({n for n in ordered if n not in catalog_names})
+    ordered = _ordered_product_ids()
+    missing = sorted({i for i in ordered if i not in catalog_ids})
 
     assert not missing, (
-        f"Migration 018 orders {len(missing)} product name(s) that do not exist "
-        f"in scripts/seed_pellier_catalog.py: {missing}. The name JOIN would "
+        f"Migration 018 orders {len(missing)} product ID(s) that do not exist "
+        f"in data/pellier_catalog.json: {missing}. The ID JOIN would "
         "silently produce zero order rows."
     )
 
@@ -127,12 +127,13 @@ def test_jessica_owns_both_items_the_return_dispute_names():
     block = sql[start:end]
 
     jessica = re.findall(r"\('CUST-JESSICA',\s*'((?:[^']|'')+)'", block)
-    assert "Coral Lacquer Catchall" in jessica
-    assert "Waffle Bath Robe, Sage" in jessica
+    assert "41" in jessica
+    assert "42" in jessica
 
     seed = _load_seed_module()
-    catalog_names = {p.name for p in seed.load_catalog()}
-    assert {"Coral Lacquer Catchall", "Waffle Bath Robe, Sage"} <= catalog_names
+    catalog_names = {str(p.productId): p.name for p in seed.load_catalog()}
+    assert catalog_names["41"] == "Coral Lacquer Catchall"
+    assert catalog_names["42"] == "Waffle Bath Robe, Sage"
 
 
 # ---------------------------------------------------------------------------

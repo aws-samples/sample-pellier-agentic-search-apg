@@ -13,7 +13,7 @@ const client = {
   openCaseStatus: 'pending', openTicketCount: 1, creditBalanceCents: 0,
 }
 const order = {
-  orderId: 406, productId: '41', productName: 'Coral Lacquer Catchall', brand: 'Pellier Maison',
+  orderId: 406, productId: '41', productName: 'Coral Lacquer Catchall', brand: 'Pellier',
   price: 325.36, quantity: 1, placedAt: null, imageUrl: '/products/house-coral-lacquer-catchall.png',
 }
 const review = {

@@ -146,7 +146,7 @@ def _vector_row_to_storefront_product(row: dict) -> StorefrontProduct:
     badge = row.get("badge") if row.get("badge") in {"EDITORS_PICK", "BESTSELLER", "JUST_IN"} else None
     return StorefrontProduct(
         id=int(raw_id) if raw_id is not None else 0,
-        brand=row.get("brand") or "Pellier Editions",
+        brand=row.get("brand") or "Pellier",
         name=name,
         color=row.get("color") or "",
         price=float(row.get("price") or 0),

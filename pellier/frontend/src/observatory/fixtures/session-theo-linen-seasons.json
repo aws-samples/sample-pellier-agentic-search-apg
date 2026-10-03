@@ -15,7 +15,7 @@
     },
     {
       "role": "assistant",
-      "content": "Choose the Ceramic Tumblers with the Stoneware Pour-Over Set. They preserve the hand-thrown ceramic language and slower morning ritual from your earlier turns; the Woven Mat Set is useful, but it supports the table rather than the pour itself.",
+      "content": "Choose the Ceramic Tumblers with the Stoneware Pour-Over Set. They preserve the hand-thrown ceramic language and slower morning ritual from your earlier turns; the Jute Placemats, Set of 4 is useful, but it supports the table rather than the pour itself.",
       "timestamp": "2026-05-25T18:16:04Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Personalization Agent + the-makers-shelf \u2192 AgentCore short-term memory (no new product tool)",
@@ -25,13 +25,13 @@
       "products": [
         {
           "name": "Ceramic Tumblers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 78,
           "imageUrl": "/products/theo-ceramic-tumblers.png"
         },
         {
-          "name": "Woven Mat Set",
-          "brand": "Pellier Editions",
+          "name": "Jute Placemats, Set of 4",
+          "brand": "Pellier",
           "price": 42,
           "imageUrl": "/products/theo-woven-mat-set.png"
         }
@@ -47,7 +47,7 @@
         },
         {
           "tier": "episodic",
-          "content": "Earlier turns established Stoneware Pour-Over Set, Ceramic Tumblers, and Woven Mat Set"
+          "content": "Earlier turns established Stoneware Pour-Over Set, Ceramic Tumblers, and Jute Placemats, Set of 4"
         },
         {
           "tier": "skill",
@@ -93,7 +93,7 @@
       "index": 4,
       "category": "owned",
       "title": "Memory Recall - Episodic",
-      "description": "Read the prior turn evidence: Stoneware Pour-Over Set anchored the request; Ceramic Tumblers and Woven Mat Set were the two returned companions.",
+      "description": "Read the prior turn evidence: Stoneware Pour-Over Set anchored the request; Ceramic Tumblers and Jute Placemats, Set of 4 were the two returned companions.",
       "status": "complete",
       "durationMs": 50,
       "sql": "SELECT event_type, content, ts FROM customer_episodic_seed WHERE customer_id = $1 ORDER BY ts DESC LIMIT 10;"
@@ -141,13 +141,13 @@
     "products": [
       {
         "name": "Ceramic Tumblers",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 78,
         "imageUrl": "/products/theo-ceramic-tumblers.png"
       },
       {
-        "name": "Woven Mat Set",
-        "brand": "Pellier Editions",
+        "name": "Jute Placemats, Set of 4",
+        "brand": "Pellier",
         "price": 42,
         "imageUrl": "/products/theo-woven-mat-set.png"
       }

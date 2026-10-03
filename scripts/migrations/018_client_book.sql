@@ -147,78 +147,78 @@ DELETE FROM pellier.orders
     'CUST-RACHEL', 'CUST-KEVIN'
  );
 
-WITH order_seed(customer_id, product_name, days_ago) AS (
+WITH order_seed(customer_id, product_id, days_ago) AS (
     VALUES
         -- Jessica: the return dispute. The catchall and the robe are the two
         -- items the operator queue asks about, ordered on the same day.
-        ('CUST-JESSICA', 'Coral Lacquer Catchall', 34),
-        ('CUST-JESSICA', 'Waffle Bath Robe, Sage', 34),
-        ('CUST-JESSICA', 'Stoneware Pour-Over Set', 120),
-        ('CUST-JESSICA', 'Quilted Silk Vest', 210),
-        ('CUST-JESSICA', 'Oat Merino Crew', 300),
+        ('CUST-JESSICA', '41', 34),
+        ('CUST-JESSICA', '42', 34),
+        ('CUST-JESSICA', '31', 120),
+        ('CUST-JESSICA', '43', 210),
+        ('CUST-JESSICA', '50', 300),
 
         -- Sarah: buys a room at a time.
-        ('CUST-SARAH', 'Wool Rug', 45),
-        ('CUST-SARAH', 'Stonewashed Linen Set', 60),
-        ('CUST-SARAH', 'Ivory Cashmere Throw', 150),
-        ('CUST-SARAH', 'Blown Glass Decanter', 200),
+        ('CUST-SARAH', '59', 45),
+        ('CUST-SARAH', '49', 60),
+        ('CUST-SARAH', '46', 150),
+        ('CUST-SARAH', '60', 200),
 
         -- Catherine: tailored wardrobe across seasons.
-        ('CUST-CATHERINE', 'Camel Wool Overcoat', 30),
-        ('CUST-CATHERINE', 'Tailored Wool Blazer', 75),
-        ('CUST-CATHERINE', 'Double-Pleat Wool Trouser', 75),
-        ('CUST-CATHERINE', 'Silk Slip Dress', 140),
-        ('CUST-CATHERINE', 'Suede Chelsea Boot', 190),
+        ('CUST-CATHERINE', '51', 30),
+        ('CUST-CATHERINE', '45', 75),
+        ('CUST-CATHERINE', '53', 75),
+        ('CUST-CATHERINE', '52', 140),
+        ('CUST-CATHERINE', '54', 190),
 
         -- Amara: investment pieces.
-        ('CUST-AMARA', 'Wool Rug', 20),
-        ('CUST-AMARA', 'Signet Ring, Brushed Gold', 55),
-        ('CUST-AMARA', 'Camel Wool Overcoat', 110),
-        ('CUST-AMARA', 'Ivory Cashmere Throw', 160),
-        ('CUST-AMARA', 'Leather Market Tote', 240),
+        ('CUST-AMARA', '59', 20),
+        ('CUST-AMARA', '58', 55),
+        ('CUST-AMARA', '51', 110),
+        ('CUST-AMARA', '46', 160),
+        ('CUST-AMARA', '48', 240),
 
         -- Julian: everything goes to alterations.
-        ('CUST-JULIAN', 'Tailored Wool Blazer', 25),
-        ('CUST-JULIAN', 'Double-Pleat Wool Trouser', 25),
-        ('CUST-JULIAN', 'Suede Chelsea Boot', 95),
-        ('CUST-JULIAN', 'Quilted Silk Vest', 170),
+        ('CUST-JULIAN', '45', 25),
+        ('CUST-JULIAN', '53', 25),
+        ('CUST-JULIAN', '54', 95),
+        ('CUST-JULIAN', '43', 170),
 
         -- David: the sustainable edit.
-        ('CUST-DAVID', 'Stonewashed Linen Set', 40),
-        ('CUST-DAVID', 'Oat Merino Crew', 100),
-        ('CUST-DAVID', 'Jute Placemats, Set of 4', 165),
-        ('CUST-DAVID', 'Charcoal Soap Bar', 220),
+        ('CUST-DAVID', '49', 40),
+        ('CUST-DAVID', '50', 100),
+        ('CUST-DAVID', '7', 165),
+        ('CUST-DAVID', '40', 220),
 
         -- Priya: gifting at volume.
-        ('CUST-PRIYA', 'Fig and Cedar Eau de Parfum', 28),
-        ('CUST-PRIYA', 'Rose Absolute Body Oil', 28),
-        ('CUST-PRIYA', 'Vetiver Eau de Parfum', 90),
-        ('CUST-PRIYA', 'Blown Glass Decanter', 150),
-        ('CUST-PRIYA', 'Gift Wrapping Kit', 150),
+        ('CUST-PRIYA', '55', 28),
+        ('CUST-PRIYA', '56', 28),
+        ('CUST-PRIYA', '47', 90),
+        ('CUST-PRIYA', '60', 150),
+        ('CUST-PRIYA', '30', 150),
 
         -- Elena: one rung below, worth an early-access nudge.
-        ('CUST-ELENA', 'Cashmere Travel Wrap', 35),
-        ('CUST-ELENA', 'Oat Merino Crew', 105),
-        ('CUST-ELENA', 'Vetiver Eau de Parfum', 180),
+        ('CUST-ELENA', '57', 35),
+        ('CUST-ELENA', '50', 105),
+        ('CUST-ELENA', '47', 180),
 
         -- Thomas: objects that photograph well.
-        ('CUST-THOMAS', 'Suede Chelsea Boot', 50),
-        ('CUST-THOMAS', 'Travertine Wall Clock', 130),
-        ('CUST-THOMAS', 'Rectangular Leather Watch', 220),
+        ('CUST-THOMAS', '54', 50),
+        ('CUST-THOMAS', '44', 130),
+        ('CUST-THOMAS', '5', 220),
 
         -- Michael: repeat basics.
-        ('CUST-MICHAEL', 'Oat Merino Crew', 42),
-        ('CUST-MICHAEL', 'Quilted Silk Vest', 125),
-        ('CUST-MICHAEL', 'Washed Canvas Tote', 230),
+        ('CUST-MICHAEL', '50', 42),
+        ('CUST-MICHAEL', '43', 125),
+        ('CUST-MICHAEL', '10', 230),
 
         -- Rachel: fragrance, with an open ticket.
-        ('CUST-RACHEL', 'Vetiver Eau de Parfum', 18),
-        ('CUST-RACHEL', 'Rose Absolute Body Oil', 85),
-        ('CUST-RACHEL', 'Santal & Fig Candle', 175),
+        ('CUST-RACHEL', '47', 18),
+        ('CUST-RACHEL', '56', 85),
+        ('CUST-RACHEL', '4', 175),
 
         -- Kevin: new joiner, two small orders.
-        ('CUST-KEVIN', 'Beeswax Pillar Candle', 12),
-        ('CUST-KEVIN', 'Charcoal Soap Bar', 12)
+        ('CUST-KEVIN', '38', 12),
+        ('CUST-KEVIN', '40', 12)
 )
 INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
 SELECT
@@ -228,7 +228,7 @@ SELECT
     now() - make_interval(days => os.days_ago)
 FROM order_seed os
 JOIN pellier.product_catalog pc
-  ON pc.name = os.product_name;
+  ON pc."productId" = os.product_id;
 
 -- ---------------------------------------------------------------------
 -- Verification. Fail loud, in the same spirit as 003.
@@ -249,7 +249,7 @@ BEGIN
      WHERE id LIKE 'CUST-%' AND id <> 'CUST-FRESH';
 
     -- Scoped to the twelve client IDs this migration owns, so hero orders
-    -- from 003 cannot mask a failed name JOIN here.
+    -- from 003 cannot mask a failed JOIN here.
     SELECT COUNT(*) INTO n_orders
       FROM pellier.orders
      WHERE customer_id IN (
@@ -265,7 +265,7 @@ BEGIN
       FROM pellier.orders o
       JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
      WHERE o.customer_id = 'CUST-JESSICA'
-       AND pc.name IN ('Coral Lacquer Catchall', 'Waffle Bath Robe, Sage');
+       AND pc."productId" IN ('41', '42');
 
     -- The stored rung must still agree with the thresholds documented at the
     -- top of this file. If someone edits a spend figure without moving the
@@ -303,7 +303,7 @@ BEGIN
         RAISE EXCEPTION
             'Client book produced only % orders (expected 46). '
             'Most likely cause: pellier.product_catalog is missing the house '
-            'and signature buckets (IDs 41-60), so the name JOIN matched '
+            'and signature buckets (IDs 41-60), so the ID JOIN matched '
             'nothing. Re-run scripts/seed_pellier_catalog.py.', n_orders;
     END IF;
 

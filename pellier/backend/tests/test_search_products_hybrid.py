@@ -33,7 +33,7 @@ def candidates() -> List[Dict[str, Any]]:
         {
             "product_id": i,
             "name": f"Product {i}",
-            "brand": "Pellier Editions",
+            "brand": "Pellier",
             "color": "Sand",
             "description": f"Description for product {i}",
             "img_url": f"https://example.com/{i}.jpg",
@@ -207,7 +207,7 @@ class TestReranking:
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        candidates[1]["name"] = "Olive Branch Vessel"
+        candidates[1]["name"] = "Tall Stoneware Vase"
         result = json.loads(
             agent_tools.search_products_hybrid(
                 query="A milestone gift for a new homeowner",
@@ -215,7 +215,7 @@ class TestReranking:
             )
         )
         names = [p["name"] for p in result["products"]]
-        assert names[0] == "Olive Branch Vessel"
+        assert names[0] == "Tall Stoneware Vase"
 
     def test_promotion_is_disclosed_as_a_versioned_merchandising_rule(
         self,
@@ -230,7 +230,7 @@ class TestReranking:
         promotion contaminates every relevance comparison that reads this
         tool's output.
         """
-        candidates[1]["name"] = "Olive Branch Vessel"
+        candidates[1]["name"] = "Tall Stoneware Vase"
         result = json.loads(
             agent_tools.search_products_hybrid(
                 query="A milestone gift for a new homeowner",
@@ -240,7 +240,7 @@ class TestReranking:
         applied = result["merchandising_rules_applied"]
         assert len(applied) == 1
         assert applied[0]["ruleId"] == agent_tools.MERCHANDISING_RULE_ID
-        assert applied[0]["product"] == "Olive Branch Vessel"
+        assert applied[0]["product"] == "Tall Stoneware Vase"
         assert applied[0]["toRank"] == 1
         assert applied[0]["fromRank"] > 1
 
@@ -251,7 +251,7 @@ class TestReranking:
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        candidates[1]["name"] = "Olive Branch Vessel"
+        candidates[1]["name"] = "Tall Stoneware Vase"
         result = json.loads(
             agent_tools.search_products_hybrid(query="something beautiful", limit=5)
         )
@@ -266,13 +266,13 @@ class TestReranking:
     ) -> None:
         """If the hero already ranks first, nothing was promoted."""
         # The stub reranker reverses order, so index 4 lands at rank 1.
-        candidates[4]["name"] = "Olive Branch Vessel"
+        candidates[4]["name"] = "Tall Stoneware Vase"
         result = json.loads(
             agent_tools.search_products_hybrid(
                 query="A milestone gift for a new homeowner", limit=5,
             )
         )
-        assert result["products"][0]["name"] == "Olive Branch Vessel"
+        assert result["products"][0]["name"] == "Tall Stoneware Vase"
         assert "merchandising_rules_applied" not in result
 
     def test_non_home_milestone_queries_keep_rerank_order(
@@ -282,13 +282,13 @@ class TestReranking:
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        candidates[1]["name"] = "Olive Branch Vessel"
+        candidates[1]["name"] = "Tall Stoneware Vase"
         result = json.loads(
             agent_tools.search_products_hybrid(query="something beautiful", limit=5)
         )
         names = [p["name"] for p in result["products"]]
         assert names[0] == "Product 5"
-        assert names[3] == "Olive Branch Vessel"
+        assert names[3] == "Tall Stoneware Vase"
 
     def test_each_product_has_rerank_score(
         self,

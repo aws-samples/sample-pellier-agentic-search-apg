@@ -26,7 +26,7 @@ class _Db:
         raise AssertionError(f"unexpected query: {sql[:60]}")
 
 
-VEST = {"productId": "43", "name": "Quilted Silk Vest", "brand": "Pellier Atelier", "color": "Ivory", "price": 193.13}
+VEST = {"productId": "43", "name": "Quilted Silk Vest", "brand": "Pellier", "color": "Ivory", "price": 193.13}
 _WAREHOUSES = ("BK-01", "ATX-02", "PDX-01")
 
 

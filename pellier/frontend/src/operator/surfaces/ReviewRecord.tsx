@@ -539,7 +539,7 @@ const ReviewRecordPage: React.FC = () => {
                   {order.productName}
                   {/* A div, not a span: `operator-cell-note` carries no display
                       rule, so inline rendering ran the brand straight onto the
-                      piece name — "Coral Lacquer CatchallPellier Maison". The
+                      piece name — "Coral Lacquer CatchallPellier". The
                       client record already stacks them this way. */}
                   <div className="operator-cell-note">{order.brand}</div>
                   </div>

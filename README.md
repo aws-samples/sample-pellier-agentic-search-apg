@@ -334,7 +334,7 @@ Jessica is the Lab 4 service-recovery case in Operator. She is not a fourth
 storefront scenario. A separate account in the `pellier-operators` Cognito group
 opens the staff desk.
 
-The **signed-out state** is the editorial baseline – a nine-piece grid anchored by the Nocturne Leather Weekender, no prior context, no profile embedding. It is the hero state, not a fourth persona.
+The **signed-out state** is the editorial baseline – a nine-piece grid anchored by the Leather Weekender, no prior context, no profile embedding. It is the hero state, not a fourth persona.
 
 `pellier.product_catalog` holds 100 products, seeded from
 `data/pellier_catalog.json` with real Cohere Embed v4 1024-dim embeddings. The

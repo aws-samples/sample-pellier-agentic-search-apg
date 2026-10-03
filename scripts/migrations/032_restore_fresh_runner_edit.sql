@@ -1,6 +1,6 @@
 -- Migration 032: restore the reference unsigned storefront edit.
 --
--- Migration 031 temporarily replaced Cloudform Studio Runner with the Washed
+-- Migration 031 temporarily replaced Everyday Runner with the Washed
 -- Canvas Tote. The accepted guest-storefront references retain the runner as
 -- the ninth promoted piece. Both products remain searchable in the 60-product
 -- curated catalog; this migration changes only durable merchandising rank.

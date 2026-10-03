@@ -179,7 +179,7 @@ def _apply_merchandising_rules(
         return products, []
 
     for idx, product in enumerate(products):
-        if product.get("name") != "Olive Branch Vessel":
+        if product.get("name") != "Tall Stoneware Vase":
             continue
         if idx == 0:
             # Already the winner on relevance alone; nothing was boosted.

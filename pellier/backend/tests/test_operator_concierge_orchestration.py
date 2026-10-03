@@ -232,7 +232,7 @@ async def test_client_evidence_includes_order_lines_and_attributed_ticket_note(
                 {
                     "orderId": 407,
                     "productId": "42",
-                    "productName": "Luxury Bath Robe, Sage",
+                    "productName": "Waffle Bath Robe, Sage",
                     "price": 107.30,
                     "quantity": 1,
                 },
@@ -267,7 +267,7 @@ async def test_client_evidence_includes_order_lines_and_attributed_ticket_note(
     rendered = ORCH._evidence_for_prompt([order, ticket])
 
     assert "#406 Coral Lacquer Catchall: $325.36" in rendered
-    assert "#407 Luxury Bath Robe, Sage: $107.30" in rendered
+    assert "#407 Waffle Bath Robe, Sage: $107.30" in rendered
     assert "Return logged for the catchall and the robe." in rendered
     assert "[FACT] Order history:" in rendered
     assert "[CONTEXT] Service context:" in rendered
@@ -1274,7 +1274,7 @@ async def test_a_recorded_request_is_not_reported_as_received(
             "orders": [
                 {"orderId": 406, "productId": "41", "productName": "Coral Lacquer Catchall",
                  "price": 325.36, "quantity": 1},
-                {"orderId": 407, "productId": "42", "productName": "Luxury Bath Robe, Sage",
+                {"orderId": 407, "productId": "42", "productName": "Waffle Bath Robe, Sage",
                  "price": 107.30, "quantity": 1},
             ],
             "tickets": [{
@@ -1284,7 +1284,7 @@ async def test_a_recorded_request_is_not_reported_as_received(
             }],
             "credits": [],
             "returns": [{"returnId": 92, "productId": "42",
-                         "productName": "Luxury Bath Robe, Sage",
+                         "productName": "Waffle Bath Robe, Sage",
                          "reason": "changed_mind", "status": "pending"}],
         }
 
@@ -1293,7 +1293,7 @@ async def test_a_recorded_request_is_not_reported_as_received(
 
     conflict = next(item for item in evidence if item.kind == "return_conflict")
     assert "No return record exists for Coral Lacquer Catchall." in conflict.detail
-    assert "A return request is recorded for Luxury Bath Robe, Sage" in conflict.detail
+    assert "A return request is recorded for Waffle Bath Robe, Sage" in conflict.detail
     assert "remains unverified" in conflict.detail
     assert conflict.status == "unverified"
 

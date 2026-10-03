@@ -96,7 +96,7 @@ import { DISCOVER_PAGE_COMING_SOON, DISCOVER_PAGE_SIGNED_OUT } from '../copy'
 const LIVE_CATALOG = [
   {
     id: 11,
-    brand: 'Pellier Editions',
+    brand: 'Pellier',
     name: 'Italian Linen Camp Shirt',
     color: 'Indigo',
     price: 148,

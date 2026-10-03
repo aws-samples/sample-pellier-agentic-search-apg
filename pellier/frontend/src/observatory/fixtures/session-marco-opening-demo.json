@@ -42,14 +42,14 @@
         },
         {
           "name": "Linen Drawstring Trousers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 178,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
           "traceRef": "panel-3"
         },
         {
           "name": "Italian Linen Camp Shirt",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 228,
           "imageUrl": "/products/marco-linen-camp-shirt-indigo.png",
           "traceRef": "panel-3"
@@ -102,21 +102,21 @@
       "products": [
         {
           "name": "Linen Drawstring Trousers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 178,
           "imageUrl": "/products/marco-linen-drawstring-trousers.png",
           "traceRef": "panel-8"
         },
         {
           "name": "Linen Overshirt",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 195,
           "imageUrl": "/products/marco-linen-overshirt-sage.png",
           "traceRef": "panel-8"
         },
         {
           "name": "Leather Weekend Holdall",
-          "brand": "Pellier Travel",
+          "brand": "Pellier",
           "price": 485,
           "imageUrl": "/products/marco-leather-weekend-holdall.png",
           "traceRef": "panel-8"
@@ -383,13 +383,13 @@
       },
       {
         "name": "Linen Drawstring Trousers",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 178,
         "imageUrl": "/products/marco-linen-drawstring-trousers.png"
       },
       {
         "name": "Italian Linen Camp Shirt",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 228,
         "imageUrl": "/products/marco-linen-camp-shirt-indigo.png"
       }

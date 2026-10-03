@@ -169,12 +169,12 @@ class FakeReviewDb:
             return {
                 "order_id": THEO["order_id"], "product_id": "37", "quantity": 1,
                 "placed_at": None, "product_name": "Wabi-Sabi Bowl",
-                "brand": "Pellier Maison", "price": 65.00, "image_url": "/p/37.png",
+                "brand": "Pellier", "price": 65.00, "image_url": "/p/37.png",
             }
         if "FROM pellier.product_catalog" in query:
             return {
                 "product_id": "37", "name": "Wabi-Sabi Bowl",
-                "brand": "Pellier Maison", "price": 65.00, "quantity": 50,
+                "brand": "Pellier", "price": 65.00, "quantity": 50,
                 "image_url": "/p/37.png",
             }
         return None

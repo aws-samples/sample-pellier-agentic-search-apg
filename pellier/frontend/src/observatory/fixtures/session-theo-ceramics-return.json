@@ -69,7 +69,7 @@
       "products": [
         {
           "name": "Wabi-Sabi Bowl",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 65,
           "imageUrl": "/products/theo-wabi-sabi-bowl.png"
         }
@@ -236,7 +236,7 @@
     "products": [
       {
         "name": "Wabi-Sabi Bowl",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 65,
         "imageUrl": "/products/theo-wabi-sabi-bowl.png"
       }

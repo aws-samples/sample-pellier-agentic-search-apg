@@ -160,7 +160,7 @@ def test_storefront_persona_edits_are_durable_aurora_merchandising() -> None:
 
 
 def test_unsigned_edit_restores_the_reference_runner_merchandising() -> None:
-    """The forward migration restores Cloudform without hiding the tote."""
+    """The forward migration restores the Everyday Runner without hiding the tote."""
     initial_edit = (
         ROOT / "scripts" / "migrations" / "030_storefront_editorial_order.sql"
     ).read_text()

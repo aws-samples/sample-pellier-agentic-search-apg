@@ -203,7 +203,7 @@ describe('chat service auth transport', () => {
     }
     const turn2Assistant = {
       role: 'assistant' as const,
-      content: 'The Ceramic Tumblers and Woven Mat Set are the strongest companions.',
+      content: 'The Ceramic Tumblers and Jute Placemats, Set of 4 are the strongest companions.',
       timestamp: new Date(),
     }
 

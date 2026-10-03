@@ -572,7 +572,7 @@ _JESSICA_TICKET = [{
 }]
 _JESSICA_ORDERS = [
     {"productId": "41", "productName": "Coral Lacquer Catchall"},
-    {"productId": "42", "productName": "Luxury Bath Robe, Sage"},
+    {"productId": "42", "productName": "Waffle Bath Robe, Sage"},
 ]
 
 

@@ -66,7 +66,7 @@ const RECORD = {
   orders: [
     {
       orderId: 1, productId: '41', productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier Maison', price: 325.36, quantity: 1, placedAt: null,
+      brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
       imageUrl: '/products/house-coral-lacquer-catchall.png',
     },
   ],
@@ -560,7 +560,7 @@ describe('ClientRecord', () => {
     expect(screen.getByRole('columnheader', { name: 'ID' })).not.toHaveClass(
       'operator-col-optional',
     )
-    expect(screen.getByText('Pellier Maison')).toHaveClass('operator-cell-note')
+    expect(screen.getByText('Pellier')).toHaveClass('operator-cell-note')
     expect(screen.getByTestId('operator-tickets')).toHaveTextContent(
       'Refund disputed',
     )

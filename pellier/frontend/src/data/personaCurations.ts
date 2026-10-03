@@ -433,15 +433,15 @@ export const PERSONA_TURN_TRACES: Record<string, PersonaTurnTrace[]> = {
 // ---------------------------------------------------------------------
 // Featured product ID — the big hero product slot per persona.
 // Maps persona → product ID from the seeded Aurora catalog.
-// Fresh visitors see the Nocturne Leather Weekender (id:3 in the
+// Fresh visitors see the Leather Weekender (id:3 in the
 // original lineup; check the seeded catalog migrations).
 // ---------------------------------------------------------------------
 
 export const PERSONA_FEATURED_PRODUCT_ID: Record<string, number> = {
   marco: 2,   // Pellier Linen Shirt — Marco's signature linen piece
   anna: 21,    // Beeswax Taper Candles & Fig Candle — gift-forward, wrap-ready
-  theo: 31,    // Stoneware Pour-Over Set Woven Mat Set — slow ritual centerpiece
-  fresh: 3,   // Nocturne Leather Weekender — editorial hero for new visitors
+  theo: 31,    // Stoneware Pour-Over Set — slow ritual centerpiece
+  fresh: 3,   // Leather Weekender — editorial hero for new visitors
 }
 
 export function featuredProductIdForPersona(

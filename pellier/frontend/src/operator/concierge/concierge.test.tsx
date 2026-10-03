@@ -43,7 +43,7 @@ const RECORD = {
   orders: [
     {
       orderId: 41, productId: '41', productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier Maison', price: 325.36, quantity: 1, placedAt: null,
+      brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
       imageUrl: '/products/house-coral-lacquer-catchall.png',
     },
   ],
@@ -763,7 +763,7 @@ describe('before server truth arrives', () => {
 
 describe('replacement recommendations', () => {
   const RECONCILED = {
-    productId: '37', name: 'Wabi-Sabi Bowl', brand: 'Pellier Home',
+    productId: '37', name: 'Wabi-Sabi Bowl', brand: 'Pellier',
     category: 'Kitchen and table', price: 65, imgUrl: '/products/theo-wabi-sabi-bowl.png',
     role: 'best_match',
     fitReasons: ['Same category as the original (Kitchen and table)',
@@ -1009,7 +1009,7 @@ describe('proposed actions', () => {
     customer: { customerId: 'CUST-RACHEL' },
     order: { orderId: 325, placedAt: '2026-08-08T16:53:54Z' },
     product: {
-      productId: '47', name: 'Vetiver Quietude', category: 'Bath and body', price: 186,
+      productId: '47', name: 'Vetiver Eau de Parfum', category: 'Bath and body', price: 186,
       imgUrl: '/products/maison-vetiver-quietude.png',
     },
     material: {
@@ -1103,7 +1103,7 @@ describe('proposed actions', () => {
     const card = await screen.findByTestId('operator-concierge-proposal')
 
     expect(card.textContent).toContain('Return review prepared')
-    expect(card.textContent).toContain('Vetiver Quietude')
+    expect(card.textContent).toContain('Vetiver Eau de Parfum')
     expect(card.textContent).toContain('#325')
     expect(card.textContent).toContain('Not as described')
     // Two independent facts, two rows.

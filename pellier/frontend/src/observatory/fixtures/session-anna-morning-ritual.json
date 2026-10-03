@@ -55,13 +55,13 @@
       "products": [
         {
           "name": "Stoneware Pour-Over Set",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 95,
           "imageUrl": "/products/theo-stoneware-pour-over.png"
         },
         {
           "name": "Ceramic Tumblers",
-          "brand": "Pellier Editions",
+          "brand": "Pellier",
           "price": 78,
           "imageUrl": "/products/theo-ceramic-tumblers.png"
         }
@@ -189,13 +189,13 @@
     "products": [
       {
         "name": "Stoneware Pour-Over Set",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 95,
         "imageUrl": "/products/theo-stoneware-pour-over.png"
       },
       {
         "name": "Ceramic Tumblers",
-        "brand": "Pellier Editions",
+        "brand": "Pellier",
         "price": 78,
         "imageUrl": "/products/theo-ceramic-tumblers.png"
       }

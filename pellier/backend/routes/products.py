@@ -210,7 +210,7 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
 
     return StorefrontProduct(
         id=int(row["id"]),
-        brand=row.get("brand") or "Pellier Editions",
+        brand=row.get("brand") or "Pellier",
         name=row["name"],
         color=row.get("color") or "",
         price=float(row.get("price") or 0),

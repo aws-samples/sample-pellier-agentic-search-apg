@@ -124,7 +124,7 @@ def test_inventory_refresh_preserves_prior_card_media() -> None:
                     "id": 37,
                     "name": "Wabi-Sabi Bowl",
                     "price": 65,
-                    "brand": "Pellier Home",
+                    "brand": "Pellier",
                     "category": "Home",
                     "image": "/products/wabi-sabi-bowl.png",
                     "rating": 4.9,
