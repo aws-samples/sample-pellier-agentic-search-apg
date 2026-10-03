@@ -15,7 +15,7 @@
     },
     {
       "role": "assistant",
-      "content": "The Ceramic Tumblers ($78) are the natural companion to the Stoneware Pour-Over Set: same kiln register, same charcoal undertone, and no two pieces quite match. Add the Jute Placemats, Set of 4 ($42) if you want the table to feel intentional rather than assembled.",
+      "content": "The Ceramic Tumblers ($78) are the natural companion to the Stoneware Pour-Over Set: same kiln register, same charcoal undertone, and no two pieces quite match. Add the Jute Placemats, Set of 4 ($68) if you want the table to feel intentional rather than assembled.",
       "timestamp": "2026-05-25T18:13:03Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Personalization Agent + the-makers-shelf \u2192 search_products \u2192 get_related_products",

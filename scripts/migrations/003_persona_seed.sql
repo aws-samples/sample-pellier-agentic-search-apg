@@ -79,31 +79,31 @@ DELETE FROM pellier.orders
 WITH order_seed(customer_id, product_id, days_ago) AS (
     VALUES
         -- Marco: linen / travel wardrobe history.
-        ('CUST-MARCO', '2', 56),
-        ('CUST-MARCO', '11', 48),
-        ('CUST-MARCO', '14', 40),
-        ('CUST-MARCO', '16', 32),
-        ('CUST-MARCO', '18', 24),
-        ('CUST-MARCO', '17', 16),
-        ('CUST-MARCO', '20', 8),
+        ('CUST-MARCO', '2', 56),  -- Hadley Linen Shirt
+        ('CUST-MARCO', '11', 48),  -- Italian Linen Camp Shirt
+        ('CUST-MARCO', '14', 40),  -- Linen Drawstring Trousers
+        ('CUST-MARCO', '16', 32),  -- Linen Overshirt
+        ('CUST-MARCO', '18', 24),  -- Cotton-Linen Crew Tee
+        ('CUST-MARCO', '17', 16),  -- Leather Weekend Holdall
+        ('CUST-MARCO', '20', 8),  -- Merino Travel Socks
 
         -- Anna: gift-shaped history across price bands.
-        ('CUST-ANNA', '7', 40),
-        ('CUST-ANNA', '4', 32),
-        ('CUST-ANNA', '27', 24),
-        ('CUST-ANNA', '26', 16),
-        ('CUST-ANNA', '30', 8),
+        ('CUST-ANNA', '7', 40),  -- Jute Placemats, Set of 4
+        ('CUST-ANNA', '4', 32),  -- Santal & Fig Candle
+        ('CUST-ANNA', '27', 24),  -- Ceramic Bud Vase
+        ('CUST-ANNA', '26', 16),  -- Handmade Soap Set
+        ('CUST-ANNA', '30', 8),  -- Gift Wrapping Kit
 
         -- Theo: slow-craft home history. Wabi-Sabi Bowl is required
         -- for the chipped-return demo.
-        ('CUST-THEO', '37', 8),
-        ('CUST-THEO', '31', 21),
-        ('CUST-THEO', '36', 45),
-        ('CUST-THEO', '35', 90),
-        ('theo', '37', 8),
-        ('theo', '31', 21),
-        ('theo', '36', 45),
-        ('theo', '35', 90)
+        ('CUST-THEO', '37', 8),  -- Wabi-Sabi Bowl
+        ('CUST-THEO', '31', 21),  -- Stoneware Pour-Over Set
+        ('CUST-THEO', '36', 45),  -- Ceramic Tumblers
+        ('CUST-THEO', '35', 90),  -- Brass Incense Holder
+        ('theo', '37', 8),  -- Wabi-Sabi Bowl
+        ('theo', '31', 21),  -- Stoneware Pour-Over Set
+        ('theo', '36', 45),  -- Ceramic Tumblers
+        ('theo', '35', 90)  -- Brass Incense Holder
 )
 INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
 SELECT

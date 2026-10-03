@@ -151,74 +151,74 @@ WITH order_seed(customer_id, product_id, days_ago) AS (
     VALUES
         -- Jessica: the return dispute. The catchall and the robe are the two
         -- items the operator queue asks about, ordered on the same day.
-        ('CUST-JESSICA', '41', 34),
-        ('CUST-JESSICA', '42', 34),
-        ('CUST-JESSICA', '31', 120),
-        ('CUST-JESSICA', '43', 210),
-        ('CUST-JESSICA', '50', 300),
+        ('CUST-JESSICA', '41', 34),  -- Coral Lacquer Catchall
+        ('CUST-JESSICA', '42', 34),  -- Waffle Bath Robe, Sage
+        ('CUST-JESSICA', '31', 120),  -- Stoneware Pour-Over Set
+        ('CUST-JESSICA', '43', 210),  -- Quilted Silk Vest
+        ('CUST-JESSICA', '50', 300),  -- Oat Merino Crew
 
         -- Sarah: buys a room at a time.
-        ('CUST-SARAH', '59', 45),
-        ('CUST-SARAH', '49', 60),
-        ('CUST-SARAH', '46', 150),
-        ('CUST-SARAH', '60', 200),
+        ('CUST-SARAH', '59', 45),  -- Wool Rug
+        ('CUST-SARAH', '49', 60),  -- Stonewashed Linen Set
+        ('CUST-SARAH', '46', 150),  -- Ivory Cashmere Throw
+        ('CUST-SARAH', '60', 200),  -- Blown Glass Decanter
 
         -- Catherine: tailored wardrobe across seasons.
-        ('CUST-CATHERINE', '51', 30),
-        ('CUST-CATHERINE', '45', 75),
-        ('CUST-CATHERINE', '53', 75),
-        ('CUST-CATHERINE', '52', 140),
-        ('CUST-CATHERINE', '54', 190),
+        ('CUST-CATHERINE', '51', 30),  -- Camel Wool Overcoat
+        ('CUST-CATHERINE', '45', 75),  -- Tailored Wool Blazer
+        ('CUST-CATHERINE', '53', 75),  -- Double-Pleat Wool Trouser
+        ('CUST-CATHERINE', '52', 140),  -- Silk Slip Dress
+        ('CUST-CATHERINE', '54', 190),  -- Suede Chelsea Boot
 
         -- Amara: investment pieces.
-        ('CUST-AMARA', '59', 20),
-        ('CUST-AMARA', '58', 55),
-        ('CUST-AMARA', '51', 110),
-        ('CUST-AMARA', '46', 160),
-        ('CUST-AMARA', '48', 240),
+        ('CUST-AMARA', '59', 20),  -- Wool Rug
+        ('CUST-AMARA', '58', 55),  -- Signet Ring, Brushed Gold
+        ('CUST-AMARA', '51', 110),  -- Camel Wool Overcoat
+        ('CUST-AMARA', '46', 160),  -- Ivory Cashmere Throw
+        ('CUST-AMARA', '48', 240),  -- Leather Market Tote
 
         -- Julian: everything goes to alterations.
-        ('CUST-JULIAN', '45', 25),
-        ('CUST-JULIAN', '53', 25),
-        ('CUST-JULIAN', '54', 95),
-        ('CUST-JULIAN', '43', 170),
+        ('CUST-JULIAN', '45', 25),  -- Tailored Wool Blazer
+        ('CUST-JULIAN', '53', 25),  -- Double-Pleat Wool Trouser
+        ('CUST-JULIAN', '54', 95),  -- Suede Chelsea Boot
+        ('CUST-JULIAN', '43', 170),  -- Quilted Silk Vest
 
         -- David: the sustainable edit.
-        ('CUST-DAVID', '49', 40),
-        ('CUST-DAVID', '50', 100),
-        ('CUST-DAVID', '7', 165),
-        ('CUST-DAVID', '40', 220),
+        ('CUST-DAVID', '49', 40),  -- Stonewashed Linen Set
+        ('CUST-DAVID', '50', 100),  -- Oat Merino Crew
+        ('CUST-DAVID', '7', 165),  -- Jute Placemats, Set of 4
+        ('CUST-DAVID', '40', 220),  -- Charcoal Soap Bar
 
         -- Priya: gifting at volume.
-        ('CUST-PRIYA', '55', 28),
-        ('CUST-PRIYA', '56', 28),
-        ('CUST-PRIYA', '47', 90),
-        ('CUST-PRIYA', '60', 150),
-        ('CUST-PRIYA', '30', 150),
+        ('CUST-PRIYA', '55', 28),  -- Fig and Cedar Eau de Parfum
+        ('CUST-PRIYA', '56', 28),  -- Rose Absolute Body Oil
+        ('CUST-PRIYA', '47', 90),  -- Vetiver Eau de Parfum
+        ('CUST-PRIYA', '60', 150),  -- Blown Glass Decanter
+        ('CUST-PRIYA', '30', 150),  -- Gift Wrapping Kit
 
         -- Elena: one rung below, worth an early-access nudge.
-        ('CUST-ELENA', '57', 35),
-        ('CUST-ELENA', '50', 105),
-        ('CUST-ELENA', '47', 180),
+        ('CUST-ELENA', '57', 35),  -- Cashmere Travel Wrap
+        ('CUST-ELENA', '50', 105),  -- Oat Merino Crew
+        ('CUST-ELENA', '47', 180),  -- Vetiver Eau de Parfum
 
         -- Thomas: objects that photograph well.
-        ('CUST-THOMAS', '54', 50),
-        ('CUST-THOMAS', '44', 130),
-        ('CUST-THOMAS', '5', 220),
+        ('CUST-THOMAS', '54', 50),  -- Suede Chelsea Boot
+        ('CUST-THOMAS', '44', 130),  -- Travertine Wall Clock
+        ('CUST-THOMAS', '5', 220),  -- Rectangular Leather Watch
 
         -- Michael: repeat basics.
-        ('CUST-MICHAEL', '50', 42),
-        ('CUST-MICHAEL', '43', 125),
-        ('CUST-MICHAEL', '10', 230),
+        ('CUST-MICHAEL', '50', 42),  -- Oat Merino Crew
+        ('CUST-MICHAEL', '43', 125),  -- Quilted Silk Vest
+        ('CUST-MICHAEL', '10', 230),  -- Washed Canvas Tote
 
         -- Rachel: fragrance, with an open ticket.
-        ('CUST-RACHEL', '47', 18),
-        ('CUST-RACHEL', '56', 85),
-        ('CUST-RACHEL', '4', 175),
+        ('CUST-RACHEL', '47', 18),  -- Vetiver Eau de Parfum
+        ('CUST-RACHEL', '56', 85),  -- Rose Absolute Body Oil
+        ('CUST-RACHEL', '4', 175),  -- Santal & Fig Candle
 
         -- Kevin: new joiner, two small orders.
-        ('CUST-KEVIN', '38', 12),
-        ('CUST-KEVIN', '40', 12)
+        ('CUST-KEVIN', '38', 12),  -- Beeswax Pillar Candle
+        ('CUST-KEVIN', '40', 12)  -- Charcoal Soap Bar
 )
 INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
 SELECT

@@ -15,7 +15,7 @@
     },
     {
       "role": "assistant",
-      "content": "Three worth reaching for: the Stoneware Pour-Over Set ($95) - hand-thrown, ash-grey, built for a slow pour. The Ceramic Tumblers in charcoal ($78) pair with it - same kiln run, no two quite alike. And the Jute Placemats, Set of 4 ($42) under both of them finishes the table.",
+      "content": "Three worth reaching for: the Stoneware Pour-Over Set ($95) - hand-thrown, ash-grey, built for a slow pour. The Ceramic Tumblers in charcoal ($78) pair with it - same kiln run, no two quite alike. And the Jute Placemats, Set of 4 ($68) under both of them finishes the table.",
       "timestamp": "2026-05-25T18:10:05Z",
       "plan": {
         "flowSummary": "Dispatcher \u2192 Personalization Agent + the-makers-shelf \u2192 search_products",

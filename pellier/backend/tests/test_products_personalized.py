@@ -174,7 +174,7 @@ def _showcase_rows() -> List[Dict[str, Any]]:
         enriched.append(
             {
                 **row,
-                "brand": "Pellier" if row["category"] != "Home" else "Pellier",
+                "brand": "Pellier",
                 "rating": 4.7,
                 # Live schema stores reviews as TEXT (numeric strings).
                 "reviews": str(100 + idx),
