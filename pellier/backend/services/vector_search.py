@@ -87,6 +87,7 @@ class VectorSearch:
                 reviews,
                 badge,
                 tags,
+                materials,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
             FROM pellier.product_catalog
             WHERE "imgUrl" IS NOT NULL
@@ -289,6 +290,7 @@ class VectorSearch:
                 reviews,
                 badge,
                 tags,
+                materials,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
             FROM pellier.product_catalog
             WHERE {where}

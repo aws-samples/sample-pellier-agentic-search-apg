@@ -468,3 +468,20 @@ def test_the_micro_eval_violation_count_also_survives_an_unreadable_row() -> Non
     assert _breaks_price_or_stock(_row(1, quantity="none left"), plan) is False
     assert _breaks_price_or_stock(_row(1, price="150.00"), plan) is True
     assert _breaks_price_or_stock(_row(1, quantity="0"), plan) is True
+
+
+def test_the_recheck_drops_a_row_whose_materials_are_excluded() -> None:
+    """A wool blend whose tags say only "warm" still fails "no wool" after rerank."""
+    db = _FakeDB([
+        _row(1, tags=["home", "warm"], materials=["cashmere", "wool"]),
+        _row(2, tags=["home", "warm"], materials=["linen"]),
+    ])
+    execution = _run(db, plan=_plan(extracted={"exclusions": ["wool"]}), limit=5)
+    assert [row["product_id"] for row in execution.ordered] == ["2"]
+
+
+def test_both_hybrid_branches_return_materials_for_the_recheck() -> None:
+    from services.hybrid_search import _fts_branch_sql, _vector_branch_sql
+
+    for sql in (_fts_branch_sql(), _vector_branch_sql()):
+        assert "materials," in sql

@@ -361,10 +361,9 @@ def _violates_hard_constraints(row: Dict[str, Any], plan: Any) -> bool:
     quantity = _as_number(row.get("quantity"))
     if hard.in_stock_only and quantity is not None and quantity <= 0:
         return True
-    tags = row.get("tags")
-    if plan.exclusions and tags is not None:
-        excluded = {value.lower() for value in plan.exclusions}
-        if {str(tag).lower() for tag in tags} & excluded:
+    excluded = {value.lower() for value in plan.exclusions}
+    for listed in (row.get("tags"), row.get("materials")):
+        if excluded and listed is not None and {str(v).lower() for v in listed} & excluded:
             return True
     return False
 

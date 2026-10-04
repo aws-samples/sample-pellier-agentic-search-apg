@@ -90,6 +90,7 @@ def _vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
                 reviews,
                 badge,
                 tags,
+                materials,
                 quantity,
                 updated_at,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
@@ -124,6 +125,7 @@ def _fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
                 reviews,
                 badge,
                 tags,
+                materials,
                 quantity,
                 updated_at,
                 ts_rank_cd(description_tsv, q.ts_q) AS fts_rank_score
