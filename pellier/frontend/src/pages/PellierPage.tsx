@@ -207,7 +207,7 @@ export default function PellierPage() {
             <div className="mx-auto max-w-[760px] px-container-x py-24 text-center">
               <p className="pellier-eyebrow">No pieces to show just now</p>
               <p className="mt-4 font-sans text-[14px] text-ink-2">
-                The collection returned no pieces for this edit. Try another scenario or check back shortly.
+                The collection returned no pieces for this edit. Choose another shopper or check back shortly.
               </p>
             </div>
           ) : null}

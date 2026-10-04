@@ -205,11 +205,11 @@
   font-size: 12px;
 }
 
-/* The requests sit above the reviews, divided by one hairline. */
+/* The requests sit beneath the reviews, divided by one hairline. */
 .op-list-group {
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--dl-line);
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--dl-line);
 }
 
 .op-row {

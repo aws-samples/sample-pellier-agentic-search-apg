@@ -1,6 +1,6 @@
 /**
  * The reviews: every proposed credit waiting on a person, and the decided ones,
- * with the clients' store credit requests listed above them.
+ * with the clients' store credit requests listed beneath them.
  *
  * The desk's rail when a review is open. Each row names the client, the
  * amount and one word for where the credit stands. The word carries the
@@ -125,6 +125,17 @@ export const ReviewList: React.FC = () => {
           {queue.pendingCount === 1 ? '1 waiting' : `${queue.pendingCount} waiting`}
         </span>
       </div>
+      {queue.total === 0 ? (
+        <p className="op-note" data-testid="operator-reviews-empty">
+          No credit to approve. A credit the Planner proposes appears here.
+        </p>
+      ) : (
+        <ul>
+          {queue.reviews.map(review => (
+            <ReviewRow key={review.reviewId} review={review} selected={String(review.reviewId) === reviewId} />
+          ))}
+        </ul>
+      )}
       {queue.requests.length > 0 ? (
         <div className="op-list-group" data-testid="operator-requests">
           <div className="op-list-head">
@@ -138,17 +149,6 @@ export const ReviewList: React.FC = () => {
           </ul>
         </div>
       ) : null}
-      {queue.total === 0 ? (
-        <p className="op-note" data-testid="operator-reviews-empty">
-          No credit to approve. A credit the Planner proposes appears here.
-        </p>
-      ) : (
-        <ul>
-          {queue.reviews.map(review => (
-            <ReviewRow key={review.reviewId} review={review} selected={String(review.reviewId) === reviewId} />
-          ))}
-        </ul>
-      )}
     </nav>
   )
 }

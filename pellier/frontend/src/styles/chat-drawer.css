@@ -278,7 +278,7 @@
 .cd-status-lines {
   display: grid;
   flex-shrink: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 14px;
   margin: 0;
   padding: 10px 16px 12px;
@@ -296,12 +296,10 @@
 }
 .cd-status-lines dd {
   margin: 0;
-  overflow: hidden;
   color: var(--dl-ink);
   font-size: 13px;
   line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .cd-status-lines [data-known='false'] dd {
   color: var(--dl-ink-2);
