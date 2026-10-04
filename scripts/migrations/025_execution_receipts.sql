@@ -84,7 +84,11 @@ CREATE TABLE IF NOT EXISTS pellier.execution_receipts (
     -- Which rail ran. Only the managed Gateway rail produces a Cedar verdict, so a
     -- NOT_EVALUATED beside 'in-process' is a different fact from a NOT_EVALUATED
     -- beside 'gateway-mcp' — the first is expected, the second is a read failure.
-    rail                TEXT NOT NULL CHECK (rail IN ('gateway-mcp', 'in-process')),
+    --
+    -- 'refused' is the governed format declining to write without the managed
+    -- rail: nothing ran, and this row is the proof that it declined.
+    rail                TEXT NOT NULL
+                        CHECK (rail IN ('gateway-mcp', 'in-process', 'refused')),
 
     -- Two principals, and they are not interchangeable. The actor is what AgentCore
     -- Policy authorizes; the customer subject is what Aurora Row-Level Security
@@ -96,12 +100,19 @@ CREATE TABLE IF NOT EXISTS pellier.execution_receipts (
     -- The three axes, each from its own artifact at execution time, using the
     -- vocabularies in services/governed_execution.py. Never merged into one status:
     -- an ALLOW beside a DENIED is the most instructive row this table can hold.
+    -- EVALUATION_INCOMPLETE is an engine whose answer could not be read (or a
+    -- refused execution no engine was asked about); OUTCOME_UNKNOWN is a
+    -- Gateway that withheld the tool response. Both are written by the
+    -- service, so both are admitted here: a receipt the CHECK refused would be
+    -- a governance outcome with no durable trace.
     policy_outcome      TEXT NOT NULL
                         CHECK (policy_outcome IN
-                            ('ALLOW', 'DENY', 'WOULD_DENY', 'NOT_EVALUATED')),
+                            ('ALLOW', 'DENY', 'WOULD_DENY', 'NOT_EVALUATED',
+                             'EVALUATION_INCOMPLETE')),
     aurora_outcome      TEXT NOT NULL
                         CHECK (aurora_outcome IN
-                            ('PERMITTED', 'DENIED', 'NOT_REACHED', 'NOT_ENFORCED')),
+                            ('PERMITTED', 'DENIED', 'NOT_REACHED', 'NOT_ENFORCED',
+                             'OUTCOME_UNKNOWN')),
     evidence_outcome    TEXT NOT NULL
                         CHECK (evidence_outcome IN
                             ('RECEIPTED', 'POLICY_PROOF', 'ATTEMPT_RECEIPT',

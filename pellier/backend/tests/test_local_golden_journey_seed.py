@@ -88,12 +88,13 @@ def test_handoff_is_bound_to_the_review_and_explicitly_local() -> None:
 def test_the_theo_review_is_seeded_once_across_its_whole_lifecycle() -> None:
     """Re-seeding must not stack a second copy once the first is decided.
 
-    `approvals_open_per_action_idx` is a PARTIAL unique index scoped to
-    `status = 'pending'` (migration 020), so the statement's ON CONFLICT stops a
-    duplicate only while the seeded review is still open. After a decision the
-    row leaves the index and the next seed run inserts another one. A box that
-    had been reseeded twice showed two identical decided Theo returns in the
-    Action Queue's history, which is why the guard cannot be the index alone.
+    `approvals_open_per_action_idx` is a PARTIAL unique index scoped to live
+    reviews, pending or approved (migration 020), so the statement's ON CONFLICT
+    stops a duplicate only while the seeded review is live. Once it is declined
+    the row leaves the index and the next seed run would insert another one. A
+    box that had been reseeded twice showed two identical decided Theo returns
+    in the Action Queue's history, which is why the guard cannot be the index
+    alone.
 
     The source turn is the row's identity: the block immediately after the
     insert reads it back by exactly this value and calls it the canonical
@@ -111,6 +112,8 @@ def test_the_theo_review_is_seeded_once_across_its_whole_lifecycle() -> None:
         f"a.source_turn_id = '{seed.SOURCE_TURN_ID}'" in statement
     )
     # The partial index still belongs there: it protects the running
-    # application from two open reviews for one action.
-    assert "ON CONFLICT" in statement
+    # application from two live reviews for one action, and the predicate must
+    # name the index's own so PostgreSQL infers it.
+    live = "WHERE status IN ('pending', 'approved')"
+    assert f"ON CONFLICT (customer_id, tool, action_hash) {live}" in statement
 

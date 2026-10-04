@@ -176,7 +176,10 @@ export interface OperatorReview {
   }
   /** Fingerprint of the parameters shown, echoed back on confirm. */
   actionHash: string
+  /** The decider's verified subject. */
   decidedBy: string | null
+  /** The decider's username, recorded with the decision so every reader sees it. */
+  decidedByName: string | null
   requestedBySub: string | null
   requesterKind: 'shopper' | 'operator' | 'unverified'
   requestedAt: string | null
@@ -203,6 +206,7 @@ export interface OperatorReviewDecision {
   status: string
   humanState: ReviewHumanState
   decidedBy: string | null
+  decidedByName: string | null
   decidedAt: string | null
   assurance: ActionAssurance
 }
@@ -217,7 +221,8 @@ export interface InvestigationProposal {
   orderIds: number[]
   actionHash: string
   idempotencyKey: string
-  status: 'pending'
+  /** `approved` when the investigation resolved to a review a person already approved. */
+  status: 'pending' | 'approved'
 }
 
 /** The `answer` and `complete` events of one investigation. */

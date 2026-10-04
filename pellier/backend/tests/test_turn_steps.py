@@ -177,6 +177,10 @@ def test_policy_browse_compare_and_handoff_findings() -> None:
     assert finding_for("ask_a_person", {"type": "escalation", "status": "handed_off"}) == (
         "Handed to a person at Pellier"
     )
+    approved = {"type": "escalation", "status": "handed_off", "credit_request": "already_approved"}
+    assert finding_for("ask_a_person", approved, {"store_credit_cents": 9200}) == (
+        "A person already approved this $92 credit"
+    )
 
 
 @pytest.mark.parametrize(
@@ -204,6 +208,8 @@ def test_layer_tags_follow_the_tool_and_the_outcome() -> None:
     assert layer_tags("get_tickets", {}) == ["Aurora", "Identity"]
     assert layer_tags("search_products", {}) == ["Aurora"]
     assert layer_tags("ask_a_person", {"credit_request": "review_opened"}) == ["Identity", "Approval"]
+    approved = {"credit_request": "already_approved"}
+    assert layer_tags("ask_a_person", approved) == ["Identity", "Approval"]
     assert layer_tags(SKILL_LOAD_TOOL, {}) == ["Skills"]
 
 

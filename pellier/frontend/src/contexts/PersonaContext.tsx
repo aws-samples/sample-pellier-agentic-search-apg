@@ -28,8 +28,6 @@ export interface PersonaSnapshot {
   avatar_color: string
   avatar_initial: string
   customer_id: string
-  /** Loyalty rung. Presentation only; policy reads Aurora, not this. */
-  membership: string
   hero_image: string
   hero_alt: string
   hero_subheadline: string
@@ -47,7 +45,6 @@ export interface PersonaListItem {
   blurb: string
   avatar_color: string
   avatar_initial: string
-  membership: string
   stats: {
     visits: number
     orders: number

@@ -51,10 +51,12 @@ class FakeDb:
         insert_id: Optional[int] = 7,
         rows: Optional[List[Dict[str, Any]]] = None,
         fail: bool = False,
+        violation: Optional[BaseException] = None,
     ) -> None:
         self.insert_id = insert_id
         self.rows = rows or []
         self.fail = fail
+        self.violation = violation
         self.statements: List[str] = []
         self.params: List[Any] = []
 
@@ -87,6 +89,8 @@ class _Cur:
         self.db.params.append(params)
         if self.db.fail:
             raise RuntimeError("insert refused")
+        if self.db.violation is not None:
+            raise self.db.violation
         # Mimic psycopg's arity check. The first version of `record_receipt` called
         # `db.fetch_one(sql, params)`, which forwards `*params` as a one-tuple, and the
         # driver raised "the query has 15 placeholders but 1 parameters were passed" —
@@ -224,6 +228,27 @@ async def test_a_receipt_failure_never_fails_the_execution() -> None:
     """
     db = FakeDb(fail=True)
     assert await GE.record_receipt(db, _outcome(), review_id=36) is None
+
+
+@pytest.mark.asyncio
+async def test_a_receipt_the_table_refuses_is_a_defect_that_raises(caplog) -> None:
+    """A CHECK that disagrees with the service must not lose receipts quietly.
+
+    An outage is logged and swallowed (above). A constraint violation means the
+    vocabulary written here and the table disagree, which once dropped every
+    refused-rail receipt with only a warning. It raises, and says why.
+    """
+    import psycopg
+
+    violation = psycopg.errors.CheckViolation(
+        'new row for relation "execution_receipts" violates check constraint'
+    )
+    db = FakeDb(violation=violation)
+    with pytest.raises(GE.ExecutionError) as raised:
+        await GE.record_receipt(db, _outcome(rail=GE.RAIL_REFUSED), review_id=36)
+    assert raised.value.code == "execution_receipt_rejected"
+    assert raised.value.status_code == 500
+    assert any("REJECTED by a constraint" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio
@@ -462,19 +487,50 @@ def test_the_vocabularies_match_the_service() -> None:
         assert f"'{value}'" in sql, value
 
 
-def test_the_check_constraint_lags_two_values_the_service_can_write() -> None:
-    """A named seam for cut 4, not a passing contract.
+def _check_values(sql: str, constraint_start: str) -> set[str]:
+    """The quoted values of the first CHECK list after ``constraint_start``."""
+    body = sql[sql.index(constraint_start):]
+    opened = body.index("(", body.index(" IN", body.index("CHECK")))
+    values = body[opened + 1 : body.index(")", opened)]
+    return {part.strip().strip("'") for part in values.split(",")}
 
-    Migration 025's CHECK admits neither ``EVALUATION_INCOMPLETE`` on the policy
-    axis nor ``OUTCOME_UNKNOWN`` on the Aurora axis, and the service writes both:
-    the refused-rail receipt carries the first, an output-suppressed Gateway
-    response the second. ``record_receipt`` swallows the violation with a
-    warning, so those two receipts are never stored. Cut 4 rewrites the table;
-    when its CHECK admits both, this test fails and is deleted with the gap.
-    """
+
+# Every value the service writes, per column. A value missing from a CHECK is a
+# receipt the table refuses: refused-rail receipts carry RAIL_REFUSED and
+# EVALUATION_INCOMPLETE, an output-suppressed Gateway response OUTCOME_UNKNOWN.
+_WRITTEN = {
+    "rail": {GE.RAIL_GATEWAY, GE.RAIL_IN_PROCESS, GE.RAIL_REFUSED},
+    "policy_outcome": {GE.POLICY_ALLOW, GE.POLICY_DENY, GE.POLICY_NOT_EVALUATED,
+                       GE.POLICY_EVALUATION_INCOMPLETE},
+    "aurora_outcome": {GE.AURORA_PERMITTED, GE.AURORA_DENIED, GE.AURORA_NOT_REACHED,
+                       GE.AURORA_OUTCOME_UNKNOWN},
+    "evidence_outcome": {GE.EVIDENCE_RECEIPTED, GE.EVIDENCE_POLICY_PROOF,
+                         GE.EVIDENCE_ATTEMPT_RECEIPT, GE.EVIDENCE_NO_EXECUTION,
+                         GE.EVIDENCE_PENDING},
+}
+
+
+@pytest.mark.parametrize("column", sorted(_WRITTEN))
+def test_migration_025_admits_every_value_the_service_writes(column: str) -> None:
+    """The table this migration creates accepts every receipt the service writes."""
     sql = _migration_sql()
-    assert f"'{GE.POLICY_EVALUATION_INCOMPLETE}'" not in sql
-    assert f"'{GE.AURORA_OUTCOME_UNKNOWN}'" not in sql
+    declared = _check_values(sql, f"CHECK ({column} IN")
+    assert _WRITTEN[column] <= declared, _WRITTEN[column] - declared
+
+
+def test_the_later_migrations_that_redefine_the_checks_admit_them_too() -> None:
+    """048 and 052 drop and re-add three of these CHECKs; the last definition wins."""
+    migrations = MIGRATION.parent
+    later = {
+        "rail": "048_policy_decisions.sql",
+        "policy_outcome": "048_policy_decisions.sql",
+        "aurora_outcome": "052_replacement_recovery.sql",
+    }
+    for column, name in later.items():
+        text = (migrations / name).read_text()
+        sql = "\n".join(line.split("--", 1)[0] for line in text.splitlines())
+        declared = _check_values(sql, f"ADD CONSTRAINT execution_receipts_{column}_check")
+        assert _WRITTEN[column] <= declared, (name, _WRITTEN[column] - declared)
 
 
 def test_the_execution_turn_is_not_unique() -> None:

@@ -57,7 +57,7 @@ class _DataApi:
         self.result = result
         self.fail_audit = fail_audit
         self.fail_protected = fail_protected
-        self.approved: list[str] = [APPROVED_HASH]
+        self.approved: list[tuple[int, str]] = [(APPROVED_REVIEW_ID, APPROVED_HASH)]
         self.statements: list[dict[str, Any]] = []
         self.commits: list[dict[str, Any]] = []
         self.rollbacks: list[dict[str, Any]] = []
@@ -82,8 +82,11 @@ class _DataApi:
             # The confirmed review that fingerprints the credit under test. The
             # tool refuses without it, so every write path here supplies one.
             return {
-                "columnMetadata": [{"name": "action_hash"}],
-                "records": [[{"stringValue": hash_} ] for hash_ in self.approved],
+                "columnMetadata": [{"name": "id"}, {"name": "action_hash"}],
+                "records": [
+                    [{"longValue": review_id}, {"stringValue": hash_}]
+                    for review_id, hash_ in self.approved
+                ],
             }
         return {
             "columnMetadata": [{"name": "result"}],
@@ -98,13 +101,16 @@ class _DataApi:
 
 
 # The fingerprint of the credit `_credit_event` carries, as a confirmed review
-# stores it: the tool compares its own hash with the approved rows before it
+# stores it, and the one key that review admits: the tool compares its own hash
+# with the approved rows, and its key with the approved review's, before it
 # writes.
-from services.store_tools import write_request_hash  # noqa: E402
+from services.store_tools import execution_idempotency_key, write_request_hash  # noqa: E402
 
+APPROVED_REVIEW_ID = 41
 APPROVED_HASH = write_request_hash(
     "give_store_credit", customer_id="CUST-THEO", amount_cents=2500, reason="damaged",
 )
+APPROVED_KEY = execution_idempotency_key(APPROVED_REVIEW_ID, APPROVED_HASH)
 
 
 def _credit_event(**overrides: Any) -> dict[str, Any]:
@@ -112,7 +118,7 @@ def _credit_event(**overrides: Any) -> dict[str, Any]:
         "customer_id": "CUST-THEO",
         "amount_cents": 2500,
         "reason": "damaged",
-        "idempotency_key": "credit-1",
+        "idempotency_key": APPROVED_KEY,
         "turn_id": "turn-" + ("a" * 32),
     }
     arguments.update(overrides)
@@ -171,7 +177,7 @@ def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supp
 
     credit = next(c for c in client.statements if "apply_store_credit" in c["sql"])
     values = {p["name"]: p["value"] for p in credit["parameters"]}
-    assert values["p0"] == {"stringValue": "credit-1"}
+    assert values["p0"] == {"stringValue": APPROVED_KEY}
     assert values["p2"] == {"stringValue": "CUST-THEO"}
     assert values["p3"] == {"longValue": 2500}
     assert values["p5"] == {"isNull": True}, "an attribution the caller supplied is worse than none"
@@ -348,12 +354,37 @@ def test_an_approval_for_a_different_amount_does_not_admit_the_write(
 ) -> None:
     module = _load_server("pellier_store_tools.py", "store_credit_mismatch")
     client = _DataApi({"status": "success", "credit_id": 7})
-    client.approved = [write_request_hash(
+    client.approved = [(APPROVED_REVIEW_ID, write_request_hash(
         "give_store_credit", customer_id="CUST-THEO", amount_cents=2400, reason="damaged",
-    )]
+    ))]
     monkeypatch.setattr(_dataapi(), "rds_client", client)
 
     result = module.lambda_handler(_credit_event(), None)
 
     assert '"status": "approval_mismatch"' in result["text"]
     assert not any("apply_store_credit" in c["sql"] for c in client.statements)
+
+
+def test_the_approved_credit_under_a_fresh_key_is_refused_with_no_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A staff token replaying the approved terms under its own key gets no credit.
+
+    Every material argument matches the approved review, which is visible on
+    the record; only the key is new. The guard refuses before
+    ``apply_store_credit``, so one approval stays one credit on this rail, and
+    the refused attempt is still on the ledger.
+    """
+    module = _load_server("pellier_store_tools.py", "store_credit_fresh_key")
+    client = _IdempotentDataApi()
+    monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+    first = module.lambda_handler(_credit_event(), None)
+    fresh = module.lambda_handler(_credit_event(idempotency_key="credit-minted-by-caller"), None)
+    retry = module.lambda_handler(_credit_event(), None)
+
+    assert '"idempotent_replay": false' in first["text"]
+    assert '"status": "approval_key_mismatch"' in fresh["text"]
+    assert '"idempotent_replay": true' in retry["text"]
+    assert list(client.credits) == [APPROVED_KEY], "only the approval's own key was credited"
+    assert len(_audit_statements(client)) == 2, "the first write and the refused attempt"

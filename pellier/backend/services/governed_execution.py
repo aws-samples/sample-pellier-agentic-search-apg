@@ -22,7 +22,8 @@ Three independent controls
 --------------------------
 
     Cedar        may this principal attempt this action?
-    Approval     does a confirmed review fingerprint these exact arguments?
+    Approval     does a confirmed review fingerprint these exact arguments,
+                 and is this write under that review's own key?
     CHECK        is this mutation valid regardless of who asked?
 
 Each can fail while the others pass. The assurance axes this module returns are
@@ -56,6 +57,12 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
+
+# The write key is derived in ``store_tools`` because the approval guard there
+# recomputes it: the tool admits a write only under the key of the review that
+# fingerprints it, on both rails. This module derives the same key for the
+# Operator's execute path.
+from services.store_tools import APPROVAL_GUARD, execution_idempotency_key
 
 logger = logging.getLogger(__name__)
 
@@ -262,21 +269,6 @@ def verify_confirmation(review: Mapping[str, Any]) -> Dict[str, Any]:
     return dict(args)
 
 
-def execution_idempotency_key(review_id: int, action_hash: str) -> str:
-    """The write key for one confirmed action, derived deterministically.
-
-    Derived rather than generated so every retry of the same confirmed review
-    claims the same key and collapses through the ``apply_store_credit``
-    claim / replay / conflict machinery. A fresh ``uuid4`` per request would
-    make "Retry" a second business mutation.
-
-    The fingerprint is included so that a review whose parameters somehow changed
-    could never silently reuse the previous key. Truncated to keep the value
-    inside the 128-character column while staying collision-free in practice.
-    """
-    return f"operator-review:{int(review_id)}:{str(action_hash)[:32]}"
-
-
 # ---------------------------------------------------------------------------
 # execution_turn_id: assigned once, reused on retry
 # ---------------------------------------------------------------------------
@@ -359,9 +351,16 @@ async def record_receipt(
     the HTTP response the operator happened to be looking at. Append-only, one
     row per attempt.
 
-    Never raises. The receipt is evidence ABOUT an execution that has already
-    happened, so a failure to record it must not turn a successful governed write
-    into an error the operator sees.
+    An infrastructure failure is logged and swallowed: the receipt is evidence
+    ABOUT an execution that has already happened, and a lost connection must not
+    turn a successful governed write into an error the operator sees. A
+    constraint violation is different. It means the vocabulary this module
+    writes and the table's CHECK disagree, which is a defect, and swallowing it
+    once hid two receipt shapes that were never stored. It raises.
+
+    Raises:
+        ExecutionError: ``execution_receipt_rejected`` when the database refused
+            the receipt on a constraint (SQLSTATE class 23).
     """
     from services.managed_policy import policy_engine_id
 
@@ -392,7 +391,15 @@ async def record_receipt(
             async with conn.cursor() as cur:
                 await cur.execute(_RECORD_RECEIPT, params)
                 row = await cur.fetchone()
-    except Exception as exc:  # noqa: BLE001 - evidence must not break the write
+    except Exception as exc:  # noqa: BLE001 - classified: a defect raises, an outage is logged
+        if _is_constraint_violation(exc):
+            logger.error(
+                "execution receipt REJECTED by a constraint for review %s turn %s "
+                "(policy=%s aurora=%s evidence=%s rail=%s): %s",
+                review_id, outcome.execution_turn_id, outcome.policy, outcome.aurora,
+                outcome.evidence, outcome.rail, exc,
+            )
+            raise ExecutionError("execution_receipt_rejected", 500) from exc
         logger.warning(
             "execution receipt not recorded for review %s turn %s: %s",
             review_id, outcome.execution_turn_id, exc,
@@ -402,6 +409,14 @@ async def record_receipt(
         return None
     value = row["receipt_id"] if isinstance(row, Mapping) else row[0]
     return int(value) if value is not None else None
+
+
+def _is_constraint_violation(exc: BaseException) -> bool:
+    """SQLSTATE class 23: the statement ran and a CHECK, unique or FK refused it."""
+    import psycopg
+
+    sqlstate = str(getattr(exc, "sqlstate", "") or "")
+    return sqlstate.startswith("23") or isinstance(exc, psycopg.IntegrityError)
 
 
 _RECEIPT_COLUMNS = """
@@ -716,8 +731,6 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     The tool's own approval guard is NOT_REACHED: it refuses before any
     statement touches ``store_credits``, so the database decided nothing.
     """
-    from services.store_tools import APPROVAL_GUARD
-
     status = str(result.get("status") or "")
     denied_by = str(result.get("denied_by") or "")
 
@@ -729,7 +742,8 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     if denied_by == APPROVAL_GUARD:
         return AURORA_NOT_REACHED, (
             "The tool refused before any statement reached the database: no "
-            "confirmed review fingerprints these exact arguments. Nothing changed."
+            "confirmed review fingerprints these exact arguments under this write "
+            "key. Nothing changed."
         )
     if denied_by == "database_row_level_security":
         return AURORA_DENIED, (
@@ -775,6 +789,12 @@ def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -
         # idempotency claim. The policy decision itself is the artifact, durable
         # in `pellier.execution_receipts`.
         return EVIDENCE_POLICY_PROOF
+    if str(result.get("denied_by") or "") == APPROVAL_GUARD:
+        # The tool WAS entered and refused, and both rails leave one attempt row
+        # on the ledger for that (the Lambda's independent receipt, the
+        # in-process writer's row). The artifact is the attempt, not an absence,
+        # so the axis reads the same whichever rail refused.
+        return EVIDENCE_ATTEMPT_RECEIPT
     if aurora == AURORA_DENIED:
         return EVIDENCE_ATTEMPT_RECEIPT
     if aurora == AURORA_OUTCOME_UNKNOWN:
@@ -1041,13 +1061,16 @@ async def execute_confirmed_review(
       8. read the durable record for the key, and store the verdicts.
 
     Nothing in that sequence reads an action parameter from a caller. Step 8 is
-    best-effort ABOUT an execution that already happened: raising there would
-    report a completed write as a failure and invite a retry.
+    best-effort ABOUT an execution that already happened when the database is
+    unreachable; a receipt the database refuses on a constraint is a defect
+    and raises (see :func:`record_receipt`). A retry is then a replay.
 
     Raises:
         GovernedRailUnavailable: The governed format requires the managed rail and
             an element of it is missing. Nothing was executed, and a refused
             receipt records that.
+        ExecutionError: ``execution_receipt_rejected`` when the receipt table
+            refused the verdicts this module wrote.
     """
     args = verify_confirmation(review)
     tool = str(review["action"])
@@ -1118,7 +1141,9 @@ async def _record(
     A Cedar DENY writes no tool_audit row, claims no idempotency key and touches
     no domain table, so without the receipt the only proof of a refusal is the
     response body. It is written after classification, so the stored receipt and
-    the returned payload carry the same axes. Never raises.
+    the returned payload carry the same axes. An unreachable receipt table is
+    reported in the outcome; a receipt the table refuses raises from
+    :func:`record_receipt`.
     """
     receipt_id = await record_receipt(
         db, outcome, review_id=review_id, engine_state=engine_state

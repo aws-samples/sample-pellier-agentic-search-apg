@@ -13,7 +13,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#5a3528',
     avatar_initial: 'M',
-    membership: 'maison',
     stats: { visits: 11, orders: 7, last_seen_days: 21 },
   },
   {
@@ -23,7 +22,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#6b3d2a',
     avatar_initial: 'A',
-    membership: 'circle',
     stats: { visits: 6, orders: 5, last_seen_days: 9 },
   },
   {
@@ -33,7 +31,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#5a4535',
     avatar_initial: 'T',
-    membership: 'registered',
     stats: { visits: 8, orders: 4, last_seen_days: 14 },
   },
 ]

@@ -290,6 +290,8 @@ def _handoff_finding(parsed: Dict[str, Any], tool_input: Dict[str, Any]) -> str:
     amount = _money(tool_input.get("store_credit_cents"), cents=True)
     if credit == "review_opened":
         return f"A {amount} credit request is waiting for a person"
+    if credit == "already_approved":
+        return f"A person already approved this {amount} credit"
     if credit == "sign_in_required":
         return "Sign in before a credit can be requested"
     if credit == "over_ceiling":
@@ -370,7 +372,8 @@ def skill_load_refused(result_text: Any) -> Optional[str]:
 def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
     """The layers that applied to this step, for the Builder view."""
     tags = list(LAYER_TAGS.get(tool, ()))
-    if tool == "ask_a_person" and parsed.get("credit_request") == "review_opened":
+    credit = parsed.get("credit_request")
+    if tool == "ask_a_person" and credit in ("review_opened", "already_approved"):
         tags.append("Approval")
     return tags
 

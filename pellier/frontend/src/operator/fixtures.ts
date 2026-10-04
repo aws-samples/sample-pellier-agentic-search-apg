@@ -70,19 +70,20 @@ export const RECORD: OperatorClientRecord = {
 export const PENDING_REVIEW: OperatorReview = {
   reviewId: 41, customerId: 'CUST-JESSICA', customerName: 'Jessica Nakamura', slug: 'jessica', personaId: 'jessica',
   action: 'give_store_credit',
-  parameters: { customer_id: 'CUST-JESSICA', amount_cents: 10000, reason: 'Two items went back, no credit recorded.' },
-  amountCents: 10000, amount: '100.00', reason: 'Two items went back, no credit recorded.',
+  parameters: { customer_id: 'CUST-JESSICA', amount_cents: 10000, reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).' },
+  amountCents: 10000, amount: '100.00', reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).',
   status: 'pending', humanState: 'confirmation_required',
   assurance: { human: 'CONFIRMATION_REQUIRED', policy: 'PENDING', aurora: 'NOT_EVALUATED', evidence: 'PENDING' },
   sourceTurnId: 'turn-investigation-1', executionTurnId: null, execution: null,
   orderId: 301, orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
   recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', orderIds: [301, 302], items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
-  actionHash: ACTION_HASH, decidedBy: null, requestedBySub: 'sub-nadia', requesterKind: 'operator',
+  actionHash: ACTION_HASH, decidedBy: null, decidedByName: null, requestedBySub: 'sub-nadia', requesterKind: 'operator',
   requestedAt: '2026-10-04T15:00:00Z', decidedAt: null,
 }
 
 export const APPROVED_REVIEW: OperatorReview = {
-  ...PENDING_REVIEW, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedAt: '2026-10-04T15:02:00Z',
+  ...PENDING_REVIEW, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedByName: 'nadia',
+  decidedAt: '2026-10-04T15:02:00Z',
   assurance: { human: 'CONFIRMED', policy: 'PENDING', aurora: 'NOT_EVALUATED', evidence: 'PENDING' },
 }
 
@@ -152,7 +153,7 @@ export const ANSWER: InvestigationAnswer = {
   planner: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
   proposal: {
     reviewId: 41, customerId: 'CUST-JESSICA', amountCents: 10000, amount: '100.00',
-    reason: 'Two items went back, no credit recorded.', orderIds: [301, 302],
+    reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).', orderIds: [301, 302],
     actionHash: ACTION_HASH, idempotencyKey: WRITE_KEY, status: 'pending',
   },
   graph: {

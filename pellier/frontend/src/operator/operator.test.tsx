@@ -65,8 +65,8 @@ beforeEach(() => {
   api.fetchClientRecord.mockResolvedValue(RECORD)
   api.fetchReviewQueue.mockResolvedValue({ reviews: [PENDING_REVIEW], total: 1, pendingCount: 1 })
   api.fetchReview.mockResolvedValue(detail(PENDING_REVIEW))
-  api.confirmReview.mockResolvedValue({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedAt: null, assurance: APPROVED_REVIEW.assurance })
-  api.declineReview.mockResolvedValue({ reviewId: 41, status: 'rejected', humanState: 'declined', decidedBy: 'sub-nadia', decidedAt: null, assurance: { human: 'DECLINED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' } })
+  api.confirmReview.mockResolvedValue({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: null, assurance: APPROVED_REVIEW.assurance })
+  api.declineReview.mockResolvedValue({ reviewId: 41, status: 'rejected', humanState: 'declined', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: null, assurance: { human: 'DECLINED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' } })
   api.executeReview.mockResolvedValue({
     reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
     actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', assurance: EXECUTED_REVIEW.assurance,
@@ -152,6 +152,22 @@ describe("Jessica's record", () => {
     expect(within(card).queryByTestId('operator-review-execute')).not.toBeInTheDocument()
   })
 
+  it('says a case a person already approved resolves to that review', async () => {
+    const approvedAnswer: InvestigationAnswer = { ...ANSWER, proposal: { ...ANSWER.proposal!, status: 'approved' } }
+    api.streamInvestigation.mockImplementationOnce(async (_id: string, onStep: (s: TurnStep) => void, onAnswer: (a: InvestigationAnswer) => void) => {
+      for (const step of STEPS) onStep(step)
+      onAnswer(approvedAnswer)
+      return approvedAnswer
+    })
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    expect(await screen.findByTestId('turn-status')).toHaveTextContent('Already approved')
+    const card = await screen.findByTestId('operator-proposed-credit')
+    expect(within(card).queryByTestId('operator-review-confirm')).not.toBeInTheDocument()
+    expect(await within(card).findByText('Recorded once')).toBeInTheDocument()
+  })
+
   it('reports a failed investigation and proposes nothing', async () => {
     api.streamInvestigation.mockImplementationOnce(async (_id: string, onStep: (s: TurnStep) => void) => {
       onStep(STEPS[0])
@@ -189,6 +205,20 @@ describe('the review record', () => {
     const checks = screen.getByTestId('operator-credit-checks')
     expect(within(checks).getByText('Not evaluated yet')).toBeInTheDocument()
     expect(within(checks).getByText('Nothing written')).toBeInTheDocument()
+  })
+
+  it('names the recorded approver for every staff reader, with her portrait', async () => {
+    const reader = auth.user
+    auth.user = { sub: 'sub-other-staff', email: 'other@pellier.example.com', username: 'other' }
+    try {
+      api.fetchReview.mockResolvedValue(detail(APPROVED_REVIEW))
+      renderAt('/operator/reviews/41', <ReviewRecord />)
+      expect(await screen.findByText('Approved by Nadia')).toBeInTheDocument()
+      const approval = screen.getByTestId('operator-credit-checks').querySelector('[data-check="approval"]')
+      expect(approval?.querySelector('img')).not.toBeNull()
+    } finally {
+      auth.user = reader
+    }
   })
 
   it('declines without a fingerprint and submits nothing', async () => {

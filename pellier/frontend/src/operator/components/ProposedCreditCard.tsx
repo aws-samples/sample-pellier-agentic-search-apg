@@ -15,7 +15,6 @@
  */
 import { CheckCircle2, CircleX, LoaderCircle } from 'lucide-react'
 import React from 'react'
-import { useAuth } from '../../contexts/AuthContext'
 import { StatusTag, type TagTone } from '../../components/turn'
 import type { ExecutionRecord, OperatorReview } from '../../services/operator'
 import type { ReviewController } from '../hooks/useReview'
@@ -38,6 +37,9 @@ export function describeDecisionError(code: string, missing: readonly string[] =
   const base = DECISION_ERROR_COPY[code] ?? `The outcome could not be verified (${code}). The record was re-read.`
   return missing.length ? `${base} Missing: ${missing.join(', ')}.` : base
 }
+
+/** The staff member whose portrait the desk has. */
+const STAFF_PORTRAIT = 'nadia'
 
 /** Present a bare Cognito username with a capital: `nadia` -> `Nadia`. */
 export function presentIdentity(value: string | undefined | null): string {
@@ -140,7 +142,6 @@ interface Props {
 }
 
 const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = false }) => {
-  const { user } = useAuth()
   const { detail, busy, execution, decisionError, decisionErrorMissing, approve, decline, execute } = controller
   if (!detail) return null
   const { review, record: storedRecord } = detail
@@ -148,9 +149,8 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
   const attempted = Boolean(execution || review.execution)
   const axes = execution ? execution.assurance : review.assurance
   const policy = execution ? axes.policy : review.assurance.policy
-  const decider = review.decidedBy && user?.sub === review.decidedBy
-    ? presentIdentity(user?.username || user?.givenName)
-    : 'staff'
+  // The decider the review recorded, the same for every staff member reading it.
+  const decider = presentIdentity(review.decidedByName)
   const checks: Check[] = [
     approvalCheck(review, decider),
     policyCheck({ ...review, assurance: axes }, attempted),
@@ -160,7 +160,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
   const approved = review.humanState === 'confirmed'
   const executed = Boolean(record && record.readable && record.creditRows === 1)
   const named = items ?? review.recommendation.items ?? []
-  const deciderPortrait = review.decidedBy && user?.sub === review.decidedBy ? (user?.username || '').toLowerCase() : null
+  const deciderPortrait = (review.decidedByName || '').toLowerCase() === STAFF_PORTRAIT ? STAFF_PORTRAIT : null
 
   return (
     <section className="op-credit" data-state={review.humanState} data-testid="operator-proposed-credit">

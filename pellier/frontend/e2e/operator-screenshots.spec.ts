@@ -57,7 +57,7 @@ async function stubDesk(page: Page, desk: Desk, options: { streamDelayMs?: numbe
     }
     if (path.endsWith('/api/operator/reviews/41/confirm')) {
       desk.review = APPROVED_REVIEW
-      return route.fulfill(json({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedAt: '2026-10-04T15:02:00Z', assurance: APPROVED_REVIEW.assurance }))
+      return route.fulfill(json({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: '2026-10-04T15:02:00Z', assurance: APPROVED_REVIEW.assurance }))
     }
     if (path.endsWith('/api/operator/reviews/41/execute')) {
       desk.review = EXECUTED_REVIEW

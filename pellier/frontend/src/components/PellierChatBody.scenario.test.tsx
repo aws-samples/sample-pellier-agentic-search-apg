@@ -19,7 +19,6 @@ const MARCO: PersonaSnapshot = {
   avatar_color: '#5a3528',
   avatar_initial: 'M',
   customer_id: 'CUST-MARCO',
-  membership: 'maison',
   hero_image: '/assets/personas/marco-720.webp',
   hero_alt: 'Marco',
   hero_subheadline: 'Resort edit',

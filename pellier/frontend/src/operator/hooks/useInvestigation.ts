@@ -30,10 +30,12 @@ export function investigationStatus(state: InvestigationState): TurnStatus | nul
   if (state.phase === 'idle') return null
   if (state.phase === 'failed') return { label: 'The investigation did not complete', state: 'failed' }
   if (state.phase === 'done') {
-    return {
-      label: state.answer?.proposal ? 'Waiting for approval' : 'Investigation complete',
-      state: 'done',
-    }
+    const proposal = state.answer?.proposal
+    // A case a person already approved resolves to that review, not a new one.
+    const label = !proposal
+      ? 'Investigation complete'
+      : proposal.status === 'approved' ? 'Already approved' : 'Waiting for approval'
+    return { label, state: 'done' }
   }
   const running = [...state.steps].reverse().find(step => step.status === 'running')
   return { label: running?.label ?? 'Investigator reads the case', state: 'working' }

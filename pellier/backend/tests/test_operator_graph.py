@@ -4,7 +4,9 @@ The graph is built with the real ``GraphBuilder`` API but a fake builder and
 fake agents stand in for Strands and Bedrock, so no model is called. The tools
 are the real closures over a recording ``run`` stand-in, so the amount the
 Planner proposes is computed from real order rows and the review it opens is
-the real INSERT.
+the real INSERT. The stand-in honours the two things the database decides
+here: which orders have a received return, and that one live review (pending
+or approved) exists per exact credit.
 """
 from __future__ import annotations
 
@@ -20,28 +22,44 @@ from services.store_tools import write_request_hash
 
 JESSICA_ORDERS = [
     {"order_id": 301, "product_id": "42", "name": "Waffle Bath Robe, Sage", "brand": "NestWell",
-     "category": "Home", "quantity": 1, "amount_paid_cents": 6400, "placed_at": None},
+     "category": "Home", "quantity": 1, "amount_paid_cents": 6400, "placed_at": None,
+     "return_status": "approved"},
     {"order_id": 302, "product_id": "25", "name": "Reed Diffuser", "brand": "Pellier",
-     "category": "Home", "quantity": 1, "amount_paid_cents": 3600, "placed_at": None},
+     "category": "Home", "quantity": 1, "amount_paid_cents": 3600, "placed_at": None,
+     "return_status": "approved"},
     {"order_id": 303, "product_id": "31", "name": "Stoneware Pour-Over Set", "brand": "Pellier",
-     "category": "Home", "quantity": 1, "amount_paid_cents": 5800, "placed_at": None},
+     "category": "Home", "quantity": 1, "amount_paid_cents": 5800, "placed_at": None,
+     "return_status": None},
 ]
+
+JESSICA_REASON = (
+    "Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); "
+    "Reed Diffuser (order 302)."
+)
 
 
 class _Run:
-    """Jessica's records, and every statement the graph issued."""
+    """Jessica's records, the live reviews, and every statement the graph issued."""
 
-    def __init__(self) -> None:
+    def __init__(self, orders: List[Dict[str, Any]] | None = None) -> None:
+        self.orders = [dict(o) for o in (orders if orders is not None else JESSICA_ORDERS)]
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
         self.reviews: List[Dict[str, Any]] = []
+        # (customer, action_hash) -> {"id", "status"}: the partial unique index.
+        self.live: Dict[tuple[str, str], Dict[str, Any]] = {}
+
+    def approve(self, review_id: int) -> None:
+        for review in self.live.values():
+            if review["id"] == review_id:
+                review["status"] = "approved"
 
     def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         self.calls.append((sql, tuple(params)))
-        if "FROM pellier.orders o" in sql and "o.id = ANY" in sql:
-            wanted = set(int(v) for v in params[1])
-            return [dict(o) for o in JESSICA_ORDERS if o["order_id"] in wanted]
+        if "FROM pellier.orders o" in sql and "r.status = ANY(%s)" in sql:
+            received = set(params[1])
+            return [dict(o) for o in self.orders if o["return_status"] in received]
         if "FROM pellier.orders o" in sql:
-            return [dict(o) for o in JESSICA_ORDERS]
+            return [dict(o) for o in self.orders]
         if "FROM pellier.support_tickets" in sql:
             return [{"ticket_id": "TKT-2026-3015", "subject": "Two items went back, no credit yet",
                      "status": "open", "channel": "chat", "last_note": "Both were received.",
@@ -52,8 +70,16 @@ class _Run:
         if "FROM pellier.store_credits" in sql:
             return []
         if "INSERT INTO pellier.approvals" in sql:
+            assert "WHERE status IN ('pending', 'approved')" in sql
+            key = (params[0], params[6])
+            if key in self.live:
+                return []
+            self.live[key] = {"id": 41 + len(self.live), "status": "pending"}
             self.reviews.append({"params": params})
-            return [{"id": 41}]
+            return [dict(self.live[key])]
+        if "FROM pellier.approvals" in sql:
+            review = self.live.get((params[0], params[1]))
+            return [dict(review)] if review else []
         return []
 
 
@@ -229,7 +255,9 @@ def test_the_investigator_reads_are_bound_to_the_case_customer(graph_runtime) ->
             assert params[0] == "CUST-JESSICA", (sql, params)
 
 
-def test_the_planner_proposes_the_paid_total_of_the_named_orders(graph_runtime) -> None:
+def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_records(
+    graph_runtime,
+) -> None:
     run = _Run()
     result = _investigate(run, [])
 
@@ -238,20 +266,107 @@ def test_the_planner_proposes_the_paid_total_of_the_named_orders(graph_runtime) 
     assert result.proposal.amount_cents == 10000
     assert result.proposal.order_ids == [301, 302]
     assert result.proposal.review_id == 41
-    assert result.proposal.idempotency_key.startswith("operator-review:41:")
+    assert result.proposal.reason == JESSICA_REASON
+    key = f"operator-review:41:{result.proposal.action_hash[:32]}"
+    assert result.proposal.idempotency_key == key
     assert result.proposal.action_hash == write_request_hash(
-        "give_store_credit", customer_id="CUST-JESSICA", amount_cents=10000,
-        reason="Two items went back, no credit recorded.",
+        "give_store_credit", customer_id="CUST-JESSICA", amount_cents=10000, reason=JESSICA_REASON,
     )
     insert = run.reviews[0]["params"]
     assert insert[0] == "CUST-JESSICA"
     assert json.loads(insert[1]) == {"amount_cents": 10000, "customer_id": "CUST-JESSICA",
-                                     "reason": "Two items went back, no credit recorded."}
+                                     "reason": JESSICA_REASON}
     assert insert[2] == "turn-" + "a" * 32          # the investigation is the source turn
     assert insert[3] == 301                          # the order it refers to
+    planner_sentence = "Two items went back, no credit recorded."
+    assert insert[4] == planner_sentence             # the Planner's words are the rationale
     recommendation = json.loads(insert[5])
     assert recommendation["orderIds"] == [301, 302]
+    assert recommendation["rationale"] == planner_sentence
     assert insert[7] == "sub-nadia" and insert[8] == "operator"
+
+
+@pytest.mark.parametrize(
+    "named",
+    [[301], [302], [301, 302, 303], [302, 303, 9999], ["301", 302], [301, 301]],
+    ids=["subset", "other-subset", "extra-unreturned", "extra-foreign", "strings", "repeated"],
+)
+def test_the_amount_is_10000_whatever_orders_the_planner_names(graph_runtime, named) -> None:
+    """The records decide the credit; the model only has to point at one returned order."""
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": named, "reason": "Items went back."}),
+    ]
+    run = _Run()
+    result = _investigate(run, [])
+    assert result.proposal is not None, named
+    assert result.proposal.amount_cents == 10000 and result.proposal.order_ids == [301, 302]
+    assert result.proposal.reason == JESSICA_REASON
+
+
+@pytest.mark.parametrize("named", [[303], [9999], [303, 9999], []])
+def test_naming_no_returned_order_proposes_nothing(graph_runtime, named) -> None:
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": named, "reason": "Credit these."}),
+    ]
+    run = _Run()
+    result = _investigate(run, [])
+    assert run.reviews == [] and result.proposal is None, named
+
+
+@pytest.mark.parametrize("status", ["pending", "rejected", None])
+def test_a_return_request_is_not_evidence_of_receipt(graph_runtime, status) -> None:
+    """Only an approved or refunded return counts; a request alone credits nothing."""
+    orders = [dict(o) for o in JESSICA_ORDERS]
+    orders[2]["return_status"] = status
+    run = _Run(orders)
+    result = _investigate(run, [])
+    assert result.proposal is not None and result.proposal.amount_cents == 10000
+    assert result.proposal.order_ids == [301, 302]
+
+
+def test_no_received_return_means_no_proposal(graph_runtime) -> None:
+    orders = [{**o, "return_status": None} for o in JESSICA_ORDERS]
+    run = _Run(orders)
+    result = _investigate(run, [])
+    assert run.reviews == [] and result.proposal is None
+
+
+def test_two_investigations_in_different_words_resolve_to_one_review(graph_runtime) -> None:
+    """The fingerprint is the case's, not the model's, so a rerun cannot open a twin."""
+    run = _Run()
+    first = _investigate(run, [])
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit",
+         {"order_ids": [302, 303], "reason": "The robe and diffuser came back."}),
+    ]
+    second = _investigate(run, [])
+    assert first.proposal is not None and second.proposal is not None
+    assert len(run.reviews) == 1, "a second investigation opened a second review"
+    assert second.proposal.review_id == first.proposal.review_id
+    assert second.proposal.action_hash == first.proposal.action_hash
+    assert second.proposal.idempotency_key == first.proposal.idempotency_key
+
+
+def test_an_approved_case_investigated_again_opens_no_second_review(graph_runtime) -> None:
+    """Re-investigating a case a person approved resolves to that review and its one key."""
+    run = _Run()
+    first = _investigate(run, [])
+    assert first.proposal is not None
+    run.approve(first.proposal.review_id)
+
+    events: List[Dict[str, Any]] = []
+    second = _investigate(run, events)
+
+    assert len(run.reviews) == 1, "an approved case opened a second review"
+    assert second.proposal is not None
+    assert second.proposal.review_id == first.proposal.review_id
+    assert second.proposal.status == "approved"
+    assert second.as_payload()["proposal"]["status"] == "approved"
+    assert second.proposal.idempotency_key == first.proposal.idempotency_key
+    planner = [e for e in events if e["id"] == GRAPH.PLANNER_NODE and e["status"] == "done"][-1]
+    assert planner["finding"] == (
+        "$100.00 credit already approved in review 41; no second review opened"
+    )
 
 
 def test_the_graph_stops_after_one_proposal(graph_runtime) -> None:
@@ -276,7 +391,7 @@ def test_the_steps_stream_in_order_with_template_findings(graph_runtime) -> None
     assert ids[-2:] == [(GRAPH.INVESTIGATOR_NODE, "done"), (GRAPH.PLANNER_NODE, "done")]
     by_id = {e["id"]: e for e in events if e["status"] == "done"}
     assert by_id["get_tickets"]["finding"] == "1 open ticket: Two items went back, no credit yet"
-    assert by_id["get_orders"]["finding"] == "3 orders on file, $158.00 paid"
+    assert by_id["get_orders"]["finding"] == "3 orders on file, $158.00 paid, 2 returned"
     assert by_id["get_return_policy"]["finding"] == "30-day returns for Home"
     assert by_id[GRAPH.INVESTIGATOR_NODE]["finding"] == "3 things the records show, 1 missing"
     assert by_id[GRAPH.PLANNER_NODE]["finding"] == "$100.00 credit proposed for 2 returned items, waiting for approval"
@@ -297,16 +412,18 @@ def test_the_answer_carries_the_brief_and_the_proposal(graph_runtime) -> None:
 
 
 def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> None:
-    JESSICA_ORDERS.append({"order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
-                           "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900, "placed_at": None})
-    try:
-        _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [("propose_store_credit", {"order_ids": [399], "reason": "Over."})]
-        run = _Run()
-        result = _investigate(run, [])
-        assert run.reviews == []
-        assert result.proposal is None
-    finally:
-        JESSICA_ORDERS.pop()
+    orders = JESSICA_ORDERS + [{
+        "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
+        "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
+        "placed_at": None, "return_status": "refunded",
+    }]
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": [399], "reason": "Over."}),
+    ]
+    run = _Run(orders)
+    result = _investigate(run, [])
+    assert run.reviews == []
+    assert result.proposal is None
 
 
 def test_an_order_from_another_client_cannot_be_credited(graph_runtime) -> None:

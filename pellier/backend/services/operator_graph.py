@@ -4,10 +4,13 @@ The Investigator reads the case with the bounded store tools, read-only and
 bound to one customer: ``get_orders``, ``get_tickets`` and
 ``get_return_policy`` from ``services/store_tools.py``. It states what the
 records show and what is missing. The Planner proposes exactly one
-``give_store_credit`` through its one tool, which computes the amount from the
-orders the Planner names and opens one ``pellier.approvals`` row. Then the
-graph stops. Nothing changes until a person approves, in a separate request,
-and nothing here can call the credit write.
+``give_store_credit`` through its one tool, which computes the amount and
+writes the credit's reason from the client's orders with a received return in
+``pellier.returns``, whatever orders the Planner names, and opens one
+``pellier.approvals`` row, or resolves to the one that already stands for that
+exact credit, pending or approved. Then the graph stops. Nothing
+changes until a person approves, in a separate request, and nothing here can
+call the credit write.
 
 The graph runs in process, on a worker thread, and reports each step as it
 happens through ``emit``: the same ``step`` shape Ask Pellier streams, so the
@@ -27,6 +30,8 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
+
+from services import store_tools
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +79,9 @@ exactly these keys:
 Rules:
 - Call get_tickets, get_orders and get_return_policy before you answer.
 - facts: at most five short sentences, each stating something the records
-  show: what was ordered and paid, what the open ticket says, the return
-  window. Name items and amounts exactly as the records give them.
+  show: what was ordered and paid, which orders the records mark as returned
+  (the "returned" field, not the ticket's wording), what the open ticket says,
+  the return window. Name items and amounts exactly as the records give them.
 - missing: at most three short sentences on what the records do not show,
   such as a store credit that has not been recorded.
 - Do not recommend an action, write to the client, or guess at anything the
@@ -86,15 +92,17 @@ _PLANNER_PROMPT = """You are Pellier's Planner, a staff-side agent.
 
 You receive the Investigator's brief about one client's case. If the records
 show items that went back with no store credit recorded, call
-propose_store_credit exactly once with the order ids of the items that went
-back and a one-sentence reason a staff member would recognise. The tool
-computes the amount from what was paid; you never state an amount yourself.
+propose_store_credit exactly once with the order ids the records mark as
+returned and one sentence a staff member would recognize as the reason. The
+tool computes the amount and writes the credit's wording from the orders with
+a received return; you never state an amount yourself.
 
 If no credit is warranted, call nothing and say why in one sentence.
 
 After the tool returns, answer with one plain sentence that names the amount
-it reported and that a person must approve it. Never claim the credit was
-issued.
+it reported and the orders it covers, and that a person must approve it. If
+the tool reports that an approved review already covers this credit, say so.
+Never claim the credit was issued.
 """
 
 
@@ -109,6 +117,10 @@ class Proposal:
     action_hash: str
     idempotency_key: str
     customer_id: str
+    # The live review's state: ``pending`` when this run opened it or found it
+    # waiting, ``approved`` when a person already approved this exact credit
+    # and the run resolved to that review instead of opening a second one.
+    status: str = "pending"
 
     def as_payload(self) -> Dict[str, Any]:
         return {
@@ -120,7 +132,7 @@ class Proposal:
             "orderIds": list(self.order_ids),
             "actionHash": self.action_hash,
             "idempotencyKey": self.idempotency_key,
-            "status": "pending",
+            "status": self.status,
         }
 
 
@@ -196,8 +208,11 @@ def finding_for(tool: str, parsed: Dict[str, Any]) -> str:
         count = int(parsed.get("count") or 0)
         if count == 0:
             return "No orders on file"
-        total = sum(int(o.get("amount_paid_cents") or 0) * int(o.get("quantity") or 1) for o in parsed.get("orders") or [])
-        return f"{count} order{'' if count == 1 else 's'} on file, {_money(total)} paid"
+        orders = [o for o in parsed.get("orders") or [] if isinstance(o, dict)]
+        total = _paid_total(orders)
+        returned = sum(1 for o in orders if o.get("returned"))
+        line = f"{count} order{'' if count == 1 else 's'} on file, {_money(total)} paid"
+        return f"{line}, {returned} returned" if returned else line
     if tool == "get_tickets":
         tickets = [t for t in parsed.get("tickets") or [] if isinstance(t, dict)]
         open_tickets = [t for t in tickets if t.get("status") in ("open", "pending")]
@@ -224,8 +239,15 @@ def proposal_finding(parsed: Dict[str, Any]) -> str:
             f"{_money(parsed.get('amount_cents'))} credit proposed for "
             f"{count} returned item{'' if count == 1 else 's'}, waiting for approval"
         )
+    if status == "already_approved":
+        return (
+            f"{_money(parsed.get('amount_cents'))} credit already approved in review "
+            f"{parsed.get('review_id')}; no second review opened"
+        )
     if status == "already_proposed":
         return "One proposal per investigation; the first stands"
+    if status == "nothing_returned":
+        return "No received return on file, so no credit was proposed"
     if status == "over_ceiling":
         return f"{_money(parsed.get('amount_cents'))} is above the $500 safety ceiling"
     return str(parsed.get("message") or "No credit was proposed")
@@ -302,11 +324,9 @@ def _investigator_tools(case: _Case) -> list:
     """
     from strands import tool
 
-    from services import store_tools
-
     @tool
     def get_orders(limit: int = 10) -> str:
-        """Read this client's orders, newest first, with what was paid.
+        """Read this client's orders, newest first, with what was paid and whether each went back.
 
         Args:
             limit: Maximum orders to return.
@@ -334,93 +354,159 @@ def _investigator_tools(case: _Case) -> list:
     return [get_orders, get_tickets, get_return_policy]
 
 
-_ORDERS_BY_ID_SQL = """
+# This client's orders with a received return, through the same join the client
+# record and get_orders use, so "returned" means one thing on every surface.
+_RETURNED_ORDERS_SQL = f"""
     SELECT o.id AS order_id, o.amount_paid_cents, o.quantity, p.name
       FROM pellier.orders o
-      JOIN pellier.product_catalog p ON p."productId" = o.product_id
+      JOIN pellier.product_catalog p ON p."productId" = o.product_id{store_tools.RETURN_STATUS_JOIN}
      WHERE o.customer_id = %s
-       AND o.id = ANY(%s)
+       AND r.status = ANY(%s)
      ORDER BY o.id
 """
 
 
-def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dict[str, Any]:
-    """Open one pending review for the credit the named orders are worth.
-
-    The amount is computed here from ``amount_paid_cents`` on this client's
-    own orders, never taken from the model. One proposal per investigation:
-    a second call returns the first.
-    """
-    from services import store_tools
-    from services.governed_execution import execution_idempotency_key
-
-    if case.proposal is not None:
-        return {**case.proposal_result, "status": "already_proposed"}
-    clean_reason = " ".join(str(reason or "").split())
-    if not clean_reason:
-        return {"status": "error", "message": "A reason is required for a credit."}
+def _order_ids(values: Sequence[Any]) -> List[int]:
     ids: List[int] = []
-    for value in order_ids or []:
+    for value in values or []:
         try:
             number = int(value)
         except (TypeError, ValueError):
             continue
         if number not in ids:
             ids.append(number)
-    if not ids:
-        return {"status": "error", "message": "Name the order ids of the items that went back."}
-    rows = case.run(_ORDERS_BY_ID_SQL, (case.customer_id, ids))
-    if not rows:
-        return {"status": "error", "message": "None of those orders belong to this client."}
-    found = [int(row["order_id"]) for row in rows]
-    amount = sum(int(row.get("amount_paid_cents") or 0) * int(row.get("quantity") or 1) for row in rows)
-    if amount <= 0:
-        return {"status": "error", "message": "Those orders carry no paid amount."}
-    if amount > store_tools.MAX_CREDIT_CENTS:
-        return {"status": "over_ceiling", "amount_cents": amount, "order_ids": found}
+    return ids
 
-    review_id = store_tools.open_credit_review(
+
+def _paid_total(rows: Sequence[Dict[str, Any]]) -> int:
+    return sum(
+        int(row.get("amount_paid_cents") or 0) * int(row.get("quantity") or 1) for row in rows
+    )
+
+
+def credit_reason(rows: Sequence[Dict[str, Any]]) -> str:
+    """The credit's reason, written from the returned orders and nothing else.
+
+    The reason is part of the fingerprint a person approves. Written from the
+    records, it is the same sentence on every investigation of the same case,
+    so the same credit has the same fingerprint and resolves to its one live
+    review. A model-written reason would differ from run to run and open a
+    second review, with a second write key, for the same returned items.
+    """
+    count = len(rows)
+    items = "; ".join(f"{row.get('name')} (order {int(row['order_id'])})" for row in rows)
+    return f"Store credit for {count} returned item{'' if count == 1 else 's'}: {items}."
+
+
+def _proposal_refusal(named: List[int], rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Why the records support no proposal for these named orders, else None."""
+    if not named:
+        return {"status": "error", "message": "Name the order ids of the items that went back."}
+    if not rows:
+        return {
+            "status": "nothing_returned",
+            "message": (
+                "No order of this client has a received return, so the records support "
+                "no credit."
+            ),
+        }
+    returned = [int(row["order_id"]) for row in rows]
+    if not set(named) & set(returned):
+        return {
+            "status": "error",
+            "message": (
+                f"None of orders {named} has a received return for this client. "
+                f"The orders that went back are {returned}."
+            ),
+        }
+    amount = _paid_total(rows)
+    if amount <= 0:
+        return {"status": "error", "message": "The returned orders carry no paid amount."}
+    if amount > store_tools.MAX_CREDIT_CENTS:
+        return {"status": "over_ceiling", "amount_cents": amount, "order_ids": returned}
+    return None
+
+
+def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dict[str, Any]:
+    """Open one review for the credit the records support, or resolve to the live one.
+
+    The amount is the paid total of this client's orders with a received return
+    in ``pellier.returns``, and the credit's reason is written from those same
+    rows (:func:`credit_reason`); neither comes from the model. The orders the
+    Planner names only have to include one that went back: naming a subset, or
+    extra orders, still yields the one credit the records support, so Jessica's
+    case proposes 10000 cents whatever the model names. The Planner's own
+    sentence is kept as the review's rationale. One proposal per investigation:
+    a second call returns the first.
+    """
+    if case.proposal is not None:
+        return {**case.proposal_result, "status": "already_proposed"}
+    rationale = " ".join(str(reason or "").split())
+    if not rationale:
+        return {"status": "error", "message": "Say in one sentence why the credit is warranted."}
+    rows = case.run(_RETURNED_ORDERS_SQL, (case.customer_id, sorted(store_tools.RETURNED_STATUSES)))
+    refusal = _proposal_refusal(_order_ids(order_ids), rows)
+    if refusal is not None:
+        return refusal
+    return _open_proposal(case, rows, rationale)
+
+
+def _open_proposal(case: _Case, rows: Sequence[Dict[str, Any]], rationale: str) -> Dict[str, Any]:
+    """Open the review for the credit ``rows`` support, and record the proposal."""
+    returned = [int(row["order_id"]) for row in rows]
+    items = [str(row.get("name") or "") for row in rows]
+    amount = _paid_total(rows)
+    reason = credit_reason(rows)
+    review = store_tools.open_credit_review(
         case.run,
         customer_id=case.customer_id,
         amount_cents=amount,
-        reason=clean_reason,
+        reason=reason,
         source_turn_id=case.turn_id,
         requested_by_sub=case.operator_sub,
         requester_kind="operator",
-        order_id=found[0],
-        issue=clean_reason,
+        order_id=returned[0],
+        issue=rationale,
         recommendation={
             "primaryAction": "give_store_credit",
-            "rationale": clean_reason,
-            "orderIds": found,
-            "items": [str(row.get("name") or "") for row in rows],
+            "rationale": rationale,
+            "orderIds": returned,
+            "items": items,
             "graphId": GRAPH_ID,
             "investigationTurnId": case.turn_id,
         },
     )
-    if review_id is None:
+    if review is None:
         return {"status": "error", "message": "The review could not be opened."}
     action_hash = store_tools.write_request_hash(
-        "give_store_credit", customer_id=case.customer_id, amount_cents=amount, reason=clean_reason,
+        "give_store_credit", customer_id=case.customer_id, amount_cents=amount, reason=reason,
     )
     case.proposal = Proposal(
-        review_id=review_id,
+        review_id=review.id,
         amount_cents=amount,
-        reason=clean_reason,
-        order_ids=found,
+        reason=reason,
+        order_ids=returned,
         action_hash=action_hash,
-        idempotency_key=execution_idempotency_key(review_id, action_hash),
+        idempotency_key=store_tools.execution_idempotency_key(review.id, action_hash),
         customer_id=case.customer_id,
+        status=review.status,
     )
+    approved = review.status == "approved"
     case.proposal_result = {
-        "status": "review_opened",
-        "review_id": review_id,
+        "status": "already_approved" if approved else "review_opened",
+        "review_id": review.id,
         "amount_cents": amount,
         "amount": f"{amount / 100:.2f}",
-        "reason": clean_reason,
-        "order_ids": found,
-        "items": [str(row.get("name") or "") for row in rows],
-        "next": "A person approves this exact credit before anything is written.",
+        "reason": reason,
+        "rationale": rationale,
+        "order_ids": returned,
+        "items": items,
+        "next": (
+            "A person already approved this exact credit. Its review stands and admits one "
+            "credit; no second review was opened."
+            if approved
+            else "A person approves this exact credit before anything is written."
+        ),
     }
     return dict(case.proposal_result)
 
@@ -432,12 +518,12 @@ def _planner_tools(case: _Case) -> list:
     def propose_store_credit(order_ids: List[int], reason: str) -> str:
         """Propose one store credit for the orders that went back, for a person to approve.
 
-        The amount is computed from what the client paid for those orders.
-        Call this at most once.
+        The amount is computed from what the client paid for the orders the
+        records mark as returned. Call this at most once.
 
         Args:
-            order_ids: The ids of the orders whose items went back.
-            reason: One sentence a staff member would recognise.
+            order_ids: The ids of the orders the records mark as returned.
+            reason: One sentence a staff member would recognize, on why.
         """
         return _reply(propose_credit(case, order_ids=order_ids, reason=reason))
 

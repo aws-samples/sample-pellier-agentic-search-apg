@@ -24,7 +24,8 @@ Planner opens one review, a person confirms the exact review, and
 ``POST /reviews/{id}/execute`` runs the credit with the review's idempotency
 key, so a replay applies exactly once and produces the same durable evidence:
 one ``pellier.store_credits`` row and one ``pellier.tool_audit`` row. The tool
-itself refuses a write no confirmed review fingerprints, on either rail.
+itself refuses a write no confirmed review fingerprints under its own key, on
+either rail, so one approval is one credit however the tool is reached.
 
 The Gateway publishes ``give_store_credit`` with a staff-only permit; the Lab 4
 forbid a participant authors adds the per-credit amount limit on top. The
@@ -45,6 +46,7 @@ from pydantic import BaseModel, Field
 
 from services.auth import require_operator
 from services.data_source import database_source_label
+from services.store_tools import RETURN_STATUS_JOIN, is_returned
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +126,9 @@ _CLIENT_SELECT = """
 """
 
 # An order's return state comes from pellier.returns, the authoritative record
-# of a return. The ticket may say two items went back; the rows make it a fact.
-_ORDERS_SELECT = """
+# of a return, through the one join store_tools shares with get_orders and the
+# Planner. The ticket may say two items went back; the rows make it a fact.
+_ORDERS_SELECT = f"""
     SELECT
         o.id            AS order_id,
         o.product_id    AS product_id,
@@ -138,15 +141,7 @@ _ORDERS_SELECT = """
         r.status        AS return_status
       FROM pellier.orders o
       JOIN pellier.product_catalog p
-             ON p."productId" = o.product_id
-      LEFT JOIN LATERAL (
-            SELECT status
-              FROM pellier.returns
-             WHERE customer_id = o.customer_id
-               AND product_id = o.product_id
-             ORDER BY requested_at DESC
-             LIMIT 1
-      ) r ON TRUE
+             ON p."productId" = o.product_id{RETURN_STATUS_JOIN}
      WHERE o.customer_id = %s
      ORDER BY o.placed_at DESC, o.id DESC
 """
@@ -164,9 +159,6 @@ _CREDITS_SELECT = """
      WHERE customer_id = %s
      ORDER BY created_at DESC
 """
-
-# A return that went back and was accepted reads as Returned on the record.
-_RETURNED_STATUSES = frozenset({"approved", "refunded"})
 
 
 def _client_slug(customer_id: str) -> str:
@@ -219,7 +211,8 @@ def _order_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "placedAt": _iso(row.get("placed_at")),
         "imageUrl": row.get("image_url") or "",
         "returnStatus": return_status,
-        "returned": return_status in _RETURNED_STATUSES,
+        # Returned means received and accepted. A pending request is a claim.
+        "returned": is_returned(return_status),
     }
 
 
@@ -439,6 +432,12 @@ async def investigate_client(
                     break
                 yield _sse(kind, data)
         finally:
+            # The client left. Cancelling stops the relay, not the graph:
+            # ``asyncio.to_thread`` cannot interrupt the worker thread running
+            # it, so the Investigator finishes its reads and the Planner may
+            # still open its one review after the stream is gone. That is
+            # acceptable and bounded: the review is the same one the next
+            # investigation resolves to, and the record shows it on refresh.
             if not task.done():
                 task.cancel()
 
@@ -507,6 +506,9 @@ def _review_payload(
         # of the parameters the person was shown, not a secret.
         "actionHash": row.get("action_hash") or "",
         "decidedBy": row.get("decided_by"),
+        # The decider's username, recorded with the decision so every staff
+        # member reading the record sees who approved it, not only the decider.
+        "decidedByName": row.get("decided_by_name") or None,
         # Who asked, kept apart from the customer and from who decides.
         "requestedBySub": row.get("requested_by_sub") or None,
         "requesterKind": str(row.get("requester_kind") or "unverified"),
@@ -623,9 +625,15 @@ def _decision_payload(decided: Dict[str, Any], human_state: str) -> Dict[str, An
         "status": decided["status"],
         "humanState": human_state,
         "decidedBy": decided["decided_by"],
+        "decidedByName": decided.get("decided_by_name") or None,
         "decidedAt": _iso(decided["decided_at"]),
         "assurance": _assurance(human_state),
     }
+
+
+def _decider_name(operator: Dict[str, Any]) -> Optional[str]:
+    """The verified username, for the record's "Approved by" line."""
+    return str(operator.get("username") or "").strip() or None
 
 
 @router.post("/reviews/{review_id}/confirm")
@@ -651,6 +659,7 @@ async def confirm_review(
             decision=rv.STATUS_CONFIRMED,
             decided_by=principal_sub,
             action_hash=request.actionHash,
+            decided_by_name=_decider_name(operator),
         )
     except rv.ReviewError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
@@ -681,6 +690,7 @@ async def decline_review(
             review_id=review_id,
             decision=rv.STATUS_DECLINED,
             decided_by=principal_sub,
+            decided_by_name=_decider_name(operator),
         )
     except rv.ReviewError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc

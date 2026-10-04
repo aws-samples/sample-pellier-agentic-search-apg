@@ -69,14 +69,28 @@ ALTER TABLE pellier.approvals
     -- the subject of the review rather than its author.
     ADD COLUMN IF NOT EXISTS decided_by TEXT,
 
+    -- The decider's username, recorded with the decision, so the record can
+    -- name who approved it to every staff member who reads it. decided_by
+    -- stays the verified subject every other ledger carries.
+    ADD COLUMN IF NOT EXISTS decided_by_name TEXT,
+
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- ---------------------------------------------------------------------
--- One open decision per distinct proposed mutation
+-- One live review per distinct proposed mutation
 -- ---------------------------------------------------------------------
 
--- A partial unique index rather than a plain one: at most one PENDING review per
--- (client, action, exact parameters), while decided history accumulates freely.
+-- A partial unique index rather than a plain one: at most one LIVE review per
+-- (client, action, exact parameters), where live means pending or approved,
+-- while declined history accumulates freely.
+--
+-- Approved stays in the index because an approval is what a write binds to:
+-- the credit tool admits a write only under the key derived from the approved
+-- review's own id. A second approved review for the same exact credit would be
+-- a second id, so a second key, so a second credit for one decision. Asking
+-- again for a credit a person already approved resolves to that review. A
+-- declined review leaves the index, so the same credit may be proposed again
+-- after a no.
 --
 -- Keyed on the action fingerprint rather than on the source turn, which a live
 -- smoke run showed to be the wrong key. Every HTTP request mints its own
@@ -90,9 +104,25 @@ ALTER TABLE pellier.approvals
 -- evidence anchor, not the uniqueness key.
 DROP INDEX IF EXISTS pellier.approvals_open_per_turn_action_idx;
 
+-- The predicate is the contract, so a cluster built while the index covered
+-- pending reviews only gets it replaced rather than kept by IF NOT EXISTS.
+-- The reset re-applies this file, and its probe below needs the live index.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_indexes
+         WHERE schemaname = 'pellier'
+           AND indexname = 'approvals_open_per_action_idx'
+           AND position('approved' IN indexdef) = 0
+    ) THEN
+        DROP INDEX pellier.approvals_open_per_action_idx;
+    END IF;
+END $$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS approvals_open_per_action_idx
     ON pellier.approvals (customer_id, tool, action_hash)
-    WHERE status = 'pending';
+    WHERE status IN ('pending', 'approved');
 
 -- The Operator queue reads by turn to answer "is this shopper turn already
 -- waiting on a human?" without scanning.
@@ -168,8 +198,8 @@ COMMIT;
 -- Self-probe: prove the lifecycle before anything depends on it
 -- ---------------------------------------------------------------------
 --
--- Exercises create -> replay -> confirm -> decline and the two CHECK
--- constraints, then removes its own rows. A migration that claims a state
+-- Exercises create -> replay -> confirm -> replay after approval -> decline
+-- and the two CHECK constraints, then removes its own rows. A migration that claims a state
 -- machine works without ever running it is a comment, not a guarantee.
 
 DO $$
@@ -177,6 +207,7 @@ DECLARE
     v_turn   TEXT := 'migration-020-probe-turn';
     v_cust   TEXT;
     v_hash   TEXT := repeat('a', 64);
+    v_hash_declined TEXT := repeat('b', 64);
     v_first  BIGINT;
     v_second BIGINT;
     v_count  INTEGER;
@@ -235,28 +266,52 @@ BEGIN
        SET status = 'approved', decided_at = now(), decided_by = 'probe-operator'
      WHERE id = v_first;
 
-    -- 5. with the first decided, the same mutation may be proposed again:
-    --    the index constrains OPEN decisions, not history
+    -- 5. with the first APPROVED, the same mutation must still be refused: an
+    --    approval is live, and a second one would mint a second write key
+    v_failed := FALSE;
+    BEGIN
+        INSERT INTO pellier.approvals
+            (customer_id, tool, args, status, source_turn_id, issue, action_hash)
+        VALUES
+            (v_cust, 'initiate_return', '{"reason":"damaged"}'::jsonb, 'pending',
+             v_turn || '-after-approval', 'probe after approval', v_hash)
+        RETURNING id INTO v_second;
+    EXCEPTION WHEN unique_violation THEN
+        v_failed := TRUE;
+    END;
+    IF NOT v_failed THEN
+        RAISE EXCEPTION
+            'migration 020: an approved review admitted a second review (id %)',
+            v_second;
+    END IF;
+
+    -- 6. a different mutation, declined, leaves the index: the same mutation
+    --    may then be proposed again
     INSERT INTO pellier.approvals
         (customer_id, tool, args, status, source_turn_id, issue, action_hash)
     VALUES
-        (v_cust, 'initiate_return', '{"reason":"damaged"}'::jsonb, 'pending',
-         v_turn || '-third-turn', 'probe second round', v_hash)
+        (v_cust, 'initiate_return', '{"reason":"other"}'::jsonb, 'pending',
+         v_turn || '-declined', 'probe to decline', v_hash_declined)
     RETURNING id INTO v_second;
-
-    -- 6. decline it
     UPDATE pellier.approvals
        SET status = 'rejected', decided_at = now(), decided_by = 'probe-operator'
      WHERE id = v_second;
+    INSERT INTO pellier.approvals
+        (customer_id, tool, args, status, source_turn_id, issue, action_hash)
+    VALUES
+        (v_cust, 'initiate_return', '{"reason":"other"}'::jsonb, 'pending',
+         v_turn || '-after-decline', 'probe after decline', v_hash_declined);
 
-    -- The probe's three inserts use v_turn plus a suffix, so match the prefix.
+    -- The probe's inserts use v_turn plus a suffix, so match the prefix.
     SELECT count(*) INTO v_count
       FROM pellier.approvals WHERE source_turn_id LIKE v_turn || '%';
-    IF v_count <> 2 THEN
+    IF v_count <> 3 THEN
         RAISE EXCEPTION
-            'migration 020: expected 2 probe rows, found %', v_count;
+            'migration 020: expected 3 probe rows, found %', v_count;
     END IF;
 
     DELETE FROM pellier.approvals WHERE source_turn_id LIKE v_turn || '%';
-    RAISE NOTICE 'migration 020: review lifecycle verified (create/replay/confirm/decline)';
+    RAISE NOTICE
+        'migration 020: review lifecycle verified (create/replay/confirm/'
+        'live-after-approval/decline)';
 END $$;

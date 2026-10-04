@@ -44,7 +44,6 @@ let mockPersona: {
   avatar_color: string
   customer_id: string
   role_tag: string
-  membership: 'registered' | 'circle' | 'maison'
   stats: { visits: number; orders: number; last_seen_days: number | null }
 } | null = null
 const mockSwitchPersona = vi.fn()
@@ -66,7 +65,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#5a3528',
     avatar_initial: 'M',
-    membership: 'maison',
     stats: { visits: 11, orders: 7, last_seen_days: 21 },
   },
   {
@@ -76,7 +74,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#6b3d2a',
     avatar_initial: 'A',
-    membership: 'circle',
     stats: { visits: 6, orders: 5, last_seen_days: 9 },
   },
   {
@@ -86,7 +83,6 @@ const LIVE_PERSONAS = [
     blurb: 'Live Aurora profile.',
     avatar_color: '#5a4535',
     avatar_initial: 'T',
-    membership: 'registered',
     stats: { visits: 8, orders: 4, last_seen_days: 14 },
   },
 ]
@@ -137,7 +133,6 @@ describe('Header — nav items', () => {
       avatar_color: '#1f1410',
       customer_id: 'C-MARCO',
       role_tag: 'shopper',
-      membership: 'registered',
       stats: { visits: 0, orders: 0, last_seen_days: null },
     }
     renderHeader()
@@ -226,7 +221,6 @@ describe('Header — persona account control', () => {
       avatar_color: '#5a3528',
       customer_id: 'CUST-MARCO',
       role_tag: 'Returning',
-      membership: 'maison',
       stats: { visits: 11, orders: 7, last_seen_days: 21 },
     }
     renderHeader()
@@ -244,7 +238,6 @@ describe('Header — persona account control', () => {
       avatar_color: '#5a3528',
       customer_id: 'CUST-MARCO',
       role_tag: 'Returning',
-      membership: 'maison',
       stats: { visits: 11, orders: 7, last_seen_days: 21 },
     }
     renderHeader()
@@ -268,7 +261,6 @@ describe('Header — persona account control', () => {
       avatar_color: '#5a4535',
       customer_id: 'CUST-THEO',
       role_tag: 'Home + slow craft',
-      membership: 'registered',
       stats: { visits: 8, orders: 4, last_seen_days: 14 },
     }
     renderHeader()

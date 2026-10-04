@@ -57,6 +57,7 @@ class FakeReviewDb:
                                "rationale": "Two items went back."},
             "action_hash": JESSICA_HASH,
             "decided_by": None,
+            "decided_by_name": None,
             "requested_by_sub": "sub-nadia",
             "requester_kind": "operator",
             "requested_at": None,
@@ -70,13 +71,15 @@ class FakeReviewDb:
     async def fetch_one(self, query: str, *params: Any) -> Optional[Dict[str, Any]]:
         self.statements.append(query)
         if query.strip().startswith("UPDATE pellier.approvals"):
-            status, decider, review_id = params
+            status, decider, decider_name, review_id = params
             row = self._find(review_id)
             if not row or row["status"] != "pending":
                 return None
-            row.update(status=status, decided_by=decider, decided_at="2026-10-04T00:00:00Z")
+            row.update(status=status, decided_by=decider, decided_by_name=decider_name,
+                       decided_at="2026-10-04T00:00:00Z")
             return {"id": row["review_id"], "status": status, "decided_by": decider,
-                    "decided_at": row["decided_at"], "action_hash": row["action_hash"]}
+                    "decided_by_name": decider_name, "decided_at": row["decided_at"],
+                    "action_hash": row["action_hash"]}
         if "WHERE a.id = %s" in query:
             row = self._find(params[0])
             return dict(row) if row else None
@@ -242,8 +245,20 @@ def test_the_exact_proposed_credit_can_be_confirmed() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["humanState"] == "confirmed" and body["decidedBy"] == "sub-nadia"
+    assert body["decidedByName"] == "nadia"
     assert body["assurance"] == {"human": "CONFIRMED", "policy": "PENDING",
                                  "aurora": "NOT_EVALUATED", "evidence": "PENDING"}
+
+
+def test_the_record_names_the_recorded_decider_to_every_reader() -> None:
+    """"Approved by" is the review's own fact, not a match against the reader's token."""
+    db = FakeReviewDb()
+    row = db.add_pending()
+    path = f"/api/operator/reviews/{row['review_id']}"
+    build_client(db).post(f"{path}/confirm", json={"actionHash": JESSICA_HASH})
+    other_staff = {"sub": "sub-other", "username": "other", "groups": ("pellier-operators",)}
+    review = build_client(db, other_staff).get(path).json()["review"]
+    assert review["decidedBy"] == "sub-nadia" and review["decidedByName"] == "nadia"
 
 
 def test_a_changed_material_parameter_invalidates_a_prior_confirmation() -> None:

@@ -105,8 +105,9 @@ class FakeDb:
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
         if "FROM pellier.approvals" in query:
-            # The confirmed review the credit under test binds to.
-            return [{"action_hash": CREDIT_HASH}]
+            # The confirmed review the credit under test binds to: its id is
+            # what derives the one key the write is admitted under.
+            return [{"id": 12, "action_hash": CREDIT_HASH}]
         if "apply_store_credit" not in query:
             return []
         key, request_hash, customer_id, amount_cents, reason, issued_by = params
@@ -1105,7 +1106,7 @@ class _IdempotentDb(FakeDb):
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         if "FROM pellier.approvals" in query:
             self.statements.append(query)
-            return [{"action_hash": value} for value in self.approved]
+            return [{"id": 12, "action_hash": value} for value in self.approved]
         if "apply_store_credit" not in query:
             return await super().fetch_all(query, *params)
         self.statements.append(query)
@@ -1155,17 +1156,55 @@ async def test_a_credit_nobody_approved_is_refused_in_process_and_still_audited(
     outcome = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
     assert outcome.result["status"] == "approval_required"
     assert outcome.aurora == ge.AURORA_NOT_REACHED
-    assert outcome.evidence == ge.EVIDENCE_NO_EXECUTION
+    # The tool was entered and refused, and this rail left the attempt row, as
+    # the Lambda does on the Gateway rail: the same artifact on both axes.
+    assert outcome.evidence == ge.EVIDENCE_ATTEMPT_RECEIPT
     assert "no confirmed review" in outcome.notes["aurora"].lower() or "confirmed review" in outcome.notes["aurora"]
     assert len(db.credits) == 0
     assert len([s for s in db.statements if "INSERT INTO pellier.tool_audit" in s]) == 1
 
 
 def test_an_approval_guard_refusal_is_not_an_aurora_verdict() -> None:
-    aurora, note = ge.classify_aurora({"status": "approval_mismatch", "denied_by": "approval_guard"})
+    refusal = {"status": "approval_mismatch", "denied_by": "approval_guard"}
+    aurora, note = ge.classify_aurora(refusal)
     assert aurora == ge.AURORA_NOT_REACHED
     assert "fingerprints" in note
     assert ge.classify_evidence_for(ge.POLICY_NOT_EVALUATED, aurora, {}) == ge.EVIDENCE_NO_EXECUTION
+
+
+@pytest.mark.parametrize("policy", [ge.POLICY_NOT_EVALUATED, ge.POLICY_ALLOW])
+def test_a_guard_refusal_is_an_attempt_receipt_on_either_rail(policy: str) -> None:
+    """In process (NOT_EVALUATED) and at the Gateway (ALLOW) the refusal is one axis.
+
+    Both rails enter the tool and leave one attempt row for the refusal, so the
+    evidence axis names that row whichever rail refused.
+    """
+    for status in ("approval_required", "approval_mismatch", "approval_key_mismatch"):
+        refusal = {"status": status, "denied_by": "approval_guard"}
+        aurora, _note = ge.classify_aurora(refusal)
+        assert ge.classify_evidence_for(policy, aurora, refusal) == ge.EVIDENCE_ATTEMPT_RECEIPT
+
+
+@pytest.mark.asyncio
+async def test_the_in_process_rail_refuses_the_approved_credit_under_a_fresh_key() -> None:
+    """The in-process rail's entry point binds the key too, not only execute's derivation.
+
+    ``execute_confirmed_review`` always derives the review's own key, so the
+    fresh key is passed to the rail directly: the shared tool refuses it, and
+    nothing reaches ``apply_store_credit``.
+    """
+    db = _IdempotentDb()
+    first = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
+    fresh = await ge._execute_in_process(
+        db, tool="give_store_credit", args=CREDIT_ARGS,
+        idempotency_key="operator-review:99:minted", operator_sub=OPERATOR_SUBJECT,
+    )
+    retry = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
+
+    assert first.result["idempotent_replay"] is False
+    assert fresh["status"] == "approval_key_mismatch" and fresh["denied_by"] == "approval_guard"
+    assert retry.result["idempotent_replay"] is True
+    assert list(db.credits) == [first.idempotency_key], "one approval, one credit"
 
 
 # ---------------------------------------------------------------------------

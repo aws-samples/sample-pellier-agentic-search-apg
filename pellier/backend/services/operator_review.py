@@ -20,8 +20,16 @@ A confirmation binds to an exact parameter set through
 ``store_tools.write_request_hash``, the same function that fingerprints the
 credit write. Change the reason or the amount and the fingerprint changes, so
 the prior confirmation no longer matches. ``give_store_credit`` compares its own
-fingerprint with the approved rows before it writes, so an approval for one
-credit never admits another.
+fingerprint with the approved rows before it writes, and admits the write only
+under that review's own key (``store_tools.execution_idempotency_key``), so an
+approval for one credit never admits another and never admits the same one
+twice. Migration 020 keeps one live review (pending or approved) per exact
+credit, so there is one approved row and one key to bind to.
+
+A decision records two things about the person: ``decided_by``, the verified
+token subject, which is the principal every other ledger carries; and
+``decided_by_name``, the Cognito username, so a review record can say who
+approved it to any staff member reading it.
 
 Confirming records a decision and stops. Execution is the next request, and it
 is the only path that calls the tool.
@@ -132,6 +140,7 @@ _REVIEW_COLUMNS = """
         a.recommendation AS recommendation,
         a.action_hash    AS action_hash,
         a.decided_by     AS decided_by,
+        a.decided_by_name AS decided_by_name,
         a.requested_by_sub AS requested_by_sub,
         a.requester_kind AS requester_kind,
         a.requested_at   AS requested_at,
@@ -203,10 +212,11 @@ _DECIDE = """
     UPDATE pellier.approvals
        SET status = %s,
            decided_at = now(),
-           decided_by = %s
+           decided_by = %s,
+           decided_by_name = %s
      WHERE id = %s
        AND status = 'pending'
-    RETURNING id, status, decided_by, decided_at, action_hash
+    RETURNING id, status, decided_by, decided_by_name, decided_at, action_hash
 """
 
 
@@ -217,13 +227,15 @@ async def decide_review(
     decision: str,
     decided_by: str,
     action_hash: Optional[str] = None,
+    decided_by_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Record a human decision, bound to the parameters it was shown.
 
     ``action_hash`` is required to confirm and ignored to decline. Confirming
     means "I agree to *this* mutation", so the caller must echo the fingerprint
     it displayed; declining means "do not do this at all", which no parameter
-    change can invalidate.
+    change can invalidate. ``decided_by_name`` is the decider's username, kept
+    beside the subject so the record can name the person to every reader.
 
     Raises :class:`ReviewError` with a machine-readable code rather than
     returning a status field, so a caller cannot mistake a refusal for a
@@ -262,7 +274,8 @@ async def decide_review(
         if not hmac.compare_digest(stored, recomputed):
             raise ReviewError("stored_parameters_invalid", 409)
 
-    row = await db.fetch_one(_DECIDE, decision, principal, int(review_id))
+    name = str(decided_by_name or "").strip() or None
+    row = await db.fetch_one(_DECIDE, decision, principal, name, int(review_id))
     if not row:
         # Lost a race with another operator between the read and the update.
         raise ReviewError("review_already_decided", 409)

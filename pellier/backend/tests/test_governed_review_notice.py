@@ -54,16 +54,19 @@ def test_no_agent_can_reach_a_credit_write_in_process() -> None:
 
 
 class _Run:
-    def __init__(self, review_id: int | None = 44) -> None:
+    """The INSERT answers ``review_id``, or nothing when a live review stands."""
+
+    def __init__(self, review_id: int | None = 44, live_status: str = "pending") -> None:
         self.review_id = review_id
+        self.live_status = live_status
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
 
     def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         self.calls.append((sql, tuple(params)))
         if "INSERT INTO pellier.approvals" in sql:
-            return [{"id": self.review_id}] if self.review_id else []
+            return [{"id": self.review_id, "status": "pending"}] if self.review_id else []
         if "FROM pellier.approvals" in sql:
-            return [{"id": 45}]
+            return [{"id": 45, "status": self.live_status}]
         return []
 
 
@@ -75,7 +78,9 @@ def test_a_credit_request_opens_exactly_one_pending_review() -> None:
     )
     assert payload["credit_request"] == "review_opened" and payload["review_id"] == 44
     sql, params = run.calls[0]
-    assert "ON CONFLICT (customer_id, tool, action_hash) WHERE status = 'pending'" in sql
+    # The conflict target is the live-review index: pending OR approved.
+    live = "WHERE status IN ('pending', 'approved')"
+    assert f"ON CONFLICT (customer_id, tool, action_hash) {live}" in sql
     assert params[0] == "CUST-JESSICA" and params[2] == "turn-" + "a" * 32
     assert params[6] == store_tools.write_request_hash(
         "give_store_credit", customer_id="CUST-JESSICA", amount_cents=4500, reason="Two items went back.",
@@ -89,6 +94,17 @@ def test_a_repeated_ask_resolves_to_the_open_review() -> None:
     )
     assert payload["credit_request"] == "review_opened" and payload["review_id"] == 45
     assert len(run.calls) == 2
+    assert "status IN ('pending', 'approved')" in run.calls[1][0]
+
+
+def test_asking_again_for_an_approved_credit_resolves_to_that_review() -> None:
+    """No second review, so no second key: the handoff says a person already approved it."""
+    run = _Run(review_id=None, live_status="approved")
+    payload = store_tools.ask_a_person(
+        run, reason="Two items went back.", customer_id="CUST-JESSICA", store_credit_cents=4500,
+    )
+    assert payload["credit_request"] == "already_approved" and payload["review_id"] == 45
+    assert sum("INSERT INTO pellier.approvals" in sql for sql, _ in run.calls) == 1
 
 
 def test_a_credit_request_without_a_verified_shopper_opens_nothing() -> None:
