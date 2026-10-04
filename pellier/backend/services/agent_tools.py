@@ -1748,7 +1748,7 @@ def get_ticket_history(customer_id: str, limit: int = 5) -> str:
     """Read a customer's past support tickets. Use for context before answering a service question, so the client is not asked to repeat what already happened.
 
     Args:
-        customer_id: Customer whose tickets to read, e.g. CUST-RACHEL.
+        customer_id: Customer whose tickets to read, e.g. CUST-JESSICA.
         limit: Maximum tickets to return, newest first.
 
     """

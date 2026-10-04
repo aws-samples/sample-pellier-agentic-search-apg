@@ -277,14 +277,17 @@ set. Measured: ambient botocore 1.43.28 has no `UpdatePolicy.enforcementMode`, s
 
 ### Expected baseline after reset
 
-Derived from the canonical seed contract (migrations plus `seed_pellier_catalog.py`), not
-from a live count minus known rows:
+Measured on a fresh PostgreSQL 18 cluster after setup and `database-reset.sh`:
 
-    customers 17 · orders 66 · product_catalog 1000 · warehouses 3
-    warehouse_inventory 120 · inventory_ledger 120 · customer_episodic_seed 9
-    return_policies 5 · tools 15 · principal_customers 3
-    returns 1 · tool_audit 1 · governed_receipts 1   (all three: the migration 010 forensic incident)
-    store_credits 1 (CUST-SARAH) · support_tickets 3
+    customers 6 (CUST-MARCO, CUST-ANNA, CUST-THEO, CUST-JESSICA, CUST-FRESH, `theo` alias)
+    orders 25 · product_catalog 100 · warehouses 3
+    warehouse_inventory 180 · inventory_ledger 177 · customer_episodic_seed 9
+    return_policies 9 · returns 1 · tool_audit 1 · governed_receipts 1
+    (the last three: the migration 010 forensic incident)
+    support_tickets 3 (TKT-2026-3015 Jessica pending, TKT-2026-5021 Theo open,
+    TKT-2026-1874 Theo resolved) · store_credits 0
+    tools 0 · principal_customers 0   (filled by bootstrap-labs.sh tool seeding and
+    scripts/seed_principal_mappings.py, not by setup or reset)
     approvals 0 · conversations 0 · messages 0 · operator_episodes 0
     execution_receipts 0 · write_operations 0 · semantic_cache 0 · observatory_spans 0
 
@@ -297,13 +300,12 @@ ids restart from 1 on every reset. Screenshot a review by its content, not `#40`
 
     Marco   CUST-MARCO    maison      7 orders
     Anna    CUST-ANNA     circle      5 orders
-    Theo    CUST-THEO     registered  4 orders
+    Theo    CUST-THEO     registered  4 orders   2 tickets (TKT-2026-5021 open, TKT-2026-1874 resolved)
     Jessica CUST-JESSICA  circle      5 orders   ticket asserts a return with no row (deliberate)
-    Rachel  CUST-RACHEL   registered  3 orders
-    Amara   CUST-AMARA    maison      5 orders   no principal_customers mapping (deliberate RLS fixture)
 
-The three personas are shoppers with Cognito users; the remaining twelve are
-operator-side client records only. A client id must never resolve as a signed-in shopper.
+All four are shoppers with Cognito users. CUST-FRESH (no orders) and the `theo` alias
+(4 orders) are also seeded. An id that has no Cognito user must never resolve as a
+signed-in shopper.
 
 ## Product assets
 

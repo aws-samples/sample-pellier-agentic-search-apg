@@ -152,8 +152,8 @@ RESTART IDENTITY;
 apply 013_inventory_ledger.sql
 
 # 019 is re-applied after the TRUNCATE above for the same reason 013 and 015
-# are: the truncate empties the operator desk, and the seeded tickets plus
-# Sarah's credit on file are the starting state the client book describes. The
+# are: the truncate empties the operator desk, and the seeded tickets are
+# the starting state the client book describes. The
 # semantic cache is deliberately left empty, so the first paraphrase of the
 # run is a real miss and the second is a real hit.
 apply 019_operator_desk.sql
