@@ -188,7 +188,7 @@
 .pellier-askbar {
   display: flex;
   width: 100%;
-  max-width: 960px;
+  max-width: 1120px;
   flex-direction: column;
   gap: 12px;
 }
@@ -318,11 +318,11 @@
 .pellier-concierge {
   display: flex;
   width: 100%;
-  max-width: 960px;
+  max-width: 1120px;
   min-width: 0;
   flex-direction: column;
-  gap: 18px;
-  padding: clamp(20px, 1.6vw, 26px);
+  gap: 24px;
+  padding: clamp(24px, 2.6vw, 44px);
   border: 1px solid var(--dl-line);
   border-radius: var(--dl-r-card);
   background: var(--dl-paper);
@@ -339,18 +339,18 @@
   margin: 0;
   color: var(--dl-ink);
   font-family: var(--dl-font-heading);
-  font-size: var(--text-card);
+  font-size: clamp(22px, 1.8vw, 26px);
   font-weight: 500;
   letter-spacing: var(--dl-track-tight);
   line-height: 1.2;
 }
 
 .pellier-concierge-heading p {
-  max-width: 44ch;
+  max-width: 56ch;
   margin: 0;
   color: var(--dl-ink-2);
   font-family: var(--dl-font-sans);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
@@ -358,7 +358,7 @@
   display: grid;
   margin: 0;
   padding: 0;
-  gap: 10px;
+  gap: 16px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   list-style: none;
 }
@@ -368,8 +368,8 @@
   width: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 14px 8px 16px;
+  gap: 14px;
+  padding: 20px 12px 22px;
   border: 1px solid transparent;
   border-radius: var(--dl-r-card);
   background: none;
@@ -403,8 +403,8 @@
 .pellier-profile-portrait {
   position: relative;
   display: block;
-  width: clamp(64px, 5.2vw, 82px);
-  height: clamp(64px, 5.2vw, 82px);
+  width: clamp(96px, 9vw, 148px);
+  height: clamp(96px, 9vw, 148px);
   overflow: hidden;
   border-radius: 50%;
   background: var(--dl-paper-2);
@@ -422,7 +422,7 @@
   display: block;
   color: var(--dl-ink);
   font-family: var(--dl-font-sans);
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 500;
   line-height: 1.2;
 }
@@ -431,7 +431,7 @@
   display: block;
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 12.5px;
+  font-size: 15px;
   line-height: 1.45;
   text-wrap: balance;
 }
@@ -442,7 +442,7 @@
   border-top: 1px solid var(--dl-line);
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13.5px;
   line-height: 1.5;
   text-wrap: pretty;
 }
@@ -605,8 +605,8 @@
   }
 
   .pellier-profile-portrait {
-    width: 56px;
-    height: 56px;
+    width: 72px;
+    height: 72px;
     flex-shrink: 0;
   }
 }
