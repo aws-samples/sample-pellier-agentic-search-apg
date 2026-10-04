@@ -6,8 +6,8 @@ from tests.test_identity_principal_selection import _load_proof_driver
 def test_preflight_excludes_consumed_quantity_but_not_rejected_returns(sql, monkeypatch):
     sql("""CREATE TABLE pellier.product_catalog(product_id text PRIMARY KEY, name text);
       INSERT INTO pellier.product_catalog VALUES ('101','Exhausted'),('102','Available'),('103','Also exhausted');
-      INSERT INTO pellier.orders(customer_id,product_id,quantity) VALUES
-        ('CUST-JESSICA','101',1),('CUST-JESSICA','102',2),('CUST-JESSICA','103',1);
+      INSERT INTO pellier.orders(customer_id,product_id,quantity,amount_paid_cents) VALUES
+        ('CUST-JESSICA','101',1,1000),('CUST-JESSICA','102',2,1000),('CUST-JESSICA','103',1,1000);
       INSERT INTO pellier.returns(customer_id,product_id,quantity,status) VALUES
         ('CUST-JESSICA','101',1,'requested'),('CUST-JESSICA','102',2,'rejected'),('CUST-JESSICA','103',1,'approved');""")
     driver = _load_proof_driver()

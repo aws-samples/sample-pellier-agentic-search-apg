@@ -226,14 +226,14 @@ async def test_client_evidence_includes_order_lines_and_attributed_ticket_note(
                     "orderId": 406,
                     "productId": "41",
                     "productName": "Coral Lacquer Catchall",
-                    "price": 325.36,
+                    "pricePaid": 325.36,
                     "quantity": 1,
                 },
                 {
                     "orderId": 407,
                     "productId": "42",
                     "productName": "Waffle Bath Robe, Sage",
-                    "price": 107.30,
+                    "pricePaid": 107.30,
                     "quantity": 1,
                 },
             ],
@@ -1273,9 +1273,9 @@ async def test_a_recorded_request_is_not_reported_as_received(
             },
             "orders": [
                 {"orderId": 406, "productId": "41", "productName": "Coral Lacquer Catchall",
-                 "price": 325.36, "quantity": 1},
+                 "pricePaid": 325.36, "quantity": 1},
                 {"orderId": 407, "productId": "42", "productName": "Waffle Bath Robe, Sage",
-                 "price": 107.30, "quantity": 1},
+                 "pricePaid": 107.30, "quantity": 1},
             ],
             "tickets": [{
                 "ticketId": "TKT-2026-3015", "status": "pending",

@@ -118,8 +118,8 @@ const ConciergeProposedActionCard: React.FC<Props> = ({ action, customerId, sess
             <dt>Item</dt>
             <dd>
               {action.product.name}
-              {typeof action.product.price === 'number'
-                ? `, ${money(action.product.price)}`
+              {typeof action.product.pricePaid === 'number'
+                ? `, paid ${money(action.product.pricePaid)}`
                 : ''}
             </dd>
           </div>

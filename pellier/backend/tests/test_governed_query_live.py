@@ -175,8 +175,8 @@ async def test_mutation_attempts_are_refused_and_change_nothing(db, label, sql):
     # `orders.customer_id` has a foreign key to `customers.id`, so the row has
     # to belong to a seeded customer; it is removed by id afterwards.
     seeded = (await db.fetch_one(
-        "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES ('CUST-MARCO', '11', 1) RETURNING id"
+        "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+        " VALUES ('CUST-MARCO', '11', 1, 6800) RETURNING id"
     ))["id"]
     before = (
         await db.fetch_one("SELECT count(*) AS n FROM pellier.orders")
@@ -333,8 +333,8 @@ async def test_a_long_running_statement_is_cut_off(db):
 async def test_generated_sql_is_scoped_by_row_level_security(db):
     """Generated SQL gets no wider view of customer data than a curated tool."""
     await db.execute_query(
-        "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES ('CUST-MARCO','11',1), ('CUST-ANNA','21',1)"
+        "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+        " VALUES ('CUST-MARCO','11',1,6800), ('CUST-ANNA','21',1,6800)"
     )
     ids = [
         r["id"]

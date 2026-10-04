@@ -76,41 +76,42 @@ ON CONFLICT (id) DO UPDATE SET
 DELETE FROM pellier.orders
  WHERE customer_id IN ('CUST-MARCO', 'CUST-ANNA', 'CUST-THEO', 'CUST-FRESH', 'theo');
 
-WITH order_seed(customer_id, product_id, days_ago) AS (
+WITH order_seed(customer_id, product_id, days_ago, amount_paid_cents) AS (
     VALUES
         -- Marco: linen / travel wardrobe history.
-        ('CUST-MARCO', '2', 56),  -- Hadley Linen Shirt
-        ('CUST-MARCO', '11', 48),  -- Italian Linen Camp Shirt
-        ('CUST-MARCO', '14', 40),  -- Linen Drawstring Trousers
-        ('CUST-MARCO', '16', 32),  -- Linen Overshirt
-        ('CUST-MARCO', '18', 24),  -- Cotton-Linen Crew Tee
-        ('CUST-MARCO', '17', 16),  -- Leather Weekend Holdall
-        ('CUST-MARCO', '20', 8),  -- Merino Travel Socks
+        ('CUST-MARCO', '2', 56, 7200),  -- Hadley Linen Shirt
+        ('CUST-MARCO', '11', 48, 6800),  -- Italian Linen Camp Shirt
+        ('CUST-MARCO', '14', 40, 7800),  -- Linen Drawstring Trousers
+        ('CUST-MARCO', '16', 32, 8800),  -- Linen Overshirt
+        ('CUST-MARCO', '18', 24, 2600),  -- Cotton-Linen Crew Tee
+        ('CUST-MARCO', '17', 16, 21900),  -- Leather Weekend Holdall
+        ('CUST-MARCO', '20', 8, 1600),  -- Merino Travel Socks
 
         -- Anna: gift-shaped history across price bands.
-        ('CUST-ANNA', '7', 40),  -- Jute Placemats, Set of 4
-        ('CUST-ANNA', '4', 32),  -- Santal & Fig Candle
-        ('CUST-ANNA', '27', 24),  -- Ceramic Bud Vase
-        ('CUST-ANNA', '26', 16),  -- Handmade Soap Set
-        ('CUST-ANNA', '30', 8),  -- Gift Wrapping Kit
+        ('CUST-ANNA', '7', 40, 6800),  -- Jute Placemats, Set of 4
+        ('CUST-ANNA', '4', 32, 3800),  -- Santal & Fig Candle
+        ('CUST-ANNA', '27', 24, 2200),  -- Ceramic Bud Vase
+        ('CUST-ANNA', '26', 16, 3200),  -- Handmade Soap Set
+        ('CUST-ANNA', '30', 8, 1200),  -- Gift Wrapping Kit
 
         -- Theo: slow-craft home history. Wabi-Sabi Bowl is required
         -- for the chipped-return demo.
-        ('CUST-THEO', '37', 8),  -- Wabi-Sabi Bowl
-        ('CUST-THEO', '31', 21),  -- Stoneware Pour-Over Set
-        ('CUST-THEO', '36', 45),  -- Ceramic Tumblers
-        ('CUST-THEO', '35', 90),  -- Brass Incense Holder
-        ('theo', '37', 8),  -- Wabi-Sabi Bowl
-        ('theo', '31', 21),  -- Stoneware Pour-Over Set
-        ('theo', '36', 45),  -- Ceramic Tumblers
-        ('theo', '35', 90)  -- Brass Incense Holder
+        ('CUST-THEO', '37', 8, 2400),  -- Wabi-Sabi Bowl
+        ('CUST-THEO', '31', 21, 5800),  -- Stoneware Pour-Over Set
+        ('CUST-THEO', '36', 45, 3000),  -- Ceramic Tumblers
+        ('CUST-THEO', '35', 90, 1600),  -- Brass Incense Holder
+        ('theo', '37', 8, 2400),  -- Wabi-Sabi Bowl
+        ('theo', '31', 21, 5800),  -- Stoneware Pour-Over Set
+        ('theo', '36', 45, 3000),  -- Ceramic Tumblers
+        ('theo', '35', 90, 1600)  -- Brass Incense Holder
 )
-INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
+INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at, amount_paid_cents)
 SELECT
     os.customer_id,
     pc."productId",
     1,
-    now() - make_interval(days => os.days_ago)
+    now() - make_interval(days => os.days_ago),
+    os.amount_paid_cents
 FROM order_seed os
 JOIN pellier.product_catalog pc
   ON pc."productId" = os.product_id;

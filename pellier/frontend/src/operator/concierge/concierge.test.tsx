@@ -43,7 +43,7 @@ const RECORD = {
   orders: [
     {
       orderId: 41, productId: '41', productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
+      brand: 'Pellier', pricePaid: 325.36, currentPrice: 325.36, quantity: 1, placedAt: null,
       imageUrl: '/products/house-coral-lacquer-catchall.png',
     },
   ],
@@ -954,8 +954,8 @@ describe('replacement recommendations', () => {
         grounding: {
           resolved: false, reason: 'ambiguous_item_reference',
           candidates: [
-            { orderId: 336, productId: '51', name: 'Camel Wool Overcoat', price: 895 },
-            { orderId: 322, productId: '45', name: 'Tailored Wool Blazer', price: 346.38 },
+            { orderId: 336, productId: '51', name: 'Camel Wool Overcoat', pricePaid: 895 },
+            { orderId: 322, productId: '45', name: 'Tailored Wool Blazer', pricePaid: 346.38 },
           ],
         },
       }),

@@ -74,6 +74,7 @@ TURN_LOG_ONLY = f"{PREFIX}logonly-dual"
 _SESSION = "forensic-exercise"
 _CUSTOMER = "CUST-THEO"
 _PRODUCT = "31"
+_AMOUNT_PAID_CENTS = 5800
 _PRINCIPAL = "forensic-sub-theo"
 
 
@@ -171,8 +172,8 @@ SELECT EXISTS (
 -- across all three turns.
 CREATE TEMP TABLE _forensic_order ON COMMIT DROP AS
 WITH inserted AS (
-    INSERT INTO pellier.orders (customer_id, product_id, quantity)
-    SELECT '{_CUSTOMER}', '{_PRODUCT}', 2
+    INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)
+    SELECT '{_CUSTOMER}', '{_PRODUCT}', 2, {_AMOUNT_PAID_CENTS}
      WHERE NOT EXISTS (SELECT 1 FROM _forensic_already_seeded WHERE v)
     RETURNING id
 ) SELECT id FROM inserted;

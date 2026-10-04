@@ -128,6 +128,7 @@ _ORDER_ITEMS_SQL = """
            pc.color            AS color,
            pc.category         AS category,
            pc.price            AS price,
+           o.amount_paid_cents / 100.0 AS price_paid,
            pc.description      AS description,
            pc.tags             AS tags,
            pc."imgUrl"         AS img_url
@@ -147,6 +148,7 @@ class OrderItem:
     name: str
     category: str
     price: float
+    price_paid: float
     quantity: int
     brand: str = ""
     color: str = ""
@@ -162,6 +164,7 @@ class OrderItem:
             "name": self.name,
             "category": self.category,
             "price": self.price,
+            "pricePaid": self.price_paid,
             "quantity": self.quantity,
             "brand": self.brand,
             "color": self.color,
@@ -420,6 +423,7 @@ def _order_item(row: Dict[str, Any]) -> OrderItem:
         name=str(row.get("name") or ""),
         category=str(row.get("category") or ""),
         price=float(row.get("price") or 0.0),
+        price_paid=float(row.get("price_paid") or 0.0),
         quantity=int(row.get("quantity") or 1),
         brand=str(row.get("brand") or ""),
         color=str(row.get("color") or ""),
@@ -474,7 +478,7 @@ def build_replacement_plan(
     )
 
     operator_ceiling = _clean_ceiling(extracted.get("price_max_usd"))
-    anchor = float(original.price or 0.0) or None
+    anchor = float(original.price_paid or 0.0) or None
     if operator_ceiling is not None:
         ceiling, source = operator_ceiling, "operator_explicit"
     elif anchor:

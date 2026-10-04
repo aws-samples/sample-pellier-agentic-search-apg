@@ -53,8 +53,8 @@ def test_success_probe_owns_its_fixture_and_preserves_business_rows(sql, orders)
                 '{"status":"success"}', now());
     ''')
     if orders != "none":
-        sql('''INSERT INTO pellier.orders (customer_id, product_id, quantity)
-            VALUES ('CUST-JESSICA', '31', 1);''')
+        sql('''INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)
+            VALUES ('CUST-JESSICA', '31', 1, 5800);''')
     if orders == "fully_returned":
         sql('''INSERT INTO pellier.returns (customer_id, product_id, reason)
             VALUES ('CUST-JESSICA', '31', 'changed_mind');''')

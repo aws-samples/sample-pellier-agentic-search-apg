@@ -194,6 +194,7 @@ export interface ConciergeReplacement {
       name: string
       category: string
       price: number
+      pricePaid: number
       imgUrl?: string
     }
     hardConstraints?: {
@@ -221,7 +222,7 @@ export interface ConciergeReplacement {
     resolved: boolean
     reason?: string
     matchedOn?: string
-    candidates?: { orderId: number; productId: string; name: string; price: number }[]
+    candidates?: { orderId: number; productId: string; name: string; pricePaid: number }[]
   }
 }
 
@@ -250,6 +251,7 @@ export interface ConciergeProposedAction {
     name?: string
     category?: string
     price?: number
+    pricePaid?: number
     imgUrl?: string
   }
   /** Exactly the parameters the fingerprint covers and a human confirms. */

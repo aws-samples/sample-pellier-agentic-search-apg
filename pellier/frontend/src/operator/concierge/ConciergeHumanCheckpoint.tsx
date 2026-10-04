@@ -109,7 +109,7 @@ const ConciergeHumanCheckpoint: React.FC<Props> = ({
             <span>
               <strong>{candidate.productName}</strong>
               <small>
-                Order #{candidate.orderId}, ${candidate.price.toFixed(2)}
+                Order #{candidate.orderId}, paid ${candidate.pricePaid.toFixed(2)}
               </small>
             </span>
           </label>

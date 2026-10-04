@@ -38,14 +38,14 @@ def sql(request):
                     '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], input=statement, check=check)
     try:
         execute('''CREATE SCHEMA pellier;
-          CREATE TABLE pellier.orders (id bigserial PRIMARY KEY, customer_id text, product_id text, quantity int);
+          CREATE TABLE pellier.orders (id bigserial PRIMARY KEY, customer_id text, product_id text, quantity int, amount_paid_cents int NOT NULL, currency char(3) NOT NULL DEFAULT 'USD');
           CREATE TABLE pellier.returns (customer_id text, product_id text, reason text, status text, quantity int, order_id bigint REFERENCES pellier.orders);
           CREATE TABLE pellier.governed_turn_receipts (turn_id text PRIMARY KEY, session_id text, principal_sub text,
             principal_verified bool, rail text, policy_events jsonb, terminal_status text, terminal_outcome jsonb, latency_ms int);
           CREATE TABLE pellier.tool_audit (audit_id bigserial PRIMARY KEY, session_id text, tool text, caller text, args jsonb, result jsonb, latency_ms int);
           CREATE TABLE pellier.governed_receipts (audit_id bigint, session_id text, principal_id text, principal_label text,
             tool text, caller text, decision text, args jsonb, policy_name text);
-          INSERT INTO pellier.orders(customer_id,product_id,quantity) VALUES ('CUST-THEO','ordinary-order',7);
+          INSERT INTO pellier.orders(customer_id,product_id,quantity,amount_paid_cents) VALUES ('CUST-THEO','ordinary-order',7,1000);
         ''')
         yield execute
     finally:

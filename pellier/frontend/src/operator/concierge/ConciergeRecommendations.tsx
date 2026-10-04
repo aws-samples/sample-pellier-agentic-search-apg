@@ -152,7 +152,7 @@ const ConciergeRecommendations: React.FC<Props> = ({ replacement }) => {
                     {candidate.name}
                   </span>
                   <span className="operator-concierge-candidate-price">
-                    {money(candidate.price)}
+                    paid {money(candidate.pricePaid)}
                   </span>
                 </li>
               ))}

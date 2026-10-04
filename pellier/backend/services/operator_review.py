@@ -659,7 +659,9 @@ _CUSTOMER_SELECT = """
 
 _ORDER_SELECT = """
     SELECT o.id AS order_id, o.product_id, o.quantity, o.placed_at,
-           p.name AS product_name, p.brand, p.price, p."imgUrl" AS image_url
+           o.amount_paid_cents / 100.0 AS price_paid,
+           p.name AS product_name, p.brand, p.price AS current_price,
+           p."imgUrl" AS image_url
       FROM pellier.orders o
       JOIN pellier.product_catalog p ON p."productId" = o.product_id
      WHERE o.id = %s

@@ -142,10 +142,10 @@ async def seeded(db) -> AsyncIterator[Dict[str, Any]]:
         "CUST-MARCO",
     )
     rows = await db.fetch_all(
-        "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES (%s, %s, %s), (%s, %s, %s) RETURNING id, customer_id",
-        "CUST-MARCO", "11", 1,
-        "CUST-ANNA", "21", 1,
+        "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+        " VALUES (%s, %s, %s, %s), (%s, %s, %s, %s) RETURNING id, customer_id",
+        "CUST-MARCO", "11", 1, 6800,
+        "CUST-ANNA", "21", 1, 6800,
     )
     try:
         yield {"order_ids": [r["id"] for r in rows]}
@@ -272,8 +272,8 @@ async def test_authorized_principal_cannot_write_another_customers_row(db, seede
         async with db.principal_session(_SUB_MARCO) as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-                    " VALUES ('CUST-ANNA', '21', 1)"
+                    "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+                    " VALUES ('CUST-ANNA', '21', 1, 6800)"
                 )
 
     assert "row-level security" in str(caught.value).lower()
@@ -285,8 +285,8 @@ async def test_authorized_principal_can_write_its_own_row(db, seeded):
     async with db.principal_session(_SUB_MARCO) as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-                " VALUES ('CUST-MARCO', '11', 1) RETURNING id"
+                "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+                " VALUES ('CUST-MARCO', '11', 1, 6800) RETURNING id"
             )
             row = await cur.fetchone()
     inserted = row["id"]
@@ -440,8 +440,8 @@ async def test_database_scope_agrees_with_the_application_scope(db, seeded):
 async def ordered(db) -> AsyncIterator[Dict[str, Any]]:
     """One real order per customer, so an ownership lookup can succeed."""
     await db.execute_query(
-        "INSERT INTO pellier.orders (customer_id, product_id, quantity)"
-        " VALUES ('CUST-MARCO','11',2), ('CUST-ANNA','21',2)"
+        "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
+        " VALUES ('CUST-MARCO','11',2,6800), ('CUST-ANNA','21',2,6800)"
     )
     rows = await db.fetch_all(
         "SELECT id FROM pellier.orders ORDER BY id DESC LIMIT 2"

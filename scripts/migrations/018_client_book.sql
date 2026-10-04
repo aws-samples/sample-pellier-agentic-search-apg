@@ -147,85 +147,86 @@ DELETE FROM pellier.orders
     'CUST-RACHEL', 'CUST-KEVIN'
  );
 
-WITH order_seed(customer_id, product_id, days_ago) AS (
+WITH order_seed(customer_id, product_id, days_ago, amount_paid_cents) AS (
     VALUES
         -- Jessica: the return dispute. The catchall and the robe are the two
         -- items the operator queue asks about, ordered on the same day.
-        ('CUST-JESSICA', '41', 34),  -- Coral Lacquer Catchall
-        ('CUST-JESSICA', '42', 34),  -- Waffle Bath Robe, Sage
-        ('CUST-JESSICA', '31', 120),  -- Stoneware Pour-Over Set
-        ('CUST-JESSICA', '43', 210),  -- Quilted Silk Vest
-        ('CUST-JESSICA', '50', 300),  -- Oat Merino Crew
+        ('CUST-JESSICA', '41', 34, 4800),  -- Coral Lacquer Catchall
+        ('CUST-JESSICA', '42', 34, 6400),  -- Waffle Bath Robe, Sage
+        ('CUST-JESSICA', '31', 120, 5800),  -- Stoneware Pour-Over Set
+        ('CUST-JESSICA', '43', 210, 12900),  -- Quilted Silk Vest
+        ('CUST-JESSICA', '50', 300, 10800),  -- Oat Merino Crew
 
         -- Sarah: buys a room at a time.
-        ('CUST-SARAH', '59', 45),  -- Wool Rug
-        ('CUST-SARAH', '49', 60),  -- Stonewashed Linen Set
-        ('CUST-SARAH', '46', 150),  -- Ivory Cashmere Throw
-        ('CUST-SARAH', '60', 200),  -- Blown Glass Decanter
+        ('CUST-SARAH', '59', 45, 42900),  -- Wool Rug
+        ('CUST-SARAH', '49', 60, 21900),  -- Stonewashed Linen Set
+        ('CUST-SARAH', '46', 150, 22900),  -- Ivory Cashmere Throw
+        ('CUST-SARAH', '60', 200, 11800),  -- Blown Glass Decanter
 
         -- Catherine: tailored wardrobe across seasons.
-        ('CUST-CATHERINE', '51', 30),  -- Camel Wool Overcoat
-        ('CUST-CATHERINE', '45', 75),  -- Tailored Wool Blazer
-        ('CUST-CATHERINE', '53', 75),  -- Double-Pleat Wool Trouser
-        ('CUST-CATHERINE', '52', 140),  -- Silk Slip Dress
-        ('CUST-CATHERINE', '54', 190),  -- Suede Chelsea Boot
+        ('CUST-CATHERINE', '51', 30, 32900),  -- Camel Wool Overcoat
+        ('CUST-CATHERINE', '45', 75, 23900),  -- Tailored Wool Blazer
+        ('CUST-CATHERINE', '53', 75, 13900),  -- Double-Pleat Wool Trouser
+        ('CUST-CATHERINE', '52', 140, 16900),  -- Silk Slip Dress
+        ('CUST-CATHERINE', '54', 190, 25900),  -- Suede Chelsea Boot
 
         -- Amara: investment pieces.
-        ('CUST-AMARA', '59', 20),  -- Wool Rug
-        ('CUST-AMARA', '58', 55),  -- Signet Ring, Brushed Gold
-        ('CUST-AMARA', '51', 110),  -- Camel Wool Overcoat
-        ('CUST-AMARA', '46', 160),  -- Ivory Cashmere Throw
-        ('CUST-AMARA', '48', 240),  -- Leather Market Tote
+        ('CUST-AMARA', '59', 20, 42900),  -- Wool Rug
+        ('CUST-AMARA', '58', 55, 14900),  -- Signet Ring, Brushed Gold
+        ('CUST-AMARA', '51', 110, 32900),  -- Camel Wool Overcoat
+        ('CUST-AMARA', '46', 160, 22900),  -- Ivory Cashmere Throw
+        ('CUST-AMARA', '48', 240, 18900),  -- Leather Market Tote
 
         -- Julian: everything goes to alterations.
-        ('CUST-JULIAN', '45', 25),  -- Tailored Wool Blazer
-        ('CUST-JULIAN', '53', 25),  -- Double-Pleat Wool Trouser
-        ('CUST-JULIAN', '54', 95),  -- Suede Chelsea Boot
-        ('CUST-JULIAN', '43', 170),  -- Quilted Silk Vest
+        ('CUST-JULIAN', '45', 25, 23900),  -- Tailored Wool Blazer
+        ('CUST-JULIAN', '53', 25, 13900),  -- Double-Pleat Wool Trouser
+        ('CUST-JULIAN', '54', 95, 25900),  -- Suede Chelsea Boot
+        ('CUST-JULIAN', '43', 170, 12900),  -- Quilted Silk Vest
 
         -- David: the sustainable edit.
-        ('CUST-DAVID', '49', 40),  -- Stonewashed Linen Set
-        ('CUST-DAVID', '50', 100),  -- Oat Merino Crew
-        ('CUST-DAVID', '7', 165),  -- Jute Placemats, Set of 4
-        ('CUST-DAVID', '40', 220),  -- Charcoal Soap Bar
+        ('CUST-DAVID', '49', 40, 21900),  -- Stonewashed Linen Set
+        ('CUST-DAVID', '50', 100, 10800),  -- Oat Merino Crew
+        ('CUST-DAVID', '7', 165, 6800),  -- Jute Placemats, Set of 4
+        ('CUST-DAVID', '40', 220, 900),  -- Charcoal Soap Bar
 
         -- Priya: gifting at volume.
-        ('CUST-PRIYA', '55', 28),  -- Fig and Cedar Eau de Parfum
-        ('CUST-PRIYA', '56', 28),  -- Rose Absolute Body Oil
-        ('CUST-PRIYA', '47', 90),  -- Vetiver Eau de Parfum
-        ('CUST-PRIYA', '60', 150),  -- Blown Glass Decanter
-        ('CUST-PRIYA', '30', 150),  -- Gift Wrapping Kit
+        ('CUST-PRIYA', '55', 28, 12800),  -- Fig and Cedar Eau de Parfum
+        ('CUST-PRIYA', '56', 28, 6400),  -- Rose Absolute Body Oil
+        ('CUST-PRIYA', '47', 90, 11000),  -- Vetiver Eau de Parfum
+        ('CUST-PRIYA', '60', 150, 11800),  -- Blown Glass Decanter
+        ('CUST-PRIYA', '30', 150, 1200),  -- Gift Wrapping Kit
 
         -- Elena: one rung below, worth an early-access nudge.
-        ('CUST-ELENA', '57', 35),  -- Cashmere Travel Wrap
-        ('CUST-ELENA', '50', 105),  -- Oat Merino Crew
-        ('CUST-ELENA', '47', 180),  -- Vetiver Eau de Parfum
+        ('CUST-ELENA', '57', 35, 18900),  -- Cashmere Travel Wrap
+        ('CUST-ELENA', '50', 105, 10800),  -- Oat Merino Crew
+        ('CUST-ELENA', '47', 180, 11000),  -- Vetiver Eau de Parfum
 
         -- Thomas: objects that photograph well.
-        ('CUST-THOMAS', '54', 50),  -- Suede Chelsea Boot
-        ('CUST-THOMAS', '44', 130),  -- Travertine Wall Clock
-        ('CUST-THOMAS', '5', 220),  -- Rectangular Leather Watch
+        ('CUST-THOMAS', '54', 50, 25900),  -- Suede Chelsea Boot
+        ('CUST-THOMAS', '44', 130, 7200),  -- Travertine Wall Clock
+        ('CUST-THOMAS', '5', 220, 14900),  -- Rectangular Leather Watch
 
         -- Michael: repeat basics.
-        ('CUST-MICHAEL', '50', 42),  -- Oat Merino Crew
-        ('CUST-MICHAEL', '43', 125),  -- Quilted Silk Vest
-        ('CUST-MICHAEL', '10', 230),  -- Washed Canvas Tote
+        ('CUST-MICHAEL', '50', 42, 10800),  -- Oat Merino Crew
+        ('CUST-MICHAEL', '43', 125, 12900),  -- Quilted Silk Vest
+        ('CUST-MICHAEL', '10', 230, 3400),  -- Washed Canvas Tote
 
         -- Rachel: fragrance, with an open ticket.
-        ('CUST-RACHEL', '47', 18),  -- Vetiver Eau de Parfum
-        ('CUST-RACHEL', '56', 85),  -- Rose Absolute Body Oil
-        ('CUST-RACHEL', '4', 175),  -- Santal & Fig Candle
+        ('CUST-RACHEL', '47', 18, 11000),  -- Vetiver Eau de Parfum
+        ('CUST-RACHEL', '56', 85, 6400),  -- Rose Absolute Body Oil
+        ('CUST-RACHEL', '4', 175, 3800),  -- Santal & Fig Candle
 
         -- Kevin: new joiner, two small orders.
-        ('CUST-KEVIN', '38', 12),  -- Beeswax Pillar Candle
-        ('CUST-KEVIN', '40', 12)  -- Charcoal Soap Bar
+        ('CUST-KEVIN', '38', 12, 2200),  -- Beeswax Pillar Candle
+        ('CUST-KEVIN', '40', 12, 900)  -- Charcoal Soap Bar
 )
-INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at)
+INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at, amount_paid_cents)
 SELECT
     os.customer_id,
     pc."productId",
     1,
-    now() - make_interval(days => os.days_ago)
+    now() - make_interval(days => os.days_ago),
+    os.amount_paid_cents
 FROM order_seed os
 JOIN pellier.product_catalog pc
   ON pc."productId" = os.product_id;

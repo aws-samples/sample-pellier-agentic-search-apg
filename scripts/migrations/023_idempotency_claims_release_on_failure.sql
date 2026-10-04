@@ -337,8 +337,8 @@ BEGIN
     ELSE
         INSERT INTO pellier.customers (id, name)
         VALUES (v_customer, 'Migration 023 rollback-only probe');
-        INSERT INTO pellier.orders (customer_id, product_id, quantity)
-        VALUES (v_customer, v_product, 1);
+        INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)
+        VALUES (v_customer, v_product, 1, 1000);
         SELECT COUNT(*) INTO v_returns FROM pellier.returns;
         v_result := pellier.process_return_idempotent(
             v_key || '-success', repeat('e', 64), v_customer, v_product, 'changed_mind'

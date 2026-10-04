@@ -258,7 +258,7 @@ async def load_client_evidence(
             + "; ".join(
                 f"#{order.get('orderId')} {order.get('productName')}: "
                 f"{_money(
-                    float(order.get('price') or 0)
+                    float(order.get('pricePaid') or 0)
                     * int(order.get('quantity') or 1)
                 )}"
                 for order in orders[:10]
@@ -1149,7 +1149,7 @@ async def _replacement_context(db: Any, *, customer_id: str, request: str,
     ctx.evidence.append(Evidence(
         kind="order_item", role=ROLE_FACT, status="verified", source=SOURCE_AURORA,
         label="Item being replaced", record_id=str(item.product_id),
-        detail=f"{item.name} · {item.category} · {_money(item.price)} "
+        detail=f"{item.name} · {item.category} · paid {_money(item.price_paid)} "
                f"(order #{item.order_id}, matched on {grounding.matched_on})",
         data=item.to_payload(),
     ))
@@ -1243,7 +1243,7 @@ def _clarification(grounding: Any) -> str:
     """
     if grounding.candidates:
         listed = "; ".join(
-            f"#{c.order_id} {c.name} ({_money(c.price)})"
+            f"#{c.order_id} {c.name} (paid {_money(c.price_paid)})"
             for c in grounding.candidates[:5]
         )
         return (
@@ -1263,7 +1263,7 @@ def _replacement_prompt_block(result: Any) -> str:
     lines = [
         "ITEM BEING REPLACED: "
         f"{result.plan.original.name} ({result.plan.original.category}, "
-        f"{_money(result.plan.original.price)})",
+        f"paid {_money(result.plan.original.price_paid)})",
         "HARD CONSTRAINTS APPLIED IN POSTGRESQL: "
         + " · ".join(result.plan.describe_hard_controls()),
     ]

@@ -66,7 +66,7 @@ const RECORD = {
   orders: [
     {
       orderId: 1, productId: '41', productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
+      brand: 'Pellier', pricePaid: 325.36, currentPrice: 325.36, quantity: 1, placedAt: null,
       imageUrl: '/products/house-coral-lacquer-catchall.png',
     },
   ],

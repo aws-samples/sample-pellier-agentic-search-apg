@@ -29,10 +29,10 @@ function record(unrecorded?: string[]): OperatorClientRecord {
     },
     orders: [
       { orderId: 406, productId: '41', productName: 'Coral Lacquer Catchall',
-        brand: 'Pellier', price: 325.36, quantity: 1, placedAt: null,
+        brand: 'Pellier', pricePaid: 325.36, currentPrice: 325.36, quantity: 1, placedAt: null,
         imageUrl: '' },
       { orderId: 407, productId: '42', productName: 'Waffle Bath Robe, Sage',
-        brand: 'NestWell', price: 107.3, quantity: 1, placedAt: null, imageUrl: '' },
+        brand: 'NestWell', pricePaid: 107.3, currentPrice: 107.3, quantity: 1, placedAt: null, imageUrl: '' },
     ],
     tickets: [{
       ticketId: 'TKT-2026-3015', subject: 'Return received, refund amount disputed',

@@ -2131,7 +2131,7 @@ CURRENT REQUEST: {message}"""
                 orders_rows = await self.db_service.fetch_all(
                     'SELECT pc."productId", pc.name, pc.brand, pc.color, '
                     'pc.price, pc.category, pc."imgUrl", pc.rating, pc.reviews, '
-                    'o.placed_at '
+                    'o.amount_paid_cents / 100.0 AS price_paid, o.placed_at '
                     'FROM pellier.orders o '
                     'JOIN pellier.product_catalog pc ON o.product_id = pc."productId" '
                     "WHERE o.customer_id = %s "
@@ -2154,7 +2154,7 @@ CURRENT REQUEST: {message}"""
                         lines.append("Past orders:")
                         for o in orders_rows:
                             lines.append(
-                                f"  - {o['name']} (${o['price']:.0f}, {o['category']})"
+                                f"  - {o['name']} (paid ${o['price_paid']:.0f}, {o['category']})"
                             )
                     lines.append(
                         "Use this to tailor the reply — reference past purchases, "

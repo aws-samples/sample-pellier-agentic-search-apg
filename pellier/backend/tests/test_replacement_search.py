@@ -26,10 +26,12 @@ from services import replacement_search as RS
 def _order_row(
     order_id: int, product_id: str, name: str, category: str, price: float,
     *, brand: str = "Pellier", tags: Sequence[str] = ("ceramic", "home"),
+    paid: Optional[float] = None,
 ) -> Dict[str, Any]:
     return {
         "order_id": order_id, "product_id": product_id, "name": name,
-        "category": category, "price": price, "quantity": 1, "brand": brand,
+        "category": category, "price": price,
+        "price_paid": price if paid is None else paid, "quantity": 1, "brand": brand,
         "color": "sand", "description": f"{name} description", "tags": list(tags),
         "img_url": f"/products/{product_id}.png", "placed_at": None,
     }
@@ -149,6 +151,18 @@ async def test_the_order_item_is_established_by_aurora_not_by_the_request() -> N
     assert grounding.item.product_id == "31"
     assert grounding.item.price == 165.0
     assert grounding.item.order_id == 306
+
+
+@pytest.mark.asyncio
+async def test_the_order_item_carries_what_was_paid_not_todays_price() -> None:
+    db = FakeDb(orders=[_order_row(307, "2", "Hadley Linen Shirt", "Clothing", 78.0, paid=72.0)])
+    grounding = await RS.resolve_order_item(
+        db, customer_id="CUST-MARCO", request="Replace the Hadley Linen Shirt."
+    )
+    assert grounding.item is not None
+    assert grounding.item.price == 78.0
+    assert grounding.item.price_paid == 72.0
+    assert grounding.item.to_payload()["pricePaid"] == 72.0
 
 
 @pytest.mark.asyncio

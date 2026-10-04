@@ -208,6 +208,10 @@ CREATE TABLE IF NOT EXISTS pellier.orders (
                  REFERENCES pellier.product_catalog("productId")
                  ON DELETE CASCADE,
     quantity     INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    -- What the customer paid per unit, in minor units, fixed at purchase.
+    -- Never derived from product_catalog.price, which changes.
+    amount_paid_cents INTEGER NOT NULL CHECK (amount_paid_cents >= 0),
+    currency     CHAR(3) NOT NULL DEFAULT 'USD',
     placed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS orders_customer_idx

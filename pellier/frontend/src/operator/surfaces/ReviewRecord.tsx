@@ -554,7 +554,7 @@ const ReviewRecordPage: React.FC = () => {
                       })
                     : '—'}
                 </td>
-                <td>{money(order.price * order.quantity)}</td>
+                <td>{money(order.pricePaid * order.quantity)}</td>
               </tr>
             </tbody>
           </table></div>

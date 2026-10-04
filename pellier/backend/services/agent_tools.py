@@ -434,6 +434,7 @@ def get_customer_preferences(customer_id: str = "", persona: str = "", limit: in
                    pc.category,
                    pc.color,
                    pc.price,
+                   o.amount_paid_cents / 100.0 AS price_paid,
                    o.quantity,
                    o.placed_at
               FROM pellier.orders o
@@ -481,6 +482,7 @@ def get_customer_preferences(customer_id: str = "", persona: str = "", limit: in
                     "category": row.get("category"),
                     "color": row.get("color"),
                     "price": row.get("price"),
+                    "price_paid": row.get("price_paid"),
                     "quantity": row.get("quantity"),
                     "placed_at": row.get("placed_at"),
                 }

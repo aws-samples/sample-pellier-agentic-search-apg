@@ -466,7 +466,7 @@ const ClientRecordPage: React.FC = () => {
                     <th className="operator-order-piece">Piece</th>
                     <th className="operator-col-optional">Placed</th>
                     <th className="operator-table-num">Qty</th>
-                    <th className="operator-table-num">Price</th>
+                    <th className="operator-table-num">Paid</th>
                     <th className="operator-table-num">ID</th>
                   </tr>
                 </thead>
@@ -494,7 +494,12 @@ const ClientRecordPage: React.FC = () => {
                       </td>
                       <td className="operator-table-num">{order.quantity}</td>
                       <td className="operator-table-num">
-                        {money(order.price)}
+                        {money(order.pricePaid)}
+                        {order.currentPrice !== order.pricePaid ? (
+                          <div className="operator-cell-note">
+                            now {money(order.currentPrice)}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="operator-table-id">
                         {order.productId}

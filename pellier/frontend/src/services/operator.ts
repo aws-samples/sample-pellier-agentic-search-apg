@@ -87,7 +87,10 @@ export interface OperatorOrder {
   productId: string
   productName: string
   brand: string
-  price: number
+  /** What the customer paid per unit, fixed at purchase. */
+  pricePaid: number
+  /** Today's catalog price. Differs from pricePaid after a repricing. */
+  currentPrice: number
   quantity: number
   placedAt: string | null
   imageUrl: string

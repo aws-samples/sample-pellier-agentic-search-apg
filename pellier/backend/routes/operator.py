@@ -120,7 +120,7 @@ _BOOK_SELECT = """
         c.spend_12mo                           AS spend_12mo,
         c.preferences_summary                  AS preferences_summary,
         COUNT(o.id)                            AS order_count,
-        COALESCE(SUM(p.price * o.quantity), 0) AS order_value,
+        COALESCE(SUM(o.amount_paid_cents * o.quantity), 0) / 100.0 AS order_value,
         MAX(o.placed_at)                       AS last_order_at,
         -- The client's live service request, if one is open. The book row
         -- otherwise has to describe a case from `preferences_summary`, which
@@ -130,8 +130,6 @@ _BOOK_SELECT = """
       FROM pellier.customers c
       LEFT JOIN pellier.orders o
              ON o.customer_id = c.id
-      LEFT JOIN pellier.product_catalog p
-             ON p."productId" = o.product_id
       LEFT JOIN LATERAL (
             SELECT subject, status
               FROM pellier.support_tickets
@@ -170,7 +168,8 @@ _ORDERS_SELECT = """
         o.placed_at     AS placed_at,
         p.name          AS product_name,
         p.brand         AS brand,
-        p.price         AS price,
+        o.amount_paid_cents / 100.0 AS price_paid,
+        p.price         AS current_price,
         p."imgUrl"      AS image_url
       FROM pellier.orders o
       JOIN pellier.product_catalog p
@@ -403,7 +402,8 @@ def _order_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "productId": str(row.get("product_id") or ""),
         "productName": row.get("product_name") or "",
         "brand": row.get("brand") or "",
-        "price": _as_float(row.get("price")),
+        "pricePaid": _as_float(row.get("price_paid")),
+        "currentPrice": _as_float(row.get("current_price")),
         "quantity": int(row.get("quantity") or 1),
         "placedAt": _iso(row.get("placed_at")),
         "imageUrl": row.get("image_url") or "",
@@ -777,7 +777,7 @@ async def get_client(
     # the order rows it already has rather than issuing a second aggregate.
     record["orderCount"] = len(orders)
     record["orderValue"] = round(
-        sum(o["price"] * o["quantity"] for o in orders), 2
+        sum(o["pricePaid"] * o["quantity"] for o in orders), 2
     )
     record["lastOrderAt"] = orders[0]["placedAt"] if orders else None
 
@@ -1058,7 +1058,8 @@ def _review_order(order: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "productId": str(order.get("product_id") or ""),
         "productName": order.get("product_name") or "",
         "brand": order.get("brand") or "",
-        "price": _as_float(order.get("price")),
+        "pricePaid": _as_float(order.get("price_paid")),
+        "currentPrice": _as_float(order.get("current_price")),
         "quantity": int(order.get("quantity") or 1),
         "placedAt": _iso(order.get("placed_at")),
         "imageUrl": order.get("image_url") or "",

@@ -162,7 +162,7 @@ def test_review_required_is_a_known_gate_not_an_unknown_capability() -> None:
 def _order_row(order_id: int, product_id: str, name: str, price: float) -> Dict[str, Any]:
     return {
         "order_id": order_id, "product_id": product_id, "name": name,
-        "category": "Bath and body", "price": price, "quantity": 1, "brand": "Pellier",
+        "category": "Bath and body", "price": price, "price_paid": price, "quantity": 1, "brand": "Pellier",
         "color": "", "description": f"{name} description", "tags": [],
         "img_url": f"/products/{product_id}.png", "placed_at": None,
     }

@@ -66,10 +66,10 @@ def _ordered_product_ids() -> list[str]:
     start = sql.index("WITH order_seed(")
     end = sql.index("INSERT INTO pellier.orders", start)
     block = sql[start:end]
-    # ('CUST-JESSICA', 'Coral Lacquer Catchall', 34),
-    rows = re.findall(r"\(\s*'([^']+)'\s*,\s*'((?:[^']|'')+)'\s*,\s*(\d+)\s*\)", block)
+    # ('CUST-JESSICA', '41', 34, 3900),
+    rows = re.findall(r"\(\s*'([^']+)'\s*,\s*'((?:[^']|'')+)'\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", block)
     assert rows, "no order_seed rows parsed from migration 018"
-    return [product_id for _cust, product_id, _days in rows]
+    return [product_id for _cust, product_id, _days, _cents in rows]
 
 
 def _seeded_memberships() -> dict[str, tuple[str, float]]:

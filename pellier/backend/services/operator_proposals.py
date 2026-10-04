@@ -292,7 +292,8 @@ async def prepare_proposal(
         order={"orderId": item.order_id, "placedAt": item.placed_at},
         product={
             "productId": item.product_id, "name": item.name,
-            "category": item.category, "price": item.price, "imgUrl": item.img_url,
+            "category": item.category, "price": item.price, "pricePaid": item.price_paid,
+            "imgUrl": item.img_url,
         },
         material=dict(material),
         action_hash=action_hash,
