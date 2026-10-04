@@ -213,40 +213,41 @@ CREATE INDEX IF NOT EXISTS warehouse_inventory_product_idx
     ON pellier.warehouse_inventory (product_id);
 
 -- ---------------------------------------------------------------------
--- Seed: rebuild the exact 60 x 3 governed inventory matrix. Clearing the
+-- Seed: rebuild the exact 100 x 3 governed inventory matrix. Clearing the
 -- existing rows prevents legacy warehouses or stale products from surviving
--- a reset and invalidating the 180-row workshop contract.
+-- a reset and invalidating the 300-row workshop contract.
 -- ---------------------------------------------------------------------
+SET LOCAL pellier.inventory_reason = 'seed';
+
 DELETE FROM pellier.warehouse_inventory;
 DELETE FROM pellier.warehouses
 WHERE id NOT IN ('BK-01', 'ATX-02', 'PDX-01');
 
+-- The leading warehouse rotates with the product ID, so no warehouse is
+-- always the largest. The other two each hold 30% of the catalog quantity.
 INSERT INTO pellier.warehouse_inventory (warehouse_id, product_id, quantity)
-SELECT
-    wh.id,
-    pc."productId",
-    CASE wh.id
-        WHEN 'BK-01' THEN GREATEST(
-            0,
-            pc.quantity
-              - FLOOR(pc.quantity * 0.30)::INTEGER
-              - FLOOR(pc.quantity * 0.30)::INTEGER
-        )::SMALLINT
-        WHEN 'ATX-02' THEN GREATEST(
-            0, FLOOR(pc.quantity * 0.30)::INTEGER
-        )::SMALLINT
-        WHEN 'PDX-01' THEN GREATEST(
-            0, FLOOR(pc.quantity * 0.30)::INTEGER
-        )::SMALLINT
-    END
-FROM pellier.warehouses wh
-CROSS JOIN pellier.product_catalog pc
-WHERE wh.id IN ('BK-01', 'ATX-02', 'PDX-01')
-  AND pc."productId" ~ '^[0-9]+$'
-  AND pc."productId"::int BETWEEN 1 AND 60
-ON CONFLICT (warehouse_id, product_id) DO UPDATE SET
-    quantity   = EXCLUDED.quantity,
-    updated_at = now();
+SELECT wh.id, pc."productId",
+       GREATEST(0, CASE
+         WHEN wh.id = (ARRAY['BK-01','ATX-02','PDX-01'])[(pc."productId"::int % 3) + 1]
+           THEN pc.quantity - 2 * FLOOR(pc.quantity * 0.30)::int
+         ELSE FLOOR(pc.quantity * 0.30)::int
+       END)::smallint
+  FROM pellier.warehouses wh
+ CROSS JOIN pellier.product_catalog pc
+ WHERE wh.id IN ('BK-01', 'ATX-02', 'PDX-01')
+   AND pc."productId" ~ '^[0-9]+$'
+ON CONFLICT (warehouse_id, product_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();
+
+-- Teaching fixtures: exact rows the labs and their checkers depend on.
+WITH fixture(product_id, warehouse_id, quantity) AS (VALUES
+    ('2', 'BK-01', 0), ('2', 'ATX-02', 6), ('2', 'PDX-01', 14),
+    ('14', 'BK-01', 3), ('14', 'ATX-02', 2), ('14', 'PDX-01', 0),
+    ('43', 'BK-01', 0), ('43', 'ATX-02', 0), ('43', 'PDX-01', 0),
+    ('79', 'BK-01', 0), ('79', 'ATX-02', 0), ('79', 'PDX-01', 0))
+UPDATE pellier.warehouse_inventory wi
+   SET quantity = f.quantity::smallint, updated_at = now()
+  FROM fixture f
+ WHERE wi.product_id = f.product_id AND wi.warehouse_id = f.warehouse_id;
 
 -- ---------------------------------------------------------------------
 -- Visibility
@@ -256,6 +257,7 @@ DECLARE
     nrows  INTEGER;
     nzero  INTEGER;
     invalid_products INTEGER;
+    drift_count INTEGER;
 BEGIN
     SELECT COUNT(*)                             INTO nrows FROM pellier.warehouse_inventory;
     SELECT COUNT(*) FILTER (WHERE quantity = 0) INTO nzero FROM pellier.warehouse_inventory;
@@ -267,12 +269,22 @@ BEGIN
            GROUP BY product_id
           HAVING count(*) <> 3
       ) AS invalid;
+    SELECT count(*)
+      INTO drift_count
+      FROM pellier.product_catalog pc
+     WHERE pc."productId" ~ '^[0-9]+$'
+       AND pc.quantity <> (
+           SELECT COALESCE(sum(wi.quantity), 0)
+             FROM pellier.warehouse_inventory wi
+            WHERE wi.product_id = pc."productId"
+       );
 
-    IF nrows <> 180 OR invalid_products <> 0 THEN
+    IF nrows <> 300 OR invalid_products <> 0 OR drift_count <> 0 THEN
         RAISE EXCEPTION
-            'Governed inventory expected 180 rows and 3 warehouses per product; got % rows and % invalid products.',
+            'Governed inventory expected 300 rows, 3 warehouses per product and no drift; got % rows, % invalid products and % drifting products.',
             nrows,
-            invalid_products;
+            invalid_products,
+            drift_count;
     END IF;
     RAISE NOTICE 'pellier.warehouse_inventory: % rows total (% with zero stock)', nrows, nzero;
 END $$;

@@ -52,7 +52,7 @@ _SEARCH_SYSTEM_PROMPT = (
     "- escalate_to_human: ONLY use when the ask is genuinely outside what the "
     "catalog tools can answer — body-image or fit-for-pregnancy questions, cultural "
     "dressing norms the agent doesn't know, deep personal-style coaching beyond the "
-    "boutique's 60 curated pieces, or shopper distress that deserves a real person. "
+    "boutique's 100 curated pieces, or shopper distress that deserves a real person. "
     "Always try search_products / get_related_products first; calling escalate_to_human is the "
     "honest fallback, never a way to skip the work. Pass a one-sentence reason. "
     "</tools>"

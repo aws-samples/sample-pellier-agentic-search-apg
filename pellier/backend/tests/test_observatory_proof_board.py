@@ -81,7 +81,7 @@ class _ProofDB:
         if "catalog_count" in query:
             return {
                 "catalog_count": 100,
-                "warehouse_count": 180,
+                "warehouse_count": 300,
                 "audit_count": 7,
             }
         if "FROM pellier.governed_receipts" in query:
@@ -298,7 +298,7 @@ def test_governed_readiness_requires_exact_warehouse_seed(monkeypatch) -> None:
             if "catalog_count" in query:
                 return {
                     "catalog_count": 100,
-                    "warehouse_count": 179,
+                    "warehouse_count": 299,
                     "audit_count": 7,
                 }
             return await super().fetch_one(query, *params)
@@ -311,7 +311,7 @@ def test_governed_readiness_requires_exact_warehouse_seed(monkeypatch) -> None:
     assert body["status"] == "not_ready"
     checks = {c["id"]: c for c in body["checks"]}
     assert checks["aurora"]["state"] == "fail"
-    assert "expected exactly 180" in checks["aurora"]["detail"]
+    assert "expected exactly 300" in checks["aurora"]["detail"]
 
 
 def test_identity_boundary_requires_an_operator_and_allows_the_operator(monkeypatch) -> None:

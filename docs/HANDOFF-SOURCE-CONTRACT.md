@@ -281,7 +281,7 @@ Measured on a fresh PostgreSQL 18 cluster after setup and `database-reset.sh`:
 
     customers 6 (CUST-MARCO, CUST-ANNA, CUST-THEO, CUST-JESSICA, CUST-FRESH, `theo` alias)
     orders 25 · product_catalog 100 · warehouses 3
-    warehouse_inventory 180 · inventory_ledger 177 · customer_episodic_seed 9
+    warehouse_inventory 300 · inventory_ledger 292 · customer_episodic_seed 9
     return_policies 9 · returns 1 · tool_audit 1 · governed_receipts 1
     (the last three: the migration 010 forensic incident)
     support_tickets 3 (TKT-2026-3015 Jessica pending, TKT-2026-5021 Theo open,

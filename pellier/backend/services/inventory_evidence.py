@@ -10,8 +10,8 @@ Established from the migrations rather than assumed:
                                     the source of truth; the two quantity columns
                                     become caches that a check query can reconcile
                                     against." One signed ``delta`` row per movement.
-                                    Baseline coverage: all 60 curated products
-                                    (180 ``seed``, 21 ``return_damaged``).
+                                    Baseline coverage: all 100 curated products
+                                    (292 ``seed`` rows on a fresh reset).
 
     pellier.warehouse_inventory     migration 006, per-warehouse counts. The
                                     fulfillment-grade cache, and the one a shopper's

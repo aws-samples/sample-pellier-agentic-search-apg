@@ -65,3 +65,57 @@ def test_reset_restores_the_same_people_and_tickets(fresh_db):
     run_reset(fresh_db)
     test_exactly_four_clients_and_the_anonymous_profile(fresh_db)
     test_tickets_tell_theo_and_jessica_stories(fresh_db)
+
+
+WAREHOUSE_FIXTURES = {
+    "2": {"BK-01": 0, "ATX-02": 6, "PDX-01": 14},
+    "14": {"BK-01": 3, "ATX-02": 2, "PDX-01": 0},
+    "43": {"BK-01": 0, "ATX-02": 0, "PDX-01": 0},
+    "79": {"BK-01": 0, "ATX-02": 0, "PDX-01": 0},
+}
+
+
+def test_three_rows_per_product_and_no_drift(fresh_db):
+    assert fresh_db.psql("SELECT count(*) FROM pellier.warehouse_inventory") == "300"
+    assert fresh_db.psql("""
+        SELECT count(*) FROM pellier.product_catalog pc
+         WHERE pc.quantity <> (SELECT COALESCE(sum(quantity),0) FROM pellier.warehouse_inventory wi
+                                WHERE wi.product_id = pc."productId")""") == "0"
+
+
+def test_teaching_products_have_exact_stock(fresh_db):
+    for pid, expected in WAREHOUSE_FIXTURES.items():
+        rows = fresh_db.psql(
+            f"SELECT warehouse_id, quantity FROM pellier.warehouse_inventory "
+            f"WHERE product_id = '{pid}'")
+        actual = dict(line.split("|") for line in rows.split("\n"))
+        assert actual == {k: str(v) for k, v in expected.items()}, pid
+
+
+def test_low_stock_list_is_real(fresh_db):
+    low = fresh_db.psql("""SELECT string_agg("productId", ',' ORDER BY "productId"::int)
+                             FROM pellier.product_catalog WHERE quantity <= 10""")
+    assert low == "12,14,20,43,79"
+
+
+def test_stock_shape_differs_between_warehouses(fresh_db):
+    leaders = fresh_db.psql("""
+        SELECT count(DISTINCT warehouse_id) FROM (
+          SELECT DISTINCT ON (product_id) product_id, warehouse_id
+            FROM pellier.warehouse_inventory
+           WHERE product_id NOT IN ('2','14','43','79')
+           ORDER BY product_id, quantity DESC, warehouse_id) t""")
+    assert leaders == "3"
+
+
+def test_every_seeded_stock_movement_carries_the_seed_reason(fresh_db):
+    assert fresh_db.psql(
+        "SELECT count(*) FROM pellier.inventory_ledger WHERE reason <> 'seed'") == "0"
+
+
+def test_reset_keeps_the_warehouse_matrix(fresh_db):
+    run_reset(fresh_db)
+    test_three_rows_per_product_and_no_drift(fresh_db)
+    test_teaching_products_have_exact_stock(fresh_db)
+    test_low_stock_list_is_real(fresh_db)
+    test_every_seeded_stock_movement_carries_the_seed_reason(fresh_db)

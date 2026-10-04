@@ -185,18 +185,13 @@ def test_unsigned_edit_restores_the_reference_runner_merchandising() -> None:
     assert "A considered carry-all for a long weekend." in curations
 
 
-def test_inventory_contract_covers_all_sixty_curated_products() -> None:
+def test_inventory_contract_covers_all_hundred_curated_products() -> None:
     warehouse = (
         ROOT / "scripts" / "migrations" / "006_warehouse_inventory.sql"
     ).read_text()
-    convergence = (
-        ROOT / "scripts" / "migrations" / "033_extend_curated_inventory.sql"
-    ).read_text()
 
-    assert 'pc."productId"::int BETWEEN 1 AND 60' in warehouse
-    assert "IF nrows <> 180 OR invalid_products <> 0 THEN" in warehouse
-    assert 'pc."productId"::int BETWEEN 1 AND 60' in convergence
-    assert "inventory_rows <> 180" in convergence
+    assert "BETWEEN 1 AND 60" not in warehouse
+    assert "IF nrows <> 300 OR invalid_products <> 0 OR drift_count <> 0 THEN" in warehouse
 
 
 def test_persona_selector_uses_editorial_personalities() -> None:

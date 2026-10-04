@@ -70,9 +70,6 @@ FKs.
 32. **`032_restore_fresh_runner_edit.sql`** — restores Everyday Runner
     as the ninth promoted guest piece while keeping the full ten-product Fresh
     cohort searchable.
-33. **`033_extend_curated_inventory.sql`** — converges existing clusters on
-    three warehouse rows for all 60 curated products without rewriting prior
-    inventory movements.
 34. **`034_refine_persona_personalities.sql`** — replaces lifecycle-oriented
     persona labels with concise editorial taste and material descriptors.
 35. **`035_expand_persona_discovery_grids.sql`** — promotes the tenth product
@@ -194,7 +191,6 @@ for migration in \
     030_storefront_editorial_order.sql \
     031_refine_fresh_storefront_edit.sql \
     032_restore_fresh_runner_edit.sql \
-    033_extend_curated_inventory.sql \
     034_refine_persona_personalities.sql \
     035_expand_persona_discovery_grids.sql \
     036_refresh_persona_hero_alt_text.sql \

@@ -9,7 +9,7 @@
 # Checks:
 #   1. Backend /api/health is green (DB connected)
 #   2. Catalog row count == expected (100 by default)
-#   3. Warehouse inventory present (180 rows: 60 curated x 3 warehouses)
+#   3. Warehouse inventory present (300 rows: 100 curated x 3 warehouses)
 #   3b. Governed customer, order, and JSONB audit evidence present
 #   4. node --version is 24 LTS                   (required for governed format;
 #      warning for builders format; CLI minimum compatibility alone does not
@@ -183,10 +183,10 @@ fi
 
 # 3. Warehouse inventory
 wh_n="$(_psql 'SELECT count(*) FROM pellier.warehouse_inventory;' || echo '')"
-if [[ "$wh_n" == "180" ]]; then
-  pass "Warehouse inventory has exactly 180 curated rows"
+if [[ "$wh_n" == "300" ]]; then
+  pass "Warehouse inventory has exactly 300 curated rows"
 else
-  fail "Warehouse inventory row count is ${wh_n:-none}, expected exactly 180"
+  fail "Warehouse inventory row count is ${wh_n:-none}, expected exactly 300"
   ok=false
 fi
 
@@ -195,14 +195,14 @@ inventory_drift="$(_psql "
 SELECT count(*)
   FROM pellier.product_catalog pc
  WHERE pc.\"productId\" ~ '^[0-9]+$'
-   AND pc.\"productId\"::int BETWEEN 1 AND 60
+   AND pc.\"productId\"::int BETWEEN 1 AND 100
    AND pc.quantity <> (
        SELECT COALESCE(sum(wi.quantity), 0)
          FROM pellier.warehouse_inventory wi
         WHERE wi.product_id = pc.\"productId\"
    );" || echo '')"
 if [[ "$inventory_drift" == "0" ]]; then
-  pass "Catalog quantity matches warehouse aggregate for all 60 curated products"
+  pass "Catalog quantity matches warehouse aggregate for all 100 curated products"
 else
   fail "Catalog/warehouse inventory drift detected (${inventory_drift:-unknown} products)"
   ok=false

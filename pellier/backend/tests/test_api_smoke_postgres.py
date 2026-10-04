@@ -65,7 +65,11 @@ with TestClient(backend.app, raise_server_exceptions=False) as client:
     for persona in json.loads(sys.argv[1]):
         response = client.get("/api/products", params={"persona": persona})
         results[f"products?persona={persona}"] = summarize(response)
-    results["products/2"] = summarize(client.get("/api/products/2"))
+    product_two = client.get("/api/products/2")
+    results["products/2"] = summarize(product_two)
+    availability = (product_two.json() or {}).get("availability") or {}
+    results["products/2"]["stock"] = {
+        row["warehouseId"]: row["quantity"] for row in availability.get("warehouses", [])}
     results["health"] = summarize(client.get("/api/health"))
     results["search"] = summarize(
         client.post("/api/search", json={"query": "linen shirt", "limit": 5}))
@@ -117,3 +121,8 @@ def test_storefront_reads_succeed_on_a_fresh_database(fresh_db):
     assert failures == {}, f"{json.dumps(failures, indent=2)}\nserver log:\n{server_log[-4000:]}"
     shown = {category for result in results.values() for category in result["categories"]}
     assert len(shown) > 1, results
+
+
+def test_product_page_shows_the_hadley_shirt_out_of_stock_in_brooklyn(fresh_db):
+    results, _ = _run_app(fresh_db)
+    assert results["products/2"]["stock"] == {"BK-01": 0, "ATX-02": 6, "PDX-01": 14}

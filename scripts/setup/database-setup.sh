@@ -76,7 +76,6 @@ for migration in \
   030_storefront_editorial_order.sql \
   031_refine_fresh_storefront_edit.sql \
   032_restore_fresh_runner_edit.sql \
-  033_extend_curated_inventory.sql \
   034_refine_persona_personalities.sql \
   035_expand_persona_discovery_grids.sql \
   036_refresh_persona_hero_alt_text.sql \

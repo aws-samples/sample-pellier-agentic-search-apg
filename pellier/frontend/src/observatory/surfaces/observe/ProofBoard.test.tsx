@@ -12,7 +12,7 @@ const proofBoardPayload = {
         id: 'aurora',
         label: 'Aurora PostgreSQL',
         state: 'pass',
-        detail: 'Catalog 100 products, warehouse 180 rows, audit ledger 7 rows.',
+        detail: 'Catalog 100 products, warehouse 300 rows, audit ledger 7 rows.',
         required: true,
       },
       {
