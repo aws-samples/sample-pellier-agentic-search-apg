@@ -1,19 +1,15 @@
 /**
- * Header — Pellier sticky header.
+ * Header — the storefront's local row beneath the shared SurfaceNavigation.
  *
- * Storefront navigation beneath the shared SurfaceNavigation. Collection,
- * Stories, Ask Pellier, and About remain local; the global bar owns the
- * wordmark and the three surface destinations. Persona and bag controls
- * preserve their existing interaction and identity boundaries.
+ * Shop, Stories and About stay local; the shared bar owns the wordmark, the
+ * surface switch, the theme control and the Ask Pellier button. Persona and
+ * bag controls preserve their existing interaction and identity boundaries.
  *
  * Visitors without a scenario see a "Select scenario" pill. Once a persona is
- * active, the same header pill opens the shared portrait-led PersonaModal
- * used by Pellier Observatory. Neither state is a Cognito sign-in.
+ * active, the same header pill opens the shared portrait-led PersonaModal.
+ * Neither state is a Cognito sign-in.
  *
- * Validates Requirements 4.3, 5.1, 5.2, 5.3, 5.4, 5.5, 15.3.
- *
- * Copy comes from `copy.ts`. Design tokens from `design/tokens.ts` and
- * Tailwind extended config.
+ * Copy comes from `copy.ts`. Every color is a token.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -27,7 +23,6 @@ import { getPersonaPhoto } from '../data/personaPhotos'
 import { IconButton } from '../design/primitives'
 import PersonaModal from './PersonaModal'
 import {
-  Search,
   ShoppingBag,
   User as UserIcon,
   ChevronDown,
@@ -48,17 +43,16 @@ export type NavItem =
   | 'ask-pellier'
 
 interface HeaderProps {
-  /** Which nav item is the current page — gets the espresso highlight. Defaults to 'home'. */
+  /** Which nav item is the current page. Defaults to 'home'. */
   current?: NavItem
   /** Optional click handler fired when any nav link is activated. */
   onNavigate?: (item: NavItem) => void
 }
 
-/** Storefront destinations; the explanatory tour has its own page. */
+/** Storefront destinations. Ask Pellier lives in the shared bar above. */
 const NAV_ITEMS: Array<{ item: NavItem; label: string }> = [
   { item: 'shop', label: NAV.SHOP },
   { item: 'stories', label: NAV.STORIES },
-  { item: 'ask-pellier', label: NAV.ASK_PELLIER },
   { item: 'about', label: NAV.ABOUT },
 ]
 
@@ -77,29 +71,29 @@ interface NavLinkProps {
 
 function NavLink({ item, label, current, onClick }: NavLinkProps) {
   const isCurrent = current === item || (current === 'home' && item === 'shop')
-  const shared = {
-    'data-nav-item': item,
-    'data-current': isCurrent ? 'true' : 'false',
-    'aria-current': isCurrent ? 'page' as const : undefined,
-    className: 'pellier-nav-link',
-  }
-  if (item === 'ask-pellier') {
-    return <button {...shared} type="button" onClick={() => onClick?.(item)}>{label}</button>
-  }
   const to = item === 'stories' ? '/storyboard' : item === 'about' ? '/about' : '/#shop'
   return (
-    <Link {...shared} to={to} onClick={(event) => {
-      // Preserve open-in-new-tab and the browser's link menu.
-      if (onClick && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
-        event.preventDefault()
-        onClick(item)
-      }
-    }}>{label}</Link>
+    <Link
+      data-nav-item={item}
+      data-current={isCurrent ? 'true' : 'false'}
+      aria-current={isCurrent ? 'page' : undefined}
+      className="pellier-nav-link"
+      to={to}
+      onClick={(event) => {
+        // Preserve open-in-new-tab and the browser's link menu.
+        if (onClick && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+          event.preventDefault()
+          onClick(item)
+        }
+      }}
+    >
+      {label}
+    </Link>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Signed-out persona menu
+// Persona control
 // ---------------------------------------------------------------------------
 
 function SignedOutPersonaTrigger({
@@ -109,28 +103,20 @@ function SignedOutPersonaTrigger({
   open: boolean
   onOpen: () => void
 }) {
-  // The signed-out pill used to open a compact dropdown of the three
-  // personas, a second chooser beside the modal the active-persona pill
-  // already opens. Both now open the same three-card modal, which the
-  // header owns so the signed-out Ask Pellier item can open it too.
+  // The signed-out pill and the active-persona pill open the same three-card
+  // modal, which the header owns.
   return (
     <button
       type="button"
       onClick={onOpen}
       data-testid="persona-pill"
-      className={[
-        'pellier-account-pill',
-        'flex min-h-[44px] items-center gap-2 text-[13.5px] transition-colors duration-fade ease-out',
-        'cursor-pointer rounded-full',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2',
-      ].join(' ')}
-      style={{ padding: '7px 14px' }}
+      className="pellier-account-pill flex min-h-[44px] items-center gap-2 px-3.5 text-[13.5px]"
       aria-label={SCENARIO.SELECT}
       aria-haspopup="dialog"
       aria-expanded={open}
     >
       <UserIcon className="w-4 h-4" aria-hidden />
-      <span className="hidden whitespace-nowrap sm:inline" style={{ fontFamily: 'var(--sans)' }}>{SCENARIO.SELECT}</span>
+      <span className="hidden whitespace-nowrap sm:inline">{SCENARIO.SELECT}</span>
       <span className="hidden whitespace-nowrap min-[360px]:inline sm:hidden">Scenario</span>
     </button>
   )
@@ -148,18 +134,7 @@ function AuthenticatedPersonaTrigger() {
         type="button"
         onClick={() => setOpen(true)}
         data-testid="persona-pill"
-        className={[
-          'pellier-account-pill',
-          'flex min-h-[44px] items-center gap-2 text-[13.5px] transition-colors duration-fade ease-out',
-          'cursor-pointer rounded-full',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2',
-        ].join(' ')}
-        style={{
-          padding: '4px 12px 4px 4px',
-          background: 'var(--ink)',
-          color: 'var(--cream)',
-          border: '1px solid var(--ink)',
-        }}
+        className="pellier-account-pill pellier-account-pill-active flex min-h-[44px] items-center gap-2 py-1 pl-1 pr-3 text-[13.5px]"
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -169,22 +144,10 @@ function AuthenticatedPersonaTrigger() {
           photoUrl={getPersonaPhoto(persona.id)}
           size="sm"
         />
-        <span
-          className="text-cream-50 truncate"
-          style={{
-            fontFamily: 'var(--sans)',
-            fontSize: 13,
-            fontWeight: 500,
-            maxWidth: 118,
-          }}
-        >
+        <span className="max-w-[118px] truncate text-[13px] font-medium">
           {persona.display_name}
         </span>
-        <ChevronDown
-          size={14}
-          className="text-cream-50 opacity-60"
-          aria-hidden
-        />
+        <ChevronDown size={14} className="opacity-60" aria-hidden />
       </button>
       <PersonaModal open={open} onClose={() => setOpen(false)} />
     </>
@@ -225,14 +188,6 @@ export default function Header({
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
   const navItems = NAV_ITEMS
   const openChooser = useCallback(() => setChooserOpen(true), [])
-
-  // The storefront's search is Pellier - the chat drawer. Clicking the
-  // Search icon opens the same concierge the pill uses, which keeps the
-  // header honest: one search surface, two entry points. ChatDrawer handles
-  // the scenario choice before continuing the conversation when needed.
-  const handleSearchClick = useCallback(() => {
-    openModal('drawer')
-  }, [openModal])
 
   const handleNavigate = useCallback(
     (item: NavItem) => {
@@ -280,20 +235,14 @@ export default function Header({
       ref={headerRef}
       role="banner"
       data-testid="sticky-header"
-      className="pellier-storefront-header sticky z-40 w-full border-b border-sand/50"
-      style={{
-        background: 'var(--header-bg)',
-        WebkitBackdropFilter: 'blur(12px)',
-        backdropFilter: 'blur(12px)',
-      }}
+      className="pellier-storefront-header sticky z-40 w-full border-b border-line bg-page"
     >
       <nav
         aria-label="Primary"
-        className="relative h-[var(--pellier-storefront-nav-height,60px)]"
-        style={{ padding: '0 clamp(16px, 4vw, 48px)' }}
+        className="relative h-[var(--pellier-storefront-nav-height,56px)] px-[var(--pellier-gutter)]"
       >
         <div className="mx-auto flex h-full items-center justify-between gap-4">
-          {/* Left: four text nav items */}
+          {/* Left: the storefront's destinations */}
           <div className="hidden min-w-0 items-center gap-5 lg:flex">
             {navItems.map(({ item, label }) => (
               <NavLink
@@ -306,21 +255,10 @@ export default function Header({
             ))}
           </div>
 
-          <Link to="/#shop" className="pellier-nav-link lg:hidden">The collection</Link>
+          <Link to="/#shop" className="pellier-nav-link whitespace-nowrap lg:hidden">The collection</Link>
 
-          {/* Right: search, persona dropdown, wishlist, bag, surface toggle */}
+          {/* Right: persona, bag, menu */}
           <div className="flex items-center gap-1.5 justify-end min-w-0">
-            {persona && (
-              <div className="hidden xl:block">
-                <IconButton
-                  icon={<Search className="w-5 h-5" />}
-                  ariaLabel="Search: ask Pellier"
-                  onClick={handleSearchClick}
-                  size="md"
-                />
-              </div>
-            )}
-
             <PersonaAccountControl chooserOpen={chooserOpen} onOpenChooser={openChooser} />
 
             <div className="relative">
@@ -333,7 +271,7 @@ export default function Header({
               {cartItemCount > 0 && (
                 <span
                   data-testid="bag-count"
-                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold bg-espresso text-cream-50 pointer-events-none"
+                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold bg-ink text-on-ink pointer-events-none"
                 >
                   {cartItemCount}
                 </span>
@@ -347,7 +285,7 @@ export default function Header({
               aria-expanded={mobileMenuOpen}
               aria-controls="pellier-mobile-navigation"
               onClick={() => setMobileMenuOpen(open => !open)}
-              className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-espresso hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
+              className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-ink hover:bg-recessed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper lg:hidden"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>
@@ -357,13 +295,12 @@ export default function Header({
         <AnimatePresence initial={false}>
           {mobileMenuOpen ? (
             // The page under the open menu is dimmed the way the chooser and
-            // the bag dim theirs; without it the menu's last link read as the
-            // first line of the content beneath.
+            // the bag dim theirs.
             <motion.div
               key="mobile-navigation-scrim"
               aria-hidden="true"
               data-testid="mobile-menu-scrim"
-              className="absolute left-0 right-0 top-full h-[100dvh] bg-[rgba(31,20,16,0.2)] lg:hidden"
+              className="absolute left-0 right-0 top-full h-[100dvh] bg-ink/20 lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -376,10 +313,7 @@ export default function Header({
               key="mobile-navigation"
               id="pellier-mobile-navigation"
               data-testid="mobile-menu"
-              className="
-                absolute left-0 right-0 top-full border-b border-sand
-                bg-cream px-4 py-3 shadow-warm-md lg:hidden
-              "
+              className="absolute left-0 right-0 top-full border-b border-line bg-page px-4 py-3 shadow-lift lg:hidden"
               initial={
                 reduceMotion
                   ? { opacity: 0 }

@@ -274,28 +274,6 @@ StorefrontCategory = Literal[
 StorefrontBadge = Literal["EDITORS_PICK", "BESTSELLER", "JUST_IN"]
 
 
-class StorefrontProduct(BaseModel):
-    """Editorial product shape consumed by the storefront home page."""
-
-    id: int
-    brand: str
-    name: str
-    color: str
-    price: float
-    rating: float
-    review_count: int
-    category: StorefrontCategory
-    image_url: str
-    badge: Optional[StorefrontBadge] = None
-    tags: List[str] = Field(default_factory=list)
-    reasoning: Optional[ReasoningChip] = None
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-    )
-
-
 class WarehouseStock(BaseModel):
     """One warehouse's on-hand count for a product.
 
@@ -311,6 +289,34 @@ class WarehouseStock(BaseModel):
     quantity: int
     ship_window_min: Optional[int] = None
     ship_window_max: Optional[int] = None
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class StorefrontProduct(BaseModel):
+    """Editorial product shape consumed by the storefront home page."""
+
+    id: int
+    brand: str
+    name: str
+    color: str
+    price: float
+    rating: float
+    review_count: int
+    category: StorefrontCategory
+    image_url: str
+    badge: Optional[StorefrontBadge] = None
+    tags: List[str] = Field(default_factory=list)
+    reasoning: Optional[ReasoningChip] = None
+    # The card's one stock line. ``quantity`` is ``product_catalog.quantity``
+    # as read with the listing (``None`` means the read did not happen, never
+    # zero stock); ``warehouses`` is the per-location breakdown, so the card
+    # can say "In stock in Austin and Portland" when Brooklyn holds none.
+    quantity: Optional[int] = None
+    warehouses: List[WarehouseStock] = Field(default_factory=list)
 
     model_config = ConfigDict(
         alias_generator=to_camel,

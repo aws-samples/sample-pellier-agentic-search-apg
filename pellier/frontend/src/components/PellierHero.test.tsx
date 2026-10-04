@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PellierHero from './PellierHero'
+import { ASK_BAR } from '../copy'
 import { SPOTLIGHT_SEEN_KEY } from './PellierSpotlight'
 
 const switchPersona = vi.fn()
@@ -198,47 +199,35 @@ describe('PellierHero', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('renders the four fixed hero scenes without requesting hero metadata', () => {
-    const cases = [
-      {
-        profile: null,
-        alt: 'Leather weekender on a travertine bench beside linen and an olive branch',
-        src: '/products/landing-hero-weekender-960.webp',
-        responsive: true,
-      },
-      {
-        profile: { ...PROFILES[2], hero_image: '', hero_alt: '', hero_subheadline: '' },
-        alt: 'Leather weekender with folded linen and brass travel details in warm daylight',
-        src: '/products/hero-marco.png',
-        responsive: false,
-      },
-      {
-        profile: { ...PROFILES[1], hero_image: '', hero_alt: '', hero_subheadline: '' },
-        alt: 'Ribbon-wrapped gift beside an amber candle, ceramic bud vase, and blank card',
-        src: '/products/hero-anna.png',
-        responsive: false,
-      },
-      {
-        profile: { ...PROFILES[3], hero_image: '', hero_alt: '', hero_subheadline: '' },
-        alt: 'Charcoal stoneware bowl beside natural linen, a beeswax candle, and olive branches',
-        src: '/products/hero-theo.png',
-        responsive: false,
-      },
-    ]
+  it('shows the large ask bar with the store moments as chips, before a scenario is chosen', () => {
+    persona = null
+    render(<PellierHero />)
 
-    for (const hero of cases) {
-      persona = hero.profile
-      const view = render(<PellierHero />)
-      const image = screen.getByAltText(hero.alt)
+    const ask = screen.getByTestId('pellier-hero-search')
+    expect(ask).toHaveAttribute('placeholder', ASK_BAR.PLACEHOLDER)
+    const moments = screen.getByTestId('pellier-hero-moments')
+    expect(within(moments).getAllByRole('button').map((b) => b.textContent)).toEqual([...ASK_BAR.MOMENTS])
+    expect(screen.queryByTestId('persona-hero-image')).not.toBeInTheDocument()
+  })
 
-      expect(image).toHaveAttribute('src', hero.src)
-      if (hero.responsive) {
-        expect(image).toHaveAttribute('srcset')
-      } else {
-        expect(screen.getByTestId('persona-hero-image')).not.toHaveAttribute('srcset')
-      }
-      view.unmount()
-    }
+  it('sends a moment chip and a typed question to the docked panel', () => {
+    persona = PROFILES[1]
+    render(<PellierHero />)
 
+    fireEvent.click(screen.getByRole('button', { name: 'For the trip' }))
+    expect(openDrawerWithQuery).toHaveBeenCalledWith('For the trip')
+
+    fireEvent.change(screen.getByTestId('pellier-hero-search'), { target: { value: 'A linen shirt' } })
+    fireEvent.click(screen.getByRole('button', { name: ASK_BAR.SEND }))
+    expect(openDrawerWithQuery).toHaveBeenCalledWith('A linen shirt')
+  })
+
+  it('opens the chooser first when a question is asked without a scenario', () => {
+    persona = null
+    render(<PellierHero />)
+
+    fireEvent.change(screen.getByTestId('pellier-hero-search'), { target: { value: 'A gift under $100' } })
+    fireEvent.submit(screen.getByRole('search'))
+    expect(openDrawerWithQuery).toHaveBeenCalledWith('A gift under $100')
   })
 })

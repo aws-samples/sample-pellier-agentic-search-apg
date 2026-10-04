@@ -62,7 +62,8 @@ describe('CommandPill - render (Req 1.11.1)', () => {
     const pill = screen.getByTestId('command-pill')
     expect(pill).toBeInTheDocument()
 
-    expect(screen.getByTestId('command-pill-pmark')).toHaveAttribute('src', '/favicon.svg')
+    expect(screen.getByTestId('command-pill-pmark')).toHaveClass('pellier-mark')
+    expect(screen.getByTestId('command-pill-pmark')).toHaveTextContent('p.')
 
     // Ask Pellier label from copy.ts.
     expect(screen.getByTestId('command-pill-label')).toHaveTextContent(

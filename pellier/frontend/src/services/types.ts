@@ -130,6 +130,13 @@ export interface PellierProduct {
   reasoning?: ReasoningChip
   /** Optional CSS object-position override for the card image crop. */
   imagePosition?: string
+  /**
+   * `product_catalog.quantity` as read with the listing. `null` means the
+   * inventory read did not happen; it is never rendered as zero stock.
+   */
+  quantity?: number | null
+  /** Per-warehouse counts for the card's stock line, highest count first. */
+  warehouses?: WarehouseStock[]
 }
 
 /**

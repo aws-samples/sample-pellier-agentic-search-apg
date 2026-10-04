@@ -37,16 +37,16 @@ export const Avatar: React.FC<AvatarProps> = ({
           'inline-flex rounded-full object-cover select-none',
           sizeClasses[size].replace(/text-\w+/, ''),
         ].join(' ')}
-        style={{ border: '1.5px solid rgba(250, 243, 232, 0.2)' }}
+        style={{ border: '1.5px solid var(--dl-line)' }}
       />
     );
   }
   return (
     <div
       className={[
-        'inline-flex items-center justify-center rounded-full font-display italic font-medium select-none',
+        'inline-flex items-center justify-center rounded-full font-sans font-medium select-none',
         sizeClasses[size],
-        !bgColor ? 'bg-espresso text-cream-50' : 'text-cream-50',
+        !bgColor ? 'bg-ink text-on-ink' : 'text-on-ink',
       ].join(' ')}
       style={bgColor ? { backgroundColor: bgColor } : undefined}
       aria-hidden="true"

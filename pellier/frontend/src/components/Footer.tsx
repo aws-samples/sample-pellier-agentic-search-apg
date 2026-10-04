@@ -1,33 +1,26 @@
 /**
- * Footer — masthead row, four live columns, disclaimer, legal strip.
+ * Footer — masthead row, three live columns, disclaimer, legal strip.
  *
- * An earlier footer shipped five columns and a newsletter form where every
- * link pointed at a placeholder route. That was replaced with columns that map
- * 1:1 onto routes the router actually serves, and this revision keeps that
- * rule while giving the footer the weight a finished storefront has:
+ * Every link points at a route the router serves:
  *
- *   - Masthead:     brand lockup left, disclosed demo payment marks right.
- *   - Brand column: tagline plus what this storefront is, as badges. The
- *                   shared Pellier wordmark sits in the masthead.
+ *   - Masthead:     the wordmark at 36px, demo payment marks right.
+ *   - Brand column: tagline plus what this storefront is, as a list.
  *   - Explore:      The floor (`/#shop`), Stories, About.
- *   - Storyboard:   Italic blurb + a real link to `/storyboard`.
- *   - Observatory:  Italic blurb + a real link to `/observatory`.
- *   - Disclaimer:   States that nothing is charged, the catalog is synthetic,
+ *   - Storyboard:   blurb plus a real link to `/storyboard`.
+ *   - Disclaimer:   states that nothing is charged, the catalog is synthetic,
  *                   and AI-generated imagery is illustrative.
- *   - Legal strip:  Copyright, licence, team credit, source link. No Privacy/Terms/
- *                   Accessibility stubs — those were the same dead links the
- *                   earlier rewrite eliminated, and inventing them back would
- *                   undo it.
+ *   - Legal strip:  copyright, licence, team credit, source link. No Privacy/
+ *                   Terms/Accessibility stubs.
  *
- * The footer keeps official marks inside an explicitly disclosed demo checkout:
- * no payment is processed, and no card is charged. The palette is unchanged -
- * sand (#e7e9ed) on espresso (#181a1f).
+ * The footer keeps official marks inside an explicitly disclosed demo
+ * checkout: no payment is processed, and no card is charged.
  *
  * Copy from `FOOTER` in copy.ts.
  */
 import { Link } from 'react-router-dom'
 
 import { FOOTER } from '../copy'
+import Wordmark from './Wordmark'
 
 export default function Footer() {
   const year = new Date().getFullYear()
@@ -37,12 +30,12 @@ export default function Footer() {
     <footer
       data-testid="footer"
       role="contentinfo"
-      className="bg-sand text-espresso font-sans border-t border-sand/50"
+      className="border-t border-line bg-page font-sans text-ink"
       style={{
-        padding: '56px 24px 32px',
+        padding: '56px 0 32px',
       }}
     >
-      <div className="max-w-[1440px] mx-auto px-container-x">
+      <div className="pellier-edit-shell">
         <Masthead />
         <div
           data-testid="footer-columns"
@@ -87,10 +80,7 @@ function Masthead() {
       data-testid="footer-masthead"
       className="flex flex-col gap-5 pb-10 sm:flex-row sm:items-center sm:justify-between"
     >
-      <Link to="/" className="pellier-brand pellier-brand-footer" aria-label="Pellier home">
-        <span aria-hidden="true">pellier</span>
-        <span className="pellier-brand-dot" aria-hidden="true">.</span>
-      </Link>
+      <Wordmark size="footer" />
       <CheckoutTrust />
     </div>
   )
@@ -104,7 +94,7 @@ function CheckoutTrust() {
     >
       <span
         data-testid="footer-checkout-label"
-        className="font-sans text-[11px] font-semibold tracking-[0.18em] uppercase text-ink-quiet"
+        className="font-sans text-[12px] text-muted"
       >
         {FOOTER.CHECKOUT.LABEL}
       </span>
@@ -115,7 +105,7 @@ function CheckoutTrust() {
         {FOOTER.CHECKOUT.PAYMENT_METHODS.map((method) => (
           <li
             key={method.id}
-            className="flex h-9 shrink-0 items-center justify-center rounded-[3px] border border-espresso/20 bg-cream-50 px-2.5"
+            className="flex h-9 shrink-0 items-center justify-center rounded-[6px] border border-line bg-paper px-2.5"
           >
             <img
               alt=""
@@ -141,7 +131,7 @@ function BrandColumn() {
     >
       <p
         data-testid="footer-brand-tagline"
-        className="text-[13px] leading-relaxed text-ink-soft m-0 max-w-[260px]"
+        className="text-[13px] leading-relaxed text-ink-2 m-0 max-w-[260px]"
       >
         {FOOTER.BRAND.TAGLINE}
       </p>
@@ -153,11 +143,11 @@ function BrandColumn() {
         {FOOTER.BOTTOM_STRIP.SERVICE_ITEMS.map((item) => (
           <li
             key={item}
-            className="flex items-start gap-2 text-xs leading-relaxed text-ink-quiet"
+            className="flex items-start gap-2 text-xs leading-relaxed text-muted"
           >
             <span
               aria-hidden="true"
-              className="mt-[6px] block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ink-quiet)] opacity-50"
+              className="mt-[6px] block h-1.5 w-1.5 shrink-0 rounded-full bg-line-strong"
             />
             {item}
           </li>
@@ -176,7 +166,7 @@ function ExploreColumn() {
     >
       <h3
         id="footer-column-explore-heading"
-        className="font-sans text-[11px] font-semibold tracking-[0.18em] uppercase text-ink-quiet m-0"
+        className="font-sans text-[13px] font-medium text-ink m-0"
       >
         {FOOTER.EXPLORE.HEADING}
       </h3>
@@ -189,7 +179,7 @@ function ExploreColumn() {
             <Link
               to={href}
               data-testid={`footer-explore-link-${label.toLowerCase().replace(/\s+/g, '-')}`}
-              className="inline-flex min-h-[44px] min-w-[44px] items-center py-1 text-espresso text-sm no-underline transition-colors duration-fade ease-out hover:text-accent"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center py-1 text-sm text-ink-2 no-underline transition-colors duration-fade ease-out hover:text-ink"
             >
               {label}
             </Link>
@@ -223,17 +213,17 @@ function EditorialColumn({
     >
       <h3
         id={`${testId}-heading`}
-        className="font-sans text-[11px] font-semibold tracking-[0.18em] uppercase text-ink-quiet m-0"
+        className="font-sans text-[13px] font-medium text-ink m-0"
       >
         {heading}
       </h3>
-      <p className="font-display font-normal text-[15px] leading-[1.55] text-espresso m-0">
+      <p className="font-sans text-[15px] leading-[1.55] text-ink-2 m-0">
         {copy}
       </p>
       <Link
         to={ctaHref}
         data-testid={`${testId}-cta`}
-        className="font-sans text-[13px] font-medium tracking-tight text-accent no-underline mt-1 inline-flex min-h-[44px] w-fit items-center rounded-full border border-accent/20 px-4 py-2 transition-colors duration-fade ease-out hover:border-accent/40 hover:bg-accent/5"
+        className="pellier-action-quiet mt-1 w-fit text-[13px] no-underline"
       >
         {ctaLabel}
       </Link>
@@ -250,7 +240,7 @@ function Disclaimer() {
   return (
     <p
       data-testid="footer-disclaimer"
-      className="font-sans text-xs leading-relaxed text-ink-quiet m-0 max-w-[720px] pt-8 border-t border-sand/50"
+      className="font-sans text-xs leading-relaxed text-muted m-0 max-w-[720px] pt-8 border-t border-line"
     >
       {FOOTER.DISCLAIMER}
     </p>
@@ -281,23 +271,17 @@ function BottomStrip({
     >
       <span
         data-testid="footer-copyright"
-        className="text-xs text-ink-quiet"
+        className="text-xs text-muted"
       >
         {copyrightLine}
       </span>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span
           data-testid="footer-legal"
-          className="font-sans text-xs text-ink-quiet tracking-tight"
+          className="flex flex-wrap gap-x-3 font-sans text-xs text-muted"
         >
-          {rights}
-          <span aria-hidden className="mx-2 text-ink-quiet/50">
-            &middot;
-          </span>
-          {license}
-          <span aria-hidden className="mx-2 text-ink-quiet/50">
-            &middot;
-          </span>
+          <span>{rights}</span>
+          <span>{license}</span>
           <span data-testid="footer-attribution">{attribution}</span>
         </span>
         <a
@@ -307,7 +291,7 @@ function BottomStrip({
           rel="noopener noreferrer"
           aria-label={githubLabel}
           title={githubLabel}
-          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-espresso"
+          className="group inline-flex min-h-[44px] min-w-[44px] items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper"
         >
           <img
             data-testid="footer-github-icon"
@@ -316,7 +300,7 @@ function BottomStrip({
             aria-hidden="true"
             width={18}
             height={18}
-            className="h-[18px] w-[18px] opacity-65 transition-opacity group-hover:opacity-100"
+            className="pellier-github-mark h-[18px] w-[18px] opacity-65 transition-opacity group-hover:opacity-100"
           />
         </a>
       </div>

@@ -1,30 +1,29 @@
 /* ========================================================================
- * ProductArtifactCard — editorial product card for storefront chat.
- * Matches docs/pellier-chat-experience.html → .artifact
+ * ProductArtifactCard: a product card inside the Ask Pellier panel.
+ * A photograph in a hairline frame, the name and price, one stock tag.
+ * Every color is a token.
  * ======================================================================== */
 
 .pa-card {
-  border: 1px solid var(--rule-1);
-  border-radius: 12px;
-  background: var(--cream-elev);
   overflow: hidden;
+  border-radius: var(--dl-r-md);
+  background: var(--dl-bg);
+  box-shadow: var(--dl-frame);
   animation: artifact-mount 380ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
   transform-origin: top left;
 }
 
 /* Eyebrow */
 .pa-eyebrow {
-  padding: 8px 14px 0;
-  font-family: var(--sans);
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--red-1);
-  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding: 8px 10px 0;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 11px;
+  font-weight: 500;
 }
 .pa-eyebrow-left {
   display: inline-flex;
@@ -32,104 +31,82 @@
   gap: 6px;
 }
 .pa-eyebrow-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--red-1);
   display: inline-block;
+  width: 5px;
+  height: 5px;
   flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--pellier-copper);
 }
 .pa-match {
-  font-family: var(--sans);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid var(--rule-2);
-  border-radius: 999px;
   padding: 2px 8px;
-  line-height: 1.2;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-pill);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
+  font-size: 11px;
+  line-height: 1.3;
   white-space: nowrap;
 }
 .pa-match-top-match {
-  color: var(--ink-1);
-  border-color: rgba(31, 20, 16, 0.3);
-  background: rgba(31, 20, 16, 0.06);
-}
-.pa-match-strong-match {
-  color: #6e2f1f;
-  border-color: rgba(168, 66, 58, 0.35);
-  background: rgba(168, 66, 58, 0.1);
-}
-.pa-match-related {
-  color: var(--ink-3);
-  border-color: rgba(31, 20, 16, 0.18);
-  background: rgba(31, 20, 16, 0.04);
+  border-color: var(--dl-ink);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
 }
 
-/* Image area */
+/* Image area: the photograph keeps its own light background */
 .pa-image {
   position: relative;
-  height: 160px;
-  margin: 8px 12px 0;
-  border-radius: var(--pellier-image-radius-md);
+  height: 150px;
+  margin: 8px 10px 0;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 200px 120px at 70% 30%, rgba(250, 243, 232, 0.6), transparent 70%),
-    linear-gradient(135deg, #ddc8a0 0%, #c4a880 50%, #8a704e 100%);
-}
-.pa-image::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.08  0 0 0 0 0.06  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
-  opacity: 0.4;
-  mix-blend-mode: multiply;
-  z-index: 1;
+  border-radius: var(--dl-r-md);
+  background: var(--dl-paper-2);
+  box-shadow: var(--dl-frame);
 }
 .pa-image-img {
+  position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  position: relative;
-  z-index: 2;
 }
 
 /* Body */
 .pa-body {
-  padding: 12px 14px 14px;
+  padding: 10px 10px 12px;
 }
 .pa-brand {
-  font-family: var(--sans);
-  font-size: 9.5px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-  font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 11.5px;
 }
 .pa-name {
-  font-family: var(--sans);
+  margin-bottom: 4px;
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 14px;
   font-style: normal;
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: -0.005em;
-  line-height: 1.2;
-  color: var(--ink-1);
-  margin-bottom: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
 }
 .pa-meta {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--sans);
+  margin-bottom: 8px;
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
   font-size: 12.5px;
-  color: var(--ink-3);
-  margin-bottom: 12px;
 }
 .pa-price {
-  font-family: var(--sans);
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 13.5px;
   font-weight: 500;
-  font-size: 14px;
-  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
 }
 .pa-rating {
   display: flex;
@@ -137,128 +114,117 @@
   gap: 4px;
 }
 .pa-star {
-  color: var(--red-1);
+  color: var(--dl-muted);
   font-size: 12px;
 }
 .pa-reviews {
-  color: var(--ink-4);
+  color: var(--dl-muted);
 }
-/* Commerce signals — quiet label/value pills between meta and actions */
+
+/* Shopping details: the stock tag and quiet label/value pills */
 .pa-commerce {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .pa-commerce-pill {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  border: 1px solid var(--rule-2);
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: rgba(31, 20, 16, 0.03);
+  padding: 3px 9px;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
   white-space: nowrap;
 }
 .pa-commerce-pill > span {
-  font-family: var(--sans);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 11px;
 }
 .pa-commerce-pill > strong {
-  font-family: var(--sans);
-  font-size: 11px;
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
+  font-size: 11.5px;
   font-weight: 500;
-  color: var(--ink-2);
 }
 
 /* Actions */
 .pa-actions {
   display: flex;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
 }
 .pa-heart {
   display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border: 1px solid var(--rule-2);
+  border: 1px solid var(--dl-line);
   border-radius: 50%;
   background: transparent;
-  color: var(--ink-3);
+  color: var(--dl-ink-2);
   cursor: pointer;
   transition: border-color 160ms ease, color 160ms ease;
 }
-.pa-heart:hover {
-  border-color: rgba(168, 66, 58, 0.45);
-  color: var(--red-1);
-}
+.pa-heart:hover,
 .pa-heart.is-saved {
-  border-color: rgba(168, 66, 58, 0.45);
-  color: var(--red-1);
+  border-color: var(--dl-accent);
+  color: var(--dl-accent);
 }
 .pa-add {
   flex: 1;
-  min-height: 44px;
-  background: var(--ink-1);
-  color: var(--cream-1);
+  min-height: 40px;
+  padding: 8px 14px;
   border: none;
-  padding: 9px 16px;
-  border-radius: 100px;
-  font-family: var(--sans);
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font-family: var(--dl-font-sans);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  letter-spacing: 0.02em;
   transition: background 180ms;
 }
 .pa-add:hover {
-  background: var(--red-1);
+  background: var(--dl-ink-2);
 }
 .pa-quick-actions {
-  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
 }
-
 .pa-quick {
-  min-height: 44px;
-  border: 1px solid var(--rule-2);
-  background: rgba(31, 20, 16, 0.03);
-  color: var(--ink-2);
-  border-radius: 999px;
+  min-height: 36px;
   padding: 5px 10px;
-  font-family: var(--sans);
-  font-size: 11px;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
+  font-size: 11.5px;
   line-height: 1.2;
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease;
 }
-
 .pa-quick:hover {
-  border-color: rgba(31, 20, 16, 0.28);
-  color: var(--ink-1);
-  background: rgba(31, 20, 16, 0.06);
+  background: var(--dl-line);
+  color: var(--dl-ink);
 }
-
 .pa-add:focus-visible,
 .pa-heart:focus-visible,
 .pa-quick:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pa-card {
     animation: none;
   }
-
   .pa-add,
   .pa-heart,
   .pa-quick {

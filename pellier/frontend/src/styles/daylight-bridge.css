@@ -1,67 +1,53 @@
 /* ============================================================
  * Daylight Bridge
  *
- * Aliases Pellier's existing custom-property names onto the
- * Daylight design-system tokens (loaded ahead of this file
- * from public/design-system/daylight/tokens.css). Existing
- * Pellier + Observatory components reference --cream / --espresso /
- * --accent / --obs-* — pointing those at Daylight values lets the
- * whole app inherit the warm off-white editorial language without
- * touching component code.
+ * Aliases the custom-property names Pellier's components and the
+ * Operator desk already reference (`--cream`, `--ink`, `--accent`,
+ * `--rule-1`, `--obs-*`) onto the Daylight tokens in
+ * daylight-tokens.css. The values switch with `[data-theme]` there;
+ * this file only renames, it never forks a value.
  *
- * If you want to override an individual surface back to a custom
- * value, do it scoped:
- *
- *   .my-special-section {
- *     --accent: #8a3010;
- *   }
- *
- * Source of truth: dat409 design-system/daylight/. Files live in
- * public/design-system/daylight/ (tokens.css + daylight.css +
- * STYLEGUIDE.md + components.html). Re-import from dat409 to
- * pick up upstream changes; this bridge only renames, doesn't
- * fork values.
+ * A `var()` is substituted where the property is declared. These
+ * aliases live at `:root`; index.css re-declares the storefront set on
+ * `.operator-root` so the desk's pinned palette (operator.css) wins
+ * there until cut 3 rebuilds the desk in direction A.
  * ============================================================ */
 
 :root {
-  /* ---- Pellier storefront aliases ---------------------------- */
-  /* The storefront's old palette mapped roughly onto Daylight as: */
-  /*   cream      ≈ --dl-bg                                        */
-  /*   cream-warm ≈ --dl-paper                                     */
-  /*   ink / dusk ≈ --dl-ink                                       */
-  /*   ink-soft   ≈ --dl-ink-2                                     */
-  /*   ink-quiet  ≈ --dl-muted                                     */
-  /*   accent (terracotta) ≈ --dl-accent                           */
+  /* ---- Storefront aliases -------------------------------------- */
   --cream:      var(--dl-bg);
   --cream-warm: var(--dl-paper);
+  --sand:       var(--dl-paper-2);
   --ink:        var(--dl-ink);
   --ink-soft:   var(--dl-ink-2);
   --ink-quiet:  var(--dl-muted);
-  --accent:     var(--dl-accent);
-  --accent-ink: var(--dl-accent-ink);
+  /* The brand and action color is the ink: filled controls, selection. */
+  --accent:     var(--pellier-accent);
+  --accent-ink: var(--pellier-accent-hover);
   --dusk:       var(--dl-ink);
 
-  /* ---- Editorial chat palette (storefront chat + Observatory) ----- */
+  /* ---- Chat palette (storefront chat and the Operator Concierge) ---- */
   --cream-1:    var(--dl-bg);
   --cream-2:    var(--dl-paper-2);
   --cream-3:    var(--dl-paper-2);
   --cream-elev: var(--dl-paper);
   --ink-1:      var(--dl-ink);
+  --ink-2:      var(--dl-ink-2);
   --ink-3:      var(--dl-ink-2);
   --ink-4:      var(--dl-muted);
   --ink-5:      var(--dl-faint);
   --rule-1:     var(--dl-line);
   --rule-2:     var(--dl-line);
   --rule-3:     var(--dl-line-strong);
-  --red-1:      var(--dl-accent);
-  --red-soft:   var(--dl-accent-soft);
+  --red-1:      var(--pellier-accent);
+  --red-soft:   var(--pellier-accent-tint);
   --green-1:    var(--dl-ok);
-  --green-soft: rgba(63, 98, 18, 0.12);
+  --green-soft: var(--dl-ok-soft);
   --amber-1:    var(--dl-warn);
-  --amber-soft: rgba(180, 83, 9, 0.12);
+  --amber-soft: color-mix(in srgb, var(--dl-warn) 12%, transparent);
 
   /* ---- Type stacks --------------------------------------------- */
-  /* --dl-font-* stacks are self-hosted (see main.tsx + daylight-tokens). */
+  /* `--display` is the wordmark's face. Nothing else sets it. */
   --display: var(--dl-font-display);
   --heading: var(--dl-font-heading);
   --serif:   var(--dl-font-serif);
@@ -80,74 +66,42 @@
   --obs-rule-1:     var(--dl-line);
   --obs-rule-2:     var(--dl-line);
   --obs-rule-3:     var(--dl-line-strong);
-  /* The Observatory brand accent is burgundy, not terracotta. base.css sets
-     that on `.observatory-root`, but the derived tokens in
-     observatory/styles/tokens.css (--obs-status-exercise-text,
-     --obs-dot-live, --obs-cat-both, --obs-dot-empty-border,
-     --obs-card-accent-color) are declared at :root,
-     so they substituted THIS value and shipped terracotta everywhere. One
-     alias, one colour, no scope-dependent brand mark. */
   --obs-red-1:      var(--pellier-accent);
   --obs-red-soft:   var(--pellier-accent-tint);
   --obs-green-1:    var(--dl-ok);
-  --obs-green-soft: rgba(63, 98, 18, 0.12);
+  --obs-green-soft: var(--dl-ok-soft);
   --obs-espresso-1: var(--dl-ink);
-  --obs-espresso-2: #2a2724;
-
-  /* Three names the Observatory has always used at call sites but that were
-     never defined anywhere, so every one of them resolved to nothing and the
-     colour fell through to whatever was inherited. Predates the rename: the
-     same three were orphaned under the previous variable prefix too.
-       --obs-amber-1   caution, not failure. `--dl-warn` is the palette's
-                       existing token for exactly that state, so this reuses it
-                       rather than introducing a fourth warning colour.
-       --obs-accent-2  the secondary brand tone, resolved directly at :root
-                       so it does not depend on a descendant-only alias.
-       --obs-shipped   DAYLIGHT_INTEGRATION.md documents `--dl-ok` as the
-                       "shipped" status colour. */
+  --obs-espresso-2: var(--dl-ink-2);
   --obs-amber-1:    var(--dl-warn);
   --obs-accent-2:   var(--pellier-accent-soft);
   --obs-shipped:    var(--dl-ok);
-
-  /* Type aliases for the Observatory */
   --obs-display: var(--dl-font-display);
   --obs-heading: var(--dl-font-heading);
   --obs-serif:   var(--dl-font-serif);
   --obs-sans:    var(--dl-font-sans);
   --obs-mono:    var(--dl-font-mono);
 
-  /* ---- One type scale, measured from the storefront ------------------
-     The storefront reads as one system and the operator surfaces did not,
-     and the difference was never a palette or a font -- all three already
-     share Fraunces, Instrument Sans and JetBrains Mono. It was that the
-     storefront has a scale and the Observatory had 614 inline font sizes.
-     These are the values the storefront actually renders, named so the
-     other surfaces can resolve to them instead of choosing per element.
+  /* ---- One type scale -------------------------------------------
+     Size and family carry hierarchy, weight does not. Headings are
+     Instrument Sans 500 with tight tracking; the home hero is 60px. */
+  --text-display:  clamp(38px, 5vw, 60px);   /* page title, sans 500 */
+  --text-section:  clamp(26px, 3vw, 36px);   /* section head, sans 500 */
+  --text-sub:      22px;                     /* sub-section, sans 500 */
+  --text-card:     20px;                     /* card title, sans 500 */
+  --text-body:     15px;                     /* running text, sans 400 */
+  --text-meta:     13px;                     /* secondary, sans 400/500 */
+  --text-data:     12px;                     /* IDs and values, mono 400 */
+  --text-label:    11px;                     /* eyebrow, sans 600 upper */
+  --text-min:      11px;                     /* nothing renders below this */
 
-     The rule the names encode: size and family carry hierarchy, weight
-     does not. The storefront never renders above 650; the Observatory was
-     reaching 800 on tracked uppercase, which is why it read as louder
-     while using identical colours. */
-  --text-display:  clamp(40px, 4.2vw, 49px);  /* page title, Fraunces 400 */
-  --text-section:  clamp(30px, 3vw, 38px);    /* section head, Fraunces 400 */
-  --text-sub:      24px;                      /* sub-section, Fraunces 400 */
-  --text-card:     20px;                      /* card title, sans 500 */
-  --text-body:     15px;                      /* running text, sans 400 */
-  --text-meta:     13px;                      /* secondary, sans 400/500 */
-  --text-data:     12px;                      /* IDs and values, mono 400 */
-  --text-label:    11px;                      /* eyebrow, sans 600 upper */
-  --text-min:      11px;                      /* nothing renders below this */
-
-  --tracking-display: -0.012em;
+  --tracking-display: -0.035em;
   --tracking-label:   0.08em;
 
   --weight-body:   400;
   --weight-medium: 500;
   --weight-strong: 600;   /* the ceiling, deliberately */
 
-  /* Controls: a radius is a family name. Pills are things you press;
-     4px is things you read. Mixing them is what made one surface feel
-     like a different product from the surface next to it. */
+  /* Controls: pills are things you press; 4px is things you read. */
   --control-radius: 999px;
   --chip-radius:    4px;
   --control-height: 44px;

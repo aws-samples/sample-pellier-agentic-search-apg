@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UIProvider, useUI } from '../contexts/UIContext'
 import ChatDrawer from './ChatDrawer'
 import Header from './Header'
+import SurfaceNavigation from './SurfaceNavigation'
 
 const ANNA = {
   id: 'anna', display_name: 'Anna', customer_id: 'C-ANNA',
@@ -33,6 +34,7 @@ vi.mock('./PellierWelcome', () => ({ default: () => null }))
 function EntryPoints() {
   const { openDrawerWithQuery } = useUI()
   return <>
+    <SurfaceNavigation />
     <Header />
     <button onClick={() => openDrawerWithQuery('Tell me about the Linen Shirt.')}>
       Ask about this piece
@@ -61,7 +63,7 @@ describe('Storefront conversation entry', () => {
     fireEvent.click(screen.getByTestId('persona-card-anna'))
     await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('anna'))
     view.rerender(<App />)
-    expect(await screen.findByRole('dialog', { name: 'Chat with Pellier' })).toBeInTheDocument()
+    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith('Tell me about the Linen Shirt.')
     expect(chat.clearChat.mock.invocationCallOrder[0]).toBeLessThan(chat.sendMessage.mock.invocationCallOrder[0])
     view.rerender(<App />)
@@ -75,18 +77,18 @@ describe('Storefront conversation entry', () => {
     fireEvent.click(screen.getByTestId('persona-modal-close'))
     persona = ANNA
     view.rerender(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Pellier' }))
-    expect(await screen.findByRole('dialog', { name: 'Chat with Pellier' })).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('header-ask-pellier'))
+    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     expect(chat.sendMessage).not.toHaveBeenCalled()
   })
 
   it('continues from the header Ask action into the conversation after scenario selection', async () => {
     const view = render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Pellier' }))
+    fireEvent.click(screen.getByTestId('header-ask-pellier'))
     fireEvent.click(await screen.findByTestId('persona-card-anna'))
     await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('anna'))
     view.rerender(<App />)
-    expect(await screen.findByRole('dialog', { name: 'Chat with Pellier' })).toBeInTheDocument()
+    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     expect(chat.sendMessage).not.toHaveBeenCalled()
   })
 
@@ -94,13 +96,13 @@ describe('Storefront conversation entry', () => {
     persona = ANNA
     const view = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this piece' }))
-    expect(await screen.findByRole('dialog', { name: 'Chat with Pellier' })).toBeInTheDocument()
+    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     cartOpen = true
     view.rerender(<App />)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chat with Pellier' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Ask Pellier' })).not.toBeInTheDocument())
     cartOpen = false
     view.rerender(<App />)
-    expect(await screen.findByRole('dialog', { name: 'Chat with Pellier' })).toBeInTheDocument()
+    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith('Tell me about the Linen Shirt.')
   })
 })

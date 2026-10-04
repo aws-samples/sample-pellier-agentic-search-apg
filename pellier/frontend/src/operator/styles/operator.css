@@ -22,6 +22,40 @@
  * ======================================================================== */
 
 /*
+ * Until cut 3 rebuilds the desk in direction A, the desk keeps the Daylight
+ * palette it was styled against, in both themes. The storefront's tokens now
+ * switch with `[data-theme]` on `<html>`; re-declaring the old values here
+ * is what keeps every `--op-*` alias below resolving to them. Cut 3 deletes
+ * this block.
+ */
+.operator-root {
+  color-scheme: light;
+  --dl-bg:          #f7f3ec;
+  --dl-dock:        #fbf8f2;
+  --dl-paper:       #fbf8f2;
+  --dl-paper-2:     #f1ece1;
+  --dl-line:        #e3ddd1;
+  --dl-line-strong: #cbc1ad;
+  --dl-ink:         #1f1410;
+  --dl-ink-2:       #3a3833;
+  --dl-muted:       #6b665d;
+  --dl-faint:       #9a9285;
+  --dl-on-ink:      #fbf8f2;
+  --dl-accent:      #9a3412;
+  --dl-accent-soft: #f1e3d6;
+  --dl-accent-ink:  #5a2a0a;
+  --dl-ok:          #3f6212;
+  --dl-ok-soft:     #e8efdc;
+  --dl-warn:        #b45309;
+  --dl-err:         #991b1b;
+  --dl-err-soft:    #fbe6e4;
+  --dl-info:        #1e40af;
+  --dl-sh-paper:    0 1px 0 #fff inset, 0 6px 20px rgba(60, 40, 10, .04);
+  --dl-sh-lift:     0 12px 30px -12px rgba(60, 40, 10, .18);
+  --dl-sh-deep:     0 30px 60px -30px rgba(60, 40, 10, .35);
+}
+
+/*
  * Declared on `.operator-root`, NOT `:root`. A custom property's `var()` is
  * substituted where the property is DECLARED, so `--op-bg: var(--cream)` on
  * `:root` resolved against the warm `--cream` from daylight-bridge and then

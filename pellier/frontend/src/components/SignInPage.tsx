@@ -4,6 +4,7 @@ import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
 import { asset } from '../utils/assetPath'
 import { passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
+import '../styles/surface-navigation.css'
 import '../styles/pellier-signin.css'
 
 const ERROR_COPY: Record<string, string> = {
@@ -98,8 +99,9 @@ export default function SignInPage() {
     <main className="pellier-signin" data-testid="pellier-signin">
       <div className="pellier-signin-shell">
         <div className="pellier-signin-form-panel">
-          <a href={asset('/')} className="pellier-signin-wordmark" aria-label="Pellier home">
-            pellier<span aria-hidden="true">.</span>
+          <a href={asset('/')} className="pellier-brand pellier-signin-wordmark" aria-label="Pellier home">
+            <span aria-hidden="true">pellier</span>
+            <span className="pellier-brand-dot" aria-hidden="true">.</span>
           </a>
           <div className="pellier-signin-content">
             <h1 ref={heading} tabIndex={-1}>{title}</h1>

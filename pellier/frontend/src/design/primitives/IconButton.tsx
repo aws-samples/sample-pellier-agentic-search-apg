@@ -20,7 +20,7 @@ const sizeClasses: Record<NonNullable<IconButtonProps['size']>, string> = {
  * IconButton primitive — circular ghost button for header use.
  *
  * Transparent bg, rounded-full, espresso icon color.
- * Hover: bg-cream-50. Focus ring for keyboard navigation.
+ * Hover: bg-page. Focus ring for keyboard navigation.
  */
 export const IconButton: React.FC<IconButtonProps> = ({
   icon,
@@ -36,9 +36,9 @@ export const IconButton: React.FC<IconButtonProps> = ({
       onClick={onClick}
       className={[
         'inline-flex items-center justify-center rounded-full',
-        'bg-transparent text-espresso hover:bg-cream-50',
+        'bg-transparent text-ink hover:bg-recessed',
         'transition-colors duration-fade ease-out cursor-pointer',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-espresso',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-copper',
         sizeClasses[size],
         className,
       ]

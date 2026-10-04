@@ -75,6 +75,12 @@ interface UIContextValue {
   pendingConciergeQuery: string | null
   consumePendingQuery: () => string | null
 
+  // Whether an Ask Pellier turn is running. The header's Ask Pellier button
+  // pulses its copper dot only while this is true (signature element 2); the
+  // drawer reports it from the chat hook's loading state.
+  turnRunning: boolean
+  setTurnRunning: (running: boolean) => void
+
   // Comparison payload — set when opening the comparison modal so the
   // receiver can render the product list without prop-drilling. The drawer
   // closes, comparison opens with this payload, and when the user dismisses
@@ -115,6 +121,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   // so the global ⌘K handler opens the right surface without needing
   // useLocation() (UIProvider sits above BrowserRouter).
   const [chatSurface, setChatSurface] = useState<ChatSurface>('drawer')
+  const [turnRunning, setTurnRunning] = useState(false)
 
   const openModal = useCallback((name: ModalName) => {
     // Opening any modal closes the previous one first (Req 1.11.4).
@@ -221,6 +228,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
       openDrawerWithQuery,
       pendingConciergeQuery,
       consumePendingQuery,
+      turnRunning,
+      setTurnRunning,
       comparisonProducts,
       openComparison,
       openChat,
@@ -237,6 +246,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       openDrawerWithQuery,
       pendingConciergeQuery,
       consumePendingQuery,
+      turnRunning,
       comparisonProducts,
       openComparison,
       openChat,

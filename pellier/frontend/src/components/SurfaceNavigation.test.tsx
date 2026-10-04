@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
+import { UIProvider } from '../contexts/UIContext'
 import SurfaceNavigation from './SurfaceNavigation'
 
 function Probe() {
@@ -14,9 +15,9 @@ function Probe() {
 
 describe('connected surface navigation', () => {
   it('returns to the exact review after visiting the storefront', () => {
-    render(<MemoryRouter initialEntries={['/operator/reviews/42#operator-review-decision']}>
+    render(<UIProvider><MemoryRouter initialEntries={['/operator/reviews/42#operator-review-decision']}>
       <SurfaceNavigation /><Probe />
-    </MemoryRouter>)
+    </MemoryRouter></UIProvider>)
     fireEvent.click(screen.getByRole('link', { name: 'Storefront' }))
     fireEvent.click(screen.getByRole('link', { name: 'Operator' }))
     expect(screen.getByTestId('location')).toHaveTextContent('/operator/reviews/42#operator-review-decision')
@@ -25,9 +26,9 @@ describe('connected surface navigation', () => {
   })
 
   it('keeps a product location when browser history returns from another surface', () => {
-    render(<MemoryRouter initialEntries={['/product/17']}>
+    render(<UIProvider><MemoryRouter initialEntries={['/product/17']}>
       <SurfaceNavigation /><Probe />
-    </MemoryRouter>)
+    </MemoryRouter></UIProvider>)
     fireEvent.click(screen.getByRole('link', { name: 'Operator' }))
     fireEvent.click(screen.getByRole('button', { name: 'Browser back' }))
     expect(screen.getByRole('link', { name: 'Storefront' })).toHaveAttribute('href', '/product/17')

@@ -27,7 +27,6 @@ import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
 import SurfaceNavigation from './components/SurfaceNavigation'
 import { routerBasename } from './utils/assetPath'
-import './styles/premium-heading-styles.css'
 import RouteExperience from './shared/RouteExperience'
 import AppErrorBoundary from './shared/AppErrorBoundary'
 import SessionStatusNotice from './shared/SessionStatusNotice'
@@ -125,7 +124,7 @@ function RouteLoading() {
       data-route-loading="true"
       className="min-h-[40vh] flex items-center justify-center gap-3"
     >
-      <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-black/10 border-t-black/50 motion-safe:animate-spin" />
+      <span aria-hidden="true" className="w-7 h-7 rounded-full border-2 border-line border-t-ink motion-safe:animate-spin" />
       <p role="status">Loading page…</p>
     </main>
   )
@@ -225,7 +224,12 @@ function App() {
                 <ModalRouteGuard />
                 <ShopperChatSlot />
               <ComparisonHost />
-              <AppRouteBoundary />
+              {/* The routed page. While Ask Pellier is docked on a desktop
+                  width, this wrapper pads its right edge by the panel's
+                  width (see chat-drawer.css) so the store reflows beside it. */}
+              <div className="pellier-stage">
+                <AppRouteBoundary />
+              </div>
             </BrowserRouter>
           </UIProvider>
         </CartProvider>

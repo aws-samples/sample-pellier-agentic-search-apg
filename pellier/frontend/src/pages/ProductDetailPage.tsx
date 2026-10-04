@@ -240,14 +240,14 @@ export default function ProductDetailPage() {
   // rather than briefly claiming the piece does not exist.
   if (!view && loading) {
     return (
-      <div className="pellier-page-surface flex min-h-dvh flex-col bg-cream-50">
+      <div className="pellier-page-surface flex min-h-dvh flex-col bg-page">
         <Header current="shop" onNavigate={handleNavigate} />
         <main
           role="status"
           aria-label="Loading"
-          className="flex flex-1 items-center justify-center bg-cream"
+          className="flex flex-1 items-center justify-center bg-page"
         >
-          <span className="h-7 w-7 animate-spin rounded-full border-2 border-black/10 border-t-black/50" />
+          <span className="h-7 w-7 animate-spin rounded-full border-2 border-line border-t-ink" />
         </main>
         <Footer />
       </div>
@@ -258,18 +258,18 @@ export default function ProductDetailPage() {
     return (
       <div
         data-testid={loadError ? 'product-detail-unavailable' : 'product-detail-not-found'}
-        className="pellier-page-surface flex min-h-dvh flex-col bg-cream-50"
+        className="pellier-page-surface flex min-h-dvh flex-col bg-page"
       >
         <Header current="shop" onNavigate={handleNavigate} />
-        <main className="flex-1 bg-cream">
+        <main className="flex-1 bg-page">
           <div className="mx-auto max-w-[720px] px-container-x py-24 text-center" role={loadError ? 'alert' : undefined}>
             <h1
-              className="font-display text-espresso"
-              style={{ fontSize: 'clamp(28px, 4vw, 44px)', lineHeight: 1.15 }}
+              className="pellier-statement"
+              style={{ fontSize: 'var(--text-section)' }}
             >
               {loadError ? PRODUCT_DETAIL.UNAVAILABLE_TITLE : PRODUCT_DETAIL.NOT_FOUND_TITLE}
             </h1>
-            <p className="mt-4 font-sans text-ink-soft">
+            <p className="mt-4 font-sans text-ink-2">
               {loadError ? PRODUCT_DETAIL.UNAVAILABLE_BODY : PRODUCT_DETAIL.NOT_FOUND_BODY}
             </p>
             {loadError ? (
@@ -282,9 +282,9 @@ export default function ProductDetailPage() {
             <Link
               to="/#shop"
               className="
-                mt-8 inline-flex items-center gap-2 rounded-full bg-espresso
-                px-7 py-3 font-sans text-[13px] font-medium text-cream-50
-                transition-colors duration-fade hover:bg-dusk
+                mt-8 inline-flex items-center gap-2 rounded-full bg-ink
+                px-7 py-3 font-sans text-[13px] font-medium text-on-ink
+                transition-colors duration-fade hover:bg-ink-2
               "
             >
               <ArrowLeft size={15} aria-hidden="true" />
@@ -302,29 +302,29 @@ export default function ProductDetailPage() {
   const signals = catalogSignals(view.tags)
 
   return (
-    <div data-testid="product-detail-page" className="pellier-page-surface min-h-dvh bg-cream-50">
+    <div data-testid="product-detail-page" className="pellier-page-surface min-h-dvh bg-page">
       <AnnouncementBar />
       <Header current="shop" onNavigate={handleNavigate} />
 
-      <main className="bg-cream">
+      <main className="bg-page">
         <nav
           aria-label="Breadcrumb"
-          className="mx-auto max-w-[1200px] px-container-x pt-3 font-sans text-[13px] text-ink-quiet"
+          className="mx-auto max-w-[1200px] px-container-x pt-3 font-sans text-[13px] text-muted"
         >
           <ol className="flex flex-wrap items-center gap-2">
             <li>
-              <Link to="/" className="inline-flex min-h-11 items-center transition-colors hover:text-espresso">
+              <Link to="/" className="inline-flex min-h-11 items-center transition-colors hover:text-ink">
                 {PRODUCT_DETAIL.BREADCRUMB_ROOT}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link to="/#shop" className="inline-flex min-h-11 items-center transition-colors hover:text-espresso">
+              <Link to="/#shop" className="inline-flex min-h-11 items-center transition-colors hover:text-ink">
                 {view.category}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-espresso">
+            <li aria-current="page" className="text-ink">
               {view.name}
             </li>
           </ol>
@@ -333,13 +333,13 @@ export default function ProductDetailPage() {
         <div className="mx-auto max-w-[1200px] px-container-x pb-16 pt-8 md:pb-24">
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-16 xl:gap-20">
             {/* --- Piece ------------------------------------------------ */}
-            <div className="overflow-hidden rounded-[var(--pellier-image-radius-lg)] border border-sand bg-sand">
+            <div className="overflow-hidden rounded-[var(--pellier-image-radius-lg)] bg-recessed shadow-frame">
               {/* One photograph per piece today. A zoom is the honest version
                   of a gallery until more angles exist: the shopper can still
                   look closely at the weave before paying for it. */}
               <button
                 type="button"
-                className="relative block aspect-[4/5] w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2"
+                className="relative block aspect-[4/5] w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
                 aria-label={`Zoom in on ${view.name}`}
                 data-testid="product-detail-zoom"
                 onClick={() => setZoomOpen(true)}
@@ -364,18 +364,18 @@ export default function ProductDetailPage() {
                 aria-modal="true"
                 aria-label={`${view.name}, enlarged`}
                 data-testid="product-detail-zoom-dialog"
-                className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(45,24,16,0.86)] p-6"
+                className="fixed inset-0 z-[1200] flex items-center justify-center bg-scrim p-6"
                 onClick={() => setZoomOpen(false)}
               >
                 <img
                   src={asset(view.imageUrl)}
                   alt={view.name}
-                  className="max-h-[92vh] max-w-[92vw] rounded-[var(--pellier-image-radius-lg)] object-contain shadow-warm-md"
+                  className="max-h-[92vh] max-w-[92vw] rounded-[var(--pellier-image-radius-lg)] object-contain shadow-deep"
                   onClick={(event) => event.stopPropagation()}
                 />
                 <button
                   type="button"
-                  className="absolute right-6 top-6 inline-flex h-11 w-11 items-center justify-center rounded-full bg-cream-50 text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-50"
+                  className="absolute right-6 top-6 inline-flex h-11 w-11 items-center justify-center rounded-full bg-page text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-ink"
                   aria-label="Close enlarged image"
                   onClick={() => setZoomOpen(false)}
                 >
@@ -390,17 +390,17 @@ export default function ProductDetailPage() {
               className="flex flex-col gap-6 lg:pt-2"
             >
               <div>
-                <p className="font-sans text-[12px] uppercase tracking-[0.14em] text-ink-quiet">
+                <p className="pellier-card-brand">
                   {view.brand}
                 </p>
                 <h1
                   data-testid="product-detail-name"
-                  className="mt-2 font-display pellier-product-title text-espresso"
-                  style={{ fontSize: 'clamp(30px, 3.6vw, 48px)', lineHeight: 1.1 }}
+                  className="pellier-statement pellier-product-title mt-2"
+                  style={{ fontSize: 'clamp(30px, 3.4vw, 44px)' }}
                 >
                   {view.name}
                 </h1>
-                <div className="mt-3 flex flex-wrap items-center gap-2 font-sans text-[13px] text-ink-quiet">
+                <div className="mt-3 flex flex-wrap items-center gap-2 font-sans text-[13px] text-muted">
                   <span>{view.color}</span>
                   <span aria-hidden="true">/</span>
                   <span>{view.category}</span>
@@ -409,7 +409,7 @@ export default function ProductDetailPage() {
                       <span aria-hidden="true">/</span>
                       <span
                         data-testid="product-detail-badge"
-                        className="font-medium text-accent-ink"
+                        className="font-medium text-ink-2"
                       >
                         {BADGE_LABEL[view.badge]}
                       </span>
@@ -418,17 +418,17 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 border-y border-sand py-4 font-sans">
-                <span className="text-xl text-espresso">${view.price}</span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-ink-soft">
+              <div className="flex items-center gap-4 border-y border-line py-4 font-sans">
+                <span className="text-[20px] font-medium text-ink tabular-nums">${view.price}</span>
+                <span className="inline-flex items-center gap-1.5 text-sm text-ink-2">
                   <Star
                     size={13}
                     strokeWidth={1.5}
                     aria-hidden="true"
-                    className="fill-ink-soft text-ink-soft"
+                    className="fill-ink-2 text-ink-2"
                   />
                   {view.rating.toFixed(1)}
-                  <span className="text-xs text-ink-quiet">({view.reviewCount})</span>
+                  <span className="text-xs text-muted">({view.reviewCount})</span>
                 </span>
               </div>
 
@@ -436,21 +436,21 @@ export default function ProductDetailPage() {
               <section aria-labelledby="product-description-heading">
                 <h2
                   id="product-description-heading"
-                  className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft"
+                  className="font-sans text-[13px] font-medium text-ink"
                 >
                   {PRODUCT_DETAIL.DESCRIPTION_HEADING}
                 </h2>
                 {description ? (
                   <p
                     data-testid="product-description"
-                    className="mt-3 max-w-[52ch] font-sans text-[15px] leading-relaxed text-ink-soft"
+                    className="mt-3 max-w-[52ch] font-sans text-[15px] leading-relaxed text-ink-2"
                   >
                     {description}
                   </p>
                 ) : (
                   <p
                     data-testid="product-description-degraded"
-                    className="mt-3 font-sans text-[13px] text-ink-quiet"
+                    className="mt-3 font-sans text-[13px] text-muted"
                   >
                     {loading
                       ? PRODUCT_DETAIL.AVAILABILITY_READING
@@ -477,15 +477,7 @@ export default function ProductDetailPage() {
                   type="button"
                   data-testid="product-detail-ask"
                   onClick={() => openDrawerWithQuery(PRODUCT_DETAIL.askQuestion(view.name))}
-                  className="
-                    inline-flex min-h-[46px] items-center justify-center gap-2
-                    rounded-full border border-sand bg-cream-warm px-5
-                    font-sans text-[13px] font-medium text-ink-soft
-                    transition-colors duration-fade hover:border-ink-quiet/40
-                    hover:bg-sand/60 hover:text-espresso
-                    focus-visible:outline-2 focus-visible:outline-offset-2
-                    focus-visible:outline-accent
-                  "
+                  className="pellier-action-quiet min-h-[46px] justify-center"
                 >
                   <Sparkles
                     className="pellier-concierge-sparkle"
@@ -500,7 +492,7 @@ export default function ProductDetailPage() {
                 <section aria-labelledby="product-why-heading">
                   <h2
                     id="product-why-heading"
-                    className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft"
+                    className="font-sans text-[13px] font-medium text-ink"
                   >
                     {PRODUCT_DETAIL.WHY_HEADING}
                   </h2>
@@ -514,7 +506,7 @@ export default function ProductDetailPage() {
                 <section aria-labelledby="product-signals-heading">
                   <h2
                     id="product-signals-heading"
-                    className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft"
+                    className="font-sans text-[13px] font-medium text-ink"
                   >
                     {PRODUCT_DETAIL.SIGNALS_HEADING}
                   </h2>
@@ -546,28 +538,22 @@ export default function ProductDetailPage() {
         {siblings.length > 0 ? (
           <section
             aria-labelledby="product-more-heading"
-            className="border-t border-sand bg-cream-warm"
+            className="border-t border-line bg-paper"
           >
             <div className="mx-auto max-w-[1280px] px-container-x py-16">
               <h2
                 id="product-more-heading"
-                className="font-display text-espresso"
-                style={{ fontSize: 'clamp(24px, 2.6vw, 34px)', lineHeight: 1.15 }}
+                className="pellier-statement"
+                style={{ fontSize: 'var(--text-section)' }}
               >
                 {PRODUCT_DETAIL.MORE_HEADING}
               </h2>
               <div
                 data-testid="product-detail-siblings"
-                className="mt-8 grid gap-6"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
+                className="pellier-product-grid mt-8"
               >
                 {siblings.map((product, index) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    index={index % 3}
-                    onAddToBag={handleAddToBag}
-                  />
+                  <ProductCard key={product.id} product={product} index={index % 3} />
                 ))}
               </div>
             </div>

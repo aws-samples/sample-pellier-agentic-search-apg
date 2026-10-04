@@ -48,7 +48,7 @@ export default function AboutPage() {
   return (
     <div
       data-testid="about-page"
-      className="pellier-page-surface min-h-dvh bg-cream-50"
+      className="pellier-page-surface min-h-dvh bg-page"
     >
       <Header current="about" onNavigate={handleNavigate} />
       <main>

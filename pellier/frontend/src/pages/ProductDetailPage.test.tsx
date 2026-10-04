@@ -403,14 +403,14 @@ describe('ProductDetailPage — Aurora layer', () => {
     expect(document.body.style.overflow).toBe(previousOverflow)
   })
 
-  it('sets the piece name in the editorial display voice', async () => {
+  it('sets the piece name as a heading in the storefront type', async () => {
     stubFetch(() => jsonResponse(detailPayload()))
 
     renderAt(`/product/${SUBJECT.id}`)
 
     const name = await screen.findByTestId('product-detail-name')
-    // index.css forces `.font-display` to sans on every Pellier surface; the
-    // product title opts back into Fraunces through its own class.
+    // Every heading is Instrument Sans 500; Fraunces is the wordmark's alone.
+    expect(name).toHaveClass('pellier-statement')
     expect(name).toHaveClass('pellier-product-title')
   })
 

@@ -16,7 +16,6 @@
  *     free of adjacent duplicates for representative inputs.
  */
 import { render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import ReasoningChip, {
@@ -24,8 +23,6 @@ import ReasoningChip, {
   assignReasoningChipsCyclic,
   findAdjacentDuplicateStyleIndex,
 } from './ReasoningChip'
-import ProductGrid from './ProductGrid'
-import { SHOWCASE_PRODUCTS } from '../data/showcaseProducts'
 import {
   reasoningMatched,
   reasoningPicked,
@@ -34,14 +31,6 @@ import {
 import type { ReasoningChip as ReasoningChipModel } from '../services/types'
 
 // ProductCard links to /product/:id, so the grid needs router context.
-function renderGrid() {
-  return render(
-    <MemoryRouter>
-      <ProductGrid products={SHOWCASE_PRODUCTS} />
-    </MemoryRouter>,
-  )
-}
-
 // Stub IntersectionObserver once for this suite — ProductGrid renders
 // ProductCards that call useScrollReveal, which requires the global.
 class NoopIntersectionObserver {
@@ -184,53 +173,5 @@ describe('assignReasoningChipsCyclic — no adjacent duplicates', () => {
 
   it('handles empty input without throwing', () => {
     expect(assignReasoningChipsCyclic([])).toEqual([])
-  })
-})
-
-// --- Grid-level distribution --------------------------------------------
-
-describe('ProductGrid — reasoning chip distribution (Req 1.7.1)', () => {
-  it('renders all four chip styles across the 9 showcase cards', () => {
-    renderGrid()
-    const chips = screen.getAllByTestId('reasoning-chip')
-    expect(chips).toHaveLength(SHOWCASE_PRODUCTS.length)
-
-    const styles = new Set(
-      chips.map(el => el.getAttribute('data-style') ?? ''),
-    )
-    expect(styles).toEqual(new Set(CANONICAL_STYLES))
-  })
-
-  it('no two adjacent cards share a reasoning chip style', () => {
-    renderGrid()
-
-    // Walk the showcase products in declaration order — that order
-    // matches the row-wise rendering in the grid.
-    const orderedStyles = SHOWCASE_PRODUCTS.map(p => {
-      const card = screen.getByTestId(`product-card-${p.id}`)
-      return (
-        within(card)
-          .getByTestId('reasoning-chip')
-          .getAttribute('data-style') ?? ''
-      )
-    })
-    expect(orderedStyles).toHaveLength(SHOWCASE_PRODUCTS.length)
-    const collisionIndex = orderedStyles.findIndex(
-      (s, i) => i > 0 && s === orderedStyles[i - 1],
-    )
-    expect(collisionIndex).toBe(-1)
-  })
-
-  it('pricing cards render their urgent clause in terracotta', () => {
-    renderGrid()
-    const urgentSpans = screen.queryAllByTestId('reasoning-chip-urgent')
-    // At least one of the nine cards should use the pricing style with
-    // an urgent clause — the storefront's live pricing signal.
-    expect(urgentSpans.length).toBeGreaterThan(0)
-    for (const span of urgentSpans) {
-      expect(span.getAttribute('style') ?? '').toMatch(
-        /color:\s*var\(--accent\)/,
-      )
-    }
   })
 })

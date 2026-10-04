@@ -244,7 +244,7 @@ export default function PellierSpotlight() {
           aria-labelledby="pellier-spotlight-title"
           aria-describedby="pellier-spotlight-description"
           tabIndex={-1}
-          className="relative w-full max-w-[552px] overflow-hidden rounded-[8px] border border-[rgba(24,26,31,0.16)] bg-cream-warm text-espresso shadow-[0_28px_70px_rgba(24,26,31,0.26)] outline-none"
+          className="relative w-full max-w-[552px] overflow-hidden rounded-[8px] border border-[rgba(24,26,31,0.16)] bg-paper text-ink shadow-[0_28px_70px_rgba(24,26,31,0.26)] outline-none"
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.985 }}
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.99 }}
@@ -263,7 +263,7 @@ export default function PellierSpotlight() {
             <X size={17} strokeWidth={1.8} aria-hidden="true" />
           </button>
 
-          <div className="h-[194px] overflow-hidden bg-cream-2 sm:h-[208px]">
+          <div className="h-[194px] overflow-hidden bg-recessed sm:h-[208px]">
             <AnimatePresence initial={false} mode="wait">
               {current.media.kind === 'photo' ? (
                 <motion.img
@@ -341,25 +341,25 @@ export default function PellierSpotlight() {
                 <div className="mb-3 flex items-baseline gap-3">
                   <span
                     aria-hidden="true"
-                    className="text-[18px] leading-none text-accent"
+                    className="text-[18px] leading-none text-copper"
                     style={{ fontFamily: 'var(--display)' }}
                   >
                     {String(step + 1).padStart(2, '0')}
                   </span>
-                  <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+                  <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-copper">
                     {current.eyebrow}
                   </p>
                 </div>
                 <h2
                   id="pellier-spotlight-title"
-                  className="max-w-[18ch] text-[34px] font-normal leading-[1.03] text-espresso sm:text-[38px]"
+                  className="max-w-[18ch] text-[34px] font-normal leading-[1.03] text-ink sm:text-[38px]"
                   style={{ fontFamily: 'var(--display)' }}
                 >
                   {current.headline}
                 </h2>
                 <p
                   id="pellier-spotlight-description"
-                  className="mt-3 max-w-[39ch] font-sans text-[15px] leading-6 text-ink-soft"
+                  className="mt-3 max-w-[39ch] font-sans text-[15px] leading-6 text-ink-2"
                 >
                   {current.body}
                 </p>
@@ -367,11 +367,11 @@ export default function PellierSpotlight() {
             </AnimatePresence>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-sand px-6 py-4 sm:px-8">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-line px-6 py-4 sm:px-8">
             <nav className="flex items-center gap-2.5" aria-label="Welcome tour progress">
               <span
                 aria-hidden="true"
-                className="font-sans text-[10px] font-semibold tracking-[0.14em] text-ink-quiet"
+                className="font-sans text-[10px] font-semibold tracking-[0.14em] text-muted"
               >
                 01
               </span>
@@ -382,14 +382,14 @@ export default function PellierSpotlight() {
                   onClick={() => setStep(index)}
                   aria-label={`Show ${tourStep.label}, step ${index + 1} of ${STEPS.length}`}
                   aria-current={index === step ? 'step' : undefined}
-                  className="group inline-flex h-12 w-12 items-center justify-center rounded-[8px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  className="group inline-flex h-12 w-12 items-center justify-center rounded-[8px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
                 >
                   <span
                     aria-hidden="true"
                     className={[
                       'block h-px transition-[width,background-color] duration-200',
                       index === step
-                        ? 'w-7 bg-espresso'
+                        ? 'w-7 bg-ink'
                         : 'w-4 bg-[rgba(24,26,31,0.18)] group-hover:bg-[rgba(24,26,31,0.36)]',
                     ].join(' ')}
                   />
@@ -397,7 +397,7 @@ export default function PellierSpotlight() {
               ))}
               <span
                 aria-hidden="true"
-                className="font-sans text-[10px] font-semibold tracking-[0.14em] text-ink-quiet"
+                className="font-sans text-[10px] font-semibold tracking-[0.14em] text-muted"
               >
                 03
               </span>
@@ -408,7 +408,7 @@ export default function PellierSpotlight() {
                 <button
                   type="button"
                   onClick={previous}
-                  className="min-h-12 rounded-[8px] px-3.5 font-sans text-[13px] font-medium text-ink-soft transition-colors hover:bg-cream-2 hover:text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  className="min-h-12 rounded-[8px] px-3.5 font-sans text-[13px] font-medium text-ink-2 transition-colors hover:bg-recessed hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
                 >
                   Back
                 </button>
@@ -416,7 +416,7 @@ export default function PellierSpotlight() {
                 <button
                   type="button"
                   onClick={dismiss}
-                  className="min-h-12 rounded-[8px] px-3.5 font-sans text-[13px] font-medium text-ink-soft transition-colors hover:bg-cream-2 hover:text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  className="min-h-12 rounded-[8px] px-3.5 font-sans text-[13px] font-medium text-ink-2 transition-colors hover:bg-recessed hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
                 >
                   Skip
                 </button>
@@ -424,7 +424,7 @@ export default function PellierSpotlight() {
               <button
                 type="button"
                 onClick={next}
-                className="inline-flex min-h-12 items-center gap-2 rounded-[8px] bg-accent px-4 font-sans text-[13px] font-semibold text-white transition-colors hover:bg-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                className="inline-flex min-h-12 items-center gap-2 rounded-[8px] bg-ink px-4 font-sans text-[13px] font-semibold text-white transition-colors hover:bg-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
               >
                 {isLast ? 'Explore Pellier' : 'Continue'}
               </button>

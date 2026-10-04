@@ -3,10 +3,8 @@ import tailwindcssAnimate from 'tailwindcss-animate'
 /*
  * A colour that resolves to a CSS variable cannot take Tailwind's `/NN`
  * opacity modifier on its own: v3 needs colour channels and a hex variable has
- * none, so classes such as `border-sand/50` or `bg-espresso/95` were never
- * generated and those borders and fills silently disappeared. Handing Tailwind
- * a function keeps every unmodified class a plain `var()` and resolves a
- * modifier with `color-mix()`.
+ * none. Handing Tailwind a function keeps every unmodified class a plain
+ * `var()` and resolves a modifier with `color-mix()`.
  */
 const withAlpha = (variable) => ({ opacityValue }) =>
   opacityValue === undefined || String(opacityValue).startsWith('var(')
@@ -22,80 +20,43 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Storefront palette — every name here resolves to a Daylight
-        // token via styles/daylight-bridge.css. The bridge maps
-        // --cream → --dl-bg, --ink → --dl-ink, --accent → --dl-accent,
-        // etc. Override at scope to re-skin a section without
-        // touching this file. See DAYLIGHT_INTEGRATION.md.
-        'cream': withAlpha('--cream'),
-        'cream-warm': withAlpha('--cream-warm'),
-        'ink': withAlpha('--ink'),
-        'ink-soft': withAlpha('--ink-soft'),
-        'ink-quiet': withAlpha('--ink-quiet'),
-        'accent': withAlpha('--accent'),
-        'accent-ink': withAlpha('--accent-ink'),
-        'dusk': withAlpha('--dusk'),
-
-        // Theme-aware via CSS variables
-        'bg-primary': withAlpha('--bg-primary'),
-        'bg-secondary': withAlpha('--bg-secondary'),
-        'text-primary': 'var(--text-primary, #f5f5f7)',
-        'text-secondary': 'var(--text-secondary, #a1a1a6)',
-        'text-tertiary': 'var(--text-tertiary, #636366)',
-        'border-subtle': 'var(--border-color, rgba(255, 255, 255, 0.08))',
-
-        // Apple blue links
-        'apple-blue': 'var(--link-color, #0071e3)',
-
-        // Utility
-        'success': '#4ade80',
-        'warning': '#fbbf24',
-
-        // Warm-tinted hairline (ink-soft at 8% alpha). Kept as a
-        // hardcoded rgba — Daylight has no equivalent token for the
-        // 8%-alpha hairline use case.
-        'warm': 'rgba(107, 74, 53, 0.08)',
-
-        // Redesign tokens — also flow through the Daylight bridge.
-        // 'sand' has no direct Daylight counterpart; we map it onto
-        // --dl-paper-2 (recessed surface) which is visually the same
-        // recessed-cream role.
-        'cream-50': withAlpha('--cream'),
-        'sand': withAlpha('--cream-2'),
-        'espresso': withAlpha('--ink'),
-        'olive': '#6B705C',
-        'espresso-dark': withAlpha('--ink-1'),
-        'espresso-mid': '#2A1E18',
-      },
-      borderColor: {
-        'cream': withAlpha('--cream'),
-        'cream-warm': withAlpha('--cream-warm'),
-        'ink': withAlpha('--ink'),
-        'ink-soft': withAlpha('--ink-soft'),
-        'ink-quiet': withAlpha('--ink-quiet'),
-        'accent': withAlpha('--accent'),
-        'accent-ink': withAlpha('--accent-ink'),
-        'dusk': withAlpha('--dusk'),
-        'warm': 'rgba(107, 74, 53, 0.08)',
+        // Every name resolves to a Daylight token (styles/daylight-tokens.css),
+        // which switches with `[data-theme]` on <html>. The names are roles,
+        // not values: `page`, `paper` and `ink` mean the same thing in both
+        // themes. A hard-coded hex or a fixed Tailwind palette class has no
+        // place in src/ (see src/__tests__/token_guard.test.ts).
+        'page': withAlpha('--dl-bg'),
+        'dock': withAlpha('--dl-dock'),
+        'paper': withAlpha('--dl-paper'),
+        'recessed': withAlpha('--dl-paper-2'),
+        'line': withAlpha('--dl-line'),
+        'line-strong': withAlpha('--dl-line-strong'),
+        'ink': withAlpha('--dl-ink'),
+        'ink-2': withAlpha('--dl-ink-2'),
+        'muted': withAlpha('--dl-muted'),
+        'faint': withAlpha('--dl-faint'),
+        'on-ink': withAlpha('--dl-on-ink'),
+        'on-photo': withAlpha('--dl-on-photo'),
+        'copper': withAlpha('--dl-accent'),
+        'copper-tint': withAlpha('--dl-accent-soft'),
+        'ok': withAlpha('--dl-ok'),
+        'ok-tint': withAlpha('--dl-ok-soft'),
+        'err': withAlpha('--dl-err'),
+        'err-tint': withAlpha('--dl-err-soft'),
+        'warn': withAlpha('--dl-warn'),
+        'scrim': 'var(--dl-scrim)',
       },
       boxShadow: {
-        // Warm-tinted shadows (ink-soft at low alpha) — the single biggest
-        // contributor to the storefront "premium feel" vs cold grey drops.
-        'warm':
-          '0 2px 8px rgba(107, 74, 53, 0.06), 0 1px 3px rgba(107, 74, 53, 0.04)',
-        'warm-lg':
-          '0 8px 24px rgba(107, 74, 53, 0.10), 0 4px 8px rgba(107, 74, 53, 0.06)',
-
-        // Warm shadow scale used by the current storefront.
-        'warm-sm':
-          '0 2px 8px rgba(107, 74, 53, 0.06), 0 1px 3px rgba(107, 74, 53, 0.04)',
-        'warm-md':
-          '0 4px 16px rgba(107, 74, 53, 0.08), 0 2px 6px rgba(107, 74, 53, 0.05)',
-        'warm-xl':
-          '0 24px 48px rgba(107, 74, 53, 0.14), 0 8px 16px rgba(107, 74, 53, 0.08)',
+        // Soft and low; the ask field is the one surface with a resting shadow.
+        'ask': 'var(--dl-sh-ask)',
+        'paper': 'var(--dl-sh-paper)',
+        'lift': 'var(--dl-sh-lift)',
+        'deep': 'var(--dl-sh-deep)',
+        'frame': 'var(--dl-frame)',
       },
       fontFamily: {
-        // Mirror Daylight / bridge stacks (self-hosted in main.tsx).
+        // Instrument Sans carries every heading and all prose. Fraunces is
+        // the wordmark's face only, through `.pellier-brand`.
         sans: [
           '"Instrument Sans"',
           'system-ui',
@@ -106,14 +67,6 @@ export default {
           '"Helvetica Neue"',
           'sans-serif',
         ],
-        serif: [
-          '"Instrument Serif"',
-          '"Fraunces Variable"',
-          'Fraunces',
-          'Georgia',
-          'serif',
-        ],
-        // Telemetry SQL + table monospace — ligature-friendly.
         mono: [
           '"JetBrains Mono"',
           'ui-monospace',
@@ -125,8 +78,6 @@ export default {
           '"Courier New"',
           'monospace',
         ],
-        // Storefront display italic — editorial product / hero titles.
-        display: ['Fraunces Variable', 'Fraunces', 'Georgia', 'serif'],
       },
       fontWeight: {
         'light': '300',
@@ -161,18 +112,13 @@ export default {
           '100%': { backgroundPosition: '1000px 0' },
         },
       },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(ellipse at center, var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-      },
 
-      // Current responsive layout tokens.
       screens: {
         'wide': '1440px',
         'expansion-stack': '1280px',
       },
       spacing: {
-        'container-x': 'clamp(16px, 4vw, 48px)',
+        'container-x': 'clamp(16px, 3.5vw, 44px)',
       },
       transitionDuration: {
         'fade': '180ms',

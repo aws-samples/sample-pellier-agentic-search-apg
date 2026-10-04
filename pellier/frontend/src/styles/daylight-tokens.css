@@ -1,59 +1,105 @@
 /* ============================================================
-   Daylight Design System — Tokens
-   Warm, off-white, editorial. Used across Wayfare and Pellier.
+   Daylight Design System — Tokens, direction A ("Gallery white").
+
+   Every color in the Storefront and Ask Pellier resolves to a token in
+   this file. Light is the default at `:root`; the dark set is switched by
+   `[data-theme="dark"]` on `<html>`, which the inline script in
+   `index.html` sets before first paint and `src/theme/theme.ts` keeps in
+   step with the shopper's choice. `color-scheme` follows the theme so
+   form controls and scrollbars match.
+
+   Roles, light / dark:
+     --dl-bg        page            #ffffff / #000000
+     --dl-dock      the docked Ask Pellier panel   #fafaf8 / #0b0b0b
+     --dl-paper     raised panels and cards        #ffffff / #0f0f0f
+     --dl-paper-2   recessed fields and chips      #f4f4f1 / #1a1a1a
+     --dl-line      hairline                       #e9e9e5 / #262626
+     --dl-ink       primary ink                    #111110 / #f3ebe2
+     --dl-on-ink    text on an ink-filled control  #fbf8f2 / #0b0b0b
+     --dl-accent    copper, used sparingly         #9a4d20 / #da9562
    ============================================================ */
 
 :root {
+  color-scheme: light;
+
   /* ---------- Color · surfaces ---------- */
-  --dl-bg:           #f7f3ec;   /* page background */
-  --dl-paper:        #fbf8f2;   /* cards, panels */
-  --dl-paper-2:      #f1ece1;   /* recessed surfaces */
-  --dl-line:         #e3ddd1;   /* borders, dividers */
-  --dl-line-strong:  #cbc1ad;   /* emphasized borders */
+  --dl-bg:           #ffffff;
+  --dl-dock:         #fafaf8;
+  --dl-paper:        #ffffff;
+  --dl-paper-2:      #f4f4f1;
+  --dl-line:         #e9e9e5;
+  --dl-line-strong:  #d6d6d1;
 
   /* ---------- Color · ink ---------- */
-  --dl-ink:          #1f1410;   /* primary text / espresso (matches filled controls) */
-  --dl-ink-2:        #3a3833;   /* body prose */
-  --dl-muted:        #6b665d;   /* secondary text, captions */
-  --dl-faint:        #9a9285;   /* placeholders, disabled */
+  --dl-ink:          #111110;
+  --dl-ink-2:        #3b3a37;
+  --dl-muted:        #6c6a65;
+  --dl-faint:        #75726c;
+  --dl-on-ink:       #fbf8f2;
 
-  /* ---------- Color · accent ---------- */
-  --dl-accent:       #9a3412;   /* terracotta — primary accent */
-  --dl-accent-soft:  #f1e3d6;   /* accent tint background */
-  --dl-accent-ink:   #5a2a0a;   /* accent text on tint */
+  /* ---------- Color · accent (copper) ---------- */
+  --dl-accent:       #9a4d20;
+  --dl-accent-soft:  #f6ece3;
+  --dl-accent-ink:   #9a4d20;
+  /* Copper on an ink-filled control: the other theme's copper, so a dot on
+     a black button in light and on an ivory button in dark both read. */
+  --dl-accent-on-ink: #da9562;
+  /* Over a photograph's scrim, the same in both themes: ivory type and the
+     dark theme's copper. */
+  --dl-on-photo:        #fbf8f2;
+  --dl-accent-on-photo: #da9562;
 
   /* ---------- Color · semantic ---------- */
   --dl-ok:           #3f6212;
-  --dl-warn:         #b45309;
-  --dl-err:          #991b1b;
+  --dl-ok-soft:      #e8efdc;
+  --dl-warn:         #9a5b0b;
+  --dl-err:          #a12a2a;
+  --dl-err-soft:     #fbe6e4;
   --dl-info:         #1e40af;
 
+  /* ---------- Status tags (signature element 4), AA pairs ---------- */
+  --dl-tag-good-ink:    #2f6b1a;
+  --dl-tag-good-bg:     #e7f2df;
+  --dl-tag-blocked-ink: #a12a2a;
+  --dl-tag-blocked-bg:  #fbe6e4;
+
+  /* ---------- Shadow and frame ---------- */
+  /* The ask field is the one surface with a resting shadow. */
+  --dl-sh-ask:   0 1px 2px rgb(17 17 16 / 5%), 0 14px 34px -22px rgb(17 17 16 / 30%);
+  --dl-sh-paper: 0 1px 2px rgb(17 17 16 / 5%);
+  --dl-sh-lift:  0 12px 30px -12px rgb(17 17 16 / 18%);
+  --dl-sh-deep:  0 30px 60px -30px rgb(17 17 16 / 35%);
+  /* Photographs keep their own light backgrounds inside a hairline frame. */
+  --dl-frame:    inset 0 0 0 1px rgb(17 17 16 / 4%);
+  --dl-scrim:    rgb(17 17 16 / 60%);
+
   /* ---------- Type ---------- */
-  /* Self-hosted faces from main.tsx (@fontsource). Fraunces is reserved for
-     editorial display, Instrument Sans carries UI + prose, Instrument Serif
-     remains available for deliberately literary copy, and JetBrains Mono is
-     reserved for code, SQL, identifiers, and numeric telemetry. */
+  /* Fraunces is the wordmark's face and nothing else's. Headings and prose
+     are Instrument Sans; JetBrains Mono carries code, SQL, identifiers and
+     numeric telemetry. */
   --dl-font-display: "Fraunces Variable","Fraunces",Georgia,"Times New Roman",serif;
   --dl-font-heading: "Instrument Sans",system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+  /* Read by the shared primitives the Operator composes; cut 3 decides its fate. */
   --dl-font-serif:   "Instrument Serif","Fraunces Variable","Fraunces",Georgia,"Times New Roman",serif;
   --dl-font-sans:    "Instrument Sans",system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
   --dl-font-mono:    "JetBrains Mono",ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace;
 
-  --dl-fs-display:   54px;
+  --dl-fs-display:   60px;
   --dl-fs-h1:        40px;
   --dl-fs-h2:        28px;
   --dl-fs-h3:        20px;
-  --dl-fs-lead:      18px;
+  --dl-fs-lead:      17px;
   --dl-fs-body:      15px;
   --dl-fs-small:     13px;
-  --dl-fs-eyebrow:   11px;
+  --dl-fs-eyebrow:   13px;
 
-  --dl-lh-tight:     1.05;
+  --dl-lh-tight:     1.02;
   --dl-lh-snug:      1.25;
   --dl-lh-body:      1.6;
 
-  --dl-track-eyebrow: 0.14em;   /* uppercase eyebrows */
-  --dl-track-tight:   -0.01em;
+  --dl-track-eyebrow: 0.03em;
+  --dl-track-tight:   -0.02em;
+  --dl-track-display: -0.035em;
 
   /* ---------- Spacing ---------- */
   --dl-s-1:  4px;
@@ -67,18 +113,59 @@
   --dl-s-9:  96px;
 
   /* ---------- Radius ---------- */
-  --dl-r-sm: 6px;
-  --dl-r-md: 10px;
-  --dl-r-lg: 14px;
-  --dl-r-xl: 20px;
+  /* Cards 16, fields 14, buttons and chips are pills. */
+  --dl-r-sm:   6px;
+  --dl-r-md:   10px;
+  --dl-r-field: 14px;
+  --dl-r-card: 16px;
+  --dl-r-lg:   16px;
+  --dl-r-xl:   20px;
   --dl-r-pill: 999px;
-
-  /* ---------- Shadow ---------- */
-  --dl-sh-paper: 0 1px 0 #fff inset, 0 6px 20px rgba(60,40,10,.04);
-  --dl-sh-lift:  0 12px 30px -12px rgba(60,40,10,.18);
-  --dl-sh-deep:  0 30px 60px -30px rgba(60,40,10,.35);
 
   /* ---------- Layout ---------- */
   --dl-container: 1200px;
   --dl-gutter:    48px;
+  --dl-dock-width: 440px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --dl-bg:           #000000;
+  --dl-dock:         #0b0b0b;
+  --dl-paper:        #0f0f0f;
+  --dl-paper-2:      #1a1a1a;
+  --dl-line:         #262626;
+  --dl-line-strong:  #3a3a3a;
+
+  --dl-ink:          #f3ebe2;
+  --dl-ink-2:        #d6cec4;
+  --dl-muted:        #a39a90;
+  --dl-faint:        #8a827a;
+  --dl-on-ink:       #0b0b0b;
+
+  --dl-accent:       #da9562;
+  --dl-accent-soft:  #2a1d14;
+  --dl-accent-ink:   #da9562;
+  --dl-accent-on-ink: #9a4d20;
+
+  --dl-ok:           #a5c87a;
+  --dl-ok-soft:      #14240e;
+  --dl-warn:         #e4b16b;
+  --dl-err:          #f19a92;
+  --dl-err-soft:     #2b1110;
+  --dl-info:         #9db9ff;
+
+  --dl-tag-good-ink:    #a5d38a;
+  --dl-tag-good-bg:     #14240e;
+  --dl-tag-blocked-ink: #f19a92;
+  --dl-tag-blocked-bg:  #2b1110;
+
+  /* Soft and low on black. */
+  --dl-sh-ask:   0 1px 2px rgb(0 0 0 / 50%), 0 14px 34px -22px rgb(0 0 0 / 80%);
+  --dl-sh-paper: 0 1px 2px rgb(0 0 0 / 40%);
+  --dl-sh-lift:  0 12px 30px -12px rgb(0 0 0 / 60%);
+  --dl-sh-deep:  0 30px 60px -30px rgb(0 0 0 / 80%);
+  --dl-frame:    inset 0 0 0 1px rgb(255 255 255 / 8%);
+  --dl-scrim:    rgb(0 0 0 / 70%);
 }

@@ -129,9 +129,7 @@ afterEach(() => {
 // --- Tests -------------------------------------------------------------
 
 describe('Header — nav items', () => {
-  it('renders four text nav items: Shop, Stories, Ask Pellier, About', () => {
-    // 'Ask Pellier' only renders when a persona is signed in; the chat
-    // surface needs a persona to scope memory.
+  it('renders three text nav items: Shop, Stories, About; Ask Pellier lives in the shared bar', () => {
     mockPersona = {
       id: 'marco',
       display_name: 'Marco',
@@ -147,16 +145,15 @@ describe('Header — nav items', () => {
     const navItems = [
       screen.getByRole('link', { name: 'Shop' }),
       screen.getByRole('link', { name: 'Stories' }),
-      screen.getByRole('button', { name: 'Ask Pellier' }),
       screen.getByRole('link', { name: 'About' }),
     ]
-    expect(navItems).toHaveLength(4)
-    expect(navItems.map((el) => el.textContent)).toEqual([
-      'Shop',
-      'Stories',
-      'Ask Pellier',
-      'About',
-    ])
+    expect(navItems).toHaveLength(3)
+    expect(navItems.map((el) => el.textContent)).toEqual(['Shop', 'Stories', 'About'])
+    // One Ask Pellier entry point, in the shared bar, with the copper dot.
+    const ask = screen.getByTestId('header-ask-pellier')
+    expect(ask).toHaveTextContent('Ask Pellier')
+    expect(ask.querySelector('.tn-dot')).not.toBeNull()
+    expect(ask).toHaveAttribute('data-running', 'false')
   })
 
   it('renders one shared Pellier wordmark above the storefront controls', () => {
@@ -201,17 +198,14 @@ describe('Header — nav items', () => {
 })
 
 describe('Header — persona account control', () => {
-  it('uses the shared deep-maroon hover treatment for signed-out account pills', () => {
-    const stylesheet = readFileSync(
-      'src/index.css',
-      'utf8',
-    )
+  it('styles the scenario pill from tokens only', () => {
+    const stylesheet = readFileSync('src/index.css', 'utf8')
 
     expect(stylesheet).toMatch(
-      /\.pellier-account-pill:hover\s*\{[\s\S]*background:\s*var\(--link-hover\)/,
+      /\.pellier-account-pill:hover\s*\{[\s\S]*?background:\s*var\(--dl-paper-2\)/,
     )
     expect(stylesheet).toMatch(
-      /\.pellier-account-pill:hover\s*\{[\s\S]*color:\s*var\(--cream-elev\)/,
+      /\.pellier-account-pill-active\s*\{[\s\S]*?background:\s*var\(--dl-ink\)/,
     )
   })
 
@@ -327,16 +321,13 @@ describe('Header — Bag badge', () => {
   })
 })
 
-describe('Header — sticky backdrop', () => {
-  it('renders with sticky positioning and backdrop blur (Req 15.3)', () => {
+describe('Header — sticky row', () => {
+  it('renders a solid sticky row on the page ground with a hairline beneath', () => {
     renderHeader()
     const header = screen.getByTestId('sticky-header')
     expect(header.className).toContain('sticky')
-    // Verify backdrop-filter is set via inline style
-    expect(header.style.backdropFilter).toBe('blur(12px)')
-    // Note: WebkitBackdropFilter is set in the source via React's style prop
-    // but jsdom doesn't serialize vendor-prefixed CSS properties. The
-    // presence of -webkit-backdrop-filter is verified by source inspection
-    // and the tsc --noEmit check (the style object includes WebkitBackdropFilter).
+    expect(header.className).toContain('bg-page')
+    expect(header.className).toContain('border-line')
+    expect(header.getAttribute('style')).toBeNull()
   })
 })

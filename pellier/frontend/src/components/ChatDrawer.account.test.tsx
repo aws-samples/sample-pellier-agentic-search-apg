@@ -34,6 +34,7 @@ vi.mock('../contexts/UIContext', () => ({
     openModal: state.openModal,
     closeModal: state.closeModal,
     consumePendingQuery: state.consumePendingQuery,
+    setTurnRunning: vi.fn(),
   }),
 }))
 vi.mock('../contexts/LayoutContext', () => ({

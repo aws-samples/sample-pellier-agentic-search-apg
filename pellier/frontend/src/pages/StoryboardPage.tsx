@@ -45,7 +45,7 @@ export default function StoryboardPage() {
   return (
     <div
       data-testid="storyboard-page"
-      className="pellier-page-surface min-h-dvh bg-cream-50"
+      className="pellier-page-surface min-h-dvh bg-page"
     >
       <Header current="stories" onNavigate={handleNavigate} />
       <main>

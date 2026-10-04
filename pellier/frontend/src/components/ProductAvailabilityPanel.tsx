@@ -47,12 +47,12 @@ export default function ProductAvailabilityPanel({
       data-testid="product-availability"
       data-state={loading ? 'reading' : wasRead ? 'read' : 'not-read'}
       aria-labelledby="product-availability-heading"
-      className="rounded-[8px] border border-sand bg-cream-warm p-5"
+      className="rounded-[16px] border border-line bg-paper p-5"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2
           id="product-availability-heading"
-          className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft"
+          className="font-sans text-[13px] font-medium text-ink"
         >
           {PRODUCT_DETAIL.AVAILABILITY_HEADING}
         </h2>
@@ -60,7 +60,7 @@ export default function ProductAvailabilityPanel({
         {wasRead ? (
           <span
             data-testid="product-availability-source"
-            className="font-sans text-[11px] uppercase tracking-[0.12em] text-accent-ink"
+            className="font-sans text-[12px] text-muted"
           >
             {PRODUCT_DETAIL.AVAILABILITY_SOURCE}
           </span>
@@ -68,7 +68,7 @@ export default function ProductAvailabilityPanel({
       </div>
 
       {loading ? (
-        <p className="mt-3 font-sans text-[13px] text-ink-quiet">
+        <p className="mt-3 font-sans text-[13px] text-muted">
           {PRODUCT_DETAIL.AVAILABILITY_READING}
         </p>
       ) : null}
@@ -76,7 +76,7 @@ export default function ProductAvailabilityPanel({
       {!loading && !wasRead ? (
         <p
           data-testid="product-availability-degraded"
-          className="mt-3 font-sans text-[13px] text-ink-soft"
+          className="mt-3 font-sans text-[13px] text-ink-2"
         >
           {PRODUCT_DETAIL.AVAILABILITY_UNAVAILABLE}
         </p>
@@ -84,10 +84,10 @@ export default function ProductAvailabilityPanel({
 
       {wasRead && availability ? (
         <>
-          <p className="mt-3 font-sans text-sm text-ink-soft">
+          <p className="mt-3 font-sans text-sm text-ink-2">
             <strong
               data-testid="product-on-hand"
-              className="font-mono text-base text-espresso"
+              className="font-mono text-base font-medium text-ink"
             >
               {availability.onHand}
             </strong>{' '}
@@ -98,7 +98,7 @@ export default function ProductAvailabilityPanel({
             <>
               <ul
                 data-testid="product-warehouses"
-                className="mt-4 flex flex-col divide-y divide-sand border-t border-sand"
+                className="mt-4 flex flex-col divide-y divide-line border-t border-line"
               >
                 {warehouses.map((warehouse) => {
                   const ships = shipWindowLabel(
@@ -111,17 +111,17 @@ export default function ProductAvailabilityPanel({
                       data-testid={`product-warehouse-${warehouse.warehouseId}`}
                       className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5"
                     >
-                      <span className="font-sans text-[13px] text-espresso">
+                      <span className="font-sans text-[13px] text-ink">
                         {warehouse.name}
-                        <span className="ml-2 text-ink-quiet">{warehouse.city}</span>
+                        <span className="ml-2 text-muted">{warehouse.city}</span>
                       </span>
                       <span className="flex items-baseline gap-3">
                         {ships ? (
-                          <span className="font-sans text-[12px] text-ink-quiet">
+                          <span className="font-sans text-[12px] text-muted">
                             {ships}
                           </span>
                         ) : null}
-                        <span className="font-mono text-[13px] text-espresso">
+                        <span className="font-mono text-[13px] text-ink">
                           {warehouse.quantity}
                         </span>
                       </span>
@@ -129,12 +129,12 @@ export default function ProductAvailabilityPanel({
                   )
                 })}
               </ul>
-              <p className="mt-3 font-sans text-[12px] text-ink-quiet">
+              <p className="mt-3 font-sans text-[12px] text-muted">
                 {PRODUCT_DETAIL.WAREHOUSE_CAPTION}
               </p>
             </>
           ) : (
-            <p className="mt-3 font-sans text-[13px] text-ink-quiet">
+            <p className="mt-3 font-sans text-[13px] text-muted">
               {PRODUCT_DETAIL.WAREHOUSE_EMPTY}
             </p>
           )}

@@ -223,10 +223,17 @@ class FakeDatabaseService:
         q = " ".join(query.split())
 
         # --- Per-warehouse inventory join ---------------------------
+        # One product (``= %s``) for the detail route, or every listed
+        # product (``= ANY(%s)``) for the cards' stock lines.
         if "warehouse_inventory" in q:
             if self.warehouse_error is not None:
                 raise self.warehouse_error
-            return [dict(r) for r in self.warehouse_rows.get(str(params[0]), [])]
+            ids = params[0] if isinstance(params[0], (list, tuple)) else [params[0]]
+            return [
+                dict(r, product_id=str(pid))
+                for pid in ids
+                for r in self.warehouse_rows.get(str(pid), [])
+            ]
 
         # --- Inventory GROUP BY -------------------------------------
         # The route SELECTs ``category`` and ``MAX(updated_at)``.
@@ -488,11 +495,13 @@ def test_persona_edit_reads_the_durable_storefront_rank(
     resp = client.get("/api/products?persona=marco")
     assert resp.status_code == 200
 
-    query = fake_db.calls[-1]["query"]
+    # The listing read, not the warehouse batch that follows it.
+    listing = [c for c in fake_db.calls if "product_catalog" in c["query"]][-1]
+    query = listing["query"]
     assert "persona_id = %s" in query
     assert "storefront_rank IS NOT NULL" in query
     assert 'ORDER BY storefront_rank ASC' in query
-    assert fake_db.calls[-1]["params"] == ("marco",)
+    assert listing["params"] == ("marco",)
 
 
 # ---------------------------------------------------------------------------
@@ -654,8 +663,8 @@ def test_category_filter_uses_ilike_and_narrows_results(
     assert categories == {"Clothing"}
 
     # Confirm the SQL path actually uses ILIKE (database.md steering).
-    last_query = fake_db.calls[-1]["query"].upper()
-    assert "ILIKE" in last_query
+    listing = [c for c in fake_db.calls if "product_catalog" in c["query"]][-1]
+    assert "ILIKE" in listing["query"].upper()
 
 
 # ---------------------------------------------------------------------------
@@ -697,6 +706,49 @@ def test_get_product_by_id_binds_catalog_key_as_text(
     lookups = [c for c in fake_db.calls if c["kind"] == "one"]
     assert lookups, "expected a single-row catalog lookup"
     assert lookups[-1]["params"] == ("5",)
+
+
+def test_listing_carries_quantity_and_warehouse_stock_for_the_card_line(
+    client: TestClient, fake_db: FakeDatabaseService
+) -> None:
+    """Each listed product SHALL carry its stock so a card can say where it is."""
+    fake_db.warehouse_rows["2"] = [
+        {"warehouse_id": "BK-01", "name": "Brooklyn", "city": "Brooklyn, NY",
+         "ship_window_min": 1, "ship_window_max": 2, "quantity": 0},
+        {"warehouse_id": "ATX-02", "name": "Austin", "city": "Austin, TX",
+         "ship_window_min": 2, "ship_window_max": 4, "quantity": 6},
+    ]
+
+    body = client.get("/api/products").json()
+    by_id = {row["id"]: row for row in body}
+
+    # ``quantity`` is 40 + index on the fixture rows.
+    assert by_id[2]["quantity"] == 41
+    assert [w["city"] for w in by_id[2]["warehouses"]] == ["Brooklyn, NY", "Austin, TX"]
+    assert by_id[2]["warehouses"][1]["quantity"] == 6
+    # A product the warehouse read does not mention keeps an empty list, not a
+    # fabricated count.
+    assert by_id[1]["warehouses"] == []
+    # One batched read for the whole listing, bound as text ids.
+    batched = [c for c in fake_db.calls if "ANY(%s)" in c["query"]]
+    assert len(batched) == 1
+    assert batched[0]["params"] == ([str(row["id"]) for row in body],)
+
+
+def test_listing_degrades_to_quantity_when_warehouse_join_fails(
+    client: TestClient, fake_db: FakeDatabaseService
+) -> None:
+    fake_db.warehouse_error = RuntimeError(
+        'relation "pellier.warehouse_inventory" does not exist'
+    )
+
+    response = client.get("/api/products")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 9
+    assert all(row["warehouses"] == [] for row in body)
+    assert body[0]["quantity"] == 40
 
 
 def test_get_product_by_id_returns_description_and_live_stock(

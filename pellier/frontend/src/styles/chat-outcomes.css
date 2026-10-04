@@ -1,5 +1,6 @@
-/* Storefront chat failure cards. The dual-surface turn receipt lives in
-   turn-receipt.css, which the Observatory type floor scans. */
+/* Storefront chat failure cards. Each failure keeps its own calm state;
+   status never depends on color alone, the eyebrow names it. Every color
+   is a token. */
 
 .chat-failure {
   width: 100%;
@@ -7,34 +8,34 @@
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 11px;
   padding: 14px;
-  border: 1px solid rgba(135, 72, 48, 0.22);
-  border-radius: 8px;
-  background: rgba(247, 239, 228, 0.76);
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-md);
+  background: var(--dl-paper);
 }
 
 .chat-failure--policy_denied {
-  border-color: rgba(31, 94, 76, 0.24);
-  background: rgba(231, 240, 234, 0.74);
+  border-color: color-mix(in srgb, var(--dl-ok) 30%, transparent);
+  background: var(--dl-ok-soft);
 }
 
 .chat-failure--authentication_required,
 .chat-failure--rate_limited,
 .chat-failure--request_timeout {
-  border-color: rgba(161, 112, 36, 0.28);
-  background: rgba(249, 241, 217, 0.72);
+  border-color: color-mix(in srgb, var(--dl-warn) 30%, transparent);
+  background: color-mix(in srgb, var(--dl-warn) 8%, var(--dl-paper));
 }
 
 .chat-failure--network_error,
 .chat-failure--service_unavailable,
 .chat-failure--stream_interrupted {
-  border-color: rgba(97, 87, 78, 0.22);
-  background: rgba(239, 237, 232, 0.78);
+  border-color: var(--dl-line-strong);
+  background: var(--dl-paper-2);
 }
 
-/* A build state is expected, not a fault: olive-neutral, no alarm tint. */
+/* A build state is expected, not a fault: neutral, no alarm tint. */
 .chat-failure--workshop_build_required {
-  border-color: rgba(107, 112, 92, 0.28);
-  background: rgba(240, 238, 229, 0.8);
+  border-color: var(--dl-line-strong);
+  background: var(--dl-paper-2);
 }
 
 .chat-failure__icon {
@@ -44,18 +45,14 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(135, 72, 48, 0.1);
-  color: var(--red-1, var(--dl-accent));
+  background: var(--dl-paper-2);
+  color: var(--dl-ink-2);
 }
 
-.chat-failure--workshop_build_required .chat-failure__icon {
-  background: rgba(107, 112, 92, 0.12);
-  color: var(--green-1, #4f6f5a);
-}
-
+.chat-failure--workshop_build_required .chat-failure__icon,
 .chat-failure--policy_denied .chat-failure__icon {
-  background: rgba(31, 94, 76, 0.1);
-  color: var(--green-1, #1f5e4c);
+  background: var(--dl-bg);
+  color: var(--dl-ok);
 }
 
 .chat-failure__content {
@@ -64,40 +61,41 @@
 
 .chat-failure__eyebrow {
   margin-bottom: 3px;
-  color: var(--ink-4, #85766d);
-  font-family: var(--mono);
-  font-size: 9px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-mono);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .chat-failure h4 {
   margin: 0;
-  color: var(--ink-1, var(--dl-ink));
-  font-family: var(--sans);
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: 0;
   line-height: 1.35;
 }
 
 .chat-failure p {
   margin: 5px 0 0;
-  color: var(--ink-3, #66574e);
-  font-family: var(--sans);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
   font-size: 12.5px;
   line-height: 1.55;
 }
 
 .chat-failure .chat-failure__reference {
   overflow-wrap: anywhere;
-  color: var(--ink-4, #85766d);
-  font-family: var(--mono);
-  font-size: 10px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-mono);
+  font-size: 11px;
 }
 
 .chat-failure__reference code {
-  color: var(--ink-2, #45372f);
+  color: var(--dl-ink-2);
 }
 
 .chat-failure__actions {
@@ -108,35 +106,35 @@
 }
 
 .chat-failure__actions button {
-  min-height: 32px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--ink-1, var(--dl-ink));
-  border-radius: 6px;
-  background: var(--ink-1, var(--dl-ink));
-  color: var(--cream-1, var(--dl-paper));
-  font-family: var(--sans);
+  padding: 6px 12px;
+  border: 1px solid var(--dl-ink);
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font-family: var(--dl-font-sans);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .chat-failure__actions .chat-failure__action--secondary {
-  border-color: rgba(31, 20, 16, 0.18);
+  border-color: var(--dl-line-strong);
   background: transparent;
-  color: var(--ink-2, #45372f);
+  color: var(--dl-ink-2);
 }
 
 .chat-failure__actions button:hover {
-  border-color: var(--red-1, var(--dl-accent));
-  background: var(--red-1, var(--dl-accent));
-  color: var(--cream-1, var(--dl-paper));
+  border-color: var(--dl-ink-2);
+  background: var(--dl-ink-2);
+  color: var(--dl-on-ink);
 }
 
 .chat-failure__actions button:focus-visible {
-  outline: 2px solid var(--red-1, var(--dl-accent));
+  outline: 2px solid var(--dl-accent);
   outline-offset: 2px;
 }
 

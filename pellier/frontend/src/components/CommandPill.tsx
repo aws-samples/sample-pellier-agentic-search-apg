@@ -56,7 +56,7 @@ export default function CommandPill() {
       aria-label={`${COMMAND_PILL.LABEL} (${keycap})`}
       aria-pressed={false}
       onClick={toggleDrawer}
-      className="concierge-glow fixed bottom-6 right-6 z-40 inline-flex items-center gap-2.5 rounded-full bg-espresso/95 backdrop-blur-md text-cream-50 border-none font-sans text-[13px] font-medium tracking-[0.01em] cursor-pointer transition-transform duration-fade"
+      className="concierge-glow fixed bottom-6 right-6 z-40 inline-flex items-center gap-2.5 rounded-full bg-ink backdrop-blur-md text-on-ink border-none font-sans text-[13px] font-medium tracking-[0.01em] cursor-pointer transition-transform duration-fade"
       style={{
         padding: '10px 14px 10px 10px',
         WebkitBackdropFilter: 'blur(12px)',
@@ -78,7 +78,7 @@ export default function CommandPill() {
       <span
         aria-hidden="true"
         data-testid="command-pill-keycap"
-        className="inline-flex items-center justify-center px-2 py-0.5 rounded-md border border-ink-quiet bg-sand/50 text-espresso font-sans text-[11px] font-semibold tracking-[0.02em] min-w-[28px]"
+        className="inline-flex items-center justify-center px-2 py-0.5 rounded-md border border-line-strong bg-recessed text-ink font-sans text-[11px] font-semibold tracking-[0.02em] min-w-[28px]"
       >
         {keycap}
       </span>

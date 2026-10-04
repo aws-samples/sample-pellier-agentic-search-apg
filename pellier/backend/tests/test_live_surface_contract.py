@@ -171,11 +171,18 @@ def test_persona_hero_descriptions_match_the_approved_scenes() -> None:
 
 
 def test_persona_heroes_use_fixed_approved_images() -> None:
+    """Aurora serves the approved persona scenes; the home hero carries none.
+
+    The direction A home opens with the statement and the Ask Pellier bar,
+    not a photograph, so the hero reads no scene metadata at all. The
+    approved images stay seeded for the persona cover inside Ask Pellier.
+    """
     seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
     refinement = (
         ROOT / "scripts" / "migrations" / "037_serve_persona_hero_masters.sql"
     ).read_text()
     hero = (FRONTEND / "components" / "PellierHero.tsx").read_text()
+    chat_body = (FRONTEND / "components" / "PellierChatBody.tsx").read_text()
 
     for image in (
         "/products/hero-marco.png",
@@ -184,10 +191,10 @@ def test_persona_heroes_use_fixed_approved_images() -> None:
     ):
         assert image in seed
         assert image in refinement
-    assert 'data-testid="persona-hero-image"' in hero
-    assert "/products/landing-hero-weekender.webp" in hero
-    assert "src={asset(hero.image)}" in hero
+    assert 'data-testid="persona-hero-image"' not in hero
+    assert "hero_image" not in hero
     assert "/api/observatory/personas" not in hero
+    assert "persona.hero_image" in chat_body
 
 
 def test_voice_transcription_is_not_shipped_when_no_voice_control_exists() -> None:

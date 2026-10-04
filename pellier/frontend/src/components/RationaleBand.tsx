@@ -40,7 +40,7 @@ export default function RationaleBand() {
     <p
       data-testid="rationale-band"
       data-persona={personaId ?? 'fresh'}
-      className="mt-3 max-w-[660px] font-sans text-[14px] leading-6 text-ink-soft"
+      className="mt-3 max-w-[660px] font-sans text-[14px] leading-6 text-ink-2"
     >
       {r.text}
     </p>

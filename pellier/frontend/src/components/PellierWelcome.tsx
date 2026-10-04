@@ -198,8 +198,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
                   onClick={() => onSend(scenario.prompt)}
                 >
                   <span className="sf-overheard-line">
-                    <span className="sf-overheard-bullet">&middot;</span>
-                    <span className="sf-overheard-quote">&ldquo;{scenario.prompt}&rdquo;</span>
+                    <span className="sf-overheard-quote">{scenario.prompt}</span>
                   </span>
                 </button>
               ))}

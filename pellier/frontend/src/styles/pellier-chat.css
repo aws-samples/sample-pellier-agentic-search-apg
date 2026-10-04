@@ -1,24 +1,21 @@
 /* ========================================================================
- * PellierChat — editorial active-chat styles.
- * Matches docs/pellier-chat-experience.html.
- * All colors reference CSS custom properties from index.css :root.
+ * PellierChat: the thread inside the docked Ask Pellier panel.
+ * Every color is a token, so the dark theme needs nothing here.
  * ======================================================================== */
 
 /* ---- Persona cover banner ----
- * Compact version of the PellierWelcome hero cover. Sits above the
- * chat stream so the warm persona-matched product photograph stays
- * visible once the conversation starts. Uses the same editorial
- * treatment (cream dot eyebrow, cream edition numeral) but shorter
- * (140px) so it doesn't crowd the chat.
+ * The persona-matched photograph above the thread, in a rounded frame with
+ * the hairline inner border, so it reads as an object on black too.
  */
 .ec-persona-cover {
   position: relative;
   height: 140px;
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #ead4b1 0%, #d4b48a 100%);
   margin: 0 0 18px;
-  border-radius: var(--pellier-image-radius-md);
+  border-radius: var(--dl-r-card);
+  background: var(--dl-paper-2);
+  box-shadow: var(--dl-frame);
 }
 .ec-persona-cover-img {
   position: absolute;
@@ -32,40 +29,33 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(31, 20, 16, 0.08) 0%,
-    rgba(31, 20, 16, 0.42) 100%
-  );
+  background: linear-gradient(180deg, transparent 45%, var(--dl-scrim) 100%);
   z-index: 1;
 }
 .ec-persona-cover-overlay {
   position: absolute;
   bottom: 14px;
-  left: 18px;
-  right: 18px;
+  left: 16px;
+  right: 16px;
   z-index: 3;
 }
 .ec-persona-cover-eyebrow {
-  font-family: var(--sans);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(250, 243, 232, 0.96);
-  font-weight: 500;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--dl-on-photo);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 .ec-persona-cover-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--cream-1);
-  box-shadow: 0 0 0 3px rgba(250, 243, 232, 0.2);
   display: inline-block;
+  width: 6px;
+  height: 6px;
   flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--pellier-copper-on-dark);
 }
 
 /* ---- Conversation scroll area ---- */
@@ -78,105 +68,71 @@
   gap: 20px;
 }
 
-/* ---- User message ---- */
+/* ---- The shopper's message: an ink bubble, on-ink text ---- */
 .ec-msg-user {
-  align-self: flex-end;
-  max-width: 88%;
   display: flex;
+  max-width: 86%;
   flex-direction: column;
   align-items: flex-end;
+  align-self: flex-end;
   gap: 4px;
-  padding: 0 22px;
+  margin-bottom: 16px;
 }
 .ec-msg-user-eyebrow {
-  font-family: var(--sans);
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 11px;
 }
 .ec-msg-user-dot {
   display: inline-block;
   width: 4px;
   height: 4px;
+  flex-shrink: 0;
   border-radius: 999px;
   background: var(--pellier-copper);
-  flex-shrink: 0;
 }
-/* User message bubble.
- *
- * Typed questions and chip-sourced messages both land in the same
- * bubble. Historically this rendered italic Fraunces with red quote
- * marks, which was beautiful for the three welcome-screen P.S. chips
- * ("something for long summer walks") but off-key for real
- * questions users type ("Which linen shirts are running low and how
- * do the prices stack up?"). The italic register made typed
- * questions feel performative.
- *
- * Switched to the canonical sans-serif chat spec (Instrument Sans 15/1.5)
- * with a slightly tighter tracking that matches the body copy of
- * assistant replies. The red decorative quote marks are gone —
- * italic P.S. chips on the welcome screen still carry the typographic
- * flourish there where it earns its place.
- */
 .ec-msg-user-text {
-  font-family: var(--sans);
-  font-size: 15px;
+  padding: 9px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 14.5px;
   line-height: 1.5;
   letter-spacing: -0.003em;
-  color: var(--ink-1);
-  background: var(--cream-2);
-  padding: 10px 16px;
-  border-radius: 14px 14px 4px 14px;
-  border: 1px solid var(--rule-1);
 }
 
-/* ---- Agent message ---- */
+/* ---- Pellier's turn ---- */
 .ec-msg-agent {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
   max-width: 100%;
-  padding: 0 22px;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .ec-msg-agent-eyebrow {
-  font-family: var(--sans);
-  font-size: 9.5px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--red-1);
-  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: -4px;
+  margin-bottom: -2px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
+  font-weight: 500;
 }
-/* Message body
- *
- * Canonical chat prose for both Pellier and Pellier Observatory. Instrument Sans at
- * 15px / 1.7 leading / -0.003em is the Claude-desktop register —
- * reads cleanly on any width and leaves enough air between lines
- * that a streamed reply doesn't feel cramped. Fraunces stays
- * reserved for the eyebrow and user-message italic quotes; product
- * names use <strong> in the same sans face as the body.
- */
 .ec-msg-body {
-  font-family: var(--sans);
-  font-weight: 400;
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
   font-size: 15px;
-  line-height: 1.7;
+  font-weight: 400;
+  line-height: 1.65;
   letter-spacing: -0.003em;
-  color: var(--ink-1);
-  font-feature-settings: 'ss01', 'cv11';
 }
 .ec-msg-body p { margin-bottom: 10px; }
 .ec-msg-body p:last-child { margin-bottom: 0; }
-
-/* Product names from **bold** markdown — same sans as body, heavier weight. */
 .ec-msg-body strong {
   font-family: inherit;
   font-style: normal;
@@ -185,128 +141,92 @@
 }
 
 /* ---- Prepared, not carried out ----
- *
- * The governed boundary declined a mutation and a person has to confirm it. Quiet and
- * declarative: this is not an error, and styling it as a warning would tell the shopper
- * something went wrong when the boundary worked exactly as designed. A left rule and a
- * calmer ink set it apart from the answer without competing with it.
- *
- * No icon and no colour-only signal: the sentence itself carries the whole meaning, so
- * the treatment survives greyscale and a screen reader alike. */
+ * The governed boundary declined a mutation and a person has to confirm it.
+ * Quiet and declarative; a left rule and a calmer ink set it apart. */
 .ec-review-pending {
   margin: 0;
   padding: 8px 0 8px 12px;
-  border-left: 2px solid var(--rule-1);
-  font-family: var(--sans);
+  border-left: 2px solid var(--dl-line);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
   font-size: 13.5px;
   line-height: 1.55;
-  letter-spacing: -0.002em;
-  color: var(--ink-2);
 }
-
-.ec-review-pending p {
-  margin: 0;
-}
-
+.ec-review-pending p { margin: 0; }
 .ec-review-pending a {
   display: inline-block;
   margin-top: 7px;
-  color: var(--accent);
+  color: var(--dl-accent);
   font-size: 12.5px;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-/* Product artifacts stack */
+/* Product cards after the sentence that names them. */
 .ec-artifacts {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
-
 .ec-owned-artifacts {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-top: 2px;
   padding-top: 14px;
-  border-top: 1px solid var(--rule-1);
+  border-top: 1px solid var(--dl-line);
 }
-
 .ec-owned-artifacts-label {
-  font-family: var(--sans);
-  font-size: 10px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-4);
 }
 
-/* ---- Persona-tailored follow-up chips ----
- *
- * Render only under the most recent complete assistant reply. Each
- * chip is a canned query grounded in the active persona's signals
- * from docs/personas-config.json. Horizontal pills (not a bulleted
- * list) — reads as "what to try next", not an editorial postscript.
- * Flow-wraps on narrow widths so three chips still fit below a mobile
- * chat bubble.
- */
+/* ---- Follow-up chips under the latest answer ---- */
 .ec-followups {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 18px;
+  margin-top: 6px;
   padding-top: 14px;
-  border-top: 1px dashed rgba(45, 24, 16, 0.12);
+  border-top: 1px dashed var(--dl-line-strong);
 }
-/* Canonical follow-up pill — shared shape between Pellier
- * (persona chips) and Pellier Observatory (quick-query chips). Sans 12.5px /
- * 500 weight / -0.003em, neutral cream background with a hair of
- * red on hover. Pellier Observatory side lives on the Tailwind classes
- * inside QuickQueryChips.tsx; keep the two in lockstep.
- */
 .ec-followup {
-  font-family: var(--sans);
-  font-style: normal;
-  font-weight: 500;
-  font-size: 12.5px;
-  letter-spacing: -0.003em;
-  color: var(--ink-2);
-  background: var(--cream-1);
-  border: 1px solid rgba(45, 24, 16, 0.14);
-  border-radius: 999px;
-  padding: 6px 13px;
-  cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
-  /* Labels are full questions the shopper is about to send; wrapping keeps
-     them readable where an ellipsis would hide what the pill actually asks. */
-  white-space: normal;
-  text-align: left;
   max-width: 100%;
+  padding: 7px 13px;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
 }
 .ec-followup:hover {
-  background: color-mix(in srgb, var(--red-1) 8%, transparent);
-  border-color: color-mix(in srgb, var(--red-1) 40%, transparent);
-  color: var(--red-1);
+  background: var(--dl-line);
+  color: var(--dl-ink);
 }
-
+.ec-followup:focus-visible,
 .stylist-handoff-cta:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-.ec-followup:focus-visible {
-  outline: 2px solid var(--red-1);
+  outline: 2px solid var(--dl-accent);
   outline-offset: 2px;
 }
-
 .ec-followup-workshop {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--red-1) 52%, transparent);
-  background: rgba(255, 252, 247, 0.95);
+  border: 1px dashed var(--dl-line-strong);
+  background: transparent;
 }
-.ec-followup-workshop:hover {
-  border-color: color-mix(in srgb, var(--red-1) 75%, transparent);
+
+@media (max-width: 420px) {
+  .ec-artifacts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

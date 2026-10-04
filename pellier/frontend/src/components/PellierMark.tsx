@@ -1,6 +1,10 @@
-import { asset } from '../utils/assetPath'
+/**
+ * The square p. mark: Ask Pellier's avatar, drawn from tokens so it follows
+ * the theme (an ink square with an on-ink p in light, ivory with a black p in
+ * dark; the dot is always copper). The favicon is the same mark as an SVG.
+ */
+import '../styles/surface-navigation.css'
 
-/** The same outlined p. mark used by the browser icon and compact brand cues. */
 export default function PellierMark({
   size = 20,
   className,
@@ -11,15 +15,13 @@ export default function PellierMark({
   'data-testid'?: string
 }) {
   return (
-    <img
-      src={asset('/favicon.svg')}
-      width={size}
-      height={size}
-      alt=""
+    <span
+      className={['pellier-mark', className ?? ''].filter(Boolean).join(' ')}
       aria-hidden="true"
-      className={className}
       data-testid={testId}
-      style={{ flexShrink: 0 }}
-    />
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.68) }}
+    >
+      p<span className="pellier-brand-dot">.</span>
+    </span>
   )
 }

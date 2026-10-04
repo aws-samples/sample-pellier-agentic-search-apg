@@ -1,0 +1,44 @@
+/* The light, dark and system control: three icon buttons in one pill. */
+.pellier-theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+}
+
+.pellier-theme-option {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: transparent;
+  color: var(--dl-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--gov-motion-base, 200ms) ease,
+    color var(--gov-motion-base, 200ms) ease;
+}
+
+.pellier-theme-option:hover {
+  color: var(--dl-ink);
+}
+
+.pellier-theme-option[aria-pressed='true'] {
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+}
+
+.pellier-theme-option:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pellier-theme-option {
+    transition: none;
+  }
+}

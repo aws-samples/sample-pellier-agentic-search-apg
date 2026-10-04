@@ -1,47 +1,42 @@
+/* ========================================================================
+ * The shared header, direction A: white in light and black in dark, with a
+ * hairline beneath. The wordmark, the Storefront and Operator pills, the
+ * theme control and the Ask Pellier button with its copper dot.
+ * ======================================================================== */
+
 :root {
   --pellier-surface-bar-height: 64px;
-  /* The lab guide (lab-journey.css) sits under this bar while a lab is open.
-     Everything pinned or sized below the shared navigation reads the chrome
-     height, so it moves when the guide appears or is hidden. */
+  /* Anything pinned or sized below the shared navigation reads the chrome
+     height, so it moves when the bar wraps on a phone. */
   --pellier-journey-height: 0px;
   --pellier-chrome-height: calc(var(--pellier-surface-bar-height) + var(--pellier-journey-height));
-  --pellier-storefront-nav-height: 60px;
-  --pellier-nav-font-size: 14px;
-}
-
-:root:has(.pellier-journey) {
-  --pellier-journey-height: 52px;
-}
-
-@media (max-width: 640px) {
-  :root:has(.pellier-journey) {
-    --pellier-journey-height: 96px;
-  }
+  --pellier-storefront-nav-height: 56px;
+  --pellier-nav-font-size: 13.5px;
 }
 
 .pellier-surface-bar {
   position: sticky;
   top: 0;
   z-index: 55;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 20px;
-  height: var(--pellier-surface-bar-height);
-  padding-inline: var(--pellier-gutter);
-  background: var(--dl-ink);
-  color: var(--dl-paper);
-  font-family: var(--sans);
+  min-height: var(--pellier-surface-bar-height);
+  padding: 0 var(--pellier-gutter);
+  border-bottom: 1px solid var(--dl-line);
+  background: var(--dl-bg);
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
 }
 
+/* ---- The wordmark (signature element 1) ---- */
 .pellier-brand {
   display: inline-flex;
   min-height: 44px;
   min-width: 44px;
   align-items: baseline;
-  justify-self: start;
-  color: var(--dl-paper);
-  font-family: var(--display);
+  color: var(--dl-ink);
+  font-family: var(--dl-font-display);
   font-size: 31px;
   font-weight: 400;
   line-height: 1.2;
@@ -49,80 +44,146 @@
   text-decoration: none;
 }
 
-.pellier-brand-dot { color: var(--pellier-copper-on-dark); }
-.pellier-brand.pellier-brand-footer { color: var(--ink); font-size: 36px; }
-.pellier-brand-footer .pellier-brand-dot { color: var(--pellier-copper); }
-.pellier-brand-small { display: none; }
-.pellier-surface-links { display: flex; align-items: center; gap: 6px; }
+.pellier-brand-dot {
+  color: var(--pellier-copper);
+}
+
+.pellier-brand-footer {
+  font-size: 36px;
+}
+
+.pellier-brand:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* ---- The square p. mark: Ask Pellier's avatar ---- */
+.pellier-mark {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 25%;
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font-family: var(--dl-font-display);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.pellier-mark > span {
+  transform: translateY(-0.04em);
+}
+
+/* ---- The Storefront and Operator switch ---- */
+.pellier-surface-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+}
+
 .pellier-surface-link {
   display: inline-flex;
-  min-height: 42px;
+  min-height: 32px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  padding: 9px 20px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  color: var(--dl-paper);
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  color: var(--dl-ink-2);
   font-size: var(--pellier-nav-font-size);
   font-weight: 500;
-  letter-spacing: .01em;
   line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
-}
-.pellier-surface-link:hover {
-  border-color: var(--pellier-accent-soft);
-  background: var(--pellier-accent-hover);
-}
-.pellier-surface-link[aria-current='page'] {
-  border-color: var(--cream-warm);
-  background: var(--cream-elev);
-  color: var(--pellier-accent);
-  box-shadow: 0 2px 8px rgb(0 0 0 / .14), inset 0 0 0 2px var(--cream);
-}
-.pellier-surface-bar a:focus-visible {
-  outline: 2px solid var(--dl-paper);
-  outline-offset: 3px;
+  transition:
+    background-color var(--gov-motion-base, 200ms) ease,
+    color var(--gov-motion-base, 200ms) ease;
 }
 
-/* The local bars stay directly beneath the shared navigation and the lab
-   guide. The Observatory's tab row scrolls away instead: with the guide
-   pinned, a third pinned row would hold 168px of a laptop screen. */
+.pellier-surface-link:hover {
+  color: var(--dl-ink);
+}
+
+.pellier-surface-link[aria-current='page'] {
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+}
+
+.pellier-surface-bar a:focus-visible,
+.pellier-surface-bar button:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+}
+
+/* ---- The right cluster: theme control and Ask Pellier ---- */
+.pellier-surface-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.pellier-ask-button {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pellier-ask-button:hover {
+  background: var(--dl-ink-2);
+}
+
+/* The copper dot pulses only while a turn runs. */
+.pellier-ask-button .tn-dot::after {
+  animation: none;
+}
+
+.pellier-ask-button[data-running='true'] .tn-dot::after {
+  animation: tn-pulse 1.6s ease-out infinite;
+}
+
+/* The local storefront row sits directly beneath the shared bar. */
 .pellier-storefront-header {
   top: var(--pellier-chrome-height);
 }
 
-/* Quiet: an entry point, not a fourth surface. */
-.pellier-surface-labs {
-  display: inline-flex;
-  justify-self: end;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--dl-paper) 30%, transparent);
-  border-radius: 999px;
-  color: var(--dl-paper);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.pellier-surface-labs:hover {
-  border-color: var(--dl-paper);
-}
-
 @media (max-width: 760px) {
-  :root { --pellier-surface-bar-height: 56px; --pellier-nav-font-size: 12px; }
-  .pellier-surface-bar { grid-template-columns: auto 1fr; gap: 12px; padding-inline: 16px; }
-  .pellier-brand { font-size: 30px; letter-spacing: -1px; }
-  .pellier-brand-full { display: none; }
-  .pellier-brand-small { display: inline; }
-  .pellier-surface-links { justify-content: flex-end; gap: 3px; }
-  .pellier-surface-labs { display: none; }
-  .pellier-surface-link { gap: 6px; min-height: 44px; padding: 9px 12px; }
+  :root { --pellier-nav-font-size: 13px; }
+  .pellier-surface-bar { gap: 12px; padding-inline: 16px; }
+  .pellier-brand { font-size: 28px; letter-spacing: -1.4px; }
+  .pellier-surface-link { padding-inline: 12px; }
 }
-@media (max-width: 380px) {
-  .pellier-surface-bar { padding-inline: 10px; gap: 8px; }
-  .pellier-surface-link { padding-inline: 8px; gap: 5px; }
+
+/* On a phone the switch drops to its own row under the wordmark. */
+@media (max-width: 560px) {
+  :root { --pellier-surface-bar-height: 104px; }
+  .pellier-surface-bar { flex-wrap: wrap; row-gap: 0; padding-block: 6px 8px; }
+  .pellier-surface-links { order: 3; width: 100%; justify-content: center; }
+  .pellier-surface-link { flex: 1; }
+  .pellier-ask-button { padding-inline: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pellier-surface-link {
+    transition: none;
+  }
+  .pellier-ask-button[data-running='true'] .tn-dot::after {
+    animation: none;
+  }
 }

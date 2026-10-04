@@ -168,6 +168,25 @@ export const HERO_STATEMENT = {
 } as const;
 
 /**
+ * The large Ask Pellier bar on the home page. The chips are the moments the
+ * storefront shops by, named as the store names them in VOICE.md.
+ */
+export const ASK_BAR = {
+  LABEL: "Ask Pellier anything",
+  PLACEHOLDER: "Ask Pellier anything...",
+  SEND: "Send",
+  TRY: "Try",
+  MOMENTS: [
+    "For the trip",
+    "For the table and slow mornings",
+    "Gifts under $100",
+    "Home comforts",
+    "Everyday basics",
+    "Made to last",
+  ],
+} as const;
+
+/**
  * Mood rail under the hero. Each tile browses the floor: the collections
  * are an editorial entry point into the same catalog, not four separate
  * routes that do not exist.

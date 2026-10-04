@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgb(31 20 16 / 0.42);
+  background: var(--dl-scrim);
   inset: 0;
 }
 
@@ -18,7 +18,7 @@
   border: 1px solid var(--rule-1);
   border-radius: 10px;
   background: var(--cream-1);
-  box-shadow: 0 28px 80px -24px rgb(31 20 16 / 0.5);
+  box-shadow: var(--dl-sh-deep);
 }
 
 .pm-head {
@@ -55,7 +55,7 @@
 .pm-title {
   margin: 0;
   color: var(--ink-1);
-  font-family: var(--display, var(--sans));
+  font-family: var(--dl-font-heading);
   font-size: clamp(28px, 3vw, 38px);
   font-weight: 400;
   letter-spacing: 0;
@@ -142,7 +142,7 @@
 
 .pm-avatar::after {
   position: absolute;
-  background: linear-gradient(0deg, rgb(31 20 16 / 0.18), transparent 44%);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--dl-scrim) 40%, transparent), transparent 44%);
   content: '';
   inset: 0;
 }
@@ -165,7 +165,7 @@
   justify-content: center;
   color: var(--cream-1);
   background: var(--ink-1);
-  font-family: var(--display, var(--sans));
+  font-family: var(--dl-font-heading);
   font-size: 44px;
 }
 
@@ -186,7 +186,7 @@
 
 .pm-name {
   color: var(--ink-1);
-  font-family: var(--display, var(--sans));
+  font-family: var(--dl-font-heading);
   font-size: 22px;
   font-weight: 450;
   letter-spacing: 0;
@@ -240,7 +240,7 @@
   justify-content: center;
   border: 1px solid var(--rule-2);
   border-radius: 50%;
-  background: rgb(250 243 232 / 0.94);
+  background: color-mix(in srgb, var(--dl-paper) 94%, transparent);
   color: var(--ink-3);
 }
 
@@ -265,7 +265,7 @@
     linear-gradient(
       100deg,
       transparent 20%,
-      rgb(255 255 255 / 0.42) 42%,
+      color-mix(in srgb, var(--dl-paper) 42%, transparent) 42%,
       transparent 66%
     ),
     var(--cream-2);
@@ -334,13 +334,13 @@
 @media (hover: hover) and (pointer: fine) {
   .pm-close:hover {
     border-color: var(--ink-3);
-    background: rgb(31 20 16 / 0.05);
+    background: var(--dl-paper-2);
     color: var(--ink-1);
   }
 
   .pm-card-btn:hover {
     border-color: var(--ink-2);
-    box-shadow: 0 12px 26px rgb(31 20 16 / 0.1);
+    box-shadow: var(--dl-sh-lift);
     transform: translateY(-2px);
   }
 }

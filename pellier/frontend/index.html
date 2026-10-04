@@ -6,7 +6,8 @@
     <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1f1410" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <title>Pellier | Your Personal Shopping Concierge</title>
     <meta
       name="description"
@@ -16,6 +17,21 @@
          from src/main.tsx so they bundle into dist/assets/. No Google
          Fonts runtime dependency — the workshop runs unchanged on
          corporate networks that block fonts.gstatic.com. -->
+    <!-- The theme before first paint. Mirrors src/theme/theme.ts: the stored
+         choice under `pellier-theme` ('light' or 'dark'), otherwise the system
+         preference. Storage may be absent or throw, so it is wrapped. -->
+    <script id="pellier-theme-script">
+      (function () {
+        var choice = null;
+        try { choice = window.localStorage.getItem('pellier-theme'); } catch (e) {}
+        if (choice !== 'light' && choice !== 'dark') {
+          var dark = false;
+          try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+          choice = dark ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', choice);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

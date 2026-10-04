@@ -1,20 +1,14 @@
 import { apiFetch } from '../services/apiBase'
 /**
- * PellierPage — the `/` route composition (Pellier redesign).
+ * PellierPage: the `/` route composition, direction A.
  *
- * Two-act layout:
+ *   Header (local storefront row, under the shared bar)
+ *   → PellierHero: the statement, the large Ask Pellier bar and chips
+ *   → the featured piece and its edit
+ *   → the collection grid, one stock line per card
+ *   → the approach band, the service strip and the footer
  *
- *   ACT 1 (above the fold — full viewport):
- *     Header (sticky) → PellierHero (full-height search surface)
- *
- *   ACT 2 (below the fold — scroll to discover):
- *     Featured product image (weekender bag) + "Weekend, re:defined."
- *     → full nine-piece guest edit, or 9 remaining persona products
- *     → "Because you asked..." editorial cards
- *     → Footer
- *
- * The hero occupies the entire viewport so the first impression is
- * the search bar. Scrolling reveals the editorial product showcase.
+ * Ask Pellier docks beside all of this as a 440px panel (ChatDrawer).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -28,7 +22,6 @@ import ResponsiveImage from '../components/ResponsiveImage'
 import Footer from '../components/Footer'
 import PellierSpotlight from '../components/PellierSpotlight'
 import OperatorClientPreview from '../components/OperatorClientPreview'
-// CommandPill removed — hero search bar is the primary entry point
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
@@ -57,8 +50,6 @@ export function selectStorefrontGridProducts(
 ): readonly PellierProduct[] {
   return personaId ? products.slice(1) : products
 }
-
-// Featured product + grid are now persona-aware (computed inside component)
 
 export default function PellierPage() {
   const { prefsVersion } = useAuth()
@@ -184,7 +175,6 @@ export default function PellierPage() {
       return
     }
     if (item === 'ask-pellier') {
-      // Open the concierge drawer — that's what "Ask Pellier" promises.
       openModal('drawer')
       return
     }
@@ -201,10 +191,6 @@ export default function PellierPage() {
       origin: 'manual',
     })
 
-  const handleOpenCatalog = () => {
-    document.getElementById('shop')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-  }
-
   const closeClientPreview = () => {
     const next = new URLSearchParams(searchParams)
     next.delete('clientPreview')
@@ -212,10 +198,10 @@ export default function PellierPage() {
   }
 
   return (
-    <div className="pellier-page-surface min-h-dvh bg-cream-50">
+    <div className="pellier-page-surface min-h-dvh bg-page">
       <Header current="home" onNavigate={handleNavigate} />
 
-      <main className="bg-cream">
+      <main className="bg-page">
         {clientPreviewId ? (
           <OperatorClientPreview
             customerId={clientPreviewId}
@@ -223,48 +209,41 @@ export default function PellierPage() {
           />
         ) : null}
 
-        {/* ── ACT 1: editorial statement, product photograph, concierge ── */}
-        <PellierHero onBrowseCollection={handleOpenCatalog} />
+        <PellierHero />
 
         <section
           id="shop"
           className="w-full"
           aria-label="Featured products"
           style={{
-            scrollMarginTop: 'calc(var(--pellier-surface-bar-height, 64px) + var(--pellier-storefront-nav-height, 60px) + 16px)',
-            background: 'var(--cream-warm)',
-            borderTop: '1px solid var(--rule-1)',
+            scrollMarginTop: 'calc(var(--pellier-chrome-height, 64px) + var(--pellier-storefront-nav-height, 56px) + 16px)',
           }}
         >
           {catalogLoading ? (
             <div
-              className="mx-auto max-w-[1440px] px-container-x py-24"
+              className="pellier-edit-shell py-16"
               role="status"
               aria-label="Loading live catalog"
             >
-              <div className="h-[420px] animate-pulse rounded-[8px] border border-sand bg-cream" />
+              <div className="h-[420px] animate-pulse rounded-[16px] bg-recessed" />
             </div>
           ) : null}
 
           {!catalogLoading && catalogError ? (
             <div className="mx-auto max-w-[760px] px-container-x py-24 text-center">
-              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
-                Collection unavailable
-              </p>
-              <h2 className="mt-3 font-display text-espresso" style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}>
+              <p className="pellier-eyebrow">Collection unavailable</p>
+              <h2 className="pellier-statement mt-3" style={{ fontSize: 'var(--text-section)' }}>
                 The collection is taking a moment.
               </h2>
-              <p className="mt-4 font-sans text-[14px] text-ink-soft" role="alert">We couldn’t load the latest pieces. Please try again in a moment.</p>
+              <p className="mt-4 font-sans text-[14px] text-ink-2" role="alert">We couldn’t load the latest pieces. Please try again in a moment.</p>
               <button type="button" className="pellier-retry mt-5" onClick={() => setCatalogRevision(v => v + 1)}>Reload collection</button>
             </div>
           ) : null}
 
           {!catalogLoading && !catalogError && !featuredProduct ? (
             <div className="mx-auto max-w-[760px] px-container-x py-24 text-center">
-              <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
-                No pieces to show just now
-              </p>
-              <p className="mt-4 font-sans text-[14px] text-ink-soft">
+              <p className="pellier-eyebrow">No pieces to show just now</p>
+              <p className="mt-4 font-sans text-[14px] text-ink-2">
                 The collection returned no pieces for this edit. Try another scenario or check back shortly.
               </p>
             </div>
@@ -272,13 +251,13 @@ export default function PellierPage() {
 
           {!catalogLoading && !catalogError && featuredProduct ? (
             <>
-              <div className="mx-auto w-full max-w-[1560px] px-container-x pb-12">
+              <div className="pellier-edit-shell pt-10 pb-12">
                 <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
                   <Link
                     to={`/product/${featuredProduct.id}`}
                     aria-hidden="true"
                     tabIndex={-1}
-                    className="relative block aspect-[4/5] overflow-hidden rounded-[var(--pellier-image-radius-lg)] shadow-warm-md"
+                    className="pellier-card-photo"
                   >
                     <ResponsiveImage
                       src={featuredProduct.imageUrl}
@@ -292,52 +271,41 @@ export default function PellierPage() {
                     />
                   </Link>
 
-                  <div className="flex flex-col justify-center py-8 lg:py-0">
-                    <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
-                      {edit.eyebrow}
-                    </p>
+                  <div className="flex flex-col justify-center py-4 lg:py-0">
+                    <p className="pellier-eyebrow">{edit.eyebrow}</p>
                     <h2
-                      className="font-display text-espresso"
-                      style={{
-                        fontSize: 'clamp(36px, 5vw, 64px)',
-                        lineHeight: 1.08,
-                        fontWeight: 400,
-                        whiteSpace: 'pre-line',
-                      }}
+                      className="pellier-statement mt-3"
+                      style={{ fontSize: 'var(--text-section)', whiteSpace: 'pre-line' }}
                     >
                       {editHeadline.tail ? (
                         <>
                           <span>{editHeadline.lead}</span>
-                          <span className="text-accent-ink">{editHeadline.tail}</span>
+                          <span className="text-muted">{editHeadline.tail}</span>
                         </>
                       ) : (
                         editHeadline.lead
                       )}
                     </h2>
-                    <p className="mt-5 max-w-[440px] font-sans text-ink-soft" style={{ fontSize: 'clamp(14px, 1.1vw, 16px)', lineHeight: 1.65 }}>
+                    <p className="mt-4 max-w-[480px] font-sans text-[15px] leading-relaxed text-ink-2">
                       {edit.subheadline}
                     </p>
 
-                    <div className="mt-8 border-t border-sand/50 pt-6">
-                      <p className="mb-1 font-sans text-[12px] text-ink-quiet">{featuredProduct.brand}</p>
-                      <p className="font-display text-xl text-espresso">
+                    <div className="mt-7 border-t border-line pt-5">
+                      <p className="pellier-card-brand">{featuredProduct.brand}</p>
+                      <p className="mt-1 font-sans text-[17px] font-medium text-ink">
                         <Link
                           to={`/product/${featuredProduct.id}`}
                           data-testid="featured-product-link"
-                          className="inline-flex min-h-[44px] items-center transition-colors duration-fade hover:text-accent-ink"
+                          className="inline-flex min-h-[44px] items-center hover:underline underline-offset-4"
                         >
                           {featuredProduct.name}
                         </Link>
                       </p>
-                      <div className="mt-2 flex items-center gap-3 font-sans text-sm text-ink-soft">
-                        <span className="font-medium text-espresso">${featuredProduct.price}</span>
-                        <span>★ {featuredProduct.rating.toFixed(1)}</span>
-                        <span className="text-ink-quiet">({featuredProduct.reviewCount})</span>
-                      </div>
+                      <p className="font-sans text-[15px] text-ink tabular-nums">${featuredProduct.price}</p>
                       <button
                         type="button"
                         onClick={() => handleAddToBag(featuredProduct)}
-                        className="mt-5 min-h-12 cursor-pointer rounded-full bg-espresso px-8 py-3 font-sans text-sm font-medium text-cream-50 transition-colors duration-fade hover:bg-dusk"
+                        className="pellier-action mt-5"
                       >
                         Add to bag
                       </button>
@@ -346,15 +314,13 @@ export default function PellierPage() {
                 </div>
               </div>
 
-              <div className="pellier-edit-shell pb-16 md:pb-24">
-                <div className="mb-8">
-                  <h2
-                    data-testid="curated-headline"
-                    className="font-display text-espresso"
-                    style={{ fontSize: 'clamp(28px, 3.5vw, 44px)', lineHeight: 1.15, fontWeight: 400 }}
-                  >
-                    {curatedHeadline}
-                  </h2>
+              <div className="pellier-edit-shell pb-16 md:pb-20">
+                <div className="mb-6">
+                  <div className="pellier-gridhead">
+                    <h2 data-testid="curated-headline" className="pellier-statement">
+                      {curatedHeadline}
+                    </h2>
+                  </div>
                   <RationaleBand />
                 </div>
 
@@ -363,13 +329,7 @@ export default function PellierPage() {
                   className="pellier-product-grid"
                 >
                   {gridProducts.map((product, index) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      index={index % 3}
-                      onAddToBag={handleAddToBag}
-                      variant="editorial"
-                    />
+                    <ProductCard key={product.id} product={product} index={index % 3} />
                   ))}
                 </div>
               </div>
@@ -377,15 +337,14 @@ export default function PellierPage() {
           ) : null}
         </section>
 
-        {/* The bridge into Labs. Sits after the shopping surfaces so the
-            pellier makes its case before it offers the proof. */}
+        {/* The bridge into the labs. Sits after the shopping surfaces so the
+            store makes its case before it offers the proof. */}
         <PellierApproach />
 
         <PellierServiceStrip />
       </main>
 
       <Footer />
-      {/* CommandPill removed — hero search bar opens the drawer directly */}
       <PellierSpotlight />
     </div>
   )

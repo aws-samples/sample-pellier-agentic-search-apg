@@ -1,7 +1,6 @@
 /* ========================================================================
- * PellierWelcome — editorial welcome state styles.
- * Matches docs/pellier-chat-synthesis.html (the panel).
- * All colors reference CSS custom properties from index.css :root.
+ * PellierWelcome: the panel before the first question.
+ * Every color is a token.
  * ======================================================================== */
 
 .sf-welcome {
@@ -9,15 +8,15 @@
   flex-direction: column;
 }
 
-/* ---- Cover image: existing editorial photography ---- */
+/* ---- Cover photograph in a rounded, hairline-framed frame ---- */
 .sf-cover {
   position: relative;
   height: 200px;
   overflow: hidden;
   flex-shrink: 0;
-  margin: 16px 16px 0;
-  border-radius: var(--pellier-image-radius-md);
-  background: var(--cream-2, #eee8df);
+  border-radius: var(--dl-r-card);
+  background: var(--dl-paper-2);
+  box-shadow: var(--dl-frame);
 }
 .sf-cover-img {
   position: absolute;
@@ -27,209 +26,95 @@
   object-fit: cover;
   object-position: center 40%;
 }
-/* Warm gradient overlay so the eyebrow text stays legible */
 .sf-cover::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 55%,
-    rgba(31, 20, 16, 0.42) 100%
-  );
+  background: linear-gradient(180deg, transparent 55%, var(--dl-scrim) 100%);
   z-index: 1;
 }
-
-/* Cover overlay text */
 .sf-cover-overlay {
   position: absolute;
-  bottom: 16px;
-  left: 22px; right: 22px;
+  bottom: 14px;
+  left: 16px;
+  right: 16px;
+  z-index: 3;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  z-index: 3;
 }
 .sf-cover-eyebrow {
-  font-family: var(--sans);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(250, 243, 232, 0.96);
+  color: var(--dl-on-photo);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
   font-weight: 500;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sf-cover-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--cream-1);
-  box-shadow: 0 0 0 3px rgba(250, 243, 232, 0.2);
-  display: inline-block;
-  flex-shrink: 0;
-}
-.sf-cover-edition {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: rgba(250, 243, 232, 0.85);
-  text-transform: uppercase;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.02em;
 }
 
 /* ---- Body ---- */
 .sf-body {
-  padding: 24px 26px 16px;
+  padding: 20px 2px 8px;
 }
-
-/* Eyebrow row */
 .sf-eyebrow-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .sf-eyebrow-sm {
-  font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ink-2);
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
 }
-.sf-eyebrow-red { color: var(--red-1); }
 .sf-eyebrow-rule {
   flex: 1;
   height: 1px;
-  background: var(--rule-1);
+  background: var(--dl-line);
 }
 
 /* Greeting */
 .sf-greeting {
-  font-family: var(--sans);
-  font-weight: 400;
-  font-size: 30px;
-  line-height: 1.1;
-  letter-spacing: -0.015em;
-  margin-bottom: 14px;
-  color: var(--ink-1);
+  margin-bottom: 10px;
+  color: var(--dl-ink);
+  font-family: var(--dl-font-heading);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: var(--dl-track-tight);
+  line-height: 1.15;
 }
 .sf-greeting em { font-style: normal; }
 
 /* Context line */
 .sf-context {
-  font-family: var(--sans);
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
   font-size: 15px;
   line-height: 1.6;
-  color: var(--ink-1);
-}
-.sf-context-num {
-  font-family: var(--sans);
-  font-weight: 500;
-  color: var(--ink-1);
-  font-size: 15px;
-}
-.sf-context-product {
-  font-family: var(--sans);
-  
-  color: var(--ink-1);
-  border-bottom: 1px solid var(--rule-2);
-  padding-bottom: 1px;
-}
-
-/* Marco — exercise callout above stacked picks */
-.sf-workshop-cue-marco {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px dashed rgba(196, 69, 54, 0.42);
-  border-radius: 8px;
-  background: rgba(255, 252, 247, 0.92);
-  font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--ink-1);
-}
-.sf-workshop-cue-tag {
-  display: inline-block;
-  margin-right: 8px;
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(196, 69, 54, 0.98);
-}
-.sf-workshop-code {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(31, 20, 16, 0.06);
-  color: var(--ink-1);
-}
-
-/* Anna / Theo — intentional “observe · no exercise” cue (neutral shell) */
-.sf-observe-cue {
-  margin-top: 14px;
-  padding: 12px 14px 13px;
-  border: 1px solid rgba(31, 20, 16, 0.16);
-  border-radius: 8px;
-  background: rgba(255, 252, 247, 0.88);
-}
-.sf-observe-cue-label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  margin-bottom: 8px;
-}
-.sf-observe-cue-body {
-  font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--ink-1);
-  margin: 0;
-}
-.sf-observe-cue-body strong {
-  font-weight: 600;
 }
 
 /* Section */
-.sf-section { margin-top: 24px; }
+.sf-section { margin-top: 22px; }
 .sf-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .sf-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--red-1);
   display: inline-block;
+  width: 6px;
+  height: 6px;
   flex-shrink: 0;
-}
-.sf-count {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--ink-2);
-  letter-spacing: 0.15em;
-}
-.sf-count-hero {
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 9px;
+  border-radius: 50%;
+  background: var(--pellier-copper);
 }
 
-/* Stacked action pills */
+/* Stacked starter prompts: pills, the first filled with ink */
 .sf-actions-stack {
   display: flex;
   flex-direction: column;
@@ -237,102 +122,56 @@
 }
 .sf-action {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 18px;
-  background: transparent;
-  border: 1px solid var(--rule-2);
-  border-radius: 100px;
-  font-family: var(--sans);
-  
-  font-size: 15px;
-  color: var(--ink-1);
-  cursor: pointer;
-  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+  padding: 12px 18px;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper);
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 14.5px;
+  line-height: 1.4;
   text-align: left;
-  width: 100%;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 .sf-action-primary {
-  background: var(--ink-1);
-  color: var(--cream-1);
-  border-color: var(--ink-1);
+  border-color: var(--dl-ink);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
 }
-.sf-action-arrow {
-  font-size: 13px;
-  opacity: 0.6;
-  transition: transform 180ms;
+.sf-action:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
 }
-
 @media (hover: hover) and (pointer: fine) {
   .sf-action:hover {
-    background: var(--ink-1);
-    color: var(--cream-1);
-    border-color: var(--ink-1);
-    transform: translateX(2px);
-  }
-
-  .sf-action:hover .sf-action-arrow {
-    transform: translateX(2px);
+    border-color: var(--dl-ink);
+    background: var(--dl-ink);
+    color: var(--dl-on-ink);
   }
 }
 
-/* Centered-dot divider */
+/* Divider between the required turns and the rest */
 .sf-divider {
   height: 1px;
-  background: var(--rule-1);
-  margin: 24px 0 22px;
-  position: relative;
-}
-.sf-divider::after {
-  content: '\00B7';
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--cream-1);
-  padding: 0 10px;
-  font-size: 16px;
-  color: var(--red-1);
+  margin: 22px 0 18px;
+  background: var(--dl-line);
 }
 
 /* Prompt */
 .sf-prompt {
-  font-family: var(--sans);
-  font-size: 17px;
+  margin-bottom: 6px;
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 15px;
+  font-weight: 500;
   line-height: 1.5;
-  margin-bottom: 4px;
-  color: var(--ink-1);
 }
 
-/* P.S. section */
-.sf-postscript {
-  margin-top: 18px;
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--ink-1);
-}
-.sf-postscript-lead { margin-bottom: 10px; }
-.sf-ps-mark {
-  font-family: var(--sans);
-  
-  font-weight: 500;
-  color: var(--red-1);
-  letter-spacing: 0.04em;
-  font-size: 16px;
-}
-.sf-ps-dash {
-  color: var(--red-1);
-  margin: 0 4px;
-}
-.sf-postscript-range {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  margin-right: 4px;
-}
+/* The further prompts, as a plain list with a copper marker */
 .sf-postscript-list {
   display: flex;
   flex-direction: column;
@@ -341,58 +180,53 @@
 }
 .sf-overheard {
   display: flex;
+  width: 100%;
   align-items: baseline;
   gap: 10px;
-  font-family: var(--sans);
-  
-  font-size: 15px;
-  color: var(--ink-1);
-  background: none;
+  padding: 6px 0;
   border: none;
-  padding: 5px 0;
-  cursor: pointer;
+  background: none;
+  color: var(--dl-ink-2);
+  font-family: var(--dl-font-sans);
+  font-size: 14.5px;
+  line-height: 1.45;
   text-align: left;
-  width: 100%;
+  cursor: pointer;
   transition: color 150ms;
 }
-.sf-overheard-bullet {
-  color: var(--red-1);
-  font-style: normal;
-  font-size: 15px;
+.sf-overheard-line {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 10px;
+}
+.sf-overheard-line::before {
+  content: '';
+  width: 5px;
+  height: 5px;
   flex-shrink: 0;
-  font-weight: 500;
+  align-self: center;
+  border-radius: 50%;
+  background: var(--pellier-copper);
 }
 .sf-overheard-quote {
   border-bottom: 1px solid transparent;
   transition: border-color 150ms, color 150ms;
 }
+.sf-overheard:hover { color: var(--dl-ink); }
 .sf-overheard:hover .sf-overheard-quote {
-  border-bottom-color: var(--ink-1);
+  border-bottom-color: var(--dl-ink);
 }
-.sf-overheard:hover { color: var(--ink-1); }
-
-.sf-overheard-line {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  width: 100%;
+.sf-overheard:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-.sf-overheard-workshop-marco {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 0 12px 14px;
-  margin-top: 4px;
-  border-left: 2px solid var(--red-1);
-}
-.sf-overheard-workshop-chip {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--red-1);
-}
-.sf-overheard-workshop-marco:hover .sf-overheard-workshop-chip {
-  color: var(--ink-1);
+@media (prefers-reduced-motion: reduce) {
+  .sf-action,
+  .sf-overheard,
+  .sf-overheard-quote {
+    transition: none;
+  }
 }

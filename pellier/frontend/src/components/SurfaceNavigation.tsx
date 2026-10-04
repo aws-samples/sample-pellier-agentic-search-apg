@@ -1,6 +1,10 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useUI } from '../contexts/UIContext'
+import ThemeControl from '../theme/ThemeControl'
+import Wordmark from './Wordmark'
 import '../styles/surface-navigation.css'
+import '../styles/turn.css'
 
 type Surface = 'storefront' | 'operator'
 
@@ -15,13 +19,18 @@ function surfaceFor(path: string): Surface {
 }
 
 /**
- * One navigation across the two work areas. Remember locations, not evidence:
+ * The shared header: the wordmark, the Storefront and Operator switch, the
+ * theme control and the Ask Pellier button. Remember locations, not evidence:
  * each destination still reads its records through its existing API boundary.
  * Keeping the query string preserves an exact review, customer, lab, or turn
  * when someone returns from the other surface.
+ *
+ * The Ask Pellier button opens the docked panel on storefront routes; its
+ * copper dot pulses only while a turn runs (signature element 2).
  */
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
+  const { openModal, turnRunning } = useUI()
   const active = surfaceFor(pathname)
   const [destinations, setDestinations] = useState<Record<Surface, string>>({
     storefront: '/',
@@ -40,11 +49,7 @@ export default function SurfaceNavigation() {
   return (
     <div className="pellier-surface-bar" data-testid="surface-navigation">
       <nav aria-label="Pellier home">
-      <Link to="/" className="pellier-brand" aria-label="Pellier home">
-        <span className="pellier-brand-full" aria-hidden="true">pellier</span>
-        <span className="pellier-brand-small" aria-hidden="true">p</span>
-        <span className="pellier-brand-dot" aria-hidden="true">.</span>
-      </Link>
+        <Wordmark />
       </nav>
       <nav aria-label="Pellier surfaces" className="pellier-surface-links">
         {SURFACES.map(surface => (
@@ -60,6 +65,21 @@ export default function SurfaceNavigation() {
           </Link>
         ))}
       </nav>
+      <div className="pellier-surface-tools">
+        <ThemeControl />
+        {active === 'storefront' && pathname !== '/signin' ? (
+          <button
+            type="button"
+            className="pellier-ask-button"
+            data-testid="header-ask-pellier"
+            data-running={turnRunning ? 'true' : 'false'}
+            onClick={() => openModal('drawer')}
+          >
+            <span className="tn-dot" aria-hidden="true" />
+            Ask Pellier
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }

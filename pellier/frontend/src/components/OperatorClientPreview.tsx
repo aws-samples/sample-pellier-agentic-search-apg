@@ -61,23 +61,23 @@ export default function OperatorClientPreview({
   if (error) {
     return (
       <section
-        className="w-full border-y border-sand bg-cream-warm"
+        className="w-full border-y border-line bg-paper"
         data-testid="operator-client-preview-error"
         aria-label="Operator client preview unavailable"
       >
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-container-x py-4">
           <div className="min-w-0">
-            <p className="font-sans text-[12px] font-semibold uppercase text-accent-ink">
+            <p className="font-sans text-[12px] font-semibold uppercase text-ink-2">
               Operator preview unavailable
             </p>
-            <p className="mt-1 font-sans text-[14px] text-ink-soft">
+            <p className="mt-1 font-sans text-[14px] text-ink-2">
               This client record requires an active Pellier Operator session.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/operator"
-              className="inline-flex min-h-10 items-center gap-2 border border-sand px-3 font-sans text-[13px] font-medium text-espresso hover:border-espresso"
+              className="inline-flex min-h-10 items-center gap-2 border border-line px-3 font-sans text-[13px] font-medium text-ink hover:border-ink"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
               Operator
@@ -85,7 +85,7 @@ export default function OperatorClientPreview({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex size-10 items-center justify-center border border-sand text-espresso hover:border-espresso"
+              className="inline-flex size-10 items-center justify-center border border-line text-ink hover:border-ink"
               aria-label="Close client preview"
               title="Close client preview"
             >
@@ -100,11 +100,11 @@ export default function OperatorClientPreview({
   if (!record) {
     return (
       <section
-        className="w-full border-y border-sand bg-cream-warm"
+        className="w-full border-y border-line bg-paper"
         data-testid="operator-client-preview-loading"
         aria-label="Loading operator client preview"
       >
-        <div className="mx-auto max-w-[1440px] px-container-x py-5 font-sans text-[14px] text-ink-soft">
+        <div className="mx-auto max-w-[1440px] px-container-x py-5 font-sans text-[14px] text-ink-2">
           Reading client context from PostgreSQL...
         </div>
       </section>
@@ -123,7 +123,7 @@ export default function OperatorClientPreview({
 
   return (
     <section
-      className="w-full border-y border-sand bg-cream-warm"
+      className="w-full border-y border-line bg-paper"
       data-testid="operator-client-preview"
       aria-label={`Operator preview for ${client.name}`}
     >
@@ -131,28 +131,28 @@ export default function OperatorClientPreview({
         <div className="grid gap-5 md:grid-cols-[minmax(0,1.4fr)_minmax(220px,0.8fr)_auto] md:items-center md:gap-7">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 font-sans text-[12px] font-semibold uppercase text-accent-ink">
+              <span className="inline-flex items-center gap-1.5 font-sans text-[12px] font-semibold uppercase text-ink-2">
                 <Eye className="h-3.5 w-3.5" aria-hidden />
                 Operator client preview
               </span>
-              <span className="border border-sand px-2 py-0.5 font-sans text-[11px] font-medium uppercase text-ink-quiet">
+              <span className="border border-line px-2 py-0.5 font-sans text-[11px] font-medium uppercase text-muted">
                 Read-only
               </span>
             </div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="font-display text-[26px] font-normal text-espresso md:text-[30px]">
+              <h2 className="font-sans text-[26px] font-normal text-ink md:text-[30px]">
                 {client.name}
               </h2>
-              <span className="font-sans text-[13px] text-ink-soft">
+              <span className="font-sans text-[13px] text-ink-2">
                 {membership.label} · {membership.descriptor}
               </span>
             </div>
-            <p className="mt-2 max-w-[760px] font-sans text-[14px] leading-6 text-ink-soft">
+            <p className="mt-2 max-w-[760px] font-sans text-[14px] leading-6 text-ink-2">
               {client.note}
             </p>
             {evidenceConflict ? (
               <p
-                className="mt-3 border-l-2 border-accent-ink pl-3 font-sans text-[13px] leading-5 text-espresso"
+                className="mt-3 border-l-2 border-ink pl-3 font-sans text-[13px] leading-5 text-ink"
                 data-testid="operator-client-preview-evidence-conflict"
               >
                 Service context says a return was received. The returns ledger
@@ -164,28 +164,28 @@ export default function OperatorClientPreview({
             ) : null}
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-y border-sand py-4 md:border-x md:border-y-0 md:px-6 md:py-1">
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-y border-line py-4 md:border-x md:border-y-0 md:px-6 md:py-1">
             <div>
-              <dt className="font-sans text-[11px] uppercase text-ink-quiet">
+              <dt className="font-sans text-[11px] uppercase text-muted">
                 Orders
               </dt>
-              <dd className="mt-1 font-display text-[22px] text-espresso">
+              <dd className="mt-1 font-sans text-[22px] text-ink">
                 {orders.length}
               </dd>
             </div>
             <div>
-              <dt className="font-sans text-[11px] uppercase text-ink-quiet">
+              <dt className="font-sans text-[11px] uppercase text-muted">
                 Open cases
               </dt>
-              <dd className="mt-1 font-display text-[22px] text-espresso">
+              <dd className="mt-1 font-sans text-[22px] text-ink">
                 {openTickets}
               </dd>
             </div>
             <div className="col-span-2">
-              <dt className="font-sans text-[11px] uppercase text-ink-quiet">
+              <dt className="font-sans text-[11px] uppercase text-muted">
                 Recent pieces
               </dt>
-              <dd className="mt-1 font-sans text-[13px] leading-5 text-ink-soft">
+              <dd className="mt-1 font-sans text-[13px] leading-5 text-ink-2">
                 {recentPieces.length > 0
                   ? recentPieces.join(' · ')
                   : 'No orders on record'}
@@ -193,10 +193,10 @@ export default function OperatorClientPreview({
             </div>
             {latestTicket ? (
               <div className="col-span-2">
-                <dt className="font-sans text-[11px] uppercase text-ink-quiet">
+                <dt className="font-sans text-[11px] uppercase text-muted">
                   Current case
                 </dt>
-                <dd className="mt-1 font-sans text-[13px] leading-5 text-ink-soft">
+                <dd className="mt-1 font-sans text-[13px] leading-5 text-ink-2">
                   {latestTicket.subject}
                 </dd>
               </div>
@@ -206,7 +206,7 @@ export default function OperatorClientPreview({
           <div className="flex flex-wrap items-center gap-2 md:w-[178px] md:flex-col md:items-stretch">
             <Link
               to={`/operator/clients/${encodeURIComponent(client.customerId)}`}
-              className="inline-flex min-h-10 items-center justify-center gap-2 bg-espresso px-3 font-sans text-[13px] font-medium text-cream-warm hover:bg-dusk"
+              className="inline-flex min-h-10 items-center justify-center gap-2 bg-ink px-3 font-sans text-[13px] font-medium text-on-ink hover:bg-ink-2"
               data-testid="operator-client-preview-record"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -214,7 +214,7 @@ export default function OperatorClientPreview({
             </Link>
             <Link
               to="/operator/reviews"
-              className="inline-flex min-h-10 items-center justify-center gap-2 border border-sand px-3 font-sans text-[13px] font-medium text-espresso hover:border-espresso"
+              className="inline-flex min-h-10 items-center justify-center gap-2 border border-line px-3 font-sans text-[13px] font-medium text-ink hover:border-ink"
               data-testid="operator-client-preview-reviews"
             >
               <ClipboardList className="h-4 w-4" aria-hidden />
@@ -223,7 +223,7 @@ export default function OperatorClientPreview({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex min-h-10 items-center justify-center gap-2 px-3 font-sans text-[13px] text-ink-soft hover:text-espresso"
+              className="inline-flex min-h-10 items-center justify-center gap-2 px-3 font-sans text-[13px] text-ink-2 hover:text-ink"
               data-testid="operator-client-preview-close"
             >
               <X className="h-4 w-4" aria-hidden />

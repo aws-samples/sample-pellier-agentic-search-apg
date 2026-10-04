@@ -60,10 +60,11 @@ Design notes
 * **Response shape.** Wire format is the storefront ``StorefrontProduct``
   camelCase shape from Task 1.3 (``reviewCount``, ``imageUrl``, etc.).
   We use ``model_dump(by_alias=True)`` at the edge so TypeScript
-  consumers in Task 4.6 can keep their existing types. The single-product
-  route returns the ``StorefrontProductDetail`` superset — the same fields
-  plus ``description`` and ``availability`` — so the listing payload stays
-  byte-identical while the product page gets what it needs.
+  consumers in Task 4.6 can keep their existing types. The listing carries
+  ``quantity`` and the per-warehouse ``warehouses`` rows from one batched
+  read, which is what each card's stock line is drawn from. The
+  single-product route returns the ``StorefrontProductDetail`` superset —
+  the same fields plus ``description`` and ``availability``.
 
 * **Catalog key is text.** ``product_catalog."productId"`` is a ``text``
   column. Binding an int to it makes Postgres reject the comparison
@@ -146,7 +147,8 @@ _PRODUCT_SELECT = """
         "imgUrl"             AS image_url,
         badge,
         tags,
-        tier
+        tier,
+        quantity
     FROM pellier.product_catalog
 """
 
@@ -186,6 +188,22 @@ _WAREHOUSE_SELECT = """
      ORDER BY wi.quantity DESC, w.id ASC
 """
 
+# The same join for every product in a listing, in one read, so each card
+# can carry its stock line without a query per card.
+_WAREHOUSE_LIST_SELECT = """
+    SELECT wi.product_id,
+           w.id           AS warehouse_id,
+           w.display_name AS name,
+           w.city,
+           w.ship_window_min,
+           w.ship_window_max,
+           wi.quantity
+      FROM pellier.warehouse_inventory wi
+      JOIN pellier.warehouses w ON w.id = wi.warehouse_id
+     WHERE wi.product_id = ANY(%s)
+     ORDER BY wi.product_id, wi.quantity DESC, w.id ASC
+"""
+
 
 _VALID_BADGES = {"EDITORS_PICK", "BESTSELLER", "JUST_IN"}
 
@@ -207,6 +225,7 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
 
     raw_badge = row.get("badge")
     badge = raw_badge if raw_badge in _VALID_BADGES else None
+    quantity = row.get("quantity")
 
     return StorefrontProduct(
         id=int(row["id"]),
@@ -220,7 +239,43 @@ def _row_to_storefront_product(row: Dict[str, Any]) -> StorefrontProduct:
         image_url=row.get("image_url") or "",
         badge=badge,
         tags=list(row.get("tags") or []),
+        quantity=int(quantity) if quantity is not None else None,
     )
+
+
+def _warehouse_stock_from_row(row: Dict[str, Any]) -> WarehouseStock:
+    return WarehouseStock(
+        warehouse_id=str(row.get("warehouse_id") or ""),
+        name=str(row.get("name") or row.get("warehouse_id") or ""),
+        city=str(row.get("city") or ""),
+        quantity=int(row.get("quantity") or 0),
+        ship_window_min=row.get("ship_window_min"),
+        ship_window_max=row.get("ship_window_max"),
+    )
+
+
+async def _attach_warehouse_stock(db: Any, products: List[StorefrontProduct]) -> None:
+    """Fill each listed product's ``warehouses`` from one batched read.
+
+    Best-effort on purpose, like the single-product join: a cluster seeded
+    before the warehouse migration still lists its catalog, with the stock
+    line falling back to ``quantity`` alone.
+    """
+    if not products:
+        return
+    try:
+        rows = await db.fetch_all(_WAREHOUSE_LIST_SELECT, [str(p.id) for p in products])
+    except Exception:  # noqa: BLE001 - degrade the stock line, not the listing
+        logger.warning("warehouse inventory unavailable for the listing", exc_info=True)
+        return
+    by_product: Dict[str, List[WarehouseStock]] = {}
+    for row in rows:
+        row_dict = dict(row)
+        by_product.setdefault(str(row_dict.get("product_id")), []).append(
+            _warehouse_stock_from_row(row_dict)
+        )
+    for product in products:
+        product.warehouses = by_product.get(str(product.id), [])
 
 
 async def _fetch_editorial_catalog(
@@ -254,7 +309,9 @@ async def _fetch_editorial_catalog(
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     query = _PRODUCT_SELECT + where + f" ORDER BY {order}"
     rows = await db.fetch_all(query, *params)
-    return [_row_to_storefront_product(dict(r)) for r in rows]
+    products = [_row_to_storefront_product(dict(r)) for r in rows]
+    await _attach_warehouse_stock(db, products)
+    return products
 
 
 def _prefs_empty(prefs: Optional[Preferences]) -> bool:

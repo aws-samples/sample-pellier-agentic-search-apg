@@ -38,26 +38,26 @@ export default function MemoryHandoffCard() {
       data-testid="memory-handoff"
       data-persona={personaId ?? 'fresh'}
       aria-label="Workshop profile context"
-      className="w-full bg-cream-warm"
+      className="w-full bg-paper"
     >
       <div className="mx-auto max-w-[1120px] px-container-x py-8 md:py-10">
         <div
           data-testid="memory-handoff-card"
           className="
-            flex flex-col gap-5 border-y border-sand py-6
+            flex flex-col gap-5 border-y border-line py-6
             md:flex-row md:items-center md:justify-between md:gap-10
           "
         >
           <div className="min-w-0 max-w-[760px]">
             <p
               data-testid="memory-handoff-eyebrow"
-              className="mb-2 font-sans text-[13px] font-medium text-accent-ink"
+              className="mb-2 font-sans text-[13px] font-medium text-ink-2"
             >
               Workshop profile
             </p>
             <h3
               data-testid="memory-handoff-title"
-              className="font-display text-espresso"
+              className="font-sans text-ink"
               style={{
                 fontSize: 'clamp(20px, 2vw, 26px)',
                 lineHeight: 1.25,
@@ -70,7 +70,7 @@ export default function MemoryHandoffCard() {
             </h3>
             <p
               data-testid="memory-handoff-summary"
-              className="mt-3 font-sans text-[14px] leading-6 text-ink-soft"
+              className="mt-3 font-sans text-[14px] leading-6 text-ink-2"
             >
               {content.items.map((item) => item.text).join('. ')}.
             </p>
@@ -81,10 +81,10 @@ export default function MemoryHandoffCard() {
             data-testid="memory-handoff-cta"
             onClick={handleCta}
             className="
-              shrink-0 self-start rounded-full bg-espresso px-5 py-3
-              font-sans text-[14px] font-medium text-cream-warm transition
-              hover:bg-dusk focus-visible:outline-none focus-visible:ring-2
-              focus-visible:ring-espresso focus-visible:ring-offset-2 md:self-center
+              shrink-0 self-start rounded-full bg-ink px-5 py-3
+              font-sans text-[14px] font-medium text-on-ink transition
+              hover:bg-ink-2 focus-visible:outline-none focus-visible:ring-2
+              focus-visible:ring-copper focus-visible:ring-offset-2 md:self-center
             "
             style={{
               whiteSpace: 'nowrap',
