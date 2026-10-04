@@ -152,9 +152,7 @@ def test_builders_defaults_do_not_gain_governed_tags_or_scaffold_changes(
     root, project = _render(renderer, repo)
 
     assert root.name == "pellier"
-    assert [item["name"] for item in project["runtimes"]] == [
-        "pellier_orchestrator", "pellier_operator"
-    ]
+    assert [item["name"] for item in project["runtimes"]] == ["pellier_orchestrator"]
     assert project["memories"][0]["name"] == "PellierMemory"
     assert project["agentCoreGateways"][0]["name"] == "pellier-gateway"
     assert project["policyEngines"][0]["name"] == "pellier_policy_engine"

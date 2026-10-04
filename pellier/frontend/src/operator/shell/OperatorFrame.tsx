@@ -1,254 +1,118 @@
 /**
- * Pellier Operator shell.
+ * The Operator desk: the staff surface where Jessica's case is decided.
  *
- * A work-area rail beneath the shared three-surface navigation, and nothing
- * else above the page. The rail carries the sections and, at its foot, the
- * operator's account. A second header bar used to hold the desk's name and the
- * account, and on a 13-inch laptop it took 60px from a Concierge pane that had
- * 166px left to show the conversation. On a laptop the rail folds to icons.
+ * A three-column desk under the shared header (which carries the wordmark
+ * and the theme control for every surface): the rail with the clients or the
+ * reviews, the record, and the investigation or the decision. The desk's own
+ * bar carries the two sections and the signed-in staff member, Nadia, who
+ * signs in with her password; there is no one-click staff sign-in.
  *
- * An open review keeps the authenticated queue beside the case, so inspecting
- * one request does not lose the rest of the desk.
- *
- * Mounted on `.operator-root`, outside `.pellier-page-surface` and
- * `.observatory-root`, so neither surface's heading resets reach the desk; the
- * desk sets its own. All tokens live on `:root`, so nothing is lost by sitting
- * outside.
+ * Mounted on `.operator-root`, in direction A's tokens, so both themes apply
+ * with nothing to restyle.
  */
-
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-} from 'react'
-import { ClipboardCheck, LogOut, MessageCircle, User } from 'lucide-react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import ReviewQueuePanel from '../components/ReviewQueuePanel'
-import ClientBookNavigation from '../components/ClientBookNavigation'
+import React, { createContext, useContext, useEffect } from 'react'
+import { LogOut, User } from 'lucide-react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { ReviewQueueContext, useQueueResource, useReviewQueue } from '../hooks/useReviewQueue'
 import { ClientBookContext, useClientBookResource } from '../hooks/useClientBook'
+import { ReviewQueueContext, useQueueResource, useReviewQueue } from '../hooks/useReviewQueue'
 import { redirectToSignIn } from '../../utils/auth'
+import ClientAvatar from '../components/ClientAvatar'
+import { presentIdentity } from '../components/ProposedCreditCard'
+import { ClientList } from '../surfaces/ClientBook'
+import { ReviewList } from '../surfaces/ReviewQueue'
 import '../styles/operator.css'
-import '../styles/operator-desk.css'
 
 const OperatorQueueRefreshContext = createContext<() => void>(() => undefined)
 
-/**
- * Tab, history and bookmark titles for each desk route. Every route used to
- * inherit the storefront's title from index.html, so an operator with the
- * storefront, the desk and the Observatory open could not tell the tabs apart.
- */
-const ROUTE_TITLES: ReadonlyArray<[prefix: string, title: string]> = [
-  ['/operator/chat', 'Operator chat'],
-  ['/operator/clients/', 'Client'],
-  ['/operator/reviews/', 'Review'],
-  ['/operator/reviews', 'Action Queue'],
-]
-
+/** Tab, history and bookmark titles for each desk route. */
 export function operatorTitleForPath(pathname: string): string {
-  const match = ROUTE_TITLES.find(([prefix]) => pathname.startsWith(prefix))
-  return `${match ? match[1] : 'Clients'} · Pellier Operator`
+  if (pathname.startsWith('/operator/clients/')) return 'Client, Pellier Operator'
+  if (pathname.startsWith('/operator/reviews/')) return 'Review, Pellier Operator'
+  if (pathname.startsWith('/operator/reviews')) return 'Reviews, Pellier Operator'
+  return 'Clients, Pellier Operator'
 }
 
-/**
- * Invalidates the shell's queue count after a nested route changes a review.
- *
- * The default no-op keeps ReviewRecord independently renderable in focused
- * tests and Storybook-style surfaces that do not mount the operator shell.
- */
 export function useOperatorQueueRefresh(): () => void {
   return useContext(OperatorQueueRefreshContext)
 }
 
-/**
- * The count of prepared requests waiting on a person.
- *
- * Always shows a real state once the queue has been read, including zero. A
- * failed read stays visibly distinct from an empty queue: the status names
- * the problem rather than using a symbol that could be mistaken for a control.
- */
-const PendingReviewLink: React.FC = () => {
+const PendingCount: React.FC = () => {
   const { queue, error } = useReviewQueue()
-  const pending = queue?.pendingCount ?? null
-  const signInRequired = Boolean(error && ['authentication_required', 'invalid_credentials', 'operator_sign_in_required', 'operator_group_required'].includes(error))
-  const unreachable = Boolean(error && !signInRequired)
-
+  if (error || !queue) return null
   return (
-    <NavLink
-      to="/operator/reviews"
-      className={({ isActive }) =>
-        `operator-topbar-link${isActive ? ' operator-topbar-link-active' : ''}`
-      }
-      data-testid="operator-reviews-link"
-      title="Action Queue"
-    >
-      <ClipboardCheck className="operator-topbar-icon" aria-hidden />
-      <span className="operator-topbar-label">Action Queue</span>
-      {signInRequired ? (
-        <span
-          className="operator-topbar-count"
-          data-count="sign-in"
-          data-testid="operator-reviews-count"
-          title="Sign in as an operator to read the action queue"
-        >
-          {/* The slot carries queue state. Spelling out the instruction here
-              made it the third "sign in" on a gated screen, beside the topbar
-              control and the page's own primary action, so it states the
-              state and leaves the asking to them. The title attribute keeps
-              the full explanation for anyone who needs it. */}
-          Locked
-        </span>
-      ) : unreachable ? (
-        <span
-          className="operator-topbar-count"
-          data-count="unavailable"
-          data-testid="operator-reviews-count"
-          title="The action queue could not be read"
-        >
-          Queue unavailable
-        </span>
-      ) : pending === null ? null : (
-        <span
-          className="operator-topbar-count"
-          data-count={pending > 0 ? 'waiting' : 'clear'}
-          data-testid="operator-reviews-count"
-          title={
-            pending > 0
-              ? `${pending} prepared request${pending === 1 ? '' : 's'} waiting on a person`
-              : 'No prepared request is waiting'
-          }
-        >
-          {pending}<span className="sr-only"> pending</span>
-        </span>
-      )}
-    </NavLink>
+    <span className="op-bar-count" data-count={queue.pendingCount > 0 ? 'waiting' : 'clear'} data-testid="operator-reviews-link-count">
+      {queue.pendingCount}
+    </span>
   )
 }
 
-const OperatorAuthControl: React.FC = () => {
+/** The signed-in staff member, or the way in. */
+const StaffIdentity: React.FC = () => {
   const { user, isAuthenticated, loading, authUnavailable, logout } = useAuth()
-
-  if (loading) {
-    return (
-      <span
-        className="pellier-account-pill operator-auth-control operator-auth-loading"
-        aria-label="Checking operator sign-in"
-      />
-    )
-  }
-
-  if (authUnavailable) {
-    return <span className="operator-auth-identity">Session unavailable</span>
-  }
-
+  if (loading) return <span className="op-bar-identity" aria-label="Checking staff sign-in" />
+  if (authUnavailable) return <span className="op-bar-identity">Session unavailable</span>
   if (isAuthenticated && user) {
-    const identity = presentIdentity(user.givenName || user.email)
+    const name = presentIdentity(user.username || user.givenName || user.email)
     return (
-      <div className="operator-auth-account">
-        <span
-          className="operator-auth-identity"
-          title={`Signed in as ${user.email}`}
-        >
-          {identity}
-        </span>
-        <button
-          type="button"
-          className="pellier-account-pill operator-auth-control"
-          onClick={logout}
-          title={`Sign out ${identity}`}
-        >
-          <LogOut className="operator-topbar-icon" aria-hidden />
-          <span className="operator-auth-label">Sign out</span>
+      <div className="op-bar-staff" data-testid="operator-staff">
+        <ClientAvatar personaId={(user.username || '').toLowerCase()} name={name} />
+        <span className="op-bar-identity">{name}</span>
+        <button type="button" className="op-button op-button-quiet" onClick={logout} title={`Sign out ${name}`} aria-label={`Sign out ${name}`}>
+          <LogOut size={14} aria-hidden />
+          <span>Sign out</span>
         </button>
       </div>
     )
   }
-
   return (
-    <button
-      type="button"
-      className="pellier-account-pill operator-auth-signin"
-      onClick={() => redirectToSignIn('email')}
-      data-testid="operator-sign-in"
-      title="Sign in as an operator"
-    >
-      <User className="operator-topbar-icon" aria-hidden />
-      <span className="operator-auth-label">Sign in</span>
+    <button type="button" className="op-button" onClick={() => redirectToSignIn('email')} data-testid="operator-sign-in">
+      <User size={14} aria-hidden />
+      <span>Staff sign-in</span>
     </button>
   )
 }
 
-/**
- * Present a bare Cognito username with a capital.
- *
- * The workshop's operator signs in as `operator`, and the personas as `marco`,
- * `anna` and `theo`, so `given_name` falls back to the username and the desk
- * rendered it lowercase beside a capitalised "Sign out". Only a single bare
- * word is touched: an address keeps its case, because capitalising the local
- * part of an email is wrong, and anything with a space is a real name whose
- * capitalisation is not ours to guess.
- */
-function presentIdentity(value: string): string {
-  if (!/^[a-z][a-z0-9._-]*$/.test(value)) return value
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
 const OperatorFrame: React.FC = () => {
-  const { pathname, search, hash } = useLocation()
-  const onClient = pathname.startsWith('/operator/clients/')
-  const chatActive = pathname === '/operator/chat' || (onClient && hash.startsWith('#operator-concierge'))
-  const resource = useQueueResource()
-  const clientBook = useClientBookResource()
+  const { pathname } = useLocation()
+  const reviews = pathname.startsWith('/operator/reviews')
+  const queue = useQueueResource()
+  const clients = useClientBookResource()
+
   useEffect(() => {
     const previous = document.title
     document.title = operatorTitleForPath(pathname)
-    return () => {
-      document.title = previous
-    }
+    return () => { document.title = previous }
   }, [pathname])
 
   return (
-    <ClientBookContext.Provider value={clientBook}>
-    <ReviewQueueContext.Provider value={resource}>
-    <OperatorQueueRefreshContext.Provider value={resource.refresh}>
-      <div className="operator-root" data-testid="operator-root">
-        <div className="operator-workspace-layout">
-          <aside className="operator-sidebar">
-            <p className="operator-sidebar-label">Operator workspace</p>
-              <nav className="operator-topbar-nav" aria-label="Operator sections">
-                <ClientBookNavigation />
-                <Link
-                  to={onClient ? `${pathname}${search}#operator-concierge` : '/operator/chat?membership=all'}
-                  className={`operator-topbar-link operator-chat-nav-link${chatActive ? ' operator-topbar-link-active' : ''}`}
-                  aria-current={chatActive ? 'page' : undefined}
-                  data-testid="operator-chat-link"
-                  title="Operator chat"
-                >
-                  <MessageCircle className="operator-topbar-icon" aria-hidden />
-                  <span className="operator-topbar-label">Operator chat</span>
-                </Link>
-                <PendingReviewLink />
+    <ClientBookContext.Provider value={clients}>
+      <ReviewQueueContext.Provider value={queue}>
+        <OperatorQueueRefreshContext.Provider value={queue.refresh}>
+          <div className="operator-root" data-testid="operator-root">
+            <div className="op-bar">
+              <nav className="op-bar-sections" aria-label="Operator sections">
+                <NavLink to="/operator" end={false} className={({ isActive }) => `op-bar-link${isActive && !reviews ? ' op-bar-link-active' : ''}`} aria-current={!reviews ? 'page' : undefined}>
+                  Clients
+                </NavLink>
+                <NavLink to="/operator/reviews" className={({ isActive }) => `op-bar-link${isActive ? ' op-bar-link-active' : ''}`} data-testid="operator-reviews-link">
+                  Reviews
+                  <PendingCount />
+                </NavLink>
               </nav>
-            <p className="operator-sidebar-note">The client, the request, and the evidence for a considered decision.</p>
-            <div className="operator-sidebar-account">
-              <OperatorAuthControl />
+              <StaffIdentity />
             </div>
-          </aside>
-          <div className="operator-workspace-content">
-        <main className="operator-shell">
-          {pathname.startsWith('/operator/reviews/') ? (
-            <div className="operator-desk-layout">
-              <ReviewQueuePanel />
-              <div className="operator-desk-case"><Outlet /></div>
+            <div className="op-desk" data-section={reviews ? 'reviews' : 'clients'}>
+              <aside className="op-rail" aria-label={reviews ? 'Reviews' : 'Clients'}>
+                {reviews ? <ReviewList /> : <ClientList />}
+              </aside>
+              <main className="op-main" id="main-content" tabIndex={-1}>
+                <Outlet />
+              </main>
             </div>
-          ) : <Outlet />}
-        </main>
           </div>
-        </div>
-      </div>
-    </OperatorQueueRefreshContext.Provider>
-    </ReviewQueueContext.Provider>
+        </OperatorQueueRefreshContext.Provider>
+      </ReviewQueueContext.Provider>
     </ClientBookContext.Provider>
   )
 }

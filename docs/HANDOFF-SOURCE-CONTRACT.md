@@ -86,7 +86,7 @@ Enforced in **one** place, and the honesty of that number matters:
 
 1. `services/auth.py::require_operator`, declared once on the `APIRouter` so a new route
    inherits the boundary rather than being forgotten.
-2. `bootstrap-labs.sh` creates the group and its one member, **verifies membership rather
+2. `bootstrap-labs.sh` creates the group and its one member, `nadia`, **verifies membership rather
    than assuming it** (every create call tolerates "already exists", so success of the
    calls proves nothing), and asserts that no shopper is in it. Health-gate check 11
    refuses readiness when the operator is not a member, and fails when a shopper is. That

@@ -10,7 +10,7 @@ import { apiFetch } from '../services/apiBase'
  *
  * Ask Pellier docks beside all of this as a 440px panel (ChatDrawer).
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Header, { type NavItem } from '../components/Header'
 import PellierHero from '../components/PellierHero'
@@ -21,7 +21,6 @@ import ProductCard from '../components/ProductCard'
 import ResponsiveImage from '../components/ResponsiveImage'
 import Footer from '../components/Footer'
 import PellierSpotlight from '../components/PellierSpotlight'
-import OperatorClientPreview from '../components/OperatorClientPreview'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
@@ -55,13 +54,12 @@ export default function PellierPage() {
   const { prefsVersion } = useAuth()
   const { openModal, setChatSurface } = useUI()
   const { addToCart } = useCart()
-  const { persona, switchPersona, clearPersona } = usePersona()
+  const { persona, switchPersona } = usePersona()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const handledPersona = useRef<string | null>(null)
 
   const requestedPersona = searchParams.get('persona')?.trim().toLowerCase() ?? ''
-  const clientPreviewId = searchParams.get('clientPreview')?.trim() ?? ''
 
   // A hero handoff is a real persona switch, not a decorative link. Consume
   // the query once so refresh does not mint a second shopper session.
@@ -76,12 +74,6 @@ export default function PellierPage() {
     void switchPersona(requestedPersona)
   }, [requestedPersona, searchParams, setSearchParams, switchPersona])
 
-  // A nonhero client preview must never inherit Marco, Anna, or Theo's
-  // storefront state. This clears only the workshop persona/session state;
-  // the httpOnly operator authorization cookie is untouched.
-  useLayoutEffect(() => {
-    if (clientPreviewId && persona) clearPersona()
-  }, [clearPersona, clientPreviewId, persona])
 
   const personaId = persona?.id ?? null
   const [products, setProducts] = useState<PellierProduct[]>([])
@@ -191,24 +183,11 @@ export default function PellierPage() {
       origin: 'manual',
     })
 
-  const closeClientPreview = () => {
-    const next = new URLSearchParams(searchParams)
-    next.delete('clientPreview')
-    setSearchParams(next, { replace: true })
-  }
-
   return (
     <div className="pellier-page-surface min-h-dvh bg-page">
       <Header current="home" onNavigate={handleNavigate} />
 
       <main className="bg-page">
-        {clientPreviewId ? (
-          <OperatorClientPreview
-            customerId={clientPreviewId}
-            onClose={closeClientPreview}
-          />
-        ) : null}
-
         <PellierHero />
 
         <section

@@ -466,7 +466,7 @@ echo "------------------------------------------------------------"
 if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
   operator_pool="${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}"
   operator_group="pellier-operators"
-  operator_user="${PELLIER_OPERATOR_USERNAME:-operator}"
+  operator_user="${PELLIER_OPERATOR_USERNAME:-nadia}"
   operator_client="${COGNITO_CLIENT_ID:-}"
   operator_domain="${COGNITO_DOMAIN:-}"
   operator_password="${PELLIER_OPERATOR_PASSWORD:-}"
@@ -561,30 +561,6 @@ if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
       else
         managed_missing "Operator access token did not resolve to ${operator_user}"
       fi
-      if [[ "${WORKSHOP_FORMAT}" == "governed" ]]; then
-        operator_api="${HEALTH_URL%/api/health}/api/operator"
-        operator_config="$(curl -fsS --max-time 20 \
-          -H "Authorization: Bearer $operator_token" \
-          "$operator_api/concierge/config" 2>/dev/null || true)"
-        if printf '%s' "$operator_config" | python3 -c 'import json,sys
-d=json.load(sys.stdin)
-sys.exit(0 if d.get("composerEnabled") is True and d.get("orchestrationAvailable") is True else 1)' 2>/dev/null; then
-          pass "Operator investigation composer is enabled and orchestration is available"
-        else
-          managed_missing "Operator investigation composer is unavailable; check the governed bootstrap configuration"
-        fi
-        operator_capabilities="$(curl -fsS --max-time 30 \
-          -H "Authorization: Bearer $operator_token" \
-          "$operator_api/capabilities?refresh=true" 2>/dev/null || true)"
-        if printf '%s' "$operator_capabilities" | python3 -c 'import json,sys
-d=json.load(sys.stdin)
-c=d.get("capabilities",{}).get("give_store_credit",{})
-sys.exit(0 if d.get("source")=="agentcore" and c.get("state")=="review_required" else 1)' 2>/dev/null; then
-          pass "Operator return capability is published, permitted, and requires human review"
-        else
-          managed_missing "Operator return capability is unavailable or does not require human review"
-        fi
-      fi
     fi
   fi
 
@@ -602,11 +578,11 @@ sys.exit(0 if d.get("source")=="agentcore" and c.get("state")=="review_required"
       --region "${AWS_REGION:-us-east-1}" --query SecretString --output text 2>/dev/null || true)"
   fi
   shopper_user="$(printf '%s' "$shopper_credentials" | python3 -c 'import json,sys
-d=json.load(sys.stdin); u=[x for x in d.get("users",[]) if str(x.get("username","")).lower()!="operator"]
-print(u[0]["username"] if u else "")' 2>/dev/null || true)"
+d=json.load(sys.stdin); u=[x for x in d.get("users",[]) if str(x.get("username","")).lower()!=sys.argv[1].lower()]
+print(u[0]["username"] if u else "")' "$operator_user" 2>/dev/null || true)"
   shopper_password="$(printf '%s' "$shopper_credentials" | python3 -c 'import json,sys
-d=json.load(sys.stdin); u=[x for x in d.get("users",[]) if str(x.get("username","")).lower()!="operator"]
-print(u[0]["password"] if u else "")' 2>/dev/null || true)"
+d=json.load(sys.stdin); u=[x for x in d.get("users",[]) if str(x.get("username","")).lower()!=sys.argv[1].lower()]
+print(u[0]["password"] if u else "")' "$operator_user" 2>/dev/null || true)"
   if [[ -z "$shopper_user" || -z "$shopper_password" ]]; then
     managed_missing "No seeded shopper credentials; the customer claim on shopper tokens is unverified"
   else

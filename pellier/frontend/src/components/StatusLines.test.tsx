@@ -13,7 +13,7 @@ import type { AgentChatMessage } from '../hooks/useAgentChat'
 
 const mocks = vi.hoisted(() => ({
   persona: null as null | { id: string; display_name: string },
-  auth: null as null | { isAuthenticated: boolean; user: { givenName?: string; email: string } | null },
+  auth: null as null | { isAuthenticated: boolean; user: { givenName?: string; email: string; username?: string; signInMethod?: 'workshop' | 'cognito' } | null },
 }))
 
 vi.mock('../contexts/PersonaContext', () => ({
@@ -107,5 +107,22 @@ describe('StatusLines', () => {
     )
 
     expect(within(row('Execution path')).getByText('gateway-mcp')).toBeInTheDocument()
+  })
+})
+
+describe('the workshop sign-in label', () => {
+  it('names the session as a demo-shopper sign-in only when the server said so', () => {
+    mocks.persona = { id: 'anna', display_name: 'Anna Lindqvist' }
+    mocks.auth = { isAuthenticated: true, user: { email: 'anna@pellier.example.com', username: 'anna', signInMethod: 'workshop' } }
+    render(<StatusLines messages={[]} />)
+    expect(row('Verified identity')).toHaveTextContent('anna, Workshop sign-in (demo shoppers)')
+  })
+
+  it('shows a plain identity for a typed or hosted sign-in', () => {
+    mocks.persona = null
+    mocks.auth = { isAuthenticated: true, user: { email: 'nadia@pellier.example.com', username: 'nadia', signInMethod: 'cognito' } }
+    render(<StatusLines messages={[]} />)
+    expect(row('Verified identity')).toHaveTextContent('nadia')
+    expect(row('Verified identity')).not.toHaveTextContent('Workshop sign-in')
   })
 })

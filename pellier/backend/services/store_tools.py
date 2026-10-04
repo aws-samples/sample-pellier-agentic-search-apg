@@ -526,6 +526,54 @@ _CREDIT_SQL = (
     "%s::text, %s::text, %s::text, %s::integer, %s::text, %s::text) AS result"
 )
 
+# The approvals a person confirmed for this customer's credit. The write binds
+# to one of them by fingerprint, so an approval for $100 never admits a $150
+# write, and no approval admits nothing.
+_APPROVED_CREDITS_SQL = """
+    SELECT action_hash
+      FROM pellier.approvals
+     WHERE customer_id = %s
+       AND tool = 'give_store_credit'
+       AND status = 'approved'
+"""
+
+APPROVAL_REQUIRED = "approval_required"
+APPROVAL_MISMATCH = "approval_mismatch"
+APPROVAL_GUARD = "approval_guard"
+
+
+def _approval_refusal(run: Run, customer_id: str, request_hash: str) -> Optional[Dict[str, Any]]:
+    """The refusal when no confirmed approval matches this exact write, else None.
+
+    Both rails pass through here: the Operator's execute path and a staff token
+    calling the Gateway directly. A missing approval and an approval for
+    different arguments are distinct refusals, so a changed amount is never
+    mistaken for a case nobody reviewed.
+    """
+    approved = {
+        str(row.get("action_hash") or "")
+        for row in run(_APPROVED_CREDITS_SQL, (str(customer_id),))
+    }
+    if request_hash in approved:
+        return None
+    if not approved:
+        return {
+            "status": APPROVAL_REQUIRED,
+            "denied_by": APPROVAL_GUARD,
+            "message": (
+                f"No confirmed review approves a store credit for {customer_id}. "
+                "A person approves the exact credit before it is written."
+            ),
+        }
+    return {
+        "status": APPROVAL_MISMATCH,
+        "denied_by": APPROVAL_GUARD,
+        "message": (
+            f"The confirmed review for {customer_id} approves different arguments. "
+            "Amount, reason and customer must match the approval exactly."
+        ),
+    }
+
 
 def give_store_credit(
     run: Run,
@@ -539,8 +587,9 @@ def give_store_credit(
     """Write one store credit, exactly once per idempotency key.
 
     Staff only, and only for a review a person approved: Cedar admits the
-    staff scope at the Gateway, and the Operator executes nothing it has not
-    confirmed. A replay returns the first result instead of a second credit.
+    staff scope at the Gateway, and the write itself refuses unless a
+    confirmed ``pellier.approvals`` row fingerprints these exact arguments.
+    A replay returns the first result instead of a second credit.
 
     Args:
         run: Statement runner for the calling rail.
@@ -567,6 +616,9 @@ def give_store_credit(
         amount_cents=cents,
         reason=clean_reason,
     )
+    refusal = _approval_refusal(run, str(customer_id), request_hash)
+    if refusal is not None:
+        return refusal
     rows = run(
         _CREDIT_SQL,
         (key, request_hash, str(customer_id), cents, clean_reason, str(issued_by or "") or None),
@@ -583,11 +635,13 @@ def give_store_credit(
 
 # A credit request becomes a pending review for staff: the same row shape the
 # Operator review queue reads, keyed so a repeated ask resolves to one card.
+# This is the one place a credit review is opened, for the shopper's
+# ``ask_a_person`` and for the Operator's Planner alike.
 _CREDIT_REVIEW_SQL = """
     INSERT INTO pellier.approvals
-        (customer_id, tool, args, status, source_turn_id, issue,
+        (customer_id, tool, args, status, source_turn_id, order_id, issue,
          recommendation, action_hash, requested_by_sub, requester_kind)
-    VALUES (%s, 'give_store_credit', %s::jsonb, 'pending', %s, %s,
+    VALUES (%s, 'give_store_credit', %s::jsonb, 'pending', %s, %s, %s,
             %s::jsonb, %s, %s, %s)
     ON CONFLICT (customer_id, tool, action_hash) WHERE status = 'pending'
     DO NOTHING
@@ -604,8 +658,10 @@ _OPEN_CREDIT_REVIEW_SQL = """
      LIMIT 1
 """
 
+REQUESTER_KINDS = ("shopper", "operator", "unverified")
 
-def _open_credit_review(
+
+def open_credit_review(
     run: Run,
     *,
     customer_id: str,
@@ -614,24 +670,46 @@ def _open_credit_review(
     source_turn_id: Optional[str],
     requested_by_sub: Optional[str],
     requester_kind: str,
+    order_id: Optional[int] = None,
+    issue: Optional[str] = None,
+    recommendation: Optional[Dict[str, Any]] = None,
 ) -> Optional[int]:
-    material = {"customer_id": customer_id, "amount_cents": amount_cents, "reason": reason}
+    """Open one pending review for this exact credit, or resolve to the open one.
+
+    Args:
+        run: Statement runner for the calling rail.
+        customer_id: The customer the credit is for.
+        amount_cents: Integer cents; the fingerprint covers it.
+        reason: The reason a person will approve; the fingerprint covers it.
+        source_turn_id: The turn that asked, for the review's lineage.
+        requested_by_sub: Verified subject that asked, when there is one.
+        requester_kind: ``shopper``, ``operator`` or ``unverified``.
+        order_id: The order the credit refers to, when one is known.
+        issue: What the case is about, shown on the review.
+        recommendation: What was proposed and why, as the desk renders it.
+
+    Returns:
+        The review id, or None when no row could be written or found.
+    """
+    material = {"customer_id": customer_id, "amount_cents": int(amount_cents), "reason": reason}
     action_hash = write_request_hash("give_store_credit", **material)
-    recommendation = {
+    proposed = recommendation or {
         "primaryAction": "give_store_credit",
         "rationale": "Requested by the client in conversation.",
     }
+    kind = requester_kind if requester_kind in REQUESTER_KINDS else "unverified"
     rows = run(
         _CREDIT_REVIEW_SQL,
         (
             customer_id,
             json.dumps(material, sort_keys=True),
             source_turn_id,
-            reason,
-            json.dumps(recommendation, sort_keys=True),
+            order_id,
+            (issue or reason or "").strip() or None,
+            json.dumps(proposed, sort_keys=True, default=str),
             action_hash,
             (requested_by_sub or "").strip() or None,
-            requester_kind,
+            kind,
         ),
     )
     if not rows:
@@ -696,7 +774,7 @@ def ask_a_person(
         return payload
 
     try:
-        review_id = _open_credit_review(
+        review_id = open_credit_review(
             run,
             customer_id=customer,
             amount_cents=cents,

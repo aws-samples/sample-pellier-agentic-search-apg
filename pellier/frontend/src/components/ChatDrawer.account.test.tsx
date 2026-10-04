@@ -1,10 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
-  authenticated: true,
-  logout: vi.fn(),
-  clearPersona: vi.fn(),
   openModal: vi.fn(),
   closeModal: vi.fn(),
   consumePendingQuery: vi.fn(() => null),
@@ -15,17 +12,11 @@ const state = vi.hoisted(() => ({
   addToCart: vi.fn(),
 }))
 
-vi.mock('../contexts/AuthContext', () => ({
-  useOptionalAuth: () => ({
-    isAuthenticated: state.authenticated,
-    user: state.authenticated ? { givenName: 'marco', email: 'marco@example.com' } : null,
-    logout: state.logout,
-  }),
-}))
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
     persona: { id: 'marco', display_name: 'Marco Delgado', avatar_initial: 'M', avatar_color: '#333' },
-    signOut: state.clearPersona,
+    switchPersona: vi.fn(),
+    signOut: vi.fn(),
   }),
 }))
 vi.mock('../contexts/UIContext', () => ({
@@ -56,30 +47,26 @@ vi.mock('../hooks/useAgentChat', () => ({
 }))
 vi.mock('./PellierChatBody', () => ({ default: () => null }))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
+vi.mock('./WorkshopSignIn', () => ({ default: () => <div data-testid="workshop-sign-in" /> }))
+vi.mock('./StatusLines', () => ({ default: () => <dl data-testid="status-lines" /> }))
 
 import ChatDrawer from './ChatDrawer'
 
-describe('Shopper account handoff', () => {
+describe('the account handoff in Ask Pellier', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    state.authenticated = true
   })
 
-  it('signs out of the verified account instead of only clearing the scenario', () => {
+  it('mounts the one-click shopper sign-in in place of the sign-out, sign-in, scenario, verify sequence', () => {
     render(<ChatDrawer />)
-    fireEvent.click(screen.getByText('Scenario & account details'))
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(state.logout).toHaveBeenCalledOnce()
-    expect(state.clearPersona).not.toHaveBeenCalled()
+    expect(screen.getByTestId('workshop-sign-in')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign in for account requests' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Scenario & account details')).not.toBeInTheDocument()
   })
 
-  it('offers account sign-in even when the Marco scenario is already selected', () => {
-    state.authenticated = false
+  it('keeps the session facts beneath the chips', () => {
     render(<ChatDrawer />)
-    fireEvent.click(screen.getByText('Scenario & account details'))
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in for account requests' }))
-    expect(state.openModal).toHaveBeenCalledWith('auth')
-    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+    expect(screen.getByText('Session details')).toBeInTheDocument()
+    expect(screen.getByTestId('status-lines')).toBeInTheDocument()
   })
 })

@@ -1,683 +1,299 @@
 /**
- * Tests for the Pellier Operator surfaces.
- *
- * The behaviours worth pinning are the ones a screenshot cannot show: that a
- * missing portrait becomes a designed monogram rather than a grey box, that
- * the client record keeps evidence roles separate, and that consequential
- * actions enter through Concierge and Action Queue rather than a bypass form.
+ * The desk: the clients, Jessica's record, the investigation and the proposed
+ * credit, against the API client mocked at the service boundary.
  */
-
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render as renderBase, screen, fireEvent } from '@testing-library/react'
-import type { ReactElement } from 'react'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { UIProvider } from '../contexts/UIContext'
-import ClientBook from './surfaces/ClientBook'
-import ClientRecord from './surfaces/ClientRecord'
-import ClientAvatar from './components/ClientAvatar'
-import { MEMBERSHIP } from '../data/membership'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TurnStep } from '../components/turn/turnTypes'
+import type { InvestigationAnswer } from '../services/operator'
 import {
-  CAPABILITY_LABELS,
-  GOVERNED_UNAVAILABLE_COPY,
-} from '../services/operatorCapabilities'
+  ANSWER, APPROVED_REVIEW, BOOK, DENIED_REVIEW, EXECUTED_REVIEW, NOTHING_WRITTEN,
+  PENDING_REVIEW, RECORD, RECORDED_ONCE, STEPS, WRITE_KEY, detail,
+} from './fixtures'
 
-function render(ui: ReactElement) {
-  return renderBase(<UIProvider>{ui}</UIProvider>)
-}
+const api = vi.hoisted(() => ({
+  fetchClientBook: vi.fn(),
+  fetchClientRecord: vi.fn(),
+  fetchReview: vi.fn(),
+  fetchReviewQueue: vi.fn(),
+  confirmReview: vi.fn(),
+  declineReview: vi.fn(),
+  executeReview: vi.fn(),
+  streamInvestigation: vi.fn(),
+}))
 
-const BOOK = {
-  total: 3,
-  byMembership: { registered: 1, circle: 1, maison: 1 },
-  clients: [
-    {
-      customerId: 'CUST-AMARA', slug: 'amara', name: 'Amara Okonkwo',
-      membership: 'maison' as const, spend12mo: 18900, orderCount: 5,
-      orderValue: 3495, lastOrderAt: null, note: 'Investment pieces.',
-      personaId: null,
-    },
-    {
-      customerId: 'CUST-MARCO', slug: 'marco', name: 'Marco',
-      membership: 'circle' as const, spend12mo: 3180, orderCount: 7,
-      orderValue: 1200, lastOrderAt: null, note: 'Natural fibers.',
-      personaId: 'marco',
-    },
-    {
-      customerId: 'CUST-NEW', slug: 'new', name: 'Nadia Weber',
-      membership: 'registered' as const, spend12mo: 410, orderCount: 1,
-      orderValue: 60, lastOrderAt: null, note: 'New joiner.',
-      personaId: null,
-    },
-  ],
-}
+vi.mock('../services/operator', async () => {
+  const actual = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+  return { ...actual, ...api }
+})
 
-const RECORD = {
-  client: {
-    customerId: 'CUST-JESSICA', slug: 'jessica', name: 'Jessica Nakamura',
-    membership: 'circle' as const, spend12mo: 3940, orderCount: 2,
-    orderValue: 540, lastOrderAt: null, note: 'Open return dispute.',
-    personaId: null, openTicketCount: 1, creditBalanceCents: 4000,
-    creditBalance: '40.00',
-    returnEvidence: {
-      authoritativeReturnCount: 0,
-      supportAssertsReturn: true,
-      unconfirmedReturnAssertion: true,
-    },
-  },
-  orders: [
-    {
-      orderId: 1, productId: '41', productName: 'Coral Lacquer Catchall',
-      brand: 'Pellier', pricePaid: 325.36, currentPrice: 325.36, quantity: 1, placedAt: null,
-      imageUrl: '/products/house-coral-lacquer-catchall.png',
-    },
-  ],
-  tickets: [
-    {
-      ticketId: 'TKT-1', subject: 'Refund disputed', status: 'pending' as const,
-      channel: 'chat', lastNote: 'Awaiting decision.', openedAt: null,
-      resolvedAt: null,
-    },
-  ],
-  credits: [
-    {
-      creditId: 7, amountCents: 4000, amount: '40.00', currency: 'USD',
-      reason: 'Goodwill: shipping', issuedBy: 'operator-sub', createdAt: null,
-    },
-  ],
-  returns: [],
-}
+const auth = vi.hoisted(() => ({
+  user: { sub: 'sub-nadia', email: 'nadia@pellier.example.com', username: 'nadia', givenName: 'nadia' } as { sub: string; email: string; username?: string; givenName?: string } | null,
+  isAuthenticated: true,
+  loading: false,
+  authUnavailable: false,
+  logout: vi.fn(),
+}))
 
-function mockFetch(handler: (url: string, init?: RequestInit) => unknown) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      const result = handler(url, init) as
-        | { status?: number; body?: unknown }
-        | undefined
-      const status = result?.status ?? 200
-      return Promise.resolve({
-        ok: status >= 200 && status < 300,
-        status,
-        json: () => Promise.resolve(result?.body ?? {}),
-      } as Response)
-    }),
-  )
-}
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => auth,
+  useOptionalAuth: () => auth,
+}))
 
-function renderRecord() {
+import ClientBook, { ClientList } from './surfaces/ClientBook'
+import ClientRecord from './surfaces/ClientRecord'
+import ReviewRecord from './surfaces/ReviewRecord'
+import { ReviewList, reviewOutcome } from './surfaces/ReviewQueue'
+import OperatorFrame, { operatorTitleForPath } from './shell/OperatorFrame'
+
+function renderAt(path: string, element: React.ReactNode) {
   return render(
-    <MemoryRouter initialEntries={['/operator/clients/CUST-JESSICA']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/operator/clients/:customerId" element={<ClientRecord />} />
+        <Route path="/operator/clients/:customerId" element={element} />
+        <Route path="/operator/reviews/:reviewId" element={element} />
+        <Route path="*" element={element} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
+beforeEach(() => {
+  vi.clearAllMocks()
+  api.fetchClientBook.mockResolvedValue(BOOK)
+  api.fetchClientRecord.mockResolvedValue(RECORD)
+  api.fetchReviewQueue.mockResolvedValue({ reviews: [PENDING_REVIEW], total: 1, pendingCount: 1 })
+  api.fetchReview.mockResolvedValue(detail(PENDING_REVIEW))
+  api.confirmReview.mockResolvedValue({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedAt: null, assurance: APPROVED_REVIEW.assurance })
+  api.declineReview.mockResolvedValue({ reviewId: 41, status: 'rejected', humanState: 'declined', decidedBy: 'sub-nadia', decidedAt: null, assurance: { human: 'DECLINED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' } })
+  api.executeReview.mockResolvedValue({
+    reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
+    actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', assurance: EXECUTED_REVIEW.assurance,
+    notes: {}, tool: 'give_store_credit', result: { status: 'success', credit_id: 12, idempotent_replay: false }, record: RECORDED_ONCE,
+  })
+  api.streamInvestigation.mockImplementation(async (_id: string, onStep: (s: TurnStep) => void, onAnswer: (a: InvestigationAnswer) => void) => {
+    for (const step of STEPS) onStep(step)
+    onAnswer(ANSWER)
+    return ANSWER
+  })
 })
 
-describe('ClientBook', () => {
-  it('narrows the book by a typed name and offers a clear control', async () => {
-    mockFetch(() => ({ body: BOOK }))
+describe('the clients', () => {
+  it('lists open requests and the last order, with no tiers', async () => {
+    renderAt('/operator', <ClientList />)
+    expect(await screen.findByTestId('operator-book')).toBeInTheDocument()
+    const jessica = screen.getByTestId('operator-client-jessica')
+    expect(jessica).toHaveTextContent('Jessica Nakamura')
+    expect(jessica).toHaveTextContent('1 open request')
+    expect(jessica).toHaveTextContent('Two items went back, no credit yet')
+    expect(jessica).toHaveTextContent('Waffle Bath Robe, Sage')
+    expect(screen.getByTestId('operator-client-anna')).toHaveTextContent('Stoneware Pour-Over Set')
+    expect(screen.queryByText(/silver|gold|member/i)).not.toBeInTheDocument()
+    expect(screen.getByText('2 open requests')).toBeInTheDocument()
+  })
+
+  it('tells a signed-out reader to sign in as Nadia with her password', async () => {
+    const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+    api.fetchClientBook.mockRejectedValueOnce(new OperatorApiError('authentication_required', 401))
+    renderAt('/operator', <ClientList />)
+    expect(await screen.findByTestId('operator-book-error')).toHaveTextContent('Staff sign-in required')
+    expect(screen.getByTestId('operator-book-error')).toHaveTextContent(/Nadia with her password/)
+    expect(screen.getByTestId('operator-state-sign-in')).toBeInTheDocument()
+  })
+
+  it('refuses a signed-in shopper without offering sign-in again', async () => {
+    const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+    api.fetchClientBook.mockRejectedValueOnce(new OperatorApiError('operator_group_required', 403))
+    renderAt('/operator', <ClientList />)
+    expect(await screen.findByTestId('operator-book-error')).toHaveTextContent('Staff access required')
+    expect(screen.queryByTestId('operator-state-sign-in')).not.toBeInTheDocument()
+  })
+})
+
+describe("Jessica's record", () => {
+  it('shows the ticket, the orders with their return state, and no credit', async () => {
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    expect(await screen.findByTestId('operator-record')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Jessica Nakamura')
+    const ticket = screen.getByTestId('operator-ticket')
+    expect(ticket).toHaveTextContent('TKT-2026-3015')
+    expect(ticket).toHaveTextContent('Two items went back, no credit yet')
+    expect(within(ticket).getByTestId('status-tag')).toHaveTextContent('Open')
+    expect(within(screen.getByTestId('operator-order-301')).getByTestId('status-tag')).toHaveTextContent('Returned')
+    expect(within(screen.getByTestId('operator-order-302')).getByTestId('status-tag')).toHaveTextContent('Returned')
+    expect(within(screen.getByTestId('operator-order-303')).getByTestId('status-tag')).toHaveTextContent('Delivered')
+    expect(screen.getByTestId('operator-credits-none')).toHaveTextContent('No credit recorded.')
+    expect(screen.getByTestId('operator-investigate')).toHaveTextContent('Investigate')
+    expect(screen.getByTestId('operator-storefront-handoff')).toHaveAttribute('href', '/?persona=jessica')
+  })
+
+  it('streams the Investigator and Planner steps, then shows the proposed credit waiting for approval', async () => {
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    expect(api.streamInvestigation).toHaveBeenCalledWith('CUST-JESSICA', expect.any(Function), expect.any(Function), expect.any(AbortSignal))
+    expect(await screen.findByTestId('operator-brief')).toHaveTextContent('No store credit is recorded')
+    // The step list merged by id: one row per step, the last status wins.
+    fireEvent.click(screen.getByTestId('turn-fold'))
+    const steps = screen.getAllByTestId('turn-step')
+    expect(steps).toHaveLength(5)
+    expect(steps.map(s => s.getAttribute('data-status'))).toEqual(['done', 'done', 'done', 'done', 'done'])
+    expect(steps[1]).toHaveTextContent("Reading Jessica's tickets")
+    expect(steps[1]).toHaveTextContent('1 open ticket: Two items went back, no credit yet')
+    expect(steps[4]).toHaveTextContent('$100.00 credit proposed for 2 returned items, waiting for approval')
+    expect(screen.getByTestId('turn-status')).toHaveTextContent('Waiting for approval')
+    // The card for the review the Planner opened.
+    await waitFor(() => expect(api.fetchReview).toHaveBeenCalledWith(41))
+    const card = await screen.findByTestId('operator-proposed-credit')
+    expect(within(card).getByTestId('operator-credit-amount')).toHaveTextContent('$100.00')
+    expect(within(card).getByText('Waiting for Nadia')).toBeInTheDocument()
+    expect(within(card).getByTestId('operator-review-confirm')).toBeInTheDocument()
+    expect(within(card).getByTestId('operator-review-decline')).toBeInTheDocument()
+    expect(within(card).queryByTestId('operator-review-execute')).not.toBeInTheDocument()
+  })
+
+  it('reports a failed investigation and proposes nothing', async () => {
+    api.streamInvestigation.mockImplementationOnce(async (_id: string, onStep: (s: TurnStep) => void) => {
+      onStep(STEPS[0])
+      const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+      throw new OperatorApiError('investigation_failed', 500)
+    })
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    expect(await screen.findByTestId('operator-investigation-error')).toHaveTextContent('did not complete')
+    expect(screen.queryByTestId('operator-proposed-credit')).not.toBeInTheDocument()
+    expect(api.fetchReview).not.toHaveBeenCalled()
+  })
+
+  it('follows an existing review after a refresh', async () => {
+    api.fetchClientRecord.mockResolvedValue({ ...RECORD, reviews: [PENDING_REVIEW] })
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    const line = await screen.findByTestId('operator-record-review')
+    expect(line).toHaveTextContent('Waiting for approval')
+    expect(line).toHaveTextContent('$100.00 store credit')
+    expect(within(line).getByRole('link', { name: 'Open the review' })).toHaveAttribute('href', '/operator/reviews/41')
+    expect(await screen.findByTestId('operator-proposed-credit')).toBeInTheDocument()
+  })
+})
+
+describe('the review record', () => {
+  it('binds Approve to the exact fingerprint and re-reads the record', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(PENDING_REVIEW)).mockResolvedValue(detail(APPROVED_REVIEW))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-confirm'))
+    await waitFor(() => expect(api.confirmReview).toHaveBeenCalledWith(41, PENDING_REVIEW.actionHash))
+    expect(await screen.findByText('Approved by Nadia')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute')
+    expect(api.executeReview).not.toHaveBeenCalled()
+    // Approval is not a policy verdict and not a row.
+    const checks = screen.getByTestId('operator-credit-checks')
+    expect(within(checks).getByText('Not evaluated yet')).toBeInTheDocument()
+    expect(within(checks).getByText('Nothing written')).toBeInTheDocument()
+  })
+
+  it('declines without a fingerprint and submits nothing', async () => {
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-decline'))
+    await waitFor(() => expect(api.declineReview).toHaveBeenCalledWith(41))
+    expect(api.confirmReview).not.toHaveBeenCalled()
+    expect(api.executeReview).not.toHaveBeenCalled()
+  })
+
+  it('executes the approved credit and shows one credit and one audit row', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(APPROVED_REVIEW)).mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-execute'))
+    await waitFor(() => expect(api.executeReview).toHaveBeenCalledWith(41, APPROVED_REVIEW.actionHash))
+    const checks = await screen.findByTestId('operator-credit-checks')
+    await waitFor(() => expect(within(checks).getByText('ALLOW')).toBeInTheDocument())
+    expect(within(checks).getByText('Recorded once')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('Credit #12 and tool_audit row #4051')
+    expect(screen.getByTestId('operator-credit-recorded')).toHaveTextContent('Credit #12 recorded for Jessica Nakamura')
+    expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Retry execution')
+    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('ENFORCE')
+    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent(WRITE_KEY)
+  })
+
+  it('shows a Cedar denial as DENY with nothing written for the key', async () => {
+    api.fetchReview.mockResolvedValue(detail(DENIED_REVIEW, NOTHING_WRITTEN))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const checks = await screen.findByTestId('operator-credit-checks')
+    expect(within(checks).getByText('DENY')).toBeInTheDocument()
+    expect(within(checks).getByText('Not written')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('Zero store_credits rows and zero tool_audit rows for this key: the tool was never entered.')
+    expect(screen.getByTestId('operator-credit-denied')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
+  })
+
+  it('surfaces a governed refusal with what is missing', async () => {
+    const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+    api.fetchReview.mockResolvedValue(detail(APPROVED_REVIEW))
+    api.executeReview.mockRejectedValueOnce(new OperatorApiError('governed_rail_unavailable', 409, ['AGENTCORE_GATEWAY_URL']))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-execute'))
+    expect(await screen.findByTestId('operator-review-decision-error')).toHaveTextContent('Missing: AGENTCORE_GATEWAY_URL')
+  })
+})
+
+describe('the reviews list', () => {
+  it('names where each credit stands', async () => {
+    api.fetchReviewQueue.mockResolvedValue({ reviews: [PENDING_REVIEW, EXECUTED_REVIEW, DENIED_REVIEW], total: 3, pendingCount: 1 })
+    renderAt('/operator/reviews', <ReviewList />)
+    expect(await screen.findByTestId('operator-reviews')).toBeInTheDocument()
+    const rows = screen.getAllByTestId('operator-review-41')
+    expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for Nadia', 'Credited', 'DENY'])
+    expect(screen.getByTestId('operator-reviews-count')).toHaveTextContent('1 waiting')
+  })
+
+  it('never derives an outcome from the human decision alone', () => {
+    expect(reviewOutcome(APPROVED_REVIEW).word).toBe('Approved')
+    expect(reviewOutcome({ ...APPROVED_REVIEW, executionTurnId: 'turn-x' }).word).toBe('Outcome unverified')
+    expect(reviewOutcome(EXECUTED_REVIEW).word).toBe('Credited')
+    expect(reviewOutcome(DENIED_REVIEW).word).toBe('DENY')
+  })
+})
+
+describe('the desk shell', () => {
+  it('titles each route and shows Nadia with her portrait when she is signed in', async () => {
+    expect(operatorTitleForPath('/operator')).toBe('Clients, Pellier Operator')
+    expect(operatorTitleForPath('/operator/clients/CUST-JESSICA')).toBe('Client, Pellier Operator')
+    expect(operatorTitleForPath('/operator/reviews')).toBe('Reviews, Pellier Operator')
+    expect(operatorTitleForPath('/operator/reviews/41')).toBe('Review, Pellier Operator')
     render(
       <MemoryRouter initialEntries={['/operator']}>
         <Routes>
-          <Route path="/operator" element={<ClientBook />} />
+          <Route path="/operator" element={<OperatorFrame />}>
+            <Route index element={<ClientBook />} />
+          </Route>
         </Routes>
       </MemoryRouter>,
     )
-    await screen.findByTestId('operator-client-amara')
-
-    fireEvent.change(screen.getByTestId('operator-book-search'), {
-      target: { value: 'nadia' },
-    })
-
-    expect(screen.getByTestId('operator-client-new')).toBeInTheDocument()
-    expect(screen.queryByTestId('operator-client-amara')).not.toBeInTheDocument()
-    expect(screen.getByTestId('operator-filter-note')).toHaveTextContent('matching "nadia"')
-
-    fireEvent.click(screen.getByTestId('operator-filter-clear'))
-    expect(screen.getByTestId('operator-client-amara')).toBeInTheDocument()
+    const staff = await screen.findByTestId('operator-staff')
+    expect(staff).toHaveTextContent('Nadia')
+    expect(staff.querySelector('img')).toHaveAttribute('src', expect.stringContaining('/assets/personas/nadia-720.webp'))
+    expect(await screen.findByTestId('operator-book')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-book-choose')).toHaveTextContent('Choose a client')
+    expect(screen.getByTestId('operator-reviews-link-count')).toHaveTextContent('1')
   })
 
-  beforeEach(() => {
-    mockFetch(() => ({ body: BOOK }))
-  })
-
-  it('lists every client with their rung', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-
-    expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument()
-    expect(screen.getByText('Nadia Weber')).toBeInTheDocument()
-    expect(screen.getByTestId('operator-client-amara')).toBeInTheDocument()
-    for (const [slug, id] of [['amara', 'CUST-AMARA'], ['marco', 'CUST-MARCO'], ['new', 'CUST-NEW']]) {
-      expect(screen.getByTestId(`operator-client-${slug}`)).toHaveAttribute('href', `/operator/clients/${id}#operator-concierge`)
-      expect(screen.getByTestId(`operator-client-${slug}`)).toHaveTextContent('Open chat')
-    }
-  })
-
-  it('takes membership counts from the API rather than recomputing them', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    const summary = await screen.findByTestId('operator-book-summary')
-
-    // One of each, straight from byMembership.
-    expect(summary).toHaveTextContent('Gold')
-    expect(summary).toHaveTextContent('Silver')
-    // The descriptor rides with the label wherever the tier matters.
-    expect(summary).toHaveTextContent('priority client')
-    expect(summary).toHaveTextContent('Member')
-  })
-
-  it('pairs every rung label with a plain functional descriptor', async () => {
-    // The label is premium branding; the descriptor is instant comprehension.
-    // Shipping one without the other loses half the point.
-    expect(MEMBERSHIP.registered.descriptor).toBe('standard client')
-    expect(MEMBERSHIP.circle.descriptor).toBe('priority client')
-    expect(MEMBERSHIP.maison.descriptor).toBe('private client')
-    expect(MEMBERSHIP.circle.label).toBe('Silver')
-  })
-
-  it('defines each rung by what it earns', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    const ladder = await screen.findByTestId('operator-book-summary')
-
-    // The pills are jargon without this: an operator can read "Gold" and
-    // still not know what the house owes that client.
-    expect(ladder).toHaveTextContent(
-      'Private appointments, repairs, and a dedicated advisor',
-    )
-  })
-
-  it('filters the book to one rung when its cell is pressed', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-    expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument()
-    expect(screen.getByText('Nadia Weber')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByTestId('operator-ladder-maison'))
-
-    expect(screen.getByTestId('operator-ladder-maison')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
-    expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument()
-    // Nadia is registered, so she leaves the list.
-    expect(screen.queryByText('Nadia Weber')).not.toBeInTheDocument()
-  })
-
-  it('says the list is filtered rather than just showing fewer rows', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-    fireEvent.click(screen.getByTestId('operator-ladder-circle'))
-
-    const note = screen.getByTestId('operator-filter-note')
-    expect(note).toHaveTextContent('Showing 1 of 3')
-    expect(note).toHaveTextContent('Silver')
-  })
-
-  it('clears the filter by pressing the same cell again', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-    const cell = screen.getByTestId('operator-ladder-maison')
-
-    fireEvent.click(cell)
-    expect(screen.queryByText('Nadia Weber')).not.toBeInTheDocument()
-
-    fireEvent.click(cell)
-    expect(cell).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByText('Nadia Weber')).toBeInTheDocument()
-    expect(screen.queryByTestId('operator-filter-note')).not.toBeInTheDocument()
-  })
-
-  it('clears the filter from the explicit escape hatch', async () => {
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-    fireEvent.click(screen.getByTestId('operator-ladder-maison'))
-    fireEvent.click(screen.getByTestId('operator-filter-clear'))
-
-    expect(screen.getByText('Nadia Weber')).toBeInTheDocument()
-  })
-
-  it('names the missing migration when the book cannot be read', async () => {
-    mockFetch(() => ({ status: 503, body: { detail: 'client_book_unavailable' } }))
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    const state = await screen.findByTestId('operator-book-error')
-    expect(state).toHaveTextContent('018_client_book.sql')
-  })
-
-  it('does not blame the database when the operator is signed out', async () => {
-    mockFetch(() => ({ status: 401, body: { detail: 'authentication_required' } }))
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    const state = await screen.findByTestId('operator-book-error')
-    expect(state).toHaveTextContent('Operator sign-in required')
-    expect(state).toHaveTextContent('No database request was attempted')
-    expect(state).not.toHaveTextContent('018_client_book.sql')
-    expect(screen.getByTestId('operator-state-sign-in')).toHaveTextContent(
-      'Sign in',
-    )
-  })
-
-  it('caps the entrance stagger so the last row is not still arriving', async () => {
-    // The delay is a count, not a duration: without a cap a forty-client book
-    // would still be writing itself out a second after it loaded.
-    mockFetch(() => ({ body: BOOK }))
-    const { container } = render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    await screen.findByTestId('operator-book')
-
-    const indices = [...container.querySelectorAll('.operator-book > *')].map(
-      (el) => Number((el as HTMLElement).style.getPropertyValue('--op-row-index')),
-    )
-    expect(indices.length).toBeGreaterThan(0)
-    expect(indices).toEqual([...indices].sort((a, b) => a - b))
-    expect(Math.max(...indices)).toBeLessThanOrEqual(12)
-  })
-
-  it('distinguishes an empty book from a broken one', async () => {
-    mockFetch(() => ({
-      body: { total: 0, clients: [], byMembership: { registered: 0, circle: 0, maison: 0 } },
-    }))
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-    expect(await screen.findByTestId('operator-book-empty')).toBeInTheDocument()
-  })
-
-  it('promotes Jessica service recovery as a live case entry point', async () => {
-    mockFetch(() => ({
-      body: {
-        total: 4,
-        byMembership: { registered: 1, circle: 2, maison: 1 },
-        clients: [
-          ...BOOK.clients,
-          {
-            customerId: 'CUST-JESSICA',
-            slug: 'jessica',
-            name: 'Jessica Nakamura',
-            membership: 'circle',
-            spend12mo: 3940,
-            orderCount: 2,
-            orderValue: 540,
-            lastOrderAt: null,
-            note: 'Open return dispute.',
-            personaId: null,
-          },
-        ],
-      },
-    }))
-    render(
-      <MemoryRouter>
-        <ClientBook />
-      </MemoryRouter>,
-    )
-
-    const entry = await screen.findByTestId('operator-jessica-case-entry')
-    expect(screen.getByTestId('operator-book')).toHaveTextContent(
-      'Operator Concierge runs a separate investigation and resolution graph',
-    )
-    expect(screen.getByTestId('operator-book')).not.toHaveTextContent(
-      'the same agent that serves the storefront',
-    )
-    expect(entry).toHaveTextContent('Jessica Nakamura')
-    expect(entry).toHaveTextContent('Open return dispute')
-    expect(
-      screen.getByRole('button', { name: /Start guided review/i }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open chat for Jessica Nakamura' })).toHaveAttribute(
-      'href', '/operator/clients/CUST-JESSICA#operator-concierge',
-    )
-  })
-
-  it('opens Jessica on a fresh guided service-recovery run', async () => {
-    mockFetch(() => ({
-      body: {
-        total: 1,
-        byMembership: { registered: 0, circle: 1, maison: 0 },
-        clients: [{
-          customerId: 'CUST-JESSICA',
-          slug: 'jessica',
-          name: 'Jessica Nakamura',
-          membership: 'circle',
-          spend12mo: 3940,
-          orderCount: 2,
-          orderValue: 540,
-          lastOrderAt: null,
-          note: 'Open return dispute.',
-          personaId: null,
-        }],
-      },
-    }))
-    const LocationProbe = () => {
-      const location = useLocation()
-      return (
-        <div data-testid="operator-location">
-          {location.pathname}{location.search}{location.hash}
-        </div>
+  it('offers the password sign-in, never a staff chip, when nobody is signed in', async () => {
+    auth.isAuthenticated = false
+    auth.user = null
+    try {
+      render(
+        <MemoryRouter initialEntries={['/operator']}>
+          <Routes>
+            <Route path="/operator" element={<OperatorFrame />}>
+              <Route index element={<ClientBook />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
       )
+      expect(await screen.findByTestId('operator-sign-in')).toHaveTextContent('Staff sign-in')
+      expect(screen.queryByTestId('workshop-sign-in')).not.toBeInTheDocument()
+    } finally {
+      auth.isAuthenticated = true
+      auth.user = { sub: 'sub-nadia', email: 'nadia@pellier.example.com', username: 'nadia', givenName: 'nadia' }
     }
-    render(
-      <MemoryRouter initialEntries={['/operator']}>
-        <Routes>
-          <Route path="/operator" element={<ClientBook />} />
-          <Route
-            path="/operator/clients/:customerId"
-            element={<LocationProbe />}
-          />
-        </Routes>
-      </MemoryRouter>,
-    )
-
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Start guided review/i }),
-    )
-
-    expect(await screen.findByTestId('operator-location')).toHaveTextContent(
-      '/operator/clients/CUST-JESSICA?guided=service-recovery#operator-concierge-title',
-    )
-  })
-})
-
-describe('ClientAvatar', () => {
-  it.each(['marco', 'anna', 'theo'])('keeps %s recognizable when a review omits persona metadata', (persona) => {
-    const { container } = render(
-      <ClientAvatar customerId={`CUST-${persona.toUpperCase()}`} name={persona} />,
-    )
-    expect(container.querySelector('img')?.getAttribute('src')).toContain(
-      `/assets/personas/${persona}-720.webp`,
-    )
-  })
-
-  it('renders a designed monogram, not a grey box, for an unknown client', () => {
-    render(<ClientAvatar customerId="CUST-NOBODY" name="Nadia Weber" />)
-    const monogram = screen.getByTestId('operator-monogram')
-    expect(monogram).toHaveTextContent('NW')
-  })
-
-  it('uses the real portrait when the client has one', () => {
-    const { container } = render(
-      <ClientAvatar customerId="CUST-JESSICA" name="Jessica Nakamura" />,
-    )
-    const img = container.querySelector('img')
-    expect(img).not.toBeNull()
-    expect(img?.getAttribute('src')).toContain('client-jessica-portrait-160.webp')
-  })
-
-  it('resolves a hero through the persona map, not the client map', () => {
-    const { container } = render(
-      <ClientAvatar customerId="CUST-MARCO" name="Marco" personaId="marco" />,
-    )
-    expect(container.querySelector('img')?.getAttribute('src')).toContain(
-      '/assets/personas/marco-720.webp',
-    )
-  })
-})
-
-describe('ClientRecord', () => {
-  beforeEach(() => {
-    mockFetch((url) => {
-      if (url.includes('/api/operator/clients/')) return { body: RECORD }
-      return { body: {} }
-    })
-  })
-
-  it('does not blame Aurora when the operator is signed out', async () => {
-    mockFetch(() => ({ status: 401, body: { detail: 'authentication_required' } }))
-    renderRecord()
-
-    const state = await screen.findByTestId('operator-record-error')
-    expect(state).toHaveTextContent('Operator sign-in required')
-    expect(state).toHaveTextContent('No database request was attempted')
-    expect(state).not.toHaveTextContent('Aurora did not return')
-  })
-
-  it('states that standing is context, not authorization', async () => {
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    // Tier / Cedar / RLS are three independent questions, and the operator is
-    // told so on the surface where they are about to act.
-    const record = screen.getByTestId('operator-record')
-    expect(record).toHaveTextContent('Standing is business context')
-    expect(record).toHaveTextContent('For tools exposed through Gateway, AgentCore Policy decides whether the action is permitted')
-    expect(record).toHaveTextContent('Aurora still decides')
-  })
-
-  it('gives the three storefront heroes their own plate and everyone else the house ground', async () => {
-    // The record head is the desk's one product-forward moment, and only a
-    // client who exists in the shop has a photograph of their own. An
-    // unrecognised persona must fall back rather than request an asset that
-    // was never generated.
-    mockFetch((url) => {
-      if (url.includes('/api/operator/clients/')) {
-        return {
-          body: {
-            ...RECORD,
-            client: { ...RECORD.client, personaId: 'marco' },
-          },
-        }
-      }
-      return { body: {} }
-    })
-    const { container } = renderRecord()
-    await screen.findByTestId('operator-record')
-
-    const head = container.querySelector('.operator-record-head')
-    expect(head).toHaveAttribute('data-plate', 'persona')
-    // Through ResponsiveImage, so the path carries the Workshop Studio base.
-    expect(
-      container.querySelector('.operator-record-plate-image')?.getAttribute('src'),
-    ).toContain('/products/hero-marco-960.webp')
-  })
-
-  it('falls back to the house ground when the client is not a hero', async () => {
-    const { container } = renderRecord()
-    await screen.findByTestId('operator-record')
-
-    const head = container.querySelector('.operator-record-head')
-    expect(head).toHaveAttribute('data-plate', 'house')
-    expect(container.querySelector('.operator-record-plate-image')).toBeNull()
-  })
-
-  it('keeps the governance note out of the identity band', async () => {
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    // The note is guidance for the operator, not part of the client's
-    // identity, and 13px prose belongs on paper rather than over a scrim.
-    const head = document
-      .querySelector('.operator-record-head')
-    expect(head).not.toHaveTextContent('Standing is business context')
-    expect(
-      document.querySelector('.operator-record-context'),
-    ).toHaveTextContent('Standing is business context')
-  })
-
-  it('shows standing, orders, tickets and credits together', async () => {
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    // Scoped to the record heading: the Concierge pane also names the client, to
-    // make the conversation's subject unambiguous, so an unscoped text query now
-    // matches twice. That duplication is intentional.
-    expect(
-      screen.getByRole('heading', { name: 'Jessica Nakamura' }),
-    ).toBeInTheDocument()
-    expect(screen.getByTestId('operator-rung-circle')).toBeInTheDocument()
-    expect(screen.getByTestId('operator-orders')).toHaveClass('operator-orders')
-    expect(screen.getByTestId('operator-orders')).toHaveTextContent(
-      'Coral Lacquer Catchall',
-    )
-    expect(
-      screen.getByText('Coral Lacquer Catchall').closest('td'),
-    ).toHaveClass('operator-order-piece')
-    expect(screen.getByRole('columnheader', { name: 'ID' })).not.toHaveClass(
-      'operator-col-optional',
-    )
-    expect(screen.getByText('Pellier')).toHaveClass('operator-cell-note')
-    expect(screen.getByTestId('operator-tickets')).toHaveTextContent(
-      'Refund disputed',
-    )
-    expect(screen.getByTestId('operator-credits')).toHaveTextContent('40.00')
-  })
-
-  it('promotes the live service request and keeps conflicting evidence separate', async () => {
-    renderRecord()
-
-    const request = await screen.findByTestId('operator-service-request')
-    expect(request).toHaveTextContent('Refund disputed')
-    expect(request).toHaveTextContent('Awaiting decision.')
-    expect(request).toHaveTextContent('0 authoritative rows')
-    expect(request).toHaveTextContent(
-      'Reconcile the assertion before promising an outcome.',
-    )
-    expect(request).toHaveAttribute('data-conflict', 'true')
-    expect(
-      screen.getByRole('link', { name: /Investigate case/i }),
-    ).toHaveAttribute('href', '#operator-concierge')
-  })
-
-  it('offers every nonhero client a read-only storefront preview', async () => {
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    expect(screen.getByTestId('operator-storefront-handoff')).toHaveAttribute(
-      'href',
-      '/?clientPreview=CUST-JESSICA',
-    )
-    expect(screen.getByTestId('operator-storefront-handoff')).toHaveTextContent(
-      'Preview client context',
-    )
-  })
-
-  it('keeps an unrelated current request separate from another ticket\'s return assertion', async () => {
-    mockFetch((url) => ({ body: url.includes('/api/operator/clients/') ? {
-      ...RECORD,
-      client: { ...RECORD.client, returnEvidence: {
-        ...RECORD.client.returnEvidence,
-        assertionTicketIds: ['TKT-RETURN'],
-        unrecordedDisputedProductIds: ['41'],
-      } },
-      tickets: [
-        { ...RECORD.tickets[0], ticketId: 'TKT-DELIVERY', subject: 'Delivery date', lastNote: 'When will it arrive?' },
-        { ...RECORD.tickets[0], ticketId: 'TKT-RETURN', subject: 'Return received' },
-      ],
-    } : {} }))
-    renderRecord()
-    const request = await screen.findByTestId('operator-service-request')
-    expect(request).toHaveTextContent('Delivery date')
-    expect(request).not.toHaveTextContent('Needs verification')
-    expect(request).toHaveAttribute('data-conflict', 'false')
-    expect(screen.queryByTestId('operator-service-request-receipt')).toBeNull()
-    expect(screen.queryByTestId('operator-service-request-unrecorded')).toBeNull()
-  })
-
-  it('uses a real persona-switch handoff for a canonical hero', async () => {
-    mockFetch((url) => {
-      if (url.includes('/api/operator/clients/')) {
-        return {
-          body: {
-            ...RECORD,
-            client: {
-              ...RECORD.client,
-              customerId: 'CUST-MARCO',
-              slug: 'marco',
-              name: 'Marco',
-              personaId: 'marco',
-            },
-          },
-        }
-      }
-      return { body: {} }
-    })
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    expect(screen.getByTestId('operator-storefront-handoff')).toHaveAttribute(
-      'href',
-      '/?persona=marco',
-    )
-    expect(screen.getByTestId('operator-storefront-handoff')).toHaveTextContent(
-      "Open Marco's storefront",
-    )
-  })
-
-  it('offers no direct mutation form outside the review workflow', async () => {
-    renderRecord()
-    await screen.findByTestId('operator-record')
-
-    expect(screen.queryByTestId('operator-credit-submit')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('operator-return-submit')).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: /Investigate case/i }),
-    ).toHaveAttribute('href', '#operator-concierge')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Capability copy
-// ---------------------------------------------------------------------------
-
-describe('governed capability copy', () => {
-  it('never calls a deliberately closed rail an error', () => {
-    // A closed write rail is a governance state, not a fault. Asserted against the
-    // shipped strings rather than a copy of them: a test that restates the copy
-    // locally passes no matter what the surface renders.
-    const copy = `${GOVERNED_UNAVAILABLE_COPY.title} ${GOVERNED_UNAVAILABLE_COPY.detail}`
-    for (const banned of ['Disconnected', 'Offline', 'Broken', 'Error', 'Failed']) {
-      expect(copy).not.toContain(banned)
-    }
-    expect(copy).toContain('remain available')
-  })
-
-  it('keeps not_enabled and temporarily_unavailable distinct', () => {
-    // Different causes with different futures: one may open, one is not published.
-    expect(CAPABILITY_LABELS.not_enabled).not.toBe(
-      CAPABILITY_LABELS.temporarily_unavailable,
-    )
   })
 })

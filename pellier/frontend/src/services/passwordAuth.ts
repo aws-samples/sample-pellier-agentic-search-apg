@@ -1,11 +1,17 @@
 import { apiFetch } from './apiBase'
 export class PasswordAuthError extends Error {}
 
-type PasswordOperation = 'sign-in' | 'forgot' | 'reset'
+type PasswordOperation = 'sign-in' | 'forgot' | 'reset' | 'workshop-sign-in'
 export interface PasswordAuthResult {
   status: 'signed_in' | 'verification_required' | 'recovery_requested' | 'password_reset'
   returnTo?: string
+  username?: string
+  signInMethod?: 'workshop'
 }
+
+/** The four shoppers a chip can sign in. Nadia types her password. */
+export const WORKSHOP_SHOPPERS = ['anna', 'marco', 'theo', 'jessica'] as const
+export type WorkshopShopper = (typeof WORKSHOP_SHOPPERS)[number]
 
 /** Credentials and tokens are never persisted by the browser. No automatic POST retries. */
 export async function passwordAuth(
@@ -25,6 +31,17 @@ export async function passwordAuth(
   const result = await response.json() as PasswordAuthResult & { detail?: string }
   if (!response.ok) throw new PasswordAuthError(result.detail || 'auth_unavailable')
   return result
+}
+
+/**
+ * Sign one provisioned shopper in with one click. A workshop convenience.
+ *
+ * The browser sends the shopper's username and nothing else; the server reads
+ * the provisioned password and performs the same Cognito sign-in a typed
+ * password would, so the session is real and signed.
+ */
+export function workshopSignIn(username: WorkshopShopper, signal: AbortSignal): Promise<PasswordAuthResult> {
+  return passwordAuth('workshop-sign-in', { username }, signal)
 }
 
 /** Same-origin navigation, including deployments with a router base path. */

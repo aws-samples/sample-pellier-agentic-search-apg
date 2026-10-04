@@ -26,7 +26,7 @@ test.describe('Public governed workshop journey', () => {
   });
 
   test('a signed-out Operator route requests identity and preserves the destination', async ({ page }) => {
-    await page.goto(`${BASE_URL}/operator/clients/CUST-JESSICA?guided=service-recovery`);
+    await page.goto(`${BASE_URL}/operator/clients/CUST-JESSICA`);
     await expect(page.getByTestId('operator-sign-in')).toBeVisible();
     await page.getByTestId('operator-sign-in').click();
     await expect(page.getByTestId('pellier-signin')).toBeVisible();

@@ -66,20 +66,6 @@ def test_enforcement_on_turns_a_returned_call_into_a_real_allow() -> None:
     assert "evaluated the action and permitted it" in note
 
 
-def test_an_unenforced_matching_forbid_is_inferred_not_a_verdict() -> None:
-    """Policy text that names the action is a fact about text, not a decision."""
-    state = GE.PolicyEngineState(
-        gateway_mode="LOG_ONLY",
-        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
-        matching_forbids=("credit_limit_forbid",),
-    )
-    assert state.enforcement_is_on is False
-    policy, note = GE.resolve_permissive_policy_state(state)
-    assert policy == GE.POLICY_INFERRED
-    assert policy != GE.POLICY_WOULD_DENY
-    assert "credit_limit_forbid" in note
-
-
 # ---------------------------------------------------------------------------
 # An RLS-hidden row never becomes a business falsehood
 # ---------------------------------------------------------------------------
@@ -96,16 +82,15 @@ def test_a_tool_message_is_never_rewritten_into_a_database_denial() -> None:
     rewritten message.
     """
     raw = {"status": "error", "message": "A reason is required for a credit."}
-    aurora, _note, result = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
+    aurora, note = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
     assert aurora == GE.AURORA_NOT_REACHED
-    assert result == raw
+    assert note == raw["message"]
 
 
 def test_a_success_envelope_is_permitted_and_unchanged() -> None:
     raw = {"status": "success", "credit_id": 9}
-    aurora, _note, result = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
+    aurora, _note = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
     assert aurora == GE.AURORA_PERMITTED
-    assert result == raw
 
 
 # ---------------------------------------------------------------------------

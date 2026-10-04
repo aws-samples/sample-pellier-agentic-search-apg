@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import botocore.session
 import pytest
 
-from services import managed_policy, operator_capabilities
+from services import managed_policy
 
 
 @pytest.mark.parametrize("member", ["policy", "cedar"])
@@ -20,48 +20,6 @@ def test_current_sdk_uses_policy_for_both_read_and_write():
     for operation, direction in (("GetPolicy", "output_shape"), ("UpdatePolicy", "input_shape")):
         shape = getattr(service.operation_model(operation), direction)
         assert "policy" in shape.members["definition"].members
-
-
-def test_operator_reads_paged_policy_details_instead_of_list_summaries(monkeypatch):
-    from config import settings
-    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_ARN", "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test")
-    monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "test-engine")
-    read = []
-
-    def policies(**kwargs):
-        if kwargs.get("nextToken"):
-            return {"policies": [{"policyId": "permit"}]}
-        return {"policies": [{"policyId": "monitor"}], "nextToken": "second"}
-
-    def detail(**kwargs):
-        read.append(kwargs["policyId"])
-        return {
-            "enforcementMode": "ACTIVE" if kwargs["policyId"] == "permit" else "LOG_ONLY",
-            "definition": {"policy": {
-                "statement": 'permit(principal, action == AgentCore::Action::"pellier-store-tools___give_store_credit", resource);'
-            }},
-        }
-
-    client = SimpleNamespace(
-        get_paginator=lambda _: SimpleNamespace(
-            paginate=lambda **_: [{"items": [{"targetId": "store"}]}]
-        ),
-        get_gateway_target=lambda **_: {
-            "name": "pellier-store-tools", "targetConfiguration": {"mcp": {"lambda": {
-                "toolSchema": {"inlinePayload": [{"name": "give_store_credit"}]}
-            }}},
-        },
-        list_policies=policies,
-        get_policy=detail,
-    )
-    monkeypatch.setattr(managed_policy, "_control_client", lambda: client)
-    published, permitted = operator_capabilities._live_gateway_facts()
-    assert read == ["monitor", "permit"]
-    assert published == ["give_store_credit"]
-    assert permitted == {"give_store_credit": 1}
-    client.get_policy = lambda **_: {"enforcementMode": "ACTIVE"}
-    with pytest.raises(RuntimeError, match="definition unavailable"):
-        operator_capabilities._live_gateway_facts()
 
 
 def test_repeated_page_token_cannot_silently_truncate_policy_observation():

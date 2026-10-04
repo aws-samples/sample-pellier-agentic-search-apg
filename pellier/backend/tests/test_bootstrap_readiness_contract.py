@@ -213,10 +213,6 @@ def _valid_managed_receipt() -> dict[str, object]:
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/test"},
-        "operator_runtime": {
-            "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
-            "authentication": "AWS_IAM",
-        },
         "memory": {
             "memory_id": "memory-123",
             "seed": {"status": "ready"},
@@ -265,12 +261,6 @@ def _valid_managed_receipt() -> dict[str, object]:
                     "previous_kms_key_arn": None,
                     "previous_retention_days": None,
                 },
-            },
-            "operator_runtime_log_group": {
-                "name": "/aws/bedrock-agentcore/runtimes/pellier_operator-fixture-DEFAULT",
-                "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/fixture",
-                "retention_days": 30,
-                "cleanup": {"created_by_workshop": True},
             },
             "trace_log_groups": {
                 "groups": [
@@ -418,16 +408,7 @@ def _valid_managed_receipt() -> dict[str, object]:
                 "build_fingerprint_expected": "fixture-package",
                 "build_fingerprint_match": True,
             },
-            "operator_runtime_invoke_smoke": {
-                "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
-                "session_id": "operator-proof-000000000000000000001",
-                "build_fingerprint": "fixture-package",
-                "build_fingerprint_match": True,
-                "executed_nodes": ["case-investigator", "resolution-planner"],
-                "fixture": True,
-            },
             "runtime_build_fingerprint_match": True,
-            "operator_runtime_build_fingerprint_match": True,
         },
     }
     observability = receipt["observability"]
@@ -451,7 +432,6 @@ def _valid_managed_receipt() -> dict[str, object]:
     })
     log_groups = [
         observability["runtime_log_group"],
-        observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
         observability["gateway"]["log_group_protection"],
         observability["memory"]["log_group_protection"],
@@ -504,8 +484,6 @@ def _run_health_gate(
     shopper_in_operator_group: bool = False,
     group_lookup_error_for: str | None = None,
     operator_token_ready: bool = True,
-    operator_composer_ready: bool = True,
-    operator_return_state: str = "review_required",
     shopper_claim_ready: bool = True,
     quarantine: str | None = None,
     provision_state: str | None = None,
@@ -580,15 +558,9 @@ def _run_health_gate(
 case "$*" in
   *api/health*) printf '{"status":"healthy"}' ;;
   *memory/status*) printf '{"live":true,"source":"agentcore-sdk","resource_status":"ACTIVE","strategies_ready":true}' ;;
-  *operator/concierge/config*) printf '__OPERATOR_CONFIG__' ;;
-  *operator/capabilities*) printf '__OPERATOR_CAPABILITIES__' ;;
   *) printf '<!doctype html><div id="root"></div>' ;;
 esac
-""".replace("__OPERATOR_CONFIG__", json.dumps({
-            "composerEnabled": operator_composer_ready, "orchestrationAvailable": True,
-        })).replace("__OPERATOR_CAPABILITIES__", json.dumps({
-            "source": "agentcore", "capabilities": {"give_store_credit": {"state": operator_return_state}},
-        })),
+""",
     )
     _write_executable(
         fake_bin / "psql",
@@ -649,7 +621,7 @@ case "$*" in
         exit 254
       fi
       case "$arg" in
-        operator) printf 'pellier-operators\n'; exit 0 ;;
+        nadia) printf 'pellier-operators\n'; exit 0 ;;
         marco|anna|theo)
           if [ "{'true' if shopper_in_operator_group else 'false'}" = "true" ]; then
             printf 'pellier-operators\n'
@@ -675,10 +647,10 @@ case "$*" in
     fi
     exit 0 ;;
   *get-user*)
-    printf 'operator\\n'
+    printf 'nadia\\n'
     exit 0 ;;
   *get-secret-value*)
-    printf '%s\\n' '{{"users": [{{"username": "marco", "password": "pw"}}, {{"username": "operator", "password": "pw"}}]}}'
+    printf '%s\\n' '{{"users": [{{"username": "marco", "password": "pw"}}, {{"username": "nadia", "password": "pw"}}]}}'
     exit 0 ;;
   *) printf 'ENFORCE\n' ;;
 esac
@@ -915,7 +887,7 @@ def test_health_gate_rejects_a_missing_credential_secret_reference(tmp_path: Pat
     assert "No seeded shopper credentials" in proc.stdout
 
 
-@pytest.mark.parametrize("username", ["operator", "marco", "jessica"])
+@pytest.mark.parametrize("username", ["nadia", "marco", "jessica"])
 def test_group_lookup_errors_cannot_prove_authorization(
     tmp_path: Path, username: str
 ) -> None:
@@ -928,7 +900,7 @@ def test_group_lookup_errors_cannot_prove_authorization(
     )
     assert proc.returncode == 1
     assert f"Could not verify Cognito group membership for {username}" in proc.stdout
-    if username != "operator":
+    if username != "nadia":
         assert "No shopper is in pellier-operators" not in proc.stdout
 
 
@@ -1727,29 +1699,10 @@ def test_the_health_gate_passes_when_only_the_operator_is_in_the_group(tmp_path)
         tmp_path, model_ready=True, workshop_format="governed", managed_ready=True
     )
     assert proc.returncode == 0, proc.stdout
-    assert "Operator group pellier-operators authorizes operator" in proc.stdout
+    assert "Operator group pellier-operators authorizes nadia" in proc.stdout
     assert "No shopper is in pellier-operators" in proc.stdout
     assert "Hosted UI client is configured for OAuth authorization-code sign-in" in proc.stdout
     assert "Seeded Operator can complete Cognito sign-in" in proc.stdout
-    assert "Operator investigation composer is enabled and orchestration is available" in proc.stdout
-    assert "Operator return capability is published, permitted, and requires human review" in proc.stdout
-
-
-@pytest.mark.parametrize("composer_ready,return_state,expected", [
-    (False, "review_required", "Operator investigation composer is unavailable"),
-    (True, "not_enabled", "Operator return capability is unavailable"),
-    (True, "temporarily_unavailable", "Operator return capability is unavailable"),
-    (True, "available", "Operator return capability is unavailable"),
-])
-def test_health_gate_requires_working_operator_review_workflow(
-    tmp_path, composer_ready, return_state, expected,
-) -> None:
-    proc = _run_health_gate(
-        tmp_path, model_ready=True, workshop_format="governed", managed_ready=True,
-        operator_composer_ready=composer_ready, operator_return_state=return_state,
-    )
-    assert proc.returncode == 1, proc.stdout
-    assert expected in proc.stdout
 
 
 def test_the_health_gate_refuses_an_operator_that_cannot_sign_in(tmp_path) -> None:

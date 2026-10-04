@@ -17,7 +17,7 @@ to the same approved deployment:
 | Variable `E2E_ALLOWED_BASE_URL` | Approved HTTPS origin, including a nondefault port if needed. |
 | Secrets `E2E_TEST_USER_EMAIL`, `E2E_TEST_USER_PASSWORD` | Existing dedicated, nonstaff Cognito identity for password sign-in, cookie, refresh, and authorization checks. |
 | Secrets `E2E_GOVERN_USERNAME`, `E2E_GOVERN_PASSWORD` | Existing Marco workshop identity for the governed shopper and workbench paths. |
-| Secrets `E2E_OPERATOR_USERNAME`, `E2E_OPERATOR_PASSWORD` | Existing staff identity with the deployment's Operator authorization. |
+| Secrets `E2E_NADIA_USERNAME`, `E2E_NADIA_PASSWORD` | Nadia, the staff identity in `pellier-operators`, who approves credits on the Operator desk. |
 
 Supply both required dispatch inputs:
 

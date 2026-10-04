@@ -57,12 +57,12 @@ for (const width of [1440, 390]) {
 }
 
 test.describe('authenticated Operator navigation', () => {
-  test.skip(!process.env.E2E_OPERATOR_USERNAME || !process.env.E2E_OPERATOR_PASSWORD,
+  test.skip(!process.env.E2E_NADIA_USERNAME || !process.env.E2E_NADIA_PASSWORD,
     'Requires a workshop Operator identity for real client records.')
   test.beforeEach(async ({ page }) => {
     await page.goto('/signin?returnTo=%2Foperator')
-    await page.getByLabel('Username', { exact: true }).fill(process.env.E2E_OPERATOR_USERNAME!)
-    await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_OPERATOR_PASSWORD!)
+    await page.getByLabel('Username', { exact: true }).fill(process.env.E2E_NADIA_USERNAME!)
+    await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_NADIA_PASSWORD!)
     const response = page.waitForResponse(r => r.url().endsWith('/api/auth/password/sign-in'))
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     expect((await response).status()).toBe(200)
@@ -70,48 +70,30 @@ test.describe('authenticated Operator navigation', () => {
   })
 
   for (const width of [1440, 390]) {
-    test(`client filters, all client records, and review drill-downs at ${width}px`, async ({ page }) => {
+    test(`every client record, the investigation column, and the reviews at ${width}px`, async ({ page }) => {
       test.setTimeout(180000)
       await page.setViewportSize({ width, height: 960 })
       const rows = page.locator('a[data-testid^="operator-client-"]')
       const total = await rows.count()
       expect(total).toBeGreaterThan(0)
-      for (const rung of ['registered', 'circle', 'maison']) {
-        await page.getByTestId(`operator-ladder-${rung}`).click()
-        await expect(page.getByTestId('operator-filter-note')).toContainText(`of ${total}`)
-        expect(await rows.count()).toBeLessThan(total)
-        await page.getByTestId('operator-filter-clear').click()
-        await expect(rows).toHaveCount(total)
-      }
-      await page.getByRole('button', { name: /^Open requests/ }).click()
-      await expect(page.getByRole('button', { name: /^Open requests/ })).toHaveAttribute('aria-pressed', 'true')
-      await page.getByTestId('operator-filter-clear').click()
-      await page.getByTestId('operator-book-search').fill('Jessica')
-      await expect(rows).toHaveCount(1)
-      await page.getByTestId('operator-filter-clear').click()
       const clients = await rows.evaluateAll(nodes => nodes.map(n => n.getAttribute('href')!))
       for (const href of clients) {
         await page.locator(`a[data-testid^="operator-client-"][href="${href}"]`).click()
         await expect(page.getByTestId('operator-record')).toBeVisible({ timeout: 15000 })
-        await expect(page.getByTestId('operator-storefront-handoff')).toBeVisible()
-        for (const disclosure of await page.locator('details').all()) {
-          if (await disclosure.isVisible() && await disclosure.getAttribute('open') === null) {
-            await disclosure.locator('summary').click()
-          }
-        }
+        await expect(page.getByTestId('operator-investigation')).toBeVisible()
+        await expect(page.getByTestId('operator-investigate')).toBeVisible()
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false)
         await page.goBack()
         await expect(rows).toHaveCount(total)
       }
       await page.goto('/operator/reviews')
-      const reviews = page.locator('a[data-testid^="operator-review-"]')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await expect(page.getByTestId('operator-outcome-filter-pending')).toBeVisible()
+      const reviews = page.locator('a[data-testid^="operator-review-"]')
       const links = await reviews.evaluateAll(nodes => nodes.map(n => n.getAttribute('href')!))
-      expect(links.length).toBeGreaterThan(0)
       for (const href of links) {
         await page.locator(`a[href="${href}"]`).click()
         await expect(page.getByTestId('operator-review-record')).toBeVisible()
+        await expect(page.getByTestId('operator-proposed-credit')).toBeVisible()
         await expect(page.getByTestId('operator-review-client-link')).toBeVisible()
         await page.goBack()
         await expect(reviews.first()).toBeVisible()

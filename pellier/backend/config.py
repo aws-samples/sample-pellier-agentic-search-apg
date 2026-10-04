@@ -255,7 +255,6 @@ class Settings(BaseSettings):
 
     # 4e — Runtime
     AGENTCORE_RUNTIME_ENDPOINT: Optional[str] = None
-    AGENTCORE_OPERATOR_RUNTIME_ENDPOINT: Optional[str] = None
 
     # Runtime feature flag. When False (default) the `/api/agent/chat`
     # endpoint runs the in-process Strands orchestrator.
@@ -278,11 +277,6 @@ class Settings(BaseSettings):
     # parameter. Both list settings below are comma-separated.
     AGENTCORE_EVALS_ENABLED: bool = False
 
-    # Local development starts with the staff composer disabled. Governed
-    # bootstrap enables it after proving the separate Operator Runtime.
-    # This controls submission only; staff authorization, capability discovery,
-    # human review, and governed execution retain their independent checks.
-    OPERATOR_CONCIERGE_COMPOSER_ENABLED: bool = False
     AGENTCORE_EVALS_LOG_GROUPS: Optional[str] = None
     AGENTCORE_EVALS_SERVICE_NAMES: Optional[str] = None
     AGENTCORE_EVALS_EVALUATOR_IDS: Optional[str] = None

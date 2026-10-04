@@ -205,7 +205,7 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
         "policyEngines": {identity.policy_engine_name: {"policyEngineId": "fixture"}},
         "runtimes": {
             name: {"runtimeArn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{name}-abc123"}
-            for name in (identity.runtime_name, identity.operator_runtime_name)
+            for name in (identity.runtime_name,)
         },
     }}}}
     rendered = []
@@ -243,7 +243,7 @@ def test_direct_renderer_cli_reads_saved_suffix_and_writes_consistent_names(tmp_
     identity = renderer.deployment_identity(expected)
     config = json.loads((tmp_path / ".agentcore-project" / identity.project_name / "agentcore/agentcore.json").read_text())
     assert config["name"] == identity.project_name
-    assert [runtime["name"] for runtime in config["runtimes"]] == [identity.runtime_name, identity.operator_runtime_name]
+    assert [runtime["name"] for runtime in config["runtimes"]] == [identity.runtime_name]
     assert config["memories"][0]["name"] == identity.memory_name
     assert config["agentCoreGateways"][0]["name"] == identity.gateway_name
     assert config["policyEngines"][0]["name"] == identity.policy_engine_name

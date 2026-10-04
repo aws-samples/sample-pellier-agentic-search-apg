@@ -55,7 +55,7 @@ def test_tickets_tell_theo_and_jessica_stories(fresh_db):
     rows = fresh_db.psql("SELECT ticket_id, customer_id, status FROM pellier.support_tickets ORDER BY ticket_id")
     assert rows.split("\n") == [
         "TKT-2026-1874|CUST-THEO|resolved",
-        "TKT-2026-3015|CUST-JESSICA|pending",
+        "TKT-2026-3015|CUST-JESSICA|open",
         "TKT-2026-5021|CUST-THEO|open",
     ]
     assert fresh_db.psql("SELECT count(*) FROM pellier.store_credits") == "0"

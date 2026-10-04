@@ -81,7 +81,7 @@ UPDATE pellier.customers SET membership = 'registered' WHERE id = 'CUST-FRESH';
 INSERT INTO pellier.customers (id, name, preferences_summary, membership)
 VALUES
     ('CUST-JESSICA', 'Jessica Nakamura',
-     'Home and bath, warm coral and sage. Open return dispute on a catchall and a robe.',
+     'Home and bath, warm coral and sage. Sent back the robe and the reed diffuser; no store credit recorded yet.',
      'circle')
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
@@ -97,10 +97,12 @@ DELETE FROM pellier.orders WHERE customer_id = 'CUST-JESSICA';
 
 WITH order_seed(customer_id, product_id, days_ago, amount_paid_cents) AS (
     VALUES
-        -- Jessica: the return dispute. The catchall and the robe are the two
-        -- items the operator queue asks about, ordered on the same day.
-        ('CUST-JESSICA', '41', 34, 4800),  -- Coral Lacquer Catchall
+        -- Jessica: the store-credit case. The robe and the reed diffuser are
+        -- the two items that went back, ordered on the same day. Together they
+        -- total exactly 10000 cents, so Lab 4's inclusive $100 limit decides
+        -- her real credit.
         ('CUST-JESSICA', '42', 34, 6400),  -- Waffle Bath Robe, Sage
+        ('CUST-JESSICA', '25', 34, 3600),  -- Reed Diffuser
         ('CUST-JESSICA', '31', 120, 5800),  -- Stoneware Pour-Over Set
         ('CUST-JESSICA', '43', 210, 12900),  -- Quilted Silk Vest
         ('CUST-JESSICA', '50', 300, 10800)  -- Oat Merino Crew
@@ -130,12 +132,12 @@ BEGIN
 
     -- The operator walkthrough asks about exactly these two items. If the
     -- catalog seeder did not load the house bucket, the JOIN above silently
-    -- drops them and the console shows a dispute over nothing.
+    -- drops them and the desk shows a case over nothing.
     SELECT COUNT(*) INTO n_jessica
       FROM pellier.orders o
       JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
      WHERE o.customer_id = 'CUST-JESSICA'
-       AND pc."productId" IN ('41', '42');
+       AND pc."productId" IN ('42', '25');
 
     IF n_clients <> 4 THEN
         RAISE EXCEPTION
@@ -146,9 +148,9 @@ BEGIN
 
     IF n_jessica < 2 THEN
         RAISE EXCEPTION
-            'Jessica return-dispute orders missing (got % of 2). The operator '
-            'walkthrough needs both "Coral Lacquer Catchall" and '
-            '"Waffle Bath Robe, Sage" in pellier.product_catalog.', n_jessica;
+            'Jessica store-credit orders missing (got % of 2). The operator '
+            'walkthrough needs both "Waffle Bath Robe, Sage" and '
+            '"Reed Diffuser" in pellier.product_catalog.', n_jessica;
     END IF;
 
     RAISE NOTICE 'Client book ready: % customers', n_clients;

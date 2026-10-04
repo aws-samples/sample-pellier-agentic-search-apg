@@ -32,8 +32,8 @@ jobs:
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
       E2E_GOVERN_USERNAME: ${{ secrets.E2E_GOVERN_USERNAME }}
       E2E_GOVERN_PASSWORD: ${{ secrets.E2E_GOVERN_PASSWORD }}
-      E2E_OPERATOR_USERNAME: ${{ secrets.E2E_OPERATOR_USERNAME }}
-      E2E_OPERATOR_PASSWORD: ${{ secrets.E2E_OPERATOR_PASSWORD }}
+      E2E_NADIA_USERNAME: ${{ secrets.E2E_NADIA_USERNAME }}
+      E2E_NADIA_PASSWORD: ${{ secrets.E2E_NADIA_PASSWORD }}
 
     steps:
       - name: Checkout

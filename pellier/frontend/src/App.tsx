@@ -163,13 +163,11 @@ export function AppRoutes() {
             including client and review reads, inherits require_operator from
             the backend router. */}
         <Route path="/operator" element={<OperatorFrame />}>
-          <Route index element={<ClientBook key="records" />} />
+          <Route index element={<ClientBook />} />
           <Route path="clients" element={<Navigate to="/operator" replace />} />
-          <Route path="chat" element={<ClientBook key="chat" intent="chat" />} />
+          <Route path="chat" element={<Navigate to="/operator" replace />} />
           <Route path="clients/:customerId" element={<ClientRecord />} />
-          {/* Prepared requests handed off from Pellier. The queue is the desk's
-              entry point for storefront work, so an operator finds a waiting
-              client without already knowing to search for them. */}
+          {/* Every proposed credit waiting on a person, and the decided ones. */}
           <Route path="reviews" element={<ReviewQueue />} />
           <Route path="reviews/:reviewId" element={<ReviewRecord />} />
         </Route>

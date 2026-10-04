@@ -22,8 +22,8 @@ def test_hosted_job_requires_all_three_identities_and_a_boundary_receipt() -> No
         "E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}",
         "E2E_GOVERN_USERNAME: ${{ secrets.E2E_GOVERN_USERNAME }}",
         "E2E_GOVERN_PASSWORD: ${{ secrets.E2E_GOVERN_PASSWORD }}",
-        "E2E_OPERATOR_USERNAME: ${{ secrets.E2E_OPERATOR_USERNAME }}",
-        "E2E_OPERATOR_PASSWORD: ${{ secrets.E2E_OPERATOR_PASSWORD }}",
+        "E2E_NADIA_USERNAME: ${{ secrets.E2E_NADIA_USERNAME }}",
+        "E2E_NADIA_PASSWORD: ${{ secrets.E2E_NADIA_PASSWORD }}",
         "python3 tests/e2e/validate_deployment_inputs.py",
     )
 
@@ -87,8 +87,8 @@ def live_inputs():
         "E2E_TEST_USER_PASSWORD": "private-auth-value",
         "E2E_GOVERN_USERNAME": "marco",
         "E2E_GOVERN_PASSWORD": "private-shopper-value",
-        "E2E_OPERATOR_USERNAME": "operator",
-        "E2E_OPERATOR_PASSWORD": "private-operator-value",
+        "E2E_NADIA_USERNAME": "nadia",
+        "E2E_NADIA_PASSWORD": "private-staff-value",
     }
 
 
@@ -98,7 +98,7 @@ def test_approved_deployment_with_complete_inputs_is_accepted(input_validator, l
 
 @pytest.mark.parametrize("key", [
     "E2E_ALLOWED_BASE_URL", "E2E_TEST_USER_PASSWORD", "E2E_GOVERN_USERNAME",
-    "E2E_GOVERN_PASSWORD", "E2E_OPERATOR_USERNAME", "E2E_OPERATOR_PASSWORD",
+    "E2E_GOVERN_PASSWORD", "E2E_NADIA_USERNAME", "E2E_NADIA_PASSWORD",
     "E2E_BOUNDARY_RUN",
 ])
 def test_missing_live_inputs_fail_without_disclosing_credentials(

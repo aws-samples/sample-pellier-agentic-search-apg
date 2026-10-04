@@ -34,7 +34,6 @@ import { useUI } from '../contexts/UIContext'
 import { useLayout } from '../contexts/LayoutContext'
 import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
-import { useOptionalAuth } from '../contexts/AuthContext'
 import {
   useAgentChat,
   type AgentChatMessage,
@@ -44,6 +43,7 @@ import PellierMark from './PellierMark'
 import PellierWelcome from './PellierWelcome'
 import PersonaModal from './PersonaModal'
 import StatusLines from './StatusLines'
+import WorkshopSignIn from './WorkshopSignIn'
 import { BuilderViewSwitch, useBuilderView, useSkillMode } from './turn'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
@@ -87,7 +87,6 @@ export default function ChatDrawer() {
   const { guardrailsEnabled } = useLayout()
   const { addToCart, cartOpen } = useCart()
   const { persona } = usePersona()
-  const auth = useOptionalAuth()
 
   const isOpen = activeModal === 'drawer' && Boolean(persona) && !cartOpen
   const reducedMotion = useReducedMotion()
@@ -351,15 +350,12 @@ export default function ChatDrawer() {
             </button>
           </div>
 
-          {/* Three facts, three sources: scenario, verified identity, rail. */}
+          {/* One click signs a demo shopper in for real; the facts beneath say
+              what that produced: the scenario, the verified identity, the rail. */}
+          <WorkshopSignIn />
           <details className="cd-session-details">
-            <summary>Scenario &amp; account details <ChevronDown size={14} aria-hidden="true" /></summary>
+            <summary>Session details <ChevronDown size={14} aria-hidden="true" /></summary>
             <StatusLines messages={messages} />
-            {auth?.isAuthenticated ? (
-              <button type="button" className="cd-session-signin" onClick={auth.logout}>Sign out</button>
-            ) : (
-              <button type="button" className="cd-session-signin" onClick={() => openModal('auth')}>Sign in for account requests</button>
-            )}
           </details>
 
           {/* Body */}

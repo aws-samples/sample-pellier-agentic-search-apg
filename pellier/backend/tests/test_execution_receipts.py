@@ -450,11 +450,9 @@ def test_the_migration_is_registered() -> None:
 def test_the_vocabularies_match_the_service() -> None:
     """A CHECK constraint that disagrees with the code fails at write time only."""
     sql = _migration_sql()
-    for value in (GE.POLICY_ALLOW, GE.POLICY_DENY, GE.POLICY_WOULD_DENY,
-                  GE.POLICY_NOT_EVALUATED):
+    for value in (GE.POLICY_ALLOW, GE.POLICY_DENY, GE.POLICY_NOT_EVALUATED):
         assert f"'{value}'" in sql, value
-    for value in (GE.AURORA_PERMITTED, GE.AURORA_DENIED, GE.AURORA_NOT_REACHED,
-                  GE.AURORA_NOT_ENFORCED):
+    for value in (GE.AURORA_PERMITTED, GE.AURORA_DENIED, GE.AURORA_NOT_REACHED):
         assert f"'{value}'" in sql, value
     for value in (GE.EVIDENCE_RECEIPTED, GE.EVIDENCE_POLICY_PROOF,
                   GE.EVIDENCE_ATTEMPT_RECEIPT, GE.EVIDENCE_NO_EXECUTION,
@@ -462,6 +460,21 @@ def test_the_vocabularies_match_the_service() -> None:
         assert f"'{value}'" in sql, value
     for value in (GE.RAIL_GATEWAY, GE.RAIL_IN_PROCESS):
         assert f"'{value}'" in sql, value
+
+
+def test_the_check_constraint_lags_two_values_the_service_can_write() -> None:
+    """A named seam for cut 4, not a passing contract.
+
+    Migration 025's CHECK admits neither ``EVALUATION_INCOMPLETE`` on the policy
+    axis nor ``OUTCOME_UNKNOWN`` on the Aurora axis, and the service writes both:
+    the refused-rail receipt carries the first, an output-suppressed Gateway
+    response the second. ``record_receipt`` swallows the violation with a
+    warning, so those two receipts are never stored. Cut 4 rewrites the table;
+    when its CHECK admits both, this test fails and is deleted with the gap.
+    """
+    sql = _migration_sql()
+    assert f"'{GE.POLICY_EVALUATION_INCOMPLETE}'" not in sql
+    assert f"'{GE.AURORA_OUTCOME_UNKNOWN}'" not in sql
 
 
 def test_the_execution_turn_is_not_unique() -> None:
@@ -508,39 +521,6 @@ def test_the_migration_does_not_widen_the_human_axis() -> None:
     assert "ALTER TABLE pellier.approvals" not in sql
     for folded in ("'executed'", "'policy_denied'", "'rls_denied'"):
         assert folded not in sql, folded
-
-
-# ---------------------------------------------------------------------------
-# The returns query this pass also fixed
-# ---------------------------------------------------------------------------
-
-
-def test_the_client_returns_query_names_real_columns() -> None:
-    """`pellier.returns` has `requested_at`; it has never had `created_at`.
-
-    The query selected `r.created_at`, `_safe_rows` swallowed the UndefinedColumn, and
-    the section degraded to `[]` for every client — so `returnCount` was permanently
-    zero and `unconfirmedReturnAssertion` flagged any ticket mentioning a return as
-    unsupported, including Theo's, whose return 37 exists.
-    """
-    sql = " ".join(OP._RETURNS_SELECT.split())
-    assert "r.created_at" not in sql
-    assert "r.requested_at" in sql
-    assert "ORDER BY r.requested_at DESC" in sql
-    # Status is the authoritative thing about a return; a timestamp cannot say whether
-    # it was approved.
-    assert "r.status" in sql
-
-
-def test_the_return_row_reports_status_and_requested_at() -> None:
-    row = OP._return_row({
-        "id": 37, "product_id": "37", "product_name": "Wabi-Sabi Bowl",
-        "reason": "damaged", "status": "pending", "requested_at": None,
-    })
-    assert row["returnId"] == 37
-    assert row["status"] == "pending"
-    assert "requestedAt" in row
-    assert "createdAt" not in row
 
 
 # ---------------------------------------------------------------------------

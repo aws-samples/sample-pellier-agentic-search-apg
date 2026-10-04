@@ -73,7 +73,6 @@ def _receipt_account(receipt: dict[str, Any], region: str) -> str:
         (receipt.get(key) or {}).get(field)
         for key, field in (
             ("runtime", "runtime_arn"),
-            ("operator_runtime", "runtime_arn"),
             ("gateway", "gateway_arn"),
             ("memory", "memory_arn"),
         )
@@ -203,7 +202,6 @@ def cleanup_plan(
 ) -> list[dict[str, Any]]:
     """Return operations that restore state captured before provisioning."""
     runtime_group = _runtime_log_group(receipt, runtime_log_group)
-    operator_group = _runtime_log_group(receipt, None, runtime_key="operator_runtime")
     observability = receipt.get("observability")
     observability = observability if isinstance(observability, dict) else {}
     transaction_search = observability.get("transaction_search")
@@ -284,7 +282,7 @@ def cleanup_plan(
             }
         )
 
-    for runtime_key, name in (("runtime", runtime_group), ("operator_runtime", operator_group)):
+    for runtime_key, name in (("runtime", runtime_group),):
         group = observability.get(f"{runtime_key}_log_group")
         delivery = group.get("delivery") if isinstance(group, dict) else None
         if not isinstance(delivery, dict):
@@ -324,12 +322,6 @@ def cleanup_plan(
             "runtime log group override requires a receipt with captured "
             "ownership and configuration"
         )
-    operator = observability.get("operator_runtime_log_group")
-    if isinstance(operator, dict):
-        groups.append(operator)
-    elif operator_group:
-        raise ValueError("operator log group requires captured ownership and configuration")
-
     for kind, field, prefix in (
         ("gateway", "gateway_id", "/aws/vendedlogs/bedrock-agentcore/"),
         ("memory", "memory_id", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),

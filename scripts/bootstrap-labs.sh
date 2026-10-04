@@ -1380,18 +1380,17 @@ EOF
 
     if [ "$AGENTCORE_OK" = true ]; then
         RUNTIME_ARN="$(jq -r '.runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-        OPERATOR_RUNTIME_ARN="$(jq -r '.operator_runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MEMORY_ID="$(jq -r '.memory.memory_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ID="$(jq -r '.gateway.gateway_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ARN="$(jq -r '.gateway.gateway_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         POLICY_ENGINE_ID="$(jq -r '.policy.policy_engine_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-        if [ -z "$RUNTIME_ARN" ] || [ -z "$OPERATOR_RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
+        if [ -z "$RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
             || [ -z "$GATEWAY_ID" ] || [ -z "$GATEWAY_URL" ] \
             || [ -z "$GATEWAY_ARN" ] || [ -z "$POLICY_ENGINE_ID" ] \
             || [ "$MANAGED_STATUS" != "ready" ]; then
-            warn "Managed provisioning output missing shopper Runtime/Operator Runtime/Memory/Gateway/Policy readiness (backend will still start)"
+            warn "Managed provisioning output missing Runtime/Memory/Gateway/Policy readiness (backend will still start)"
             write_status_json "failed" "failed" "$MANAGED_OUTPUT_JSON"
             AGENTCORE_OK=false
         fi
@@ -1399,15 +1398,11 @@ EOF
 
     if [ "$AGENTCORE_OK" = true ]; then
         upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
-        upsert_env "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT" "$OPERATOR_RUNTIME_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_MEMORY_ID" "$MEMORY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ID" "$GATEWAY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ARN" "$GATEWAY_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
         if [ "${WORKSHOP_FORMAT}" = "governed" ]; then
-            # Lab 4 requires the staff investigation composer. Enable it only
-            # after the separate Operator Runtime has passed its live proof.
-            upsert_env "OPERATOR_CONCIERGE_COMPOSER_ENABLED" "true" "$REPO_PATH/.env"
             # Labs 1 and 2 must exercise the participant's local Inventory
             # Agent and hybrid retrieval code. Lab 3 deliberately switches
             # the storefront to this already-provisioned Runtime, after the
@@ -1638,7 +1633,9 @@ fi
 # failure but must be loud: the health gate refuses readiness below.
 # ============================================================================
 OPERATOR_GROUP="pellier-operators"
-OPERATOR_USERNAME="${PELLIER_OPERATOR_USERNAME:-operator}"
+# Nadia is the staff member: the one account in the operator group, the one
+# who approves Jessica's credit in Lab 4. She signs in with her password.
+OPERATOR_USERNAME="${PELLIER_OPERATOR_USERNAME:-nadia}"
 OPERATOR_GROUP_OK=false
 
 _pool_id() { echo "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}"; }
@@ -1656,7 +1653,7 @@ if [ -n "$(_pool_id)" ]; then
     aws cognito-idp admin-create-user --user-pool-id "$POOL" \
         --username "$OPERATOR_USERNAME" --message-action SUPPRESS \
         --region "$AWS_REGION" \
-        --user-attributes Name=email,Value="operator@pellier.example.com" \
+        --user-attributes Name=email,Value="${OPERATOR_USERNAME}@pellier.example.com" \
                           Name=email_verified,Value=true >/dev/null 2>&1 || true
     if aws cognito-idp admin-set-user-password --user-pool-id "$POOL" \
         --username "$OPERATOR_USERNAME" --password "$OPERATOR_PASSWORD" \
@@ -1684,7 +1681,7 @@ if [ -n "$(_pool_id)" ]; then
         fi
         OPERATOR_GROUP_OK=true
         log "✅ $OPERATOR_USERNAME is in $OPERATOR_GROUP"
-        if ! printf 'Operator console (Pellier Operator)\n  Username: %s\n  Password: %s\n  Group:    %s\n\n' \
+        if ! printf 'Staff (Nadia, the Operator desk)\n  Username: %s\n  Password: %s\n  Group:    %s\n\n' \
             "$OPERATOR_USERNAME" "$OPERATOR_PASSWORD" "$OPERATOR_GROUP" \
             >> "$CREDENTIALS_FILE"; then
             fail "Could not add Pellier Operator credentials to $CREDENTIALS_FILE"

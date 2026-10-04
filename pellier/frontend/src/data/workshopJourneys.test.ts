@@ -24,9 +24,9 @@ const EXPECTED = {
     'My Wabi-Sabi Bowl arrived chipped. Please help me return it.',
   ],
   jessica: [
-    "Investigate Jessica's open service issue (TKT-2026-3015) and recommend the next fair step. Distinguish what the records establish from what a source reports.",
-    'Which customer, order, return, and identity records are authoritative for this decision? Separate confirmed facts from notes and assumptions.',
-    'Prepare the fairest next step for human review without executing it. Name any missing facts the reviewer must resolve.',
+    'I sent two things back last week, the sage robe and the reed diffuser. Has anything been credited?',
+    'What does your return policy say about store credit for returned home items?',
+    'Please ask a person to look at a store credit for the two items I returned.',
   ],
 } as const
 
@@ -45,7 +45,8 @@ describe('four-lab workshop journey contract', () => {
     expect(WORKSHOP_JOURNEYS.marco.surface).toBe('storefront')
     expect(WORKSHOP_JOURNEYS.anna.surface).toBe('storefront')
     expect(WORKSHOP_JOURNEYS.theo.surface).toBe('storefront')
-    expect(WORKSHOP_JOURNEYS.jessica.surface).toBe('operator')
+    // Jessica is a shopper too: her case reaches the desk through Ask Pellier.
+    expect(WORKSHOP_JOURNEYS.jessica.surface).toBe('storefront')
   })
 
   // Follow-up chips follow the current guide, without adding optional depth.

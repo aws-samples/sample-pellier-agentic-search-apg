@@ -101,7 +101,7 @@ def _validate_participant_receipt(
         if actual != value or (isinstance(value, bool) and actual is not value):
             errors.append(f"participant.{path} must be {value!r}")
     for path in (
-        "runtime.runtime_arn", "operator_runtime.runtime_arn",
+        "runtime.runtime_arn",
         "gateway.gateway_id", "gateway.gateway_arn", "gateway.gateway_url",
         "policy.policy_engine_id",
     ):
@@ -195,9 +195,6 @@ def validate_receipt(
         ),
         "observability.unified_trace.provenance": "agentcore-unified-telemetry",
         "verification.runtime_invoke_smoke.rail": "gateway-mcp",
-        "operator_runtime.authentication": "AWS_IAM",
-        "verification.operator_runtime_invoke_smoke.fixture": True,
-        "verification.operator_runtime_invoke_smoke.build_fingerprint_match": True,
         "verification.runtime_invoke_smoke.build_fingerprint_match": True,
     }
     for path, expected in expected_values.items():
@@ -207,7 +204,6 @@ def validate_receipt(
 
     for path in (
         "runtime.runtime_arn",
-        "operator_runtime.runtime_arn",
         "memory.memory_id",
         "gateway.gateway_id",
         "gateway.gateway_arn",
@@ -220,8 +216,6 @@ def validate_receipt(
         "observability.control_plane_audit.resource_type",
         "observability.runtime_log_group.name",
         "observability.runtime_log_group.kms_key_arn",
-        "observability.operator_runtime_log_group.name",
-        "observability.operator_runtime_log_group.kms_key_arn",
         "observability.trace_log_groups.kms_key_arn",
         "observability.unified_trace.trace_id",
         "observability.unified_trace.session_id",
@@ -231,9 +225,6 @@ def validate_receipt(
         "verification.runtime_invoke_smoke.response_preview",
         "verification.runtime_invoke_smoke.build_fingerprint",
         "verification.runtime_invoke_smoke.build_fingerprint_expected",
-        "verification.operator_runtime_invoke_smoke.runtime_arn",
-        "verification.operator_runtime_invoke_smoke.session_id",
-        "verification.operator_runtime_invoke_smoke.build_fingerprint",
     ):
         actual = _value(payload, path)
         if not isinstance(actual, str) or not actual.strip():
@@ -248,7 +239,6 @@ def validate_receipt(
         "verification.live_policy_deny",
         "verification.authenticated_runtime_invoke_smoke",
         "verification.runtime_build_fingerprint_match",
-        "verification.operator_runtime_build_fingerprint_match",
         "verification.transaction_search_ready",
         "verification.trace_log_groups_encrypted",
         "verification.trace_log_groups_retention_bounded",
@@ -294,18 +284,8 @@ def validate_receipt(
     expected_build = _value(
         payload, "verification.runtime_invoke_smoke.build_fingerprint_expected"
     )
-    for runtime in ("runtime", "operator_runtime"):
-        if _value(payload, f"verification.{runtime}_invoke_smoke.build_fingerprint") != expected_build:
-            errors.append(f"{runtime} smoke must match the expected package fingerprint")
-    operator_arn = _value(payload, "operator_runtime.runtime_arn")
-    if operator_arn == _value(payload, "runtime.runtime_arn"):
-        errors.append("Operator must use a separate Runtime endpoint")
-    if _value(payload, "verification.operator_runtime_invoke_smoke.runtime_arn") != operator_arn:
-        errors.append("Operator smoke must match operator_runtime.runtime_arn")
-    if _value(payload, "verification.operator_runtime_invoke_smoke.executed_nodes") != [
-        "case-investigator", "resolution-planner"
-    ]:
-        errors.append("Operator smoke must prove both graph nodes in order")
+    if _value(payload, "verification.runtime_invoke_smoke.build_fingerprint") != expected_build:
+        errors.append("runtime smoke must match the expected package fingerprint")
 
     # Provisioning publishes the catalogue but proves discovery with a seeded
     # shopper token. Staff-only tools must remain absent from that listing.
@@ -396,7 +376,7 @@ def validate_receipt(
                     f"{role}={observed!r} is not allowlisted"
                 )
 
-    for runtime in ("runtime", "operator_runtime"):
+    for runtime in ("runtime",):
         log_path = f"observability.{runtime}_log_group"
         retention_days = _value(payload, f"{log_path}.retention_days")
         if type(retention_days) is not int or retention_days <= 0:
@@ -484,7 +464,6 @@ def validate_receipt(
 
     observed_groups = [
         _value(payload, "observability.runtime_log_group"),
-        _value(payload, "observability.operator_runtime_log_group"),
         *(trace_groups if isinstance(trace_groups, list) else []),
         *service_groups,
     ]

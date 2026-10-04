@@ -220,7 +220,7 @@
         },
         "executor": {
           "channel": "operator",
-          "principal": "operator",
+          "principal": "nadia",
           "requiredGroup": "pellier-operators"
         },
         "customerSubject": "CUST-THEO"
@@ -391,11 +391,11 @@
       "actors": {
         "requester": {
           "channel": "operator",
-          "principal": "operator"
+          "principal": "nadia"
         },
         "executor": {
           "channel": "operator",
-          "principal": "operator",
+          "principal": "nadia",
           "requiredGroup": "pellier-operators"
         },
         "customerSubject": "CUST-JESSICA"

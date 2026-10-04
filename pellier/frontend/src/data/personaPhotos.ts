@@ -1,14 +1,14 @@
 /**
- * Persona portraits, served from `public/products`.
+ * Persona portraits, served from `public/assets/personas`.
  *
- * These were remote Unsplash URLs. A workshop box has no guaranteed egress
- * to images.unsplash.com, so a blocked request left every avatar as a bare
- * initial circle. Local files remove that dependency.
+ * One 720px WebP per person is the canonical identity image across the
+ * selector, sign-in transition, header, the Operator desk and the signed-in
+ * switcher. CSS owns the crop for each surface so a persona never changes
+ * faces when the participant moves between them.
  *
- * One lossless PNG per person is the canonical identity image across the
- * selector, sign-in transition, header, Observatory, and signed-in switcher.
- * CSS owns the crop for each surface so a persona never changes faces when
- * the participant moves between them.
+ * The four shoppers (Anna, Marco, Theo, Jessica) and Nadia, the staff member
+ * on the Operator desk, share the map: a client on the desk and a shopper in
+ * the store are the same person with the same face.
  *
  * The maps hold root-relative repository paths. The accessors resolve them
  * through `imageSrc()` so a caller can assign the result straight to
@@ -17,10 +17,12 @@
  */
 import { imageSrc } from '../utils/assetPath'
 
-const CANONICAL_PERSONA_PORTRAITS: Record<string, string> = {
+export const CANONICAL_PERSONA_PORTRAITS: Record<string, string> = {
   marco: '/assets/personas/marco-720.webp',
   anna: '/assets/personas/anna-720.webp',
   theo: '/assets/personas/theo-720.webp',
+  jessica: '/assets/personas/jessica-720.webp',
+  nadia: '/assets/personas/nadia-720.webp',
 }
 
 /** Avatar-sized crops for interface chrome. */
@@ -40,58 +42,6 @@ export const PERSONA_PORTRAITS: Record<string, string> = {
 export const PERSONA_MODAL_PORTRAITS: Record<string, string> = {
   fresh: '/favicon.svg',
   ...CANONICAL_PERSONA_PORTRAITS,
-}
-
-/**
- * Client-book portraits, same treatment and same two sizes.
- *
- * Clients are operator-side records, not switchable personas, so they get
- * their own map rather than being folded into `PERSONA_PHOTOS`. Keeping the
- * split explicit stops a client id from ever resolving as a signed-in
- * shopper.
- */
-const CLIENT_SLUGS = [
-  'jessica',
-] as const
-
-function clientMap(size: 160 | 480): Record<string, string> {
-  return Object.fromEntries(
-    CLIENT_SLUGS.map((slug) => [
-      slug,
-      `/products/client-${slug}-portrait-${size}.webp`,
-    ]),
-  )
-}
-
-/** Avatar-sized crops for the client book list. */
-export const CLIENT_PHOTOS: Record<string, string> = clientMap(160)
-
-/** Editorial crops for the client record header. */
-export const CLIENT_PORTRAITS: Record<string, string> = clientMap(480)
-
-/**
- * Resolve a client portrait from a customer id such as `CUST-JESSICA`, or
- * from a bare slug. Returns undefined for an unknown client so callers fall
- * back to the initial-circle avatar they already render.
- */
-function clientSlug(customerId: string | null | undefined): string | undefined {
-  if (!customerId) return undefined
-  const slug = customerId.replace(/^CUST-/i, '').toLowerCase()
-  return slug in CLIENT_PHOTOS ? slug : undefined
-}
-
-export function getClientPhoto(
-  customerId: string | null | undefined,
-): string | undefined {
-  const slug = clientSlug(customerId)
-  return slug ? imageSrc(CLIENT_PHOTOS[slug]) : undefined
-}
-
-export function getClientPortrait(
-  customerId: string | null | undefined,
-): string | undefined {
-  const slug = clientSlug(customerId)
-  return slug ? imageSrc(CLIENT_PORTRAITS[slug]) : undefined
 }
 
 /**

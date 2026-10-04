@@ -6,7 +6,7 @@ export const WORKSHOP_TURN_STAGES = [
 
 export type WorkshopTurnStage = (typeof WORKSHOP_TURN_STAGES)[number]
 export type WorkshopAnchorId = 'marco' | 'anna' | 'theo' | 'jessica'
-export type WorkshopJourneySurface = 'storefront' | 'operator'
+export type WorkshopJourneySurface = 'storefront'
 export type WorkshopLabId =
   | 'grounded-inventory'
   | 'retrieval-acceptance'
@@ -65,11 +65,11 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     anchorName: 'Jessica',
     customerId: 'CUST-JESSICA',
     labId: 'fail-closed-policy',
-    surface: 'operator',
+    surface: 'storefront',
     prompts: [
-      "Investigate Jessica's open service issue (TKT-2026-3015) and recommend the next fair step. Distinguish what the records establish from what a source reports.",
-      'Which customer, order, return, and identity records are authoritative for this decision? Separate confirmed facts from notes and assumptions.',
-      'Prepare the fairest next step for human review without executing it. Name any missing facts the reviewer must resolve.',
+      'I sent two things back last week, the sage robe and the reed diffuser. Has anything been credited?',
+      'What does your return policy say about store credit for returned home items?',
+      'Please ask a person to look at a store credit for the two items I returned.',
     ],
   },
 }

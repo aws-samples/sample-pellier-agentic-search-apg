@@ -38,8 +38,10 @@ export default function StatusLines({ messages }: StatusLinesProps) {
   const auth = useOptionalAuth()
   const identity =
     auth?.isAuthenticated && auth.user
-      ? auth.user.givenName || auth.user.email || auth.user.sub
+      ? auth.user.username || auth.user.givenName || auth.user.email || auth.user.sub
       : null
+  // The method is a fact the server reported, never inferred from the name.
+  const workshop = Boolean(auth?.isAuthenticated && auth.user?.signInMethod === 'workshop')
   const rail = lastReportedRail(messages)
 
   const rows: Array<{ label: string; value: string; known: boolean }> = [
@@ -50,7 +52,9 @@ export default function StatusLines({ messages }: StatusLinesProps) {
     },
     {
       label: STATUS_LINES.VERIFIED_IDENTITY,
-      value: identity ?? STATUS_LINES.NOT_SIGNED_IN,
+      value: identity
+        ? workshop ? `${identity}, ${STATUS_LINES.WORKSHOP_SESSION}` : identity
+        : STATUS_LINES.NOT_SIGNED_IN,
       known: Boolean(identity),
     },
     {

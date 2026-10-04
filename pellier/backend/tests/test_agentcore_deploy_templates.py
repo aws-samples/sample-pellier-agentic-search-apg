@@ -96,11 +96,10 @@ def _render(tmp_path: Path, *, include_policies: bool, runtime_arns=None) -> tup
 TEST_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"
 
 
-def test_both_codezip_runtimes_export_to_the_group_the_cli_queries(tmp_path):
+def test_the_codezip_runtime_exports_to_the_group_the_cli_queries(tmp_path):
     identity = renderer.deployment_identity()
     arns = {
         identity.runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123",
-        identity.operator_runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-def456",
     }
     _, project = _render(tmp_path, include_policies=False, runtime_arns=arns)
     for runtime in project["runtimes"]:
@@ -144,26 +143,6 @@ def test_cli_endpoint_alias_does_not_inherit_or_replace_application_arn(
     assert observed["args"][-len(command):] == list(command)
     assert observed["cwd"] == tmp_path
     assert application_env["AGENTCORE_RUNTIME_ENDPOINT"].startswith("arn:")
-
-
-def test_operator_runtime_is_separate_from_the_shopper_jwt_endpoint(tmp_path: Path) -> None:
-    root, project = _render(tmp_path, include_policies=False)
-    shopper, operator = project["runtimes"]
-    assert shopper["authorizerType"] == "CUSTOM_JWT"
-    assert operator["name"] == renderer.OPERATOR_RUNTIME_NAME
-    # IAM is the Runtime default; no shopper JWT authorizer or forwarded token.
-    assert "authorizerType" not in operator
-    assert "authorizerConfiguration" not in operator
-    assert "requestHeaderAllowlist" not in operator
-    assert operator["entrypoint"] == "operator_agentcore_runtime.py"
-    assert (root / "runtime-src" / operator["entrypoint"]).is_file()
-    assert (root / "runtime-src/services/operator_graph.py").is_file()
-    fingerprints = [
-        next(value["value"] for value in runtime["envVars"]
-             if value["name"] == renderer.FINGERPRINT_ENV_VAR)
-        for runtime in project["runtimes"]
-    ]
-    assert fingerprints[0] == fingerprints[1]
 
 
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
@@ -1415,7 +1394,6 @@ def test_deploy_sequence_validates_both_cli_phases(
                 "resources": {
                     "runtimes": {
                         renderer.RUNTIME_NAME: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123"},
-                        renderer.deployment_identity().operator_runtime_name: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-def456"},
                     },
                     "mcp": {
                         "gateways": {
@@ -1925,9 +1903,6 @@ def _participant_state(identity: Any) -> dict[str, Any]:
                 "resources": {
                     "runtimes": {
                         identity.runtime_name: {"runtimeArn": "arn:runtime"},
-                        identity.operator_runtime_name: {
-                            "runtimeArn": "arn:operator"
-                        },
                     },
                     "mcp": {
                         "gateways": {

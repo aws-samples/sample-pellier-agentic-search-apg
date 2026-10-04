@@ -57,6 +57,7 @@ class _DataApi:
         self.result = result
         self.fail_audit = fail_audit
         self.fail_protected = fail_protected
+        self.approved: list[str] = [APPROVED_HASH]
         self.statements: list[dict[str, Any]] = []
         self.commits: list[dict[str, Any]] = []
         self.rollbacks: list[dict[str, Any]] = []
@@ -77,6 +78,13 @@ class _DataApi:
             raise RuntimeError("new row violates row-level security policy")
         if "SET LOCAL ROLE" in sql or "set_config(" in sql:
             return {}
+        if "FROM pellier.approvals" in sql:
+            # The confirmed review that fingerprints the credit under test. The
+            # tool refuses without it, so every write path here supplies one.
+            return {
+                "columnMetadata": [{"name": "action_hash"}],
+                "records": [[{"stringValue": hash_} ] for hash_ in self.approved],
+            }
         return {
             "columnMetadata": [{"name": "result"}],
             "records": [[{"stringValue": __import__("json").dumps(self.result)}]],
@@ -87,6 +95,16 @@ class _DataApi:
 
     def rollback_transaction(self, **kwargs: Any) -> None:
         self.rollbacks.append(kwargs)
+
+
+# The fingerprint of the credit `_credit_event` carries, as a confirmed review
+# stores it: the tool compares its own hash with the approved rows before it
+# writes.
+from services.store_tools import write_request_hash  # noqa: E402
+
+APPROVED_HASH = write_request_hash(
+    "give_store_credit", customer_id="CUST-THEO", amount_cents=2500, reason="damaged",
+)
 
 
 def _credit_event(**overrides: Any) -> dict[str, Any]:
@@ -302,3 +320,40 @@ def test_a_first_attempt_and_a_refusal_still_write_their_receipt(
         module.lambda_handler(_credit_event(), None)
 
         assert len(_audit_statements(client)) == 1, envelope
+
+
+def test_a_credit_nobody_approved_is_refused_before_the_write_and_still_audited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The approval guard lives in the shared tool, so the Gateway rail has it too.
+
+    A staff token calling the Gateway directly, with no confirmed review for
+    these exact arguments, enters the tool and is refused there: no
+    ``apply_store_credit`` statement, one attempt receipt.
+    """
+    module = _load_server("pellier_store_tools.py", "store_credit_unapproved")
+    client = _DataApi({"status": "success", "credit_id": 7})
+    client.approved = []
+    monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+    result = module.lambda_handler(_credit_event(), None)
+
+    assert '"status": "approval_required"' in result["text"]
+    assert not any("apply_store_credit" in c["sql"] for c in client.statements)
+    assert len(_audit_statements(client)) == 1
+
+
+def test_an_approval_for_a_different_amount_does_not_admit_the_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_server("pellier_store_tools.py", "store_credit_mismatch")
+    client = _DataApi({"status": "success", "credit_id": 7})
+    client.approved = [write_request_hash(
+        "give_store_credit", customer_id="CUST-THEO", amount_cents=2400, reason="damaged",
+    )]
+    monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+    result = module.lambda_handler(_credit_event(), None)
+
+    assert '"status": "approval_mismatch"' in result["text"]
+    assert not any("apply_store_credit" in c["sql"] for c in client.statements)

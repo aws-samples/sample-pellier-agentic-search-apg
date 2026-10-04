@@ -76,6 +76,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 ID_TOKEN_COOKIE = "id_token"
 REFRESH_TOKEN_COOKIE = "refresh_token"
 JUST_SIGNED_IN_COOKIE = "just_signed_in"
+# How the session was established. The workshop's one-click shopper sign-in sets
+# it to ``workshop``; every other path leaves it unset, so the Builder view can
+# label a demo-shopper session without the backend guessing from the username.
+SIGN_IN_METHOD_COOKIE = "signin_method"
+SIGN_IN_METHOD_WORKSHOP = "workshop"
 OAUTH_STATE_COOKIE = "oauth_state"
 PKCE_VERIFIER_COOKIE = "oauth_pkce"
 OAUTH_RETURN_TO_COOKIE = "oauth_return_to"
@@ -478,6 +483,7 @@ def _clear_session_cookies(response: Response) -> None:
         ID_TOKEN_COOKIE,
         REFRESH_TOKEN_COOKIE,
         JUST_SIGNED_IN_COOKIE,
+        SIGN_IN_METHOD_COOKIE,
     ):
         # Match the attributes used at set_cookie time; some browsers retain
         # cookies whose deletion attributes don't match the originals.
@@ -711,12 +717,19 @@ async def me(
             content={"error": "auth_failed"},
             headers={"Cache-Control": "no-store"},
         )
+    method = request.cookies.get(SIGN_IN_METHOD_COOKIE)
     return JSONResponse(
         status_code=200,
         content={
             "user_id": user.user_id,
             "email": user.email,
             "given_name": user.given_name,
+            "username": user.username,
+            # ``workshop`` only when the one-click shopper sign-in set the
+            # session; a password or hosted sign-in reports ``cognito``.
+            "sign_in_method": (
+                SIGN_IN_METHOD_WORKSHOP if method == SIGN_IN_METHOD_WORKSHOP else "cognito"
+            ),
         },
         headers={"Cache-Control": "no-store"},
     )

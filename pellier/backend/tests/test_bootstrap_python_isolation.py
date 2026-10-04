@@ -188,13 +188,13 @@ def test_operator_secret_write_uses_participant_site_and_literal_environment(tmp
     result = run(
         'sudo() { [ "$1" = -u ]; export MOCK_RUN_AS="$2"; shift 2; "$@"; }\n' + command,
         PATH=f"{fake_bin}:/usr/bin:/bin", CODE_EDITOR_USER="participant",
-        REPO_PATH=str(tmp_path), OPERATOR_USERNAME="operator", OPERATOR_PASSWORD=password,
+        REPO_PATH=str(tmp_path), OPERATOR_USERNAME="nadia", OPERATOR_PASSWORD=password,
         AWS_REGION="us-east-1", COGNITO_TEST_CREDENTIALS_SECRET_ARN="synthetic-secret",
         MOCK_CAPTURE=str(capture),
     )
     assert result.stdout == result.stderr == ""
     assert capture.read_text().splitlines() == [
-        "operator", password, "us-east-1", "synthetic-secret",
+        "nadia", password, "us-east-1", "synthetic-secret",
         f"{tmp_path}/scripts/store_operator_credential.py",
     ]
     assert not (REPO / "SHOULD_NOT_EXIST").exists()

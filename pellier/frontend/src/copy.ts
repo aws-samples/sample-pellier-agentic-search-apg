@@ -858,6 +858,27 @@ export const STATUS_LINES = {
   NOT_SIGNED_IN: "Not signed in",
   EXECUTION_PATH: "Execution path",
   EXECUTION_UNKNOWN: "Unknown until the first turn",
+  /** The session label when a chip signed the shopper in. */
+  WORKSHOP_SESSION: "Workshop sign-in (demo shoppers)",
+} as const;
+
+/**
+ * The one-click shopper sign-in. A workshop convenience, not a production
+ * pattern: each chip performs a real Cognito sign-in on the server with the
+ * provisioned test credentials. Staff never get a chip.
+ */
+export const WORKSHOP_SIGN_IN = {
+  LABEL: "Signed in as",
+  SIGNING_IN: "Signing in",
+  SIGN_OUT: "Sign out",
+  NOTE: "Workshop sign-in (demo shoppers). Nadia signs in with her password on the Operator desk.",
+  FAILED: "That sign-in did not complete. Try again, or use the sign-in page.",
+  shoppers: [
+    { id: "anna", name: "Anna" },
+    { id: "marco", name: "Marco" },
+    { id: "theo", name: "Theo" },
+    { id: "jessica", name: "Jessica" },
+  ],
 } as const;
 
 export const ERROR_CODES = {

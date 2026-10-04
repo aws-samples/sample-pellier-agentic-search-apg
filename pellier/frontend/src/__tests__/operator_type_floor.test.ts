@@ -172,7 +172,9 @@ describe('Operator type floor', () => {
     // the scan actually reaches the two surfaces and a representative file in
     // each, so an empty result means "clean", never "looked nowhere".
     const scanned = SCAN_ROOTS.flatMap(walk).map((f) => relative(SRC, f))
-    expect(scanned.length).toBeGreaterThan(50)
+    // The desk is three columns and a handful of pieces since the Concierge
+    // went; the number guards against an empty scan, not a file count.
+    expect(scanned.length).toBeGreaterThan(30)
     expect(scanned).toContain(join('operator', 'styles', 'operator.css'))
     // The shared primitives both surfaces render.
     expect(scanned).toContain(join('shared', 'DataTable.tsx'))

@@ -316,15 +316,6 @@ async def lifespan(app: FastAPI):
         tool_audit_writer.set_main_loop(asyncio.get_running_loop())
         logger.info("✅ tool_audit writer initialized for read and mutation execution logging")
 
-        # The operator review writer needs the same bridge. When a governed
-        # mutation declines to run on the shopper rail, the after-tool hook turns
-        # that refusal into a durable review row, and it fires on a Strands
-        # worker thread rather than the request loop.
-        from services import operator_review
-        operator_review.set_db_service(db_service)
-        operator_review.set_main_loop(asyncio.get_running_loop())
-        logger.info("✅ operator review writer initialized for the action boundary")
-
         # Load the skill registry once at boot. Per-request cost is zero —
         # skills are served from memory. See backend/skills/ for the
         # registry, models, and one-call router.

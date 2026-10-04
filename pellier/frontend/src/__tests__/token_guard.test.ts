@@ -67,6 +67,21 @@ const GUARDED_FILES = [
   'design/primitives/IconButton.tsx',
   'pages/PellierPage.tsx',
   'pages/ProductDetailPage.tsx',
+  'components/WorkshopSignIn.tsx',
+  'components/StatusLines.tsx',
+  'operator/styles/operator.css',
+  'operator/shell/OperatorFrame.tsx',
+  'operator/surfaces/ClientBook.tsx',
+  'operator/surfaces/ClientRecord.tsx',
+  'operator/surfaces/ReviewQueue.tsx',
+  'operator/surfaces/ReviewRecord.tsx',
+  'operator/investigation/InvestigationSteps.tsx',
+  'operator/components/ProposedCreditCard.tsx',
+  'operator/components/ClientAvatar.tsx',
+  'operator/components/OperatorState.tsx',
+  'operator/components/OperatorSignInAction.tsx',
+  'operator/hooks/useInvestigation.ts',
+  'operator/hooks/useReview.ts',
 ]
 
 /* The CSS named colors (CSS Color Level 4). `transparent` and
@@ -137,7 +152,7 @@ function violations(file: string): string[] {
   return found
 }
 
-describe('token guard (cut 5a surfaces)', () => {
+describe('token guard (direction A surfaces)', () => {
   it('writes color values only in the token files', () => {
     const all = GUARDED_FILES.flatMap(violations)
     expect(all).toEqual([])

@@ -43,7 +43,8 @@ PREF_LABEL[1]="neutral, linen, travel, everyday, classic"
 PREF_LABEL[2]="bold, creative, warm, evening, dresses"
 PREF_LABEL[3]="minimal, serene, earth, slow, home"
 declare -A ROLE_LABEL
-ROLE_LABEL[4]="Lab 4 customer principal and Jessica Operator case"
+ROLE_LABEL[4]="Lab 4 shopper: Jessica's store-credit case"
+ROLE_LABEL[5]="Staff (Nadia): approves credits on the Operator desk; signs in with this password"
 
 {
     echo "============================================================="

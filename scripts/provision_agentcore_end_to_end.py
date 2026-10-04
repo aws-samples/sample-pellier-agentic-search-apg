@@ -1180,12 +1180,13 @@ def _deploy_cli_project(
     gateway_state = _require_gateway_state(state, identity.gateway_name)
     _require_state_resource(state, "policyEngines", identity.policy_engine_name)
     runtime_arns = {
-        name: str(_require_state_resource(state, "runtimes", name)["runtimeArn"])
-        for name in (identity.runtime_name, identity.operator_runtime_name)
+        identity.runtime_name: str(
+            _require_state_resource(state, "runtimes", identity.runtime_name)["runtimeArn"]
+        )
     }
 
     # The first deploy supplies physical Gateway and Runtime IDs. Bind Cedar
-    # policies and both Runtime exporters to those IDs in the second render.
+    # policies and the Runtime exporter to those IDs in the second render.
     render_project(
         **common,
         include_policies=True,
@@ -1610,63 +1611,6 @@ def _decode_runtime_invoke(proc: subprocess.CompletedProcess[str]) -> dict[str, 
     if isinstance(raw_response, dict):
         return raw_response
     raise RuntimeError("AgentCore CLI Runtime response was missing")
-
-
-def _operator_runtime_smoke(
-    *, runtime_arn: str, region: str, expected_fingerprint: str,
-) -> dict[str, Any]:
-    """Require the IAM endpoint to execute both graph nodes from this package."""
-    from services.operator_graph import GRAPH_ID
-
-    session_id = f"operator-smoke-{int(time.time())}-0000000000000000000001"
-    payload = {
-        "request": "Summarize the supplied deployment fixture.",
-        "evidence_text": "[FACT] This is a synthetic deployment fixture, not a customer case.",
-        "memory_text": "",
-        "contract": 'Return JSON with one key, "summary". State that this is a deployment fixture.',
-    }
-    client = boto3.client(
-        "bedrock-agentcore", region_name=region,
-        config=Config(connect_timeout=10, read_timeout=210, retries={"total_max_attempts": 1}),
-    )
-    response = client.invoke_agent_runtime(
-        agentRuntimeArn=runtime_arn, runtimeSessionId=session_id,
-        qualifier="DEFAULT", contentType="application/json", accept="application/json",
-        payload=json.dumps(payload).encode(),
-    )
-    stream = response["response"]
-    try:
-        decoded = json.loads(stream.read(1024 * 1024))
-    finally:
-        stream.close()
-    if not isinstance(decoded, dict) or not isinstance(decoded.get("metadata"), dict):
-        raise RuntimeError("Operator Runtime smoke returned an invalid result")
-    metadata = decoded["metadata"]
-    nodes = metadata.get("executedNodes")
-    if not isinstance(nodes, list) or not all(isinstance(node, dict) for node in nodes):
-        raise RuntimeError("Operator Runtime smoke returned invalid graph evidence")
-    node_ids = [node.get("nodeId") for node in nodes]
-    if (
-        not expected_fingerprint
-        or decoded.get("build_fingerprint") != expected_fingerprint
-        or decoded.get("error")
-        or metadata.get("graphId") != GRAPH_ID
-        or metadata.get("execution") != "agentcore-runtime"
-        or metadata.get("status") != "complete"
-        or node_ids != ["case-investigator", "resolution-planner"]
-        or any(node.get("status") != "completed" for node in nodes)
-        or not isinstance(decoded.get("raw"), str)
-        or not decoded["raw"].strip()
-    ):
-        raise RuntimeError("Operator Runtime smoke did not prove this package and both graph nodes")
-    return {
-        "runtime_arn": runtime_arn,
-        "session_id": session_id,
-        "build_fingerprint": expected_fingerprint,
-        "build_fingerprint_match": True,
-        "executed_nodes": node_ids,
-        "fixture": True,
-    }
 
 
 def _authenticated_runtime_smoke(
@@ -2403,8 +2347,9 @@ def _redeploy_participant_edits(
     gateway_state = _require_gateway_state(deployed_state, identity.gateway_name)
     policy_state = _require_state_resource(deployed_state, "policyEngines", identity.policy_engine_name)
     runtime_arns = {
-        name: str(_require_state_resource(deployed_state, "runtimes", name)["runtimeArn"])
-        for name in (identity.runtime_name, identity.operator_runtime_name)
+        identity.runtime_name: str(
+            _require_state_resource(deployed_state, "runtimes", identity.runtime_name)["runtimeArn"]
+        )
     }
     active_policies = _active_policy_names(
         region=region, policy_engine_id=str(policy_state["policyEngineId"])
@@ -2508,9 +2453,6 @@ def _participant_update(
 
     gateway_state = _require_gateway_state(state, identity.gateway_name)
     runtime_state = _require_state_resource(state, "runtimes", identity.runtime_name)
-    operator_state = _require_state_resource(
-        state, "runtimes", identity.operator_runtime_name
-    )
     gateway_id = str(gateway_state["gatewayId"])
     gateway_url = str(gateway_state.get("gatewayUrl", ""))
     if not gateway_url:
@@ -2523,10 +2465,6 @@ def _participant_update(
     result["runtime"] = {
         "runtime_arn": str(runtime_state["runtimeArn"]),
         "agent_model_id": required["model_id"],
-    }
-    result["operator_runtime"] = {
-        "runtime_arn": str(operator_state["runtimeArn"]),
-        "authentication": "AWS_IAM",
     }
     # The participant's render carries the Cedar policies, and Lab 3's own proof
     # is that a foreign customer's ticket read is denied. A deploy that quietly
@@ -2846,14 +2784,12 @@ def main() -> int:
         result["cli"]["project_root"] = str(root)
 
         runtime_state = _require_state_resource(state, "runtimes", identity.runtime_name)
-        operator_state = _require_state_resource(state, "runtimes", identity.operator_runtime_name)
         memory_state = _require_state_resource(state, "memories", identity.memory_name)
         gateway_state = _require_gateway_state(state, identity.gateway_name)
         policy_state = _require_state_resource(
             state, "policyEngines", identity.policy_engine_name
         )
         runtime_arn = str(runtime_state["runtimeArn"])
-        operator_runtime_arn = str(operator_state["runtimeArn"])
         memory_id = str(memory_state["memoryId"])
         gateway_id = str(gateway_state["gatewayId"])
         gateway_arn = str(gateway_state["gatewayArn"])
@@ -2885,24 +2821,6 @@ def main() -> int:
             "opus_model_id": opus_model_id,
             "sonnet_model_id": sonnet_model_id,
         }
-        result["operator_runtime"] = {
-            "runtime_arn": operator_runtime_arn,
-            "authentication": "AWS_IAM",
-            "agent_model_id": sonnet_model_id,
-        }
-        def checkpoint_operator_log_group(group: dict[str, Any]) -> None:
-            result["observability"]["operator_runtime_log_group"] = group
-            checkpoint()
-
-        operator_log_group = _ensure_runtime_log_group(
-            region=region,
-            runtime_arn=operator_runtime_arn,
-            kms_key_arn=required["runtime_log_kms_key_arn"],
-            retention_days=runtime_log_retention_days,
-            on_cleanup_state=checkpoint_operator_log_group,
-        )
-        result["observability"]["operator_runtime_log_group"] = operator_log_group
-        checkpoint()
         runtime_log_group = _ensure_runtime_log_group(
             region=region,
             runtime_arn=runtime_arn,
@@ -3071,13 +2989,6 @@ def main() -> int:
         result["verification"]["runtime_build_fingerprint_match"] = runtime_smoke[
             "build_fingerprint_match"
         ]
-        stage("Operator Runtime")
-        operator_smoke = _operator_runtime_smoke(
-            runtime_arn=operator_runtime_arn, region=region,
-            expected_fingerprint=_rendered_build_fingerprint(root),
-        )
-        result["verification"]["operator_runtime_invoke_smoke"] = operator_smoke
-        result["verification"]["operator_runtime_build_fingerprint_match"] = True
         stage("unified agent, model and tool trace (maximum 900s)")
         trace_proof = _wait_for_unified_trace(
             root=root,
@@ -3118,7 +3029,6 @@ def main() -> int:
             "live_policy_allow",
             "live_policy_deny",
             "authenticated_runtime_invoke_smoke",
-            "operator_runtime_build_fingerprint_match",
             "transaction_search_ready",
             "trace_log_groups_encrypted",
             "trace_log_groups_retention_bounded",

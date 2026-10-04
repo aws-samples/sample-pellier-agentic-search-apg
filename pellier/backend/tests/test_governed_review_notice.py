@@ -77,7 +77,7 @@ def test_a_credit_request_opens_exactly_one_pending_review() -> None:
     sql, params = run.calls[0]
     assert "ON CONFLICT (customer_id, tool, action_hash) WHERE status = 'pending'" in sql
     assert params[0] == "CUST-JESSICA" and params[2] == "turn-" + "a" * 32
-    assert params[5] == store_tools.write_request_hash(
+    assert params[6] == store_tools.write_request_hash(
         "give_store_credit", customer_id="CUST-JESSICA", amount_cents=4500, reason="Two items went back.",
     )
 

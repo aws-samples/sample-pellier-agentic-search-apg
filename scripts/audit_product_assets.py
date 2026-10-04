@@ -59,7 +59,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 REPO = pathlib.Path(__file__).resolve().parents[1]
 PRODUCTS_DIR = REPO / "pellier" / "frontend" / "public" / "products"
 PRODUCTS_PREFIX = "pellier/frontend/public/products/"
-PERSONA_PHOTOS_TS = REPO / "pellier" / "frontend" / "src" / "data" / "personaPhotos.ts"
 
 # Extensions worth scanning for a reference. Source, fixtures, seeds and docs.
 SOURCE_SUFFIXES = (
@@ -160,27 +159,6 @@ def literal_references() -> Dict[str, List[str]]:
     return {name: sorted(sources) for name, sources in found.items()}
 
 
-def client_portrait_names() -> List[str]:
-    """Portrait filenames `personaPhotos.ts` composes at runtime.
-
-    Parsed rather than duplicated. A new slug in that module immediately becomes a
-    required asset, which is the only way a missing portrait fails before a
-    participant sees an initial circle where a face belongs.
-    """
-    text = PERSONA_PHOTOS_TS.read_text(encoding="utf-8")
-    block = re.search(r"const CLIENT_SLUGS = \[(.*?)\] as const", text, re.S)
-    if not block:
-        raise SystemExit(
-            f"CLIENT_SLUGS not found in {PERSONA_PHOTOS_TS.relative_to(REPO)}; "
-            "the portrait contract can no longer be derived from source."
-        )
-    slugs = re.findall(r"'([a-z][a-z0-9-]*)'", block.group(1))
-    sizes = sorted({int(size) for size in re.findall(r"clientMap\((\d+)\)", text)})
-    if not slugs or not sizes:
-        raise SystemExit("CLIENT_SLUGS or clientMap sizes parsed empty")
-    return [f"client-{slug}-portrait-{size}.webp" for slug in slugs for size in sizes]
-
-
 _CONCRETE_DERIVATIVE_RE = re.compile(
     r"-(?:160|480|960|1122|1600)\.(?:avif|webp)$", re.I
 )
@@ -264,7 +242,6 @@ def audit(*, with_dimensions: bool = False) -> Dict[str, object]:
     tracked = tracked_paths()
     on_disk = {path.name for path in PRODUCTS_DIR.iterdir() if path.is_file()}
     literals = literal_references()
-    templated = client_portrait_names()
 
     entries: List[Dict[str, object]] = []
     required: Set[str] = set()
@@ -307,10 +284,6 @@ def audit(*, with_dimensions: bool = False) -> Dict[str, object]:
             "sources": sources,
             "testOnly": all(is_test_path(source) for source in sources),
         })
-    for name in templated:
-        if name in literals:
-            continue
-        record(name, "templated", [PERSONA_PHOTOS_TS.relative_to(REPO).as_posix()])
 
     tracked_products = {path for path in tracked if path.startswith(PRODUCTS_PREFIX)}
     return {

@@ -73,8 +73,8 @@ facilitator preparation, outside the participant tasks.
 
 Selecting a scenario does not sign in as that customer. Cognito establishes the
 principal. Aurora maps the verified subject to a customer; the token's customer
-claim supports the Cedar ownership check. The `operator` account is separate
-from Jessica's shopper identity.
+claim supports the Cedar ownership check. Nadia's staff account (`nadia`) is
+separate from Jessica's shopper identity.
 
 At each shopper handoff, sign out of the previous account, sign in as the next
 customer, select the matching scenario, and start a fresh conversation. Complete
@@ -261,10 +261,9 @@ Inspect authorization, execution,
 and committed effects separately; suppressing a response does not roll back a
 write. Use synthetic workshop data and retain partial or contradictory results.
 
-Sign in as `operator` and investigate Jessica's service issue. The exploratory
-turn runs Case Investigator and Resolution Planner. It does not itself promise
-a new approval record. Stop before an additional consequential action;
-proposal prompts are optional.
+Sign in as `nadia` and investigate Jessica's case. The investigation runs the
+Investigator, then the Planner, which proposes one store credit and opens one
+review. Nothing is written until Nadia approves and executes it.
 
 **Explain:** authentication, Cedar authorization, business validity, RLS,
 execution, idempotency, and human approval are separate controls. A direct Gateway

@@ -1,9 +1,21 @@
 """Pellier-owned password UI backed by Cognito's public authentication APIs.
 
 Credentials are transient request data. No tokens or Cognito challenge sessions
-are returned to JavaScript. A browser-bound signed CSRF nonce protects all three
-POSTs; only independently verified JWTs become existing secure session cookies.
+are returned to JavaScript. A browser-bound signed CSRF nonce protects every
+POST; only independently verified JWTs become existing secure session cookies.
 Additional authentication challenges continue through the hosted sign-in flow.
+
+The workshop sign-in
+--------------------
+
+``POST /workshop-sign-in`` signs one of the four provisioned shoppers in with
+one click. It is a workshop convenience, not a production pattern: the browser
+names a shopper and nothing else, the password comes from the provisioning
+secret on the server, and Cognito mints the same signed token a typed password
+would. There is no ambient identity and no faked claim. Staff never get a
+chip: a member of ``pellier-operators`` is refused here, because a one-click
+staff button would let anyone who opens the app approve store credits, and
+that is the action Lab 4 says only staff can take.
 """
 from __future__ import annotations
 
@@ -13,7 +25,9 @@ import hashlib
 import hmac
 import json
 import logging
+import time
 from functools import lru_cache
+from typing import Any, Dict, List, Optional
 
 import boto3
 from botocore.config import Config
@@ -22,8 +36,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from config import settings
+from services.auth import OPERATOR_GROUP
 from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from routes.auth import (
+    ACCESS_COOKIE_MAX_AGE, SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP,
     _build_state, _client_id, _safe_return_to, _set_just_signed_in_cookie,
     _set_session_cookies, _verify_state,
 )
@@ -31,6 +47,11 @@ from routes.auth import (
 router = APIRouter(prefix="/api/auth/password", tags=["auth"])
 CSRF_COOKIE = "password_csrf"
 logger = logging.getLogger(__name__)
+
+# The only users the one-click sign-in will ever mint a session for. Nadia is
+# deliberately absent: staff type a password.
+WORKSHOP_SHOPPERS = ("anna", "marco", "theo", "jessica")
+_CREDENTIALS_TTL_SECONDS = 60
 
 
 @lru_cache(maxsize=1)
@@ -115,6 +136,52 @@ async def _call(operation: str, **params) -> dict:
         raise HTTPException(503, "auth_unavailable") from None
 
 
+@lru_cache(maxsize=1)
+def _secrets_client():
+    return boto3.client(
+        "secretsmanager", region_name=settings.aws_region_resolved,
+        config=Config(connect_timeout=5, read_timeout=10,
+                      retries={"total_max_attempts": 1, "mode": "standard"}),
+    )
+
+
+_credentials_cache: Dict[str, Any] = {"read_at": 0.0, "users": []}
+
+
+def _read_workshop_users() -> List[Dict[str, Any]]:
+    """The provisioned test users, from the secret the deployment wrote.
+
+    Cached briefly so four chips do not cost four Secrets Manager reads. The
+    secret holds the staff entry too; the allowlist above is what keeps it out.
+    """
+    now = time.monotonic()
+    if _credentials_cache["users"] and now - _credentials_cache["read_at"] < _CREDENTIALS_TTL_SECONDS:
+        return list(_credentials_cache["users"])
+    secret_arn = str(settings.COGNITO_TEST_CREDENTIALS_SECRET_ARN or "").strip()
+    if not secret_arn:
+        raise HTTPException(503, "workshop_sign_in_unavailable")
+    try:
+        raw = _secrets_client().get_secret_value(SecretId=secret_arn).get("SecretString") or "{}"
+        parsed = json.loads(raw)
+    except (BotoCoreError, ClientError, ValueError):
+        raise HTTPException(503, "workshop_sign_in_unavailable") from None
+    users = parsed.get("users") if isinstance(parsed, dict) else None
+    if not isinstance(users, list):
+        raise HTTPException(503, "workshop_sign_in_unavailable")
+    _credentials_cache.update(read_at=now, users=list(users))
+    return list(users)
+
+
+def _shopper_password(username: str) -> str:
+    matches = [
+        user for user in _read_workshop_users()
+        if isinstance(user, dict) and str(user.get("username") or "").casefold() == username
+    ]
+    if len(matches) != 1 or not str(matches[0].get("password") or ""):
+        raise HTTPException(503, "workshop_sign_in_unavailable")
+    return str(matches[0]["password"])
+
+
 @router.get("/csrf")
 async def csrf() -> JSONResponse:
     _client_id()
@@ -156,6 +223,66 @@ async def sign_in(request: Request, service: CognitoAuthService = Depends(get_co
     _set_session_cookies(response, access_token=access_token,
                          id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
     _set_just_signed_in_cookie(response)
+    response.delete_cookie(SIGN_IN_METHOD_COOKIE, path="/", secure=True, samesite="lax")
+    response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
+    return response
+
+
+@router.post("/workshop-sign-in")
+async def workshop_sign_in(
+    request: Request, service: CognitoAuthService = Depends(get_cognito_auth_service),
+):
+    """Sign one provisioned shopper in with one click. A workshop convenience.
+
+    The browser sends a shopper's username and nothing else: a body carrying a
+    password is refused outright. The password is read from the provisioning
+    secret on the server, the sign-in is the same ``USER_PASSWORD_AUTH`` call a
+    typed password makes, and the token is verified before it becomes a cookie.
+    The verified token must name the requested user and must not carry the
+    operator group, so no chip can produce another shopper's scope or a staff
+    session.
+    """
+    body = await _payload(request, ("username",))
+    if "password" in body:
+        raise HTTPException(400, "invalid_input")
+    username = body["username"].casefold()
+    if username not in WORKSHOP_SHOPPERS:
+        raise HTTPException(403, "workshop_user_not_allowed")
+    password = _shopper_password(username)
+    parameters = {"USERNAME": username, "PASSWORD": password}
+    secret_hash = _secret_hash(username)
+    if secret_hash:
+        parameters["SECRET_HASH"] = secret_hash
+    result = await _call("initiate_auth", ClientId=_client_id(),
+                         AuthFlow="USER_PASSWORD_AUTH", AuthParameters=parameters)
+    tokens = result.get("AuthenticationResult") or {}
+    access_token = tokens.get("AccessToken")
+    if result.get("ChallengeName") or not access_token:
+        logger.warning("Workshop sign-in for %s returned no access token", username)
+        raise HTTPException(502, "auth_unavailable")
+    try:
+        user = await service.validate_jwt(access_token)
+    except HTTPException as exc:
+        cause = exc.__cause__ or exc.__context__ or exc
+        logger.warning("Workshop sign-in verification failed: %s", type(cause).__name__)
+        raise HTTPException(503 if exc.status_code == 503 else 502, "auth_unavailable") from None
+    if str(getattr(user, "username", "") or "").casefold() != username:
+        logger.warning("Workshop sign-in for %s verified as another user", username)
+        raise HTTPException(502, "auth_unavailable")
+    if OPERATOR_GROUP in tuple(getattr(user, "groups", ()) or ()):
+        logger.warning("Workshop sign-in refused: %s is in %s", username, OPERATOR_GROUP)
+        raise HTTPException(403, "workshop_user_not_allowed")
+    target = body.get("returnTo")
+    return_to = _safe_return_to(target if isinstance(target, str) else None) or "/"
+    response = _response({
+        "status": "signed_in", "returnTo": return_to,
+        "username": username, "signInMethod": SIGN_IN_METHOD_WORKSHOP,
+    })
+    _set_session_cookies(response, access_token=access_token,
+                         id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
+    _set_just_signed_in_cookie(response)
+    response.set_cookie(SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP, max_age=ACCESS_COOKIE_MAX_AGE,
+                        httponly=True, secure=True, samesite="lax", path="/")
     response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
     return response
 

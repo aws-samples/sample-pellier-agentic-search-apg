@@ -36,10 +36,6 @@ def _valid_receipt() -> dict[str, Any]:
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/example"},
-        "operator_runtime": {
-            "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
-            "authentication": "AWS_IAM",
-        },
         "memory": {"memory_id": "memory-1", "seed": {"status": "ready"}},
         "gateway": {
             "gateway_id": "gateway-1",
@@ -82,12 +78,6 @@ def _valid_receipt() -> dict[str, Any]:
                     "previous_kms_key_arn": None,
                     "previous_retention_days": None,
                 },
-            },
-            "operator_runtime_log_group": {
-                "name": "/aws/bedrock-agentcore/runtimes/pellier_operator-fixture-DEFAULT",
-                "kms_key_arn": "arn:aws:kms:us-east-1:123456789012:key/fixture",
-                "retention_days": 30,
-                "cleanup": {"created_by_workshop": True},
             },
             "trace_log_groups": {
                 "groups": [
@@ -182,16 +172,7 @@ def _valid_receipt() -> dict[str, Any]:
                 "build_fingerprint_expected": "fixture-package",
                 "build_fingerprint_match": True,
             },
-            "operator_runtime_invoke_smoke": {
-                "runtime_arn": "arn:aws:bedrock-agentcore:runtime/operator-fixture",
-                "session_id": "operator-proof-000000000000000000001",
-                "build_fingerprint": "fixture-package",
-                "build_fingerprint_match": True,
-                "executed_nodes": ["case-investigator", "resolution-planner"],
-                "fixture": True,
-            },
             "runtime_build_fingerprint_match": True,
-            "operator_runtime_build_fingerprint_match": True,
             "targets_attached": True,
             "gateway_tools_discovered": True,
             "memory_seeded": True,
@@ -266,7 +247,6 @@ def _valid_receipt() -> dict[str, Any]:
     })
     for group in [
         observability["runtime_log_group"],
-        observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
         observability["gateway"]["log_group_protection"],
         observability["memory"]["log_group_protection"],
@@ -335,7 +315,7 @@ def test_log_protection_flags_do_not_substitute_for_readback(evidence_type: str)
 def test_observed_log_settings_must_match_the_claimed_configuration() -> None:
     validator = _load_validator()
     receipt = _valid_receipt()
-    receipt["observability"]["operator_runtime_log_group"]["observed"]["kms_key_arn"] = None
+    receipt["observability"]["runtime_log_group"]["observed"]["kms_key_arn"] = None
     assert any("observed" in error for error in validator.validate_receipt(receipt))
 
 
@@ -445,23 +425,6 @@ def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str
     else:
         participant["verification"]["gateway_control_plane"]["policy_mode"] = "LOG_ONLY"
     assert _load_validator().validate_receipt(full, participant)
-
-
-@pytest.mark.parametrize("failure", ["missing", "stale", "partial", "endpoint", "log"])
-def test_ready_receipt_requires_the_matching_operator_package(failure: str) -> None:
-    receipt = _valid_receipt()
-    smoke = receipt["verification"]["operator_runtime_invoke_smoke"]
-    if failure == "missing":
-        receipt.pop("operator_runtime")
-    elif failure == "stale":
-        smoke["build_fingerprint"] = "old-package"
-    elif failure == "partial":
-        smoke["executed_nodes"].pop()
-    elif failure == "endpoint":
-        smoke["runtime_arn"] = receipt["runtime"]["runtime_arn"]
-    else:
-        receipt["observability"]["operator_runtime_log_group"]["retention_days"] = 0
-    assert _load_validator().validate_receipt(receipt)
 
 
 def _redacted_receipt() -> dict[str, Any]:

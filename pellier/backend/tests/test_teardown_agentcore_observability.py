@@ -171,21 +171,6 @@ def test_cleanup_accepts_the_exact_captured_cli_runtime(runtime_id: str) -> None
     assert module.cleanup_plan(receipt)[-1]["log_group_name"] == name
 
 
-def test_cleanup_includes_the_separate_operator_runtime() -> None:
-    module = _load_script()
-    receipt = _receipt()
-    runtime_id = "pellierrc_pellier_rc_operator-abc123"
-    receipt["operator_runtime"] = {
-        "runtime_arn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{runtime_id}",
-    }
-    name = f"/aws/bedrock-agentcore/runtimes/{runtime_id}-DEFAULT"
-    receipt["observability"]["operator_runtime_log_group"] = {
-        "name": name, "kms_key_arn": WORKSHOP_KMS_KEY, "retention_days": 30,
-        "cleanup": {"created_by_workshop": True},
-    }
-    assert module.cleanup_plan(receipt)[-1]["log_group_name"] == name
-
-
 def test_cleanup_rejects_a_different_pellier_runtime_than_the_receipt() -> None:
     module = _load_script()
     receipt = _receipt()

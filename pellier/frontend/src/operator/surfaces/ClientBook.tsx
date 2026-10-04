@@ -1,484 +1,123 @@
 /**
- * The book — every client, richest standing first.
+ * The clients: who has an open request, and what they last ordered.
  *
- * Reads the operator-gated `GET /api/operator/clients`. Membership counts
- * come from the API rather than being recomputed here, so the summary cannot
- * disagree with the rows.
+ * The desk's first column. No tiers, no spend: the list shows what staff act
+ * on. Reads the staff-gated `GET /api/operator/clients`; the counts come from
+ * the API so the summary cannot disagree with the rows.
  */
-
-import React, { useEffect, useState } from 'react'
-import { MessageCircle } from 'lucide-react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  MEMBERSHIP,
-  MEMBERSHIP_RUNGS,
-  type Membership,
-} from '../../data/membership'
+import React from 'react'
+import { NavLink, useParams } from 'react-router-dom'
+import { StatusTag } from '../../components/turn'
 import { useClientBook } from '../hooks/useClientBook'
 import type { OperatorClient } from '../../services/operator'
-import ServiceSource from '../components/ServiceSource'
 import ClientAvatar from '../components/ClientAvatar'
-import MembershipRung from '../components/MembershipRung'
 import OperatorSignInAction from '../components/OperatorSignInAction'
-import OperatorState from '../components/OperatorState'
+import OperatorState, { describeOperatorError } from '../components/OperatorState'
 
-/**
- * How many rows the entrance stagger walks before it stops adding delay.
- *
- * A count, not a duration: 12 x 26ms puts the last staggered row at 312ms,
- * which is inside the window where a sequence still reads as one gesture. Past
- * that an operator has begun reading the top of the book, and a row still
- * arriving underneath is a distraction rather than an arrival.
- */
-const ENTRANCE_STAGGER_CAP = 12
-
-// A support-ticket status describes service work, not a human approval.
-function serviceRequestLabel(status: OperatorClient['openCaseStatus']): string | null {
-  if (status === 'open') return 'Open service request'
-  if (status === 'pending') return 'Pending service request'
-  return null
+export function shortDate(iso: string | null): string | null {
+  if (!iso) return null
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function money(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  })
+function lastOrderLine(client: OperatorClient): string {
+  if (!client.lastOrder) return 'No orders yet'
+  const when = shortDate(client.lastOrder.placedAt)
+  return when ? `${client.lastOrder.productName}, ${when}` : client.lastOrder.productName
 }
 
-const BOOK_VIEW_KEY = 'pellier-operator-book-view'
-function savedBookView(key = BOOK_VIEW_KEY): { query?: string; rung?: Membership | null; scroll?: number } {
-  try {
-    const value = JSON.parse(sessionStorage.getItem(key) || '{}')
-    if (!value || typeof value !== 'object') return {}
-    return {
-      query: typeof value.query === 'string' ? value.query : '',
-      rung: MEMBERSHIP_RUNGS.includes(value.rung) ? value.rung : null,
-      scroll: Number.isFinite(value.scroll) ? value.scroll : 0,
-    }
-  } catch { return {} }
-}
+const ClientRow: React.FC<{ client: OperatorClient; selected: boolean }> = ({ client, selected }) => (
+  <li>
+    <NavLink
+      to={`/operator/clients/${encodeURIComponent(client.customerId)}`}
+      className="op-row"
+      aria-current={selected ? 'page' : undefined}
+      data-testid={`operator-client-${client.slug}`}
+    >
+      <ClientAvatar customerId={client.customerId} name={client.name} personaId={client.personaId} />
+      <span className="op-row-body">
+        <span className="op-row-head">
+          <span className="op-row-name">{client.name}</span>
+          {client.openRequests > 0 ? (
+            <StatusTag tone="pending" pulse>
+              {client.openRequests === 1 ? '1 open request' : `${client.openRequests} open requests`}
+            </StatusTag>
+          ) : null}
+        </span>
+        <span className="op-row-line">
+          {client.openRequest ? client.openRequest : lastOrderLine(client)}
+        </span>
+        {client.openRequest ? <span className="op-row-sub">{lastOrderLine(client)}</span> : null}
+      </span>
+    </NavLink>
+  </li>
+)
 
-const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record' }) => {
-  const navigate = useNavigate()
+/** The list, as the desk's rail. Also the index page's only content. */
+export const ClientList: React.FC = () => {
   const { book, error, refresh } = useClientBook()
-  const [params, setParams] = useSearchParams()
-  const chatEntry = intent === 'chat'
-  const viewKey = chatEntry ? 'pellier-operator-chat-view' : BOOK_VIEW_KEY
-  const [initialView] = useState(() => savedBookView(viewKey))
-  // Client-side: the whole book is already loaded, so filtering needs no
-  // round trip. Null means "no filter", not "registered".
-  const requestedRung = params.get('membership')
-  const openRequestsOnly = params.get('requests') === 'open'
-  const rungFilter: Membership | null = requestedRung == null
-    ? initialView.rung ?? null
-    : MEMBERSHIP_RUNGS.includes(requestedRung as Membership) ? requestedRung as Membership : null
-  const setRungFilter = (rung: Membership | null) => {
-    setParams(current => {
-      const next = new URLSearchParams(current)
-      next.set('membership', rung ?? 'all')
-      return next
-    })
-  }
-  // Typed name filter. Fifteen clients fit on one screen; forty do not, and an
-  // associate who knows the name should not have to scan the ladder for it.
-  const [query, setQuery] = useState(() => initialView.query ?? '')
-
-  useEffect(() => {
-    if (params.has('membership') || !initialView.rung) return
-    setParams(current => {
-      const next = new URLSearchParams(current)
-      next.set('membership', initialView.rung!)
-      return next
-    }, { replace: true })
-  }, [initialView.rung, params, setParams])
-
-  const rememberPosition = () => {
-    try { sessionStorage.setItem(viewKey, JSON.stringify({ query, rung: rungFilter, scroll: window.scrollY })) } catch { /* Storage can be disabled. */ }
-  }
-  useEffect(() => {
-    if (!book) return
-    const scroll = savedBookView(viewKey).scroll
-    if (typeof scroll === 'number' && scroll > 0) window.scrollTo({ top: scroll, behavior: 'instant' })
-  }, [book, viewKey])
+  const { customerId = '' } = useParams()
 
   if (error) {
-    const authenticationRequired =
-      error === 'authentication_required' || error === 'invalid_credentials'
-    const operatorRequired = error === 'operator_group_required'
-    const unavailable = error === 'operator_unavailable'
+    const described = describeOperatorError(error, 'read the clients')
     return (
       <OperatorState
-        level={1}
+        level={2}
         data-testid="operator-book-error"
-        surface={authenticationRequired ? 'plate' : 'paper'}
         eyebrow="Clients"
-        headline={
-          authenticationRequired
-            ? 'Operator sign-in required'
-            : operatorRequired
-              ? 'Operator access required'
-              : unavailable
-                ? 'Operator is temporarily unavailable'
-                : 'The client list is unavailable'
-        }
-        body={
-          authenticationRequired ? (
-            <>
-              Sign in with the workshop operator account to read the client
-              list. No database request was attempted.
-            </>
-          ) : operatorRequired ? (
-            <>
-              This signed-in account is not a member of the operator group. No
-              database request was attempted.
-            </>
-          ) : unavailable ? (
-            <>
-              The governed service could not be reached, so no current client
-              list was returned.
-            </>
-          ) : (
-            <>
-              The live database did not return the client list. If this is a
-              fresh deployment, confirm migration{' '}
-              <code>018_client_book.sql</code> has been applied.
-            </>
-          )
-        }
-        reason={unavailable ? undefined : error}
-        action={authenticationRequired ? <OperatorSignInAction unlocks="read the client list" /> : !operatorRequired ? <button type="button" className="operator-button operator-button-inline" onClick={refresh}>Try again</button> : undefined}
+        headline={described.headline}
+        body={described.body}
+        reason={error === 'operator_unavailable' ? undefined : error}
+        action={described.signIn
+          ? <OperatorSignInAction unlocks="read the clients" />
+          : error !== 'operator_group_required'
+            ? <button type="button" className="op-button op-button-quiet" onClick={refresh}>Try again</button>
+            : undefined}
       />
     )
   }
-
   if (!book) {
-    return (
-      <OperatorState
-        level={1}
-        data-testid="operator-book-loading"
-        eyebrow="Clients"
-        headline="Reading the live client list…"
-      />
-    )
+    return <OperatorState level={2} data-testid="operator-book-loading" eyebrow="Clients" headline="Reading the clients" busy />
   }
-
-  const needle = query.trim().toLowerCase()
-  const visible = book.clients.filter(
-    (c) =>
-      (!rungFilter || c.membership === rungFilter) &&
-      (!openRequestsOnly || serviceRequestLabel(c.openCaseStatus) !== null) &&
-      (!needle ||
-        c.name.toLowerCase().includes(needle) ||
-        c.slug.toLowerCase().includes(needle) ||
-        (c.note ?? '').toLowerCase().includes(needle) ||
-        (serviceRequestLabel(c.openCaseStatus) !== null &&
-          (c.openCase ?? '').toLowerCase().includes(needle))),
-  )
-  const openRequestClients = book.clients.filter(c => serviceRequestLabel(c.openCaseStatus) !== null).length
-  const jessicaCase = book.clients.find(
-    (client) =>
-      client.slug === 'jessica' &&
-      /return|dispute|service/i.test(client.note),
-  )
-  const theo = book.clients.find(client => client.personaId === 'theo')
-
-  // The entrance stagger walks the rendered order, so it has to be counted
-  // where the rows are emitted rather than derived from an array index: a
-  // section header and a client row are both children of the book, and only
-  // the DOM knows the interleaving.
-  let entranceStep = 0
-  const entranceIndex = () =>
-    Math.min(entranceStep++, ENTRANCE_STAGGER_CAP)
-
-  // Richest rung first, and a rung with nobody in it is not a section.
-  const sections = [...MEMBERSHIP_RUNGS]
-    .reverse()
-    .map((rung) => ({
-      rung,
-      clients: visible.filter((c) => c.membership === rung),
-    }))
-    .filter((section) => section.clients.length > 0)
-
   if (book.total === 0) {
     return (
       <OperatorState
-        level={1}
+        level={2}
         data-testid="operator-book-empty"
         eyebrow="Clients"
         headline="No clients seeded"
-        body={
-          <>
-            The desk is wired but <code>pellier.customers</code> holds no
-            client rows. Apply <code>018_client_book.sql</code> to seed the
-            client list.
-          </>
-        }
+        body={<>The desk is wired but <code>pellier.customers</code> holds no client rows.</>}
       />
     )
   }
-
   return (
-    <div data-testid="operator-book" data-intent={intent}>
-      {/* An introduction to the surface rather than a label for it: an advisor
-          arriving here needs to know what they can do, not what the list is
-          called. No kicker above the heading. */}
-      <h1 className="operator-title">{chatEntry ? 'Operator chat' : 'Every client the house knows'}</h1>
-      <p className="operator-lede">{chatEntry
-        ? 'Choose a client to ask questions, examine the source records, and work toward a fair resolution.'
-        : 'Open a client’s chat to investigate the request with their records alongside. Prepare a resolution, then review the exact terms before taking action.'}</p>
-      <details className="operator-source-details">
-        <summary>How the desk works</summary>
-        <div className="operator-service-sources">
-          <ServiceSource service="aurora">Customer records, orders, inventory, and the audit ledger</ServiceSource>
-          <ServiceSource service="agentcore">Governed tools, identity, and policy evaluation</ServiceSource>
-        </div>
-        <p>Operator Concierge runs a separate investigation and resolution graph over the same Aurora records the storefront reads. A person confirms the exact terms before policy and Aurora independently decide what may execute.</p>
-      </details>
-
-      {jessicaCase ? (
-        <section
-          className="operator-case-entry"
-          data-testid="operator-jessica-case-entry"
-          aria-labelledby="operator-jessica-case-title"
-        >
-          <ClientAvatar
-            customerId={jessicaCase.customerId}
-            name={jessicaCase.name}
-            personaId={jessicaCase.personaId}
-          />
-          <div className="operator-case-entry-copy">
-            {/* Name and standing on one line, then what is happening, then the
-                client's brief. Three levels of decreasing weight rather than
-                labelled columns: the labels were carrying facts the sentences
-                already say. */}
-            <div className="operator-case-entry-headline">
-              <h2 id="operator-jessica-case-title">{jessicaCase.name}</h2>
-              <span className="operator-case-entry-kicker">Service recovery</span>
-            </div>
-            {jessicaCase.openCase ? (
-              <p className="operator-case-entry-case">{jessicaCase.openCase}</p>
-            ) : null}
-            <p className="operator-case-entry-brief">{jessicaCase.note}</p>
-          </div>
-          <div className="operator-case-entry-actions">
-            <Link
-              to={`/operator/clients/${encodeURIComponent(jessicaCase.customerId)}#operator-concierge`}
-              className="operator-case-entry-action"
-              onClick={rememberPosition}
-              aria-label={`Open chat for ${jessicaCase.name}`}
-            >
-              Open chat
-            </Link>
-            <button
-              type="button"
-              className="operator-case-entry-guided"
-              onClick={() => {
-                rememberPosition()
-                navigate(
-                  `/operator/clients/${jessicaCase.customerId}` +
-                    '?guided=service-recovery#operator-concierge-title',
-                )
-              }}
-            >
-              Start guided review
-            </button>
-            <span>A guided review starts a new investigation.</span>
-          </div>
-        </section>
-      ) : null}
-
-      {theo ? <section className="operator-case-entry" aria-labelledby="operator-theo-care-title">
-        <ClientAvatar customerId={theo.customerId} name={theo.name} personaId={theo.personaId} />
-        <div className="operator-case-entry-copy">
-          <div className="operator-case-entry-headline">
-            <h2 id="operator-theo-care-title">{theo.name}</h2>
-            <span className="operator-case-entry-kicker">Return case</span>
-          </div>
-          <p className="operator-case-entry-brief">Review the exact order and discuss the remedy.</p>
-        </div>
-        <div className="operator-case-entry-actions">
-          <Link className="operator-case-entry-action" onClick={rememberPosition} to={`/operator/clients/${encodeURIComponent(theo.customerId)}#operator-concierge`}>Open Theo’s chat</Link>
-        </div>
-      </section> : null}
-
-      <label className="operator-search" htmlFor="operator-book-search">
-        <span>Find a client</span>
-        <input
-          id="operator-book-search"
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Name, note, or request subject"
-          autoComplete="off"
-          data-testid="operator-book-search"
-        />
-      </label>
-
-      {/* The ladder, defined where the choice is made. */}
-      <div className="operator-ladder" data-testid="operator-book-summary">
-        {MEMBERSHIP_RUNGS.map((rung: Membership) => {
-          const active = rungFilter === rung
-          const count = book.byMembership[rung] ?? 0
-          return (
-            <button
-              type="button"
-              className="operator-ladder-cell"
-              key={rung}
-              aria-pressed={active}
-              data-rung={rung}
-              data-testid={`operator-ladder-${rung}`}
-              // A count beside a label already implies a filter. Clicking
-              // again clears it rather than trapping the operator in a subset.
-              onClick={() => setRungFilter(active ? null : rung)}
-              title={
-                active
-                  ? `Showing ${MEMBERSHIP[rung].label} only. Click to show all.`
-                  : `Show only ${MEMBERSHIP[rung].label} clients`
-              }
-            >
-              <span className="operator-ladder-head">
-                <MembershipRung membership={rung} />
-                {/* The label is the brand; the descriptor is the
-                    comprehension. An advisor new to the ladder still knows
-                    what "private client" means. */}
-                <span className="operator-ladder-descriptor">
-                  {MEMBERSHIP[rung].descriptor}
-                </span>
-                <span className="operator-ladder-count">{count}</span>
-              </span>
-              <span className="operator-ladder-earns">
-                {MEMBERSHIP[rung].earns}
-              </span>
-            </button>
-          )
-        })}
+    <nav className="op-list" aria-label="Clients" data-testid="operator-book">
+      <div className="op-list-head">
+        <h2 className="op-h2">Clients</h2>
+        <span className="op-list-count">
+          {book.openRequests === 1 ? '1 open request' : `${book.openRequests} open requests`}
+        </span>
       </div>
-
-      <div className="operator-signal-filter">
-        <span className="operator-signal-filter-label">Signals</span>
-        <button
-          type="button"
-          className="operator-request-filter"
-          aria-pressed={openRequestsOnly}
-          aria-describedby="operator-request-filter-help"
-          onClick={() => setParams(current => {
-            const next = new URLSearchParams(current)
-            next.set('requests', openRequestsOnly ? 'all' : 'open')
-            return next
-          })}
-        >
-          Open requests <span>{openRequestClients}</span>
-        </button>
-        <span id="operator-request-filter-help">Clients with an open or pending service request.</span>
-      </div>
-
-      {rungFilter || needle || openRequestsOnly ? (
-        <p className="operator-filter-note" data-testid="operator-filter-note" role="status">
-          <span>
-            Showing {visible.length} of {book.total}
-            {rungFilter ? ` · ${MEMBERSHIP[rungFilter].label}` : ''}
-            {openRequestsOnly ? ' · Open requests' : ''}
-            {needle ? ` · matching "${query.trim()}"` : ''}
-          </span>
-          <button
-            type="button"
-            className="operator-filter-clear"
-            onClick={() => {
-              setParams(current => {
-                const next = new URLSearchParams(current)
-                next.set('membership', 'all')
-                next.set('requests', 'all')
-                return next
-              })
-              setQuery('')
-            }}
-            data-testid="operator-filter-clear"
-          >
-            Show all clients
-          </button>
-        </p>
-      ) : null}
-
-      <div className="operator-book">
-        {visible.length === 0 ? (
-          <p className="operator-book-no-matches">No clients match these filters. Change the search or show all clients.</p>
-        ) : null}
-        {/* Unfiltered, the list is grouped and the mark appears once per
-            section. Filtered, the caption above already names the rung, so
-            neither headers nor per-row pills are repeated. */}
-        {sections.map(({ rung, clients }) => (
-          <React.Fragment key={rung}>
-            {rungFilter ? null : (
-              <div
-                className="operator-section"
-                data-rung={rung}
-                style={
-                  { '--op-row-index': entranceIndex() } as React.CSSProperties
-                }
-              >
-                <MembershipRung membership={rung} />
-                {/* Identity and benefit are separated by space, not a
-                    middle dot: joined by a dot they read as one long
-                    sentence. */}
-                <span className="operator-section-descriptor">
-                  {MEMBERSHIP[rung].descriptor}
-                </span>
-                <span className="operator-section-earns">
-                  {MEMBERSHIP[rung].earns}
-                </span>
-                <span className="operator-section-count">
-                  {clients.length}
-                </span>
-              </div>
-            )}
-            {clients.map((client) => (
-          <Link
-            key={client.customerId}
-            to={`/operator/clients/${encodeURIComponent(client.customerId)}#operator-concierge`}
-            className={`operator-book-row${chatEntry ? ' operator-chat-client-row' : ''}`}
-            data-testid={`operator-client-${client.slug}`}
-            style={{ '--op-row-index': entranceIndex() } as React.CSSProperties}
-            onClick={rememberPosition}
-          >
-            <ClientAvatar
-              customerId={client.customerId}
-              name={client.name}
-              personaId={client.personaId}
-            />
-            <span className="operator-client-summary">
-              <span className="operator-client-name">{client.name}</span>
-              <span className="operator-client-note">{client.note}</span>
-              {serviceRequestLabel(client.openCaseStatus) ? (
-                <span className="operator-client-signals">
-                  <span className="operator-client-signal" data-status={client.openCaseStatus}>
-                    {serviceRequestLabel(client.openCaseStatus)}
-                  </span>
-                  {client.openCase ? <span className="operator-client-request-subject">{client.openCase}</span> : null}
-                </span>
-              ) : null}
-              {!chatEntry ? <span className="operator-client-chat-entry"><MessageCircle size={14} aria-hidden="true" />Open chat</span> : null}
-            </span>
-            {chatEntry ? (
-              <span className="operator-client-chat-label">Open chat</span>
-            ) : <>
-            <span className="operator-figure">
-              <span className="operator-figure-label">12-month spend</span>
-              {money(client.spend12mo)}
-            </span>
-            <span className="operator-figure">
-              <span className="operator-figure-label">Orders</span>
-              {client.orderCount}
-            </span>
-            </>}
-          </Link>
-            ))}
-          </React.Fragment>
+      <ul>
+        {book.clients.map(client => (
+          <ClientRow key={client.customerId} client={client} selected={client.customerId === customerId} />
         ))}
-      </div>
-    </div>
+      </ul>
+    </nav>
   )
 }
+
+/** The index page: the rail carries the list; the desk waits for a choice. */
+const ClientBook: React.FC = () => (
+  <OperatorState
+    level={1}
+    data-testid="operator-book-choose"
+    eyebrow="Operator desk"
+    headline="Choose a client"
+    body="Open a record to read the ticket, the orders and the credits, then let the Investigator and the Planner propose the next step."
+  />
+)
 
 export default ClientBook

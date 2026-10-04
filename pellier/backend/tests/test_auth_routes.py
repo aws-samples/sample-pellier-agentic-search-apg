@@ -682,11 +682,13 @@ def test_me_with_valid_cookie_returns_profile(
         cookies={ACCESS_TOKEN_COOKIE: token},
     )
     assert resp.status_code == 200
-    assert resp.json() == {
-        "user_id": "sub-42",
-        "email": "avery@example.com",
-        "given_name": "Avery",
-    }
+    body = resp.json()
+    assert body["user_id"] == "sub-42"
+    assert body["email"] == "avery@example.com"
+    assert body["given_name"] == "Avery"
+    # A cookie session that no workshop chip set reports the ordinary method.
+    assert body["sign_in_method"] == "cognito"
+    assert "username" in body
 
 
 def test_me_with_valid_bearer_header_returns_profile(

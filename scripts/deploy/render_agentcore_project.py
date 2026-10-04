@@ -94,7 +94,6 @@ class DeploymentIdentity(NamedTuple):
     suffix: str
     project_name: str
     runtime_name: str
-    operator_runtime_name: str
     memory_name: str
     gateway_name: str
     policy_engine_name: str
@@ -108,7 +107,7 @@ def deployment_identity(suffix: str | None = None) -> DeploymentIdentity:
     under = f"_{suffix}" if suffix else ""
     return DeploymentIdentity(
         suffix, f"pellier{suffix}", f"pellier{under}_orchestrator",
-        f"pellier{under}_operator", f"Pellier{suffix.capitalize()}Memory",
+        f"Pellier{suffix.capitalize()}Memory",
         f"pellier{dash}-gateway", f"pellier{under}_policy_engine", f"pellier{dash}",
     )
 
@@ -133,7 +132,6 @@ _IDENTITY = deployment_identity()
 DEPLOYMENT_SUFFIX = _IDENTITY.suffix
 PROJECT_NAME = _IDENTITY.project_name
 RUNTIME_NAME = _IDENTITY.runtime_name
-OPERATOR_RUNTIME_NAME = _IDENTITY.operator_runtime_name
 MEMORY_NAME = _IDENTITY.memory_name
 GATEWAY_NAME = _IDENTITY.gateway_name
 POLICY_ENGINE_NAME = _IDENTITY.policy_engine_name
@@ -536,26 +534,6 @@ def render_project(
         ],
     }
 
-    # A separate IAM-authenticated endpoint accepts evidence only from the
-    # backend role. Shopper JWTs cannot invoke the Operator graph.
-    project["runtimes"].append({
-        "name": identity.operator_runtime_name,
-        "description": "Pellier read-only Operator investigation and resolution graph",
-        "build": "CodeZip",
-        "entrypoint": "operator_agentcore_runtime.py",
-        "codeLocation": str(runtime_dir),
-        "runtimeVersion": "PYTHON_3_12",
-        "envVars": [
-            {"name": "AGENT_MODEL_ID", "value": runtime_sonnet_model},
-            {"name": "BEDROCK_SONNET_MODEL", "value": runtime_sonnet_model},
-            {"name": "UNIFIED_TRACES_DESTINATION_ENABLED", "value": "true"},
-            {"name": FINGERPRINT_ENV_VAR, "value": build_fingerprint},
-        ],
-        "networkMode": "PUBLIC",
-        "instrumentation": {"enableOtel": True},
-        "protocol": "HTTP",
-        "tags": tags,
-    })
     # CodeZip's platform defaults can still send ADOT spans to aws/spans even
     # with unified tracing enabled. Once deployment supplies the Runtime IDs,
     # render exact headers so the exporter and CLI query the same destination.

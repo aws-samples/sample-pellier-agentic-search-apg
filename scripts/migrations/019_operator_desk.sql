@@ -317,16 +317,17 @@ CREATE TRIGGER support_tickets_notify
     FOR EACH ROW EXECUTE FUNCTION pellier.notify_data_changed('support_ticket');
 
 -- ---------------------------------------------------------------------
--- Seed. Theo's two tickets give his lab a real case; Jessica keeps her
--- disputed refund. No store credit is seeded.
+-- Seed. Theo's two tickets give his lab a real case; Jessica's ticket is
+-- the store-credit case: two items went back and no credit has been
+-- recorded. No store credit is seeded.
 -- ---------------------------------------------------------------------
 INSERT INTO pellier.support_tickets
     (ticket_id, customer_id, subject, status, channel, last_note, opened_at, resolved_at)
 VALUES
     ('TKT-2026-3015', 'CUST-JESSICA',
-     'Return received, refund amount disputed', 'pending', 'chat',
-     'Return logged for the catchall and the robe. Client expected a full refund including original shipping.',
-     now() - INTERVAL '11 days', NULL),
+     'Two items went back, no credit yet', 'open', 'chat',
+     'Sent back the Waffle Bath Robe, Sage and the Reed Diffuser last week. Both were received. No store credit has been recorded.',
+     now() - INTERVAL '8 days', NULL),
     ('TKT-2026-5021', 'CUST-THEO',
      'Wabi-Sabi Bowl arrived chipped', 'open', 'chat',
      'Customer reports a chip on the rim of the bowl from his last order. Awaiting an update.',
@@ -342,6 +343,19 @@ ON CONFLICT (ticket_id) DO UPDATE SET
     last_note   = EXCLUDED.last_note,
     opened_at   = EXCLUDED.opened_at,
     resolved_at = EXCLUDED.resolved_at;
+
+-- The two items that went back, recorded as received returns. The ticket
+-- asserts it; these rows make it a fact the desk can show as Returned.
+-- Keyed on (customer, product) by hand, because pellier.returns has no
+-- natural key: a second run must not record a second return.
+INSERT INTO pellier.returns (customer_id, product_id, reason, status, requested_at, resolved_at)
+SELECT 'CUST-JESSICA', seed.product_id, 'changed_mind', 'approved',
+       now() - INTERVAL '9 days', now() - INTERVAL '8 days'
+  FROM (VALUES ('42'), ('25')) AS seed(product_id)
+ WHERE NOT EXISTS (
+       SELECT 1 FROM pellier.returns r
+        WHERE r.customer_id = 'CUST-JESSICA' AND r.product_id = seed.product_id
+ );
 
 -- ---------------------------------------------------------------------
 -- Verification. Fail loud, matching 003 and 018.

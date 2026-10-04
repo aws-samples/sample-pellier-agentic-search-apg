@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { fetchClientBook, OperatorApiError, type OperatorBook } from '../../services/operator'
 
-/** Share one authenticated read between the client list and its tier navigation. */
+/** Share one authenticated read between the client list and the desk shell. */
 export function useClientBookResource(enabled = true) {
   const [book, setBook] = useState<OperatorBook | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -15,7 +15,7 @@ export function useClientBookResource(enabled = true) {
     void fetchClientBook()
       .then(data => {
         if (!active) return
-        if (!Array.isArray(data.clients) || !data.byMembership || !Number.isFinite(data.total)) {
+        if (!Array.isArray(data.clients) || !Number.isFinite(data.total)) {
           throw new Error('Invalid client list response')
         }
         setBook(data)

@@ -165,6 +165,59 @@ def pending_audit_id(tool_use_id: Optional[str]) -> Optional[int]:
 
 
 # -----------------------------------------------------------------
+# The Operator's in-process credit: one fill-once row per executed write
+# -----------------------------------------------------------------
+
+_EXECUTED_CREDIT_SQL = (
+    "INSERT INTO pellier.tool_audit "
+    "(session_id, tool, caller, args, result, latency_ms) "
+    "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s) "
+    "RETURNING audit_id"
+)
+
+
+async def record_executed_credit(
+    db: Any,
+    *,
+    args: Dict[str, Any],
+    result: Dict[str, Any],
+    latency_ms: int,
+    operator_sub: str,
+    customer_id: str,
+) -> Optional[int]:
+    """One ``tool_audit`` row for a ``give_store_credit`` the in-process rail ran.
+
+    The Gateway Lambda writes the same row for its rail (``scripts/deploy/
+    pellier_store_tools.py``), so both rails leave one receipt per executed
+    credit, keyed by the ``idempotency_key`` inside ``args``. The caller skips
+    this on an idempotent replay, because Aurora applied nothing then.
+
+    Never raises: the credit has already been written, and a missing receipt
+    must be a warning in the log rather than a failed execution.
+
+    Returns:
+        The audit row id, or None when the write failed.
+    """
+    try:
+        row = await db.fetch_one(
+            _EXECUTED_CREDIT_SQL,
+            f"operator-{customer_id}",
+            "give_store_credit",
+            operator_sub or "operator",
+            json.dumps(args, default=str),
+            json.dumps(result, default=str),
+            int(latency_ms),
+        )
+    except Exception as exc:  # noqa: BLE001 - evidence must not fail the write
+        logger.warning("tool_audit INSERT for the executed credit failed: %s", exc)
+        return None
+    if not row:
+        return None
+    value = row["audit_id"] if hasattr(row, "keys") else row[0]
+    return int(value) if value is not None else None
+
+
+# -----------------------------------------------------------------
 # After: UPDATE the row with the tool's result + latency
 # -----------------------------------------------------------------
 

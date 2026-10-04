@@ -1,19 +1,17 @@
 /**
- * A client's portrait, or a designed monogram when none exists.
+ * A person's portrait, or a monogram when none exists.
  *
- * Never a grey box. Twelve of the fifteen clients have real portraits; the
- * three hero personas have their own. Anyone added later degrades to an
- * initial set in the brand's authority colour, which reads as intentional
- * rather than broken.
+ * The four shoppers and Nadia share one portrait map, so the client on the
+ * desk and the shopper in the store are the same face. Anyone else degrades to
+ * an initial, which reads as intentional rather than broken.
  */
-
 import React, { useState } from 'react'
-import { getClientPhoto, getClientPortrait, getPersonaPhoto, getPersonaPortrait } from '../../data/personaPhotos'
+import { getPersonaPhoto } from '../../data/personaPhotos'
 
 interface ClientAvatarProps {
-  customerId: string
+  customerId?: string | null
   name: string
-  /** `personaId` is set only for the three storefront-switchable heroes. */
+  /** The portrait key: a persona id, or a staff username such as `nadia`. */
   personaId?: string | null
   size?: 'sm' | 'lg'
 }
@@ -25,51 +23,25 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-/** Visual identity only. This never selects a shopper or grants account access. */
-const HERO_CLIENT_PORTRAITS: Record<string, string> = {
-  'CUST-MARCO': 'marco',
-  'CUST-ANNA': 'anna',
-  'CUST-THEO': 'theo',
-}
-
-const ClientAvatar: React.FC<ClientAvatarProps> = ({
-  customerId,
-  name,
-  personaId,
-  size = 'sm',
-}) => {
+const ClientAvatar: React.FC<ClientAvatarProps> = ({ customerId, name, personaId, size = 'sm' }) => {
   const [failedSource, setFailedSource] = useState<string | null>(null)
-
-  // Heroes resolve through the persona maps; everyone else through the client
-  // maps. Keeping them separate stops a client id from ever resolving as a
-  // signed-in shopper.
-  const portraitPersona = personaId || HERO_CLIENT_PORTRAITS[customerId]
-  const src = portraitPersona
-    ? size === 'lg'
-      ? getPersonaPortrait(portraitPersona)
-      : getPersonaPhoto(portraitPersona)
-    : size === 'lg'
-      ? getClientPortrait(customerId)
-      : getClientPhoto(customerId)
+  const key = personaId || String(customerId || '').replace(/^CUST-/i, '').toLowerCase() || null
+  const src = getPersonaPhoto(key)
 
   if (!src || failedSource === src) {
     return (
-      <span
-        className={size === 'lg' ? 'operator-monogram-lg' : 'operator-monogram'}
-        aria-hidden="true"
-        data-testid="operator-monogram"
-      >
+      <span className="op-monogram" data-size={size} aria-hidden="true" data-testid="operator-monogram">
         {initials(name)}
       </span>
     )
   }
-
   return (
     <img
       src={src}
       alt=""
       aria-hidden="true"
-      className={size === 'lg' ? 'operator-portrait' : 'operator-avatar'}
+      className="op-avatar"
+      data-size={size}
       loading="lazy"
       decoding="async"
       onError={() => setFailedSource(src)}

@@ -1,35 +1,12 @@
 /**
  * What the desk says when it has nothing to show, or cannot show it.
  *
- * There were ten of these across four surfaces, each one a centred grey
- * paragraph in a bordered box, and the most common of them — the signed-out
- * desk — was the FIRST thing an operator ever saw. A cold sign-in wall that
- * looks like a rendering failure is the worst possible first impression of a
- * surface whose whole argument is that it can be trusted with a client record.
- *
- * One shape now, built on the shared `EmptyState` primitive so the desk and
- * the Observatory answer an absence the same way: which panel is empty, one
- * sentence in the desk's heading voice, what would fill it, and the
- * identifier an attendee can go and check.
- *
- * Two surfaces:
- *
- *   `paper`  raised paper with the desk's one resting shadow. Everything
- *            ordinary: an empty queue, an unseeded book, a missing migration.
- *
- *   `plate`  the same state set over the house photograph behind an espresso
- *            scrim, matching the sign-in dialog. Reserved for the one state
- *            that is not a failure at all — the desk is working exactly as
- *            designed and is waiting for an identity. Cream on the scrim
- *            measures 6.3:1 at the scrim's floor over the brightest pixel in
- *            the plate; see `.operator-state[data-surface='plate']`.
+ * One shape for every absence: which panel is empty, one sentence in the
+ * desk's heading voice, what would fill it, and at most one action. The
+ * signed-out desk is the first thing a participant sees, so it must read as
+ * the desk working exactly as designed, not as a rendering failure.
  */
 import type React from 'react'
-
-import ResponsiveImage from '../../components/ResponsiveImage'
-import { EmptyState } from '../../shared'
-
-export type OperatorStateSurface = 'paper' | 'plate'
 
 export interface OperatorStateProps {
   /** Names the panel that is empty, unreachable, or still loading. */
@@ -42,53 +19,59 @@ export interface OperatorStateProps {
   reason?: React.ReactNode
   /** At most one recovery action. */
   action?: React.ReactNode
-  /** A back link, rendered above the state and outside its reading column. */
-  lead?: React.ReactNode
   /** Heading rank for the headline. `1` when this state replaces the page. */
   level?: 1 | 2 | 3
-  surface?: OperatorStateSurface
+  /** A quiet pulse while the desk reads. */
+  busy?: boolean
   'data-testid': string
 }
 
 const OperatorState: React.FC<OperatorStateProps> = ({
-  eyebrow,
-  headline,
-  body,
-  reason,
-  action,
-  lead,
-  level = 2,
-  surface = 'paper',
-  'data-testid': testId,
-}) => (
-  <div className="operator-state" data-surface={surface} data-testid={testId}>
-    {surface === 'plate' ? (
-      // Through ResponsiveImage so the AVIF and WebP derivatives are used and
-      // every URL passes the Workshop Studio base path. Never a CSS url().
-      <ResponsiveImage
-        src="/products/hero-fresh-2.png"
-        widths={[960, 1600]}
-        sizes="100vw"
-        pictureClassName="operator-state-plate"
-        className="operator-state-plate-image"
-        alt=""
-        aria-hidden="true"
-        decoding="async"
-      />
-    ) : null}
-    <div className="operator-state-inner">
-      {lead ? <div className="operator-state-lead">{lead}</div> : null}
-      <EmptyState
-        eyebrow={eyebrow}
-        headline={headline}
-        body={body}
-        reason={reason ? <details className="operator-state-details"><summary>Technical details</summary><code>{reason}</code></details> : undefined}
-        action={action}
-        level={level}
-        size="page"
-      />
+  eyebrow, headline, body, reason, action, level = 2, busy = false, 'data-testid': testId,
+}) => {
+  const Heading = `h${level}` as 'h1' | 'h2' | 'h3'
+  return (
+    <div className="op-state" data-busy={busy ? 'true' : 'false'} data-testid={testId}>
+      <p className="op-eyebrow">{eyebrow}</p>
+      <Heading className="op-state-headline">
+        {busy ? <span className="tn-dot" aria-hidden="true" /> : null}
+        {headline}
+      </Heading>
+      {body ? <p className="op-state-body">{body}</p> : null}
+      {reason ? <code className="op-state-reason">{reason}</code> : null}
+      {action ? <div className="op-state-action">{action}</div> : null}
     </div>
-  </div>
-)
+  )
+}
 
 export default OperatorState
+
+/** The desk's three ways of being locked, in one place. */
+export function describeOperatorError(error: string, what: string): { headline: string; body: string; signIn: boolean } {
+  if (error === 'authentication_required' || error === 'invalid_credentials' || error === 'operator_sign_in_required') {
+    return {
+      headline: 'Staff sign-in required',
+      body: `Sign in as Nadia with her password to ${what}. No database request was attempted.`,
+      signIn: true,
+    }
+  }
+  if (error === 'operator_group_required') {
+    return {
+      headline: 'Staff access required',
+      body: 'This signed-in account is not in the operator group, so the desk refused it. No database request was attempted.',
+      signIn: false,
+    }
+  }
+  if (error === 'operator_unavailable') {
+    return {
+      headline: 'The desk is temporarily unavailable',
+      body: `The service could not be reached, so it could not ${what}.`,
+      signIn: false,
+    }
+  }
+  return {
+    headline: 'Unavailable',
+    body: `The database did not return what the desk needs to ${what}.`,
+    signIn: false,
+  }
+}

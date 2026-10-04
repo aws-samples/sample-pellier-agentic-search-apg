@@ -36,6 +36,10 @@ interface AuthUser {
   sub: string
   email: string
   givenName?: string
+  /** The Cognito username, lowercased by the token. */
+  username?: string
+  /** `workshop` when the one-click shopper sign-in set this session. */
+  signInMethod?: 'workshop' | 'cognito'
 }
 
 interface AuthContextType {
@@ -118,6 +122,8 @@ interface MeResponse {
   email: string
   givenName?: string
   given_name?: string
+  username?: string
+  sign_in_method?: 'workshop' | 'cognito'
 }
 
 // Shape returned by GET /api/user/preferences (see Req 3.2.1). The server
@@ -205,6 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sub: subject,
         email: me.email,
         givenName: me.givenName ?? me.given_name,
+        username: me.username,
+        signInMethod: me.sign_in_method,
       })
 
       // Fetch preferences only once we know we have a verified user.

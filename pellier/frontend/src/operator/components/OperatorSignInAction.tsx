@@ -2,41 +2,28 @@ import React from 'react'
 import { redirectToSignIn } from '../../utils/auth'
 
 interface Props {
-  /**
-   * What signing in gives the operator, phrased as the outcome.
-   *
-   * The gated surface already says sign-in is required, in a heading and again
-   * in a sentence, and the topbar carries a persistent account control. A
-   * fourth control reading "Sign in" made one screen state the same
-   * instruction three times over, so this one names the destination instead.
-   */
+  /** What signing in gives the staff member, phrased as the outcome. */
   unlocks?: string
 }
 
 /**
- * The recovery action on a Cognito-protected operator surface.
+ * The recovery action on a staff-only surface.
  *
- * It opens the dedicated Pellier sign-in page. Cognito verifies credentials;
- * additional verification and federation use the hosted flow.
- * `redirectToSignIn` defaults its return path to the current URL, which brings
- * the participant back to the exact record they asked for.
- *
- * Deliberately not the account pill. It used to render
- * `pellier-account-pill operator-auth-signin` with a person icon and the word
- * "Sign in", which is exactly the topbar control, so a signed-out desk showed
- * two identical pills a few hundred pixels apart and it was not obvious they
- * were the same door. This is the page's primary action and looks like one;
- * the topbar keeps the global control.
+ * Nadia signs in through the normal Cognito sign-in page, typing her
+ * password. There is no one-click staff chip on purpose: approving a store
+ * credit is the action Lab 4 says only staff can take, and a chip would hand
+ * it to anyone who can open the app. `redirectToSignIn` returns to the exact
+ * record she asked for.
  */
 const OperatorSignInAction: React.FC<Props> = ({ unlocks }) => (
-    <button
-      type="button"
-      className="operator-state-signin"
-      onClick={() => redirectToSignIn('email')}
-      data-testid="operator-state-sign-in"
-    >
-      {unlocks ? `Sign in to ${unlocks}` : 'Sign in'}
-    </button>
+  <button
+    type="button"
+    className="op-button"
+    onClick={() => redirectToSignIn('email')}
+    data-testid="operator-state-sign-in"
+  >
+    {unlocks ? `Sign in to ${unlocks}` : 'Sign in'}
+  </button>
 )
 
 export default OperatorSignInAction

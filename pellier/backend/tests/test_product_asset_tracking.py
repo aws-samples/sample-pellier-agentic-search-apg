@@ -85,7 +85,7 @@ def test_the_audit_finds_a_real_catalog(result) -> None:
     assert len(entries) >= 90, f"only {len(entries)} referenced images discovered"
     assert len(result["required"]) >= 300, result["required"]  # type: ignore[arg-type]
     kinds = {entry["kind"] for entry in entries}
-    assert kinds == {"literal", "templated"}, kinds
+    assert kinds == {"literal"}, kinds
 
 
 def test_every_required_asset_is_tracked_in_git(result) -> None:
@@ -176,21 +176,6 @@ def test_derivative_widths_are_symmetric_across_formats(result) -> None:
         if widths["webp"] != widths["avif"]:
             mismatched.append(f"{entry['referenced']}: webp {sorted(widths['webp'])} vs avif {sorted(widths['avif'])}")
     assert not mismatched, "\n  ".join(mismatched)
-
-
-def test_client_portraits_are_derived_from_the_slug_list(audit_module) -> None:
-    """A client slug without a portrait must fail here.
-
-    The filenames are composed at runtime, so no literal exists to grep. Reading
-    ``CLIENT_SLUGS`` out of the module is what makes the templated family checkable at
-    all. Jessica is the one client with a portrait, in two sizes.
-    """
-    names = audit_module.client_portrait_names()
-    assert len(names) == 2, names
-    assert "client-jessica-portrait-160.webp" in names
-    assert "client-jessica-portrait-480.webp" in names
-    for name in names:
-        assert (PRODUCTS_DIR / name).exists(), f"{name} is composed by personaPhotos.ts but absent"
 
 
 def test_no_shipped_reference_resolves_to_nothing(audit_module, result) -> None:

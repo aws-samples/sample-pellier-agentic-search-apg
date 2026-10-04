@@ -20,7 +20,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { type Membership } from '../data/membership'
 
 export interface PersonaSnapshot {
   id: string
@@ -30,7 +29,7 @@ export interface PersonaSnapshot {
   avatar_initial: string
   customer_id: string
   /** Loyalty rung. Presentation only; policy reads Aurora, not this. */
-  membership: Membership
+  membership: string
   hero_image: string
   hero_alt: string
   hero_subheadline: string
@@ -48,7 +47,7 @@ export interface PersonaListItem {
   blurb: string
   avatar_color: string
   avatar_initial: string
-  membership: Membership
+  membership: string
   stats: {
     visits: number
     orders: number

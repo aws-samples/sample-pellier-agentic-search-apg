@@ -277,28 +277,7 @@ def test_cloudwatch_span_export_uses_the_resolved_aws_region() -> None:
     assert "region=settings.AWS_REGION" not in export_call
 
 
-def test_operator_capability_probe_uses_the_resolved_aws_region(monkeypatch) -> None:
-    """Operator control-plane checks must target the workshop stack region."""
-    from types import SimpleNamespace
-    import boto3
-    from config import settings
-    from services import operator_capabilities
 
-    calls = []
-    client = SimpleNamespace(
-        get_paginator=lambda _: SimpleNamespace(paginate=lambda **_: [{"items": []}]),
-        list_policies=lambda **_: {"policies": []},
-    )
-    def create(service, **kwargs):
-        calls.append((service, kwargs))
-        return client
-    monkeypatch.setattr(boto3, "client", create)
-    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_ARN", "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test")
-    monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "test-engine")
-    operator_capabilities._live_gateway_facts()
-    assert calls[0][0] == "bedrock-agentcore-control"
-    assert calls[0][1]["region_name"] == settings.aws_region_resolved
-    assert calls[0][1]["config"].read_timeout <= 8
 
 
 def test_cognito_pool_id_resolved_prefers_new_name(
