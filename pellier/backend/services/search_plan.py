@@ -66,6 +66,9 @@ _STRATEGIES = (STRATEGY_VECTOR, STRATEGY_HYBRID, STRATEGY_HYBRID_RERANK)
 EXTRACTION_PARSED = "parsed"
 EXTRACTION_FAILED = "extraction_failed"
 EXTRACTION_NOT_RUN = "not_run"
+# The shopper's message proposed a change their words did not support; the
+# earlier requirements still apply and the answer should ask.
+EXTRACTION_UNCLEAR = "unclear"
 
 # Where a hard department came from. Only these two may filter.
 CATEGORY_FROM_SHOPPER = "shopper"
@@ -161,8 +164,9 @@ class SearchPlan:
         category_source: ``shopper`` when the request stated the department,
             ``selection`` when a structured choice supplied it, else None.
         extraction_status: ``parsed`` when the planner read the request,
-            ``extraction_failed`` when it could not, ``not_run`` when no
-            model extraction was attempted.
+            ``unclear`` when a proposed change lacked the shopper's words,
+            ``extraction_failed`` when it could not read it, ``not_run``
+            when no model extraction was attempted.
         retrieval_strategy: Which retrieval path to run.
         top_k: Number of final results requested.
         evidence_required: When True, the answer must cite retrieved rows.
@@ -283,17 +287,23 @@ class SearchPlan:
         Code writes the sentence so the model relays a fact instead of
         deciding whether to mention it. None when nothing went unchecked.
         """
+        parts: List[str] = []
         if self.extraction_status == EXTRACTION_FAILED:
-            return (
-                "The request's requirements could not be read, so only the explicit "
-                "price and category limits were applied."
+            parts.append(
+                "The latest request could not be read, so any requirement it states "
+                "was not applied."
+            )
+        elif self.extraction_status == EXTRACTION_UNCLEAR:
+            parts.append(
+                "The shopper's latest message may change an earlier requirement, so the "
+                "earlier requirements still apply; ask before assuming they changed."
             )
         if self.unenforced_exclusions:
-            return (
+            parts.append(
                 "The catalog cannot check these requests, so the results may not meet "
                 "them: " + ", ".join(self.unenforced_exclusions) + "."
             )
-        return None
+        return " ".join(parts) or None
 
     # ------------------------------------------------------------------
     # Serialization
@@ -503,8 +513,8 @@ def build_plan(
     unenforced = _unenforced_exclusions(payload, exclusion_vocabulary)
     if extracted is None:
         extraction_status = EXTRACTION_NOT_RUN
-    elif payload.get("extraction_status") == EXTRACTION_FAILED:
-        extraction_status = EXTRACTION_FAILED
+    elif payload.get("extraction_status") in (EXTRACTION_FAILED, EXTRACTION_UNCLEAR):
+        extraction_status = payload["extraction_status"]
     else:
         extraction_status = EXTRACTION_PARSED
     soft_tags = tuple(
