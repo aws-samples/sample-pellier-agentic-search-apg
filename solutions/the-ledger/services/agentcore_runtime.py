@@ -64,6 +64,19 @@ class ManagedRuntimeError(RuntimeError):
         self.code = code
 
 
+class AgentTurnError(RuntimeError):
+    """Stable failure code for an in-process turn the chat service did not answer.
+
+    Raised by the bridge instead of returning the service's error text, so the
+    route ends its stream in an ``error`` event and never stores that text as
+    the assistant's answer.
+    """
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
 @dataclass(frozen=True)
 class ManagedRuntimeResult:
     """Typed evidence returned by the managed Runtime invocation."""
@@ -322,23 +335,42 @@ async def _run_orchestrator_inprocess(
     history: Optional[List[Dict[str, Any]]] = None,
     *,
     turn_id: Optional[str] = None,
+    customer_id: Optional[str] = None,
 ) -> str:
-    """Run the local Router in-process: the same dispatcher the storefront uses."""
+    """Run the local Router in-process: the same dispatcher the storefront uses.
+
+    ``customer_id`` is the server-resolved customer of the verified ``user_id``,
+    never a request-body value. The two travel into chat as one verified
+    ``TurnIdentity``, so chat does not re-resolve a bare subject into no scope.
+    The route owns this turn's Memory write, so chat is told not to mirror it.
+
+    Raises:
+        AgentTurnError: The chat service is not running, or the turn failed.
+    """
     import app as app_module
-    from services.turn_identity import new_turn_id, turn_id_var
+    from services.turn_identity import TurnIdentity, new_turn_id, turn_id_var
 
     turn_id = turn_id or new_turn_id()
     turn_id_var.set(turn_id)
 
     service = getattr(app_module, "chat_service", None)
     if service is None:
-        return "The chat service is not running."
+        raise AgentTurnError("chat_service_unavailable")
+    identity = TurnIdentity(
+        principal_sub=user_id or None,
+        shopper_customer_id=customer_id if user_id and customer_id else None,
+        authenticated=bool(user_id),
+    )
     result = await service.chat(
         message=message,
         conversation_history=history,
         session_id=session_id,
         user={"sub": user_id} if user_id else None,
+        turn_identity=identity,
+        persist_memory=False,
     )
+    if not result.get("success", True):
+        raise AgentTurnError(str(result.get("error") or "chat_failed"))
     response = result.get("response", "")
 
     # Read this turn's OpenTelemetry spans into the latest-trace slot
@@ -628,5 +660,5 @@ async def run_agent(
             runtime_kwargs["customer_id"] = customer_id
         return await run_agent_on_runtime(**runtime_kwargs)
     return await _run_orchestrator_inprocess(
-        message, session_id, user_id, history, turn_id=turn_id
+        message, session_id, user_id, history, turn_id=turn_id, customer_id=customer_id
     )

@@ -330,7 +330,7 @@ def test_agent_route_preserves_managed_runtime_error_code() -> None:
     route = Path(__file__).resolve().parents[1] / "routes" / "agent.py"
     source = route.read_text()
     invocation = source.index("response_text = await run_agent(")
-    managed_error = source.index("except ManagedRuntimeError as exc:", invocation)
+    managed_error = source.index("except (ManagedRuntimeError, AgentTurnError) as exc:", invocation)
     generic_error = source.index("except Exception as exc:", invocation)
 
     assert invocation < managed_error < generic_error

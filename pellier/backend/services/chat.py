@@ -782,12 +782,15 @@ class EnhancedChatService:
         session_id: Optional[str] = None,
         workshop_mode: Optional[str] = None,
         guardrails_enabled: bool = False,
-        user: Optional[Dict[str, Any]] = None
+        user: Optional[Dict[str, Any]] = None,
+        turn_identity: Optional[Any] = None,
+        persist_memory: bool = True,
     ) -> Dict[str, Any]:
         """The non-streaming form of :meth:`chat_stream`: the same Router, one result.
 
         Collects the stream's final ``complete`` event, so both chat endpoints
-        run one routing path.
+        run one routing path. ``turn_identity`` and ``persist_memory`` pass
+        through unchanged; see :meth:`chat_stream`.
         """
         from services.turn_identity import new_turn_id, turn_id_var
 
@@ -801,6 +804,8 @@ class EnhancedChatService:
             guardrails_enabled=guardrails_enabled,
             user=user,
             turn_id=turn_id_var.get() or new_turn_id(),
+            turn_identity=turn_identity,
+            persist_memory=persist_memory,
         ):
             if event.get("type") == "complete" and isinstance(event.get("response"), dict):
                 final = event["response"]
@@ -1288,6 +1293,8 @@ class EnhancedChatService:
         guardrails_enabled: bool = False,
         user: Optional[Dict[str, Any]] = None,
         turn_id: Optional[str] = None,
+        turn_identity: Optional[Any] = None,
+        persist_memory: bool = True,
     ):
         """
         Async generator yielding SSE events with real-time agent streaming.
@@ -1296,6 +1303,15 @@ class EnhancedChatService:
         recorded on every ``tool_audit`` row this turn writes, so a receipt
         resolves back to the exact tool calls that ran. It is threaded through rather than regenerated here because
         the id must be identical in the SSE envelope and the audit rows.
+
+        ``turn_identity`` is a ``services.turn_identity.TurnIdentity`` a caller
+        has already verified, such as the Runtime bridge, which carries the
+        server-resolved customer. When given it is used as is; nothing here
+        re-resolves it from the bare ``user`` subject.
+
+        ``persist_memory`` is False when the caller owns this turn's AgentCore
+        Memory write, as ``/api/agent/chat`` does, so one logical turn is
+        written once.
 
         Uses asyncio.Queue to bridge the synchronous agent thread with the
         async SSE generator. Hooks capture tool results so products are
@@ -1334,9 +1350,14 @@ class EnhancedChatService:
             turn_id_var,
         )
 
-        turn_identity = resolve_turn_identity(
-            user=user, requested_customer_id=customer_id
-        )
+        if turn_identity is None:
+            turn_identity = resolve_turn_identity(
+                user=user, requested_customer_id=customer_id
+            )
+        elif customer_id is None and turn_identity.authenticated:
+            # The persona context below reads the same server-verified customer
+            # the storefront merges into ``user``.
+            customer_id = turn_identity.shopper_customer_id
         turn_id_var.set(turn_id)
         # The search tools plan from what the shopper typed, not the agent's query.
         shopper_words_var.set(shopper_words(message, conversation_history))
@@ -2390,8 +2411,10 @@ class EnhancedChatService:
             "model_id": model_for_intent(intent)[0],
         }
 
-        # AgentCore STM — mirror this turn for session continuity labs.
-        if session_id and parsed.get("text"):
+        # AgentCore STM: mirror this turn for session continuity labs, unless the
+        # caller owns the write (``/api/agent/chat`` persists its own pair and
+        # reports it in the memory receipt).
+        if persist_memory and session_id and parsed.get("text"):
             await _append_pellier_stm_turn(
                 session_id, message, parsed["text"], user=user
             )

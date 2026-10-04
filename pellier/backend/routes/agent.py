@@ -73,7 +73,12 @@ from services.agentcore_identity import (
     get_agentcore_identity_service,
 )
 from services.agentcore_memory import BACKEND_AGENTCORE, AgentCoreMemory, ManagedMemoryError
-from services.agentcore_runtime import ManagedRuntimeError, get_latest_trace, run_agent
+from services.agentcore_runtime import (
+    AgentTurnError,
+    ManagedRuntimeError,
+    get_latest_trace,
+    run_agent,
+)
 from routes.user import get_agentcore_memory
 
 logger = logging.getLogger(__name__)
@@ -195,9 +200,10 @@ async def _stream_agent_response(
             history=history,
             customer_id=context.customer_id,
         )
-    except ManagedRuntimeError as exc:
+    except (ManagedRuntimeError, AgentTurnError) as exc:
+        # A failed turn is a failed turn: no Memory write, no chunk, no done.
         logger.warning(
-            "Managed Runtime rejected session %s: %s",
+            "Agent turn rejected for session %s: %s",
             context.session_id,
             exc.code,
         )
