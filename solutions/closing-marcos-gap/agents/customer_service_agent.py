@@ -33,7 +33,7 @@ from services.agent_tools import (
 )
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
-from services.response_mode import resolve_specialist_model
+from services.specialist_models import specialist_model
 
 logger = logging.getLogger(__name__)
 
@@ -171,10 +171,10 @@ def build_support_agent() -> Agent:
     actual order history; both injections are no-ops for anonymous
     sessions.
     """
-    # Customer Service Agent — Claude Opus 4.6. Opus for tone when handling a
+    # Customer Service Agent — Claude Opus 5. Opus for tone when handling a
     # return. Bedrock rejects the deprecated temperature field for this
     # model, so we rely on the model default.
-    model_id, max_tokens, _ = resolve_specialist_model("opus")
+    model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="support",
         model=BedrockModel(

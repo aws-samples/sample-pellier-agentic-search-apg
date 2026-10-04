@@ -26,7 +26,7 @@ from services.agent_tools import (
 from pellier_copy import PRODUCT_REQUIREMENTS_PROMPT
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
-from services.response_mode import resolve_specialist_model
+from services.specialist_models import specialist_model
 
 
 _SEARCH_SYSTEM_PROMPT = (
@@ -92,8 +92,6 @@ def _ensure_products_in_output(text: str, tool_results: list) -> str:
 
 def build_search_agent(
     *,
-    model_id: str | None = None,
-    max_tokens: int | None = None,
     allow_escalation: bool = True,
 ) -> Agent:
     """Return a configured Search specialist Agent.
@@ -101,7 +99,7 @@ def build_search_agent(
     Reads persona preamble + loaded skills from ContextVars at
     construction time. Callers set those ContextVars before invoking.
     """
-    # Search Agent — Claude Opus 4.6. Editorial voice + fit/fabric
+    # Search Agent — Claude Opus 5. Editorial voice + fit/fabric
     # description. Bedrock rejects the deprecated temperature field for
     # this model, so we rely on the model default.
     tools = [
@@ -124,16 +122,12 @@ def build_search_agent(
             "do not attempt a human handoff.</turn-policy>"
         )
 
-    selected_model_id, selected_max_tokens, _ = resolve_specialist_model(
-        "opus",
-        balanced_model_id=model_id,
-        balanced_max_tokens=max_tokens,
-    )
+    model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="search",
         model=BedrockModel(
-            model_id=selected_model_id,
-            max_tokens=selected_max_tokens,
+            model_id=model_id,
+            max_tokens=max_tokens,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(prompt)

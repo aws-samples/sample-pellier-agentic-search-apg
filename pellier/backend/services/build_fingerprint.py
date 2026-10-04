@@ -71,8 +71,8 @@ RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
     Path("services/otel_content_redaction.py"),
     Path("services/operator_graph.py"),
     Path("services/product_envelope.py"),
-    Path("services/response_mode.py"),
     Path("services/runtime_env.py"),
+    Path("services/specialist_models.py"),
 )
 
 # Dependency manifests are staged alongside the sources and change what the

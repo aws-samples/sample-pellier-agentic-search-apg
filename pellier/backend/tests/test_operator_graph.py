@@ -136,7 +136,7 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     import strands
     import strands.models
     import strands.multiagent
-    from services import response_mode
+    from services import specialist_models
 
     _FakeBuilder.fail = False
     _FakeBuilder.latest = None
@@ -144,9 +144,9 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(strands.models, "BedrockModel", _FakeModel)
     monkeypatch.setattr(strands.multiagent, "GraphBuilder", _FakeBuilder)
     monkeypatch.setattr(
-        response_mode,
-        "resolve_specialist_model",
-        lambda _tier: ("model-test", 9999, "sonnet"),
+        specialist_models,
+        "specialist_model",
+        lambda _tier: ("model-test", 9999),
     )
 
 

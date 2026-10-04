@@ -368,7 +368,6 @@ def test_bedrock_model_ids_have_spec_defaults(
         "BEDROCK_SONNET_MODEL",
         "BEDROCK_ROUTER_MODEL",
         "BEDROCK_REPORTING_MODEL",
-        "BEDROCK_FAST_MODEL",
     )
 
     # Point env_file at a path that doesn't exist so pydantic-settings
@@ -381,12 +380,11 @@ def test_bedrock_model_ids_have_spec_defaults(
     assert s.BEDROCK_RERANK_MODEL == "cohere.rerank-v3-5:0"
     assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-5"
     # Per-agent model mix should also default cleanly. Sonnet owns routing,
-    # structured extraction, and reporting; Haiku owns explicit fast mode.
+    # structured extraction, and reporting.
     assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5"
     assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-5"
     assert s.BEDROCK_ROUTER_MODEL == "global.anthropic.claude-sonnet-5"
     assert s.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5"
-    assert s.BEDROCK_FAST_MODEL == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 
 # ---------------------------------------------------------------------------

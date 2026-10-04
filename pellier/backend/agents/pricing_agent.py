@@ -25,7 +25,7 @@ from services.agent_tools import (
 from pellier_copy import PRODUCT_REQUIREMENTS_PROMPT
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
-from services.response_mode import resolve_specialist_model
+from services.specialist_models import specialist_model
 
 
 _PRICING_SYSTEM_PROMPT = (
@@ -90,10 +90,10 @@ def build_pricing_agent() -> Agent:
     observatory output (both injections are no-ops when their
     ContextVars are empty).
     """
-    # Pricing Agent — Sonnet 4.6 reporting profile. Reports numbers and
+    # Pricing Agent — Sonnet 5 reporting profile. Reports numbers and
     # ranges with no temperature override. The only thing worse than a
     # slow price check is a wrong one.
-    model_id, max_tokens, _ = resolve_specialist_model("sonnet")
+    model_id, max_tokens = specialist_model("sonnet")
     return Agent(
         name="pricing",
         model=BedrockModel(

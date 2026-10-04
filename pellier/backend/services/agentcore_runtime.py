@@ -73,7 +73,6 @@ class ManagedRuntimeResult:
     rail: str = ""
     intent: str = ""
     specialist: str = ""
-    response_mode: str = "balanced"
     model: str = ""
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     orchestration: str = "dispatcher"
@@ -390,7 +389,6 @@ async def run_agent_on_runtime_result(
     auth_token: Optional[str] = None,
     history: Optional[List[Dict[str, Any]]] = None,
     turn_id: Optional[str] = None,
-    response_mode: str = "balanced",
     customer_id: Optional[str] = None,
 ) -> ManagedRuntimeResult:
     """Invoke AgentCore Runtime and return its observed execution envelope.
@@ -432,14 +430,11 @@ async def run_agent_on_runtime_result(
         endpoint.rsplit("/", 1)[-1],
     )
 
-    from services.response_mode import normalize_response_mode
-
     payload_data: Dict[str, Any] = {
         "prompt": message,
         "session_id": session_id,
         "user_id": user_id or "anonymous",
         "history": history or [],
-        "response_mode": normalize_response_mode(response_mode),
         "customer_id": customer_id or None,
     }
     if turn_id:
@@ -535,7 +530,6 @@ async def run_agent_on_runtime_result(
             rail=rail,
             intent=str(parsed.get("intent") or ""),
             specialist=str(parsed.get("specialist") or ""),
-            response_mode=str(parsed.get("response_mode") or "balanced"),
             model=str(parsed.get("model") or ""),
             tool_calls=(
                 [dict(call) for call in tool_calls if isinstance(call, dict)]
@@ -563,7 +557,6 @@ async def run_agent_on_runtime(
     auth_token: Optional[str] = None,
     history: Optional[List[Dict[str, Any]]] = None,
     turn_id: Optional[str] = None,
-    response_mode: str = "balanced",
     customer_id: Optional[str] = None,
 ) -> str:
     """Compatibility wrapper returning only the managed response text."""
@@ -574,7 +567,6 @@ async def run_agent_on_runtime(
         auth_token=auth_token,
         history=history,
         turn_id=turn_id,
-        response_mode=response_mode,
         customer_id=customer_id,
     )
     return result.response
@@ -587,11 +579,10 @@ async def run_agent(
     auth_token: Optional[str] = None,
     history: Optional[List[Dict[str, Any]]] = None,
     turn_id: Optional[str] = None,
-    response_mode: str = "balanced",
     customer_id: Optional[str] = None,
 ) -> str:
-    """Route a chat request through either the in-process Strands
-    orchestrator or the AgentCore Runtime, based on
+    """Route a chat request through either the local Router or the
+    AgentCore Runtime, based on
     ``settings.USE_AGENTCORE_RUNTIME``.
 
     This is the single entry point used by the route handler for
@@ -630,7 +621,6 @@ async def run_agent(
             "user_id": user_id,
             "auth_token": auth_token,
             "history": history,
-            "response_mode": response_mode,
         }
         if turn_id:
             runtime_kwargs["turn_id"] = turn_id

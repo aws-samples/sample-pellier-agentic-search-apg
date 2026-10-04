@@ -23,15 +23,12 @@ ENV_EXAMPLE = BACKEND / ".env.example"
 CONFIG = BACKEND / "config.py"
 PREFLIGHT = REPO / "scripts" / "check_model_access.py"
 
-# Every model setting a participant can override from .env. BEDROCK_FAST_MODEL
-# is included because the preflight treats it as hard-required and it backs a
-# participant-facing control; it was absent from .env.example entirely.
+# Every model setting a participant can override from .env.
 MODEL_SETTINGS = (
     "BEDROCK_OPUS_MODEL",
     "BEDROCK_SONNET_MODEL",
     "BEDROCK_ROUTER_MODEL",
     "BEDROCK_REPORTING_MODEL",
-    "BEDROCK_FAST_MODEL",
     "BEDROCK_CHAT_MODEL",
 )
 
@@ -106,8 +103,8 @@ def test_preflight_probes_the_models_config_actually_resolves() -> None:
     """
     defaults = _config_defaults()
     preflight = PREFLIGHT.read_text(encoding="utf-8")
-    # Probe both ends of the editorial ladder and the required fast profile.
-    for name in ("BEDROCK_OPUS_MODEL", "BEDROCK_SONNET_MODEL", "BEDROCK_FAST_MODEL"):
+    # Probe both ends of the editorial ladder.
+    for name in ("BEDROCK_OPUS_MODEL", "BEDROCK_SONNET_MODEL"):
         model_id = defaults.get(name)
         assert model_id, f"config.py does not declare {name}"
         assert model_id in preflight, (

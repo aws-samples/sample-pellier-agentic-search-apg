@@ -1419,15 +1419,13 @@ class EnhancedChatService:
         guardrails_enabled: bool = False,
         user: Optional[Dict[str, Any]] = None,
         turn_id: Optional[str] = None,
-        response_mode: str = "balanced",
     ):
         """
         Async generator yielding SSE events with real-time agent streaming.
 
         ``turn_id`` is minted by the route before the stream opens and is
-        recorded on every ``tool_audit`` row this turn writes, so Observatory
-        can resolve a receipt deep link back to the exact tool calls that
-        ran. It is threaded through rather than regenerated here because
+        recorded on every ``tool_audit`` row this turn writes, so a receipt
+        resolves back to the exact tool calls that ran. It is threaded through rather than regenerated here because
         the id must be identical in the SSE envelope and the audit rows.
 
         Uses asyncio.Queue to bridge the synchronous agent thread with the
@@ -1439,9 +1437,6 @@ class EnhancedChatService:
         """
         import asyncio
         import time
-        from services.response_mode import normalize_response_mode
-
-        response_mode = normalize_response_mode(response_mode)
 
         # Resolve the effective customer_id for this turn. Personas
         # stash their customer_id in user["customer_id"] from the
@@ -1680,9 +1675,9 @@ class EnhancedChatService:
         unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
         if unbuilt_intent is not None:
             logger.info("🎯 Intent: %s → %s", intent, intent_hint)
-            from services.response_mode import build_intent_signal
+            from services.specialist_models import build_intent_signal
 
-            yield build_intent_signal(intent, response_mode)
+            yield build_intent_signal(intent)
             stub_name = self._tool_to_agent_name(intent_hint)
             logger.info(
                 "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
@@ -1893,11 +1888,11 @@ class EnhancedChatService:
         # Emit the already-resolved classification after profile context so
         # normal agent turns retain their existing participant-visible order.
         logger.info(f"🎯 Intent: {intent} → {intent_hint}")
-        from services.response_mode import build_intent_signal
-        yield build_intent_signal(intent, response_mode)
+        from services.specialist_models import build_intent_signal
+        yield build_intent_signal(intent)
 
         # --- Skill router ---------------------------------------------------
-        # One LLM call to Sonnet 4.6 decides which skills to inject into the
+        # One LLM call to Sonnet 5 decides which skills to inject into the
         # reasoning specialists' system prompts for this turn. Runs after
         # intent classification so the triage fast-path (greetings, meta,
         # thanks) short-circuits before reaching here.
@@ -2103,27 +2098,6 @@ class EnhancedChatService:
                     logger.warning("Persona ContextVar reset failed: %s", exc)
                 persona_token = None
 
-        # Response mode follows the same per-turn ContextVar contract as
-        # persona and skill context. The Sonnet router is unchanged; only
-        # specialist factories read this value when selecting their model.
-        response_mode_token = None
-        try:
-            from services.response_mode import set_response_mode
-            response_mode_token = set_response_mode(response_mode)
-        except Exception as exc:
-            logger.warning("Response-mode ContextVar set failed: %s", exc)
-
-        def _reset_response_mode_token() -> None:
-            """Idempotent reset so concurrent turns cannot share a mode."""
-            nonlocal response_mode_token
-            if response_mode_token is not None:
-                try:
-                    from services.response_mode import reset_response_mode
-                    reset_response_mode(response_mode_token)
-                except Exception as exc:
-                    logger.warning("Response-mode ContextVar reset failed: %s", exc)
-                response_mode_token = None
-
         # Pattern I specialists forward retrieved products through this
         # request-scoped collector. Product data therefore stays server-owned
         # and never consumes the outer router's model output budget.
@@ -2204,7 +2178,6 @@ class EnhancedChatService:
                 yield event
             _reset_skill_token()
             _reset_persona_token()
-            _reset_response_mode_token()
             _reset_product_collector_token()
             return
 
@@ -2397,7 +2370,6 @@ class EnhancedChatService:
             # exception paths too.
             _reset_skill_token()
             _reset_persona_token()
-            _reset_response_mode_token()
             _reset_product_collector_token()
 
         if timed_out:
@@ -2759,7 +2731,6 @@ class EnhancedChatService:
                     "orchestrator_enabled": True,
                     "agent_execution": agent_execution,
                     "model": self.model_id,
-                    "response_mode": response_mode,
                     "rail": "in-process",
                     "orchestration": orchestration_receipt,
                     "token_count": token_count,
@@ -2776,7 +2747,6 @@ class EnhancedChatService:
                     "products": products_sent,
                     "suggestions": parsed["suggestions"],
                     "success": True,
-                    "response_mode": response_mode,
                     "rail": "in-process",
                     "orchestration": orchestration_receipt,
                 }

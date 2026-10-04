@@ -203,14 +203,6 @@ class ChatRequest(BaseModel):
         pattern=r"^CUST-[A-Z0-9-]{1,40}$",
         description="Persona customer id (e.g. 'CUST-MARCO'). None = anonymous.",
     )
-    response_mode: Literal["balanced", "editorial", "fast"] = Field(
-        default="balanced",
-        description=(
-            "Specialist response policy. Balanced keeps the configured "
-            "Opus/Sonnet mix, editorial uses Opus, and fast uses Haiku. "
-            "Routing remains on the configured Sonnet router."
-        ),
-    )
 
 
 class RestockRequest(BaseModel):

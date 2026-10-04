@@ -1235,15 +1235,12 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     return
 
                 from services.intent_router import classify_intent
-                from services.response_mode import build_intent_signal
+                from services.specialist_models import build_intent_signal
 
                 yield (
                     "data: "
                     + json.dumps(
-                        build_intent_signal(
-                            classify_intent(request.message),
-                            request.response_mode,
-                        ),
+                        build_intent_signal(classify_intent(request.message)),
                         ensure_ascii=False,
                     )
                     + "\n\n"
@@ -1302,7 +1299,6 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                         auth_token=(effective_user or {}).get("access_token"),
                         history=managed_history,
                         turn_id=turn_id,
-                        response_mode=request.response_mode,
                         customer_id=profile_customer_id,
                     )
                 except ManagedRuntimeError as exc:
@@ -1546,7 +1542,6 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     guardrails_enabled=request.guardrails_enabled,
                     user=local_user or None,
                     turn_id=turn_id,
-                    response_mode=request.response_mode,
                 ):
                     if event.get("type") == "error":
                         event = classify_chat_error(

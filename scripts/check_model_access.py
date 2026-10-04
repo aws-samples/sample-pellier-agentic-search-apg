@@ -73,23 +73,6 @@ MODELS = [
         },
     },
     {
-        "name": "Claude Haiku 4.5",
-        # Fast mode is a first-class participant control, not a soft hint.
-        # Pin the global inference profile so preflight proves the exact profile
-        # the app and managed Runtime invoke for that option.
-        "model_id": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
-        "required": True,
-        "role": "fast",
-        "access_hint": (
-            "Enable Claude Haiku 4.5 in Bedrock model access."
-        ),
-        "body": {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 16,
-            "messages": [{"role": "user", "content": "Say hi."}],
-        },
-    },
-    {
         "name": "Cohere Rerank v3.5",
         "model_id": "cohere.rerank-v3-5:0",
         "required": True,  # Anna's rerank proof + search_products at runtime
@@ -321,9 +304,6 @@ def main():
     sonnet_name = "Claude Sonnet"
     sonnet_ok = results.get(sonnet_name, (False,))[0]
     sonnet_id = results.get(sonnet_name, (False, None, ""))[2]
-    fast_name = "Claude Haiku 4.5"
-    fast_ok = results.get(fast_name, (False,))[0]
-    fast_id = results.get(fast_name, (False, None, ""))[2]
 
     editorial_ok = opus_ok or sonnet_ok
     print()
@@ -353,16 +333,6 @@ def main():
     else:
         print("\033[31mRouting/reporting + Runtime: no Sonnet is accessible.\033[0m")
 
-    # --- Fast response mode: Haiku is intentionally required ---
-    print()
-    if fast_ok:
-        print(f"Fast response mode: \033[32m{fast_id}\033[0m.")
-        if args.write_env:
-            _upsert_env(args.write_env, "BEDROCK_FAST_MODEL", fast_id)
-            print(f"  → wrote BEDROCK_FAST_MODEL={fast_id} to {args.write_env}")
-    else:
-        print("\033[31mFast response mode: Claude Haiku 4.5 is not accessible.\033[0m")
-
     # Backend settings and the MCP Lambda deployer use distinct environment
     # keys. Persist both before READY so a working bare-model fallback cannot
     # leave either execution path invoking the denied inference profile.
@@ -372,7 +342,7 @@ def main():
         _upsert_env(args.write_env, "BEDROCK_EMBED_MODEL_ID", embedding_id)
         print(f"  → wrote backend and MCP embedding model IDs: {embedding_id}")
 
-    # --- Hard-required models (Sonnet, Haiku, Rerank, Embed) ---
+    # --- Hard-required models (Sonnet, Rerank, Embed) ---
     hard = [m["name"] for m in MODELS if m.get("required", True)]
     hard_missing = [n for n in hard if not results.get(n, (False,))[0]]
 

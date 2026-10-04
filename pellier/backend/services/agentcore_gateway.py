@@ -527,7 +527,6 @@ class ManagedGatewayDispatcher:
     """Run Pellier's deterministic dispatcher over managed Gateway tools."""
 
     access_token: str
-    response_mode: str = "balanced"
     customer_id: str = ""
     routing_query: str = ""
     trace_attributes: Dict[str, str] | None = None
@@ -544,7 +543,7 @@ class ManagedGatewayDispatcher:
         from strands.hooks.events import AfterToolCallEvent, BeforeToolCallEvent
         from strands.tools.mcp.mcp_client import MCPClient
         from services.intent_router import classify_intent
-        from services.response_mode import response_model_for_intent
+        from services.specialist_models import model_for_intent
 
         # Route on the current shopper request, not the bounded conversation
         # prompt. Prior turns can contain unrelated keywords and must not
@@ -557,10 +556,7 @@ class ManagedGatewayDispatcher:
             customer_id=self.customer_id,
         )
         gateway_url = _runtime_or_app_setting("AGENTCORE_GATEWAY_URL")
-        model_id, max_tokens, _ = response_model_for_intent(
-            intent,
-            self.response_mode,
-        )
+        model_id, max_tokens = model_for_intent(intent)
         if not gateway_url or not model_id:
             raise RuntimeError(
                 "Managed dispatcher requires AGENTCORE_GATEWAY_URL and a "
@@ -701,7 +697,6 @@ class ManagedGatewayDispatcher:
                     **self.trace_attributes,
                     "pellier.intent": intent,
                     "pellier.specialist": specialist,
-                    "pellier.response_mode": self.response_mode,
                     "gen_ai.request.model": model_id,
                     "shopper.customer_id": self.customer_id or "anonymous",
                 }
@@ -722,18 +717,14 @@ class ManagedGatewayDispatcher:
 
 def create_gateway_dispatcher(
     access_token: Optional[str] = None,
-    response_mode: str = "balanced",
     customer_id: Optional[str] = None,
     routing_query: str = "",
 ) -> ManagedGatewayDispatcher | None:
     """Create the managed equivalent of Pellier dispatcher."""
     if not _runtime_or_app_setting("AGENTCORE_GATEWAY_URL") or not access_token:
         return None
-    from services.response_mode import normalize_response_mode
-
     return ManagedGatewayDispatcher(
         access_token=access_token,
-        response_mode=normalize_response_mode(response_mode),
         customer_id=str(customer_id or "").strip(),
         routing_query=routing_query,
     )

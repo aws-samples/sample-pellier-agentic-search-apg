@@ -34,7 +34,7 @@ from services.agent_tools import (
 )
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
-from services.response_mode import resolve_specialist_model
+from services.specialist_models import specialist_model
 from pellier_copy import RECOMMENDATION_SYSTEM_PROMPT
 
 
@@ -59,8 +59,6 @@ def _ensure_products_in_output(text: str, tool_results: list) -> str:
 
 def build_recommendation_agent(
     *,
-    model_id: str | None = None,
-    max_tokens: int | None = None,
     allow_escalation: bool = True,
 ) -> Agent:
     """Return a configured Recommendation specialist Agent.
@@ -77,7 +75,7 @@ def build_recommendation_agent(
     agent as before in those scenarios.
     === REFERENCE: END ===
     """
-    # Personalization Agent — Claude Opus 4.6. Recommendations carry "taste";
+    # Personalization Agent — Claude Opus 5. Recommendations carry "taste";
     # Bedrock rejects the deprecated temperature field for this model,
     # so we rely on the model default.
     #
@@ -110,16 +108,12 @@ def build_recommendation_agent(
             "still an answer; do not attempt a human handoff.</turn-policy>"
         )
 
-    selected_model_id, selected_max_tokens, _ = resolve_specialist_model(
-        "opus",
-        balanced_model_id=model_id,
-        balanced_max_tokens=max_tokens,
-    )
+    model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="recommendation",
         model=BedrockModel(
-            model_id=selected_model_id,
-            max_tokens=selected_max_tokens,
+            model_id=model_id,
+            max_tokens=max_tokens,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(prompt)

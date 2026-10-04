@@ -70,7 +70,6 @@ def stub_runtime_call(monkeypatch: pytest.MonkeyPatch):
         user_id: Any = None,
         auth_token: Any = None,
         history: Any = None,
-        response_mode: str = "balanced",
         customer_id: Any = None,
     ) -> str:
         calls.append(
@@ -80,7 +79,6 @@ def stub_runtime_call(monkeypatch: pytest.MonkeyPatch):
                 "user_id": user_id,
                 "auth_token": auth_token,
                 "history": history,
-                "response_mode": response_mode,
                 "customer_id": customer_id,
             }
         )
@@ -208,7 +206,6 @@ def test_run_agent_dispatches_to_runtime_when_flag_true(
             "user_id": "cognito-sub-xyz",
             "auth_token": "jwt-123",
             "history": None,
-            "response_mode": "balanced",
             "customer_id": "CUST-MARCO",
         }
     ]
@@ -396,7 +393,6 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
                 {"role": "user", "content": "show me linen"},
                 {"role": "assistant", "content": "Here are three options."},
             ],
-            response_mode="fast",
             customer_id="CUST-MARCO",
         )
     )
@@ -426,7 +422,6 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
             {"role": "user", "content": "show me linen"},
             {"role": "assistant", "content": "Here are three options."},
         ],
-        "response_mode": "fast",
         "customer_id": "CUST-MARCO",
     }
     trace = rt.get_latest_trace("sess-runtime", principal_sub="user-123")

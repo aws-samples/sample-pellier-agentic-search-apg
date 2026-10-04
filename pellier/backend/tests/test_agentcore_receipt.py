@@ -154,7 +154,7 @@ def _valid_receipt() -> dict[str, Any]:
                 },
                 "step_latency_observed": True,
                 "step_latency_ms": {"agent": 125, "model": 80, "tool": 30},
-                "model_ids": ["global.anthropic.claude-sonnet-4-6"],
+                "model_ids": ["global.anthropic.claude-sonnet-5"],
                 "tool_names": ["search_products_hybrid"],
                 "provenance": "agentcore-unified-telemetry",
             },

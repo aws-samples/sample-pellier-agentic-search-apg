@@ -25,7 +25,7 @@ def _execution() -> dict[str, Any]:
                 "spanId": "b" * 16,
                 "attributes": {
                     "gen_ai.agent.name": "recommendation",
-                    "gen_ai.request.model": "global.anthropic.claude-opus-4-6-v1",
+                    "gen_ai.request.model": "global.anthropic.claude-opus-5",
                     "gen_ai.usage.input_tokens": 21,
                     "gen_ai.usage.output_tokens": 8,
                     "gen_ai.usage.total_tokens": 29,
@@ -63,7 +63,7 @@ def test_invocation_rows_are_metadata_only() -> None:
     assert len(rows) == 1
     row = rows[0]
     assert row["purpose"] == "agent:recommendation"
-    assert row["model_id"] == "global.anthropic.claude-opus-4-6-v1"
+    assert row["model_id"] == "global.anthropic.claude-opus-5"
     assert row["inference_profile_id"] == row["model_id"]
     assert row["input_tokens"] == 21
     assert row["output_tokens"] == 8
@@ -96,7 +96,7 @@ def test_runtime_summary_is_explicit_when_no_usage_span_exists() -> None:
             "total_duration_ms": 55,
             "usage": {"total_tokens": 0},
         },
-        default_model_id="global.anthropic.claude-sonnet-4-6",
+        default_model_id="global.anthropic.claude-sonnet-5",
         source="otel",
     )
 

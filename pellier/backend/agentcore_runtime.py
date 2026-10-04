@@ -117,7 +117,6 @@ try:
         user_id = (payload or {}).get("user_id", "anonymous")
         history = (payload or {}).get("history", [])
         turn_id = (payload or {}).get("turn_id")
-        response_mode = (payload or {}).get("response_mode", "balanced")
         customer_id = (payload or {}).get("customer_id")
 
         # Tools execute only through Gateway MCP under the caller's identity.
@@ -146,7 +145,6 @@ try:
 
         dispatcher = create_gateway_dispatcher(
             access_token=access_token,
-            response_mode=response_mode,
             customer_id=customer_id,
             routing_query=prompt,
         )
@@ -190,7 +188,6 @@ try:
             "rail": rail,
             "intent": dispatcher.last_intent,
             "specialist": dispatcher.last_specialist,
-            "response_mode": dispatcher.response_mode,
             "model": dispatcher.last_model_id,
             "gateway_tools": list(dispatcher.last_tool_names),
             "tool_calls": list(dispatcher.last_tool_events or []),

@@ -323,8 +323,6 @@ export interface ChatResponse {
   }
 }
 
-export type ResponseMode = 'balanced' | 'editorial' | 'fast'
-
 /**
  * Send a chat message with streaming support
  */
@@ -335,7 +333,6 @@ export async function sendChatMessageStreaming(
   workshopMode?: string,
   guardrailsEnabled?: boolean,
   customerId?: string | null,
-  responseMode: ResponseMode = 'balanced',
   /**
    * Caller-owned cancellation, e.g. a component unmounting mid-stream.
    * Forwarded onto the internal controller so one `fetch` call still
@@ -378,7 +375,6 @@ export async function sendChatMessageStreaming(
         workshop_mode: workshopMode || null,
         guardrails_enabled: guardrailsEnabled || false,
         customer_id: customerId ?? null,
-        response_mode: responseMode,
       }),
     })
 

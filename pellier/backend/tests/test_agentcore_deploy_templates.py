@@ -78,8 +78,7 @@ def _render(tmp_path: Path, *, include_policies: bool, runtime_arns=None) -> tup
         cognito_pool="us-east-1_example",
         cognito_client="client-id",
         lambda_arns=_lambda_arns(),
-        model_id="global.anthropic.claude-sonnet-4-6",
-        fast_model_id="global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        model_id="global.anthropic.claude-sonnet-5",
         workshop_id="p12345678",
         include_policies=include_policies,
         gateway_arn=TEST_GATEWAY_ARN if include_policies else "",
@@ -212,12 +211,11 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
     assert build_fingerprint == renderer.compute_fingerprint(root / "runtime-src")
 
     assert env == {
-        "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_OPUS_MODEL": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_REPORTING_MODEL": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_ROUTER_MODEL": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_SONNET_MODEL": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_FAST_MODEL": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-5",
+        "BEDROCK_OPUS_MODEL": "global.anthropic.claude-sonnet-5",
+        "BEDROCK_REPORTING_MODEL": "global.anthropic.claude-sonnet-5",
+        "BEDROCK_ROUTER_MODEL": "global.anthropic.claude-sonnet-5",
+        "BEDROCK_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
         "UNIFIED_TRACES_DESTINATION_ENABLED": "true",
     }
     assert runtime["instrumentation"] == {"enableOtel": True}
@@ -239,7 +237,7 @@ def test_runtime_bundle_contains_only_managed_import_graph(tmp_path: Path) -> No
         *renderer.RUNTIME_SOURCE_FILES,
     }
     assert Path("config.py") not in actual
-    assert Path("services/response_mode.py") in actual
+    assert Path("services/specialist_models.py") in actual
     assert not any("tests" in path.parts for path in actual)
 
 
@@ -1056,7 +1054,7 @@ def _unified_trace_records(
                     "name": "chat",
                     "durationNanos": "320000000",
                     "attributes": {
-                        "gen_ai.request.model": "global.anthropic.claude-sonnet-4-6"
+                        "gen_ai.request.model": "global.anthropic.claude-sonnet-5"
                     },
                     "resource": resource(),
                 }
@@ -1122,7 +1120,7 @@ def test_unified_trace_summary_requires_correlated_agent_model_and_tool_spans() 
         "tool_output": "gen_ai.tool.call.result",
     }
     assert proof["step_latency_ms"] == {"agent": 900, "model": 320, "tool": 45}
-    assert proof["model_ids"] == ["global.anthropic.claude-sonnet-4-6"]
+    assert proof["model_ids"] == ["global.anthropic.claude-sonnet-5"]
     assert proof["tool_names"] == ["search_products_hybrid"]
     assert proof["provenance"] == "agentcore-unified-telemetry"
 
@@ -1411,7 +1409,6 @@ def test_deploy_sequence_validates_both_cli_phases(
         cognito_client="client",
         lambda_arns=_lambda_arns(),
         model_id="model",
-        fast_model_id="fast-model",
         workshop_id="workshop",
         env={},
     )
@@ -2031,7 +2028,6 @@ def test_participant_update_orders_new_actions_before_policies_without_dropping_
         model_id="model",
         opus_model_id="opus",
         sonnet_model_id="sonnet",
-        fast_model_id="fast",
         workshop_id="dat416",
         env={},
         identity=identity,
@@ -2063,7 +2059,7 @@ def test_participant_update_refuses_to_remove_an_active_policy(monkeypatch, tmp_
         provisioner._redeploy_participant_edits(
             repo=tmp_path, account_id="123456789012", region="us-east-1",
             cognito_pool="pool", cognito_client="client", lambda_arns=_lambda_arns(),
-            model_id="model", opus_model_id="opus", sonnet_model_id="sonnet", fast_model_id="fast",
+            model_id="model", opus_model_id="opus", sonnet_model_id="sonnet",
             workshop_id="dat416", env={}, identity=identity,
         )
 
@@ -2090,7 +2086,6 @@ def test_participant_update_refuses_an_unprovisioned_environment(
             model_id="model",
             opus_model_id="opus",
             sonnet_model_id="sonnet",
-            fast_model_id="fast",
             workshop_id="dat416",
             env={},
             identity=identity,

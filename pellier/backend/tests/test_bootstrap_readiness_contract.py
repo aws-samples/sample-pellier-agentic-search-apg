@@ -56,10 +56,6 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
             return False
         if model.get("role") == "sonnet":
             model["_resolved_id"] = "global.anthropic.claude-sonnet-5"
-        if model.get("role") == "fast":
-            model["_resolved_id"] = (
-                "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-            )
         return True
 
     monkeypatch.setattr(module, "check_model", fake_check)
@@ -78,10 +74,7 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
     assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert values["BEDROCK_CHAT_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-5"
-    assert (
-        values["BEDROCK_FAST_MODEL"]
-        == "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-    )
+    assert "BEDROCK_FAST_MODEL" not in values
     assert "CLAUDE_CODE_MODEL" not in values
     assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5"
     assert values["BEDROCK_MODEL_ACCESS_READY"] == "true"
@@ -99,14 +92,12 @@ def test_claude_code_pins_global_sonnet_5_profile() -> None:
     assert "CLAUDE_CODE_MODEL" not in source
 
 
-def test_managed_runtime_handoff_preserves_the_fast_model_profile() -> None:
-    source = BOOTSTRAP.read_text(encoding="utf-8")
-
-    assert (
-        "export BEDROCK_FAST_MODEL="
-        "'${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'"
-        in source
-    )
+def test_bootstrap_and_preflight_pin_only_claude_5_profiles() -> None:
+    """Every Claude model the workshop provisions is a global Claude 5 profile."""
+    for path in (BOOTSTRAP, REPO / "scripts" / "check_model_access.py"):
+        source = path.read_text(encoding="utf-8")
+        assert "haiku" not in source.lower(), path.name
+        assert "BEDROCK_FAST_MODEL" not in source, path.name
 
 
 def test_facilitator_dry_run_preflights_the_recommended_claude_lane() -> None:

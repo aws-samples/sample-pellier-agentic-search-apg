@@ -61,8 +61,7 @@ class _Dispatcher:
         ]
         self.last_intent = "recommendation"
         self.last_specialist = "recommendation"
-        self.response_mode = "balanced"
-        self.last_model_id = "global.anthropic.claude-opus-4-6-v1"
+        self.last_model_id = "global.anthropic.claude-opus-5"
         self.last_tool_names = ["search_products_hybrid"]
 
     def __call__(self, prompt: str) -> _Response:
@@ -127,7 +126,6 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
             "turn_id": "turn-123",
             "user_id": "cognito-sub-123",
             "customer_id": "CUST-MARCO",
-            "response_mode": "balanced",
             "history": [{"role": "user", "content": "I prefer linen."}],
         },
         _Context(),
@@ -136,7 +134,6 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
     assert factory_calls == [
         {
             "access_token": "verified-jwt",
-            "response_mode": "balanced",
             "customer_id": "CUST-MARCO",
             "routing_query": "Build a resort edit",
         }
@@ -160,8 +157,7 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         "rail": "gateway-mcp",
         "intent": "recommendation",
         "specialist": "recommendation",
-        "response_mode": "balanced",
-        "model": "global.anthropic.claude-opus-4-6-v1",
+        "model": "global.anthropic.claude-opus-5",
         "gateway_tools": ["search_products_hybrid"],
         "tool_calls": dispatcher.last_tool_events,
         "orchestration": "dispatcher",

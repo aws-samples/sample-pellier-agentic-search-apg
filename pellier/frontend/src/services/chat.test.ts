@@ -39,9 +39,7 @@ describe('chat service auth transport', () => {
       credentials: 'include',
       headers: expect.objectContaining({ Accept: 'text/event-stream' }),
     })
-    expect(JSON.parse(init.body as string)).toMatchObject({
-      response_mode: 'balanced',
-    })
+    expect(JSON.parse(init.body as string)).not.toHaveProperty('response_mode')
     expect(updates).toHaveLength(1)
     expect(result.response).toBe('done')
   })
@@ -91,7 +89,6 @@ describe('chat service auth transport', () => {
       undefined,
       true,
       'CUST-ANNA',
-      'fast',
     )
 
     const [, init] = fetchMock.mock.calls[0]
@@ -99,7 +96,6 @@ describe('chat service auth transport', () => {
     expect(body).toMatchObject({
       guardrails_enabled: true,
       customer_id: 'CUST-ANNA',
-      response_mode: 'fast',
     })
     expect(body).not.toHaveProperty('pattern')
   })

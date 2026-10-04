@@ -860,7 +860,6 @@ export function useAgentChat(
           mode === 'storefront' ? undefined : workshopMode,
           guardrailsEnabled,
           persona?.customer_id ?? null,
-          undefined, // responseMode: keep the 'balanced' default
           controller.signal,
         )
 

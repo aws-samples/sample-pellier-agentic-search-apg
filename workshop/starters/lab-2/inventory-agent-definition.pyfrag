@@ -16,5 +16,5 @@ _INVENTORY_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 # Participant: permitted inventory reads.
 _INVENTORY_TOOLS = []
 #
-# Source delta: Inventory Agent has no temperature field. Sonnet 4.6 rejects the
+# Source delta: Inventory Agent has no temperature field. Sonnet 5 rejects the
 # deprecated temperature kwarg, so the correct definition omits it.

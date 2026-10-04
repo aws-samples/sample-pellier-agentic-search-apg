@@ -160,9 +160,9 @@ def run_operator_graph(
     from strands.models import BedrockModel
     from strands.multiagent import GraphBuilder
 
-    from services.response_mode import resolve_specialist_model
+    from services.specialist_models import specialist_model
 
-    model_id, _configured_max, _tier = resolve_specialist_model("sonnet")
+    model_id, _configured_max = specialist_model("sonnet")
     investigator = Agent(
         name=INVESTIGATOR_NODE,
         description="Separates current facts, reported context, and evidence gaps.",

@@ -76,8 +76,6 @@ class Settings(BaseSettings):
     #                  Customer Service Agent). Needs voice + personality.
     #   Claude Sonnet 5 — routing, structured extraction, and reporting
     #                  specialists (Pricing Agent, Inventory Agent).
-    #   Claude Haiku 4.5  — the explicit fast-response mode. It never replaces
-    #                  the router; it composes the responding specialist only.
     #
     # Model IDs follow Bedrock cross-region inference profile naming.
     # Editorial agents (Search Agent, Personalization Agent, Customer Service Agent) read
@@ -89,15 +87,12 @@ class Settings(BaseSettings):
     # path change, no per-request retry. BEDROCK_SONNET_MODEL is the canonical
     # fallback target (real Sonnet 5, not an Opus alias).
     #
-    # The governed release pins global Opus 5 / Sonnet 5 / Haiku 4.5.
+    # The governed release pins the global Opus 5 and Sonnet 5 profiles.
     # Move config, .env.example, preflight, bootstrap and Studio pins together.
-    # Recorded Observatory sessions retain their original model provenance;
-    # the configured model catalogue and new live sessions use this release.
     BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5"
     BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-5"
     BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-5"
     BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5"
-    BEDROCK_FAST_MODEL: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     # Legacy alias — kept for tests + scripts that still reference it.
     # Prefer the role-specific Opus/Sonnet settings in agent factories.
@@ -111,7 +106,6 @@ class Settings(BaseSettings):
     # Editorial: Search, Personalization, Customer Service. Reporting: Inventory, Pricing.
     AGENT_MAX_TOKENS_OPUS: int = 1200
     AGENT_MAX_TOKENS_SONNET: int = 2048      # richer reveals from the reporting pair
-    AGENT_MAX_TOKENS_HAIKU: int = 768        # concise, grounded fast-mode replies
     SKILL_ROUTER_MAX_TOKENS_SONNET: int = 640  # five-skill audit JSON
     ROUTER_MAX_TOKENS_SONNET: int = 1200    # tool route plus concise final handoff
     
@@ -513,7 +507,6 @@ if __name__ == "__main__":
     print(f"AWS Region: {settings.aws_region_resolved}")
     print(f"Embedding Model: {settings.BEDROCK_EMBEDDING_MODEL}")
     print(f"Chat Model: {settings.BEDROCK_CHAT_MODEL}")
-    print(f"Fast Response Model: {settings.BEDROCK_FAST_MODEL}")
     print(f"API Version: {settings.API_VERSION}")
     print(f"Debug Mode: {settings.DEBUG}")
     print(f"Development Mode: {settings.DEVELOPMENT_MODE}")

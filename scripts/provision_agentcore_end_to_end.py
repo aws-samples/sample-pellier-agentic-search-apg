@@ -1169,7 +1169,6 @@ def _deploy_cli_project(
     env: dict[str, str],
     opus_model_id: str | None = None,
     sonnet_model_id: str | None = None,
-    fast_model_id: str | None = None,
     identity: DeploymentIdentity | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Deploy resources, then bind Cedar policies and telemetry to their IDs."""
@@ -1185,7 +1184,6 @@ def _deploy_cli_project(
         "model_id": model_id,
         "opus_model_id": opus_model_id or model_id,
         "sonnet_model_id": sonnet_model_id or model_id,
-        "fast_model_id": fast_model_id or model_id,
         "workshop_id": workshop_id,
         "identity": identity,
     }
@@ -2333,7 +2331,6 @@ def _redeploy_participant_edits(
     model_id: str,
     opus_model_id: str,
     sonnet_model_id: str,
-    fast_model_id: str,
     workshop_id: str,
     env: dict[str, str],
     identity: DeploymentIdentity,
@@ -2373,7 +2370,6 @@ def _redeploy_participant_edits(
         model_id=model_id,
         opus_model_id=opus_model_id,
         sonnet_model_id=sonnet_model_id,
-        fast_model_id=fast_model_id,
         workshop_id=workshop_id,
         identity=identity,
         include_policies=True,
@@ -2415,7 +2411,6 @@ def _participant_update(
     required: dict[str, Any],
     opus_model_id: str,
     sonnet_model_id: str,
-    fast_model_id: str,
     client_secret_arn: str | None,
     account_id: str,
     identity: DeploymentIdentity,
@@ -2457,7 +2452,6 @@ def _participant_update(
         model_id=required["model_id"],
         opus_model_id=opus_model_id,
         sonnet_model_id=sonnet_model_id,
-        fast_model_id=fast_model_id,
         workshop_id=required["workshop_id"],
         env=env,
         identity=identity,
@@ -2641,7 +2635,6 @@ def main() -> int:
         os.environ.get("BEDROCK_SONNET_MODEL", "").strip()
         or required["model_id"]
     )
-    fast_model_id = _require_env("BEDROCK_FAST_MODEL")
     client_secret_arn = (
         os.environ.get("COGNITO_CLIENT_SECRET_ARN", "").strip() or None
     )
@@ -2725,7 +2718,6 @@ def main() -> int:
                 required=required,
                 opus_model_id=opus_model_id,
                 sonnet_model_id=sonnet_model_id,
-                fast_model_id=fast_model_id,
                 client_secret_arn=client_secret_arn,
                 account_id=account_id,
                 identity=identity,
@@ -2799,7 +2791,6 @@ def main() -> int:
             model_id=required["model_id"],
             opus_model_id=opus_model_id,
             sonnet_model_id=sonnet_model_id,
-            fast_model_id=fast_model_id,
             workshop_id=required["workshop_id"],
             env=deploy_env,
             identity=identity,

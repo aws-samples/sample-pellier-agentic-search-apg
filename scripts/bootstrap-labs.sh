@@ -338,7 +338,6 @@ AWS_DEFAULT_REGION='${AWS_REGION}'
 BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}'
 BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-cohere.rerank-v3-5:0}'
 BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-5}'
-BEDROCK_FAST_MODEL='${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'
 WORKSHOP_ID='${WORKSHOP_ID:-dat416}'
 WORKSHOP_FORMAT='${WORKSHOP_FORMAT:-governed}'
 PELLIER_DEPLOYMENT_SUFFIX='${PELLIER_DEPLOYMENT_SUFFIX:-}'
@@ -1403,7 +1402,6 @@ EOF
         # gets a documented fallback). Passed explicitly so the dependency is visible at
         # the call site; the provisioner also reads that .env as a safety net.
         export AGENT_MODEL_ID='${AGENT_MODEL_ID:-}'
-        export BEDROCK_FAST_MODEL='${BEDROCK_FAST_MODEL:-global.anthropic.claude-haiku-4-5-20251001-v1:0}'
         export WORKSHOP_ID='${WORKSHOP_ID:-dat416}'
         python3.14 '$REPO_PATH/scripts/provision_agentcore_end_to_end.py' \
             --repo-path '$REPO_PATH' \

@@ -25,7 +25,6 @@ from config import settings
 from services.agent_tools import check_inventory, get_low_stock
 from skills import inject_skills
 from services.persona_context import inject_persona_preamble
-from services.response_mode import resolve_specialist_model
 
 
 _INVENTORY_SYSTEM_PROMPT = (
@@ -113,7 +112,7 @@ _INVENTORY_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 # Field 5: the two tools Inventory Agent owns.
 _INVENTORY_TOOLS = [check_inventory, get_low_stock]
 #
-# Source delta: Inventory Agent has no temperature field. Sonnet 4.6 rejects the
+# Source delta: Inventory Agent has no temperature field. Sonnet 5 rejects the
 # deprecated temperature kwarg, so the correct definition omits it.
 # === WORKSHOP - Inventory Agent - definition: END ===
 
@@ -151,18 +150,13 @@ def build_inventory_agent() -> Agent:
             "Inventory Agent definition is still scaffolded for the governed workshop"
         )
 
-    # Inventory Agent — Sonnet 4.6 reporting profile. Pure factual lookups
+    # Inventory Agent — Sonnet 5 reporting profile. Pure factual lookups
     # (warehouse, count, ETA), with no temperature override.
-    model_id, max_tokens, _ = resolve_specialist_model(
-        "sonnet",
-        balanced_model_id=_INVENTORY_MODEL_ID,
-        balanced_max_tokens=_INVENTORY_MAX_TOKENS,
-    )
     return Agent(
         name="inventory",
         model=BedrockModel(
-            model_id=model_id,
-            max_tokens=max_tokens,
+            model_id=_INVENTORY_MODEL_ID,
+            max_tokens=_INVENTORY_MAX_TOKENS,
         ),
         system_prompt=inject_persona_preamble(
             inject_skills(_INVENTORY_SYSTEM_PROMPT_FOR_AGENT)
