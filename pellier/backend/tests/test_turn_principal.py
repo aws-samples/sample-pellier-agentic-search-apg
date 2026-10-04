@@ -93,4 +93,3 @@ def test_a_typed_password_sign_in_is_not_labelled_workshop(chat) -> None:
     assert chat(_shopper("nadia")) == {
         "authenticated": True, "customerId": None, "signInMethod": "cognito",
     }
-
