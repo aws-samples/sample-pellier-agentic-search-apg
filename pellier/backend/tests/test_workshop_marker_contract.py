@@ -27,15 +27,15 @@ worksheet whose RRF expression starts degraded, plus a bounded search-plan
 fallback that must preserve the original requirements.
 
 **Lab 3 - Deploy and Operate Agents with Amazon Bedrock AgentCore.** Two marker regions and two
-fallback files. 3A publishes ``get_ticket_history`` on the Gateway and reconciles the
+fallback files. 3A publishes ``get_tickets`` on the Gateway and reconciles the
 tools the Runtime asks the Gateway for, binding that read to the caller. One of the two
 files is a packaged runtime source. Task 3B deploys those edits and checks the executed
 fingerprint, which is how the participant proves their own build answered.
 
 **Lab 4 - Build Governed Agent Actions with Cedar.** A starter Cedar file that must NOT contain
-the answer, a reference rule that must, one proof script whose flags the guide passes
-verbatim, and a keyed absence worksheet whose counts start as NULL placeholders. The
-OpenTelemetry trace contract is a provided check the guide runs, not a build.
+the answer, a reference rule that must (an amount rule on ``give_store_credit``, not an
+identity-pair match), and a keyed absence worksheet whose counts start as NULL placeholders.
+The OpenTelemetry trace contract is a provided check the guide runs, not a build.
 """
 
 from __future__ import annotations
@@ -58,18 +58,18 @@ REPO = Path(__file__).resolve().parents[3]
 # ---------------------------------------------------------------------------
 
 LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
-    ("pellier/backend/agents/inventory_agent.py",
-     "WORKSHOP - Inventory Agent - definition"),
+    ("pellier/backend/agents/stock_agent.py",
+     "WORKSHOP - Stock agent - definition"),
     ("pellier/backend/services/agent_tools.py",
-     "WORKSHOP - Inventory Agent - check_inventory"),
+     "WORKSHOP - Stock agent - check_stock"),
 )
 
 # The exact `cp` sources in the guide's pacing fallback. A participant runs these
 # verbatim, so a renamed solution file is a dead recovery lane.
 LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
-    ("solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py",
-     "pellier/backend/agents/inventory_agent.py"),
-    ("solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py",
+    ("solutions/waking-the-stock-keeper/agents/stock_agent_solution.py",
+     "pellier/backend/agents/stock_agent.py"),
+    ("solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py",
      "pellier/backend/services/agent_tools.py"),
 )
 
@@ -112,12 +112,11 @@ LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
      "pellier/backend/services/agentcore_gateway.py"),
 )
 
-# The tool Task 3A publishes and binds to the caller, the one that stays
-# deferred, and the staff-only tool the shopper specialist must drop in 3A.
-# Getting these backwards is the whole lesson.
-LAB3_PUBLISHED_TOOL = "get_ticket_history"
-LAB3_DEFERRED_TOOL = "restock_inventory"
-LAB3_STAFF_ONLY_TOOL = "issue_credit"
+# The tool Task 3A publishes and binds to the caller, and the staff-only tool no
+# shopper agent may bind. There is no second deferred tool: the starter defers
+# exactly the one the participant publishes.
+LAB3_PUBLISHED_TOOL = "get_tickets"
+LAB3_STAFF_ONLY_TOOL = "give_store_credit"
 
 # ---------------------------------------------------------------------------
 # Lab 4, "40-govern-actions-and-prove-outcomes": a Cedar rule and a trace
@@ -138,39 +137,29 @@ LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_identity_match_forbid.cedar"
 LAB4_REFERENCE = "solutions/the-concierge/policies/identity_match_forbid.cedar"
-LAB4_PROOF_SCRIPT = "scripts/prove_identity_boundary.py"
 LAB4_RLS_PROOF = "workshop/lab-4-rls.sql"
 
-# The policy name passed to `agentcore add policy --name` and to the proof script's
-# `--policy-name`. One string in three places.
+# The policy name passed to `agentcore add policy --name`.
 LAB4_POLICY_NAME = "workshop_identity_match_forbid"
 
-# The target-qualified action Gateway generates. The guide shows it inside the starter,
-# and the rule is inert against any other action id.
-LAB4_ACTION = "pellier-concierge-experience-target___initiate_return"
+# The target-qualified action Gateway generates: the one target `pellier-store-tools`
+# plus the tool name. The guide shows it inside the starter, and the rule is inert
+# against any other action id.
+LAB4_ACTION = "pellier-store-tools___give_store_credit"
 
-# Every flag the guide passes to the one-command Lab 4 proof driver.
-LAB4_PROOF_FLAGS = (
-    "--json",
-)
-
-# The identity pairs the reference rule binds. Each pair joins a Cognito username to an
-# Aurora customer id, which is the whole lesson of the lab.
-LAB4_IDENTITY_PAIRS = (
-    ("marco", "CUST-MARCO"),
-    ("anna", "CUST-ANNA"),
-    ("theo", "CUST-THEO"),
-    ("jessica", "CUST-JESSICA"),
-)
+# The amount the reference rule admits, in cents ($100.00), and the input field it
+# reads. The starter must carry neither in code.
+LAB4_AMOUNT_FIELD = "amount_cents"
+LAB4_AMOUNT_LIMIT_CENTS = "10000"
 
 PARTICIPANT_EXERCISE_RESET = "scripts/reset_participant_exercises.py"
 PARTICIPANT_STARTERS = {
-    "lab-2-inventory-agent": (
-        "workshop/starters/lab-2/inventory-agent-definition.pyfrag",
-        "pellier/backend/agents/inventory_agent.py",
+    "lab-2-stock-agent": (
+        "workshop/starters/lab-2/stock-agent-definition.pyfrag",
+        "pellier/backend/agents/stock_agent.py",
     ),
-    "lab-2-inventory-tool": (
-        "workshop/starters/lab-2/check-inventory-tool.pyfrag",
+    "lab-2-check-stock": (
+        "workshop/starters/lab-2/check-stock-tool.pyfrag",
         "pellier/backend/services/agent_tools.py",
     ),
     "lab-1-rrf": (
@@ -440,7 +429,7 @@ def test_lab3_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
 
 
 def test_lab3_starter_withholds_the_tool_theo_needs() -> None:
-    """3a is unbuilt until `get_ticket_history` leaves the deferred set."""
+    """3a is unbuilt until `get_tickets` leaves the deferred set."""
     sys.path.insert(0, str(REPO / "scripts" / "deploy"))
     import gateway_tool_schemas
 
@@ -448,28 +437,30 @@ def test_lab3_starter_withholds_the_tool_theo_needs() -> None:
     assert LAB3_PUBLISHED_TOOL not in published, (
         f"{LAB3_PUBLISHED_TOOL} is already published; Lab 3a ships its own answer"
     )
-    assert LAB3_DEFERRED_TOOL not in published
+    assert gateway_tool_schemas.WORKSHOP_DEFERRED_TOOLS == frozenset({LAB3_PUBLISHED_TOOL}), (
+        "the starter defers exactly the tool the participant publishes, and no other"
+    )
     assert LAB3_PUBLISHED_TOOL in gateway_tool_schemas.canonical_tool_names(), (
         "the participant publishes an existing schema; it must stay in the catalogue"
     )
 
 
-def test_lab3_reference_publishes_the_read_and_withholds_the_money_movement() -> None:
+def test_lab3_reference_publishes_the_read_and_the_staff_only_tool() -> None:
     solution = _load_module(
         "lab3_gateway_solution",
         "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
     )
     published = solution.workshop_published_tools()
+    assert solution.WORKSHOP_DEFERRED_TOOLS == frozenset(), "the reference defers nothing"
     assert LAB3_PUBLISHED_TOOL in published
-    assert LAB3_DEFERRED_TOOL not in published, (
-        "restock_inventory moves stock and belongs to the operator desk, not a shopper agent"
-    )
     assert LAB3_STAFF_ONLY_TOOL in published, (
-        "issue_credit is published for the operator desk under a staff-only permit"
+        "give_store_credit is published for the operator desk under a staff-only permit"
     )
+    assert solution.STAFF_ONLY_GATEWAY_TOOLS == frozenset({LAB3_STAFF_ONLY_TOOL})
+    assert solution.OWNER_SCOPED_GATEWAY_TOOLS == frozenset({"get_orders", "get_tickets"})
 
 
-def test_lab3_starter_leaves_the_support_specialist_unserveable() -> None:
+def test_lab3_starter_leaves_the_support_agent_unserveable() -> None:
     """The authentic failure Lab 3 fixes: the Runtime asks for unpublished tools."""
     sys.path.insert(0, str(REPO / "scripts" / "deploy"))
     import gateway_tool_schemas
@@ -479,7 +470,7 @@ def test_lab3_starter_leaves_the_support_specialist_unserveable() -> None:
     published = gateway_tool_schemas.workshop_published_tools()
     unserveable = set(agentcore_gateway.SUPPORT_MANAGED_TOOLS) - published
     assert unserveable, (
-        "Lab 3 has nothing to fix: the starter support specialist is already serveable"
+        "Lab 3 has nothing to fix: the starter Support agent is already serveable"
     )
     assert agentcore_gateway.SUPPORT_CALLER_BOUND_TOOLS == frozenset(), (
         "the starter must not pre-bind the ownership condition"
@@ -496,9 +487,10 @@ def test_lab3_reference_reconciles_the_runtime_with_the_gateway() -> None:
         "solutions/the-ledger/services/agentcore_gateway.py",
     )
     published = schemas.workshop_published_tools()
-    for specialist, names in runtime.MANAGED_SPECIALIST_TOOLS.items():
+    for agent, names in runtime.MANAGED_SPECIALIST_TOOLS.items():
         missing = sorted(set(names) - published)
-        assert not missing, f"{specialist} still asks for unpublished tools: {missing}"
+        assert not missing, f"{agent} still asks for unpublished tools: {missing}"
+    assert runtime.SUPPORT_CALLER_BOUND_TOOLS == frozenset({LAB3_PUBLISHED_TOOL})
     assert LAB3_PUBLISHED_TOOL in runtime.SUPPORT_CALLER_BOUND_TOOLS, (
         f"{LAB3_PUBLISHED_TOOL} must be bound to the authenticated caller"
     )
@@ -516,8 +508,15 @@ def test_lab3_build_ships_to_the_managed_runtime() -> None:
     )
 
 
+def _cedar_code(text: str) -> str:
+    """The policy with its `//` comment lines removed."""
+    return "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith("//")
+    )
+
+
 def test_lab4_starter_does_not_ship_the_answer() -> None:
-    """The starter must hold the placeholder, not the identity mapping.
+    """The starter must hold the placeholder, not the amount rule.
 
     This is the same failure the fresh policy renderer had: a stack that pre-installs the
     participant's answer makes step 3's DENY fire before they have written anything, and
@@ -528,11 +527,9 @@ def test_lab4_starter_does_not_ship_the_answer() -> None:
         f"{LAB4_STARTER} no longer holds the `unless {{ false }}` starter the guide "
         "tells the participant to replace"
     )
-    for username, customer_id in LAB4_IDENTITY_PAIRS:
-        assert f'"{customer_id}"' not in text, (
-            f"{LAB4_STARTER} contains {customer_id}: the starter is shipping the answer"
-        )
-        assert f'getTag("username") == "{username}"' not in text
+    code = _cedar_code(text)
+    assert LAB4_AMOUNT_FIELD not in code, f"{LAB4_STARTER} reads {LAB4_AMOUNT_FIELD} already"
+    assert LAB4_AMOUNT_LIMIT_CENTS not in code, f"{LAB4_STARTER} carries the limit already"
 
 
 def test_lab4_starter_targets_the_generated_action() -> None:
@@ -546,18 +543,20 @@ def test_lab4_starter_targets_the_generated_action() -> None:
     assert text.lstrip().startswith("//") or "forbid(" in text
 
 
-def test_lab4_reference_rule_binds_every_identity_pair() -> None:
-    """The fallback must be complete, or the participant who takes it still fails step 4."""
+def test_lab4_reference_rule_admits_an_amount_up_to_the_limit() -> None:
+    """The fallback must be complete, or the participant who takes it still fails the proof.
+
+    The rule is an amount rule on `give_store_credit`, not an identity-pair match: the
+    baseline permit already scopes the action to staff, and this forbid caps what one
+    approved review may give.
+    """
     text = _read(LAB4_REFERENCE)
-    assert LAB4_ACTION in text
-    # Scoped to principals carrying a customer claim, so staff are never caught by it.
-    assert re.search(r'when\s*\{\s*principal\.hasTag\("custom:customer_id"\)\s*\}', text)
-    assert "context.input has customer_id" in text
-    assert 'principal.getTag("custom:customer_id") == context.input.customer_id' in text
-    # The rule binds a claim, never a list of shoppers.
-    for username, customer_id in LAB4_IDENTITY_PAIRS:
-        assert f'"{username}"' not in text, f"{LAB4_REFERENCE} names {username}"
-        assert customer_id not in text, f"{LAB4_REFERENCE} names {customer_id}"
+    code = _cedar_code(text)
+    assert LAB4_ACTION in code
+    assert "context.input has amount_cents" in code
+    assert "context.input.amount_cents <= 10000" in code
+    # The rule reads the tool's input, never a list of shoppers.
+    assert "CUST-" not in code and "getTag" not in code
 
 
 def test_lab4_reference_rule_is_the_starter_plus_the_condition() -> None:
@@ -566,26 +565,18 @@ def test_lab4_reference_rule_is_the_starter_plus_the_condition() -> None:
     If the reference drifted to a different action or effect, the fallback would deploy a
     policy that cannot produce the DENY the guide's step 3 asserts.
     """
+    def head(text: str) -> str:
+        code = _cedar_code(text)
+        return code[code.index("forbid("):code.index("unless {")]
+
     starter = _read(LAB4_STARTER)
     reference = _read(LAB4_REFERENCE)
     for fragment in ("forbid(", "principal is AgentCore::OAuthUser,",
                      f'action == AgentCore::Action::"{LAB4_ACTION}"',
-                     'resource == AgentCore::Gateway::"${PELLIER_GATEWAY_ARN}"',
-                     'when {\n  principal.hasTag("custom:customer_id")\n}', "unless {"):
+                     'resource == AgentCore::Gateway::"${PELLIER_GATEWAY_ARN}"', "unless {"):
         assert fragment in starter, f"{LAB4_STARTER} lost {fragment!r}"
         assert fragment in reference, f"{LAB4_REFERENCE} lost {fragment!r}"
-
-
-def test_lab4_proof_script_accepts_every_flag_the_guide_passes() -> None:
-    """Parsed from the argparse calls, so a renamed flag fails here.
-
-    The guide's step 3 and step 4 commands are identical apart from the bearer token, and
-    both are pasted verbatim. A dropped flag is an immediate `unrecognized arguments`.
-    """
-    source = _read(LAB4_PROOF_SCRIPT)
-    declared = set(re.findall(r'add_argument\(\s*"(--[a-z-]+)"', source))
-    missing = sorted(flag for flag in LAB4_PROOF_FLAGS if flag not in declared)
-    assert not missing, f"{LAB4_PROOF_SCRIPT} does not declare {missing}"
+    assert head(starter) == head(reference)
 
 
 def test_lab4_policy_name_matches_the_cli_source() -> None:
@@ -594,11 +585,6 @@ def test_lab4_policy_name_matches_the_cli_source() -> None:
         "the starter filename is what the guide's --source points at; it must match "
         "the policy name"
     )
-
-
-def test_lab4_proof_script_parses() -> None:
-    """A syntax error in the one script the required proof runs is not a runtime problem."""
-    ast.parse(_read(LAB4_PROOF_SCRIPT))
 
 
 def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
@@ -656,7 +642,6 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
         LAB4_ABSENCE_REFERENCE,
         LAB4_STARTER,
         LAB4_REFERENCE,
-        LAB4_PROOF_SCRIPT,
         LAB4_RLS_PROOF,
     ]
     absent = sorted({rel for rel in anchors if not (REPO / rel).is_file()})
@@ -672,17 +657,18 @@ def test_participant_exercise_reset_declares_every_incomplete_artifact() -> None
 
 
 def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
-    inventory_agent = _read(PARTICIPANT_STARTERS["lab-2-inventory-agent"][0])
-    inventory_tool = _read(PARTICIPANT_STARTERS["lab-2-inventory-tool"][0])
+    stock_agent = _read(PARTICIPANT_STARTERS["lab-2-stock-agent"][0])
+    stock_tool = _read(PARTICIPANT_STARTERS["lab-2-check-stock"][0])
     lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
     absence = _read(PARTICIPANT_STARTERS["lab-4-absence"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
-    assert "_INVENTORY_AGENT_STUBBED = True" in inventory_agent
-    assert "_INVENTORY_TOOLS = []" in inventory_agent
-    assert "_INVENTORY_SYSTEM_PROMPT_FOR_AGENT = _INVENTORY_SYSTEM_PROMPT" in inventory_agent
-    assert '"error": "check_inventory is in stub state"' in inventory_tool
-    assert "result = _run_async(logic.check_inventory" not in inventory_tool
+    assert "_STOCK_AGENT_STUBBED = True" in stock_agent
+    assert "_STOCK_TOOLS = []" in stock_agent
+    assert "_STOCK_SYSTEM_PROMPT_FOR_AGENT = _STOCK_SYSTEM_PROMPT" in stock_agent
+    assert '"error": "check_stock is in stub state"' in stock_tool
+    assert "received_product_query" in stock_tool
+    assert "store_tools.check_stock(" not in stock_tool
     assert "0::numeric AS recomputed_rrf" in lab1
     assert all(placeholder in absence for placeholder in LAB4_ABSENCE_PLACEHOLDERS)
     assert "FROM pellier.tool_audit" not in absence
@@ -723,13 +709,13 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
                 encoding="utf-8",
             )
 
-        inventory_destination = (
-            repo / PARTICIPANT_STARTERS["lab-2-inventory-agent"][1]
+        stock_destination = (
+            repo / PARTICIPANT_STARTERS["lab-2-stock-agent"][1]
         )
-        inventory_destination.write_text(
-            inventory_destination.read_text(encoding="utf-8").replace(
-                "_INVENTORY_AGENT_STUBBED = True",
-                "_INVENTORY_AGENT_STUBBED = False",
+        stock_destination.write_text(
+            stock_destination.read_text(encoding="utf-8").replace(
+                "_STOCK_AGENT_STUBBED = True",
+                "_STOCK_AGENT_STUBBED = False",
             )
             + "\n# PARTICIPANT_UNRELATED_EDIT\n",
             encoding="utf-8",
@@ -742,8 +728,8 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
             check=False,
         )
         assert completed.returncode == 0, completed.stderr
-        restored = inventory_destination.read_text(encoding="utf-8")
-        assert "_INVENTORY_AGENT_STUBBED = True" in restored
+        restored = stock_destination.read_text(encoding="utf-8")
+        assert "_STOCK_AGENT_STUBBED = True" in restored
         assert "# PARTICIPANT_UNRELATED_EDIT" in restored
 
 
@@ -811,7 +797,7 @@ _BUILD_STATE_DETECTORS = (
 # ---------------------------------------------------------------------------
 # Every reference solution the guide copies over a live file must be that live
 # file plus the answer. On 2026-09-19 three twins had drifted outside their
-# marker regions: the Lab 3a schema twin lacked `replace_damaged_item`, the Lab 3b
+# marker regions: the Lab 3a schema twin lacked a published tool schema, the Lab 3b
 # runtime twin lacked the traceparent injection, and the Lab 2a agent twin carried
 # older instructions. A participant taking the documented catch-up lane silently
 # regressed the running application. This is the tripwire.

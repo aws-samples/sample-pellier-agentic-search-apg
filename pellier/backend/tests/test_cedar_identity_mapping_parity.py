@@ -1,20 +1,22 @@
-"""The Cedar identity rule, the token trigger, and the application must agree.
+"""The Lab 4 Cedar files, the token trigger, and the baseline must agree.
 
 Identity reaches Cedar as a claim, not as a list of shoppers
 ------------------------------------------------------------
-The Lab 4 rule compares the access token's ``custom:customer_id`` tag with the
-tool's ``customer_id`` input. The claim is stamped by the Cognito pre-token
-trigger from ``pellier.principal_customers``, which is also what row-level
-security keys off, so the policy, the token, and the database share one
-mapping and no policy file has to enumerate shoppers. An earlier version wrote
-four username-to-customer pairs into the rule; that duplicated the application
-mapping and failed open whenever the two drifted.
+The baseline's owner-only permits compare the access token's
+``custom:customer_id`` tag with the tool's ``customer_id`` input. The claim is
+stamped by the Cognito pre-token trigger from ``pellier.principal_customers``,
+which is also what row-level security keys off, so the policy, the token, and
+the database share one mapping and no policy file has to enumerate shoppers.
+
+The Lab 4 file is a different rule: an amount limit on ``give_store_credit``.
+The baseline staff permit does not bound the amount, and the participant's
+forbid does.
 
 What is checked
 ---------------
-* the starter and the reference name the same claim the trigger issues;
+* the trigger issues the claim the baseline's owner-only permit reads;
 * the starter stays unsolved and gives nothing away;
-* the reference is fail-closed for shoppers and scoped away from staff;
+* the reference is an amount rule that admits only a present amount up to $100;
 * both files target the same action and pin the Gateway by ARN placeholder;
 * neither file names a shopper, a customer id, or the ID-token claim;
 * the trigger's mapping source is the same table RLS uses.
@@ -62,12 +64,19 @@ def test_the_working_copy_starts_as_the_starter() -> None:
     assert STARTER.read_bytes() == TEMPLATE.read_bytes()
 
 
-def test_both_files_compare_the_claim_the_trigger_issues() -> None:
+def test_the_trigger_issues_the_claim_the_baseline_owner_permit_reads() -> None:
     claim = _trigger_claim_name()
-    for path in (STARTER, REFERENCE):
-        text = path.read_text()
-        assert f'principal.hasTag("{claim}")' in text, path.name
-    assert f'principal.getTag("{claim}") == context.input.customer_id' in REFERENCE.read_text()
+    deploy = str(_REPO / "scripts" / "deploy")
+    if deploy not in sys.path:
+        sys.path.insert(0, deploy)
+    import render_agentcore_project as renderer
+
+    arn = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"
+    owner = next(
+        policy for policy in renderer.baseline_policies(gateway_arn=arn)
+        if policy["name"] == "get_orders_owner_only"
+    )
+    assert f'principal.getTag("{claim}") == context.input.customer_id' in owner["statement"]
 
 
 def test_the_participant_starter_is_still_unsolved() -> None:
@@ -89,16 +98,20 @@ def test_neither_file_names_a_shopper_or_a_customer() -> None:
         assert 'getTag("username")' not in text, path.name
 
 
-def test_the_reference_is_fail_closed_for_shoppers_and_scoped_away_from_staff() -> None:
-    reference = REFERENCE.read_text()
-    assert re.search(
-        r'when\s*\{\s*principal\.hasTag\("custom:customer_id"\)\s*\}', reference
-    ), "the forbid must apply only to principals carrying a customer claim"
-    assert "context.input has customer_id" in reference, (
-        "a request with no customer_id must be denied rather than compared "
-        "against an absent field."
+def test_the_reference_is_an_amount_rule_not_an_identity_match() -> None:
+    code = "\n".join(
+        line for line in REFERENCE.read_text().splitlines()
+        if not line.strip().startswith("//")
     )
-    assert "custom:staff_scope" not in reference, "staff authority is a permit, not a carve-out"
+    assert code.lstrip().startswith("forbid(")
+    assert re.search(
+        r"unless\s*\{\s*context\.input has amount_cents\s*&&\s*"
+        r"context\.input\.amount_cents <= 10000\s*\}",
+        code,
+    ), "a request with no amount must be denied rather than compared against an absent field"
+    assert "principal.getTag(" not in code
+    assert "when" not in code.replace("whenever", ""), "the forbid applies to every principal"
+    assert "custom:staff_scope" not in code, "staff authority is a permit, not a carve-out"
 
 
 def test_both_files_target_the_same_action_and_pin_the_gateway() -> None:

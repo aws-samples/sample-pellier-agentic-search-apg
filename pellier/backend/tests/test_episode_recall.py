@@ -237,11 +237,11 @@ def test_the_turn_runs_recall_only_on_an_explicit_history_question() -> None:
     assert "if classify_history_intent(request):" in source
 
 
-def test_recall_is_not_a_fifth_workflow() -> None:
+def test_recall_is_not_a_fourth_workflow() -> None:
     """A workflow is a deliverable. Recall is context attached to one."""
     assert "prior_resolution" not in OC.SUPPORTED_WORKFLOWS
     assert "episode_recall" not in OC.SUPPORTED_WORKFLOWS
-    assert len(OC.SUPPORTED_WORKFLOWS) == 4
+    assert len(OC.SUPPORTED_WORKFLOWS) == 3
 
 
 def test_recall_composes_with_a_workflow_context_stage() -> None:

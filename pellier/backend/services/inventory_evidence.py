@@ -15,7 +15,7 @@ Established from the migrations rather than assumed:
 
     pellier.warehouse_inventory     migration 006, per-warehouse counts. The
                                     fulfillment-grade cache, and the one a shopper's
-                                    ``check_inventory`` reads.
+                                    ``check_stock`` reads.
 
     product_catalog.quantity        migration 001 creates it as the AGGREGATE
                                     cache. It is a seed value, not inventory, so it

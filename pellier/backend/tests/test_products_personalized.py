@@ -74,7 +74,7 @@ ISSUER = f"https://cognito-idp.{REGION}.amazonaws.com/{POOL_ID}"
 
 
 def _showcase_rows() -> List[Dict[str, Any]]:
-    """Return the 9 showcase rows in personalization_agent-chosen editorial order."""
+    """Return the 9 showcase rows in store-chosen editorial order."""
     base: List[Dict[str, Any]] = [
         dict(
             id=1,

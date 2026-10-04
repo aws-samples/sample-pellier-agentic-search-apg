@@ -23,12 +23,10 @@ import type { CapabilitySnapshot, CapabilityState } from '../../services/operato
 import type { ConciergeConfig } from '../../services/operatorConcierge'
 
 /** Governed writes, in the order an operator thinks about them. */
-const GOVERNED_ORDER = ['initiate_return', 'escalate_to_human', 'issue_credit'] as const
+const GOVERNED_ORDER = ['give_store_credit'] as const
 
 const GOVERNED_LABELS: Record<string, string> = {
-  initiate_return: 'Initiate return',
-  escalate_to_human: 'Escalate to human',
-  issue_credit: 'Store credit',
+  give_store_credit: 'Store credit',
 }
 
 interface Props {

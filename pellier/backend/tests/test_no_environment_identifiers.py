@@ -3,16 +3,10 @@
 The finding this closes
 -----------------------
 
-`scripts/deploy/ownership.py` pinned a real 12-digit account id, the live Gateway id,
-the policy engine id, the Aurora cluster name and a Lambda code SHA as module
-constants. The pinning itself is correct: the Gateway vocabulary migration mutates
-named resources in one audited account, and running it elsewhere would change
-something nobody reviewed. Publishing those values in an aws-samples repository is
-not. Together they tell a reader exactly which resources to go looking for.
-
-They are now read from the environment and the migration refuses to run without them,
-so the hard stop survives and the identifiers do not ship. This test is what keeps
-them out.
+A deployment's account id, Gateway id, policy engine id and Aurora cluster name must
+never be written into an aws-samples repository: together they tell a reader exactly
+which resources to go looking for. Values a script needs are read from the environment.
+This test is what keeps them out.
 
 Why a 12-digit scan rather than a secret scanner
 ------------------------------------------------
@@ -128,53 +122,3 @@ def test_no_tracked_file_contains_a_real_account_id() -> None:
         "id. Read it from the environment, or use a documentation account id:\n"
         + "\n".join(sorted(set(findings))[:30])
     )
-
-
-def test_the_migration_pins_come_from_the_environment() -> None:
-    """The pins must be resolved, not literal, and unset must be a hard stop."""
-    source = (REPO / "scripts" / "deploy" / "ownership.py").read_text(encoding="utf-8")
-    for pin in (
-        "EXPECTED_ACCOUNT", "EXPECTED_GATEWAY_ID", "EXPECTED_POLICY_ENGINE_ID",
-        "EXPECTED_DB_CLUSTER", "EXPECTED_EXPERIENCE_SHA",
-    ):
-        assert re.search(rf"^{pin} = os\.environ\.get\(", source, re.M), (
-            f"{pin} must be read from the environment, not written into source"
-        )
-    assert "def require_environment_pins()" in source
-
-
-def test_the_migration_refuses_to_run_without_its_pins(monkeypatch) -> None:
-    """An unset pin is worse than a wrong one.
-
-    A preflight that compared two empty strings would report a match against any
-    account in the world, which is the opposite of a hard stop.
-    """
-    import importlib
-    import sys
-
-    deploy = str(REPO / "scripts" / "deploy")
-    if deploy not in sys.path:
-        sys.path.insert(0, deploy)
-    for name in (
-        "PELLIER_EXPECTED_ACCOUNT", "PELLIER_EXPECTED_GATEWAY_ID",
-        "PELLIER_EXPECTED_POLICY_ENGINE_ID", "PELLIER_EXPECTED_DB_CLUSTER",
-        "PELLIER_EXPECTED_EXPERIENCE_SHA",
-    ):
-        monkeypatch.delenv(name, raising=False)
-
-    import ownership
-
-    reloaded = importlib.reload(ownership)
-    try:
-        assert set(reloaded.missing_environment_pins()) == set(reloaded.REQUIRED_PINS)
-        try:
-            reloaded.require_environment_pins()
-        except SystemExit as exc:
-            assert "refuses to run" in str(exc)
-        else:  # pragma: no cover - the assertion above is the point
-            raise AssertionError("require_environment_pins accepted an unpinned run")
-    finally:
-        # Other modules hold references to this module object, so leaving it reloaded
-        # with empty pins would break any test that imported it earlier.
-        monkeypatch.undo()
-        importlib.reload(ownership)

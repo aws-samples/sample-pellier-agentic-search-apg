@@ -237,7 +237,7 @@ def record_operator_mutation(
     ``args->>'principal_sub'`` answers "who did this?" with no migration.
 
     Args:
-        tool_name: Logical tool name, e.g. ``restock_inventory``.
+        tool_name: Logical tool name, e.g. ``give_store_credit``.
         caller: Rail that performed the call, e.g. ``rest``.
         principal_sub: Verified Cognito ``sub`` of the operator.
         args: Request arguments; ``principal_sub`` is merged in.

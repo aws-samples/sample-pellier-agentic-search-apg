@@ -28,43 +28,32 @@ security model, and the sign-in prompt is the honest failure.
 There is no committed frontend copy of the client book, because UI state is
 not evidence.
 
-**Two governed actions, one execution path.** Resolving a return calls
-``BusinessLogic.initiate_return``; issuing a goodwill credit calls
-``BusinessLogic.issue_credit``. Neither has a direct action endpoint.
-The Operator Concierge prepares one proposal, a person confirms the exact
-review, and ``POST /reviews/{id}/execute`` claims the idempotency key in
-``pellier.write_operations`` before touching domain state. A replay therefore
-applies exactly once and produces the same durable evidence shape: write event,
-Aurora rows, and a ``pellier.tool_audit`` record.
+**One governed action, one execution path.** Giving a store credit calls
+``store_tools.give_store_credit``. It has no direct action endpoint. A request
+opens one review, a person confirms the exact review, and
+``POST /reviews/{id}/execute`` runs the credit with the review's idempotency
+key, so a replay applies exactly once and produces the same durable evidence
+shape: one ``pellier.store_credits`` row and one ``pellier.tool_audit`` record.
 
-A credit is a money movement, so it has its own table rather than being
-recorded as a note on a return. A return is not a credit, and an auditor
-asking what was paid out cannot answer it from the returns table. The $500
-ceiling is enforced by a CHECK constraint on ``pellier.store_credits``, not by
-prompt text.
+A credit is a money movement, so it has its own table. The $500 ceiling is
+enforced by a CHECK constraint on ``pellier.store_credits``, not by prompt text.
 
-The Gateway publishes ``issue_credit`` with a staff-only permit. Shopper tokens
-have no permit for it; the absence of shopper permission is distinct from an
-unpublished tool. On the desk, ``require_operator`` checks group membership.
-The pre-token trigger derives ``custom:staff_scope`` from that membership, and
-both ``initiate_return_staff_scope`` and ``issue_credit_staff_scope`` require it.
-The Lab 4 ownership forbid applies to customer-claim holders, not staff.
+The Gateway publishes ``give_store_credit`` with a staff-only permit. Shopper
+tokens have no permit for it; the absence of shopper permission is distinct
+from an unpublished tool. On the desk, ``require_operator`` checks group
+membership. The pre-token trigger derives ``custom:staff_scope`` from that
+membership, and ``give_store_credit_staff_scope`` requires it. The Lab 4 forbid
+a participant authors adds the per-credit amount limit on top of that permit.
 A direct staff Gateway call does not pass through the desk's human-review
 workflow; the Gateway policy must not be described as proof of human approval.
 See the `baseline_policies` docstring in
 `scripts/deploy/render_agentcore_project.py`.
-
-**Ownership is enforced in SQL, not here.** ``initiate_return`` joins
-``orders`` against the customer and product before it writes, so an operator
-cannot resolve a return for an item a client never bought. This module does not
-re-check that; duplicating the gate would let the two drift.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import uuid
 import re
 from typing import Any, Dict, List, Optional
 
@@ -682,12 +671,11 @@ async def stream_concierge_turn(
 async def get_capabilities_route(refresh: bool = False) -> Dict[str, Any]:
     """What the Operator can actually do right now.
 
-    Derived from live Gateway and policy state, not from the source tool registry.
-    On a fresh provision `issue_credit` is published with a staff-only permit and
-    `initiate_return` has shopper and staff permits, but a drifted Gateway can
-    publish an action with zero matching permits or omit it entirely. Those are
-    different causes with different futures, and a frontend constant cannot tell
-    them apart.
+    Derived from live Gateway and policy state, not from source. On a fresh
+    provision `give_store_credit` is published with a staff-only permit, but a
+    drifted Gateway can publish an action with zero matching permits or omit it
+    entirely. Those are different causes with different futures, and a frontend
+    constant cannot tell them apart.
 
     Cached for a short TTL so a page load never triggers a control-plane call, and
     fail-closed: if live state cannot be read, governed writes report
@@ -823,7 +811,7 @@ async def get_client(
 # still request the verified operator payload directly because attribution is
 # part of the row they write.
 #
-# Note what confirming does NOT do: it does not call ``BusinessLogic``. A
+# Note what confirming does NOT do: it does not call the tool. A
 # confirmed review is a person saying yes; whether the system is then
 # authorised to act is a separate event with its own evidence, initiated only
 # by the execute endpoint.
@@ -1069,46 +1057,6 @@ def _review_order(order: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "placedAt": _iso(order.get("placed_at")),
         "imageUrl": order.get("image_url") or "",
     }
-
-
-class ReplacementRequest(BaseModel):
-    orderId: int = Field(ge=1)
-    quantity: int = Field(default=1, ge=1, le=100)
-    issue: str = Field(min_length=1, max_length=500)
-
-
-@router.get("/clients/{client_id}/replacements")
-async def client_replacements(
-    client_id: str,
-    replacement_id: uuid.UUID | None = None,
-    db: Any = Depends(get_db_service),
-) -> Dict[str, Any]:
-    from services.replacement_recovery import read_replacements
-
-    try:
-        return await read_replacements(db, client_id, str(replacement_id) if replacement_id else None)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="replacement_evidence_unavailable") from exc
-
-
-@router.post("/clients/{client_id}/replacements/prepare")
-async def prepare_replacement(
-    client_id: str, request: ReplacementRequest,
-    operator: Dict[str, Any] = Depends(require_operator),
-    db: Any = Depends(get_db_service),
-) -> Dict[str, Any]:
-    from services import operator_review as rv
-    from services.replacement_recovery import prepare
-
-    try:
-        review_id = await prepare(
-            db, customer_id=client_id, order_id=request.orderId,
-            quantity=request.quantity, issue=request.issue.strip(),
-            operator_sub=str(operator["sub"]),
-        )
-    except rv.ReviewError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
-    return {"reviewId": review_id}
 
 
 class ReviewDecisionRequest(BaseModel):

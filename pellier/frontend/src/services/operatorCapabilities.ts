@@ -2,9 +2,9 @@
  * Capability and inventory truth, typed. No live state is decided here.
  *
  * Both contracts are backend-derived on purpose. Capability state comes from live
- * Gateway and policy state — `initiate_return` is currently published with zero
- * matching permits while `issue_credit` is not published at all, and those are
- * different causes that a frontend constant cannot tell apart. Inventory status
+ * Gateway and policy state: a tool can be published with zero matching permits
+ * or not published at all, and those are different causes that a frontend
+ * constant cannot tell apart. Inventory status
  * comes from one canonical object so a narrative sentence and a product card can
  * never disagree about the same product.
  *
@@ -67,11 +67,7 @@ export function governedUnavailableCopy(
   capabilities: CapabilitySnapshot,
 ): GovernedUnavailableCopy {
   const capabilityMap = capabilities.capabilities ?? {}
-  const governed = [
-    'initiate_return',
-    'escalate_to_human',
-    'issue_credit',
-  ]
+  const governed = ['give_store_credit']
     .map((tool) => capabilityMap[tool])
     .filter((capability): capability is Capability => Boolean(capability))
 

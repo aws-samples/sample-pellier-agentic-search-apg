@@ -27,7 +27,7 @@ from services import operator_concierge_sessions as SESSIONS
 from services import operator_review as REVIEW
 
 CUSTOMER = "CUST-JESSICA"
-THROW = {"customer_id": CUSTOMER, "product_id": 7, "reason": "damaged"}
+CREDIT = {"customer_id": CUSTOMER, "amount_cents": 2500, "reason": "courtesy"}
 
 # The columns these paths read and write, from migrations 002, 007, 020, 021 and 051.
 # The pending-review index is migration 020's, verbatim.
@@ -194,7 +194,7 @@ async def _history(pg: PgDb, sid: str) -> Dict[str, Any]:
 
 async def _propose(pg: PgDb, turn_id: str) -> Optional[int]:
     return await REVIEW.propose_review(
-        pg, action="initiate_return", args=THROW, source_turn_id=turn_id,
+        pg, action="give_store_credit", args=CREDIT, source_turn_id=turn_id,
         issue="Linen throw", requested_by_sub="op-1",
         requester_kind=REVIEW.REQUESTER_OPERATOR,
     )
@@ -275,9 +275,10 @@ async def test_an_interrupted_turn_shows_its_review_and_a_retry_reuses_it(
     (action,) = answer["artifact"]["proposedActions"]
     assert action["reviewId"] == review_id
     assert action["reviewSourceTurnId"] == first_turn
-    assert action["product"]["name"] == "Linen throw"
-    assert action["material"] == THROW
-    assert action["actionHash"] == REVIEW.action_fingerprint("initiate_return", THROW)
+    assert action["tool"] == "give_store_credit"
+    assert action["state"] == "review_required"
+    assert action["material"] == CREDIT
+    assert action["actionHash"] == REVIEW.action_fingerprint("give_store_credit", CREDIT)
 
     retry_turn = await _ask(pg, sid, "Prepare a return for the linen throw, damaged")
     assert await _propose(pg, retry_turn) == review_id

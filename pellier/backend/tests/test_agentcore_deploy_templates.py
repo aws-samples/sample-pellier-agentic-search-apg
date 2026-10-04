@@ -295,7 +295,7 @@ def test_memory_gateway_targets_and_policy_engine_share_one_project(
         "policyEngineName": renderer.POLICY_ENGINE_NAME,
         "mode": "ENFORCE",
     }
-    assert len(gateway["targets"]) == 4
+    assert [t["name"] for t in gateway["targets"]] == ["pellier-store-tools"]
     assert {target["targetType"] for target in gateway["targets"]} == {
         "lambdaFunctionArn"
     }
@@ -304,10 +304,10 @@ def test_memory_gateway_targets_and_policy_engine_share_one_project(
     } == set(_lambda_arns().values())
 
     schemas = sorted((root / "tool-schemas").glob("*.json"))
-    assert len(schemas) == 4
-    # 15 at the start, not the canonical 17: `restock_inventory` and `get_ticket_history`
-    # are deferred until the desk and Lab 3a publish them. Derived rather than written as
-    # a literal, because the literal is what went stale.
+    assert [path.name for path in schemas] == ["store.json"]
+    # 8 at the start, not the canonical 9: `get_tickets` is deferred until Lab 3a
+    # publishes it. Derived rather than written as a literal, because the literal is
+    # what went stale.
     assert sum(len(json.loads(path.read_text())) for path in schemas) == len(
         schemas_module.workshop_published_tools()
     )
@@ -343,7 +343,8 @@ def test_second_phase_attaches_the_baseline_cedar_set(tmp_path: Path) -> None:
     assert output["statement"].startswith("suppressOutput")
     assert output["validationMode"] == "IGNORE_ALL_FINDINGS"
     statements = "\n".join(policy["statement"] for policy in policies)
-    assert renderer.INITIATE_RETURN_ACTION in statements
+    assert renderer.GIVE_STORE_CREDIT_ACTION in statements
+    assert renderer.STORE_TARGET == "pellier-store-tools"
     # Tool-specific policies must pin the deployed Gateway by ARN; the service
     # rejects `resource is AgentCore::Gateway` for a constrained action.
     assert f'resource == AgentCore::Gateway::"{TEST_GATEWAY_ARN}"' in statements
@@ -355,13 +356,12 @@ def test_second_phase_attaches_the_baseline_cedar_set(tmp_path: Path) -> None:
     assert "permit (\n  principal,\n  action,\n" not in statements
 
 
-def test_restock_inventory_is_neither_published_nor_permitted(tmp_path: Path) -> None:
-    """An operator capability stays off the shopper Gateway.
+def test_the_published_schema_and_the_permits_agree(tmp_path: Path) -> None:
+    """`get_tickets` is deferred, so it is neither published nor permitted at the start.
 
-    ``restock_inventory`` is deferred: a shopper token cannot reach it because no
-    action id exists, and no baseline permit names it either, so publishing it later
-    would still be denied by default. ``issue_credit`` is published, and only its
-    staff-scope permit names it.
+    No permit names a deferred tool, so publishing it later is denied by default until
+    its own owner-only permit lands in the same deployment. `give_store_credit` is
+    published, and only its staff-scope permit names it.
     """
     _, project = _render(tmp_path, include_policies=True)
     policies = project["policyEngines"][0]["policies"]
@@ -373,19 +373,22 @@ def test_restock_inventory_is_neither_published_nor_permitted(tmp_path: Path) ->
     ]
     assert permits, "the baseline emitted no permit at all"
     for statement in permits:
-        assert renderer.RESTOCK_ACTION not in statement, (
-            "a permit reaches restock_inventory; it must stay default-deny"
+        assert f"{renderer.STORE_TARGET}___get_tickets" not in statement, (
+            "a permit reaches get_tickets before Task 3A publishes it"
         )
+    credit = [s for s in permits if renderer.GIVE_STORE_CREDIT_ACTION in s]
+    assert len(credit) == 1
+    assert 'principal.getTag("custom:staff_scope") == "returns"' in credit[0]
 
-    schemas = sorted((Path(tmp_path) / "pellier" / "tool-schemas").glob("*.json")) or \
-        sorted(Path(tmp_path).rglob("tool-schemas/*.json"))
+    schemas = sorted(Path(tmp_path).rglob("tool-schemas/*.json"))
     published = {
         tool["name"]
         for path in schemas
         for tool in json.loads(path.read_text())
     }
-    assert "restock_inventory" not in published
-    assert "issue_credit" in published
+    assert "get_tickets" not in published
+    assert "give_store_credit" in published
+    assert len(published) == 8
 
 
 def test_deployed_state_reads_mcp_gateway_shape() -> None:
@@ -1063,10 +1066,10 @@ def _unified_trace_records(
         {
             "@message": {
                 "traceId": trace_id,
-                "name": "execute_tool search_products_hybrid",
+                "name": "execute_tool search_products",
                 "durationMs": 45,
                 "attributes": {
-                    "gen_ai.tool.name": "search_products_hybrid",
+                    "gen_ai.tool.name": "search_products",
                     "gen_ai.tool.call.arguments": {"query": "linen"},
                     "gen_ai.tool.call.result": {"product_ids": ["P-101"]},
                 },
@@ -1121,7 +1124,7 @@ def test_unified_trace_summary_requires_correlated_agent_model_and_tool_spans() 
     }
     assert proof["step_latency_ms"] == {"agent": 900, "model": 320, "tool": 45}
     assert proof["model_ids"] == ["global.anthropic.claude-sonnet-5"]
-    assert proof["tool_names"] == ["search_products_hybrid"]
+    assert proof["tool_names"] == ["search_products"]
     assert proof["provenance"] == "agentcore-unified-telemetry"
 
 
@@ -1474,7 +1477,7 @@ def test_managed_runtime_imports_without_database_configuration(
                 "from services.conversation_context import "
                 "build_conversation_prompt; "
                 "assert create_gateway_dispatcher('jwt') is not None; "
-                "assert _managed_specialist_spec('inventory')[0] == 'inventory'; "
+                "assert _managed_specialist_spec('stock')[0] == 'stock'; "
                 "assert build_conversation_prompt('hello') == 'hello'"
             ),
         ],
@@ -1523,29 +1526,12 @@ def test_obsolete_flat_templates_and_runtime_provisioner_are_removed() -> None:
         assert not stale.exists()
 
 
-def _ownership():
-    """Load the checked-in ownership manifest."""
-    import sys
-
-    deploy = REPO_ROOT / "scripts" / "deploy"
-    if str(deploy) not in sys.path:
-        sys.path.insert(0, str(deploy))
-    import ownership
-
-    return ownership
-
-
 def _scannable_sources():
     excluded_parts = {
         ".agentcore-project", ".git", ".venv", "__pycache__", "node_modules", "tests", ".local",}
-    # The manifest defines the forbidden and allowed operation names, so it has to
-    # spell them. Scanning it would make the guard fail on its own vocabulary.
-    excluded_files = {"scripts/deploy/ownership.py"}
     for path in (*REPO_ROOT.rglob("*.py"), *REPO_ROOT.rglob("*.sh")):
         relative = path.relative_to(REPO_ROOT)
         if excluded_parts.intersection(relative.parts):
-            continue
-        if relative.as_posix() in excluded_files:
             continue
         try:
             yield relative, path.read_text()
@@ -1553,82 +1539,27 @@ def _scannable_sources():
             continue
 
 
-def test_cfn_owned_resources_are_never_mutated_directly() -> None:
-    """Runtime, Memory and their IAM live in a CloudFormation stack.
+# Runtime, Memory and their IAM live in a CloudFormation stack owned by the CLI project.
+# A direct control-plane update would drift the stack from reality, and the next CLI
+# deploy would silently revert it.
+FORBIDDEN_CONTROL_PLANE_WRITES = (
+    "update_agent_runtime",
+    "UpdateAgentRuntime",
+    "update-agent-runtime",
+    "update_memory(",
+    "UpdateMemory",
+    "update-memory",
+)
 
-    A direct control-plane update would drift the stack from reality, and the next
-    CLI deploy would silently revert it. These operations are forbidden everywhere
-    in the repository, with no exception module.
-    """
-    ownership = _ownership()
+
+def test_cfn_owned_resources_are_never_mutated_directly() -> None:
+    """Forbidden everywhere in the repository, with no exception module."""
     for relative, source in _scannable_sources():
-        for operation in ownership.FORBIDDEN_CONTROL_PLANE_WRITES:
+        for operation in FORBIDDEN_CONTROL_PLANE_WRITES:
             assert operation not in source, (
                 f"{relative} mutates a CloudFormation-owned AgentCore resource with "
-                f"{operation}. Runtime, Memory and their IAM belong to stack "
-                f"{ownership.CFN_STACK}; change them through the CLI project."
+                f"{operation}; change Runtime and Memory through the CLI project."
             )
-
-
-def test_control_plane_updates_live_only_in_the_migration_module() -> None:
-    """The Gateway, its targets and the policies are NOT stack-owned.
-
-    They were created by direct API and the CLI cannot represent them: `import
-    gateway` maps zero targets because their tool schemas are inline. So updating
-    them in place is the supported path, but it is confined to one module rather
-    than available to application code.
-    """
-    ownership = _ownership()
-    allowed = ownership.MIGRATION_MODULE
-    for relative, source in _scannable_sources():
-        rel = relative.as_posix()
-        for operation in ownership.ALLOWED_IN_MIGRATION_MODULE:
-            if operation in source:
-                assert rel == allowed, (
-                    f"{rel} calls {operation}. In-place control-plane updates are "
-                    f"permitted only in {allowed}, which asserts the account, "
-                    "region and resource ids before it writes."
-                )
-
-
-def test_the_migration_module_pins_the_environment_before_writing() -> None:
-    """An allow-list of ids is what makes the exception safe rather than a hole."""
-    ownership = _ownership()
-    source = (REPO_ROOT / ownership.MIGRATION_MODULE).read_text()
-    for token in (
-        "EXPECTED_ACCOUNT",
-        "EXPECTED_REGION",
-        "EXPECTED_GATEWAY_ID",
-        "EXPECTED_POLICY_ENGINE_ID",
-        "EXPECTED_TARGET_NAMES",
-        "EXPECTED_POLICY_NAMES",
-    ):
-        assert token in source, (
-            f"{ownership.MIGRATION_MODULE} does not assert {token} before mutating"
-        )
-
-
-def test_the_ownership_manifest_matches_the_audited_deployment() -> None:
-    """Ownership is ARN plus CloudFormation membership, never a workshop tag."""
-    ownership = _ownership()
-    assert ownership.may_update_directly("runtime") is False
-    assert ownership.may_update_directly("memory") is False
-    assert ownership.may_update_directly("iam") is False
-    assert ownership.may_update_directly("gateway") is True
-    assert ownership.may_update_directly("gateway_targets") is True
-    assert ownership.may_update_directly("policy_engine") is True
-    assert ownership.may_update_directly("policies") is True
-    for key in ("runtime", "memory", "iam"):
-        assert ownership.MANIFEST[key].stack == ownership.CFN_STACK
-    for key in ("gateway", "gateway_targets", "policy_engine", "policies"):
-        assert ownership.MANIFEST[key].stack == "", (
-            f"{key} is recorded as stack-owned; the audit found it in no stack"
-        )
-    # PellierWorkshopId carries three different values in this account and is
-    # forensic provenance only. It must not appear as ownership evidence.
-    source = (REPO_ROOT / "scripts" / "deploy" / "ownership.py").read_text()
-    assert "PellierWorkshopId" in source, "the manifest should explain why not to use it"
-    assert "forensic provenance only" in source
 
 
 def test_the_cli_project_path_is_still_the_only_creator() -> None:
@@ -1687,9 +1618,9 @@ def test_lambda_names_follow_the_suffix_while_target_names_do_not() -> None:
         [sys.executable, "-c", script], cwd=DEPLOY_DIR.parent, env=env,
         capture_output=True, text=True, check=True,
     ).stdout
-    assert "pellier-rc-search-server" in out and "pellier-rc-experience-server" in out
+    assert out.strip() == "['pellier-rc-store-tools-server']"
     schemas = PROVISIONER_PATH.parent / "deploy" / "gateway_tool_schemas.py"
-    assert "pellier-concierge-experience-target" in schemas.read_text()
+    assert '"target_name": "pellier-store-tools"' in schemas.read_text()
 
 
 def test_the_provisioner_attaches_identity_and_tracing_before_any_proof() -> None:

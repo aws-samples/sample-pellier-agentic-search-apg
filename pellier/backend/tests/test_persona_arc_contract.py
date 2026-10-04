@@ -45,7 +45,7 @@ ARC = {
         "product_name": "Hadley Linen Shirt",
         "warehouse_id": "BK-01",
         "warehouse_city": "Brooklyn, NY",
-        "tool": "check_inventory",
+        "tool": "check_stock",
         "question": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?",
     },
     "anna": {
@@ -55,7 +55,7 @@ ARC = {
         "query": "A housewarming gift under $100 that is in stock",
         "price_max_usd": 100,
         "in_stock_only": True,
-        "tools": ("search_products", "search_products_hybrid"),
+        "tools": ("search_products",),
         "strategy_endpoint": "/api/search/compare",
     },
     "theo": {
@@ -66,8 +66,7 @@ ARC = {
         "membership": "registered",
         "product_id": 37,
         "product_name": "Wabi-Sabi Bowl",
-        "reason": "damaged",
-        "tools": ("initiate_return", "issue_credit"),
+        "tools": ("get_orders", "get_tickets", "ask_a_person"),
         "question": "My Wabi-Sabi Bowl arrived chipped. Please help me return it.",
     },
 }
@@ -128,8 +127,8 @@ def test_marco_warehouse_and_ship_window_exist_in_the_schema() -> None:
     assert "ship_window_min" in sql and "ship_window_max" in sql
     assert ARC["marco"]["warehouse_id"] in sql, "BK-01 is not seeded"
 
-    logic = (BACKEND / "services" / "business_logic.py").read_text()
-    # check_inventory must actually read the window, not just the quantity.
+    logic = (BACKEND / "services" / "store_tools.py").read_text()
+    # check_stock must actually read the window, not just the quantity.
     assert "ship_window_min" in logic and "ship_window_max" in logic
 
 
@@ -137,7 +136,7 @@ def test_marco_tool_is_the_lab_one_build_target() -> None:
     tools = (BACKEND / "services" / "agent_tools.py").read_text()
     assert f"def {ARC['marco']['tool']}(" in tools
     # The guided exercise markers name the same tool.
-    assert "WORKSHOP - Inventory Agent - check_inventory: START" in tools
+    assert "WORKSHOP - Stock agent - check_stock: START" in tools
 
 
 # ---------------------------------------------------------------------------
@@ -191,11 +190,11 @@ def test_theo_product_is_canonical() -> None:
 
 
 def test_theo_owns_the_bowl_under_both_customer_ids() -> None:
-    """`initiate_return` checks ownership in SQL before it writes.
+    """`get_orders` reads the bowl from the verified shopper's own order history.
 
     The live prompt passes the bare id `theo`, so the order must exist under the
-    alias as well as the canonical id or the write path fails with "product not
-    found in your orders".
+    alias as well as the canonical id or the Support agent finds no purchase to
+    hand to a person.
     """
     sql = (MIGRATIONS / "003_persona_seed.sql").read_text()
     for customer_id in ARC["theo"]["customer_ids"]:
@@ -219,18 +218,29 @@ def test_theo_is_registered_and_that_is_intentional() -> None:
     assert "platinum" not in sql.lower(), "Pellier's ladder has no platinum rung"
 
 
-def test_theo_damage_reason_is_in_the_canonical_set() -> None:
-    logic = (BACKEND / "services" / "business_logic.py").read_text()
-    assert f'"{ARC["theo"]["reason"]}"' in logic
+def test_theo_damage_request_routes_to_the_support_agent() -> None:
+    """The shopper's own words reach the Support agent; no reason code is supplied."""
+    if str(BACKEND) not in sys.path:
+        sys.path.insert(0, str(BACKEND))
+    from services.intent_router import classify_intent
+
+    assert classify_intent(ARC["theo"]["question"]) == "support"
 
 
-def test_theo_tools_exist_and_are_governed_writes() -> None:
-    sys.path.insert(0, str(BACKEND)) if str(BACKEND) not in sys.path else None
-    from services.agentcore_gateway import mutation_tool_names
+def test_theo_tools_are_the_support_agents_reads_and_the_handoff() -> None:
+    """Theo's turn reads orders and tickets and ends in a handoff to a person.
 
-    mutations = set(mutation_tool_names())
+    Nothing the Support agent holds moves money: the one mutation tool is
+    `give_store_credit`, which no agent binds.
+    """
+    if str(BACKEND) not in sys.path:
+        sys.path.insert(0, str(BACKEND))
+    from services.agentcore_gateway import MANAGED_SPECIALIST_TOOLS, mutation_tool_names
+
+    support = set(MANAGED_SPECIALIST_TOOLS["support"])
     for tool in ARC["theo"]["tools"]:
-        assert tool in mutations, f"{tool} is not classified as a mutation"
+        assert tool in support, f"{tool} is not granted to the Support agent"
+    assert not support & set(mutation_tool_names())
 
 
 # ---------------------------------------------------------------------------

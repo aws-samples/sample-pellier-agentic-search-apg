@@ -49,13 +49,13 @@ function renderBody(messages: AgentChatMessage[]) {
 
 describe('the review-pending notice', () => {
   it('renders the backend sentence', () => {
-    renderBody([message({ reviewPending: { tool: 'initiate_return', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
     expect(notice.textContent).toBe(NOTICE)
   })
 
   it('says nothing changed, which the prose alone did not', () => {
-    renderBody([message({ reviewPending: { tool: 'initiate_return', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
     expect(notice.textContent?.toLowerCase()).toContain('waiting')
     expect(notice.textContent?.toLowerCase()).toContain('nothing about your order has changed')
@@ -67,20 +67,20 @@ describe('the review-pending notice', () => {
   })
 
   it('never shows the shopper the internal tool name', () => {
-    renderBody([message({ reviewPending: { tool: 'initiate_return', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
-    expect(notice.textContent).not.toContain('initiate_return')
+    expect(notice.textContent).not.toContain('give_store_credit')
   })
 
   it('announces itself to assistive technology without being an alert', () => {
     // A boundary working as designed is not an error, so `status` rather than `alert`.
-    renderBody([message({ reviewPending: { tool: 'initiate_return', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
     expect(screen.getByTestId('pellier-review-pending')).toHaveAttribute('role', 'status')
   })
 
   it('leaves the answer prose alone', () => {
     // The notice sits beside the answer; it does not rewrite or replace it.
-    renderBody([message({ reviewPending: { tool: 'initiate_return', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
     expect(
       screen.getByText(/prepared the damaged-return request/),
     ).toBeTruthy()
@@ -89,7 +89,7 @@ describe('the review-pending notice', () => {
   it('does not merchandise the product used to resolve the return', () => {
     renderBody([
       message({
-        reviewPending: { tool: 'initiate_return', message: NOTICE },
+        reviewPending: { tool: 'give_store_credit', message: NOTICE },
         products: [
           {
             id: 37,
@@ -112,7 +112,7 @@ describe('the review-pending notice', () => {
     renderBody([
       message({
         reviewPending: {
-          tool: 'initiate_return',
+          tool: 'give_store_credit',
           message: NOTICE,
           reviewId: 44,
         },

@@ -145,14 +145,22 @@ def customer_claim_resource_names() -> tuple[str, str]:
     return function, f"{function}-role"
 
 
-EXPERIENCE_TARGET = "pellier-concierge-experience-target"
-INITIATE_RETURN_ACTION = f"{EXPERIENCE_TARGET}___initiate_return"
-RECOMMENDATION_TARGET = "pellier-curation-recommendation-target"
-CUSTOMER_PREFERENCES_ACTION = f"{RECOMMENDATION_TARGET}___get_customer_preferences"
-AUDIT_TRAIL_ACTION = f"{RECOMMENDATION_TARGET}___get_audit_trail"
-RESTOCK_ACTION = "pellier-discovery-search-target___restock_inventory"
-ISSUE_CREDIT_ACTION = f"{EXPERIENCE_TARGET}___issue_credit"
+# The one Gateway target. Cedar action ids embed it, so a policy that names
+# ``pellier-store-tools___give_store_credit`` matches only that target's tool.
+STORE_TARGET = "pellier-store-tools"
+GIVE_STORE_CREDIT_ACTION = f"{STORE_TARGET}___give_store_credit"
 WORKSHOP_RUNTIME_EXPOSURE = "public-workshop-only"
+
+# The catalogue reads a shopper may call. Every other published tool needs its
+# own permit: the two owner-scoped reads and the staff-only credit.
+SHOPPER_SAFE_TOOLS: frozenset[str] = frozenset({
+    "search_products",
+    "browse_department",
+    "compare_products",
+    "check_stock",
+    "get_return_policy",
+    "ask_a_person",
+})
 
 # The packaged-file list and the digest algorithm live in the backend so that
 # what is staged and what is fingerprinted cannot drift apart. Import them
@@ -247,11 +255,7 @@ def _customer_scoped_permit_statement(action: str, gateway_arn: str) -> str:
     )
 
 
-def baseline_policies(
-    action_token: str = INITIATE_RETURN_ACTION,
-    *,
-    gateway_arn: str,
-) -> list[dict[str, Any]]:
+def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
     """The fail-closed Cedar baseline a fresh workshop provision installs.
 
     Every policy is a permit with a typed principal, pinned to one Gateway ARN,
@@ -260,69 +264,46 @@ def baseline_policies(
     no forbid in the baseline: Cedar is default-deny, forbid wins over permit,
     and a forbid scoped too widely would silently block the staff permit as
     well. The one forbid in the workshop is the Lab 4 rule a participant
-    writes, and it is scoped by ``when`` to principals carrying a customer
-    claim so it never touches staff.
+    writes.
 
     THE PERMITS
 
-    1. ``baseline_permit_workshop_tools`` — an EXACT allow-list of the
-       catalogue reads that expose no customer data. Never a wildcard: a
-       wildcard hands every future published tool a permit the moment it
-       appears. Any authenticated ``AgentCore::OAuthUser`` may call these.
+    1. ``baseline_permit_workshop_tools`` is an EXACT allow-list of the
+       catalogue reads that expose no customer data (``SHOPPER_SAFE_TOOLS``).
+       Never a wildcard: a wildcard hands every future published tool a permit
+       the moment it appears. Any authenticated ``AgentCore::OAuthUser`` may
+       call these.
 
-    2. ``get_customer_preferences_owner_only`` and
-       ``get_audit_trail_owner_only`` — the two customer-scoped reads, each
+    2. ``get_orders_owner_only`` and, once Lab 3A publishes it,
+       ``get_tickets_owner_only`` are the two customer-scoped reads, each
        permitted only when ``custom:customer_id`` equals the requested
        ``customer_id``. The Lambda receives no verified principal, so this is
        the only place the caller's identity meets the caller-controlled input
-       before the target runs.
+       before the target runs. The owner-only permit for ``get_tickets`` lands
+       in the same deployment as its publication.
 
-    3. ``initiate_return_shopper_damaged`` — a shopper (any principal with a
-       customer claim) may file a return whose stated reason is ``damaged``.
-       The ownership condition binding the claim to
-       ``context.input.customer_id`` is absent on purpose. That is Lab 4: a
-       participant observes
-       that Marco's token can file Theo's return, writes the forbid, and
-       proves the DENY is theirs. ``tests/test_fresh_policy_set.py`` fails if
-       the ownership binding reappears here.
-
-    4. ``initiate_return_staff_scope`` and ``issue_credit_staff_scope`` — staff
-       (principals whose ``custom:staff_scope`` is ``returns``) may execute a
-       return or a store credit the operator desk confirmed. The desk calls the
-       Gateway with the operator's own token, so each permit
-       authorizes a person, not a service. Neither carries a reason condition: a resolved
-       dispute is not a damaged-goods return. No shopper permit names
-       ``issue_credit``, so a shopper token is denied it by default.
-
-    5. When Lab 3 publishes ``get_ticket_history``, an owner-only permit for it
-       lands in the same deployment as its publication.
-
-    EXCLUDED
-
-        restock_inventory   an operator capability with no shopper permit.
-                            Cedar is default-deny, so omission is the control.
-        issue_credit        published, staff only: its one permit requires the
-                            staff scope claim and no shopper-facing
-                            specialist may bind it.
+    3. ``give_store_credit_staff_scope`` lets staff (principals whose
+       ``custom:staff_scope`` is ``returns``) execute a store credit the
+       operator desk confirmed. The desk calls the Gateway with the operator's
+       own token, so the permit authorizes a person, not a service. No shopper
+       permit names ``give_store_credit``, so a shopper token is denied it by
+       default. This permit carries NO amount condition on purpose: the $100
+       per-credit limit is the Lab 4 rule a participant authors as a forbid,
+       and a baseline that imposed it would mask a broken participant policy.
+       The $500 ceiling stays where it is, in the schema, the tool and the
+       database CHECK, as a safety check distinct from authorization.
 
     A token with neither claim is an authenticated stranger. It may read the
     catalogue and nothing else. This is a teaching baseline, not a claim about a
-    complete production posture: the Lab 4 solution adds the return ownership
-    dimension, and a production deployment would keep it.
+    complete production posture.
     """
     gateway = _gateway_resource(gateway_arn)
     published = workshop_target_tools()
-    reviewed_tools = {
-        "search_products", "search_products_hybrid", "browse_category",
-        "check_inventory", "get_low_stock", "get_price_analysis",
-        "compare_products", "get_trending_products", "get_return_policy",
-        "get_related_products", "escalate_to_human",
-    }
     allowed: list[str] = [
         f"{target}___{tool}"
         for target, tools in published.items()
         for tool in tools
-        if tool in reviewed_tools
+        if tool in SHOPPER_SAFE_TOOLS
     ]
     if not allowed:
         raise SystemExit(
@@ -361,65 +342,18 @@ def baseline_policies(
             "validationMode": "FAIL_ON_ANY_FINDINGS",
             "enforcementMode": "ACTIVE",
         })
-    policies.extend([
-        {
-            "name": "initiate_return_shopper_damaged",
-            "description": (
-                "Permit a shopper with a customer claim to file a return whose reason is damaged"
-            ),
-            "statement": (
-                f"permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::\"{action_token}\", "
-                f"{gateway})\n"
-                "when {\n"
-                f'  principal.hasTag("{CUSTOMER_CLAIM}") &&\n'
-                '  context.input has reason && context.input.reason == "damaged"\n'
-                "};"
-            ),
-            "validationMode": "FAIL_ON_ANY_FINDINGS",
-            "enforcementMode": "ACTIVE",
-        },
-        {
-            "name": "initiate_return_staff_scope",
-            "description": (
-                "Permit staff holding the returns scope to execute a confirmed return"
-            ),
-            "statement": (
-                f"permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::\"{action_token}\", "
-                f"{gateway})\n"
-                "when {\n"
-                f'  principal.hasTag("{STAFF_CLAIM}") &&\n'
-                f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}"\n'
-                "};"
-            ),
-            "validationMode": "FAIL_ON_ANY_FINDINGS",
-            "enforcementMode": "ACTIVE",
-        },
-        {
-            "name": "issue_credit_staff_scope",
-            "description": (
-                "Permit staff holding the returns scope to execute a confirmed store credit"
-            ),
-            "statement": (
-                f"permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::\"{ISSUE_CREDIT_ACTION}\", "
-                f"{gateway})\n"
-                "when {\n"
-                f'  principal.hasTag("{STAFF_CLAIM}") &&\n'
-                f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}"\n'
-                "};"
-            ),
-            "validationMode": "FAIL_ON_ANY_FINDINGS",
-            "enforcementMode": "ACTIVE",
-        },
-    ])
     policies.append({
-        "name": "replace_damaged_item_staff_scope",
-        "description": "Permit returns staff to execute an approved order-bound replacement",
+        "name": "give_store_credit_staff_scope",
+        "description": (
+            "Permit staff holding the returns scope to execute a confirmed store credit"
+        ),
         "statement": (
-            f'permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::"{EXPERIENCE_TARGET}___replace_damaged_item", '
-            f"{gateway})\nwhen {{\n"
+            f"permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::\"{GIVE_STORE_CREDIT_ACTION}\", "
+            f"{gateway})\n"
+            "when {\n"
             f'  principal.hasTag("{STAFF_CLAIM}") &&\n'
-            f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}" &&\n'
-            '  context.input.reason == "damaged"\n};'
+            f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}"\n'
+            "};"
         ),
         "validationMode": "FAIL_ON_ANY_FINDINGS",
         "enforcementMode": "ACTIVE",
@@ -440,12 +374,11 @@ def render_project(
     include_policies: bool,
     opus_model_id: str | None = None,
     sonnet_model_id: str | None = None,
-    action_token: str = INITIATE_RETURN_ACTION,
     gateway_arn: str = "",
     identity: DeploymentIdentity | None = None,
     runtime_arns: dict[str, str] | None = None,
 ) -> Path:
-    """Write agentcore.json, aws-targets.json, and four tool-schema files."""
+    """Write agentcore.json, aws-targets.json, and the one tool-schema file."""
     governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() == "governed"
     identity = identity or deployment_identity()
     root = project_root(repo, identity.suffix)
@@ -590,7 +523,7 @@ def render_project(
                 "description": "Cedar authorization for Pellier Gateway tools",
                 "tags": tags,
                 "policies": (
-                    baseline_policies(action_token, gateway_arn=gateway_arn)
+                    baseline_policies(gateway_arn=gateway_arn)
                     + [output_guardrail_policy(gateway_arn)]
                     if include_policies
                     else []
@@ -653,7 +586,6 @@ def main() -> int:
     parser.add_argument("--workshop-id", required=True)
     parser.add_argument("--lambda-arns", type=Path, required=True)
     parser.add_argument("--include-policies", action="store_true")
-    parser.add_argument("--action-token", default=INITIATE_RETURN_ACTION)
     parser.add_argument(
         "--gateway-arn",
         default="",
@@ -674,7 +606,6 @@ def main() -> int:
         include_policies=args.include_policies,
         opus_model_id=args.opus_model_id,
         sonnet_model_id=args.sonnet_model_id,
-        action_token=args.action_token,
         gateway_arn=args.gateway_arn,
         identity=deployment_identity_from_repo(args.repo.resolve()),
     )

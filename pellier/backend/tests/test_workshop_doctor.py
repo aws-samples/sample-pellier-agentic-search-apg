@@ -135,7 +135,7 @@ class SqlEvidence:
         caller: str,
         turn_id: str,
         run_id: Optional[str] = None,
-        tool: str = "initiate_return",
+        tool: str = "give_store_credit",
     ) -> None:
         """Record one tool_audit row. ``run_id`` defaults to the Lambda's NULL."""
         self._conn.execute(
@@ -165,14 +165,11 @@ class SqlEvidence:
 
 
 WIRED_TOOL = (
-    "    # === WORKSHOP - Inventory Agent - check_inventory: START ===\n"
-    "    if _db_service is None:\n"
-    "        return json.dumps({'error': 'db unavailable'})\n"
-    "    from services.business_logic import BusinessLogic\n"
-    "    logic = BusinessLogic(_db_service)\n"
-    "    result = _run_async(logic.check_inventory(product_query.strip() or None))\n"
-    "    return json.dumps(result, indent=2)\n"
-    "    # === WORKSHOP - Inventory Agent - check_inventory: END ===\n"
+    "    # === WORKSHOP - Stock agent - check_stock: START ===\n"
+    "    if not _db_service:\n"
+    "        return _DB_NOT_READY\n"
+    "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n"
+    "    # === WORKSHOP - Stock agent - check_stock: END ===\n"
 )
 
 
@@ -182,8 +179,8 @@ def _scratch_backend(tmp_path: Path, *, tool_source: str, agent_stubbed: bool) -
     (backend / "agents").mkdir()
     (backend / "services" / "agent_tools.py").write_text(tool_source, encoding="utf-8")
     flag = "True" if agent_stubbed else "False"
-    (backend / "agents" / "inventory_agent.py").write_text(
-        f"_INVENTORY_AGENT_STUBBED = {flag}\n", encoding="utf-8"
+    (backend / "agents" / "stock_agent.py").write_text(
+        f"_STOCK_AGENT_STUBBED = {flag}\n", encoding="utf-8"
     )
     return backend
 
@@ -198,51 +195,47 @@ class TestLab2:
     def test_this_checkout_still_ships_both_lab_one_stubs(self) -> None:
         checks = _by_name(doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}})))
         assert checks["database reachable"].passed is True
-        assert checks["check_inventory wired"].passed is False
-        assert checks["Inventory Agent defined"].passed is False
+        assert checks["check_stock wired"].passed is False
+        assert checks["Stock agent defined"].passed is False
 
     def test_a_wired_tool_and_agent_pass(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_source=WIRED_TOOL, agent_stubbed=False)
         checks = _by_name(
             doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}}), backend=backend)
         )
-        assert checks["check_inventory wired"].passed is True
-        assert checks["Inventory Agent defined"].passed is True
+        assert checks["check_stock wired"].passed is True
+        assert checks["Stock agent defined"].passed is True
 
     def test_a_block_that_dropped_the_stub_but_queries_nothing_is_not_wired(
         self, tmp_path: Path
     ) -> None:
         hollow = WIRED_TOOL.replace(
-            "    result = _run_async(logic.check_inventory(product_query.strip() or None))\n"
-            "    return json.dumps(result, indent=2)\n",
+            "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n",
             "    return json.dumps({})\n",
         )
         backend = _scratch_backend(tmp_path, tool_source=hollow, agent_stubbed=False)
         checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_inventory wired"].passed is False
-        assert "no query" in checks["check_inventory wired"].detail
+        assert checks["check_stock wired"].passed is False
+        assert "no query" in checks["check_stock wired"].detail
 
     def test_prose_containing_the_word_selected_is_not_a_query(
         self, tmp_path: Path
     ) -> None:
         """`selected` and `selection` are not SELECT, and a stub may say either."""
         prose = WIRED_TOOL.replace(
-            "    from services.business_logic import BusinessLogic\n"
-            "    logic = BusinessLogic(_db_service)\n"
-            "    result = _run_async(logic.check_inventory(product_query.strip() or None))\n"
-            "    return json.dumps(result, indent=2)\n",
+            "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n",
             "    return json.dumps({'note': 'selected nothing', 'selection': []})\n",
         )
         backend = _scratch_backend(tmp_path, tool_source=prose, agent_stubbed=False)
         checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_inventory wired"].passed is False
-        assert "no query" in checks["check_inventory wired"].detail
+        assert checks["check_stock wired"].passed is False
+        assert "no query" in checks["check_stock wired"].detail
 
     def test_missing_markers_fail_rather_than_pass(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_source="def x(): pass\n", agent_stubbed=False)
         checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_inventory wired"].passed is False
-        assert "marker" in checks["check_inventory wired"].detail
+        assert checks["check_stock wired"].passed is False
+        assert "marker" in checks["check_stock wired"].detail
 
 
 class TestLab1:
@@ -409,7 +402,7 @@ class TestLab3GatewayEvidenceShape:
 
     Lab 3 is the managed rail, and Theo's journey ends at a pending review
     (``tests/golden/journeys.json``: ``endsAt: proposal``). It performs no
-    mutation, and only the three mutation tools leave a ``caller = 'gateway'``
+    mutation, and only the one mutation tool leaves a ``caller = 'gateway'``
     row -- the MCP Lambda audits them in
     ``scripts/deploy/common/dataapi.py``, while Gateway reads leave no
     ``tool_audit`` row at all. A Lab 3 check that demanded that row could not be
@@ -492,7 +485,7 @@ class TestLab3GatewayEvidenceShape:
 class TestLab4:
     def test_this_checkout_has_the_pair_but_the_rule_is_unauthored(self) -> None:
         checks = _by_name(doctor.lab4_checks(FakeEvidence(), RUN_ID))
-        assert checks["Cedar policy pair present in policies/"].passed is True
+        assert checks["Cedar policy present in policies/"].passed is True
         assert checks["identity rule authored"].passed is False
         assert "starter" in checks["identity rule authored"].detail
 
@@ -507,8 +500,8 @@ class TestLab4:
         policy.write_text(
             policy.read_text(encoding="utf-8").replace(
                 "unless {\n  false\n};",
-                'unless {\n  principal.hasTag("username") &&\n'
-                '  principal.getTag("username") == context.input.customer_id\n};',
+                "unless {\n  context.input has amount_cents &&\n"
+                "  context.input.amount_cents <= 10000\n};",
             ),
             encoding="utf-8",
         )
@@ -1026,7 +1019,7 @@ class TestManagedCataloguesAgree:
         gateway = types.ModuleType("services.agentcore_gateway")
         gateway.SUPPORT_MANAGED_TOOLS = tuple(managed)
         gateway.SUPPORT_CALLER_BOUND_TOOLS = frozenset(bound)
-        gateway.STAFF_ONLY_GATEWAY_TOOLS = frozenset({"issue_credit"})
+        gateway.STAFF_ONLY_GATEWAY_TOOLS = frozenset({"give_store_credit"})
         monkeypatch.setitem(sys.modules, "services.agentcore_gateway", gateway)
 
         return doctor._managed_catalogues_agree()
@@ -1035,7 +1028,7 @@ class TestManagedCataloguesAgree:
         check = self._check(
             monkeypatch,
             published={"get_return_policy"},
-            managed=("get_return_policy", "get_ticket_history", "issue_credit"),
+            managed=("get_return_policy", "get_tickets", "give_store_credit"),
             bound=set(),
         )
         assert not check.passed
@@ -1046,9 +1039,9 @@ class TestManagedCataloguesAgree:
         """A participant who finished 3a must not be sent back to redo it."""
         check = self._check(
             monkeypatch,
-            published={"get_return_policy", "get_ticket_history"},
-            managed=("get_return_policy", "get_ticket_history", "issue_credit"),
-            bound={"get_ticket_history"},
+            published={"get_return_policy", "get_tickets"},
+            managed=("get_return_policy", "get_tickets", "give_store_credit"),
+            bound={"get_tickets"},
         )
         assert not check.passed
         assert "Task 3a" in check.detail
@@ -1058,8 +1051,8 @@ class TestManagedCataloguesAgree:
         """Published and reachable is not enough: the caller must be bound."""
         check = self._check(
             monkeypatch,
-            published={"get_return_policy", "get_ticket_history"},
-            managed=("get_return_policy", "get_ticket_history"),
+            published={"get_return_policy", "get_tickets"},
+            managed=("get_return_policy", "get_tickets"),
             bound=set(),
         )
         assert not check.passed
@@ -1069,9 +1062,9 @@ class TestManagedCataloguesAgree:
     def test_both_builds_done_passes(self, monkeypatch):
         check = self._check(
             monkeypatch,
-            published={"get_return_policy", "get_ticket_history"},
-            managed=("get_return_policy", "get_ticket_history"),
-            bound={"get_ticket_history"},
+            published={"get_return_policy", "get_tickets"},
+            managed=("get_return_policy", "get_tickets"),
+            bound={"get_tickets"},
         )
         assert check.passed
         assert "support serveable" in check.detail

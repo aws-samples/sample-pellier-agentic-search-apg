@@ -1,54 +1,44 @@
-"""The shared search executor behind Pellier's shopper retrieval surfaces.
+"""Lab 1's measurement surface over the shared search pipeline.
 
-Five callers run :func:`execute_search_plan`: the storefront tool
-(``services.agent_tools.search_products_hybrid``), the Observatory strategy
-comparison's strategies 4 and 5 (``app.compare_search_strategies``), the Lab 1
-receipt written from strategy 4, the micro-eval
-(``app.micro_eval_search_strategies``), and the eval harness
-(``scripts/eval_retrieval_harness.py``). For those five, one pipeline means one
-truth: what a participant measures in the Observatory is what a shopper gets,
-and a receipt written from an execution describes the rows the caller showed.
-
-Two retrieval paths in this repository deliberately do not run this executor,
-and neither gets the post-rerank eligibility recheck below:
-
-* ``services.replacement_search.find_replacements`` — the Operator Concierge's
-  replacement finder. It adds two hard predicates this executor has no place
-  for (never the SKU being replaced, and availability reconciled against the
-  ledger via ``inventory_evidence.RECONCILED_AVAILABLE_SQL`` rather than the
-  aggregate cache), it walks its ladder on candidate count before reranking
-  rather than on returned count after it, and it shows the reranker every
-  candidate while returning only the best twelve. Routing it through this
-  executor would change which ladder rung serves, how many Bedrock rerank calls
-  a request makes, and which candidates the reranker ever sees. It composes the
-  same parts — ``search_plan``, ``HybridSearch``, ``rerank`` — one level up.
-* ``app.explain_search`` — the Observatory "Search" mechanism surface. It exists
-  to expose the intermediate artifacts (branch SQL, per-branch ranks, the
-  fusion-to-rerank position delta) that this executor collapses into stage
-  counts, so it drives ``HybridSearch.search_explained`` directly. It is a
-  teaching read model and never produces shopper-visible rows or a receipt.
+The planned hybrid pipeline itself lives in ``services.store_tools``
+(:func:`~services.store_tools.run_search_plan`), the one implementation the
+shopper tool runs on both rails. This module keeps what Lab 1 measures it
+with: the canonical query and its labels, the held-out cases, the micro-eval
+scoring, and :func:`execute_search_plan`, the async entry point the strategy
+comparison (``app.compare_search_strategies``), the micro-eval and the eval
+harness (``scripts/eval_retrieval_harness.py``) call. Because that entry point
+runs the same function the shopper's ``search_products`` runs, what a
+participant measures is what a shopper gets.
 
 Pipeline for one pass:
 
     typed plan -> hard SQL predicates on both branches -> vector + FTS -> RRF
     -> rerank over a bounded pool -> eligibility recheck -> returned rows
-
-Hard constraints are enforced twice on purpose. They enter candidate
-generation as SQL so invalid rows never consume reranker capacity, and they
-are rechecked after the reranker so a row that slipped past the SQL (a stale
-plan, a fake in a test, a future branch that forgets the predicates) is still
-refused before it becomes evidence.
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Sequence
 
 from config import settings
-from services.search_plan import PreferenceRelaxationUnavailable, STRATEGY_HYBRID, STRATEGY_VECTOR
+from services import store_tools
+from services.store_tools import (  # noqa: F401 - the measurement surface re-exports the pipeline's names
+    DEFAULT_RERANK_POOL_K,
+    RERANK_POOL_MIN,
+    SEARCH_METHOD_HYBRID,
+    SEARCH_METHOD_HYBRID_RERANK,
+    SEARCH_METHOD_RERANK_FALLBACK,
+    SEARCH_METHOD_VECTOR,
+    STAGE_ELIGIBILITY,
+    STAGE_EMBED,
+    STAGE_HYBRID,
+    STAGE_RERANK,
+    STAGE_VECTOR,
+    SearchExecution,
+    SearchStage,
+    run_search_plan,
+)
 
 # The canonical Lab 1 query. The eval harness pins the same entry;
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
@@ -66,10 +56,6 @@ CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stoc
 #      AND tags @> '["gift","home"]'::jsonb
 #    ORDER BY "productId"::int;
 CANONICAL_ANNA_GOLDEN_IDS: tuple[str, ...] = ("21", "23", "25", "27", "29", "80", "83")
-
-# Provided bounded candidate pool. Tune only in the optional retrieval extension;
-# Task 1B authors the search-plan contract, not a prescribed pool-size constant.
-DEFAULT_RERANK_POOL_K = 15
 
 # Optional provided diagnostics for the rerank pool size;
 # these check the choice on requests the labels never described. They are
@@ -163,9 +149,6 @@ def score_held_out_case(case: dict, execution: SearchExecution, *, limit: int) -
         "passed": len(returned_ids) == 0,
     }
 
-# Below three documents the reranker has nothing to reorder.
-RERANK_POOL_MIN = 3
-
 # The micro-eval repeats each pool-size variant to measure the warm path, and
 # the endpoint reports cold and warm apart rather than blending them. Every
 # repetition sends an identical rerank request, and `services/rerank.py` caches
@@ -186,292 +169,27 @@ MICRO_EVAL_REPETITIONS_MAX = 5
 # teaching surface whose default compares two.
 MICRO_EVAL_POOL_SIZES_MAX = 4
 
-STAGE_EMBED = "embed"
-STAGE_VECTOR = "vector"
-STAGE_HYBRID = "hybrid"
-STAGE_RERANK = "rerank"
-STAGE_ELIGIBILITY = "eligibility"
-
-SEARCH_METHOD_VECTOR = "vector"
-SEARCH_METHOD_HYBRID = "hybrid"
-SEARCH_METHOD_HYBRID_RERANK = "hybrid+rerank"
-SEARCH_METHOD_RERANK_FALLBACK = "hybrid (rerank fallback to RRF order)"
-
 EmbedFn = Callable[[str], Sequence[float]]
 RerankFn = Callable[..., List[Dict[str, Any]]]
 
 
-@dataclass
-class SearchStage:
-    """One pipeline stage: how many rows left it and how long it took."""
-
-    name: str
-    count: int
-    latency_ms: int
-
-
-@dataclass
-class SearchExecution:
-    """Everything one search run produced, ready to show and to prove.
-
-    Attributes:
-        plan: The plan rung that produced ``returned``. When the relaxation
-            ladder widened preferences this is the widened rung, and its
-            ``relaxations`` list says exactly what changed.
-        query: The raw query text that was embedded and lexically matched.
-        candidates: The fused RRF pool, in RRF order, with ``vec_rank``,
-            ``fts_rank``, and ``rrf_score`` on every row.
-        ordered: The eligible rows in final rank order, with ``rerank_score``
-            (``None`` when the reranker did not run or fell back).
-        returned: ``ordered[:limit]``; the rows the caller will show.
-        stages: Per-stage counts and latencies in execution order. A relaxed
-            run records every pass, so the strict attempt stays visible.
-        rerank_pool_k: The bound on documents sent to the reranker.
-        relaxation_steps: Names of the ladder steps applied, in order.
-        search_method: The label the storefront payload reports.
-        attempts: One entry per pass, in order: the preference tags it
-            required, the relaxation steps behind it, and how many eligible
-            rows it found. A widened answer can show the narrower attempt
-            came up empty.
-        relaxation_unavailable: The starter could not check alternatives. Only
-            the initial pass ran; an empty result does not prove that no
-            products meet the hard requirements.
-    """
-
-    plan: Any
-    query: str
-    candidates: List[Dict[str, Any]]
-    ordered: List[Dict[str, Any]]
-    returned: List[Dict[str, Any]]
-    stages: List[SearchStage]
-    rerank_pool_k: int
-    relaxation_steps: List[str] = field(default_factory=list)
-    search_method: str = SEARCH_METHOD_HYBRID_RERANK
-    attempts: List[Dict[str, Any]] = field(default_factory=list)
-    relaxation_unavailable: bool = False
-
-    @property
-    def rerank_pool(self) -> List[Dict[str, Any]]:
-        """The candidates the reranker was allowed to see."""
-        return self.candidates[: self.rerank_pool_k]
-
-    def stage(self, name: str) -> Optional[SearchStage]:
-        """Return the last recorded stage with this name, if it ran."""
-        for recorded in reversed(self.stages):
-            if recorded.name == name:
-                return recorded
-        return None
-
-    def latency_breakdown(self) -> Dict[str, int]:
-        """Sum stage latencies by name for the retrieval receipt."""
-        breakdown: Dict[str, int] = {}
-        for recorded in self.stages:
-            breakdown[recorded.name] = breakdown.get(recorded.name, 0) + recorded.latency_ms
-        return breakdown
-
-
-def catalog_document(row: Dict[str, Any]) -> str:
-    """Return the bounded catalog representation supplied to the reranker."""
-    name = " ".join(str(row.get("name") or "").split())
-    description = " ".join(str(row.get("description") or "").split())
-    category = " ".join(str(row.get("category") or "").split())
-    if len(description) > 240:
-        description = description[:237] + "…"
-    return f"{name} — {description} ({category})"
-
-
 def resolve_rerank_pool_k(config: Dict[str, Any]) -> int:
-    """Bound the rerank pool between the floor and the reranker's own cap."""
-    requested = config.get("rerank_pool_k") or DEFAULT_RERANK_POOL_K
-    ceiling = max(RERANK_POOL_MIN, int(settings.RERANK_MAX_DOCUMENTS))
-    return max(RERANK_POOL_MIN, min(int(requested), ceiling))
-
-
-def _elapsed_ms(started: float) -> int:
-    return int((time.perf_counter() - started) * 1000)
-
-
-def _project_rerank(
-    pool: List[Dict[str, Any]], results: Sequence[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
-    """Project reranker indices back onto the pool, ignoring invalid ones.
-
-    An out-of-range index is skipped rather than projected onto an unknown
-    row. If nothing valid comes back the caller falls back to RRF order.
-    """
-    ordered: List[Dict[str, Any]] = []
-    for result in results:
-        try:
-            index = int(result["index"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if index < 0 or index >= len(pool):
-            continue
-        try:
-            score = float(result.get("relevance_score", 0.0))
-        except (TypeError, ValueError):
-            score = 0.0
-        ordered.append({**pool[index], "rerank_score": score})
-    return ordered
-
-
-def _as_number(value: Any) -> Optional[float]:
-    """Coerce a row value to a float, or return ``None`` when it will not.
-
-    Catalog rows reach the eligibility recheck from SQL, from a Gateway
-    payload, and from test fakes, so a price or quantity can arrive as a
-    ``Decimal``, a numeric string, ``None``, or something that is not a number
-    at all. A value that will not coerce is *absent*, not zero: an absent
-    field cannot be judged against a hard constraint, and guessing a number
-    for it would either invent a violation or hide one. A bare ``bool`` is
-    treated as absent too, because ``float(True)`` is a coincidence of the
-    type system rather than a price.
-
-    Args:
-        value: The raw row value.
-
-    Returns:
-        The value as a float, or ``None`` when it cannot be coerced.
-    """
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _violates_hard_constraints(row: Dict[str, Any], plan: Any) -> bool:
-    """Return True when a row breaks a hard predicate the plan declared.
-
-    A field the row does not carry, or carries as something uncoercible,
-    cannot be judged and is not treated as a violation; the SQL predicate
-    remains the enforcement point for it.
-    """
-    hard = plan.hard
-    price = _as_number(row.get("price"))
-    ceiling = _as_number(hard.price_max_usd)
-    if ceiling is not None and price is not None and price > ceiling + 1e-9:
-        return True
-    category = row.get("category")
-    if hard.categories and category is not None:
-        allowed = {value.lower() for value in hard.categories}
-        if str(category).lower() not in allowed:
-            return True
-    quantity = _as_number(row.get("quantity"))
-    if hard.in_stock_only and quantity is not None and quantity <= 0:
-        return True
-    excluded = {value.lower() for value in plan.exclusions}
-    for listed in (row.get("tags"), row.get("materials")):
-        if excluded and listed is not None and {str(v).lower() for v in listed} & excluded:
-            return True
-    return False
-
-
-async def _retrieve_candidates(
-    db: Any,
-    *,
-    plan: Any,
-    query: str,
-    embedding: Sequence[float],
-    config: Dict[str, Any],
-    stages: List[SearchStage],
-) -> List[Dict[str, Any]]:
-    """Run candidate generation for the plan's declared strategy."""
-    from services.hybrid_search import HybridSearch
-
-    hard_clauses, hard_params = plan.compile_predicates()
-    hybrid = HybridSearch(db)
-    started = time.perf_counter()
-    if plan.retrieval_strategy == STRATEGY_VECTOR:
-        candidates = await hybrid.vector_only(
-            query_embedding=list(embedding),
-            k=int(config.get("k_vector") or settings.HYBRID_VECTOR_K),
-            hard_clauses=hard_clauses,
-            hard_params=hard_params,
-        )
-        stages.append(SearchStage(STAGE_VECTOR, len(candidates), _elapsed_ms(started)))
-        return candidates
-    candidates = await hybrid.search(
-        query=query,
-        query_embedding=list(embedding),
-        k_vector=int(config.get("k_vector") or settings.HYBRID_VECTOR_K),
-        k_fts=int(config.get("k_fts") or settings.HYBRID_FTS_K),
-        rrf_k=int(config.get("rrf_k") or settings.HYBRID_RRF_K),
-        top_n=int(config.get("top_n") or settings.HYBRID_TOP_N),
-        hard_clauses=hard_clauses,
-        hard_params=hard_params,
+    """Bound the rerank pool between the floor and the configured reranker cap."""
+    return store_tools.resolve_rerank_pool_k(
+        {**config, "rerank_max_documents": settings.RERANK_MAX_DOCUMENTS}
     )
-    stages.append(SearchStage(STAGE_HYBRID, len(candidates), _elapsed_ms(started)))
-    return candidates
 
 
-async def _rank_candidates(
-    candidates: List[Dict[str, Any]],
-    *,
-    plan: Any,
-    query: str,
-    rerank: RerankFn,
-    pool_k: int,
-    stages: List[SearchStage],
-) -> tuple[List[Dict[str, Any]], str]:
-    """Order the pool: rerank for ``hybrid+rerank``, RRF order otherwise."""
-    if plan.retrieval_strategy == STRATEGY_VECTOR:
-        return [dict(row) for row in candidates], SEARCH_METHOD_VECTOR
-    if plan.retrieval_strategy == STRATEGY_HYBRID:
-        return [{**row, "rerank_score": None} for row in candidates], SEARCH_METHOD_HYBRID
-
-    pool = [dict(row) for row in candidates[:pool_k]]
-    rerank_query = (getattr(plan.soft, "soft_signal", "") or "").strip() or query
-    started = time.perf_counter()
-    results: List[Dict[str, Any]] = []
-    if pool:
-        results = await asyncio.to_thread(
-            rerank,
-            query=rerank_query,
-            documents=[catalog_document(row) for row in pool],
-            top_n=len(pool),
-        )
-    ordered = _project_rerank(pool, results or [])
-    stages.append(SearchStage(STAGE_RERANK, len(ordered), _elapsed_ms(started)))
-    if not ordered:
-        return [{**row, "rerank_score": None} for row in pool], SEARCH_METHOD_RERANK_FALLBACK
-    return ordered, SEARCH_METHOD_HYBRID_RERANK
-
-
-async def _run_pass(
-    db: Any,
-    *,
-    plan: Any,
-    query: str,
-    embedding: Sequence[float],
-    limit: int,
-    rerank: RerankFn,
-    config: Dict[str, Any],
-    pool_k: int,
-    stages: List[SearchStage],
-) -> SearchExecution:
-    """Execute one plan rung end to end and record its stages."""
-    candidates = await _retrieve_candidates(
-        db, plan=plan, query=query, embedding=embedding, config=config, stages=stages
-    )
-    ranked, search_method = await _rank_candidates(
-        candidates, plan=plan, query=query, rerank=rerank, pool_k=pool_k, stages=stages
-    )
-    started = time.perf_counter()
-    ordered = [row for row in ranked if not _violates_hard_constraints(row, plan)]
-    stages.append(SearchStage(STAGE_ELIGIBILITY, len(ordered), _elapsed_ms(started)))
-    return SearchExecution(
-        plan=plan,
-        query=query,
-        candidates=candidates,
-        ordered=ordered,
-        returned=ordered[:limit],
-        stages=stages,
-        rerank_pool_k=pool_k,
-        relaxation_steps=[relaxation.step for relaxation in plan.relaxations],
-        search_method=search_method,
-    )
+def _executor_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """The caller's knobs over the configured defaults."""
+    return {
+        "k_vector": settings.HYBRID_VECTOR_K,
+        "k_fts": settings.HYBRID_FTS_K,
+        "rrf_k": settings.HYBRID_RRF_K,
+        "top_n": settings.HYBRID_TOP_N,
+        **{key: value for key, value in (config or {}).items() if value},
+        "rerank_max_documents": settings.RERANK_MAX_DOCUMENTS,
+    }
 
 
 def _product_ids(rows: Sequence[Dict[str, Any]]) -> List[str]:
@@ -484,11 +202,11 @@ def _product_ids(rows: Sequence[Dict[str, Any]]) -> List[str]:
 
 
 def _breaks_price_or_stock(row: Dict[str, Any], plan: Any) -> bool:
-    price = _as_number(row.get("price"))
-    ceiling = _as_number(plan.hard.price_max_usd)
+    price = store_tools.as_number(row.get("price"))
+    ceiling = store_tools.as_number(plan.hard.price_max_usd)
     if ceiling is not None and price is not None and price > ceiling + 1e-9:
         return True
-    quantity = _as_number(row.get("quantity"))
+    quantity = store_tools.as_number(row.get("quantity"))
     return bool(plan.hard.in_stock_only and quantity is not None and quantity <= 0)
 
 
@@ -589,81 +307,45 @@ async def execute_search_plan(
     relax: bool = True,
     return_strict_on_unavailable: bool = False,
 ) -> SearchExecution:
-    """Run a typed plan through the shared retrieval pipeline.
+    """Run a typed plan through the shared pipeline from async code.
+
+    The pipeline is synchronous and takes a statement runner, so the same
+    function serves the shopper tool on both rails. Here it runs on a worker
+    thread, and each statement is sent back to this event loop through
+    ``db.fetch_all``.
 
     Args:
-        db: A database service exposing ``get_connection()``.
-        plan: A :class:`~services.search_plan.SearchPlan`. Its hard
-            constraints and exclusions compile into both branch queries; its
-            ``retrieval_strategy`` selects vector-only, hybrid, or
-            hybrid+rerank; its ``soft_signal`` is what the reranker scores.
+        db: A database service exposing ``fetch_all(sql, *params)``.
+        plan: A :class:`~services.search_plan.SearchPlan`.
         query: The raw query text, embedded once and lexically matched.
         limit: How many rows the caller will show. Clamped to at least one.
-        embed: Callable returning the query embedding. Called once per run,
-            on a worker thread, so a Bedrock call never blocks the loop.
-        rerank: Callable with the ``RerankService.rerank`` signature
-            (``query``, ``documents``, ``top_n`` keywords). Also run on a
-            worker thread.
+        embed: Callable returning the query embedding.
+        rerank: Callable with the ``RerankService.rerank`` signature.
         config: Optional knobs: ``k_vector``, ``k_fts``, ``rrf_k``, ``top_n``
-            (fused pool cap), and ``rerank_pool_k`` (documents the reranker
-            may see; defaults to ``settings.RERANK_MAX_DOCUMENTS``, floor 3).
-        relax: When True and the strict pass returns fewer than ``limit``
-            rows, walk the plan's relaxation ladder. Each applied step is
-            recorded in ``relaxation_steps``. Hard constraints never widen.
-        return_strict_on_unavailable: Storefront may keep an honest initial
-            result when the starter has not implemented preference widening.
-            Mark that limitation explicitly. Comparisons and exercise checks
-            keep the default refusal; unrelated errors always propagate.
+            and ``rerank_pool_k``. Missing knobs use the configured defaults.
+        relax: Walk the plan's relaxation ladder when the strict pass is short.
+        return_strict_on_unavailable: Keep an honest first pass when the
+            starter has not implemented preference widening, and mark it.
 
     Returns:
-        A :class:`SearchExecution` describing the pass that produced the
-        returned rows, with every pass's stages recorded in order.
+        The :class:`~services.store_tools.SearchExecution` of the pass that
+        produced the returned rows.
     """
-    limit = max(1, int(limit))
-    pool_k = resolve_rerank_pool_k(config or {})
-    stages: List[SearchStage] = []
+    loop = asyncio.get_running_loop()
 
-    started = time.perf_counter()
-    embedding = await asyncio.to_thread(embed, query)
-    stages.append(SearchStage(STAGE_EMBED, len(embedding), _elapsed_ms(started)))
+    def run(sql: str, params: Sequence[Any]) -> List[Dict[str, Any]]:
+        rows = asyncio.run_coroutine_threadsafe(db.fetch_all(sql, *params), loop).result()
+        return [dict(row) for row in rows or []]
 
-    attempts: List[Dict[str, Any]] = []
-
-    async def run_rung(rung: Any) -> SearchExecution:
-        result = await _run_pass(
-            db,
-            plan=rung,
-            query=query,
-            embedding=embedding,
-            limit=limit,
-            rerank=rerank,
-            config=config or {},
-            pool_k=pool_k,
-            stages=stages,
-        )
-        attempts.append({
-            "preferences": list(rung.soft.tags),
-            "relaxations": [relaxation.step for relaxation in rung.relaxations],
-            "eligible": len(result.ordered),
-        })
-        return result
-
-    # A complete strict result needs no fallback. Keep the unfinished Lab 1
-    # fallback isolated from earlier requests that already satisfy the plan.
-    execution = await run_rung(plan)
-    if relax and len(execution.returned) < limit:
-        try:
-            remaining_rungs = plan.relaxation_ladder()[1:]
-        except PreferenceRelaxationUnavailable:
-            if not return_strict_on_unavailable:
-                raise
-            # Keep the validated first pass. Do not build a substitute ladder,
-            # drop any predicate, or claim that a broader search found nothing.
-            execution.relaxation_unavailable = True
-            remaining_rungs = []
-        for rung in remaining_rungs:
-            if len(execution.returned) >= limit:
-                break
-            execution = await run_rung(rung)
-    execution.attempts = attempts
-    return execution
+    return await asyncio.to_thread(
+        store_tools.run_search_plan,
+        run,
+        plan=plan,
+        query=query,
+        limit=limit,
+        embed=embed,
+        rerank=rerank,
+        config=_executor_config(config),
+        relax=relax,
+        return_strict_on_unavailable=return_strict_on_unavailable,
+    )

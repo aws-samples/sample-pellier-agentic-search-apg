@@ -242,7 +242,7 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
             tool_calls=[
                 {
                     "id": "tool-1",
-                    "tool": "search_products_hybrid",
+                    "tool": "search_products",
                     "status": "success",
                     "duration_ms": 12,
                     "input": {"query": "linen"},
@@ -326,7 +326,7 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
     assert profile is not None
     assert profile["profile"]["customer_id"] == "CUST-MARCO"
     assert _first(events, "agentcore_memory") is not None
-    assert _first(events, "tool_call")["tool"] == "search_products_hybrid"
+    assert _first(events, "tool_call")["tool"] == "search_products"
     assert _first(events, "tool_call")["status"] == "completed"
     assert _first(events, "product")["product"]["productId"] == 7
     assert len(_Memory.writes) == 1
@@ -346,7 +346,7 @@ def test_managed_storefront_memory_write_failure_does_not_recast_action(
             rail="gateway-mcp",
             intent="returns",
             specialist="experience-guide",
-            tool_calls=[{"tool": "initiate_return", "status": "success"}],
+            tool_calls=[{"tool": "give_store_credit", "status": "success"}],
         )
 
     class _Memory:
@@ -428,7 +428,7 @@ def test_unexpected_managed_memory_write_failure_preserves_completed_action(
             rail="gateway-mcp",
             intent="returns",
             specialist="experience-guide",
-            tool_calls=[{"tool": "initiate_return", "status": "success"}],
+            tool_calls=[{"tool": "give_store_credit", "status": "success"}],
         )
 
     class _Memory:

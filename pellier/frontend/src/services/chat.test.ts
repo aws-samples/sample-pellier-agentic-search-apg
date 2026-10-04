@@ -380,8 +380,8 @@ describe('chat service auth transport', () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
         [
-          'data: {"type":"build_required","code":"workshop_build_required","message":"Inventory Agent is intentionally unbuilt."}',
-          'data: {"type":"complete","response":{"response":"Inventory Agent is intentionally unbuilt.","products":[],"suggestions":[],"success":false}}',
+          'data: {"type":"build_required","code":"workshop_build_required","message":"Stock agent is intentionally unbuilt."}',
+          'data: {"type":"complete","response":{"response":"Stock agent is intentionally unbuilt.","products":[],"suggestions":[],"success":false}}',
           '',
         ].join('\n\n'),
         { status: 200 },

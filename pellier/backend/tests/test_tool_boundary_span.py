@@ -101,11 +101,11 @@ def _run_tool(build, tracer, principal_sub=None, result="ok"):
     """Drive one tool call inside a span, the way Strands does."""
     before, after = build(principal_sub)
     event = _Event(
-        _ToolUse({"toolUseId": "tu-1", "name": "check_inventory", "input": {"product_query": "shirt"}}),
+        _ToolUse({"toolUseId": "tu-1", "name": "check_stock", "input": {"product_query": "shirt"}}),
         result=result,
     )
     # Strands opens the tool span; the hooks run inside it.
-    with tracer.start_as_current_span("execute_tool check_inventory"):
+    with tracer.start_as_current_span("execute_tool check_stock"):
         before(event)
         after(event)
 
@@ -123,7 +123,7 @@ def test_hooks_do_not_open_a_second_span(hooks):
 
     finished = exporter.get_finished_spans()
     assert len(finished) == 1, "the framework's span is the only tool span"
-    assert finished[0].name == "execute_tool check_inventory"
+    assert finished[0].name == "execute_tool check_stock"
 
 
 def test_turn_id_lands_on_both_the_span_and_the_audit_row(hooks):
@@ -143,7 +143,7 @@ def test_span_names_the_tool_and_the_caller(hooks):
     _run_tool(build, tracer)
 
     span = exporter.get_finished_spans()[0]
-    assert span.attributes[ev.ATTR_TOOL] == "check_inventory"
+    assert span.attributes[ev.ATTR_TOOL] == "check_stock"
     assert span.attributes[ev.ATTR_CALLER] == "agent"
 
 

@@ -141,19 +141,19 @@ _BUILDS: tuple[tuple[str, str, pathlib.Path, Optional[str], tuple[str, ...]], ..
         ("Complete Task 1B before relaxing a preference",),
     ),
     (
-        "02_ground_the_answer", "2b_inventory_agent_defined",
-        BACKEND / "agents" / "inventory_agent.py",
-        None, ("_INVENTORY_AGENT_STUBBED = True",),
+        "02_ground_the_answer", "2b_stock_agent_defined",
+        BACKEND / "agents" / "stock_agent.py",
+        None, ("_STOCK_AGENT_STUBBED = True",),
     ),
     (
-        "02_ground_the_answer", "2a_inventory_tool_written",
+        "02_ground_the_answer", "2a_stock_tool_written",
         BACKEND / "services" / "agent_tools.py",
-        None, ("check_inventory is in stub state", "received_product_query"),
+        None, ("check_stock is in stub state", "received_product_query"),
     ),
     (
         "03_operate_the_managed_path", "3a_gateway_tool_published",
         REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
-        "Gateway catalogue - published tools", ('"get_ticket_history"',),
+        "Gateway catalogue - published tools", ('"get_tickets"',),
     ),
     (
         "03_operate_the_managed_path", "3a_runtime_catalogue_reconciled",
@@ -294,7 +294,7 @@ SELECT ta.audit_id, ta.session_id, ta.args->>'turn_id' AS turn_id,
   FROM pellier.tool_audit ta
   LEFT JOIN pellier.governed_turn_receipts gtr
          ON gtr.turn_id = ta.args->>'turn_id'
- WHERE ta.tool = 'check_inventory'
+ WHERE ta.tool = 'check_stock'
    AND ta.result IS NOT NULL
    AND (%(sub)s::text IS NULL OR gtr.principal_sub = %(sub)s)
    {run_scope}
@@ -387,9 +387,8 @@ SELECT gr.receipt_id, gr.decision, gr.principal_label, gr.args, gr.policy_name, 
 """
 
 # Absence, for ONE named operation, searched in the three places an execution
-# leaves a trace. Modelled on `scripts/prove_identity_boundary.py`, which
-# already holds the rule this receipt was missing: absence is only ever claimed
-# for a key that was actually searched for.
+# leaves a trace. The rule: absence is only ever claimed for a key that was
+# actually searched for.
 #
 # Deliberately NOT run-scoped. A denial whose key executed in some other run is
 # still an execution of that key, and scoping the search would hide exactly the

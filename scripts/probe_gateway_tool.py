@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 """Invoke any Gateway tool through the real MCP path and classify the outcome.
 
-Why this exists separately from ``gateway_initiate_return.py``: that script proves
-one specific governed write and hardcodes its argument shape. Verifying a quiesce
-needs the opposite — call an arbitrary tool, including one no policy names, and
-report exactly what the service said.
+Call an arbitrary tool, including one no policy names, and report exactly what
+the service said. Lab 3 uses it to show that Theo's token reads his own
+tickets and is refused Jessica's; Lab 4 uses it for the credit decisions.
 
-The classifier is imported from ``gateway_initiate_return`` rather than
-reimplemented. It distinguishes a Cedar DENY from a transport, JWT, or tool-name
-failure, and a second copy would eventually disagree with it and turn a broken
-Gateway into a fake policy proof.
+The classifier is imported from ``gateway_client`` rather than reimplemented.
+It distinguishes a Cedar DENY from a transport, JWT, or tool-name failure, and
+a second copy would eventually disagree with it and turn a broken Gateway into
+a fake policy proof.
 
 The tool name is an argument precisely so this file does not have to name whichever
 vocabulary is currently live:
 
     PY=pellier/backend/.venv/bin/python
     $PY scripts/probe_gateway_tool.py --tool "$TOOL" \\
-        --args '{"customer_id":"CUST-THEO","product_id":1,"reason":"changed_mind"}'
+        --args '{"customer_id":"CUST-THEO"}'
 """
 
 from __future__ import annotations
@@ -36,7 +35,7 @@ import httpx  # noqa: E402
 from mcp import ClientSession  # noqa: E402
 from mcp.client.streamable_http import streamable_http_client  # noqa: E402
 
-from gateway_initiate_return import (  # noqa: E402
+from gateway_client import (  # noqa: E402
     _exception_summary,
     _is_authorization_denial,
     _jsonable,
@@ -90,8 +89,8 @@ def main() -> int:
     _load_env()
     gateway_url = args.gateway_url or _require("AGENTCORE_GATEWAY_URL")
 
-    # Same precedence rule as gateway_initiate_return.py, and for the same
-    # reason: this script's entire output is a claim about what one identity was
+    # Explicit environment wins over a local .env, and the principal is never
+    # guessed: this script's entire output is a claim about what one identity was
     # allowed to do. Minting Marco's token because PELLIER_TOKEN was exported and
     # --user was not passed produces a transcript that reads like a proof about
     # someone else. An identity-source ambiguity is an error, not a default.

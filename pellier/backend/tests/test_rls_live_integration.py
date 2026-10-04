@@ -436,185 +436,6 @@ async def test_database_scope_agrees_with_the_application_scope(db, seeded):
 # ---------------------------------------------------------------------------
 
 
-@pytest_asyncio.fixture(loop_scope="module")
-async def ordered(db) -> AsyncIterator[Dict[str, Any]]:
-    """One real order per customer, so an ownership lookup can succeed."""
-    await db.execute_query(
-        "INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents)"
-        " VALUES ('CUST-MARCO','11',2,6800), ('CUST-ANNA','21',2,6800)"
-    )
-    rows = await db.fetch_all(
-        "SELECT id FROM pellier.orders ORDER BY id DESC LIMIT 2"
-    )
-    ids = [r["id"] for r in rows]
-    subjects = {
-        r["customer_id"]: r["principal_sub"]
-        for r in await db.fetch_all(
-            "SELECT customer_id, principal_sub FROM pellier.principal_customers"
-        )
-    }
-    try:
-        yield {"order_ids": ids, "subjects": subjects}
-    finally:
-        await db.execute_query(
-            "DELETE FROM pellier.returns WHERE customer_id IN ('CUST-MARCO','CUST-ANNA')"
-        )
-        await db.execute_query("DELETE FROM pellier.orders WHERE id = ANY(%s)", ids)
-        # Only unfilled claims can be released. A completed write_operations row
-        # is frozen evidence since migration 047, so the successful probes stay.
-        await db.execute_query(
-            "DELETE FROM pellier.write_operations"
-            " WHERE idempotency_key LIKE %s AND completed_at IS NULL",
-            f"live-{_RUN}-%",
-        )
-
-
-@pytest.mark.asyncio(loop_scope="module")
-async def test_owner_rail_can_process_another_customers_return(db, ordered):
-    """The ungoverned baseline, stated plainly because it is the contrast.
-
-    On the owner connection the only gate is the `customer_id` argument, which
-    the caller supplies. This is what the governed rail exists to close, and a
-    participant should see it succeed here before seeing it refused there.
-    """
-    from services.business_logic import BusinessLogic
-
-    result = await BusinessLogic(db).initiate_return(
-        "CUST-ANNA", 21, "damaged", f"live-{_RUN}-owner"
-    )
-
-    assert result["status"] == "success", result
-
-
-@pytest.mark.asyncio(loop_scope="module")
-async def test_governed_rail_refuses_another_customers_return(db, ordered):
-    """Same request, verified principal bound: the database refuses it."""
-    from services.business_logic import BusinessLogic
-
-    marco = ordered["subjects"].get("CUST-MARCO")
-    assert marco, "Marco has no seeded principal mapping"
-
-    result = await BusinessLogic(db).initiate_return(
-        "CUST-ANNA", 21, "damaged", f"live-{_RUN}-cross", principal_sub=marco
-    )
-
-    assert result["status"] == "policy_blocked", result
-    assert result.get("denied_by") == "database_row_level_security"
-    # The message must not claim Anna never ordered it. She did.
-    assert "did not order" not in result["message"]
-
-
-@pytest.mark.asyncio(loop_scope="module")
-async def test_governed_rail_allows_a_principal_its_own_return(db, ordered):
-    """The permitted half, so the refusal above is not a blanket failure."""
-    from services.business_logic import BusinessLogic
-
-    marco = ordered["subjects"].get("CUST-MARCO")
-    result = await BusinessLogic(db).initiate_return(
-        "CUST-MARCO", 11, "damaged", f"live-{_RUN}-own", principal_sub=marco
-    )
-
-    assert result["status"] == "success", result
-    assert result.get("return_id")
-
-
-@pytest.mark.asyncio(loop_scope="module")
-async def test_denied_write_commits_no_business_change_but_leaves_a_receipt(
-    db, ordered
-):
-    """Spec 13: 0 committed business changes plus exactly 1 attempt receipt.
-
-    The receipt has to survive the transaction the database rejected, or the
-    exercise has no evidence that the attempt happened at all.
-    """
-    from services.business_logic import BusinessLogic
-
-    marco = ordered["subjects"].get("CUST-MARCO")
-    key = f"live-{_RUN}-survive"
-
-    before_returns = (
-        await db.fetch_one(
-            "SELECT count(*) AS n FROM pellier.returns WHERE customer_id='CUST-ANNA'"
-        )
-    )["n"]
-    before_ledger = (
-        await db.fetch_one("SELECT count(*) AS n FROM pellier.inventory_ledger")
-    )["n"]
-
-    result = await BusinessLogic(db).initiate_return(
-        "CUST-ANNA", 21, "damaged", key, principal_sub=marco
-    )
-    assert result["status"] == "policy_blocked"
-
-    after_returns = (
-        await db.fetch_one(
-            "SELECT count(*) AS n FROM pellier.returns WHERE customer_id='CUST-ANNA'"
-        )
-    )["n"]
-    after_ledger = (
-        await db.fetch_one("SELECT count(*) AS n FROM pellier.inventory_ledger")
-    )["n"]
-
-    assert after_returns == before_returns, "a denied return committed a row"
-    assert after_ledger == before_ledger, "a denied return moved inventory"
-
-    receipts = await db.fetch_all(
-        "SELECT operation FROM pellier.write_operations WHERE idempotency_key = %s",
-        key,
-    )
-    assert len(receipts) == 1, "expected exactly one attempt receipt"
-    assert receipts[0]["operation"] == "initiate_return"
-
-
-@pytest.mark.asyncio(loop_scope="module")
-async def test_retrying_a_denied_write_does_not_duplicate_evidence(db, ordered):
-    """Spec 13: retries must not make the exercise ambiguous."""
-    from services.business_logic import BusinessLogic
-
-    marco = ordered["subjects"].get("CUST-MARCO")
-    key = f"live-{_RUN}-retry"
-    logic = BusinessLogic(db)
-
-    first = await logic.initiate_return(
-        "CUST-ANNA", 21, "damaged", key, principal_sub=marco
-    )
-    second = await logic.initiate_return(
-        "CUST-ANNA", 21, "damaged", key, principal_sub=marco
-    )
-
-    assert first["status"] == "policy_blocked"
-    assert second["status"] in {"policy_blocked", "error"}
-
-    receipts = await db.fetch_all(
-        "SELECT count(*) AS n FROM pellier.write_operations WHERE idempotency_key = %s",
-        key,
-    )
-    assert receipts[0]["n"] == 1, "a retry duplicated the attempt receipt"
-
-
-# ---------------------------------------------------------------------------
-# Migration 047: evidence immutability, proved against the live triggers
-# ---------------------------------------------------------------------------
-#
-# Every probe below runs on one owner connection and rolls it back at the end.
-# That is not tidiness: after 047 nothing can delete these rows, so a probe that
-# committed would leave permanent residue on every run.
-
-
-async def _expect_refused(conn: Any, statement: str, params: tuple = ()) -> None:
-    """The statement must raise insufficient_privilege from the trigger.
-
-    A savepoint around the statement keeps the surrounding probe transaction
-    usable after the expected failure.
-    """
-    import psycopg
-
-    with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        async with conn.transaction():
-            async with conn.cursor() as cur:
-                await cur.execute(statement, params)
-
-
 @pytest.mark.asyncio(loop_scope="module")
 async def test_governed_and_execution_receipts_are_append_only(db):
     """UPDATE and DELETE raise on both receipt tables, even for the owner."""
@@ -649,7 +470,7 @@ async def test_governed_and_execution_receipts_are_append_only(db):
                     "INSERT INTO pellier.approvals"
                     " (customer_id, tool, args, status, source_turn_id, issue,"
                     "  action_hash, decided_at, decided_by, execution_turn_id)"
-                    " VALUES (%s, 'initiate_return', '{}'::jsonb, 'approved', %s,"
+                    " VALUES (%s, 'give_store_credit', '{}'::jsonb, 'approved', %s,"
                     "  'probe', %s, now(), 'probe', %s) RETURNING id",
                     (customer, session, "e" * 64, "turn-" + "e" * 32),
                 )
@@ -658,7 +479,7 @@ async def test_governed_and_execution_receipts_are_append_only(db):
                     "INSERT INTO pellier.execution_receipts"
                     " (execution_turn_id, review_id, tool, rail, actor_principal,"
                     "  policy_outcome, aurora_outcome, evidence_outcome, idempotency_key)"
-                    " VALUES (%s, %s, 'initiate_return', 'gateway-mcp', 'probe',"
+                    " VALUES (%s, %s, 'give_store_credit', 'gateway-mcp', 'probe',"
                     "  'DENY', 'NOT_REACHED', 'POLICY_PROOF', %s) RETURNING receipt_id",
                     ("turn-" + "e" * 32, review_id, session),
                 )
@@ -724,7 +545,7 @@ async def test_write_operations_moves_from_claim_to_completed_exactly_once(db):
                 await cur.execute(
                     "INSERT INTO pellier.write_operations"
                     " (idempotency_key, operation, request_hash)"
-                    " VALUES (%s, 'initiate_return', %s)",
+                    " VALUES (%s, 'give_store_credit', %s)",
                     (key, "f" * 64),
                 )
                 await cur.execute(
@@ -755,7 +576,7 @@ async def test_write_operations_moves_from_claim_to_completed_exactly_once(db):
                 await cur.execute(
                     "INSERT INTO pellier.write_operations"
                     " (idempotency_key, operation, request_hash)"
-                    " VALUES (%s, 'initiate_return', %s)",
+                    " VALUES (%s, 'give_store_credit', %s)",
                     (key + "-unfilled", "f" * 64),
                 )
             await _expect_refused(
@@ -788,7 +609,7 @@ async def test_agent_role_can_complete_a_claim_but_not_rewrite_its_identity(db):
     key = f"agent-grant-probe-{_RUN}"
     await db.execute_query(
         "INSERT INTO pellier.write_operations (idempotency_key, operation, request_hash)"
-        " VALUES (%s, 'initiate_return', %s)",
+        " VALUES (%s, 'give_store_credit', %s)",
         key, "a" * 64,
     )
     with pytest.raises(psycopg.errors.InsufficientPrivilege):

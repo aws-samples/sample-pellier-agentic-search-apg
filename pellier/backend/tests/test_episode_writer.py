@@ -74,9 +74,9 @@ def _review(**over: Any) -> Dict[str, Any]:
         "review_id": 40,
         "customer_id": "CUST-THEO",
         "status": "approved",
-        "action": "initiate_return",
+        "action": "give_store_credit",
         "source_turn_id": "turn-" + "b" * 32,
-        "args": {"reason": "damaged", "product_id": 37, "customer_id": "CUST-THEO"},
+        "args": {"reason": "courtesy", "amount_cents": 2500, "customer_id": "CUST-THEO"},
     }
     base.update(over)
     return base
@@ -87,10 +87,10 @@ def _receipt(**over: Any) -> Dict[str, Any]:
         "receipt_id": 10,
         "policy_outcome": "ALLOW",
         "aurora_outcome": "PERMITTED",
-        "tool": "initiate_return",
+        "tool": "give_store_credit",
         "execution_turn_id": "turn-" + "a" * 32,
         "idempotency_key": "operator-review:40:abc",
-        "gateway_action_id": "pellier-concierge-experience-target___initiate_return",
+        "gateway_action_id": "pellier-store-tools___give_store_credit",
         "gateway_mode": "ENFORCE",
         "rail": "gateway-mcp",
     }
@@ -146,23 +146,25 @@ def test_a_tool_with_no_episode_kind_writes_nothing() -> None:
 
 def test_the_success_episode_matches_the_live_row() -> None:
     episode = EP.derive_episode(
-        review=_review(), receipt=_receipt(), result={"return_id": 37}
+        review=_review(), receipt=_receipt(), result={"credit_id": 37}
     )
     assert episode is not None
-    assert episode.episode_type == EP.EPISODE_RETURN_RESOLUTION
+    assert episode.episode_type == EP.EPISODE_CREDIT_ISSUED
     assert (episode.human_outcome, episode.policy_outcome, episode.aurora_outcome) == (
         "confirmed", "allow", "applied",
     )
     assert episode.review_id == 40
     assert episode.execution_turn_id == "turn-" + "a" * 32
-    assert episode.situation == "CUST-THEO asked for a damaged return on product 37."
-    assert "Return 37 was created" in episode.resolution
+    assert episode.situation == "CUST-THEO was proposed a $25.00 store credit for courtesy."
+    assert episode.resolution == "Credit 37 was recorded through the governed path."
+    assert episode.action_summary["amountCents"] == 2500
+    assert episode.action_summary["creditId"] == 37
 
 
 def test_the_policy_denial_episode_names_the_layer_that_refused() -> None:
     episode = EP.derive_episode(
         review=_review(customer_id="CUST-RACHEL", args={
-            "reason": "not_as_described", "product_id": 47,
+            "reason": "not_as_described", "amount_cents": 90000,
         }),
         receipt=_receipt(policy_outcome="DENY", aurora_outcome="NOT_REACHED"),
         result={"status": "policy_denied"},
@@ -177,7 +179,7 @@ def test_the_database_denial_episode_keeps_the_allow() -> None:
     """The most instructive row this table can hold, and it must not be flattened."""
     episode = EP.derive_episode(
         review=_review(customer_id="CUST-AMARA", args={
-            "reason": "damaged", "product_id": 46,
+            "reason": "damaged", "amount_cents": 2500,
         }),
         receipt=_receipt(aurora_outcome="DENIED"),
         result={"status": "error", "denied_by": "database_row_level_security"},
@@ -185,7 +187,7 @@ def test_the_database_denial_episode_keeps_the_allow() -> None:
     assert episode is not None
     assert (episode.policy_outcome, episode.aurora_outcome) == ("allow", "refused")
     assert "permitted the action" in episode.resolution
-    assert "row-level security refused" in episode.resolution
+    assert "the database refused it" in episode.resolution
 
 
 def test_the_human_axis_comes_from_the_approval() -> None:
@@ -204,7 +206,7 @@ def test_the_evidence_summary_holds_pointers_not_business_truth() -> None:
     021 makes about the review row and it applies here for the same reason.
     """
     episode = EP.derive_episode(
-        review=_review(), receipt=_receipt(), result={"return_id": 37}
+        review=_review(), receipt=_receipt(), result={"credit_id": 37}
     )
     assert episode is not None
     assert set(episode.evidence_summary) == {
@@ -220,7 +222,7 @@ def test_a_replay_is_recorded_as_such() -> None:
     episode = EP.derive_episode(
         review=_review(),
         receipt=_receipt(),
-        result={"return_id": 37, "idempotent_replay": True},
+        result={"credit_id": 37, "idempotent_replay": True},
     )
     assert episode is not None
     assert episode.action_summary["idempotentReplay"] is True
@@ -307,7 +309,7 @@ def no_bedrock(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_a_terminal_outcome_is_recorded() -> None:
     db = FakeDb()
     got = await EP.record_outcome_episode(
-        db, review=_review(), receipt=_receipt(), result={"return_id": 37}
+        db, review=_review(), receipt=_receipt(), result={"credit_id": 37}
     )
     assert got == {"episodeId": 42, "createdAt": None, "replayed": False,
                    "recorded": True}
@@ -333,7 +335,7 @@ async def test_a_replay_reports_itself_rather_than_appending() -> None:
     """`ON CONFLICT DO NOTHING` returns no row, and that is a success."""
     got = await EP.record_outcome_episode(
         FakeDb(conflict=True), review=_review(), receipt=_receipt(),
-        result={"return_id": 37},
+        result={"credit_id": 37},
     )
     assert got["replayed"] is True
     assert got["recorded"] is True
@@ -350,7 +352,7 @@ async def test_a_write_failure_never_raises() -> None:
     """
     got = await EP.record_outcome_episode(
         FakeDb(fail=True), review=_review(), receipt=_receipt(),
-        result={"return_id": 37},
+        result={"credit_id": 37},
     )
     assert got == {"episodeId": None, "replayed": False, "recorded": False}
 
@@ -429,16 +431,23 @@ class _OrderRecordingDb:
             return {"execution_turn_id": self._claimed}
         return None
 
-    async def fetch_all(self, _query: str, *_params: Any) -> List[Dict[str, Any]]:
+    async def fetch_all(self, query: str, *_params: Any) -> List[Dict[str, Any]]:
+        if "apply_store_credit" in query:
+            return [{"result": {"status": "success", "credit_id": 9}}]
         return []
 
 
-class _NoOpLogic:
-    def __init__(self, _db: Any) -> None:
-        pass
+def _confirmed_credit_review() -> Dict[str, Any]:
+    from services.store_tools import write_request_hash
 
-    async def initiate_return(self, **_kwargs: Any) -> Dict[str, Any]:
-        return {"status": "success", "return_id": 9}
+    args = {"customer_id": "CUST-THEO", "amount_cents": 2500, "reason": "courtesy"}
+    return {
+        "review_id": 12, "customer_id": "CUST-THEO", "action": "give_store_credit",
+        "args": dict(args), "status": "approved",
+        "action_hash": write_request_hash("give_store_credit", **args),
+        "source_turn_id": "turn-" + ("a" * 32), "order_id": None,
+        "execution_turn_id": None, "decided_by": "operator-1",
+    }
 
 
 @pytest.mark.asyncio
@@ -451,16 +460,7 @@ async def test_the_execution_path_records_the_episode_after_the_receipt(
     not by comparing the position of two identifiers in the source: that scan
     passes on a rename in a comment and fails on a rename in the code.
     """
-    from services.business_logic import write_request_hash
-
-    args = {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"}
-    review = {
-        "review_id": 12, "customer_id": "CUST-THEO", "action": "initiate_return",
-        "args": dict(args), "status": "approved",
-        "action_hash": write_request_hash("initiate_return", **args),
-        "source_turn_id": "turn-" + ("a" * 32), "order_id": 305,
-        "execution_turn_id": None, "decided_by": "operator-1",
-    }
+    review = _confirmed_credit_review()
     db = _OrderRecordingDb()
 
     async def _receipt(recorded_db: Any, *_args: Any, **_kwargs: Any) -> int:
@@ -470,10 +470,8 @@ async def test_the_execution_path_records_the_episode_after_the_receipt(
     async def _remember(recorded_db: Any, *_args: Any, **_kwargs: Any) -> None:
         recorded_db.calls.append("_remember_outcome")
 
-    import services.business_logic as bl
     from config import settings
 
-    monkeypatch.setattr(bl, "BusinessLogic", _NoOpLogic)
     monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "builders", raising=False)
     monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "", raising=False)
     monkeypatch.setattr(GE, "record_receipt", _receipt)
@@ -492,16 +490,7 @@ async def test_no_episode_is_remembered_when_the_receipt_could_not_be_written(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A memory derived from a receipt that does not exist would be invented."""
-    from services.business_logic import write_request_hash
-
-    args = {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"}
-    review = {
-        "review_id": 12, "customer_id": "CUST-THEO", "action": "initiate_return",
-        "args": dict(args), "status": "approved",
-        "action_hash": write_request_hash("initiate_return", **args),
-        "source_turn_id": "turn-" + ("a" * 32), "order_id": 305,
-        "execution_turn_id": None, "decided_by": "operator-1",
-    }
+    review = _confirmed_credit_review()
     db = _OrderRecordingDb()
 
     async def _no_receipt(*_args: Any, **_kwargs: Any) -> Optional[int]:
@@ -510,10 +499,8 @@ async def test_no_episode_is_remembered_when_the_receipt_could_not_be_written(
     async def _remember(recorded_db: Any, *_args: Any, **_kwargs: Any) -> None:
         recorded_db.calls.append("_remember_outcome")
 
-    import services.business_logic as bl
     from config import settings
 
-    monkeypatch.setattr(bl, "BusinessLogic", _NoOpLogic)
     monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "builders", raising=False)
     monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "", raising=False)
     monkeypatch.setattr(GE, "record_receipt", _no_receipt)

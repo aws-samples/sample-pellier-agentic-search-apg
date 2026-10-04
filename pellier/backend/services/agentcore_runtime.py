@@ -11,7 +11,7 @@ route handler calls :func:`run_agent` which routes based on the flag.
 Two public entry points:
 
     run_agent(message, session_id, user_id, auth_token, history)
-        Dispatcher called by the ``/api/agent/chat`` route (Task 3.5).
+        Router called by the ``/api/agent/chat`` route (Task 3.5).
         Branches on ``settings.USE_AGENTCORE_RUNTIME``.
 
     run_agent_on_runtime(message, session_id, user_id, auth_token, history)

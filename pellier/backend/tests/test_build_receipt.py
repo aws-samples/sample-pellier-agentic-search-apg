@@ -761,7 +761,7 @@ class TestAnonymousLabsSurviveTheDefaultScope:
             # Lab 2: anonymous.
             cur.execute(
                 "INSERT INTO tool_audit (session_id, tool, caller, args, result, run_id)"
-                " VALUES ('s1','check_inventory','inprocess',"
+                " VALUES ('s1','check_stock','inprocess',"
                 " '{\"turn_id\":\"t1\"}'::jsonb,'{}'::jsonb,%s)", (RUN_ID,))
             cur.execute(
                 "INSERT INTO governed_turn_receipts"
@@ -824,7 +824,7 @@ class _Lab3Rows:
             cur.execute(
                 "INSERT INTO tool_audit (audit_id, session_id, tool, caller, args,"
                 " result, latency_ms, run_id) VALUES (%s,'gateway-CUST-THEO',"
-                "'initiate_return','gateway',%s::jsonb,'{}'::jsonb,412,NULL)",
+                "'give_store_credit','gateway',%s::jsonb,'{}'::jsonb,412,NULL)",
                 (audit_id, json.dumps({"turn_id": turn_id})),
             )
         self._conn.commit()

@@ -7,15 +7,15 @@
 #
 #   1. Preconditions  — health gate must be READY
 #   1b. Claude Code   — CLI present + pinned Bedrock model reachable
-#   2. Apply solutions — complete Inventory Agent and wire check_inventory
+#   2. Apply solutions — complete the Stock agent and wire check_stock
 #   3. Build + trace  — POST /api/chat/stream; assert Brooklyn, count, ship window
 #   4. Retrieval      — run the exact five-strategy Lab 1 request
-#   5. Audit ledger   — run initiate_return and query its exact session receipt
+#   5. Audit ledger   — query the check_stock execution rows this run left
 #   6. SQL claims     — Beeswax 40/30/30 split (pin run-of-show number) +
 #                       pg_trgm index presence/plan (migration 008 claim)
 #
 # This applies both Lab 2 marker-scoped solutions temporarily and creates the
-# same return and audit evidence rows as a participant. It backs both source
+# same audit evidence rows as a participant. It backs both source
 # files up and restores them on exit unless --keep is passed. Run it on a
 # workshop environment, not a production database.
 #
@@ -32,9 +32,9 @@ REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"
 TOOLS="${REPO}/pellier/backend/services/agent_tools.py"
-TOOLS_REFERENCE="${REPO}/solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py"
-AGENT="${REPO}/pellier/backend/agents/inventory_agent.py"
-AGENT_REFERENCE="${REPO}/solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py"
+TOOLS_REFERENCE="${REPO}/solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py"
+AGENT="${REPO}/pellier/backend/agents/stock_agent.py"
+AGENT_REFERENCE="${REPO}/solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
 BACKUP_SUFFIX=".dryrun.$$.bak"
 # Participants edit only the two START/END blocks. The rehearsal mirrors that
 # contract by copying each reference block into the live file; it never swaps a
@@ -191,25 +191,25 @@ else
 fi
 
 # --- 2. Apply the solutions (simulate both participant edits) ----------------
-echo "[2/6] Complete Inventory Agent and wire check_inventory"
-if grep -q '^_INVENTORY_AGENT_STUBBED = True$' "$AGENT"; then
+echo "[2/6] Complete the Stock agent and wire check_stock"
+if grep -q '^_STOCK_AGENT_STUBBED = True$' "$AGENT"; then
   patch_marker_block \
     "$AGENT" "$AGENT_REFERENCE" \
-    "# === WORKSHOP - Inventory Agent - definition: START ===" \
-    "# === WORKSHOP - Inventory Agent - definition: END ===" \
-    "Inventory Agent definition" || exit 1
+    "# === WORKSHOP - Stock agent - definition: START ===" \
+    "# === WORKSHOP - Stock agent - definition: END ===" \
+    "Stock agent definition" || exit 1
 else
-  info "Inventory Agent definition already complete — leaving inventory_agent.py as-is"
+  info "Stock agent definition already complete — leaving stock_agent.py as-is"
 fi
 
-if grep -q "check_inventory is in stub state" "$TOOLS"; then
+if grep -q "check_stock is in stub state" "$TOOLS"; then
   patch_marker_block \
     "$TOOLS" "$TOOLS_REFERENCE" \
-    "# === WORKSHOP - Inventory Agent - check_inventory: START ===" \
-    "# === WORKSHOP - Inventory Agent - check_inventory: END ===" \
-    "check_inventory body" || exit 1
+    "# === WORKSHOP - Stock agent - check_stock: START ===" \
+    "# === WORKSHOP - Stock agent - check_stock: END ===" \
+    "check_stock body" || exit 1
 else
-  info "check_inventory already wired — leaving agent_tools.py as-is"
+  info "check_stock already wired — leaving agent_tools.py as-is"
 fi
 info "Waiting 4s for uvicorn --reload to pick up the change…"
 sleep 4
@@ -228,7 +228,7 @@ else
   fail "Reply did not prove Brooklyn + quantity + ship window"
   info "First 300 chars: ${reply:0:300}"
 fi
-if echo "$reply" | grep -qi 'check_inventory is in stub state'; then
+if echo "$reply" | grep -qi 'check_stock is in stub state'; then
   fail "Stub envelope still present — solution did not take effect"
 fi
 
@@ -256,25 +256,6 @@ if retrieval="$(curl --fail --silent --show-error --max-time 75 \
   fi
 else
   fail "Lab 1 comparison failed — see /tmp/dryrun-retrieval.err"
-fi
-
-# --- 4b. Ledger write rail --------------------------------------------------
-LEDGER_SESSION=""
-if $GOVERNED; then
-  echo "[4b/6] Audit Agent Actions with SQL — governed write runs through Gateway in step 4d"
-  info "Skipping local initiate_return; governed mutations require gateway-mcp"
-else
-  echo "[4b/6] Audit Agent Actions with SQL — initiate_return on the builders dispatcher rail"
-  LEDGER_SESSION="dryrun-ledger-$(date +%s)-$$"
-  ledger_body='{"message":"My Wabi-Sabi Bowl arrived chipped. Please file a damaged return (my customer id is '"'"'theo'"'"').","session_id":"'"$LEDGER_SESSION"'","pattern":"dispatcher"}'
-  if curl --fail --silent --show-error --no-buffer --max-time 75 \
-      -X POST "${BASE}/api/chat/stream" \
-      -H 'Content-Type: application/json' \
-      -d "$ledger_body" > /tmp/pellier-ledger-turn.sse; then
-    pass "Builders initiate_return stream completed for session ${LEDGER_SESSION}"
-  else
-    fail "Builders initiate_return request failed"
-  fi
 fi
 
 # Mint one real Cognito token for the managed Runtime and Gateway checks.
@@ -310,40 +291,6 @@ else
   fi
 fi
 
-# --- 4d. Managed Policy on the authenticated Gateway rail --------------------
-# Call the Gateway MCP tool directly. The helper classifies only an actual
-# authorization failure as DENY and verifies ALLOW creates a tool_audit row
-# while DENY creates none.
-echo "[4d/6] Managed Policy (Gateway rail) — initiate_return ALLOW vs DENY"
-POLICY_ALLOW_SESSION="dryrun-policy-allow-$(date +%s)-$$"
-POLICY_DENY_SESSION="dryrun-policy-deny-$(date +%s)-$$"
-if [[ -n "$POLICY_TOKEN" && -n "${AGENTCORE_POLICY_ENGINE_ID:-}" \
-      && -n "${AGENTCORE_GATEWAY_URL:-}" ]]; then
-  export PELLIER_TOKEN
-  if python3 "$REPO/scripts/deploy/gateway_initiate_return.py" \
-      --product-id 31 --reason damaged --expect allow --record-receipt \
-      --session-id "$POLICY_ALLOW_SESSION" \
-      >/tmp/dryrun-policy-allow.json 2>/tmp/dryrun-policy-allow.err; then
-    pass "Managed Policy ALLOW executed and wrote current-session audit evidence"
-  else
-    fail "Managed Policy ALLOW proof failed — see /tmp/dryrun-policy-allow.err"
-  fi
-  if python3 "$REPO/scripts/deploy/gateway_initiate_return.py" \
-      --product-id 31 --reason changed_mind --expect deny --record-receipt \
-      --session-id "$POLICY_DENY_SESSION" \
-      >/tmp/dryrun-policy-deny.json 2>/tmp/dryrun-policy-deny.err; then
-    pass "Managed Policy DENY blocked before Lambda execution"
-  else
-    fail "Managed Policy DENY proof failed — see /tmp/dryrun-policy-deny.err"
-  fi
-else
-  if $GOVERNED; then
-    fail "Managed Policy proof unavailable (Policy, Gateway, or Cognito token missing)"
-  else
-    info "Skipped — managed Policy or Cognito token unavailable (optional for builders)"
-  fi
-fi
-
 # --- 4e. Gateway wiring -------------------------------------------------------
 echo "[4e/6] AgentCore Gateway wiring — GET /api/agentcore/gateway/status"
 gw="$(curl -fsN --max-time 30 "${BASE}/api/agentcore/gateway/status" 2>/dev/null || true)"
@@ -361,40 +308,11 @@ fi
 
 # --- 5. Audit ledger --------------------------------------------------------
 echo "[5/6] Audit ledger — pellier.tool_audit"
-n="$(_psql "SELECT count(*) FROM pellier.tool_audit WHERE tool='check_inventory' AND session_id LIKE 'dryrun-%';")"
+n="$(_psql "SELECT count(*) FROM pellier.tool_audit WHERE tool='check_stock' AND session_id LIKE 'dryrun-%';")"
 if [[ "${n:-0}" =~ ^[0-9]+$ ]] && (( n > 0 )); then
-  pass "tool_audit has $n check_inventory row(s) for this dry run"
+  pass "tool_audit has $n check_stock row(s) for this dry run"
 else
-  fail "No tool_audit row for check_inventory — audit writer not firing"
-fi
-
-if $GOVERNED; then
-  info "Governed initiate_return ledger row is verified with its receipt below"
-else
-  ledger_rows="$(_psql "SELECT count(*) FROM pellier.tool_audit WHERE session_id='${LEDGER_SESSION}' AND tool='initiate_return' AND caller='agent' AND args->>'customer_id'='theo' AND args->>'reason'='damaged' AND result->>'return_id' IS NOT NULL;")"
-  if [[ "${ledger_rows:-0}" =~ ^[0-9]+$ ]] && (( ledger_rows > 0 )); then
-    pass "Session-specific initiate_return receipt is complete for ${LEDGER_SESSION}"
-  else
-    fail "No complete initiate_return receipt for session ${LEDGER_SESSION}"
-  fi
-fi
-
-# 5b. Managed-Policy evidence, keyed to this dry run's unique receipt sessions.
-if [[ -n "$POLICY_TOKEN" && -n "${AGENTCORE_POLICY_ENGINE_ID:-}" ]]; then
-  pr_allowed="$(_psql "SELECT count(*) FROM pellier.governed_receipts gr JOIN pellier.tool_audit ta ON ta.audit_id = gr.audit_id WHERE gr.session_id='${POLICY_ALLOW_SESSION}' AND gr.decision='ALLOW' AND gr.identity_source='cognito' AND gr.verified_subject IS NOT NULL AND gr.token_fingerprint_sha256 IS NOT NULL AND ta.tool='initiate_return' AND ta.caller='gateway' AND ta.args->>'reason'='damaged' AND ta.result->>'return_id' IS NOT NULL;")"
-  pr_denied="$(_psql "SELECT count(*) FROM pellier.governed_receipts WHERE session_id='${POLICY_DENY_SESSION}' AND decision='DENY' AND audit_id IS NULL AND identity_source='cognito' AND verified_subject IS NOT NULL AND token_fingerprint_sha256 IS NOT NULL AND args->>'absence_verified'='true';")"
-  if [[ "${pr_allowed:-0}" == "1" ]]; then
-    pass "Managed Policy ALLOW receipt is Cognito-bound and joins its Gateway audit row"
-  else
-    fail "Current-session ALLOW receipt is not bound to Cognito plus Gateway audit evidence"
-  fi
-  if [[ "${pr_denied:-0}" == "1" ]]; then
-    pass "Managed Policy DENY receipt proves no execution row was written"
-  else
-    fail "Current-session DENY receipt did not prove pre-execution blocking"
-  fi
-else
-  info "Policy ledger checks skipped (step 4d did not run)."
+  fail "No tool_audit row for check_stock — audit writer not firing"
 fi
 
 # --- 6. SQL-claim checks (pin run-of-show numbers + verify pg_trgm) ----------

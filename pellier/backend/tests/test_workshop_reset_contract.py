@@ -95,10 +95,9 @@ def test_the_managed_rail_is_required_under_the_default() -> None:
     """With nothing configured, a governed mutation must refuse the in-process rail."""
     from services.execution_rail import requires_managed_rail
 
-    assert requires_managed_rail("initiate_return") is True
-    assert requires_managed_rail("issue_credit") is True
+    assert requires_managed_rail("give_store_credit") is True
     # Reads still serve in process.
-    assert requires_managed_rail("check_inventory") is False
+    assert requires_managed_rail("check_stock") is False
 
 
 # ---------------------------------------------------------------------------

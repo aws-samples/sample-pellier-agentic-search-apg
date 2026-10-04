@@ -25,7 +25,7 @@ async def test_handoff_binds_the_original_turn_to_the_review_fingerprint() -> No
         {
             "review_id": 41,
             "customer_id": "CUST-THEO",
-            "action": "initiate_return",
+            "action": "give_store_credit",
             "action_hash": "a" * 64,
         }
     )
@@ -47,8 +47,8 @@ async def test_handoff_binds_the_original_turn_to_the_review_fingerprint() -> No
         specialist_route="customer_support",
         tool_calls=[
             {"tool": "get_return_policy"},
-            {"name": "initiate_return"},
-            {"toolName": "initiate_return"},
+            {"name": "give_store_credit"},
+            {"toolName": "give_store_credit"},
         ],
     )
 
@@ -60,11 +60,11 @@ async def test_handoff_binds_the_original_turn_to_the_review_fingerprint() -> No
     }
     assert result["routing"] == {
         "specialist": "customer_support",
-        "tools": ["get_return_policy", "initiate_return"],
+        "tools": ["get_return_policy", "give_store_credit"],
     }
     assert result["proposal"] == {
         "reviewId": 41,
-        "action": "initiate_return",
+        "action": "give_store_credit",
         "actionHash": "a" * 64,
     }
     assert [message["role"] for message in result["transcriptExcerpt"]] == [
@@ -89,7 +89,7 @@ async def test_handoff_is_absent_when_no_review_was_prepared() -> None:
         conversation_history=[],
         assistant_response="Three pieces are in stock.",
         specialist_route="inventory",
-        tool_calls=["check_inventory"],
+        tool_calls=["check_stock"],
     )
 
     assert result == {}
@@ -133,7 +133,7 @@ async def test_review_resolution_rejects_any_lineage_mismatch() -> None:
     row = {
         "review_id": 41,
         "customer_id": "CUST-THEO",
-        "action": "initiate_return",
+        "action": "give_store_credit",
         "action_hash": "a" * 64,
         "source_turn_id": "turn-" + ("b" * 32),
         "session_id": "session-theo",
@@ -142,7 +142,7 @@ async def test_review_resolution_rejects_any_lineage_mismatch() -> None:
             "source": {"turnId": "turn-" + ("b" * 32)},
             "proposal": {
                 "reviewId": 41,
-                "action": "initiate_return",
+                "action": "give_store_credit",
                 "actionHash": "a" * 64,
             },
         },
@@ -161,7 +161,7 @@ async def test_latest_handoff_must_match_the_requested_customer() -> None:
     row = {
         "review_id": 41,
         "customer_id": "CUST-THEO",
-        "action": "initiate_return",
+        "action": "give_store_credit",
         "action_hash": "a" * 64,
         "source_turn_id": "turn-" + ("b" * 32),
         "session_id": "session-theo",
@@ -170,7 +170,7 @@ async def test_latest_handoff_must_match_the_requested_customer() -> None:
             "source": {"turnId": "turn-" + ("b" * 32)},
             "proposal": {
                 "reviewId": 41,
-                "action": "initiate_return",
+                "action": "give_store_credit",
                 "actionHash": "a" * 64,
             },
         },

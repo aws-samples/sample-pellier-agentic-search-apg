@@ -156,7 +156,7 @@ def requires_managed_rail(tool_name: str) -> bool:
     the ``tool_audit`` row line up. Read tools may serve in-process.
 
     Args:
-        tool_name: The logical tool name, e.g. ``initiate_return``.
+        tool_name: The logical tool name, e.g. ``give_store_credit``.
     """
     if str(getattr(settings, "WORKSHOP_FORMAT", "")).lower() != "governed":
         return False
@@ -183,13 +183,7 @@ def mutation_tools() -> frozenset:
 # Used only when the gateway module cannot be imported. Kept in sync with
 # ``GATEWAY_TOOL_TIERS``' mutation tiers by
 # ``tests/test_execution_rail.py``.
-_MUTATION_TOOLS_FALLBACK = frozenset(
-    {
-        "initiate_return",
-        "restock_inventory",
-        "issue_credit",
-    }
-)
+_MUTATION_TOOLS_FALLBACK = frozenset({"give_store_credit"})
 
 
 def degraded_notice(decision: RailDecision) -> Dict[str, Any]:

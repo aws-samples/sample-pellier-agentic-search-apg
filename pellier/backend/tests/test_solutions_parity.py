@@ -15,8 +15,8 @@ Workshop solution contract
 --------------------------
 
 The governed workshop path has two starter-code gaps:
-the Inventory Agent definition in ``agents/inventory_agent.py`` and
-``check_inventory`` inside ``services/agent_tools.py``. The copy solutions
+the Stock agent definition in ``agents/stock_agent.py`` and
+``check_stock`` inside ``services/agent_tools.py``. The copy solutions
 are drop-ins that make each stage safe to recover during a live room.
 
 What this test enforces
@@ -27,15 +27,15 @@ For every ``(live_path, solution_path)`` pair:
   1. Both files exist.
   2. Both files parse as valid Python (``ast.parse`` smoke).
   3. Builder-preapply matches the live starter module outside the marked
-     ``check_inventory`` challenge block.
+     ``check_stock`` challenge block.
   4. Both recovery files expose the same public ``@tool`` functions and
      signatures as the live module.
   5. The wired solution differs from live only inside the marked
-     ``check_inventory`` challenge block.
-  6. Live/builder-preapply ``check_inventory`` keeps the starter stub.
-  7. The Inventory Agent definition solution flips its stub flag.
-  8. The inventory solution keeps the ``product_query`` signature and
-     calls ``BusinessLogic.check_inventory(product_query=...)``.
+     ``check_stock`` challenge block.
+  6. Live/builder-preapply ``check_stock`` keeps the starter stub.
+  7. The Stock agent definition solution flips its stub flag.
+  8. The wired solution keeps the ``product_query`` signature and calls
+     ``store_tools.check_stock(_run_sql, product_query=...)``.
 
 Scope table
 -----------
@@ -72,19 +72,19 @@ _SOLUTIONS = _REPO_ROOT / "solutions"
 
 _PAIRS = [
     (
-        "stock-keeper-definition",
-        _BACKEND / "agents" / "inventory_agent.py",
-        _SOLUTIONS / "waking-the-stock-keeper" / "agents" / "inventory_agent_solution.py",
-        "_INVENTORY_AGENT_STUBBED",
+        "stock-agent-definition",
+        _BACKEND / "agents" / "stock_agent.py",
+        _SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py",
+        "_STOCK_AGENT_STUBBED",
     ),
     (
-        "stock-keeper-tools",
+        "stock-tool",
         _BACKEND / "services" / "agent_tools.py",
-        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_inventory_solution.py",
+        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
         None,
     ),
     (
-        "stock-keeper-tools-builders-preapply",
+        "stock-tool-builders-preapply",
         _BACKEND / "services" / "agent_tools.py",
         _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py",
         None,
@@ -100,18 +100,17 @@ _PAIRS = [
 # so the app the participant lands on IS the solution copy. The contract is
 # therefore stricter than the _PAIRS contract above: the solution file MUST
 # be byte-identical to the live backend file, or a freshly-provisioned box
-# silently boots stale code (e.g. a personalization_agent.py missing
-# ``build_recommendation_agent`` → ImportError on the dispatcher path).
+# silently boots stale code.
 #
 # The copy block is gated on ``WORKSHOP_FORMAT=builders``. A governed box
-# skips it entirely ("preserving Inventory Agent and check_inventory scaffolds"),
+# skips it entirely ("preserving Stock agent and check_stock scaffolds"),
 # so a desync cannot clobber a governed provision — but byte-identity is
 # still enforced here because the builders format runs from this same
 # branch and the files double as documented recovery drop-ins.
 #
 # ``agent_tools_builders_preapply.py`` is checked separately below. It is a
 # full-module bootstrap replacement and must match the live starter file
-# everywhere *outside* the ``check_inventory`` markers. The body itself is the
+# everywhere *outside* the ``check_stock`` markers. The body itself is the
 # exercise, so it is masked out — a participant who completes the lab must
 # not turn the suite red.
 #
@@ -126,10 +125,6 @@ _PAIRS = [
 # copy it here; `reset_participant_exercises.py` owns its starter state, and
 # `tests/test_workshop_marker_contract.py` asserts both ends of that contract.
 _AUTO_APPLIED_IDENTICAL = [
-    ("personalization_agent", _BACKEND / "agents" / "personalization_agent.py",
-     _SOLUTIONS / "closing-marcos-gap" / "agents" / "personalization_agent.py"),
-    ("customer_service_agent", _BACKEND / "agents" / "customer_service_agent.py",
-     _SOLUTIONS / "closing-marcos-gap" / "agents" / "customer_service_agent.py"),
     ("agentcore_runtime", _BACKEND / "services" / "agentcore_runtime.py",
      _SOLUTIONS / "the-ledger" / "services" / "agentcore_runtime.py"),
     ("agentcore_memory", _BACKEND / "services" / "agentcore_memory.py",
@@ -236,7 +231,7 @@ def test_stub_flag_states_match_workshop_contract(
     indicator so the Dispatcher fall-through stops intercepting
     and real agent invocations proceed.
 
-    POLARITY NOTE: like ``test_check_inventory_builder_contract``, the live-file
+    POLARITY NOTE: like ``test_check_stock_builder_contract``, the live-file
     half is a guard on the *shipped* repo state, not a build check. Flipping
     the flag is the exercise, so once a participant wires the definition this
     skips rather than failing. The solution-side assertion is unconditional —
@@ -379,23 +374,23 @@ def _tool_signatures(path: Path) -> dict[str, str]:
     return signatures
 
 
-def _outside_check_inventory_block(path: Path) -> str:
+def _outside_check_stock_block(path: Path) -> str:
     """Mask the only participant-editable block so all other bytes can compare."""
     source = path.read_text()
-    start = "# === WORKSHOP - Inventory Agent - check_inventory: START ==="
-    end = "# === WORKSHOP - Inventory Agent - check_inventory: END ==="
+    start = "# === WORKSHOP - Stock agent - check_stock: START ==="
+    end = "# === WORKSHOP - Stock agent - check_stock: END ==="
     assert source.count(start) == 1, f"{path} must contain exactly one START marker"
     assert source.count(end) == 1, f"{path} must contain exactly one END marker"
     before, remainder = source.split(start, 1)
     _challenge, after = remainder.split(end, 1)
-    return f"{before}{start}\n<check_inventory challenge block>\n    {end}{after}"
+    return f"{before}{start}\n<check_stock challenge block>\n    {end}{after}"
 
 
 def test_builder_preapply_matches_live_starter() -> None:
     """Bootstrap replaces the live module with this file on every fresh box.
 
-    Compared with the ``check_inventory`` body masked out, for the same reason
-    ``test_check_inventory_builder_contract`` skips once the tool is wired: the
+    Compared with the ``check_stock`` body masked out, for the same reason
+    ``test_check_stock_builder_contract`` skips once the tool is wired: the
     body is the exercise. A raw byte comparison turns a *completed* exercise
     into a failing suite, which lands on whoever debugs a box mid-workshop.
     Everything outside the markers must still match byte for byte — that is
@@ -408,7 +403,7 @@ def test_builder_preapply_matches_live_starter() -> None:
         / "services"
         / "agent_tools_builders_preapply.py"
     )
-    assert _outside_check_inventory_block(preapply_path) == _outside_check_inventory_block(
+    assert _outside_check_stock_block(preapply_path) == _outside_check_stock_block(
         live_path
     ), (
         "Builder bootstrap would replace services/agent_tools.py with a stale "
@@ -427,7 +422,7 @@ def test_agent_tools_recovery_files_keep_public_tool_parity() -> None:
         _SOLUTIONS
         / "closing-marcos-gap"
         / "services"
-        / "agent_tools_check_inventory_solution.py",
+        / "agent_tools_check_stock_solution.py",
     ]
     expected = _tool_signatures(live_path)
     for recovery_path in recovery_paths:
@@ -437,66 +432,66 @@ def test_agent_tools_recovery_files_keep_public_tool_parity() -> None:
         )
 
 
-def test_check_inventory_solution_diff_is_scoped_to_challenge_block() -> None:
-    """The escape hatch may wire ``check_inventory`` and change nothing else."""
+def test_check_stock_solution_diff_is_scoped_to_challenge_block() -> None:
+    """The escape hatch may wire ``check_stock`` and change nothing else."""
     live_path = _BACKEND / "services" / "agent_tools.py"
     solution_path = (
         _SOLUTIONS
         / "closing-marcos-gap"
         / "services"
-        / "agent_tools_check_inventory_solution.py"
+        / "agent_tools_check_stock_solution.py"
     )
-    assert _outside_check_inventory_block(solution_path) == _outside_check_inventory_block(
+    assert _outside_check_stock_block(solution_path) == _outside_check_stock_block(
         live_path
-    ), "The check_inventory escape hatch differs outside its marked challenge block."
+    ), "The check_stock escape hatch differs outside its marked challenge block."
 
 
-def test_check_inventory_builder_contract() -> None:
+def test_check_stock_builder_contract() -> None:
     """Repo guard: the *shipped* starter file ships stubbed, and the copy
     solution is fully wired.
 
     POLARITY NOTE (read before debugging a red run): this is a guard on the
     committed starter state, not a build check. It is expected to pass on a
-    clean checkout (check_inventory still stubbed) and is **deliberately skipped**
-    once a participant wires check_inventory — wiring it is the exercise, not a
+    clean checkout (check_stock still stubbed) and is **deliberately skipped**
+    once a participant wires check_stock — wiring it is the exercise, not a
     regression. A participant who completes the exercise and runs the full
     suite should therefore see this as ``SKIPPED``, never as a failure. The
-    real verification of a correct wire is the Observatory Tools strip flipping
-    16/17 -> 17/17 and Marco's Brooklyn turn returning a real quantity, both
+    real verification of a correct wire is the Observatory Tools strip showing
+    check_stock wired and Marco's Brooklyn turn returning a real quantity, both
     in the lab guide. See CLAUDE.md ("How the participant verifies").
     """
-    live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "check_inventory")
+    live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "check_stock")
     preapply_src = _function_source(
         _SOLUTIONS
         / "closing-marcos-gap"
         / "services"
         / "agent_tools_builders_preapply.py",
-        "check_inventory",
+        "check_stock",
     )
     solution_src = _function_source(
-        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_inventory_solution.py",
-        "check_inventory",
+        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
+        "check_stock",
     )
 
     # The drop-in solution invariants always hold, regardless of whether the
     # participant has wired the live file yet — these protect the `cp` path.
-    assert "product_query: str = \"\"" in solution_src
-    assert "check_inventory is in stub state" not in solution_src
-    assert "logic.check_inventory(product_query=query)" in solution_src
+    assert "product_query: str" in solution_src
+    assert "check_stock is in stub state" not in solution_src
+    assert "store_tools.check_stock(_run_sql, product_query=product_query)" in solution_src
 
     # If the participant has wired the live file (the exercise is done), the
     # starter-stub assertions below would fail on something they were told to
     # change. Skip with a clear reason instead of emitting a confusing red.
-    if "check_inventory is in stub state" not in live_src:
+    if "check_stock is in stub state" not in live_src:
         pytest.skip(
-            "check_inventory has been wired in services/agent_tools.py — this is "
+            "check_stock has been wired in services/agent_tools.py — this is "
             "the expected end state of the exercise, not a regression. The "
             "starter-stub guard only applies to the shipped repo. Verify your "
-            "wire via the Observatory Tools 17/17 strip and Marco's Brooklyn turn."
+            "wire via the Observatory Tools strip and Marco's Brooklyn turn."
         )
 
     # Shipped starter state: the live + preapply builder files carry the stub.
-    assert "product_query: str = \"\"" in live_src
-    assert "check_inventory is in stub state" in live_src
-    assert "product_query: str = \"\"" in preapply_src
-    assert "check_inventory is in stub state" in preapply_src
+    assert "product_query: str" in live_src
+    assert "check_stock is in stub state" in live_src
+    assert "product_query: str" in preapply_src
+    assert "check_stock is in stub state" in preapply_src

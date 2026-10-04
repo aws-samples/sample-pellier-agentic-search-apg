@@ -29,8 +29,8 @@ Confirmation binding
 --------------------
 
 A confirmation binds to an exact parameter set through
-``BusinessLogic.write_request_hash`` — the same function that produces
-``write_operations.request_hash``. Change the reason or the amount and the
+``store_tools.write_request_hash`` — the same function that fingerprints
+the credit write. Change the reason or the amount and the
 fingerprint changes, so the prior confirmation no longer matches and the review
 returns to needing a human. Because both values come from one function, a later
 governed write can be compared to the confirmation by hash rather than by trust.
@@ -76,10 +76,10 @@ def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
     global _main_loop
     _main_loop = loop
 
-# The proposed actions a review may carry. These are governed mutations with a
+# The proposed actions a review may carry. One governed mutation has a
 # human-review workflow; anything else has no review workflow behind it and
 # would be a review nobody can act on.
-REVIEWABLE_ACTIONS = ("initiate_return", "issue_credit", "replace_damaged_item")
+REVIEWABLE_ACTIONS = ("give_store_credit",)
 
 # Workflow states, mirroring the CHECK constraint on pellier.approvals.
 STATUS_PENDING = "pending"
@@ -90,11 +90,7 @@ STATUS_DECLINED = "rejected"
 # Confirmation binds to exactly these, so adding a field here changes what a
 # prior confirmation covers and correctly invalidates it.
 MATERIAL_PARAMETERS: Dict[str, tuple[str, ...]] = {
-    "initiate_return": ("customer_id", "product_id", "reason"),
-    "issue_credit": ("customer_id", "amount_cents", "reason"),
-    "replace_damaged_item": (
-        "customer_id", "product_id", "order_id", "quantity", "reason", "disposition",
-    ),
+    "give_store_credit": ("customer_id", "amount_cents", "reason"),
 }
 
 
@@ -115,9 +111,10 @@ class ReviewError(Exception):
 def _coerce_material(action: str, args: Mapping[str, Any]) -> Dict[str, Any]:
     """Extract and type-normalise the material parameters for `action`.
 
-    Types are pinned to what ``BusinessLogic`` passes into the write, because the
-    fingerprint is JSON: ``product_id`` as ``"37"`` and as ``37`` hash
-    differently, and a mismatch there would read as a tampered confirmation.
+    Types are pinned to what ``store_tools.give_store_credit`` passes into the
+    write, because the fingerprint is JSON: ``amount_cents`` as ``"2500"`` and
+    as ``2500`` hash differently, and a mismatch there would read as a tampered
+    confirmation.
     """
     names = MATERIAL_PARAMETERS.get(action)
     if not names:
@@ -128,7 +125,7 @@ def _coerce_material(action: str, args: Mapping[str, Any]) -> Dict[str, Any]:
         if name not in args:
             raise ReviewError(f"missing_parameter:{name}", 422)
         value = args[name]
-        if name in ("product_id", "amount_cents", "order_id", "quantity"):
+        if name == "amount_cents":
             try:
                 material[name] = int(value)
             except (TypeError, ValueError, OverflowError):
@@ -144,7 +141,7 @@ def action_fingerprint(action: str, args: Mapping[str, Any]) -> str:
     Delegates to the write-path hash so a confirmation and the write it
     authorises are comparable by value.
     """
-    from services.business_logic import write_request_hash
+    from services.store_tools import write_request_hash
 
     return write_request_hash(action, **_coerce_material(action, args))
 
@@ -184,15 +181,6 @@ _FIND_OPEN_FOR_ACTION = """
      LIMIT 1
 """
 
-_RESOLVE_ORDER = """
-    SELECT id
-      FROM pellier.orders
-     WHERE customer_id = %s
-       AND product_id = %s
-     ORDER BY placed_at DESC, id DESC
-     LIMIT 1
-"""
-
 # The authorization mapping, read to decide whether a signed-in requester is the
 # customer the review names. It is the table RLS keys on: a subject with no row
 # for this customer may well be a shopper, and is still not *this* shopper.
@@ -226,29 +214,6 @@ async def requester_kind_for_principal(
         logger.warning("principal mapping lookup failed for %s: %s", customer_id, exc)
         return REQUESTER_UNVERIFIED
     return REQUESTER_SHOPPER if row else REQUESTER_UNVERIFIED
-
-
-async def resolve_order_id(
-    db: Any, customer_id: str, product_id: Any
-) -> Optional[int]:
-    """The order the review is about, resolved from Aurora rather than supplied.
-
-    Theo's Wabi-Sabi Bowl exists twice: once under ``theo`` and once under
-    ``CUST-THEO``, because the live shopper prompt passes the bare alias and
-    ``initiate_return``'s ownership check has to succeed either way. Resolving
-    against the canonical customer id therefore matters: it picks the row that
-    belongs to the identity the operator will act as.
-    """
-    try:
-        row = await db.fetch_one(_RESOLVE_ORDER, str(customer_id), str(product_id))
-    except Exception as exc:  # noqa: BLE001
-        logger.error("review order resolution failed for %s/%s: %s",
-                     customer_id, product_id, exc)
-        return None
-    if not row:
-        return None
-    value = row["id"] if isinstance(row, Mapping) else row[0]
-    return int(value) if value is not None else None
 
 
 async def propose_review(
@@ -297,12 +262,6 @@ async def propose_review(
         requester_kind = await requester_kind_for_principal(
             db, requested_by_sub, customer_id
         )
-    order_id = None
-    if action == "initiate_return":
-        order_id = await resolve_order_id(db, customer_id, material["product_id"])
-    elif action == "replace_damaged_item":
-        order_id = material["order_id"]
-
     try:
         row = await db.fetch_one(
             _INSERT_REVIEW,
@@ -310,7 +269,7 @@ async def propose_review(
             action,
             json.dumps(dict(material), sort_keys=True),
             source_turn_id,
-            order_id,
+            None,
             (issue or "").strip() or None,
             json.dumps(dict(recommendation or {}), sort_keys=True),
             fingerprint,
@@ -430,51 +389,15 @@ def record_boundary_review(
         return None
 
 
-# The reason clause, per canonical return reason. The rationale used to say
-# "reported it damaged on arrival" for EVERY `initiate_return`, which was true only
-# while `damaged` was the sole scenario: a not-as-described return rendered a
-# rationale naming a reason the review does not carry, directly above the parameter
-# table that carries the real one.
-#
-# The `damaged` clause is byte-identical to the previous sentence, so Theo's canonical
-# workshop wording is unchanged.
-_REASON_CLAUSES: Dict[str, str] = {
-    "damaged": "reported it damaged on arrival",
-    "wrong_size": "reported the size is wrong",
-    "not_as_described": "reported the piece is not as described",
-    "changed_mind": "has changed their mind about the piece",
-    "other": "asked to return the piece",
-}
-
-
 def _default_recommendation(action: str, args: Mapping[str, Any]) -> Dict[str, Any]:
     """What Pellier proposes, and why, in a form the console can render.
 
-    Deliberately thin. It names the action and the reason the agent had for it;
-    it does not assert availability or entitlement. Whether a replacement can
-    actually be sent is checked again during execution. A courtesy credit needs
-    a separate, evidence-backed proposal and an explicit human decision.
-
-    The rationale is derived from the return reason in ``args``. An unrecognised or
-    absent reason gets the neutral clause rather than a borrowed one: stating the
-    wrong reason is worse than stating none.
+    Deliberately thin. It names the action and the reason given for it; it does
+    not assert entitlement. Whether the credit is warranted is the human's call.
     """
-    if action == "initiate_return":
-        reason = str(args.get("reason") or "")
-        clause = _REASON_CLAUSES.get(reason, "asked to return the piece")
-        recommendation: Dict[str, Any] = {
-            "primaryAction": "initiate_return",
-            "rationale": (
-                f"The client owns this piece and {clause}, "
-                "which is a canonical return reason."
-            ),
-        }
-        # A return reason establishes neither previous damage nor a credit
-        # entitlement. Any discretionary credit needs its own grounded proposal.
-        return recommendation
-    if action == "issue_credit":
+    if action == "give_store_credit":
         return {
-            "primaryAction": "issue_credit",
+            "primaryAction": "give_store_credit",
             "rationale": "Service recovery, proposed from the shopper conversation.",
         }
     return {"primaryAction": action}

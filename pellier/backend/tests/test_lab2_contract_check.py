@@ -117,5 +117,5 @@ def test_omitted_inputs_use_recorded_recovery_defaults() -> None:
 
 def test_the_check_runs_the_participants_tool_body_not_the_logic_directly() -> None:
     source = SCRIPT.read_text()
-    assert "agent_tools.check_inventory" in source
-    assert "BusinessLogic" not in source
+    assert "agent_tools.check_stock" in source
+    assert "store_tools" not in source

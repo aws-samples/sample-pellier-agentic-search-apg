@@ -1,5 +1,5 @@
 /**
- * StylistHandoffCard — UI surface for the escalate_to_human tool.
+ * StylistHandoffCard — UI surface for the ask_a_person tool.
  *
  * Renders when the agent decides the ask is outside what it can
  * honestly answer (deep personal-style coaching beyond the catalog,

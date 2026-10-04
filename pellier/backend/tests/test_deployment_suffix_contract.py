@@ -75,7 +75,7 @@ def test_invalid_suffix_fails_without_a_resolved_project(tmp_path):
     assert result.stdout == ""
 
 
-@pytest.mark.parametrize("script", ["policy_mode.py", "prove_governance_windows.py"])
+@pytest.mark.parametrize("script", ["policy_mode.py"])
 def test_policy_helpers_preserve_suffix_from_dotenv_and_explicit_environment(tmp_path, monkeypatch, script):
     spec = importlib.util.spec_from_file_location(f"suffix_{script}", REPO / "scripts" / script)
     module = importlib.util.module_from_spec(spec)

@@ -24,11 +24,24 @@ def _load_script():
 seed = _load_script()
 
 
-def test_hash_matches_the_business_write_path() -> None:
-    from services.business_logic import write_request_hash
+def test_hash_matches_the_store_write_path() -> None:
+    """The seeded review's action hash is the one `store_tools` computes.
 
-    assert seed.write_request_hash("initiate_return", seed.THEO_ARGS) == (
-        write_request_hash("initiate_return", **seed.THEO_ARGS)
+    The operation name is read from the seed script's own call so the check
+    follows the script rather than restating its vocabulary.
+    """
+    import re
+
+    from services.store_tools import write_request_hash
+
+    match = re.search(
+        r'write_request_hash\("(\w+)", THEO_ARGS\)', SCRIPT.read_text(encoding="utf-8")
+    )
+    assert match, "the seed script no longer hashes THEO_ARGS under a named operation"
+    operation = match.group(1)
+
+    assert seed.write_request_hash(operation, seed.THEO_ARGS) == (
+        write_request_hash(operation, **seed.THEO_ARGS)
     )
 
 

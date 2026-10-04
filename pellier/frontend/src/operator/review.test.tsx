@@ -70,11 +70,11 @@ const THEO_HANDOFF = {
   ],
   routing: {
     specialist: 'customer_service',
-    tools: ['get_return_policy', 'initiate_return'],
+    tools: ['get_return_policy', 'give_store_credit'],
   },
   proposal: {
     reviewId: 12,
-    action: 'initiate_return',
+    action: 'give_store_credit',
     actionHash: THEO_HASH,
   },
 }
@@ -84,10 +84,10 @@ const PENDING_REVIEW = {
   customerId: 'CUST-THEO',
   customerName: 'Theo',
   slug: 'theo',
-  action: 'initiate_return',
+  action: 'give_store_credit',
   parameters: {
     customer_id: 'CUST-THEO',
-    product_id: 37,
+    amount_cents: 2500,
     reason: 'damaged',
   },
   status: 'pending' as const,
@@ -102,10 +102,10 @@ const PENDING_REVIEW = {
   orderId: 305,
   issue: 'arrived damaged',
   recommendation: {
-    primaryAction: 'initiate_return',
+    primaryAction: 'give_store_credit',
     rationale: 'The client owns this piece and reported it damaged on arrival.',
     secondarySuggestion: {
-      action: 'issue_credit',
+      action: 'give_store_credit',
       amountCents: 2500,
       rationale: 'A judgment call, not an entitlement.',
     },
@@ -587,7 +587,7 @@ describe('ReviewRecord', () => {
     expect(handoff).toHaveTextContent('My Wabi-Sabi Bowl arrived chipped')
     expect(handoff).toHaveTextContent('Reported context')
     expect(handoff).toHaveTextContent('Customer Service')
-    expect(handoff).toHaveTextContent('get_return_policy, initiate_return')
+    expect(handoff).toHaveTextContent('get_return_policy, give_store_credit')
   })
 
   beforeEach(() => {
@@ -635,8 +635,8 @@ describe('ReviewRecord', () => {
     expect(screen.getByTestId('operator-review-param-reason').textContent).toContain(
       'damaged',
     )
-    expect(screen.getByTestId('operator-review-param-product_id').textContent).toContain(
-      '37',
+    expect(screen.getByTestId('operator-review-param-amount_cents').textContent).toContain(
+      '25',
     )
   })
 
@@ -966,7 +966,7 @@ describe('ActionAssurance', () => {
             )
             const rendered = container.textContent ?? ''
             for (const token of [
-              'Theo', 'CUST-', 'Wabi-Sabi', 'initiate_return', 'issue_credit', '$',
+              'Theo', 'CUST-', 'Wabi-Sabi', 'give_store_credit', '$',
             ]) {
               expect(
                 rendered,
@@ -1006,34 +1006,6 @@ const CONFIRMED_DETAIL = {
 }
 
 describe('ReviewRecord execution', () => {
-  it('recovers an uncertain replacement using the same review and fingerprint after an explicit click', async () => {
-    const posted: unknown[] = []
-    const uncertain = {
-      ...CONFIRMED_DETAIL,
-      review: {
-        ...CONFIRMED_DETAIL.review, action: 'replace_damaged_item',
-        executionTurnId: 'turn-' + 'b'.repeat(32),
-        assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'OUTCOME_UNKNOWN', evidence: 'ATTEMPT_RECEIPT' },
-      },
-    }
-    mockFetch((url, init) => {
-      if (init?.method === 'POST' && url.endsWith('/execute')) {
-        posted.push({ url, body: JSON.parse(String(init.body)) })
-        return { status: 503, body: { detail: 'operator_unavailable' } }
-      }
-      return { body: uncertain }
-    })
-    renderRecord()
-    const recover = await screen.findByRole('button', { name: 'Recover this approved action' })
-    expect(posted).toHaveLength(0)
-    expect(screen.getByTestId('operator-assurance-aurora')).toHaveTextContent('Outcome needs checking')
-    fireEvent.click(recover)
-    await waitFor(() => expect(posted).toEqual([{
-      url: '/api/operator/reviews/12/execute', body: { expectedActionHash: THEO_HASH },
-    }]))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Recover this approved action' })).not.toBeInTheDocument())
-  })
-
   it('offers execute only after a human has confirmed', async () => {
     mockFetch(() => ({ body: REVIEW_DETAIL }))
     renderRecord()
@@ -1062,7 +1034,7 @@ describe('ReviewRecord execution', () => {
           body: {
             reviewId: 12, rail: 'in-process', executionTurnId: 'turn-' + 'b'.repeat(32),
             idempotencyKey: 'operator-review:12:abc', actorPrincipal: 'op-1',
-            customerSubject: 'sub-theo', tool: 'initiate_return', result: { status: 'success' },
+            customerSubject: 'sub-theo', tool: 'give_store_credit', result: { status: 'success' },
             notes: {},
             assurance: {
               human: 'CONFIRMED', policy: 'NOT_EVALUATED',
@@ -1092,7 +1064,7 @@ describe('ReviewRecord execution', () => {
       idempotencyKey: 'k',
       actorPrincipal: 'op-1',
       customerSubject: 'sub-theo',
-      tool: 'initiate_return',
+      tool: 'give_store_credit',
       result: { status: 'success' },
       notes: {},
       assurance: {
@@ -1132,8 +1104,8 @@ describe('ReviewRecord execution', () => {
       receiptId: 9,
       producedReturnId: 44,
       executionTurnId: 'turn-' + 'c'.repeat(32),
-      tool: 'initiate_return',
-      gatewayActionId: 'pellier-target___initiate_return',
+      tool: 'give_store_credit',
+      gatewayActionId: 'pellier-target___give_store_credit',
       rail: 'gateway-mcp' as const,
       actorPrincipal: 'operator-1',
       customerSubject: 'sub-theo',
@@ -1192,7 +1164,7 @@ describe('ReviewRecord execution', () => {
           body: {
             reviewId: 12, rail: 'gateway-mcp', executionTurnId: 'turn-' + 'b'.repeat(32),
             idempotencyKey: 'k', actorPrincipal: 'op-1', customerSubject: 'sub-theo',
-            tool: 'initiate_return', result: { status: 'success', return_id: 9 },
+            tool: 'give_store_credit', result: { status: 'success', return_id: 9 },
             notes: { policy: 'AgentCore Policy permitted the action.' },
             assurance: {
               human: 'CONFIRMED', policy: 'ALLOW',
@@ -1229,7 +1201,7 @@ describe('ReviewRecord execution', () => {
           body: {
             reviewId: 12, rail: 'gateway-mcp', executionTurnId: 'turn-' + 'b'.repeat(32),
             idempotencyKey: 'k', actorPrincipal: 'op-1', customerSubject: 'sub-theo',
-            tool: 'initiate_return',
+            tool: 'give_store_credit',
             result: { status: 'policy_denied', denied_by: 'agentcore_policy' },
             notes: { policy: 'Cedar denied the action; the tool was never entered.' },
             assurance: {
@@ -1268,7 +1240,7 @@ describe('ReviewRecord execution', () => {
           body: {
             reviewId: 12, rail: 'gateway-mcp', executionTurnId: 'turn-' + 'b'.repeat(32),
             idempotencyKey: 'k', actorPrincipal: 'op-1', customerSubject: null,
-            tool: 'initiate_return',
+            tool: 'give_store_credit',
             result: { status: 'policy_blocked', denied_by: 'database_row_level_security' },
             notes: {
               policy:
@@ -1310,7 +1282,7 @@ describe('ReviewRecord execution', () => {
           body: {
             reviewId: 12, rail: 'in-process', executionTurnId: 'turn-' + 'b'.repeat(32),
             idempotencyKey: 'k', actorPrincipal: 'op-1', customerSubject: null,
-            tool: 'initiate_return', result: { status: 'error' }, notes: {},
+            tool: 'give_store_credit', result: { status: 'error' }, notes: {},
             assurance: {
               human: 'CONFIRMED', policy: 'NOT_EVALUATED',
               aurora: 'DENIED', evidence: 'ATTEMPT_RECEIPT',
@@ -1354,8 +1326,8 @@ describe('a stored execution receipt', () => {
     receiptId: 9,
     producedReturnId: null,
     executionTurnId: 'turn-' + 'c'.repeat(32),
-    tool: 'initiate_return',
-    gatewayActionId: 'pellier-concierge-experience-target___initiate_return',
+    tool: 'give_store_credit',
+    gatewayActionId: 'pellier-store-tools___give_store_credit',
     rail: 'gateway-mcp' as const,
     actorPrincipal: 'operator-sub',
     customerSubject: null,
@@ -1452,7 +1424,7 @@ describe('a stored execution receipt', () => {
     expect(receipt.textContent).toContain('pellier_policy_engine-usqc5dbiek')
     expect(receipt.textContent).toContain('a denial would have been enforced')
     expect(receipt.textContent).toContain(
-      'pellier-concierge-experience-target___initiate_return',
+      'pellier-store-tools___give_store_credit',
     )
     expect(receipt.textContent).toContain('process_return_damaged_only')
   })
@@ -1628,13 +1600,13 @@ describe('outcomeLine', () => {
   const RECEIPT = { receiptId: 1 }
 
   it('says what a pending review is waiting for', () => {
-    expect(outcomeLine(review())).toBe('Return proposed, awaiting a person')
+    expect(outcomeLine(review())).toBe('Store credit proposed, awaiting a person')
   })
 
   it('says nothing was submitted for a declined review', () => {
     expect(
       outcomeLine(review({ humanState: 'declined' })),
-    ).toBe('Return declined. Nothing was submitted.')
+    ).toBe('Store credit declined. Nothing was submitted.')
   })
 
   it('distinguishes approved-but-not-run from carried out', () => {
@@ -1642,13 +1614,13 @@ describe('outcomeLine', () => {
     // both of these plus every failure below.
     expect(
       outcomeLine(review({ humanState: 'confirmed' })),
-    ).toBe('Return approved, not yet carried out')
+    ).toBe('Store credit approved, not yet carried out')
     expect(
       outcomeLine(review({
         humanState: 'confirmed', execution: RECEIPT,
         assurance: AXES('ALLOW', 'PERMITTED'),
       })),
-    ).toBe('Return carried out')
+    ).toBe('Store credit carried out')
   })
 
   it('names a policy refusal', () => {
@@ -1657,7 +1629,7 @@ describe('outcomeLine', () => {
         humanState: 'confirmed', execution: RECEIPT,
         assurance: AXES('DENY', 'NOT_REACHED'),
       })),
-    ).toBe('Return refused by AgentCore Policy')
+    ).toBe('Store credit refused by AgentCore Policy')
   })
 
   it('keeps a policy allow and a database refusal in one sentence', () => {
@@ -1666,7 +1638,7 @@ describe('outcomeLine', () => {
         humanState: 'confirmed', execution: RECEIPT,
         assurance: AXES('ALLOW', 'DENIED'),
       })),
-    ).toBe('Return permitted, then refused by Aurora')
+    ).toBe('Store credit permitted, then refused by Aurora')
   })
 
   it('does not report an unenforced would-deny as a refusal', () => {
@@ -1675,7 +1647,7 @@ describe('outcomeLine', () => {
         humanState: 'confirmed', execution: RECEIPT,
         assurance: AXES('WOULD_DENY', 'PERMITTED'),
       })),
-    ).toBe('Return carried out; policy warning observed with enforcement off')
+    ).toBe('Store credit carried out; policy warning observed with enforcement off')
   })
 
   it('admits when an attempt produced no recorded outcome', () => {
@@ -1684,7 +1656,7 @@ describe('outcomeLine', () => {
         humanState: 'confirmed', execution: RECEIPT,
         assurance: AXES('NOT_EVALUATED', 'NOT_ENFORCED'),
       })),
-    ).toBe('Return attempted; the outcome was not recorded')
+    ).toBe('Store credit attempted; the outcome was not recorded')
   })
 })
 

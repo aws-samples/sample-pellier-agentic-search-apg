@@ -111,7 +111,7 @@ describe('storefront source disclosure', () => {
       agentExecution: {
         agent_steps: [],
         tool_calls: [{
-          tool: 'search_products_hybrid',
+          tool: 'search_products',
           timestamp: Date.now(),
           duration_ms: 184,
           status: 'completed',

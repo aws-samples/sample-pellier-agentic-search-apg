@@ -25,7 +25,7 @@ def main() -> int:
     parser.add_argument("command", choices=("learn", "status", "recall", "finish"))
     parser.add_argument("--persona", choices=("marco", "anna", "theo", "jessica"), default="marco")
     args = parser.parse_args()
-    from gateway_initiate_return import _load_env, _token_from_cognito
+    from gateway_client import _load_env, _token_from_cognito
     _load_env()
     import boto3
     from services.memory_showcase import AWS_CONFIG, MemoryShowcase

@@ -128,7 +128,7 @@ async def test_parser_preserves_full_specialist_reply_when_cards_exist():
 
 @pytest.mark.asyncio
 async def test_inline_rating_cannot_replace_recommendations_with_past_purchase():
-    from agents.specialist_hooks import select_products_for_reply
+    from services.product_envelope import select_products_for_reply
 
     service = EnhancedChatService.__new__(EnhancedChatService)
     candle = {"productId": "4", "name": "Santal & Fig Candle"}

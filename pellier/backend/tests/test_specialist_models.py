@@ -11,12 +11,9 @@ from services.specialist_models import build_intent_signal, model_for_intent
 @pytest.mark.parametrize(
     ("intent", "setting"),
     [
-        ("search", "BEDROCK_OPUS_MODEL"),
-        ("recommendation", "BEDROCK_OPUS_MODEL"),
+        ("shopping", "BEDROCK_OPUS_MODEL"),
         ("support", "BEDROCK_OPUS_MODEL"),
-        ("customer_support", "BEDROCK_OPUS_MODEL"),
-        ("pricing", "BEDROCK_REPORTING_MODEL"),
-        ("inventory", "BEDROCK_REPORTING_MODEL"),
+        ("stock", "BEDROCK_REPORTING_MODEL"),
     ],
 )
 def test_each_intent_answers_on_its_configured_model(intent: str, setting: str) -> None:
@@ -36,14 +33,15 @@ def test_intent_signal_reports_the_model_that_answers(monkeypatch) -> None:
     monkeypatch.setattr(settings, "BEDROCK_OPUS_MODEL", "global.anthropic.claude-opus-5")
     monkeypatch.setattr(settings, "BEDROCK_REPORTING_MODEL", "global.anthropic.claude-sonnet-5")
 
-    assert build_intent_signal("customer_support") == {
+    assert build_intent_signal("support") == {
         "type": "intent_signal",
         "intent": "support",
+        "agent": "Support agent",
         "classifier": "deterministic",
         "model_family": "opus",
         "model_id": "global.anthropic.claude-opus-5",
     }
-    assert build_intent_signal("inventory")["model_family"] == "sonnet"
+    assert build_intent_signal("stock")["model_family"] == "sonnet"
 
 
 def test_managed_dispatcher_keeps_the_caller_scope(monkeypatch) -> None:
@@ -69,7 +67,7 @@ def test_managed_dispatcher_keeps_the_caller_scope(monkeypatch) -> None:
     assert dispatcher.customer_id == "CUST-MARCO"
     assert dispatcher.routing_query == "find a resort shirt"
     prompt = agentcore_gateway._managed_specialist_prompt(
-        "recommendation",
+        "shopping",
         customer_id=dispatcher.customer_id,
     )
     assert "customer_id='CUST-MARCO'" in prompt
@@ -78,10 +76,8 @@ def test_managed_dispatcher_keeps_the_caller_scope(monkeypatch) -> None:
 @pytest.mark.parametrize(
     ("module_name", "factory_name", "setting"),
     [
-        ("agents.search_agent", "build_search_agent", "BEDROCK_OPUS_MODEL"),
-        ("agents.personalization_agent", "build_recommendation_agent", "BEDROCK_OPUS_MODEL"),
-        ("agents.pricing_agent", "build_pricing_agent", "BEDROCK_REPORTING_MODEL"),
-        ("agents.customer_service_agent", "build_support_agent", "BEDROCK_OPUS_MODEL"),
+        ("agents.shopping_agent", "build_shopping_agent", "BEDROCK_OPUS_MODEL"),
+        ("agents.support_agent", "build_support_agent", "BEDROCK_OPUS_MODEL"),
     ],
 )
 def test_every_specialist_factory_builds_on_its_configured_model(
@@ -93,3 +89,15 @@ def test_every_specialist_factory_builds_on_its_configured_model(
     agent = getattr(module, factory_name)()
 
     assert agent.model.config["model_id"] == getattr(settings, setting)
+
+
+def test_the_router_and_agent_display_names_are_fixed() -> None:
+    from services.specialist_models import AGENT_NAMES, REPORTING_INTENTS, ROUTER_NAME
+
+    assert ROUTER_NAME == "Router"
+    assert AGENT_NAMES == {
+        "shopping": "Shopping agent",
+        "stock": "Stock agent",
+        "support": "Support agent",
+    }
+    assert REPORTING_INTENTS == {"stock"}

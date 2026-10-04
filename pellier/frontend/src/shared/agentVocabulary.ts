@@ -29,7 +29,7 @@ export type AgentToolName =
   | 'experience.return'
   | 'weather.lookup'
   | 'tag.match'
-  | 'personalization_agent.signal'
+  | 'store.pick'
   | 'tool.transparency'
 
 interface AgentToolEntry {
@@ -110,10 +110,10 @@ export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
     label: 'Category match',
     description: 'A direct match against the product taxonomy (linen, travel, ceramic, etc).',
   },
-  'personalization_agent.signal': {
-    name: 'personalization_agent.signal',
+  'store.pick': {
+    name: 'store.pick',
     label: "Editor's pick",
-    description: 'An editorial pick our personalization_agents are reaching for this week.',
+    description: 'An editorial pick the store is reaching for this week.',
   },
   'tool.transparency': {
     name: 'tool.transparency',

@@ -221,10 +221,10 @@ async def test_an_episode_is_durable_without_an_embedding() -> None:
 async def test_json_columns_are_serialized_not_passed_as_dicts() -> None:
     db = FakeDb()
     await EP.store_episode(db, _episode(
-        evidence_summary={"ticket": "TKT-1"}, action_summary={"tool": "initiate_return"},
+        evidence_summary={"ticket": "TKT-1"}, action_summary={"tool": "give_store_credit"},
     ))
     assert json.loads(db.params[0]["evidence_summary"]) == {"ticket": "TKT-1"}
-    assert json.loads(db.params[0]["action_summary"]) == {"tool": "initiate_return"}
+    assert json.loads(db.params[0]["action_summary"]) == {"tool": "give_store_credit"}
 
 
 # ---------------------------------------------------------------------------
@@ -315,17 +315,15 @@ def test_a_broken_recall_query_is_logged_loudly() -> None:
 # ---------------------------------------------------------------------------
 
 def test_no_read_workflow_writes_an_episode() -> None:
-    """Phase 4B is read-only: four workflows, zero episodes."""
+    """The Concierge is read-only: three workflows, zero episodes."""
     import inspect
 
     from services import operator_concierge as ORCH
-    from services import replacement_search as RS
 
-    for module in (ORCH, RS):
-        source = inspect.getsource(module)
-        assert "store_episode" not in source, (
-            f"{module.__name__} writes an episode from a read workflow"
-        )
+    source = inspect.getsource(ORCH)
+    assert "store_episode" not in source, (
+        f"{ORCH.__name__} writes an episode from a read workflow"
+    )
 
 
 def test_the_narrative_seed_is_not_the_episode_store() -> None:

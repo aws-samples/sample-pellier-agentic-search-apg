@@ -247,7 +247,7 @@ def _catalog():
 
 
 def _matches(query: str, name: str) -> bool:
-    """BusinessLogic.check_inventory's rule: every word appears in the name."""
+    """store_tools.check_stock's rule: every word appears in the name."""
     return all(token in name.lower() for token in query.lower().split())
 
 

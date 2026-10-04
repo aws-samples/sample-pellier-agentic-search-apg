@@ -33,14 +33,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence
 
 from config import settings
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
+from services.store_tools import fts_branch_sql, or_tsquery, rrf_merge, vector_branch_sql
 
 logger = logging.getLogger(__name__)
 
@@ -52,97 +52,11 @@ logger = logging.getLogger(__name__)
 _RRF_K_DEFAULT = 60
 
 
-# Both branch queries are built by one function per branch so the live
-# retrieval path (``_vector_search`` / ``_fts_search``) and the Observatory
-# "explain" surface (``search_explained``) read from the *same* builder.
-# That guarantees the SQL a workshop participant sees on the Search page
-# is the SQL that actually ran — no drift, no separate "display copy".
-#
-# ``extra_clauses`` is how a compiled ``SearchPlan``'s hard constraints
-# reach *both* branches. Applying them here, before RRF, is deliberate:
-# filtering after the reranker means invalid candidates consume reranker
-# capacity, the final list can come back unexpectedly short, and the
-# candidate pool no longer represents the valid candidate set. A hard
-# constraint belongs in candidate generation, not in a post-pass.
-def _indent_clauses(extra_clauses: Sequence[str]) -> str:
-    """Render extra predicates as trailing ``AND`` lines for the branch SQL."""
-    if not extra_clauses:
-        return ""
-    return "".join(f"\n              AND {clause}" for clause in extra_clauses)
-
-
-def _vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
-    """Return the vector-branch SQL with optional hard predicates applied."""
-    return f"""
-            WITH query_embedding AS (
-                SELECT %s::vector AS emb
-            )
-            SELECT
-                "productId" AS product_id,
-                name,
-                brand,
-                color,
-                description,
-                "imgUrl"   AS img_url,
-                category,
-                price,
-                rating,
-                reviews,
-                badge,
-                tags,
-                materials,
-                quantity,
-                updated_at,
-                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
-            FROM pellier.product_catalog
-            WHERE "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
-            ORDER BY embedding <=> (SELECT emb FROM query_embedding)
-            LIMIT %s
-        """
-
-
-# Query words the catalog spells the US way. Kept identical to the Gateway
-# search Lambda by tests/test_gateway_eligibility_parity.py.
-US_SPELLINGS = {"grey": "gray"}
-
-
-def _fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
-    """Return the FTS-branch SQL with optional hard predicates applied."""
-    return f"""
-            WITH q AS (
-                SELECT to_tsquery('english', %s) AS ts_q
-            )
-            SELECT
-                "productId" AS product_id,
-                name,
-                brand,
-                color,
-                description,
-                "imgUrl"   AS img_url,
-                category,
-                price,
-                rating,
-                reviews,
-                badge,
-                tags,
-                materials,
-                quantity,
-                updated_at,
-                ts_rank_cd(description_tsv, q.ts_q) AS fts_rank_score
-            FROM pellier.product_catalog
-            CROSS JOIN q
-            WHERE "imgUrl" IS NOT NULL
-              AND description_tsv @@ q.ts_q{_indent_clauses(extra_clauses)}
-            ORDER BY fts_rank_score DESC
-            LIMIT %s
-        """
-
-
-# Unfiltered forms, kept as constants for the teaching surface's default
-# rendering and for tests that assert the baseline branch shape.
-_VECTOR_BRANCH_SQL = _vector_branch_sql()
-
-_FTS_BRANCH_SQL = _fts_branch_sql()
+# The branch SQL, the lexical query builder and RRF are stated once, in
+# ``services.store_tools``, the module the shopper's ``search_products`` runs on
+# both rails. This class runs the same statements asynchronously for the Lab 1
+# strategy comparison and the Search teaching surface, so the SQL a participant
+# reads there is the SQL a shopper's search ran.
 
 
 class HybridSearch:
@@ -209,7 +123,7 @@ class HybridSearch:
         )
 
         # RRF merge.
-        merged = self._rrf_merge(vector_rows, fts_rows, rrf_k)
+        merged = rrf_merge(vector_rows, fts_rows, rrf_k)
 
         # Cap at top_n. The reranker is the next stage; over-shipping
         # candidates wastes Bedrock tokens, under-shipping starves it.
@@ -304,10 +218,10 @@ class HybridSearch:
 
         This exists purely for the Observatory "Search" teaching surface. It
         re-uses the exact same branch queries and the exact same
-        :meth:`_rrf_merge` as the shipped path, so what a participant sees
+        ``store_tools.rrf_merge`` as the shipped path, so what a participant sees
         is what actually runs — there is no parallel "demo" pipeline.
 
-        ``_rrf_merge`` preserves each branch's 1-based rank on the merged
+        ``rrf_merge`` preserves each branch's 1-based rank on the merged
         rows, so this teaching view and the durable retrieval receipt inspect
         the same evidence produced by the shipped search path.
 
@@ -334,7 +248,7 @@ class HybridSearch:
             self._fts_search(query, k_fts),
         )
 
-        merged = self._rrf_merge(vector_rows, fts_rows, rrf_k)
+        merged = rrf_merge(vector_rows, fts_rows, rrf_k)
 
         return {
             "vector_rows": vector_rows,
@@ -346,8 +260,8 @@ class HybridSearch:
                 "rrf_k": rrf_k,
                 "top_n": top_n,
             },
-            "vector_sql": _VECTOR_BRANCH_SQL,
-            "fts_sql": _FTS_BRANCH_SQL,
+            "vector_sql": vector_branch_sql(),
+            "fts_sql": fts_branch_sql(),
         }
 
     # -----------------------------------------------------------------
@@ -382,7 +296,7 @@ class HybridSearch:
             extra_clauses: Compiled hard predicates ANDed into the WHERE.
             extra_params: Bound parameters for those predicates.
         """
-        sql = _vector_branch_sql(extra_clauses)
+        sql = vector_branch_sql(extra_clauses)
         params: List[Any] = [embedding, *extra_params, k]
         start = time.time()
         async with self.db.get_connection() as conn:
@@ -409,75 +323,6 @@ class HybridSearch:
     # -----------------------------------------------------------------
     # Internal — Postgres FTS branch
     # -----------------------------------------------------------------
-    @staticmethod
-    def _build_or_tsquery(query: str) -> str:
-        """Compile a user query into a Postgres ``to_tsquery``-compatible
-        OR-of-tokens string.
-
-        Both ``plainto_tsquery`` and ``websearch_to_tsquery`` default to
-        AND-of-all-stems for plain-text input, which is the wrong default
-        for conversational queries. Anna's T1 'a thoughtful gift for
-        someone who loves morning rituals' compiles under plainto to
-        ``'thought' & 'gift' & 'someon' & 'love' & 'morn' & 'ritual'``
-        — no product description in a real catalog contains all six
-        stems, so the FTS branch contributes nothing.
-
-        The fix is to OR-join the meaningful tokens manually before
-        handing the result to ``to_tsquery``. ``ts_rank_cd`` then
-        rewards documents that match the most tokens AND have the
-        matched tokens close together — the lexical ranking
-        ranking we actually want.
-
-        Steps:
-          1. Lowercase + strip non-alphanumeric (Postgres' lexer would
-             do most of this anyway, but we do it eagerly so the
-             stop-word filter below sees clean tokens).
-          2. Drop English stop-words and very short tokens (≤2 chars).
-             This is conservative — Postgres' english config will also
-             drop them — but it cuts the query string size and keeps
-             the OR-tree shallow.
-          3. OR-join with `` | `` and let ``to_tsquery`` lex + stem.
-
-        Returns an empty string if no usable tokens remain (caller
-        should treat empty query as a zero-match shortcut).
-        """
-        if not query:
-            return ""
-        # Strip non-alphanumeric, lowercase, split on whitespace.
-        cleaned = re.sub(r"[^\w\s-]", " ", query.lower())
-        tokens = [t.strip("-") for t in cleaned.split() if len(t) > 2]
-        # Conservative stop-word list. Postgres' english config will drop
-        # the same set, but pre-filtering keeps the OR-tree small.
-        STOP_WORDS = {
-            "the", "and", "for", "with", "that", "this", "have", "has",
-            "are", "was", "were", "from", "into", "out", "but", "not",
-            "any", "all", "some", "one", "two", "three", "what", "where",
-            "when", "how", "who", "why", "you", "your", "yours", "our",
-            "their", "they", "them", "his", "her", "him", "she", "him",
-            "let", "lets", "just", "really", "also", "more", "most",
-            "much", "many", "very",
-            # Conversational filler that never adds retrieval signal.
-            "something", "someone", "somebody", "anything", "anyone",
-            "thing", "things", "stuff", "kind", "sort", "type",
-            "good", "great", "nice", "really", "would", "could", "should",
-            "want", "need", "like", "love", "loves", "loving",
-            # Generic shopping verbs.
-            "find", "show", "give", "get", "browse", "recommend",
-            "suggest", "help", "tell", "look", "looking",
-        }
-        tokens = [t for t in tokens if t not in STOP_WORDS]
-        # The catalog uses US spelling, and the english stemmer keeps "grey"
-        # and "gray" apart, so a shopper's "grey" would match nothing.
-        tokens = [US_SPELLINGS.get(t, t) for t in tokens]
-        # Deduplicate while preserving order.
-        seen: set = set()
-        unique: List[str] = []
-        for t in tokens:
-            if t not in seen:
-                seen.add(t)
-                unique.append(t)
-        return " | ".join(unique)
-
     async def _fts_search(
         self,
         query: str,
@@ -488,7 +333,7 @@ class HybridSearch:
         """Postgres full-text search via tsvector + ts_rank_cd.
 
         Note on query shape: we use ``to_tsquery`` with an OR-joined
-        token string (built by ``_build_or_tsquery``) rather than
+        token string (built by ``store_tools.or_tsquery``) rather than
         ``plainto_tsquery`` or ``websearch_to_tsquery``. Both convenience
         wrappers default to AND-of-all-stems for plain text input,
         which over-filters conversational queries to zero results.
@@ -516,12 +361,12 @@ class HybridSearch:
             extra_clauses: Compiled hard predicates ANDed into the WHERE.
             extra_params: Bound parameters for those predicates.
         """
-        or_query = self._build_or_tsquery(query)
+        or_query = or_tsquery(query)
         if not or_query:
             # Pure stop-word query (rare). Return empty so RRF falls
             # back to vector-only ranking.
             return []
-        sql = _fts_branch_sql(extra_clauses)
+        sql = fts_branch_sql(extra_clauses)
         params: List[Any] = [or_query, *extra_params, k]
         start = time.time()
         async with self.db.get_connection() as conn:
@@ -544,67 +389,3 @@ class HybridSearch:
         except Exception:  # pragma: no cover
             pass
         return results
-
-    # -----------------------------------------------------------------
-    # Internal — RRF merge
-    # -----------------------------------------------------------------
-    @staticmethod
-    def _rrf_merge(
-        vector_rows: List[Dict[str, Any]],
-        fts_rows: List[Dict[str, Any]],
-        rrf_k: int,
-    ) -> List[Dict[str, Any]]:
-        """Reciprocal Rank Fusion across two ranked lists.
-
-        For each candidate that appears in either list, sum
-        ``1 / (rrf_k + rank)`` over the lists it appears in. Documents
-        in both lists receive two contributions; sufficiently low ranks can
-        still score below a high-ranked document in only one list. Sort
-        descending to obtain a consensus ranking.
-
-        Returns a list of merged rows with ``vec_rank``, ``fts_rank``, and
-        ``rrf_score`` fields appended. A rank is ``None`` when the candidate
-        did not appear in that branch. Each row carries through the original
-        SQL projection (name/price/category/...). When a candidate appears in
-        both branches we keep the vector-branch row as the source of truth so
-        the per-row similarity score survives.
-        """
-        scores: Dict[Any, float] = {}
-        rows_by_id: Dict[Any, Dict[str, Any]] = {}
-
-        # Vector branch.
-        for rank_zero, row in enumerate(vector_rows):
-            pid = row["product_id"]
-            scores[pid] = scores.get(pid, 0.0) + 1.0 / (rrf_k + rank_zero + 1)
-            # First time seeing this id, capture the row.
-            if pid not in rows_by_id:
-                rows_by_id[pid] = dict(row)
-                rows_by_id[pid]["fts_rank"] = None
-            rows_by_id[pid]["vec_rank"] = rank_zero + 1
-
-        # FTS branch.
-        for rank_zero, row in enumerate(fts_rows):
-            pid = row["product_id"]
-            scores[pid] = scores.get(pid, 0.0) + 1.0 / (rrf_k + rank_zero + 1)
-            # If we didn't see this id in the vector branch, capture it
-            # now. We deliberately do NOT overwrite the vector row when
-            # it exists — preserving the cosine similarity field is
-            # useful downstream (e.g. for telemetry).
-            if pid not in rows_by_id:
-                rows_by_id[pid] = dict(row)
-                rows_by_id[pid]["vec_rank"] = None
-            else:
-                # Carry the lexical rank score over for diagnostics.
-                # The field name stays fts_rank_score for backward-compatible
-                # fixtures/tests, but the source is Postgres ts_rank_cd.
-                if "fts_rank_score" in row and "fts_rank_score" not in rows_by_id[pid]:
-                    rows_by_id[pid]["fts_rank_score"] = row["fts_rank_score"]
-            rows_by_id[pid]["fts_rank"] = rank_zero + 1
-
-        # Merge final scores into rows and sort.
-        for pid, row in rows_by_id.items():
-            row["rrf_score"] = scores[pid]
-
-        merged = list(rows_by_id.values())
-        merged.sort(key=lambda r: r["rrf_score"], reverse=True)
-        return merged

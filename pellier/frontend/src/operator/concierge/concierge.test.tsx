@@ -60,10 +60,9 @@ const RECORD = {
 const CAPS = {
   capabilities: {
     client_read: { state: 'available', reason: 'local_read_path' },
-    initiate_return: {
+    give_store_credit: {
       state: 'temporarily_unavailable', reason: 'governed_action_unavailable',
     },
-    issue_credit: { state: 'not_enabled', reason: 'capability_not_published' },
   },
   observedAt: '2026-08-26T23:48:44Z',
   source: 'agentcore',
@@ -1003,7 +1002,7 @@ describe('replacement recommendations', () => {
 
 describe('proposed actions', () => {
   const PROPOSAL = {
-    tool: 'initiate_return',
+    tool: 'give_store_credit',
     state: 'review_required',
     reviewId: 36,
     customer: { customerId: 'CUST-RACHEL' },
@@ -1028,7 +1027,7 @@ describe('proposed actions', () => {
     return {
       review: {
         reviewId: 36, customerId: 'CUST-RACHEL', customerName: 'Rachel Green',
-        slug: 'rachel', personaId: null, action: 'initiate_return',
+        slug: 'rachel', personaId: null, action: 'give_store_credit',
         parameters: PROPOSAL.material, status:
           humanState === 'confirmed' ? 'approved' : 'pending',
         humanState, assurance,
@@ -1102,7 +1101,7 @@ describe('proposed actions', () => {
     renderRecord()
     const card = await screen.findByTestId('operator-concierge-proposal')
 
-    expect(card.textContent).toContain('Return review prepared')
+    expect(card.textContent).toContain('Action review prepared')
     expect(card.textContent).toContain('Vetiver Eau de Parfum')
     expect(card.textContent).toContain('#325')
     expect(card.textContent).toContain('Not as described')
@@ -1144,7 +1143,7 @@ describe('proposed actions', () => {
     // The one affordance: navigation to the canonical review surface.
     const link = screen.getByTestId('operator-concierge-proposal-review-link')
     expect(link.getAttribute('href')).toBe('/operator/reviews/36?client=CUST-JESSICA&session=sess-1&turn=turn-p')
-    await waitFor(() => expect(link).toHaveTextContent('Review this return'))
+    await waitFor(() => expect(link).toHaveTextContent('Review this action'))
     expect(screen.getByTestId('operator-concierge-proposal')).toHaveTextContent(
       'Review #36 is saved in Action Queue',
     )

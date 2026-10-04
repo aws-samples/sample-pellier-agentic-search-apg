@@ -33,54 +33,54 @@ def _clear_capability_cache():
 def test_source_registration_does_not_imply_availability() -> None:
     """The whole reason this module exists.
 
-    The local MCP catalog describes a fresh application vocabulary. Reading it would have
-    reported every write available while the live Gateway had zero permits.
+    The application's tier map describes every tool in the vocabulary. Reading it would
+    have reported every write available while the live Gateway had zero permits.
     """
     from services import agentcore_gateway
 
-    assert "initiate_return" in agentcore_gateway.LOCAL_MCP_TOOL_NAMES
-    source = (
-        importlib.resources.files("services").joinpath("operator_capabilities.py").read_text()
-        if hasattr(importlib, "resources") else ""
+    assert "give_store_credit" in agentcore_gateway.GATEWAY_TOOL_TIERS
+    assert CAP._classify(published=[], permitted={})["give_store_credit"].state == CAP.NOT_ENABLED
+    source = importlib.resources.files("services").joinpath("operator_capabilities.py").read_text()
+    assert "GATEWAY_TOOL_TIERS" not in source, (
+        "capability state is derived from the source registry"
     )
-    if source:
-        assert "LOCAL_MCP_TOOL_NAMES" not in source.split('"""')[2], (
-            "capability state is derived from the source registry"
-        )
 
 
 def test_published_with_zero_permits_is_temporarily_unavailable() -> None:
     states = CAP._classify(
-        published=["initiate_return", "escalate_to_human"],
-        permitted={"initiate_return": 0, "escalate_to_human": 0},
+        published=["give_store_credit"], permitted={"give_store_credit": 0},
     )
-    assert states["initiate_return"].state == CAP.TEMPORARILY_UNAVAILABLE
-    assert states["initiate_return"].reason == CAP.REASON_GOVERNED_UNAVAILABLE
-    assert states["escalate_to_human"].state == CAP.TEMPORARILY_UNAVAILABLE
+    assert states["give_store_credit"].state == CAP.TEMPORARILY_UNAVAILABLE
+    assert states["give_store_credit"].reason == CAP.REASON_GOVERNED_UNAVAILABLE
 
 
 def test_absent_from_the_gateway_is_not_enabled() -> None:
     """A different cause with a different future, and it must stay distinguishable."""
-    states = CAP._classify(published=["initiate_return"], permitted={"initiate_return": 0})
-    assert states["issue_credit"].state == CAP.NOT_ENABLED
-    assert states["issue_credit"].reason == CAP.REASON_NOT_PUBLISHED
-    assert states["initiate_return"].state == CAP.TEMPORARILY_UNAVAILABLE
-    assert states["issue_credit"].state != states["initiate_return"].state
+    absent = CAP._classify(published=["search_products"], permitted={})
+    unpermitted = CAP._classify(
+        published=["give_store_credit"], permitted={"give_store_credit": 0}
+    )
+    assert absent["give_store_credit"].state == CAP.NOT_ENABLED
+    assert absent["give_store_credit"].reason == CAP.REASON_NOT_PUBLISHED
+    assert unpermitted["give_store_credit"].state == CAP.TEMPORARILY_UNAVAILABLE
+    assert absent["give_store_credit"].state != unpermitted["give_store_credit"].state
 
 
 def test_permitted_review_gated_tool_reports_review_required() -> None:
     states = CAP._classify(
-        published=["initiate_return", "escalate_to_human"],
-        permitted={"initiate_return": 1, "escalate_to_human": 1},
+        published=["give_store_credit", "ask_a_person"],
+        permitted={"give_store_credit": 1, "ask_a_person": 1},
     )
-    assert states["initiate_return"].state == CAP.REVIEW_REQUIRED
-    # Escalation is not a consequential write, so it needs no review.
-    assert states["escalate_to_human"].state == CAP.AVAILABLE
+    assert states["give_store_credit"].state == CAP.REVIEW_REQUIRED
+    # A handoff is not a governed write, so it has no capability entry at all.
+    assert "ask_a_person" not in states
+    assert "ask_a_person" not in CAP.GOVERNED_WRITE_TOOLS
+    assert CAP.GOVERNED_WRITE_TOOLS == CAP.REVIEW_GATED_TOOLS == ("give_store_credit",)
 
 
 @pytest.mark.parametrize("prefix", ["permit(", "permit (", "// Published staff permit\npermit (\n"])
 def test_live_capabilities_read_paginated_targets_and_s3_schema(monkeypatch, prefix) -> None:
-    """The CLI publishes S3 schemas; the experience target may be on page two."""
+    """The CLI publishes S3 schemas; the store target may be on page two."""
     import boto3
     from config import settings
     from services import managed_policy
@@ -90,12 +90,12 @@ def test_live_capabilities_read_paginated_targets_and_s3_schema(monkeypatch, pre
     control = Mock()
     control.get_paginator.return_value.paginate.return_value = [
         {"items": [{"targetId": "catalog"}]},
-        {"items": [{"targetId": "experience"}]},
+        {"items": [{"targetId": "store"}]},
     ]
     schemas = {
         "catalog": {"inlinePayload": [{"name": "search_products"}]},
-        "experience": {"s3": {
-            "uri": "s3://deployment-assets/schemas/experience.json",
+        "store": {"s3": {
+            "uri": "s3://deployment-assets/schemas/store.json",
             "bucketOwnerAccountId": "123456789012",
         }},
     }
@@ -107,9 +107,9 @@ def test_live_capabilities_read_paginated_targets_and_s3_schema(monkeypatch, pre
     monkeypatch.setattr(managed_policy, "_control_client", lambda: control)
     monkeypatch.setattr(managed_policy, "policy_summaries", lambda *_: [{"policyId": "staff"}])
     monkeypatch.setattr(managed_policy, "policy_statement", lambda _: (
-        prefix + 'principal, action == AgentCore::Action::"experience___initiate_return", resource);'
+        prefix + 'principal, action == AgentCore::Action::"store___give_store_credit", resource);'
     ))
-    body = io.BytesIO(json.dumps([{"name": "initiate_return"}]).encode())
+    body = io.BytesIO(json.dumps([{"name": "give_store_credit"}]).encode())
     s3 = Mock()
     s3.get_object.return_value = {"Body": body}
     factory = Mock(return_value=s3)
@@ -118,12 +118,11 @@ def test_live_capabilities_read_paginated_targets_and_s3_schema(monkeypatch, pre
     payload = CAP.get_capabilities(force_refresh=True)
 
     assert payload["source"] == "agentcore"
-    assert payload["capabilities"]["initiate_return"]["state"] == CAP.REVIEW_REQUIRED
-    assert payload["capabilities"]["issue_credit"]["state"] == CAP.NOT_ENABLED
+    assert payload["capabilities"]["give_store_credit"]["state"] == CAP.REVIEW_REQUIRED
     control.get_paginator.assert_called_once_with("list_gateway_targets")
     control.get_paginator.return_value.paginate.assert_called_once_with(gatewayIdentifier="test")
     s3.get_object.assert_called_once_with(
-        Bucket="deployment-assets", Key="schemas/experience.json", ExpectedBucketOwner="123456789012"
+        Bucket="deployment-assets", Key="schemas/store.json", ExpectedBucketOwner="123456789012"
     )
     assert factory.call_args.args == ("s3",)
     assert factory.call_args.kwargs["region_name"] == settings.aws_region_resolved
@@ -140,12 +139,12 @@ def test_commented_forbid_remains_a_matching_forbid_in_engine_state(monkeypatch)
         "name": "identity_match", "enforcementMode": "ACTIVE",
         "definition": {"policy": {"statement": (
             '// Lab instructions mention permit before the actual effect.\n'
-            'forbid (principal, action == AgentCore::Action::"experience___initiate_return", resource);'
+            'forbid (principal, action == AgentCore::Action::"store___give_store_credit", resource);'
         )}},
     }
     monkeypatch.setattr(managed_policy, "_control_client", lambda: client)
     monkeypatch.setattr(managed_policy, "policy_summaries", lambda *_: [{"policyId": "identity"}])
-    result = managed_policy._read_engine_state("engine", "experience___initiate_return", "arn:gateway/test")
+    result = managed_policy._read_engine_state("engine", "store___give_store_credit", "arn:gateway/test")
     assert result["policies"]["identity_match"] == ("forbid", "ACTIVE")
     assert result["matching"] == ["identity_match"]
 
@@ -218,20 +217,18 @@ def test_a_failure_never_resolves_to_available(monkeypatch) -> None:
     }
 
 
-def test_issue_credit_cannot_become_available_from_the_fresh_schema(monkeypatch) -> None:
-    """The canonical 17-tool schema must not leak into live capability state."""
+def test_an_unpublished_credit_cannot_become_available_from_the_fresh_schema(monkeypatch) -> None:
+    """The canonical nine-tool schema must not leak into live capability state."""
     calls = {"n": 0}
 
     def facts() -> Any:
         calls["n"] += 1
-        # Live truth today: issue_credit is NOT published.
-        return ["initiate_return", "escalate_to_human"], {
-            "initiate_return": 0, "escalate_to_human": 0
-        }
+        # Live truth in this fixture: the Gateway does not publish give_store_credit.
+        return ["search_products", "ask_a_person"], {}
 
     monkeypatch.setattr(CAP, "_live_gateway_facts", facts)
     payload = CAP.get_capabilities(force_refresh=True)
-    assert payload["capabilities"]["issue_credit"]["state"] == CAP.NOT_ENABLED
+    assert payload["capabilities"]["give_store_credit"]["state"] == CAP.NOT_ENABLED
     assert calls["n"] == 1
 
 
@@ -240,7 +237,7 @@ def test_the_cache_avoids_repeat_control_plane_reads(monkeypatch) -> None:
 
     def facts() -> Any:
         calls["n"] += 1
-        return ["initiate_return"], {"initiate_return": 0}
+        return ["give_store_credit"], {"give_store_credit": 0}
 
     monkeypatch.setattr(CAP, "_live_gateway_facts", facts)
     first = CAP.get_capabilities()
@@ -261,7 +258,7 @@ def test_the_ttl_is_short_enough_to_reflect_a_migration_phase() -> None:
 def test_the_payload_leaks_no_control_plane_internals(monkeypatch) -> None:
     monkeypatch.setattr(
         CAP, "_live_gateway_facts",
-        lambda: (["initiate_return"], {"initiate_return": 0}),
+        lambda: (["give_store_credit"], {"give_store_credit": 0}),
     )
     import json
 
@@ -276,7 +273,7 @@ def test_the_frontend_holds_no_hardcoded_capability_matrix() -> None:
 
     Naming the states is fine — a types module and a label map have to. Explaining
     in a comment why two tools differ is fine. What must not exist is a literal
-    mapping like `initiate_return: 'temporarily_unavailable'`, because that is a
+    mapping like `give_store_credit: 'temporarily_unavailable'`, because that is a
     frontend deciding live governance state, and it has been wrong three times.
     """
     import re
@@ -284,7 +281,7 @@ def test_the_frontend_holds_no_hardcoded_capability_matrix() -> None:
 
     src = Path(__file__).resolve().parents[2] / "frontend" / "src"
     states = "available|review_required|temporarily_unavailable|not_enabled"
-    tools = "initiate_return|escalate_to_human|issue_credit|restock_inventory"
+    tools = "give_store_credit|ask_a_person|get_tickets"
     # `tool: 'state'` or `tool = "state"` or `[tool]: 'state'`
     assignment = re.compile(
         rf"[\[']?({tools})'?\]?\s*[:=]\s*['\"]({states})['\"]"
@@ -623,13 +620,6 @@ def test_an_rls_hidden_row_is_not_a_business_false() -> None:
     text = migration.read_text()
     assert "RLS is hiding one that exists" in text
     assert "orders_principal_scope" in text
-    # And the classification token exists in the codebase for callers to use.
-    server = (
-        Path(__file__).resolve().parents[3]
-        / "scripts" / "deploy" / "pellier_experience_server.py"
-    )
-    if server.is_file():
-        assert "database_row_level_security" in server.read_text()
 
 
 def test_jessicas_case_renders_as_ambiguity_not_certainty() -> None:

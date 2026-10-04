@@ -302,10 +302,8 @@ _TERMINAL_OUTCOMES: Dict[tuple, tuple] = {
 
 # Which kind of situation a tool's outcome is. Not derived from prose.
 _EPISODE_TYPE_BY_TOOL: Dict[str, str] = {
-    "initiate_return": EPISODE_RETURN_RESOLUTION,
-    "issue_credit": EPISODE_CREDIT_ISSUED,
-    "escalate_to_human": EPISODE_ESCALATION,
-    "restock_inventory": EPISODE_INVENTORY_CORRECTION,
+    "give_store_credit": EPISODE_CREDIT_ISSUED,
+    "ask_a_person": EPISODE_ESCALATION,
 }
 
 # Approval status to the human axis. `pellier.approvals.status` is the human axis and
@@ -398,8 +396,8 @@ def derive_episode(
         action_summary={
             "tool": tool,
             "reason": args.get("reason"),
-            "productId": args.get("product_id"),
-            "returnId": result.get("return_id"),
+            "amountCents": args.get("amount_cents"),
+            "creditId": result.get("credit_id"),
             "idempotentReplay": bool(result.get("idempotent_replay")),
         },
     )
@@ -407,12 +405,11 @@ def derive_episode(
 
 def _situation(tool: str, reason: str, customer_id: str, args: Any) -> str:
     """What kind of situation this was, in one sentence, for a human and for FTS."""
-    product = args.get("product_id") if isinstance(args, dict) else None
-    piece = f"product {product}" if product is not None else "a piece"
-    if tool == "initiate_return":
-        detail = f"{reason} return" if reason else "return"
-        return f"{customer_id} asked for a {detail} on {piece}."
-    return f"{customer_id}: {tool} on {piece}."
+    cents = args.get("amount_cents") if isinstance(args, dict) else None
+    if tool == "give_store_credit" and cents is not None:
+        detail = f" for {reason}" if reason else ""
+        return f"{customer_id} was proposed a ${int(cents) / 100:.2f} store credit{detail}."
+    return f"{customer_id}: {tool}."
 
 
 def _resolution(policy: str, aurora: str, result: Dict[str, Any]) -> str:
@@ -424,12 +421,12 @@ def _resolution(policy: str, aurora: str, result: Dict[str, Any]) -> str:
         )
     if aurora == "DENIED":
         return (
-            "AgentCore Policy permitted the action and row-level security refused the "
-            "read it depended on, so nothing changed."
+            "AgentCore Policy permitted the action and the database refused it, so "
+            "nothing changed."
         )
-    return_id = result.get("return_id")
-    if return_id:
-        applied = f"Return {return_id} was created through the governed path."
+    credit_id = result.get("credit_id")
+    if credit_id:
+        applied = f"Credit {credit_id} was recorded through the governed path."
     else:
         applied = "The write applied through the governed path."
     if result.get("idempotent_replay"):

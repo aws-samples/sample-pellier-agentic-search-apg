@@ -3,10 +3,10 @@
 Two different numbers live in this repository and confusing them is a documented
 mistake, so they are named here once:
 
-  * **17** tools in the canonical vocabulary. Every Gateway surface Lambda and every
-    schema in ``gateway_tool_schemas.TOOL_SCHEMAS`` covers all of them.
-  * **15** tools this workshop iteration PUBLISHES at the start (16 after Lab 3a),
-    because ``restock_inventory`` and ``get_ticket_history`` are deferred. That subset is asserted in
+  * **9** tools in the canonical vocabulary. The one Gateway Lambda and the one schema
+    in ``gateway_tool_schemas.TOOL_SCHEMAS["store"]`` cover all of them.
+  * **8** tools this workshop iteration PUBLISHES at the start (9 after Lab 3a),
+    because ``get_tickets`` is deferred. That subset is asserted in
     ``test_fresh_policy_set.py``, which owns the publication contract.
 
 This file asserts the vocabulary, not the publication subset.
@@ -23,31 +23,20 @@ REPO = Path(__file__).resolve().parents[3]
 DEPLOY = REPO / "scripts" / "deploy"
 
 CANONICAL_TOOLS = {
-    "get_customer_preferences",
-    "get_audit_trail",
-    "check_inventory",
-    "get_trending_products",
-    "get_price_analysis",
-    "restock_inventory",
-    "initiate_return",
-    "escalate_to_human",
     "search_products",
-    "search_products_hybrid",
-    "browse_category",
-    "get_low_stock",
+    "browse_department",
     "compare_products",
+    "check_stock",
+    "get_orders",
     "get_return_policy",
-    "get_related_products",
-    "issue_credit",
-    "get_ticket_history",
+    "get_tickets",
+    "give_store_credit",
+    "ask_a_person",
 }
 
 
 SURFACE_FILES = {
-    "search": DEPLOY / "pellier_search_server.py",
-    "pricing": DEPLOY / "pellier_pricing_server.py",
-    "recommendation": DEPLOY / "pellier_recommend_server.py",
-    "experience": DEPLOY / "pellier_experience_server.py",
+    "store": DEPLOY / "pellier_store_tools.py",
 }
 
 
@@ -126,7 +115,7 @@ def test_every_managed_surface_covers_the_canonical_vocabulary() -> None:
 
     assert lambda_names == gateway_names
     published = set().union(*lambda_names.values())
-    assert len(published) == 17
+    assert len(published) == 9
     assert published == CANONICAL_TOOLS
 
 
@@ -147,7 +136,7 @@ def test_in_process_and_recovery_files_match_the_managed_contract() -> None:
         REPO / "solutions" / "closing-marcos-gap" / "services"
         / "agent_tools_builders_preapply.py",
         REPO / "solutions" / "closing-marcos-gap" / "services"
-        / "agent_tools_check_inventory_solution.py",
+        / "agent_tools_check_stock_solution.py",
     ]
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -163,26 +152,11 @@ def test_in_process_and_recovery_files_match_the_managed_contract() -> None:
         assert decorated == CANONICAL_TOOLS, path
 
 
-def test_related_product_source_contract_stays_in_sync_with_recovery_files() -> None:
-    """A recovery copy must not restore the old guessed-ID pairing behavior."""
-    paths = [
-        REPO / "pellier" / "backend" / "services" / "agent_tools.py",
-        REPO / "solutions" / "closing-marcos-gap" / "services"
-        / "agent_tools_builders_preapply.py",
-        REPO / "solutions" / "closing-marcos-gap" / "services"
-        / "agent_tools_check_inventory_solution.py",
-    ]
-    for path in paths:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        function = next(
-            node
-            for node in tree.body
-            if isinstance(node, ast.FunctionDef)
-            and node.name == "get_related_products"
-        )
-        argument_names = [argument.arg for argument in function.args.args]
-        assert argument_names[:2] == ["source_product_name", "product_id"], path
-        assert "source_product_mismatch" in ast.unparse(function), path
+def test_the_store_tools_module_names_the_same_nine_tools() -> None:
+    from services import store_tools
+
+    assert set(store_tools.TOOL_NAMES) == CANONICAL_TOOLS
+    assert len(store_tools.TOOL_NAMES) == len(set(store_tools.TOOL_NAMES))
 
 
 def test_gateway_targets_are_owned_by_agentcore_cli_project() -> None:

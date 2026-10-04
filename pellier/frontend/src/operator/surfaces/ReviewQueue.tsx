@@ -26,9 +26,7 @@ import OperatorState from '../components/OperatorState'
 
 /** Proposed actions in the operator's language, not the tool's. */
 const ACTION_LABELS: Record<string, string> = {
-  initiate_return: 'Return',
-  issue_credit: 'Goodwill credit',
-  replace_damaged_item: 'Replacement',
+  give_store_credit: 'Store credit',
 }
 
 function actionLabel(action: string): string {

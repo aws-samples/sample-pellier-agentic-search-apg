@@ -27,16 +27,16 @@ class FileExercise:
 
 MARKER_EXERCISES = (
     MarkerExercise(
-        exercise_id="lab-2-inventory-agent",
-        starter="workshop/starters/lab-2/inventory-agent-definition.pyfrag",
-        destination="pellier/backend/agents/inventory_agent.py",
-        marker="WORKSHOP - Inventory Agent - definition",
+        exercise_id="lab-2-stock-agent",
+        starter="workshop/starters/lab-2/stock-agent-definition.pyfrag",
+        destination="pellier/backend/agents/stock_agent.py",
+        marker="WORKSHOP - Stock agent - definition",
     ),
     MarkerExercise(
-        exercise_id="lab-2-inventory-tool",
-        starter="workshop/starters/lab-2/check-inventory-tool.pyfrag",
+        exercise_id="lab-2-check-stock",
+        starter="workshop/starters/lab-2/check-stock-tool.pyfrag",
         destination="pellier/backend/services/agent_tools.py",
-        marker="WORKSHOP - Inventory Agent - check_inventory",
+        marker="WORKSHOP - Stock agent - check_stock",
     ),
     MarkerExercise(
         exercise_id="lab-1-preserve-requirements",

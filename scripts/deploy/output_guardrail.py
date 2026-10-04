@@ -2,7 +2,7 @@
 
 The Lambda exposes the same serialized result in its MCP content envelope and
 a top-level text field. Dogwood data paths accept record fields, not numeric
-array indexes. Keep this path aligned with pellier_experience_server.lambda_handler.
+array indexes. Keep this path aligned with pellier_store_tools.lambda_handler.
 Deployment is not runtime proof; the benign and sensitive-output controls must run.
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 POLICY_NAME = "credit_output_sensitive_information"
-ACTION = "pellier-concierge-experience-target___issue_credit"
+ACTION = "pellier-store-tools___give_store_credit"
 OUTPUT_PATH = "context.output.text"
 
 

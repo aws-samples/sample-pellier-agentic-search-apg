@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical AgentCore Gateway tool schemas for Pellier's four MCP targets."""
-
-try:
-    from common.replacement_contract import REPLACEMENT_TOOL
-except ModuleNotFoundError as exc:
-    if exc.name != "common":
-        raise
-    # Observatory reads this checked-in contract with runpy from the backend,
-    # without adding deployment modules to the application's import path.
-    import runpy
-    from pathlib import Path
-
-    REPLACEMENT_TOOL = runpy.run_path(
-        str(Path(__file__).parent / "common" / "replacement_contract.py")
-    )["REPLACEMENT_TOOL"]
+"""Canonical AgentCore Gateway tool schemas: nine tools on one target."""
 
 # AgentCore Gateway targets accept only this JSON-Schema keyword subset per
 # (sub)property. The CLI owns target deployment; this sanitizer keeps its
@@ -44,110 +30,47 @@ def _sanitize_tool_schema(node):
     return cleaned
 
 
-# Tool schemas for Pellier MCP servers
+# One Lambda (scripts/deploy/pellier_store_tools.py) behind one target serves
+# every tool. Cedar action ids are `pellier-store-tools___<tool>`.
 TOOL_SCHEMAS = {
-    "search": {
-        "target_name": "pellier-discovery-search-target",
-        "description": "Pellier search and inventory MCP server",
+    "store": {
+        "target_name": "pellier-store-tools",
+        "description": "Pellier's nine store tools",
         "tools": [
             {
                 "name": "search_products",
-                "description": "Search products by natural language query using vector similarity.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Natural language search query"},
-                        "limit": {"type": "integer", "description": "Max results", "default": 5},
-                        "max_price": {"type": "number", "description": "Maximum price filter"},
-                        "min_rating": {"type": "number", "description": "Minimum star rating"},
-                        "category": {"type": "string", "description": "Optional category substring"},
-                    },
-                    "required": ["query"],
-                },
-            },
-            {
-                "name": "search_products_hybrid",
                 "description": (
-                    "Hybrid retrieval: pgvector cosine + Postgres FTS merged via "
-                    "RRF, then reranked by Cohere Rerank v3.5. Higher quality "
-                    "than search_products at the cost of one extra Bedrock call."
+                    "Find products: the shopper's requirements as SQL filters, "
+                    "then pgvector and Postgres full-text retrieval fused by RRF "
+                    "and reranked by Cohere Rerank 3.5."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "Natural language search query"},
-                        "max_price": {"type": "number", "description": "Maximum price filter (post-rerank)"},
-                        "min_rating": {"type": "number", "description": "Minimum star rating (post-rerank)", "default": 0.0},
-                        "category": {"type": "string", "description": "Category substring filter (post-rerank)"},
-                        "limit": {"type": "integer", "description": "Max results", "default": 5},
+                        "query": {"type": "string", "description": "What to find"},
+                        "max_price": {"type": "number", "description": "Maximum price, a hard filter"},
+                        "min_rating": {"type": "number", "description": "Minimum star rating"},
+                        "category": {"type": "string", "description": "A suggested department, recorded only"},
+                        "limit": {"type": "integer", "description": "Max results"},
                     },
                     "required": ["query"],
                 },
             },
             {
-                "name": "browse_category",
-                "description": "Browse a category with rating and price filters.",
+                "name": "browse_department",
+                "description": "The highest-rated products in one store department.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "category": {"type": "string"},
-                        "min_rating": {"type": "number", "default": 0.0},
-                        "max_price": {"type": "number"},
-                        "limit": {"type": "integer", "default": 5},
+                        "department": {"type": "string"},
+                        "limit": {"type": "integer"},
                     },
-                    "required": ["category"],
-                },
-            },
-            {
-                "name": "check_inventory",
-                "description": "Check aggregate inventory or one product across warehouses.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"product_query": {"type": "string"}},
-                    "required": [],
-                },
-            },
-            {
-                "name": "get_low_stock",
-                "description": "Get products with critically low stock.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"limit": {"type": "integer", "default": 5}},
-                    "required": [],
-                },
-            },
-            {
-                "name": "restock_inventory",
-                "description": "Restock a product (max 500 per policy).",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "product_id": {"type": "integer"},
-                        "quantity": {"type": "integer"},
-                        "idempotency_key": {"type": "string"},
-                        "warehouse_id": {"type": "string"},
-                    },
-                    "required": ["product_id", "quantity", "idempotency_key"],
-                },
-            },
-        ],
-    },
-    "pricing": {
-        "target_name": "pellier-value-pricing-target",
-        "description": "Pellier pricing analysis MCP server",
-        "tools": [
-            {
-                "name": "get_price_analysis",
-                "description": "Price statistics by category.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"category": {"type": "string"}},
-                    "required": [],
+                    "required": ["department"],
                 },
             },
             {
                 "name": "compare_products",
-                "description": "Compare two products side by side.",
+                "description": "Two products side by side by product id.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -157,202 +80,95 @@ TOOL_SCHEMAS = {
                     "required": ["product_id_1", "product_id_2"],
                 },
             },
-        ],
-    },
-    "recommendation": {
-        "target_name": "pellier-curation-recommendation-target",
-        "description": "Pellier curation, memory, policy, and evidence MCP server",
-        "tools": [
             {
-                "name": "get_customer_preferences",
-                "description": "Read a safe customer preference, order, and memory snapshot.",
+                "name": "check_stock",
+                "description": "Quantity and ship window at each warehouse for one named product.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"product_query": {"type": "string"}},
+                    "required": ["product_query"],
+                },
+            },
+            {
+                "name": "get_orders",
+                "description": "The customer's orders, newest first, with the amount paid.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "customer_id": {"type": "string"},
-                        "limit": {"type": "integer", "default": 5},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 20},
                     },
                     "required": ["customer_id"],
-                },
-            },
-            {
-                "name": "get_audit_trail",
-                "description": "Read recent ALLOW receipts from pellier.tool_audit.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "customer_id": {"type": "string"},
-                        "session_id": {"type": "string"},
-                        "tool_name": {"type": "string"},
-                        "caller": {"type": "string"},
-                        "limit": {"type": "integer", "default": 3},
-                    },
-                    "required": ["customer_id"],
-                },
-            },
-            {
-                "name": "get_trending_products",
-                "description": "Most popular products by rating and review volume.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "limit": {"type": "integer", "default": 5},
-                        "category": {"type": "string"},
-                    },
-                    "required": [],
                 },
             },
             {
                 "name": "get_return_policy",
-                "description": "Look up the return and care policy for a category.",
+                "description": "Return window, condition rules and refund method for a department.",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        "category": {"type": "string", "default": "default"},
-                    },
+                    "properties": {"department": {"type": "string"}},
                     "required": [],
                 },
             },
             {
-                "name": "get_related_products",
-                "description": (
-                    "Find complementary products by vector similarity. "
-                    "The source_product_name is resolved and verified before "
-                    "any similarity query runs."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "source_product_name": {
-                            "type": "string",
-                            "description": (
-                                "Named source product from the shopper request"
-                            ),
-                        },
-                        "product_id": {
-                            "type": "integer",
-                            "description": (
-                                "Optional ID returned by search_products; must "
-                                "match source_product_name"
-                            ),
-                        },
-                        "limit": {"type": "integer", "default": 5},
-                    },
-                    "required": ["source_product_name"],
-                },
-            },
-        ],
-    },
-    "experience": {
-        "target_name": "pellier-concierge-experience-target",
-        "description": "Pellier experience-guide MCP server (returns, credits, tickets, stylist handoff)",
-        "tools": [
-            {
-                "name": "initiate_return",
-                "description": (
-                    "Process a return atomically: ownership check + INSERT into "
-                    "pellier.returns + (if damaged) decrement product_catalog "
-                    "quantity. Reason must be one of damaged, wrong_size, "
-                    "not_as_described, changed_mind, other."
-                ),
+                "name": "get_tickets",
+                "description": "The customer's support tickets, newest first.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "customer_id": {"type": "string"},
-                        "product_id": {"type": "integer"},
-                        "reason": {
-                            "type": "string",
-                            "enum": [
-                                "changed_mind",
-                                "damaged",
-                                "not_as_described",
-                                "other",
-                                "wrong_size",
-                            ],
-                        },
-                        "idempotency_key": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 20},
                     },
-                    "required": [
-                        "customer_id",
-                        "product_id",
-                        "reason",
-                        "idempotency_key",
-                    ],
+                    "required": ["customer_id"],
                 },
             },
             {
-                "name": "issue_credit",
+                "name": "give_store_credit",
                 "outputSchema": {
                     "type": "object",
                     "properties": {"text": {"type": "string"}},
                     "required": ["text"],
                 },
                 "description": (
-                    "Issue a goodwill store credit for service recovery, up "
-                    "to $500.00. Writes one durable row per idempotency key "
-                    "into pellier.store_credits."
+                    "Give one store credit, up to $500.00, for a review a person "
+                    "approved. One pellier.store_credits row per idempotency key."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "customer_id": {"type": "string"},
-                        "amount_cents": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50000,
-                        },
+                        "amount_cents": {"type": "integer", "minimum": 1, "maximum": 50000},
                         "reason": {"type": "string"},
                         "idempotency_key": {"type": "string"},
                     },
-                    "required": [
-                        "customer_id",
-                        "amount_cents",
-                        "reason",
-                        "idempotency_key",
-                    ],
+                    "required": ["customer_id", "amount_cents", "reason", "idempotency_key"],
                 },
             },
             {
-                "name": "get_ticket_history",
+                "name": "ask_a_person",
                 "description": (
-                    "Read a customer's past support tickets, newest first, "
-                    "for context before answering a service question."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "customer_id": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1, "maximum": 25},
-                    },
-                    "required": ["customer_id"],
-                },
-            },
-            {
-                "name": "escalate_to_human",
-                "description": (
-                    "Hand the conversation off to a human stylist. Honest "
-                    "fallback when no catalog tool can answer (cultural "
-                    "dressing norms, body-image fit, out-of-policy returns)."
+                    "Hand the conversation to a person at Pellier. A store credit "
+                    "request opens a review for staff; nothing changes until a "
+                    "person approves."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "reason": {"type": "string"},
                         "customer_id": {"type": "string"},
+                        "store_credit_cents": {"type": "integer"},
                     },
-                    "required": ["customer_id"],
+                    "required": ["reason"],
                 },
             },
         ],
     },
 }
 
-TOOL_SCHEMAS["experience"]["tools"].append(REPLACEMENT_TOOL)
-
 # ``turn_id`` is a route-minted correlation value. It is optional in the
-# Gateway schema so direct/instructor invocations remain valid, but the managed
-# Runtime dispatcher requires it on every shopper tool call and each Lambda
-# preserves it in ``tool_audit.args`` while stripping it before business logic.
+# Gateway schema so direct invocations remain valid, but the managed Runtime
+# Router requires it on every shopper tool call and the Lambda preserves it in
+# ``tool_audit.args`` while stripping it before the tool runs.
 for _target in TOOL_SCHEMAS.values():
     for _tool in _target["tools"]:
         _tool["inputSchema"]["properties"].setdefault(
@@ -371,26 +187,18 @@ for _target in TOOL_SCHEMAS.values():
 # What the CURRENT WORKSHOP ITERATION publishes
 # ---------------------------------------------------------------------------
 #
-# `TOOL_SCHEMAS` above is the canonical catalogue of everything Pellier can serve
-# through a Gateway target. It is deliberately the superset, because a schema
-# is a description of a capability and publication is a separate decision.
+# `TOOL_SCHEMAS` above is the catalogue of everything Pellier can serve through
+# the Gateway. Publication is a separate decision: publishing a tool gives it an
+# MCP action id, a Cedar action and a place in participant-visible discovery.
 #
-# Publishing a tool gives it an MCP action id, a Cedar action, a capability-endpoint
-# state and a place in participant-visible discovery. Two capabilities are DEFERRED at
-# the start of this workshop iteration, and one is published for staff only:
+#   give_store_credit   moves money. PUBLISHED for staff only: the Operator executes
+#                       an approved credit through the Gateway with the operator's
+#                       own token, and its one permit requires the staff scope claim.
+#                       No shopper agent binds it.
 #
-#   issue_credit        moves money. PUBLISHED, because the operator desk executes an
-#                       approved credit through the Gateway with the operator's own
-#                       token, and the baseline permit for it requires the staff scope
-#                       claim. No shopper permit names it, so a shopper token is denied
-#                       by default, and no shopper-facing specialist binds it.
-#
-#   restock_inventory   moves stock. An operator capability behind the desk's own
-#                       authorization; no shopper-facing specialist binds it, and a
-#                       shopper token must not be able to reach it on the Gateway.
-#
-#   get_ticket_history  reads a customer's support history. The read is only safe under
-#                       an ownership condition, and binding that condition is Task 3A.
+#   get_tickets         reads a customer's support history. The read is only safe
+#                       under an ownership condition, and binding that condition is
+#                       Task 3A, so the starter withholds it.
 #
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
@@ -398,14 +206,12 @@ for _target in TOOL_SCHEMAS.values():
 # === WORKSHOP - Gateway catalogue - published tools: START ===
 # WORKSHOP_EXERCISE_STUB
 #
-# Task 3A. Theo asks the support specialist for his ticket history. `get_ticket_history` has a
-# schema in the catalogue above but is withheld from the Gateway, so the
-# managed rail cannot serve it.
+# Task 3A. Theo asks the Support agent for his ticket history. `get_tickets` has a
+# schema in the catalogue above but is withheld from the Gateway, so the managed
+# rail cannot serve it.
 #
-# Decide which deferred name is safe to publish and which must stay behind the
-# operator desk; the classification above this marker describes both. Publishing
-# makes a tool discoverable and adds it to the policy action set. It does not
-# decide whose records a call may read: that is the caller binding in
+# Publishing makes a tool discoverable and adds it to the policy action set. It
+# does not decide whose records a call may read: that is the caller binding in
 # agentcore_gateway.py plus the owner-only permit rendered at deploy.
 #
 # Reconcile the Runtime list and caller binding in Task 3A, then deploy in
@@ -414,31 +220,29 @@ for _target in TOOL_SCHEMAS.values():
 #         --mode participant
 #
 # Verify (live, the real check): an MCP tool listing made with your own token
-# names `get_ticket_history`. Visible counts depend on the caller because the
-# Gateway filters discovery by policy; published staff-only tools are not
-# necessarily visible to a shopper.
+# names `get_tickets`. Visible counts depend on the caller because the Gateway
+# filters discovery by policy; a published staff-only tool is not visible to a
+# shopper.
 WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
-    "restock_inventory",
-    "get_ticket_history",
+    "get_tickets",
 })
 # === WORKSHOP - Gateway catalogue - published tools: END ===
 
 
 # Publication is not visibility. AgentCore Gateway evaluates Cedar on MCP tool
 # discovery, so `list_tools` returns the subset the calling token could actually be
-# permitted to invoke, never the whole published catalogue. Live on 2026-09-10: a
-# shopper token saw 14 of 15 published tools (no `issue_credit`), and a staff token
-# with no customer mapping saw 13 (it gained `issue_credit` and lost the two
-# owner-scoped reads). The catalogue has since grown: 16 published before Task 3a
-# and 17 after, of which a shopper token discovers 14 and 15.
+# permitted to invoke, never the whole published catalogue. Expected counts: 8 tools
+# published before Task 3A and 9 after. A shopper token with a customer claim
+# discovers 7 and then 8 (never `give_store_credit`); a staff token with no customer
+# claim discovers 7 both times (it gains `give_store_credit` and loses the
+# owner-scoped reads).
 #
 # These two sets name why a tool can be missing from one caller's listing. They are
 # claim shapes, not a second catalogue: every name here is published.
-STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit", "replace_damaged_item"})
+STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"give_store_credit"})
 OWNER_SCOPED_GATEWAY_TOOLS: frozenset[str] = frozenset({
-    "get_customer_preferences",
-    "get_audit_trail",
-    "get_ticket_history",
+    "get_orders",
+    "get_tickets",
 })
 
 
@@ -461,7 +265,7 @@ def discoverable_tools_for_claims(
 
 
 def canonical_tool_names() -> frozenset[str]:
-    """Every tool name in the canonical catalogue, published or not."""
+    """Every tool name in the catalogue, published or not."""
     return frozenset(
         tool["name"] for config in TOOL_SCHEMAS.values() for tool in config["tools"]
     )
@@ -475,9 +279,7 @@ def workshop_published_tools() -> frozenset[str]:
 def workshop_target_tools() -> dict[str, tuple[str, ...]]:
     """Published tool names per Gateway target, in declaration order.
 
-    The single source both the renderer and the tests consume. A target whose every tool
-    is deferred would appear here as an empty tuple rather than vanish, so a caller can
-    tell "nothing published" from "no such target".
+    The single source both the renderer and the tests consume.
     """
     return {
         config["target_name"]: tuple(
@@ -489,24 +291,17 @@ def workshop_target_tools() -> dict[str, tuple[str, ...]]:
 
 
 def schema_for(surface: str, *, workshop: bool) -> list[dict]:
-    """Return the CLI-compatible tool schema for one Gateway target.
+    """Return the CLI-compatible schema of the tools one target serves.
 
-    `workshop` is REQUIRED, not defaulted, because the two answers differ and both are
-    legitimate:
-
-      * ``workshop=True`` drops the deferred tools, so a fresh provision cannot publish
-        a capability whose governance is undecided. Every publication path wants this.
-      * ``workshop=False`` is the full canonical vocabulary, which the Gateway vocabulary
-        migration needs in order to compute what it is deliberately NOT publishing.
-
-    It was briefly defaulted to ``True``, and that silently narrowed
-    ``migrate_gateway_vocabulary.canonical_targets()`` from seventeen tools to fifteen,
-    which emptied the migration's own deferred-tool list. A caller that has to name the
-    answer cannot inherit the wrong one.
+    ``workshop`` is required, not defaulted, because the two answers differ and
+    both are legitimate: ``True`` drops the deferred tools, so a fresh provision
+    cannot publish a capability whose governance is undecided, and every
+    publication path wants this; ``False`` is the full catalogue, which the
+    Lambda's own ``list_tools`` probe and the schema tests read.
     """
     config = TOOL_SCHEMAS[surface]
     return [
         {**tool, "inputSchema": _sanitize_tool_schema(tool["inputSchema"])}
         for tool in config["tools"]
-        if workshop is False or tool["name"] not in WORKSHOP_DEFERRED_TOOLS
+        if not workshop or tool["name"] not in WORKSHOP_DEFERRED_TOOLS
     ]

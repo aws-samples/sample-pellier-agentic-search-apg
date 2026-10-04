@@ -24,13 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class AgentType(Enum):
-    """Agent types with specialized prompt templates"""
-    ORCHESTRATOR = "orchestrator"
-    INVENTORY = "inventory"
-    PRICING = "pricing"
-    RECOMMENDATION = "recommendation"
-    CUSTOMER_SUPPORT = "support"
-    SEARCH = "search"
+    """The Router and the three agents it reaches."""
+    ROUTER = "router"
+    SHOPPING = "shopping"
+    STOCK = "stock"
+    SUPPORT = "support"
 
 
 @dataclass
@@ -436,137 +434,6 @@ class ContextManager:
         self.conversation_history = []
         self.agent_contexts = {agent: [] for agent in AgentType}
         logger.info(f"🗑️ Context cleared: {tokens_cleared:,} tokens freed")
-
-
-class PromptRegistry:
-    """
-    Centralized Prompt Management for Multi-Agent Systems
-    
-    Demonstrates enterprise-grade prompt engineering patterns:
-    - Versioned prompts for A/B testing
-    - Dynamic prompt assembly based on context
-    - Few-shot example management
-    - Prompt performance tracking
-    
-    Usage:
-        registry = PromptRegistry()
-        prompt = registry.get_prompt(AgentType.INVENTORY, context={"urgency": "high"})
-    """
-    
-    # Production-grade prompt templates with versioning
-    TEMPLATES = {
-        AgentType.ORCHESTRATOR: {
-            "version": "v2.1",
-            "system": """You are the Orchestrator Agent for Pellier, an AI-powered e-commerce platform.
-
-Your role is to analyze customer queries and route them to specialist agents:
-- Inventory Agent: Stock levels, availability, restocking
-- Pricing Agent: Price analysis, comparisons, value assessment
-- Personalization Agent: Product search, recommendations, semantic matching
-
-Analyze the customer's intent and call the appropriate specialist agent. If the query spans multiple domains, coordinate between agents to provide a comprehensive response.
-
-Always maintain context from previous interactions and provide coherent, helpful responses.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 850,
-                "success_rate": 0.94
-            }
-        },
-        
-        AgentType.INVENTORY: {
-            "version": "v1.8",
-            "system": """You are the Inventory Management Agent for Pellier.
-
-Your specialization: Stock levels, availability, restocking timelines, and inventory health.
-
-Use the check_inventory() tool to access live data. Always provide specific stock numbers and ETAs when available.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 620,
-                "success_rate": 0.97
-            }
-        },
-        
-        AgentType.PRICING: {
-            "version": "v2.0",
-            "system": """You are the Pricing Analysis Agent for Pellier.
-
-Your specialization: Price analysis, value assessment, market comparisons, and deal identification.
-
-Use the get_price_analysis() tool for statistical insights.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 720,
-                "success_rate": 0.92
-            }
-        },
-        
-        AgentType.RECOMMENDATION: {
-            "version": "v1.9",
-            "system": """You are the Product Personalization Agent for Pellier.
-
-Your specialization: Semantic product search, personalized recommendations, and gift suggestions.
-
-Use the search_products() tool for intelligent matching.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 890,
-                "success_rate": 0.91
-            }
-        },
-
-        AgentType.CUSTOMER_SUPPORT: {
-            "version": "v1.0",
-            "system": """You are the Customer Service Agent for Pellier.
-
-Your specialization: Return policies, refund inquiries, warranty questions, and general troubleshooting.
-
-Use the get_return_policy() tool for return and refund policy lookups. Use search_products() for product-related support queries.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 750,
-                "success_rate": 0.93
-            }
-        },
-
-        AgentType.SEARCH: {
-            "version": "v1.0",
-            "system": """You are the Product Search Agent for Pellier.
-
-Your specialization: Product search, category browsing, and product comparisons.
-
-Use search_products() for natural language queries, browse_category() for category browsing, and compare_products() for side-by-side comparisons.""",
-            "performance_metrics": {
-                "avg_response_time_ms": 820,
-                "success_rate": 0.92
-            }
-        },
-    }
-    
-    @classmethod
-    def get_prompt(cls, agent_type: AgentType) -> str:
-        """Get system prompt for agent type"""
-        if agent_type not in cls.TEMPLATES:
-            raise ValueError(f"No prompt template for {agent_type}")
-        return cls.TEMPLATES[agent_type]["system"]
-    
-    @classmethod
-    def get_version(cls, agent_type: AgentType) -> str:
-        """Get current prompt version for tracking"""
-        return cls.TEMPLATES[agent_type]["version"]
-    
-    @classmethod
-    def get_performance_metrics(cls, agent_type: AgentType) -> Dict[str, Any]:
-        """Get prompt performance metrics for optimization"""
-        return cls.TEMPLATES[agent_type].get("performance_metrics", {})
-    
-    @classmethod
-    def list_available_prompts(cls) -> List[Dict[str, Any]]:
-        """List all available prompt templates with metadata"""
-        return [
-            {
-                "agent": agent.value,
-                "version": template["version"],
-                "performance": template.get("performance_metrics", {})
-            }
-            for agent, template in cls.TEMPLATES.items()
-        ]
 
 
 # Global context manager instance

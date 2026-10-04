@@ -11,8 +11,8 @@ tool returns:
 The participant supplies one query for each case. Before the tool runs, this script
 classifies every query from its own catalog and warehouse read. A query that does not
 belong to the case it was offered for fails as a test input, so a weak test cannot
-pass. Then the participant's own ``check_inventory`` body runs through the same
-``@tool`` wrapper the Inventory Agent calls, and its envelope is judged against that
+pass. Then the participant's own ``check_stock`` body runs through the same
+``@tool`` wrapper the Stock agent calls, and its envelope is judged against that
 classification. A catalog read failure is UNCHECKED and fails the run; it is never
 read as "not found".
 
@@ -194,7 +194,7 @@ async def _run(inputs: Dict[str, tuple[str, str]]) -> List[Dict[str, Any]]:
         for case in CASES:
             query, chosen_by = inputs[case]
             catalog = await _catalog(service, query)
-            raw = await asyncio.to_thread(agent_tools.check_inventory, product_query=query)
+            raw = await asyncio.to_thread(agent_tools.check_stock, product_query=query)
             try:
                 envelope = json.loads(raw)
             except (TypeError, ValueError):

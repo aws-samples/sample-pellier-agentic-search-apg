@@ -34,15 +34,15 @@ def test_marco_canonical_question_asks_about_fulfilment_timing() -> None:
     Aurora provides warehouse quantity and dispatch timing. It does not
     establish a delivery date without destination and carrier evidence.
     """
-    prompt = (BACKEND / "agents" / "inventory_agent.py").read_text()
+    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
     assert "Brooklyn" in prompt and "what ship window is recorded?" in prompt
-    assert "check_inventory(product_query='Hadley Linen Shirt')" in prompt
+    assert "check_stock(product_query='Hadley Linen Shirt')" in prompt
     assert "A dispatch window does not establish an arrival date" in prompt
     assert "time-to-doorstep" not in prompt and "day arrival" not in prompt
 
 
 def test_marco_tool_reads_the_ship_window_from_aurora() -> None:
-    logic = (BACKEND / "services" / "business_logic.py").read_text()
+    logic = (BACKEND / "services" / "store_tools.py").read_text()
     # Per-warehouse breakdown must carry both the count and the window.
     assert "ship_window_min" in logic and "ship_window_max" in logic
     assert "w.display_name" in logic and "wi.quantity" in logic
@@ -50,7 +50,7 @@ def test_marco_tool_reads_the_ship_window_from_aurora() -> None:
 
 def test_marco_answer_rules_require_warehouse_count_and_ship_window() -> None:
     """All three, or the answer is not grounded in what the tool returned."""
-    prompt = (BACKEND / "agents" / "inventory_agent.py").read_text()
+    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
     assert "ship window" in prompt.lower()
     assert "total_units" in prompt
     assert "BK-01" in prompt
@@ -62,7 +62,7 @@ def test_marco_quantity_is_never_hard_coded_in_the_prompt() -> None:
     A literal count in the instructions would have the agent assert a number
     Aurora may no longer agree with.
     """
-    prompt = (BACKEND / "agents" / "inventory_agent.py").read_text()
+    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
     # The prompt's illustrative examples use deliberately different numbers so
     # no single value can read as the real one.
     assert "20 of the Hadley" not in prompt
@@ -105,12 +105,12 @@ def test_anna_observed_ms_is_presented_as_an_observation() -> None:
 # THEO — ACT. The boundary, enforced by architecture.
 # ---------------------------------------------------------------------------
 
-def test_theo_shopper_rail_cannot_execute_the_return(
+def test_theo_shopper_rail_cannot_execute_the_credit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The governed format refuses the write in-process. Deterministically.
 
-    This is the load-bearing assertion of Prompt 2. If `initiate_return` ever
+    This is the load-bearing assertion of Prompt 2. If `give_store_credit` ever
     became servable on the shopper rail, Pellier would complete a privileged
     business mutation from a chat turn with no human confirmation and no Cedar
     evaluation.
@@ -126,17 +126,18 @@ def test_theo_shopper_rail_cannot_execute_the_return(
         execution_rail.settings, "WORKSHOP_FORMAT", "governed", raising=False
     )
 
-    assert execution_rail.requires_managed_rail("initiate_return") is True
-    assert execution_rail.requires_managed_rail("issue_credit") is True
+    assert execution_rail.requires_managed_rail("give_store_credit") is True
     # A read must NOT be gated, or the shopper arc breaks for Marco and Anna.
-    assert execution_rail.requires_managed_rail("check_inventory") is False
+    assert execution_rail.requires_managed_rail("check_stock") is False
     assert execution_rail.requires_managed_rail("search_products") is False
+    # The handoff writes only workflow state for a person to decide.
+    assert execution_rail.requires_managed_rail("ask_a_person") is False
 
 
 def test_the_boundary_is_scoped_to_the_governed_format() -> None:
     """Stated as its own fact, because it decides where the arc applies.
 
-    On the builders format the shopper rail completes the return in-process.
+    On the builders format the shopper rail completes the write in-process.
     Prompt 2's "stop at the boundary" behaviour is a governed-branch property,
     not a universal one.
     """
@@ -145,27 +146,26 @@ def test_the_boundary_is_scoped_to_the_governed_format() -> None:
     original = getattr(execution_rail.settings, "WORKSHOP_FORMAT", "")
     try:
         execution_rail.settings.WORKSHOP_FORMAT = "builders"
-        assert execution_rail.requires_managed_rail("initiate_return") is False
+        assert execution_rail.requires_managed_rail("give_store_credit") is False
     finally:
         execution_rail.settings.WORKSHOP_FORMAT = original
 
 
-def test_theo_return_tool_checks_the_rail_before_touching_the_database(
+def test_theo_credit_tool_checks_the_rail_before_touching_the_database(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The guard must run first, not after a partial write.
 
     Scope note, added in Prompt 3: `_db_service` is the handle every *business*
-    write goes through, and this asserts the refusal path never reaches it. The
-    refusal branch does now open a durable operator review, which is workflow
-    state written through a separate pool reference in `services.operator_review`
-    after the guard has already decided to refuse. That is deliberately not what
-    this tripwire guards, and `test_operator_review` asserts the separation from
-    the other side.
+    write goes through, and this asserts the refusal path never reaches it. A
+    credit request becomes a durable operator review through `ask_a_person`, which
+    is workflow state written through a separate path in
+    `services.operator_review`. That is deliberately not what this tripwire
+    guards, and `test_operator_review` asserts the separation from the other side.
     """
-    from services import agent_tools
+    import json
 
-    from services import execution_rail
+    from services import agent_tools, execution_rail
 
     monkeypatch.setattr(
         execution_rail.settings, "WORKSHOP_FORMAT", "governed", raising=False
@@ -182,90 +182,76 @@ def test_theo_return_tool_checks_the_rail_before_touching_the_database(
 
     monkeypatch.setattr(agent_tools, "_db_service", Tripwire())
 
-    raw = agent_tools.initiate_return._tool_func(
-        customer_id="theo",
-        product_id=37,
-        reason="damaged",
+    raw = agent_tools.give_store_credit._tool_func(
+        customer_id="CUST-THEO",
+        amount_cents=2500,
+        reason="probe",
         idempotency_key="prompt2-boundary-probe",
     )
 
-    import json
-
     envelope = json.loads(raw)
     assert envelope["error"] == "managed_rail_required"
-    assert envelope["tool"] == "initiate_return"
+    assert envelope["tool"] == "give_store_credit"
     assert called == [], "no database attribute may be reached"
 
 
-def test_theo_credit_tool_is_gated_on_the_same_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from services import agent_tools
+def _support_prompt() -> str:
+    from agents.support_agent import _SUPPORT_SYSTEM_PROMPT
 
-    from services import execution_rail
-
-    monkeypatch.setattr(
-        execution_rail.settings, "WORKSHOP_FORMAT", "governed", raising=False
-    )
-    import json
-
-    envelope = json.loads(
-        agent_tools.issue_credit._tool_func(
-            customer_id="CUST-THEO",
-            amount_cents=2500,
-            reason="probe",
-            idempotency_key="prompt2-credit-probe",
-        )
-    )
-    assert envelope["error"] == "managed_rail_required"
+    return " ".join(_SUPPORT_SYSTEM_PROMPT.split())
 
 
-def test_theo_agent_is_told_the_boundary_is_not_a_failure() -> None:
-    """`managed_rail_required` previously reached the model with no guidance.
+def test_theo_agent_hands_a_credit_request_to_a_person() -> None:
+    """The Support agent asks for a credit; a person decides it.
 
-    The Customer Service Agent was still instructed to announce a completed write, so
-    the shopper could plausibly be told the return was filed when nothing had
-    happened.
+    The prompt names the handoff tool, the amount argument, and the fact that
+    nothing changes until a person confirms.
     """
-    prompt = (BACKEND / "agents" / "customer_service_agent.py").read_text()
-    assert "managed_rail_required" in prompt
-    assert "operator-review-boundary" in prompt
-    assert "prepared" in prompt.lower()
+    flat = _support_prompt()
+    assert "ask_a_person" in flat
+    assert "store_credit_cents" in flat
+    assert "A person reviews every credit before anything changes" in flat
+    assert "nothing has changed yet" in flat
 
 
 def test_theo_agent_may_not_claim_the_return_completed() -> None:
-    """Each forbidden claim is named, because a vague rule is not a rule."""
-    prompt = (BACKEND / "agents" / "customer_service_agent.py").read_text()
-    flat = " ".join(prompt.split())
-    for forbidden in ("refund", "credit", "replacement", "policy approved"):
-        assert forbidden in flat, f"the prompt does not forbid claiming: {forbidden}"
-    assert "must NOT say" in flat
+    """The forbidden claim is named, because a vague rule is not a rule."""
+    flat = _support_prompt()
+    assert (
+        "never say a refund, return or credit was made unless a tool result says so"
+        in flat
+    )
+    assert "do not promise a timeframe or an outcome" in flat
 
 
 def test_theo_boundary_does_not_leak_system_vocabulary_to_the_shopper() -> None:
     """The shopper hears a prepared request, not a rail name."""
-    prompt = (BACKEND / "agents" / "customer_service_agent.py").read_text()
-    flat = " ".join(prompt.split())
-    assert "Never show the shopper" in flat
-    for internal in ("managed_rail_required", "gateway-mcp", "Cedar"):
+    flat = _support_prompt()
+    assert "Never show the shopper a tool name, a status code" in flat
+    for internal in ("Cedar", "rail"):
         assert internal in flat, f"{internal} should be named as internal-only"
 
 
-def test_theo_boundary_does_not_reuse_the_stylist_escalation() -> None:
-    """`escalate_to_human` routes to a stylist for cases policy will not cover.
+def test_the_support_agent_never_binds_the_credit_tool() -> None:
+    """A credit is requested through `ask_a_person`, never written by the agent.
 
-    Theo's return IS covered — damaged is canonical and he owns the piece. Using
-    the stylist handoff would send a governed action to the wrong destination and
-    describe it as a policy exception.
+    `give_store_credit` is bound to no agent; it runs only for a review a person
+    confirmed. Binding it would put the money-moving write back inside the chat.
     """
-    prompt = (BACKEND / "agents" / "customer_service_agent.py").read_text()
-    flat = " ".join(prompt.split())
-    assert "Do NOT use escalate_to_human for a return that simply needs operator" in flat
+    from agents import support_agent
 
-    tools = (BACKEND / "services" / "agent_tools.py").read_text()
-    # And the tool itself still means what it meant: a UI handoff, no write.
-    assert '"channel": "stylist"' in tools
-    assert "No products, no audit row" in tools
+    source = (BACKEND / "agents" / "support_agent.py").read_text()
+    assert "give_store_credit" not in source
+    bound = {
+        getattr(getattr(tool, "__wrapped__", tool), "__name__", "")
+        for tool in (
+            support_agent.get_orders,
+            support_agent.get_return_policy,
+            support_agent.get_tickets,
+            support_agent.ask_a_person,
+        )
+    }
+    assert "give_store_credit" not in bound
 
 
 # ---------------------------------------------------------------------------
@@ -293,15 +279,11 @@ def test_prompt_2_did_not_create_an_operator_case_model() -> None:
     assert not stray, f"a case model appeared ahead of Prompt 3: {stray}"
 
 
-def test_prompt_2_added_no_new_privileged_mutation() -> None:
-    """The mutation set is exactly the three that already existed."""
+def test_the_only_privileged_mutation_is_the_operator_store_credit() -> None:
+    """The mutation set is one tool, and no agent binds it."""
     from services.agentcore_gateway import mutation_tool_names
 
-    assert sorted(mutation_tool_names()) == [
-        "initiate_return",
-        "issue_credit",
-        "restock_inventory",
-    ]
+    assert sorted(mutation_tool_names()) == ["give_store_credit"]
 
 
 def test_prompt_2_did_not_mint_a_second_correlation_identifier() -> None:

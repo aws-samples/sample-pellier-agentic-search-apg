@@ -1,10 +1,9 @@
-"""Tests for the operator mutation boundary on ``POST /api/tools/restock``.
+"""Tests for the operator mutation boundary (``require_operator``).
 
-The governed-workshop audit's B5 finding: the handler took an untyped
-``dict`` body and depended on the *optional* ``get_current_user``, which
-returns ``None`` both for an anonymous caller and for a presented-but-
-invalid token. Because the handler never rejected ``None``, an inventory
-mutation could run with no attributable principal.
+The governed-workshop audit's B5 finding: an operator handler depended on the
+*optional* ``get_current_user``, which returns ``None`` both for an anonymous
+caller and for a presented-but-invalid token. Because the handler never rejected
+``None``, a mutation could run with no attributable principal.
 
 Three properties are pinned here:
 
@@ -187,52 +186,12 @@ def test_bearer_prefix_with_empty_token_counts_as_missing(
 
 
 # ---------------------------------------------------------------------------
-# Typed request body
-# ---------------------------------------------------------------------------
-def test_restock_request_rejects_out_of_range_quantity() -> None:
-    from pydantic import ValidationError
-
-    from models.search import RestockRequest
-
-    with pytest.raises(ValidationError):
-        RestockRequest(product_id=1, quantity=501, idempotency_key="k")
-    with pytest.raises(ValidationError):
-        RestockRequest(product_id=1, quantity=0, idempotency_key="k")
-
-
-def test_restock_request_requires_an_idempotency_key() -> None:
-    from pydantic import ValidationError
-
-    from models.search import RestockRequest
-
-    with pytest.raises(ValidationError):
-        RestockRequest(product_id=1, quantity=5, idempotency_key="")
-
-
-def test_restock_request_rejects_a_non_positive_product_id() -> None:
-    from pydantic import ValidationError
-
-    from models.search import RestockRequest
-
-    with pytest.raises(ValidationError):
-        RestockRequest(product_id=0, quantity=5, idempotency_key="k")
-
-
-def test_restock_request_defaults_the_warehouse() -> None:
-    from models.search import RestockRequest
-
-    body = RestockRequest(product_id=3, quantity=10, idempotency_key="k-1")
-
-    assert body.warehouse_id == "BK-01"
-
-
-# ---------------------------------------------------------------------------
 # Audit attribution
 # ---------------------------------------------------------------------------
 def test_operator_mutation_audit_records_the_verified_principal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``args->>'principal_sub'`` must answer "who restocked this?"."""
+    """``args->>'principal_sub'`` must answer "who acted on this?"."""
     import services.tool_audit_writer as writer
 
     captured: List[tuple[Any, ...]] = []
@@ -245,10 +204,10 @@ def test_operator_mutation_audit_records_the_verified_principal(
     monkeypatch.setattr(writer, "_run_async", asyncio.run)
 
     writer.record_operator_mutation(
-        tool_name="restock_inventory",
-        caller="rest",
+        tool_name="give_store_credit",
+        caller="operator-desk",
         principal_sub="sub-operator-1",
-        args={"product_id": 3, "quantity": 10, "warehouse_id": "BK-01"},
+        args={"customer_id": "CUST-THEO", "amount_cents": 2500, "reason": "courtesy"},
         result={"status": "success"},
     )
 
@@ -256,8 +215,8 @@ def test_operator_mutation_audit_records_the_verified_principal(
     params = captured[0]
     assert "INSERT INTO pellier.tool_audit" in params[0]
     assert params[1] == "operator-sub-operator-1"
-    assert params[2] == "restock_inventory"
-    assert params[3] == "rest"
+    assert params[2] == "give_store_credit"
+    assert params[3] == "operator-desk"
     assert '"principal_sub": "sub-operator-1"' in params[4]
 
 
@@ -275,10 +234,10 @@ def test_operator_mutation_audit_never_raises(
     monkeypatch.setattr(writer, "_run_async", asyncio.run)
 
     writer.record_operator_mutation(
-        tool_name="restock_inventory",
-        caller="rest",
+        tool_name="give_store_credit",
+        caller="operator-desk",
         principal_sub="sub-1",
-        args={"product_id": 1, "quantity": 1},
+        args={"customer_id": "CUST-THEO", "amount_cents": 100, "reason": "courtesy"},
         result={"status": "success"},
     )  # must not raise
 
@@ -291,8 +250,8 @@ def test_operator_mutation_audit_is_a_noop_without_a_db(
     monkeypatch.setattr(writer, "_db_service", None)
 
     writer.record_operator_mutation(
-        tool_name="restock_inventory",
-        caller="rest",
+        tool_name="give_store_credit",
+        caller="operator-desk",
         principal_sub="sub-1",
         args={},
         result={},

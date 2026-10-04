@@ -71,7 +71,7 @@ class _LedgerDB:
                         ),
                         "duration_ms": 18,
                         "summary": {
-                            "tool": "initiate_return",
+                            "tool": "give_store_credit",
                             "caller": "gateway",
                         },
                     }
@@ -180,7 +180,7 @@ def test_operator_lifecycle_is_a_post_turn_typed_ledger_event() -> None:
                         "summary": {
                             "lifecycle": "review_opened",
                             "review_id": 41,
-                            "action": "initiate_return",
+                            "action": "give_store_credit",
                         },
                     },
                     {
@@ -199,7 +199,7 @@ def test_operator_lifecycle_is_a_post_turn_typed_ledger_event() -> None:
                         "summary": {
                             "lifecycle": "confirmed",
                             "review_id": 41,
-                            "action": "initiate_return",
+                            "action": "give_store_credit",
                         },
                     },
                     {
@@ -218,7 +218,7 @@ def test_operator_lifecycle_is_a_post_turn_typed_ledger_event() -> None:
                         "summary": {
                             "lifecycle": "execution_recorded",
                             "review_id": 41,
-                            "action": "initiate_return",
+                            "action": "give_store_credit",
                             "rail": "gateway-mcp",
                             "policy_outcome": "DENY",
                             "aurora_outcome": "NOT_REACHED",
@@ -259,11 +259,11 @@ def test_operator_lifecycle_is_a_post_turn_typed_ledger_event() -> None:
         "Operator execution receipt",
     ]
     assert lifecycle[0]["summary"] == (
-        "initiate_return was prepared for Operator review. "
+        "give_store_credit was prepared for Operator review. "
         "The shopper rail did not execute the mutation."
     )
     assert lifecycle[2]["summary"] == (
-        "Operator execution for initiate_return: policy DENY; Aurora "
+        "Operator execution for give_store_credit: policy DENY; Aurora "
         "NOT_REACHED; evidence POLICY_PROOF."
     )
     assert "actor_principal" not in lifecycle[2]["details"]
@@ -342,14 +342,14 @@ def test_deny_linked_to_the_exact_execution_row_reads_contradicted(execution_sta
     checks = _sufficiency(
         [
             _event("response", "succeeded"),
-            _event("policy", "denied", "issue_credit"),
-            _event("tool", execution_status, "issue_credit"),
+            _event("policy", "denied", "give_store_credit"),
+            _event("tool", execution_status, "give_store_credit"),
         ]
     )
 
     assert _check(checks, "tool-execution")["status"] == "contradicted"
     assert _check(checks, "policy-decision")["status"] == "contradicted"
-    assert "issue_credit" in _check(checks, "tool-execution")["detail"]
+    assert "give_store_credit" in _check(checks, "tool-execution")["detail"]
 
 
 def test_deny_and_execution_of_different_tools_is_not_a_contradiction() -> None:
@@ -361,8 +361,8 @@ def test_deny_and_execution_of_different_tools_is_not_a_contradiction() -> None:
     checks = _sufficiency(
         [
             _event("response", "succeeded"),
-            _event("policy", "denied", "issue_credit"),
-            _event("tool", "succeeded", "check_inventory"),
+            _event("policy", "denied", "give_store_credit"),
+            _event("tool", "succeeded", "check_stock"),
         ]
     )
 
@@ -379,8 +379,8 @@ def test_repeated_tool_names_do_not_establish_a_contradiction(
 ) -> None:
     checks = _sufficiency([
         _event("response", "succeeded"),
-        _event("policy", "denied", "issue_credit", audit_id=audit_id),
-        _event("tool", "succeeded", "issue_credit", turn_id=tool_turn),
+        _event("policy", "denied", "give_store_credit", audit_id=audit_id),
+        _event("tool", "succeeded", "give_store_credit", turn_id=tool_turn),
     ])
     assert _check(checks, "tool-execution")["status"] == "satisfied"
     assert _check(checks, "policy-decision")["status"] == "satisfied"
@@ -391,5 +391,5 @@ def test_repeated_tool_names_do_not_establish_a_contradiction(
 
 
 def test_null_tool_result_still_has_execution_evidence() -> None:
-    checks = _sufficiency([_event("tool", "unavailable", "check_inventory")])
+    checks = _sufficiency([_event("tool", "unavailable", "check_stock")])
     assert _check(checks, "tool-execution")["status"] == "satisfied"

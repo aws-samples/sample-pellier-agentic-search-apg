@@ -39,7 +39,6 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 DEPLOY = REPO / "scripts" / "deploy"
 sys.path.insert(0, str(DEPLOY))
 
-from plan_restock_alignment import PLACEHOLDER_GATEWAY_ARN  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
     TOOL_SCHEMAS,
     WORKSHOP_DEFERRED_TOOLS,
@@ -48,6 +47,8 @@ from gateway_tool_schemas import (  # noqa: E402
     workshop_target_tools,
 )
 from render_agentcore_project import baseline_policies  # noqa: E402
+
+PLACEHOLDER_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/placeholder"
 
 ACTION_RE = re.compile(r'AgentCore::Action::"([^"]+)"')
 
@@ -115,7 +116,7 @@ def unauthorized_published_tools(tools: Dict[str, Any], policies: Dict[str, Any]
     """Published tools no baseline permit reaches.
 
     Default-deny means a published-but-unpermitted tool is a DENY, not a hole. That is the
-    intended shape for ``initiate_return`` (Lab 4 owns it) and ``restock_inventory``
+    intended shape for ``give_store_credit`` (Lab 4 owns it) and ``get_tickets``
     (operator-side, gated separately), so this is reported rather than treated as an error.
     """
     permitted_short = {

@@ -68,12 +68,12 @@ async def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
 # Operator authority is enforced twice, and the two layers read the same fact.
 # Here, `require_operator` checks group membership on every desk route. At the
 # Gateway, the pre-token trigger stamps `custom:staff_scope` on the access
-# token of a group member, and the `initiate_return_staff_scope` permit in
+# token of a group member, and the `give_store_credit_staff_scope` permit in
 # `scripts/deploy/render_agentcore_project.py` requires that claim, so the
-# desk's confirmed return is authorized as a person, with the operator's own
-# token, rather than as a service. `issue_credit` is also published, with its
-# own staff-scope permit and no shopper permit. Human confirmation is enforced
-# by the Operator workflow; a direct staff Gateway call does not prove review.
+# desk's confirmed credit is authorized as a person, with the operator's own
+# token, rather than as a service. No shopper permit names `give_store_credit`.
+# Human confirmation is enforced by the Operator workflow; a direct staff
+# Gateway call does not prove review.
 OPERATOR_GROUP = "pellier-operators"
 
 
@@ -98,7 +98,7 @@ async def require_operator(request: Request) -> Dict[str, Any]:
 
     **Authentication is not authorization.** This function used to stop at "the token
     verifies and carries a subject", which made every shopper an operator: `marco` could
-    confirm, decline and execute any review, and call ``issue_credit`` directly. The
+    confirm, decline and execute any review, and call ``give_store_credit`` directly. The
     module docstring in ``routes/operator.py`` even explained why a shopper-facing agent
     must never issue itself store credit, while this dependency handed the same capability
     to the same shopper through the desk. A workshop whose subject is governance cannot

@@ -22,8 +22,8 @@ version: "1.0"
 
 ## Tool discipline
 
-- Use `get_customer_preferences` for memory and preference proof.
-- Use `get_audit_trail` for tool/audit/Gateway proof.
+- Use the persona context and AgentCore Memory for preference proof; no tool reads preferences.
+- Use `get_orders` and `get_tickets` for what the records show about the signed-in shopper.
 - Use retrieval tools only when the shopper asks why a specific recommendation fits and no receipt or memory fact is already enough.
 
 ## Guardrails

@@ -23,8 +23,8 @@ def test_publishing_ticket_history_also_installs_ownership(monkeypatch):
     import render_agentcore_project as renderer
 
     published = renderer.workshop_target_tools()
-    published[renderer.EXPERIENCE_TARGET] = [
-        *published[renderer.EXPERIENCE_TARGET], "get_ticket_history", "issue_credit", "future_tool",
+    published[renderer.STORE_TARGET] = [
+        *published[renderer.STORE_TARGET], "get_tickets", "future_tool",
     ]
     monkeypatch.setattr(renderer, "workshop_target_tools", lambda: published)
     arn = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"
@@ -33,20 +33,20 @@ def test_publishing_ticket_history_also_installs_ownership(monkeypatch):
         for item in renderer.baseline_policies(gateway_arn=arn)
     }
     permit = policies["baseline_permit_workshop_tools"]
-    assert "___get_ticket_history" not in permit
-    assert "___issue_credit" not in permit
+    assert "___get_tickets" not in permit
+    assert "___give_store_credit" not in permit
     assert "___future_tool" not in permit
     # Published in the same deployment as its owner-only permit: the read is
     # reachable only by the customer the token names, never by a caller who
     # merely supplies a customer_id.
-    owned = policies["get_ticket_history_owner_only"]
+    owned = policies["get_tickets_owner_only"]
     assert owned.startswith("permit (principal is AgentCore::OAuthUser")
-    assert "___get_ticket_history" in owned
+    assert "___get_tickets" in owned
     assert 'principal.hasTag("custom:customer_id")' in owned
     assert "context.input has customer_id" in owned
     assert 'principal.getTag("custom:customer_id") == context.input.customer_id' in owned
     assert "CUST-THEO" not in owned and "username" not in owned
-    assert "get_ticket_history_identity_scope" not in policies
+    assert "get_tickets_identity_scope" not in policies
 
 
 def test_no_statement_rewrites_the_material_a_person_confirmed() -> None:

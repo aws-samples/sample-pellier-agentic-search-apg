@@ -224,7 +224,7 @@ export interface OperatorExecutionReceipt {
   producedReturnId: number | null
   executionTurnId: string
   tool: string
-  /** The Cedar action id evaluated, e.g. `<target>___initiate_return`. */
+  /** The Cedar action id evaluated, e.g. `<target>___give_store_credit`. */
   gatewayActionId: string
   rail: 'gateway-mcp' | 'in-process' | 'refused'
   /** The operator AgentCore Policy authorized. */
@@ -332,43 +332,6 @@ export interface OperatorReviewQueue {
   reviews: OperatorReview[]
   total: number
   pendingCount: number
-}
-
-export interface OperatorReplacement {
-  replacementId: string
-  reviewId: number
-  orderId: number
-  productId: string
-  productName: string
-  quantity: number
-  disposition: string
-  state: 'reserved' | 'awaiting_fulfillment' | 'outcome_unknown' | 'accepted' | 'shipped'
-  workflowResolution: 'operator_review_required' | 'shipment_recorded' | null
-  providerOperationId: string | null
-  executionArn: string | null
-  idempotencyKey: string
-  approvalHash: string
-  outbox: { eventId: string; attempts: number; publishedAt: string | null } | null
-  provider: 'workshop-simulator'
-  createdAt: string
-  updatedAt: string
-  events: { type: string; at: string; details: Record<string, unknown> }[]
-}
-
-export interface ReplacementRecovery {
-  available: boolean
-  replacements: OperatorReplacement[]
-}
-
-export function fetchReplacements(customerId: string, replacementId?: string): Promise<ReplacementRecovery> {
-  const query = replacementId ? `?replacement_id=${encodeURIComponent(replacementId)}` : ''
-  return request(`/api/operator/clients/${encodeURIComponent(customerId)}/replacements${query}`)
-}
-
-export function prepareReplacement(customerId: string, orderId: number, quantity: number, issue: string): Promise<{ reviewId: number }> {
-  return request(`/api/operator/clients/${encodeURIComponent(customerId)}/replacements/prepare`, {
-    method: 'POST', body: JSON.stringify({ orderId, quantity, issue }),
-  })
 }
 
 export interface OperatorReviewDetail {
@@ -515,9 +478,8 @@ export function fetchClientRecord(
  * What the Operator can actually do right now.
  *
  * Backend-derived from live Gateway and policy state. The frontend must never
- * decide this: `initiate_return` is currently published with zero matching permits
- * while `issue_credit` is not published at all, and only the control plane can tell
- * those apart.
+ * decide this: a tool can be published with zero matching permits or not published
+ * at all, and only the control plane can tell those apart.
  */
 export function fetchCapabilities(): Promise<CapabilitySnapshot> {
   return request<CapabilitySnapshot>('/api/operator/capabilities')

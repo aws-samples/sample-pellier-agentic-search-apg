@@ -3,7 +3,7 @@
 # lab3-start.sh [persona] -- move the storefront onto the managed rail, proved
 # =============================================================================
 # Labs 1 and 2 run the in-process rail so the participant proves their own
-# Inventory Agent and hybrid retrieval. Lab 3 switches the storefront to the
+# Stock agent and hybrid retrieval. Lab 3 switches the storefront to the
 # already-provisioned AgentCore Runtime and Gateway. This is the one command
 # that does the switch and refuses to claim it happened without evidence.
 #

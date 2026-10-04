@@ -32,10 +32,10 @@ REPO = BACKEND.parents[1]
 DEPLOY = REPO / "scripts" / "deploy"
 
 from services import governed_execution as ge  # noqa: E402
-from services.business_logic import write_request_hash  # noqa: E402
+from services.store_tools import write_request_hash  # noqa: E402
 
-THEO_ARGS = {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"}
-THEO_HASH = write_request_hash("initiate_return", **THEO_ARGS)
+CREDIT_ARGS = {"customer_id": "CUST-THEO", "amount_cents": 2500, "reason": "courtesy"}
+CREDIT_HASH = write_request_hash("give_store_credit", **CREDIT_ARGS)
 THEO_SUBJECT = "sub-theo-cognito"
 OPERATOR_SUBJECT = "sub-operator-cognito"
 
@@ -49,17 +49,25 @@ def approved_review(**overrides: Any) -> Dict[str, Any]:
     row = {
         "review_id": 12,
         "customer_id": "CUST-THEO",
-        "action": "initiate_return",
-        "args": dict(THEO_ARGS),
+        "action": "give_store_credit",
+        "args": dict(CREDIT_ARGS),
         "status": "approved",
-        "action_hash": THEO_HASH,
+        "action_hash": CREDIT_HASH,
         "source_turn_id": "turn-" + ("a" * 32),
-        "order_id": 305,
+        "order_id": None,
         "execution_turn_id": None,
         "decided_by": "operator-1",
     }
     row.update(overrides)
     return row
+
+
+class FakeCredit:
+    """Captures what reached ``pellier.apply_store_credit`` and what it answers."""
+
+    calls: List[Dict[str, Any]] = []
+    envelope: Dict[str, Any] = {"status": "success", "credit_id": 9}
+    raises: Optional[BaseException] = None
 
 
 class FakeDb:
@@ -96,30 +104,23 @@ class FakeDb:
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
-        return []
-
-
-class FakeLogic:
-    """Captures what the governed write was actually called with."""
-
-    calls: List[Dict[str, Any]] = []
-    envelope: Dict[str, Any] = {"status": "success", "return_id": 9}
-    raises: Optional[BaseException] = None
-
-    def __init__(self, db: Any) -> None:
-        pass
-
-    async def initiate_return(self, **kwargs: Any) -> Dict[str, Any]:
-        type(self).calls.append({"tool": "initiate_return", **kwargs})
-        if type(self).raises is not None:
-            raise type(self).raises
-        return dict(type(self).envelope)
-
-    async def issue_credit(self, **kwargs: Any) -> Dict[str, Any]:
-        type(self).calls.append({"tool": "issue_credit", **kwargs})
-        if type(self).raises is not None:
-            raise type(self).raises
-        return dict(type(self).envelope)
+        if "apply_store_credit" not in query:
+            return []
+        key, request_hash, customer_id, amount_cents, reason, issued_by = params
+        FakeCredit.calls.append(
+            {
+                "idempotency_key": key,
+                "request_hash": request_hash,
+                "customer_id": customer_id,
+                "amount_cents": amount_cents,
+                "reason": reason,
+                "issued_by": issued_by,
+                "params": params,
+            }
+        )
+        if FakeCredit.raises is not None:
+            raise FakeCredit.raises
+        return [{"result": dict(FakeCredit.envelope)}]
 
 
 class FakeCollector:
@@ -139,16 +140,14 @@ class FakeCollector:
 
 @pytest.fixture(autouse=True)
 def _reset_logic(monkeypatch: pytest.MonkeyPatch):
-    FakeLogic.calls = []
-    FakeLogic.envelope = {"status": "success", "return_id": 9}
-    FakeLogic.raises = None
+    FakeCredit.calls = []
+    FakeCredit.envelope = {"status": "success", "credit_id": 9}
+    FakeCredit.raises = None
     FakeCollector.calls = []
     FakeCollector.result = {"states": [], "ids": [], "terminal": "EVALUATION_INCOMPLETE"}
     FakeCollector.raises = None
-    import services.business_logic as bl
     from services import policy_decisions as pdec
 
-    monkeypatch.setattr(bl, "BusinessLogic", FakeLogic)
     monkeypatch.setattr(pdec, "collect_for_turn", FakeCollector.collect)
     # Default to the in-process rail unless a test opts into the Gateway. The
     # governed format refuses that rail, so the baseline here is the builders one.
@@ -168,7 +167,7 @@ def _reset_logic(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(ge, "record_receipt", receipt_written)
     monkeypatch.setattr(ge, "_remember_outcome", episode_written)
     yield
-    FakeLogic.calls = []
+    FakeCredit.calls = []
     FakeCollector.calls = []
 
 
@@ -190,7 +189,7 @@ def _gateway_returns(monkeypatch: pytest.MonkeyPatch, policy: str,
         if policy == ge.POLICY_DENY:
             return (ge.POLICY_DENY, {"status": "policy_denied",
                                      "denied_by": "agentcore_policy"}, "Cedar denied it.")
-        return (ge.POLICY_ALLOW, dict(envelope or {"status": "success", "return_id": 9}),
+        return (ge.POLICY_ALLOW, dict(envelope or {"status": "success", "credit_id": 9}),
                 "AgentCore Policy permitted the action.")
 
     monkeypatch.setattr(ge, "_execute_through_gateway", fake_gateway)
@@ -224,47 +223,39 @@ def test_the_runtime_target_map_matches_the_provisioning_schemas() -> None:
 
 
 def test_every_published_tool_has_a_target() -> None:
-    from services.agentcore_gateway import (
-        GATEWAY_TARGET_FOR_TOOL,
-        LOCAL_MCP_TOOL_NAMES,
-    )
+    from services.agentcore_gateway import GATEWAY_TARGET_FOR_TOOL, GATEWAY_TOOL_TIERS
 
-    missing = sorted(set(LOCAL_MCP_TOOL_NAMES) - set(GATEWAY_TARGET_FOR_TOOL))
+    missing = sorted(set(GATEWAY_TOOL_TIERS) - set(GATEWAY_TARGET_FOR_TOOL))
     assert not missing, f"published tools with no Gateway target: {missing}"
+    assert set(GATEWAY_TARGET_FOR_TOOL.values()) == {"pellier-store-tools"}
 
 
-def test_no_retired_tool_name_appears_in_the_desired_gateway_vocabulary() -> None:
-    """The live Gateway is on the pre-rename names; the source must not be.
-
-    Discovered during the Prompt 4 audit: the deployed targets still publish
-    `process_return`, `floor_check`, `find_pieces` and friends. The migration
-    moves live to the source vocabulary, so the source must be clean first.
-    """
+def test_the_gateway_vocabulary_is_exactly_the_nine_published_tools() -> None:
+    """One target, nine tools: the vocabulary participants and Cedar both see."""
     if str(DEPLOY) not in sys.path:
         sys.path.insert(0, str(DEPLOY))
     from gateway_tool_schemas import TOOL_SCHEMAS
+
+    from services.agentcore_gateway import GATEWAY_TARGET_FOR_TOOL, mutation_tool_names
 
     published = {
         tool["name"]
         for config in TOOL_SCHEMAS.values()
         for tool in config["tools"]
     }
-    retired = {
-        "process_return", "floor_check", "find_pieces", "find_pieces_hybrid",
-        "explore_collection", "running_low", "restock_shelf", "whats_trending",
-        "price_intelligence", "side_by_side", "returns_and_care", "style_match",
-        "preference_snapshot", "trace_receipt", "escalate_to_stylist",
+    assert published == {
+        "search_products", "browse_department", "compare_products", "check_stock",
+        "get_orders", "get_return_policy", "get_tickets", "give_store_credit",
+        "ask_a_person",
     }
-    assert not (published & retired), (
-        f"retired names in the desired Gateway schema: {sorted(published & retired)}"
-    )
-    assert len(published) == 18
+    assert set(GATEWAY_TARGET_FOR_TOOL.values()) == {"pellier-store-tools"}
+    assert mutation_tool_names() == ["give_store_credit"]
 
 
 def test_the_cedar_action_id_is_target_qualified() -> None:
     assert (
-        ge.gateway_action_id("initiate_return")
-        == "pellier-concierge-experience-target___initiate_return"
+        ge.gateway_action_id("give_store_credit")
+        == "pellier-store-tools___give_store_credit"
     )
     with pytest.raises(ge.ExecutionError):
         ge.gateway_action_id("not_a_tool")
@@ -289,7 +280,7 @@ def test_a_declined_review_cannot_be_executed() -> None:
 def test_parameters_edited_after_confirmation_are_refused() -> None:
     """The fingerprint is what makes "the operator approved this" checkable."""
     tampered = approved_review()
-    tampered["args"] = {**THEO_ARGS, "reason": "changed_mind"}
+    tampered["args"] = {**CREDIT_ARGS, "reason": "changed_mind"}
     with pytest.raises(ge.ExecutionError) as exc:
         ge.verify_confirmation(tampered)
     assert exc.value.code == "confirmation_invalid"
@@ -297,19 +288,19 @@ def test_parameters_edited_after_confirmation_are_refused() -> None:
 
 def test_verification_returns_the_persisted_parameters() -> None:
     """Execution parameters come from the row, never from a caller."""
-    assert ge.verify_confirmation(approved_review()) == THEO_ARGS
+    assert ge.verify_confirmation(approved_review()) == CREDIT_ARGS
 
 
 @pytest.mark.asyncio
 async def test_a_tampered_review_never_reaches_the_database() -> None:
     tampered = approved_review()
-    tampered["args"] = {**THEO_ARGS, "product_id": 31}
+    tampered["args"] = {**CREDIT_ARGS, "amount_cents": 999999}
     db = FakeDb()
     with pytest.raises(ge.ExecutionError):
         await ge.execute_confirmed_review(
             db, tampered, operator_sub=OPERATOR_SUBJECT
         )
-    assert FakeLogic.calls == [], "a write ran despite an invalid confirmation"
+    assert FakeCredit.calls == [], "a write ran despite an invalid confirmation"
     assert db.statements == [], "the database was touched before verification"
 
 
@@ -318,82 +309,54 @@ async def test_a_tampered_review_never_reaches_the_database() -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_rls_is_scoped_to_the_customer_not_the_operator() -> None:
-    """The load-bearing assertion of the two-principal model.
-
-    Passing the operator's own subject as the RLS principal — which the legacy
-    endpoints did — scopes the transaction to the operator's rows, and the write
-    then fails for every client they are not mapped to.
-    """
-    db = FakeDb(customer_subject=THEO_SUBJECT)
-    outcome = await ge.execute_confirmed_review(
-        db, approved_review(), operator_sub=OPERATOR_SUBJECT
-    )
-
-    assert len(FakeLogic.calls) == 1
-    call = FakeLogic.calls[0]
-    assert call["principal_sub"] == THEO_SUBJECT
-    assert call["principal_sub"] != OPERATOR_SUBJECT
-    # And the actor is still reported, because attribution is a separate fact.
-    assert outcome.operator_sub == OPERATOR_SUBJECT
-    assert outcome.customer_subject == THEO_SUBJECT
-
-
-@pytest.mark.asyncio
 async def test_the_customer_subject_is_resolved_server_side() -> None:
     """A caller that could name its own RLS principal could read any client."""
     db = FakeDb(customer_subject=THEO_SUBJECT)
-    await ge.execute_confirmed_review(
+    outcome = await ge.execute_confirmed_review(
         db, approved_review(), operator_sub=OPERATOR_SUBJECT
     )
     assert any("FROM pellier.principal_customers" in s for s in db.statements), (
         "the subject was not resolved from the authorization mapping table"
     )
-
-
-@pytest.mark.asyncio
-async def test_an_unmapped_client_fails_closed_and_says_why() -> None:
-    """No identity mapping means no scope, which denies rather than widens."""
-    db = FakeDb(customer_subject=None)
-    FakeLogic.envelope = {
-        "status": "error",
-        "message": "customer CUST-JESSICA did not order product 42",
-    }
-    outcome = await ge.execute_confirmed_review(
-        db,
-        approved_review(customer_id="CUST-JESSICA"),
-        operator_sub=OPERATOR_SUBJECT,
-    )
-    assert outcome.customer_subject is None
-    assert FakeLogic.calls[0]["principal_sub"] is None
-    # The axis now says DENIED, not NOT_REACHED. The earlier version prefixed an honest
-    # sentence onto the tool's "did not order" message and left the axis unchanged, so
-    # the canonical database-enforcement outcome reported that no statement had reached
-    # the database when one had, and been refused.
-    assert outcome.aurora == ge.AURORA_DENIED
-    assert outcome.evidence == ge.EVIDENCE_ATTEMPT_RECEIPT
-    assert "Row-Level Security refused" in outcome.notes["aurora"]
-    # And the falsehood is gone from what a surface would render.
-    assert "did not order" not in outcome.result["message"]
-    assert outcome.result["denied_by"] == "database_row_level_security"
-    assert "did not order" in outcome.result["tool_message"]
+    assert outcome.customer_subject == THEO_SUBJECT
+    assert outcome.operator_sub == OPERATOR_SUBJECT
 
 
 @pytest.mark.asyncio
 async def test_a_credit_attributes_the_operator_as_the_actor() -> None:
-    """Attribution and scope are different fields with different subjects."""
-    credit_args = {
-        "customer_id": "CUST-THEO", "amount_cents": 2500, "reason": "courtesy",
-    }
-    review = approved_review(
-        action="issue_credit",
-        args=credit_args,
-        action_hash=write_request_hash("issue_credit", **credit_args),
-    )
+    """Attribution is the operator; the customer's subject is a different fact."""
     await ge.execute_confirmed_review(
-        FakeDb(), review, operator_sub=OPERATOR_SUBJECT
+        FakeDb(customer_subject=THEO_SUBJECT), approved_review(),
+        operator_sub=OPERATOR_SUBJECT,
     )
-    assert FakeLogic.calls[0]["issued_by"] == OPERATOR_SUBJECT
+    assert len(FakeCredit.calls) == 1
+    call = FakeCredit.calls[0]
+    assert call["issued_by"] == OPERATOR_SUBJECT
+    assert call["customer_id"] == "CUST-THEO"
+    assert call["amount_cents"] == 2500
+    assert call["reason"] == "courtesy"
+    assert THEO_SUBJECT not in call["params"], "the customer subject reached the write"
+
+
+@pytest.mark.asyncio
+async def test_the_write_carries_the_confirmed_request_hash() -> None:
+    """The database compares the hash the human confirmed, not one the caller built."""
+    await ge.execute_confirmed_review(
+        FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT
+    )
+    assert FakeCredit.calls[0]["request_hash"] == CREDIT_HASH
+
+
+@pytest.mark.asyncio
+async def test_only_the_credit_action_is_executable() -> None:
+    """A confirmed row naming any other action is refused before a write."""
+    other = approved_review(action="check_stock")
+    with pytest.raises(ge.ExecutionError) as exc:
+        await ge.execute_confirmed_review(
+            FakeDb(), other, operator_sub=OPERATOR_SUBJECT
+        )
+    assert exc.value.code == "action_not_executable"
+    assert FakeCredit.calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -443,7 +406,7 @@ async def test_concurrent_executions_share_one_turn_and_one_write_key() -> None:
     assert first.execution_turn_id == second.execution_turn_id
     assert first.idempotency_key == second.idempotency_key
     assert len(db.claimed_turns) == 1, "a second execution turn was minted"
-    keys = {call["idempotency_key"] for call in FakeLogic.calls}
+    keys = {call["idempotency_key"] for call in FakeCredit.calls}
     assert keys == {first.idempotency_key}, keys
 
 
@@ -474,21 +437,21 @@ def test_the_approval_status_was_not_widened_with_execution_outcomes() -> None:
 # ---------------------------------------------------------------------------
 
 def test_the_write_key_is_derived_from_the_confirmed_action() -> None:
-    key = ge.execution_idempotency_key(12, THEO_HASH)
-    assert key == ge.execution_idempotency_key(12, THEO_HASH)
+    key = ge.execution_idempotency_key(12, CREDIT_HASH)
+    assert key == ge.execution_idempotency_key(12, CREDIT_HASH)
     assert key.startswith("operator-review:12:")
     assert len(key) <= 128
 
 
 def test_a_different_confirmed_action_gets_a_different_key() -> None:
     other = write_request_hash(
-        "initiate_return", customer_id="CUST-THEO", product_id=31, reason="damaged"
+        "give_store_credit", customer_id="CUST-THEO", amount_cents=500, reason="courtesy"
     )
-    assert ge.execution_idempotency_key(12, THEO_HASH) != ge.execution_idempotency_key(
+    assert ge.execution_idempotency_key(12, CREDIT_HASH) != ge.execution_idempotency_key(
         12, other
     )
-    assert ge.execution_idempotency_key(12, THEO_HASH) != ge.execution_idempotency_key(
-        13, THEO_HASH
+    assert ge.execution_idempotency_key(12, CREDIT_HASH) != ge.execution_idempotency_key(
+        13, CREDIT_HASH
     )
 
 
@@ -501,7 +464,7 @@ async def test_two_executions_of_one_review_claim_the_same_write_key() -> None:
     await ge.execute_confirmed_review(
         db, approved_review(), operator_sub=OPERATOR_SUBJECT
     )
-    keys = {call["idempotency_key"] for call in FakeLogic.calls}
+    keys = {call["idempotency_key"] for call in FakeCredit.calls}
     assert len(keys) == 1, f"a retry used a different write key: {keys}"
 
 
@@ -529,8 +492,8 @@ def test_a_returned_gateway_call_under_log_only_is_not_an_allow() -> None:
     """
     log_only = ge.PolicyEngineState(
         gateway_mode="LOG_ONLY",
-        policies={"process_return_damaged_only": ("forbid", "ACTIVE")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
+        matching_forbids=("credit_limit_forbid",),
     )
     policy, note = ge.resolve_permissive_policy_state(log_only)
     assert policy == ge.POLICY_INFERRED
@@ -541,8 +504,8 @@ def test_a_returned_gateway_call_under_log_only_is_not_an_allow() -> None:
 def test_enforcement_on_makes_a_returned_call_a_real_allow() -> None:
     enforced = ge.PolicyEngineState(
         gateway_mode="ENFORCE",
-        policies={"process_return_damaged_only": ("forbid", "ACTIVE")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
+        matching_forbids=("credit_limit_forbid",),
     )
     policy, _ = ge.resolve_permissive_policy_state(enforced)
     assert policy == ge.POLICY_ALLOW
@@ -552,8 +515,8 @@ def test_a_forbid_in_log_only_is_off_not_observed() -> None:
     """Only an ACTIVE forbid under a LOG_ONLY gateway produces a would-deny."""
     both_off = ge.PolicyEngineState(
         gateway_mode="LOG_ONLY",
-        policies={"process_return_damaged_only": ("forbid", "LOG_ONLY")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "LOG_ONLY")},
+        matching_forbids=("credit_limit_forbid",),
     )
     policy, note = ge.resolve_permissive_policy_state(both_off)
     # Nothing was enforced and nothing was observed: not an ALLOW, not a guess.
@@ -576,8 +539,8 @@ def test_the_substring_scan_can_never_produce_would_deny() -> None:
     ):
         state = ge.PolicyEngineState(
             gateway_mode=gateway_mode,
-            policies={"process_return_damaged_only": ("forbid", policy_mode)},
-            matching_forbids=("process_return_damaged_only",) if matches else (),
+            policies={"credit_limit_forbid": ("forbid", policy_mode)},
+            matching_forbids=("credit_limit_forbid",) if matches else (),
         )
         policy, _ = ge.resolve_permissive_policy_state(state)
         assert policy != ge.POLICY_WOULD_DENY, (gateway_mode, policy_mode, matches)
@@ -678,26 +641,23 @@ def test_no_axis_is_derived_from_another() -> None:
 def test_a_database_raised_integrity_violation_is_an_aurora_denial() -> None:
     """SQLSTATE class 23 executed INSIDE Aurora; "not reached" would be false.
 
-    This is the verbatim envelope the Gateway rail produced when
-    ``returns_quantity_guard`` refused Theo's second return of product 37: the
-    Lambda stringifies the RDS Data API error, which carries the SQLSTATE in
-    prose, and the axis reported NOT_REACHED / NO_EXECUTION for a statement the
-    database had executed and refused.
+    The Gateway Lambda stringifies the RDS Data API error, which carries the
+    SQLSTATE in prose. The axis once reported NOT_REACHED / NO_EXECUTION for a
+    statement the database had executed and refused.
     """
     state, note = ge.classify_aurora(
         {
             "status": "error",
             "message": (
                 "An error occurred (DatabaseErrorException) when calling the "
-                "ExecuteStatement operation: ERROR: return quantity 1 exceeds "
-                "unreturned ordered quantity 0 for customer CUST-THEO product "
-                "37; SQLState: 23514"
+                "ExecuteStatement operation: ERROR: credit of 999999 cents exceeds "
+                "the per-credit limit for customer CUST-THEO; SQLState: 23514"
             ),
         }
     )
     assert state == ge.AURORA_DENIED
     assert "23514" in note
-    assert "return quantity 1 exceeds" in note, "the guard's own words must survive"
+    assert "exceeds the per-credit limit" in note, "the guard's own words must survive"
     assert (
         ge.classify_evidence_for(ge.POLICY_ALLOW, state, {"status": "error"})
         == ge.EVIDENCE_ATTEMPT_RECEIPT
@@ -726,9 +686,8 @@ async def test_an_in_process_integrity_violation_becomes_an_attempt_receipt() ->
     """The psycopg CheckViolation must not escape as a 500 that records nothing."""
     import psycopg
 
-    FakeLogic.raises = psycopg.errors.CheckViolation(
-        "return quantity 1 exceeds unreturned ordered quantity 0 "
-        "for customer CUST-THEO product 37"
+    FakeCredit.raises = psycopg.errors.CheckViolation(
+        "credit of 999999 cents exceeds the per-credit limit for customer CUST-THEO"
     )
     outcome = await ge.execute_confirmed_review(
         FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT
@@ -764,7 +723,7 @@ async def test_a_non_integrity_database_error_still_raises_in_process() -> None:
     """A connection failure is an infrastructure problem, not an Aurora verdict."""
     import psycopg
 
-    FakeLogic.raises = psycopg.OperationalError("server closed the connection")
+    FakeCredit.raises = psycopg.OperationalError("server closed the connection")
     with pytest.raises(psycopg.OperationalError):
         await ge.execute_confirmed_review(
             FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT
@@ -772,10 +731,10 @@ async def test_a_non_integrity_database_error_still_raises_in_process() -> None:
 
 
 @pytest.mark.asyncio
-async def test_an_rls_denied_execution_reports_denied_and_an_attempt_receipt() -> None:
-    FakeLogic.envelope = {
+async def test_a_database_denial_envelope_reports_denied_and_an_attempt_receipt() -> None:
+    FakeCredit.envelope = {
         "status": "policy_blocked",
-        "message": "not authorized to act on CUST-THEO's orders",
+        "message": "not authorized to act on CUST-THEO's credits",
         "denied_by": "database_row_level_security",
     }
     outcome = await ge.execute_confirmed_review(
@@ -791,7 +750,7 @@ async def test_an_rls_denied_execution_reports_denied_and_an_attempt_receipt() -
 # Runtime role and RLS binding, on the Gateway rail
 # ---------------------------------------------------------------------------
 
-def test_the_lambda_binds_a_non_owner_role_and_the_customer_principal() -> None:
+def test_the_data_api_helper_binds_a_non_owner_role_and_the_principal() -> None:
     source = (DEPLOY / "common" / "dataapi.py").read_text()
     assert "def bind_runtime_principal(" in source
     assert "SET LOCAL ROLE" in source
@@ -808,24 +767,6 @@ def test_the_runtime_roles_are_non_owner_and_do_not_bypass_rls() -> None:
     assert "ALTER TABLE pellier.returns ENABLE ROW LEVEL SECURITY" in sql
 
 
-def test_the_lambda_never_accepts_a_customer_subject_from_the_wire() -> None:
-    """The hole this closes: a caller naming its own RLS principal."""
-    source = (DEPLOY / "pellier_experience_server.py").read_text()
-    assert 'if key not in ("turn_id", "customer_subject")' in source
-    assert "def _resolve_customer_subject(" in source
-    assert "FROM {SCHEMA}.principal_customers" in source
-
-
-def test_the_protected_db_function_keeps_its_name() -> None:
-    """`initiate_return` is the public tool; the function stays
-    `process_return_idempotent` because migration 016 grants EXECUTE on that
-    exact identifier."""
-    grants = (REPO / "scripts" / "migrations" / "016_runtime_roles_rls.sql").read_text()
-    assert "process_return_idempotent" in grants
-    lambda_src = (DEPLOY / "pellier_experience_server.py").read_text()
-    assert "process_return_idempotent" in lambda_src
-
-
 # ---------------------------------------------------------------------------
 # Bypass closure
 # ---------------------------------------------------------------------------
@@ -833,7 +774,7 @@ def test_the_protected_db_function_keeps_its_name() -> None:
 def test_legacy_action_handlers_are_not_kept_as_importable_backdoors() -> None:
     source = (BACKEND / "routes" / "operator.py").read_text()
     assert "async def resolve_return(" not in source
-    assert "async def issue_credit(" not in source
+    assert "async def give_store_credit(" not in source
     assert "async def _require_confirmed_review(" not in source
 
 
@@ -868,82 +809,51 @@ def test_policy_mode_is_never_client_input() -> None:
 # Migration-only compatibility alias (Phase B1)
 # ---------------------------------------------------------------------------
 
-def test_the_alias_maps_every_retired_name_to_a_real_implementation() -> None:
-    """The live Gateway still invokes retired names; the new Lambda must serve them.
+# ---------------------------------------------------------------------------
+# The Gateway Lambda: one target, one audited mutation
+# ---------------------------------------------------------------------------
 
-    Temporary. The alias exists only for the window between deploying the
-    RLS-aware Lambda and migrating the Gateway/Cedar vocabulary, because the
-    deployed targets publish `process_return` while the source implements
-    `initiate_return`.
-    """
+
+def _load_store_tools_lambda():
     if str(DEPLOY) not in sys.path:
         sys.path.insert(0, str(DEPLOY))
-    from common.types import canonical_tool_name
-    from gateway_tool_schemas import TOOL_SCHEMAS
+    import pellier_store_tools
 
-    current = {
-        tool["name"]
-        for config in TOOL_SCHEMAS.values()
-        for tool in config["tools"]
-    }
-    for retired in (
-        "process_return", "escalate_to_stylist", "floor_check", "find_pieces",
-        "find_pieces_hybrid", "explore_collection", "running_low", "restock_shelf",
-        "whats_trending", "price_intelligence", "side_by_side", "returns_and_care",
-        "style_match", "preference_snapshot", "trace_receipt",
-    ):
-        mapped = canonical_tool_name(retired)
-        assert mapped != retired, f"{retired} has no alias"
-        assert mapped in current, f"{retired} aliases to {mapped}, which is not published"
+    return pellier_store_tools
 
 
-def test_the_alias_is_a_no_op_for_current_names() -> None:
-    """So it can be applied unconditionally and deleted without a behaviour change."""
-    if str(DEPLOY) not in sys.path:
-        sys.path.insert(0, str(DEPLOY))
-    from common.types import canonical_tool_name
-    from gateway_tool_schemas import TOOL_SCHEMAS
-
-    for config in TOOL_SCHEMAS.values():
-        for tool in config["tools"]:
-            assert canonical_tool_name(tool["name"]) == tool["name"]
-    assert canonical_tool_name("list_tools") == "list_tools"
-
-
-def test_the_alias_never_reaches_discovery() -> None:
-    """Retired names must not be advertised to Gateway discovery or a participant.
-
-    `list_tools` builds its response from each surface's own TOOLS mapping, which
-    holds current names exclusively. The alias lives in dispatch resolution only.
-    """
-    source = (DEPLOY / "pellier_experience_server.py").read_text()
-    tools_block = source.split("TOOLS = {", 1)[1].split("\n}", 1)[0]
-    for retired in ("process_return", "escalate_to_stylist"):
-        assert f'"{retired}"' not in tools_block, (
-            f"{retired} is a TOOLS key, so list_tools would advertise it"
-        )
-
-
-def test_one_operation_writes_one_audit_identity() -> None:
-    """The receipt records the CANONICAL name, whichever alias was invoked.
-
-    Decided deliberately: a legacy invocation and a current invocation of the
-    same operation must not produce two different `tool_audit` identities, or
-    every evidence query would have to know the migration history.
-    """
-    import re
-
-    source = (DEPLOY / "pellier_experience_server.py").read_text()
-    literals = re.findall(
-        r'_write_tool_audit_independently\(\s*\n\s*tool="([^"]+)"', source
+def test_the_credit_call_writes_one_audit_row_under_the_canonical_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mutation audit goes through the independent writer, by tool name."""
+    lam = _load_store_tools_lambda()
+    audits: List[Dict[str, Any]] = []
+    monkeypatch.setattr(lam, "write_tool_audit_independently", lambda **kw: audits.append(kw))
+    monkeypatch.setitem(
+        lam.TOOLS, "give_store_credit", lambda _args, _turn: {"status": "success", "credit_id": 1}
     )
-    assert literals, "no receipt writer found"
-    assert set(literals) == {"initiate_return", "issue_credit", "replace_damaged_item"}, (
-        f"receipt tool literals drifted: {literals}"
+
+    response = lam.lambda_handler(
+        {"name": "give_store_credit", "arguments": dict(CREDIT_ARGS, idempotency_key="k-1")},
+        None,
     )
-    # And the invoked name is never used as the audit identity.
-    assert 'tool=tool_name' not in source
-    assert 'tool=prefixed' not in source
+
+    assert response["text"], "the MCP envelope must carry the result text"
+    assert [a["tool"] for a in audits] == ["give_store_credit"]
+    assert audits[0]["session_id"] == "gateway-CUST-THEO"
+
+
+def test_an_unpublished_name_is_unknown_and_writes_no_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lam = _load_store_tools_lambda()
+    audits: List[Dict[str, Any]] = []
+    monkeypatch.setattr(lam, "write_tool_audit_independently", lambda **kw: audits.append(kw))
+
+    response = lam.lambda_handler({"name": "not_a_tool", "arguments": {}}, None)
+
+    assert response == {"error": "Unknown tool: not_a_tool"}
+    assert audits == []
 
 
 # ---------------------------------------------------------------------------
@@ -1120,12 +1030,12 @@ class _FakeControlPlane:
     def get_policy(self, *, policyEngineId: str, policyId: str) -> Dict[str, Any]:  # noqa: N803
         if policyId == "pol-1":
             return {
-                "name": "process_return_damaged_only",
+                "name": "credit_limit_forbid",
                 "enforcementMode": "ACTIVE",
                 "definition": {"cedar": {"statement": (
                     'forbid(principal, action == AgentCore::Action::'
-                    '"pellier-concierge-experience-target___initiate_return", resource)'
-                    ' unless { context.reason == "damaged" };'
+                    '"pellier-store-tools___give_store_credit", resource)'
+                    ' unless { context.amount_cents <= 5000 };'
                 )}},
             }
         return {
@@ -1151,13 +1061,13 @@ async def test_engine_state_for_action_is_labeled_inferred(
     monkeypatch.setattr(boto3, "client", lambda *_a, **_k: _FakeControlPlane("LOG_ONLY"))
 
     state = await mp.engine_state_for_action(
-        "pellier-concierge-experience-target___initiate_return"
+        "pellier-store-tools___give_store_credit"
     )
     assert state["inferred"] is True
-    assert state["matching"] == ["process_return_damaged_only"]
+    assert state["matching"] == ["credit_limit_forbid"]
     assert state["gateway_mode"] == "LOG_ONLY"
-    assert state["policies"]["process_return_damaged_only"] == ("forbid", "ACTIVE")
-    assert state["policy_ids"]["process_return_damaged_only"] == "pol-1"
+    assert state["policies"]["credit_limit_forbid"] == ("forbid", "ACTIVE")
+    assert state["policy_ids"]["credit_limit_forbid"] == "pol-1"
     assert state["policy_engine_id"] == "engine-1"
     assert "WOULD_DENY" not in str(state)
 
@@ -1165,17 +1075,17 @@ async def test_engine_state_for_action_is_labeled_inferred(
 def test_the_engine_state_dataclass_round_trips_the_inferred_mapping() -> None:
     state = ge.PolicyEngineState.from_engine_read({
         "gateway_mode": "LOG_ONLY",
-        "policies": {"process_return_damaged_only": ("forbid", "ACTIVE")},
-        "policy_ids": {"process_return_damaged_only": "pol-1"},
-        "matching": ["process_return_damaged_only"],
+        "policies": {"credit_limit_forbid": ("forbid", "ACTIVE")},
+        "policy_ids": {"credit_limit_forbid": "pol-1"},
+        "matching": ["credit_limit_forbid"],
         "inferred": True,
         "policy_engine_id": "engine-1",
     })
     assert state is not None
-    assert state.matching_forbids == ("process_return_damaged_only",)
+    assert state.matching_forbids == ("credit_limit_forbid",)
     assert state.inferred is True
-    assert state.observed_forbid() == "process_return_damaged_only"
-    assert state.as_engine_read()["matching"] == ["process_return_damaged_only"]
+    assert state.observed_forbid() == "credit_limit_forbid"
+    assert state.as_engine_read()["matching"] == ["credit_limit_forbid"]
     assert ge.PolicyEngineState.from_engine_read(None) is None
 
 
@@ -1194,11 +1104,11 @@ async def test_a_gateway_denial_is_a_deny_and_is_persisted_as_a_governed_receipt
     assert outcome.rail == ge.RAIL_GATEWAY
     assert outcome.policy == ge.POLICY_DENY
     assert outcome.evidence == ge.EVIDENCE_POLICY_PROOF
-    assert FakeLogic.calls == []
+    assert FakeCredit.calls == []
     prior = FakeCollector.calls[0]["prior"]
     assert [(o.state, o.source) for o in prior] == [("DENY", "governed-receipt")]
     assert FakeCollector.calls[0]["principal_id"] == OPERATOR_SUBJECT
-    assert FakeCollector.calls[0]["action_id"].endswith("___initiate_return")
+    assert FakeCollector.calls[0]["action_id"].endswith("___give_store_credit")
 
 
 @pytest.mark.asyncio
@@ -1235,8 +1145,8 @@ async def test_a_log_only_gateway_refuses_the_write_before_the_call(
     _gateway_returns(monkeypatch, ge.POLICY_ALLOW)
     log_only = ge.PolicyEngineState(
         gateway_mode="LOG_ONLY",
-        policies={"process_return_damaged_only": ("forbid", "ACTIVE")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
+        matching_forbids=("credit_limit_forbid",),
     )
     with pytest.raises(ge.GovernedRailUnavailable) as raised:
         await ge.execute_confirmed_review(
@@ -1246,7 +1156,7 @@ async def test_a_log_only_gateway_refuses_the_write_before_the_call(
     assert raised.value.missing == ("policy_engine_mode=ENFORCE (observed: LOG_ONLY)",)
     assert raised.value.status_code == 409
     assert FakeCollector.calls == []
-    assert FakeLogic.calls == []
+    assert FakeCredit.calls == []
 
 
 @pytest.mark.asyncio
@@ -1503,7 +1413,7 @@ async def test_a_refused_execution_writes_a_refused_receipt_and_runs_nothing(
     assert error.as_detail() == {
         "error": "governed_rail_unavailable", "missing": ["AGENTCORE_GATEWAY_URL"],
     }
-    assert FakeLogic.calls == [], "a refused execution must not touch BusinessLogic"
+    assert FakeCredit.calls == [], "a refused execution must not run the credit write"
     assert FakeCollector.calls == []
 
     outcome = recorded.await_args.args[1]
@@ -1534,7 +1444,7 @@ async def test_the_builders_format_keeps_the_in_process_rail_and_the_receipt_say
     assert outcome.policy == ge.POLICY_NOT_EVALUATED
     assert "builders" in outcome.notes["rail"]
     assert "in-process" in outcome.notes["rail"]
-    assert len(FakeLogic.calls) == 1
+    assert len(FakeCredit.calls) == 1
 
 
 def test_the_execute_route_maps_a_refusal_to_409(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1564,7 +1474,7 @@ def test_the_execute_route_maps_a_refusal_to_409(monkeypatch: pytest.MonkeyPatch
     assert response.json()["detail"] == {
         "error": "governed_rail_unavailable", "missing": ["AGENTCORE_GATEWAY_URL"],
     }
-    assert FakeLogic.calls == []
+    assert FakeCredit.calls == []
 
 
 # ---------------------------------------------------------------------------

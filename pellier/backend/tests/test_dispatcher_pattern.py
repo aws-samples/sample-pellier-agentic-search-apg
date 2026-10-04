@@ -16,8 +16,8 @@ Asserts three things, in order of importance:
 
 2. **The dispatcher path is wired.** The chat request accepts a
    ``pattern`` field with value ``'dispatcher'``; ``chat_stream()``
-   branches on it; all five specialist factories are reachable via
-   the intent classifier.
+   branches on it; all three agent factories are reachable via
+   the Router.
 
 3. **The public default is Dispatcher.** An absent / ``None`` pattern
    resolves to ``'dispatcher'`` so every Pellier surface shares one routing
@@ -161,12 +161,10 @@ def test_dispatcher_is_the_only_routing_mode(chat_module_source: str) -> None:
 
 
 def test_dispatcher_imports_every_specialist_factory(chat_module_source: str) -> None:
-    """The dispatcher builds each specialist from its own factory."""
+    """The dispatcher builds each agent from its own factory."""
     for factory_import in (
-        "build_search_agent",
-        "build_recommendation_agent",
-        "build_pricing_agent",
-        "build_inventory_agent",
+        "build_shopping_agent",
+        "build_stock_agent",
         "build_support_agent",
     ):
         assert factory_import in chat_module_source, (
@@ -175,23 +173,21 @@ def test_dispatcher_imports_every_specialist_factory(chat_module_source: str) ->
 
 
 def test_dispatcher_log_line_present(chat_module_source: str) -> None:
-    """The dispatcher branch emits a `🎯 Dispatcher` log line so
-    runtime trace differentiates dispatcher turns from orchestrator turns.
+    """The dispatcher branch emits a `🎯 Router` log line so runtime trace
+    shows which agent each turn reached.
     """
-    assert "🎯 Dispatcher" in chat_module_source, (
+    assert "🎯 Router" in chat_module_source, (
         "dispatcher branch must emit a distinguishing log line"
     )
 
 
 def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
-    """Production dispatch invokes one different specialist factory per intent."""
+    """Production dispatch invokes one different agent factory per intent."""
     from services.chat import _build_dispatcher_specialist
 
     sentinels = {
-        "search": object(),
-        "recommendation": object(),
-        "pricing": object(),
-        "inventory": object(),
+        "shopping": object(),
+        "stock": object(),
         "support": object(),
     }
     factories = {
@@ -199,25 +195,13 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
         for intent, sentinel in sentinels.items()
     }
     modules = {
-        "config": SimpleNamespace(
-            settings=SimpleNamespace(
-                BEDROCK_SONNET_MODEL="test-sonnet",
-                AGENT_MAX_TOKENS_SONNET=1200,
-            )
+        "agents.shopping_agent": SimpleNamespace(
+            build_shopping_agent=factories["shopping"]
         ),
-        "agents.search_agent": SimpleNamespace(
-            build_search_agent=factories["search"]
+        "agents.stock_agent": SimpleNamespace(
+            build_stock_agent=factories["stock"]
         ),
-        "agents.personalization_agent": SimpleNamespace(
-            build_recommendation_agent=factories["recommendation"]
-        ),
-        "agents.pricing_agent": SimpleNamespace(
-            build_pricing_agent=factories["pricing"]
-        ),
-        "agents.inventory_agent": SimpleNamespace(
-            build_inventory_agent=factories["inventory"]
-        ),
-        "agents.customer_service_agent": SimpleNamespace(
+        "agents.support_agent": SimpleNamespace(
             build_support_agent=factories["support"]
         ),
     }
@@ -228,10 +212,25 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
             for intent in sentinels
         }
 
-    assert len({id(agent) for agent in built.values()}) == 5
+    assert len({id(agent) for agent in built.values()}) == 3
     for intent, agent in built.items():
         assert agent is sentinels[intent]
         factories[intent].assert_called_once()
+    factories["shopping"].assert_called_once_with(allow_handoff=False)
+
+
+def test_only_the_stock_agent_can_ship_unbuilt(monkeypatch) -> None:
+    """The Lab 2B stub flag marks the Stock agent, and only it, as unbuilt."""
+    from agents import stock_agent
+    from services.chat import _unbuilt_dispatcher_specialist
+
+    monkeypatch.setattr(stock_agent, "_STOCK_AGENT_STUBBED", True)
+    assert _unbuilt_dispatcher_specialist("stock") == "stock"
+    assert _unbuilt_dispatcher_specialist("shopping") is None
+    assert _unbuilt_dispatcher_specialist("support") is None
+
+    monkeypatch.setattr(stock_agent, "_STOCK_AGENT_STUBBED", False)
+    assert _unbuilt_dispatcher_specialist("stock") is None
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +270,7 @@ def test_inprocess_hook_writes_tool_audit(chat_module_source: str) -> None:
 
 def test_dispatcher_path_attaches_audit_hooks(chat_module_source: str) -> None:
     """The dispatcher attaches the audit-bearing hook helper to the specialist
-    it builds, so Marco's check_inventory turn writes tool_audit rows."""
+    it builds, so Marco's check_stock turn writes tool_audit rows."""
     assert "_attach_streaming_and_hooks(orchestrator)" in chat_module_source
 
 
@@ -309,7 +308,7 @@ def test_make_tool_audit_hooks_two_phase(monkeypatch) -> None:
     )
     event = SimpleNamespace(
         tool_use={
-            "name": "check_inventory",
+            "name": "check_stock",
             "toolUseId": "tu-1",
             "input": {"product_query": "hadley"},
         },
@@ -321,7 +320,7 @@ def test_make_tool_audit_hooks_two_phase(monkeypatch) -> None:
     assert [phase for phase, _ in calls] == ["allow", "after"]
     allow_kw = calls[0][1]
     assert allow_kw["tool_use_id"] == "tu-1"
-    assert allow_kw["tool_name"] == "check_inventory"
+    assert allow_kw["tool_name"] == "check_stock"
     assert allow_kw["caller"] == "agent"
     assert allow_kw["session_id"] == "sess-1"
     assert allow_kw["args"]["product_query"] == "hadley"
@@ -356,7 +355,7 @@ def test_make_tool_audit_hooks_uses_the_bound_turn_identity(monkeypatch) -> None
         before(
             SimpleNamespace(
                 tool_use={
-                    "name": "get_customer_preferences",
+                    "name": "get_orders",
                     "toolUseId": "tu-theo",
                     "input": {"customer_id": "CUST-MARCO"},
                 }

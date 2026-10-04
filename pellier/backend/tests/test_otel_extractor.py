@@ -222,9 +222,9 @@ def test_extract_trace_span_kind_classification(
         ) as specialist:
             specialist.set_attribute("gen_ai.tool.name", "search")
             with tracer.start_as_current_span(
-                "execute_tool get_trending_products"
+                "execute_tool search_products"
             ) as tool:
-                tool.set_attribute("gen_ai.tool.name", "get_trending_products")
+                tool.set_attribute("gen_ai.tool.name", "search_products")
 
     trace = extract_trace()
 
@@ -234,7 +234,7 @@ def test_extract_trace_span_kind_classification(
 
     assert kinds["orchestrator"] == "orchestrator"
     assert kinds["search"] == "specialist"
-    assert kinds["get_trending_products"] == "tool"
+    assert kinds["search_products"] == "tool"
     assert trace["specialistRoute"] == "search"
 
 
@@ -383,7 +383,7 @@ def test_terminal_turn_excludes_previous_turns_in_the_same_session(
     _emit_session_trace("same-conversation", "search", turn_id="turn-first", input_tokens=100)
     _emit_session_trace(
         "same-conversation", "inventory", turn_id="turn-next",
-        leaf_tool="check_inventory", input_tokens=5,
+        leaf_tool="check_stock", input_tokens=5,
     )
     _emit_session_trace("another-conversation", "support", turn_id="turn-other")
 
@@ -404,7 +404,7 @@ def test_terminal_turn_excludes_previous_turns_in_the_same_session(
     assert len({span["traceId"] for span in current["spans"]}) == 1
     assert current["trace_id"] != previous["trace_id"]
     assert current["usage"]["prompt_tokens"] == 5
-    assert {s["tool"] for s in current["spans"] if s["kind"] == "tool"} == {"check_inventory"}
+    assert {s["tool"] for s in current["spans"] if s["kind"] == "tool"} == {"check_stock"}
     assert len(otel_spans.get_finished_spans()) == 9
 
 

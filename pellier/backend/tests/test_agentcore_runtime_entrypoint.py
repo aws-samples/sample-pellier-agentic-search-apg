@@ -55,14 +55,14 @@ class _Dispatcher:
         self.last_tool_events = [
             {
                 "id": "tool-1",
-                "tool": "search_products_hybrid",
+                "tool": "search_products",
                 "status": "success",
             }
         ]
         self.last_intent = "recommendation"
         self.last_specialist = "recommendation"
         self.last_model_id = "global.anthropic.claude-opus-5"
-        self.last_tool_names = ["search_products_hybrid"]
+        self.last_tool_names = ["search_products"]
 
     def __call__(self, prompt: str) -> _Response:
         self.calls.append(prompt)
@@ -158,7 +158,7 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         "intent": "recommendation",
         "specialist": "recommendation",
         "model": "global.anthropic.claude-opus-5",
-        "gateway_tools": ["search_products_hybrid"],
+        "gateway_tools": ["search_products"],
         "tool_calls": dispatcher.last_tool_events,
         "orchestration": "dispatcher",
         # Echoed on every response so the caller can prove which revision

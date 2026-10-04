@@ -1,20 +1,19 @@
 """Factory-shape contract test.
 
-The dispatcher builds every specialist from a uniform factory function.
-This test enforces that contract so future changes to ``agents/`` get
-flagged before they ship.
+The Router builds every agent from a uniform factory function. This test
+enforces that contract so future changes to ``agents/`` get flagged before
+they ship.
 
-Scope, per specialist (search, recommendation, pricing, inventory, support):
+Scope, per agent (shopping, stock, support):
   1. ``build_<name>_agent()`` exists and returns a real Strands Agent
-  2. The Agent has the correct tools bound
+  2. The Agent has exactly the tools the design grants it
   3. Anonymous build leaves the ``<persona-preamble>`` wrapper OFF
   4. Setting the persona_preamble_var ContextVar injects the wrapper
-  5. The ``@tool``-decorated wrapper still exposes Strands tool metadata
+  5. No agent is wrapped as a ``@tool`` for another agent to call
 
 Also enforces:
-  - ``EXA_API_KEY`` is gone from ``config.settings`` (removed in
-    the three-pattern refactor alongside the Exa MCP integration)
-  - ``customer_support_agent`` has no residual Exa references
+  - ``EXA_API_KEY`` is gone from ``config.settings``
+  - the Support agent module has no residual Exa references
 """
 from __future__ import annotations
 
@@ -24,39 +23,24 @@ import pytest
 
 from strands import Agent
 
-from agents.customer_service_agent import build_support_agent, support
-from agents import inventory_agent as inventory_agent_module
-from agents.inventory_agent import build_inventory_agent, inventory
-from agents.pricing_agent import build_pricing_agent, pricing
-from agents.personalization_agent import build_recommendation_agent, recommendation
-from agents.search_agent import _SEARCH_SYSTEM_PROMPT, build_search_agent, search
+from agents import shopping_agent as shopping_module
+from agents import stock_agent as stock_module
+from agents import support_agent as support_module
+from agents.shopping_agent import build_shopping_agent
+from agents.stock_agent import build_stock_agent
+from agents.support_agent import build_support_agent
+from pellier_copy import SHOPPING_SYSTEM_PROMPT
 from services.persona_context import persona_preamble_var, set_persona_preamble
 
 
-# Expected tool names bound to each specialist's Agent. If you rename a
-# tool in ``services/agent_tools.py`` you have to update this list.
-SPECIALIST_SPECS = [
-    ("search", build_search_agent,
-     {"search_products", "browse_category", "compare_products", "get_related_products",
-      "get_trending_products", "escalate_to_human"}),
-    ("recommendation", build_recommendation_agent,
-     {"search_products_hybrid", "get_trending_products", "compare_products", "browse_category"}),
-    ("pricing", build_pricing_agent,
-     {"get_price_analysis", "browse_category", "search_products", "compare_products",
-      "get_trending_products"}),
-    ("inventory", build_inventory_agent,
-     {"check_inventory", "get_low_stock"}),
+# Exact tool names bound to each agent. If you rename a tool in
+# ``services/agent_tools.py`` you have to update this list.
+AGENT_SPECS = [
+    ("shopping", build_shopping_agent,
+     {"search_products", "browse_department", "compare_products", "ask_a_person"}),
+    ("stock", build_stock_agent, {"check_stock"}),
     ("support", build_support_agent,
-     {"get_return_policy", "search_products", "initiate_return", "get_ticket_history",
-      "get_customer_preferences", "escalate_to_human"}),
-]
-
-SPECIALIST_WRAPPERS = [
-    ("search", search),
-    ("recommendation", recommendation),
-    ("pricing", pricing),
-    ("inventory", inventory),
-    ("support", support),
+     {"get_orders", "get_return_policy", "get_tickets", "ask_a_person"}),
 ]
 
 PERSONA_WRAPPER = "<persona-preamble source=\"aurora-ltm\">"
@@ -68,11 +52,9 @@ def _tool_names(agent: Agent) -> set[str]:
     return set(registry.keys()) if isinstance(registry, dict) else set()
 
 
-def _is_governed_inventory_scaffold(name: str) -> bool:
-    """The governed workshop ships Inventory Agent as a definition exercise."""
-    return name == "inventory" and bool(
-        getattr(inventory_agent_module, "_INVENTORY_AGENT_STUBBED", False)
-    )
+def _is_governed_stock_scaffold(name: str) -> bool:
+    """The governed workshop ships the Stock agent as a definition exercise."""
+    return name == "stock" and bool(getattr(stock_module, "_STOCK_AGENT_STUBBED", False))
 
 
 # ---------------------------------------------------------------------------
@@ -80,10 +62,10 @@ def _is_governed_inventory_scaffold(name: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name,factory,expected_tools", SPECIALIST_SPECS, ids=[s[0] for s in SPECIALIST_SPECS])
+@pytest.mark.parametrize("name,factory,expected_tools", AGENT_SPECS, ids=[s[0] for s in AGENT_SPECS])
 def test_factory_returns_real_agent(name: str, factory, expected_tools: set[str]) -> None:
-    if _is_governed_inventory_scaffold(name):
-        with pytest.raises(RuntimeError, match="Inventory Agent definition"):
+    if _is_governed_stock_scaffold(name):
+        with pytest.raises(RuntimeError, match="Stock agent definition"):
             factory()
         return
 
@@ -92,35 +74,40 @@ def test_factory_returns_real_agent(name: str, factory, expected_tools: set[str]
     assert agent.name == name, (
         f"{name}: factory must set Agent.name so OTEL specialistRoute is stable"
     )
-    tools = _tool_names(agent)
-    assert expected_tools.issubset(tools), (
-        f"{name}: missing tools {expected_tools - tools}; got {sorted(tools)}"
+    assert _tool_names(agent) == expected_tools
+
+
+def test_the_shopping_agent_drops_the_handoff_on_an_ordinary_catalog_turn() -> None:
+    agent = build_shopping_agent(allow_handoff=False)
+    assert "ask_a_person" not in _tool_names(agent)
+    assert "<turn-policy>" in (agent.system_prompt or "")
+    assert "<turn-policy>" not in (build_shopping_agent().system_prompt or "")
+
+
+def test_the_shopping_prompt_merges_the_search_and_personalization_rules() -> None:
+    for required in (
+        "search_products", "browse_department", "compare_products", "ask_a_person",
+        "constraint_notice", "search_notice", "PERSONA CONTEXT",
+    ):
+        assert required in SHOPPING_SYSTEM_PROMPT, required
+    retired = ("boutique",) + tuple(
+        "_".join(parts) for parts in (
+            ("get", "related", "products"), ("search", "products", "hybrid"),
+            ("escalate", "to", "human"), ("browse", "category"),
+        )
     )
+    for word in retired:
+        assert word not in SHOPPING_SYSTEM_PROMPT, word
 
 
-def test_inventory_tool_names_render_as_inventory_agent() -> None:
-    """Streaming trace labels SHALL name Inventory Agent for inventory tools.
-
-    The SSE proof parser in Lab 2 prints ``agent: ...`` from these labels;
-    missing tool-name entries fall back to Search Agent and make a correct
-    check_inventory run look broken.
-    """
-    from services.chat import EnhancedChatService
-
-    for tool_name in ("inventory", "check_inventory", "get_low_stock"):
-        assert EnhancedChatService._tool_to_agent_name(tool_name) == "Inventory Agent"
-
-
-@pytest.mark.parametrize("name,factory,_tools", SPECIALIST_SPECS, ids=[s[0] for s in SPECIALIST_SPECS])
+@pytest.mark.parametrize("name,factory,_tools", AGENT_SPECS, ids=[s[0] for s in AGENT_SPECS])
 def test_factory_anonymous_has_no_persona_wrapper(name: str, factory, _tools: set[str]) -> None:
     """Anonymous build (empty ContextVar) must not include the persona wrapper."""
-    # Ensure the ContextVar is empty before we check — if a prior test
-    # leaked a value, this reset is idempotent.
     assert persona_preamble_var.get() == "", (
-        "persona ContextVar leaked into a later test — earlier test forgot to reset"
+        "persona ContextVar leaked into a later test; an earlier test forgot to reset"
     )
-    if _is_governed_inventory_scaffold(name):
-        with pytest.raises(RuntimeError, match="Inventory Agent definition"):
+    if _is_governed_stock_scaffold(name):
+        with pytest.raises(RuntimeError, match="Stock agent definition"):
             factory()
         return
 
@@ -130,15 +117,15 @@ def test_factory_anonymous_has_no_persona_wrapper(name: str, factory, _tools: se
     )
 
 
-@pytest.mark.parametrize("name,factory,_tools", SPECIALIST_SPECS, ids=[s[0] for s in SPECIALIST_SPECS])
+@pytest.mark.parametrize("name,factory,_tools", AGENT_SPECS, ids=[s[0] for s in AGENT_SPECS])
 def test_factory_honors_persona_contextvar(name: str, factory, _tools: set[str]) -> None:
     """Setting the persona preamble ContextVar injects the wrapper into the system prompt."""
     token = set_persona_preamble(
-        "PERSONA CONTEXT — TestShopper (CUST-TEST)\nKnown: likes linen\n---"
+        "PERSONA CONTEXT - TestShopper (CUST-TEST)\nKnown: likes linen\n---"
     )
     try:
-        if _is_governed_inventory_scaffold(name):
-            with pytest.raises(RuntimeError, match="Inventory Agent definition"):
+        if _is_governed_stock_scaffold(name):
+            with pytest.raises(RuntimeError, match="Stock agent definition"):
                 factory()
             return
 
@@ -151,77 +138,53 @@ def test_factory_honors_persona_contextvar(name: str, factory, _tools: set[str])
 
 
 # ---------------------------------------------------------------------------
-# @tool wrapper contract — Pattern I (Agents-as-Tools) needs these
+# No agents-as-tools: the Router builds one agent per turn and nothing else
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name,wrapper", SPECIALIST_WRAPPERS, ids=[s[0] for s in SPECIALIST_WRAPPERS])
-def test_tool_wrapper_has_strands_metadata(name: str, wrapper) -> None:
-    """Each specialist's @tool-decorated function must still expose the
-    Strands metadata the orchestrator uses for tool discovery."""
-    assert hasattr(wrapper, "tool_spec"), f"{name}: @tool wrapper missing tool_spec"
-    assert hasattr(wrapper, "tool_name"), f"{name}: @tool wrapper missing tool_name"
-    assert wrapper.tool_name == name, (
-        f"{name}: @tool wrapper tool_name is {wrapper.tool_name!r}"
-    )
+@pytest.mark.parametrize("module", [shopping_module, stock_module, support_module],
+                         ids=["shopping", "stock", "support"])
+def test_no_agent_module_exports_a_tool_wrapper(module) -> None:
+    wrappers = [
+        name for name, value in vars(module).items()
+        if hasattr(value, "tool_spec") and hasattr(value, "tool_name")
+        and not name.startswith("_") and name not in (
+            "search_products", "browse_department", "compare_products", "ask_a_person",
+            "check_stock", "get_orders", "get_return_policy", "get_tickets",
+        )
+    ]
+    assert not wrappers, f"{module.__name__} exports agent-as-tool wrappers: {wrappers}"
 
 
-def test_inventory_wrapper_reports_scaffold_not_error() -> None:
-    """A scaffolded Inventory Agent is unbuilt, not broken — Pattern I included.
+def test_the_stock_definition_is_the_only_scaffold() -> None:
+    """The Router reports the Stock agent as unbuilt while its definition is the lab."""
+    from services.chat import _unbuilt_dispatcher_specialist
 
-    Pattern II substitutes ``_UnavailableSpecialistNode`` and Pattern III
-    short-circuits in ``chat.py``. Before the wrapper grew its own check,
-    Pattern I leaked ``build_inventory_agent()``'s RuntimeError as
-    ``{"error": "Inventory agent error: ..."}`` and the orchestrator
-    improvised around a tool that looked broken.
-    """
-    import json
-
-    if not getattr(inventory_agent_module, "_INVENTORY_AGENT_STUBBED", False):
-        pytest.skip("Inventory Agent definition already completed in this checkout")
-
-    payload = json.loads(inventory("Is the Brooklyn tote in stock?"))
-    assert payload.get("status") == "unavailable"
-    assert "Inventory Agent exercise" in payload.get("message", "")
-    assert "error" not in payload
-
-
-def test_pairing_prompt_requires_a_named_verified_source() -> None:
-    """The model must not invent a numeric source ID for pairings."""
-    assert "source_product_name" in _SEARCH_SYSTEM_PROMPT
-    assert "Never invent or guess a product_id" in _SEARCH_SYSTEM_PROMPT
+    assert _unbuilt_dispatcher_specialist("shopping") is None
+    assert _unbuilt_dispatcher_specialist("support") is None
+    expected = "stock" if getattr(stock_module, "_STOCK_AGENT_STUBBED", False) else None
+    assert _unbuilt_dispatcher_specialist("stock") == expected
 
 
 # ---------------------------------------------------------------------------
-# Exa removal — defensive checks so the integration doesn't sneak back
+# Exa removal, defensive checks so the integration doesn't sneak back
 # ---------------------------------------------------------------------------
 
 
 def test_exa_api_key_removed_from_settings() -> None:
-    """EXA_API_KEY was deleted in the three-pattern refactor."""
     from config import settings
 
     assert not hasattr(settings, "EXA_API_KEY"), (
-        "settings.EXA_API_KEY reappeared — Exa MCP integration was removed"
+        "settings.EXA_API_KEY reappeared; the Exa MCP integration was removed"
     )
 
 
 def test_support_agent_has_no_exa_references() -> None:
-    """The support specialist's module should carry no residual Exa symbols
-    in its *code*. The module docstring is allowed to mention Exa because
-    it documents the removal — we check the source with the docstring
-    stripped so the "we removed Exa" note isn't treated as a regression.
-    """
+    """The Support agent's module carries no residual Exa symbols in its code."""
     import ast
 
-    from agents import customer_service_agent as mod
-
-    src = inspect.getsource(mod)
+    src = inspect.getsource(support_module)
     tree = ast.parse(src)
-
-    # Remove the module-level docstring from the AST and regenerate
-    # source from the remaining nodes. That leaves imports, factory,
-    # @tool — real code — without the removal-note prose.
     if (
         tree.body
         and isinstance(tree.body[0], ast.Expr)
@@ -233,6 +196,5 @@ def test_support_agent_has_no_exa_references() -> None:
     code_only = ast.unparse(tree)
     for forbidden in ("exa_client", "MCPClient", "from mcp", "EXA_API_KEY"):
         assert forbidden not in code_only, (
-            f"customer_service_agent.py contains forbidden token {forbidden!r} "
-            f"in executable code (module docstring is excluded from this check)"
+            f"support_agent.py contains forbidden token {forbidden!r} in executable code"
         )

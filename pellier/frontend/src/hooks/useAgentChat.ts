@@ -28,6 +28,7 @@ import {
 } from '../services/chat'
 import type { WorkshopMode } from '../contexts/LayoutContext'
 import { usePersona } from '../contexts/PersonaContext'
+import type { AgentType } from '../utils/agentIdentity'
 import { createEditorialStreamController } from '../utils/editorialStream'
 
 export type ChatMode = 'storefront' | 'observatory'
@@ -88,7 +89,7 @@ export interface SkillRouting {
 }
 
 /**
- * Stylist handoff payload from the `escalate_to_human` tool.
+ * Stylist handoff payload from the `ask_a_person` tool.
  *
  * Emitted as a dedicated SSE event so the chat surface can render the
  * handoff card alongside the agent's prose. The "stylist" is the
@@ -110,13 +111,7 @@ export interface StylistHandoff {
   next_steps: string[]
 }
 
-export type AgentBadge =
-  | 'search'
-  | 'pricing'
-  | 'recommendation'
-  | 'orchestrator'
-  | 'inventory'
-  | 'support'
+export type AgentBadge = AgentType
 
 export interface ChatFailure {
   code: ChatErrorCode
@@ -141,7 +136,7 @@ export interface AgentChatMessage {
   skillRouting?: SkillRouting
   /** Systems that actually participated in this turn, with observable work only. */
   sourceActivity?: ChatSourceActivity[]
-  /** Stylist handoff payload when this turn fired escalate_to_human.
+  /** Stylist handoff payload when this turn fired ask_a_person.
    * The chat surface renders the StylistHandoffCard in place of the
    * usual product grid. */
   escalation?: StylistHandoff
@@ -235,31 +230,17 @@ function mapProduct(p: any): ChatProduct {
 
 function inferAgentFromQuery(q: string): AgentBadge {
   const lower = q.toLowerCase()
-  if (
-    lower.includes('return') ||
-    lower.includes('refund') ||
-    lower.includes('policy') ||
-    lower.includes('support') ||
-    lower.includes('warranty') ||
-    lower.includes('help')
-  ) return 'support'
-  if (
-    lower.includes('cheap') ||
-    lower.includes('price') ||
-    lower.includes('deal') ||
-    lower.includes('cost') ||
-    lower.includes('budget') ||
-    lower.includes('afford')
-  ) return 'pricing'
-  if (
-    lower.includes('recommend') ||
-    lower.includes('suggest') ||
-    lower.includes('best') ||
-    lower.includes('top') ||
-    lower.includes('popular') ||
-    lower.includes('trending')
-  ) return 'recommendation'
-  return 'search'
+  const supportTerms = [
+    'return', 'refund', 'ticket', 'credit', 'policy', 'damaged',
+    'my order', 'what did i buy',
+  ]
+  if (supportTerms.some((term) => lower.includes(term))) return 'support'
+  const stockTerms = [
+    'warehouse', 'how many', 'in stock', 'sold out', 'restock',
+    'brooklyn', 'austin', 'portland',
+  ]
+  if (stockTerms.some((term) => lower.includes(term))) return 'stock'
+  return 'shopping'
 }
 
 function loadPersistedMessages(
@@ -533,8 +514,8 @@ export function useAgentChat(
         workshopMode === 'production'
           ? 'AgentCore'
           : workshopMode === 'agentic'
-            ? 'Orchestrator'
-            : 'Search Agent'
+            ? 'Router'
+            : 'Shopping agent'
       const loadingMessage: AgentChatMessage = {
         role: 'assistant',
         content: '',
@@ -542,8 +523,8 @@ export function useAgentChat(
         agentStatus: 'thinking',
         agent: showInstrumentation
           ? workshopMode === 'agentic' || workshopMode === 'production'
-            ? 'orchestrator'
-            : 'search'
+            ? 'router'
+            : 'shopping'
           : undefined,
         agentExecution: trackToolCalls
           ? {
@@ -884,7 +865,7 @@ export function useAgentChat(
             workshopMode === 'production' ||
             response.orchestrator_enabled
           ) {
-            agentType = 'orchestrator'
+            agentType = 'router'
           } else {
             agentType = inferAgentFromQuery(text)
           }

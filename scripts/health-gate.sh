@@ -578,7 +578,7 @@ sys.exit(0 if d.get("composerEnabled") is True and d.get("orchestrationAvailable
           "$operator_api/capabilities?refresh=true" 2>/dev/null || true)"
         if printf '%s' "$operator_capabilities" | python3 -c 'import json,sys
 d=json.load(sys.stdin)
-c=d.get("capabilities",{}).get("initiate_return",{})
+c=d.get("capabilities",{}).get("give_store_credit",{})
 sys.exit(0 if d.get("source")=="agentcore" and c.get("state")=="review_required" else 1)' 2>/dev/null; then
           pass "Operator return capability is published, permitted, and requires human review"
         else

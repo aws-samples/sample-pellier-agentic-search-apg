@@ -15,8 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND = REPO_ROOT / "pellier" / "backend"
 DEPLOY = REPO_ROOT / "scripts" / "deploy"
 RENDERER_PATH = DEPLOY / "render_agentcore_project.py"
-GATEWAY_PROCESS_RETURN = DEPLOY / "gateway_initiate_return.py"
-EXPERIENCE_LAMBDA = DEPLOY / "pellier_experience_server.py"
+GATEWAY_CLIENT = DEPLOY / "gateway_client.py"
+STORE_LAMBDA = DEPLOY / "pellier_store_tools.py"
 PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
 DEPLOY_ALL = DEPLOY / "deploy_all.sh"
 RESET_GOVERNED = REPO_ROOT / "scripts" / "reset-governed-workshop.sh"
@@ -24,9 +24,6 @@ GOVERNED_RECEIPTS_MIGRATION = (
     REPO_ROOT / "scripts" / "migrations" / "010_governed_receipts.sql"
 )
 STARTER_CEDAR = REPO_ROOT / "policies" / "workshop_identity_match_forbid.cedar"
-ADVANCED_DOGWOOD = (
-    REPO_ROOT / "policies" / "advanced_verified_customer_context.dogwood"
-)
 SOLUTION_CEDAR = (
     REPO_ROOT
     / "solutions"
@@ -92,32 +89,26 @@ def test_renderer_owns_baseline_cedar_and_enforce_attachment() -> None:
         for policy in policies
     )
     statements = "\n".join(policy["statement"] for policy in policies)
-    assert renderer.INITIATE_RETURN_ACTION in statements
-    assert 'context.input.reason == "damaged"' in statements
+    assert renderer.GIVE_STORE_CREDIT_ACTION in statements
     assert 'resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"' in statements
     assert "resource is AgentCore::Gateway" not in statements
     assert "permit (principal, action, resource" not in statements
 
-    # The Lab 4 return-ownership condition is the participant's work. Sensitive
-    # Gateway reads now carry their own self-service constraints, but no
-    # `initiate_return` baseline statement may bind username to customer_id or
-    # the exercise's before-state would be false.
-    return_statements = "\n".join(
+    # The Lab 4 amount limit is the participant's work. The staff permit that
+    # carries `give_store_credit` must not already bound the amount, or the
+    # exercise's before-state would be false.
+    credit_statements = "\n".join(
         policy["statement"]
         for policy in policies
-        if renderer.INITIATE_RETURN_ACTION in policy["statement"]
+        if renderer.GIVE_STORE_CREDIT_ACTION in policy["statement"]
     )
-    assert 'principal.getTag("custom:customer_id") == context.input' not in return_statements
-    assert "CUST-MARCO" not in return_statements
-    for name, action in (
-        ("get_customer_preferences_owner_only", renderer.CUSTOMER_PREFERENCES_ACTION),
-        ("get_audit_trail_owner_only", renderer.AUDIT_TRAIL_ACTION),
-    ):
-        policy = next(item for item in policies if item["name"] == name)
-        assert policy["statement"].lstrip().startswith("permit (principal is AgentCore::OAuthUser")
-        assert action in policy["statement"]
-        assert 'principal.hasTag("custom:customer_id")' in policy["statement"]
-        assert 'principal.getTag("custom:customer_id") == context.input.customer_id' in policy["statement"]
+    assert "amount_cents" not in credit_statements
+    assert "CUST-MARCO" not in credit_statements
+    policy = next(item for item in policies if item["name"] == "get_orders_owner_only")
+    assert policy["statement"].lstrip().startswith("permit (principal is AgentCore::OAuthUser")
+    assert f"{renderer.STORE_TARGET}___get_orders" in policy["statement"]
+    assert 'principal.hasTag("custom:customer_id")' in policy["statement"]
+    assert 'principal.getTag("custom:customer_id") == context.input.customer_id' in policy["statement"]
 
     source = RENDERER_PATH.read_text()
     assert '"mode": "ENFORCE"' in source
@@ -132,11 +123,8 @@ def test_participant_cedar_files_need_only_the_gateway_arn_substituted() -> None
     the ``${PELLIER_GATEWAY_ARN}`` placeholder the lab guide substitutes before
     ``agentcore add policy --source``. Nothing else is templated.
     """
-    expected_action = (
-        'AgentCore::Action::"'
-        "pellier-concierge-experience-target___initiate_return"
-        '"'
-    )
+    expected_action = f'AgentCore::Action::"{renderer.GIVE_STORE_CREDIT_ACTION}"'
+    assert renderer.GIVE_STORE_CREDIT_ACTION == "pellier-store-tools___give_store_credit"
     starter = STARTER_CEDAR.read_text()
     solution = SOLUTION_CEDAR.read_text()
     for statement in (starter, solution):
@@ -152,26 +140,12 @@ def test_participant_cedar_files_need_only_the_gateway_arn_substituted() -> None
     assert "false" in starter
     assert "unless" in starter
     assert "unless" in solution
-    assert 'principal.hasTag("custom:customer_id")' in solution
-    assert "context.input has customer_id" in solution
-    assert 'principal.getTag("custom:customer_id") == context.input.customer_id' in solution
-    assert 'getTag("username")' not in solution
-
-
-def test_advanced_dogwood_example_teaches_sequence_without_false_enforcement() -> None:
-    source = ADVANCED_DOGWOOD.read_text()
-
-    assert "when temporal" in source
-    assert "formerly within 10m" in source
-    assert (
-        'AgentCore::Action::"'
-        'pellier-curation-recommendation-target___get_customer_preferences"::response'
-    ) in source
-    assert 'input.customer_id: context.input.customer_id' in source
-    assert "eventResource: resource" in source
-    assert "x-amzn-bedrock-agentcore-policy-session-id" not in source
-    assert "narrow or replace that broad" in source
-    assert "would not enforce the sequence" in source
+    assert "context.input has amount_cents" in solution
+    assert "context.input.amount_cents <= 10000" in solution
+    starter_code = "\n".join(
+        line for line in starter.splitlines() if not line.strip().startswith("//")
+    )
+    assert "amount_cents" not in starter_code, "the starter must not contain the answer"
 
 
 def test_reset_removes_and_redeploys_participant_policy_through_cli() -> None:
@@ -211,16 +185,16 @@ def test_deploy_paths_do_not_mutate_agentcore_control_plane_directly() -> None:
     assert "deploy_gateway.py" not in combined
 
 
-def _load_gateway_initiate_return(name: str):
-    spec = importlib.util.spec_from_file_location(name, GATEWAY_PROCESS_RETURN)
+def _load_gateway_client(name: str):
+    spec = importlib.util.spec_from_file_location(name, GATEWAY_CLIENT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_gateway_initiate_return_only_counts_policy_errors_as_deny() -> None:
-    module = _load_gateway_initiate_return("gateway_initiate_return_denial")
+def test_gateway_client_only_counts_policy_errors_as_deny() -> None:
+    module = _load_gateway_client("gateway_client_denial")
 
     assert module._is_authorization_denial(
         RuntimeError("AuthorizeActionException: explicit deny")
@@ -242,7 +216,7 @@ def test_gateway_initiate_return_only_counts_policy_errors_as_deny() -> None:
 def test_gateway_receipt_identity_is_bound_to_exact_cognito_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _load_gateway_initiate_return("gateway_initiate_return_identity")
+    module = _load_gateway_client("gateway_client_identity")
     claims = {
         "sub": "subject-123",
         "username": "marco",
@@ -280,7 +254,7 @@ def test_gateway_receipt_identity_is_bound_to_exact_cognito_token(
 def test_gateway_receipt_identity_rejects_claim_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _load_gateway_initiate_return("gateway_initiate_return_mismatch")
+    module = _load_gateway_client("gateway_client_mismatch")
     claims = {
         "sub": "subject-123",
         "username": "not-marco",
@@ -312,7 +286,7 @@ def test_gateway_receipt_identity_rejects_claim_mismatch(
 
 
 def test_governed_receipts_record_verified_identity_provenance() -> None:
-    helper = GATEWAY_PROCESS_RETURN.read_text()
+    helper = GATEWAY_CLIENT.read_text()
     migration = GOVERNED_RECEIPTS_MIGRATION.read_text()
 
     assert "--principal-id" not in helper
@@ -330,96 +304,23 @@ def test_governed_receipts_record_verified_identity_provenance() -> None:
         assert field in migration
 
 
-def test_gateway_absence_proof_uses_the_exact_invocation_key() -> None:
-    helper = GATEWAY_PROCESS_RETURN.read_text()
+def test_store_lambda_writes_gateway_tool_audit() -> None:
+    """The Lambda wires the audit; the shared transport performs it.
 
-    assert "def _idempotency_key(" in helper
-    assert helper.count("args->>'idempotency_key' = %s") == 2
-    assert '"idempotency_key": _idempotency_key(args)' in helper
-
-
-def test_experience_lambda_writes_gateway_tool_audit() -> None:
-    """The surface wires the audit; the shared transport performs it.
-
-    Split deliberately. The INSERT moved to `common/dataapi.py` when the four
-    surface servers stopped each carrying a copy, so asserting the SQL against
-    the surface file would now pass only by accident of duplication returning.
+    The credit receipt is written OUTSIDE the business transaction, so an Aurora
+    refusal still leaves exactly one attempt receipt. Reads write a receipt only
+    when the Runtime passed a turn id.
     """
-    source = EXPERIENCE_LAMBDA.read_text()
-    # The reviewable actions now write their receipt OUTSIDE the business
-    # transaction, so an Aurora denial still leaves exactly one attempt receipt.
-    assert "_write_tool_audit_independently" in source
-    assert "_write_tool_audit_in_transaction" not in source, (
-        "the experience surface went back to auditing inside the mutation; a "
-        "rolled-back write would take its receipt with it"
-    )
-    assert 'tool_name in ("initiate_return", "replace_damaged_item")' in source
+    source = STORE_LAMBDA.read_text()
+    assert 'if tool_name == "give_store_credit":' in source
+    assert "write_tool_audit_independently(" in source
+    assert "audit_read_call(tool_name, arguments, result, started)" in source
     # Keyed on the real identity, which this tool's arguments carry.
-    assert 'f"gateway-{customer_id}"' in source
+    assert 'f"gateway-{execution_arguments.get(\'customer_id\') or \'unknown\'}"' in source
+    assert "_write_tool_audit_in_transaction" not in source
 
-    transport = (
-        EXPERIENCE_LAMBDA.parent / "common" / "dataapi.py"
-    ).read_text()
+    transport = (STORE_LAMBDA.parent / "common" / "dataapi.py").read_text()
     assert "INSERT INTO" in transport and "tool_audit" in transport
     assert "::jsonb" in transport
-    assert '"gateway"' in transport or "'gateway'" in transport
-    # Both writers still exist: the in-transaction one serves restock_inventory,
-    # whose boundary is deliberately unchanged.
+    assert "'gateway'" in transport
     assert "def write_tool_audit_independently(" in transport
-    assert "transactionId=transaction_id" in transport
-
-
-# ---------------------------------------------------------------------------
-# The live-alignment planner. Audit finding P1-04: the live baseline permits the
-# restock action; the fresh baseline leaves it unpermitted so a call is a Cedar DENY.
-# The planner exists so that difference can be reviewed before a shared Gateway is
-# touched, which means the one property worth testing is that it cannot touch one.
-# ---------------------------------------------------------------------------
-
-RESTOCK_PLANNER = DEPLOY / "plan_restock_alignment.py"
-
-# Control-plane writes on the policy engine. A planner that calls any of these is no
-# longer a planner.
-_POLICY_WRITE_CALLS = (
-    "create_policy", "update_policy", "delete_policy",
-    "update_gateway", "update_gateway_target", "create_gateway_target",
-    "apply_policy_update", "apply_one_target", "apply_target_schemas",
-)
-
-
-def _planner_module():
-    spec = importlib.util.spec_from_file_location(
-        "pellier_restock_alignment_planner", RESTOCK_PLANNER
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def test_the_alignment_planner_cannot_write() -> None:
-    source = RESTOCK_PLANNER.read_text()
-    called = sorted(name for name in _POLICY_WRITE_CALLS if f"{name}(" in source)
-    assert not called, f"the alignment planner calls control-plane writes: {called}"
-    assert "PLAN ONLY" in source
-
-
-def test_the_alignment_planner_reports_restock_as_unpermitted_when_fresh() -> None:
-    """The fresh side of the comparison, computable with no AWS.
-
-    Asserted through the planner rather than by re-reading the renderer, because the
-    planner is what a reviewer will run and its answer is the one that has to be right.
-    """
-    planner = _planner_module()
-    result = planner.offline_plan()
-
-    assert result["applied"] is False
-    fresh = result["freshComparison"]
-    assert fresh["freshPermitsRestock"] is False
-    # A fresh stack publishes no restock tool on the shopper Gateway at all.
-    assert fresh["freshPublishesRestock"] is False
-    assert fresh["freshRestockActionId"] is None
-    # Eleven catalogue reads; the two customer-scoped reads carry owner-only permits.
-    assert fresh["freshBaselineActionCount"] == 11
-    assert not any(a.endswith("___restock_inventory") for a in fresh["freshBaselineActions"])

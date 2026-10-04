@@ -18,7 +18,7 @@ const order = {
 }
 const review = {
   reviewId: 901, customerId: client.customerId, customerName: client.name, slug: client.slug,
-  personaId: null, action: 'initiate_return', parameters: { customer_id: client.customerId, product_id: '41', reason: 'not_as_described' },
+  personaId: null, action: 'give_store_credit', parameters: { customer_id: client.customerId, amount_cents: 4800, reason: 'not_as_described' },
   status: 'pending', humanState: 'confirmation_required', sourceTurnId: 'proposal-turn',
   executionTurnId: null, execution: null, orderId: order.orderId, productName: order.productName,
   issue: 'Not as described', recommendation: { rationale: 'Review the exact item and reason.' },
@@ -26,7 +26,7 @@ const review = {
   actionHash: 'ui-flow-fixture', requesterKind: 'staff', requestedAt: null, decidedAt: null,
 }
 const proposal = {
-  tool: 'initiate_return', reviewId: 901, state: 'review_required',
+  tool: 'give_store_credit', reviewId: 901, state: 'review_required',
   product: { name: order.productName, price: order.currentPrice }, order: { orderId: order.orderId },
   material: { reason: 'not_as_described' }, executionCapability: { state: 'review_required' },
 }
@@ -67,7 +67,7 @@ async function wire(page: Page, proposalInConversation = true) {
       composerEnabled: true, orchestrationAvailable: true, supportedWorkflowKinds: ['investigate_resolution'], note: 'UI flow fixture. No live actions.',
     } })
     if (path === '/api/operator/capabilities') return route.fulfill({ json: {
-      capabilities: { client_read: { state: 'available' }, initiate_return: { state: 'review_required' } },
+      capabilities: { client_read: { state: 'available' }, give_store_credit: { state: 'review_required' } },
       governedActionsAvailable: false, ttlSeconds: 60,
     } })
     if (path === '/api/operator/reviews') return route.fulfill({ json: { reviews: [

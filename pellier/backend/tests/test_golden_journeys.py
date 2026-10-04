@@ -164,7 +164,7 @@ def test_every_consequential_journey_binds_the_exact_parameters() -> None:
         )["closedLoop"]
         assert contract["materialParameters"] == [
             "customer_id",
-            "product_id",
+            "amount_cents",
             "reason",
         ], journey_id
         assert contract["actionFingerprint"] == "sha256_canonical_operation_arguments"

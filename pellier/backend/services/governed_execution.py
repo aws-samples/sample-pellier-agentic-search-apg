@@ -48,6 +48,7 @@ this surface could tell.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -556,13 +557,12 @@ SELECT episode_id, episode_type, situation, resolution, human_outcome,
  ORDER BY episode_id
 """
 
-# `product_id` is TEXT in pellier.returns and an integer in the review's args, so both
-# sides are cast. Without it: `operator does not exist: text = smallint`.
-_RETURNS_FOR_REVIEW = """
-SELECT id, customer_id, product_id, order_id, reason, status, quantity, requested_at
-  FROM pellier.returns
- WHERE customer_id = %s AND product_id::text = %s::text
- ORDER BY id DESC
+# The domain row a confirmed credit produces, keyed by the review's write key.
+_CREDITS_FOR_KEY = """
+SELECT credit_id, customer_id, amount_cents, reason, issued_by, idempotency_key, created_at
+  FROM pellier.store_credits
+ WHERE idempotency_key = %s
+ ORDER BY credit_id DESC
 """
 
 
@@ -638,13 +638,7 @@ async def reconstruct_execution(
     audit = [dict(r) for r in (await db.fetch_all(_AUDIT_FOR_KEY, key) or [])] if key else []
     writes = [dict(r) for r in (await db.fetch_all(_WRITE_OPS_FOR_KEY, key) or [])] if key else []
     episodes = [dict(r) for r in (await db.fetch_all(_EPISODE_FOR_REVIEW, int(review_id)) or [])]
-    domain: List[Dict[str, Any]] = []
-    if review.get("customer_id") and args.get("product_id") is not None:
-        domain = [dict(r) for r in (await db.fetch_all(
-            _RETURNS_FOR_REVIEW,
-            str(review["customer_id"]),
-            str(args["product_id"]),
-        ) or [])]
+    domain = [dict(r) for r in (await db.fetch_all(_CREDITS_FOR_KEY, key) or [])] if key else []
 
     return {
         "review": {**review, "args": args},
@@ -705,7 +699,7 @@ def describe_layers(
         ),
         layer(
             "domain", "Database effect", bool(domain) and completed,
-            f"{len(domain)} row(s) in pellier.returns for this client and piece."
+            f"{len(domain)} row(s) in pellier.store_credits for this write key."
             if domain and completed else
             ("Row-level security refused the read the write depended on, so nothing "
              "changed." if aurora == AURORA_DENIED else
@@ -1005,47 +999,6 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     return AURORA_NOT_REACHED, str(result.get("message") or "The write did not run.")
 
 
-# The exact sentence `pellier.process_return_idempotent` emits when its ownership
-# SELECT finds no row. Matched on our own write function's fixed text, not on model
-# output — and only ever used to RECLASSIFY, never to invent an outcome.
-_OWNERSHIP_FAILURE_MARKER = "did not order"
-
-
-def is_ownership_failure(result: Mapping[str, Any]) -> bool:
-    """True when the tool reported that the customer does not own the product."""
-    if str(result.get("status") or "") == "success":
-        return False
-    return _OWNERSHIP_FAILURE_MARKER in str(result.get("message") or "").lower()
-
-
-def as_rls_denial(result: Mapping[str, Any], customer_id: str) -> Dict[str, Any]:
-    """Reclassify an ownership failure that could only have been a visibility failure.
-
-    A client with no ``pellier.principal_customers`` mapping resolves NO customer
-    scope, so the ownership SELECT the write depends on was guaranteed to return
-    nothing whatever the orders table contains. Reporting the tool's message verbatim
-    would state a falsehood about Aurora's contents — "CUST-AMARA did not order
-    product 46" while order 323 exists — and would disguise an authorization boundary
-    as a data fact.
-
-    The managed Gateway rail cannot make this distinction itself: the in-process rail
-    asks the database, inside the same transaction, whether the customer is in scope,
-    and sets ``denied_by``. The Lambda behind the Gateway does not, so it returns the
-    bare message and the Aurora axis came back NOT_REACHED with the falsehood attached.
-
-    The original tool text is preserved under ``tool_message`` rather than dropped:
-    nothing is hidden, it simply stops being presented as business truth.
-    """
-    out = dict(result)
-    out["denied_by"] = "database_row_level_security"
-    out["tool_message"] = str(result.get("message") or "")
-    out["message"] = (
-        f"{customer_id} is not in scope for this database session, so the row the "
-        "write depends on was not visible. The order relationship itself is unchanged."
-    )
-    return out
-
-
 def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -> str:
     """The evidence axis names what artifact exists — never what we hoped for."""
     if policy == POLICY_DENY:
@@ -1073,6 +1026,23 @@ def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -
 # ---------------------------------------------------------------------------
 
 
+async def _run_store_tool(db: Any, fn: Any, **arguments: Any) -> Dict[str, Any]:
+    """Run one synchronous ``store_tools`` function against the async pool.
+
+    ``store_tools`` functions take a plain ``run(sql, params) -> rows`` so the
+    Gateway Lambda can call them too. Here that runner hands each statement to
+    the pool on the event loop that owns it, from the worker thread the tool
+    runs on, exactly as ``services.agent_tools._run_sql`` does for the agents.
+    """
+    loop = asyncio.get_running_loop()
+
+    def run(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
+        future = asyncio.run_coroutine_threadsafe(db.fetch_all(sql, *params), loop)
+        return [dict(row) for row in future.result(timeout=30) or []]
+
+    return await asyncio.to_thread(fn, run, **arguments)
+
+
 async def _execute_in_process(
     db: Any,
     *,
@@ -1080,65 +1050,48 @@ async def _execute_in_process(
     args: Mapping[str, Any],
     idempotency_key: str,
     operator_sub: str,
-    customer_subject: Optional[str],
 ) -> Dict[str, Any]:
-    """Run the governed write locally, with RLS bound to the CUSTOMER subject.
+    """Run the governed write locally.
 
-    Note which principal goes where, because it is the whole point:
-
-      * ``principal_sub`` on the write is the **customer subject**. It selects the
-        RLS data scope. Passing the operator's own subject here — which the older
-        ``/actions/*`` endpoints do — scopes the transaction to the operator's own
-        rows, and the write then fails for every client the operator is not
-        mapped to. Verified: an operator subject sees zero of Theo's orders.
-
-      * ``issued_by`` on a credit is the **actor**. That is attribution, and it is
-        the operator, because a credit must record which person authorised the
-        money movement.
+    ``issued_by`` on a credit is the **actor**. That is attribution, and it is
+    the operator, because a credit must record which person authorised the
+    money movement.
 
     Cedar is not consulted on this rail. The caller reports the policy axis as
     NOT_EVALUATED; this function never claims a verdict.
 
     An integrity-constraint violation (a trigger guard, a CHECK, a foreign key)
-    raises out of psycopg here rather than returning an envelope, because
-    ``process_return_idempotent`` deliberately lets those propagate — the
-    database is the enforcer. Letting it keep propagating would 500 the request
-    and record no execution receipt, destroying the only proof that Aurora
-    enforced the guard. So it is converted into the same status:error envelope
-    the Gateway Lambda produces, with the SQLSTATE attached explicitly, and
+    raises out of psycopg here rather than returning an envelope: the database
+    is the enforcer. Letting it keep propagating would 500 the request and
+    record no execution receipt, destroying the only proof that Aurora enforced
+    the guard. So it is converted into the same status:error envelope the
+    Gateway Lambda produces, with the SQLSTATE attached explicitly, and
     ``classify_aurora`` reads one vocabulary on both rails. Every other
     database error still raises: a connection failure is an infrastructure
     problem, not an Aurora verdict, and enveloping it would fake one.
     """
     import psycopg
 
-    from services.business_logic import BusinessLogic
+    from services import store_tools
 
-    logic = BusinessLogic(db)
+    if tool != "give_store_credit":
+        raise ExecutionError(f"action_not_executable:{tool}", 422)
     try:
-        if tool == "initiate_return":
-            return await logic.initiate_return(
-                customer_id=str(args["customer_id"]),
-                product_id=int(args["product_id"]),
-                reason=str(args["reason"]),
-                idempotency_key=idempotency_key,
-                principal_sub=customer_subject,
-            )
-        if tool == "issue_credit":
-            return await logic.issue_credit(
-                customer_id=str(args["customer_id"]),
-                amount_cents=int(args["amount_cents"]),
-                reason=str(args["reason"]),
-                idempotency_key=idempotency_key,
-                issued_by=operator_sub or None,
-            )
+        return await _run_store_tool(
+            db,
+            store_tools.give_store_credit,
+            customer_id=str(args["customer_id"]),
+            amount_cents=int(args["amount_cents"]),
+            reason=str(args["reason"]),
+            idempotency_key=idempotency_key,
+            issued_by=operator_sub or None,
+        )
     except psycopg.IntegrityError as exc:
         return {
             "status": "error",
             "message": str(exc),
             "sqlstate": getattr(exc, "sqlstate", None) or "23000",
         }
-    raise ExecutionError(f"action_not_executable:{tool}", 422)
 
 
 async def _execute_through_gateway(
@@ -1326,7 +1279,7 @@ def resolve_permissive_policy_state(
 
     Three of those used to be different. A matching forbid under a LOG_ONLY
     gateway returned WOULD_DENY, and nothing else returned ALLOW. Both were
-    wrong in the same way: the Cedar statement of `process_return_damaged_only`
+    wrong in the same way: the Cedar statement of `give_store_credit_staff_scope`
     names the action on every call, including the ones it permits, so a text
     match is not a decision and its absence is not an authorization. WOULD_DENY
     now comes only from `services.policy_decisions`, which reads real LOG_ONLY
@@ -1545,9 +1498,6 @@ async def execute_confirmed_review(
     review_id = int(review["review_id"])
     action_hash = str(review["action_hash"])
     customer_id = str(args["customer_id"])
-    if tool == "replace_damaged_item":
-        # Execution metadata comes from the persisted review, never the caller.
-        args = {**args, "review_id": review_id}
 
     customer_subject = await resolve_customer_subject(db, customer_id)
     execution_turn_id = await claim_execution_turn(db, review_id)
@@ -1577,13 +1527,10 @@ async def execute_confirmed_review(
     else:
         policy, result, notes = await _run_in_process_rail(
             db, tool=tool, args=args, idempotency_key=idempotency_key,
-            operator_sub=operator_sub, customer_subject=customer_subject,
+            operator_sub=operator_sub,
         )
 
-    aurora, aurora_note, result = _classify_aurora_axis(
-        policy, dict(result), tool=tool, customer_id=customer_id,
-        customer_subject=customer_subject,
-    )
+    aurora, aurora_note, result = _classify_aurora_axis(policy, dict(result))
     notes["aurora"] = aurora_note
     evidence = classify_evidence_for(policy, aurora, result)
 
@@ -1713,7 +1660,6 @@ async def _run_in_process_rail(
     args: Mapping[str, Any],
     idempotency_key: str,
     operator_sub: str,
-    customer_subject: Optional[str],
 ) -> tuple[str, Dict[str, Any], Dict[str, str]]:
     """Run the write locally, and claim no policy verdict for it.
 
@@ -1739,7 +1685,6 @@ async def _run_in_process_rail(
         args=args,
         idempotency_key=idempotency_key,
         operator_sub=operator_sub,
-        customer_subject=customer_subject,
     )
     return POLICY_NOT_EVALUATED, dict(result), notes
 
@@ -1806,40 +1751,16 @@ async def _refuse_governed_execution(
 def _classify_aurora_axis(
     policy: str,
     result: Dict[str, Any],
-    *,
-    tool: str,
-    customer_id: str,
-    customer_subject: Optional[str],
 ) -> tuple[str, str, Dict[str, Any]]:
     """The Aurora axis for one execution, and the result it was read from.
 
     Split out of ``execute_confirmed_review`` so that function stays inside the
-    complexity budget once refusal and observation collection joined it. The
-    reclassification below is the only place a tool envelope is rewritten, and it
-    still precedes the classification it feeds.
+    complexity budget once refusal and observation collection joined it.
     """
     if policy == POLICY_DENY:
         return AURORA_NOT_REACHED, (
             "The tool was never entered, so no statement reached the database."
         ), result
-    elif customer_subject is None and tool == "initiate_return":
-        # Fail closed and say why. RLS resolves no scope for an unmapped client, so
-        # the write finds nothing; reporting that as "no such order" would disguise an
-        # authorization boundary as a data fact.
-        #
-        # Reclassify rather than merely annotate. The previous version prefixed an
-        # honest sentence and then repeated the falsehood, and left the axis at
-        # NOT_REACHED — so the canonical database-enforcement outcome reported that no
-        # statement had reached the database when one had, and been refused.
-        if is_ownership_failure(result):
-            result = as_rls_denial(result, customer_id)
-        aurora, aurora_note = classify_aurora(result)
-        if aurora != AURORA_DENIED:
-            aurora_note = (
-                f"{customer_id} has no identity mapping, so the session resolved "
-                "no customer scope. " + aurora_note
-            )
-        return aurora, aurora_note, result
     aurora, aurora_note = classify_aurora(result)
     return aurora, aurora_note, result
 

@@ -344,8 +344,8 @@ def test_the_orchestrator_never_calls_a_governed_write() -> None:
     import inspect
 
     source = inspect.getsource(ORCH)
-    for forbidden in ("propose_review", "initiate_return(", "issue_credit(",
-                      "escalate_to_human(", "resolve_return"):
+    for forbidden in ("propose_review", "give_store_credit(", "ask_a_person(",
+                      "execute_review"):
         assert forbidden not in source, f"read workflow references {forbidden}"
 
 
@@ -485,13 +485,13 @@ def test_an_unrecognised_request_falls_back_to_the_defensible_read() -> None:
 
 
 def test_the_guided_human_review_turn_does_not_prepare_an_action() -> None:
-    from services import operator_proposals
-
     request = (
         "Prepare the fairest next step for human review without executing it. Name any missing facts the reviewer must resolve."
     )
     assert ORCH.classify_workflow(request) == ORCH.WORKFLOW_INVESTIGATE
-    assert operator_proposals.classify_action_intent(request) is None
+    spec = ORCH.WORKFLOWS[ORCH.classify_workflow(request)]
+    artifact = ORCH._artifact(spec, [], [], {spec.primary_key: "p"}, [])
+    assert artifact["proposedActions"] == []
 
 
 def test_every_suggestion_keyword_the_ui_ships_actually_routes() -> None:
@@ -1022,22 +1022,17 @@ async def test_a_replayed_submission_returns_the_stored_answer_without_paying_ag
 
 
 # ---------------------------------------------------------------------------
-# The fourth workflow: replacement search
+# Routing keyed to the deliverable, and the empty context-stage registry
 # ---------------------------------------------------------------------------
 
-REPLACEMENT = ORCH.WORKFLOWS[ORCH.WORKFLOW_REPLACEMENT]
-
-
-def test_a_replacement_request_routes_to_its_own_workflow() -> None:
-    """The false affordance this fixes: the suggestion advertised one workflow and
-    classified to another, so selecting "Find a replacement" ran a client summary."""
-    for request in (
-        'For order #306, find a replacement for "Stoneware Pour-Over Set".',
-        "Find a replacement for her recent vase",
-        "What could she have instead of the catchall?",
-        "Show me a similar product to the pour-over set",
-    ):
-        assert ORCH.classify_workflow(request) == ORCH.WORKFLOW_REPLACEMENT, request
+def test_a_replacement_request_has_no_workflow_of_its_own() -> None:
+    """Replacement search is gone, so such a request reads as a plain client read."""
+    assert ORCH.classify_workflow(
+        "Find a replacement for her recent vase"
+    ) == ORCH.WORKFLOW_CLIENT_SUMMARY
+    assert set(ORCH.WORKFLOWS) == {
+        ORCH.WORKFLOW_CLIENT_SUMMARY, ORCH.WORKFLOW_INVESTIGATE, ORCH.WORKFLOW_DRAFT_NOTE,
+    }
 
 
 def test_a_request_for_copy_about_a_replacement_is_still_a_draft() -> None:
@@ -1047,209 +1042,28 @@ def test_a_request_for_copy_about_a_replacement_is_still_a_draft() -> None:
     ) == ORCH.WORKFLOW_DRAFT_NOTE
 
 
-def test_a_declared_context_stage_is_implemented() -> None:
+def test_no_workflow_declares_a_context_stage() -> None:
     """`has_context_stage` on the spec and the side table must not drift apart."""
     declared = {k for k, s in ORCH.WORKFLOWS.items() if s.has_context_stage}
-    assert declared == set(ORCH._CONTEXT_STAGES)
-    # Replacement retrieves; investigation may propose. The other two are pure reads
-    # with no stage at all, which is what keeps them side-effect free.
-    assert declared == {ORCH.WORKFLOW_REPLACEMENT, ORCH.WORKFLOW_INVESTIGATE}
-
-
-def test_the_replacement_contract_forbids_restating_backend_facts() -> None:
-    contract = " ".join(REPLACEMENT.contract.split())
-    assert "Never state a price, a unit count, a stock status or a product identifier" \
-        in contract
-    # No invented improvement claim.
-    assert "Never call an option an upgrade" in contract
-    # No availability promise, and no implied order mutation.
-    assert "Never promise availability" in contract
-    assert "never state or imply that a swap, exchange or reservation has" in contract
-
-
-def _replacement_artifact() -> Dict[str, Any]:
-    return {
-        "replacement": {
-            "plan": {"original": {"orderId": 306, "productId": "31",
-                                  "name": "Stoneware Pour-Over Set",
-                                  "category": "Kitchen and table", "price": 165.0},
-                     "describeHardControls": ["price ≤ $189.75"]},
-            "available": [{"productId": "37", "name": "Wabi-Sabi Bowl", "price": 65.0}],
-            "closeMatches": [],
-            "retrieval": {"poolSize": 13, "reranked": 12, "reconciledCount": 3,
-                          "rerankApplied": True, "strategy": "hybrid+rerank"},
-            "grounding": {"resolved": True, "matchedOn": "named in the request"},
-        }
-    }
-
-
-def _wire_stage(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    steps: List[ORCH.Step],
-    artifact: Dict[str, Any],
-    blocked: str = "",
-    prompt_block: str = "OPTIONS: Wabi-Sabi Bowl",
-) -> None:
-    """Replace the replacement stage so the TURN's handling of it is under test."""
-    async def stage(_db: Any, **_kwargs: Any) -> Any:
-        ctx = ORCH.WorkflowContext(
-            steps=list(steps), evidence=[], prompt_block=prompt_block,
-            artifact=artifact, blocked=blocked,
-        )
-        for step in steps:
-            yield "step", step.to_payload()
-        yield "context", ctx
-
-    monkeypatch.setitem(ORCH._CONTEXT_STAGES, ORCH.WORKFLOW_REPLACEMENT, stage)
-
-
-@pytest.mark.asyncio
-async def test_the_stage_steps_reach_the_operator_as_they_finish(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _wire(monkeypatch, spec=REPLACEMENT, fields={
-        "summary": "Three options.", "comparison": "They differ in price.",
-        "next_step": "Confirm which she prefers.",
-    })
-    _wire_stage(monkeypatch, steps=[
-        ORCH.Step("order", "Order item resolved", ORCH.SOURCE_AURORA),
-        ORCH.Step("retrieval", "Candidates retrieved and reranked", ORCH.SOURCE_AURORA),
-        ORCH.Step("inventory", "Inventory reconciled against the ledger",
-                  ORCH.SOURCE_AURORA),
-    ], artifact=_replacement_artifact())
-
-    db = FakeDb()
-    steps, final = await _run(db, "Find a replacement for the pour-over set")
-
-    labels = [s["label"] for s in steps]
-    assert "Order item resolved" in labels
-    assert "Candidates retrieved and reranked" in labels
-    assert "Inventory reconciled against the ledger" in labels
-    # The retrieval work happens BEFORE synthesis is announced, so the long part of
-    # the turn is the part that shows progress.
-    assert labels.index("Inventory reconciled against the ledger") < labels.index(
-        REPLACEMENT.running_label
-    )
-    assert final["workflow"] == ORCH.WORKFLOW_REPLACEMENT
-
-
-@pytest.mark.asyncio
-async def test_the_structured_product_facts_come_from_the_stage(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The model writes prose; identity, price and availability are backend-owned."""
-    _wire(monkeypatch, spec=REPLACEMENT, fields={
-        "summary": "Three options.", "comparison": "c", "next_step": "n",
-    })
-    _wire_stage(monkeypatch, steps=[], artifact=_replacement_artifact())
-    db = FakeDb()
-    _steps, final = await _run(db, "Find a replacement for the pour-over set")
-
-    assert final["replacement"]["available"][0]["productId"] == "37"
-    assert final["replacement"]["available"][0]["price"] == 65.0
-    assert final["replacement"]["retrieval"]["reconciledCount"] == 3
-    # And it is durable, so a reload shows the same products.
-    assistant = [m for m in db.messages if m["role"] == "assistant"][-1]
-    assert assistant["metadata"]["artifact"]["replacement"]["available"][0][
-        "productId"
-    ] == "37"
-
-
-@pytest.mark.asyncio
-async def test_an_ungrounded_request_asks_instead_of_synthesizing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Ambiguity ends the turn with a question and no model call.
-
-    Spending a synthesis on an unresolved item would produce fluent prose about the
-    wrong order line, which is worse than asking.
-    """
-    calls = {"n": 0}
-
-    def counting_synth(**_kwargs: Any) -> Any:
-        calls["n"] += 1
-        return {"summary": "should never run"}, None, "model-x"
-
-    _wire(monkeypatch, spec=REPLACEMENT, fields={"summary": "unused"})
-    monkeypatch.setattr(ORCH, "synthesize", counting_synth)
-    _wire_stage(
-        monkeypatch,
-        steps=[ORCH.Step("order", "Order item not resolved", ORCH.SOURCE_AURORA,
-                         status="unavailable")],
-        artifact={"replacement": {"grounding": {
-            "resolved": False, "reason": "ambiguous_item_reference",
-            "candidates": [{"orderId": 1, "productId": "51",
-                            "name": "Camel Wool Overcoat", "price": 895.0}],
-        }}},
-        blocked="More than one order line matches that description.",
-    )
-    db = FakeDb()
-    _steps, final = await _run(db, "Find a replacement for her wool piece")
-
-    assert calls["n"] == 0, "a model call was spent on an unresolved item"
-    assert final["status"] == "complete", "a question is an answer, not a failure"
-    assert final["summary"].startswith("More than one order line")
-    assert final["replacement"]["grounding"]["resolved"] is False
-    # And the candidates are on the record for the operator to choose from.
-    assert final["replacement"]["grounding"]["candidates"][0]["orderId"] == 1
-
-
-@pytest.mark.asyncio
-async def test_the_stage_facts_are_labelled_apart_from_conversation_memory(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Memory is context; the stage's facts are current truth. Two labelled blocks."""
-    captured: Dict[str, Any] = {}
-
-    def capture(**kwargs: Any) -> Any:
-        captured.update(kwargs)
-        return {"summary": "s", "comparison": "c", "next_step": "n"}, None, "m"
-
-    _wire(monkeypatch, spec=REPLACEMENT, fields={"summary": "s"})
-    monkeypatch.setattr(ORCH, "synthesize", capture)
-    _wire_stage(monkeypatch, steps=[], artifact=_replacement_artifact(),
-                prompt_block="OPTIONS WITH RECONCILED AVAILABILITY: Wabi-Sabi Bowl")
-    db = FakeDb()
-    await _run(db, "Find a replacement for the pour-over set")
-
-    assert "RECONCILED AVAILABILITY" in captured["context_block"]
-
-
-def test_the_prompt_labels_memory_and_workflow_facts_separately() -> None:
-    """Structural, and NOT inside a test that monkeypatches `synthesize`.
-
-    Reading `inspect.getsource(ORCH.synthesize)` after patching that attribute returns
-    the stub's source, so the assertion passed against the wrong function — the same
-    self-referential trap as re-setting an already-stubbed attribute to itself.
-    """
-    source = inspect.getsource(ORCH.synthesize)
-    assert "ESTABLISHED FACTS FOR THIS WORKFLOW" in source
-    assert "NOT current business truth" in source
-    # Memory is labelled as not-current-truth; the stage's block is labelled as facts.
-    assert source.index("NOT current business truth") < source.index(
-        "ESTABLISHED FACTS FOR THIS WORKFLOW"
-    )
+    assert declared == set(ORCH._CONTEXT_STAGES) == set()
 
 
 def test_the_concierge_cannot_execute_a_governed_action() -> None:
     """The permanent architecture guard.
 
-    `prepare_proposal` is the ONLY consequential-path call reachable from here, and it
-    ends at `pellier.approvals`. Execution stays owned by the existing ReviewRecord /
-    governed execute route, so no call that mutates business state may appear.
+    The Concierge reads and writes prose. Execution stays owned by the review
+    record and the governed execute route, so no call that mutates business state
+    may appear here.
     """
     source = inspect.getsource(ORCH)
     for forbidden in (
-        "initiate_return(", "issue_credit(", "escalate_to_human(",
+        "give_store_credit(", "ask_a_person(", "store_tools",
         "invoke_tool", "gateway_invoke", "invoke_gateway", "execute_review",
-        "execution_rail", "managed_rail", "BusinessLogic(",
-        # An episode is an OUTCOME. A proposal is not one.
+        "execution_rail", "managed_rail",
+        # An episode is an OUTCOME. A read is not one.
         "store_episode",
     ):
         assert forbidden not in source, f"the Concierge references {forbidden}"
-    # And the one call it may make.
-    assert "prepare_proposal" in source
 
 
 @pytest.mark.asyncio

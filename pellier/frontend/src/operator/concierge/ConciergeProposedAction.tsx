@@ -108,7 +108,7 @@ const ConciergeProposedActionCard: React.FC<Props> = ({ action, customerId, sess
     >
       <h3 className="operator-concierge-proposal-title">
         {reviewId !== null
-          ? action.tool === 'initiate_return' ? 'Return review prepared' : 'Action review prepared'
+          ? 'Action review prepared'
           : 'Review not prepared'}
       </h3>
 
@@ -181,7 +181,7 @@ const ConciergeProposedActionCard: React.FC<Props> = ({ action, customerId, sess
             to={conversationReviewHref(reviewId, sessionId, turnId, customerId)}
             data-testid="operator-concierge-proposal-review-link"
           >
-            {humanState === 'confirmation_required' ? action.tool === 'initiate_return' ? 'Review this return' : 'Review this action'
+            {humanState === 'confirmation_required' ? 'Review this action'
               : humanState ? 'View review outcome' : `Open review #${reviewId}`}
           </Link>
         </>

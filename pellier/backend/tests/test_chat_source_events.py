@@ -10,9 +10,9 @@ from services.data_source import database_source_label
 
 
 def test_completed_tool_event_includes_measured_duration() -> None:
-    assert _completed_tool_event("search_products_hybrid", 184) == {
+    assert _completed_tool_event("search_products", 184) == {
         "type": "tool_call",
-        "tool": "search_products_hybrid",
+        "tool": "search_products",
         "status": "completed",
         "duration_ms": 184,
     }

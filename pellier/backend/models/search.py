@@ -205,41 +205,6 @@ class ChatRequest(BaseModel):
     )
 
 
-class RestockRequest(BaseModel):
-    """Typed body for the operator restock mutation.
-
-    An untyped ``dict`` body on a write path pushes validation into the
-    handler, where a missing bound is invisible. Declaring the shape here
-    means FastAPI rejects a malformed or out-of-range request with a 422
-    before any database work begins.
-
-    ``quantity`` is bounded at 500 to match the policy limit enforced in
-    ``BusinessLogic.restock_inventory``; the two are intentionally redundant so
-    a direct business-logic caller is still bounded.
-    """
-
-    product_id: int = Field(gt=0, description="Catalog productId to restock.")
-    quantity: int = Field(
-        gt=0,
-        le=500,
-        description="Units to add. Above 500 requires manager approval.",
-    )
-    idempotency_key: str = Field(
-        min_length=1,
-        max_length=200,
-        description=(
-            "Caller-supplied key unique to principal + action + resource. "
-            "Replaying the same key must not create a second restock."
-        ),
-    )
-    warehouse_id: str = Field(
-        default="BK-01",
-        min_length=1,
-        max_length=32,
-        description="Warehouse receiving the units.",
-    )
-
-
 class ChatResponse(BaseModel):
     """Chat response"""
     response: str
@@ -325,8 +290,8 @@ class WarehouseStock(BaseModel):
     """One warehouse's on-hand count for a product.
 
     Projected straight from ``pellier.warehouse_inventory`` joined to
-    ``pellier.warehouses`` — the same rows ``check_inventory`` reports when
-    Inventory Agent is asked about a single product. Ship windows are the
+    ``pellier.warehouses`` — the same rows ``check_stock`` reports when the
+    Stock agent is asked about a single product. Ship windows are the
     warehouse's configured range in days, not a delivery promise.
     """
 
@@ -346,8 +311,8 @@ class WarehouseStock(BaseModel):
 class ProductAvailability(BaseModel):
     """Live Aurora inventory for one product.
 
-    ``on_hand`` is ``product_catalog.quantity`` — the catalog column
-    ``check_inventory``'s overall mode aggregates. ``warehouses`` is the
+    ``on_hand`` is ``product_catalog.quantity``, the catalog's aggregate
+    stock cache. ``warehouses`` is the
     per-location breakdown. Both are reported as read rather than
     reconciled, so a divergence between them stays visible instead of
     being silently resolved in the API layer.

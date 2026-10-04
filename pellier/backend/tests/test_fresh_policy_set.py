@@ -1,20 +1,13 @@
 """What a FRESH workshop provision would publish and authorize.
 
-The audit gap this closes
--------------------------
+Nothing asserted the fresh renderer's output once, so it drifted a long way from the
+validated live contract without a single test going red. These tests parse the GENERATED
+Cedar. They do not re-implement a second policy model, and they never assert a count
+alone: a count passes while the names are wrong.
 
-Nothing asserted the fresh renderer's output, so it drifted a long way from the
-validated live contract without a single test going red:
-
-  * 18 policies instead of 3;
-  * a `permit_<tool>` per read tool instead of one exact allow-list;
-  * the actor/customer OWNERSHIP condition pre-installed on `initiate_return` — which is
-    the Lab 4 challenge, so a fresh stack shipped the participant's answer and step 3's
-    DENY fired before they wrote anything;
-  * `get_ticket_history` published while it is deferred, or `issue_credit` reachable by a shopper.
-
-These tests parse the GENERATED Cedar. They do not re-implement a second policy model,
-and they never assert a count alone: a count passes while the names are wrong.
+The contract: nine tools on one Gateway target, `pellier-store-tools`. The starter defers
+`get_tickets` until Lab 3A, so eight are published first and nine after. The Lab 4 rule
+(an amount limit on `give_store_credit`) is the participant's, never the baseline's.
 """
 
 from __future__ import annotations
@@ -39,44 +32,31 @@ from gateway_tool_schemas import (  # noqa: E402
 )
 from render_agentcore_project import baseline_policies  # noqa: E402
 
-EXPERIENCE = "pellier-concierge-experience-target"
-RETURN_ACTION = f"{EXPERIENCE}___initiate_return"
-RECOMMENDATION = "pellier-curation-recommendation-target"
+STORE = "pellier-store-tools"
+CREDIT_ACTION = f"{STORE}___give_store_credit"
 CUSTOMER_READ_POLICIES = {
-    "get_customer_preferences_owner_only": (
-        f"{RECOMMENDATION}___get_customer_preferences"
-    ),
-    "get_audit_trail_owner_only": f"{RECOMMENDATION}___get_audit_trail",
+    "get_orders_owner_only": f"{STORE}___get_orders",
+    "get_tickets_owner_only": f"{STORE}___get_tickets",
 }
 # A syntactically valid ARN; policies render only after the Gateway exists.
 GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/test-gw"
 CUSTOMER_CLAIM = "custom:customer_id"
 STAFF_CLAIM = "custom:staff_scope"
 
-# The exact 14 this workshop iteration publishes. Written out ONCE, here, so a change to
-# the derived contract has to be acknowledged in a test rather than absorbed silently.
-EXPECTED_PUBLISHED: Set[str] = {
-    "search_products", "search_products_hybrid", "browse_category", "check_inventory",
-    "get_low_stock",
-    "get_price_analysis", "compare_products",
-    "get_customer_preferences", "get_audit_trail", "get_trending_products",
-    "get_return_policy", "get_related_products",
-    "initiate_return", "escalate_to_human",
-    "issue_credit", "replace_damaged_item",
+# The nine tools, and the eight this workshop iteration publishes first. Written out ONCE,
+# here, so a change to the derived contract has to be acknowledged in a test rather than
+# absorbed silently.
+EXPECTED_CANONICAL: Set[str] = {
+    "search_products", "browse_department", "compare_products", "check_stock",
+    "get_orders", "get_return_policy", "get_tickets", "give_store_credit", "ask_a_person",
+}
+EXPECTED_PUBLISHED: Set[str] = EXPECTED_CANONICAL - {"get_tickets"}
+SHOPPER_SAFE: Set[str] = {
+    "search_products", "browse_department", "compare_products", "check_stock",
+    "get_return_policy", "ask_a_person",
 }
 
-EXPECTED_TARGETS: Dict[str, Set[str]] = {
-    "pellier-discovery-search-target": {
-        "search_products", "search_products_hybrid", "browse_category",
-        "check_inventory", "get_low_stock",
-    },
-    "pellier-value-pricing-target": {"get_price_analysis", "compare_products"},
-    "pellier-curation-recommendation-target": {
-        "get_customer_preferences", "get_audit_trail", "get_trending_products",
-        "get_return_policy", "get_related_products",
-    },
-    "pellier-concierge-experience-target": {"initiate_return", "escalate_to_human", "issue_credit", "replace_damaged_item"},
-}
+EXPECTED_TARGETS: Dict[str, Set[str]] = {STORE: EXPECTED_PUBLISHED}
 
 RETIRED = {
     "floor_check", "running_low", "restock_shelf", "process_return", "find_pieces",
@@ -107,20 +87,21 @@ def _norm(statement: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_the_workshop_publishes_exactly_the_expected_fifteen() -> None:
+def test_the_workshop_publishes_exactly_the_expected_eight() -> None:
     assert workshop_published_tools() == EXPECTED_PUBLISHED
 
 
-def test_the_deferred_set_is_restock_and_the_lab_three_read() -> None:
-    """`issue_credit` is published for staff; restock waits for the desk's own route."""
-    assert WORKSHOP_DEFERRED_TOOLS == {"restock_inventory", "get_ticket_history"}
+def test_the_deferred_set_is_the_lab_three_read() -> None:
+    """`give_store_credit` is published for staff; `get_tickets` waits for Task 3A."""
+    assert WORKSHOP_DEFERRED_TOOLS == {"get_tickets"}
 
 
 def test_the_published_set_is_derived_not_hand_copied() -> None:
     """Catalogue minus deferred. A second literal list would drift on the next tool."""
     assert workshop_published_tools() == canonical_tool_names() - WORKSHOP_DEFERRED_TOOLS
-    assert len(canonical_tool_names()) == 18
-    assert len(workshop_published_tools()) == 16
+    assert canonical_tool_names() == EXPECTED_CANONICAL
+    assert len(canonical_tool_names()) == 9
+    assert len(workshop_published_tools()) == 8
 
 
 def test_every_published_name_is_unique() -> None:
@@ -140,12 +121,18 @@ def test_no_deferred_name_is_published() -> None:
     assert workshop_published_tools() & WORKSHOP_DEFERRED_TOOLS == set()
 
 
-def test_the_experience_target_publishes_the_three_governed_actions() -> None:
-    """`get_ticket_history` lives on this target and must not ship before Lab 3a."""
-    served = [t["name"] for t in schema_for("experience", workshop=True)]
-    assert served == ["initiate_return", "issue_credit", "escalate_to_human", "replace_damaged_item"]
-    full = [t["name"] for t in schema_for("experience", workshop=False)]
-    assert set(full) - set(served) == {"get_ticket_history"}
+def test_the_store_target_publishes_eight_and_the_full_catalogue_nine() -> None:
+    """`get_tickets` lives on this target and must not ship before Lab 3A."""
+    served = [t["name"] for t in schema_for("store", workshop=True)]
+    assert set(served) == EXPECTED_PUBLISHED
+    full = [t["name"] for t in schema_for("store", workshop=False)]
+    assert set(full) - set(served) == {"get_tickets"}
+    assert len(full) == 9
+
+
+def test_there_is_exactly_one_gateway_target() -> None:
+    assert list(TOOL_SCHEMAS) == ["store"]
+    assert TOOL_SCHEMAS["store"]["target_name"] == STORE
 
 
 # ---------------------------------------------------------------------------
@@ -157,11 +144,29 @@ def test_the_fresh_policy_set_is_exactly_the_named_baseline_and_scoped_reads() -
     """Exact set, never a count: a count passes while the names are wrong."""
     assert set(_by_name()) == {
         "baseline_permit_workshop_tools",
+        "get_orders_owner_only",
+        "give_store_credit_staff_scope",
+    }
+
+
+def _policies_after_lab_three(monkeypatch) -> Dict[str, dict]:
+    """The baseline once Task 3A has published `get_tickets` as well."""
+    import render_agentcore_project
+
+    monkeypatch.setattr(
+        render_agentcore_project,
+        "workshop_target_tools",
+        lambda: {STORE: tuple(t["name"] for t in TOOL_SCHEMAS["store"]["tools"])},
+    )
+    return {p["name"]: p for p in baseline_policies(gateway_arn=GATEWAY_ARN)}
+
+
+def test_publishing_get_tickets_adds_its_owner_only_permit(monkeypatch) -> None:
+    """Task 3A publishes `get_tickets`; its owner-only permit lands in the same deploy."""
+    assert set(_policies_after_lab_three(monkeypatch)) == {
+        "baseline_permit_workshop_tools",
         *CUSTOMER_READ_POLICIES,
-        "initiate_return_shopper_damaged",
-        "initiate_return_staff_scope",
-        "issue_credit_staff_scope",
-        "replace_damaged_item_staff_scope",
+        "give_store_credit_staff_scope",
     }
 
 
@@ -169,14 +174,11 @@ def test_every_policy_action_exists_in_the_published_schema() -> None:
     """A policy naming an unpublished action does not deploy at all.
 
     Measured against the live engine and recorded in
-    `scripts/migrate_gateway_vocabulary.py`: `FAIL_ON_ANY_FINDINGS` rejects
+    the renderer's policy notes: `FAIL_ON_ANY_FINDINGS` rejects
     `unrecognized action AgentCore::Action::"..."` for any id absent from the live Gateway
     schema, and `UPDATE_FAILED` does not roll the stored definition back.
 
-    Nothing compared policy actions against the published set until a policy was written
-    naming the deferred `issue_credit`, on the reasoning that gating a deferred tool
-    "closes the publication window in advance". It would have failed the whole policy on a
-    fresh provision.
+    A policy naming a deferred tool would fail the whole policy on a fresh provision.
     """
     published = {
         f"{target}___{tool}"
@@ -199,7 +201,7 @@ def test_every_conditional_policy_pins_one_action() -> None:
     types such as `Mcp`, `CallTool` and `InvokeLLM`.
 
     Unconditional policies may use `action in [...]` freely: there is no condition to
-    type-check, which is why the baseline allow-list names eleven at once.
+    type-check, which is why the baseline allow-list names six at once.
     """
     for policy in _policies():
         statement = policy["statement"]
@@ -226,11 +228,10 @@ def test_staff_authority_is_a_scope_claim_never_a_group_name() -> None:
     """
     from services.auth import OPERATOR_GROUP
 
-    staff = _norm(_by_name()["initiate_return_staff_scope"]["statement"])
+    staff = _norm(_by_name()["give_store_credit_staff_scope"]["statement"])
     assert staff.startswith("permit (principal is AgentCore::OAuthUser,")
     assert f'principal.hasTag("{STAFF_CLAIM}")' in staff
     assert f'principal.getTag("{STAFF_CLAIM}") == "returns"' in staff
-    assert "reason" not in staff, "a resolved dispute is not a damaged-goods return"
     for policy in _policies():
         assert OPERATOR_GROUP not in policy["statement"], policy["name"]
         assert "cognito:groups" not in policy["statement"], policy["name"]
@@ -241,7 +242,7 @@ def test_the_two_authority_boundaries_are_recorded_where_they_are_enforced() -> 
     renderer = pathlib.Path(
         os.path.abspath("../../scripts/deploy/render_agentcore_project.py")
     ).read_text(encoding="utf-8")
-    assert "initiate_return_staff_scope" in renderer
+    assert "give_store_credit_staff_scope" in renderer
     assert "authorizes a person, not a service" in renderer
 
     auth = pathlib.Path(
@@ -250,22 +251,24 @@ def test_the_two_authority_boundaries_are_recorded_where_they_are_enforced() -> 
     assert "custom:staff_scope" in auth
 
 
-def test_issue_credit_is_published_for_staff_and_unreachable_by_a_shopper() -> None:
+def test_give_store_credit_is_published_for_staff_and_unreachable_by_a_shopper() -> None:
     """Published, so the operator desk can execute an approved credit through the
     Gateway with the operator's own token; permitted only under the staff scope
     claim; named by no shopper permit, so a shopper token is denied by default.
+    The staff permit carries no amount condition: the amount limit is Lab 4's forbid.
     """
-    assert "issue_credit" not in WORKSHOP_DEFERRED_TOOLS
+    assert "give_store_credit" not in WORKSHOP_DEFERRED_TOOLS
     published = {
         tool for tools in workshop_target_tools().values() for tool in tools
     }
-    assert "issue_credit" in published
-    naming = [p for p in _policies() if f"{EXPERIENCE}___issue_credit" in _actions(p["statement"])]
-    assert [p["name"] for p in naming] == ["issue_credit_staff_scope"]
+    assert "give_store_credit" in published
+    naming = [p for p in _policies() if CREDIT_ACTION in _actions(p["statement"])]
+    assert [p["name"] for p in naming] == ["give_store_credit_staff_scope"]
     statement = naming[0]["statement"]
     assert statement.lstrip().startswith("permit")
     assert 'principal.getTag("custom:staff_scope") == "returns"' in statement
     assert "custom:customer_id" not in statement
+    assert "amount_cents" not in statement
 
 
 def test_every_policy_is_active_and_validated_strictly() -> None:
@@ -283,22 +286,17 @@ def test_the_baseline_is_an_exact_allow_list_not_a_wildcard() -> None:
     assert 'action in AgentCore::Action::"pellier-' not in statement
 
 
-def test_the_baseline_permits_exactly_the_eleven_catalogue_reads() -> None:
-    """Customer-scoped reads and writes never sit in the unconditional permit."""
-    expected = {
-        f"{target}___{tool}"
-        for target, tools in EXPECTED_TARGETS.items()
-        for tool in tools
-        if tool not in {
-            "initiate_return", "restock_inventory", "issue_credit", "replace_damaged_item",
-            "get_customer_preferences", "get_audit_trail",
-        }
-    }
+def test_the_baseline_permits_exactly_the_six_shopper_safe_reads() -> None:
+    """Customer-scoped reads and the credit never sit in the unconditional permit."""
+    expected = {f"{STORE}___{tool}" for tool in SHOPPER_SAFE}
     actual = set(_actions(_by_name()["baseline_permit_workshop_tools"]["statement"]))
     assert actual == expected
-    assert len(actual) == 11
-    assert not any("issue_credit" in action for action in actual), (
+    assert len(actual) == 6
+    assert not any("give_store_credit" in action for action in actual), (
         "the unconditional catalogue permit must never reach the staff-only credit"
+    )
+    assert not any(
+        tool in action for action in actual for tool in ("get_orders", "get_tickets")
     )
 
 
@@ -308,39 +306,22 @@ def test_the_baseline_is_unconditional() -> None:
     assert "unless {" not in statement
 
 
-def test_the_return_permits_name_the_canonical_action_only() -> None:
-    for name in ("initiate_return_shopper_damaged", "initiate_return_staff_scope"):
-        actions = _actions(_by_name()[name]["statement"])
-        assert actions == [RETURN_ACTION], name
-        assert "process_return" not in _by_name()[name]["statement"], name
-
-
-def test_the_shopper_return_permit_requires_a_customer_claim_and_damaged() -> None:
-    """A token with no customer claim cannot file a return, whatever the reason.
-
-    The ownership binding is deliberately absent here; that is Lab 4.
-    """
-    permit = _norm(_by_name()["initiate_return_shopper_damaged"]["statement"])
-    assert permit.startswith("permit (principal is AgentCore::OAuthUser,")
-    assert f'principal.hasTag("{CUSTOMER_CLAIM}")' in permit
-    assert 'context.input has reason && context.input.reason == "damaged"' in permit
-
-
 def test_there_is_no_forbid_in_the_fresh_baseline() -> None:
     """Forbid wins over permit, so a baseline forbid could silently block staff.
 
     Every restriction is expressed as a condition on a permit; the only forbid in
-    the workshop is the one the participant writes in Lab 4, scoped by `when` to
-    principals carrying a customer claim.
+    the workshop is the one the participant writes in Lab 4, the amount limit on
+    `give_store_credit`.
     """
     for policy in _policies():
         assert not _norm(policy["statement"]).startswith("forbid"), policy["name"]
 
 
-def test_sensitive_gateway_reads_are_permitted_only_to_the_claimed_customer() -> None:
+def test_sensitive_gateway_reads_are_permitted_only_to_the_claimed_customer(monkeypatch) -> None:
     """Direct Gateway invocation must not turn a customer_id into authority."""
+    policies = _policies_after_lab_three(monkeypatch)
     for name, action in CUSTOMER_READ_POLICIES.items():
-        statement = _norm(_by_name()[name]["statement"])
+        statement = _norm(policies[name]["statement"])
         assert statement.startswith("permit (principal is AgentCore::OAuthUser,"), name
         assert f'AgentCore::Action::"{action}"' in statement, name
         assert f'principal.hasTag("{CUSTOMER_CLAIM}")' in statement, name
@@ -387,34 +368,23 @@ def test_an_authenticated_stranger_may_only_read_the_catalogue() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_no_fresh_policy_contains_the_lab_four_ownership_condition() -> None:
+def test_no_fresh_policy_contains_the_lab_four_amount_rule() -> None:
     """The load-bearing assertion of this file.
 
-    Binding the customer claim to `context.input.customer_id` on the return action is
-    the Lab 4 exercise. A baseline that already contains it makes the exercise semantically false:
-    the cross-customer DENY the participant is meant to create already happens.
-
-    The assertion is the BINDING, not the mere presence of a tag read. It used to be
-    "`getTag` appears nowhere", which was a proxy that broke the moment the baseline needed
-    a legitimate, unrelated tag check: the operator-group forbid reads
-    `cognito:groups`, which has nothing to do with the participant's exercise. A proxy that
-    forbids a whole Cedar feature blocks correct policies as readily as incorrect ones.
+    The amount limit on `give_store_credit` is the Lab 4 exercise. A baseline that
+    already contains it makes the exercise semantically false: the over-limit DENY the
+    participant is meant to create already happens, and a broken participant policy
+    would be masked.
     """
     for policy in _policies():
         statement = policy["statement"]
-        name = policy["name"]
-        if RETURN_ACTION not in _actions(statement):
-            continue
-        assert f'getTag("{CUSTOMER_CLAIM}")' not in statement, name
-        assert 'getTag("username")' not in statement, name
-        assert "context.input.customer_id" not in statement, name
-        assert "context.input has customer_id" not in statement, name
+        assert "amount_cents" not in statement, policy["name"]
+        assert "context.input has amount_cents" not in statement, policy["name"]
+        assert not _norm(statement).startswith("forbid"), policy["name"]
 
 
 def test_no_fresh_policy_names_a_persona_customer() -> None:
     for policy in _policies():
-        if RETURN_ACTION not in _actions(policy["statement"]):
-            continue
         for persona in (
             "CUST-MARCO",
             "CUST-ANNA",
@@ -431,7 +401,7 @@ def test_no_fresh_policy_names_a_persona_customer() -> None:
 def test_the_renderer_documents_the_omission_as_deliberate() -> None:
     """So a later 'hardening' pass cannot re-add the challenge as an oversight."""
     doc = baseline_policies.__doc__ or ""
-    assert "absent on purpose" in doc
+    assert "NO amount condition on purpose" in doc
     assert "Lab 4" in doc
     assert "teaching baseline" in doc
 
@@ -446,13 +416,13 @@ STAFF = {STAFF_CLAIM: "returns"}
 STRANGER: Dict[str, str] = {}
 
 
-def _conditions_hold(body: str, claims: Dict[str, str], inp: Dict[str, str]) -> bool:
+def _conditions_hold(body: str, claims: Dict[str, str], inp: Dict[str, object]) -> bool:
     """Whether one `when`/`unless` body holds for this principal and input.
 
     A deliberately small model of the conditions the baseline and the Lab 4 rule
     actually use: the `false` literal, claim presence, claim-to-input equality, a
-    literal scope, input presence, and the reason. Anything a policy starts using
-    that this does not model must be added here, so a new condition cannot pass
+    literal scope, input presence, and the amount ceiling. Anything a policy starts
+    using that this does not model must be added here, so a new condition cannot pass
     by being ignored.
     """
     body = " ".join(body.split())
@@ -472,12 +442,15 @@ def _conditions_hold(body: str, claims: Dict[str, str], inp: Dict[str, str]) -> 
     scope = re.search(rf'principal\.getTag\("{STAFF_CLAIM}"\) == "([a-z_-]+)"', body)
     if scope and claims.get(STAFF_CLAIM) != scope.group(1):
         return False
-    if 'context.input.reason == "damaged"' in body and inp.get("reason") != "damaged":
+    if "context.input has amount_cents" in body and "amount_cents" not in inp:
+        return False
+    ceiling = re.search(r"context\.input\.amount_cents <= (\d+)", body)
+    if ceiling and int(inp.get("amount_cents", 0)) > int(ceiling.group(1)):
         return False
     return True
 
 
-def _statement_applies(statement: str, claims: Dict[str, str], inp: Dict[str, str]) -> bool:
+def _statement_applies(statement: str, claims: Dict[str, str], inp: Dict[str, object]) -> bool:
     """A permit or forbid applies when its `when` holds and its `unless` does not."""
     when = re.search(r"when\s*\{(.*?)\}", statement, re.DOTALL)
     unless = re.search(r"unless\s*\{(.*?)\}", statement, re.DOTALL)
@@ -490,7 +463,7 @@ def _statement_applies(statement: str, claims: Dict[str, str], inp: Dict[str, st
 
 def _decide(
     action: str,
-    inp: Dict[str, str] | None = None,
+    inp: Dict[str, object] | None = None,
     *,
     claims: Dict[str, str] = SHOPPER,
     extra: List[str] | None = None,
@@ -514,56 +487,32 @@ def _decide(
     return "ALLOW" if permits else "DENY"
 
 
-RETURN_DAMAGED = {"customer_id": "CUST-THEO", "reason": "damaged"}
-
-
 @pytest.mark.parametrize(("who", "action", "inp", "expected"), [
-    ("shopper", RETURN_ACTION, RETURN_DAMAGED, "ALLOW"),
-    ("shopper", RETURN_ACTION, {"customer_id": "CUST-THEO", "reason": "not_as_described"}, "DENY"),
-    ("shopper", RETURN_ACTION, {"customer_id": "CUST-THEO", "reason": "changed_mind"}, "DENY"),
-    ("shopper", RETURN_ACTION, {"customer_id": "CUST-THEO"}, "DENY"),
-    ("staff", RETURN_ACTION, {"customer_id": "CUST-THEO", "reason": "changed_mind"}, "ALLOW"),
-    ("staff", RETURN_ACTION, RETURN_DAMAGED, "ALLOW"),
-    ("stranger", RETURN_ACTION, RETURN_DAMAGED, "DENY"),
-    ("shopper", "pellier-discovery-search-target___restock_inventory", {}, "DENY"),
-    ("staff", "pellier-discovery-search-target___restock_inventory", {}, "DENY"),
-    ("stranger", "pellier-discovery-search-target___check_inventory", {}, "ALLOW"),
-    ("shopper", f"{EXPERIENCE}___escalate_to_human", {}, "ALLOW"),
-    ("shopper", f"{RECOMMENDATION}___get_customer_preferences", {"customer_id": "CUST-MARCO"}, "ALLOW"),
-    ("shopper", f"{RECOMMENDATION}___get_customer_preferences", {"customer_id": "CUST-THEO"}, "DENY"),
-    ("staff", f"{RECOMMENDATION}___get_customer_preferences", {"customer_id": "CUST-MARCO"}, "DENY"),
-    ("stranger", f"{RECOMMENDATION}___get_audit_trail", {"customer_id": "CUST-MARCO"}, "DENY"),
-    ("shopper", f"{EXPERIENCE}___issue_credit", {}, "DENY"),
-    ("staff", f"{EXPERIENCE}___issue_credit", {}, "ALLOW"),
-    ("stranger", f"{EXPERIENCE}___issue_credit", {}, "DENY"),
-    ("shopper", f"{EXPERIENCE}___get_ticket_history", {"customer_id": "CUST-MARCO"}, "DENY"),
-    ("shopper", f"{EXPERIENCE}___some_future_tool", {}, "DENY"),
+    ("stranger", f"{STORE}___check_stock", {}, "ALLOW"),
+    ("shopper", f"{STORE}___search_products", {}, "ALLOW"),
+    ("shopper", f"{STORE}___ask_a_person", {}, "ALLOW"),
+    ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "ALLOW"),
+    ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-THEO"}, "DENY"),
+    ("shopper", f"{STORE}___get_orders", {}, "DENY"),
+    ("staff", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "DENY"),
+    ("stranger", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "DENY"),
+    ("shopper", f"{STORE}___get_tickets", {"customer_id": "CUST-MARCO"}, "DENY"),
+    ("shopper", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "DENY"),
+    ("staff", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "ALLOW"),
+    ("staff", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 50000}, "ALLOW"),
+    ("stranger", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "DENY"),
+    ("shopper", f"{STORE}___some_future_tool", {}, "DENY"),
 ])
 def test_the_fresh_authorization_matrix(who: str, action: str, inp, expected: str) -> None:
     claims = {"shopper": SHOPPER, "staff": STAFF, "stranger": STRANGER}[who]
     assert _decide(action, inp, claims=claims) == expected
 
 
-def test_restock_inventory_is_off_the_shopper_gateway_and_has_no_permit() -> None:
-    """Restock is an operator capability. Not published, so no action id; and no
-    permit names it either, so a future publication is still denied by default.
-    """
-    action = "pellier-discovery-search-target___restock_inventory"
-    matching = [
-        p["name"] for p in _policies()
-        if action in _actions(p["statement"])
-        and not p["statement"].lstrip().startswith("forbid")
-    ]
-    assert matching == []
-    assert "restock_inventory" not in workshop_published_tools()
-    assert "restock_inventory" in canonical_tool_names(), "the tool still exists for the desk"
-
-
 def test_a_future_published_tool_is_denied_by_default() -> None:
-    for future in ("get_ticket_history", "anything_at_all"):
-        action = f"{EXPERIENCE}___{future}"
+    for future in ("get_tickets", "anything_at_all"):
+        action = f"{STORE}___{future}"
         assert _decide(action, None) == "DENY", future
-        assert _decide(action, "damaged") == "DENY", future
+        assert _decide(action, {"customer_id": "CUST-MARCO"}) == "DENY", future
 
 
 # ---------------------------------------------------------------------------
@@ -571,12 +520,15 @@ def test_a_future_published_tool_is_denied_by_default() -> None:
 # ---------------------------------------------------------------------------
 
 CHALLENGE = pathlib.Path("../../policies/workshop_identity_match_forbid.cedar")
+STARTER = pathlib.Path("../../workshop/starters/workshop_identity_match_forbid.cedar")
 SOLUTION = pathlib.Path(
     "../../solutions/the-concierge/policies/identity_match_forbid.cedar")
+OVER_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 25000}
+WITHIN_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 10000}
 
 
 def _solution_statement() -> str:
-    """The participant's completed rule, comments dropped, ARN placeholder filled in."""
+    """The reference rule, comments dropped, ARN placeholder filled in."""
     lines = [
         line for line in SOLUTION.read_text().splitlines()
         if not line.strip().startswith("//")
@@ -585,52 +537,53 @@ def _solution_statement() -> str:
 
 
 def test_the_challenge_file_ships_unsolved() -> None:
-    """`unless { false }` denies every shopper return, the honest starting state."""
+    """`unless { false }` denies every credit, staff included: the honest starting state."""
     body = CHALLENGE.read_text()
     assert re.search(r"unless\s*\{\s*false\s*\}", body)
     assert "getTag(" not in body
     assert "CUST-MARCO" not in body
+    assert "amount_cents <=" not in body
 
 
-def test_the_solution_file_contains_the_ownership_binding() -> None:
+def test_the_live_challenge_file_is_byte_identical_to_the_starter() -> None:
+    assert CHALLENGE.read_bytes() == STARTER.read_bytes()
+
+
+def test_the_solution_file_contains_the_amount_limit() -> None:
     body = SOLUTION.read_text()
-    assert f'principal.hasTag("{CUSTOMER_CLAIM}")' in body
-    assert "context.input has customer_id" in body
-    assert f'principal.getTag("{CUSTOMER_CLAIM}") == context.input.customer_id' in body
+    assert "context.input has amount_cents" in body
+    assert "context.input.amount_cents <= 10000" in body
+    assert "principal.getTag(" not in body, "the reference is an amount rule, not an identity match"
 
 
-def test_before_the_solution_a_cross_customer_return_is_permitted() -> None:
-    """Case F. Marco's token, Theo's damaged return.
-
-    This must ALLOW on the fresh baseline, or the participant has nothing to discover.
+def test_before_the_solution_an_over_limit_credit_is_permitted() -> None:
+    """The baseline staff permit has no amount condition, so $250 is ALLOWed until the
+    participant writes the forbid; otherwise they would have nothing to discover.
     """
-    assert _decide(RETURN_ACTION, RETURN_DAMAGED, claims=SHOPPER) == "ALLOW"
-    for policy in _policies():
-        if RETURN_ACTION not in _actions(policy["statement"]):
-            continue
-        assert f'getTag("{CUSTOMER_CLAIM}")' not in policy["statement"]
+    assert _decide(CREDIT_ACTION, OVER_LIMIT, claims=STAFF) == "ALLOW"
 
 
-def test_after_the_solution_the_cross_customer_return_is_denied() -> None:
-    """Case G. The same call, with the participant's rule added.
+def test_the_starter_forbid_blocks_every_credit() -> None:
+    """`unless { false }` never admits a credit, so the unsolved rule denies staff."""
+    rule = [CHALLENGE.read_text().replace("${PELLIER_GATEWAY_ARN}", GATEWAY_ARN)]
+    assert _decide(CREDIT_ACTION, WITHIN_LIMIT, claims=STAFF, extra=rule) == "DENY"
 
-    The forbid's `unless` fails for Marco's token and Theo's customer id, so Cedar
-    denies, while the owner's own damaged return still passes and staff, who carry
-    no customer claim, are untouched by the forbid.
+
+def test_after_the_solution_the_over_limit_credit_is_denied() -> None:
+    """The reference forbid's `unless` fails above $100, so Cedar denies the $250 credit,
+    while a credit within the limit still passes the staff permit.
     """
     rule = [_solution_statement()]
-    assert _decide(RETURN_ACTION, RETURN_DAMAGED, claims=SHOPPER, extra=rule) == "DENY"
-    own = {"customer_id": "CUST-MARCO", "reason": "damaged"}
-    assert _decide(RETURN_ACTION, own, claims=SHOPPER, extra=rule) == "ALLOW"
-    assert _decide(RETURN_ACTION, RETURN_DAMAGED, claims=STAFF, extra=rule) == "ALLOW"
-    assert _decide(RETURN_ACTION, RETURN_DAMAGED, claims=STRANGER, extra=rule) == "DENY"
+    assert _decide(CREDIT_ACTION, OVER_LIMIT, claims=STAFF, extra=rule) == "DENY"
+    assert _decide(CREDIT_ACTION, WITHIN_LIMIT, claims=STAFF, extra=rule) == "ALLOW"
+    assert _decide(CREDIT_ACTION, {"customer_id": "CUST-MARCO"}, claims=STAFF, extra=rule) == "DENY"
+    assert _decide(CREDIT_ACTION, WITHIN_LIMIT, claims=SHOPPER, extra=rule) == "DENY"
 
 
-def test_the_solution_names_the_canonical_action() -> None:
+def test_the_participant_files_name_the_canonical_action() -> None:
     for path in (CHALLENGE, SOLUTION):
         body = path.read_text()
-        assert "___initiate_return" in body, path.name
-        assert "___process_return" not in body, path.name
+        assert f'"{CREDIT_ACTION}"' in body, path.name
 
 
 # ---------------------------------------------------------------------------
@@ -639,13 +592,13 @@ def test_the_solution_names_the_canonical_action() -> None:
 
 
 def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> None:
-    """The local MCP catalog and managed workshop subset have distinct roles.
+    """The application's tier map and the Gateway schemas name the same nine tools.
 
     Three places name the tool set and each has a different job:
 
-        agent_tools.py @tool          what the process can execute (17)
-        LOCAL_MCP_TOOL_NAMES          local in-process / MCP catalog (17)
-        workshop_published_tools()    what a fresh workshop provision publishes (15, 16 after Lab 3a)
+        agent_tools.py @tool          what the process can execute
+        GATEWAY_TOOL_TIERS            the application's view of the Gateway catalogue
+        workshop_published_tools()    what a fresh workshop provision publishes (8, 9 after Lab 3A)
 
     Asserted as a DERIVED relationship rather than a fourth literal list, so adding a
     tool has to be classified once and cannot drift here.
@@ -656,24 +609,22 @@ def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> No
     backend = _os.path.abspath(".")
     if backend not in _sys.path:
         _sys.path.insert(0, backend)
-    from services.agentcore_gateway import LOCAL_MCP_TOOL_NAMES, GATEWAY_ONLY_OPERATOR_TOOLS
+    from services.agentcore_gateway import GATEWAY_TARGET, GATEWAY_TOOL_TIERS
 
-    catalogue = set(LOCAL_MCP_TOOL_NAMES) | GATEWAY_ONLY_OPERATOR_TOOLS
+    catalogue = set(GATEWAY_TOOL_TIERS)
     assert catalogue == canonical_tool_names(), (
         "the application catalogue and the Gateway schemas disagree: "
         f"{sorted(catalogue ^ canonical_tool_names())}"
     )
     assert catalogue - WORKSHOP_DEFERRED_TOOLS == workshop_published_tools()
-    assert len(LOCAL_MCP_TOOL_NAMES) == len(set(LOCAL_MCP_TOOL_NAMES)), "a name is listed twice"
+    assert GATEWAY_TARGET == STORE
+
 
 def test_the_handoff_contract_names_every_baseline_policy() -> None:
     """The doc that tells a facilitator what ships must not drift from what ships.
 
-    ``docs/HANDOFF-SOURCE-CONTRACT.md`` listed three policies while the renderer
-    defined five; the two ``*_identity_scope`` guards were missing, which is
-    exactly the pair that decides whether the managed customer-read boundary is
-    attributed to Cedar or blanket-credited to Row-Level Security. A prose table
-    nobody checks is a claim, not a contract.
+    A prose table nobody checks is a claim, not a contract. The renderer produces
+    three policies on the starter (four after Lab 3A publishes `get_tickets`).
     """
     handoff = (
         pathlib.Path(__file__).resolve().parents[3]
@@ -696,6 +647,4 @@ def test_the_handoff_contract_names_every_baseline_policy() -> None:
         f"handoff table and renderer disagree: "
         f"only in doc {documented - rendered}, only in code {rendered - documented}"
     )
-    assert f"{len(rendered)} policies" in section.lower() or (
-        "five policies" in section.lower() and len(rendered) == 5
-    ), "the table's stated count must match the number of rendered policies"
+    assert f"{len(rendered)} policies" in section.lower()

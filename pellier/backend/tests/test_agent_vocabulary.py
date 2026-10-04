@@ -1,33 +1,27 @@
 """The specialist-agent vocabulary is frozen. This test stops it drifting back.
 
-The five specialists were renamed from boutique role names to functional ones so
-a participant from any background can read the architecture without learning a
-retail metaphor first. Unlike the tool rename, these labels are *display* names,
-which makes the failure mode quieter: a stale label does not raise, it just
-shows the wrong word in the Observatory or silently stops matching a key.
+Three agents (Shopping, Stock, Support) sit behind a deterministic Router. The
+labels are *display* names, which makes the failure mode quiet: a stale label
+does not raise, it just shows the wrong word in the Observatory or silently
+stops matching a key.
 
 Four rules, all enforced below.
 
 1. **Retired labels must not reappear** outside the documented migration
    history.
 
-2. **The build-state agent key must exist in the fixture.**
-   ``GET /api/observatory/build-state`` exposes the Inventory Agent's
-   source-controlled exercise state. If that literal drifts from the fixture,
-   Lab 2 shows an unrecognised status row instead of updating the intended
-   agent. Nothing raises.
+2. **Every canonical agent has a module and names its own label.**
 
 3. **No agent label may appear in a specialist's own system prompt.**
    ``VOICE.md`` forbids the word "agent" in anything the shopper can hear, and
    ``test_copy_compliance`` enforces that mechanically for ``pellier_copy.py``.
-   A prompt that opens "You are Pellier's Inventory Agent" invites the model to
+   A prompt that opens "You are Pellier's Stock agent" invites the model to
    echo the phrase into the shopper's transcript. The architecture label belongs
    to the Observatory, the fixtures, and the docs; the prompt says "specialist".
 
 4. **Internal keys and factory names must NOT be renamed for cosmetic parity.**
-   ``build_recommendation_agent`` and ``build_support_agent`` keep their names
-   even though the labels are Personalization Agent and Customer Service Agent.
-   Bootstrap auto-applies solution twins by filename, and a twin that no longer
+   ``build_stock_agent`` is imported by the dispatcher and exported by its
+   solution twin. Bootstrap auto-applies solution twins by filename, and a twin that no longer
    exports the name the dispatcher imports fails as an ImportError at the first
    shopper turn - which has happened before.
 """
@@ -42,14 +36,13 @@ BACKEND = REPO / "pellier" / "backend"
 
 # The frozen vocabulary: internal key -> display label -> module.
 CANONICAL_AGENTS = {
-    "search": ("Search Agent", "search_agent"),
-    "recommendation": ("Personalization Agent", "personalization_agent"),
-    "pricing": ("Pricing Agent", "pricing_agent"),
-    "inventory": ("Inventory Agent", "inventory_agent"),
-    "support": ("Customer Service Agent", "customer_service_agent"),
+    "shopping": ("Shopping agent", "shopping_agent"),
+    "stock": ("Stock agent", "stock_agent"),
+    "support": ("Support agent", "support_agent"),
 }
 
 # Retired display labels. These may appear only in the allow-listed history.
+# The second generation is assembled so this file does not itself carry them.
 RETIRED_AGENT_LABELS = (
     "Style Advisor",
     "Curator",
@@ -58,12 +51,19 @@ RETIRED_AGENT_LABELS = (
     "Experience Guide",
 )
 
-# Internal identifiers that must survive the rename untouched.
+# The five-specialist labels this architecture replaced. Checked only in
+# backend source (not tests, docs or the README, which a later cut rewrites).
+RETIRED_FIVE_AGENT_LABELS = (
+    *(
+        f"{word} Agent"
+        for word in ("Search", "Personalization", "Pricing", "Inventory", "Customer Service")
+    ),
+)
+
+# Internal identifiers that must survive for the dispatcher and solution twins.
 PROTECTED_IDENTIFIERS = (
-    "build_search_agent",
-    "build_recommendation_agent",
-    "build_pricing_agent",
-    "build_inventory_agent",
+    "build_shopping_agent",
+    "build_stock_agent",
     "build_support_agent",
 )
 
@@ -141,6 +141,21 @@ def test_no_retired_agent_label_survives() -> None:
     )
 
 
+def test_no_five_agent_label_survives_in_backend_source() -> None:
+    """The Router reaches three agents; the five-agent labels are gone."""
+    findings: list[str] = []
+    for path in BACKEND.rglob("*.py"):
+        rel = path.relative_to(BACKEND)
+        if any(part in {"tests", ".venv", "__pycache__"} for part in rel.parts):
+            continue
+        text = path.read_text(encoding="utf-8")
+        for retired in RETIRED_FIVE_AGENT_LABELS:
+            if retired in text:
+                findings.append(f"  {rel.as_posix()}  {retired}")
+
+    assert not findings, "retired agent labels in backend source:\n" + "\n".join(findings)
+
+
 def test_every_canonical_agent_has_a_module_and_a_factory() -> None:
     """A frozen vocabulary that names an agent nobody builds is fiction."""
     for key, (label, module) in CANONICAL_AGENTS.items():
@@ -207,8 +222,9 @@ def test_protected_factory_names_are_not_renamed() -> None:
 
 def test_the_dispatcher_internal_keys_are_unchanged() -> None:
     """The routing keys are a lower-layer contract, not display text."""
-    source = (BACKEND / "services" / "chat.py").read_text()
-    for key in CANONICAL_AGENTS:
-        assert f'"{key}"' in source, (
-            f"internal routing key {key!r} disappeared from the dispatcher in chat.py"
-        )
+    from services.intent_router import INTENTS
+    from services.specialist_models import AGENT_NAMES
+
+    assert set(INTENTS) == set(CANONICAL_AGENTS)
+    assert set(AGENT_NAMES) == set(CANONICAL_AGENTS)
+    assert {key: label for key, (label, _m) in CANONICAL_AGENTS.items()} == AGENT_NAMES

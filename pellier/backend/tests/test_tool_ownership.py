@@ -14,8 +14,8 @@ An unreachable tool is worse than a missing one: it reads as shipped, it carries
 security surface that still needs reviewing, and it costs the next team the same
 investigation this test now answers in one place.
 
-Writing the check surfaced a second one immediately: `issue_credit` is bound to no
-specialist. That one is correct and deliberate, and now says so.
+Writing the check surfaced a second one immediately: `give_store_credit` is bound to
+no agent. That one is correct and deliberate, and now says so.
 
 What this asserts
 -----------------
@@ -27,10 +27,10 @@ appears in `UNBOUND_BY_DECISION` with a reason. That makes both directions fail 
   * a tool listed as deliberately unbound fails the moment an agent binds it, so the
     decision has to be revisited rather than silently reversed.
 
-The scan is import-based rather than runtime-based on purpose. `inventory_agent.py` binds
-its two tools inside the Lab 2 marker region, which is empty until a participant fills
-it, but the module-level import names them in either state. A runtime check would report
-the Inventory Agent's tools as orphaned on every unstarted workshop box.
+The scan is import-based rather than runtime-based on purpose. `stock_agent.py` grants
+its tool inside the Lab 2B marker region, which is empty until a participant fills it,
+but the module-level import names `check_stock` in either state. A runtime check would
+report it as orphaned on every unstarted workshop box.
 """
 
 from __future__ import annotations
@@ -47,27 +47,22 @@ AGENTS_DIR = BACKEND / "agents"
 # Tools deliberately reachable by no specialist. Each entry is a decision with a reason,
 # not a waiver: removing the reason, or binding the tool, must break this test.
 UNBOUND_BY_DECISION: Dict[str, str] = {
-    "restock_inventory": (
-        "Operator-only. Restocking moves stock, so no shopper-facing specialist binds "
-        "it and it is deferred from the shopper Gateway. Its caller is the operator "
-        "desk's restock endpoint behind require_operator, with the same idempotent "
-        "write path and audit row as every other governed mutation."
-    ),
-    "issue_credit": (
-        "Operator-only. Its caller is the confirmed-review execution path, not a "
-        "specialist: the Gateway publishes it for the operator desk under a permit "
+    "give_store_credit": (
+        "Operator-only. Its caller is the confirmed-review execution path, not an "
+        "agent: the Gateway publishes it for the operator desk under a permit "
         "that requires the staff scope claim, no shopper permit names it, and the "
-        "managed dispatcher refuses to build a shopper specialist that binds it. "
+        "managed dispatcher refuses to build a shopper agent that binds it. "
         "Binding it to one would put the capability back inside the conversation "
         "it was removed from."
     ),
 }
 
-# `@tool` functions that are agent wrappers rather than deterministic business tools.
-# Each wraps a whole specialist for the Agents-as-Tools orchestrator, so its owner is the
-# orchestrator, not another specialist.
-AGENT_WRAPPER_TOOLS: Set[str] = {
-    "inventory", "search", "pricing", "recommendation", "support",
+# The nine deterministic tools, and no others. Agents are plain Strands Agents over
+# these functions; none is wrapped as a tool itself.
+EXPECTED_TOOLS: Set[str] = {
+    "search_products", "browse_department", "compare_products", "check_stock",
+    "get_orders", "get_return_policy", "get_tickets", "give_store_credit",
+    "ask_a_person",
 }
 
 
@@ -87,7 +82,7 @@ def _decorated_tools(path: Path) -> Set[str]:
 
 
 def _bound_tools() -> Dict[str, Set[str]]:
-    """Specialist module -> the tool names it imports from `services.agent_tools`."""
+    """Agent module -> the tool names it imports from `services.agent_tools`."""
     bound: Dict[str, Set[str]] = {}
     for path in sorted(AGENTS_DIR.glob("*.py")):
         if path.name == "__init__.py":
@@ -108,19 +103,31 @@ def test_the_scan_finds_the_tools_and_the_agents() -> None:
     """Guards the assertions below from passing on an empty scan."""
     tools = _decorated_tools(AGENT_TOOLS)
     bound = _bound_tools()
-    assert len(tools) >= 15, f"only {len(tools)} @tool functions found in agent_tools.py"
-    assert len(bound) >= 5, f"only {len(bound)} specialists import tools"
+    assert tools == EXPECTED_TOOLS, f"@tool functions differ from the nine: {sorted(tools ^ EXPECTED_TOOLS)}"
+    assert set(bound) == {"shopping_agent.py", "stock_agent.py", "support_agent.py"}
 
 
 def test_every_tool_is_bound_or_recorded_as_unbound() -> None:
-    tools = _decorated_tools(AGENT_TOOLS) - AGENT_WRAPPER_TOOLS
+    tools = _decorated_tools(AGENT_TOOLS)
     bound = set().union(*_bound_tools().values())
     orphans = sorted(tools - bound - set(UNBOUND_BY_DECISION))
     assert not orphans, (
-        "these tools are reachable by no specialist and no decision is recorded:\n  "
+        "these tools are reachable by no agent and no decision is recorded:\n  "
         + "\n  ".join(orphans)
         + "\nEither bind one to an agent or add it to UNBOUND_BY_DECISION with the reason."
     )
+
+
+def test_each_agent_binds_its_documented_tools() -> None:
+    """The module docstring of agent_tools.py is the ownership table."""
+    bound = _bound_tools()
+    assert bound["shopping_agent.py"] == {
+        "search_products", "browse_department", "compare_products", "ask_a_person",
+    }
+    assert bound["stock_agent.py"] == {"check_stock"}
+    assert bound["support_agent.py"] == {
+        "get_orders", "get_return_policy", "get_tickets", "ask_a_person",
+    }
 
 
 def test_no_recorded_unbound_tool_has_quietly_been_bound() -> None:
@@ -128,7 +135,7 @@ def test_no_recorded_unbound_tool_has_quietly_been_bound() -> None:
     bound = set().union(*_bound_tools().values())
     contradictions = sorted(set(UNBOUND_BY_DECISION) & bound)
     assert not contradictions, (
-        f"{contradictions} are listed as deliberately unbound but a specialist imports "
+        f"{contradictions} are listed as deliberately unbound but an agent imports "
         "them. Update UNBOUND_BY_DECISION, and the governance that entry describes."
     )
 
@@ -147,10 +154,9 @@ def test_every_recorded_unbound_tool_still_exists() -> None:
     assert not missing, f"UNBOUND_BY_DECISION names tools that no longer exist: {missing}"
 
 
-def test_agent_wrapper_tools_all_exist() -> None:
-    """The wrapper allow-list must not outlive the wrappers it excuses."""
+def test_no_agent_is_wrapped_as_a_tool() -> None:
+    """Agents are not tools: the Router picks one agent, no agent calls another."""
     wrappers: Set[str] = set()
     for path in sorted(AGENTS_DIR.glob("*.py")):
         wrappers |= _decorated_tools(path)
-    missing = sorted(AGENT_WRAPPER_TOOLS - wrappers - _decorated_tools(AGENT_TOOLS))
-    assert not missing, f"AGENT_WRAPPER_TOOLS names non-existent wrappers: {missing}"
+    assert not wrappers, f"@tool wrappers found in agents/: {sorted(wrappers)}"

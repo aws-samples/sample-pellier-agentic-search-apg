@@ -305,35 +305,34 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // See the Workshop Studio repo's content/ for Marco's arc — these pill
     // strings must match the demo-conversation fixtures exactly.
     // Turn 3 clicks twice per session: once during the opening demo
-    // (Inventory Agent stubbed → graceful non-answer), once during the
-    // midpoint checkpoint (Inventory Agent wired → real warehouse data).
+    // (Stock agent stubbed → graceful non-answer), once during the
+    // midpoint checkpoint (Stock agent wired → real warehouse data).
     ...WORKSHOP_JOURNEYS.marco.prompts,
-    "What's the price range for linen shirts?",              // Turn 4 → Pricing Agent · get_price_analysis
-    // Turn 5 (capstone) → Search Agent · escalate_to_human. The
+    "What's the price range for linen shirts?",              // Turn 4 → Shopping agent · search_products
+    // Turn 5 (capstone) → Shopping agent · ask_a_person. The
     // explicit "real Pellier stylist" + "not product cards" framing is
-    // load-bearing: it teaches the orchestrator's stylist-handoff
-    // branch to route to search instead of refusing as "outside
-    // shopping," and it teaches the Search Agent that catalog tools
+    // load-bearing: it teaches the Router's stylist-handoff branch to
+    // route to the Shopping agent instead of refusing as "outside
+    // shopping," and it teaches the Shopping agent that catalog tools
     // can't satisfy the ask.
     "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
   ],
   anna: [
     ...WORKSHOP_JOURNEYS.anna.prompts,
     'Wrap-ready gifts with no extra effort',                     // Turn 4
-    // Turn 5 (capstone) → Search Agent · escalate_to_human. Sympathy
+    // Turn 5 (capstone) → Shopping agent · ask_a_person. Sympathy
     // gifting is the honest fallback seam — catalog tools can
     // surface candles, but they can't read the room. The explicit
-    // "real stylist" ask routes through the orchestrator's
-    // stylist-handoff branch to search, the specialist that owns
-    // escalate_to_human.
+    // "real stylist" ask routes through the Router's stylist-handoff
+    // branch to the Shopping agent, which owns ask_a_person.
     "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
   ],
   theo: [
     ...WORKSHOP_JOURNEYS.theo.prompts,
     'Without asking me to repeat the ritual or material, which pairing should I choose and why?', // Turn 4 (managed-memory continuity)
-    // Turn 5 (capstone) → Customer Service Agent · escalate_to_human.
+    // Turn 5 (capstone) → Support agent · ask_a_person.
     // Durability-expectation framing past the standard return window —
-    // initiate_return refuses, escalate_to_human is the honest
+    // the return policy says no, ask_a_person is the honest
     // fallback for an exception that needs a human.
     'The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
@@ -346,7 +345,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
   ],
 }
 
-/** Marco Pellier / Observatory Turn 3 — warehouse ask (Inventory Agent · `check_inventory`). */
+/** Marco Pellier / Observatory Turn 3 — warehouse ask (Stock agent · `check_stock`). */
 export const MARCO_BUILDER_SESSION_QUERY = PERSONA_HERO_PILLS.marco[2]
 
 /**
@@ -408,24 +407,24 @@ export interface PersonaTurnTrace {
 export const PERSONA_TURN_TRACES: Record<string, PersonaTurnTrace[]> = {
   marco: [
     { skill: 'the-packing-list', tools: ['search_products'] },
-    { skill: 'the-packing-list', tools: ['search_products', 'get_related_products'] },
-    { tools: ['check_inventory'] },
-    { tools: ['get_price_analysis'] },
-    { skill: 'the-packing-list', tools: ['escalate_to_human'] },
+    { skill: 'the-packing-list', tools: ['search_products'] },
+    { tools: ['check_stock'] },
+    { tools: ['search_products'] },
+    { skill: 'the-packing-list', tools: ['ask_a_person'] },
   ],
   anna: [
-    { skill: 'the-gift-table', tools: ['search_products_hybrid'] },
-    { skill: 'the-gift-table', tools: ['search_products_hybrid'] },
-    { skill: 'the-gift-table', tools: ['search_products_hybrid'] },
-    { skill: 'the-gift-table', tools: ['search_products_hybrid'] },
-    { skill: 'the-gift-table', tools: ['escalate_to_human'] },
+    { skill: 'the-gift-table', tools: ['search_products'] },
+    { skill: 'the-gift-table', tools: ['search_products'] },
+    { skill: 'the-gift-table', tools: ['search_products'] },
+    { skill: 'the-gift-table', tools: ['search_products'] },
+    { skill: 'the-gift-table', tools: ['ask_a_person'] },
   ],
   theo: [
     { skill: 'the-makers-shelf', tools: ['search_products'] },
-    { skill: 'the-makers-shelf', tools: ['search_products', 'get_related_products'] },
-    { skill: 'the-makers-shelf', tools: ['search_products', 'get_return_policy', 'initiate_return'] },
+    { skill: 'the-makers-shelf', tools: ['search_products'] },
+    { skill: 'the-makers-shelf', tools: ['get_orders', 'get_return_policy', 'get_tickets'] },
     { skill: 'the-makers-shelf', tools: [] },
-    { skill: 'the-makers-shelf', tools: ['escalate_to_human'] },
+    { skill: 'the-makers-shelf', tools: ['ask_a_person'] },
   ],
   fresh: PERSONA_HERO_PILLS.fresh.map(() => ({ tools: ['search_products'] })),
 }

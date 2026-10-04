@@ -43,7 +43,7 @@ def _receipt(**over: Any) -> Dict[str, Any]:
         "evidence_outcome": "RECEIPTED",
         "gateway_mode": "ENFORCE",
         "idempotency_key": "operator-review:40:abc",
-        "tool": "initiate_return",
+        "tool": "give_store_credit",
         "execution_turn_id": "turn-" + "a" * 32,
     }
     base.update(over)
@@ -53,7 +53,7 @@ def _receipt(**over: Any) -> Dict[str, Any]:
 def _layers(**over: Any) -> Dict[str, Dict[str, Any]]:
     audit = over.pop("audit", [{"audit_id": 1}])
     writes = over.pop("writes", [{"completed_at": "now"}])
-    domain = over.pop("domain", [{"id": 37}])
+    domain = over.pop("domain", [{"credit_id": 37}])
     episodes = over.pop("episodes", [{"episode_id": 37}])
     got = GE.describe_layers(_receipt(**over), audit, writes, domain, episodes)
     return {layer["key"]: layer for layer in got}
@@ -68,7 +68,7 @@ def test_a_completed_write_presents_every_layer() -> None:
     layers = _layers()
     assert [l["present"] for l in layers.values()] == [True] * 6
     assert "applied exactly once" in layers["write_operations"]["detail"]
-    assert "pellier.returns" in layers["domain"]["detail"]
+    assert "pellier.store_credits" in layers["domain"]["detail"]
 
 
 def test_a_policy_denial_stops_at_the_authorization_attempt() -> None:

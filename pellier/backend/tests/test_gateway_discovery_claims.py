@@ -1,15 +1,15 @@
 """Publication is not visibility.
 
 AgentCore Gateway evaluates Cedar on MCP tool discovery, so `list_tools` returns
-the subset the calling token could be permitted to invoke. Measured live on the
-release-candidate Gateway on 2026-09-10:
+the subset the calling token could be permitted to invoke:
 
-    shopper token (customer claim, no staff scope)   14 of 15 published
-    staff token   (staff scope, no customer claim)   13 of 15 published
+    shopper token (customer claim, no staff scope)   7 of 8 published, then 8 of 9
+    staff token   (staff scope, no customer claim)   7 of 8 published, then 7 of 9
 
-The first run after `issue_credit` was published failed provisioning, because the
-deploy compared a shopper's listing against the whole catalogue and read a working
-staff-only boundary as a missing tool. These tests pin the model that replaced it.
+The first provisioning run after a staff-only tool was published failed, because
+the deploy compared a shopper's listing against the whole catalogue and read a
+working staff-only boundary as a missing tool. These tests pin the model that
+replaced it.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ def test_a_shopper_cannot_discover_the_staff_only_tool() -> None:
     visible = discoverable_tools_for_claims(
         has_staff_scope=False, has_customer_claim=True
     )
-    assert "issue_credit" not in visible
+    assert "give_store_credit" not in visible
     assert visible == workshop_published_tools() - STAFF_ONLY_GATEWAY_TOOLS
 
 
@@ -47,8 +47,25 @@ def test_a_staff_token_without_a_customer_mapping_loses_the_owner_scoped_reads()
     visible = discoverable_tools_for_claims(
         has_staff_scope=True, has_customer_claim=False
     )
-    assert "issue_credit" in visible
+    assert "give_store_credit" in visible
     assert not (visible & OWNER_SCOPED_GATEWAY_TOOLS)
+
+
+def test_expected_discovery_counts_before_and_after_lab_three(monkeypatch) -> None:
+    import gateway_tool_schemas
+
+    shopper = dict(has_staff_scope=False, has_customer_claim=True)
+    staff = dict(has_staff_scope=True, has_customer_claim=False)
+    assert len(workshop_published_tools()) == 8
+    assert len(discoverable_tools_for_claims(**shopper)) == 7
+    assert len(discoverable_tools_for_claims(**staff)) == 7
+
+    monkeypatch.setattr(gateway_tool_schemas, "WORKSHOP_DEFERRED_TOOLS", frozenset())
+    assert len(workshop_published_tools()) == 9
+    visible = discoverable_tools_for_claims(**shopper)
+    assert len(visible) == 8
+    assert "get_tickets" in visible
+    assert len(discoverable_tools_for_claims(**staff)) == 7
 
 
 def test_no_claim_shape_can_discover_more_than_is_published() -> None:

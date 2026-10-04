@@ -142,7 +142,7 @@ describe('turn identity', () => {
             degraded: true,
             reason: 'authentication_required',
             rail: 'in-process',
-            capabilitiesRemoved: ['initiate_return'],
+            capabilitiesRemoved: ['give_store_credit'],
             explanation: 'This is not a Cedar DENY.',
           },
         },
@@ -152,7 +152,7 @@ describe('turn identity', () => {
     const result = await sendChatMessageStreaming('linen', [], () => {})
 
     expect(result.degradation?.degraded).toBe(true)
-    expect(result.degradation?.capabilitiesRemoved).toContain('initiate_return')
+    expect(result.degradation?.capabilitiesRemoved).toContain('give_store_credit')
     expect(result.railDecision?.available).toBe(false)
   })
 

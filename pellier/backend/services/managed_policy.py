@@ -447,7 +447,7 @@ async def engine_state_for_action(action_id: str) -> Optional[Dict[str, Any]]:
 
     Args:
         action_id: The target-qualified Cedar action, e.g.
-            ``pellier-concierge-experience-target___initiate_return``.
+            ``pellier-store-tools___give_store_credit``.
 
     Returns:
         A mapping with ``gateway_mode``, ``policies`` (name -> (effect, mode)),

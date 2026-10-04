@@ -13,8 +13,8 @@
  * system, which is the one thing this surface must not do. Every state is
  * stated in words, never by color alone.
  *
- * The warehouse rows are the same `pellier.warehouse_inventory` join the
- * Inventory Agent's `check_inventory` tool reads, so a shopper-visible count and
+ * The warehouse rows are the same `pellier.warehouse_inventory` join that
+ * the Stock agent's `check_stock` tool reads, so a shopper-visible count and
  * a tool receipt cannot disagree about where stock sits.
  */
 import type { ProductAvailability } from '../services/types'

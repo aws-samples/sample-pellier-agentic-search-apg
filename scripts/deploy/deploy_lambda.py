@@ -195,18 +195,43 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
     raise
 
 
+# Published zip path -> repository source, relative to the server entrypoint's
+# directory (scripts/deploy). `tests/test_lambda_shared_helpers.py` asserts
+# every module the server imports is listed here.
+SHARED_MODULES = {
+  'common/types.py': 'common/types.py',
+  'common/dataapi.py': 'common/dataapi.py',
+  'common/handler.py': 'common/handler.py',
+  'gateway_tool_schemas.py': 'gateway_tool_schemas.py',
+  'services/__init__.py': '../../pellier/backend/services/__init__.py',
+  'services/store_tools.py': '../../pellier/backend/services/store_tools.py',
+  'services/retrieval_receipt.py': '../../pellier/backend/services/retrieval_receipt.py',
+  'services/search_plan.py': '../../pellier/backend/services/search_plan.py',
+  'services/catalog_vocabulary.py': '../../pellier/backend/services/catalog_vocabulary.py',
+}
+
+
+def shared_module_paths(mcp_server_path):
+  """Resolve `SHARED_MODULES` against the directory holding the server file."""
+  shared_dir = os.path.dirname(os.path.abspath(mcp_server_path))
+  return {
+    target: os.path.normpath(os.path.join(shared_dir, source))
+    for target, source in SHARED_MODULES.items()
+  }
+
+
 def main():
   global iam_client, lambda_client
 
   parser = argparse.ArgumentParser(description="Deploy Lambda function to AWS")
   parser.add_argument('--region', help="AWS Region to use.", default=os.getenv("AWS_REGION", "us-east-1"))
-  parser.add_argument('--server-name', default='pellier-mcp-server', help='The name of the server deployed by this function.')
+  parser.add_argument('--server-name', default='pellier-store-tools-server', help='The name of the server deployed by this function.')
   parser.add_argument('--db-cluster-arn', help="Aurora PostgreSQL DB cluster ARN")
   parser.add_argument('--db-region', help="AWS Region for the Aurora Data API endpoint")
   parser.add_argument('--secret-arn', help="AWS Secrets Manager secret ARN")
   parser.add_argument('--database', help="The name of the database to connect to", default="postgres")
   parser.add_argument('--mcp-server-path', default='./', help='Path to the MCP server entrypoint file.')
-  parser.add_argument('--handler', default='pellier_search_server.lambda_handler', help='Lambda handler function')
+  parser.add_argument('--handler', default='pellier_store_tools.lambda_handler', help='Lambda handler function')
   parser.add_argument('--extra-deps', nargs='*', default=[], help='Additional pip dependencies (e.g., pandas matplotlib)')
   parser.add_argument('--layers', nargs='*', default=[], help='Lambda layer ARNs to attach')
   parser.add_argument('--s3-bucket', help='S3 bucket for large deployment packages (auto-created if needed)')
@@ -251,10 +276,10 @@ def main():
           "Resource": "*"
         },
         {
-          # The MCP server Lambdas embed queries (Cohere Embed v4) through
-          # InvokeModel, while the search server calls the separate Rerank API
-          # for Cohere Rerank v3.5. Without both actions, Gateway-routed tools
-          # deploy cleanly but silently fall back to RRF at invocation time.
+          # The store-tools Lambda embeds queries (Cohere Embed v4) through
+          # InvokeModel and calls the separate Rerank API for Cohere Rerank
+          # v3.5. Without both actions, Gateway-routed search deploys cleanly
+          # but silently falls back to RRF at invocation time.
           # Scoped to
           # the foundation-model + inference-profile ARN families (NOT region-
           # conditioned: Cohere v4 is a us.* inference profile and the editorial
@@ -284,11 +309,9 @@ def main():
       ]
     }
 
-    # Add RDS Data API permissions only if database ARNs are provided.
-    # Transaction actions matter: initiate_return (experience server) wraps
-    # ownership-check + INSERT + decrement in a single Data API transaction,
-    # and ExecuteStatement alone 403s on BeginTransaction (box-verified
-    # 2026-06-12 — the ONLY transactional tool, so nothing else tripped it).
+    # Add RDS Data API permissions only if database ARNs are provided. The
+    # transaction actions stay granted so a tool that opens a Data API
+    # transaction does not 403 on BeginTransaction (box-verified 2026-06-12).
     if args.db_cluster_arn:
       lambda_permissions_policy["Statement"].append({
         "Effect": "Allow",
@@ -319,13 +342,15 @@ def main():
     if not os.path.exists(args.mcp_server_path):
         raise FileNotFoundError(f"MCP server file not found: {args.mcp_server_path}")
 
-    # Shared modules every surface server imports. Checked here rather than
-    # discovered at cold start: a missing entry is a ModuleNotFoundError on the
-    # first Gateway call, long after the deploy reported success.
-    shared_dir = os.path.dirname(args.mcp_server_path)
+    # Every module the store-tools server imports, staged at the path it is
+    # imported from. Checked here rather than discovered at cold start: a
+    # missing entry is a ModuleNotFoundError on the first Gateway call, long
+    # after the deploy reported success. The `services/` entries are the one
+    # tool implementation the backend's @tool wrappers call too, plus the two
+    # pure retrieval modules it imports; none of them import the backend's
+    # settings, so they run unchanged in the zip.
     shared_modules = {}
-    for module in ('common/types.py', 'common/dataapi.py', 'common/handler.py', 'common/replacement_contract.py'):
-        module_path = os.path.join(shared_dir, module)
+    for module, module_path in shared_module_paths(args.mcp_server_path).items():
         if not os.path.exists(module_path):
             raise FileNotFoundError(f"Shared module not found: {module_path}")
         shared_modules[module] = module_path

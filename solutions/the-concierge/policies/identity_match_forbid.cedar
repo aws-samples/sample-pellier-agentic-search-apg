@@ -1,19 +1,17 @@
-// Required Lab 4 reference rule: a shopper may file a return only for the
-// customer their token says they are. Cognito stamps `custom:customer_id` on
-// the access token from the principal mapping, AgentCore Policy exposes that
-// claim as a principal tag, and the rule compares the tag with the tool input.
-// The `when` clause scopes the forbid to principals carrying a customer claim,
-// so staff are governed by their own permit. The `unless` shape is fail-closed
-// for shoppers: a missing customer_id or a mismatched customer is denied.
+// Required Lab 4 reference rule: staff may give at most $100 of store credit
+// per approved review. The forbid wins over any permit, so an over-limit
+// credit is denied before the tool executes even though the staff permit
+// (give_store_credit_staff_scope) matches it. The `unless` admits exactly a
+// valid amount up to and including $100: `amount_cents` is an integer in
+// cents on the tool's input schema, and AgentCore Policy exposes it as
+// `context.input.amount_cents`. Shoppers stay denied by the baseline, which
+// has no shopper permit for this action; this rule is not what denies them.
 forbid(
   principal is AgentCore::OAuthUser,
-  action == AgentCore::Action::"pellier-concierge-experience-target___initiate_return",
+  action == AgentCore::Action::"pellier-store-tools___give_store_credit",
   resource == AgentCore::Gateway::"${PELLIER_GATEWAY_ARN}"
 )
-when {
-  principal.hasTag("custom:customer_id")
-}
 unless {
-  context.input has customer_id &&
-  principal.getTag("custom:customer_id") == context.input.customer_id
+  context.input has amount_cents &&
+  context.input.amount_cents <= 10000
 };

@@ -187,20 +187,20 @@ def test_receipt_records_who_chose_each_customer_but_never_the_customer(
         auth_token_present=True,
         build_fingerprint="local-digest",
         tool_calls=[
-            {"tool": "get_ticket_history", "status": "success",
+            {"tool": "get_tickets", "status": "success",
              "input": {"customer_id": "CUST-THEO"},
              "customer_scope": "server", "requested_other_customer": True},
             {"tool": "search_products", "status": "success", "input": {"query": "bowl"}},
-            {"tool": "get_ticket_history", "status": "error",
+            {"tool": "get_tickets", "status": "error",
              "customer_scope": "model", "requested_other_customer": False},
             "not-a-call",
         ],
     )
     trace = runtime.get_latest_trace("session-3", principal_sub="sub-3")
     assert trace["customerBindings"] == [
-        {"tool": "get_ticket_history", "status": "success",
+        {"tool": "get_tickets", "status": "success",
          "customerScope": "server", "requestedOtherCustomer": True},
-        {"tool": "get_ticket_history", "status": "error",
+        {"tool": "get_tickets", "status": "error",
          "customerScope": "model", "requestedOtherCustomer": False},
     ]
     assert "CUST-" not in json.dumps(trace["customerBindings"])

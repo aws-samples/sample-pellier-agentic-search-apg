@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import pytest
 
 from services.hybrid_search import HybridSearch
+from services.store_tools import or_tsquery, rrf_merge
 from services.sql_query_logger import SQLQueryLogger
 import services.sql_query_logger as sql_query_logger_module
 
@@ -27,7 +28,7 @@ def _run(coro: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# _build_or_tsquery — the OR-joining query compiler that fixes the
+# or_tsquery — the OR-joining query compiler that fixes the
 # AND-of-all-stems over-filtering both plainto and websearch default to
 # ---------------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ class TestBuildOrTsquery:
     """The compiler that turns conversational queries into OR-joined to_tsquery input."""
 
     def test_drops_stop_words_and_keeps_content_tokens(self) -> None:
-        out = HybridSearch._build_or_tsquery(
+        out = or_tsquery(
             "a thoughtful gift for someone who loves morning rituals"
         )
         # 'a', 'for', 'who' are stop-words; 'someone', 'loves' are in our
@@ -50,7 +51,7 @@ class TestBuildOrTsquery:
             assert w not in out
 
     def test_or_joins_remaining_tokens(self) -> None:
-        out = HybridSearch._build_or_tsquery("beeswax candle for the dining table")
+        out = or_tsquery("beeswax candle for the dining table")
         # 'for' and 'the' drop; 'beeswax', 'candle', 'dining', 'table' keep.
         # Order preserved so the OR-tree matches user intent for ts_rank_cd.
         parts = out.split(" | ")
@@ -62,29 +63,29 @@ class TestBuildOrTsquery:
         assert "the" not in parts
 
     def test_dedupes_repeated_tokens(self) -> None:
-        out = HybridSearch._build_or_tsquery("candle candle CANDLE")
+        out = or_tsquery("candle candle CANDLE")
         # All three normalize to 'candle' after lowercase; only one survives.
         assert out == "candle"
 
     def test_strips_punctuation(self) -> None:
-        out = HybridSearch._build_or_tsquery("wrap-ready, gift-table, hand-thrown!")
+        out = or_tsquery("wrap-ready, gift-table, hand-thrown!")
         # Punctuation removed; tokens preserved (with internal hyphens stripped
         # by the per-token .strip("-") call).
         for word in ["wrap", "ready", "gift", "table", "hand", "thrown"]:
             assert word in out
 
     def test_drops_short_tokens(self) -> None:
-        out = HybridSearch._build_or_tsquery("a is or by candle")
+        out = or_tsquery("a is or by candle")
         # All ≤2 chars except 'candle'.
         assert out == "candle"
 
     def test_pure_stop_word_query_returns_empty(self) -> None:
-        out = HybridSearch._build_or_tsquery("the and for what who")
+        out = or_tsquery("the and for what who")
         assert out == ""
 
     def test_empty_input_returns_empty(self) -> None:
-        assert HybridSearch._build_or_tsquery("") == ""
-        assert HybridSearch._build_or_tsquery("   ") == ""
+        assert or_tsquery("") == ""
+        assert or_tsquery("   ") == ""
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +203,7 @@ class TestRRFMerge:
     def test_doc_in_both_lists_at_rank_1_scores_higher_than_only_one(self) -> None:
         v_rows = [_make_row(1), _make_row(2)]
         b_rows = [_make_row(1), _make_row(3)]  # product 1 in both, 3 only in FTS
-        merged = HybridSearch._rrf_merge(v_rows, b_rows, rrf_k=60)
+        merged = rrf_merge(v_rows, b_rows, rrf_k=60)
         # product 1 is rank-1 in both → 1/61 + 1/61 = 2/61 ≈ 0.0328
         # product 2 is rank-2 in vector only → 1/62 ≈ 0.0161
         # product 3 is rank-2 in FTS only → 1/62 ≈ 0.0161
@@ -214,7 +215,7 @@ class TestRRFMerge:
     def test_doc_in_only_one_list_scores_lower_than_both(self) -> None:
         v_rows = [_make_row(10)]
         b_rows = [_make_row(20)]
-        merged = HybridSearch._rrf_merge(v_rows, b_rows, rrf_k=60)
+        merged = rrf_merge(v_rows, b_rows, rrf_k=60)
         assert len(merged) == 2
         scores = {r["product_id"]: r["rrf_score"] for r in merged}
         assert math.isclose(scores[10], 1.0 / 61, abs_tol=1e-9)
@@ -224,7 +225,7 @@ class TestRRFMerge:
         # A doc at rank 1 should outscore a doc at rank 30 by a wide margin.
         v_rows = [_make_row(i) for i in range(1, 31)]
         b_rows = []
-        merged = HybridSearch._rrf_merge(v_rows, b_rows, rrf_k=60)
+        merged = rrf_merge(v_rows, b_rows, rrf_k=60)
         head = merged[0]["rrf_score"]
         tail = merged[-1]["rrf_score"]
         # rank 1: 1/61 ≈ 0.0164; rank 30: 1/90 ≈ 0.0111
@@ -233,7 +234,7 @@ class TestRRFMerge:
 
     def test_rrf_score_is_monotonic_in_rank_within_a_list(self) -> None:
         v_rows = [_make_row(i) for i in range(1, 6)]
-        merged = HybridSearch._rrf_merge(v_rows, [], rrf_k=60)
+        merged = rrf_merge(v_rows, [], rrf_k=60)
         scores = [r["rrf_score"] for r in merged]
         assert scores == sorted(scores, reverse=True)
 
@@ -241,7 +242,7 @@ class TestRRFMerge:
         v_rows = [_make_row(1), _make_row(2)]
         fts_rows = [_make_row(2), _make_row(3)]
 
-        merged = HybridSearch._rrf_merge(v_rows, fts_rows, rrf_k=60)
+        merged = rrf_merge(v_rows, fts_rows, rrf_k=60)
         by_id = {row["product_id"]: row for row in merged}
 
         assert by_id[1]["vec_rank"] == 1
@@ -318,7 +319,7 @@ class TestHybridSearchEndToEnd:
         b_rows = [_make_row(2)]
         db = FakeDB(v_rows, b_rows)
         svc = HybridSearch(db)  # type: ignore[arg-type]
-        # Use a query with real content tokens so _build_or_tsquery
+        # Use a query with real content tokens so or_tsquery
         # produces a non-empty OR-query and the FTS branch actually
         # executes its SQL (bare "q" would short-circuit to []).
         _run(svc.search("linen shirt", embedding, top_n=30))

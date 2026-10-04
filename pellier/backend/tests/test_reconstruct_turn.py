@@ -208,7 +208,7 @@ def test_detail_omits_fields_the_span_did_not_carry():
     cli = _load_cli()
 
     assert cli._detail({}) == ""
-    assert cli._detail({"tool": "check_inventory"}) == "tool=check_inventory"
+    assert cli._detail({"tool": "check_stock"}) == "tool=check_stock"
     assert "ENFORCE/DENY" in cli._detail(
         {"policy_mode": "ENFORCE", "policy_verdict": "DENY"}
     )

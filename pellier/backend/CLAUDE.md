@@ -13,8 +13,8 @@ The root guidance lists all nine permitted regions. This module contains four:
 | Task | File | Marker |
 |---|---|---|
 | 1B | `services/search_plan.py` | `Search plan - preserve requirements` |
-| 2A | `services/agent_tools.py` | `Inventory Agent - check_inventory` |
-| 2B | `agents/inventory_agent.py` | `Inventory Agent - definition` |
+| 2A | `services/agent_tools.py` | `Stock agent - check_stock` |
+| 2B | `agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
 
 For SQL, Cedar and Gateway publication tasks, use the root map and the guide.

@@ -7,17 +7,13 @@ The obvious implementation reads the local MCP catalog and reports everything as
 available. That catalog deliberately includes tools the managed Gateway does not
 publish. Live control-plane state remains the only authority for the operator desk.
 
-On a fresh provision every governed write below is published, and the Cedar baseline
-in `scripts/deploy/render_agentcore_project.py` (`baseline_policies`) decides who may
-call it:
+On a fresh provision the one governed write below is published, and the Cedar
+baseline in `scripts/deploy/render_agentcore_project.py` (`baseline_policies`)
+decides who may call it:
 
-    initiate_return     published; a shopper permit requires a customer claim and
-                        reason `damaged`, and a staff permit requires the
-                        `custom:staff_scope` claim the operator desk carries.
-    escalate_to_human   published; covered by the catalogue allow-list.
-    issue_credit        published for staff only; its one permit requires the
-                        staff scope claim and no shopper permit names it.
-    replace_damaged_item  published for the operator desk only.
+    give_store_credit   published for staff only; its one permit requires the
+                        `custom:staff_scope` claim the operator desk carries, and
+                        no shopper permit names it.
 
 A deployed Gateway can still disagree with that contract: a migrated or drifted
 account may publish an action with zero matching permits, or not publish it at all.
@@ -85,16 +81,11 @@ CAPABILITY_TTL_SECONDS = 60
 # The governed writes the Operator surface can offer. Reads are not listed here:
 # they run in-process against Aurora and do not pass through Gateway authorization,
 # so their availability is a different question answered by `_read_capabilities`.
-GOVERNED_WRITE_TOOLS: Tuple[str, ...] = (
-    "initiate_return",
-    "escalate_to_human",
-    "issue_credit",
-    "replace_damaged_item",
-)
+GOVERNED_WRITE_TOOLS: Tuple[str, ...] = ("give_store_credit",)
 
 # Governed writes that additionally require a human decision before execution, via
 # the existing review rail. Being in this set does not make a tool available.
-REVIEW_GATED_TOOLS: Tuple[str, ...] = ("initiate_return", "issue_credit", "replace_damaged_item")
+REVIEW_GATED_TOOLS: Tuple[str, ...] = ("give_store_credit",)
 
 # Local read paths the Concierge depends on. These do not traverse the Gateway.
 READ_CAPABILITIES: Tuple[str, ...] = (
@@ -152,8 +143,8 @@ def _unverified_writes(reason: str = REASON_UNVERIFIED) -> Dict[str, Capability]
 def _classify(published: List[str], permitted: Dict[str, int]) -> Dict[str, Capability]:
     """Turn live Gateway facts into capability states.
 
-    `published` is the set of tool names the Gateway currently serves for the
-    experience target; `permitted` maps a published tool to how many active permit
+    `published` is the set of tool names the Gateway currently serves on the
+    store target; `permitted` maps a published tool to how many active permit
     policies can match it.
     """
     out: Dict[str, Capability] = {}

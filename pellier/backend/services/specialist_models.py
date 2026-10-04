@@ -1,8 +1,8 @@
-"""The Claude model each specialist answers with.
+"""The agent and Claude model each routed intent answers with.
 
-Routing is deterministic and calls no model. Editorial specialists (search,
-recommendation, support) answer on Opus; reporting specialists (pricing,
-inventory) answer on Sonnet.
+The Router is deterministic and calls no model. The Shopping and Support
+agents answer on Opus; the Stock agent, which reports counts, answers on
+Sonnet.
 """
 
 from __future__ import annotations
@@ -38,7 +38,15 @@ except ModuleNotFoundError:
 
 ModelTier = Literal["opus", "sonnet"]
 
-REPORTING_INTENTS = frozenset({"pricing", "inventory"})
+# The three intents the Router returns, and the agent each one reaches.
+AGENT_NAMES: dict[str, str] = {
+    "shopping": "Shopping agent",
+    "stock": "Stock agent",
+    "support": "Support agent",
+}
+ROUTER_NAME = "Router"
+
+REPORTING_INTENTS = frozenset({"stock"})
 
 
 def specialist_model(tier: ModelTier) -> tuple[str, int]:
@@ -50,15 +58,18 @@ def specialist_model(tier: ModelTier) -> tuple[str, int]:
 
 def model_for_intent(intent: str) -> tuple[str, int]:
     """Return the model ID and output ceiling for a routed intent."""
-    normalized_intent = "support" if intent == "customer_support" else intent
-    tier: ModelTier = "sonnet" if normalized_intent in REPORTING_INTENTS else "opus"
+    tier: ModelTier = "sonnet" if intent in REPORTING_INTENTS else "opus"
     return specialist_model(tier)
+
+
+def agent_name(intent: str) -> str:
+    """The display name of the agent a routed intent reaches."""
+    return AGENT_NAMES[intent]
 
 
 def build_intent_signal(intent: str) -> dict:
     """Build the public SSE event describing the real routing decision."""
-    normalized_intent = "support" if intent == "customer_support" else intent
-    model_id, _ = model_for_intent(normalized_intent)
+    model_id, _ = model_for_intent(intent)
     model_id_lower = model_id.lower()
     model_family = (
         "opus"
@@ -69,7 +80,8 @@ def build_intent_signal(intent: str) -> dict:
     )
     return {
         "type": "intent_signal",
-        "intent": normalized_intent,
+        "intent": intent,
+        "agent": agent_name(intent),
         "classifier": "deterministic",
         "model_family": model_family,
         "model_id": model_id,

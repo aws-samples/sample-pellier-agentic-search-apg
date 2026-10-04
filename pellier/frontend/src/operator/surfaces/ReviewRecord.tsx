@@ -64,26 +64,11 @@ const PARAMETER_LABELS: Record<string, string> = {
 }
 
 const ACTION_TITLES: Record<string, string> = {
-  initiate_return: 'File a return',
-  issue_credit: 'Issue a goodwill credit',
-  replace_damaged_item: 'Replace a damaged piece',
+  give_store_credit: 'Give store credit',
 }
 
-/**
- * The headline, with the review's own reason in it.
- *
- * The map used to read "File a damaged return" for every `initiate_return`, which
- * was true only while `damaged` was the sole scenario. A Concierge-prepared
- * not-as-described return rendered a headline naming a reason the review does not
- * carry — the narrative disagreeing with the parameters directly beneath it.
- */
-function actionTitle(action: string, parameters: Record<string, unknown>): string {
-  const base = ACTION_TITLES[action] ?? action
-  const reason = parameters.reason
-  if (action === 'initiate_return' && typeof reason === 'string' && reason) {
-    return `File a ${reason.replace(/_/g, ' ')} return`
-  }
-  return base
+function actionTitle(action: string): string {
+  return ACTION_TITLES[action] ?? action
 }
 
 function formatParameter(
@@ -384,7 +369,7 @@ const ReviewRecordPage: React.FC = () => {
     : executing
       ? 'Evaluating'
       : completed
-        ? review.action === 'replace_damaged_item' ? 'Replacement reserved' : 'Completed'
+        ? 'Completed'
         : blocked
           ? 'Not applied'
           : refused
@@ -423,7 +408,7 @@ const ReviewRecordPage: React.FC = () => {
       <div className="operator-review-case-workspace">
       <div className="operator-review-context-stack">
       <div className="operator-review-overview">
-        <p>{actionTitle(review.action, review.parameters)}</p>
+        <p>{actionTitle(review.action)}</p>
         <a href="#operator-review-decision" className="pellier-action-quiet">Review decision</a>
       </div>
 
@@ -582,7 +567,7 @@ const ReviewRecordPage: React.FC = () => {
       >
         <h2 className="operator-card-title">Pellier recommends</h2>
         <p className="operator-review-issue-text">
-          {actionTitle(review.action, review.parameters)}
+          {actionTitle(review.action)}
         </p>
         {review.recommendation.rationale ? (
           <p className="operator-cell-note">{review.recommendation.rationale}</p>
@@ -601,7 +586,7 @@ const ReviewRecordPage: React.FC = () => {
             data-testid="operator-review-secondary"
           >
             Optional:{' '}
-            {review.recommendation.secondarySuggestion.action === 'issue_credit'
+            {review.recommendation.secondarySuggestion.action === 'give_store_credit'
               ? `a courtesy credit of ${centsToMoney(
                   review.recommendation.secondarySuggestion.amountCents ?? 0,
                 )}`
@@ -827,16 +812,6 @@ const ReviewRecordPage: React.FC = () => {
           </>
         )}
         {unresolved && !attempted ? <p role="status">Execution was requested. A durable outcome is not yet available; refresh the record to check it.</p> : null}
-        {review.action === 'replace_damaged_item' ? <>
-          <p className="operator-cell-note">This action records the return and reserves replacement stock. Fulfillment and shipment are recorded separately.</p>
-          <Link className="operator-client-chat-link" to={`/operator/clients/${encodeURIComponent(review.customerId)}#operator-replacement-care`}>Check replacement care</Link>
-          {review.humanState === 'confirmed' && unresolved && !refreshNeeded ? <div className="operator-review-actions">
-            <button type="button" className="operator-button operator-button-inline" onClick={execute} disabled={executing || refreshing}>
-              {executing ? 'Checking approved action…' : 'Recover this approved action'}
-            </button>
-            <p className="operator-cell-note">Uses the same approval and operation key. A committed result is replayed; if nothing committed, the approved terms are checked again before execution.</p>
-          </div> : null}
-        </> : null}
         {refreshNote ? <p role="status">{refreshNote}</p> : null}
         {refreshNeeded || unresolved ? <button type="button" className="operator-button operator-button-inline" disabled={refreshing} onClick={() => void reconcile()}>{refreshing ? 'Refreshing…' : 'Refresh record'}</button> : null}
         {decisionError ? (

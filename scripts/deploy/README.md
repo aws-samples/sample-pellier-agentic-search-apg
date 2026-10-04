@@ -4,18 +4,17 @@ Deploy Pellier's governed agent path using Amazon Bedrock AgentCore.
 
 The pinned AgentCore CLI is the only control-plane deployment path for Runtime,
 Memory, Gateway, Gateway target registrations, AgentCore-managed service roles,
-the Policy engine, and Cedar policies. `deploy_lambda.py` creates the four
-external Lambda functions and their Lambda execution roles; other Python
-helpers seed Memory, authenticate test users, and verify the deployed path.
+the Policy engine, and Cedar policies. `deploy_lambda.py` creates the one
+external Lambda function and its execution role; other Python helpers seed
+Memory, authenticate test users, and verify the deployed path.
 
 ## What Gets Deployed
 
-1. **4 Lambda MCP servers** — 18 defined schemas, 16 tools published at baseline
-   and 17 after Lab 3A:
-   - `pellier-search-server` — Hybrid search + inventory tools
-   - `pellier-pricing-server` — Price analysis + deal finding
-   - `pellier-recommend-server` — Curation, preferences, and audit reads
-   - `pellier-experience-server` — Returns and stylist escalation
+1. **1 Lambda MCP server** — `pellier-store-tools-server`, behind the one
+   Gateway target `pellier-store-tools`: nine tool schemas, eight published at
+   baseline and nine after Lab 3A publishes `get_tickets`. The tools are the
+   same `services/store_tools.py` functions the in-process agents call; the
+   Lambda hands them the RDS Data API instead of the psycopg pool.
 
 2. **AgentCore Memory** — Short-term conversation events with 30-day expiry,
    plus `USER_PREFERENCE`, `SEMANTIC`, `SUMMARIZATION` and `EPISODIC` strategies.
@@ -24,7 +23,7 @@ helpers seed Memory, authenticate test users, and verify the deployed path.
    records, incomplete episodes, namespace drift or timeout fail readiness.
    The check does not write long-term records or reuse participant evidence.
 
-3. **AgentCore Gateway** — MCP Gateway that registers all four Lambda targets with:
+3. **AgentCore Gateway** — MCP Gateway that registers the one Lambda target with:
    - Cognito JWT authentication
    - Runtime tool discovery over MCP streamable HTTP
    - Exact parity with the published catalog for the authenticated caller
@@ -33,11 +32,15 @@ helpers seed Memory, authenticate test users, and verify the deployed path.
 
 4. **AgentCore Policy** — A managed Cedar engine attached to Gateway in
    `ENFORCE` mode:
-   - Explicit permits for the reviewed catalog and owner-scoped customer reads
-   - Shopper returns require `reason == "damaged"`; Lab 4 adds ownership.
-     Staff returns and credits use separate staff-scoped permits
+   - Explicit permits for the shopper-safe catalog reads and the two
+     owner-scoped customer reads (`get_orders`, and `get_tickets` once
+     Lab 3A publishes it)
+   - One staff-scoped permit for `give_store_credit`, with no amount limit;
+     Lab 4 authors the $100 per-credit forbid on top of it
    - A managed output guardrail can suppress a tool response after execution
-   - Provisioning executes a real ALLOW and DENY before reporting ready
+   - The Lab 4 policy proof (shopper DENY, staff ALLOW within the limit, staff
+     DENY over it) runs against the deployed Gateway from the lab, not from
+     provisioning
 
 5. **AgentCore Runtime** — Separate shopper and staff managed HTTP runtimes:
    - Shopper invocation requires a Cognito access token through `CUSTOM_JWT`
@@ -90,23 +93,23 @@ backend environment.
 `scripts/provision_agentcore_end_to_end.py` is the canonical orchestrator.
 `deploy_all.sh` calls it. The full provisioning path runs these phases:
 
-1. Package and deploy the search, pricing, recommendation, and experience
-   Lambda functions.
+1. Package and deploy the store-tools Lambda function, with
+   `services/store_tools.py` and its two retrieval modules staged into the zip.
 2. Scaffold one stateful `@aws/agentcore@0.29.0` project with
    `agentcore create`.
-3. Render Runtime, Memory, Gateway, four Lambda target registrations, and the
-   Policy engine into the CLI project. AgentCore role ARNs are intentionally
+3. Render Runtime, Memory, Gateway, the one Lambda target registration, and
+   the Policy engine into the CLI project. AgentCore role ARNs are intentionally
    omitted so CLI/CDK creates the managed service roles.
 4. Run `agentcore validate` and `agentcore deploy`.
 5. After Gateway has published its action catalog, render the baseline Cedar
    set and run the same validate/deploy sequence again.
 6. Authenticate with Cognito, verify the caller-scoped live catalog, prove
-   extraction and retrieval for all four Memory strategies, prove Policy
-   ALLOW/DENY, invoke both runtimes, and verify correlated trace delivery.
+   extraction and retrieval for all four Memory strategies, invoke both
+   runtimes, and verify correlated trace delivery.
 
 For unattended bootstrap, use
 `scripts/provision_agentcore_end_to_end.py`; it adds target/tool verification,
-live Policy ALLOW/DENY proof, a customer-managed KMS key plus bounded retention
+a customer-managed KMS key plus bounded retention
 for the Runtime log group, and a structured readiness receipt. Its required
 inputs include `AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN` and
 `AGENTCORE_RUNTIME_LOG_RETENTION_DAYS` (a finite CloudWatch Logs retention
@@ -116,16 +119,13 @@ value, `30` in the workshop template).
 
 | File                              | Purpose                                        |
 | --------------------------------- | ---------------------------------------------- |
-| `pellier_search_server.py`         | Lambda MCP server for search + inventory       |
-| `pellier_pricing_server.py`        | Lambda MCP server for pricing                  |
-| `pellier_recommend_server.py`      | Lambda MCP server for curation + evidence      |
-| `pellier_experience_server.py`     | Lambda MCP server for returns + escalation     |
+| `pellier_store_tools.py`          | The one Lambda MCP server: nine store tools on one target |
+| `common/dataapi.py`               | RDS Data API runner and Bedrock embed/rerank for the Lambda |
 | `deploy_lambda.py`                | Lambda deployment script (adapted from DAT403) |
-| `gateway_tool_schemas.py`         | Four-target catalog and participant publication boundary   |
+| `gateway_tool_schemas.py`         | One-target catalog and participant publication boundary   |
 | `render_agentcore_project.py`     | Writes the declarative AgentCore CLI project   |
 | `seed_agentcore_memory.py`        | Proves all-four extraction, then seeds source conversations  |
 | `verify_memory_readiness.py`    | Isolated real extraction, record-ID and namespace proof |
-| `gateway_initiate_return.py`       | Live ALLOW/DENY and JWT-bound receipt proof    |
 | `../../pellier/backend/agentcore_runtime.py` | **Deployed** BYO Runtime entrypoint; JWT + Gateway required |
 | `../../pellier/backend/pyproject.toml` | CodeZip dependencies for the BYO agent         |
 | `deploy_all.sh`                   | Thin recovery wrapper around the provisioner   |

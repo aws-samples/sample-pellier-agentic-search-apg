@@ -135,7 +135,7 @@ def _valid_receipt() -> dict[str, Any]:
                 "span_count": 3,
                 "span_names": [
                     "chat",
-                    "execute_tool search_products_hybrid",
+                    "execute_tool search_products",
                     "invoke_agent pellier_orchestrator",
                 ],
                 "agent_span": True,
@@ -155,7 +155,7 @@ def _valid_receipt() -> dict[str, Any]:
                 "step_latency_observed": True,
                 "step_latency_ms": {"agent": 125, "model": 80, "tool": 30},
                 "model_ids": ["global.anthropic.claude-sonnet-5"],
-                "tool_names": ["search_products_hybrid"],
+                "tool_names": ["search_products"],
                 "provenance": "agentcore-unified-telemetry",
             },
         },
@@ -326,9 +326,9 @@ def test_receipt_matches_the_real_provisioner_catalogue() -> None:
     spec.loader.exec_module(provisioner)
     receipt = _valid_receipt()
     receipt["verification"]["local_tool_schema"] = provisioner._verify_local_schema()
-    assert provisioner.INITIATE_RETURN_ACTION in (
-        receipt["verification"]["gateway_prefixed_tool_names"]
-    )
+    prefixed = receipt["verification"]["gateway_prefixed_tool_names"]
+    assert "pellier-store-tools___check_stock" in prefixed
+    assert "pellier-store-tools___give_store_credit" not in prefixed
     assert _load_validator().validate_receipt(receipt) == []
     assert receipt["verification"]["gateway_tool_count"] < (
         receipt["verification"]["local_tool_schema"]["count"]
@@ -356,7 +356,7 @@ def test_matching_counts_cannot_hide_a_wrong_tool_contract(path, replacement) ->
 
 def test_staff_tool_cannot_replace_a_shopper_tool_at_the_same_count() -> None:
     receipt = _valid_receipt()
-    receipt["verification"]["gateway_tool_names"][0] = "issue_credit"
+    receipt["verification"]["gateway_tool_names"][0] = "give_store_credit"
     assert _load_validator().validate_receipt(receipt)
 
 
@@ -364,7 +364,7 @@ def test_validator_follows_source_catalogue_changes(monkeypatch) -> None:
     _load_validator()
     import gateway_tool_schemas as schemas
 
-    config = schemas.TOOL_SCHEMAS["search"]
+    config = schemas.TOOL_SCHEMAS["store"]
     monkeypatch.setitem(
         config, "tools", [*config["tools"], {"name": "future_catalogue_read"}]
     )
@@ -388,7 +388,7 @@ def test_participant_catalogue_change_keeps_full_bootstrap_proof(monkeypatch, tm
     full = _valid_receipt()
     import gateway_tool_schemas as schemas
 
-    config = schemas.TOOL_SCHEMAS["search"]
+    config = schemas.TOOL_SCHEMAS["store"]
     monkeypatch.setitem(config, "tools", [*config["tools"], {"name": "future_catalogue_read"}])
     participant = _participant_receipt(_valid_receipt())
     assert validator.validate_receipt(full), "the historical catalogue is stale"
@@ -418,7 +418,7 @@ def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str
     elif failure == "discovery":
         participant["verification"]["gateway_tools_discovered"] = False
     elif failure == "catalogue":
-        participant["verification"]["gateway_tool_names"][0] = "issue_credit"
+        participant["verification"]["gateway_tool_names"][0] = "give_store_credit"
     else:
         participant["verification"]["gateway_control_plane"]["policy_mode"] = "LOG_ONLY"
     assert _load_validator().validate_receipt(full, participant)
@@ -492,7 +492,7 @@ def test_produced_trace_with_unnamed_transport_spans_passes_readiness(redacted: 
 
     assert trace["span_count"] == 7
     assert trace["span_names"] == [
-        "chat", "execute_tool search_products_hybrid", "invoke_agent pellier_orchestrator",
+        "chat", "execute_tool search_products", "invoke_agent pellier_orchestrator",
     ]
     assert _load_validator().validate_receipt(receipt) == []
 

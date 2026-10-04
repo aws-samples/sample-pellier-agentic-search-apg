@@ -42,44 +42,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import boto3
 
 from config import settings
+from services.catalog_vocabulary import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN_TAGS
 
 logger = logging.getLogger(__name__)
-
-
-# Catalog facets — kept in sync with pellier.product_catalog seed data.
-# The categories are the eight store departments (`DEPARTMENTS` in
-# scripts/seed_pellier_catalog.py). If the catalog adds a department or tag,
-# update both lists. The enum whitelist below uses these to drop
-# hallucinated model values.
-KNOWN_CATEGORIES: List[str] = [
-    "Clothing",
-    "Shoes",
-    "Bags and travel",
-    "Accessories",
-    "Home",
-    "Kitchen and table",
-    "Bath and body",
-    "Stationery and gifts",
-]
-
-KNOWN_TAGS: List[str] = [
-    "accessories", "activewear", "apothecary", "artisanal", "beauty",
-    "candle", "canvas", "ceramic", "classic", "earth", "everyday",
-    "footwear", "gift", "home", "leather", "linen", "loungewear",
-    "merino", "minimal", "neutral", "resort", "sculptural", "slow",
-    "timeless", "travel", "warm", "watch", "wellness",
-]
-
-# Everything a product is made of, components and blends included. A material
-# exclusion ("no wool") is enforced against this list, because the merchandising
-# tags above name only a product's main material. Merino and cashmere products
-# also list wool; suede is leather; stoneware and terracotta are ceramic.
-KNOWN_MATERIALS: List[str] = [
-    "acetate", "beeswax", "brass", "canvas", "cashmere", "ceramic", "cotton", "foam",
-    "glass", "gold", "iron", "jute", "leather", "linen", "merino", "nylon", "paper",
-    "polyester", "rattan", "rubber", "seagrass", "silicone", "silk", "silver",
-    "soy wax", "steel", "stone", "straw", "wood", "wool",
-]
 
 
 _SYSTEM_PROMPT = """You extract structured retrieval filters from a shopper's \

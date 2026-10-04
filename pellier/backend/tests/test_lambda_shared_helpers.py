@@ -1,16 +1,16 @@
-"""The Gateway surface Lambdas must share their transport, not copy it.
+"""The store-tools Lambda must share its transport with common/, not copy it.
 
-Four Lambda servers reach Aurora through the RDS Data API. Each had grown its
-own copy of the same plumbing, and the copies had drifted: one transaction
-helper silently dropped `booleanValue` and `isNull`, and the two embedding
-helpers stated the same vector-space warning in different words.
+The Lambda reaches Aurora through the RDS Data API. An earlier generation had four
+servers, each with its own copy of the same plumbing, and the copies drifted: one
+transaction helper silently dropped `booleanValue` and `isNull`, and two embedding
+helpers diverged on the model.
 
 Neither drift raises. A dropped boolean reads as missing data; a diverged
 embedding model ranks wrongly while returning a full result set. So the guard
 has to be structural, not behavioral.
 
 The packaging test is the one that protects a fresh deploy. `deploy_lambda.py`
-builds each zip from an explicit file map, so importing a new shared module
+builds the zip from an explicit file map, so importing a new shared module
 without adding it there produces a `ModuleNotFoundError` on the first Gateway
 call, long after the deploy reported success.
 """
@@ -26,17 +26,14 @@ from typing import Dict, List, Set, Tuple
 import pytest
 
 DEPLOY = Path(__file__).resolve().parents[3] / "scripts" / "deploy"
-SURFACES = sorted(DEPLOY.glob("pellier_*_server.py"))
+SURFACES = sorted(DEPLOY.glob("pellier_*.py"))
 DEPLOY_LAMBDA = DEPLOY / "deploy_lambda.py"
 
-# Handlers are legitimately per-surface: each dispatches a different slice of
-# the 15-tool contract, so their bodies differ by design.
-_PER_SURFACE = {"lambda_handler"}
 
 
-def test_the_surfaces_were_found() -> None:
+def test_the_store_lambda_is_the_only_surface() -> None:
     """Guards against a rename turning every assertion below vacuous."""
-    assert len(SURFACES) == 4, [p.name for p in SURFACES]
+    assert [p.name for p in SURFACES] == ["pellier_store_tools.py"]
 
 
 def _functions(path: Path) -> Dict[str, Tuple[str, int]]:
@@ -56,24 +53,8 @@ def _functions(path: Path) -> Dict[str, Tuple[str, int]]:
     return found
 
 
-def test_no_helper_body_is_copied_between_surfaces() -> None:
-    """An identical body in two files is a copy waiting to diverge."""
-    seen: Dict[Tuple[str, str], List[str]] = {}
-    for path in SURFACES:
-        for name, (digest, _) in _functions(path).items():
-            if name in _PER_SURFACE:
-                continue
-            seen.setdefault((name, digest), []).append(path.name)
-
-    copies = {key: files for key, files in seen.items() if len(files) > 1}
-
-    assert not copies, "identical bodies in multiple surfaces; move to common/: " + ", ".join(
-        f"{name} in {files}" for (name, _), files in sorted(copies.items())
-    )
-
-
 def test_transport_helpers_live_in_the_shared_module_only() -> None:
-    """These specific helpers are transport, so no surface may redefine one.
+    """These specific helpers are transport, so the Lambda may not redefine one.
 
     Listed by name rather than inferred: a near-copy that differs by a comment
     would slip past the identical-body test above, which is exactly how the
@@ -117,9 +98,54 @@ def test_every_shared_import_is_packaged_into_the_zip() -> None:
         )
 
 
+def test_the_zip_stages_every_backend_module_the_lambda_imports() -> None:
+    """`from services import store_tools` and the schema module are staged too."""
+    deploy_lambda = _deploy_lambda()
+    staged = set(deploy_lambda.SHARED_MODULES)
+    assert {
+        "gateway_tool_schemas.py",
+        "services/__init__.py",
+        "services/store_tools.py",
+        "services/retrieval_receipt.py",
+        "services/search_plan.py",
+        "services/catalog_vocabulary.py",
+    } <= staged
+    for path in SURFACES:
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if isinstance(node, ast.ImportFrom) and node.module == "services":
+                for alias in node.names:
+                    assert f"services/{alias.name}.py" in staged, alias.name
+            if isinstance(node, ast.ImportFrom) and node.module == "gateway_tool_schemas":
+                assert "gateway_tool_schemas.py" in staged
+
+
+def test_the_staged_files_resolve_next_to_the_server_entrypoint() -> None:
+    deploy_lambda = _deploy_lambda()
+    resolved = deploy_lambda.shared_module_paths(str(DEPLOY / "pellier_store_tools.py"))
+    assert set(resolved) == set(deploy_lambda.SHARED_MODULES)
+    for target, path in resolved.items():
+        assert Path(path).is_file(), f"{target} resolves to a missing file: {path}"
+
+
+def test_the_deploy_defaults_name_the_one_store_lambda() -> None:
+    source = DEPLOY_LAMBDA.read_text()
+    assert "default='pellier-store-tools-server'" in source
+    assert "default='pellier_store_tools.lambda_handler'" in source
+
+
 def test_the_packaged_shared_modules_exist_on_disk() -> None:
     for module in re.findall(r"'(common/[a-z_]+\.py)'", DEPLOY_LAMBDA.read_text()):
         assert (DEPLOY / module).is_file(), f"{module} is packaged but absent"
+
+
+def _deploy_lambda():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("deploy_lambda_under_test", DEPLOY_LAMBDA)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_every_standalone_boto3_client_in_deploy_lambda_pins_region() -> None:
@@ -236,41 +262,32 @@ def test_parameters_are_omitted_when_absent_rather_than_sent_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_audit_writer_demands_an_explicit_session_handle() -> None:
-    """The two callers key differently, so a default would silently mislabel.
+def test_the_audit_writers_demand_an_explicit_session_handle() -> None:
+    """Callers key differently, so a default would silently mislabel.
 
-    A customer-scoped tool keys on `gateway-<customer_id>`; an operator tool
-    like `restock_inventory` has no customer in its arguments and keys on a role
-    handle. A default here would write one of those onto the other's rows.
+    A credit keys on `gateway-<customer_id>`; a read keys on the route-minted turn
+    id. A default here would write one of those onto the other's rows.
     """
     import inspect
 
-    signature = inspect.signature(_dataapi().write_tool_audit)
-    session = signature.parameters["session_id"]
-
-    assert session.default is inspect.Parameter.empty
-    assert session.kind is inspect.Parameter.KEYWORD_ONLY
-
-
-def test_each_surface_keys_its_audit_rows_deliberately() -> None:
-    """Both wrappers must state their session handle at the call site."""
-    # Two writers, deliberately. `restock_inventory` keeps the in-transaction
-    # receipt; the reviewable actions write independently so an Aurora denial
-    # still leaves an attempt receipt behind.
-    handles = {
-        "pellier_search_server.py": ("gateway-stock-keeper", "write_tool_audit("),
-        "pellier_experience_server.py": (
-            "gateway-{customer_id}",
-            "_write_tool_audit_independently(",
-        ),
-    }
-    for filename, (expected, writer) in handles.items():
-        body = (DEPLOY / filename).read_text()
-        assert writer in body, f"{filename} no longer audits via {writer}"
-        assert expected in body, f"{filename} lost its session handle {expected!r}"
+    dataapi = _dataapi()
+    for writer in (dataapi.write_tool_audit, dataapi.write_tool_audit_independently):
+        session = inspect.signature(writer).parameters["session_id"]
+        assert session.default is inspect.Parameter.empty, writer.__name__
+        assert session.kind is inspect.Parameter.KEYWORD_ONLY, writer.__name__
 
 
-def test_the_audit_row_is_written_inside_the_caller_s_transaction() -> None:
+def test_the_lambda_keys_its_audit_rows_deliberately() -> None:
+    """Both call sites must state their session handle at the call site."""
+    body = (DEPLOY / "pellier_store_tools.py").read_text()
+    assert "write_tool_audit_independently(" in body
+    assert "session_id=f\"gateway-{execution_arguments.get('customer_id') or 'unknown'}\"" in body
+    handler = (DEPLOY / "common" / "handler.py").read_text()
+    assert "session_id=turn_id" in handler
+    assert 'startswith("turn-")' in handler
+
+
+def test_the_in_transaction_audit_row_binds_the_callers_transaction() -> None:
     """A row that commits separately can outlive a rolled-back mutation."""
     import inspect
 
@@ -278,3 +295,12 @@ def test_the_audit_row_is_written_inside_the_caller_s_transaction() -> None:
 
     assert "transactionId=transaction_id" in source
     assert "caller" in source and "gateway" in source
+
+
+def test_the_independent_audit_row_commits_in_its_own_transaction() -> None:
+    import inspect
+
+    source = inspect.getsource(_dataapi().write_tool_audit_independently)
+
+    assert "transactionId" not in source
+    assert "'gateway'" in source

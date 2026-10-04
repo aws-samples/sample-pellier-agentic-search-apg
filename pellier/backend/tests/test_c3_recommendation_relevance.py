@@ -1,9 +1,8 @@
-"""Relevance test for the recommendation specialist `recommendation` agent.
+"""Relevance test for the Shopping agent.
 
-  The specialist is a Strands `Agent` wrapping `BedrockModel` with
-         the Opus 5 support factory and the four tools
-         `[search_products, get_trending_products, compare_products,
-         browse_category]`.
+  The agent is a Strands `Agent` wrapping `BedrockModel` on Opus 5 with the
+         four tools `[search_products, browse_department, compare_products,
+         ask_a_person]`.
   The system prompt emphasizes warm, editorial, catalog-style
          reasoning grounded in specific product attributes.
   Calling the agent with `something for warm evenings out` returns
@@ -13,7 +12,7 @@
          or Cashmere-Blend Cardigan pass; Signature Straw Tote fails.
 
 Bedrock is stubbed - no live model call. The test swaps the `Agent` symbol
-imported into `agents.personalization_agent` for a stub that returns a
+imported into `agents.shopping_agent` for a stub that returns a
 canned answer mentioning `Sundress in Washed Linen`. The test then parses
 that response, looks up the product's tags from the showcase-product table,
 and asserts the required overlap.
@@ -132,21 +131,17 @@ def _reset_stub_state() -> Iterable[None]:
 
 @pytest.fixture
 def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
-    """Return the `recommendation` agent's underlying callable with
+    """Return a callable that builds the Shopping agent and runs one turn, with
     Strands `Agent` + `BedrockModel` swapped for the stubs above."""
-    import agents.personalization_agent as rec
+    import agents.shopping_agent as shopping
 
-    monkeypatch.setattr(rec, "Agent", _StubAgent)
-    monkeypatch.setattr(rec, "BedrockModel", _StubBedrockModel)
+    monkeypatch.setattr(shopping, "Agent", _StubAgent)
+    monkeypatch.setattr(shopping, "BedrockModel", _StubBedrockModel)
 
-    # Reach past the @tool decorator to the original function so we can
-    # call it directly in a test. Same pattern as test_agent_tools.py.
-    fn = getattr(
-        rec.recommendation,
-        "__wrapped__",
-        rec.recommendation,
-    )
-    return fn
+    def run(query: str) -> str:
+        return shopping.build_shopping_agent()(query)
+
+    return run
 
 
 # ---------------------------------------------------------------------------
@@ -154,29 +149,25 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 # ---------------------------------------------------------------------------
 
 
-def test_personalization_agent_is_constructed_with_per_agent_model_mix_and_seven_tools(
+def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
     stubbed_specialist,
 ) -> None:
-    """Building the Personalization Agent SHALL match the per-agent model mix
-    documented in the Workshop Studio repo's content/ model-mix sidebar:
+    """Building the Shopping agent SHALL use:
 
       - Claude Opus 5 (BEDROCK_OPUS_MODEL)
       - no temperature field; Bedrock rejects that deprecated field for
         Opus 5
-      - exactly seven tools: search_products_hybrid + get_trending_products +
-        get_customer_preferences + get_audit_trail + compare_products +
-        browse_category + escalate_to_human.
+      - exactly four tools: search_products + browse_department +
+        compare_products + ask_a_person.
 
-    ``search_products_hybrid`` is the Personalization Agent's anchor capability (Anna's
-    pgvector + Postgres FTS + Cohere Rerank pipeline). Other specialists keep
-    plain ``search_products``. ``get_customer_preferences`` and ``get_audit_trail`` are
-    read-only proof tools; ``escalate_to_human`` is the honest fallback when
-    the catalog tools can't answer (sympathy gifting, sentimental milestones,
-    deep style coaching beyond the catalog).
+    ``search_products`` is the anchor capability (pgvector + Postgres FTS +
+    Cohere Rerank). ``ask_a_person`` is the honest fallback when the catalog
+    tools can't answer (sympathy gifting, sentimental milestones, deep style
+    coaching beyond the catalog).
     """
     _StubAgent.canned_reply = "A canned response - ignored by this test."
 
-    stubbed_specialist(query="anything")
+    stubbed_specialist("anything")
 
     kwargs = _StubAgent.last_kwargs
     assert "model" in kwargs, "Agent SHALL be constructed with a model= kwarg"
@@ -185,46 +176,64 @@ def test_personalization_agent_is_constructed_with_per_agent_model_mix_and_seven
     assert kwargs["model"].kwargs["max_tokens"] == 1200
     assert "temperature" not in kwargs["model"].kwargs
 
-    tool_names = [getattr(t, "__name__", repr(t)) for t in kwargs.get("tools", [])]
     # Strands @tool produces a DecoratedFunctionTool; unwrap to expose the
-    # original function name. Fall back to whatever was captured.
+    # original function name.
     unwrapped = []
     for t in kwargs.get("tools", []):
         inner = getattr(t, "__wrapped__", t)
         unwrapped.append(getattr(inner, "__name__", repr(inner)))
 
     assert set(unwrapped) == {
-        "search_products_hybrid",
-        "get_trending_products",
-        "get_customer_preferences",
-        "get_audit_trail",
+        "search_products",
+        "browse_department",
         "compare_products",
-        "browse_category",
-        "escalate_to_human",
-    }, f"expected the seven Personalization Agent tools, got {unwrapped!r} / {tool_names!r}"
+        "ask_a_person",
+    }, f"expected the four Shopping agent tools, got {unwrapped!r}"
 
 
-def test_agent_system_prompt_references_recommendation_voice(
+def test_catalog_turn_policy_withholds_the_handoff_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An ordinary catalog turn is built without ``ask_a_person``."""
+    import agents.shopping_agent as shopping
+
+    monkeypatch.setattr(shopping, "Agent", _StubAgent)
+    monkeypatch.setattr(shopping, "BedrockModel", _StubBedrockModel)
+
+    shopping.build_shopping_agent(allow_handoff=False)
+
+    names = {
+        getattr(getattr(t, "__wrapped__", t), "__name__", "")
+        for t in _StubAgent.last_kwargs["tools"]
+    }
+    assert names == {"search_products", "browse_department", "compare_products"}
+
+
+def test_agent_system_prompt_references_shopping_voice(
     stubbed_specialist,
 ) -> None:
-    """System prompt SHALL come from copy.RECOMMENDATION_SYSTEM_PROMPT and
-    SHALL include the warm / editorial / catalog-style framing from Req 2.4.4.
+    """System prompt SHALL come from pellier_copy.SHOPPING_SYSTEM_PROMPT and
+    SHALL include the warm, plain, brief shop-assistant framing and the
+    persona-context block.
 
-    The self-description is asserted in `specialist` vocabulary on purpose. The
-    architecture name is Personalization Agent, but `pellier_copy.py` is scanned
-    by `test_copy_compliance` and VOICE.md forbids the word `agent` in anything
-    the shopper can hear, so the prompt may not name itself that way.
+    The self-description is asserted in `specialist` vocabulary on purpose.
+    `pellier_copy.py` is scanned by `test_copy_compliance` and VOICE.md forbids
+    the word `agent` in anything the shopper can hear, so the prompt may not
+    name itself that way.
     """
+    from pellier_copy import SHOPPING_SYSTEM_PROMPT
+
     _StubAgent.canned_reply = "stub"
-    stubbed_specialist(query="anything")
+    stubbed_specialist("anything")
 
     prompt = _StubAgent.last_kwargs.get("system_prompt", "")
     assert isinstance(prompt, str) and prompt, "system_prompt SHALL be a non-empty str"
+    assert SHOPPING_SYSTEM_PROMPT in prompt
     lowered = prompt.lower()
-    assert "personalization specialist" in lowered or "recommendation specialist" in lowered
     assert "warm" in lowered
-    assert "editorial" in lowered
-    assert "catalog" in lowered
+    assert "plain and brief" in lowered
+    assert "made of" in lowered
+    assert "persona-context" in lowered
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +253,7 @@ def test_warm_evenings_recommendation_tags_overlap_evening_set(
         "evenings out."
     )
 
-    response = stubbed_specialist(query="something for warm evenings out")
+    response = stubbed_specialist("something for warm evenings out")
 
     # The specialist wraps the agent's response; the canned reply should
     # survive into the final returned text (possibly with a trailing JSON

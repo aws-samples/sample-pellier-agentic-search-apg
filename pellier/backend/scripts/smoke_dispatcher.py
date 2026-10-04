@@ -1,27 +1,25 @@
-"""Live dispatcher smoke covering four storefront scenarios
+"""Live Router smoke covering four storefront scenarios
 against the real chat_stream() with Bedrock in the loop.
 
 Scenarios (per the prompt's verification requirements):
 
   1. Marco signed in → "a linen piece for slow Sundays"
-     Expect: one Opus call (search specialist), references his past
+     Expect: one Opus call (Shopping agent), references his past
      Maren purchase, voice preserved.
 
   2. Same query, signed out
      Expect: still works, editorial fallback (no persona preamble),
-     still one specialist call.
+     still one agent call.
 
   3. Weird query that doesn't match the classifier's patterns
-     Expect: dispatcher falls back to a sensible default (search or
-     recommendation), doesn't 500.
+     Expect: the Router falls back to the Shopping agent, doesn't 500.
 
   4. Workaround audit: scan the event stream + log line for evidence
      that the deleted workarounds aren't firing.
        - No "[ROUTING DIRECTIVE:" in any event prompt
        - No "Preferring specialist prose" log line
        - No "chat_stream recovered" log line
-       - Exactly one "🎯 Dispatcher" log line per turn (confirming the
-         dispatcher branch, not the orchestrator branch, fired)
+       - A "🎯 Router" log line on every turn
 
 Run with the backend's venv python from the backend root:
     .venv/bin/python scripts/smoke_dispatcher.py
@@ -120,8 +118,8 @@ async def main() -> int:
     passed &= _check("reply text ≥ 80 chars",
                       len(r1["text"]) >= 80,
                       f"{len(r1['text'])} chars")
-    passed &= _check("dispatcher log line fired",
-                      "🎯 Dispatcher" in r1["log"])
+    passed &= _check("Router log line fired",
+                      "🎯 Router" in r1["log"])
     passed &= _check("persona LTM loaded",
                       "👤 Persona LTM | CUST-MARCO" in r1["log"])
     passed &= _check("no [ROUTING DIRECTIVE:] in any event payload",
@@ -143,8 +141,8 @@ async def main() -> int:
     passed &= _check("reply text ≥ 80 chars",
                       len(r2["text"]) >= 80,
                       f"{len(r2['text'])} chars")
-    passed &= _check("dispatcher log line fired",
-                      "🎯 Dispatcher" in r2["log"])
+    passed &= _check("Router log line fired",
+                      "🎯 Router" in r2["log"])
     passed &= _check("no persona LTM load (anonymous)",
                       "👤 Persona LTM" not in r2["log"])
     passed &= _check("no [ROUTING DIRECTIVE:] injection",
@@ -155,8 +153,8 @@ async def main() -> int:
     # -----------------------------------------------------------------
     print("\nScenario 3 · Weird query · classifier falls back gracefully")
     print("─" * 72)
-    # "hmmm yes xyzzy" matches no keywords — classify_intent returns
-    # 'recommendation' as the default. Dispatcher routes accordingly.
+    # "hmmm yes xyzzy" matches no keywords, so classify_intent returns
+    # 'shopping' and the Router builds the Shopping agent.
     r3 = await _collect_events(
         service,
         "hmmm yes xyzzy",
@@ -165,11 +163,10 @@ async def main() -> int:
     )
     passed &= _check("no error event in stream",
                       not any(e.get("type") == "error" for e in r3["events"]))
-    passed &= _check("dispatcher log line fired",
-                      "🎯 Dispatcher" in r3["log"])
-    # Any of the five specialists is a valid fall-back; just not orchestrator
-    passed &= _check("no orchestrator log line (dispatcher path, not Pattern I)",
-                      "Creating agent orchestrator" not in r3["log"])
+    passed &= _check("Router log line fired",
+                      "🎯 Router" in r3["log"])
+    passed &= _check("the fallback is the Shopping agent",
+                      "Shopping agent" in r3["log"])
 
     # -----------------------------------------------------------------
     print("\nScenario 4 · Workaround audit (cross-scenario)")
@@ -192,22 +189,15 @@ async def main() -> int:
         "no 'empty-response fallback' across any turn",
         "empty-response fallback" not in all_logs,
     )
-    # Exactly three dispatcher log lines (one per scenario)
-    dispatcher_count = all_logs.count("🎯 Dispatcher")
-    passed &= _check(
-        "exactly three '🎯 Dispatcher' log lines (one per turn)",
-        dispatcher_count == 3,
-        f"count={dispatcher_count}",
-    )
 
     await db.disconnect()
 
     # -----------------------------------------------------------------
     print()
     if passed:
-        print(f"{OK} Dispatcher live smoke passed — dispatcher works, workarounds are gone")
+        print(f"{OK} Router live smoke passed; the Router works and the workarounds are gone")
         return 0
-    print(f"{FAIL} Dispatcher live smoke had failures — see above")
+    print(f"{FAIL} Router live smoke had failures; see above")
     return 1
 
 

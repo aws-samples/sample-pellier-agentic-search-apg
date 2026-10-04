@@ -40,7 +40,7 @@ MODELS = [
     {
         "name": "Claude Opus 5",
         "model_id": "global.anthropic.claude-opus-5",
-        # Editorial specialists (Search Agent, Personalization Agent, Customer Service Agent).
+        # The Shopping and Support agents.
         # NOT hard-required: if Opus is denied but a Sonnet fallback
         # below passes, the session still runs (editorial agents fall back to
         # Sonnet via BEDROCK_OPUS_MODEL). main() enforces "Opus OR Sonnet".

@@ -294,13 +294,12 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
         <div className="operator-case-entry-copy">
           <div className="operator-case-entry-headline">
             <h2 id="operator-theo-care-title">{theo.name}</h2>
-            <span className="operator-case-entry-kicker">Replacement care</span>
+            <span className="operator-case-entry-kicker">Return case</span>
           </div>
-          <p className="operator-case-entry-brief">Review the exact order, discuss the remedy, and follow any approved replacement through fulfillment.</p>
+          <p className="operator-case-entry-brief">Review the exact order and discuss the remedy.</p>
         </div>
         <div className="operator-case-entry-actions">
           <Link className="operator-case-entry-action" onClick={rememberPosition} to={`/operator/clients/${encodeURIComponent(theo.customerId)}#operator-concierge`}>Open Theo’s chat</Link>
-          <Link className="operator-case-entry-guided" onClick={rememberPosition} to={`/operator/clients/${encodeURIComponent(theo.customerId)}#operator-replacement-care`}>Open replacement care</Link>
         </div>
       </section> : null}
 

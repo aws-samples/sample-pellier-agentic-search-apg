@@ -9,8 +9,8 @@ a symptom.
 
     Lab 1  Migration 046's citation columns present; a retrieval receipt exists
            for this run.
-    Lab 2  Aurora reachable; check_inventory wired past the stub; the Inventory
-           Agent definition no longer stubbed.
+    Lab 2  Aurora reachable; check_stock wired past the stub; the Stock agent
+           definition no longer stubbed.
     Lab 3  The service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a turn
            receipt in this run records the gateway-mcp rail, and a turn in this
@@ -51,18 +51,17 @@ import build_receipt  # noqa: E402  (sibling script: dotenv, DSN, run id shape)
 PASS = "PASS"
 FAIL = "FAIL"
 
-TOOL_BLOCK_START = "# === WORKSHOP - Inventory Agent - check_inventory: START ==="
-TOOL_BLOCK_END = "# === WORKSHOP - Inventory Agent - check_inventory: END ==="
-TOOL_STUB_MARKERS = ("check_inventory is in stub state", "received_product_query")
-AGENT_STUB_MARKER = "_INVENTORY_AGENT_STUBBED = True"
+TOOL_BLOCK_START = "# === WORKSHOP - Stock agent - check_stock: START ==="
+TOOL_BLOCK_END = "# === WORKSHOP - Stock agent - check_stock: END ==="
+TOOL_STUB_MARKERS = ("check_stock is in stub state", "received_product_query")
+AGENT_STUB_MARKER = "_STOCK_AGENT_STUBBED = True"
 # The SQL keyword, not the English words `selected` and `selection`, which a
 # stub envelope can easily contain.
 _SELECT_KEYWORD = re.compile(r"\bSELECT\b", re.IGNORECASE)
 
 CEDAR_POLICY = "policies/workshop_identity_match_forbid.cedar"
 CEDAR_STARTER = "workshop/starters/workshop_identity_match_forbid.cedar"
-CONTEXT_POLICY = "policies/advanced_verified_customer_context.dogwood"
-POLICY_FILES = (CEDAR_POLICY, CONTEXT_POLICY)
+POLICY_FILES = (CEDAR_POLICY,)
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
 _MIGRATION_046 = """
@@ -224,7 +223,7 @@ def _row_for_run(
 
 
 def _tool_wired(source: str) -> Check:
-    name = "check_inventory wired"
+    name = "check_stock wired"
     start = source.find(TOOL_BLOCK_START)
     end = source.find(TOOL_BLOCK_END)
     if start < 0 or end < 0 or end < start:
@@ -232,10 +231,10 @@ def _tool_wired(source: str) -> Check:
     block = source[start + len(TOOL_BLOCK_START):end]
     if any(marker in block for marker in TOOL_STUB_MARKERS):
         return Check(name, False, "the marker block still returns the shipped stub envelope")
-    if "check_inventory(" not in block and not _SELECT_KEYWORD.search(block):
+    if "check_stock(" not in block and not _SELECT_KEYWORD.search(block):
         return Check(name, False, "the marker block has no query: it neither calls "
-                                  "BusinessLogic.check_inventory nor runs SQL")
-    return Check(name, True, "marker block calls into the inventory read")
+                                  "store_tools.check_stock nor runs SQL")
+    return Check(name, True, "marker block calls into the stock read")
 
 
 def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
@@ -244,20 +243,20 @@ def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[
         tool_source = (backend / "services" / "agent_tools.py").read_text(encoding="utf-8")
         checks.append(_tool_wired(tool_source))
     except OSError as exc:
-        checks.append(Check("check_inventory wired", False, f"unreadable: {exc}"))
+        checks.append(Check("check_stock wired", False, f"unreadable: {exc}"))
     try:
-        agent_source = (backend / "agents" / "inventory_agent.py").read_text(encoding="utf-8")
+        agent_source = (backend / "agents" / "stock_agent.py").read_text(encoding="utf-8")
         stubbed = AGENT_STUB_MARKER in agent_source
         checks.append(
             Check(
-                "Inventory Agent defined",
+                "Stock agent defined",
                 not stubbed,
-                "_INVENTORY_AGENT_STUBBED is still True in agents/inventory_agent.py"
+                "_STOCK_AGENT_STUBBED is still True in agents/stock_agent.py"
                 if stubbed else "",
             )
         )
     except OSError as exc:
-        checks.append(Check("Inventory Agent defined", False, f"unreadable: {exc}"))
+        checks.append(Check("Stock agent defined", False, f"unreadable: {exc}"))
     return checks
 
 
@@ -371,7 +370,7 @@ def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
                 "the support specialist asks the Gateway for "
                 f"{', '.join(missing)}, which it does not publish"
             )
-            if "get_ticket_history" in missing:
+            if "get_tickets" in missing:
                 steps.append("Lab 3a (publish the customer-scoped read)")
         if staff_only:
             facts.append(
@@ -384,7 +383,7 @@ def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
         return Check(name, False, f"{'; '.join(facts)}: complete {remedy}")
     unbound = sorted(
         tool
-        for tool in ("get_ticket_history",)
+        for tool in ("get_tickets",)
         if tool in SUPPORT_MANAGED_TOOLS and tool not in SUPPORT_CALLER_BOUND_TOOLS
     )
     if unbound:
@@ -446,7 +445,7 @@ def lab3_checks(
 def _cedar_checks(repo: pathlib.Path) -> List[Check]:
     missing = [rel for rel in POLICY_FILES if not (repo / rel).is_file()]
     pair = Check(
-        "Cedar policy pair present in policies/",
+        "Cedar policy present in policies/",
         not missing,
         "missing: " + ", ".join(missing) if missing else ", ".join(POLICY_FILES),
     )
@@ -543,7 +542,7 @@ def _boundary_outcomes(evidence: Evidence, run_id: Optional[str]) -> Check:
         runs = summarize(bundle.get("rows") or [])["runs"]
         passed = bool(runs and runs[0]["complete"])
         return Check(name, passed, "" if passed else
-                     "run prove_governance_outcomes.py and inspect each incomplete boundary; output suppression is not rollback")
+                     "inspect each incomplete boundary; output suppression is not rollback")
     except Exception:
         return Check(name, False, "boundary evidence unavailable; verify migration 055 and the current run")
 

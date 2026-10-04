@@ -1,9 +1,7 @@
 """Ticket return claims against return records: two facts, kept apart.
 
-Lab 4's identity matrix (`scripts/prove_identity_boundary.py`) targets
-CUST-JESSICA and, on its ALLOW case, writes a real `pellier.returns` row for
-the lowest-id product she can return. The Operator service-recovery walkthrough
-is built on her ticket asserting returns the authoritative table does not carry.
+The Operator service-recovery walkthrough is built on Jessica's ticket
+asserting returns the authoritative table does not carry.
 
 An unscoped `asserts_return and not returns` let any return row -- including
 Lab 4's, on an unrelated product -- erase the human checkpoint. Scoping by

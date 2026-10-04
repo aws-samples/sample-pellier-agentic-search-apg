@@ -44,7 +44,7 @@ DEPLOY = Path(__file__).resolve().parent
 REPO = DEPLOY.parents[1]
 sys.path.insert(0, str(DEPLOY))
 
-from gateway_initiate_return import _load_env, _require  # noqa: E402
+from gateway_client import _load_env, _require  # noqa: E402
 
 HANDLER_FILE = DEPLOY / "cognito_customer_claim.py"
 LAMBDA_RUNTIME = "python3.12"

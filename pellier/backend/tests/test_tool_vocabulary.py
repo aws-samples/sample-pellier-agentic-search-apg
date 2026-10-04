@@ -1,10 +1,10 @@
 """The public tool vocabulary is frozen. This test stops it drifting back.
 
-Tool identifiers were renamed from boutique names to plain functional ones. That
-rename touched 166 files, and the names are load-bearing in places a careless
-edit would not obviously break:
+Tool identifiers were renamed from boutique names to plain functional ones, and
+the set was then cut to nine tools. The names are load-bearing in places a
+careless edit would not obviously break:
 
-  * Cedar action identifiers embed them (``..._target___initiate_return``), so a
+  * Cedar action identifiers embed them (``..._target___give_store_credit``), so a
     stale name means a policy that no longer matches its action;
   * ``tool_audit.tool`` records them, so evidence queries key off them;
   * the Lambda tool schemas publish them through the Gateway;
@@ -18,9 +18,8 @@ Two rules, both enforced below.
 
 2. **Database object names must NOT be renamed for cosmetic parity.**
    ``pellier.process_return_idempotent`` and ``pellier.restock_shelf_idempotent``
-   keep their names even though the public tools are ``initiate_return`` and
-   ``restock_inventory``. Migration 016 grants EXECUTE against those exact
-   identifiers; renaming them silently revokes permission on every deployed
+   keep their names even though no public tool carries them any more.
+   Migration 016 grants EXECUTE against those exact identifiers; renaming them silently revokes permission on every deployed
    cluster and surfaces as a governed write that stops working in production.
    The mismatch is deliberate, so this test asserts it *stays*.
 """
@@ -32,17 +31,41 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 
-# The frozen public vocabulary.
+# The frozen public vocabulary: the nine store tools.
 CANONICAL_TOOLS = (
-    "check_inventory",
-    "initiate_return",
-    "issue_credit",
-    "escalate_to_human",
-    "get_customer_preferences",
-    "get_audit_trail",
     "search_products",
-    "search_products_hybrid",
+    "browse_department",
+    "compare_products",
+    "check_stock",
+    "get_orders",
+    "get_return_policy",
+    "get_tickets",
+    "give_store_credit",
+    "ask_a_person",
 )
+
+# The vocabulary the nine-tool set replaced. The names are assembled from parts
+# so this file does not itself carry them, and they are checked only in the
+# runtime sources that must never name them (migrations keep them as history).
+_REPLACED_TOOL_PARTS = (
+    ("initiate", "return"),
+    ("issue", "credit"),
+    ("escalate", "to", "human"),
+    ("check", "inventory"),
+    ("get", "ticket", "history"),
+    ("restock", "inventory"),
+    ("replace", "damaged", "item"),
+    ("search", "products", "hybrid"),
+    ("browse", "category"),
+    ("get", "customer", "preferences"),
+    ("get", "audit", "trail"),
+    ("get", "trending", "products"),
+    ("get", "related", "products"),
+    ("get", "price", "analysis"),
+    ("get", "low", "stock"),
+)
+REPLACED_TOOL_NAMES = tuple("_".join(parts) for parts in _REPLACED_TOOL_PARTS)
+RUNTIME_SOURCE_ROOTS = ("pellier/backend", "scripts/deploy", "skills", "policies")
 
 # Retired public names. These may appear only in the allow-listed history files.
 RETIRED_TOOL_NAMES = (
@@ -166,8 +189,8 @@ def test_no_retired_public_tool_name_survives() -> None:
     for rel, text in _text_files():
         masked = _mask_protected(text)
         for retired in RETIRED_TOOL_NAMES:
-            # Word-bounded so `search_products_hybrid` does not trip on
-            # `search_products`, and so a masked identifier cannot match.
+            # Word-bounded so a longer name does not trip on a shorter
+            # one, and so a masked identifier cannot match.
             for match in re.finditer(rf"(?<![\w-]){re.escape(retired)}(?![\w-])", masked):
                 line = masked.count("\n", 0, match.start()) + 1
                 findings.append(f"  {rel}:{line}  {retired}")
@@ -193,25 +216,47 @@ def test_gateway_publishes_the_canonical_names() -> None:
     """Cedar actions embed these, so a mismatch breaks authorization."""
     import sys
 
-    backend = REPO / "pellier" / "backend"
-    if str(backend) not in sys.path:
-        sys.path.insert(0, str(backend))
-    from services.agentcore_gateway import LOCAL_MCP_TOOL_NAMES
+    deploy = REPO / "scripts" / "deploy"
+    if str(deploy) not in sys.path:
+        sys.path.insert(0, str(deploy))
+    from gateway_tool_schemas import canonical_tool_names
 
-    published = set(LOCAL_MCP_TOOL_NAMES)
+    published = set(canonical_tool_names())
     expected = set(CANONICAL_TOOLS)
 
-    assert expected <= published, (
-        f"canonical tools missing from the Gateway catalog: {sorted(expected - published)}"
+    assert published == expected, (
+        f"Gateway catalogue differs from the canonical nine: "
+        f"missing {sorted(expected - published)}, extra {sorted(published - expected)}"
     )
+
+
+def test_no_replaced_tool_name_survives_in_runtime_source() -> None:
+    """The nine-tool cut deleted fifteen names; none may linger in runtime code."""
+    findings: list[str] = []
+    for root in RUNTIME_SOURCE_ROOTS:
+        for path in sorted((REPO / root).rglob("*")):
+            rel = path.relative_to(REPO)
+            if not path.is_file() or path.suffix in SKIP_SUFFIXES:
+                continue
+            if any(part in SKIP_DIRS | {"tests"} for part in rel.parts):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for name in REPLACED_TOOL_NAMES:
+                if re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text):
+                    findings.append(f"  {rel.as_posix()}  {name}")
+
+    assert not findings, "replaced tool names in runtime source:\n" + "\n".join(findings)
 
 
 def test_protected_database_identifiers_are_not_renamed() -> None:
     """Renaming these revokes EXECUTE on every deployed cluster.
 
-    Migration 016 grants EXECUTE against the literal function names. The public
-    tools are `initiate_return` and `restock_inventory`; the functions keep the
-    older names on purpose, and that mismatch must survive future tidying.
+    Migration 016 grants EXECUTE against the literal function names. No public
+    tool carries those names; the functions keep them on purpose, and that
+    mismatch must survive future tidying.
     """
     grants = (
         REPO / "scripts" / "migrations" / "016_runtime_roles_rls.sql"
@@ -222,12 +267,6 @@ def test_protected_database_identifiers_are_not_renamed() -> None:
             "renamed, the GRANT EXECUTE no longer matches and governed writes "
             "will fail on already-deployed clusters."
         )
-
-    business_logic = (
-        REPO / "pellier" / "backend" / "services" / "business_logic.py"
-    ).read_text()
-    assert "pellier.process_return_idempotent" in business_logic
-    assert "pellier.restock_shelf_idempotent" in business_logic
 
     # The unrelated model field keeps its name too.
     product_model = (REPO / "pellier" / "backend" / "models" / "product.py").read_text()

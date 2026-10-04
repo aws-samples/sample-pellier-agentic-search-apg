@@ -3,7 +3,7 @@
 --
 -- A Cedar DENY receipt records that the Gateway refused a call. It cannot
 -- prove that nothing ran: a receipt is not its own alibi. The proof is a keyed
--- search of every table an executed initiate_return writes, for the exact
+-- search of every table an executed give_store_credit writes, for the exact
 -- idempotency key the denied call carried, beside the same search for the key
 -- an allowed call carried. Empty for the denied key alone means nothing.
 -- Empty for the denied key AND exactly one finalized write for the allowed
@@ -29,7 +29,7 @@
 \endif
 
 -- === WORKSHOP - Keyed absence - deny proof: START ===
--- Every count is read from the tables an executed initiate_return writes, for
+-- Every count is read from the tables an executed give_store_credit writes, for
 -- the exact keys passed in. The allowed key's finalized write is the positive
 -- control: the same search finds the one write the allowed call made, so an
 -- empty result for the denied key is an absence, not a query that looked in

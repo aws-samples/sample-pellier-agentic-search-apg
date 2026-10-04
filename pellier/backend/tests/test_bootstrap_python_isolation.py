@@ -87,7 +87,7 @@ def test_privileged_dependency_install_ignores_sudo_default_python(interpreters,
 
 
 @pytest.mark.parametrize("script", [
-    "check_model_access.py", "seed_tool_registry.py",
+    "check_model_access.py",
     "provision_agentcore_end_to_end.py", "reset_participant_exercises.py",
 ])
 def test_stage2_commands_select_versioned_python_after_sudo_resets_path(

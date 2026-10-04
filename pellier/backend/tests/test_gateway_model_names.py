@@ -13,15 +13,17 @@ from services import agentcore_gateway as gateway
 
 def tool(name: str, client=None) -> MCPAgentTool:
     return MCPAgentTool(
-        Tool(name=name, inputSchema={"type": "object"}, description="Read preferences"),
+        Tool(name=name, inputSchema={"type": "object"}, description="Read orders"),
         client or MagicMock(),
         timeout=timedelta(seconds=30),
     )
 
 
 def test_long_gateway_name_is_short_in_bedrock_but_unchanged_on_the_wire():
-    original = gateway.gateway_action_id("get_customer_preferences")
-    assert len(original) > 64  # The observed managed ConverseStream failure.
+    # The store target's own prefix is short; a longer deployment prefix is what
+    # pushed a name past Bedrock's limit (the observed managed ConverseStream failure).
+    original = "long-deployment-prefix-" * 3 + "pellier-store-tools___get_orders"
+    assert len(original) > 64
     client = MagicMock()
     client.call_tool_async = AsyncMock(return_value={
         "toolUseId": "call-1",
@@ -30,7 +32,7 @@ def test_long_gateway_name_is_short_in_bedrock_but_unchanged_on_the_wire():
     })
     source = tool(original, client)
     adapted, = gateway._model_gateway_tools([source])
-    assert adapted.tool_name == adapted.tool_spec["name"] == "get_customer_preferences"
+    assert adapted.tool_name == adapted.tool_spec["name"] == "get_orders"
     assert adapted.tool_spec["inputSchema"] == source.tool_spec["inputSchema"]
     assert adapted.mcp_tool.name == original
     assert source.tool_name == original
@@ -49,6 +51,10 @@ def test_long_gateway_name_is_short_in_bedrock_but_unchanged_on_the_wire():
         arguments={"customer_id": "CUST-THEO"},
         read_timeout_seconds=timedelta(seconds=30),
     )
+
+
+def test_the_store_target_names_stay_inside_the_bedrock_limit():
+    assert all(len(gateway.gateway_action_id(name)) <= 64 for name in gateway.GATEWAY_TARGET_FOR_TOOL)
 
 
 def test_every_current_catalog_tool_has_a_unique_bedrock_compatible_name():
@@ -75,11 +81,11 @@ def test_invalid_model_name_fails_before_agent_construction(name):
 
 def test_short_alias_still_binds_server_owned_customer_and_correlation():
     adapted, = gateway._model_gateway_tools([tool(
-        gateway.gateway_action_id("get_customer_preferences"),
+        gateway.gateway_action_id("get_orders"),
     )])
     bound = gateway._bind_server_tool_context({
         "name": adapted.tool_name,
         "toolUseId": "call-1",
-        "input": {"customer_id": "CUST-MARCO", "persona": "marco"},
+        "input": {"customer_id": "CUST-MARCO"},
     }, customer_id="CUST-THEO", turn_id="turn-owned")
     assert bound["input"] == {"customer_id": "CUST-THEO", "turn_id": "turn-owned"}

@@ -11,7 +11,7 @@ from config import settings
 
 
 @pytest.mark.asyncio
-async def test_inventory_stub_returns_before_skill_router_or_specialist(
+async def test_stock_stub_returns_before_skill_router_or_specialist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def unexpected_call(*_args, **_kwargs):
@@ -48,7 +48,7 @@ async def test_inventory_stub_returns_before_skill_router_or_specialist(
     step = next(event for event in events if event["type"] == "agent_step")
     assert step == {
         "type": "agent_step",
-        "agent": "Inventory Agent",
+        "agent": "Stock agent",
         "action": "Workshop build required",
         "status": "blocked",
         "source": "Pellier build state",

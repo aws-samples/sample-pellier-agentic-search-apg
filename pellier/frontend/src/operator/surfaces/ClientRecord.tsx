@@ -23,7 +23,6 @@ import OperatorConcierge from '../concierge/OperatorConcierge'
 import MembershipRung from '../components/MembershipRung'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState from '../components/OperatorState'
-import ReplacementCare from '../components/ReplacementCare'
 
 function money(value: number): string {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -394,8 +393,6 @@ const ClientRecordPage: React.FC = () => {
           </div>
         </section>
       ) : null}
-
-      {client.personaId === 'theo' ? <ReplacementCare key={client.customerId} record={record} /> : null}
 
       {/* Four figures an advisor needs before speaking. */}
       <div className="operator-quad" data-testid="operator-quad">

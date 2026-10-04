@@ -577,7 +577,7 @@ async def test_a_structured_artifact_round_trips_with_its_version(db: FakeDb) ->
         ],
         "summary": "Five orders, one open ticket, no authoritative return.",
         "capabilityObservation": [
-            {"capability": "initiate_return", "state": "temporarily_unavailable",
+            {"capability": "give_store_credit", "state": "temporarily_unavailable",
              "observedAt": "2026-08-26T23:48:44Z"},
         ],
     }
@@ -948,10 +948,10 @@ async def test_settling_is_scoped_to_the_sessions_client(db: FakeDb) -> None:
 
 def test_the_interruption_names_what_each_review_became() -> None:
     reviews = [
-        {"reviewId": 12, "tool": "initiate_return", "status": "pending",
+        {"reviewId": 12, "tool": "give_store_credit", "status": "pending",
          "args": {"customer_id": "CUST-JESSICA", "product_id": 7, "reason": "damaged"},
          "actionHash": "h-12", "orderId": 301, "productName": "Linen throw"},
-        {"reviewId": 9, "tool": "initiate_return", "status": "approved",
+        {"reviewId": 9, "tool": "give_store_credit", "status": "approved",
          "args": {"customer_id": "CUST-JESSICA", "product_id": 3, "reason": "wrong_size"},
          "actionHash": "h-9", "orderId": 290, "productName": "Wool wrap"},
     ]

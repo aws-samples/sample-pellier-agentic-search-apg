@@ -134,7 +134,7 @@ def _outcome(**over: Any) -> GE.ExecutionOutcome:
         "policy": GE.POLICY_DENY,
         "aurora": GE.AURORA_NOT_REACHED,
         "evidence": GE.EVIDENCE_POLICY_PROOF,
-        "tool": "initiate_return",
+        "tool": "give_store_credit",
         "result": {"status": "policy_denied"},
         "notes": {"policy": "Cedar denied the action; the tool was never entered."},
     }
@@ -286,8 +286,8 @@ def _receipt(**over: Any) -> Dict[str, Any]:
         "receipt_id": 9,
         "execution_turn_id": "turn-" + "c" * 32,
         "review_id": 36,
-        "tool": "initiate_return",
-        "gateway_action_id": "pellier-concierge-experience-target___initiate_return",
+        "tool": "give_store_credit",
+        "gateway_action_id": "pellier-store-tools___give_store_credit",
         "rail": "gateway-mcp",
         "actor_principal": "operator-sub",
         "customer_subject": None,
@@ -399,7 +399,7 @@ def test_the_review_payload_reports_execution_separately_from_the_axes() -> None
     A surface can render ALLOW without the attribution, but it cannot defend it.
     """
     row = {
-        "review_id": 36, "customer_id": "CUST-RACHEL", "action": "initiate_return",
+        "review_id": 36, "customer_id": "CUST-RACHEL", "action": "give_store_credit",
         "args": {"reason": "not_as_described"}, "status": "approved",
         "action_hash": "h" * 64, "source_turn_id": "turn-src",
         "execution_turn_id": "turn-" + "c" * 32,
@@ -413,7 +413,7 @@ def test_the_review_payload_reports_execution_separately_from_the_axes() -> None
 def test_an_execution_turn_without_a_receipt_is_its_own_state() -> None:
     """An attempt began and produced no verdict. Not the same as never attempting."""
     row = {
-        "review_id": 36, "customer_id": "CUST-RACHEL", "action": "initiate_return",
+        "review_id": 36, "customer_id": "CUST-RACHEL", "action": "give_store_credit",
         "args": {}, "status": "approved", "action_hash": "h" * 64,
         "execution_turn_id": "turn-" + "d" * 32,
     }

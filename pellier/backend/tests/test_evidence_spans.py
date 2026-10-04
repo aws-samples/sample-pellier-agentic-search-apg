@@ -33,7 +33,7 @@ def test_attribute_names_are_namespaced_and_stable():
 def test_span_names_are_the_three_teaching_boundaries():
     assert ev.SPAN_ROUTING == "routing"
     assert ev.SPAN_POLICY == "policy"
-    assert ev.tool_span_name("initiate_return") == "tool.initiate_return"
+    assert ev.tool_span_name("give_store_credit") == "tool.give_store_credit"
 
 
 def test_tool_span_name_without_a_tool_degrades_to_the_prefix():
@@ -64,7 +64,7 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         policy_verdict="WOULD_DENY",
         caller="in-process",
         execution_outcome="denied",
-        tool="initiate_return",
+        tool="give_store_credit",
     )
     assert attrs == {
         ev.ATTR_TURN_ID: "turn-1",
@@ -75,7 +75,7 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         ev.ATTR_POLICY_VERDICT: "WOULD_DENY",
         ev.ATTR_CALLER: "in-process",
         ev.ATTR_EXECUTION_OUTCOME: "denied",
-        ev.ATTR_TOOL: "initiate_return",
+        ev.ATTR_TOOL: "give_store_credit",
     }
 
 
@@ -90,7 +90,7 @@ def test_spans_are_no_ops_when_tracing_is_unavailable(monkeypatch):
         assert span is None
     with ev.policy_span(turn_id="t", policy_verdict="DENY") as span:
         assert span is None
-    with ev.tool_span("check_inventory", turn_id="t") as span:
+    with ev.tool_span("check_stock", turn_id="t") as span:
         assert span is None
 
 
@@ -107,7 +107,7 @@ def test_a_failing_tracer_does_not_propagate(monkeypatch):
 
     monkeypatch.setattr(ev, "_tracer", lambda: Boom())
 
-    with ev.tool_span("initiate_return", turn_id="t") as span:
+    with ev.tool_span("give_store_credit", turn_id="t") as span:
         assert span is None
 
 
@@ -158,7 +158,7 @@ def test_tool_span_records_name_and_canonical_attributes(monkeypatch, recorded_s
     monkeypatch.setattr(ev, "_tracer", lambda: tracer)
 
     with ev.tool_span(
-        "initiate_return",
+        "give_store_credit",
         turn_id="turn-42",
         principal_sub="sub-abc",
         caller="in-process",
@@ -168,11 +168,11 @@ def test_tool_span_records_name_and_canonical_attributes(monkeypatch, recorded_s
     finished = exporter.get_finished_spans()
     assert len(finished) == 1
     recorded = finished[0]
-    assert recorded.name == "tool.initiate_return"
+    assert recorded.name == "tool.give_store_credit"
     assert recorded.attributes[ev.ATTR_TURN_ID] == "turn-42"
     assert recorded.attributes[ev.ATTR_PRINCIPAL_SUB] == "sub-abc"
     assert recorded.attributes[ev.ATTR_CALLER] == "in-process"
-    assert recorded.attributes[ev.ATTR_TOOL] == "initiate_return"
+    assert recorded.attributes[ev.ATTR_TOOL] == "give_store_credit"
     assert recorded.attributes[ev.ATTR_EXECUTION_OUTCOME] == "denied"
 
 
@@ -215,12 +215,12 @@ def test_annotate_current_span_enriches_rather_than_duplicating(recorded_spans):
     tracer, exporter = recorded_spans
 
     # Stand in for the span Strands' [otel] integration already opens.
-    with tracer.start_as_current_span("execute_tool initiate_return"):
+    with tracer.start_as_current_span("execute_tool give_store_credit"):
         applied = ev.annotate_current_span(
             turn_id="turn-11",
             principal_sub="sub-abc",
             caller="agent",
-            tool="initiate_return",
+            tool="give_store_credit",
         )
 
     assert applied is True
@@ -228,7 +228,7 @@ def test_annotate_current_span_enriches_rather_than_duplicating(recorded_spans):
     # Exactly one span: we enriched, we did not create a second.
     assert len(finished) == 1
     recorded = finished[0]
-    assert recorded.name == "execute_tool initiate_return"
+    assert recorded.name == "execute_tool give_store_credit"
     assert recorded.attributes[ev.ATTR_TURN_ID] == "turn-11"
     assert recorded.attributes[ev.ATTR_CALLER] == "agent"
 

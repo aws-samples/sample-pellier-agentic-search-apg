@@ -190,7 +190,7 @@ def test_operator_entrypoint_accepts_only_bounded_read_envelopes(monkeypatch):
     assert module.invoke(payload)["raw"] == '{"summary":"Fixture"}'
     assert calls[0]["memory_text"] == ""
     for invalid in (
-        {**payload, "execute_tool": "issue_credit"},
+        {**payload, "execute_tool": "give_store_credit"},
         {**payload, "request": "x" * 8001},
         {**payload, "review_id": True},
         {**payload, "checkpoint_state": "APPROVED"},

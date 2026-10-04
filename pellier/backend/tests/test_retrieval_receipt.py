@@ -20,7 +20,10 @@ from typing import Any, Dict, List
 
 import pytest
 
+from services import store_tools
 from services.retrieval_receipt import (
+    INSERT_SQL as RECEIPT_INSERT_SQL,
+    _COLUMN_ORDER,
     build_receipt,
     citation_snapshot_hash,
     current_turn_context,
@@ -321,7 +324,7 @@ def test_route_turn_context_carries_only_trusted_correlation_fields() -> None:
 # Persistence
 # ---------------------------------------------------------------------------
 def test_params_align_with_the_insert_placeholders() -> None:
-    from services.retrieval_receipt import _INSERT_SQL
+    from services.retrieval_receipt import INSERT_SQL
 
     receipt = build_receipt(query="gift", plan=_plan())
     receipt.latency_breakdown = {"total_ms": 37}
@@ -329,10 +332,10 @@ def test_params_align_with_the_insert_placeholders() -> None:
     receipt.citation_snapshot_hash = citation_snapshot_hash(receipt.citation_snapshots)
     params = receipt_params(receipt)
 
-    assert _INSERT_SQL.count("%s") == len(params)
+    assert INSERT_SQL.count("%s") == len(params)
     # Derive destinations from the SQL, independently of the binding tuple.
     # Equal placeholder counts alone cannot catch a hash bound to JSONB.
-    columns = [name.strip() for name in _INSERT_SQL.split("(", 1)[1].split(")", 1)[0].split(",")]
+    columns = [name.strip() for name in INSERT_SQL.split("(", 1)[1].split(")", 1)[0].split(",")]
     bound = dict(zip(columns, params, strict=True))
     assert json.loads(bound["latency_breakdown"]) == {"total_ms": 37}
     assert json.loads(bound["citation_snapshots"]) == receipt.citation_snapshots
@@ -480,61 +483,101 @@ def _hybrid_rows() -> List[Dict[str, Any]]:
     ]
 
 
-def test_storefront_receipt_cites_the_returned_rows_only(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """``citation_rows`` must be the rows returned, after every post-rerank cut."""
-    import asyncio
+class _FakeRunner:
+    """A ``store_tools`` statement runner: branch rows in, receipt inserts recorded."""
 
-    import services.agent_tools as agent_tools
-    import services.embeddings as embeddings_module
-    import services.hybrid_search as hybrid_module
-    import services.rerank as rerank_module
+    def __init__(self, vector_rows: List[Dict[str, Any]]) -> None:
+        self.vector_rows = vector_rows
+        self.receipts: List[Dict[str, Any]] = []
 
-    class _HybridSearch:
-        def __init__(self, db: Any) -> None:
-            self.db = db
+    def __call__(self, sql: str, params: Any) -> List[Dict[str, Any]]:
+        if sql == RECEIPT_INSERT_SQL:
+            self.receipts.append(dict(zip(_COLUMN_ORDER, params)))
+            return [{"receipt_id": 1}]
+        if "to_tsquery" in sql:
+            return []
+        return [dict(row) for row in self.vector_rows]
 
-        async def search(self, **kwargs: Any) -> List[Dict[str, Any]]:
-            return _hybrid_rows()
 
-    class _Reranker:
-        def rerank(self, *, query: str, documents: List[str], top_n: int) -> List[Dict]:
-            return [
-                {"index": index, "relevance_score": 0.9 - index * 0.1}
-                for index in reversed(range(len(documents)))
-            ]
+def _reversing_rerank(*, query: str, documents: List[str], top_n: int) -> List[Dict[str, Any]]:
+    return [
+        {"index": index, "relevance_score": 0.9 - index * 0.1}
+        for index in reversed(range(len(documents)))
+    ]
 
-    class _Embedding:
-        def embed_query(self, query: str) -> List[float]:
-            return [0.01] * 1024
 
-    recorded: List[Dict[str, Any]] = []
-    monkeypatch.setattr(agent_tools, "_db_service", object())
-    monkeypatch.setattr(agent_tools, "_run_async", lambda coro: asyncio.run(coro))
-    monkeypatch.setattr(agent_tools, "_write_retrieval_receipt", lambda **kw: recorded.append(kw))
-    monkeypatch.setattr(embeddings_module, "EmbeddingService", _Embedding)
-    monkeypatch.setattr(hybrid_module, "HybridSearch", _HybridSearch)
-    monkeypatch.setattr(rerank_module, "get_rerank_service", lambda: _Reranker())
+_TURN_RECEIPT = {
+    "turn_id": "turn-abc123",
+    "session_id": "anon-1",
+    "principal_sub": None,
+    "rail": "in-process",
+    "embedding_model": "embed-model",
+    "rerank_model": "rerank-model",
+}
 
-    payload = json.loads(
-        agent_tools.search_products_hybrid(query="a housewarming gift", max_price=80, limit=2)
+
+def test_storefront_receipt_cites_the_returned_rows_only() -> None:
+    """The cited ids must be the rows returned, after every post-rerank cut."""
+    run = _FakeRunner(_hybrid_rows())
+
+    payload = store_tools.search_products(
+        run,
+        query="a housewarming gift",
+        embed=lambda _query: [0.01] * 1024,
+        rerank=_reversing_rerank,
+        max_price=80,
+        limit=2,
+        receipt=dict(_TURN_RECEIPT),
     )
 
     # Rerank reversed the pool (5,4,3,2,1); the $90 and $100 rows fail the
     # ceiling; the limit keeps two. The shopper saw products 3 and 2.
-    assert [product["productId"] for product in payload["products"]] == [3, 2]
-    assert len(recorded) == 1
-    receipt_kwargs = recorded[0]
-    assert [row["product_id"] for row in receipt_kwargs["citation_rows"]] == [3, 2]
-    assert all("updated_at" in row for row in receipt_kwargs["citation_rows"])
-    assert [row["product_id"] for row in receipt_kwargs["ordered"]] == [3, 2, 1]
-    assert [row["product_id"] for row in receipt_kwargs["candidates"]] == [1, 2, 3, 4, 5]
-    assert receipt_kwargs["retrieval_config"]["rerank_pool_k"] >= 3
-    assert set(receipt_kwargs["latency_breakdown"]) >= {"embed", "hybrid", "rerank"}
+    assert [product["productId"] for product in payload["products"]] == ["3", "2"]
+    assert len(run.receipts) == 1
+    row = run.receipts[0]
+    assert json.loads(row["citation_ids"]) == ["3", "2"]
+    snapshots = json.loads(row["citation_snapshots"])
+    assert [snapshot["entity_id"] for snapshot in snapshots] == ["3", "2"]
+    assert all(snapshot["revision"] for snapshot in snapshots)
+    assert json.loads(row["candidate_product_ids"]) == ["1", "2", "3", "4", "5"]
+    assert json.loads(row["retrieval_config"])["rerank_pool_k"] >= 3
+    assert set(json.loads(row["latency_breakdown"])) >= {"embed", "hybrid", "rerank"}
+    assert row["turn_id"] == "turn-abc123"
+    assert row["embedding_model"] == "embed-model"
 
-    receipt = build_receipt(**receipt_kwargs)
-    assert receipt.to_row()["citation_ids"] == ["3", "2"]
+
+def test_no_receipt_is_written_without_a_turn_context() -> None:
+    run = _FakeRunner(_hybrid_rows())
+
+    store_tools.search_products(
+        run,
+        query="a housewarming gift",
+        embed=lambda _query: [0.01] * 1024,
+        rerank=_reversing_rerank,
+        receipt=None,
+    )
+
+    assert run.receipts == []
+
+
+def test_a_failed_receipt_insert_never_breaks_the_search() -> None:
+    class _Failing(_FakeRunner):
+        def __call__(self, sql: str, params: Any) -> List[Dict[str, Any]]:
+            if sql == RECEIPT_INSERT_SQL:
+                raise RuntimeError("receipts table missing")
+            return super().__call__(sql, params)
+
+    payload = store_tools.search_products(
+        _Failing(_hybrid_rows()),
+        query="a housewarming gift",
+        embed=lambda _query: [0.01] * 1024,
+        rerank=_reversing_rerank,
+        limit=2,
+        receipt=dict(_TURN_RECEIPT),
+    )
+
+    assert payload["status"] == "success"
+    assert payload["count"] == 2
 
 
 # ---------------------------------------------------------------------------

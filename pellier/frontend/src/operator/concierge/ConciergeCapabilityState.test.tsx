@@ -19,9 +19,7 @@ import type { CapabilitySnapshot } from '../../services/operator'
 
 const READY_CAPABILITIES: CapabilitySnapshot = {
   capabilities: {
-    initiate_return: { state: 'available', reason: 'Governance verified.' },
-    escalate_to_human: { state: 'available', reason: 'Governance verified.' },
-    issue_credit: { state: 'available', reason: 'Governance verified.' },
+    give_store_credit: { state: 'available', reason: 'Governance verified.' },
   },
   observedAt: '2026-09-19T00:00:00Z',
   source: 'agentcore',

@@ -1,7 +1,7 @@
 """One department vocabulary across seed, planner, return policies and the storefront."""
 from pathlib import Path
 
-from services.structured_extract import KNOWN_CATEGORIES
+from services.catalog_vocabulary import KNOWN_CATEGORIES
 
 REPO = Path(__file__).resolve().parents[3]
 DEPARTMENTS = ("Clothing", "Shoes", "Bags and travel", "Accessories",
@@ -29,12 +29,11 @@ def test_no_old_category_literals_remain():
     assert hits == "", hits
 
 
-def test_seed_storefront_and_keyword_map_share_the_departments():
+def test_seed_and_storefront_share_the_departments():
     import ast
     from typing import get_args
 
     from models.search import StorefrontCategory
-    from services.agent_tools import _CATEGORY_MAP
 
     seeder = ast.parse((REPO / "scripts" / "seed_pellier_catalog.py").read_text())
     seeded = next(ast.literal_eval(node.value) for node in seeder.body
@@ -42,28 +41,27 @@ def test_seed_storefront_and_keyword_map_share_the_departments():
                   and getattr(node.targets[0], "id", "") == "DEPARTMENTS")
     assert seeded == DEPARTMENTS
     assert get_args(StorefrontCategory) == DEPARTMENTS
-    assert set(_CATEGORY_MAP.values()) <= set(DEPARTMENTS)
 
 
-def test_recommendation_prompt_browse_departments_are_known():
+def test_shopping_prompt_browse_departments_are_known():
     import re
 
-    from pellier_copy import RECOMMENDATION_SYSTEM_PROMPT
+    from pellier_copy import SHOPPING_SYSTEM_PROMPT
 
     line = next(
-        entry for entry in RECOMMENDATION_SYSTEM_PROMPT.split("\n- ")
-        if entry.lstrip("- ").startswith("browse_category")
+        entry for entry in SHOPPING_SYSTEM_PROMPT.split("\n- ")
+        if entry.lstrip("- ").startswith("browse_department")
     )
-    listed = re.search(r"named department \((.+?)\)", line, re.S).group(1)
-    names = {name.strip() for name in listed.split(",")}
+    listed = re.search(r"one\s+department \((.+?)\)", line, re.S).group(1)
+    names = {name.strip().removeprefix("and ") for name in listed.split(",")}
     assert names == set(KNOWN_CATEGORIES)
 
 
 def test_backend_prompts_do_not_name_retired_categories():
-    from pellier_copy import RECOMMENDATION_SYSTEM_PROMPT
+    from pellier_copy import SHOPPING_SYSTEM_PROMPT
 
     backend = REPO / "pellier" / "backend"
-    texts = {"RECOMMENDATION_SYSTEM_PROMPT": RECOMMENDATION_SYSTEM_PROMPT}
+    texts = {"SHOPPING_SYSTEM_PROMPT": SHOPPING_SYSTEM_PROMPT}
     for path in [*(backend / "agents").glob("*.py"), backend / "services" / "chat.py"]:
         texts[path.name] = path.read_text()
     for name, text in texts.items():

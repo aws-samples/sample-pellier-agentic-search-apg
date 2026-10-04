@@ -180,7 +180,7 @@ fi
 # Studio box shipped with a live detached checkout at the pinned SHA and the
 # workspace stayed on live git. `"git.enabled": false` hides the Source Control
 # panel, but the terminal is untouched: `git checkout -- .` silently reverts the
-# check_inventory exercise a participant is midway through, and `git stash` loses it
+# check_stock exercise a participant is midway through, and `git stash` loses it
 # with no visible trace. Neither is a thing anyone does on purpose; both are
 # things people type out of habit.
 #
@@ -416,7 +416,7 @@ cat >> "$GLOBAL_CLAUDE_TMP" << 'CLAUDEEOF'
 # Pellier workshop guidance
 
 - Read the repository `CLAUDE.md` and the nearest nested `CLAUDE.md` before editing.
-- Treat Lab 2, Inventory Agent, `check_inventory`, or workshop-marker requests as participant mode. Edit only the named marker block and never inspect `solutions/`.
+- Treat Lab 2, the Stock agent, `check_stock`, or workshop-marker requests as participant mode. Edit only the named marker block and never inspect `solutions/`.
 - In participant mode, do not run git, install packages, change configuration, or restart services. Stop after one failed attempt and use the guide's escape hatch.
 - `.claude/skills/*/SKILL.md` contains coding workflows. `skills/*/SKILL.md` contains Pellier runtime prompt overlays; do not treat runtime skills as coding instructions.
 - Read `VOICE.md` before changing shopper-facing copy or model prompts.
@@ -608,30 +608,6 @@ setup_database() {
         if [ "$setup_rc" -ne 0 ]; then
             warn "Database setup failed (rc=$setup_rc) — see /var/log/database-setup.log"
             return "$setup_rc"
-        fi
-
-        # ---- 4. Tool registry seed — populates pellier.tools (created
-        # empty by migration 002) with the 15 canonical Gateway tool names
-        # plus their Cohere Embed v4 descriptions. The Observatory
-        # Observatory's tool-registry tab and the pgvector
-        # tool-discovery card both read from this table and silently
-        # render zero rows if the seed is skipped. ----
-        if [ -f "$REPO_PATH/scripts/seed_tool_registry.py" ]; then
-            log "Seeding pellier.tools registry..."
-            # Same env-passing rationale as the database setup call above — no
-            # credential is interpolated into a string a nested shell parses.
-            sudo -u "$CODE_EDITOR_USER" env \
-                DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" \
-                DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
-                AWS_REGION="$AWS_REGION" \
-                DATABASE_URL="$DATABASE_URL" \
-                REPO_PATH="$REPO_PATH" \
-                bash -c 'cd "$REPO_PATH" && python3.14 scripts/seed_tool_registry.py' \
-                2>&1 | tee -a /var/log/database-setup.log
-            local tool_rc=${PIPESTATUS[0]}
-            if [ "$tool_rc" -ne 0 ]; then
-                warn "Tool registry seed failed (rc=$tool_rc) — Observatory tool-registry tab will show zero rows"
-            fi
         fi
 
         return 0
@@ -921,7 +897,7 @@ if [ -n "$DB_HOST" ]; then
     if [ "$WAREHOUSE_ROWS" -gt 0 ]; then
         log "✅ Warehouse inventory verified ($WAREHOUSE_ROWS rows)"
     else
-        warn "⚠️  Warehouse inventory missing — check_inventory exercise will not land"
+        warn "⚠️  Warehouse inventory missing — check_stock exercise will not land"
     fi
 fi
 
@@ -1213,10 +1189,10 @@ fi
 # STEP 16: WORKSHOP FORMAT — Pre-apply everything participants don't build
 # ============================================================================
 #
-# The required path wires the check_inventory tool body in
+# The required path wires the check_stock tool body in
 # services/agent_tools.py and then proves the same production path
 # through retrieval, memory, Runtime, Gateway, Policy, and the Aurora
-# audit ledger. Inventory Agent's system prompt and orchestrator are
+# audit ledger. The Stock agent's system prompt and the Router are
 # already in place before participants arrive.
 #
 # This block copies finished reference files from solutions/ into
@@ -1230,7 +1206,7 @@ fi
 #   solutions/the-ledger/    — governance reference (observe-only)
 #
 # Files we explicitly do NOT copy (participants build these):
-#   inside agent_tools.py            — the check_inventory tool body only
+#   inside agent_tools.py            — the check_stock tool body only
 #   inside agentcore_gateway.py      — Lab 3b's support reconcile region
 #   inside gateway_tool_schemas.py   — Lab 3a's published-tools decision
 if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" ]; then
@@ -1250,19 +1226,9 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
 
     if [ "${WORKSHOP_FORMAT}" = "builders" ]; then
 
-    # ---- Specialist agents that aren't Inventory Agent ----
-    # Personalization Agent handles recommendation turns (search_products_hybrid, get_related_products).
-    # Customer Service Agent handles returns/care (get_return_policy, initiate_return,
-    # escalate_to_human).
-    copy_solution "solutions/closing-marcos-gap/agents/personalization_agent.py" \
-                  "pellier/backend/agents/personalization_agent.py" "Personalization Agent"
-    copy_solution "solutions/closing-marcos-gap/agents/customer_service_agent.py" \
-                  "pellier/backend/agents/customer_service_agent.py" "Customer Service Agent"
-
     # ---- agent_tools.py builders variant ----
-    # Wires restock_inventory + get_low_stock (everything Inventory Agent-adjacent
-    # except check_inventory itself). Participants will edit this file in
-    # the required-path to add the check_inventory body — and only that body.
+    # Every tool except check_stock itself. Participants will edit this file in
+    # the required-path to add the check_stock body — and only that body.
     copy_solution "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py" \
                   "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
 
@@ -1295,7 +1261,7 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
     else
-        log "Governed format: preserving Inventory Agent and check_inventory scaffolds for participant build"
+        log "Governed format: preserving the Stock agent and check_stock scaffolds for participant build"
         if (
             cd "$REPO_PATH"
             python3.14 scripts/reset_participant_exercises.py --repo "$REPO_PATH"
@@ -1659,7 +1625,7 @@ fi
 # The Pellier Operator desk is authorized by membership in one Cognito group, not by
 # holding any valid token. Before this existed, `require_operator` stopped at "the token
 # verifies and carries a subject", so `marco` could confirm, decline and execute any
-# review and call `issue_credit` directly. The application forbade a shopper-facing agent
+# review and call `give_store_credit` directly. The application forbade a shopper-facing agent
 # from issuing itself store credit while handing the same shopper the capability through
 # the desk.
 #

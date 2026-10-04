@@ -7,8 +7,6 @@ Three workflows, one path
     investigate_resolution  what the records establish, kept apart from what a
                             source reports
     draft_client_note       customer-facing copy, plus the evidence behind it
-    replacement_search      a real order item, hybrid retrieval over Aurora, and
-                            availability reconciled against the inventory ledger
 
 They differ in their contract with the model, in how the result is labelled, and —
 for one of them — in the extra evidence a declared context stage contributes before
@@ -92,7 +90,6 @@ SOURCE_AURORA = database_source_label()
 WORKFLOW_CLIENT_SUMMARY = "client_summary"
 WORKFLOW_INVESTIGATE = "investigate_resolution"
 WORKFLOW_DRAFT_NOTE = "draft_client_note"
-WORKFLOW_REPLACEMENT = "replacement_search"
 
 # Bounded conversation context. Unlimited history to a model is a cost and a
 # relevance problem, not a feature.
@@ -349,40 +346,6 @@ async def load_client_evidence(
             source=SOURCE_AURORA, label="Unconfirmed assertion",
             detail=" ".join(parts),
         ))
-
-    if client.get("personaId") == "theo":
-        from services.replacement_recovery import read_replacements
-        try:
-            care = await read_replacements(db, customer_id)
-        except Exception:
-            care = {"available": False, "replacements": []}
-        if care["available"]:
-            steps.append(Step("replacement", "Replacement records checked", SOURCE_AURORA,
-                              result=f"{len(care['replacements'])} recorded operations"))
-            for replacement in care["replacements"]:
-                follow_up = (
-                    "Operator follow-up is required. "
-                    if replacement.get("workflowResolution") == "operator_review_required" else ""
-                )
-                evidence.append(Evidence(
-                    kind="replacement_operation", role=ROLE_FACT, status="verified",
-                    source=SOURCE_AURORA, label="Replacement recovery",
-                    record_id=replacement["replacementId"],
-                    detail=(
-                        f"Order #{replacement['orderId']}, {replacement['productName']}, "
-                        f"quantity {replacement['quantity']}. Recorded state: {replacement['state']}. "
-                        f"{follow_up}"
-                        f"Approval #{replacement['reviewId']}. Fulfillment uses a workshop simulator, "
-                        "not a real carrier. Reconcile this operation before proposing another remedy."
-                    ),
-                    data=replacement,
-                ))
-        else:
-            evidence.append(Evidence(
-                kind="replacement_operation", role=ROLE_FACT, status="unavailable",
-                source=SOURCE_AURORA, label="Replacement recovery",
-                detail="Replacement records are unavailable. Do not infer reservation, approval, or shipment from conversation memory.",
-            ))
 
     return record, steps, evidence
 
@@ -679,30 +642,6 @@ Return ONLY minified JSON, no prose outside it, matching exactly:
 """
 
 
-# A replacement recommendation is where a model is most tempted to invent a price or
-# an availability claim, so the contract says twice that it may not, and the artifact
-# does not carry model-authored structured fields for it to land in.
-_REPLACEMENT_CONTRACT = f"""{_EVIDENCE_RULES}
-Return ONLY minified JSON, no prose outside it, matching exactly:
-{{"summary": "...", "comparison": "...", "next_step": "..."}}
-
-- summary: at most three sentences. What was found for the item being replaced, and
-  why these options fit. Refer to products ONLY by the names supplied below.
-- comparison: one or two sentences on how the options differ from each other.
-- next_step: one sentence naming what the operator does next. This surface cannot
-  modify an order, so never state or imply that a swap, exchange or reservation has
-  been or will be made.
-
-Additional rules for this workflow:
-- Never state a price, a unit count, a stock status or a product identifier. Those are
-  supplied as facts and are rendered from the record, not from your text.
-- Never call an option an upgrade, an improvement or better quality. No supplied
-  attribute establishes that.
-- Never promise availability. If an option's availability is unverified, you may say
-  it has not been confirmed; you may not say it is in stock.
-"""
-
-
 @dataclass(frozen=True)
 class WorkflowSpec:
     """What differs between workflows, and nothing else.
@@ -760,21 +699,6 @@ WORKFLOWS: Dict[str, WorkflowSpec] = {
         primary_note="",
         sections=(("reported", "Reported, not confirmed", "context"),),
         recommendation_key="recommendation",
-        # Only this workflow may cross from reading into proposing, and only when the
-        # operator's own words ask for it.
-        has_context_stage=True,
-    ),
-    WORKFLOW_REPLACEMENT: WorkflowSpec(
-        kind=WORKFLOW_REPLACEMENT,
-        contract=_REPLACEMENT_CONTRACT,
-        running_label="Preparing recommendations",
-        done_label="Recommendations prepared",
-        primary_key="summary",
-        primary_label="",
-        primary_note="",
-        sections=(("comparison", "How these compare", "neutral"),),
-        recommendation_key="next_step",
-        has_context_stage=True,
     ),
     WORKFLOW_DRAFT_NOTE: WorkflowSpec(
         kind=WORKFLOW_DRAFT_NOTE,
@@ -829,26 +753,11 @@ _UNAUTHORIZED_COMMITMENTS: Tuple[str, ...] = (
 _ROUTING_RULES: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     (WORKFLOW_DRAFT_NOTE, ("draft", "write a note", "write to", "compose", "reply to")),
     (
-        WORKFLOW_REPLACEMENT,
-        ("replacement", "replace ", "instead of", "alternative to", "swap",
-         "similar product", "similar option", "comparable item"),
-    ),
-    (
         WORKFLOW_INVESTIGATE,
         ("investigate", "service issue", "ticket", "dispute", "complaint",
          "what happened", "why was", "why did", "look into",
-         # Consequential intent is a resolution request by definition. Checked AFTER
-         # draft and replacement, so "draft a note about the return" is still copy and
-         # "find a replacement" is still a read.
-         "prepare the return", "prepare a return", "prepare this return",
-         "prepare the damaged", "set up the return", "set up a return",
-         "start the return", "start a return", "open a return", "open the return",
-         "initiate the return", "initiate a return", "initiate return",
-         "help me initiate", "raise a return", "log the return", "log a return",
-         "process the return", "put the return", "return for review",
-         # The guided Jessica investigation remains read-only. These phrases keep
-         # turns two and three on the investigation graph without matching the
-         # narrower action-intent classifier that may prepare a review.
+         # The guided Jessica investigation is read-only; these phrases keep
+         # turns two and three on the investigation graph.
          "authoritative for this decision", "fairest next step for human review"),
     ),
 )
@@ -1098,333 +1007,6 @@ class WorkflowContext:
     blocked: str = ""
 
 
-async def _replacement_context(db: Any, *, customer_id: str, request: str,
-                               turn_id: str = "", operator_sub: str = "") -> Any:
-    """Ground the order item, retrieve, reconcile inventory. An async generator.
-
-    Yields ``("step", payload)`` as each stage actually finishes and finally
-    ``("context", WorkflowContext)``. Nothing is announced before it has happened, and
-    the model is handed only facts this stage established.
-    """
-    from services import replacement_search as RS
-    from services.structured_extract import get_structured_extractor
-
-    ctx = WorkflowContext()
-
-    with _Timer() as t_ground:
-        grounding = await RS.resolve_order_item(
-            db, customer_id=customer_id, request=request
-        )
-
-    if grounding.item is None:
-        # Ambiguous or ungroundable. Say so, list what it could have meant, and stop
-        # before spending a retrieval on a guess.
-        step = Step(
-            "order", "Order item not resolved", SOURCE_AURORA, status="unavailable",
-            duration_ms=t_ground.ms,
-            result=grounding.reason or "no matching order line",
-        )
-        ctx.steps.append(step)
-        yield "step", step.to_payload()
-        ctx.blocked = _clarification(grounding)
-        ctx.artifact = {
-            "replacement": {
-                "grounding": {
-                    "resolved": False,
-                    "reason": grounding.reason,
-                    "candidates": [c.to_payload() for c in grounding.candidates],
-                }
-            }
-        }
-        yield "context", ctx
-        return
-
-    item = grounding.item
-    step = Step(
-        "order", "Order item resolved", SOURCE_AURORA, duration_ms=t_ground.ms,
-        result=f"#{item.order_id} · {item.name}",
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-    ctx.evidence.append(Evidence(
-        kind="order_item", role=ROLE_FACT, status="verified", source=SOURCE_AURORA,
-        label="Item being replaced", record_id=str(item.product_id),
-        detail=f"{item.name} · {item.category} · paid {_money(item.price_paid)} "
-               f"(order #{item.order_id}, matched on {grounding.matched_on})",
-        data=item.to_payload(),
-    ))
-
-    with _Timer() as t_plan:
-        extracted = get_structured_extractor().extract(request)
-        plan = RS.build_replacement_plan(
-            original=item, request=request, extracted=extracted
-        )
-    step = Step(
-        "constraints", "Replacement constraints extracted", SOURCE_BEDROCK,
-        duration_ms=t_plan.ms, result=" · ".join(plan.describe_hard_controls()),
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-    # The plan is a CONTEXT row, not a fact: a model proposed it and deterministic
-    # code validated it. What makes it safe is that PostgreSQL enforces the hard
-    # half, which the detail states.
-    ctx.evidence.append(Evidence(
-        kind="retrieval_plan", role=ROLE_CONTEXT, status="verified",
-        source=SOURCE_BEDROCK, label="Retrieval controls",
-        detail=(
-            "Hard constraints enforced in PostgreSQL before ranking: "
-            + " · ".join(plan.describe_hard_controls())
-        ),
-        data=plan.to_payload(),
-    ))
-
-    with _Timer() as t_search:
-        result = await RS.find_replacements(db, plan)
-    step = Step(
-        "retrieval", "Candidates retrieved and reranked", SOURCE_AURORA,
-        duration_ms=t_search.ms,
-        result=f"{result.pool_size} candidates · {result.reranked} reranked",
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-
-    step = Step(
-        "inventory", "Inventory reconciled against the ledger", SOURCE_AURORA,
-        result=(
-            f"{result.reconciled_count} of {result.reranked} candidates reconciled"
-            if result.reranked else "no candidates to reconcile"
-        ),
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-
-    for rec in result.available:
-        ctx.evidence.append(Evidence(
-            kind="availability", role=ROLE_FACT, status="verified",
-            source=SOURCE_AURORA, label=f"Availability · {rec.name}",
-            record_id=rec.product_id,
-            detail=_describe_availability(rec.inventory),
-            data={"status": rec.inventory.status,
-                  "availableQuantity": rec.inventory.available_quantity},
-        ))
-    for rec in result.close_matches:
-        ctx.evidence.append(Evidence(
-            kind="availability", role=ROLE_CONTEXT, status="unverified",
-            source=SOURCE_AURORA, label=f"Availability · {rec.name}",
-            record_id=rec.product_id,
-            detail=_describe_availability(rec.inventory),
-            data={"status": rec.inventory.status},
-        ))
-
-    ctx.prompt_block = _replacement_prompt_block(result)
-    ctx.artifact = {"replacement": {**result.to_payload(),
-                                    "grounding": {"resolved": True,
-                                                  "matchedOn": grounding.matched_on}}}
-    if not result.available and not result.close_matches:
-        ctx.blocked = (
-            "No catalog option satisfied the constraints for this item. "
-            + (result.coverage_note or "")
-        ).strip()
-    yield "context", ctx
-
-
-def _describe_availability(evidence: Any) -> str:
-    from services.inventory_evidence import describe_availability
-
-    return describe_availability(evidence)
-
-
-def _clarification(grounding: Any) -> str:
-    """What to say when the order item could not be established.
-
-    Never a guess. Two order lines that fit a phrase equally well are listed back to
-    the operator, because choosing between them is a business decision about which
-    record is meant and a model's confidence is not authority over that.
-    """
-    if grounding.candidates:
-        listed = "; ".join(
-            f"#{c.order_id} {c.name} (paid {_money(c.price_paid)})"
-            for c in grounding.candidates[:5]
-        )
-        return (
-            "More than one order line matches that description, so no replacement "
-            f"search was run. Name the one you mean: {listed}."
-        )
-    if grounding.reason == "no_order_history":
-        return "This client has no order history, so there is no item to replace."
-    if grounding.reason == "order_history_unavailable":
-        return "Order history could not be read, so no item could be resolved."
-    return "The item to replace could not be identified from that request."
-
-
-def _replacement_prompt_block(result: Any) -> str:
-    """The facts the model may write prose about. Prices and counts included so it
-    can reason, and forbidden in its output so it cannot restate them wrongly."""
-    lines = [
-        "ITEM BEING REPLACED: "
-        f"{result.plan.original.name} ({result.plan.original.category}, "
-        f"paid {_money(result.plan.original.price_paid)})",
-        "HARD CONSTRAINTS APPLIED IN POSTGRESQL: "
-        + " · ".join(result.plan.describe_hard_controls()),
-    ]
-    if result.available:
-        lines.append("OPTIONS WITH RECONCILED AVAILABILITY:")
-        for rec in result.available:
-            lines.append(
-                f"  - {rec.name} ({_money(rec.price)}) — "
-                f"{_describe_availability(rec.inventory)} "
-                f"Fit: {'; '.join(rec.fit_reasons) or 'none recorded'}"
-            )
-    if result.close_matches:
-        lines.append("OPTIONS WHOSE AVAILABILITY IS NOT VERIFIED:")
-        for rec in result.close_matches:
-            lines.append(
-                f"  - {rec.name} ({_money(rec.price)}) — availability not verified. "
-                f"Fit: {'; '.join(rec.fit_reasons) or 'none recorded'}"
-            )
-    if result.coverage_note:
-        lines.append("INVENTORY COVERAGE: " + result.coverage_note)
-    return "\n".join(lines)
-
-
-async def _investigate_context(db: Any, *, customer_id: str, request: str,
-                               turn_id: str, operator_sub: str = "") -> Any:
-    """Prepare a consequential action, but only when the operator asked for one.
-
-    An investigation with no consequential intent contributes nothing: no steps, no
-    evidence, no artifact, and the workflow behaves exactly as it did before this
-    stage existed. That is the point — an exploratory question must not acquire a
-    side effect because a model thought an action sounded appropriate.
-
-    The intent classification is deterministic and reads the OPERATOR's words. The
-    model's recommendation, however emphatic, never opens a review.
-    """
-    from services import operator_proposals as prop
-
-    ctx = WorkflowContext()
-    intent = prop.classify_action_intent(request)
-    if intent is None:
-        yield "context", ctx
-        return
-
-    # Capability first: whether a review may be created at all, and whether execution
-    # can be offered, are both properties of live control-plane state.
-    with _Timer() as t_cap:
-        capability = _capability_for(intent.action)
-    step = Step(
-        "capability", "Governed capability checked", SOURCE_POLICY_PLANE,
-        duration_ms=t_cap.ms,
-        result=prop.describe_execution(prop._execution_capability(capability)),
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-
-    with _Timer() as t_prepare:
-        outcome = await prop.prepare_proposal(
-            db, customer_id=customer_id, request=request, turn_id=turn_id,
-            intent=intent, capability=capability,
-            requested_by_sub=operator_sub or None,
-        )
-
-    if outcome.action is None:
-        # Ambiguous item, or no stated reason. A question, not a failure — and no
-        # review was created.
-        step = Step(
-            "action", "Action parameters not established", SOURCE_AURORA,
-            status="unavailable", duration_ms=t_prepare.ms,
-            result=getattr(outcome.grounding, "reason", "") or "reason_not_stated",
-        )
-        ctx.steps.append(step)
-        yield "step", step.to_payload()
-        ctx.blocked = outcome.blocked
-        ctx.artifact = {"proposedActions": []}
-        yield "context", ctx
-        return
-
-    action = outcome.action
-    step = Step(
-        "action", "Action parameters established", SOURCE_AURORA,
-        duration_ms=t_prepare.ms,
-        result=f"{action.tool} · order #{action.order.get('orderId')} · "
-               f"{action.material.get('reason')}",
-    )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-
-    # "Review prepared" is emitted only when a review actually exists. No fake
-    # action progress: the three failure states each get their own honest row.
-    if action.review_id is not None:
-        step = Step(
-            "review", "Review prepared", SOURCE_AURORA,
-            result=f"review {action.review_id} · awaiting a person",
-        )
-    else:
-        step = Step(
-            "review", "No review prepared", SOURCE_AURORA, status="unavailable",
-            result=action.state,
-        )
-    ctx.steps.append(step)
-    yield "step", step.to_payload()
-
-    ctx.evidence.append(Evidence(
-        kind="proposed_action", role=ROLE_FACT, status="verified",
-        source=SOURCE_AURORA, label="Action prepared for review",
-        record_id=str(action.review_id or ""),
-        detail=(
-            f"{action.tool} for order #{action.order.get('orderId')} "
-            f"({action.product.get('name')}), reason "
-            f"{action.material.get('reason')}. "
-            + prop.describe_execution(action.execution_capability)
-        ),
-        data=action.to_payload(),
-    ))
-    ctx.prompt_block = _proposal_prompt_block(action)
-    ctx.artifact = {"proposedActions": [action.to_payload()]}
-    yield "context", ctx
-
-
-def _capability_for(action: str) -> Optional[Dict[str, Any]]:
-    """The live capability entry for one tool, or None when it could not be read.
-
-    Synchronous, because `get_capabilities` is — and it is cached for 60 seconds, so
-    the control-plane call happens at most once a minute. Same shape as the
-    synchronous `synthesize` call this orchestrator already makes.
-
-    None means the snapshot itself was unreadable. It is NOT the same as a capability
-    reporting `not_enabled`, and the caller must keep those apart.
-    """
-    try:
-        from services.operator_capabilities import get_capabilities
-
-        snapshot = get_capabilities()
-        return (snapshot.get("capabilities") or {}).get(action)
-    except Exception as exc:  # noqa: BLE001 - unreadable is a state, not a crash
-        logger.info("capability read unavailable for %s: %s", action, exc)
-        return None
-
-
-def _proposal_prompt_block(action: Any) -> str:
-    """The facts about the prepared action the model may write prose about.
-
-    It is told what was prepared and, explicitly, that nothing has been authorized
-    or executed — so it cannot narrate a consequence that has not happened.
-    """
-    from services import operator_proposals as prop
-
-    lines = [
-        f"ACTION PREPARED FOR HUMAN REVIEW: {action.tool}",
-        f"  order #{action.order.get('orderId')} · "
-        f"{action.product.get('name')} · reason {action.material.get('reason')}",
-        f"  state: {action.state}",
-        "  " + prop.describe_execution(action.execution_capability),
-        "NOTHING HAS BEEN AUTHORIZED OR EXECUTED. A person has not decided yet, "
-        "AgentCore Policy has not been asked, and no statement has reached Aurora.",
-    ]
-    if action.note:
-        lines.append("  note: " + action.note)
-    return "\n".join(lines)
-
-
 # ---------------------------------------------------------------------------
 # Episode recall: what happened in comparable situations before
 # ---------------------------------------------------------------------------
@@ -1531,10 +1113,7 @@ def _episode_label(episode: Any) -> str:
 # Which workflows contribute a context stage. A side table rather than a callable on
 # the frozen spec, so the spec stays a plain literal; `has_context_stage` on the spec
 # declares it and a test proves the two agree.
-_CONTEXT_STAGES: Dict[str, Any] = {
-    WORKFLOW_REPLACEMENT: _replacement_context,
-    WORKFLOW_INVESTIGATE: _investigate_context,
-}
+_CONTEXT_STAGES: Dict[str, Any] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -1900,7 +1479,6 @@ _FAILURE_COPY: Dict[str, str] = {
     WORKFLOW_CLIENT_SUMMARY: "Summary could not be completed.",
     WORKFLOW_INVESTIGATE: "Investigation could not be completed.",
     WORKFLOW_DRAFT_NOTE: "No draft was produced.",
-    WORKFLOW_REPLACEMENT: "No replacement recommendation was produced.",
 }
 
 

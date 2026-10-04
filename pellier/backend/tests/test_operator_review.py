@@ -28,30 +28,23 @@ if str(BACKEND) not in sys.path:
 
 from routes import operator as operator_module  # noqa: E402
 from services import operator_review as rv  # noqa: E402
-from services.business_logic import write_request_hash  # noqa: E402
+from services.store_tools import write_request_hash  # noqa: E402
 
 REPO = BACKEND.parents[1]
 
-# Theo's canonical relationships, frozen by Prompt 1 and verified against the
-# live cluster: order 305 is the CUST-THEO row (304 is the same purchase under
-# the bare `theo` alias the shopper prompt passes).
+# The one governed mutation: a store credit for Theo, proposed in the shopper
+# conversation and decided by a person.
 THEO = {
     "customer_id": "CUST-THEO",
-    "product_id": 37,
-    "reason": "damaged",
-    "order_id": 305,
+    "amount_cents": 2500,
+    "reason": "courtesy",
 }
 
-THEO_HASH = write_request_hash(
-    "initiate_return",
-    customer_id="CUST-THEO",
-    product_id=37,
-    reason="damaged",
-)
+THEO_HASH = write_request_hash("give_store_credit", **THEO)
 
 BOUNDARY_REFUSAL = {
     "error": "managed_rail_required",
-    "tool": "initiate_return",
+    "tool": "give_store_credit",
     "required_rail": "gateway-mcp",
 }
 
@@ -81,17 +74,13 @@ class FakeReviewDb:
             "review_id": self._next_id,
             "customer_id": THEO["customer_id"],
             "customer_name": "Theo",
-            "action": "initiate_return",
-            "args": {
-                "customer_id": THEO["customer_id"],
-                "product_id": THEO["product_id"],
-                "reason": THEO["reason"],
-            },
+            "action": "give_store_credit",
+            "args": dict(THEO),
             "status": "pending",
             "source_turn_id": "turn-theo-1",
-            "order_id": THEO["order_id"],
+            "order_id": None,
             "issue": "arrived damaged",
-            "recommendation": {"primaryAction": "initiate_return"},
+            "recommendation": {"primaryAction": "give_store_credit"},
             "action_hash": THEO_HASH,
             "decided_by": None,
             "requested_at": None,
@@ -107,8 +96,6 @@ class FakeReviewDb:
         self.statements.append(query)
         if "FROM pellier.principal_customers" in query:
             return {"owns": 1} if tuple(params) in self.mappings else None
-        if "FROM pellier.orders" in query and "WHERE customer_id" in query:
-            return {"id": THEO["order_id"]}
         if query.strip().startswith("INSERT INTO pellier.approvals"):
             turn, tool, action_hash = params[3], params[1], params[7]
             customer = params[0]
@@ -165,18 +152,6 @@ class FakeReviewDb:
                 "membership": "registered", "spend_12mo": 940.00,
                 "preferences_summary": "Slow craft.",
             }
-        if "FROM pellier.orders o" in query:
-            return {
-                "order_id": THEO["order_id"], "product_id": "37", "quantity": 1,
-                "placed_at": None, "product_name": "Wabi-Sabi Bowl",
-                "brand": "Pellier", "price": 65.00, "image_url": "/p/37.png",
-            }
-        if "FROM pellier.product_catalog" in query:
-            return {
-                "product_id": "37", "name": "Wabi-Sabi Bowl",
-                "brand": "Pellier", "price": 65.00, "quantity": 50,
-                "image_url": "/p/37.png",
-            }
         return None
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
@@ -188,15 +163,6 @@ class FakeReviewDb:
                 rows = [r for r in rows if r["status"] == status]
             rows.sort(key=lambda r: 0 if r["status"] == "pending" else 1)
             return rows
-        if "FROM pellier.warehouse_inventory" in query:
-            return [
-                {"warehouse_id": "BK-01", "display_name": "Brooklyn",
-                 "city": "Brooklyn, NY", "quantity": 20,
-                 "ship_window_min": 1, "ship_window_max": 2},
-                {"warehouse_id": "ATX-02", "display_name": "Austin",
-                 "city": "Austin, TX", "quantity": 15,
-                 "ship_window_min": 2, "ship_window_max": 4},
-            ]
         if "FROM pellier.returns" in query:
             return [
                 {"id": 28, "product_id": "31", "reason": "damaged",
@@ -214,7 +180,6 @@ class FakeReviewDb:
                 if table.lower() in sql.lower():
                     return True
         return False
-
 
 
 # Every route on the operator router is gated now, so a test that exercises route
@@ -256,8 +221,8 @@ async def test_the_boundary_refusal_opens_exactly_one_review() -> None:
     db = FakeReviewDb()
     review_id = await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-theo-1",
         issue="arrived damaged",
     )
@@ -265,7 +230,7 @@ async def test_the_boundary_refusal_opens_exactly_one_review() -> None:
     assert len(db.rows) == 1
     row = db.rows[0]
     assert row["customer_id"] == "CUST-THEO"
-    assert row["action"] == "initiate_return"
+    assert row["action"] == "give_store_credit"
     assert row["status"] == "pending"
     assert row["source_turn_id"] == "turn-theo-1"
 
@@ -277,16 +242,16 @@ async def test_a_review_records_who_asked_or_that_nobody_verified_did() -> None:
     db.mappings.add(("f4981468-theo", "CUST-THEO"))
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-theo-signed-in",
         requested_by_sub="f4981468-theo",
         requester_kind=rv.REQUESTER_SHOPPER,
     )
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 38, "reason": "damaged"},
+        action="give_store_credit",
+        args={**THEO, "amount_cents": 3000},
         source_turn_id="turn-anon-persona",
     )
     signed_in, anonymous = db.rows
@@ -301,8 +266,8 @@ async def test_an_unknown_requester_kind_is_stored_as_unverified() -> None:
     db = FakeReviewDb()
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-x",
         requested_by_sub="someone",
         requester_kind="admin",
@@ -329,8 +294,8 @@ async def test_a_signed_in_requester_is_a_shopper_only_for_their_own_customer(
         db.mappings.add(("f4981468-theo", mapped_customer))
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-x",
         requested_by_sub="f4981468-theo",
         requester_kind="shopper",
@@ -351,8 +316,8 @@ async def test_a_failed_mapping_lookup_never_upgrades_a_requester() -> None:
     db.fetch_one = _boom  # type: ignore[method-assign]
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-x",
         requested_by_sub="f4981468-theo",
         requester_kind="shopper",
@@ -389,8 +354,8 @@ def test_the_boundary_handoff_reads_the_requester_from_the_turn_identity(
         token = principal_sub_var.set("f4981468-theo")
         try:
             assert rv.record_boundary_review(
-                action="initiate_return",
-                args={"customer_id": "CUST-MARCO", "product_id": 1, "reason": "damaged"},
+                action="give_store_credit",
+                args={**THEO, "customer_id": "CUST-MARCO"},
                 result=refusal,
                 source_turn_id="turn-1",
             ) == 41
@@ -401,8 +366,8 @@ def test_the_boundary_handoff_reads_the_requester_from_the_turn_identity(
 
         captured.clear()
         rv.record_boundary_review(
-            action="initiate_return",
-            args={"customer_id": "CUST-THEO", "product_id": 1, "reason": "damaged"},
+            action="give_store_credit",
+            args=dict(THEO),
             result=refusal,
             source_turn_id="turn-2",
         )
@@ -415,29 +380,12 @@ def test_the_boundary_handoff_reads_the_requester_from_the_turn_identity(
 
 
 @pytest.mark.asyncio
-async def test_the_review_resolves_the_order_from_aurora_rather_than_the_caller() -> None:
-    """Theo's bowl exists under both `theo` and `CUST-THEO`.
-
-    The order is looked up, not passed in, so the review references the row that
-    belongs to the canonical identity the operator will act as.
-    """
-    db = FakeReviewDb()
-    await rv.propose_review(
-        db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
-        source_turn_id="turn-theo-order",
-    )
-    assert db.rows[0]["order_id"] == 305
-
-
-@pytest.mark.asyncio
 async def test_the_source_turn_id_is_preserved_and_no_new_identifier_is_minted() -> None:
     db = FakeReviewDb()
     await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-abc-123",
     )
     row = db.rows[0]
@@ -449,8 +397,8 @@ async def test_the_source_turn_id_is_preserved_and_no_new_identifier_is_minted()
 
 def test_only_governed_mutations_are_reviewable() -> None:
     """A review for a read would be a card no operator can act on."""
-    assert set(rv.REVIEWABLE_ACTIONS) == {"initiate_return", "issue_credit", "replace_damaged_item"}
-    assert "check_inventory" not in rv.REVIEWABLE_ACTIONS
+    assert set(rv.REVIEWABLE_ACTIONS) == {"give_store_credit"}
+    assert "check_stock" not in rv.REVIEWABLE_ACTIONS
     assert "search_products" not in rv.REVIEWABLE_ACTIONS
 
 
@@ -459,7 +407,7 @@ def test_the_handoff_keys_off_the_structured_refusal_not_model_prose() -> None:
     assert rv.is_boundary_refusal(BOUNDARY_REFUSAL) is True
     assert rv.is_boundary_refusal(json.dumps(BOUNDARY_REFUSAL)) is True
     # A successful write is not a boundary refusal.
-    assert rv.is_boundary_refusal({"status": "success", "return_id": 9}) is False
+    assert rv.is_boundary_refusal({"status": "success", "credit_id": 9}) is False
     # Neither is prose that merely talks about one.
     assert rv.is_boundary_refusal(
         "I prepared the request and an operator will confirm it."
@@ -470,9 +418,9 @@ def test_the_handoff_keys_off_the_structured_refusal_not_model_prose() -> None:
 def test_a_successful_write_never_opens_a_review() -> None:
     """Belt and braces: the creation entry point refuses non-refusals."""
     assert rv.record_boundary_review(
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
-        result={"status": "success", "return_id": 9},
+        action="give_store_credit",
+        args=dict(THEO),
+        result={"status": "success", "credit_id": 9},
         source_turn_id="turn-x",
     ) is None
 
@@ -484,12 +432,12 @@ def test_a_successful_write_never_opens_a_review() -> None:
 @pytest.mark.asyncio
 async def test_replaying_the_same_turn_does_not_create_a_second_review() -> None:
     db = FakeReviewDb()
-    args = {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"}
+    args = dict(THEO)
     first = await rv.propose_review(
-        db, action="initiate_return", args=args, source_turn_id="turn-replay"
+        db, action="give_store_credit", args=args, source_turn_id="turn-replay"
     )
     second = await rv.propose_review(
-        db, action="initiate_return", args=args, source_turn_id="turn-replay"
+        db, action="give_store_credit", args=args, source_turn_id="turn-replay"
     )
     assert first == second
     assert len(db.rows) == 1
@@ -521,12 +469,12 @@ def test_the_open_review_uniqueness_is_enforced_by_the_database() -> None:
 async def test_a_second_turn_asking_the_same_thing_resolves_to_the_open_review() -> None:
     """Two turns, one decision. The operator must not see the same card twice."""
     db = FakeReviewDb()
-    args = {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"}
+    args = dict(THEO)
     first = await rv.propose_review(
-        db, action="initiate_return", args=args, source_turn_id="turn-one"
+        db, action="give_store_credit", args=args, source_turn_id="turn-one"
     )
     second = await rv.propose_review(
-        db, action="initiate_return", args=args, source_turn_id="turn-two"
+        db, action="give_store_credit", args=args, source_turn_id="turn-two"
     )
     assert first == second, "a different turn opened a duplicate review"
     assert len(db.rows) == 1
@@ -540,14 +488,14 @@ async def test_a_materially_different_proposal_gets_its_own_review() -> None:
     db = FakeReviewDb()
     first = await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
+        action="give_store_credit",
+        args=dict(THEO),
         source_turn_id="turn-one",
     )
     other_piece = await rv.propose_review(
         db,
-        action="initiate_return",
-        args={"customer_id": "CUST-THEO", "product_id": 31, "reason": "damaged"},
+        action="give_store_credit",
+        args={**THEO, "amount_cents": 5000},
         source_turn_id="turn-one",
     )
     assert first != other_piece
@@ -565,7 +513,7 @@ async def test_a_materially_different_proposal_gets_its_own_review() -> None:
     [("shopper", "shopper-sub"), ("operator", "operator-sub"),
      ("unverified", "other-shopper-sub"), ("unverified", None)],
 )
-async def test_review_reads_preserve_requester_identity_and_product(
+async def test_review_reads_preserve_requester_identity(
     read: str, kind: str, subject: Optional[str]
 ) -> None:
     """Execute the real SELECT projection, which a full-row mock cannot check."""
@@ -583,12 +531,11 @@ async def test_review_reads_preserve_requester_identity_and_product(
             CREATE TABLE pellier.customers (id TEXT, name TEXT);
             CREATE TABLE pellier.product_catalog (product_id INTEGER, name TEXT);
             INSERT INTO pellier.customers VALUES ('CUST-THEO', 'Theo');
-            INSERT INTO pellier.product_catalog VALUES (37, 'Wabi-Sabi Bowl');
         """)
         conn.execute("""
             INSERT INTO pellier.approvals
               (id, customer_id, tool, args, status, requested_by_sub, requester_kind)
-            VALUES (1, 'CUST-THEO', 'initiate_return', '{"product_id":37}', 'pending', ?, ?)
+            VALUES (1, 'CUST-THEO', 'give_store_credit', '{"amount_cents":2500}', 'pending', ?, ?)
         """, (subject, kind))
 
         class QueryDb:
@@ -607,7 +554,7 @@ async def test_review_reads_preserve_requester_identity_and_product(
         payload = operator_module._review_payload(row)
         assert payload["requesterKind"] == kind
         assert payload["requestedBySub"] == subject
-        assert payload["productName"] == "Wabi-Sabi Bowl"
+        assert payload["customerName"] == "Theo"
 
 
 def test_the_pending_review_appears_in_the_operator_queue() -> None:
@@ -619,7 +566,7 @@ def test_the_pending_review_appears_in_the_operator_queue() -> None:
     assert body["pendingCount"] == 1
     review = body["reviews"][0]
     assert review["customerName"] == "Theo"
-    assert review["action"] == "initiate_return"
+    assert review["action"] == "give_store_credit"
     assert review["humanState"] == "confirmation_required"
 
 
@@ -705,36 +652,26 @@ def test_rendering_hydrates_current_values_from_their_owning_tables() -> None:
     # Standing comes from pellier.customers, now.
     assert body["client"]["membership"] == "registered"
     assert body["client"]["spend12mo"] == 940.00
-    # The order comes from pellier.orders joined to the catalog.
-    assert body["order"]["orderId"] == 305
-    assert body["order"]["productName"] == "Wabi-Sabi Bowl"
-    # Replacement availability is derived from live warehouse rows.
-    assert body["fulfilment"]["totalUnits"] == 35
-    assert body["fulfilment"]["replacementAvailable"] is True
-    # And the prior return history is real, so the UI cannot imply a first offence.
+    # A credit names a customer, not a purchase, so no order or piece is invented.
+    assert body["order"] is None
+    assert body["product"] is None
+    assert body["fulfilment"]["totalUnits"] == 0
+    assert body["fulfilment"]["availabilityVerified"] is False
+    # And the prior return history is real, so the UI cannot imply a first request.
     assert [r["productId"] for r in body["returns"]] == ["31"]
     assert body["returns"][0]["status"] == "approved"
 
 
-def test_replacement_availability_is_never_stored_on_the_review() -> None:
-    """It decays. A review written today must not promise stock next month."""
-    db = FakeReviewDb()
-    row = db.add_pending()
-    body = build_client(db).get(f"/api/operator/reviews/{row['review_id']}").json()
-    assert "replacementAvailable" not in body["review"]
-    assert "replacementAvailable" in body["fulfilment"]
+def test_the_review_response_invents_no_order_for_a_credit() -> None:
+    """A store credit has no order, and `pellier.orders` has no status to report.
 
-
-def test_the_review_response_reports_no_order_status_because_there_is_none() -> None:
-    """`pellier.orders` has no status column, so inventing one would be fiction.
-
-    The authoritative lifecycle for this piece is its return history, which the
-    response carries instead.
+    The authoritative lifecycle context for the client is their return history,
+    which the response carries instead of a fabricated order state.
     """
     db = FakeReviewDb()
     row = db.add_pending()
     body = build_client(db).get(f"/api/operator/reviews/{row['review_id']}").json()
-    assert "status" not in body["order"]
+    assert body["order"] is None
     assert "returns" in body
 
 
@@ -764,20 +701,15 @@ def test_the_confirmation_fingerprint_is_the_write_path_hash() -> None:
     If the review invented its own scheme, "the operator confirmed what
     executed" would be an assertion rather than something checkable.
     """
-    assert rv.action_fingerprint(
-        "initiate_return",
-        {"customer_id": "CUST-THEO", "product_id": 37, "reason": "damaged"},
-    ) == write_request_hash(
-        "initiate_return", customer_id="CUST-THEO", product_id=37, reason="damaged"
+    assert rv.action_fingerprint("give_store_credit", dict(THEO)) == write_request_hash(
+        "give_store_credit", **THEO
     )
     assert len(THEO_HASH) == 64
 
 
 def test_a_changed_material_parameter_invalidates_a_prior_confirmation() -> None:
-    """The operator agreed to a damaged return, not to whatever it became."""
-    changed = write_request_hash(
-        "initiate_return", customer_id="CUST-THEO", product_id=37, reason="changed_mind"
-    )
+    """The operator agreed to this credit for this reason, not to whatever it became."""
+    changed = write_request_hash("give_store_credit", **{**THEO, "reason": "changed_mind"})
     assert changed != THEO_HASH
 
     db = FakeReviewDb()
@@ -795,14 +727,8 @@ def test_a_changed_material_parameter_invalidates_a_prior_confirmation() -> None
 
 def test_the_credit_amount_is_material_to_the_fingerprint() -> None:
     """Confirming $25 must not authorise $250."""
-    low = rv.action_fingerprint(
-        "issue_credit",
-        {"customer_id": "CUST-THEO", "amount_cents": 2500, "reason": "courtesy"},
-    )
-    high = rv.action_fingerprint(
-        "issue_credit",
-        {"customer_id": "CUST-THEO", "amount_cents": 25000, "reason": "courtesy"},
-    )
+    low = rv.action_fingerprint("give_store_credit", {**THEO, "amount_cents": 2500})
+    high = rv.action_fingerprint("give_store_credit", {**THEO, "amount_cents": 25000})
     assert low != high
 
 
@@ -879,8 +805,8 @@ def test_a_declined_action_never_reaches_policy_or_aurora() -> None:
         "aurora": "NOT_REACHED",
         "evidence": "NO_EXECUTION",
     }
-    assert not db.wrote_to("pellier.returns", "pellier.store_credits",
-                           "pellier.write_operations", "pellier.inventory_ledger")
+    assert not db.wrote_to("pellier.store_credits", "pellier.write_operations",
+                           "pellier.inventory_ledger", "apply_store_credit")
 
 
 # ---------------------------------------------------------------------------
@@ -909,7 +835,7 @@ def test_an_authenticated_shopper_cannot_confirm_a_review() -> None:
     This test did not exist. Its predecessor sent NO credentials, so it proved only that
     an anonymous caller is refused, and the far more likely attacker was a shopper who
     already has a valid token from the storefront. `marco` could confirm, decline and
-    execute any review, and call `issue_credit`, because `require_operator` stopped at
+    execute any review, and give a credit, because `require_operator` stopped at
     "the token verifies and carries a subject".
 
     Asserted through the real dependency with a real token shape rather than through an
@@ -1019,10 +945,10 @@ def test_confirming_another_clients_review_by_id_still_binds_to_that_reviews_has
         customer_id="CUST-JESSICA",
         customer_name="Jessica Nakamura",
         source_turn_id="turn-jessica",
-        args={"customer_id": "CUST-JESSICA", "product_id": 42, "reason": "damaged"},
+        args={**THEO, "customer_id": "CUST-JESSICA", "amount_cents": 10000},
         action_hash=write_request_hash(
-            "initiate_return", customer_id="CUST-JESSICA", product_id=42,
-            reason="damaged",
+            "give_store_credit", customer_id="CUST-JESSICA", amount_cents=10000,
+            reason="courtesy",
         ),
     )
     client = build_client(db, operator={"sub": "op"})
@@ -1045,9 +971,7 @@ async def test_stored_parameters_that_disagree_with_the_hash_are_refused() -> No
     """
     db = FakeReviewDb()
     row = db.add_pending()
-    row["args"] = {
-        "customer_id": "CUST-THEO", "product_id": 37, "reason": "changed_mind",
-    }
+    row["args"] = {**THEO, "reason": "changed_mind"}
     with pytest.raises(rv.ReviewError) as excinfo:
         await rv.decide_review(
             db, review_id=row["review_id"], decision="approved",
@@ -1092,31 +1016,29 @@ def test_confirmation_performs_no_business_mutation() -> None:
         json={"actionHash": THEO_HASH},
     )
     assert not db.wrote_to(
-        "pellier.returns", "pellier.store_credits",
-        "pellier.write_operations", "pellier.inventory_ledger",
-        "process_return_idempotent", "apply_store_credit",
+        "pellier.store_credits", "pellier.write_operations",
+        "pellier.inventory_ledger", "apply_store_credit",
     )
 
 
-def test_the_confirmation_route_does_not_call_business_logic() -> None:
+def test_the_confirmation_route_does_not_run_the_credit_write() -> None:
     """Structural, because the existing action endpoints DO couple the two.
 
-    `/actions/resolve-return` confirms and executes in one call. Reusing it here
-    to make the screen feel finished would collapse the two decisions the four
-    axes exist to separate.
+    Confirming and executing in one call would collapse the two decisions the
+    four axes exist to separate.
     """
     source = (BACKEND / "routes" / "operator.py").read_text()
     confirm_block = source.split("async def confirm_review(", 1)[1].split(
         "@router.post(\"/reviews/{review_id}/decline\")", 1
     )[0]
-    assert "BusinessLogic" not in confirm_block
-    assert "initiate_return(" not in confirm_block
-    assert "issue_credit(" not in confirm_block
+    assert "store_tools" not in confirm_block
+    assert "give_store_credit(" not in confirm_block
 
     decline_block = source.split("async def decline_review(", 1)[1].split(
         "# The four axes", 1
     )[0]
-    assert "BusinessLogic" not in decline_block
+    assert "store_tools" not in decline_block
+    assert "give_store_credit(" not in decline_block
 
 
 def test_the_four_axes_are_independent_states_not_a_boolean() -> None:
@@ -1141,68 +1063,33 @@ def test_no_human_state_ever_reports_an_allow_or_a_permitted() -> None:
 # Creation point — the guard Prompt 2 established must survive
 # ---------------------------------------------------------------------------
 
-def test_the_review_opens_from_the_refusal_branch_after_the_guard_decides() -> None:
-    """The guard runs first; the handoff is its consequence.
 
-    A tool-lifecycle hook was tried first and did not work: the audit hooks are
-    attached to the outer orchestrator, and on the Agents-as-Tools path a
-    specialist's inner tool calls never reach them, so `POST /api/chat` opened no
-    review at all. A live smoke run proved it - the turn produced one `support`
-    audit row and nothing else. The refusal branch is the only place that runs on
-    every rail and every path, with the exact arguments.
+# ---------------------------------------------------------------------------
+# Creation point: the managed-rail refusal and the shopper handoff
+# ---------------------------------------------------------------------------
+
+
+def _agent_tools_block(name: str) -> str:
+    tools = (BACKEND / "services" / "agent_tools.py").read_text()
+    return tools.split(f"def {name}(", 1)[1].split("\n@tool", 1)[0]
+
+
+def test_the_credit_tool_is_refused_on_the_boundary_before_it_reaches_the_pool() -> None:
+    """The guard answers first, so a refused credit never touches the business pool.
+
+    `give_store_credit` is the one governed mutation. Its refusal path returns the
+    structured envelope before `_db_service`, the handle every business write goes
+    through, is consulted.
     """
-    tools = (BACKEND / "services" / "agent_tools.py").read_text()
-    return_block = tools.split("def initiate_return(", 1)[1].split("\n@tool", 1)[0]
-
-    guard_at = return_block.index('_managed_rail_required("initiate_return")')
-    review_at = return_block.index("_open_operator_review(")
-    assert guard_at < review_at, (
-        "the review is opened before the rail guard decides; the guard must run "
-        "first and the handoff must be its consequence"
-    )
-    assert "_open_operator_review(" in return_block
-    assert "operator_review.record_boundary_review(" in tools
+    block = _agent_tools_block("give_store_credit")
+    assert '_managed_rail_required("give_store_credit")' in block
+    assert block.index("_managed_rail_required(") < block.index("_db_service")
+    assert "amount_cents" in block
 
 
-def test_the_refusal_branch_never_touches_the_business_pool() -> None:
-    """The Prompt 2 guarantee, restated for the new creation point.
-
-    `initiate_return`'s refusal path must not reach `_db_service`, which is the
-    handle every business write goes through. The review writes workflow state
-    through its own pool reference, so the tripwire in
-    `test_shopper_arc_prompt2` remains meaningful rather than being satisfied on
-    a technicality: no business table is reachable from this branch.
-    """
-    tools = (BACKEND / "services" / "agent_tools.py").read_text()
-    return_block = tools.split("def initiate_return(", 1)[1].split("\n@tool", 1)[0]
-    refusal_branch = return_block.split("return governed_error", 1)[0]
-
-    assert "_db_service" not in refusal_branch, (
-        "the refusal branch reaches the business database pool"
-    )
-    assert "BusinessLogic" not in refusal_branch
-
-
-def test_the_creation_point_reads_structured_arguments_not_the_models_text() -> None:
-    """The agent's prose may change freely; the arguments and envelope may not."""
-    tools = (BACKEND / "services" / "agent_tools.py").read_text()
-    helper = tools.split("def _open_operator_review(", 1)[1].split("\ndef ", 1)[0]
-
-    # Keyed off the structured refusal envelope and the tool's own parameters.
-    assert "record_boundary_review(" in helper
-    assert "result=refusal_envelope" in helper
-    assert "args=args" in helper
-    assert "current_turn_id()" in helper
-
-    # And the arguments passed in are the tool's typed parameters, not text.
-    return_block = tools.split("def initiate_return(", 1)[1].split("\n@tool", 1)[0]
-    for parameter in ('"customer_id"', '"product_id"', '"reason"'):
-        assert parameter in return_block, parameter
-
-
-def test_both_governed_mutations_open_a_review_when_refused() -> None:
-    """`issue_credit` is refused on the same boundary and must not go silent."""
-    tools = (BACKEND / "services" / "agent_tools.py").read_text()
-    credit_block = tools.split("def issue_credit(", 1)[1].split("\n@tool", 1)[0]
-    assert "_open_operator_review(" in credit_block
-    assert '"amount_cents"' in credit_block
+def test_the_shopper_handoff_reads_identity_from_the_turn_not_the_model() -> None:
+    """The handoff that opens a review takes the turn and principal from context."""
+    block = _agent_tools_block("ask_a_person")
+    assert "current_turn_id()" in block
+    assert "current_principal_sub()" in block
+    assert "store_credit_cents" in block

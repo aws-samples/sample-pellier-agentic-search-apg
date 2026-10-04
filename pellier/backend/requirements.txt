@@ -46,7 +46,7 @@ bedrock-agentcore>=1.4.3
 # Caching — Valkey (ElastiCache)
 valkey>=6.0.0
 
-# Testing — Exercise 1 check_inventory contract test (test_solutions_parity.py).
+# Testing — Lab 2 check_stock contract test (test_solutions_parity.py).
 # pytest-asyncio is not optional: tests/test_storefront_routes.py drives the
 # briefing and pulse routes through `@pytest.mark.asyncio`, and without the
 # plugin pytest reports "async def functions are not natively supported" and

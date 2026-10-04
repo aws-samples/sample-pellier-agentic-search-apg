@@ -9,7 +9,7 @@ function review(overrides: Partial<OperatorReview> = {}): OperatorReview {
     customerName: 'Theo',
     slug: 'theo',
     personaId: 'theo',
-    action: 'initiate_return',
+    action: 'give_store_credit',
     parameters: {},
     status: 'pending',
     humanState: 'confirmation_required',
@@ -82,7 +82,7 @@ describe('a refused governed rail', () => {
       execution: { rail: 'refused', startedAt: '2026-09-03T00:00:00Z' } as unknown as OperatorReview['execution'],
     } as Partial<OperatorReview>)
     expect(outcomeKind(refused)).toBe('unavailable')
-    expect(outcomeLine(refused)).toBe('Return not submitted; the governed rail was unavailable')
+    expect(outcomeLine(refused)).toBe('Store credit not submitted; the governed rail was unavailable')
   })
 
   it('is recognised from the axes alone when an older receipt carries no rail', () => {

@@ -8,19 +8,11 @@ targets. From the orchestrator's perspective, "having a Gateway" means
 tool definitions stop living in Python imports and start being
 discovered dynamically over the wire.
 
-This module has two sides:
-
-1. **Server side (local MCP adapter)** — exposes the complete 17-tool
-   application catalog via MCP streamable HTTP for local development and
-   contract tests. The managed AgentCore Gateway deliberately publishes the
-   15-tool workshop subset from ``gateway_tool_schemas.workshop_published_tools``;
-   it is not derived from this local catalog.
-
-2. **Client side** — creates a Strands `Agent` that connects *back* to
-   a Gateway URL and pulls its tool list at agent-construction time
-   via `MCPClient.list_tools_sync()`. This is the production wiring:
-   the agent prompt no longer carries a hard-coded tool list; the
-   Gateway is the source of truth.
+The Gateway publishes Pellier's nine store tools on one target,
+``pellier-store-tools`` (``scripts/deploy/gateway_tool_schemas.py``). This
+module is the client side: the managed Router builds the routed agent over the
+tools it discovers through ``MCPClient.list_tools_sync()``, so the Gateway, not
+a Python import, is the source of the agent's tools.
 
 MCP (Model Context Protocol) docs: https://modelcontextprotocol.io
 """
@@ -38,51 +30,22 @@ logger = logging.getLogger(__name__)
 
 
 # === REFERENCE: START ===
-# Expose the local 17-tool application catalog via MCP streamable HTTP so an
-# external agent client can discover and invoke the same signatures and JSON
-# envelopes used by the in-process orchestrator.
-#
-# The managed Gateway publishes a separate 15-tool workshop subset. This local
-# catalog also contains ``issue_credit`` and ``get_ticket_history`` so the
-# in-process application can model deferred operator capabilities without
-# claiming that the managed Gateway serves them.
+# The managed Router: one agent per routed intent, over the tools the Gateway
+# publishes to the caller.
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
-# Local MCP server catalog, in stable order. Tests assert discovery returns
-# exactly this 17-tool set by exact name.
-LOCAL_MCP_TOOL_NAMES: List[str] = [
-    "search_products",
-    "search_products_hybrid",
-    "get_trending_products",
-    "get_price_analysis",
-    "browse_category",
-    "check_inventory",
-    "get_low_stock",
-    "restock_inventory",
-    "compare_products",
-    "get_return_policy",
-    "get_related_products",
-    "initiate_return",
-    "get_customer_preferences",
-    "get_audit_trail",
-    "escalate_to_human",
-    "issue_credit",
-    "get_ticket_history",
-]
-
-# Published for the operator desk, never for a shopper-facing specialist. The
-# Gateway serves these to any caller it lists them for, and Cedar decides per
-# call, so the boundary that matters here is the binding: a specialist that
-# names one of these would hand the model a money-moving tool and rely on a
-# policy denial to catch it. The dispatcher refuses to build such a specialist.
-GATEWAY_ONLY_OPERATOR_TOOLS: frozenset[str] = frozenset({"replace_damaged_item"})
-STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"issue_credit"}) | GATEWAY_ONLY_OPERATOR_TOOLS
+# Published for the Operator, never for a shopper-facing agent. The Gateway
+# serves it to any caller it lists it for, and Cedar decides per call, so the
+# boundary that matters here is the binding: an agent that named it would hand
+# the model a money-moving tool and rely on a policy denial to catch it. The
+# Router refuses to build such an agent.
+STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"give_store_credit"})
 
 
 def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) -> None:
-    """Refuse a shopper specialist that names a staff-only Gateway tool."""
+    """Refuse a shopper agent that names a staff-only Gateway tool."""
     staff_only = sorted(set(allowed_tools) & STAFF_ONLY_GATEWAY_TOOLS)
     if staff_only:
         raise RuntimeError(
@@ -91,51 +54,28 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 
 
 # === WORKSHOP - Managed catalogue - support reconcile: START ===
-# SOLUTION - the support specialist's managed contract, reconciled.
+# SOLUTION - the Support agent's managed contract, reconciled.
 #
-# `issue_credit` is gone: the Gateway does not publish it, so naming it here
-# hard-failed every support turn on the managed rail. `get_ticket_history`
-# stays and is now bound to the caller, so the server sets `customer_id` from
+# `get_tickets` is bound to the caller, so the server sets `customer_id` from
 # the verified session and the model cannot choose whose tickets to read.
 SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
+    "get_orders",
     "get_return_policy",
-    "search_products",
-    "initiate_return",
-    "get_ticket_history",
-    "get_audit_trail",
-    "escalate_to_human",
+    "get_tickets",
+    "ask_a_person",
 )
-SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_ticket_history"})
+SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_tickets"})
 # === WORKSHOP - Managed catalogue - support reconcile: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
-    "search": (
+    "shopping": (
         "search_products",
-        "browse_category",
+        "browse_department",
         "compare_products",
-        "get_related_products",
-        "escalate_to_human",
+        "ask_a_person",
     ),
-    "recommendation": (
-        "search_products_hybrid",
-        "get_trending_products",
-        "get_customer_preferences",
-        "get_audit_trail",
-        "compare_products",
-        "browse_category",
-        "escalate_to_human",
-    ),
-    "pricing": ("get_price_analysis", "browse_category", "search_products"),
-    "inventory": ("check_inventory", "get_low_stock"),
+    "stock": ("check_stock",),
     "support": SUPPORT_MANAGED_TOOLS,
-}
-
-_MANAGED_SPECIALIST_LABELS = {
-    "search": "Search Agent",
-    "recommendation": "Personalization Agent",
-    "pricing": "Pricing Agent",
-    "inventory": "Inventory Agent",
-    "support": "Customer Service Agent",
 }
 
 
@@ -160,10 +100,11 @@ def _managed_specialist_prompt(
     turn_id: str = "",
     customer_id: str = "",
 ) -> str:
-    """Return transport-neutral instructions for a Gateway-backed specialist."""
-    label = _MANAGED_SPECIALIST_LABELS[specialist]
+    """Return transport-neutral instructions for a Gateway-backed agent."""
+    from services.specialist_models import agent_name
+
     prompt = (
-        f"You are Pellier's {label}. "
+        f"You are Pellier's {agent_name(specialist)}. "
         "Use at least one of the AgentCore Gateway tools available to you "
         "before answering. Treat tool output as the only source of catalog, "
         "inventory, pricing, customer, and execution facts. Never claim that "
@@ -179,102 +120,49 @@ def _managed_specialist_prompt(
         prompt += (
             " The Runtime supplied the active workshop profile "
             f"customer_id={customer_id!r}. Use exactly this value when a "
-            "customer-scoped read tool requires customer_id; do not infer or "
+            "customer-scoped tool requires customer_id; do not infer or "
             "substitute another customer."
         )
     return prompt
 
 
-# Capability tiers over the same 17 tools.
+# Capability tiers over the nine published tools.
 #
-# One flat catalog publishes read, recommendation, inventory, escalation,
-# restock, and return capabilities through a single discovery surface.
-# Cedar still governs *execution*, but least-privilege becomes hard to
-# teach and harder to verify when every tool is one undifferentiated list:
-# "which of these can move money or stock?" has no structural answer.
-#
-# These tiers give that answer. They are the vocabulary the Policy lab and
-# the fail-closed rule in ``services.execution_rail`` share, so a tool
-# cannot be treated as a read in one place and a mutation in another.
-#
-# Tiers are declarative here rather than enforced as separate Gateway
-# targets: splitting targets changes the provisioned topology, which the
-# workshop's deploy scripts and readiness gates assert against. Semantic
-# tool discovery over many targets stays an advanced scaling pattern, not
-# the required path.
+# These tiers answer "which of these can move money?" structurally. They are
+# the vocabulary the Policy lab and the fail-closed rule in
+# ``services.execution_rail`` share, so a tool cannot be treated as a read in
+# one place and a mutation in another.
 TIER_READ = "read"
-TIER_CUSTOMER_MUTATION = "customer-mutation"
 TIER_OPERATOR_MUTATION = "operator-mutation"
 TIER_ESCALATION = "escalation"
 
 GATEWAY_TOOL_TIERS: Dict[str, str] = {
-    # Search and catalog reads. Safe for any authenticated shopper.
     "search_products": TIER_READ,
-    "search_products_hybrid": TIER_READ,
-    "get_trending_products": TIER_READ,
-    "get_price_analysis": TIER_READ,
-    "browse_category": TIER_READ,
+    "browse_department": TIER_READ,
     "compare_products": TIER_READ,
-    "get_related_products": TIER_READ,
+    "check_stock": TIER_READ,
+    "get_orders": TIER_READ,
     "get_return_policy": TIER_READ,
-    "get_customer_preferences": TIER_READ,
-    "get_audit_trail": TIER_READ,
-    # Inventory reads expose only the bounded workshop availability contract;
-    # the stock mutation remains a separately denied operator capability.
-    "check_inventory": TIER_READ,
-    "get_low_stock": TIER_READ,
-    # Writes the customer owns: a return against their own order.
-    "initiate_return": TIER_CUSTOMER_MUTATION,
-    # Writes only an operator may perform.
-    "restock_inventory": TIER_OPERATOR_MUTATION,
-    # Customer-scoped handoff instruction; no external ticket is created in
-    # this workshop implementation.
-    "escalate_to_human": TIER_ESCALATION,
-    # Money movement. Most restrictive write tier.
-    "issue_credit": TIER_OPERATOR_MUTATION,
-    "get_ticket_history": TIER_READ,
+    "get_tickets": TIER_READ,
+    # Money movement, written only for a review a person approved.
+    "give_store_credit": TIER_OPERATOR_MUTATION,
+    # A handoff. It changes no business data; a credit request opens a review
+    # for a person, which is workflow state, not a write the shopper owns.
+    "ask_a_person": TIER_ESCALATION,
 }
 
-# Tiers whose tools mutate state and therefore must travel the managed
-# rail in the governed format. Kept as a derived value so adding a tool to
-# a mutation tier automatically brings the fail-closed rule with it.
-# TIER_ESCALATION is deliberately absent: escalate_to_human writes nothing
-# (no products, no audit row, no external ticket — a pure UI handoff), and
-# degraded storefront turns keep it as the honest fallback when a mutation
-# is refused. Gating it would make degraded receipts claim a withheld
-# capability that never mutates state.
-MUTATION_TIERS = frozenset({TIER_CUSTOMER_MUTATION, TIER_OPERATOR_MUTATION})
+# Tiers whose tools mutate state and therefore must travel the managed rail in
+# the governed format. Derived, so adding a tool to a mutation tier brings the
+# fail-closed rule with it.
+MUTATION_TIERS = frozenset({TIER_OPERATOR_MUTATION})
 
-
-# Which Gateway target publishes each tool.
-#
-# Cedar action ids embed this exact string: a policy naming
-# ``pellier-concierge-experience-target___initiate_return`` matches only that
+# The one Gateway target that publishes every tool. Cedar action ids embed it:
+# a policy naming ``pellier-store-tools___give_store_credit`` matches only that
 # target's tool. The provisioning source is ``scripts/deploy/
-# gateway_tool_schemas.py``, which cannot be imported from the backend at
-# runtime, so the map is stated here and
-# ``tests/test_governed_execution.py`` asserts the two agree exactly. A silent
-# copy would let a policy point at a target that no longer publishes the tool.
-GATEWAY_TARGET_FOR_TOOL: Dict[str, str] = {
-    "search_products": "pellier-discovery-search-target",
-    "search_products_hybrid": "pellier-discovery-search-target",
-    "browse_category": "pellier-discovery-search-target",
-    "check_inventory": "pellier-discovery-search-target",
-    "get_low_stock": "pellier-discovery-search-target",
-    "restock_inventory": "pellier-discovery-search-target",
-    "get_price_analysis": "pellier-value-pricing-target",
-    "compare_products": "pellier-value-pricing-target",
-    "get_customer_preferences": "pellier-curation-recommendation-target",
-    "get_audit_trail": "pellier-curation-recommendation-target",
-    "get_trending_products": "pellier-curation-recommendation-target",
-    "get_return_policy": "pellier-curation-recommendation-target",
-    "get_related_products": "pellier-curation-recommendation-target",
-    "initiate_return": "pellier-concierge-experience-target",
-    "issue_credit": "pellier-concierge-experience-target",
-    "replace_damaged_item": "pellier-concierge-experience-target",
-    "get_ticket_history": "pellier-concierge-experience-target",
-    "escalate_to_human": "pellier-concierge-experience-target",
-}
+# gateway_tool_schemas.py``, which the backend cannot import at runtime, so the
+# map is stated here and the Gateway catalogue tests assert the two agree.
+GATEWAY_TARGET = "pellier-store-tools"
+GATEWAY_TARGET_FOR_TOOL: Dict[str, str] = {name: GATEWAY_TARGET for name in GATEWAY_TOOL_TIERS}
 
 
 def gateway_action_id(tool_name: str) -> str:
@@ -301,14 +189,12 @@ def tool_tier(tool_name: str) -> str:
 
 def tools_in_tier(tier: str) -> List[str]:
     """Return the published tools in ``tier``, in catalog order."""
-    return [name for name in LOCAL_MCP_TOOL_NAMES if tool_tier(name) == tier]
+    return [name for name in GATEWAY_TOOL_TIERS if tool_tier(name) == tier]
 
 
 def mutation_tool_names() -> List[str]:
     """Return every published tool that mutates state, in catalog order."""
-    return [
-        name for name in LOCAL_MCP_TOOL_NAMES if tool_tier(name) in MUTATION_TIERS
-    ]
+    return [name for name in GATEWAY_TOOL_TIERS if tool_tier(name) in MUTATION_TIERS]
 
 
 def _logical_gateway_tool_name(name: str) -> str:
@@ -350,30 +236,29 @@ def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
 
 _SAFE_TOOL_INPUT_FIELDS = frozenset(
     {
+        "amount_cents",
         "category",
         "customer_id",
+        "department",
         "idempotency_key",
         "limit",
         "max_price",
         "min_rating",
-        "persona",
-        "product_id",
         "product_id_1",
         "product_id_2",
         "product_query",
-        "quantity",
         "query",
         "reason",
+        "store_credit_cents",
         "turn_id",
-        "warehouse_id",
     }
 )
+# Tools whose `customer_id` the server binds to the verified caller before
+# execution. Lab 3A adds the support read the starter leaves unbound.
 _CUSTOMER_SCOPED_TOOL_NAMES = frozenset(
     {
-        "get_customer_preferences",
-        "get_audit_trail",
-        "initiate_return",
-        "escalate_to_human",
+        "get_orders",
+        "ask_a_person",
     }
 ) | SUPPORT_CALLER_BOUND_TOOLS
 
@@ -397,7 +282,6 @@ def _bind_server_tool_context(
                 f"{logical_name} requires verified Aurora customer context"
             )
         tool_input["customer_id"] = customer_id
-        tool_input.pop("persona", None)
 
     bound["input"] = tool_input
     return bound
@@ -489,11 +373,9 @@ def _managed_specialist_spec(
     turn_id: str = "",
     customer_id: str = "",
 ) -> tuple[str, str, tuple[str, ...]]:
-    """Return specialist name, prompt, and allowed logical tools."""
-    if intent == "customer_support":
-        intent = "support"
+    """Return the routed agent's intent, prompt, and allowed logical tools."""
     if intent not in MANAGED_SPECIALIST_TOOLS:
-        intent = "support"
+        raise ValueError(f"The Router returned an unknown intent: {intent!r}")
 
     return (
         intent,
@@ -508,7 +390,7 @@ def _managed_specialist_spec(
 
 @dataclass
 class ManagedGatewayDispatcher:
-    """Run Pellier's deterministic dispatcher over managed Gateway tools."""
+    """Run Pellier's deterministic Router over managed Gateway tools."""
 
     access_token: str
     customer_id: str = ""
@@ -623,7 +505,7 @@ class ManagedGatewayDispatcher:
                 observed_products: list[dict[str, Any]] = []
                 for value in _tool_result_values(event.result):
                     observed_products.extend(ProductExtractor.extract(value))
-                    if tool_name == "get_customer_preferences" and event.exception is None:
+                    if tool_name == "get_orders" and event.exception is None:
                         if isinstance(value, str):
                             import json
 
@@ -634,12 +516,11 @@ class ManagedGatewayDispatcher:
                         if (
                             isinstance(value, dict)
                             and value.get("status") == "success"
-                            and isinstance(value.get("customer"), dict)
-                            and value["customer"].get("id") == self.customer_id
-                            and isinstance(value.get("recent_orders"), list)
+                            and value.get("customer_id") == self.customer_id
+                            and isinstance(value.get("orders"), list)
                         ):
                             owned_products.extend(
-                                order for order in value["recent_orders"]
+                                order for order in value["orders"]
                                 if isinstance(order, dict)
                             )
                 existing = {
@@ -704,7 +585,7 @@ def create_gateway_dispatcher(
     customer_id: Optional[str] = None,
     routing_query: str = "",
 ) -> ManagedGatewayDispatcher | None:
-    """Create the managed equivalent of Pellier dispatcher."""
+    """Create the managed equivalent of Pellier's Router."""
     if not _runtime_or_app_setting("AGENTCORE_GATEWAY_URL") or not access_token:
         return None
     return ManagedGatewayDispatcher(
@@ -712,58 +593,6 @@ def create_gateway_dispatcher(
         customer_id=str(customer_id or "").strip(),
         routing_query=routing_query,
     )
-
-
-def _unwrap_strands_tool(strands_tool: Any) -> Any:
-    """Return the plain Python callable underneath a Strands `@tool` wrapper.
-
-    Strands' `@tool` produces a `DecoratedFunctionTool` whose original
-    callable is exposed via the standard `__wrapped__` attribute. FastMCP
-    needs the underlying function (with its signature and docstring) to
-    derive the MCP input schema, so we reach through the decorator here.
-    """
-    return getattr(strands_tool, "__wrapped__", strands_tool)
-
-
-def build_mcp_server(name: str = "pellier-gateway") -> Any:
-    """Build a FastMCP server registering the local 17-tool catalog.
-
-    Each registered MCP tool is a thin wrapper that delegates to the
-    corresponding `@tool` function in `services.agent_tools`. Wrappers
-    return the same JSON-serialized string the in-process tool returns so
-    MCP clients observe an identical envelope.
-
-    Raises:
-        ImportError: if the `mcp` package is not installed.
-    """
-    from mcp.server.fastmcp import FastMCP
-    import services.agent_tools as agent_tools
-
-    mcp_server = FastMCP(name=name)
-
-    # Register each of the 17 tools by name. We pass the unwrapped function
-    # (not the Strands DecoratedFunctionTool) so FastMCP can introspect the
-    # signature and docstring to generate the MCP input schema.
-    for tool_name in LOCAL_MCP_TOOL_NAMES:
-        strands_tool = getattr(agent_tools, tool_name)
-        fn = _unwrap_strands_tool(strands_tool)
-        # Preserve the exact public tool name — FastMCP defaults to the
-        # function's __name__ but we pin it explicitly for Req 2.2.3.
-        mcp_server.add_tool(fn, name=tool_name, description=fn.__doc__ or "")
-
-    return mcp_server
-
-
-def get_streamable_http_app(name: str = "pellier-gateway") -> Any:
-    """Return the Starlette ASGI app that serves the MCP streamable HTTP
-    transport. Mount under `/mcp` in FastAPI (or run standalone with uvicorn)
-    so external clients can discover tools via POST /mcp and invoke them.
-
-    Raises:
-        ImportError: if the `mcp` package is not installed.
-    """
-    mcp_server = build_mcp_server(name=name)
-    return mcp_server.streamable_http_app()
 
 
 def _current_trace_context() -> Any:

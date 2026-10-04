@@ -3,7 +3,7 @@
 --
 -- A Cedar DENY receipt records that the Gateway refused a call. It cannot
 -- prove that nothing ran: a receipt is not its own alibi. The proof is a keyed
--- search of every table an executed initiate_return writes, for the exact
+-- search of every table an executed give_store_credit writes, for the exact
 -- idempotency key the denied call carried, beside the same search for the key
 -- an allowed call carried. Empty for the denied key alone means nothing.
 -- Empty for the denied key AND exactly one finalized write for the allowed
@@ -32,7 +32,7 @@
 -- WORKSHOP_EXERCISE_STUB
 --
 -- Replace the five NULL placeholders with counts read from the tables an
--- executed initiate_return writes, for the exact keys passed in:
+-- executed give_store_credit writes, for the exact keys passed in:
 --
 --   pellier.tool_audit        args->>'idempotency_key' = :'deny_key'   an execution row
 --   pellier.write_operations  idempotency_key = :'deny_key'            a claimed write

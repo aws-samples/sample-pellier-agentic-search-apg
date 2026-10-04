@@ -35,10 +35,11 @@ def test_a_policy_denial_never_reaches_aurora() -> None:
 
 def test_a_policy_allow_does_not_imply_aurora_permitted() -> None:
     """Outcome C. Authorization and database permission are separate boundaries."""
-    denied = GE.as_rls_denial(
-        {"status": "error", "message": "Customer CUST-AMARA did not order product 46."},
-        "CUST-AMARA",
-    )
+    denied = {
+        "status": "error",
+        "sqlstate": "23514",
+        "message": "credit of 999999 cents exceeds the per-credit limit for CUST-AMARA",
+    }
     aurora, _note = GE.classify_aurora(denied)
     assert aurora == GE.AURORA_DENIED
     assert GE.classify_evidence_for(GE.POLICY_ALLOW, aurora, denied) == (
@@ -56,8 +57,8 @@ def test_a_permissive_gateway_result_is_not_an_allow_without_engine_state() -> N
 def test_enforcement_on_turns_a_returned_call_into_a_real_allow() -> None:
     state = GE.PolicyEngineState(
         gateway_mode="ENFORCE",
-        policies={"process_return_damaged_only": ("forbid", "ACTIVE")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
+        matching_forbids=("credit_limit_forbid",),
     )
     assert state.enforcement_is_on is True
     policy, note = GE.resolve_permissive_policy_state(state)
@@ -69,57 +70,42 @@ def test_an_unenforced_matching_forbid_is_inferred_not_a_verdict() -> None:
     """Policy text that names the action is a fact about text, not a decision."""
     state = GE.PolicyEngineState(
         gateway_mode="LOG_ONLY",
-        policies={"process_return_damaged_only": ("forbid", "ACTIVE")},
-        matching_forbids=("process_return_damaged_only",),
+        policies={"credit_limit_forbid": ("forbid", "ACTIVE")},
+        matching_forbids=("credit_limit_forbid",),
     )
     assert state.enforcement_is_on is False
     policy, note = GE.resolve_permissive_policy_state(state)
     assert policy == GE.POLICY_INFERRED
     assert policy != GE.POLICY_WOULD_DENY
-    assert "process_return_damaged_only" in note
+    assert "credit_limit_forbid" in note
 
 
 # ---------------------------------------------------------------------------
 # An RLS-hidden row never becomes a business falsehood
 # ---------------------------------------------------------------------------
 
-def test_an_rls_hidden_row_is_not_reported_as_a_missing_order() -> None:
-    """The canonical database-enforcement outcome, and it used to lie.
+# ---------------------------------------------------------------------------
+# A tool's own words are never rewritten into a database verdict
+# ---------------------------------------------------------------------------
 
-    `pellier.process_return_idempotent` reports "did not order" when its ownership
-    SELECT finds nothing. Under a session that resolved NO customer scope that SELECT
-    was guaranteed to find nothing whatever the orders table holds — order 323 exists.
-    The managed Gateway rail cannot set `denied_by` itself, so the raw message came
-    back and the Aurora axis read NOT_REACHED with the falsehood attached.
+def test_a_tool_message_is_never_rewritten_into_a_database_denial() -> None:
+    """The axis reads the envelope as it came; it does not reclassify by message.
+
+    A tool error with no database marker and no SQLSTATE is a tool error. The
+    result handed back is the same object content, so no surface renders a
+    rewritten message.
     """
-    raw = {"status": "error",
-           "message": "Customer CUST-AMARA did not order product 46; cannot process return."}
-    assert GE.is_ownership_failure(raw) is True
-
-    fixed = GE.as_rls_denial(raw, "CUST-AMARA")
-    assert fixed["denied_by"] == "database_row_level_security"
-    assert "did not order" not in fixed["message"]
-    assert "not in scope for this database session" in fixed["message"]
-    assert "The order relationship itself is unchanged" in fixed["message"]
-    # Nothing is hidden: the tool's verbatim text is preserved, just not as truth.
-    assert fixed["tool_message"] == raw["message"]
+    raw = {"status": "error", "message": "A reason is required for a credit."}
+    aurora, _note, result = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
+    assert aurora == GE.AURORA_NOT_REACHED
+    assert result == raw
 
 
-def test_a_success_is_never_reclassified() -> None:
-    for result in ({"status": "success"},
-                   {"status": "success", "message": "did not order"}):
-        assert GE.is_ownership_failure(result) is False
-
-
-def test_the_reclassification_only_fires_without_a_customer_subject() -> None:
-    """A mapped client's not-ordered result is a business fact and must stand."""
-    source = inspect.getsource(GE._classify_aurora_axis)
-    branch = source[source.index("elif customer_subject is None"):]
-    branch = branch[: branch.index("return aurora, aurora_note, result")]
-    assert "is_ownership_failure(result)" in branch
-    assert "as_rls_denial(result, customer_id)" in branch
-    # And the reclassification precedes the classification it feeds.
-    assert branch.index("as_rls_denial") < branch.index("classify_aurora")
+def test_a_success_envelope_is_permitted_and_unchanged() -> None:
+    raw = {"status": "success", "credit_id": 9}
+    aurora, _note, result = GE._classify_aurora_axis(GE.POLICY_ALLOW, dict(raw))
+    assert aurora == GE.AURORA_PERMITTED
+    assert result == raw
 
 
 # ---------------------------------------------------------------------------

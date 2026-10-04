@@ -1,61 +1,36 @@
-"""RRF parity: in-process fusion vs the Lambda single-CTE path.
+"""RRF: one fusion implementation, one constant, both rails.
 
-Hybrid retrieval is implemented twice, deliberately:
+Fusion used to be implemented twice, in Python for the in-process path and as a
+single CTE for the Lambda. Both rails now call ``store_tools.rrf_merge``, so
+there is nothing left to transcribe-and-compare. What remains worth pinning:
 
-- ``services/hybrid_search.py`` — the in-process path. Two SQL branches,
-  then :meth:`HybridSearch._rrf_merge` fuses the ranked lists in Python.
-- ``scripts/deploy/pellier_search_server.py`` — the Gateway Lambda path.
-  Data API's single-statement constraint folds both branches and the
-  fusion into one CTE: ``COALESCE(1.0/(60+vrank),0) +
-  COALESCE(1.0/(60+frank),0)`` over a FULL OUTER JOIN.
-
-The Lambda source promises "the same constant the in-process
-implementation uses, so participants get a one-to-one comparison
-between paths" — but nothing enforced that promise. These tests are the
-drift alarm:
-
-1. The k constant pinned in three places (in-process default, Settings
-   default, every literal in the Lambda SQL) must agree.
-2. The Lambda CTE's fusion shape (FULL OUTER JOIN + COALESCE-to-zero)
-   must still be present.
-3. A faithful Python transcription of the CTE math must produce the
-   same scores and ordering as ``_rrf_merge`` on shared fixtures,
-   including overlap, one-branch-only, and tie cases.
-
-No live database is involved; both sides reduce to arithmetic over
-ranked pid lists.
+1. The k constant is one number: the in-process default, the Settings default
+   and ``DEFAULT_RETRIEVAL_CONFIG`` (what the Lambda runs on) agree.
+2. ``rrf_merge`` implements ``sum 1 / (k + rank)`` over both branches, checked
+   against an independent transcription of the formula on shared fixtures,
+   including overlap, one-branch-only and tie cases.
+3. The Lambda passes no config of its own, so it cannot fuse with another k.
 """
 
 import math
-import re
-from pathlib import Path
 from typing import Any, Dict, List
 
-from services.hybrid_search import _RRF_K_DEFAULT, HybridSearch
 from config import Settings
-
-# tests/test_rrf_parity.py → parents[0]=tests, [1]=backend,
-# [2]=pellier, [3]=repo root
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_LAMBDA_PATH = _REPO_ROOT / "scripts" / "deploy" / "pellier_search_server.py"
-
-
-def _lambda_source() -> str:
-    return _LAMBDA_PATH.read_text(encoding="utf-8")
+from services import store_tools
+from services.search_plan import build_plan
+from services.hybrid_search import _RRF_K_DEFAULT
+from services.store_tools import DEFAULT_RETRIEVAL_CONFIG, rrf_merge
 
 
 def _row(product_id: int) -> Dict[str, Any]:
     return {"product_id": product_id}
 
 
-def _lambda_cte_scores(
-    vector_pids: List[int], fts_pids: List[int], k: int
-) -> Dict[int, float]:
-    """Transcribe the Lambda ``rrf`` CTE into Python.
+def _reference_scores(vector_pids: List[int], fts_pids: List[int], k: int) -> Dict[int, float]:
+    """Reciprocal Rank Fusion, transcribed from the definition.
 
-    ``row_number()`` ranks each branch starting at 1 in list order;
-    the FULL OUTER JOIN is the union of pids; a missing rank COALESCEs
-    to a zero contribution.
+    Each branch ranks from 1 in list order; a product absent from a branch
+    contributes nothing from it.
     """
     vrank = {pid: i + 1 for i, pid in enumerate(vector_pids)}
     frank = {pid: i + 1 for i, pid in enumerate(fts_pids)}
@@ -68,46 +43,44 @@ def _lambda_cte_scores(
 
 
 class TestRRFConstantParity:
-    """One k across the in-process default, Settings, and the Lambda SQL."""
-
-    def test_lambda_sql_uses_the_in_process_constant(self) -> None:
-        source = _lambda_source()
-        literals = re.findall(r"1\.0\s*/\s*\(\s*(\d+)\s*\+", source)
-        assert literals, (
-            "No RRF `1.0 / (k + rank)` literals found in "
-            f"{_LAMBDA_PATH} — if the fusion moved or was reshaped, "
-            "update this parity test alongside it."
-        )
-        assert set(literals) == {str(_RRF_K_DEFAULT)}, (
-            f"Lambda RRF constants {sorted(set(literals))} drifted from "
-            f"the in-process default {_RRF_K_DEFAULT}. The two hybrid "
-            "paths must fuse with the same k for a one-to-one comparison."
-        )
+    """One k across the in-process default, Settings, and the Lambda's defaults."""
 
     def test_settings_default_matches_in_process_default(self) -> None:
         assert Settings.model_fields["HYBRID_RRF_K"].default == _RRF_K_DEFAULT
 
+    def test_the_lambdas_default_config_fuses_with_the_same_constant(self) -> None:
+        assert DEFAULT_RETRIEVAL_CONFIG["rrf_k"] == _RRF_K_DEFAULT
 
-class TestLambdaCTEShape:
-    """Pin the fusion shape the transcription below depends on."""
+    def test_the_lambdas_default_config_matches_the_settings_defaults(self) -> None:
+        fields = Settings.model_fields
+        assert DEFAULT_RETRIEVAL_CONFIG == {
+            "k_vector": fields["HYBRID_VECTOR_K"].default,
+            "k_fts": fields["HYBRID_FTS_K"].default,
+            "rrf_k": fields["HYBRID_RRF_K"].default,
+            "top_n": fields["HYBRID_TOP_N"].default,
+            "rerank_max_documents": fields["RERANK_MAX_DOCUMENTS"].default,
+        }
 
-    def test_full_outer_join_coalesce_fusion_is_present(self) -> None:
-        source = _lambda_source()
-        for fragment in (
-            "FULL OUTER JOIN",
-            "COALESCE(v.pid, f.pid)",
-            "COALESCE(1.0 / (60 + v.vrank), 0)",
-            "COALESCE(1.0 / (60 + f.frank), 0)",
-        ):
-            assert fragment in source, (
-                f"Expected `{fragment}` in the Lambda hybrid CTE. If the "
-                "fusion SQL changed, update _lambda_cte_scores() in this "
-                "test to match and re-verify parity with _rrf_merge."
-            )
+    def test_the_lambda_passes_no_config_of_its_own(self) -> None:
+        import ast
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[3] / "scripts" / "deploy" / "pellier_store_tools.py"
+        ).read_text(encoding="utf-8")
+        calls = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "search_products"
+        ]
+        assert len(calls) == 1
+        assert "config" not in {keyword.arg for keyword in calls[0].keywords}
 
 
-class TestFusionMathParity:
-    """Same fixtures through both formulas → same scores, same ordering."""
+class TestFusionMath:
+    """Same fixtures through the implementation and the definition."""
 
     FIXTURES = [
         # (label, vector pids, fts pids)
@@ -115,41 +88,56 @@ class TestFusionMathParity:
         ("disjoint", [10, 11], [20, 21]),
         ("fts-empty", [1, 2, 3], []),
         ("vector-empty", [], [7, 8]),
-        # Symmetric ranks → pid 1 and pid 2 tie exactly.
+        # Symmetric ranks: pid 1 and pid 2 tie exactly.
         ("exact-tie", [1, 2], [2, 1]),
         ("full-depth", list(range(1, 21)), list(range(15, 35))),
     ]
 
-    def test_scores_match_lambda_transcription(self) -> None:
+    def test_scores_match_the_reference_formula(self) -> None:
         for label, v_pids, f_pids in self.FIXTURES:
-            merged = HybridSearch._rrf_merge(
-                [_row(p) for p in v_pids],
-                [_row(p) for p in f_pids],
-                rrf_k=_RRF_K_DEFAULT,
+            merged = rrf_merge(
+                [_row(p) for p in v_pids], [_row(p) for p in f_pids], _RRF_K_DEFAULT
             )
-            in_process = {r["product_id"]: r["rrf_score"] for r in merged}
-            lambda_side = _lambda_cte_scores(v_pids, f_pids, _RRF_K_DEFAULT)
-            assert in_process.keys() == lambda_side.keys(), label
-            for pid in lambda_side:
-                assert math.isclose(
-                    in_process[pid], lambda_side[pid], rel_tol=0, abs_tol=1e-12
-                ), f"{label}: pid {pid} scored differently across paths"
+            got = {r["product_id"]: r["rrf_score"] for r in merged}
+            expected = _reference_scores(v_pids, f_pids, _RRF_K_DEFAULT)
+            assert got.keys() == expected.keys(), label
+            for pid in expected:
+                assert math.isclose(got[pid], expected[pid], rel_tol=0, abs_tol=1e-12), (
+                    f"{label}: pid {pid} scored differently from the formula"
+                )
 
-    def test_ordering_matches_up_to_ties(self) -> None:
-        # Exact sequences can differ within a tie group (Python's sort is
-        # stable on insertion order; ORDER BY ... DESC leaves tie order
-        # unspecified), so compare the score-descending grouping instead.
+    def test_ordering_is_score_descending(self) -> None:
         for label, v_pids, f_pids in self.FIXTURES:
-            merged = HybridSearch._rrf_merge(
-                [_row(p) for p in v_pids],
-                [_row(p) for p in f_pids],
-                rrf_k=_RRF_K_DEFAULT,
+            merged = rrf_merge(
+                [_row(p) for p in v_pids], [_row(p) for p in f_pids], _RRF_K_DEFAULT
             )
             scores = [r["rrf_score"] for r in merged]
             assert scores == sorted(scores, reverse=True), label
-            lambda_side = _lambda_cte_scores(v_pids, f_pids, _RRF_K_DEFAULT)
-            expected_order = sorted(lambda_side.values(), reverse=True)
+            expected_order = sorted(
+                _reference_scores(v_pids, f_pids, _RRF_K_DEFAULT).values(), reverse=True
+            )
             for got, expected in zip(scores, expected_order):
-                assert math.isclose(
-                    got, expected, rel_tol=0, abs_tol=1e-12
-                ), f"{label}: fused ranking diverged between paths"
+                assert math.isclose(got, expected, rel_tol=0, abs_tol=1e-12), label
+
+    def test_the_search_pipeline_fuses_with_the_default_constant(self) -> None:
+        """End to end: a product ranked first by both branches scores 2 / (k + 1)."""
+        shared = {"product_id": "1", "name": "A", "price": 10, "category": "Home"}
+
+        def run(sql: str, params: Any) -> List[Dict[str, Any]]:
+            if "to_tsquery" in sql or "query_embedding" in sql:
+                return [dict(shared)]
+            return []
+
+        execution = store_tools.run_search_plan(
+            run,
+            plan=build_plan("linen shirt"),
+            query="linen shirt",
+            limit=1,
+            embed=lambda _q: [0.1],
+            rerank=lambda **_kw: [],
+            config=dict(DEFAULT_RETRIEVAL_CONFIG),
+        )
+
+        assert math.isclose(
+            execution.candidates[0]["rrf_score"], 2.0 / (_RRF_K_DEFAULT + 1), abs_tol=1e-12
+        )

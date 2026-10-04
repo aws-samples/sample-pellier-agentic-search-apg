@@ -1011,8 +1011,6 @@ def interruption_artifact(
     open it from the conversation. Its decision is read live by the review card; the
     artifact only records that this turn prepared it.
     """
-    from services.operator_proposals import STATE_REVIEW_REQUIRED
-
     opening = _CAUSE_COPY.get(cause, _CAUSE_COPY[CAUSE_STOPPED])
     summary = f"{opening} {_interruption_outcome(reviews)}"
     actions = []
@@ -1020,7 +1018,7 @@ def interruption_artifact(
         args = _json(review.get("args")) or {}
         actions.append({
             "tool": review.get("tool", ""),
-            "state": STATE_REVIEW_REQUIRED,
+            "state": "review_required",
             "reviewId": review.get("reviewId"),
             "customer": {"customerId": customer_id},
             "order": {"orderId": review.get("orderId")},

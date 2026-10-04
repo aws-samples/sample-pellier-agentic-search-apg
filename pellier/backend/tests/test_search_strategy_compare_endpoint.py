@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import Any
 
@@ -18,8 +19,8 @@ import services.planned_hybrid_retrieval as retrieval_module
 import services.rerank as rerank_module
 import services.retrieval_receipt as receipt_module
 import services.structured_extract as extract_module
+import services.store_tools as store_tools_module
 import services.vector_search as vector_module
-import services.agent_tools as agent_tools_module
 
 REPO = Path(__file__).resolve().parents[3]
 LAB_1_SQL = REPO / "workshop" / "lab-1-rrf.sql"
@@ -56,23 +57,6 @@ class _VectorSearch:
                 "name": f"Filtered {index}",
                 "product_id": index,
                 "description": "A filtered result",
-                "category": "Home",
-            }
-            for index in range(1, 7)
-        ]
-
-    async def vector_search_planned(
-        self, *args: Any, **kwargs: Any
-    ) -> list[dict[str, Any]]:
-        # Record the compiled predicates so a test can assert the agentic
-        # strategy really ran a plan rather than ad-hoc kwargs.
-        self.last_predicates = list(kwargs.get("predicates") or [])
-        self.last_predicate_params = list(kwargs.get("predicate_params") or [])
-        return [
-            {
-                "name": f"Planned {index}",
-                "product_id": index,
-                "description": "A planned result",
                 "category": "Home",
             }
             for index in range(1, 7)
@@ -150,27 +134,43 @@ class _Extractor:
         }
 
 
-class _EmptyPoolHybridSearch(_HybridSearch):
-    """Every planned attempt comes back empty, forcing the full ladder."""
+class _PlannedDB:
+    """The database service behind the planned strategies (4 and 5).
 
-    def __init__(self, db: Any) -> None:
-        super().__init__(db)
+    ``execute_search_plan`` sends every branch statement through
+    ``fetch_all``. Each statement is recorded with the phase (the number of
+    ``execute_search_plan`` calls started so far, when a test counts them) so
+    a test can tell strategy 4's statements from strategy 5's. Rows come back
+    from both branches unless ``empty_when(sql, params)`` says otherwise.
+    """
 
-    async def search(
-        self, *args: Any, **kwargs: Any
-    ) -> list[dict[str, Any]]:
-        self.search_calls.append(kwargs)
-        return []
+    def __init__(self, empty_when: Any = None) -> None:
+        self.empty_when = empty_when
+        self.phase = 0
+        self.statements: list[tuple[int, str, tuple[Any, ...]]] = []
+
+    async def fetch_all(self, sql: str, *params: Any) -> list[dict[str, Any]]:
+        self.statements.append((self.phase, sql, params))
+        if self.empty_when is not None and self.empty_when(sql, params):
+            return []
+        return _HybridSearch._rows()
+
+    def phase_statements(self, phase: int) -> list[tuple[str, tuple[Any, ...]]]:
+        return [(sql, params) for ph, sql, params in self.statements if ph == phase]
+
+
+@pytest.fixture
+def planned_db(monkeypatch: pytest.MonkeyPatch) -> _PlannedDB:
+    fake = _PlannedDB()
+    monkeypatch.setattr(app_module, "db_service", fake)
+    return fake
 
 
 @pytest.fixture(autouse=True)
-def _stub_services(monkeypatch: pytest.MonkeyPatch) -> None:
-    from services import planned_hybrid_retrieval
-
+def _stub_services(monkeypatch: pytest.MonkeyPatch, planned_db: _PlannedDB) -> None:
     # Mechanism contracts use a completed budget. The starter comparison below
     # separately verifies the narrow lab default and its observable repair.
-    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 30)
-    monkeypatch.setattr(app_module, "db_service", object())
+    monkeypatch.setattr(store_tools_module, "DEFAULT_RERANK_POOL_K", 30)
     monkeypatch.setattr(embeddings_module, "EmbeddingService", _Embedding)
     monkeypatch.setattr(vector_module, "VectorSearch", _VectorSearch)
     monkeypatch.setattr(hybrid_module, "HybridSearch", _HybridSearch)
@@ -392,11 +392,9 @@ def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
 
 
 def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch, completed_search_plan) -> None:
-    from services import planned_hybrid_retrieval
-
-    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 3)
+    monkeypatch.setattr(store_tools_module, "DEFAULT_RERANK_POOL_K", 3)
     before = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
-    monkeypatch.setattr(planned_hybrid_retrieval, "DEFAULT_RERANK_POOL_K", 20)
+    monkeypatch.setattr(store_tools_module, "DEFAULT_RERANK_POOL_K", 20)
     after = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
     narrow = before["strategies"][4]
     wide = after["strategies"][4]
@@ -409,6 +407,7 @@ def test_candidate_budget_comparison_exposes_exact_candidate_loss(monkeypatch, c
 
 def test_exhausted_ladder_never_drops_a_hard_constraint(
     monkeypatch: pytest.MonkeyPatch,
+    planned_db: _PlannedDB,
     completed_search_plan,
 ) -> None:
     """Even when every attempt returns nothing, price/stock/exclusions hold.
@@ -417,8 +416,14 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
     final ``drop_all`` rung removed price and in-stock entirely, so this
     query could answer with an out-of-stock $250 candle.
     """
-    empty = _EmptyPoolHybridSearch(object())
-    monkeypatch.setattr(hybrid_module, "HybridSearch", lambda db: empty)
+    planned_db.empty_when = lambda _sql, _params: True
+    real = retrieval_module.execute_search_plan
+
+    async def _phased(db: Any, **kwargs: Any) -> Any:
+        planned_db.phase += 1
+        return await real(db, **kwargs)
+
+    monkeypatch.setattr(retrieval_module, "execute_search_plan", _phased)
 
     body = asyncio.run(
         app_module.compare_search_strategies(
@@ -426,16 +431,16 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
         )
     )
 
-    attempts = [
-        list(call.get("hard_clauses") or [])
-        for call in empty.search_calls
-        if call.get("hard_clauses")
-    ]
+    # Phase 2 is the agentic strategy: the strict pass, then the widened pass.
+    attempts = planned_db.phase_statements(2)
     assert attempts, "the agentic strategy should have attempted retrieval"
-    for predicates in attempts:
-        assert "price <= %s" in predicates
-        assert "quantity > 0" in predicates
-        assert "NOT (tags ?| %s OR materials ?| %s)" in predicates
+    for sql, params in attempts:
+        assert "price <= %s" in sql
+        assert "quantity > 0" in sql
+        assert "NOT (tags ?| %s OR materials ?| %s)" in sql
+        assert "category = ANY" not in sql
+    assert any("tags ?& %s" in sql for sql, _params in attempts)
+    assert not all("tags ?& %s" in sql for sql, _params in attempts)
 
     agentic = body["strategies"][-1]
     assert agentic["searchPlan"]["hard_constraints"]["price_max_usd"] == 100.0
@@ -446,8 +451,6 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
     ]
     # The model guessed Home from "housewarming"; a guess is recorded, never enforced.
     assert agentic["searchPlan"]["inferred_categories"] == ["Home"]
-    for predicates in attempts:
-        assert not any("category" in clause for clause in predicates)
     # Widening happened, and it is disclosed rather than silent.
     assert [r["step"] for r in agentic["relaxations"]] == ["drop_tags"]
     assert agentic["relaxations"][0]["dropped"] == ["gift"]
@@ -541,9 +544,34 @@ def test_every_shipped_copy_of_lab_1_carries_the_same_receipt_selection() -> Non
         assert "AND recomputed_rrf IS NOT NULL" in path.read_text(encoding="utf-8"), path
 
 
+def _storefront_retrieval_config() -> dict[str, Any]:
+    """The ``retrieval_config`` a real storefront ``search_products`` call persists."""
+    from services.retrieval_receipt import INSERT_SQL, _COLUMN_ORDER
+
+    written: list[Any] = []
+
+    def run(sql: str, params: Any) -> list[dict[str, Any]]:
+        if sql == INSERT_SQL:
+            written.append(params)
+            return [{"receipt_id": 1}]
+        return [{"product_id": "1", "name": "Linen shirt", "price": 10, "category": "Home"}]
+
+    store_tools_module.search_products(
+        run,
+        query="linen shirt",
+        embed=lambda _query: [0.1],
+        rerank=lambda **_kwargs: [],
+        receipt={"turn_id": "turn-abc123", "rail": "in-process"},
+    )
+    assert len(written) == 1
+    return json.loads(written[0][_COLUMN_ORDER.index("retrieval_config")])
+
+
 def test_the_storefront_writer_leaves_the_comparison_source_unset() -> None:
     """The discriminator only discriminates while only one surface sets it."""
-    assert "source" not in agent_tools_module._hybrid_retrieval_config()
+    config = _storefront_retrieval_config()
+    assert config["search_method"]
+    assert "source" not in config
 
 
 def test_lab_1_would_select_exactly_the_receipt_the_comparison_just_wrote(
@@ -560,7 +588,7 @@ def test_lab_1_would_select_exactly_the_receipt_the_comparison_just_wrote(
     A later comparison must not replace the requested comparison either.
     """
     retired = "Keep the gift under $100 and show me the strongest two options."
-    storefront_config = agent_tools_module._hybrid_retrieval_config()
+    storefront_config = _storefront_retrieval_config()
     table: list[dict[str, Any]] = [
         {"receipt_id": 1, "query_preview": retired, "retrieval_config": {}},
         {
@@ -617,22 +645,12 @@ def test_lab_1_would_select_exactly_the_receipt_the_comparison_just_wrote(
     assert selected["query_preview"] != retired
 
 
-def teardown_function() -> None:
-    app_module.db_service = None
-
-
 def test_controlled_fallback_executes_authored_plan_and_records_both_passes(
-    monkeypatch, receipt_writes, completed_search_plan,
+    monkeypatch, planned_db, receipt_writes, completed_search_plan,
 ):
-    class SparsePreference(_HybridSearch):
-        async def search(self, *args, **kwargs):
-            # The live seed has no eligible watch below $100. Both branches
-            # return no rows for that preference; widened branches return rows.
-            if ['watch'] in (kwargs.get('hard_params') or []):
-                return []
-            return await super().search(*args, **kwargs)
-
-    monkeypatch.setattr(hybrid_module, 'HybridSearch', SparsePreference)
+    # The live seed has no eligible watch below $100. Both branches return no
+    # rows for that preference; widened branches return rows.
+    planned_db.empty_when = lambda _sql, params: ['watch'] in params
     monkeypatch.setattr(extract_module, 'get_structured_extractor',
                         lambda: pytest.fail('controlled case must not claim model extraction'))
     body = asyncio.run(app_module.compare_search_strategies(
@@ -659,15 +677,9 @@ def test_controlled_fallback_rejects_unknown_or_mislabelled_scenarios(query, sce
 
 
 def test_controlled_fallback_records_the_participants_chosen_preference(
-    monkeypatch, receipt_writes, completed_search_plan,
+    monkeypatch, planned_db, receipt_writes, completed_search_plan,
 ):
-    class SparseLeather(_HybridSearch):
-        async def search(self, *args, **kwargs):
-            if ['leather'] in (kwargs.get('hard_params') or []):
-                return []
-            return await super().search(*args, **kwargs)
-
-    monkeypatch.setattr(hybrid_module, 'HybridSearch', SparseLeather)
+    planned_db.empty_when = lambda _sql, params: ['leather'] in params
     monkeypatch.setattr(extract_module, 'get_structured_extractor',
                         lambda: pytest.fail('controlled case must not claim model extraction'))
     query = app_module.anna_fallback_query('leather')

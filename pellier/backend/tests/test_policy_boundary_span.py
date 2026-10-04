@@ -40,7 +40,7 @@ def recorded_spans(monkeypatch):
 
 
 def _events(decision: Any, source: str = "governed_receipts") -> List[Dict[str, Any]]:
-    return [{"decision": decision, "source": source, "tool": "initiate_return"}]
+    return [{"decision": decision, "source": source, "tool": "give_store_credit"}]
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ def test_no_payload_reaches_the_policy_span(recorded_spans):
     events = [
         {
             "decision": "DENY",
-            "tool": "initiate_return",
+            "tool": "give_store_credit",
             "reason": "customer 1 did not order product 1",
             "policy_name": "deny-cross-customer-returns",
         }
@@ -218,4 +218,4 @@ def test_no_payload_reaches_the_policy_span(recorded_spans):
     span = recorded_spans.get_finished_spans()[0]
     serialized = " ".join(f"{k}={v}" for k, v in span.attributes.items())
     assert "did not order" not in serialized
-    assert "initiate_return" not in serialized
+    assert "give_store_credit" not in serialized

@@ -155,7 +155,7 @@ class VectorSearch:
         decides *which* predicates are legal and compiles them, and this
         method only executes them. Keeping compilation out of the
         retrieval layer is what lets one planner serve both the shipped
-        Personalization Agent path and the Observatory comparison without a second
+        Shopping agent path and the Lab 1 comparison without a second
         implementation drifting away from the first.
 
         Args:

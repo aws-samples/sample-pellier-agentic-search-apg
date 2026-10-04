@@ -1,13 +1,11 @@
 # WORKSHOP_EXERCISE_STUB
 #
-# Task 3A. Theo asks the support specialist for his ticket history. `get_ticket_history` has a
-# schema in the catalogue above but is withheld from the Gateway, so the
-# managed rail cannot serve it.
+# Task 3A. Theo asks the Support agent for his ticket history. `get_tickets` has a
+# schema in the catalogue above but is withheld from the Gateway, so the managed
+# rail cannot serve it.
 #
-# Decide which deferred name is safe to publish and which must stay behind the
-# operator desk; the classification above this marker describes both. Publishing
-# makes a tool discoverable and adds it to the policy action set. It does not
-# decide whose records a call may read: that is the caller binding in
+# Publishing makes a tool discoverable and adds it to the policy action set. It
+# does not decide whose records a call may read: that is the caller binding in
 # agentcore_gateway.py plus the owner-only permit rendered at deploy.
 #
 # Reconcile the Runtime list and caller binding in Task 3A, then deploy in
@@ -16,10 +14,9 @@
 #         --mode participant
 #
 # Verify (live, the real check): an MCP tool listing made with your own token
-# names `get_ticket_history`. Visible counts depend on the caller because the
-# Gateway filters discovery by policy; published staff-only tools are not
-# necessarily visible to a shopper.
+# names `get_tickets`. Visible counts depend on the caller because the Gateway
+# filters discovery by policy; a published staff-only tool is not visible to a
+# shopper.
 WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
-    "restock_inventory",
-    "get_ticket_history",
+    "get_tickets",
 })

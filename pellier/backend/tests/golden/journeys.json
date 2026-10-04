@@ -111,7 +111,7 @@
         {
           "id": "grounding",
           "proof": "fixture_proven",
-          "teaches": "The answer requires check_inventory after product discovery."
+          "teaches": "The answer requires check_stock after product discovery."
         },
         {
           "id": "proposal",
@@ -211,7 +211,7 @@
       "id": "theo-damaged-return-closed-loop",
       "persona": "theo",
       "kind": "governed_proposal",
-      "summary": "Theo's damaged bowl request becomes an exact, fingerprinted review that waits for a human; nothing is authorized, enforced, or committed in this journey.",
+      "summary": "Theo's damaged bowl request reaches the Support agent, which reads his orders and tickets and ends in ask_a_person; the exact, fingerprinted review waits for a human and nothing is authorized, enforced, or committed in this journey.",
       "entryPrompt": "My Wabi-Sabi Bowl arrived chipped. Please help me return it.",
       "actors": {
         "requester": {
@@ -226,10 +226,10 @@
         "customerSubject": "CUST-THEO"
       },
       "closedLoop": {
-        "action": "initiate_return",
+        "action": "ask_a_person",
         "materialParameters": [
           "customer_id",
-          "product_id",
+          "amount_cents",
           "reason"
         ],
         "actionFingerprint": "sha256_canonical_operation_arguments",
@@ -252,7 +252,7 @@
         {
           "id": "grounding",
           "proof": "fixture_proven",
-          "teaches": "Policy is read before a write is proposed, and Aurora proves ownership."
+          "teaches": "get_orders and get_tickets read his own records before the handoff, and Aurora proves ownership."
         },
         {
           "id": "proposal",
@@ -276,7 +276,7 @@
       "id": "jessica-governed-return",
       "persona": "jessica",
       "kind": "governed_write",
-      "summary": "One byte-identical initiate_return for CUST-JESSICA is sent through Gateway as Marco, Anna, and Jessica, then replayed as Jessica; only the verified identity changes, so policy, execution, durable effect, and database enforcement each become their own fact.",
+      "summary": "One byte-identical give_store_credit for CUST-JESSICA is sent through Gateway as Marco, Anna, and Jessica, then replayed as Jessica; only the verified identity changes, so policy, execution, durable effect, and database enforcement each become their own fact.",
       "entryPrompt": "Initiate a return for CUST-JESSICA's damaged order through Gateway signed in as Jessica; repeat the identical request as Marco and Anna; then replay Jessica's request with the same idempotency key.",
       "actors": {
         "requester": {
@@ -321,10 +321,10 @@
         }
       ],
       "closedLoop": {
-        "action": "initiate_return",
+        "action": "give_store_credit",
         "materialParameters": [
           "customer_id",
-          "product_id",
+          "amount_cents",
           "reason"
         ],
         "actionFingerprint": "sha256_canonical_operation_arguments",

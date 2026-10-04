@@ -41,7 +41,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts" / "deploy"))
 sys.path.insert(0, str(REPO / "scripts"))
 
-from gateway_initiate_return import (  # noqa: E402
+from gateway_client import (  # noqa: E402
     _load_env,
     _require,
     _secret_hash,
@@ -191,7 +191,7 @@ def gateway_probes(
         try:
             outcome = anyio.run(_gateway_call, gateway_url, token, tool, args)
         except BaseException as exc:  # noqa: BLE001 - the outcome IS the result
-            from gateway_initiate_return import _exception_summary, _is_authorization_denial
+            from gateway_client import _exception_summary, _is_authorization_denial
 
             outcome = {
                 "outcome": "policy_denied" if _is_authorization_denial(exc) else "error",

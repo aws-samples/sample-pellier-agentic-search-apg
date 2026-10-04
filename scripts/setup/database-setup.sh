@@ -43,7 +43,7 @@ echo "Seeding catalog from cache"
 # 3. Required fresh-cluster migrations. These are intentionally idempotent and run after
 # the catalog exists because several tables FK into pellier.product_catalog. Ordering
 # matters: telemetry creates customers/orders, persona seed populates them, Theo returns
-# references them, and warehouse inventory powers check_inventory.
+# references them, and warehouse inventory powers check_stock.
 for migration in \
   002_workshop_telemetry.sql \
   003_persona_seed.sql \

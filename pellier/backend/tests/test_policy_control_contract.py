@@ -38,17 +38,17 @@ def test_operator_reads_paged_policy_details_instead_of_list_summaries(monkeypat
         return {
             "enforcementMode": "ACTIVE" if kwargs["policyId"] == "permit" else "LOG_ONLY",
             "definition": {"policy": {
-                "statement": 'permit(principal, action == AgentCore::Action::"returns___initiate_return", resource);'
+                "statement": 'permit(principal, action == AgentCore::Action::"pellier-store-tools___give_store_credit", resource);'
             }},
         }
 
     client = SimpleNamespace(
         get_paginator=lambda _: SimpleNamespace(
-            paginate=lambda **_: [{"items": [{"targetId": "returns"}]}]
+            paginate=lambda **_: [{"items": [{"targetId": "store"}]}]
         ),
         get_gateway_target=lambda **_: {
-            "name": "returns", "targetConfiguration": {"mcp": {"lambda": {
-                "toolSchema": {"inlinePayload": [{"name": "initiate_return"}]}
+            "name": "pellier-store-tools", "targetConfiguration": {"mcp": {"lambda": {
+                "toolSchema": {"inlinePayload": [{"name": "give_store_credit"}]}
             }}},
         },
         list_policies=policies,
@@ -57,8 +57,8 @@ def test_operator_reads_paged_policy_details_instead_of_list_summaries(monkeypat
     monkeypatch.setattr(managed_policy, "_control_client", lambda: client)
     published, permitted = operator_capabilities._live_gateway_facts()
     assert read == ["monitor", "permit"]
-    assert published == ["initiate_return"]
-    assert permitted == {"initiate_return": 1}
+    assert published == ["give_store_credit"]
+    assert permitted == {"give_store_credit": 1}
     client.get_policy = lambda **_: {"enforcementMode": "ACTIVE"}
     with pytest.raises(RuntimeError, match="definition unavailable"):
         operator_capabilities._live_gateway_facts()

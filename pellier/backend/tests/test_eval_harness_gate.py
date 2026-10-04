@@ -9,7 +9,6 @@ relevance regression was invisible to CI by construction.
 
 from __future__ import annotations
 
-import contextlib
 import importlib.util
 from pathlib import Path
 from typing import Any
@@ -156,42 +155,17 @@ def _catalog_row(product_id: int) -> dict[str, Any]:
     }
 
 
-class _RecordingCursor:
+class _RecordingDB:
     """Answers both branch queries and records the LIMIT each one bound."""
 
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
         self.limits: list[Any] = []
 
-    async def __aenter__(self) -> "_RecordingCursor":
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        return None
-
-    async def execute(self, sql: str, params: Any = None) -> None:
+    async def fetch_all(self, sql: str, *params: Any) -> list[dict[str, Any]]:
         # Both branch queries bind their pool size last.
-        self.limits.append(list(params)[-1] if params else None)
-
-    async def fetchall(self) -> list[dict[str, Any]]:
+        self.limits.append(params[-1] if params else None)
         return [dict(row) for row in self._rows]
-
-
-class _RecordingConnection:
-    def __init__(self, cursor: _RecordingCursor) -> None:
-        self._cursor = cursor
-
-    def cursor(self) -> _RecordingCursor:
-        return self._cursor
-
-
-class _RecordingDB:
-    def __init__(self, rows: list[dict[str, Any]]) -> None:
-        self.cursor = _RecordingCursor(rows)
-
-    @contextlib.asynccontextmanager
-    async def get_connection(self) -> Any:
-        yield _RecordingConnection(self.cursor)
 
 
 class _RecordingReranker:
@@ -621,7 +595,7 @@ def test_pool_k_bounds_both_branches_and_the_rerank_pool(harness: Any) -> None:
     """``--pool-k`` is the one knob the harness varies to show pool effects.
 
     The config dict is a request. What the branches receive is the contract,
-    and ``HybridSearch`` raises each branch to a floor of five, so a config
+    and ``store_tools`` raises each branch to a floor of five, so a config
     assertion alone would have reported a pool of three where the vector and
     lexical branches actually asked Postgres for five rows each.
     """
@@ -657,8 +631,8 @@ def test_pool_k_bounds_both_branches_and_the_rerank_pool(harness: Any) -> None:
     )
 
     # Both branch queries ran, and each bound a LIMIT of five, not three.
-    assert len(db.cursor.limits) == 2
-    assert db.cursor.limits == [5, 5]
+    assert len(db.limits) == 2
+    assert db.limits == [5, 5]
     # The reranker, in contrast, honors the requested three exactly.
     assert execution.rerank_pool_k == 3
     assert len(reranker.calls[0]["documents"]) == 3

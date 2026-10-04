@@ -773,7 +773,7 @@ cat << EOF
   START       Keep the lab guide open. Work primarily in this terminal and
               the Pellier storefront.
 
-  BUILD       Required path: wire check_inventory in
+  BUILD       Required path: wire check_stock in
               pellier/backend/services/agent_tools.py.
 
   MEASURE     Compare retrieval strategies for Anna's query.
@@ -783,7 +783,7 @@ cat << EOF
   OBSERVATORY Use Pellier Observatory only when a step names a specific verification
               or comparison view.
 
-  FILE        agent_tools.py is open. Find the check_inventory WORKSHOP markers,
+  FILE        agent_tools.py is open. Find the check_stock WORKSHOP markers,
               implement, save, then test in Pellier.
 
 EOF

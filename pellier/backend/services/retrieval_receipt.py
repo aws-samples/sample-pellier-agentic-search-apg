@@ -312,7 +312,7 @@ def build_receipt(
     )
 
 
-_INSERT_SQL = """
+INSERT_SQL = """
     INSERT INTO pellier.retrieval_receipts (
         turn_id, session_id, principal_sub, query_hash, query_preview,
         search_plan, hard_constraints, soft_preferences, exclusions,
@@ -330,6 +330,7 @@ _INSERT_SQL = """
         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s,
         %s, %s, %s
     )
+    RETURNING receipt_id
 """
 
 _JSON_COLUMNS = (
@@ -385,7 +386,7 @@ _COLUMN_ORDER = (
 
 
 def receipt_params(receipt: RetrievalReceipt) -> List[Any]:
-    """Bind a receipt to ``_INSERT_SQL``'s positional parameters."""
+    """Bind a receipt to ``INSERT_SQL``'s positional parameters."""
     row = receipt.to_row()
     params: List[Any] = []
     for column in _COLUMN_ORDER:
@@ -407,7 +408,7 @@ async def persist_receipt(db: Any, receipt: RetrievalReceipt) -> bool:
     if db is None:
         return False
     try:
-        await db.execute_query(_INSERT_SQL, *receipt_params(receipt))
+        await db.execute_query(INSERT_SQL, *receipt_params(receipt))
         return True
     except Exception as exc:
         logger.warning("retrieval receipt insert failed: %s", exc)

@@ -112,11 +112,11 @@ class TestIntentPairing:
             "What goes well with the pour-over set, keeping to the same materials and morning routine?",
         ],
     )
-    def test_pairing_turns_route_to_search_for_get_related_products(self, query: str) -> None:
-        assert classify_intent(query) == "search"
+    def test_pairing_turns_route_to_shopping(self, query: str) -> None:
+        assert classify_intent(query) == "shopping"
 
 
-class TestIntentInventory:
+class TestIntentStock:
     @pytest.mark.parametrize(
         "query",
         [
@@ -126,19 +126,19 @@ class TestIntentInventory:
             "Can the camp shirt ship from Portland?",
         ],
     )
-    def test_city_stock_questions_route_to_inventory(self, query: str) -> None:
-        assert classify_intent(query) == "inventory"
+    def test_city_stock_questions_route_to_stock(self, query: str) -> None:
+        assert classify_intent(query) == "stock"
 
 
 @pytest.mark.parametrize("query, expected", [
-    ("A housewarming gift under $100 that is currently in stock.", "search"),
-    ("Keep it under $100 and in stock. Show me the strongest two options.", "search"),
-    ("Which one should I choose? Compare the two options using their current prices and availability.", "search"),
-    ("Find me a linen shirt that is in stock", "search"),
-    ("Do you have any available candles for a gift?", "search"),
-    ("Is the Hadley Linen Shirt in stock?", "inventory"),
-    ("Show me how many candles are available in Brooklyn", "inventory"),
-    ("Show me low stock inventory", "inventory"),
+    ("A housewarming gift under $100 that is currently in stock.", "shopping"),
+    ("Keep it under $100 and in stock. Show me the strongest two options.", "shopping"),
+    ("Which one should I choose? Compare the two options using their current prices and availability.", "shopping"),
+    ("Find me a linen shirt that is in stock", "shopping"),
+    ("Do you have any available candles for a gift?", "shopping"),
+    ("Is the Hadley Linen Shirt in stock?", "stock"),
+    ("Show me how many candles are available in Brooklyn", "stock"),
+    ("Show me low stock inventory", "stock"),
 ])
 def test_availability_constraints_do_not_override_product_selection(query, expected):
     assert classify_intent(query) == expected
@@ -149,5 +149,24 @@ def test_availability_constraints_do_not_override_product_selection(query, expec
     "Please list my support tickets.",
     "What happened to my ticket?",
 ])
-def test_ticket_history_routes_to_the_customer_scoped_support_specialist(query):
-    assert classify_intent(query) == "customer_support"
+def test_ticket_history_routes_to_the_support_agent(query):
+    assert classify_intent(query) == "support"
+
+
+@pytest.mark.parametrize("query", [
+    "What did I buy last time?",
+    "Show my orders",
+    "I want a refund for the chipped mug",
+    "Can I get store credit?",
+])
+def test_returns_and_past_purchases_route_to_support(query):
+    assert classify_intent(query) == "support"
+
+
+@pytest.mark.parametrize("query", [
+    "Which is cheaper, the linen shirt or the camp shirt?",
+    "Browse the home department",
+    "A gift for my sister",
+])
+def test_price_compare_and_browse_stay_with_shopping(query):
+    assert classify_intent(query) == "shopping"

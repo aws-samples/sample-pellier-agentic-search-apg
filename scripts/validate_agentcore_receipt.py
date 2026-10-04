@@ -243,8 +243,6 @@ def validate_receipt(
         "verification.gateway_tools_discovered",
         "verification.memory_seeded",
         "verification.memory_extraction_verified",
-        "verification.live_policy_allow",
-        "verification.live_policy_deny",
         "verification.authenticated_runtime_invoke_smoke",
         "verification.runtime_build_fingerprint_match",
         "verification.operator_runtime_build_fingerprint_match",
@@ -581,22 +579,6 @@ def validate_receipt(
         errors.append(
             "observability.unified_trace.runtime_arn must match runtime.runtime_arn"
         )
-
-    allow = _value(payload, "verification.live_policy_proof.allow")
-    if not isinstance(allow, dict) or allow.get("outcome") != "allow":
-        errors.append("verification.live_policy_proof.allow must prove ALLOW")
-    elif allow.get("tool_audit_row_after_call") is None:
-        errors.append("Policy ALLOW must include an execution audit row")
-
-    deny = _value(payload, "verification.live_policy_proof.deny")
-    if not isinstance(deny, dict) or deny.get("outcome") != "deny":
-        errors.append("verification.live_policy_proof.deny must prove DENY")
-    elif (
-        deny.get("cedar_denial") is not True
-        or "tool_audit_row_after_call" not in deny
-        or deny["tool_audit_row_after_call"] is not None
-    ):
-        errors.append("Policy DENY must be Cedar-specific and pre-execution")
 
     return errors
 

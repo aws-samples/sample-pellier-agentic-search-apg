@@ -131,10 +131,12 @@ def test_facilitator_dry_run_probes_the_pinned_model_not_the_floating_alias() ->
 
 def test_facilitator_dry_run_covers_both_lab2_build_sites() -> None:
     source = FACILITATOR_DRY_RUN.read_text(encoding="utf-8")
-    assert "agents/inventory_agent.py" in source
-    assert "agents/inventory_agent_solution.py" in source
+    assert "agents/stock_agent.py" in source
+    assert "stock_agent_solution.py" in source
     assert "services/agent_tools.py" in source
-    assert "agent_tools_check_inventory_solution.py" in source
+    assert "agent_tools_check_stock_solution.py" in source
+    assert "WORKSHOP - Stock agent - definition" in source
+    assert "WORKSHOP - Stock agent - check_stock" in source
 
 
 def test_governed_bootstrap_restores_all_participant_starters() -> None:
@@ -142,7 +144,7 @@ def test_governed_bootstrap_restores_all_participant_starters() -> None:
     command = "python3.14 scripts/reset_participant_exercises.py --repo \"$REPO_PATH\""
     assert command in bootstrap
     governed_branch = bootstrap.index(
-        'log "Governed format: preserving Inventory Agent and check_inventory scaffolds'
+        'log "Governed format: preserving the Stock agent and check_stock scaffolds'
     )
     managed_provision = bootstrap.index(
         'log "Provisioning full AgentCore managed path'
@@ -316,7 +318,7 @@ def _valid_managed_receipt() -> dict[str, object]:
                 "span_count": 3,
                 "span_names": [
                     "chat",
-                    "execute_tool search_products_hybrid",
+                    "execute_tool search_products",
                     "invoke_agent pellier_orchestrator",
                 ],
                 "agent_span": True,
@@ -336,7 +338,7 @@ def _valid_managed_receipt() -> dict[str, object]:
                 "step_latency_observed": True,
                 "step_latency_ms": {"agent": 125, "model": 80, "tool": 30},
                 "model_ids": ["global.anthropic.claude-sonnet-5"],
-                "tool_names": ["search_products_hybrid"],
+                "tool_names": ["search_products"],
                 "provenance": "agentcore-unified-telemetry",
             },
         },
@@ -562,7 +564,7 @@ esac
 """.replace("__OPERATOR_CONFIG__", json.dumps({
             "composerEnabled": operator_composer_ready, "orchestrationAvailable": True,
         })).replace("__OPERATOR_CAPABILITIES__", json.dumps({
-            "source": "agentcore", "capabilities": {"initiate_return": {"state": operator_return_state}},
+            "source": "agentcore", "capabilities": {"give_store_credit": {"state": operator_return_state}},
         })),
     )
     _write_executable(
@@ -1197,9 +1199,9 @@ def test_policy_attachment_is_a_provisioning_hard_gate() -> None:
     assert source.index(
         "policy_state = _require_state_resource("
     ) < source.index('result["status"] = "ready"')
-    assert "_live_policy_proof(" in source
-    assert '"live_policy_allow"' in source
-    assert '"live_policy_deny"' in source
+    assert "_live_policy_proof" not in source
+    assert "live_policy_allow" not in source
+    assert "live_policy_deny" not in source
     assert "Gateway Policy mode is" in source
     assert "_discover_live_gateway_tools(" in source
     assert '"gateway_tools_discovered"' in source
@@ -1250,19 +1252,13 @@ def test_governed_reset_restores_catalog_before_exact_warehouse_matrix() -> None
     assert "IF nrows <> 300 OR invalid_products <> 0 OR drift_count <> 0 THEN" in warehouse
 
 
-def test_facilitator_dry_run_requires_managed_rail_and_current_policy_receipts() -> None:
+def test_facilitator_dry_run_requires_managed_rail_and_the_stock_audit_row() -> None:
     source = FACILITATOR_DRY_RUN.read_text(encoding="utf-8")
     assert '-H "Authorization: Bearer ${POLICY_TOKEN}"' in source
     assert 'runtime_rail" == "gateway-mcp"' in source
-    assert "gateway_initiate_return.py" in source
-    assert "--expect allow --record-receipt" in source
-    assert "--expect deny --record-receipt" in source
-    assert "POLICY_ALLOW_SESSION" in source
-    assert "POLICY_DENY_SESSION" in source
-    assert "absence_verified" in source
-    assert "Skipping local initiate_return; governed mutations require gateway-mcp" in source
-    assert "JOIN pellier.tool_audit ta ON ta.audit_id = gr.audit_id" in source
-    assert "gr.identity_source='cognito'" in source
+    assert "POLICY_ALLOW_SESSION" not in source
+    assert "POLICY_DENY_SESSION" not in source
+    assert "tool_audit WHERE tool='check_stock'" in source
 
 
 def test_preference_seed_uses_access_token() -> None:

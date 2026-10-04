@@ -45,8 +45,8 @@ participant's named task and prediction before proposing a change.
 |---|---|---|
 | 1A | `workshop/lab-1-rrf.sql` | `PostgreSQL RRF - fusion expression` |
 | 1B | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
-| 2A | `pellier/backend/services/agent_tools.py` | `Inventory Agent - check_inventory` |
-| 2B | `pellier/backend/agents/inventory_agent.py` | `Inventory Agent - definition` |
+| 2A | `pellier/backend/services/agent_tools.py` | `Stock agent - check_stock` |
+| 2B | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
 | 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
 | 4A | `policies/workshop_identity_match_forbid.cedar` | final `unless` block |

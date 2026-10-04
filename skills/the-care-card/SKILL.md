@@ -22,13 +22,12 @@ version: "1.0"
 
 ## Tool discipline
 
+- Run `get_orders` before discussing what the shopper bought, and `get_tickets` before answering a service question.
 - Run `get_return_policy` before policy claims.
-- Run `initiate_return` only when the customer, product id, canonical reason, and a stable idempotency key are available.
-- Use `get_audit_trail` when the shopper or operator asks whether a return/write was recorded.
-- Use `escalate_to_human` when the automated path is closed or a human judgment call is required.
+- Use `ask_a_person` when the automated path is closed or a human judgment call is required. A store credit request passes its amount so a person can review it.
 
 ## Guardrails
 
 - Do not promise refunds, exchanges, repairs, or pickup methods that a tool did not return.
-- Do not imply `initiate_return` ran unless its tool result confirms success.
-- Do not call this a human handoff unless `escalate_to_human` produced the handoff payload.
+- Do not imply a return, refund or credit was made unless a tool result confirms it.
+- Do not call this a human handoff unless `ask_a_person` produced the handoff payload.

@@ -15,7 +15,8 @@ from pellier_copy import GOVERNED_REVIEW_PENDING
 from services import evidence_spans
 from services.data_source import database_source_label
 from services.intent_router import classify_intent
-from services.product_envelope import ProductExtractor
+from services.product_envelope import ProductExtractor, select_products_for_reply
+from services.specialist_models import ROUTER_NAME, agent_name, build_intent_signal, model_for_intent
 
 
 def _completed_tool_event(tool_name: str, duration_ms: int) -> Dict[str, Any]:
@@ -53,38 +54,11 @@ def _safe_int(val, default=0):
         return default
 
 
-GUARDRAILS_SUFFIX = """
-
-GUARDRAILS (ACTIVE):
-- Do NOT recommend products related to weapons, alcohol, or tobacco
-- Do NOT provide medical, legal, or financial advice
-- Flag inappropriate requests politely
-- Keep all responses family-friendly"""
-
-SINGLE_AGENT_PROMPT = """You are Pellier AI, the shopping assistant for Pellier.
-
-TOOL SELECTION:
-- get_trending_products → When user asks about trending, popular, or best-selling items. Pass category if they mention one (e.g. "trending items for the home" → category="Home").
-- search_products → Descriptive or intent-based product queries (e.g. "gift for a new homeowner", "linen shirt under $200")
-- get_price_analysis → Pricing statistics and category comparisons
-
-Call exactly one tool per query. Extract price limits and pass as max_price.
-The search tool handles category mapping automatically — pass the user's words directly.
-
-RESPONSE STYLE:
-Write 1-2 short sentences as a conversational intro. Products render as visual cards
-automatically — do not list them in text. Never use markdown tables, numbered lists,
-headers, or emojis. Never claim products are unavailable or inventory is being refreshed.
-Never ask follow-up questions. If zero results, say "I couldn't find exact matches —
-try a different search term."."""
-
-
 # ---------------------------------------------------------------------------
-# Triage fast-path — short-circuits greetings/meta/thanks before the
-# orchestrator is created. Cuts the "empty response" failure mode to
-# zero for the demo queries that used to route into
-# recommendation and come back blank. Deterministic by
-# design so workshop demos never depend on an LLM roll for small-talk.
+# Triage fast-path — short-circuits greetings/meta/thanks before any agent
+# is created, so small talk never reaches a model and never comes back blank.
+# Deterministic by design so workshop demos never depend on an LLM roll for
+# small-talk.
 # ---------------------------------------------------------------------------
 
 # Order matters: we check startswith for greeting/thanks to tolerate
@@ -178,17 +152,15 @@ def classify_triage(query: str) -> Optional[str]:
     return None
 
 
-# Canned responses per triage bucket. Kept short + on-brand so the
-# demo still feels boutique, not transactional. Multiple variants so
-# repeat demos don't sound identical.
+# Canned responses per triage bucket, in the store's voice (VOICE.md).
 _TRIAGE_REPLIES = {
     "greeting": (
-        "Hi! I'm Pellier — your concierge for the boutique. "
-        "Tell me what you're after: a piece, a vibe, a price range, or a gift."
+        "Hi! I'm Pellier. "
+        "Tell me what you're after: a piece, a feeling, a price range, or a gift."
     ),
     "meta": (
-        "I can help you browse the catalog, compare pieces, check what's in stock, "
-        "or surface what's trending right now. Ask me anything — "
+        "I can help you find and compare pieces, check what's in stock, "
+        "or look up an order. Ask me anything; "
         '"something for long summer walks" is a good way in.'
     ),
     "thanks": (
@@ -197,34 +169,31 @@ _TRIAGE_REPLIES = {
 }
 
 
-def _unbuilt_dispatcher_specialist(intent_hint: str) -> Optional[str]:
-    """Return the deliberately unbuilt specialist, without fabricating output."""
-    if intent_hint == "inventory":
-        from agents import inventory_agent
+def _unbuilt_dispatcher_specialist(intent: str) -> Optional[str]:
+    """Return the deliberately unbuilt agent's intent, without fabricating output.
 
-        stubbed = getattr(inventory_agent, "_INVENTORY_AGENT_STUBBED", False)
-    elif intent_hint == "support":
-        from agents import customer_service_agent
+    Only the Stock agent ships unbuilt: its definition is the Lab 2B build.
+    """
+    if intent != "stock":
+        return None
+    from agents import stock_agent
 
-        stubbed = getattr(customer_service_agent, "_SUPPORT_AGENT_STUBBED", False)
-    else:
-        stubbed = False
-    return intent_hint if stubbed else None
+    return intent if getattr(stock_agent, "_STOCK_AGENT_STUBBED", False) else None
 
 
 def _dispatcher_build_required_events(
-    intent_hint: str,
-    agent_name: str,
+    intent: str,
+    agent: str,
 ) -> List[Dict[str, Any]]:
     """Emit an honest workshop-build outcome, never a simulated shopper reply."""
     message = (
-        f"{agent_name} is intentionally unbuilt in this workshop image. "
+        f"{agent} is intentionally unbuilt in this workshop image. "
         "Complete the corresponding lab build step, then rerun this request."
     )
     return [
         {
             "type": "agent_step",
-            "agent": agent_name,
+            "agent": agent,
             "action": "Workshop build required",
             "status": "blocked",
             "source": "Pellier build state",
@@ -244,9 +213,9 @@ def _dispatcher_build_required_events(
                 "products": [],
                 "suggestions": [],
                 "agent_execution": {
-                    "agent": agent_name,
+                    "agent": agent,
                     "model": None,
-                    "intent": intent_hint,
+                    "intent": intent,
                     "build_required": True,
                 },
                 "success": False,
@@ -286,27 +255,19 @@ async def _append_pellier_stm_turn(
         logger.debug("STM append skipped: %s", exc)
 
 
-def _build_dispatcher_specialist(intent_hint: str, allow_handoff: bool):
-    """Construct the one specialist selected for a dispatcher turn."""
-    from agents.search_agent import build_search_agent
-    from agents.personalization_agent import build_recommendation_agent
-    from agents.pricing_agent import build_pricing_agent
-    from agents.inventory_agent import build_inventory_agent
-    from agents.customer_service_agent import build_support_agent
+def _build_dispatcher_specialist(intent: str, allow_handoff: bool):
+    """Construct the one agent the Router selected for this turn."""
+    if intent == "stock":
+        from agents.stock_agent import build_stock_agent
 
-    if intent_hint == "search":
-        return build_search_agent(
-            allow_escalation=allow_handoff,
-        )
-    if intent_hint == "recommendation":
-        return build_recommendation_agent(
-            allow_escalation=allow_handoff,
-        )
-    if intent_hint == "pricing":
-        return build_pricing_agent()
-    if intent_hint == "inventory":
-        return build_inventory_agent()
-    return build_support_agent()
+        return build_stock_agent()
+    if intent == "support":
+        from agents.support_agent import build_support_agent
+
+        return build_support_agent()
+    from agents.shopping_agent import build_shopping_agent
+
+    return build_shopping_agent(allow_handoff=allow_handoff)
 
 
 def _new_unique_products(existing: list, candidates: list) -> list:
@@ -534,84 +495,20 @@ def _reconcile_continuity_followup(
 
 
 def _scan_for_escalation(result_str: str) -> Optional[Dict[str, Any]]:
-    """Return the first ``{"type": "escalation", ...}`` envelope in ``result_str``.
-
-    Tool results arrive as plain JSON when ``escalate_to_human`` was the
-    tool itself, but as ``"<prose>\\n\\n```json\\n{...}\\n```"`` when an
-    inner specialist (Customer Service Agent, Search Agent) routed through its
-    wrapper and ``append_escalation_marker`` appended the payload. This
-    helper handles both shapes so the caller doesn't care which path ran.
-    """
+    """Return the ``{"type": "escalation", ...}`` handoff ``ask_a_person`` produced."""
     if not result_str:
         return None
-
-    # Direct JSON envelope (escalate_to_human as the routed tool).
     try:
         data = json.loads(result_str)
-        if isinstance(data, dict) and data.get("type") == "escalation":
-            return data
     except (json.JSONDecodeError, TypeError):
-        pass
-
-    # Embedded ```json {...} ``` block from the specialist wrapper. The
-    # wrapper writes a single object (not a list of products), so we
-    # match objects only.
-    for match in re.finditer(r"```json\s*(\{[^`]*?\})\s*```", result_str, re.DOTALL):
-        try:
-            data = json.loads(match.group(1))
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if isinstance(data, dict) and data.get("type") == "escalation":
-            return data
-    return None
-
-
-def _scan_for_review_pending(result_str: str) -> Optional[Dict[str, Any]]:
-    """Return the governed-boundary refusal envelope in ``result_str``, if present.
-
-    Same two shapes as :func:`_scan_for_escalation`: a bare envelope when the write
-    tool was the routed tool, and an embedded ```json block when a specialist wrapper
-    appended it.
-
-    WHY THIS IS NOT LEFT TO THE MODEL. The Customer Service Agent prompt already
-    instructs the specialist to say two things on a refusal: that the request was
-    prepared, and that a Pellier operator will confirm it before anything changes. It
-    has an explicit worked example. Measured on 2026-08-27 the model said the first and
-    dropped the second, so the shopper was told "I found your order and prepared the
-    damaged-return request for the bowl" and nothing else, which reads as filed.
-
-    A governance guarantee cannot be probabilistic. The refusal now carries a
-    backend-owned sentence and the surface renders it as its own notice, exactly as
-    escalation does, so no paraphrase can lose it.
-    """
-    if not result_str:
         return None
-
-    def _is_refusal(data: Any) -> bool:
-        return (
-            isinstance(data, dict)
-            and str(data.get("error") or "") == "managed_rail_required"
-        )
-
-    try:
-        data = json.loads(result_str)
-        if _is_refusal(data):
-            return data
-    except (json.JSONDecodeError, TypeError):
-        pass
-
-    for match in re.finditer(r"```json\s*(\{[^`]*?\})\s*```", result_str, re.DOTALL):
-        try:
-            data = json.loads(match.group(1))
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if _is_refusal(data):
-            return data
+    if isinstance(data, dict) and data.get("type") == "escalation":
+        return data
     return None
 
 
 def _allows_human_handoff(message: str) -> bool:
-    """Reserve the stylist tool for explicit or genuinely sensitive asks."""
+    """Reserve the Shopping agent's handoff for explicit or genuinely sensitive asks."""
     normalized = (message or "").lower()
     markers = (
         "stylist",
@@ -664,7 +561,7 @@ def _extract_tool_result_text(raw: Any) -> str:
 
     Strands wraps tool output in content blocks; the audit ledger and the
     SSE ``_tool_done`` event both want the inner text (JSON for tools like
-    ``initiate_return``), falling back to ``str()`` for anything unshaped.
+    ``check_stock``), falling back to ``str()`` for anything unshaped.
     """
     result_str = ""
     if raw is not None:
@@ -803,9 +700,8 @@ def make_tool_audit_hooks(
         t0 = tool_t0.pop(tool_use_id, None)
         latency_ms = int((time.perf_counter() - t0) * 1000) if t0 else 0
         # Aurora system-of-record write: UPDATE the placeholder row with the
-        # tool's result + latency. The stored result is the parsed text
-        # (JSON for tools like initiate_return), so result->>'return_id' is
-        # queryable in the Lab 4 proof.
+        # tool's result + latency. The stored result is the parsed text, so a
+        # JSON field such as result->>'status' is queryable in SQL proofs.
         audited_result: Any = result_str
         if isinstance(result_str, str) and result_str.strip().startswith("{"):
             try:
@@ -1118,7 +1014,7 @@ class EnhancedChatService:
         # Backfill images from database — LLM sometimes drops image URLs.
         if formatted and self.db_service:
             try:
-                from services.business_logic import prepare_like_pattern
+                from services.store_tools import prepare_like_pattern
 
                 names = [p.get("name", "")[:60] for p in formatted if p.get("name")]
                 if names:
@@ -1383,33 +1279,6 @@ class EnhancedChatService:
         """Extract a price ceiling from user message (e.g. 'under $50' → 50.0)."""
         return _price_limit_in_text(message)
 
-    @staticmethod
-    def _tool_to_agent_name(tool_name: str) -> str:
-        """Map tool function names to user-facing agent names."""
-        return {
-            'recommendation': 'Personalization Agent',
-            'pricing': 'Pricing Agent',
-            'inventory': 'Inventory Agent',
-            'check_inventory': 'Inventory Agent',
-            'get_low_stock': 'Inventory Agent',
-            'restock_inventory': 'Inventory Agent',
-            'support': 'Customer Service Agent',
-            'get_return_policy': 'Customer Service Agent',
-            'initiate_return': 'Customer Service Agent',
-            'get_ticket_history': 'Customer Service Agent',
-            'get_audit_trail': 'Personalization Agent',
-            'search': 'Search Agent',
-            'search_products': 'Search Agent',
-            'search_products_hybrid': 'Personalization Agent',
-            'get_trending_products': 'Personalization Agent',
-            'get_customer_preferences': 'Personalization Agent',
-            'get_price_analysis': 'Pricing Agent',
-            'browse_category': 'Search Agent',
-            'compare_products': 'Search Agent',
-            'get_related_products': 'Search Agent',
-            'escalate_to_human': 'Customer Service Agent',
-        }.get(tool_name, 'Search Agent')
-
     async def chat_stream(
         self,
         message: str,
@@ -1663,27 +1532,19 @@ class EnhancedChatService:
             persona_is_simulated=turn_identity.persona_is_simulated,
         ):
             intent = classify_intent(message)
-        intent_hint = {
-            "pricing": "pricing",
-            "inventory": "inventory",
-            "customer_support": "support",
-            "search": "search",
-            "recommendation": "recommendation",
-        }[intent]
         timing["intent"] = (time.perf_counter() - intent_t0) * 1000
+        specialist_name = agent_name(intent)
 
-        unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
+        unbuilt_intent = _unbuilt_dispatcher_specialist(intent)
         if unbuilt_intent is not None:
-            logger.info("🎯 Intent: %s → %s", intent, intent_hint)
-            from services.specialist_models import build_intent_signal
-
+            logger.info("🎯 Router | %s → %s", intent, specialist_name)
             yield build_intent_signal(intent)
-            stub_name = self._tool_to_agent_name(intent_hint)
+            stub_name = specialist_name
             logger.info(
-                "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
+                "🎯 Router | %s (intent=%s) is STUBBED — "
                 "reporting an explicit workshop build requirement",
                 stub_name,
-                intent_hint,
+                intent,
             )
             yield {"type": "start", "content": "Checking workshop build state..."}
             for event in _dispatcher_build_required_events(
@@ -1887,8 +1748,7 @@ class EnhancedChatService:
 
         # Emit the already-resolved classification after profile context so
         # normal agent turns retain their existing participant-visible order.
-        logger.info(f"🎯 Intent: {intent} → {intent_hint}")
-        from services.specialist_models import build_intent_signal
+        logger.info(f"🎯 Router | {intent} → {specialist_name}")
         yield build_intent_signal(intent)
 
         # --- Skill router ---------------------------------------------------
@@ -2016,7 +1876,7 @@ class EnhancedChatService:
         yield {"type": "start", "content": "Initializing agent..."}
         yield {
             "type": "agent_step",
-            "agent": "Orchestrator",
+            "agent": ROUTER_NAME,
             "action": "Analyzing query",
             "status": "in_progress",
             "source": "Amazon Bedrock",
@@ -2033,7 +1893,7 @@ class EnhancedChatService:
         start_time = time.time()
         orchestrator_t0 = time.perf_counter()
         logger.info(
-            f"📨 chat_stream | intent={intent} → {intent_hint} "
+            f"📨 chat_stream | intent={intent} → {specialist_name} "
             f"| session={session_id or 'anon'} | msg={message[:80]!r}"
         )
         orchestrator_result = [None]
@@ -2098,100 +1958,15 @@ class EnhancedChatService:
                     logger.warning("Persona ContextVar reset failed: %s", exc)
                 persona_token = None
 
-        # Pattern I specialists forward retrieved products through this
-        # request-scoped collector. Product data therefore stays server-owned
-        # and never consumes the outer router's model output budget.
-        forwarded_products: List[Dict[str, Any]] = []
-        forwarded_specialist_replies: List[str] = []
-        product_collector_token = None
-        specialist_reply_collector_token = None
-        try:
-            from agents.specialist_hooks import (
-                set_product_collector,
-                set_specialist_reply_collector,
-                select_products_for_reply,
-            )
-            product_collector_token = set_product_collector(forwarded_products)
-            specialist_reply_collector_token = set_specialist_reply_collector(
-                forwarded_specialist_replies
-            )
-        except Exception as exc:
-            logger.warning("Product collector ContextVar set failed: %s", exc)
-
-        def _reset_product_collector_token() -> None:
-            """Idempotent reset so concurrent turns cannot share products."""
-            nonlocal product_collector_token, specialist_reply_collector_token
-            if product_collector_token is not None:
-                try:
-                    from agents.specialist_hooks import reset_product_collector
-                    reset_product_collector(product_collector_token)
-                except Exception as exc:
-                    logger.warning("Product collector ContextVar reset failed: %s", exc)
-                product_collector_token = None
-            if specialist_reply_collector_token is not None:
-                try:
-                    from agents.specialist_hooks import (
-                        reset_specialist_reply_collector,
-                    )
-                    reset_specialist_reply_collector(
-                        specialist_reply_collector_token
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "Specialist reply collector ContextVar reset failed: %s",
-                        exc,
-                    )
-                specialist_reply_collector_token = None
-
-        # Pattern II (Graph) builds the GraphAdapter here, AFTER the
-        # persona + skill ContextVars are live so the specialist
-        # factories inside the adapter pick them up at construction
-        # time. The adapter looks like an ``Agent`` to the pipeline:
-        # callable, exposes ``callback_handler`` / ``add_hook`` /
-        # ``trace_attributes``. A real
-        # Strands ``Graph`` with a Sonnet router + 5 specialist nodes
-        # runs under the hood.
-        # Pattern III (Dispatcher) builds the specialist here — AFTER
-        # the persona + skill ContextVars are live, so the factory
-        # picks them up at construction time. The specialist replaces
-        # the orchestrator for the downstream streaming pipeline;
-        # everything after this point treats ``orchestrator`` as a
-        # plain Strands Agent regardless of pattern.
-        # --- Workshop stub detection ---
-        #
-        # The normal dispatcher path returns above. Keep this guard for a
-        # graph build that fails and deliberately falls back to dispatcher
-        # after SkillRouter has already run.
-        unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
-        if unbuilt_intent is not None:
-            stub_name = self._tool_to_agent_name(intent_hint)
-            logger.info(
-                "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
-                "reporting an explicit workshop build requirement",
-                stub_name,
-                intent_hint,
-            )
-            for event in _dispatcher_build_required_events(
-                unbuilt_intent,
-                stub_name,
-            ):
-                yield event
-            _reset_skill_token()
-            _reset_persona_token()
-            _reset_product_collector_token()
-            return
-
+        # The Router's agent is built here, after the persona and skill
+        # ContextVars are live, so its factory picks them up at construction
+        # time. Everything after this point treats ``orchestrator`` as a plain
+        # Strands Agent.
         allow_handoff = _allows_human_handoff(message)
-        orchestrator = _build_dispatcher_specialist(
-            intent_hint,
-            allow_handoff,
-        )
+        orchestrator = _build_dispatcher_specialist(intent, allow_handoff)
         orchestrator.trace_attributes = trace_attributes
         _attach_streaming_and_hooks(orchestrator)
-        specialist_name = self._tool_to_agent_name(intent_hint)
-        logger.info(
-            f"🎯 Dispatcher | specialist={specialist_name} (intent={intent_hint})"
-        )
+        logger.info(f"🎯 Router | {specialist_name} (intent={intent})")
 
         async def run_orchestrator():
             try:
@@ -2206,25 +1981,13 @@ class EnhancedChatService:
         # --- Process events from queue in real-time ---
         products_sent = []
         products_buffered = []  # Hold products until text streams first
-        specialist_reply = ""
         current_tool = None
         timed_out = False
         price_limit = _effective_price_limit(message, conversation_history)
-        # Drop the products buffer when a write tool succeeded — the
-        # customer just filed a return / restocked a shelf and any
-        # products that came back from upstream resolution tools (e.g.
-        # search_products called by Customer Service Agent to map a product name
-        # to an integer id) are plumbing, not recommendations the user
-        # wants rendered as cards.
-        write_tool_succeeded = False
-        # Captured handoff payload from escalate_to_human. Emitted as
-        # a dedicated SSE event after streaming completes and used to
-        # suppress product cards (the agent's answer is the handoff,
-        # not a shelf of options).
+        # The handoff payload from ask_a_person. Emitted as a dedicated SSE
+        # event after streaming completes and used to suppress product cards:
+        # the answer is the handoff, not a shelf of options.
         escalation_payload: Optional[Dict[str, Any]] = None
-        # The governed boundary declining a mutation. Emitted as its own event so the
-        # shopper is told a person must confirm even if the prose forgets to say so.
-        review_pending_payload: Optional[Dict[str, Any]] = None
 
         while True:
             try:
@@ -2245,10 +2008,9 @@ class EnhancedChatService:
                 logger.info(f"🔧 tool_start | {tool_name}")
                 if tool_name != current_tool:
                     current_tool = tool_name
-                    agent_name = self._tool_to_agent_name(tool_name)
                     yield {
                         "type": "agent_step",
-                        "agent": agent_name,
+                        "agent": specialist_name,
                         "action": "Searching",
                         "status": "in_progress",
                         "source": "Amazon Bedrock",
@@ -2260,46 +2022,11 @@ class EnhancedChatService:
                 tool_name = event.get("_tool_done", "")
                 result_str = event.get("_result", "")
                 result_count = 0
-                # Detect successful write tools so we can suppress the
-                # products buffer at emit time. initiate_return returns
-                # status=success with return_id; restock_inventory returns
-                # status=success with new_quantity.
-                if result_str and tool_name in {"initiate_return", "restock_inventory"}:
-                    try:
-                        _data = json.loads(result_str)
-                        if (
-                            isinstance(_data, dict)
-                            and _data.get("status") == "success"
-                            and ("return_id" in _data or "new_quantity" in _data)
-                        ):
-                            write_tool_succeeded = True
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-                # escalate_to_human emits a structured handoff payload
-                # that the chat surface renders as a contact card. The
-                # agent's reply IS the handoff — we drop the products
-                # buffer so the customer isn't shown a shelf of options
-                # the agent just said it can't recommend.
-                #
-                # Two paths reach here:
-                #   1. The orchestrator routes directly to escalate_to_human
-                #      (tool_name == "escalate_to_human"), so result_str
-                #      is the raw JSON envelope.
-                #   2. The orchestrator routes to a specialist (support,
-                #      search) and the specialist's inner agent calls
-                #      escalate_to_human. The wrapper appends the
-                #      payload as an inline JSON code block (see
-                #      agents/specialist_hooks.append_escalation_marker)
-                #      so we scan every tool result for an embedded
-                #      escalation envelope.
+                # ask_a_person returns a structured handoff the chat surface
+                # renders as a contact card. The answer IS the handoff, so the
+                # products buffer is dropped at emit time.
                 if result_str and escalation_payload is None:
-                    candidate = _scan_for_escalation(result_str)
-                    if candidate is not None:
-                        escalation_payload = candidate
-                if result_str and review_pending_payload is None:
-                    refusal = _scan_for_review_pending(result_str)
-                    if refusal is not None:
-                        review_pending_payload = refusal
+                    escalation_payload = _scan_for_escalation(result_str)
                 if result_str:
                     raw_products = ProductExtractor.extract(result_str)
                     if raw_products:
@@ -2324,10 +2051,9 @@ class EnhancedChatService:
                     f"✅ tool_done  | {tool_name:<30} | {tool_ms:>5}ms | results={result_count}"
                 )
 
-                agent_name = self._tool_to_agent_name(tool_name)
                 yield {
                     "type": "agent_step",
-                    "agent": agent_name,
+                    "agent": specialist_name,
                     "action": "Done",
                     "status": "completed",
                     "source": "Amazon Bedrock",
@@ -2370,7 +2096,6 @@ class EnhancedChatService:
             # exception paths too.
             _reset_skill_token()
             _reset_persona_token()
-            _reset_product_collector_token()
 
         if timed_out:
             try:
@@ -2383,25 +2108,7 @@ class EnhancedChatService:
             yield {"type": "error", "error": str(orchestrator_error[0])}
             return
 
-        if forwarded_products:
-            formatted = await self._format_products(forwarded_products)
-            if price_limit:
-                formatted = [
-                    product
-                    for product in formatted
-                    if product.get("price", 0) <= price_limit
-                ]
-            new_products = _new_unique_products(products_buffered, formatted)
-            products_buffered.extend(new_products)
-            if tool_trace and new_products:
-                tool_trace[-1]["results"] = max(
-                    tool_trace[-1].get("results", 0),
-                    len(new_products),
-                )
-
         # --- Parse and send final response ---
-        if forwarded_specialist_replies:
-            specialist_reply = forwarded_specialist_replies[-1]
         response_text = str(orchestrator_result[0]) if orchestrator_result[0] else ""
         parsed = await self._parse_agent_response(response_text, message, conversation_history, has_tool_products=bool(products_buffered))
         continuity_rewritten = False
@@ -2436,7 +2143,7 @@ class EnhancedChatService:
             # Tool results are candidates. The cards alongside the shopper
             # answer must show the pieces the specialist selected, rather than
             # the first candidate it mentioned as an already-owned reference.
-            card_reply = specialist_reply or parsed["text"] or response_text
+            card_reply = parsed["text"] or response_text
             selected_products = select_products_for_reply(
                 card_reply,
                 products_buffered,
@@ -2477,46 +2184,25 @@ class EnhancedChatService:
                 yield {"type": "content_reset"}
             yield {"type": "content", "content": parsed["text"]}
 
-        # Suppress all product cards when the turn included a successful
-        # write tool (initiate_return, restock_inventory). Any products that
-        # came back from upstream resolution tools (search_products called
-        # to map "Wabi-Sabi Bowl" → product_id=31) are plumbing, not
-        # recommendations the customer wants alongside their return
-        # confirmation. Keep parsed["text"] / streaming intact.
-        if write_tool_succeeded:
-            products_buffered = []
-            parsed["products"] = []
-            logger.info("🔇 Products suppressed — successful write tool in turn")
-
-        # Same suppression on escalation. The handoff card is the
-        # answer; product cards would contradict it. The card renders
-        # downstream via the dedicated `escalation` SSE event.
+        # The handoff card is the answer; product cards would contradict it.
+        # The card renders downstream via the dedicated `escalation` event.
         if escalation_payload is not None:
             products_buffered = []
             parsed["products"] = []
-            logger.info("🤝 Products suppressed — escalation handoff in turn")
+            logger.info("🤝 Products suppressed — handoff to a person in turn")
             yield {"type": "escalation", "escalation": escalation_payload}
-
-        # The governed boundary refused a mutation and a review is waiting. Its own
-        # event, carrying the backend's sentence rather than the model's: a shopper who
-        # is told only that their request was "prepared" reasonably believes it is
-        # filed, and whether the second clause survived was measurably a coin flip.
-        #
-        if review_pending_payload is not None:
-            products_buffered = []
-            parsed["products"] = []
-            logger.info("Products suppressed - pending human review in turn")
-            yield {
-                "type": "review_pending",
-                "reviewPending": {
-                    "tool": str(review_pending_payload.get("tool") or ""),
-                    "reviewId": int(review_pending_payload.get("review_id") or 0),
-                    "message": str(
-                        review_pending_payload.get("message")
-                        or GOVERNED_REVIEW_PENDING
-                    ),
-                },
-            }
+            # A credit request opened a review. Its own event carries the
+            # backend's sentence rather than the model's, so the shopper is told
+            # a person confirms it even when the prose forgets to say so.
+            if escalation_payload.get("review_id"):
+                yield {
+                    "type": "review_pending",
+                    "reviewPending": {
+                        "tool": "give_store_credit",
+                        "reviewId": int(escalation_payload["review_id"]),
+                        "message": GOVERNED_REVIEW_PENDING,
+                    },
+                }
 
         # Now send buffered products (collected from tool hooks during execution)
         if products_buffered:
@@ -2623,11 +2309,11 @@ class EnhancedChatService:
             agent_execution, response_text
         )
         total_ms = int((time.time() - start_time) * 1000)
-        self._track_query(products_count=len(products_sent), duration_ms=total_ms, agent_type="Orchestrator")
+        self._track_query(products_count=len(products_sent), duration_ms=total_ms, agent_type=specialist_name)
 
         # --- Finalize per-layer timing ------------------------------------
         # Sum tool wall-clock from the tool_trace we've been collecting
-        # through BeforeToolCall / AfterToolCall hooks. Orchestrator time
+        # through BeforeToolCall / AfterToolCall hooks. Agent time
         # is the wall-clock from orchestrator_t0 to turn end minus the
         # streaming tail; specialist time is embedded in orchestrator_ms
         # (Strands doesn't expose it cleanly — document in notes).
@@ -2695,21 +2381,13 @@ class EnhancedChatService:
             f"📤 chat_stream done | {total_ms}ms | products={len(products_sent)} "
             f"| tokens={token_count} | {tool_summary}"
         )
-        route_tools = {"search", "recommendation", "pricing", "inventory", "support"}
-        specialist_route = getattr(orchestrator, "last_route", None)
-        if not specialist_route:
-            specialist_route = next(
-                (
-                    item.get("tool")
-                    for item in tool_trace
-                    if item.get("tool") in route_tools
-                ),
-                intent_hint,
-            )
         orchestration_receipt = {
             "pattern": "dispatcher",
-            "route": specialist_route,
+            "route": intent,
             "router": "deterministic",
+            "intent": intent,
+            "agent": specialist_name,
+            "model_id": model_for_intent(intent)[0],
         }
 
         # AgentCore STM — mirror this turn for session continuity labs.

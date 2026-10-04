@@ -66,7 +66,7 @@ def test_emit_panel_carries_tag_class_and_rows() -> None:
         title="Tool activity",
         sql="SELECT tool, count(*) FROM pellier.tool_audit GROUP BY tool",
         columns=["tool", "count"],
-        rows=[["check_inventory", "2"]],
+        rows=[["check_stock", "2"]],
         meta="live aggregate",
         duration_ms=13,
         tag_class="cyan",
@@ -75,7 +75,7 @@ def test_emit_panel_carries_tag_class_and_rows() -> None:
     assert panel["type"] == "panel"
     assert panel["tag"] == "OPERATIONAL · TOOL HISTORY"
     assert panel["tag_class"] == "cyan"
-    assert panel["rows"] == [["check_inventory", "2"]]
+    assert panel["rows"] == [["check_stock", "2"]]
     assert panel["duration_ms"] == 13
     assert panel["trace_index"] == 1
 
@@ -104,12 +104,12 @@ def test_the_agent_route_mints_a_turn_id() -> None:
     assert '"turn_id": turn_id' in stream
 
 
-def test_the_boundary_refusal_reads_the_turn_id_from_context() -> None:
+def test_the_person_handoff_reads_the_turn_id_from_context() -> None:
     """The review handoff must not invent or omit lineage."""
     import pathlib
 
     tools = pathlib.Path("services/agent_tools.py").read_text()
-    handoff = tools[tools.index("def _open_operator_review("):]
-    handoff = handoff[: handoff.index("\ndef ")]
-    assert "from services.turn_identity import current_turn_id" in handoff
+    handoff = tools[tools.index("def ask_a_person("):]
+    handoff = handoff[: handoff.index("\n@tool")]
+    assert "from services.turn_identity import current_principal_sub, current_turn_id" in handoff
     assert "source_turn_id=current_turn_id()" in handoff

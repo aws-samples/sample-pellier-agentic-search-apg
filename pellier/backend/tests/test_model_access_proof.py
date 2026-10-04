@@ -104,7 +104,7 @@ def test_ready_persists_the_proved_embedding_for_backend_and_mcp(tmp_path, monke
     monkeypatch.setattr(deployer, "create_iam_role", lambda *_args, **_kwargs: "arn:aws:iam::123456789012:role/fixture")
     deployed = []
     monkeypatch.setattr(deployer, "create_or_update_lambda_function", lambda **kwargs: deployed.append(kwargs) or "arn:aws:lambda:us-east-1:123456789012:function:fixture")
-    monkeypatch.setattr(sys, "argv", ["deploy", "--region", "us-east-1", "--server-name", "fixture", "--mcp-server-path", str(REPO / "scripts/deploy/pellier_search_server.py")])
+    monkeypatch.setattr(sys, "argv", ["deploy", "--region", "us-east-1", "--server-name", "fixture", "--mcp-server-path", str(REPO / "scripts/deploy/pellier_store_tools.py")])
     deployer.main()
     assert deployed[0]["env"]["BEDROCK_EMBED_MODEL_ID"] == expected
 

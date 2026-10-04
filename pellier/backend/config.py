@@ -72,13 +72,13 @@ class Settings(BaseSettings):
     # See the Workshop Studio repo's content/90-appendix/index.en.md
     # (the model table) for the rationale:
     #
-    #   Claude Opus 5   — editorial specialists (Search Agent, Personalization Agent,
-    #                  Customer Service Agent). Needs voice + personality.
-    #   Claude Sonnet 5 — routing, structured extraction, and reporting
-    #                  specialists (Pricing Agent, Inventory Agent).
+    #   Claude Opus 5   — the Shopping agent and the Support agent. They need
+    #                  voice and judgment.
+    #   Claude Sonnet 5 — structured extraction and the Stock agent, which
+    #                  reports counts.
     #
     # Model IDs follow Bedrock cross-region inference profile naming.
-    # Editorial agents (Search Agent, Personalization Agent, Customer Service Agent) read
+    # The Shopping and Support agents read
     # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
     # preflight (scripts/check_model_access.py, run in bootstrap) detects
     # whether Opus 5 is reachable on the account, and if it is NOT, writes
@@ -168,7 +168,7 @@ class Settings(BaseSettings):
     HYBRID_TOP_N: int = 30
     HYBRID_RRF_K: int = 60
 
-    # Typed query planning on the shipped Personalization Agent path.
+    # Typed query planning on the shipped Shopping agent search path.
     #
     # Both shopper search tools build a `SearchPlan` and push its hard
     # predicates into SQL. This flag controls whether the model reads the

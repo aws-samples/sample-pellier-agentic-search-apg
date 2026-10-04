@@ -1,8 +1,8 @@
 """Contract tests for the shared search executor.
 
-``execute_search_plan`` is the retrieval pipeline the storefront tool, the
-Observatory strategies, the Lab 1 receipt, the micro-eval, and the eval harness
-all run. These tests pin its stage order, its pool bound, its tolerance for a
+``execute_search_plan`` runs ``store_tools.run_search_plan``, the retrieval
+pipeline the storefront tool (on both rails), the Observatory strategies, the
+Lab 1 receipt, the micro-eval, and the eval harness all run. These tests pin its stage order, its pool bound, its tolerance for a
 row value it cannot read, and its refusal to return a row that breaks a hard
 constraint even when the reranker put it first.
 
@@ -15,7 +15,6 @@ Concierge's ``replacement_search.find_replacements`` and the Observatory's
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -37,7 +36,7 @@ from services.search_plan import (
 def _normalized(sql: str) -> str:
     """Collapse SQL whitespace so a match survives reindentation.
 
-    ``hybrid_search._indent_clauses`` decides how a predicate is laid out in
+    ``store_tools._indent_clauses`` decides how a predicate is laid out in
     the branch SQL. A fixture that matched on its exact newline and padding
     was pinned to that formatting: reflowing the generated SQL, which changes
     nothing a database sees, would silently stop the predicate from being
@@ -46,50 +45,29 @@ def _normalized(sql: str) -> str:
     return " ".join(sql.split())
 
 
-class _FakeCursor:
-    """One cursor shared by both branches; picks rows by the SQL it sees."""
+class _FakeDB:
+    """A database service for ``execute_search_plan``: a real coroutine ``fetch_all``.
+
+    Answers both branch queries from the same rows, or from none when the
+    statement contains ``empty_when``, and records every statement and its
+    bound parameters.
+    """
 
     def __init__(self, rows: List[Dict[str, Any]], *, empty_when: str = "") -> None:
         self._rows = rows
         self._empty_when = _normalized(empty_when)
-        self._last: List[Dict[str, Any]] = []
         self.sql_seen: List[str] = []
+        self.params_seen: List[Sequence[Any]] = []
 
-    async def __aenter__(self) -> "_FakeCursor":
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        return None
-
-    async def execute(self, sql: str, params: Optional[Sequence[Any]] = None) -> None:
+    async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
         self.sql_seen.append(sql)
+        self.params_seen.append(params)
         normalized = _normalized(sql)
         if self._empty_when and self._empty_when in normalized:
-            self._last = []
-        elif "<=>" in normalized or "to_tsquery" in normalized:
-            self._last = list(self._rows)
-        else:
-            self._last = []
-
-    async def fetchall(self) -> List[Dict[str, Any]]:
-        return [dict(row) for row in self._last]
-
-
-class _FakeConnection:
-    def __init__(self, cursor: _FakeCursor) -> None:
-        self._cursor = cursor
-
-    def cursor(self) -> _FakeCursor:
-        return self._cursor
-
-
-class _FakeDB:
-    def __init__(self, rows: List[Dict[str, Any]], *, empty_when: str = "") -> None:
-        self.cursor = _FakeCursor(rows, empty_when=empty_when)
-
-    @asynccontextmanager
-    async def get_connection(self):
-        yield _FakeConnection(self.cursor)
+            return []
+        if "<=>" in normalized or "to_tsquery" in normalized:
+            return [dict(row) for row in self._rows]
+        return []
 
 
 class _RecordingReranker:
@@ -156,13 +134,14 @@ def _run(db: Any, *, plan: Any, limit: int = 5, rerank: Any = None, **kwargs: An
 
 def test_candidate_budget_edit_changes_what_the_live_reranker_receives(monkeypatch) -> None:
     from services import planned_hybrid_retrieval as retrieval
+    from services import store_tools
 
     db = _FakeDB([_row(i) for i in range(1, 7)])
     before_reranker = _RecordingReranker()
-    monkeypatch.setattr(retrieval, "DEFAULT_RERANK_POOL_K", 3)
+    monkeypatch.setattr(store_tools, "DEFAULT_RERANK_POOL_K", 3)
     before = _run(db, plan=_plan(), rerank=before_reranker)
     after_reranker = _RecordingReranker()
-    monkeypatch.setattr(retrieval, "DEFAULT_RERANK_POOL_K", 20)
+    monkeypatch.setattr(store_tools, "DEFAULT_RERANK_POOL_K", 20)
     after = _run(db, plan=_plan(), rerank=after_reranker)
 
     assert len(before_reranker.calls[0]["documents"]) == 3
@@ -360,7 +339,7 @@ def test_vector_strategy_runs_only_the_vector_branch() -> None:
     assert reranker.calls == []
     assert execution.search_method == "vector"
     assert [stage.name for stage in execution.stages] == ["embed", "vector", "eligibility"]
-    assert all("<=>" in sql for sql in db.cursor.sql_seen)
+    assert all("<=>" in sql for sql in db.sql_seen)
     assert [row["vec_rank"] for row in execution.returned] == [1, 2]
 
 
@@ -369,10 +348,22 @@ def test_hard_predicates_reach_both_branches_before_fusion() -> None:
 
     _run(db, plan=_plan(), limit=1)
 
-    assert len(db.cursor.sql_seen) == 2
-    for sql in db.cursor.sql_seen:
+    assert len(db.sql_seen) == 2
+    for sql in db.sql_seen:
         assert "price <= %s" in sql
         assert "quantity > 0" in sql
+
+
+def test_exclusions_reach_both_branches_as_bound_parameters() -> None:
+    db = _FakeDB([_row(1)])
+
+    _run(db, plan=_plan(extracted={"exclusions": ["candle"]}), limit=1)
+
+    assert len(db.sql_seen) == 2
+    for sql, params in zip(db.sql_seen, db.params_seen):
+        assert "NOT (tags ?| %s OR materials ?| %s)" in sql
+        assert ["candle"] in params
+        assert "candle" not in sql
 
 
 def test_latency_breakdown_sums_every_stage_by_name(completed_search_plan) -> None:
@@ -453,9 +444,9 @@ def test_row_values_coerce_to_a_number_or_to_absent(
     value: Any, expected: Optional[float]
 ) -> None:
     """Absent, not zero. Zero would invent a violation the evidence lacks."""
-    from services.planned_hybrid_retrieval import _as_number
+    from services.store_tools import as_number
 
-    assert _as_number(value) == expected
+    assert as_number(value) == expected
 
 
 def test_the_micro_eval_violation_count_also_survives_an_unreadable_row() -> None:
@@ -481,7 +472,7 @@ def test_the_recheck_drops_a_row_whose_materials_are_excluded() -> None:
 
 
 def test_both_hybrid_branches_return_materials_for_the_recheck() -> None:
-    from services.hybrid_search import _fts_branch_sql, _vector_branch_sql
+    from services.store_tools import fts_branch_sql, vector_branch_sql
 
-    for sql in (_fts_branch_sql(), _vector_branch_sql()):
+    for sql in (fts_branch_sql(), vector_branch_sql()):
         assert "materials," in sql

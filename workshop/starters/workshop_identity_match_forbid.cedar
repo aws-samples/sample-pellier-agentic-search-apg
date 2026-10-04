@@ -3,22 +3,19 @@
 // must name your deployed Gateway: the lab guide substitutes
 // ${PELLIER_GATEWAY_ARN} from your environment before the policy is added.
 //
-// Goal: a shopper may file a return only for the customer their token says
-// they are. Cognito stamps `custom:customer_id` on the access token from the
-// principal mapping, AgentCore Policy exposes that claim as a principal tag,
-// and this rule compares the tag with the tool input. The `when` clause scopes
-// the forbid to principals that carry a customer claim, so staff, who carry a
-// scope claim instead, are governed by their own permit. For shoppers the rule
-// is fail-closed: a missing customer_id or a mismatched customer is denied
-// before the tool executes.
+// Goal: staff may give at most $100 of store credit per approved review. The
+// supplied baseline permit (give_store_credit_staff_scope) already limits the
+// action to a token whose `custom:staff_scope` claim is `returns`, and no
+// shopper permit names it; you do not re-author that. This forbid is the
+// amount rule. Forbid wins over permit, so as written, `unless { false }`
+// blocks every credit, staff included. The tool's `amount_cents` input is an
+// integer in cents, and AgentCore Policy exposes it as `context.input`: let
+// through only a valid amount up to and including $100 (10000 cents).
 forbid(
   principal is AgentCore::OAuthUser,
-  action == AgentCore::Action::"pellier-concierge-experience-target___initiate_return",
+  action == AgentCore::Action::"pellier-store-tools___give_store_credit",
   resource == AgentCore::Gateway::"${PELLIER_GATEWAY_ARN}"
 )
-when {
-  principal.hasTag("custom:customer_id")
-}
 unless {
   false
 };

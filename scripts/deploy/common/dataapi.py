@@ -1,39 +1,22 @@
 """
-Shared RDS Data API access for the Gateway tool Lambdas.
+RDS Data API transport for the store-tools Lambda.
 
-The four surface servers (search, pricing, recommend, experience) each reach
-Aurora through the Data API, and each had grown its own copy of the same
-plumbing: `_execute_sql` was byte-identical in three files, the transaction
-helper existed twice, and the embedding helper twice. Roughly 250 of 2,159
-lines were redundant.
+Everything here is transport. Nothing in this module knows a tool name: the
+tools live in ``services/store_tools.py`` and take a ``run(sql, params)``
+callable, which ``run_store_sql`` provides for this rail. Two Bedrock calls
+that the search tool needs on this rail, the query embedding and Cohere
+Rerank, live here too because this module owns the Bedrock clients.
 
-Duplication here is not a tidiness problem. These copies had already drifted in
-two recorded ways, and the drift is invisible until it produces wrong data:
-
-  * `_execute_in_transaction` in the search server dropped `booleanValue` and
-    `isNull` from its field coercion, mapping both to `None`. Its one call site
-    selects a JSON column, so nothing was wrong in production, but the next
-    query through that path selecting a boolean would have read `None` for
-    `false` with no error anywhere.
-  * The two embedding helpers carried the same warning in different words. A
-    model change applied to one copy would silently put the Gateway path in a
-    different vector space from the seeded catalog, which does not fail — it
-    just ranks wrongly.
-
-Everything here is transport. Nothing in this module knows a tool name, and
-none of the surface files' business SQL moved: those queries differ per surface
-on purpose and collapsing them would be a false abstraction.
-
-Configuration comes from the same environment variables the surface files
-already read, so the deploy path is unchanged. `deploy_lambda.py` packages this
-file into every function's zip next to `common/types.py`.
+`deploy_lambda.py` packages this file into the function's zip next to
+`common/types.py` and `common/handler.py`.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Sequence
 
 import boto3
 
@@ -59,10 +42,12 @@ _RUNTIME_ROLES = frozenset({"pellier_agent", "pellier_query"})
 # constant that must never diverge between rails.
 EMBED_MODEL_ID = os.environ.get("BEDROCK_EMBED_MODEL_ID", "us.cohere.embed-v4:0")
 EMBED_DIMENSION = 1024
+RERANK_MODEL_ID = os.environ.get("BEDROCK_RERANK_MODEL_ID", "cohere.rerank-v3-5:0")
 
 # Module-level clients for Lambda warm-start reuse.
 rds_client = boto3.client("rds-data", region_name=DB_REGION)
 bedrock_client = boto3.client("bedrock-runtime", region_name=REGION)
+bedrock_agent_runtime_client = boto3.client("bedrock-agent-runtime", region_name=REGION)
 
 
 def row_to_dict(record: List[Dict[str, Any]], columns: List[str]) -> Dict[str, Any]:
@@ -131,6 +116,58 @@ def execute_sql(sql: str, parameters: Optional[list] = None) -> List[Dict[str, A
     response = rds_client.execute_statement(**_statement_args(sql, parameters))
     columns = [column["name"] for column in response.get("columnMetadata", [])]
     return [row_to_dict(record, columns) for record in response.get("records", [])]
+
+
+_POSITIONAL = re.compile(r"%s")
+
+
+def _parameter(name: str, value: Any) -> Dict[str, Any]:
+    """One Data API parameter, typed from the Python value.
+
+    Integers travel as ``longValue``, which arrives as bigint, so a store tool
+    that calls a function with an ``integer`` parameter casts at the call site
+    (``%s::integer``); PostgreSQL does not narrow bigint implicitly when it
+    resolves an overload. A list binds as ``text[]``.
+    """
+    if value is None:
+        field: Dict[str, Any] = {"isNull": True}
+    elif isinstance(value, bool):
+        field = {"booleanValue": value}
+    elif isinstance(value, int):
+        field = {"longValue": value}
+    elif isinstance(value, float):
+        field = {"doubleValue": value}
+    elif isinstance(value, (list, tuple)):
+        field = {"arrayValue": {"stringValues": [str(item) for item in value]}}
+    else:
+        field = {"stringValue": str(value)}
+    return {"name": name, "value": field}
+
+
+def run_store_sql(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+    """The ``store_tools`` runner for this rail.
+
+    ``store_tools`` writes SQL with positional ``%s`` placeholders so psycopg can
+    bind it directly. The Data API takes named parameters, so each placeholder
+    becomes ``:pN`` in order and the values are typed by ``_parameter``. Rows
+    come back as dicts keyed by column name; numeric and timestamp columns are
+    strings or numbers here where psycopg would return ``Decimal`` and
+    ``datetime``, which the tools' shaping helpers accept.
+    """
+    values = list(params)
+    seen = 0
+
+    def placeholder(_match: "re.Match[str]") -> str:
+        nonlocal seen
+        seen += 1
+        return f":p{seen - 1}"
+
+    named = _POSITIONAL.sub(placeholder, sql)
+    if seen != len(values):
+        raise ValueError(
+            f"store SQL declares {seen} %s placeholders but binds {len(values)} parameters"
+        )
+    return execute_sql(named, [_parameter(f"p{index}", value) for index, value in enumerate(values)])
 
 
 def execute_write(sql: str, parameters: Optional[list] = None) -> None:
@@ -341,10 +378,9 @@ def write_tool_audit(
       * A customer-scoped tool passes ``gateway-<customer_id>``, since
         ``customer_id`` is present in its arguments. Governed queries then
         filter on ``args->>'customer_id'``.
-      * An operator tool such as ``restock_inventory`` has no customer in its
-        arguments at all, so it passes a role handle like
-        ``gateway-stock-keeper``. Deriving ``gateway-<customer_id>`` there would
-        write ``gateway-unknown`` on every row.
+      * A call with no customer in its arguments passes a role handle
+        instead. Deriving ``gateway-<customer_id>`` there would write
+        ``gateway-unknown`` on every row.
 
     Schema (scripts/migrations/002_workshop_telemetry.sql):
     ``tool_audit(session_id, tool, caller, args JSONB, result JSONB, latency_ms)``
@@ -405,3 +441,38 @@ def query_embedding(text: str) -> List[float]:
         ),
     )
     return json.loads(response["body"].read())["embeddings"]["float"][0]
+
+
+def rerank_documents(*, query: str, documents: Sequence[str], top_n: int) -> List[Dict[str, Any]]:
+    """Cohere Rerank 3.5 on Bedrock; ``[]`` on any failure.
+
+    Returning ``[]`` instead of raising matches the in-process service, so the
+    search tool falls back to RRF order and says so in ``search_method``.
+    """
+    if not documents:
+        return []
+    sources = [
+        {"type": "INLINE", "inlineDocumentSource": {"type": "TEXT", "textDocument": {"text": doc}}}
+        for doc in documents
+    ]
+    try:
+        response = bedrock_agent_runtime_client.rerank(
+            queries=[{"type": "TEXT", "textQuery": {"text": query}}],
+            sources=sources,
+            rerankingConfiguration={
+                "type": "BEDROCK_RERANKING_MODEL",
+                "bedrockRerankingConfiguration": {
+                    "modelConfiguration": {
+                        "modelArn": f"arn:aws:bedrock:{REGION}::foundation-model/{RERANK_MODEL_ID}"
+                    },
+                    "numberOfResults": min(int(top_n), len(sources)),
+                },
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - rerank is optional on this rail
+        logger.warning("Cohere rerank failed: %s", exc)
+        return []
+    return [
+        {"index": item.get("index"), "relevance_score": item.get("relevanceScore", 0.0)}
+        for item in response.get("results", [])
+    ]

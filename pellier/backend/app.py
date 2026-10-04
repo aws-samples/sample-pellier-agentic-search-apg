@@ -29,7 +29,6 @@ from models.search import (
     PerfCompareRequest,
     PerfIterativeScanRequest,
     PerfQuantizationRequest,
-    RestockRequest,
 )
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
@@ -108,32 +107,18 @@ SEARCH_STRATEGY_COST_PER_1000_USD = {
 
 
 def _log_agent_and_tool_inventory() -> None:
-    """Log the live specialist roster and tool catalogue at boot.
+    """Log the Router's agents and the tool catalogue at boot.
 
-    Mirrors the ``✅ Loaded N skills...`` line emitted by ``skills.loader``
-    so the operator can confirm at a glance:
-
-      * which specialists the Dispatcher (Pattern III) and Orchestrator
-        (Pattern I) can route to, and
-      * which @tool functions those specialists are allowed to call.
-
-    Runs once per process at lifespan startup. The lists are short and
-    lookup-only, so importing the modules here is cheap.
+    Mirrors the ``✅ Loaded N skills...`` line emitted by ``skills.loader`` so
+    the operator can confirm at a glance which agents the Router can reach and
+    which ``@tool`` functions they may call.
     """
-    # Specialists. Each file exports a build_<role>_agent() factory; the
-    # public role is the @tool wrapper name the orchestrator sees.
-    specialists = [
-        ("search_agent", "search"),
-        ("personalization_agent", "recommendation"),
-        ("pricing_agent", "pricing"),
-        ("inventory_agent", "inventory"),
-        ("customer_service_agent", "support"),
-    ]
-    specialist_summary = ", ".join(f"{role}→{name}" for name, role in specialists)
+    from services.specialist_models import AGENT_NAMES
+
     logger.info(
-        "✅ Loaded %d specialist agents: %s",
-        len(specialists),
-        specialist_summary,
+        "✅ Router reaches %d agents: %s",
+        len(AGENT_NAMES),
+        ", ".join(f"{intent}→{name}" for intent, name in AGENT_NAMES.items()),
     )
 
     # Tools. Walk services.agent_tools and collect every Strands @tool
@@ -180,9 +165,9 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning(
             "⚠️ WORKSHOP_FORMAT=%r, not 'governed'. The managed-rail boundary is OFF: "
-            "initiate_return, issue_credit and restock_inventory will execute "
-            "in process with no human review, no AgentCore Policy verdict and no "
-            "tool_audit receipt. Set WORKSHOP_FORMAT=governed for this lineage.",
+            "give_store_credit will execute in process with no human review, "
+            "no AgentCore Policy verdict and no tool_audit receipt. Set "
+            "WORKSHOP_FORMAT=governed for this lineage.",
             _format or "<unset>",
         )
     
@@ -599,59 +584,6 @@ def _prepare_like_pattern(term: str) -> str:
     return f"%{escaped}%"
 
 
-@app.get("/api/products/category/{category_query}")
-async def browse_category(
-    category_query: str,
-    limit: int = Query(default=5, ge=1, le=50),
-    db: DatabaseService = Depends(get_db_service),
-):
-    """Fast category browsing without embeddings"""
-    try:
-        logger.info(f"📂 Category browse: '{category_query}' (limit={limit})")
-        
-        query = """
-            SELECT
-                "productId",
-                name,
-                brand,
-                color,
-                description,
-                "imgUrl" as imgurl,
-                rating,
-                reviews,
-                price,
-                category,
-                badge,
-                tags,
-                1.0 as similarity_score
-            FROM pellier.product_catalog
-            WHERE (category ILIKE %s OR name ILIKE %s OR description ILIKE %s)
-              AND "imgUrl" IS NOT NULL
-            ORDER BY rating DESC, reviews::int DESC
-            LIMIT %s
-        """
-
-        pattern = _prepare_like_pattern(category_query)
-        results = await db.fetch_all(query, pattern, pattern, pattern, limit)
-        logger.info(f"📦 Found {len(results)} products in category")
-        
-        return {
-            "results": [
-                {
-                    "product": dict(row),
-                    "similarity_score": 1.0
-                }
-                for row in results
-            ],
-            "total_results": len(results),
-            "search_type": "category"
-        }
-    except Exception as e:
-        logger.error(f"❌ Category browse failed: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-
 # ============================================================================
 # ERROR HANDLERS
 # ============================================================================
@@ -673,123 +605,6 @@ async def general_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Internal server error"}
     )
-
-
-@app.get("/api/tools")
-async def list_custom_tools():
-    """List all custom business logic tools available"""
-    return [
-        {"name": "search_products", "description": "Search for products by natural language query with optional filters"},
-        {"name": "get_trending_products", "description": "Get trending products by reviews and ratings"},
-        {"name": "browse_category", "description": "Browse products filtered by category, rating, and price"},
-        {"name": "check_inventory", "description": "Check stock levels and inventory alerts"},
-        {"name": "get_price_analysis", "description": "Price analytics by category"},
-        {"name": "restock_inventory", "description": "Update product stock quantities"},
-        {"name": "compare_products", "description": "Side-by-side product comparison"},
-        {"name": "get_low_stock", "description": "Find products running low on inventory"},
-    ]
-
-
-@app.get("/api/tools/trending")
-async def get_trending(
-    limit: int = Query(default=5, ge=1, le=50),
-    category: str = Query(default=None),
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Get trending products using business logic"""
-    try:
-        from services.business_logic import BusinessLogic
-        logic = BusinessLogic(db)
-        return await logic.get_trending_products(limit, category)
-    except Exception as e:
-        logger.error(f"Failed to get trending products: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-@app.get("/api/tools/inventory-health")
-async def check_inventory_endpoint(
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Get inventory health using business logic"""
-    try:
-        from services.business_logic import BusinessLogic
-        logic = BusinessLogic(db)
-        return await logic.check_inventory()
-    except Exception as e:
-        logger.error(f"Failed to get inventory health: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-@app.get("/api/tools/price-stats")
-async def get_price_stats(
-    category: str = Query(default=None),
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Get price statistics using business logic"""
-    try:
-        from services.business_logic import BusinessLogic
-        logic = BusinessLogic(db)
-        return await logic.get_price_analysis(category)
-    except Exception as e:
-        logger.error(f"Failed to get price statistics: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-async def restock_inventory_endpoint(
-    request: RestockRequest,
-    operator: Dict[str, Any] = Depends(require_operator),
-    db: DatabaseService = Depends(get_db_service),
-):
-    """Restock a product using business logic.
-
-    This is an operator mutation, so it depends on ``require_operator``
-    rather than the optional ``get_current_user``. The optional dependency
-    returns ``None`` for an anonymous caller, and a handler that accepts
-    ``None`` is an unauthenticated write path wearing an authenticated
-    signature. ``require_operator`` guarantees a verified, non-empty
-    ``sub`` this handler can attribute the mutation to.
-
-    The body is a typed ``RestockRequest``: FastAPI rejects a malformed or
-    out-of-range request with 422 before any database work starts.
-    """
-    if str(settings.WORKSHOP_FORMAT).lower() == "governed":
-        raise HTTPException(status_code=409, detail="managed_rail_required")
-    try:
-        from services.business_logic import BusinessLogic
-        logic = BusinessLogic(db)
-        result = await logic.restock_inventory(
-            product_id=request.product_id,
-            quantity=request.quantity,
-            idempotency_key=request.idempotency_key,
-            warehouse_id=request.warehouse_id,
-        )
-    except Exception as e:
-        logger.error(f"Failed to restock product: {e}")
-        raise HTTPException(status_code=500, detail="restock_failed")
-
-    # Record who performed the mutation. An inventory write with no
-    # attributable principal is not auditable evidence.
-    try:
-        from services.tool_audit_writer import record_operator_mutation
-
-        record_operator_mutation(
-            tool_name="restock_inventory",
-            caller="rest",
-            principal_sub=operator["sub"],
-            args={
-                "product_id": request.product_id,
-                "quantity": request.quantity,
-                "warehouse_id": request.warehouse_id,
-                "idempotency_key": request.idempotency_key,
-            },
-            result=result,
-        )
-    except Exception as exc:  # pragma: no cover - audit is best-effort
-        logger.warning("restock audit write failed: %s", exc)
-
-    if isinstance(result, dict):
-        result = {**result, "performed_by": operator["sub"]}
-    return result
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -1235,7 +1050,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     return
 
                 from services.intent_router import classify_intent
-                from services.specialist_models import build_intent_signal
+                from services.specialist_models import AGENT_NAMES, build_intent_signal
 
                 yield (
                     "data: "
@@ -1371,15 +1186,18 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     )
                     + "\n\n"
                 )
-                if managed_result.specialist:
+                managed_agent = AGENT_NAMES.get(
+                    managed_result.intent, managed_result.specialist
+                )
+                if managed_agent:
                     yield (
                         "data: "
                         + json.dumps(
                             {
                                 "type": "agent_step",
-                                "agent": managed_result.specialist,
+                                "agent": managed_agent,
                                 "action": (
-                                    f"Dispatcher routed {managed_result.intent or 'request'}"
+                                    f"Router routed {managed_result.intent or 'request'}"
                                 ),
                                 "status": "completed",
                                 "source": "Amazon Bedrock",
@@ -1449,19 +1267,20 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                             "pattern": managed_result.orchestration,
                             "route": managed_result.intent,
                             "router": "deterministic",
+                            "intent": managed_result.intent,
+                            "agent": managed_agent,
+                            "model_id": managed_result.model,
                         },
                         "agent_execution": {
                             "agent_steps": (
                                 [
                                     {
-                                        "agent": managed_result.specialist,
-                                        "action": (
-                                            "Dispatcher selected specialist"
-                                        ),
+                                        "agent": managed_agent,
+                                        "action": "Router selected the agent",
                                         "status": "completed",
                                     }
                                 ]
-                                if managed_result.specialist
+                                if managed_agent
                                 else []
                             ),
                             "tool_calls": managed_result.tool_calls,
@@ -1881,32 +1700,6 @@ async def clear_context(session_id: str = Query(...)):
         raise HTTPException(status_code=500, detail="internal_error")
 
 
-async def list_prompts():
-    """
-    List all available prompt templates with versions and performance metrics
-    
-    Demonstrates enterprise-grade prompt engineering patterns:
-    - Versioned prompts for A/B testing
-    - Performance tracking per prompt
-    - Agent-specific prompt templates
-    """
-    try:
-        from services.context_manager import PromptRegistry
-        
-        prompts = PromptRegistry.list_available_prompts()
-        
-        logger.info(f"📋 Listed {len(prompts)} prompt templates")
-        
-        return {
-            "prompts": prompts,
-            "total": len(prompts)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to list prompts: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
 # ============================================================================
 # QUANTIZATION COMPARISON ENDPOINT
 # ============================================================================
@@ -1946,25 +1739,6 @@ async def quantization_benchmark(request: PerfQuantizationRequest):
     return await index_performance_service.compare_quantization_benchmark(
         query=request.query, embedding=embedding, limit=request.limit,
     )
-
-
-# ============================================================================
-# PERSONALIZED SEARCH ENDPOINT
-# ============================================================================
-
-@app.post("/api/personalization/search")
-async def personalized_search(
-    request: Request,
-    db: DatabaseService = Depends(get_db_service),
-):
-    """Search with preference-based re-ranking"""
-    from services.business_logic import BusinessLogic
-    logic = BusinessLogic(db)
-    body = await request.json()
-    query = body.get("query", "")
-    preferences = body.get("preferences", {})
-    limit = body.get("limit", 5)
-    return await logic.personalized_search(query, preferences, limit)
 
 
 # ============================================================================
@@ -2009,7 +1783,7 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
 
 # Recorded on each comparison receipt alongside its unique comparison ID.
 # Lab 1's SQL requires both when selecting the turn to read. The storefront's own retrieval writer
-# (services/agent_tools.py::_hybrid_retrieval_config) sets no ``source``, so a
+# (services/agent_tools.py::_retrieval_config) sets no ``source``, so a
 # shopper turn taken after the participant captured the high-water mark cannot
 # be mistaken for the comparison. Changing this value breaks
 # workshop/lab-1-rrf.sql and its two sibling copies.
@@ -3162,29 +2936,6 @@ async def get_episodic_memories(query: str, user=Depends(get_current_user)):
 # NOTE: the former POST /api/agentcore/policy/create route was removed.
 # Cedar policy creation is now owned by the declarative AgentCore CLI project,
 # not a runtime endpoint.
-
-
-async def analytics_query(request: Request):
-    """Run a data analytics query using Code Interpreter agent"""
-    try:
-        from services.code_interpreter import create_analytics_agent
-        body = await request.json()
-        prompt = body.get("prompt", "")
-        if not prompt:
-            raise HTTPException(status_code=400, detail="prompt is required")
-        agent = create_analytics_agent()
-        if agent is None:
-            return {
-                "response": "Code Interpreter is not available. Ensure AGENTCORE_RUNTIME_ENDPOINT is configured and strands-agents-tools is installed.",
-                "available": False,
-            }
-        result = str(agent(prompt))
-        return {"response": result, "available": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Analytics query failed: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
 
 
 # ============================================================================

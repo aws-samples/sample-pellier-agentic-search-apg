@@ -35,14 +35,14 @@ def test_durable_trace_keeps_customer_bindings_without_customer_ids() -> None:
     trace = _trace_metadata({
         "runtime": "agentcore-managed",
         "customerBindings": [
-            {"tool": "get_ticket_history", "status": "success", "customerScope": "server",
+            {"tool": "get_tickets", "status": "success", "customerScope": "server",
              "requestedOtherCustomer": True, "customer_id": "CUST-JESSICA"},
-            {"tool": "get_ticket_history", "customerScope": "invented"},
+            {"tool": "get_tickets", "customerScope": "invented"},
             "not-a-binding",
         ],
     })
     assert trace["customerBindings"] == [
-        {"tool": "get_ticket_history", "status": "success",
+        {"tool": "get_tickets", "status": "success",
          "customerScope": "server", "requestedOtherCustomer": True},
     ]
 
@@ -77,7 +77,7 @@ def _model_execution(*models: tuple[str, str]) -> dict[str, Any]:
     ([("router", "sonnet")], "search", None, None),
     ([("search", "first"), ("search", "second")], "search", None, None),
     ([], "search", None, None),
-    ([], "Search Agent", "managed-specialist", "managed-specialist"),
+    ([], "Shopping agent", "managed-specialist", "managed-specialist"),
 ])
 def test_receipt_attributes_the_observed_specialist_model(
     models, route, managed, expected,
@@ -177,7 +177,7 @@ class _ReceiptDB:
             return [
                 {
                     "audit_id": 9,
-                    "tool": "search_products_hybrid",
+                    "tool": "search_products",
                     "caller": "gateway",
                     "latency_ms": 18,
                     "created_at": datetime(2026, 8, 12, tzinfo=timezone.utc),
@@ -332,7 +332,7 @@ def test_explicit_governed_policy_event_wins_over_absence() -> None:
                 {
                     "receipt_id": 7,
                     "audit_id": None,
-                    "tool": "initiate_return",
+                    "tool": "give_store_credit",
                     "caller": "gateway",
                     "decision": "DENY",
                     "policy_engine_id": "policy-1",
@@ -405,7 +405,7 @@ def test_visible_tool_audit_uses_receipt_principal_scope() -> None:
                 {
                     "audit_id": 11,
                     "session_id": "session-1",
-                    "tool": "initiate_return",
+                    "tool": "give_store_credit",
                     "caller": "gateway",
                     "args": {"turn_id": "turn-persisted"},
                     "result": {"status": "success"},
@@ -438,7 +438,7 @@ def test_recent_policy_decisions_include_explicit_allow_and_deny() -> None:
                     "receipt_id": 1,
                     "audit_id": 2,
                     "session_id": "session-1",
-                    "tool": "initiate_return",
+                    "tool": "give_store_credit",
                     "caller": "gateway",
                     "decision": "ALLOW",
                     "args": {"turn_id": "turn-1"},
@@ -450,7 +450,7 @@ def test_recent_policy_decisions_include_explicit_allow_and_deny() -> None:
                     "receipt_id": 3,
                     "audit_id": None,
                     "session_id": "session-1",
-                    "tool": "initiate_return",
+                    "tool": "give_store_credit",
                     "caller": "gateway",
                     "decision": "DENY",
                     "args": {"turn_id": "turn-2"},

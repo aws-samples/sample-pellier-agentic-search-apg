@@ -52,7 +52,6 @@ from render_agentcore_project import (  # noqa: E402
     DEPLOYMENT_SUFFIX,
     AGENTCORE_CLI,
     FINGERPRINT_ENV_VAR,
-    INITIATE_RETURN_ACTION,
     project_root,
     render_project,
 )
@@ -63,25 +62,10 @@ from render_agentcore_project import (  # noqa: E402
 # Cedar action ids the workshop teaches embed them and a Gateway scopes them.
 _SERVER_PREFIX = f"pellier-{DEPLOYMENT_SUFFIX}" if DEPLOYMENT_SUFFIX else "pellier"
 EXPECTED_TARGETS = {
-    "search": {
-        "handler": "pellier_search_server.lambda_handler",
-        "server_name": f"{_SERVER_PREFIX}-search-server",
-        "entrypoint": "scripts/deploy/pellier_search_server.py",
-    },
-    "pricing": {
-        "handler": "pellier_pricing_server.lambda_handler",
-        "server_name": f"{_SERVER_PREFIX}-pricing-server",
-        "entrypoint": "scripts/deploy/pellier_pricing_server.py",
-    },
-    "recommendation": {
-        "handler": "pellier_recommend_server.lambda_handler",
-        "server_name": f"{_SERVER_PREFIX}-recommend-server",
-        "entrypoint": "scripts/deploy/pellier_recommend_server.py",
-    },
-    "experience": {
-        "handler": "pellier_experience_server.lambda_handler",
-        "server_name": f"{_SERVER_PREFIX}-experience-server",
-        "entrypoint": "scripts/deploy/pellier_experience_server.py",
+    "store": {
+        "handler": "pellier_store_tools.lambda_handler",
+        "server_name": f"{_SERVER_PREFIX}-store-tools-server",
+        "entrypoint": "scripts/deploy/pellier_store_tools.py",
     },
 }
 
@@ -1205,7 +1189,6 @@ def _deploy_cli_project(
     render_project(
         **common,
         include_policies=True,
-        action_token=INITIATE_RETURN_ACTION,
         gateway_arn=str(gateway_state["gatewayArn"]),
         runtime_arns=runtime_arns,
     )
@@ -1309,9 +1292,9 @@ def _deploy_lambdas(
 def _verify_local_schema() -> dict[str, Any]:
     """Assert the canonical schema is internally consistent, not a fixed count.
 
-    The count was hardcoded to 15 and silently became wrong the moment
-    `issue_credit` and `get_ticket_history` were published, so a full provision
-    run would have failed its own precondition against a correct schema. What
+    The count was hardcoded once and silently became wrong the moment a tool
+    was published, so a full provision run would have failed its own
+    precondition against a correct schema. What
     actually matters is that every published name is unique and that each one
     resolves to exactly one target, which is what Cedar action ids depend on.
     """
@@ -1506,7 +1489,7 @@ def _discover_live_gateway_tools(
     Gateway evaluates Cedar on MCP discovery, so the listing is per identity, not
     per deployment. Comparing it against the whole published catalogue reported a
     working staff-only boundary as a failed deploy (live, 2026-09-10): a shopper
-    token cannot see `issue_credit` and never will.
+    token cannot see `give_store_credit` and never will.
 
     A shopper's listing therefore carries a second assertion worth more than the
     count: the staff-only tool is absent, proved against the live Gateway rather
@@ -2233,51 +2216,6 @@ def _wait_for_unified_trace(
     )
 
 
-def _live_policy_proof(
-    *,
-    repo: Path,
-    deploy_dir: Path,
-    env: dict[str, str],
-) -> dict[str, Any]:
-    helper = deploy_dir / "gateway_initiate_return.py"
-    proofs: dict[str, Any] = {}
-    for expected, reason, session_id in (
-        ("allow", "damaged", "provision-policy-allow"),
-        ("deny", "changed_mind", "provision-policy-deny"),
-    ):
-        proc = _run(
-            [
-                sys.executable,
-                str(helper),
-                "--product-id",
-                "31",
-                "--reason",
-                reason,
-                "--expect",
-                expected,
-                "--record-receipt",
-                "--session-id",
-                session_id,
-            ],
-            cwd=repo,
-            env=env,
-        )
-        payload = json.loads(proc.stdout)
-        if payload.get("outcome") != expected:
-            raise RuntimeError(
-                f"Policy {expected.upper()} proof returned {payload.get('outcome')}"
-            )
-        if expected == "allow" and payload.get("tool_audit_row_after_call") is None:
-            raise RuntimeError("Policy ALLOW produced no execution audit row")
-        if expected == "deny" and (
-            payload.get("tool_audit_row_after_call") is not None
-            or payload.get("cedar_denial") is not True
-        ):
-            raise RuntimeError("Policy DENY did not prove pre-execution blocking")
-        proofs[expected] = payload
-    return proofs
-
-
 def _existing_lambda_arns(
     *,
     region: str,
@@ -2373,7 +2311,6 @@ def _redeploy_participant_edits(
         workshop_id=workshop_id,
         identity=identity,
         include_policies=True,
-        action_token=INITIATE_RETURN_ACTION,
         gateway_arn=str(gateway_state["gatewayArn"]),
         runtime_arns=runtime_arns,
     )
@@ -2491,13 +2428,13 @@ def _participant_update(
         "policy_engine_id": str(policy_state["policyEngineId"]),
         "policy_engine_arn": policy_state.get("policyEngineArn"),
         "mode": "ENFORCE",
-        "gated_tool": "initiate_return",
+        "gated_tool": "give_store_credit",
     }
     checkpoint()
 
     control_proof = _verify_gateway_control_plane(region=region, gateway_id=gateway_id)
     result["verification"]["gateway_control_plane"] = control_proof
-    result["verification"]["targets_attached"] = control_proof["target_count"] == 4
+    result["verification"]["targets_attached"] = control_proof["target_count"] == 1
 
     access_token, smoke_username = _cognito_access_token(
         region=region,
@@ -2884,7 +2821,7 @@ def main() -> int:
             "policy_engine_id": policy_engine_id,
             "policy_engine_arn": policy_state.get("policyEngineArn"),
             "mode": "ENFORCE",
-            "gated_tool": "initiate_return",
+            "gated_tool": "give_store_credit",
         }
 
         control_proof = _verify_gateway_control_plane(
@@ -2893,7 +2830,7 @@ def main() -> int:
         )
         result["verification"]["gateway_control_plane"] = control_proof
         result["verification"]["targets_attached"] = (
-            control_proof["target_count"] == 4
+            control_proof["target_count"] == 1
         )
 
         # Identity reaches Cedar as a claim, so the pool's pre-token trigger is
@@ -2987,25 +2924,6 @@ def main() -> int:
             == {"facts", "preferences", "summary", "episodic"}
         )
 
-        stage("live policy allow and deny")
-        proof_env = deploy_env.copy()
-        proof_env.update(
-            {
-                "AGENTCORE_GATEWAY_URL": gateway_url,
-                "AGENTCORE_GATEWAY_ARN": gateway_arn,
-                "AGENTCORE_POLICY_ENGINE_ID": policy_engine_id,
-                "PELLIER_TOKEN": access_token,
-            }
-        )
-        policy_proof = _live_policy_proof(
-            repo=repo,
-            deploy_dir=deploy_dir,
-            env=proof_env,
-        )
-        result["verification"]["live_policy_allow"] = True
-        result["verification"]["live_policy_deny"] = True
-        result["verification"]["live_policy_proof"] = policy_proof
-
         stage("authenticated shopper Runtime")
         runtime_smoke = _authenticated_runtime_smoke(
             root=root,
@@ -3064,8 +2982,6 @@ def main() -> int:
             "gateway_tools_discovered",
             "memory_seeded",
             "memory_extraction_verified",
-            "live_policy_allow",
-            "live_policy_deny",
             "authenticated_runtime_invoke_smoke",
             "operator_runtime_build_fingerprint_match",
             "transaction_search_ready",

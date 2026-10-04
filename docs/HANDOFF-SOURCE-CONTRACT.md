@@ -32,21 +32,20 @@ the full vocabulary to compute what it is deliberately not publishing.
 
 ## Baseline authorization on a fresh stack
 
-7 policies, all permits, no forbid. `scripts/deploy/render_agentcore_project.py` is
-the source; this table is checked against it by
-`pellier/backend/tests/test_fresh_policy_set.py`. Every statement types the
-principal as `AgentCore::OAuthUser` and pins `resource ==` to the deployed
-Gateway ARN, which is why policies render only in the second deploy phase.
+3 policies, all permits, no forbid; 4 once Lab 3A publishes `get_tickets` and
+its owner-only permit lands in the same deployment.
+`scripts/deploy/render_agentcore_project.py` is the source; this table is
+checked against it by `pellier/backend/tests/test_fresh_policy_set.py`. Every
+statement types the principal as `AgentCore::OAuthUser` and pins `resource ==`
+to the deployed Gateway ARN, which is why policies render only in the second
+deploy phase. Every action id is `pellier-store-tools___<tool>`, the one
+Gateway target.
 
 | policy | effect | shape |
 |---|---|---|
-| `baseline_permit_workshop_tools` | permit | `action in [...]` over 11 catalogue reads that expose no customer data. No wildcard, so a tool published later is denied by default. |
-| `get_customer_preferences_owner_only` | permit | only when the token's `custom:customer_id` equals `context.input.customer_id` |
-| `get_audit_trail_owner_only` | permit | the same condition on the audit-trail read |
-| `initiate_return_shopper_damaged` | permit | a principal carrying `custom:customer_id`, with `context.input.reason == "damaged"`; no ownership binding |
-| `initiate_return_staff_scope` | permit | a principal whose `custom:staff_scope` is `returns`; no reason condition |
-| `issue_credit_staff_scope` | permit | the same staff condition on `issue_credit`; no shopper permit names that action |
-| `replace_damaged_item_staff_scope` | permit | staff scope `returns`, damaged reason; the target and Aurora separately validate the exact approved terms |
+| `baseline_permit_workshop_tools` | permit | `action in [...]` over the 6 catalogue reads that expose no customer data (`search_products`, `browse_department`, `compare_products`, `check_stock`, `get_return_policy`, `ask_a_person`). No wildcard, so a tool published later is denied by default. |
+| `get_orders_owner_only` | permit | only when the token's `custom:customer_id` equals `context.input.customer_id`; `get_tickets_owner_only` has the same shape once Lab 3A publishes that read |
+| `give_store_credit_staff_scope` | permit | a principal whose `custom:staff_scope` is `returns`; no amount condition, because the $100 per-credit limit is the Lab 4 forbid a participant authors, and no shopper permit names that action |
 
 Identity reaches Cedar as a claim. The Cognito pre-token trigger
 (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` from

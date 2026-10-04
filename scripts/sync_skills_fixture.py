@@ -29,23 +29,23 @@ from skills.registry import _parse_frontmatter
 SKILL_UI_META: dict[str, dict[str, object]] = {
     "the-packing-list": {
         "signals": ["linen", "travel", "pack flat", "natural fibers", "Goa", "weekend"],
-        "loadedBy": ["Personalization Agent", "Search Agent"],
+        "loadedBy": ["Shopping agent"],
     },
     "the-gift-table": {
         "signals": ["gift", "birthday", "housewarming", "milestone", "wrap", "thoughtful"],
-        "loadedBy": ["Personalization Agent", "Search Agent"],
+        "loadedBy": ["Shopping agent"],
     },
     "the-makers-shelf": {
         "signals": ["hand-thrown", "ceramic", "kiln", "slow", "ritual", "patina"],
-        "loadedBy": ["Personalization Agent", "Customer Service Agent"],
+        "loadedBy": ["Shopping agent", "Support agent"],
     },
     "the-care-card": {
         "signals": ["return", "repair", "care", "damaged", "warranty", "what now"],
-        "loadedBy": ["Customer Service Agent"],
+        "loadedBy": ["Support agent"],
     },
     "the-proof-counter": {
         "signals": ["why", "proof", "receipt", "audit", "trace", "memory"],
-        "loadedBy": ["Personalization Agent", "Customer Service Agent"],
+        "loadedBy": ["Shopping agent", "Support agent"],
     },
 }
 

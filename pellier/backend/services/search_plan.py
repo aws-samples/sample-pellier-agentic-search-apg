@@ -3,7 +3,7 @@
 This module plans the in-process retrieval paths in Pellier. Managed Gateway
 search uses a separate Lambda implementation; deploying Runtime does not deploy
 this module. The
-shipped Personalization Agent tool path and the Observatory strategy comparison both compile
+shipped Shopping agent tool path and the Lab 1 strategy comparison both compile
 their retrieval through :func:`build_plan`, so the "agentic" strategy the
 workshop *demonstrates* is the same one shoppers actually get.
 
@@ -45,6 +45,8 @@ import logging
 import math
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from services.catalog_vocabulary import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN_TAGS
 
 logger = logging.getLogger(__name__)
 
@@ -437,7 +439,7 @@ def build_plan(
             ``exclusions``, ``soft_signal``). Missing or malformed fields
             degrade to "unconstrained", never to a guess.
         known_categories: Allowed catalog categories. Defaults to the
-            facets declared in ``services.structured_extract``.
+            facets declared in ``services.catalog_vocabulary``.
         known_tags: Allowed catalog tags. Same default.
         known_materials: Allowed catalog materials. Same default.
         price_max_usd: Caller-supplied ceiling. A caller-supplied value is
@@ -459,8 +461,6 @@ def build_plan(
         A validated :class:`SearchPlan`. Never raises on bad model output;
         unusable fields land in ``ambiguous`` instead.
     """
-    from services.structured_extract import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN_TAGS
-
     categories_allowed = KNOWN_CATEGORIES if known_categories is None else known_categories
     tags_allowed = KNOWN_TAGS if known_tags is None else known_tags
     materials_allowed = KNOWN_MATERIALS if known_materials is None else known_materials
