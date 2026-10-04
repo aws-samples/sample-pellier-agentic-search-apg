@@ -30,7 +30,9 @@ Terminology, so the surfaces can agree:
   ``hard``       never relaxed automatically (price ceiling, availability,
                  explicit category, exclusions)
   ``soft``       may be relaxed per the declared policy (tags, taste signal)
-  ``exclusions`` hard *negative* predicates ("avoid candles")
+  ``exclusions`` hard *negative* predicates ("avoid candles", "no wool")
+  ``unenforced_exclusions`` stated exclusions no catalog field can check;
+                 surfaced to the shopper, never claimed as met
   ``ambiguous``  extracted but untrusted; surfaced, never silently applied
 """
 
@@ -55,6 +57,12 @@ STRATEGY_VECTOR = "vector"
 STRATEGY_HYBRID = "hybrid"
 STRATEGY_HYBRID_RERANK = "hybrid+rerank"
 _STRATEGIES = (STRATEGY_VECTOR, STRATEGY_HYBRID, STRATEGY_HYBRID_RERANK)
+
+# Whether the model read the request. A failed read and a request that
+# constrained nothing produce the same predicates, so the plan says which.
+EXTRACTION_PARSED = "parsed"
+EXTRACTION_FAILED = "extraction_failed"
+EXTRACTION_NOT_RUN = "not_run"
 
 
 @dataclass(frozen=True)
@@ -138,7 +146,12 @@ class SearchPlan:
         intent: The shopper's goal in their own words (the raw query).
         hard: Constraints that gate candidate validity.
         soft: Preferences that shape ranking.
-        exclusions: Hard negative tag predicates.
+        exclusions: Hard negative predicates, checked against tags and materials.
+        unenforced_exclusions: Exclusions the shopper stated that no catalog
+            field can check. Reported, never applied or claimed.
+        extraction_status: ``parsed`` when the planner read the request,
+            ``extraction_failed`` when it could not, ``not_run`` when no
+            model extraction was attempted.
         retrieval_strategy: Which retrieval path to run.
         top_k: Number of final results requested.
         evidence_required: When True, the answer must cite retrieved rows.
@@ -151,6 +164,8 @@ class SearchPlan:
     hard: HardConstraints = field(default_factory=HardConstraints)
     soft: SoftPreferences = field(default_factory=SoftPreferences)
     exclusions: Tuple[str, ...] = ()
+    unenforced_exclusions: Tuple[str, ...] = ()
+    extraction_status: str = EXTRACTION_NOT_RUN
     retrieval_strategy: str = STRATEGY_HYBRID_RERANK
     top_k: int = 5
     evidence_required: bool = True
@@ -192,8 +207,10 @@ class SearchPlan:
             # No parameter: a literal predicate cannot be tampered with.
             clauses.append("quantity > 0")
         if self.exclusions:
-            clauses.append("NOT (tags ?| %s)")
-            params.append(list(self.exclusions))
+            # Tags name merchandising facts such as candle; materials list
+            # everything a product is made of. An excluded value must miss both.
+            clauses.append("NOT (tags ?| %s OR materials ?| %s)")
+            params.extend([list(self.exclusions), list(self.exclusions)])
         if include_soft and self.soft.tags:
             clauses.append("tags ?| %s")
             params.append(list(self.soft.tags))
@@ -245,6 +262,24 @@ class SearchPlan:
         return replace(self, relaxations=[])
         # === WORKSHOP - Search plan - preserve requirements: END ===
 
+    def constraint_notice(self) -> Optional[str]:
+        """What an answer must admit about requirements this plan could not check.
+
+        Code writes the sentence so the model relays a fact instead of
+        deciding whether to mention it. None when nothing went unchecked.
+        """
+        if self.extraction_status == EXTRACTION_FAILED:
+            return (
+                "The request's requirements could not be read, so only the explicit "
+                "price and category limits were applied."
+            )
+        if self.unenforced_exclusions:
+            return (
+                "The catalog cannot check these requests, so the results may not meet "
+                "them: " + ", ".join(self.unenforced_exclusions) + "."
+            )
+        return None
+
     # ------------------------------------------------------------------
     # Serialization
     # ------------------------------------------------------------------
@@ -262,6 +297,8 @@ class SearchPlan:
                 "soft_signal": self.soft.soft_signal,
             },
             "exclusions": list(self.exclusions),
+            "unenforced_exclusions": list(self.unenforced_exclusions),
+            "extraction_status": self.extraction_status,
             "retrieval_strategy": self.retrieval_strategy,
             "top_k": self.top_k,
             "evidence_required": self.evidence_required,
@@ -284,6 +321,32 @@ def _clean_tags(values: Any, allowed: Sequence[str]) -> Tuple[str, ...]:
         if lowered in allowed_set and lowered not in seen:
             seen.append(lowered)
     return tuple(seen)
+
+
+_MAX_UNENFORCED = 5
+_MAX_UNENFORCED_CHARS = 40
+
+
+def _unenforced_exclusions(payload: Dict[str, Any], vocabulary: Sequence[str]) -> Tuple[str, ...]:
+    """Stated exclusions outside the vocabulary, kept so the answer can admit them.
+
+    Dropping one would let a reply present "no plastic" results as checked when no
+    catalog field records plastic. Values are short phrases in the shopper's words.
+    """
+    known = {str(value).lower() for value in vocabulary}
+    stated: List[Any] = []
+    for name in ("exclusions", "unsupported_exclusions"):
+        values = payload.get(name)
+        if isinstance(values, (list, tuple)):
+            stated.extend(values)
+    seen: List[str] = []
+    for value in stated:
+        if not isinstance(value, str):
+            continue
+        phrase = " ".join(value.split()).lower()[:_MAX_UNENFORCED_CHARS]
+        if phrase and phrase not in known and phrase not in seen:
+            seen.append(phrase)
+    return tuple(seen[:_MAX_UNENFORCED])
 
 
 def _clean_categories(values: Any, allowed: Sequence[str]) -> Tuple[str, ...]:
@@ -336,6 +399,7 @@ def build_plan(
     *,
     known_categories: Optional[Sequence[str]] = None,
     known_tags: Optional[Sequence[str]] = None,
+    known_materials: Optional[Sequence[str]] = None,
     price_max_usd: Optional[float] = None,
     category: Optional[str] = None,
     top_k: int = 5,
@@ -353,6 +417,7 @@ def build_plan(
         known_categories: Allowed catalog categories. Defaults to the
             facets declared in ``services.structured_extract``.
         known_tags: Allowed catalog tags. Same default.
+        known_materials: Allowed catalog materials. Same default.
         price_max_usd: Caller-supplied ceiling. A caller-supplied value is
             authoritative and overrides the extracted one — the agent
             passed it explicitly, so it is not a guess. Invalid caller
@@ -368,10 +433,11 @@ def build_plan(
         A validated :class:`SearchPlan`. Never raises on bad model output;
         unusable fields land in ``ambiguous`` instead.
     """
-    from services.structured_extract import KNOWN_CATEGORIES, KNOWN_TAGS
+    from services.structured_extract import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN_TAGS
 
     categories_allowed = KNOWN_CATEGORIES if known_categories is None else known_categories
     tags_allowed = KNOWN_TAGS if known_tags is None else known_tags
+    materials_allowed = KNOWN_MATERIALS if known_materials is None else known_materials
     payload = extracted if isinstance(extracted, dict) else {}
     ambiguous: List[str] = []
 
@@ -401,7 +467,15 @@ def build_plan(
         if not explicit:
             ambiguous.append("category")
 
-    exclusions = _clean_tags(payload.get("exclusions"), tags_allowed)
+    exclusion_vocabulary = list(tags_allowed) + list(materials_allowed)
+    exclusions = _clean_tags(payload.get("exclusions"), exclusion_vocabulary)
+    unenforced = _unenforced_exclusions(payload, exclusion_vocabulary)
+    if extracted is None:
+        extraction_status = EXTRACTION_NOT_RUN
+    elif payload.get("extraction_status") == EXTRACTION_FAILED:
+        extraction_status = EXTRACTION_FAILED
+    else:
+        extraction_status = EXTRACTION_PARSED
     soft_tags = tuple(
         tag for tag in _clean_tags(payload.get("tags"), tags_allowed)
         if tag not in exclusions
@@ -430,6 +504,8 @@ def build_plan(
         ),
         soft=SoftPreferences(tags=soft_tags, soft_signal=soft_signal.strip()),
         exclusions=exclusions,
+        unenforced_exclusions=unenforced,
+        extraction_status=extraction_status,
         retrieval_strategy=retrieval_strategy,
         top_k=_clamp_top_k(top_k),
         evidence_required=True,

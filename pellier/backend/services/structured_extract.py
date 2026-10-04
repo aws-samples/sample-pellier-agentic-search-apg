@@ -17,16 +17,18 @@ through Cohere Rerank using ``soft_signal`` as the query.
 
 Why Sonnet 4.6 specifically:
 
-  - Reliable JSON-shaped output against a eight-department / 28-tag enum.
+  - Reliable JSON-shaped output against eight departments, 28 tags and
+    30 materials.
   - Reporting-profile behavior: the structured path, not the editorial one.
   - Already configured at ``config.BEDROCK_REPORTING_MODEL``; no new
     model wiring.
 
 Failure mode: malformed requirement fields or JSON are marked
 ``extraction_failed`` so the planner can refuse to treat failed extraction
-as an unconstrained request. Unknown enum values are omitted rather than
-interpolated into SQL. A successfully parsed query with no structured
-signal (e.g. "something nice") may still use unconstrained retrieval;
+as an unconstrained request. Unknown categories and tags are omitted rather
+than interpolated into SQL; an exclusion outside the vocabulary is kept as
+unsupported so the answer can say it went unchecked. A successfully parsed
+query with no structured signal (e.g. "something nice") may still use unconstrained retrieval;
 that is distinct from losing requirements because extraction failed.
 """
 
@@ -35,7 +37,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 
@@ -80,8 +82,8 @@ KNOWN_MATERIALS: List[str] = [
 ]
 
 
-_SYSTEM_PROMPT = """You extract structured retrieval filters from a boutique \
-shopper's query.
+_SYSTEM_PROMPT = """You extract structured retrieval filters from a shopper's \
+query for Pellier, a modern lifestyle store.
 
 You return JSON with exactly these keys:
   - "categories": list[str] — zero or more values drawn from the \
@@ -93,9 +95,15 @@ an explicit budget ceiling (e.g. "under $100"). Null otherwise.
   - "in_stock_only": boolean — true when the shopper signals immediacy \
 (e.g. "ready to ship", "in stock", "today"). False otherwise.
   - "exclusions": list[str] — zero or more values drawn from the allowed \
-TAGS list that the shopper asked NOT to see (e.g. "no candles", "nothing \
-in leather", "avoid wool"). Empty list when the shopper excluded nothing. \
-A tag belongs here or in "tags", never in both.
+TAGS or MATERIALS lists that the shopper asked NOT to see (e.g. "no candles", \
+"nothing in leather", "avoid wool"). Use the listed name for a material: \
+suede is leather, merino is wool, stoneware and terracotta are ceramic. \
+Empty list when the shopper excluded nothing. A value belongs here or in \
+"tags", never in both.
+  - "unsupported_exclusions": list[str] — anything else the shopper asked NOT \
+to see that no TAGS or MATERIALS value names (e.g. "nothing scented", \
+"no plastic"), each in a few of the shopper's own words. Empty list \
+otherwise. Never drop an exclusion because it is not listed.
   - "soft_signal": string — the residual taste/intent phrase the reranker \
 should score against, with the structured constraints stripped out. \
 Never empty; if the whole query is structured, repeat the most \
@@ -114,10 +122,26 @@ so "no candles" in the soft signal pulls candles up.
 """
 
 
+def _split_exclusions(values: List[Any]) -> Tuple[List[str], List[str]]:
+    """Sort stated exclusions into checkable values and unsupported phrases."""
+    vocabulary = set(KNOWN_TAGS) | set(KNOWN_MATERIALS)
+    checkable: List[str] = []
+    unsupported: List[str] = []
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            continue
+        phrase = " ".join(value.split()).lower()
+        target = checkable if phrase in vocabulary else unsupported
+        if phrase not in target:
+            target.append(phrase)
+    return checkable, unsupported
+
+
 def _build_prompt(query: str) -> str:
     return (
         "CATEGORIES: " + ", ".join(KNOWN_CATEGORIES) + "\n"
-        + "TAGS: " + ", ".join(KNOWN_TAGS) + "\n\n"
+        + "TAGS: " + ", ".join(KNOWN_TAGS) + "\n"
+        + "MATERIALS: " + ", ".join(KNOWN_MATERIALS) + "\n\n"
         + f"Query: {query}\n\n"
         + "JSON:"
     )
@@ -195,6 +219,7 @@ class StructuredExtractor:
             "price_max_usd": None,
             "in_stock_only": False,
             "exclusions": [],
+            "unsupported_exclusions": [],
             "soft_signal": query.strip() if query else "",
             "extraction_status": status,
         }
@@ -220,7 +245,7 @@ class StructuredExtractor:
     ) -> Dict[str, Any]:
         # Malformed requirements cannot be treated as absent. The caller
         # catches validation errors and marks this as extraction_failed.
-        for name in ("categories", "tags", "exclusions"):
+        for name in ("categories", "tags", "exclusions", "unsupported_exclusions"):
             if parsed.get(name) is not None and not isinstance(parsed[name], list):
                 raise ValueError(f"{name} must be a list")
         stock_raw = parsed.get("in_stock_only", False)
@@ -236,11 +261,9 @@ class StructuredExtractor:
         # Exclusions are resolved first so a tag the model put on both sides
         # resolves to the safe reading. A false negative drops one candidate;
         # a false positive ranks the thing the shopper just refused.
-        exclusions = [
-            t.lower()
-            for t in parsed.get("exclusions", []) or []
-            if isinstance(t, str) and t.lower() in tag_set
-        ]
+        exclusions, unsupported = _split_exclusions(
+            [*(parsed.get("exclusions") or []), *(parsed.get("unsupported_exclusions") or [])]
+        )
         exclusion_set = set(exclusions)
         tags = [
             t.lower()
@@ -271,11 +294,11 @@ class StructuredExtractor:
             "tags": tags,
             "price_max_usd": price_max,
             "in_stock_only": in_stock,
-            # `SearchPlan.exclusions` already renders `NOT (tags ?| %s)` and
-            # carries the predicate through every relaxation rung. Dropping the
-            # field here was the only reason a stated "no candles" never
-            # reached SQL.
+            # `SearchPlan.exclusions` renders a NOT predicate over tags and
+            # materials and carries it through every relaxation rung.
             "exclusions": exclusions,
+            # Kept, never dropped, so the answer can say what went unchecked.
+            "unsupported_exclusions": unsupported,
             "soft_signal": soft_signal.strip(),
             "extraction_status": "parsed",
         }

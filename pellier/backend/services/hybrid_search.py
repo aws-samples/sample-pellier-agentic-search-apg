@@ -100,6 +100,11 @@ def _vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
         """
 
 
+# Query words the catalog spells the US way. Kept identical to the Gateway
+# search Lambda by tests/test_gateway_eligibility_parity.py.
+US_SPELLINGS = {"grey": "gray"}
+
+
 def _fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
     """Return the FTS-branch SQL with optional hard predicates applied."""
     return f"""
@@ -459,6 +464,9 @@ class HybridSearch:
             "suggest", "help", "tell", "look", "looking",
         }
         tokens = [t for t in tokens if t not in STOP_WORDS]
+        # The catalog uses US spelling, and the english stemmer keeps "grey"
+        # and "gray" apart, so a shopper's "grey" would match nothing.
+        tokens = [US_SPELLINGS.get(t, t) for t in tokens]
         # Deduplicate while preserving order.
         seen: set = set()
         unique: List[str] = []

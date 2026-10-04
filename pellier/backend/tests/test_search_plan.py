@@ -234,7 +234,7 @@ def test_no_ladder_rung_ever_drops_a_hard_constraint() -> None:
         clauses, params = rung.compile_predicates()
         assert "price <= %s" in clauses
         assert "quantity > 0" in clauses
-        assert "NOT (tags ?| %s)" in clauses
+        assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
         assert 100.0 in params
 
 
@@ -314,7 +314,7 @@ def test_predicates_are_parameterized_never_interpolated() -> None:
         assert "candle" not in clause
     assert clauses.count("%s") == 0  # placeholders live inside the fragments
     assert [list(p) if isinstance(p, list) else p for p in params] == [
-        ["Stationery and gifts"], 100.0, ["candle"], ["home"],
+        ["Stationery and gifts"], 100.0, ["candle"], ["candle"], ["home"],
     ]
 
 
@@ -360,7 +360,7 @@ def test_include_soft_false_keeps_hard_and_exclusions() -> None:
 
     assert "tags ?| %s" not in clauses
     assert "price <= %s" in clauses
-    assert "NOT (tags ?| %s)" in clauses
+    assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
 
 
 def test_empty_plan_compiles_to_no_predicates() -> None:
@@ -410,7 +410,7 @@ def test_plan_defaults_require_evidence() -> None:
 # ---------------------------------------------------------------------------
 # A stated "no candles" used to die at the extractor: the prompt never asked for
 # `exclusions` and the sanitizer dropped the field even when the model returned
-# it, so `SearchPlan.exclusions` was always empty and the `NOT (tags ?| %s)`
+# it, so `SearchPlan.exclusions` was always empty and the exclusion
 # predicate below was never rendered. Everything downstream already worked,
 # which is why a plan-level test passed while the shipped path did not enforce
 # anything. These tests cross the whole boundary.
@@ -444,8 +444,59 @@ class TestNegativeConstraintsReachSQL:
         assert plan.exclusions == (term,)
 
         clauses, params = plan.compile_predicates()
-        assert "NOT (tags ?| %s)" in clauses
+        assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
         assert [term] in params
+
+    @pytest.mark.parametrize("term", ["wool", "silk", "glass"])
+    def test_a_material_exclusion_checks_materials_and_tags(self, term: str) -> None:
+        """Tags name a product's main material; materials name every part of it."""
+        phrase = f"a gift, nothing with {term}"
+        envelope = self._envelope(
+            {"categories": [], "tags": [], "price_max_usd": None,
+             "in_stock_only": False, "exclusions": [term], "soft_signal": phrase},
+            phrase,
+        )
+        assert envelope["exclusions"] == [term]
+        clauses, params = build_plan(phrase, envelope).compile_predicates()
+        assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
+        assert params.count([term]) == 2
+
+    def test_an_unsupported_exclusion_is_kept_and_admitted(self) -> None:
+        """A refusal the catalog cannot check is reported, never silently dropped."""
+        phrase = "a candle holder, nothing scented, no plastic"
+        envelope = self._envelope(
+            {"categories": [], "tags": [], "price_max_usd": None,
+             "in_stock_only": False, "exclusions": ["plastic"],
+             "unsupported_exclusions": ["Nothing  scented"], "soft_signal": phrase},
+            phrase,
+        )
+        assert envelope["exclusions"] == []
+        assert envelope["unsupported_exclusions"] == ["plastic", "nothing scented"]
+
+        plan = build_plan(phrase, envelope)
+        assert plan.exclusions == ()
+        assert plan.unenforced_exclusions == ("plastic", "nothing scented")
+        assert plan.to_dict()["unenforced_exclusions"] == ["plastic", "nothing scented"]
+        assert plan.constraint_notice() == (
+            "The catalog cannot check these requests, so the results may not meet "
+            "them: plastic, nothing scented."
+        )
+        for rung in plan.relaxation_ladder():
+            assert rung.unenforced_exclusions == plan.unenforced_exclusions
+
+    def test_a_failed_read_is_not_an_unconstrained_request(self) -> None:
+        from services.structured_extract import StructuredExtractor
+
+        envelope = StructuredExtractor._empty("no wool, please", status="extraction_failed")
+        plan = build_plan("no wool, please", envelope)
+        assert plan.extraction_status == "extraction_failed"
+        assert plan.to_dict()["extraction_status"] == "extraction_failed"
+        assert "could not be read" in plan.constraint_notice()
+
+    def test_a_plan_without_extraction_says_it_did_not_run(self) -> None:
+        plan = build_plan("a linen shirt", None)
+        assert plan.extraction_status == "not_run"
+        assert plan.constraint_notice() is None
 
     def test_every_relaxation_rung_keeps_the_negative(self) -> None:
         """Relaxation may widen taste. It may not restore a refused thing."""
@@ -462,7 +513,7 @@ class TestNegativeConstraintsReachSQL:
         for rung in ladder:
             clauses, params = rung.compile_predicates()
             assert rung.exclusions == ("candle",)
-            assert "NOT (tags ?| %s)" in clauses
+            assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
             assert ["candle"] in params
 
     def test_an_excluded_tag_is_never_also_a_soft_preference(self) -> None:

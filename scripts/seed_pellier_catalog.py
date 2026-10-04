@@ -381,6 +381,7 @@ def seed_database(products: List[Product]) -> None:
 
             for p in products:
                 tags_json = json.dumps(p.tags)
+                materials_json = json.dumps(p.materials)
                 # Use zero vector as placeholder when no embedding generated
                 if p.embedding:
                     embedding_str = json.dumps(p.embedding)
@@ -390,9 +391,10 @@ def seed_database(products: List[Product]) -> None:
                     """
                     INSERT INTO pellier.product_catalog
                         ("productId", name, brand, color, price, description,
-                         category, tags, rating, reviews, "imgUrl",
+                         category, tags, materials, rating, reviews, "imgUrl",
                          badge, tier, quantity, embedding, persona_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s::vector, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s,
+                            %s::vector, %s)
                     ON CONFLICT ("productId") DO UPDATE SET
                         name = EXCLUDED.name,
                         brand = EXCLUDED.brand,
@@ -401,6 +403,7 @@ def seed_database(products: List[Product]) -> None:
                         description = EXCLUDED.description,
                         category = EXCLUDED.category,
                         tags = EXCLUDED.tags,
+                        materials = EXCLUDED.materials,
                         rating = EXCLUDED.rating,
                         reviews = EXCLUDED.reviews,
                         "imgUrl" = EXCLUDED."imgUrl",
@@ -419,6 +422,7 @@ def seed_database(products: List[Product]) -> None:
                         p.description,
                         p.department,
                         tags_json,
+                        materials_json,
                         p.rating,
                         p.reviews,
                         p.public_image_path,

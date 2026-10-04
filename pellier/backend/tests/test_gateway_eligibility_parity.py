@@ -39,7 +39,15 @@ _PARITY_QUERIES = (
     "the and for",
     "",
     "hand-thrown stoneware bowls, wabi-sabi",
+    "a grey crewneck, not too heavy",
 )
+
+
+def test_grey_and_gray_search_the_same_catalog_word() -> None:
+    from services.hybrid_search import HybridSearch
+
+    assert HybridSearch._build_or_tsquery("a grey crewneck") == "gray | crewneck"
+    assert HybridSearch._build_or_tsquery("a gray crewneck") == "gray | crewneck"
 
 
 def _load_lambda(monkeypatch: pytest.MonkeyPatch) -> Any:
@@ -50,6 +58,8 @@ def _load_lambda(monkeypatch: pytest.MonkeyPatch) -> Any:
 
     monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
     monkeypatch.setattr(boto3, "client", lambda *_args, **_kwargs: object())
+    # The Lambda imports its packaged `common` modules from beside it.
+    monkeypatch.syspath_prepend(str(_LAMBDA_PATH.parent))
     spec = importlib.util.spec_from_file_location("pellier_parity_search_server", _LAMBDA_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

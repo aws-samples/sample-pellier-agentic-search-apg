@@ -88,19 +88,12 @@ _MILESTONE_HOME_GIFT_PATTERN = re.compile(
 def _extract_query_structure(query: str) -> dict | None:
     """Ask the structured extractor for a proposed plan, or return None.
 
-    Gated behind ``SEARCH_PLANNER_EXTRACT_ENABLED`` (default off) because
-    it is a second live Bedrock call on the shopper's critical path: it
-    adds roughly 1-3 s and a Sonnet invocation to *every* search. The
-    Observatory comparison surface runs the extractor unconditionally, which
-    is where the workshop teaches what typed planning buys you; paying
-    that cost on each storefront turn is a product decision, not a
-    correctness one.
-
-    Turning the flag off does not weaken any hard constraint. The tool
-    still builds a plan from the caller's explicit arguments and still
-    compiles those predicates into both retrieval branches before RRF —
-    what the extractor adds is model-inferred constraints (an implied
-    price ceiling, an implied exclusion) on top of the explicit ones.
+    Gated behind ``SEARCH_PLANNER_EXTRACT_ENABLED`` (default on). It is a
+    second live Bedrock call on the shopper's critical path, roughly 1-3 s
+    and a Sonnet invocation per search, and it is the only way a shopper's
+    stated exclusions, stock requirement or implied budget reach SQL. With
+    the flag off, only the caller's explicit price ceiling and category are
+    enforced, and "no candles" depends on the model choosing what to show.
 
     Args:
         query: The shopper's raw query.
@@ -1038,10 +1031,15 @@ def search_products(
     category: str = None,
     limit: int = 5
 ) -> str:
-    """Search for products by natural language query with optional price and rating filters. Use for descriptive or intent-based product searches.
+    """Search for products by natural language query with optional price and rating filters.
+
+    Use for descriptive or intent-based product searches. If the result has
+    constraint_notice, tell the shopper what it says and never present the results
+    as meeting a requirement it names.
 
     Args:
-        query: Natural language search query
+        query: The shopper's request in their words, including what they do not
+            want ("no candles", "nothing in wool"); the planner turns those into checks.
         max_price: Maximum price filter (optional)
         min_rating: Minimum star rating (default: 0.0)
         category: Category filter (optional — auto-detected from query if not set)
@@ -1053,6 +1051,7 @@ def search_products(
     try:
         from services.vector_search import VectorSearch
         from services.embeddings import EmbeddingService
+        from services.search_plan import STRATEGY_VECTOR, build_plan
 
         # Track whether the category was explicitly passed by the
         # agent vs. auto-detected from a keyword map. Auto-detected
@@ -1076,8 +1075,22 @@ def search_products(
         # teaching surface. The hybrid + rerank pipeline was removed
         # when the concierge switched to semantic-only retrieval.
         pool_size = 30 if category else 20
+        # The same typed plan as search_products_hybrid, so a stated "no candles"
+        # or "in stock" holds whichever search tool the agent picks.
+        plan = build_plan(
+            query,
+            _extract_query_structure(query),
+            price_max_usd=max_price,
+            category=category if category_was_explicit else None,
+            top_k=limit,
+            retrieval_strategy=STRATEGY_VECTOR,
+        )
+        predicates, predicate_params = plan.compile_predicates(include_soft=False)
         rows = _run_async(
-            vector.vector_search(query_embedding, pool_size, ef_search=40)
+            vector.vector_search_planned(
+                query_embedding, pool_size, 40,
+                predicates=predicates, predicate_params=predicate_params,
+            )
         )
         result = {"results": rows, "method": "semantic"}
 
@@ -1123,14 +1136,19 @@ def search_products(
         # Trim to requested limit after filtering
         normalized = normalized[:limit]
 
-        return json.dumps({
+        payload = {
             "status": "success",
             "query": query,
             "count": len(normalized),
             "products": normalized,
             "search_method": result.get("method", "hybrid"),
             "category_detected": category,
-        }, indent=2)
+            "search_plan": plan.to_dict(),
+        }
+        notice = plan.constraint_notice()
+        if notice:
+            payload["constraint_notice"] = notice
+        return json.dumps(payload, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -1263,6 +1281,9 @@ def search_products_hybrid(
 ) -> str:
     """Hybrid pgvector + Postgres FTS + Cohere Rerank v3.5. Anna's Personalization Agent uses this.
 
+    If the result has constraint_notice, tell the shopper what it says and never
+    present the results as meeting a requirement it names.
+
     Runs the shared search executor (``services.planned_hybrid_retrieval``):
       1. A typed plan compiles the price ceiling and any explicit category
          into SQL predicates applied to BOTH branches before fusion.
@@ -1275,7 +1296,8 @@ def search_products_hybrid(
     reranker scores coherence with the whole query.
 
     Args:
-        query: Natural language search query
+        query: The shopper's request in their words, including what they do not
+            want ("no candles", "nothing in wool"); the planner turns those into checks.
         max_price: Maximum price filter (optional, a hard SQL predicate)
         min_rating: Minimum star rating (default: 0.0, applied post-rerank)
         category: Category filter (optional, only applied as a hard filter
@@ -1339,6 +1361,9 @@ def search_products_hybrid(
             "constraints_applied_before_rerank": True,
             "search_plan": execution.plan.to_dict(),
         }
+        notice = execution.plan.constraint_notice()
+        if notice:
+            payload["constraint_notice"] = notice
         if merchandising_applied:
             # Disclosed, not hidden: a ranking signal other than relevance
             # moved a product, and the response says so.

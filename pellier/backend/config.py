@@ -176,16 +176,14 @@ class Settings(BaseSettings):
 
     # Typed query planning on the shipped Personalization Agent path.
     #
-    # `search_products_hybrid` always builds a `SearchPlan` and always pushes
-    # its hard predicates into both retrieval branches before RRF. This
-    # flag controls only whether the *model* also proposes constraints via
-    # `services.structured_extract` — a second Sonnet call that adds ~1-3 s
-    # to every storefront search. Off by default: the Observatory comparison
-    # surface runs the extractor unconditionally, which is where the
-    # workshop teaches the trade-off. Turning this on does not change any
-    # hard-constraint guarantee; it only adds model-inferred constraints
-    # on top of the caller's explicit ones.
-    SEARCH_PLANNER_EXTRACT_ENABLED: bool = False
+    # Both shopper search tools build a `SearchPlan` and push its hard
+    # predicates into SQL. This flag controls whether the model reads the
+    # shopper's request into that plan via `services.structured_extract`, a
+    # second Sonnet call that adds ~1-3 s to every storefront search. It is
+    # the only way stated exclusions ("no candles", "nothing in wool"), a stock
+    # requirement or an implied budget reach SQL, so it is on by default. Off,
+    # only the caller's explicit price ceiling and category are enforced.
+    SEARCH_PLANNER_EXTRACT_ENABLED: bool = True
     RERANK_MAX_DOCUMENTS: int = 30
     RERANK_CACHE_TTL_SEC: int = 120
     

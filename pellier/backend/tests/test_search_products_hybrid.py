@@ -460,3 +460,117 @@ class TestHardConstraintsRunBeforeRerank:
 
         assert result["constraints_applied_before_rerank"] is True
         assert result["hard_constraints_enforced"] == ["price <= $100"]
+
+
+# ---------------------------------------------------------------------------
+# What the shopper must be told when a requirement goes unchecked
+# ---------------------------------------------------------------------------
+
+
+def _planned(monkeypatch: pytest.MonkeyPatch, envelope: Dict[str, Any] | None) -> None:
+    monkeypatch.setattr(agent_tools, "_extract_query_structure", lambda _q: envelope)
+
+
+class TestConstraintNotice:
+
+    def test_material_exclusion_reaches_sql_and_unsupported_one_is_admitted(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        _planned(monkeypatch, {
+            "exclusions": ["wool"], "unsupported_exclusions": ["nothing scented"],
+            "soft_signal": "a throw", "extraction_status": "parsed",
+        })
+        result = json.loads(agent_tools.search_products_hybrid(query="a throw, no wool"))
+
+        kwargs = patch_hybrid.search_calls[-1]
+        assert "NOT (tags ?| %s OR materials ?| %s)" in kwargs["hard_clauses"]
+        assert result["search_plan"]["unenforced_exclusions"] == ["nothing scented"]
+        assert result["constraint_notice"].endswith("may not meet them: nothing scented.")
+
+    def test_failed_extraction_is_reported_not_hidden(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        from services.structured_extract import StructuredExtractor
+
+        _planned(monkeypatch, StructuredExtractor._empty("q", status="extraction_failed"))
+        result = json.loads(agent_tools.search_products_hybrid(query="q"))
+        assert "could not be read" in result["constraint_notice"]
+
+    def test_nothing_unchecked_means_no_notice(
+        self,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        result = json.loads(agent_tools.search_products_hybrid(query="q"))
+        assert "constraint_notice" not in result
+
+
+class TestSemanticSearchUsesThePlan:
+    """The simpler tool keeps the same guarantees, or picking it would lose them."""
+
+    @pytest.fixture
+    def planned_calls(
+        self, monkeypatch: pytest.MonkeyPatch, candidates: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        import services.vector_search as vector_search_module
+
+        calls: List[Dict[str, Any]] = []
+
+        class _Vector:
+            def __init__(self, *_args: Any) -> None:
+                pass
+
+            async def vector_search_planned(self, *_args: Any, **kwargs: Any):
+                calls.append(kwargs)
+                return list(candidates)
+
+        monkeypatch.setattr(vector_search_module, "VectorSearch", _Vector)
+        return calls
+
+    def test_exclusions_and_stock_reach_sql(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        planned_calls: List[Dict[str, Any]],
+    ) -> None:
+        _planned(monkeypatch, {
+            "exclusions": ["candle"], "in_stock_only": True,
+            "soft_signal": "a gift", "extraction_status": "parsed",
+        })
+        result = json.loads(agent_tools.search_products(query="a gift in stock, no candles"))
+
+        predicates = planned_calls[-1]["predicates"]
+        assert "NOT (tags ?| %s OR materials ?| %s)" in predicates
+        assert "quantity > 0" in predicates
+        assert result["search_plan"]["exclusions"] == ["candle"]
+        assert "constraint_notice" not in result
+
+    def test_unsupported_exclusion_is_admitted(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        planned_calls: List[Dict[str, Any]],
+    ) -> None:
+        _planned(monkeypatch, {"unsupported_exclusions": ["no plastic"], "soft_signal": "q"})
+        result = json.loads(agent_tools.search_products(query="q, no plastic"))
+        assert result["constraint_notice"].endswith("may not meet them: no plastic.")
+
+    def test_explicit_price_is_a_sql_predicate(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        planned_calls: List[Dict[str, Any]],
+    ) -> None:
+        _planned(monkeypatch, None)
+        result = json.loads(agent_tools.search_products(query="q", max_price=100))
+        assert "price <= %s" in planned_calls[-1]["predicates"]
+        assert result["search_plan"]["extraction_status"] == "not_run"

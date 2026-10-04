@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS pellier.product_catalog (
     description   text,
     category      text,
     tags          jsonb         NOT NULL DEFAULT '[]'::jsonb,
+    materials     jsonb         NOT NULL DEFAULT '[]'::jsonb,
     rating        numeric(3,2)  NOT NULL DEFAULT 0,
     reviews       integer       NOT NULL DEFAULT 0,
     "imgUrl"      text,
@@ -88,6 +89,11 @@ ALTER TABLE pellier.product_catalog
 -- setup_database returns early, and the rest of the migrations never run.
 ALTER TABLE pellier.product_catalog
     ADD COLUMN IF NOT EXISTS persona_id text;
+
+-- Everything a product is made of. Search exclusions check it alongside tags,
+-- and the seeder writes it before the 002-onward migrations run.
+ALTER TABLE pellier.product_catalog
+    ADD COLUMN IF NOT EXISTS materials jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 -- updated_at trigger — cheap, idempotent, only fires on real changes.
 CREATE OR REPLACE FUNCTION pellier.set_updated_at()

@@ -16,7 +16,7 @@ _backend_str = str(_BACKEND_ROOT)
 if _backend_str not in sys.path:
     sys.path.insert(0, _backend_str)
 
-# Hermetic settings. Both lines must run before anything imports `config`,
+# Hermetic settings. These lines must run before anything imports `config`,
 # because config.py builds `Settings` at module scope.
 #
 # 1. Ignore any real .env. Otherwise `Settings` loads the developer's
@@ -28,11 +28,15 @@ if _backend_str not in sys.path:
 #    instead of running the suite. This replaces the DB_HOST=... prefix the
 #    backend CLAUDE.md used to prescribe.
 os.environ["PELLIER_DISABLE_DOTENV"] = "1"
+# 3. Keep the shopper search planner's live Sonnet call out of unit tests. The
+#    product default is on; tests that exercise extraction switch it on and
+#    stub the model.
 for _var, _placeholder in (
     ("DB_HOST", "localhost"),
     ("DB_NAME", "pellier_test"),
     ("DB_USER", "pellier_test"),
     ("DB_PASSWORD", "pellier_test"),
+    ("SEARCH_PLANNER_EXTRACT_ENABLED", "false"),
 ):
     os.environ.setdefault(_var, _placeholder)
 

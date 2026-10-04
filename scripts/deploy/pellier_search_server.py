@@ -162,6 +162,9 @@ _FTS_STOP_WORDS = frozenset({
     "suggest", "help", "tell", "look", "looking",
 })
 
+# The catalog spells colors the US way; identical to services/hybrid_search.py.
+_US_SPELLINGS = {"grey": "gray"}
+
 
 def _build_or_tsquery(query: str) -> str:
     """OR-of-tokens input for ``to_tsquery``, identical to the in-process builder."""
@@ -170,6 +173,7 @@ def _build_or_tsquery(query: str) -> str:
     cleaned = re.sub(r"[^\w\s-]", " ", query.lower())
     tokens = [t.strip("-") for t in cleaned.split() if len(t) > 2]
     tokens = [t for t in tokens if t not in _FTS_STOP_WORDS]
+    tokens = [_US_SPELLINGS.get(t, t) for t in tokens]
     seen: set = set()
     unique: list = []
     for t in tokens:

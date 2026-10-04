@@ -435,7 +435,7 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
     for predicates in attempts:
         assert "price <= %s" in predicates
         assert "quantity > 0" in predicates
-        assert "NOT (tags ?| %s)" in predicates
+        assert "NOT (tags ?| %s OR materials ?| %s)" in predicates
 
     agentic = body["strategies"][-1]
     assert agentic["searchPlan"]["hard_constraints"]["price_max_usd"] == 100.0

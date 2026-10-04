@@ -428,3 +428,10 @@ def test_missing_required_db_env_vars_raise_clear_validation_error(
     assert "DB_NAME" in message
     assert "DB_USER" in message
     assert "DB_PASSWORD" in message
+
+
+def test_the_shopper_search_planner_is_on_by_default() -> None:
+    """Off, a shopper's "no candles" never reaches SQL; tests pin it off themselves."""
+    from config import Settings
+
+    assert Settings.model_fields["SEARCH_PLANNER_EXTRACT_ENABLED"].default is True
