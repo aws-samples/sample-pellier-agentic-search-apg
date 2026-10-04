@@ -433,7 +433,7 @@ def test_extractor_runs_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["price_max_usd"] == 100
 
 
-def test_extractor_failure_degrades_to_no_extraction(
+def test_extractor_failure_is_reported_as_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A Bedrock failure must not fail the shopper's search."""
@@ -453,7 +453,9 @@ def test_extractor_failure_degrades_to_no_extraction(
         extract_module, "get_structured_extractor", lambda: _Extractor()
     )
 
-    assert agent_tools._extract_query_structure("gift") is None
+    assert agent_tools._extract_query_structure("gift") == {
+        "extraction_status": "extraction_failed", "soft_signal": "gift",
+    }
 
 
 # ---------------------------------------------------------------------------

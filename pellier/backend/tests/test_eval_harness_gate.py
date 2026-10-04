@@ -413,8 +413,8 @@ def test_planner_score_credits_a_recovered_constraint(harness: Any) -> None:
     from services.search_plan import build_plan
 
     plan = build_plan(
-        "linen under $200",
-        {"categories": ["Clothing"], "price_max_usd": 200, "in_stock_only": True},
+        "linen clothing under $200",
+        {"required_categories": ["Clothing"], "price_max_usd": 200, "in_stock_only": True},
     )
     expected = harness.Filters(categories=("Clothing",), price_max=200.0)
 
@@ -433,7 +433,7 @@ def test_planner_score_flags_a_dropped_stock_requirement(harness: Any) -> None:
 
     plan = build_plan(
         "linen under $200",
-        {"categories": ["Clothing"], "price_max_usd": 200},  # no in_stock_only
+        {"required_categories": ["Clothing"], "price_max_usd": 200},  # no in_stock_only
     )
     expected = harness.Filters(categories=("Clothing",), price_max=200.0)
 
@@ -744,3 +744,11 @@ def test_the_harness_reports_the_pool_the_executor_resolved(harness: Any) -> Non
 
     assert detail["hybrid_candidate_coverage"]["pool_k"] == resolved
     assert detail["hybrid_candidate_coverage"]["coverage"] == 1.0
+
+
+def test_golden_labels_expect_a_department_only_when_the_query_names_it(harness: Any) -> None:
+    """An inferred department is not a requirement; labeling one as truth would
+    score the over-constrained planner as correct."""
+    for golden in harness.GOLDEN_QUERIES:
+        for category in golden.filters.categories:
+            assert category.lower() in golden.query.lower(), (golden.label, category)

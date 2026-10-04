@@ -366,24 +366,17 @@ class TestFilters:
         )
         assert result["count"] == 0
 
-    def test_explicit_category_filters_but_auto_does_not(
+    def test_an_agent_category_never_empties_the_results(
         self,
         patch_embedding: MagicMock,
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        # Explicit category that doesn't match → drops all results.
-        result_explicit = json.loads(
-            agent_tools.search_products_hybrid(
-                query="q", category="Shoes", limit=5,
-            )
+        """All five candidates are Clothing; the agent's "Shoes" guess removes none."""
+        result = json.loads(
+            agent_tools.search_products_hybrid(query="q", category="Shoes", limit=5)
         )
-        assert result_explicit["count"] == 0
-        # No category passed → no filtering.
-        result_default = json.loads(
-            agent_tools.search_products_hybrid(query="q", limit=5)
-        )
-        assert result_default["count"] == 5
+        assert result["count"] == 5
 
 
 # ---------------------------------------------------------------------------
@@ -412,17 +405,21 @@ class TestHardConstraintsRunBeforeRerank:
         assert "price <= %s" in kwargs["hard_clauses"]
         assert 100.0 in kwargs["hard_params"]
 
-    def test_explicit_category_is_pushed_into_retrieval(
+    def test_an_agent_category_is_recorded_not_enforced(
         self,
         patch_embedding: MagicMock,
         patch_hybrid: MagicMock,
         patch_rerank: MagicMock,
     ) -> None:
-        agent_tools.search_products_hybrid(query="q", category="Shoes", limit=5)
+        """The agent's guess is not the shopper's restriction."""
+        result = json.loads(
+            agent_tools.search_products_hybrid(query="q", category="Shoes", limit=5)
+        )
 
         kwargs = patch_hybrid.search_calls[-1]
-        assert "category = ANY(%s)" in kwargs["hard_clauses"]
-        assert ["Shoes"] in kwargs["hard_params"]
+        assert not any("category" in clause for clause in kwargs["hard_clauses"])
+        assert result["search_plan"]["inferred_categories"] == ["Shoes"]
+        assert result["search_plan"]["category_source"] is None
 
     def test_no_constraints_means_no_predicates(
         self,
@@ -574,3 +571,38 @@ class TestSemanticSearchUsesThePlan:
         result = json.loads(agent_tools.search_products(query="q", max_price=100))
         assert "price <= %s" in planned_calls[-1]["predicates"]
         assert result["search_plan"]["extraction_status"] == "not_run"
+
+
+class TestExtractionFailureIsExplicit:
+    """The wrapper's own exception path, not a ready-made failure envelope."""
+
+    def test_an_extractor_that_raises_is_reported_not_treated_as_no_requirements(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        import services.structured_extract as structured_extract
+
+        def unavailable():
+            raise RuntimeError("extractor unavailable")
+
+        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True)
+        monkeypatch.setattr(structured_extract, "get_structured_extractor", unavailable)
+        result = json.loads(agent_tools.search_products_hybrid(query="a gift, no candles"))
+
+        assert result["search_plan"]["extraction_status"] == "extraction_failed"
+        assert "could not be read" in result["constraint_notice"]
+
+    def test_the_planner_switched_off_is_not_a_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", False)
+        result = json.loads(agent_tools.search_products_hybrid(query="q"))
+        assert result["search_plan"]["extraction_status"] == "not_run"
+        assert "constraint_notice" not in result

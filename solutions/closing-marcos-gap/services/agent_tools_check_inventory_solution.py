@@ -109,8 +109,12 @@ def _extract_query_structure(query: str) -> dict | None:
 
         return get_structured_extractor().extract(query)
     except Exception as exc:
-        logger.debug("structured extraction unavailable: %s", exc)
-        return None
+        # A failed read is not an unconstrained request: the plan must say the
+        # shopper's requirements went unread, never that there were none.
+        logger.warning("structured extraction failed: %s", exc)
+        from services.search_plan import EXTRACTION_FAILED
+
+        return {"extraction_status": EXTRACTION_FAILED, "soft_signal": query}
 
 
 def _write_retrieval_receipt(**kwargs) -> None:
@@ -1029,7 +1033,9 @@ def search_products(
             want ("no candles", "nothing in wool"); the planner turns those into checks.
         max_price: Maximum price filter (optional)
         min_rating: Minimum star rating (default: 0.0)
-        category: Category filter (optional — auto-detected from query if not set)
+        category: A department the agent thinks fits. Recorded on the plan,
+            never a filter: only the shopper's own words or a structured
+            selection may restrict a department.
         limit: Number of results (default: 5)
     """
     if not _db_service:
@@ -1068,7 +1074,7 @@ def search_products(
             query,
             _extract_query_structure(query),
             price_max_usd=max_price,
-            category=category if category_was_explicit else None,
+            inferred_category=category if category_was_explicit else None,
             top_k=limit,
             retrieval_strategy=STRATEGY_VECTOR,
         )
@@ -1107,16 +1113,6 @@ def search_products(
             if max_price and product["price"] > max_price:
                 continue
             if min_rating and product["rating"] < min_rating:
-                continue
-            # Only apply category as a hard filter when the agent
-            # explicitly passed one. Auto-detected categories filter
-            # too aggressively against the catalog's higher-level
-            # category taxonomy.
-            if (
-                category_was_explicit
-                and category
-                and category.lower() not in product["category"].lower()
-            ):
                 continue
             normalized.append(product)
 
@@ -1172,20 +1168,17 @@ def _keeps_post_rerank_preferences(
     *,
     max_price: float | None,
     min_rating: float,
-    category: str | None,
 ) -> bool:
     """Apply the caller's preferences to one reranked, already-eligible row.
 
-    Price and explicit category are hard predicates that ran in SQL before
-    RRF and were rechecked by the executor; the checks here are a last
+    Price is a hard predicate that ran in SQL before RRF and was
+    rechecked by the executor; the check here is a last
     defence, not the enforcement point. ``min_rating`` is genuinely post-hoc:
     it is a preference the caller applies to the reranked list.
     """
     if max_price and product["price"] > max_price:
         return False
     if min_rating and product["rating"] < min_rating:
-        return False
-    if category and category.lower() not in str(product["category"]).lower():
         return False
     return True
 
@@ -1196,7 +1189,6 @@ def _select_shown_products(
     limit: int,
     max_price: float | None,
     min_rating: float,
-    category: str | None,
 ) -> tuple[list[dict], list[dict]]:
     """Walk the eligible list in rank order and keep what the shopper sees.
 
@@ -1209,7 +1201,7 @@ def _select_shown_products(
     for row in ordered:
         product = _normalize_hybrid_product(row)
         if not _keeps_post_rerank_preferences(
-            product, max_price=max_price, min_rating=min_rating, category=category
+            product, max_price=max_price, min_rating=min_rating
         ):
             continue
         rows.append(row)
@@ -1253,6 +1245,7 @@ def _persist_hybrid_receipt(
             "rerank_pool_k": execution.rerank_pool_k,
             "search_method": execution.search_method,
             "relaxation_steps": execution.relaxation_steps,
+            "attempts": execution.attempts,
         },
         latency_breakdown=execution.latency_breakdown(),
     )
@@ -1287,8 +1280,9 @@ def search_products_hybrid(
             want ("no candles", "nothing in wool"); the planner turns those into checks.
         max_price: Maximum price filter (optional, a hard SQL predicate)
         min_rating: Minimum star rating (default: 0.0, applied post-rerank)
-        category: Category filter (optional, only applied as a hard filter
-            when the agent passes it explicitly, mirroring search_products)
+        category: A department the agent thinks fits. Recorded on the plan,
+            never a filter: only the shopper's own words or a structured
+            selection may restrict a department.
         limit: Number of final results (default: 5)
     """
     if not _db_service:
@@ -1300,17 +1294,13 @@ def search_products_hybrid(
         from services.rerank import get_rerank_service
         from services.search_plan import build_plan
 
-        # Only an explicit category is a hard filter, as in search_products:
-        # auto-detected ones ("linen") do not match the catalog taxonomy.
-        explicit_category = category if category else None
-
         # PLAN, then RETRIEVE through the planner and executor the Observatory
         # comparison also runs: the demonstrated strategy is the shipped one.
         plan = build_plan(
             query,
             _extract_query_structure(query),
             price_max_usd=max_price,
-            category=explicit_category,
+            inferred_category=category or None,
             top_k=limit,
         )
         retrieval_config = _hybrid_retrieval_config()
@@ -1333,7 +1323,6 @@ def search_products_hybrid(
             limit=limit,
             max_price=max_price,
             min_rating=min_rating,
-            category=explicit_category,
         )
 
         payload = {

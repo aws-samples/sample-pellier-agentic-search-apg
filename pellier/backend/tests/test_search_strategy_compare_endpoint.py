@@ -443,8 +443,11 @@ def test_exhausted_ladder_never_drops_a_hard_constraint(
     assert agentic["hardConstraintsEnforced"] == [
         "price <= $100",
         "in stock",
-        "category in Home",
     ]
+    # The model guessed Home from "housewarming"; a guess is recorded, never enforced.
+    assert agentic["searchPlan"]["inferred_categories"] == ["Home"]
+    for predicates in attempts:
+        assert not any("category" in clause for clause in predicates)
     # Widening happened, and it is disclosed rather than silent.
     assert [r["step"] for r in agentic["relaxations"]] == ["drop_tags"]
     assert agentic["relaxations"][0]["dropped"] == ["gift"]

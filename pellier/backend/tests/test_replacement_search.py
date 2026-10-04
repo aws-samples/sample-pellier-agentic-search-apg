@@ -737,7 +737,7 @@ async def test_a_thin_strict_pass_widens_preferences_but_not_constraints(
             clauses = list(kwargs.get("hard_clauses") or [])
             calls.append(clauses)
             # The strict rung (tags applied) finds nothing; the widened one finds five.
-            if any("tags ?|" in c for c in clauses):
+            if any("tags ?&" in c for c in clauses):
                 return []
             return [_candidate(str(i), f"Option {i}", 60.0) for i in range(5)]
 
@@ -777,7 +777,7 @@ async def test_a_thin_strict_pass_widens_preferences_but_not_constraints(
     assert any("category = ANY(%s)" in c for c in widened)
     assert any("pellier.warehouse_balance" in c for c in widened)
     assert any('"productId" <> %s' in c for c in widened)
-    assert not any("tags ?|" in c for c in widened)
+    assert not any("tags ?&" in c for c in widened)
 
 
 @pytest.mark.asyncio

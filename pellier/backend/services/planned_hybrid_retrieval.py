@@ -229,6 +229,10 @@ class SearchExecution:
         rerank_pool_k: The bound on documents sent to the reranker.
         relaxation_steps: Names of the ladder steps applied, in order.
         search_method: The label the storefront payload reports.
+        attempts: One entry per pass, in order: the preference tags it
+            required, the relaxation steps behind it, and how many eligible
+            rows it found. A widened answer can show the narrower attempt
+            came up empty.
     """
 
     plan: Any
@@ -240,6 +244,7 @@ class SearchExecution:
     rerank_pool_k: int
     relaxation_steps: List[str] = field(default_factory=list)
     search_method: str = SEARCH_METHOD_HYBRID_RERANK
+    attempts: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def rerank_pool(self) -> List[Dict[str, Any]]:
@@ -614,8 +619,10 @@ async def execute_search_plan(
     embedding = await asyncio.to_thread(embed, query)
     stages.append(SearchStage(STAGE_EMBED, len(embedding), _elapsed_ms(started)))
 
+    attempts: List[Dict[str, Any]] = []
+
     async def run_rung(rung: Any) -> SearchExecution:
-        return await _run_pass(
+        result = await _run_pass(
             db,
             plan=rung,
             query=query,
@@ -626,6 +633,12 @@ async def execute_search_plan(
             pool_k=pool_k,
             stages=stages,
         )
+        attempts.append({
+            "preferences": list(rung.soft.tags),
+            "relaxations": [relaxation.step for relaxation in rung.relaxations],
+            "eligible": len(result.ordered),
+        })
+        return result
 
     # A complete strict result needs no fallback. Keep the unfinished Lab 1
     # fallback isolated from earlier requests that already satisfy the plan.
@@ -635,4 +648,5 @@ async def execute_search_plan(
             if len(execution.returned) >= limit:
                 break
             execution = await run_rung(rung)
+    execution.attempts = attempts
     return execution

@@ -86,8 +86,14 @@ _SYSTEM_PROMPT = """You extract structured retrieval filters from a shopper's \
 query for Pellier, a modern lifestyle store.
 
 You return JSON with exactly these keys:
-  - "categories": list[str] — zero or more values drawn from the \
-allowed CATEGORIES list. Empty list when the query is category-agnostic.
+  - "required_categories": list[str] — values from the allowed CATEGORIES \
+list only when the shopper limits the request to them by naming the \
+department ("only kitchen things", "show me shoes", "just Bath and body"). \
+A product word is not a department: "linen shirts" or "a dopp kit" restricts \
+nothing. Never derive one from an occasion, a recipient or a room \
+("a housewarming gift", "for their new home"). Empty list otherwise.
+  - "categories": list[str] — CATEGORIES values that would likely fit. \
+Recorded for explanation only; they never filter results.
   - "tags": list[str] — zero or more values drawn from the allowed \
 TAGS list. Empty list when no tag is implied.
   - "price_max_usd": number or null — only set when the shopper names \
@@ -215,6 +221,7 @@ class StructuredExtractor:
         """
         return {
             "categories": [],
+            "required_categories": [],
             "tags": [],
             "price_max_usd": None,
             "in_stock_only": False,
@@ -245,18 +252,25 @@ class StructuredExtractor:
     ) -> Dict[str, Any]:
         # Malformed requirements cannot be treated as absent. The caller
         # catches validation errors and marks this as extraction_failed.
-        for name in ("categories", "tags", "exclusions", "unsupported_exclusions"):
+        for name in (
+            "categories", "required_categories", "tags", "exclusions", "unsupported_exclusions",
+        ):
             if parsed.get(name) is not None and not isinstance(parsed[name], list):
                 raise ValueError(f"{name} must be a list")
         stock_raw = parsed.get("in_stock_only", False)
         if not isinstance(stock_raw, bool):
             raise ValueError("in_stock_only must be a boolean")
         cat_set = {c.lower(): c for c in KNOWN_CATEGORIES}
-        categories = [
-            cat_set[c.lower()]
-            for c in parsed.get("categories", []) or []
-            if isinstance(c, str) and c.lower() in cat_set
-        ]
+
+        def known_categories(name: str) -> List[str]:
+            return [
+                cat_set[c.lower()]
+                for c in parsed.get(name, []) or []
+                if isinstance(c, str) and c.lower() in cat_set
+            ]
+
+        categories = known_categories("categories")
+        required_categories = known_categories("required_categories")
         tag_set = set(KNOWN_TAGS)
         # Exclusions are resolved first so a tag the model put on both sides
         # resolves to the safe reading. A false negative drops one candidate;
@@ -291,6 +305,7 @@ class StructuredExtractor:
             soft_signal = fallback_query.strip()
         return {
             "categories": categories,
+            "required_categories": required_categories,
             "tags": tags,
             "price_max_usd": price_max,
             "in_stock_only": in_stock,

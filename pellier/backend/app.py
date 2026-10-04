@@ -2132,6 +2132,7 @@ async def _persist_comparison_receipt(
             "rerank_pool_k": execution.rerank_pool_k,
             "search_method": execution.search_method,
             "relaxation_steps": execution.relaxation_steps,
+            "attempts": execution.attempts,
         },
         latency_breakdown=execution.latency_breakdown(),
         rail="in-process",

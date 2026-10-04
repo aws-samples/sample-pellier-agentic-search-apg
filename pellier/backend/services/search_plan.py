@@ -28,7 +28,10 @@ exactly what changed.
 Terminology, so the surfaces can agree:
 
   ``hard``       never relaxed automatically (price ceiling, availability,
-                 explicit category, exclusions)
+                 a department the shopper requires or a structured
+                 selection supplies, exclusions)
+  ``inferred``   a department the model or an agent guessed; recorded,
+                 never applied, so a guess cannot hide relevant products
   ``soft``       may be relaxed per the declared policy (tags, taste signal)
   ``exclusions`` hard *negative* predicates ("avoid candles", "no wool")
   ``unenforced_exclusions`` stated exclusions no catalog field can check;
@@ -63,6 +66,10 @@ _STRATEGIES = (STRATEGY_VECTOR, STRATEGY_HYBRID, STRATEGY_HYBRID_RERANK)
 EXTRACTION_PARSED = "parsed"
 EXTRACTION_FAILED = "extraction_failed"
 EXTRACTION_NOT_RUN = "not_run"
+
+# Where a hard department came from. Only these two may filter.
+CATEGORY_FROM_SHOPPER = "shopper"
+CATEGORY_FROM_SELECTION = "selection"
 
 
 @dataclass(frozen=True)
@@ -149,6 +156,10 @@ class SearchPlan:
         exclusions: Hard negative predicates, checked against tags and materials.
         unenforced_exclusions: Exclusions the shopper stated that no catalog
             field can check. Reported, never applied or claimed.
+        inferred_categories: Departments the model or an agent suggested.
+            Recorded for the receipt; never applied as a filter.
+        category_source: ``shopper`` when the request stated the department,
+            ``selection`` when a structured choice supplied it, else None.
         extraction_status: ``parsed`` when the planner read the request,
             ``extraction_failed`` when it could not, ``not_run`` when no
             model extraction was attempted.
@@ -166,6 +177,8 @@ class SearchPlan:
     exclusions: Tuple[str, ...] = ()
     unenforced_exclusions: Tuple[str, ...] = ()
     extraction_status: str = EXTRACTION_NOT_RUN
+    inferred_categories: Tuple[str, ...] = ()
+    category_source: Optional[str] = None
     retrieval_strategy: str = STRATEGY_HYBRID_RERANK
     top_k: int = 5
     evidence_required: bool = True
@@ -212,7 +225,9 @@ class SearchPlan:
             clauses.append("NOT (tags ?| %s OR materials ?| %s)")
             params.extend([list(self.exclusions), list(self.exclusions)])
         if include_soft and self.soft.tags:
-            clauses.append("tags ?| %s")
+            # Every preference must hold, so a broad tag such as gift cannot
+            # satisfy an attempt meant to find the narrower one, such as watch.
+            clauses.append("tags ?& %s")
             params.append(list(self.soft.tags))
 
         return clauses, params
@@ -299,6 +314,8 @@ class SearchPlan:
             "exclusions": list(self.exclusions),
             "unenforced_exclusions": list(self.unenforced_exclusions),
             "extraction_status": self.extraction_status,
+            "inferred_categories": list(self.inferred_categories),
+            "category_source": self.category_source,
             "retrieval_strategy": self.retrieval_strategy,
             "top_k": self.top_k,
             "evidence_required": self.evidence_required,
@@ -402,6 +419,7 @@ def build_plan(
     known_materials: Optional[Sequence[str]] = None,
     price_max_usd: Optional[float] = None,
     category: Optional[str] = None,
+    inferred_category: Optional[str] = None,
     top_k: int = 5,
     retrieval_strategy: str = STRATEGY_HYBRID_RERANK,
     relaxation_policy: str = RELAXATION_POLICY_SOFT_ONLY,
@@ -422,7 +440,11 @@ def build_plan(
             authoritative and overrides the extracted one — the agent
             passed it explicitly, so it is not a guess. Invalid caller
             ceilings raise ValueError rather than remove that requirement.
-        category: Caller-supplied explicit category, treated as hard.
+        category: A structured selection, such as the original item's
+            department for a replacement. Hard, recorded as ``selection``.
+            Never pass a model's or an agent's guess here.
+        inferred_category: A department an agent suggested. Recorded with
+            the model's inferred departments; never applied.
         top_k: Number of final results requested.
         retrieval_strategy: One of ``vector``, ``hybrid``,
             ``hybrid+rerank``. Unknown values fall back to
@@ -458,14 +480,23 @@ def build_plan(
         if invalid_price:
             raise ValueError("price_max_usd must be a finite, nonnegative price")
 
-    hard_categories = _clean_categories(payload.get("categories"), categories_allowed)
+    # Only a department the shopper required, or a structured selection,
+    # filters. A guess from "a housewarming gift" is recorded, not applied.
+    hard_categories = _clean_categories(payload.get("required_categories"), categories_allowed)
+    category_source = CATEGORY_FROM_SHOPPER if hard_categories else None
     if category:
         explicit = _clean_categories([category], categories_allowed)
-        # An explicit category the catalog does not know is surfaced rather
+        # A selected category the catalog does not know is surfaced rather
         # than silently dropped or silently applied.
-        hard_categories = explicit or hard_categories
-        if not explicit:
+        if explicit:
+            hard_categories, category_source = explicit, CATEGORY_FROM_SELECTION
+        else:
             ambiguous.append("category")
+    guessed = payload.get("categories")
+    guesses = list(guessed) if isinstance(guessed, list) else []
+    inferred_categories = _clean_categories(
+        guesses + ([inferred_category] if inferred_category else []), categories_allowed
+    )
 
     exclusion_vocabulary = list(tags_allowed) + list(materials_allowed)
     exclusions = _clean_tags(payload.get("exclusions"), exclusion_vocabulary)
@@ -506,6 +537,8 @@ def build_plan(
         exclusions=exclusions,
         unenforced_exclusions=unenforced,
         extraction_status=extraction_status,
+        inferred_categories=inferred_categories,
+        category_source=category_source,
         retrieval_strategy=retrieval_strategy,
         top_k=_clamp_top_k(top_k),
         evidence_required=True,

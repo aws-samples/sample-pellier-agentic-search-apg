@@ -276,8 +276,8 @@ def test_rerank_fallback_keeps_rrf_order_and_says_so() -> None:
 
 
 def test_relaxation_widens_soft_tags_when_the_strict_pass_is_short(completed_search_plan) -> None:
-    # Rows exist only once the soft ``tags ?| %s`` predicate is gone.
-    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?| %s")
+    # Rows exist only once the soft ``tags ?& %s`` predicate is gone.
+    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?& %s")
     plan = _plan(extracted={"tags": ["gift"]})
 
     execution = _run(db, plan=plan, limit=2)
@@ -286,6 +286,19 @@ def test_relaxation_widens_soft_tags_when_the_strict_pass_is_short(completed_sea
     assert [r.step for r in execution.plan.relaxations] == ["drop_tags"]
     assert [row["product_id"] for row in execution.returned] == ["2", "1"]
     assert [stage.name for stage in execution.stages].count("hybrid") == 2
+
+
+def test_each_attempt_records_its_preferences_and_eligible_count(completed_search_plan) -> None:
+    """Q2's proof: the watch attempt found nothing, then the widening is on record."""
+    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?& %s")
+    plan = _plan(extracted={"tags": ["gift", "watch"]})
+
+    execution = _run(db, plan=plan, limit=2)
+
+    assert execution.attempts == [
+        {"preferences": ["gift", "watch"], "relaxations": [], "eligible": 0},
+        {"preferences": [], "relaxations": ["drop_tags"], "eligible": 2},
+    ]
 
 
 def test_complete_strict_result_does_not_require_the_unfinished_fallback(monkeypatch) -> None:
@@ -302,7 +315,7 @@ def test_complete_strict_result_does_not_require_the_unfinished_fallback(monkeyp
 
 
 def test_relaxation_is_off_when_the_caller_says_so() -> None:
-    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?| %s")
+    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?& %s")
     plan = _plan(extracted={"tags": ["gift"]})
 
     execution = _run(db, plan=plan, limit=2, relax=False)
@@ -313,7 +326,7 @@ def test_relaxation_is_off_when_the_caller_says_so() -> None:
 
 
 def test_strict_policy_never_widens_even_when_short() -> None:
-    db = _FakeDB([_row(1)], empty_when="AND tags ?| %s")
+    db = _FakeDB([_row(1)], empty_when="AND tags ?& %s")
     plan = _plan(
         extracted={"tags": ["gift"]}, relaxation_policy=RELAXATION_POLICY_STRICT
     )
@@ -363,7 +376,7 @@ def test_hard_predicates_reach_both_branches_before_fusion() -> None:
 
 
 def test_latency_breakdown_sums_every_stage_by_name(completed_search_plan) -> None:
-    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?| %s")
+    db = _FakeDB([_row(1), _row(2)], empty_when="AND tags ?& %s")
     plan = _plan(extracted={"tags": ["gift"]})
 
     execution = _run(db, plan=plan, limit=2)

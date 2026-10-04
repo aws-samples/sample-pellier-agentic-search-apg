@@ -27,9 +27,9 @@ pytestmark = pytest.mark.usefixtures("completed_search_plan")
 
 
 def _golden_extract() -> dict:
-    """The workshop's golden journey, as the extractor would return it."""
+    """The golden journey with a department the shopper required ("only home things")."""
     return {
-        "categories": ["Home"],
+        "required_categories": ["Home"],
         "tags": ["home", "artisanal"],
         "price_max_usd": 100,
         "in_stock_only": True,
@@ -80,7 +80,7 @@ def test_a_tag_cannot_be_both_excluded_and_preferred() -> None:
 def test_unknown_categories_and_tags_are_dropped() -> None:
     plan = build_plan(
         "something nice",
-        {"categories": ["Spacecraft"], "tags": ["nonexistent-tag"]},
+        {"required_categories": ["Spacecraft"], "tags": ["nonexistent-tag"]},
     )
 
     assert plan.hard.categories == ()
@@ -169,7 +169,7 @@ def test_malformed_stock_requirement_is_surfaced_without_coercion(value) -> None
 
 def test_explicit_empty_catalog_facets_do_not_fall_back_to_defaults() -> None:
     plan = build_plan(
-        "gift", {"categories": ["Stationery and gifts"], "tags": ["linen"]},
+        "gift", {"required_categories": ["Stationery and gifts"], "tags": ["linen"]},
         known_categories=[], known_tags=[],
     )
 
@@ -298,7 +298,7 @@ def test_predicates_are_parameterized_never_interpolated() -> None:
     plan = build_plan(
         "gift",
         {
-            "categories": ["Stationery and gifts"],
+            "required_categories": ["Stationery and gifts"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -323,7 +323,7 @@ def test_clause_and_param_counts_line_up() -> None:
     plan = build_plan(
         "gift",
         {
-            "categories": ["Stationery and gifts"],
+            "required_categories": ["Stationery and gifts"],
             "tags": ["home"],
             "price_max_usd": 100,
             "in_stock_only": True,
@@ -539,3 +539,72 @@ class TestNegativeConstraintsReachSQL:
         assert failed["extraction_status"] == "extraction_failed"
         assert genuine["extraction_status"] == "empty_query"
         assert failed["exclusions"] == [] and genuine["exclusions"] == []
+
+
+# ---------------------------------------------------------------------------
+# Required versus inferred: the plan enforces what the shopper requires and
+# only records what the model or an agent guessed.
+# ---------------------------------------------------------------------------
+class TestRequiredVersusInferred:
+    def test_an_inferred_department_never_filters(self) -> None:
+        """Q1 measured 2026-10-03: two guessed departments hid all six candidates."""
+        plan = build_plan(
+            "A housewarming gift for someone who loves slow Sunday mornings.",
+            {"categories": ["Home", "Stationery and gifts"], "tags": [], "soft_signal": "q"},
+        )
+        clauses, _params = plan.compile_predicates()
+        assert plan.hard.categories == ()
+        assert plan.inferred_categories == ("Home", "Stationery and gifts")
+        assert plan.category_source is None
+        assert not any("category" in clause for clause in clauses)
+
+    def test_a_department_the_shopper_requires_filters_and_says_why(self) -> None:
+        plan = build_plan(
+            "Only show items from Kitchen and table",
+            {"required_categories": ["kitchen and table"], "soft_signal": "q"},
+        )
+        clauses, params = plan.compile_predicates()
+        assert plan.hard.categories == ("Kitchen and table",)
+        assert plan.category_source == "shopper"
+        assert "category = ANY(%s)" in clauses and ["Kitchen and table"] in params
+
+    def test_an_agent_category_argument_is_recorded_not_enforced(self) -> None:
+        plan = build_plan("a gift for their new home", None, inferred_category="Home")
+        assert plan.hard.categories == ()
+        assert plan.inferred_categories == ("Home",)
+
+    def test_a_structured_selection_filters_and_says_why(self) -> None:
+        plan = build_plan("a replacement", None, category="Home")
+        assert plan.hard.categories == ("Home",)
+        assert plan.category_source == "selection"
+
+    def test_the_plan_records_both_halves(self) -> None:
+        plan = build_plan(
+            "q", {"required_categories": ["Shoes"], "categories": ["Accessories"], "soft_signal": "q"},
+        )
+        recorded = plan.to_dict()
+        assert recorded["hard_constraints"]["categories"] == ["Shoes"]
+        assert recorded["category_source"] == "shopper"
+        assert recorded["inferred_categories"] == ["Accessories"]
+
+    def test_every_preference_holds_in_the_first_attempt(self) -> None:
+        """"gift" must not satisfy an attempt meant to find a watch."""
+        plan = build_plan("a gift, I'd prefer a watch", {"tags": ["gift", "watch"], "soft_signal": "q"})
+        clauses, params = plan.compile_predicates()
+        assert "tags ?& %s" in clauses and ["gift", "watch"] in params
+        assert not any("tags ?| %s" == clause for clause in clauses)
+
+    def test_the_extractor_keeps_required_and_guessed_apart(self) -> None:
+        from services.structured_extract import StructuredExtractor
+
+        envelope = StructuredExtractor._sanitize(
+            StructuredExtractor,
+            {"categories": ["Home"], "required_categories": ["shoes", "Spacecraft"],
+             "soft_signal": "q"},
+            "q",
+        )
+        assert envelope["categories"] == ["Home"]
+        assert envelope["required_categories"] == ["Shoes"]
+        plan = build_plan("q", envelope)
+        assert plan.hard.categories == ("Shoes",)
+        assert plan.inferred_categories == ("Home",)
