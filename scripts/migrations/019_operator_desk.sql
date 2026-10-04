@@ -317,25 +317,24 @@ CREATE TRIGGER support_tickets_notify
     FOR EACH ROW EXECUTE FUNCTION pellier.notify_data_changed('support_ticket');
 
 -- ---------------------------------------------------------------------
--- Seed. Makes the client-book notes written in 018 true rather than
--- decorative: Rachel's note says she has an open ticket, and Sarah's says
--- she has credit on file.
+-- Seed. Theo's two tickets give his lab a real case; Jessica keeps her
+-- disputed refund. No store credit is seeded.
 -- ---------------------------------------------------------------------
 INSERT INTO pellier.support_tickets
     (ticket_id, customer_id, subject, status, channel, last_note, opened_at, resolved_at)
 VALUES
-    ('TKT-2026-4410', 'CUST-RACHEL',
-     'Decanted bottle arrived under-filled', 'open', 'email',
-     'Client reports the bottle was roughly a third empty on arrival. Awaiting a decision on replacement versus credit.',
-     now() - INTERVAL '6 days', NULL),
     ('TKT-2026-3015', 'CUST-JESSICA',
      'Return received, refund amount disputed', 'pending', 'chat',
      'Return logged for the catchall and the robe. Client expected a full refund including original shipping.',
      now() - INTERVAL '11 days', NULL),
-    ('TKT-2025-2201', 'CUST-SARAH',
-     'Delivery rescheduled during move', 'resolved', 'phone',
-     'Redirected to the new address and confirmed with the client.',
-     now() - INTERVAL '120 days', now() - INTERVAL '118 days')
+    ('TKT-2026-5021', 'CUST-THEO',
+     'Wabi-Sabi Bowl arrived chipped', 'open', 'chat',
+     'Customer reports a chip on the rim of the bowl from his last order. Awaiting an update.',
+     now() - INTERVAL '3 days', NULL),
+    ('TKT-2026-1874', 'CUST-THEO',
+     'Pour-over set delivery date moved', 'resolved', 'email',
+     'Delivery moved by two days at the customer''s request and confirmed.',
+     now() - INTERVAL '40 days', now() - INTERVAL '38 days')
 ON CONFLICT (ticket_id) DO UPDATE SET
     subject     = EXCLUDED.subject,
     status      = EXCLUDED.status,
@@ -344,34 +343,23 @@ ON CONFLICT (ticket_id) DO UPDATE SET
     opened_at   = EXCLUDED.opened_at,
     resolved_at = EXCLUDED.resolved_at;
 
-INSERT INTO pellier.store_credits
-    (customer_id, amount_cents, reason, issued_by, idempotency_key, created_at)
-VALUES
-    ('CUST-SARAH', 15000, 'Seed: credit on file from a delivery reschedule',
-     NULL, 'seed-credit-sarah-2025-reschedule', now() - INTERVAL '117 days')
-ON CONFLICT (idempotency_key) DO UPDATE SET
-    amount_cents = EXCLUDED.amount_cents,
-    reason       = EXCLUDED.reason;
-
 -- ---------------------------------------------------------------------
 -- Verification. Fail loud, matching 003 and 018.
 -- ---------------------------------------------------------------------
 DO $$
 DECLARE
     n_tickets   INTEGER;
-    n_credits   INTEGER;
     n_open      INTEGER;
     has_hnsw    BOOLEAN;
     ceiling_ok  BOOLEAN;
 BEGIN
     SELECT COUNT(*) INTO n_tickets FROM pellier.support_tickets;
-    SELECT COUNT(*) INTO n_credits FROM pellier.store_credits;
 
-    -- 018 tells the operator Rachel has an open ticket. If the seed did not
-    -- land, the console displays a claim with nothing behind it.
+    -- Theo's lab depends on his open chipped-bowl ticket. If the seed did not
+    -- land, the lab points at a case that does not exist.
     SELECT COUNT(*) INTO n_open
       FROM pellier.support_tickets
-     WHERE customer_id = 'CUST-RACHEL' AND status = 'open';
+     WHERE customer_id = 'CUST-THEO' AND status = 'open';
 
     SELECT EXISTS (
         SELECT 1 FROM pg_indexes
@@ -382,7 +370,7 @@ BEGIN
     BEGIN
         INSERT INTO pellier.store_credits
             (customer_id, amount_cents, reason, idempotency_key)
-        VALUES ('CUST-SARAH', 50001, 'ceiling probe', 'ceiling-probe-must-fail');
+        VALUES ('CUST-JESSICA', 50001, 'ceiling probe', 'ceiling-probe-must-fail');
         ceiling_ok := FALSE;
     EXCEPTION WHEN check_violation THEN
         ceiling_ok := TRUE;
@@ -392,14 +380,9 @@ BEGIN
         RAISE EXCEPTION 'Expected >= 3 seeded support tickets, found %.', n_tickets;
     END IF;
 
-    IF n_credits < 1 THEN
-        RAISE EXCEPTION 'Expected >= 1 seeded store credit, found %.', n_credits;
-    END IF;
-
     IF n_open < 1 THEN
         RAISE EXCEPTION
-            'Rachel has no open ticket, but 018 describes her as having one. '
-            'The client book would display a claim with no row behind it.';
+            'Theo has no open ticket. His lab needs the chipped-bowl case.';
     END IF;
 
     IF NOT has_hnsw THEN
@@ -426,13 +409,13 @@ BEGIN
     BEGIN
         r1 := pellier.apply_store_credit(
             'probe-apply-store-credit', 'probe-hash',
-            'CUST-SARAH', 2500, 'Migration self-test', 'probe-operator');
+            'CUST-JESSICA', 2500, 'Migration self-test', 'probe-operator');
         r2 := pellier.apply_store_credit(
             'probe-apply-store-credit', 'probe-hash',
-            'CUST-SARAH', 2500, 'Migration self-test', 'probe-operator');
+            'CUST-JESSICA', 2500, 'Migration self-test', 'probe-operator');
         r3 := pellier.apply_store_credit(
             'probe-apply-store-credit', 'different-hash',
-            'CUST-SARAH', 9900, 'Migration self-test', 'probe-operator');
+            'CUST-JESSICA', 9900, 'Migration self-test', 'probe-operator');
 
         SELECT COUNT(*) INTO n_after
           FROM pellier.store_credits
@@ -469,8 +452,8 @@ BEGIN
     END;
 
     RAISE NOTICE
-        'Operator desk ready: % tickets, % credits, HNSW present, $500 ceiling enforced, credit write idempotent',
-        n_tickets, n_credits;
+        'Operator desk ready: % tickets, HNSW present, $500 ceiling enforced, credit write idempotent',
+        n_tickets;
 END $$;
 
 COMMIT;

@@ -21,7 +21,6 @@ import importlib.util
 import json
 import re
 import sys
-from collections import Counter
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -32,12 +31,6 @@ DATABASE_SETUP = REPO / "scripts" / "setup" / "database-setup.sh"
 DATABASE_RESET = REPO / "scripts" / "setup" / "database-reset.sh"
 
 RUNGS = ("registered", "circle", "maison")
-
-# The thresholds documented at the top of the migration. Kept here so a change
-# to one without the other fails rather than drifting.
-THRESHOLD_CIRCLE = 1500
-THRESHOLD_MAISON = 7500
-
 
 def _load_seed_module():
     module_name = "seed_pellier_catalog_for_client_book_tests"
@@ -72,29 +65,27 @@ def _ordered_product_ids() -> list[str]:
     return [product_id for _cust, product_id, _days, _cents in rows]
 
 
-def _seeded_memberships() -> dict[str, tuple[str, float]]:
-    """customer_id -> (membership, spend_12mo) for every row 018 writes."""
+def _seeded_memberships() -> dict[str, str]:
+    """customer_id -> membership for every row 018 writes."""
     sql = _migration_sql()
-    out: dict[str, tuple[str, float]] = {}
+    out: dict[str, str] = {}
 
     # Hero personas are set with UPDATE statements.
     for m in re.finditer(
-        r"UPDATE pellier\.customers SET membership = '(\w+)',\s*"
-        r"spend_12mo =\s*([\d.]+) WHERE id = '([^']+)'",
+        r"UPDATE pellier\.customers SET membership = '(\w+)'\s+WHERE id = '([^']+)'",
         sql,
     ):
-        rung, spend, cust = m.group(1), float(m.group(2)), m.group(3)
-        out[cust] = (rung, spend)
+        out[m.group(2)] = m.group(1)
 
     # Client book rows come from the INSERT ... VALUES list.
-    start = sql.index("INSERT INTO pellier.customers (id, name, preferences_summary, membership, spend_12mo)")
+    start = sql.index("INSERT INTO pellier.customers (id, name, preferences_summary, membership)")
     end = sql.index("ON CONFLICT (id) DO UPDATE", start)
     block = sql[start:end]
     for m in re.finditer(
-        r"\('(CUST-[A-Z]+)',\s*'[^']+',\s*\n\s*'(?:[^']|'')+',\s*\n\s*'(\w+)',\s*([\d.]+)\)",
+        r"\('(CUST-[A-Z]+)',\s*'[^']+',\s*\n\s*'(?:[^']|'')+',\s*\n\s*'(\w+)'\)",
         block,
     ):
-        out[m.group(1)] = (m.group(2), float(m.group(3)))
+        out[m.group(1)] = m.group(2)
 
     assert out, "no membership assignments parsed from migration 018"
     return out
@@ -164,46 +155,22 @@ def test_the_column_is_membership_and_never_tier():
     )
 
 
-def test_every_seeded_rung_agrees_with_its_spend():
-    """The stored rung must not contradict the documented thresholds."""
-    for cust, (rung, spend) in _seeded_memberships().items():
-        if cust == "CUST-FRESH":
-            continue
-        if spend < THRESHOLD_CIRCLE:
-            expected = "registered"
-        elif spend <= THRESHOLD_MAISON:
-            expected = "circle"
-        else:
-            expected = "maison"
-        assert rung == expected, (
-            f"{cust} has spend_12mo {spend} but membership '{rung}'; "
-            f"thresholds imply '{expected}'."
-        )
-
-
 def test_all_three_rungs_are_seeded():
     """The storefront demonstrates the ladder through the hero personas."""
-    rungs = {rung for rung, _ in _seeded_memberships().values()}
+    rungs = set(_seeded_memberships().values())
     assert set(RUNGS) <= rungs, f"only {sorted(rungs)} seeded, expected all of {RUNGS}"
 
 
-def test_client_book_has_fifteen_customers():
+def test_client_book_has_four_customers():
     seeded = _seeded_memberships()
     book = {c for c in seeded if c.startswith("CUST-") and c != "CUST-FRESH"}
-    assert len(book) == 15, f"expected 15 named customers, found {len(book)}: {sorted(book)}"
+    assert book == {"CUST-MARCO", "CUST-ANNA", "CUST-THEO", "CUST-JESSICA"}
 
 
-def test_client_book_balances_five_customers_per_rung():
-    """The static seed must satisfy the same 5/5/5 contract as the live guard."""
-    seeded = _seeded_memberships()
-    counts = Counter(
-        rung
-        for customer_id, (rung, _spend) in seeded.items()
-        if customer_id.startswith("CUST-") and customer_id != "CUST-FRESH"
-    )
-    assert counts == Counter({rung: 5 for rung in RUNGS}), (
-        f"expected a 5/5/5 client book, found {dict(counts)}"
-    )
+def test_spend_is_not_stored_by_the_migration():
+    sql = _migration_sql()
+    assert "DROP COLUMN IF EXISTS spend_12mo" in sql
+    assert "ADD COLUMN IF NOT EXISTS spend_12mo" not in sql
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +189,7 @@ def test_live_persona_profiles_match_the_membership_seed():
         assert customer_id in seeded
         assert f"'{persona_id}', '{customer_id}'" in sql
         assert f"'{membership}'" in sql
-        assert seeded[customer_id][0] == membership
+        assert seeded[customer_id] == membership
 
 
 def test_frontend_membership_module_lists_exactly_the_three_rungs():
@@ -262,15 +229,6 @@ def test_migration_is_transactional_and_idempotent_in_shape():
 # ---------------------------------------------------------------------------
 # The new catalog buckets
 # ---------------------------------------------------------------------------
-
-def test_home_comforts_and_made_to_last_moments_hold_their_products():
-    seed = _load_seed_module()
-    house = [p for p in seed.load_catalog() if p.persona == "house"]
-    signature = [p for p in seed.load_catalog() if p.persona == "signature"]
-
-    assert [p.productId for p in house] == [*range(41, 51), 81, 82, 84, 99, 100]
-    assert [p.productId for p in signature] == list(range(51, 61))
-
 
 def test_new_buckets_have_real_cached_embeddings():
     """Not derived blends. These are genuine Cohere Embed v4 output."""
@@ -315,38 +273,6 @@ def test_catalog_prices_stay_everyday():
     seed = _load_seed_module()
     ceiling = max(p.price for p in seed.load_catalog())
     assert ceiling <= 450, f"catalog ceiling is {ceiling}"
-
-
-def test_frontend_threshold_copy_matches_the_migration_rule() -> None:
-    """The console states the thresholds; the migration enforces them.
-
-    `membership.ts` now carries a human-readable threshold per rung so an
-    advisor can see why a client sits where they do. That copy is a second
-    statement of the same rule, so it is compared against the numbers the
-    migration actually checks rather than trusted.
-    """
-    ts = FRONTEND_MEMBERSHIP.read_text()
-
-    # The figures the migration enforces, formatted as the copy presents them.
-    circle_floor = f"${THRESHOLD_CIRCLE:,}"
-    maison_floor = f"${THRESHOLD_MAISON:,}"
-
-    registered = re.search(r"registered: \{(.*?)\}", ts, re.S)
-    circle = re.search(r"circle: \{(.*?)\}", ts, re.S)
-    maison = re.search(r"maison: \{(.*?)\}", ts, re.S)
-    assert registered and circle and maison, "rung blocks not found in membership.ts"
-
-    assert circle_floor in registered.group(1), (
-        f"the registered threshold copy should name {circle_floor}, "
-        "the figure the migration uses as the circle floor"
-    )
-    assert circle_floor in circle.group(1) and maison_floor in circle.group(1)
-    assert maison_floor in maison.group(1)
-
-    # And the migration really does enforce those same numbers.
-    sql = _migration_sql()
-    assert f"spend_12mo <  {THRESHOLD_CIRCLE}" in sql
-    assert f"spend_12mo >  {THRESHOLD_MAISON}" in sql
 
 
 def test_every_rung_pairs_a_label_with_a_functional_descriptor() -> None:

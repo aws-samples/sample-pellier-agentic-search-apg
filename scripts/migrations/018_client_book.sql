@@ -23,19 +23,12 @@
 --     TIER_OPERATOR_MUTATION for tool capability.
 -- A third meaning of that word in one schema would be a landmine.
 --
--- Membership is derived from trailing 12-month spend and then stored, so the
--- value a policy decision reads is stable and auditable rather than
--- recomputed per request. The verification block at the bottom asserts the
--- stored rung still agrees with its own thresholds, so the two can never
--- drift apart silently:
---   registered  under 1500
---   circle      1500 to 7500
---   maison      above 7500
+-- Membership is a stored label (registered, circle, maison; shown as Member,
+-- Silver, Gold). It has no spend thresholds. Spend is never stored: readers
+-- compute it from pellier.orders.amount_paid_cents.
 --
--- The 15 named clients are balanced five to a rung, and the block at the bottom
--- asserts that too. An unbalanced book makes the operator console misleading: a
--- console showing nine Maison clients suggests membership barely discriminates,
--- which is the opposite of the point when it is an authorization input.
+-- The book is the four story customers (Marco, Anna, Theo, Jessica) plus the
+-- anonymous CUST-FRESH profile and the 'theo' alias row.
 --
 -- Idempotent: columns are added IF NOT EXISTS, customer rows upsert, and
 -- order rows are refreshed for exactly the client IDs this migration owns.
@@ -50,8 +43,7 @@ BEGIN;
 ALTER TABLE pellier.customers
     ADD COLUMN IF NOT EXISTS membership TEXT NOT NULL DEFAULT 'registered';
 
-ALTER TABLE pellier.customers
-    ADD COLUMN IF NOT EXISTS spend_12mo NUMERIC(10, 2) NOT NULL DEFAULT 0.00;
+ALTER TABLE pellier.customers DROP COLUMN IF EXISTS spend_12mo;
 
 -- A bad rung must fail at write time, not surface later as a policy
 -- decision made on a value nothing recognises.
@@ -68,8 +60,6 @@ END $$;
 
 COMMENT ON COLUMN pellier.customers.membership IS
     'Loyalty rung: registered | circle | maison. Authorization input, not display sugar.';
-COMMENT ON COLUMN pellier.customers.spend_12mo IS
-    'Trailing 12-month spend that the stored membership rung was derived from.';
 
 CREATE INDEX IF NOT EXISTS customers_membership_idx
     ON pellier.customers (membership);
@@ -78,74 +68,32 @@ CREATE INDEX IF NOT EXISTS customers_membership_idx
 -- Hero personas gain a rung. They deliberately span all three, so the
 -- storefront on its own demonstrates the whole ladder.
 -- ---------------------------------------------------------------------
-UPDATE pellier.customers SET membership = 'maison',     spend_12mo = 9240.00 WHERE id = 'CUST-MARCO';
-UPDATE pellier.customers SET membership = 'circle',     spend_12mo = 3180.00 WHERE id = 'CUST-ANNA';
-UPDATE pellier.customers SET membership = 'registered', spend_12mo =  940.00 WHERE id = 'CUST-THEO';
-UPDATE pellier.customers SET membership = 'registered', spend_12mo =  940.00 WHERE id = 'theo';
-UPDATE pellier.customers SET membership = 'registered', spend_12mo =    0.00 WHERE id = 'CUST-FRESH';
+UPDATE pellier.customers SET membership = 'maison'     WHERE id = 'CUST-MARCO';
+UPDATE pellier.customers SET membership = 'circle'     WHERE id = 'CUST-ANNA';
+UPDATE pellier.customers SET membership = 'registered' WHERE id = 'CUST-THEO';
+UPDATE pellier.customers SET membership = 'registered' WHERE id = 'theo';
+UPDATE pellier.customers SET membership = 'registered' WHERE id = 'CUST-FRESH';
 
 -- ---------------------------------------------------------------------
 -- The client book. Operator-side clients: they have no storefront login
 -- and are not switchable personas.
 -- ---------------------------------------------------------------------
-INSERT INTO pellier.customers (id, name, preferences_summary, membership, spend_12mo)
+INSERT INTO pellier.customers (id, name, preferences_summary, membership)
 VALUES
     ('CUST-JESSICA', 'Jessica Nakamura',
      'Home and bath, warm coral and sage. Open return dispute on a catchall and a robe.',
-     'circle', 3940.00),
-    ('CUST-SARAH', 'Sarah Chen',
-     'Relocating. Buys for a whole room at a time. Store credit on file.',
-     'maison', 11600.00),
-    ('CUST-CATHERINE', 'Catherine Dubois',
-     'Building a tailored wardrobe across seasons. Prefers private appointments.',
-     'maison', 14300.00),
-    ('CUST-AMARA', 'Amara Okonkwo',
-     'Highest spend in the book. Investment pieces, gold, hand-made objects.',
-     'maison', 18900.00),
-    ('CUST-JULIAN', 'Julian Hart',
-     'Tailoring client. Every jacket and trouser goes to alterations.',
-     'maison', 7980.00),
-    ('CUST-DAVID', 'David Kim',
-     'Buys the sustainable edit. Asks about materials and provenance first.',
-     'circle', 5240.00),
-    ('CUST-PRIYA', 'Priya Shah',
-     'Gifts at volume for family and colleagues. Wants it wrapped and dated.',
-     'circle', 4610.00),
-    -- 80 short of the circle threshold, which is what "close to the next rung"
-    -- is meant to describe. She was previously circle at 2050, where the same
-    -- sentence pointed at maison, 5450 away.
-    ('CUST-ELENA', 'Elena Rodriguez',
-     'Close to the next rung. Responds to early access.',
-     'registered', 1420.00),
-    ('CUST-THOMAS', 'Thomas Anderson',
-     'Press and editorial. Borrows and buys objects that photograph well.',
-     'circle', 1890.00),
-    ('CUST-MICHAEL', 'Michael Washington',
-     'Repeat basics in the same size and colour. Low effort, reliable.',
-     'registered', 1320.00),
-    ('CUST-RACHEL', 'Rachel Green',
-     'Fragrance and apothecary. One open ticket about a decanted bottle.',
-     'registered', 1140.00),
-    ('CUST-KEVIN', 'Kevin Patel',
-     'New joiner. Two small orders, no preferences established yet.',
-     'registered', 410.00)
+     'circle')
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     preferences_summary = EXCLUDED.preferences_summary,
-    membership = EXCLUDED.membership,
-    spend_12mo = EXCLUDED.spend_12mo;
+    membership = EXCLUDED.membership;
 
 -- ---------------------------------------------------------------------
 -- Client order history. Joined on product name, exactly as 003 does, so a
 -- renamed or missing SKU produces zero rows and the block below fails loud
 -- rather than leaving an operator console full of empty records.
 -- ---------------------------------------------------------------------
-DELETE FROM pellier.orders
- WHERE customer_id IN (
-    'CUST-JESSICA', 'CUST-SARAH', 'CUST-CATHERINE', 'CUST-AMARA', 'CUST-JULIAN',
-    'CUST-DAVID', 'CUST-PRIYA', 'CUST-ELENA', 'CUST-THOMAS', 'CUST-MICHAEL',
-    'CUST-RACHEL', 'CUST-KEVIN'
- );
+DELETE FROM pellier.orders WHERE customer_id = 'CUST-JESSICA';
 
 WITH order_seed(customer_id, product_id, days_ago, amount_paid_cents) AS (
     VALUES
@@ -155,70 +103,7 @@ WITH order_seed(customer_id, product_id, days_ago, amount_paid_cents) AS (
         ('CUST-JESSICA', '42', 34, 6400),  -- Waffle Bath Robe, Sage
         ('CUST-JESSICA', '31', 120, 5800),  -- Stoneware Pour-Over Set
         ('CUST-JESSICA', '43', 210, 12900),  -- Quilted Silk Vest
-        ('CUST-JESSICA', '50', 300, 10800),  -- Oat Merino Crew
-
-        -- Sarah: buys a room at a time.
-        ('CUST-SARAH', '59', 45, 42900),  -- Wool Rug
-        ('CUST-SARAH', '49', 60, 21900),  -- Stonewashed Linen Set
-        ('CUST-SARAH', '46', 150, 22900),  -- Ivory Cashmere Throw
-        ('CUST-SARAH', '60', 200, 11800),  -- Blown Glass Decanter
-
-        -- Catherine: tailored wardrobe across seasons.
-        ('CUST-CATHERINE', '51', 30, 32900),  -- Camel Wool Overcoat
-        ('CUST-CATHERINE', '45', 75, 23900),  -- Tailored Wool Blazer
-        ('CUST-CATHERINE', '53', 75, 13900),  -- Double-Pleat Wool Trouser
-        ('CUST-CATHERINE', '52', 140, 16900),  -- Silk Slip Dress
-        ('CUST-CATHERINE', '54', 190, 25900),  -- Suede Chelsea Boot
-
-        -- Amara: investment pieces.
-        ('CUST-AMARA', '59', 20, 42900),  -- Wool Rug
-        ('CUST-AMARA', '58', 55, 14900),  -- Signet Ring, Brushed Gold
-        ('CUST-AMARA', '51', 110, 32900),  -- Camel Wool Overcoat
-        ('CUST-AMARA', '46', 160, 22900),  -- Ivory Cashmere Throw
-        ('CUST-AMARA', '48', 240, 18900),  -- Leather Market Tote
-
-        -- Julian: everything goes to alterations.
-        ('CUST-JULIAN', '45', 25, 23900),  -- Tailored Wool Blazer
-        ('CUST-JULIAN', '53', 25, 13900),  -- Double-Pleat Wool Trouser
-        ('CUST-JULIAN', '54', 95, 25900),  -- Suede Chelsea Boot
-        ('CUST-JULIAN', '43', 170, 12900),  -- Quilted Silk Vest
-
-        -- David: the sustainable edit.
-        ('CUST-DAVID', '49', 40, 21900),  -- Stonewashed Linen Set
-        ('CUST-DAVID', '50', 100, 10800),  -- Oat Merino Crew
-        ('CUST-DAVID', '7', 165, 6800),  -- Jute Placemats, Set of 4
-        ('CUST-DAVID', '40', 220, 900),  -- Charcoal Soap Bar
-
-        -- Priya: gifting at volume.
-        ('CUST-PRIYA', '55', 28, 12800),  -- Fig and Cedar Eau de Parfum
-        ('CUST-PRIYA', '56', 28, 6400),  -- Rose Absolute Body Oil
-        ('CUST-PRIYA', '47', 90, 11000),  -- Vetiver Eau de Parfum
-        ('CUST-PRIYA', '60', 150, 11800),  -- Blown Glass Decanter
-        ('CUST-PRIYA', '30', 150, 1200),  -- Gift Wrapping Kit
-
-        -- Elena: one rung below, worth an early-access nudge.
-        ('CUST-ELENA', '57', 35, 18900),  -- Cashmere Travel Wrap
-        ('CUST-ELENA', '50', 105, 10800),  -- Oat Merino Crew
-        ('CUST-ELENA', '47', 180, 11000),  -- Vetiver Eau de Parfum
-
-        -- Thomas: objects that photograph well.
-        ('CUST-THOMAS', '54', 50, 25900),  -- Suede Chelsea Boot
-        ('CUST-THOMAS', '44', 130, 7200),  -- Travertine Wall Clock
-        ('CUST-THOMAS', '5', 220, 14900),  -- Rectangular Leather Watch
-
-        -- Michael: repeat basics.
-        ('CUST-MICHAEL', '50', 42, 10800),  -- Oat Merino Crew
-        ('CUST-MICHAEL', '43', 125, 12900),  -- Quilted Silk Vest
-        ('CUST-MICHAEL', '10', 230, 3400),  -- Washed Canvas Tote
-
-        -- Rachel: fragrance, with an open ticket.
-        ('CUST-RACHEL', '47', 18, 11000),  -- Vetiver Eau de Parfum
-        ('CUST-RACHEL', '56', 85, 6400),  -- Rose Absolute Body Oil
-        ('CUST-RACHEL', '4', 175, 3800),  -- Santal & Fig Candle
-
-        -- Kevin: new joiner, two small orders.
-        ('CUST-KEVIN', '38', 12, 2200),  -- Beeswax Pillar Candle
-        ('CUST-KEVIN', '40', 12, 900)  -- Charcoal Soap Bar
+        ('CUST-JESSICA', '50', 300, 10800)  -- Oat Merino Crew
 )
 INSERT INTO pellier.orders (customer_id, product_id, quantity, placed_at, amount_paid_cents)
 SELECT
@@ -237,27 +122,11 @@ JOIN pellier.product_catalog pc
 DO $$
 DECLARE
     n_clients INTEGER;
-    n_orders INTEGER;
     n_jessica INTEGER;
-    n_drift INTEGER;
-    n_rungs INTEGER;
-    n_registered INTEGER;
-    n_circle INTEGER;
-    n_maison INTEGER;
 BEGIN
     SELECT COUNT(*) INTO n_clients
       FROM pellier.customers
      WHERE id LIKE 'CUST-%' AND id <> 'CUST-FRESH';
-
-    -- Scoped to the twelve client IDs this migration owns, so hero orders
-    -- from 003 cannot mask a failed JOIN here.
-    SELECT COUNT(*) INTO n_orders
-      FROM pellier.orders
-     WHERE customer_id IN (
-        'CUST-JESSICA', 'CUST-SARAH', 'CUST-CATHERINE', 'CUST-AMARA',
-        'CUST-JULIAN', 'CUST-DAVID', 'CUST-PRIYA', 'CUST-ELENA',
-        'CUST-THOMAS', 'CUST-MICHAEL', 'CUST-RACHEL', 'CUST-KEVIN'
-     );
 
     -- The operator walkthrough asks about exactly these two items. If the
     -- catalog seeder did not load the house bucket, the JOIN above silently
@@ -268,44 +137,11 @@ BEGIN
      WHERE o.customer_id = 'CUST-JESSICA'
        AND pc."productId" IN ('41', '42');
 
-    -- The stored rung must still agree with the thresholds documented at the
-    -- top of this file. If someone edits a spend figure without moving the
-    -- rung, a policy decision would be made on a contradiction.
-    SELECT COUNT(*) INTO n_drift
-      FROM pellier.customers
-     WHERE id <> 'CUST-FRESH'
-       AND (
-             (spend_12mo <  1500 AND membership <> 'registered')
-          OR (spend_12mo >= 1500 AND spend_12mo <= 7500 AND membership <> 'circle')
-          OR (spend_12mo >  7500 AND membership <> 'maison')
-       );
-
-    SELECT COUNT(DISTINCT membership) INTO n_rungs FROM pellier.customers;
-
-    -- The book is balanced on purpose: five clients on each rung, so the
-    -- operator console shows a real distribution rather than a pile of one tier
-    -- with two token examples. CUST-FRESH is the empty-state persona and has no
-    -- rung to speak of, so it is excluded here exactly as it is from n_drift.
-    SELECT COUNT(*) INTO n_registered FROM pellier.customers
-     WHERE membership = 'registered' AND id NOT IN ('CUST-FRESH', 'theo');
-    SELECT COUNT(*) INTO n_circle FROM pellier.customers
-     WHERE membership = 'circle' AND id NOT IN ('CUST-FRESH', 'theo');
-    SELECT COUNT(*) INTO n_maison FROM pellier.customers
-     WHERE membership = 'maison' AND id NOT IN ('CUST-FRESH', 'theo');
-
-    IF n_clients < 15 THEN
+    IF n_clients <> 4 THEN
         RAISE EXCEPTION
-            'Client book has only % customers (expected >= 15). '
-            'Check that 003_persona_seed.sql ran before this migration.',
-            n_clients;
-    END IF;
-
-    IF n_orders < 46 THEN
-        RAISE EXCEPTION
-            'Client book produced only % orders (expected 46). '
-            'Most likely cause: pellier.product_catalog is missing the house '
-            'and signature buckets (IDs 41-60), so the ID JOIN matched '
-            'nothing. Re-run scripts/seed_pellier_catalog.py.', n_orders;
+            'Client book has % customers (expected exactly 4: Marco, Anna, '
+            'Theo, Jessica). Check that 003_persona_seed.sql ran before this '
+            'migration.', n_clients;
     END IF;
 
     IF n_jessica < 2 THEN
@@ -315,31 +151,7 @@ BEGIN
             '"Waffle Bath Robe, Sage" in pellier.product_catalog.', n_jessica;
     END IF;
 
-    IF n_drift > 0 THEN
-        RAISE EXCEPTION
-            '% customer(s) have a membership rung that contradicts '
-            'spend_12mo. Thresholds: registered < 1500, circle 1500-7500, '
-            'maison > 7500.', n_drift;
-    END IF;
-
-    IF n_rungs < 3 THEN
-        RAISE EXCEPTION
-            'Only % distinct membership rung(s) present (expected 3). The '
-            'storefront demonstrates the whole ladder through the three hero '
-            'personas, so all of registered/circle/maison must exist.', n_rungs;
-    END IF;
-
-    IF n_registered <> 5 OR n_circle <> 5 OR n_maison <> 5 THEN
-        RAISE EXCEPTION
-            'Membership ladder is unbalanced: % registered, % circle, % maison '
-            '(expected 5/5/5). Moving a client between rungs means moving '
-            'spend_12mo into the matching band as well, or the n_drift check '
-            'above fires instead.',
-            n_registered, n_circle, n_maison;
-    END IF;
-
-    RAISE NOTICE 'Client book ready: % customers, % orders, % rungs (%/%/% split)',
-        n_clients, n_orders, n_rungs, n_registered, n_circle, n_maison;
+    RAISE NOTICE 'Client book ready: % customers', n_clients;
 END $$;
 
 COMMIT;

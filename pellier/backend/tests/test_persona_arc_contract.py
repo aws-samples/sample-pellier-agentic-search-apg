@@ -65,7 +65,6 @@ ARC = {
         # never supplies either value as an identity claim.
         "customer_ids": ("CUST-THEO", "theo"),
         "membership": "registered",
-        "spend_12mo": 940.00,
         "product_id": 37,
         "product_name": "Wabi-Sabi Bowl",
         "reason": "damaged",
@@ -215,8 +214,8 @@ def test_theo_is_registered_and_that_is_intentional() -> None:
     """
     sql = (MIGRATIONS / "018_client_book.sql").read_text()
     assert (
-        "UPDATE pellier.customers SET membership = 'registered', spend_12mo =  940.00 "
-        "WHERE id = 'CUST-THEO';" in sql
+        "UPDATE pellier.customers SET membership = 'registered' WHERE id = 'CUST-THEO';"
+        in sql
     )
     assert "platinum" not in sql.lower(), "Pellier's ladder has no platinum rung"
 
@@ -336,7 +335,7 @@ def test_membership_is_stored_on_the_customer_not_derived_per_request() -> None:
     """Policy must read a stable, auditable value."""
     sql = (MIGRATIONS / "018_client_book.sql").read_text()
     assert "ADD COLUMN IF NOT EXISTS membership TEXT" in sql
-    assert "ADD COLUMN IF NOT EXISTS spend_12mo" in sql
+    assert "DROP COLUMN IF EXISTS spend_12mo" in sql
 
 
 def test_the_arc_fixture_map_is_serialisable() -> None:

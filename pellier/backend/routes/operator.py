@@ -117,7 +117,9 @@ _BOOK_SELECT = """
         c.id                                   AS customer_id,
         c.name                                 AS name,
         c.membership                           AS membership,
-        c.spend_12mo                           AS spend_12mo,
+        COALESCE(SUM(o.amount_paid_cents * o.quantity)
+                 FILTER (WHERE o.placed_at > now() - interval '365 days'), 0) / 100.0
+                                               AS spend_12mo,
         c.preferences_summary                  AS preferences_summary,
         COUNT(o.id)                            AS order_count,
         COALESCE(SUM(o.amount_paid_cents * o.quantity), 0) / 100.0 AS order_value,
@@ -144,9 +146,9 @@ _BOOK_SELECT = """
      -- the query reaches Postgres.
      WHERE left(c.id, 5) = 'CUST-'
        AND c.id <> 'CUST-FRESH'
-     GROUP BY c.id, c.name, c.membership, c.spend_12mo, c.preferences_summary,
+     GROUP BY c.id, c.name, c.membership, c.preferences_summary,
               t.subject, t.status
-     ORDER BY c.spend_12mo DESC, c.name ASC
+     ORDER BY spend_12mo DESC, c.name ASC
 """
 
 _CLIENT_SELECT = """
@@ -154,7 +156,10 @@ _CLIENT_SELECT = """
         c.id                  AS customer_id,
         c.name                AS name,
         c.membership          AS membership,
-        c.spend_12mo          AS spend_12mo,
+        (SELECT COALESCE(SUM(o.amount_paid_cents * o.quantity)
+                         FILTER (WHERE o.placed_at > now() - interval '365 days'), 0) / 100.0
+           FROM pellier.orders o
+          WHERE o.customer_id = c.id) AS spend_12mo,
         c.preferences_summary AS preferences_summary
       FROM pellier.customers c
      WHERE c.id = %s

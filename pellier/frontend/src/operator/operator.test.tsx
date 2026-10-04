@@ -189,7 +189,7 @@ describe('ClientBook', () => {
     expect(MEMBERSHIP.circle.label).toBe('Silver')
   })
 
-  it('defines each rung with its threshold and what it earns', async () => {
+  it('defines each rung by what it earns', async () => {
     render(
       <MemoryRouter>
         <ClientBook />
@@ -199,11 +199,9 @@ describe('ClientBook', () => {
 
     // The pills are jargon without this: an operator can read "Gold" and
     // still not know what the house owes that client.
-    expect(ladder).toHaveTextContent('Above $7,500 in 12 months')
     expect(ladder).toHaveTextContent(
       'Private appointments, repairs, and a dedicated advisor',
     )
-    expect(ladder).toHaveTextContent('Under $1,500 in 12 months')
   })
 
   it('filters the book to one rung when its cell is pressed', async () => {

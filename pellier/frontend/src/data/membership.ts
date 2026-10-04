@@ -39,13 +39,6 @@ interface MembershipDetail {
   descriptor: string
   /** What the rung earns, in Pellier's register. One clause, no exclamation. */
   earns: string
-  /**
-   * How the rung is reached, as an operator would state it. Mirrors the
-   * thresholds documented and enforced in
-   * scripts/migrations/018_client_book.sql, whose verification block fails if a
-   * stored rung ever contradicts them.
-   */
-  threshold: string
   /** Ascending rank, for comparisons. Never shown. */
   rank: number
 }
@@ -55,21 +48,18 @@ export const MEMBERSHIP: Record<Membership, MembershipDetail> = {
     label: 'Member',
     descriptor: 'standard client',
     earns: 'Order history and saved sizes',
-    threshold: 'Under $1,500 in 12 months',
     rank: 0,
   },
   circle: {
     label: 'Silver',
     descriptor: 'priority client',
     earns: 'Early access and free returns',
-    threshold: '$1,500 to $7,500 in 12 months',
     rank: 1,
   },
   maison: {
     label: 'Gold',
     descriptor: 'private client',
     earns: 'Private appointments, repairs, and a dedicated advisor',
-    threshold: 'Above $7,500 in 12 months',
     rank: 2,
   },
 }

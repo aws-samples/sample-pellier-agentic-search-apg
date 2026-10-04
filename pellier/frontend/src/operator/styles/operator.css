@@ -756,17 +756,9 @@
   color: var(--op-ink-2);
 }
 
-.operator-ladder-threshold {
-  display: block;
-  margin-top: 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--op-faint);
-}
-
 .operator-ladder-earns {
   display: block;
-  margin-top: 5px;
+  margin-top: 10px;
   font-size: 13px;
   line-height: 1.45;
   color: var(--op-ink-2);

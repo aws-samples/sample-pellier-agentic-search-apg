@@ -38,3 +38,30 @@ def test_repricing_never_rewrites_history(fresh_db):
         )
     assert updated.splitlines() == ["42", "UPDATE 1"]
     assert before == after == "6400"
+
+
+def test_exactly_four_clients_and_the_anonymous_profile(fresh_db):
+    ids = set(fresh_db.psql("SELECT id FROM pellier.customers").split("\n"))
+    assert ids == {"CUST-MARCO", "CUST-ANNA", "CUST-THEO", "CUST-JESSICA", "CUST-FRESH", "theo"}
+
+
+def test_spend_is_computed_not_stored(fresh_db):
+    assert fresh_db.psql(
+        "SELECT count(*) FROM information_schema.columns WHERE table_schema='pellier' "
+        "AND table_name='customers' AND column_name='spend_12mo'") == "0"
+
+
+def test_tickets_tell_theo_and_jessica_stories(fresh_db):
+    rows = fresh_db.psql("SELECT ticket_id, customer_id, status FROM pellier.support_tickets ORDER BY ticket_id")
+    assert rows.split("\n") == [
+        "TKT-2026-1874|CUST-THEO|resolved",
+        "TKT-2026-3015|CUST-JESSICA|pending",
+        "TKT-2026-5021|CUST-THEO|open",
+    ]
+    assert fresh_db.psql("SELECT count(*) FROM pellier.store_credits") == "0"
+
+
+def test_reset_restores_the_same_people_and_tickets(fresh_db):
+    run_reset(fresh_db)
+    test_exactly_four_clients_and_the_anonymous_profile(fresh_db)
+    test_tickets_tell_theo_and_jessica_stories(fresh_db)

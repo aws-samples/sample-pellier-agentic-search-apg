@@ -180,14 +180,14 @@ def test_derivative_widths_are_symmetric_across_formats(result) -> None:
 
 
 def test_client_portraits_are_derived_from_the_slug_list(audit_module) -> None:
-    """A 13th client without a portrait must fail here.
+    """A client slug without a portrait must fail here.
 
     The filenames are composed at runtime, so no literal exists to grep. Reading
     ``CLIENT_SLUGS`` out of the module is what makes the templated family checkable at
-    all, and it is how the twenty-four untracked portraits were found.
+    all. Jessica is the one client with a portrait, in two sizes.
     """
     names = audit_module.client_portrait_names()
-    assert len(names) >= 24, names
+    assert len(names) == 2, names
     assert "client-jessica-portrait-160.webp" in names
     assert "client-jessica-portrait-480.webp" in names
     for name in names:

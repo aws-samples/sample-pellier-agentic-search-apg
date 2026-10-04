@@ -29,7 +29,7 @@ Three kinds of reference, because the app builds image URLs three ways:
    ``derive_product_variants.widths_for``.
 3. **Templated** - ``personaPhotos.ts`` composes client portrait filenames from
    a slug list at runtime. No literal exists to grep, so the slug list is read
-   out of that module: adding a 13th client without its portrait must fail here
+   out of that module: adding a client slug without its portrait must fail here
    rather than resolve to an initial circle in production.
 
 Usage

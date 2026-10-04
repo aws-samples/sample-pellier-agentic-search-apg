@@ -51,8 +51,7 @@ export const PERSONA_MODAL_PORTRAITS: Record<string, string> = {
  * shopper.
  */
 const CLIENT_SLUGS = [
-  'jessica', 'sarah', 'catherine', 'amara', 'julian', 'david',
-  'priya', 'elena', 'thomas', 'michael', 'rachel', 'kevin',
+  'jessica',
 ] as const
 
 function clientMap(size: 160 | 480): Record<string, string> {

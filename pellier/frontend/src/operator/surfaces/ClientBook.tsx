@@ -349,9 +349,6 @@ const ClientBook: React.FC<{ intent?: 'record' | 'chat' }> = ({ intent = 'record
                 </span>
                 <span className="operator-ladder-count">{count}</span>
               </span>
-              <span className="operator-ladder-threshold">
-                {MEMBERSHIP[rung].threshold}
-              </span>
               <span className="operator-ladder-earns">
                 {MEMBERSHIP[rung].earns}
               </span>

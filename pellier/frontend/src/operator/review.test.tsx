@@ -618,7 +618,9 @@ describe('ReviewRecord', () => {
     expect(header.textContent).toContain('Theo')
     expect(header.textContent).toContain('Member')
     expect(header.textContent).toContain('standard client')
-    expect(header.textContent).toContain('$940.00 in 12 months')
+    expect(header.textContent).toContain(
+      `$${REVIEW_DETAIL.client.spend12mo.toFixed(2)} in 12 months`,
+    )
     expect(screen.getByTestId('operator-rung-registered')).toBeInTheDocument()
   })
 

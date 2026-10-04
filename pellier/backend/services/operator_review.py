@@ -652,9 +652,13 @@ async def decide_review(
 # ---------------------------------------------------------------------------
 
 _CUSTOMER_SELECT = """
-    SELECT id, name, membership, spend_12mo, preferences_summary
-      FROM pellier.customers
-     WHERE id = %s
+    SELECT c.id, c.name, c.membership, c.preferences_summary,
+           (SELECT COALESCE(SUM(o.amount_paid_cents * o.quantity)
+                            FILTER (WHERE o.placed_at > now() - interval '365 days'), 0) / 100.0
+              FROM pellier.orders o
+             WHERE o.customer_id = c.id) AS spend_12mo
+      FROM pellier.customers c
+     WHERE c.id = %s
 """
 
 _ORDER_SELECT = """
