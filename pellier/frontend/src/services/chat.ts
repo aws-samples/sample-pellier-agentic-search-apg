@@ -339,6 +339,12 @@ export async function sendChatMessageStreaming(
    * answers to both the timeout below and the caller's own lifecycle.
    */
   signal?: AbortSignal,
+  /**
+   * How the agent gets its skills. `fixed` carries them in the prompt;
+   * `on_demand` is the Builder view's flex, in-process only. The managed
+   * rail ignores it and says so on its Router step.
+   */
+  skillMode: 'fixed' | 'on_demand' = 'fixed',
 ): Promise<ChatResponse> {
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
@@ -375,6 +381,7 @@ export async function sendChatMessageStreaming(
         workshop_mode: workshopMode || null,
         guardrails_enabled: guardrailsEnabled || false,
         customer_id: customerId ?? null,
+        skill_mode: skillMode,
       }),
     })
 

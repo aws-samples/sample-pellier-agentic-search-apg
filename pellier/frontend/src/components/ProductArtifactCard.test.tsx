@@ -17,8 +17,9 @@ describe('ProductArtifactCard shopping details', () => {
     render(<ProductArtifactCard product={PRODUCT} />)
 
     const details = screen.getByLabelText('Shopping details')
-    expect(within(details).getByText('Stock')).toBeInTheDocument()
-    expect(within(details).getByText('Not verified')).toBeInTheDocument()
+    const tag = within(details).getByTestId('status-tag')
+    expect(tag).toHaveTextContent('Not verified')
+    expect(tag).toHaveAttribute('data-tone', 'pending')
     expect(within(details).queryByText('Checked')).not.toBeInTheDocument()
   })
 
@@ -48,7 +49,9 @@ describe('ProductArtifactCard shopping details', () => {
     )
 
     const details = screen.getByLabelText('Shopping details')
-    expect(within(details).getByText('4 available')).toBeInTheDocument()
+    const tag = within(details).getByTestId('status-tag')
+    expect(tag).toHaveTextContent('In stock')
+    expect(tag).toHaveAttribute('data-tone', 'good')
   })
 
   it('does not turn an unresolved catalog quantity into an availability claim', () => {
@@ -63,7 +66,9 @@ describe('ProductArtifactCard shopping details', () => {
       />,
     )
 
-    expect(within(screen.getByLabelText('Shopping details')).getByText('Not verified')).toBeInTheDocument()
+    const tag = within(screen.getByLabelText('Shopping details')).getByTestId('status-tag')
+    expect(tag).toHaveTextContent('Not verified')
+    expect(tag).toHaveAttribute('data-tone', 'pending')
   })
 
   it('treats a prior purchase as collection context, not an item for sale', () => {
@@ -76,5 +81,15 @@ describe('ProductArtifactCard shopping details', () => {
 
     expect(screen.getByText('Already in your collection')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add to bag' })).toBeNull()
+  })
+})
+
+
+describe('ProductArtifactCard stock tag', () => {
+  it('is red for a sold-out piece and green for an in-stock one', () => {
+    render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 0, inStock: false, availability: { status: 'reconciled_out_of_stock', availableQuantity: 0 } }} />)
+    const soldOut = within(screen.getByLabelText('Shopping details')).getByTestId('status-tag')
+    expect(soldOut).toHaveTextContent('Sold out')
+    expect(soldOut).toHaveAttribute('data-tone', 'blocked')
   })
 })

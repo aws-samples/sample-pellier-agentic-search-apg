@@ -62,6 +62,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-right: auto;
+}
+.cd-head .tn-switches {
+  align-self: center;
+  max-width: 220px;
 }
 .cd-head-eyebrow {
   font-family: var(--sans);
@@ -235,14 +240,6 @@
 .cd-send:active:not(:disabled) {
   transform: scale(0.96);
 }
-.cd-send[data-loading='true'] svg {
-  animation: cd-send-spin 900ms linear infinite;
-}
-@keyframes cd-send-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 .cd-send:disabled {
   opacity: 0.4;
   cursor: default;
@@ -349,8 +346,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cd-send,
-  .cd-input-row,
-  .cd-send[data-loading='true'] svg {
+  .cd-input-row {
     animation: none;
     transition: none;
   }
@@ -466,7 +462,8 @@
 .cd-drawer .sf-action-arrow { flex-shrink: 0; }
 .cd-drawer .ec-persona-cover { height: 100px; }
 @media (max-width: 767.98px) {
-  .cd-head { padding: 14px 18px 12px; }
+  .cd-head { padding: 14px 18px 12px; flex-wrap: wrap; }
+  .cd-head .tn-switches { order: 3; width: 100%; max-width: none; justify-content: flex-start; margin-top: 4px; }
   .cd-body { padding: 16px 18px; }
   .cd-session-details > summary { padding-inline: 18px; }
   .cd-drawer .sf-cover { height: auto; aspect-ratio: 16 / 9; }

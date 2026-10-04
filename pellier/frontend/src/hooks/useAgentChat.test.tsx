@@ -38,15 +38,28 @@ vi.mock('../services/chat', () => ({
   checkBackendHealth: vi.fn().mockResolvedValue(true),
   normalizeChatError: vi.fn((error: unknown) => error),
   sendChatMessageStreaming: vi.fn(
-    (_q: string, _h: unknown, onUpdate: (d: unknown) => void) => {
+    (
+      _q: string,
+      _h: unknown,
+      onUpdate: (d: unknown) => void,
+      _mode?: unknown,
+      _guardrails?: unknown,
+      _customer?: unknown,
+      signal?: AbortSignal,
+    ) => {
       capturedOnUpdate = onUpdate
       if (nextStreamFailure) {
         const failure = nextStreamFailure
         nextStreamFailure = null
         return Promise.reject(failure)
       }
-      return new Promise(resolve => {
+      return new Promise((resolve, reject) => {
         releaseStream = resolve as typeof releaseStream
+        signal?.addEventListener('abort', () => {
+          const error = new Error('aborted')
+          error.name = 'AbortError'
+          reject(error)
+        })
       })
     },
   ),
@@ -69,7 +82,7 @@ describe('useAgentChat — StrictMode purity', () => {
   })
 
   it('appends content_delta tokens exactly once under StrictMode', async () => {
-    const { result } = renderHook(() => useAgentChat({ mode: 'storefront' }), {
+    const { result } = renderHook(() => useAgentChat(), {
       wrapper,
     })
 
@@ -104,7 +117,7 @@ describe('useAgentChat — StrictMode purity', () => {
   })
 
   it('content_reset clears content without doubling subsequent deltas', async () => {
-    const { result } = renderHook(() => useAgentChat({ mode: 'observatory' }), {
+    const { result } = renderHook(() => useAgentChat(), {
       wrapper,
     })
 
@@ -131,7 +144,7 @@ describe('useAgentChat — StrictMode purity', () => {
   })
 
   it('product dedupe survives double-invocation (single product added once)', async () => {
-    const { result } = renderHook(() => useAgentChat({ mode: 'observatory' }), {
+    const { result } = renderHook(() => useAgentChat(), {
       wrapper,
     })
 
@@ -161,7 +174,7 @@ describe('useAgentChat — StrictMode purity', () => {
       retryable: true,
       referenceId: 'turn-timeout-1',
     }
-    const { result } = renderHook(() => useAgentChat({ mode: 'storefront' }), {
+    const { result } = renderHook(() => useAgentChat(), {
       wrapper,
     })
 
@@ -220,7 +233,7 @@ describe('useAgentChat — unmount mid-stream', () => {
   it('aborts the in-flight turn on unmount', async () => {
     const abortSpy = vi.spyOn(AbortController.prototype, 'abort')
     const { result, unmount } = renderHook(
-      () => useAgentChat({ mode: 'storefront' }),
+      () => useAgentChat(),
       { wrapper },
     )
 
@@ -236,9 +249,9 @@ describe('useAgentChat — unmount mid-stream', () => {
     abortSpy.mockRestore()
   })
 
-  it('does not write a "latest" localStorage key from an event that arrives after unmount', async () => {
+  it('ignores a step event that arrives after unmount', async () => {
     const { result, unmount } = renderHook(
-      () => useAgentChat({ mode: 'storefront' }),
+      () => useAgentChat(),
       { wrapper },
     )
 
@@ -251,16 +264,16 @@ describe('useAgentChat — unmount mid-stream', () => {
 
     // Simulate the mock stream's fetch resolving its next chunk anyway --
     // this is exactly what a real unaborted fetch would keep doing.
-    act(() => {
-      capturedOnUpdate?.({ type: 'skill_routing', skill: 'style', confidence: 0.92 })
-    })
-
-    expect(localStorage.getItem('pellier-skill-routing-latest')).toBeNull()
+    expect(() => {
+      act(() => {
+        capturedOnUpdate?.({ type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running', tags: ['Aurora'] })
+      })
+    }).not.toThrow()
   })
 
   it('does not update messages/isLoading from a response that resolves after unmount', async () => {
     const { result, unmount } = renderHook(
-      () => useAgentChat({ mode: 'storefront' }),
+      () => useAgentChat(),
       { wrapper },
     )
 
@@ -279,5 +292,82 @@ describe('useAgentChat — unmount mid-stream', () => {
         resolve?.({ response: 'too late', products: [], suggestions: [] })
       })
     }).not.toThrow()
+  })
+})
+
+
+describe('useAgentChat — the step contract', () => {
+  beforeEach(() => {
+    capturedOnUpdate = null
+    releaseStream = null
+    nextStreamFailure = null
+    localStorage.clear()
+  })
+
+  it('keeps the status line and merges steps by id from real events', async () => {
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+    act(() => {
+      void result.current.sendMessage('a housewarming gift')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    expect(result.current.messages.at(-1)?.status).toEqual({ label: 'Sending your request', state: 'working' })
+
+    act(() => {
+      capturedOnUpdate!({ type: 'status', label: 'Understanding your request' })
+      capturedOnUpdate!({ type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Shopping agent', tags: ['Router'] })
+      capturedOnUpdate!({ type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running', tags: ['Aurora'] })
+      capturedOnUpdate!({ type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', finding: '4 under $100', tags: ['Aurora'], builder: { tool: 'search_products' } })
+      capturedOnUpdate!({ type: 'status', label: 'Writing your answer' })
+    })
+
+    await waitFor(() => {
+      const last = result.current.messages.at(-1)
+      expect(last?.status).toEqual({ label: 'Writing your answer', state: 'working' })
+      expect(last?.steps?.map(step => [step.id, step.status, step.finding])).toEqual([
+        ['route', 'done', 'Sent to the Shopping agent'],
+        ['step-1', 'done', '4 under $100'],
+      ])
+    })
+
+    act(() => {
+      releaseStream?.({ response: 'Start with the mugs.', products: [], suggestions: [] })
+    })
+    await waitFor(() => {
+      expect(result.current.messages.at(-1)?.status?.state).toBe('done')
+      expect(result.current.messages.at(-1)?.agentStatus).toBe('complete')
+    })
+  })
+
+  it('marks the turn it opened as live and strips the flag from history', async () => {
+    localStorage.setItem('k', JSON.stringify([
+      { role: 'assistant', content: 'old', timestamp: new Date().toISOString(), agentStatus: 'complete', live: true },
+    ]))
+    const { result } = renderHook(() => useAgentChat({ persistKey: 'k' }), { wrapper })
+    expect(result.current.messages[0].live).toBeUndefined()
+    act(() => {
+      void result.current.sendMessage('a linen shirt')
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.live).toBe(true))
+  })
+
+  it('stop keeps the text so far and records no failure', async () => {
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+    act(() => {
+      void result.current.sendMessage('a linen shirt')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({ type: 'content_delta', delta: 'Start with the Hadley' })
+    })
+    act(() => {
+      result.current.stopTurn()
+    })
+    await waitFor(() => {
+      const last = result.current.messages.at(-1)
+      expect(last?.stopped).toBe(true)
+      expect(last?.content).toBe('Start with the Hadley')
+      expect(last?.failure).toBeUndefined()
+      expect(last?.status).toEqual({ label: 'Stopped', state: 'done' })
+    })
   })
 })

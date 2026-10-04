@@ -14,7 +14,9 @@ import { Heart } from 'lucide-react'
 import type { ChatProduct } from '../services/chat'
 import { imageSrc } from '../utils/assetPath'
 import { productQuickActions } from '../utils/catalogFollowUps'
+import StatusTag, { type TagTone } from './turn/StatusTag'
 import '../styles/product-artifact.css'
+import '../styles/turn.css'
 
 interface ProductArtifactCardProps {
   product: ChatProduct
@@ -29,9 +31,9 @@ interface CommerceSignal {
 }
 
 function confirmedAvailabilityLabel(quantity: number | null | undefined): string {
-  if (typeof quantity !== 'number') return 'Available'
+  if (typeof quantity !== 'number') return 'In stock'
   if (quantity <= 3) return `Only ${quantity} left`
-  return `${quantity} available`
+  return 'In stock'
 }
 
 function availabilitySignal(product: ChatProduct): string {
@@ -56,17 +58,25 @@ function availabilitySignal(product: ChatProduct): string {
   if (product.inStock === false || product.quantity === 0) return 'Sold out'
   if (typeof product.quantity === 'number') {
     if (product.quantity <= 3) return `Only ${product.quantity} left`
-    if (product.quantity <= 10) return `${product.quantity} available`
-    return 'Available'
+    return 'In stock'
   }
-  if (product.inStock === true) return 'Available'
+  if (product.inStock === true) return 'In stock'
   return 'Not verified'
 }
 
+/** Green for in stock, red for sold out, grey when stock was not read. */
+export function stockTone(product: ChatProduct): TagTone {
+  const status = product.availability?.status
+  if (status === 'reconciled_in_stock' || status === 'observed_in_stock') return 'good'
+  if (status === 'reconciled_out_of_stock' || status === 'observed_out_of_stock') return 'blocked'
+  if (status) return 'pending'
+  if (product.inStock === false || product.quantity === 0) return 'blocked'
+  if (product.inStock === true || (typeof product.quantity === 'number' && product.quantity > 0)) return 'good'
+  return 'pending'
+}
+
 function commerceSignals(product: ChatProduct): CommerceSignal[] {
-  const signals: CommerceSignal[] = [
-    { label: 'Stock', value: availabilitySignal(product) },
-  ]
+  const signals: CommerceSignal[] = []
   if (product.category) {
     signals.push({ label: 'Category', value: product.category })
   }
@@ -162,6 +172,7 @@ export default function ProductArtifactCard({
         {/* Stock lives here, in the labelled pill row, and only here: a second
             bare "8 left" in the meta line above read as a repeated claim. */}
         <div className="pa-commerce" aria-label="Shopping details">
+          <StatusTag tone={stockTone(product)}>{availabilitySignal(product)}</StatusTag>
           {signals.map((signal) => (
             <span key={signal.label} className="pa-commerce-pill">
               <span>{signal.label}</span>

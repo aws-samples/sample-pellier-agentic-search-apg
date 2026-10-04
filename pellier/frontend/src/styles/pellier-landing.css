@@ -53,6 +53,15 @@
   /* Signature copper: light on chocolate, deeper on the selected ivory pill. */
   --pellier-copper-on-dark: #da9562;
   --pellier-copper: #9a4d20;
+  --pellier-copper-tint: #f6ece3;
+  /* Status tags, AA pairs. Green is good or done, red is blocked or needing
+     attention, grey is pending. Copper is never a status color. */
+  --pellier-tag-good-ink: #2f6b1a;
+  --pellier-tag-good-bg: #e7f2df;
+  --pellier-tag-blocked-ink: #a12a2a;
+  --pellier-tag-blocked-bg: #fbe6e4;
+  --pellier-tag-pending-ink: var(--dl-ink-2);
+  --pellier-tag-pending-bg: var(--dl-paper-2);
 
   /* Editorial rhythm for the landing bands. */
   --pellier-band-y: clamp(48px, 5.5vw, 88px);

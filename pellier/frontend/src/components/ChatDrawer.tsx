@@ -26,8 +26,8 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  LoaderCircle,
   MessageCircle,
+  Square,
   Trash2,
   X,
 } from 'lucide-react'
@@ -44,7 +44,9 @@ import PellierChatBody from './PellierChatBody'
 import PellierWelcome from './PellierWelcome'
 import PersonaModal from './PersonaModal'
 import StatusLines from './StatusLines'
+import { BuilderViewSwitch, useBuilderView, useSkillMode } from './turn'
 import '../styles/chat-drawer.css'
+import '../styles/turn.css'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -126,14 +128,18 @@ export default function ChatDrawer() {
     isLoading,
     sendMessage,
     retryMessage,
+    stopTurn,
     clearChat,
   } = useAgentChat({
-    mode: 'storefront',
     guardrailsEnabled,
     initialMessages,
     persistKey: 'pellier-drawer-storefront',
     sessionId: currentSessionId,
   })
+
+  // Builder view and the on-demand skills flex: off by default, per browser.
+  const [builderView, setBuilderView] = useBuilderView()
+  const [skillMode, setSkillMode] = useSkillMode()
 
   // Conversation, draft, and reading position belong to the current persona.
   const prevPersonaId = useRef(persona?.id ?? null)
@@ -341,6 +347,12 @@ export default function ChatDrawer() {
                   <span>Your shopping concierge</span>
                 </div>
               </div>
+              <BuilderViewSwitch
+                builderView={builderView}
+                onBuilderView={setBuilderView}
+                skillMode={skillMode}
+                onSkillMode={setSkillMode}
+              />
               <button
                 type="button"
                 className="cd-close"
@@ -389,6 +401,7 @@ export default function ChatDrawer() {
                   onAuthenticate={() => openModal('auth')}
                   addToCart={addToCart}
                   persona={persona}
+                  builderView={builderView}
                 />
               )}
               </div>
@@ -420,14 +433,14 @@ export default function ChatDrawer() {
                 <button
                   type="button"
                   className="cd-send"
-                  disabled={!inputValue.trim() || isLoading}
-                  aria-label={isLoading ? 'Pellier is responding' : 'Ask Pellier'}
-                  title={isLoading ? 'Pellier is responding' : 'Ask Pellier'}
+                  disabled={!isLoading && !inputValue.trim()}
+                  aria-label={isLoading ? 'Stop' : 'Ask Pellier'}
+                  title={isLoading ? 'Stop' : 'Ask Pellier'}
                   data-loading={isLoading}
-                  onClick={() => sendMessage()}
+                  onClick={() => (isLoading ? stopTurn() : sendMessage())}
                 >
                   {isLoading ? (
-                    <LoaderCircle size={16} aria-hidden="true" />
+                    <Square size={11} fill="currentColor" aria-hidden="true" />
                   ) : (
                     <ArrowUp size={16} aria-hidden="true" />
                   )}
@@ -435,7 +448,7 @@ export default function ChatDrawer() {
               </div>
               <div className="cd-foot-meta">
                 <span id="cd-composer-hint">
-                  {isLoading ? 'Pellier is responding. You can draft your next question.' : 'Enter to send · Shift+Enter for a new line'}
+                  {isLoading ? 'Looking through the collection. You can draft your next question.' : 'Enter to send, Shift+Enter for a new line'}
                 </span>
                 <span className="cd-keyboard-hint">Esc to close</span>
               </div>
