@@ -1,13 +1,12 @@
 /**
- * PellierServiceStrip - retail assurances plus the Labs doorway.
+ * PellierServiceStrip - retail assurances.
  *
  * The shipping and returns figures match `FOOTER.BOTTOM_STRIP.SERVICE_ITEMS`. If
  * one changes, change both: two different numbers for the same policy is the
  * kind of quiet contradiction a participant notices.
  */
-import { ArrowRight, Gift, Headset, RotateCcw, Truck } from 'lucide-react'
+import { Gift, Headset, RotateCcw, Truck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { SERVICE_STRIP } from '../copy'
 
 /** Icons are positional, matching `SERVICE_STRIP.ITEMS` order. */
@@ -36,19 +35,6 @@ export default function PellierServiceStrip() {
           )
         })}
 
-        <Link
-          to={SERVICE_STRIP.LABS.href}
-          className="pellier-service pellier-service-labs"
-          data-testid="service-strip-labs"
-        >
-          <span className="pellier-service-copy">
-            <strong>{SERVICE_STRIP.LABS.title}</strong>
-            <span>{SERVICE_STRIP.LABS.body}</span>
-          </span>
-          <span className="pellier-service-labs-arrow" aria-hidden="true">
-            <ArrowRight size={15} strokeWidth={1.8} />
-          </span>
-        </Link>
       </div>
     </section>
   )

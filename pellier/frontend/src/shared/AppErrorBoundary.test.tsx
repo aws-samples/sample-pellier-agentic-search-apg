@@ -14,7 +14,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppErrorBoundary from './AppErrorBoundary'
-import ObservatoryErrorBoundary from '../observatory/shell/ObservatoryErrorBoundary'
 
 function Bomb(): never {
   throw new Error('boom: simulated render failure')
@@ -74,7 +73,7 @@ describe('AppErrorBoundary', () => {
     expect(screen.queryByText(/lab progress/i)).not.toBeInTheDocument()
   })
 
-  for (const [name, Boundary] of [['App', AppErrorBoundary], ['Observatory', ObservatoryErrorBoundary]] as const) {
+  for (const [name, Boundary] of [['App', AppErrorBoundary]] as const) {
     it(`${name} recovers from a failed route when navigation changes`, () => {
       const { rerender } = render(
         <MemoryRouter><Boundary resetKey="/failed"><Bomb /></Boundary></MemoryRouter>,

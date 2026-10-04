@@ -32,11 +32,7 @@ export type { EmptyStateProps } from './EmptyState'
 export { TraceChip } from './TraceChip'
 export type { TraceChipProps } from './TraceChip'
 
-export { SurfaceCrossLink } from './SurfaceCrossLink'
-export type { SurfaceCrossLinkProps, CrossLinkDirection } from './SurfaceCrossLink'
 
-export { PresencePill } from './PresencePill'
-export type { PresencePillProps, PresenceSurface, PresenceMode } from './PresencePill'
 
 export {
   AGENT_VOCABULARY,
@@ -65,15 +61,3 @@ export type {
   RailDecision,
   RailDegradation,
 } from './governedTypes'
-
-export {
-  TURN_QUERY_KEY,
-  pellierRoute,
-  inspectorHref,
-  inspectorRoute,
-  receiptHref,
-  receiptRoute,
-  turnIdFromSearch,
-} from './governedReceipt'
-export type { ReceiptTarget } from './governedReceipt'
-

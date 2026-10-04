@@ -16,7 +16,7 @@
  *   3. Receipt links are base-path safe and never invent a route. Workshop
  *      Studio serves the SPA behind a `/ports/8000/` proxy.
  */
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 import { GovernedSeal } from '../GovernedSeal'
@@ -28,12 +28,6 @@ import {
   resolveRailState,
   type RailDecision,
 } from '../governedTypes'
-import {
-  TURN_QUERY_KEY,
-  inspectorRoute,
-  receiptRoute,
-  turnIdFromSearch,
-} from '../governedReceipt'
 
 function rail(overrides: Partial<RailDecision> = {}): RailDecision {
   return {
@@ -254,61 +248,5 @@ describe('provenance vocabulary', () => {
     expect(PROVENANCE_DETAIL.fixture).toMatch(/describes no run/)
     expect(PROVENANCE_DETAIL.modeled).toMatch(/not observed/)
     expect(PROVENANCE_DETAIL.unavailable).toMatch(/not provisioned/)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Receipt links
-// ---------------------------------------------------------------------------
-describe('receipt links', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
-  it('routes a known session to its telemetry evidence', () => {
-    const route = receiptRoute({ sessionId: 'sess-1' })
-
-    expect(route).toBe('/observatory/sessions/sess-1/telemetry')
-  })
-
-  it('carries the turn id as a query parameter', () => {
-    const route = receiptRoute({ sessionId: 'sess-1', turnId: 'turn-9' })
-
-    expect(route).toContain(`${TURN_QUERY_KEY}=turn-9`)
-  })
-
-  it('falls back to a real evidence route when the session is unknown', () => {
-    // An invented session id would land the attendee on a dead view.
-    expect(receiptRoute({})).toBe('/observatory/audit-proof')
-    expect(receiptRoute({ sessionId: null })).toBe('/observatory/audit-proof')
-  })
-
-  it('encodes session ids that contain URL-unsafe characters', () => {
-    const route = receiptRoute({ sessionId: 'anon/with space' })
-
-    expect(route).toContain('anon%2Fwith%20space')
-  })
-
-  it('omits absent identifiers instead of emitting empty params', () => {
-    const route = receiptRoute({ sessionId: 'sess-1', turnId: null, traceId: null })
-
-    expect(route).not.toContain('?')
-  })
-
-  it('routes the inspector by session query, matching the real route', () => {
-    expect(inspectorRoute({ sessionId: 'sess-2' })).toBe(
-      '/inspector?session=sess-2',
-    )
-  })
-
-  it('reads a turn id back out of a search string', () => {
-    expect(turnIdFromSearch(`?${TURN_QUERY_KEY}=turn-3`)).toBe('turn-3')
-    expect(turnIdFromSearch(`${TURN_QUERY_KEY}=turn-4`)).toBe('turn-4')
-    expect(turnIdFromSearch('?other=1')).toBeNull()
-    expect(turnIdFromSearch('')).toBeNull()
-  })
-
-  it('treats a blank turn id as absent', () => {
-    expect(turnIdFromSearch(`?${TURN_QUERY_KEY}=%20`)).toBeNull()
   })
 })

@@ -1,4 +1,7 @@
-"""One name for the inspection surface, enforced.
+"""Retired surface names stay retired.
+
+The inspection surface was removed on 2026-10-03; Pellier is now the storefront
+and the Operator desk. This guard keeps the names it went by from coming back.
 
 The surface has been renamed twice. "Observatory" and "Pellier Labs" each left
 traces in a different layer: display strings, a route, an API prefix, source
@@ -75,12 +78,10 @@ SKIP_PARTS = {
 # Files permitted to name a retired path, each for a reason that would break if
 # the name were updated. Keyed by repo-relative path.
 ALLOWED: Dict[str, str] = {
-    # The redirects themselves. A screenshot or browser-history entry pointing
-    # at an old path has to land somewhere, and only the old name can match it.
-    "pellier/frontend/src/App.tsx":
-        "legacy-path redirects must name the paths they redirect",
+    # Old bookmarks must still land on the storefront, and only the old path
+    # can show that they do.
     "pellier/frontend/src/App.routes.test.tsx":
-        "asserts those redirects; updating the inputs would make it vacuous",
+        "asserts that retired paths land on the storefront",
     # A one-time converging rename so a cluster provisioned under the old name
     # ends up with one table rather than two.
     "scripts/migrations/002_workshop_telemetry.sql":
@@ -98,10 +99,6 @@ ALLOWED: Dict[str, str] = {
     # test here passed. Detecting and removing it necessarily names it.
     "scripts/migrations/027_canonical_span_table.sql":
         "converges a stale cluster onto observatory_spans and asserts the result",
-    "pellier/backend/routes/observatory.py":
-        "the readiness check that fails when the retired table still exists",
-    "pellier/backend/tests/test_evidence_substrate_readiness.py":
-        "asserts that migration and that readiness check",
 }
 
 
@@ -162,8 +159,6 @@ def test_every_allowance_is_still_needed() -> None:
 @pytest.mark.parametrize(
     "path,needle",
     [
-        ("pellier/frontend/src/App.tsx", '<Route path="/observatory"'),
-        ("pellier/backend/routes/observatory.py", '/api/observatory'),
         ("scripts/migrations/002_workshop_telemetry.sql", "pellier.observatory_spans"),
     ],
 )
@@ -172,8 +167,3 @@ def test_the_current_name_is_the_one_in_use(path: str, needle: str) -> None:
     assert needle in (REPO / path).read_text(encoding="utf-8"), (
         f"{path} does not carry {needle!r}"
     )
-
-
-def test_the_source_directory_is_named_for_the_surface() -> None:
-    assert (REPO / "pellier" / "frontend" / "src" / "observatory").is_dir()
-    assert not (REPO / "pellier" / "frontend" / "src" / "agent-trace").exists()

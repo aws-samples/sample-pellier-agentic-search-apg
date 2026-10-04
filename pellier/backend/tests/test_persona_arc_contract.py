@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -57,7 +56,7 @@ ARC = {
         "price_max_usd": 100,
         "in_stock_only": True,
         "tools": ("search_products", "search_products_hybrid"),
-        "strategy_endpoint": "/api/observatory/search-strategies/compare",
+        "strategy_endpoint": "/api/search/compare",
     },
     "theo": {
         "persona_id": "theo",

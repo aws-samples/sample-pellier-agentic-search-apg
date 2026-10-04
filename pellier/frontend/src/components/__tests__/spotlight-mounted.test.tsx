@@ -1,9 +1,6 @@
 /**
- * Pellier orientation remains session-gated. Pellier Observatory intentionally
- * avoids a blocking tour: its Proof Board supplies persistent orientation.
- *
- * The storefront benefits from a short welcome. Pellier Observatory is a workshop
- * surface, where an interstitial hides the proof a participant came to see.
+ * Pellier orientation remains session-gated: the storefront shows a short
+ * welcome at most once per session.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -27,12 +24,6 @@ describe('first-visit orientation', () => {
 
     expect(page).toContain("import PellierSpotlight from '../components/PellierSpotlight'");
     expect(page).toContain('<PellierSpotlight />');
-  });
-
-  it('ObservatoryFrame does not mount a blocking Pellier Observatory tour', () => {
-    const frame = read('observatory/shell/ObservatoryFrame.tsx');
-
-    expect(frame).not.toContain('ObservatorySpotlight');
   });
 
   it('the Pellier spotlight is session-gated so it shows at most once', () => {

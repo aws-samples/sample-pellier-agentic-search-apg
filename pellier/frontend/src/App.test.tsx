@@ -39,19 +39,6 @@ const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
   if (url.includes('/api/auth/me') || url.includes('/api/user/preferences')) {
     return new Response(null, { status: 401 })
   }
-  if (url.includes('/api/observatory/build-state')) {
-    // useBuildState reads `{ agents: {name: status}, tools: {fn: status} }`
-    // (see routes/observatory_observatory.py::get_build_state). Return a
-    // well-shaped starter payload (check_inventory still an exercise) so the
-    // Sidebar progress badges resolve without a jsdom network error.
-    return new Response(
-      JSON.stringify({
-        agents: { 'Inventory Agent': 'exercise' },
-        tools: { check_inventory: 'exercise' },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
   return new Response(JSON.stringify({}), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

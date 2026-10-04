@@ -19,11 +19,10 @@ test.describe('Shopper scenario and identity boundary', () => {
       expect(await modal.evaluate(el => el.parentElement?.tagName)).toBe('BODY');
       await page.getByTestId(`persona-card-${name}`).click();
       await expect(page.getByTestId('persona-pill')).toContainText(new RegExp(name, 'i'));
-      const identity = await page.request.get(`${BASE_URL}/api/observatory/governance/identity`);
-      expect(identity.status()).toBe(200);
-      expect((await identity.json()).state).toBe('anonymous');
-      const staffEvidence = await page.request.get(`${BASE_URL}/api/observatory/governance/outcomes`);
-      expect(staffEvidence.status()).toBe(401);
+      const identity = await page.request.get(`${BASE_URL}/api/auth/me`);
+      expect(identity.status()).toBe(401);
+      const staffRead = await page.request.get(`${BASE_URL}/api/operator/clients`);
+      expect(staffRead.status()).toBe(401);
     }
   });
 });

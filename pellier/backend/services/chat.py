@@ -732,8 +732,7 @@ def make_tool_audit_hooks(
     two-phase ``pellier.tool_audit`` evidence row for the in-process rail.
 
     Shared by the streamed storefront turn and the non-streaming
-    orchestrator path (``POST /api/chat`` and the Observatory
-    ``/api/observatory/query`` panel) so no in-process rail can execute a
+    orchestrator path (``POST /api/chat``) so no in-process rail can execute a
     tool off-ledger. Raises ``ImportError``/``AttributeError`` when the
     Strands hook events are unavailable; callers keep their existing
     fallback behavior.
@@ -1047,8 +1046,7 @@ class EnhancedChatService:
             logger.info(f"🔍 Orchestrator created with OTEL tracing")
             
             # Two-phase Aurora tool_audit hooks. This path is reachable via
-            # POST /api/chat and the Observatory /api/observatory/query
-            # panel — neither may execute a tool off-ledger. Same shared
+            # POST /api/chat, which may not execute a tool off-ledger. Same shared
             # factory as the streamed storefront turn, so the "every
             # executed tool call is audited" claim holds on every rail.
             try:

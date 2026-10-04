@@ -39,11 +39,6 @@ interface AgentToolEntry {
   label: string
   /** One-line glossary, attendee-friendly. */
   description: string
-  /**
-   * Observatory route this concept is explained on. Used by the
-   * "How this works" link from a Pellier chip into the Observatory.
-   */
-  observatoryPath: string
 }
 
 export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
@@ -52,93 +47,78 @@ export const AGENT_VOCABULARY: Record<AgentToolName, AgentToolEntry> = {
     label: 'Saved taste',
     description:
       'A preference or saved piece from an earlier visit shaped this recommendation.',
-    observatoryPath: '/observatory/proof-board#runtime-gateway-policy',
   },
   'memory.seed': {
     name: 'memory.seed',
     label: 'Learns as you shop',
     description:
       'A first visit starts with broad signals and becomes more personal as you save and ask.',
-    observatoryPath: '/observatory/proof-board#runtime-gateway-policy',
   },
   'memory.write': {
     name: 'memory.write',
     label: 'Taste saved',
     description:
       'A new size, saved item, or taste signal is kept for the next visit.',
-    observatoryPath: '/observatory/proof-board#runtime-gateway-policy',
   },
   'inventory.live': {
     name: 'inventory.live',
     label: 'In stock',
     description: 'The recommendation is grounded in what is available right now.',
-    observatoryPath: '/observatory/proof-board#marco-floor-check',
   },
   'inventory.watch': {
     name: 'inventory.watch',
     label: 'Restock watch',
     description: 'A piece you may care about has returned or changed availability.',
-    observatoryPath: '/observatory/proof-board#marco-floor-check',
   },
   'inventory.search': {
     name: 'inventory.search',
     label: 'Catalog match',
     description: 'The catalog was matched to the words and intent in your request.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'trend.signal': {
     name: 'trend.signal',
     label: 'Trending',
     description: 'This piece is moving quickly across the storefront right now.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'pairing.score': {
     name: 'pairing.score',
     label: 'Pairs well',
     description: 'Palette, weight, occasion, and saved taste suggest these pieces work together.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'palette.match': {
     name: 'palette.match',
     label: 'Palette match',
     description: 'The color and tone fit the palette already present in the edit.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'memory.holds': {
     name: 'memory.holds',
     label: 'Bag hold',
     description: 'A piece from an earlier visit is still being held in your bag.',
-    observatoryPath: '/observatory/proof-board#runtime-gateway-policy',
   },
   'experience.return': {
     name: 'experience.return',
     label: 'Return update',
     description: 'A return, refund, or post-purchase request influenced this visit.',
-    observatoryPath: '/observatory/audit-proof',
   },
   'weather.lookup': {
     name: 'weather.lookup',
     label: 'Weather-aware',
     description: 'A live weather call to ground a recommendation in the conditions you’re shopping for.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'tag.match': {
     name: 'tag.match',
     label: 'Category match',
     description: 'A direct match against the product taxonomy (linen, travel, ceramic, etc).',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'personalization_agent.signal': {
     name: 'personalization_agent.signal',
     label: "Editor's pick",
     description: 'An editorial pick our personalization_agents are reaching for this week.',
-    observatoryPath: '/observatory/proof-board#retrieval-comparison',
   },
   'tool.transparency': {
     name: 'tool.transparency',
     label: 'Why it fits',
     description: 'Pellier names the signal behind each recommendation.',
-    observatoryPath: '/observatory/audit-proof',
   },
 }
 
@@ -148,31 +128,26 @@ const SKILL_VOCABULARY: Record<string, AgentToolEntry> = {
     name: 'skill.packing-list' as AgentToolName,
     label: 'The Packing List',
     description: 'Travel and capsule packing recommendations.',
-    observatoryPath: '/observatory/skills',
   },
   'skill.gift-table': {
     name: 'skill.gift-table' as AgentToolName,
     label: 'The Gift Table',
     description: 'Curated gift-ready pieces for thoughtful giving.',
-    observatoryPath: '/observatory/skills',
   },
   'skill.makers-shelf': {
     name: 'skill.makers-shelf' as AgentToolName,
     label: "The Maker's Shelf",
     description: 'Hand-thrown ceramics and slow-living home pieces.',
-    observatoryPath: '/observatory/skills',
   },
   'skill.care-card': {
     name: 'skill.care-card' as AgentToolName,
     label: 'The Care Card',
     description: 'Care, return, and post-purchase handling guidance.',
-    observatoryPath: '/observatory/skills',
   },
   'skill.proof-counter': {
     name: 'skill.proof-counter' as AgentToolName,
     label: 'The Proof Counter',
     description: 'Grounded proof, memory, and audit-receipt guidance.',
-    observatoryPath: '/observatory/skills',
   },
 }
 
@@ -194,7 +169,7 @@ export function lookupVocab(name: string): AgentToolEntry {
     SKILL_VOCABULARY[canonical]
   if (known) {
     // Preserve the caller's full label (including suffix) in `name`
-    // but use the canonical entry for the description + observatoryPath.
+    // but use the canonical entry for the description.
     return { ...known, name: name as AgentToolName }
   }
   const fallbackLabel = canonical
@@ -205,6 +180,5 @@ export function lookupVocab(name: string): AgentToolEntry {
     name: name as AgentToolName,
     label: fallbackLabel,
     description: 'A catalog or service check used to prepare this recommendation.',
-    observatoryPath: '/observatory/tools',
   }
 }

@@ -44,7 +44,6 @@ export type NavItem =
   | 'stories'
   | 'discover'
   | 'about'
-  | 'how-it-works'
   | 'account'
   | 'ask-pellier'
 
@@ -61,7 +60,6 @@ const NAV_ITEMS: Array<{ item: NavItem; label: string }> = [
   { item: 'stories', label: NAV.STORIES },
   { item: 'ask-pellier', label: NAV.ASK_PELLIER },
   { item: 'about', label: NAV.ABOUT },
-  { item: 'how-it-works', label: 'How Pellier works' },
 ]
 
 const MENU_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -88,7 +86,7 @@ function NavLink({ item, label, current, onClick }: NavLinkProps) {
   if (item === 'ask-pellier') {
     return <button {...shared} type="button" onClick={() => onClick?.(item)}>{label}</button>
   }
-  const to = item === 'stories' ? '/storyboard' : item === 'about' ? '/about' : item === 'how-it-works' ? '/how-pellier-works' : '/#shop'
+  const to = item === 'stories' ? '/storyboard' : item === 'about' ? '/about' : '/#shop'
   return (
     <Link {...shared} to={to} onClick={(event) => {
       // Preserve open-in-new-tab and the browser's link menu.

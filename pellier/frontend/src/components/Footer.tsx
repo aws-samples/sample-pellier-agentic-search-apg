@@ -62,13 +62,6 @@ export default function Footer() {
             ctaLabel={FOOTER.STORYBOARD.CTA_LABEL}
             ctaHref={FOOTER.STORYBOARD.CTA_HREF}
           />
-          <EditorialColumn
-            testId="footer-column-observatory"
-            heading={FOOTER.OBSERVATORY.HEADING}
-            copy={FOOTER.OBSERVATORY.COPY}
-            ctaLabel={FOOTER.OBSERVATORY.CTA_LABEL}
-            ctaHref={FOOTER.OBSERVATORY.CTA_HREF}
-          />
         </div>
         <Disclaimer />
         <BottomStrip

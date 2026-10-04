@@ -7,7 +7,6 @@ export async function signIn(page: Page, returnTo = '/') {
   test.skip(!username || !password, 'Dedicated Cognito test credentials are required')
   await page.addInitScript(() => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
-    sessionStorage.setItem('observatory-spotlight-seen', 'true')
   })
   await page.goto(`/signin?returnTo=${encodeURIComponent(returnTo)}`)
   await page.getByLabel('Username', { exact: true }).fill(username!)

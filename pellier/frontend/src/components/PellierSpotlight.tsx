@@ -16,14 +16,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { X } from 'lucide-react'
 import { imageSrc } from '../utils/assetPath'
-import { LAB_EXERCISES } from '../observatory/labs/labCatalog'
+
+
+/** The four people the labs follow, in lab order. */
+const LAB_PEOPLE = [
+  { id: 'anna', name: 'Anna', lab: 1, topic: 'search', image: '/assets/personas/anna-720.webp' },
+  { id: 'marco', name: 'Marco', lab: 2, topic: 'an agent with tools', image: '/assets/personas/marco-720.webp' },
+  { id: 'theo', name: 'Theo', lab: 3, topic: 'a managed agent', image: '/assets/personas/theo-720.webp' },
+  { id: 'jessica', name: 'Jessica', lab: 4, topic: 'an approved action', image: '/assets/personas/jessica-720.webp' },
+] as const
 
 /**
  * A slide's media.
  *
  * `photo` is one catalog photograph. `personas` is the four lab anchors as a
- * portrait strip, built from `LAB_EXERCISES` so the names, numbers and images
- * cannot drift from the Governed Lab Collection they mirror.
+ * portrait strip of the four people the labs follow.
  */
 type SpotlightMedia =
   | { kind: 'photo'; src: string; alt: string }
@@ -279,8 +286,8 @@ export default function PellierSpotlight() {
                 <motion.div
                   key="personas"
                   role="img"
-                  aria-label={`The four people each lab follows: ${LAB_EXERCISES.map(
-                    (lab) => `${lab.anchorName}, lab ${Number(lab.number)}, ${lab.shortTitle}`,
+                  aria-label={`The four people each lab follows: ${LAB_PEOPLE.map(
+                    (person) => `${person.name}, lab ${person.lab}, ${person.topic}`,
                   ).join('; ')}`}
                   className="grid h-full w-full grid-cols-4 gap-2 p-2"
                   initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
@@ -291,24 +298,24 @@ export default function PellierSpotlight() {
                     ease: MOTION_EASE,
                   }}
                 >
-                  {LAB_EXERCISES.map((lab) => (
+                  {LAB_PEOPLE.map((person) => (
                     <div
-                      key={lab.id}
+                      key={person.id}
                       className="relative overflow-hidden rounded-[var(--pellier-image-radius-sm)]"
                     >
                       <img
-                        src={imageSrc(lab.image)}
+                        src={imageSrc(person.image)}
                         alt=""
-                        width={lab.imageWidth}
-                        height={lab.imageHeight}
+                        width={720}
+                        height={1080}
                         className="h-full w-full object-cover"
                       />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[rgba(24,26,31,0.82)] via-[rgba(24,26,31,0.45)] to-transparent px-1.5 pb-1.5 pt-6 text-center">
                         <span className="block font-mono text-[9px] uppercase leading-tight tracking-[0.12em] text-white">
-                          {lab.anchorName}
+                          {person.name}
                         </span>
                         <span className="block font-mono text-[9px] uppercase leading-tight tracking-[0.1em] text-white/70">
-                          {`Lab ${Number(lab.number)}`}
+                          {`Lab ${person.lab}`}
                         </span>
                       </div>
                     </div>

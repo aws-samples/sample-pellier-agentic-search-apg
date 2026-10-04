@@ -214,19 +214,6 @@ fi
 info "Waiting 4s for uvicorn --reload to pick up the change…"
 sleep 4
 
-# Confirm both independent build markers flipped to shipped.
-bs="$(curl -fs --max-time 5 "${BASE}/api/observatory/build-state" 2>/dev/null || true)"
-if echo "$bs" | grep -q '"Inventory Agent"[[:space:]]*:[[:space:]]*"shipped"'; then
-  pass "build-state reports Inventory Agent = shipped"
-else
-  fail "build-state did not flip Inventory Agent to shipped (got: ${bs:0:200})"
-fi
-if echo "$bs" | grep -q '"check_inventory"[[:space:]]*:[[:space:]]*"shipped"'; then
-  pass "build-state reports check_inventory = shipped"
-else
-  fail "build-state did not flip check_inventory to shipped (got: ${bs:0:200})"
-fi
-
 # --- 3. Marco Turn 4 via the dispatcher path --------------------------------
 echo "[3/6] Marco Turn 4 — POST /api/chat/stream"
 SESSION="dryrun-$(date +%s)"
@@ -246,12 +233,12 @@ if echo "$reply" | grep -qi 'check_inventory is in stub state'; then
 fi
 
 # --- 4a. Lab 1 retrieval comparison ----------------------------------------
-echo "[4a/6] Lab 1 — GET /api/observatory/search-strategies/compare"
+echo "[4a/6] Lab 1 — GET /api/search/compare"
 QUERY='A milestone gift for a new homeowner'
 retrieval=""
 if retrieval="$(curl --fail --silent --show-error --max-time 75 \
     --get --data-urlencode "query=${QUERY}" \
-    "${BASE}/api/observatory/search-strategies/compare" 2>/tmp/dryrun-retrieval.err)"; then
+    "${BASE}/api/search/compare" 2>/tmp/dryrun-retrieval.err)"; then
   printf '%s\n' "$retrieval" > /tmp/retrieval-comparison.json
   if printf '%s' "$retrieval" | jq -e '
       (.strategies | length) == 5

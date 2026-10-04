@@ -209,10 +209,8 @@ export const COLLECTIONS = {
 } as const;
 
 /**
- * The storefront's bridge into Pellier Observatory. Every claim here is one a
- * participant can open and check, which is the point of the module: it
- * earns the link rather than decorating it. Do not add a claim without a
- * surface that proves it.
+ * What the storefront stands for, in four claims. Each links to a page that
+ * explains it; do not add a claim without one.
  */
 export const PELLIER_APPROACH = {
   EYEBROW: "The Pellier approach",
@@ -221,16 +219,16 @@ export const PELLIER_APPROACH = {
   ACCENT: "reasons",
   BODY:
     "A little context makes choosing easier. Explore the pieces, understand the details, and find what feels right for you.",
-  CTA_LABEL: "Discover Pellier Observatory",
-  CTA_HREF: "/observatory",
+  CTA_LABEL: "About Pellier",
+  CTA_HREF: "/about",
   IMAGE: "/products/landing-approach-atelier.png",
   IMAGE_ALT: "A maker stitching a leather bag by hand at the bench",
   PILLARS: [
     {
       title: "A reason for every recommendation",
       body: "Explore the catalog details and sources behind the pieces we suggest.",
-      linkLabel: "See the evidence",
-      href: "/observatory",
+      linkLabel: "How Pellier answers",
+      href: "/about",
     },
     {
       title: "Personal, on your terms",
@@ -264,11 +262,6 @@ export const SERVICE_STRIP = {
     { title: "Thoughtful gift wrapping", body: "Complimentary on all orders" },
     { title: "Concierge support", body: "We are here to help" },
   ],
-  LABS: {
-    title: "Pellier Observatory",
-    body: "Explore the evidence behind the experience",
-    href: "/observatory",
-  },
 } as const;
 
 /**
@@ -551,12 +544,11 @@ export const ABOUT_BRIEF = {
   IMAGE: "/products/hero-about.png",
   IMAGE_ALT:
     "A leather weekender, a folded stack of linen, a charcoal stoneware bowl and tumbler, and a ceramic vase holding an olive branch on a travertine counter in raking afternoon light",
-  TITLE_LINES: ["A boutique that", "shows its work."],
-  LABEL: "Pellier + Pellier Operator + Pellier Observatory",
+  TITLE_LINES: ["A store that", "shows its work."],
+  LABEL: "Pellier + Pellier Operator",
   PARAGRAPHS: [
-    "Pellier is a working boutique for natural materials: linen for travel, stoneware for the table, leather that wears in. Ask for what you mean, a linen shirt for ten days in Goa, a gift under a hundred, a tumbler that earns its place, and Pellier answers with one piece, one reason, and whether it is on the floor today.",
+    "Pellier is a working store for natural materials: linen for travel, stoneware for the table, leather that wears in. Ask for what you mean, a linen shirt for ten days in Goa, a gift under a hundred, a tumbler that earns its place, and Pellier answers with one piece, one reason, and whether it is on the floor today.",
     "Every answer is read from live stock and your own history in Aurora PostgreSQL, checked before it is promised, and written down. Some requests should not be settled by software alone. A return, a credit, an action the policy holds back: those go to the Pellier Operator desk, where a person sees the same client record and the same evidence, decides, and the decision is kept.",
-    "Pellier Observatory opens the same answer from the other side: which specialist took the request, what it read, what it was allowed to do, and what the database actually changed. Nothing is recommended, held, or approved that cannot be shown.",
   ],
   STACK: [
     "Aurora PostgreSQL",
@@ -573,13 +565,13 @@ export const ABOUT_BRIEF = {
     "Built for teams who need the same answer to hold for the shopper, the operator, and the auditor.",
 } as const;
 
-// Footer \u2014 three live columns + a brand + a bottom strip.
+// Footer \u2014 two live columns + a brand + a bottom strip.
 //
 // Earlier iterations carried four product/editorial columns with a
 // dozen links, a newsletter form, and a bottom strip. Every one of
 // those links was a stub. Replaced with three columns pointing at
 // routes that actually exist: Explore (the three real storefront
-// routes), Storyboard (editorial entry), Pellier Observatory (the workshop).
+// routes) and Storyboard (editorial entry).
 // Fewer promises, every promise kept.
 export const FOOTER = {
   BRAND: {
@@ -598,12 +590,6 @@ export const FOOTER = {
     COPY: "Field notes from a slower kind of shopping. One short essay at a time.",
     CTA_LABEL: "Read the stories",
     CTA_HREF: "/storyboard",
-  },
-  OBSERVATORY: {
-    HEADING: "Pellier Observatory",
-    COPY: "Inspect the routing, retrieval, tools, memory, and evidence behind each workshop turn.",
-    CTA_LABEL: "Open Pellier Observatory",
-    CTA_HREF: "/observatory",
   },
   /** Official owner artwork in the footer only. The visible label and the
    * disclaimer keep the strip inside the same non-processing demo contract. */

@@ -153,33 +153,6 @@ def test_every_canonical_agent_has_a_module_and_a_factory() -> None:
         )
 
 
-def test_build_state_agent_key_exists_in_the_agents_fixture() -> None:
-    """The source-owned build-state key must name a rendered agent."""
-    import json
-
-    fixture = json.loads(
-        (
-            REPO / "pellier" / "frontend" / "src" / "observatory"
-            / "fixtures" / "agents.json"
-        ).read_text()
-    )
-    rows = fixture if isinstance(fixture, list) else fixture.get("agents", [])
-    fixture_names = {row.get("name") for row in rows}
-
-    assert fixture_names == {
-        label for label, _ in CANONICAL_AGENTS.values()
-    }, f"agents.json names drifted from the frozen vocabulary: {sorted(fixture_names)}"
-
-    route = (BACKEND / "routes" / "observatory.py").read_text()
-    match = re.search(r'agent_map\s*=\s*\{\s*"([^"]+)"\s*:', route)
-    assert match, "the build-state response no longer defines its agent key"
-    for key in (match.group(1),):
-        assert key in fixture_names, (
-            f"build-state exposes agent_map[{key!r}], which is not a name in "
-            "agents.json. Lab 2 would no longer update the intended agent."
-        )
-
-
 def test_no_specialist_prompt_names_itself_an_agent() -> None:
     """Rule 3. The label is architecture vocabulary, not the shopper's word.
 

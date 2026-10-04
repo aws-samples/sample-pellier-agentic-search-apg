@@ -33,8 +33,3 @@ def test_frontend_required_prompt_matches_the_seeded_request() -> None:
     theo = re.search(r"theo:\s*\[(.*?)\n\s*\],", block.group(1), re.S)
     assert theo, "Theo has no required prompts"
     assert f"'{_seeded_ticket_request()}'" in theo.group(1)
-
-
-def test_proof_card_fallback_replays_the_seeded_request() -> None:
-    source = OBSERVATORY.read_text(encoding="utf-8")
-    assert f'--prompt \\"{_seeded_ticket_request()}\\"' in source

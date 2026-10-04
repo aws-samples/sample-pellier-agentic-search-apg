@@ -33,8 +33,6 @@ import MarkdownMessage from './MarkdownMessage'
 import ProductArtifactCard from './ProductArtifactCard'
 import StylistHandoffCard from './StylistHandoffCard'
 import ChatFailureCard from './ChatFailureCard'
-import TurnReceipt from './TurnReceipt'
-import GovernedTurnReceipt from './GovernedTurnReceipt'
 import { TraceChip } from '../shared/TraceChip'
 import { imageSrc } from '../utils/assetPath'
 import { catalogTurnFollowUps } from '../utils/catalogFollowUps'
@@ -563,34 +561,9 @@ function AgentMessage({
                 </div>
               )}
 
-              {receiptReference && (
-                <div className="ec-worked-section">
-                  <div className="ec-worked-section-label">
-                    {message.turnId ? CHAT_TRUST.TURN_RECEIPT : CHAT_TRUST.TRACE_REFERENCE}
-                  </div>
-                  <TurnReceipt
-                    reference={receiptReference}
-                    turnId={message.turnId}
-                    complete={isComplete}
-                  />
-                </div>
-              )}
-
             </div>
           )}
         </div>
-      )}
-
-      {/* Compact governed receipt — deliberately outside the collapsed
-          "how this worked" disclosure. Its fields come only from the
-          authenticated, persisted turn record; a card count or a local
-          instrumentation array is not citation or execution evidence. */}
-      {isComplete && !message.failure && (
-        <GovernedTurnReceipt
-          sessionId={message.sessionId}
-          turnId={message.turnId}
-          railDecision={message.railDecision}
-        />
       )}
 
       {message.failure && (

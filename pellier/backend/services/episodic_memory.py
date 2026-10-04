@@ -11,7 +11,7 @@ Two callers:
 - ``routes/workshop.py`` — invokes ``emit_memory_episodic_panel`` when
   the turn's customer_id is not anonymous so the right-rail telemetry
   tab shows a real MEMORY · EPISODIC card on the resume turn.
-- ``routes/observatory_observatory.py`` — the Memory page uses direct Aurora
+- the chat preamble uses direct Aurora
   reads for episodic state and keeps AgentCore for working / semantic memory.
 
 Failure semantics: on any DB or schema error we emit a skipped panel

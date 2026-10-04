@@ -56,13 +56,3 @@ def test_supported_status_routes_remain_for_bootstrap_health_checks() -> None:
         "/api/agentcore/memory/status",
         "/api/agentcore/runtime/status",
     } <= _published_paths()
-
-
-def test_identity_boundary_is_restricted_to_operators() -> None:
-    source = (
-        __import__("pathlib").Path(__file__).resolve().parents[1]
-        / "routes"
-        / "observatory.py"
-    ).read_text()
-    boundary = source[source.index('@router.get("/identity-boundary")'):]
-    assert "Depends(require_operator)" in boundary

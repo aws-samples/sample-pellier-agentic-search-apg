@@ -14,32 +14,6 @@ vi.mock('./pages/PellierPage', () => ({
   default: () => <div>Storefront route</div>,
 }))
 
-vi.mock('./observatory/shell/ObservatoryFrame', async () => {
-  const { Outlet } = await vi.importActual<typeof import('react-router-dom')>(
-    'react-router-dom',
-  )
-  return {
-    default: () => (
-      <div>
-        Observatory frame
-        <Outlet />
-      </div>
-    ),
-  }
-})
-
-vi.mock('./observatory/surfaces/observe/ObservatoryWorkbench', () => ({
-  default: () => <div>Pellier Observatory workbench</div>,
-}))
-
-vi.mock('./observatory/surfaces/labs/LabsCatalog', () => ({
-  default: () => <div>Governed Lab Collection</div>,
-}))
-
-vi.mock('./observatory/surfaces/observe/SessionsList', () => ({
-  default: () => <div>Live Aurora sessions</div>,
-}))
-
 vi.mock('./pages/ProductDetailPage', () => ({
   default: () => <div>Product detail route</div>,
 }))
@@ -61,60 +35,12 @@ function renderRoute(path: string) {
 }
 
 describe('canonical application routes', () => {
-  it('renders the governed lab collection at the canonical route', async () => {
-    renderRoute('/observatory?turn=live#journey')
-
-    expect(
-      await screen.findByText('Governed Lab Collection'),
-    ).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      '/observatory?turn=live#journey',
-    )
-  })
-
-  it('keeps the live request surface at its own workbench route', async () => {
-    renderRoute('/observatory/workbench')
-
-    expect(
-      await screen.findByText('Pellier Observatory workbench'),
-    ).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      '/observatory/workbench',
-    )
-  })
-
-  it('redirects old guide bookmarks to the matching Workbench scenario', async () => {
-    renderRoute('/observatory/labs/grounded-inventory')
-
-    expect(await screen.findByText('Pellier Observatory workbench')).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      '/observatory/workbench?lab=grounded-inventory',
-    )
-  })
-
-  it('keeps the old Labs collection deep link inside Observatory', async () => {
-    renderRoute('/observatory/labs')
-
-    expect(
-      await screen.findByText('Governed Lab Collection'),
-    ).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/observatory')
-    })
-  })
 
   it('serves Stories as a real storefront destination', async () => {
     renderRoute('/storyboard')
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/storyboard')
     })
-  })
-
-  it('returns retired supporting guide bookmarks to the Lab Collection', async () => {
-    renderRoute('/observatory/guide/summary#cleanup')
-    expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent('/observatory')
-    expect(screen.getByTestId('location')).not.toHaveTextContent('/guide/')
   })
 
   it('serves About as a real storefront destination', async () => {
@@ -133,25 +59,6 @@ describe('canonical application routes', () => {
     expect(routes).not.toMatch(/(stories|about):\s*'\/#shop'/)
   })
 
-  it('redirects the retired references surface into the Lab Collection index', async () => {
-    // The full reference index lives on the Lab Collection; the Workbench
-    // keeps only the after-the-labs extensions.
-    renderRoute('/observatory/references')
-
-    expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/observatory')
-    })
-  })
-
-  it.each(['routing', 'workshop-map', 'observatory', 'settings'])(
-    'sends the retired /observatory/%s view to the Lab Collection',
-    async (path) => {
-      renderRoute(`/observatory/${path}`)
-      expect(await screen.findByText('Governed Lab Collection')).toBeInTheDocument()
-    },
-  )
-
   it('serves one piece at its own deep-linkable route', async () => {
     renderRoute('/product/11')
 
@@ -159,66 +66,32 @@ describe('canonical application routes', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/product/11')
   })
 
-  // Every path the surface has lived at. A rename sweep once rewrote this
-  // table's inputs to the new path, leaving it asserting /observatory ->
-  // /observatory: green, and blind to a redirect that pointed at itself.
-  // These inputs are legacy by definition and must never be updated to the
-  // current path — that is the whole point of the assertion.
-  it.each([
-    ['/agent-trace', '/observatory'],
-    ['/agent-trace/proof-board', '/observatory/proof-board'],
-    ['/pellier-labs', '/observatory'],
-    ['/pellier-labs/tools', '/observatory/tools'],
-    ['/labs', '/observatory'],
-    ['/labs/proof-board?turn=live#managed', '/observatory/proof-board?turn=live#managed'],
-  ])('redirects the retired %s to %s', async (path, expected) => {
-    renderRoute(path)
+  // The inspection surface was removed. Its old paths, including bookmarks
+  // in older guides, land on the storefront instead of a blank page.
+  it.each(['/observatory', '/observatory/proof-board', '/labs', '/agent-trace'])(
+    'sends the retired %s to the storefront',
+    async (path) => {
+      renderRoute(path)
+      expect(await screen.findByText('Storefront route')).toBeInTheDocument()
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
+    },
+  )
 
-    expect(await screen.findByText('Observatory frame')).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent(expected)
-  })
-
-  it('serves the current surface path without redirecting', async () => {
-    renderRoute('/observatory/proof-board?turn=live#managed')
-
-    expect(await screen.findByText('Observatory frame')).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      '/observatory/proof-board?turn=live#managed',
-    )
-  })
-
-  it('replaces the retired persona-journey fixture page with live sessions', async () => {
-    renderRoute('/observatory/persona-journeys')
-
-    expect(await screen.findByText('Observatory frame')).toBeInTheDocument()
-    await waitFor(() =>
-      expect(screen.getByTestId('location')).toHaveTextContent(
-        '/observatory/sessions',
-      ),
-    )
-  })
 })
 
 describe('surface boundaries', () => {
-  // The shopper's Ask Pellier drawer was mounted on every route, so its
-  // "Continue chat" pill floated over Pellier Operator whenever the browser held a
-  // storefront thread. Operator is a different product with its own Concierge.
-  it('keeps the shopper chat drawer off operational and evidence surfaces', () => {
+  it('keeps the shopper chat drawer off the Operator console', () => {
     const source = readSource('src/App.tsx')
     expect(source).toContain('function ShopperChatSlot()')
-    expect(source).toContain(
-      "if (pathname.startsWith('/operator') || pathname.startsWith('/observatory')) return null",
-    )
+    expect(source).toContain("if (pathname.startsWith('/operator')) return null")
     expect(source).toContain('<ShopperChatSlot />')
     // Mounted through the slot only, never directly.
     expect(source.match(/<ChatDrawer \/>/g)?.length).toBe(1)
   })
 
-  it('does not mount a competing concierge modal on the Observatory', () => {
-    const source = readSource('src/App.tsx')
-    expect(source).not.toContain('ObservatoryConciergeSlot')
-    expect(source).not.toContain("import('./components/ConciergeModal')")
-  })
+  // The shopper's Ask Pellier drawer was mounted on every route, so its
+  // "Continue chat" pill floated over Pellier Operator whenever the browser held a
+  // storefront thread. Operator is a different product with its own Concierge.
 
   it('lets the storefront reader resume following the latest reply', () => {
     const source = readSource('src/components/ChatDrawer.tsx')

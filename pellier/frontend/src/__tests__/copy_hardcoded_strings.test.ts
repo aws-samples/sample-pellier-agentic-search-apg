@@ -86,7 +86,6 @@ const SPEC_FILES: string[] = [
   'components/ProductAvailabilityPanel.tsx',
   'pages/ProductDetailPage.tsx',
   'pages/StoryboardPage.tsx',
-  'pages/DiscoverPage.tsx',
   'pages/ComingSoonLine.tsx',
 ]
 

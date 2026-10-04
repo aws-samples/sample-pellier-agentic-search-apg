@@ -51,17 +51,14 @@ from services.index_performance import get_index_performance_service
 from services.vector_search import VectorSearch
 from services.cache import init_cache, get_cache
 from routes.password_auth import router as password_auth_router
-from routes.governance import router as governance_router
 from routes import (
     agent_router,
-    observatory_router,
     auth_router,
     products_router,
     search_router,
     storefront_router,
     commerce_router,
     user_router,
-    workshop_router,
     operator_router,
 )
 
@@ -425,17 +422,6 @@ app.include_router(agent_router)
 app.include_router(products_router)
 app.include_router(search_router)
 
-# Workshop telemetry surface — returns flat
-# {session_id, events: list[dict]} payloads for the panel renderer.
-# Intentionally separate from /api/agent/chat so the Pellier SSE
-# stream isn't reshaped for the workshop's replay needs.
-app.include_router(workshop_router)
-
-# Pellier Observatory read-only API endpoints — sessions, agents, tools,
-# routing, memory, performance, evaluations, observatory dashboard.
-# Additive to workshop_router (same /api/observatory/ prefix, no path conflicts).
-app.include_router(observatory_router)
-app.include_router(governance_router)
 
 # Pellier ambient chrome — briefing (concierge empty state) + pulse
 # (4 live metrics above the hero). Both endpoints are contract-typed
@@ -2000,46 +1986,6 @@ async def personalized_search(
 # WORKSHOP MODULE STATUS ENDPOINT
 # ============================================================================
 
-@app.get("/api/observatory/skills")
-async def list_skills():
-    """
-    List all skills in the registry for the Observatory surfaces.
-
-    Returns a bare JSON array, matching the sibling list endpoints
-    (``/api/observatory/agents``, ``/api/observatory/tools/list``) and the
-    ``skills.json`` fixture shape. ``useObservatoryData`` stores the response
-    verbatim, so a bare array keeps ``data ?? []`` an array even if a
-    surface is ever switched from fixture mode to ``source: 'api'`` for the
-    ``skills`` key — a wrapper object would break the downstream ``.map``.
-
-    Each item carries name, description, version, display_name, persona,
-    token_estimate, and the full markdown body so the "Open SKILL.md →"
-    link can render it inline without a second request.
-
-    ``persona`` comes straight from SKILL.md frontmatter, so it is a real
-    registry fact and is served here. Without it every persona filter on the
-    Skills surface matched zero rows while still advertising five choices.
-
-    ``loadedBy``, ``signals`` and ``status`` are curated presentation fields
-    that only the bundled fixture owns; the registry does not know them, so
-    they are omitted rather than invented. The surface renders those panels
-    only when a value is present.
-    """
-    from skills import get_registry
-    registry = get_registry()
-    return [
-        {
-            "name": s.name,
-            "display_name": s.display_name_resolved,
-            "description": s.description,
-            "version": s.version,
-            "persona": s.frontmatter.get("persona", "shared"),
-            "token_estimate": s.token_estimate,
-            "body": s.body,
-            "path": s.path,
-        }
-        for s in registry.get_all()
-    ]
 
 
 def _strategy_products(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -2293,7 +2239,7 @@ def _anna_fallback_preference(scenario: Optional[str], prefer: Optional[str]) ->
     return tag
 
 
-@app.get("/api/observatory/search-strategies/compare")
+@app.get("/api/search/compare")
 async def compare_search_strategies(
     query: Optional[str] = None, scenario: Optional[str] = None,
     prefer: Optional[str] = None,
@@ -2537,552 +2483,10 @@ def _micro_eval_generalizes(
     }
 
 
-@app.get("/api/observatory/search-strategies/micro-eval")
-async def micro_eval_search_strategies(
-    pool_k: Optional[List[int]] = Query(default=None),
-    limit: int = 5,
-    repetitions: int = MICRO_EVAL_REPETITIONS_DEFAULT,
-    user: Optional[Dict[str, Any]] = Depends(get_current_user),
-):
-    """Measure what the rerank pool size costs on the canonical Anna query.
-
-    Runs ``A housewarming gift under $100 that is currently in stock.`` through
-    the shared executor once per distinct ``pool_k`` (repeat the parameter,
-    default 20 and 3) and scores each variant against the labeled golden ids.
-    The query is embedded once and the plan is extracted once, so the variants
-    differ only in the pool the reranker may see.
-
-    Every pass costs two SQL round trips and one Bedrock Rerank call, and the
-    two axes multiply, so the route is bounded four ways: pool sizes are
-    resolved and de-duplicated, more than ``MICRO_EVAL_POOL_SIZES_MAX``
-    distinct sizes is refused rather than truncated, ``repetitions`` is
-    clamped to ``MICRO_EVAL_REPETITIONS_MAX``, and the quality metrics, being
-    deterministic over a fixed pool, are scored once from the first pass while
-    the repetitions only sample latency. The response reports the repetition
-    count actually run.
-
-    The same pool sizes are then scored once each on the provided held-out
-    labels (``CANONICAL_HELD_OUT_GOLDEN_IDS``, a different query), which adds
-    one Rerank call per distinct pool size. ``generalizes`` says whether the
-    pool that wins on Lab 1b's labels also wins there: the tuning labels choose
-    the knob, the held-out labels check the choice.
-
-    Args:
-        pool_k: Rerank pool sizes to compare. Repeat the parameter.
-        limit: Rows each pass returns. Clamped to 1..20.
-        repetitions: Latency samples per variant. Clamped to 1..5.
-        user: Optional verified Cognito identity, the same dependency the
-            sibling Observatory read models declare.
-
-    Raises:
-        HTTPException: 400 when a pool size is below one or when the request
-            resolves to more distinct pool sizes than the ceiling allows.
-    """
-    from services.embeddings import EmbeddingService
-    from services.planned_hybrid_retrieval import (
-        CANONICAL_ANNA_GOLDEN_IDS,
-        CANONICAL_ANNA_QUERY,
-        CANONICAL_HELD_OUT_GOLDEN_IDS,
-        CANONICAL_HELD_OUT_QUERY,
-        HELD_OUT_CASES,
-        HELD_OUT_KIND_LABELS,
-        execute_search_plan,
-        micro_eval_variant,
-        score_held_out_case,
-    )
-    from services.rerank import get_rerank_service
-    from services.search_plan import build_plan
-    from services.structured_extract import get_structured_extractor
-
-    requested = [int(k) for k in pool_k] if isinstance(pool_k, list) and pool_k else [20, 3]
-    pool_sizes = _micro_eval_pool_sizes(requested)
-    limit = max(1, min(int(limit), 20))
-    passes = max(1, min(int(repetitions), MICRO_EVAL_REPETITIONS_MAX))
-    if db_service is None:
-        raise HTTPException(
-            status_code=503,
-            detail="DB not initialized — wait for backend startup to complete",
-        )
-
-    q = CANONICAL_ANNA_QUERY
-    embedding_service = EmbeddingService()
-    extractor = get_structured_extractor()
-    query_embedding = await asyncio.to_thread(embedding_service.embed_query, q)
-    extracted = await asyncio.to_thread(extractor.extract, q)
-    plan = build_plan(q, extracted, top_k=limit)
-    rerank_fn = get_rerank_service().rerank
-
-    async def _pass_for(
-        query: str, query_plan: Any, embedding: List[float], pool_size: int
-    ) -> tuple[Any, float]:
-        started = time.perf_counter()
-        execution = await execute_search_plan(
-            db_service,
-            plan=query_plan,
-            query=query,
-            limit=limit,
-            embed=lambda _q: embedding,
-            rerank=rerank_fn,
-            config={"rerank_pool_k": pool_size},
-        )
-        return execution, (time.perf_counter() - started) * 1000
-
-    async def _one_pass(pool_size: int) -> tuple[Any, float]:
-        return await _pass_for(q, plan, query_embedding, pool_size)
-
-    # Cold and warm are different measurements, and averaging them is neither.
-    #
-    # `services/rerank.py` caches on (query, documents, top_n, model_id) for 120
-    # seconds, and every repetition here sends an identical request. So pass 1
-    # pays the Bedrock Rerank call and passes 2..N are cache hits. Blending them
-    # into one p50/p95 produced a number that describes neither the first
-    # shopper nor the second, and moved with the repetition count rather than
-    # with anything about the system.
-    #
-    # Report them apart, and say how many samples each rests on. Three samples
-    # are exploratory either way; the response says so rather than implying a
-    # distribution.
-    #
-    # Whether the warm samples are cache hits at all is a property of this
-    # process, not of a pool size, so it is read once and attached to each
-    # variant rather than re-read per iteration.
-    rerank_cache_state = {
-        "enabled": get_cache() is not None,
-        "ttl_seconds": settings.RERANK_CACHE_TTL_SEC,
-        "note": (
-            "repetitions send an identical rerank request, so warm samples "
-            "are cache hits, not a second Bedrock call"
-        ),
-    }
-    variants: List[Dict[str, Any]] = []
-    for pool_size in pool_sizes:
-        scored, first_ms = await _one_pass(pool_size)
-        warm_ms: List[float] = []
-        for _ in range(passes - 1):
-            _, elapsed_ms = await _one_pass(pool_size)
-            warm_ms.append(elapsed_ms)
-        variant = micro_eval_variant(
-            scored,
-            latencies_ms=[first_ms],
-            golden_ids=CANONICAL_ANNA_GOLDEN_IDS,
-            limit=limit,
-        )
-        variant["latency_cold_ms"] = round(first_ms, 1)
-        variant["latency_warm_ms_p50"] = (
-            round(sorted(warm_ms)[len(warm_ms) // 2], 1) if warm_ms else None
-        )
-        variant["latency_samples"] = {"cold": 1, "warm": len(warm_ms)}
-        variant["rerank_cache"] = dict(rerank_cache_state)
-        variants.append(variant)
-
-    # The held-out checks: the same knob on requests the participant's labels
-    # never described. One pass per pool size and case; latency was already
-    # sampled above and would only repeat.
-    held_out_cases: List[Dict[str, Any]] = []
-    for case in HELD_OUT_CASES:
-        case_query = str(case["query"])
-        case_embedding = await asyncio.to_thread(embedding_service.embed_query, case_query)
-        case_extracted = await asyncio.to_thread(extractor.extract, case_query)
-        case_plan = build_plan(case_query, case_extracted, top_k=limit)
-        results: List[Dict[str, Any]] = []
-        for pool_size in pool_sizes:
-            scored, _ms = await _pass_for(case_query, case_plan, case_embedding, pool_size)
-            results.append(score_held_out_case(case, scored, limit=limit))
-        held_out_cases.append({
-            "id": case["id"],
-            "kind": case["kind"],
-            "query": case_query,
-            "rule": case.get("rule", ""),
-            "golden_set_size": len(case.get("golden_ids") or ()),
-            "variants": results,
-        })
-    slice_case = next(c for c in held_out_cases if c["id"] == "slice")
-
-    return {
-        "query": q,
-        "limit": limit,
-        "repetitions": passes,
-        # The frozen labels are the reference judgments. Coverage divides by the
-        # label count, precision by the returned count, and MRR is a rank. When
-        # Lab 1b has not been built the label set is empty, so coverage,
-        # precision and MRR read 0.0 for want of labels rather than because
-        # retrieval failed. The surface needs to be able to tell those apart.
-        "golden_set_size": len(CANONICAL_ANNA_GOLDEN_IDS),
-        "variants": variants,
-        "held_out": {
-            "query": CANONICAL_HELD_OUT_QUERY,
-            "golden_set_size": len(CANONICAL_HELD_OUT_GOLDEN_IDS),
-            "variants": slice_case["variants"],
-        },
-        "held_out_cases": held_out_cases,
-        "generalizes": _micro_eval_generalizes(
-            variants,
-            [c for c in held_out_cases if c["kind"] == HELD_OUT_KIND_LABELS],
-        ),
-    }
 
 
-@app.get("/api/observatory/search/explain")
-async def explain_search(query: str):
-    """Run one hybrid query and return every *intermediate* stage so the
-    Observatory "Search" surface can show the mechanism, not just the outcome.
-
-    This is the mechanism counterpart to ``/search-strategies/compare``
-    (which shows the *outcome* — which products win, how fast, at what
-    cost). Here the payload walks the pipeline a single query takes:
-
-    Unlike ``/compare``, this route does **not** run the shared executor
-    (``services.planned_hybrid_retrieval.execute_search_plan``) and carries
-    no post-rerank eligibility recheck. It exists to expose the intermediate
-    artifacts the executor collapses into stage counts, so it drives
-    ``HybridSearch.search_explained`` directly. Nothing here is a shopper
-    answer, no plan constrains it, and it writes no retrieval receipt: it is
-    a teaching read model over one unconstrained query.
-
-        EMBED → VECTOR → LEXICAL → FUSION → RERANK
-
-    Every stage carries the real artifact a participant should read:
-    the literal branch SQL for VECTOR/LEXICAL (the same string the live
-    path executes — see ``hybrid_search._VECTOR_BRANCH_SQL`` /
-    ``_FTS_BRANCH_SQL``), the per-branch ranks the FUSION stage merges,
-    and the position delta the RERANK stage produces. The reordering
-    between FUSION and RERANK *is* the teaching moment, and it is live
-    data — nothing here is fabricated.
-
-    The response is shaped as panel-shaped stages
-    (``tag``/``title``/``sql``/``columns``/``rows``/``meta``/``tagClass``)
-    so the frontend reuses the existing telemetry-panel renderer. Rows
-    are pre-stringified.
-
-    On a Bedrock rerank outage the RERANK stage degrades honestly: it
-    reports the failure in ``meta`` and shows the RRF order unchanged
-    (``rrf_pos == reranked_pos``) rather than inventing scores.
-    """
-    import time
-    from services.embeddings import EmbeddingService
-    from services.hybrid_search import HybridSearch
-    from services.rerank import get_rerank_service
-
-    if not query or not query.strip():
-        raise HTTPException(status_code=400, detail="query parameter required")
-    q = query.strip()
-
-    if db_service is None:
-        raise HTTPException(
-            status_code=503,
-            detail="DB not initialized — wait for backend startup to complete",
-        )
-
-    # ---- helpers -------------------------------------------------------
-    def _label(row: Dict[str, Any]) -> str:
-        name = row.get("name", "") or "(unnamed)"
-        brand = row.get("brand", "")
-        return f"{name} · {brand}" if brand else name
-
-    def _num(v: Any, places: int = 4) -> str:
-        try:
-            return f"{float(v):.{places}f}"
-        except (TypeError, ValueError):
-            return "—"
-
-    DISPLAY = 8  # rows shown per branch/fusion table
-
-    # ---- EMBED ---------------------------------------------------------
-    embed = EmbeddingService()
-    t0 = time.time()
-    query_embedding = embed.embed_query(q)
-    embed_ms = int((time.time() - t0) * 1000)
-    head = ", ".join(_num(x, 4) for x in query_embedding[:4])
-    embed_stage = {
-        "stage": "embed",
-        "tag": "SEARCH · EMBED",
-        "title": "Query → 1024-d vector · Cohere Embed v4",
-        "sql": "",
-        "columns": ["field", "value"],
-        "rows": [
-            ["model", settings.BEDROCK_EMBEDDING_MODEL],
-            ["input_type", "search_query"],
-            ["output_dimension", "1024"],
-            ["normalized", "L2 (unit length)"],
-            ["vector[:4]", f"[{head}, … (1024 dims)]"],
-        ],
-        "meta": "Asymmetric retrieval: the query is embedded as search_query, "
-                "the catalog was embedded as search_document. L2-normalized so "
-                "cosine distance is well-behaved.",
-        "tagClass": "amber",
-        "durationMs": embed_ms,
-    }
-
-    # ---- VECTOR + LEXICAL + FUSION (one live hybrid pass) --------------
-    hybrid = HybridSearch(db_service)
-    t0 = time.time()
-    explained = await hybrid.search_explained(query=q, query_embedding=query_embedding)
-    hybrid_ms = int((time.time() - t0) * 1000)
-    vector_rows = explained["vector_rows"]
-    fts_rows = explained["fts_rows"]
-    merged = explained["merged"]
-    params = explained["params"]
-
-    vector_stage = {
-        "stage": "vector",
-        "tag": "SEARCH · VECTOR",
-        "title": "Cosine retrieval · pgvector",
-        "sql": explained["vector_sql"].strip(),
-        "columns": ["rank", "product", "similarity"],
-        "rows": [
-            [str(i + 1), _label(r), _num(r.get("similarity"))]
-            for i, r in enumerate(vector_rows[:DISPLAY])
-        ],
-        "meta": f"Top {params['k_vector']} by cosine distance "
-                f"(<=> operator). similarity = 1 − distance; higher is closer. "
-                f"Use EXPLAIN to establish whether this execution used the HNSW index.",
-        "tagClass": "cyan",
-    }
-
-    lexical_stage = {
-        "stage": "lexical",
-        "tag": "SEARCH · LEXICAL",
-        "title": "Full-text · ts_rank_cd",
-        "sql": explained["fts_sql"].strip(),
-        "columns": ["rank", "product", "ts_rank_cd"],
-        "rows": [
-            [str(i + 1), _label(r), _num(r.get("fts_rank_score"), 5)]
-            for i, r in enumerate(fts_rows[:DISPLAY])
-        ],
-        "meta": "to_tsquery('english', …) with OR-joined stems over the "
-                "description_tsv GIN index. ts_rank_cd is cover-density rank "
-                "(matched terms close together rank higher). Empty here means "
-                "the query had no lexical anchors — vector carries the recall.",
-        "tagClass": "cyan",
-    }
-
-    fusion_stage = {
-        "stage": "fusion",
-        "tag": "SEARCH · FUSION",
-        "title": f"Reciprocal Rank Fusion (k={params['rrf_k']})",
-        "sql": "",
-        "columns": ["product", "vec_rank", "fts_rank", "rrf_score"],
-        "rows": [
-            [
-                _label(r),
-                str(r.get("vec_rank")) if r.get("vec_rank") is not None else "—",
-                str(r.get("fts_rank")) if r.get("fts_rank") is not None else "—",
-                _num(r.get("rrf_score"), 5),
-            ]
-            for r in merged[:DISPLAY]
-        ],
-        "meta": f"score(d) = Σ 1 / (k + rank) over each branch d appears in, "
-                f"k={params['rrf_k']}. Presence in both branches adds two contributions; "
-                f"whether that beats a single-branch row depends on the ranks. "
-                f"'—' means the row never surfaced in that branch.",
-        "tagClass": "cyan",
-        "durationMs": hybrid_ms,
-    }
-
-    # ---- RERANK --------------------------------------------------------
-    # Rerank the fused pool. The reordering between FUSION order (rrf_pos)
-    # and RERANK order (reranked_pos) is the headline of the whole surface.
-    documents = [
-        f"{r.get('name','')} — {(r.get('description','') or '')[:200]} ({r.get('category','')})"
-        for r in merged
-    ]
-    rerank_top = min(DISPLAY, len(merged))
-    t0 = time.time()
-    rerank_results = get_rerank_service().rerank(
-        query=q, documents=documents, top_n=rerank_top,
-    )
-    rerank_ms = int((time.time() - t0) * 1000)
-
-    if rerank_results:
-        rerank_rows = []
-        for new_pos, res in enumerate(rerank_results, start=1):
-            idx = res.get("index")
-            if idx is None or idx >= len(merged):
-                continue
-            prod = merged[idx]
-            rrf_pos = idx + 1  # merged is in RRF order
-            delta = rrf_pos - new_pos
-            arrow = "▲" if delta > 0 else ("▼" if delta < 0 else "—")
-            rerank_rows.append([
-                _label(prod),
-                str(rrf_pos),
-                f"{new_pos} {arrow}",
-                _num(res.get("relevance_score"), 4),
-            ])
-        rerank_meta = (
-            "Cohere Rerank v3.5 reads the query + each candidate and assigns a "
-            "relevance score in [0,1]. ▲/▼ shows how far a product "
-            "moved from its RRF position — that movement is what the rerank "
-            "spend buys you."
-        )
-    else:
-        # Honest degrade — no fabricated scores; show RRF order unchanged.
-        rerank_rows = [
-            [_label(r), str(i + 1), f"{i + 1} —", "n/a"]
-            for i, r in enumerate(merged[:rerank_top])
-        ]
-        rerank_meta = (
-            "Rerank unavailable (Bedrock error) — falling back to RRF order, "
-            "positions unchanged. This is the documented degrade path: a rerank "
-            "outage drops Anna to plain hybrid, it does not take search down."
-        )
-
-    rerank_stage = {
-        "stage": "rerank",
-        "tag": "SEARCH · RERANK",
-        "title": "Cohere Rerank v3.5",
-        "sql": "",
-        "columns": ["product", "rrf_pos", "reranked_pos", "relevance_score"],
-        "rows": rerank_rows,
-        "meta": rerank_meta,
-        "tagClass": "amber",
-        "durationMs": rerank_ms,
-    }
-
-    return {
-        "query": q,
-        "params": params,
-        "stages": [
-            embed_stage,
-            vector_stage,
-            lexical_stage,
-            fusion_stage,
-            rerank_stage,
-        ],
-    }
 
 
-@app.get("/api/observatory/catalog")
-async def observatory_catalog():
-    """
-    Tool catalog + agent grants for the Observatory Architecture pages.
-
-    Powers three surfaces:
-      - MCP page's tool card grid (Fired / Idle state + p50 latency)
-      - Tool Registry bipartite graph (agent → tool edges with styles)
-      - Tool Registry detail rows (grants per tool)
-
-    The catalog is hardcoded here because Pellier's tools are declared
-    in Python at import time — there isn't a runtime tool-metadata
-    table. If this catalog moves to the ``tools`` table seeded by
-    migration 001, swap this endpoint to read from it.
-
-    ``recent_calls`` and ``last_12_turns`` would come from a real
-    telemetry store. For now we report 0 / 0 — the live strip on each
-    page surfaces the current turn's activity via SSE, which is what
-    matters for a live demo.
-    """
-    # Agent definitions — matches imports in backend/agents/*.py
-    agents = [
-        {"name": "orchestrator", "model": "Sonnet", "role": "SONNET · ROUTES"},
-        {"name": "search", "model": "Opus", "role": "OPUS · 3 GRANTS"},
-        {"name": "recommendation", "model": "Opus", "role": "OPUS · 4 GRANTS"},
-        {"name": "pricing", "model": "Sonnet", "role": "SONNET · 3 GRANTS"},
-        {"name": "support", "model": "Opus", "role": "OPUS · 2 GRANTS"},
-        {"name": "inventory", "model": "Sonnet", "role": "SONNET · 3 GRANTS"},
-    ]
-
-    # Tool catalog — headline + description + typical p50.
-    # p50 values are approximate defaults; the live strip surfaces
-    # actual per-call latencies via the existing tool-call SSE.
-    tools = [
-        {
-            "name": "search_products",
-            "version": "v2.1",
-            "headline": "Semantic search across the catalog.",
-            "description": "Natural-language query against pgvector; returns top-k matched products.",
-            "p50_ms": 280,
-        },
-        {
-            "name": "get_trending_products",
-            "version": "v1.3",
-            "headline": "Current bestsellers and just-ins.",
-            "description": "Returns products tagged BESTSELLER / JUST_IN / EDITORS_PICK from the catalog.",
-            "p50_ms": 120,
-        },
-        {
-            "name": "browse_category",
-            "version": "v1.2",
-            "headline": "Browse by named category.",
-            "description": "Filter-by-category read for shoppers who know what shelf they want.",
-            "p50_ms": 80,
-        },
-        {
-            "name": "compare_products",
-            "version": "v1.0",
-            "headline": "Side-by-side product comparison.",
-            "description": "Takes two product IDs, returns attributes arranged for comparison.",
-            "p50_ms": 180,
-        },
-        {
-            "name": "get_price_analysis",
-            "version": "v1.1",
-            "headline": "Price trends, deals, and budget fit.",
-            "description": "Analyzes pricing across a category or a specific product family.",
-            "p50_ms": 220,
-        },
-        {
-            "name": "check_inventory",
-            "version": "v1.0",
-            "headline": "Stock levels at a glance.",
-            "description": "Inventory summary by category with low-stock flags.",
-            "p50_ms": 95,
-        },
-        {
-            "name": "get_low_stock",
-            "version": "v1.0",
-            "headline": "What's running low right now.",
-            "description": "Reads products below the restock threshold, ordered by urgency.",
-            "p50_ms": 110,
-        },
-        {
-            "name": "restock_inventory",
-            "version": "v1.0",
-            "headline": "Place a restock signal.",
-            "description": "Writes a restock request. Gated — requires explicit user confirmation.",
-            "p50_ms": 145,
-            "gated": True,
-        },
-        {
-            "name": "get_return_policy",
-            "version": "v1.0",
-            "headline": "Return windows by category.",
-            "description": "Policy lookup used by customer support for returns / refunds questions.",
-            "p50_ms": 45,
-        },
-    ]
-
-    # Agent → tool grants, derived from imports in backend/agents/*.py.
-    # Style: 'solid' = everyday access, 'dashed' = read-only/rare,
-    # 'gated' = requires user confirmation (espresso-dashed in the UI).
-    grants = [
-        # search agent imports
-        {"agent": "search", "tool": "search_products", "style": "solid"},
-        {"agent": "search", "tool": "browse_category", "style": "solid"},
-        {"agent": "search", "tool": "compare_products", "style": "solid"},
-        # recommendation agent imports
-        {"agent": "recommendation", "tool": "search_products", "style": "solid"},
-        {"agent": "recommendation", "tool": "get_trending_products", "style": "solid"},
-        {"agent": "recommendation", "tool": "compare_products", "style": "solid"},
-        {"agent": "recommendation", "tool": "browse_category", "style": "solid"},
-        # pricing agent imports
-        {"agent": "pricing", "tool": "get_price_analysis", "style": "solid"},
-        {"agent": "pricing", "tool": "browse_category", "style": "solid"},
-        {"agent": "pricing", "tool": "search_products", "style": "dashed"},
-        # inventory agent imports
-        {"agent": "inventory", "tool": "check_inventory", "style": "solid"},
-        {"agent": "inventory", "tool": "get_low_stock", "style": "solid"},
-        {"agent": "inventory", "tool": "restock_inventory", "style": "gated"},
-        # support agent imports
-        {"agent": "support", "tool": "get_return_policy", "style": "solid"},
-        {"agent": "support", "tool": "search_products", "style": "dashed"},
-    ]
-
-    return {
-        "agents": agents,
-        "tools": tools,
-        "grants": grants,
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -3165,13 +2569,46 @@ def _persona_payload(row: dict[str, Any], *, include_customer_id: bool) -> dict[
     return payload
 
 
-@app.get("/api/observatory/personas")
+@app.get("/api/personas")
 async def list_personas():
     """Return selectable shopper profiles from Aurora."""
     return [
         _persona_payload(row, include_customer_id=False)
         for row in await _persona_rows()
     ]
+
+
+@app.get("/api/scenarios")
+async def list_scenarios(persona: str = Query(default="fresh", min_length=1, max_length=64)):
+    """Return a persona's guided shopper requests with their preview images."""
+    db = await get_db_service()
+    rows = await db.fetch_all(
+        """
+        SELECT ws.scenario_id AS id, ws.ordinal, ws.prompt, ws.journey_role,
+               ws.journey_stage, pc.name AS product_name, pc."imgUrl" AS image_url
+          FROM pellier.workshop_scenarios ws
+          LEFT JOIN pellier.product_catalog pc ON pc."productId" = ws.preview_product_id
+         WHERE ws.persona_id = %s
+         ORDER BY ws.ordinal ASC
+        """,
+        persona,
+    )
+    return {
+        "persona": persona,
+        "scenarios": [
+            {
+                "id": int(row["id"]),
+                "ordinal": int(row["ordinal"]),
+                "prompt": row["prompt"],
+                "journeyRole": row.get("journey_role")
+                or ("required" if int(row["ordinal"]) <= 3 else "explore"),
+                "journeyStage": row.get("journey_stage"),
+                "productName": row.get("product_name"),
+                "imageUrl": row.get("image_url"),
+            }
+            for row in (dict(raw) for raw in rows)
+        ],
+    }
 
 
 from pydantic import BaseModel as _BaseModel
@@ -3242,13 +2679,6 @@ async def get_current_persona(session_id: Optional[str] = Query(default=None)):
     if not rows:
         return {"persona": None}
     return {"persona": _persona_payload(rows[0], include_customer_id=True)}
-
-
-# NOTE: the legacy /api/observatory/status endpoint (multi-module stub detection
-# for an older workshop draft) was removed from the current required path.
-# The Observatory progress strip reads GET /api/observatory/build-state instead,
-# which tracks the Inventory Agent definition and check_inventory body independently.
-# See routes/observatory.py::get_build_state.
 
 
 # ============================================================================

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict
 
 import pytest
 
@@ -42,87 +42,14 @@ GOLDEN = _load_golden()
 JOURNEYS = GOLDEN["journeys"]
 
 
-def _fixture_checks() -> Iterable[Tuple[Dict[str, Any], Dict[str, Any]]]:
-    for journey in JOURNEYS:
-        for check in journey.get("fixtureChecks", []):
-            yield journey, check
 
 
-FIXTURE_CHECKS = list(_fixture_checks())
 
 
-def _load_fixture(fixture_name: str) -> Dict[str, Any]:
-    path = REPO_ROOT / GOLDEN["fixtureRoot"] / fixture_name
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _assistant_turn(fixture: Dict[str, Any], turn_index: int) -> Dict[str, Any]:
-    """Return the Nth assistant message (1-indexed) from the chat array."""
-    assistants = [m for m in fixture.get("chat", []) if m.get("role") == "assistant"]
-    if turn_index < 1 or turn_index > len(assistants):
-        raise AssertionError(
-            f"Fixture has {len(assistants)} assistant turns; asked for turn {turn_index}"
-        )
-    return assistants[turn_index - 1]
 
 
-@pytest.mark.parametrize(
-    ("journey", "check"),
-    FIXTURE_CHECKS,
-    ids=[f"{j['id']}:{c['id']}" for j, c in FIXTURE_CHECKS],
-)
-def test_golden_fixture_check(
-    journey: Dict[str, Any], check: Dict[str, Any]
-) -> None:
-    fixture = _load_fixture(check["fixture"])
-    asserts = check["asserts"]
-    check_id = f"{journey['id']}:{check['id']}"
-
-    expected_pattern = asserts.get("routingPattern")
-    if expected_pattern is not None:
-        assert fixture.get("routingPattern") == expected_pattern, (
-            f"{check_id}: routingPattern drift "
-            f"(expected {expected_pattern!r}, got {fixture.get('routingPattern')!r})"
-        )
-
-    turn = _assistant_turn(fixture, asserts["turn"])
-    tool_calls: List[Dict[str, Any]] = turn.get("toolCalls", [])
-    tools_in_order = [tc["toolName"] for tc in tool_calls]
-    tools_set = set(tools_in_order)
-
-    for tool in asserts.get("expectedTools", []):
-        assert tool in tools_set, (
-            f"{check_id}: expected tool {tool!r} missing (saw {tools_in_order})"
-        )
-
-    expected_order = asserts.get("expectedToolsInOrder", [])
-    index = -1
-    for tool in expected_order:
-        try:
-            index = tools_in_order.index(tool, index + 1)
-        except ValueError as exc:
-            raise AssertionError(
-                f"{check_id}: expected {expected_order} as a subsequence; "
-                f"saw {tools_in_order}"
-            ) from exc
-
-    for tool in asserts.get("forbiddenTools", []):
-        assert tool not in tools_set, (
-            f"{check_id}: forbidden tool {tool!r} fired (saw {tools_in_order})"
-        )
-
-    products = [p["name"] for p in turn.get("products", [])]
-    products_set = set(products)
-    for name in asserts.get("expectedProductsAll", []):
-        assert name in products_set, (
-            f"{check_id}: required product {name!r} missing (surfaced {products})"
-        )
-
-    expected_any = asserts.get("expectedProductsAny", [])
-    if expected_any:
-        assert any(name in products_set for name in expected_any), (
-            f"{check_id}: none of {expected_any} surfaced (surfaced {products})"
-        )
 
 
 def test_golden_set_names_the_complete_retail_cast() -> None:

@@ -495,29 +495,6 @@ def test_the_comparison_runs_both_planned_strategies_through_the_shared_executor
     assert [product["name"] for product in body["strategies"][4]["products"]]
 
 
-def test_the_search_explain_surface_deliberately_does_not_run_the_executor(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """It exposes the artifacts the executor collapses, so it drives the branches.
-
-    Pinned behaviorally so the divergence stays a decision. The docstrings in
-    ``services/planned_hybrid_retrieval.py`` and on ``explain_search`` record
-    the reasoning; if this fails, one of them is stale.
-    """
-
-    async def _forbidden(*_args: Any, **_kwargs: Any) -> Any:
-        raise AssertionError(
-            "explain_search ran the shared executor; update the docstrings or "
-            "route it deliberately"
-        )
-
-    monkeypatch.setattr(retrieval_module, "execute_search_plan", _forbidden)
-
-    body = asyncio.run(app_module.explain_search(query="linen for a resort"))
-
-    assert [stage["stage"] for stage in body["stages"]][:2] == ["embed", "vector"]
-
-
 def _lab_1_receipt_cte() -> str:
     """The ``receipt`` CTE from the Lab 1 build artifact, as shipped."""
     text = LAB_1_SQL.read_text(encoding="utf-8")

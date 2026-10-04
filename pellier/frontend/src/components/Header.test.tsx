@@ -198,20 +198,6 @@ describe('Header — nav items', () => {
     expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument()
   })
 
-  it('links directly to Pellier Observatory without repeating the storefront name', () => {
-    renderHeader()
-    const labsLink = screen.getByRole('link', { name: 'Observatory' })
-    expect(labsLink).toHaveTextContent('Observatory')
-    expect(labsLink).toHaveAttribute('href', '/observatory')
-  })
-
-  it('keeps one Observatory destination when the mobile menu opens', () => {
-    renderHeader()
-    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }))
-    const labsLink = screen.getByRole('link', { name: 'Observatory' })
-    expect(labsLink).toHaveTextContent('Observatory')
-    expect(labsLink).toHaveAttribute('href', '/observatory')
-  })
 })
 
 describe('Header — persona account control', () => {

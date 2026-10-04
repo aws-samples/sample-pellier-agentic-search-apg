@@ -30,21 +30,6 @@ function renderBody(chatMessage: AgentChatMessage) {
 }
 
 describe('storefront source disclosure', () => {
-  it('shows the stable turn reference when telemetry also has a trace id', async () => {
-    const user = userEvent.setup()
-    renderBody(message({
-      turnId: 'turn-evidence-join',
-      agentExecution: {
-        agent_steps: [], tool_calls: [], reasoning_steps: [],
-        total_duration_ms: 18, success_rate: 1, trace_id: 'otel-trace-different-id',
-      },
-    }))
-    await user.click(screen.getByRole('button', { name: /match details/i }))
-    expect(screen.getByTitle('turn-evidence-join')).toBeInTheDocument()
-    expect(screen.queryByTitle('otel-trace-different-id')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Copy turn reference' })).toBeInTheDocument()
-  })
-
   it('keeps completed source details collapsed until the shopper asks', async () => {
     const user = userEvent.setup()
     renderBody(message({

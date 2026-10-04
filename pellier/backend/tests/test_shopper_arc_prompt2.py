@@ -69,18 +69,6 @@ def test_marco_quantity_is_never_hard_coded_in_the_prompt() -> None:
     assert "quantity" in prompt  # it reads the field instead
 
 
-def test_marco_build_state_is_detected_not_assumed() -> None:
-    """The before/after depends on knowing whether the tool is still the stub.
-
-    Both states are legitimate; what must exist is the detector, so the
-    Observatory reports build state from source rather than guessing. It lives
-    in routes.observatory, not agent_tools.
-    """
-    from routes.observatory import _check_inventory_is_workshop_stub
-
-    assert isinstance(_check_inventory_is_workshop_stub(), bool)
-
-
 # ---------------------------------------------------------------------------
 # ANNA — RETRIEVE. Four strategies, and honest filter ownership.
 # ---------------------------------------------------------------------------
@@ -111,25 +99,6 @@ def test_anna_observed_ms_is_presented_as_an_observation() -> None:
     app = (BACKEND / "app.py").read_text()
     assert '"observedMs"' in app
     assert "durations are observations" in app
-
-
-def test_anna_ui_states_that_ranking_does_not_enforce_filters() -> None:
-    """The conceptual bridge into Theo, in participant copy.
-
-    The insight previously lived only in a code comment, where no participant
-    would ever read it.
-    """
-    ui = (
-        REPO / "pellier" / "frontend" / "src" / "observatory" / "surfaces"
-        / "measure" / "Performance.tsx"
-    ).read_text()
-    flat = " ".join(ui.split())
-
-    assert "The model proposes retrieval controls. PostgreSQL enforces the" in flat
-    assert "hard constraints." in flat
-    # And it must not claim the opposite anywhere.
-    assert "rerank enforces" not in flat.lower()
-    assert "reranking enforces" not in flat.lower()
 
 
 # ---------------------------------------------------------------------------

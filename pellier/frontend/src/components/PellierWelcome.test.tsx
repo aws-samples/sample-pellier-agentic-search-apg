@@ -9,7 +9,7 @@ function liveFetch(input: RequestInfo | URL): Promise<Response> {
   if (url.startsWith('/api/products')) {
     return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }))
   }
-  if (url.startsWith('/api/observatory/scenarios')) {
+  if (url.startsWith('/api/scenarios')) {
     return Promise.resolve(new Response(JSON.stringify({
       scenarios: [
         { id: 1, ordinal: 1, prompt: 'Required one', journeyRole: 'required' },

@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import ChatFailureCard from './ChatFailureCard'
-import TurnReceipt from './TurnReceipt'
 
 describe('ChatFailureCard', () => {
   it('renders governance denials as protected outcomes without a retry action', async () => {
@@ -75,38 +74,5 @@ describe('ChatFailureCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledWith('find a linen jacket')
-  })
-})
-
-describe('TurnReceipt', () => {
-  it('copies the complete turn reference while displaying a compact value', async () => {
-    const user = userEvent.setup()
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
-    })
-    const reference = 'turn-0123456789-abcdefghijklmnopqrstuvwxyz'
-
-    render(<TurnReceipt reference={reference} surface="observatory" />)
-
-    // "Response complete" is the transport fact. Evidence is a separate badge
-    // that appears only when the ledger says so; see TurnReceipt.test.tsx.
-    expect(screen.getByTestId('turn-receipt')).toHaveTextContent(
-      'Response complete',
-    )
-    expect(screen.getByTestId('turn-receipt')).not.toHaveTextContent(
-      'Evidence recorded',
-    )
-    expect(screen.getByTitle(reference)).not.toHaveTextContent(reference)
-
-    await user.click(
-      screen.getByRole('button', { name: 'Copy turn reference' }),
-    )
-
-    expect(writeText).toHaveBeenCalledWith(reference)
-    expect(
-      screen.getByRole('button', { name: 'Reference copied' }),
-    ).toBeInTheDocument()
   })
 })

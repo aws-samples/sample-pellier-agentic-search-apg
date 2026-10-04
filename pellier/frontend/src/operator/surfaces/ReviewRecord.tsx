@@ -924,20 +924,6 @@ const ReviewRecordPage: React.FC = () => {
         </section>
       ) : null}
 
-      {/* The evidence link, where the raw identifiers belong. */}
-      {review.sourceTurnId ? (
-        <p className="operator-review-proof-link">
-          <Link
-            className="pellier-action-quiet"
-            to={`/observatory/operator-lineage?customer=${encodeURIComponent(
-              review.customerId,
-            )}&review=${encodeURIComponent(String(review.reviewId))}`}
-            data-testid="operator-review-observatory-link"
-          >
-            Inspect this governed handoff in Pellier Observatory
-          </Link>
-        </p>
-      ) : null}
     </div>
   )
 }

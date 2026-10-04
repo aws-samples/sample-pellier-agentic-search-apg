@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { signIn } from './helpers'
 
 test('password sign-in verifies Cognito identity and protects browser tokens', async ({ page, context }) => {
-  await signIn(page, '/observatory/govern/authentication')
+  await signIn(page, '/operator')
   await expect(page.getByText('Validated access token', { exact: true })).toBeVisible()
   const cookies = await context.cookies()
   for (const name of ['access_token', 'refresh_token']) {

@@ -1,7 +1,6 @@
 {
   "schemaVersion": 2,
   "description": "Golden retail journeys. Fixture checks are deterministic PR gates; stage contracts define what a participant must be able to prove from customer intent through business outcome. A journey may end early (endsAt) and hand its remaining stages to another journey. No local fixture may manufacture an AgentCore Policy verdict.",
-  "fixtureRoot": "pellier/frontend/src/observatory/fixtures",
   "stageContract": {
     "order": [
       "intent",
@@ -36,7 +35,6 @@
         "executor": null,
         "customerSubject": null
       },
-      "fixtureChecks": [],
       "stages": [
         {
           "id": "intent",
@@ -99,39 +97,6 @@
         "executor": null,
         "customerSubject": "CUST-MARCO"
       },
-      "fixtureChecks": [
-        {
-          "id": "opening-linen",
-          "fixture": "session-marco-opening-demo.json",
-          "asserts": {
-            "routingPattern": "Dispatcher",
-            "turn": 1,
-            "expectedTools": [
-              "search_products"
-            ],
-            "expectedProductsAny": [
-              "Hadley Linen Shirt",
-              "Italian Linen Camp Shirt"
-            ],
-            "expectedProductsAll": [
-              "Linen Drawstring Trousers"
-            ]
-          }
-        },
-        {
-          "id": "brooklyn-floor-check",
-          "fixture": "session-marco-midpoint-checkpoint.json",
-          "asserts": {
-            "turn": 1,
-            "expectedToolsInOrder": [
-              "check_inventory"
-            ],
-            "expectedProductsAll": [
-              "Hadley Linen Shirt"
-            ]
-          }
-        }
-      ],
       "stages": [
         {
           "id": "intent",
@@ -194,25 +159,6 @@
         "executor": null,
         "customerSubject": "CUST-ANNA"
       },
-      "fixtureChecks": [
-        {
-          "id": "hybrid-gift",
-          "fixture": "session-anna-birthday-gift.json",
-          "asserts": {
-            "turn": 1,
-            "expectedTools": [
-              "search_products_hybrid"
-            ],
-            "forbiddenTools": [
-              "search_products"
-            ],
-            "expectedProductsAny": [
-              "Beeswax Taper Candles",
-              "Ceramic Ring Dish"
-            ]
-          }
-        }
-      ],
       "stages": [
         {
           "id": "intent",
@@ -279,22 +225,6 @@
         },
         "customerSubject": "CUST-THEO"
       },
-      "fixtureChecks": [
-        {
-          "id": "read-then-write",
-          "fixture": "session-theo-ceramics-return.json",
-          "asserts": {
-            "turn": 1,
-            "expectedToolsInOrder": [
-              "get_return_policy",
-              "initiate_return"
-            ],
-            "expectedProductsAll": [
-              "Wabi-Sabi Bowl"
-            ]
-          }
-        }
-      ],
       "closedLoop": {
         "action": "initiate_return",
         "materialParameters": [
@@ -363,7 +293,6 @@
         "marco",
         "anna"
       ],
-      "fixtureChecks": [],
       "identityMatrix": [
         {
           "principal": "marco",
@@ -471,7 +400,6 @@
         },
         "customerSubject": "CUST-JESSICA"
       },
-      "fixtureChecks": [],
       "epistemicContract": {
         "fact": "Aurora orders and returns rows",
         "context": "TKT-2026-3015 says a return was received",

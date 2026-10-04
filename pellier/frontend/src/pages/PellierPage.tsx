@@ -47,7 +47,6 @@ const NAV_ROUTES: Record<NavItem, string> = {
   stories: '/storyboard',
   discover: '/#shop',
   about: '/about',
-  'how-it-works': '/how-pellier-works',
   account: '/',
   'ask-pellier': '/',
 }

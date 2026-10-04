@@ -26,7 +26,6 @@ Measured live on 2026-08-27:
 from __future__ import annotations
 
 import inspect
-import re
 from typing import Any, Dict, List, Optional
 
 import pytest
@@ -220,30 +219,3 @@ def test_the_existing_shopper_scoping_is_untouched() -> None:
     assert "gr.principal_id = %s" in sql
     assert "gtr.principal_sub = %s" in sql
     assert "governed_receipts" in sql
-
-
-def test_the_route_does_not_distinguish_absent_from_forbidden() -> None:
-    """Telling a caller "exists but not yours" leaks the existence."""
-    from routes import observatory
-
-    source = inspect.getsource(observatory.reconstruct_governed_execution)
-    assert "no_execution_for_principal" in source
-    assert source.count("status_code=404") == 1
-    assert "403" not in source
-
-
-def test_the_fastapi_path_import_does_not_shadow_pathlib() -> None:
-    """`Path` in this module is `pathlib.Path`, used for filesystem reads.
-
-    Importing FastAPI's under the same name turned every `Path(__file__)` into a
-    path-parameter declaration and broke collection with "Path parameters cannot have a
-    default value".
-    """
-    import pathlib as _pathlib
-
-    from routes import observatory
-
-    assert observatory.Path is _pathlib.Path
-    source = _pathlib.Path("routes/observatory.py").read_text()
-    assert "from fastapi import Path as PathParam" in source
-    assert not re.search(r"^\s+\w+: int = Path\(", source, re.MULTILINE)

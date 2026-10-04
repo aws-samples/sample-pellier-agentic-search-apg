@@ -18,7 +18,7 @@ describe('application API routing', () => {
   it('keeps all three surfaces and sign-in beneath the workspace app prefix', async () => {
     const { apiUrl } = await deployedApi()
     for (const path of ['/api/products', '/api/persona/switch', '/api/auth/signin?provider=email',
-      '/api/operator/clients', '/api/observatory/proof-board', '/api/chat/stream']) {
+      '/api/operator/clients', '/api/personas', '/api/chat/stream']) {
       expect(apiUrl(path)).toBe(`/ports/8000${path}`)
     }
     expect(apiUrl('/ports/8000/api/health')).toBe('/ports/8000/api/health')

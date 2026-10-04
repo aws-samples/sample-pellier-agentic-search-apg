@@ -96,7 +96,6 @@ export default function ReplacementCare({ record }: { record: OperatorClientReco
                 <p className="operator-cell-note">Fulfillment provider: workshop simulator. This record does not describe a real shipment.</p>
                 <div className="operator-review-client-actions">
                   <Link className="operator-client-chat-link" to={`/operator/reviews/${replacement.reviewId}`}>Open decision</Link>
-                  <Link className="operator-client-chat-link" to={`/observatory/replacement?customer=${encodeURIComponent(customerId)}&replacement=${encodeURIComponent(replacement.replacementId)}`}>Inspect recovery evidence</Link>
                 </div>
               </article>,
             )}</div>}

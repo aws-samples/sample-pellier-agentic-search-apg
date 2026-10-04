@@ -8,11 +8,11 @@ test('release accessibility and current public screenshots',async({page},testInf
  test.setTimeout(180000)
  await page.emulateMedia({reducedMotion:'reduce'})
  expect(await page.evaluate(()=>matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true)
- await page.addInitScript(()=>{sessionStorage.setItem('pellier-storefront-spotlight-seen','true');sessionStorage.setItem('observatory-spotlight-seen','true')})
+ await page.addInitScript(()=>{sessionStorage.setItem('pellier-storefront-spotlight-seen','true')})
  const findings: {route:string;width:number;violations:AxeResults['violations'];incomplete:string[]}[]=[]
  for(const width of [1920,1280,390]){
   await page.setViewportSize({width,height:900})
-  for(const route of ['/','/signin','/observatory','/observatory/workbench','/observatory/govern/verification','/operator/clients/CUST-JESSICA']){
+  for(const route of ['/','/signin','/operator/clients/CUST-JESSICA']){
    await page.goto(route)
    await expect(page.getByRole('heading',{level:1}).first()).toBeVisible()
    await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')})

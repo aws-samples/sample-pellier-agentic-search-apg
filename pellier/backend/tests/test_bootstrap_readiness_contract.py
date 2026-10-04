@@ -144,8 +144,6 @@ def test_facilitator_dry_run_covers_both_lab2_build_sites() -> None:
     assert "agents/inventory_agent_solution.py" in source
     assert "services/agent_tools.py" in source
     assert "agent_tools_check_inventory_solution.py" in source
-    assert '"Inventory Agent"[[:space:]]*:[[:space:]]*"shipped"' in source
-    assert '"check_inventory"[[:space:]]*:[[:space:]]*"shipped"' in source
 
 
 def test_governed_bootstrap_restores_all_participant_starters() -> None:

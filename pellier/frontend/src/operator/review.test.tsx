@@ -861,19 +861,13 @@ describe('ReviewRecord', () => {
     expect(error.textContent).toContain('verified operator sign-in is required')
   })
 
-  it('links to the authoritative client record and to the originating turn', async () => {
+  it('links to the authoritative client record', async () => {
     renderRecord()
     await screen.findByTestId('operator-review-record')
 
     expect(screen.getByTestId('operator-review-client-link')).toHaveAttribute(
       'href',
       '/operator/clients/CUST-THEO',
-    )
-    expect(
-      screen.getByTestId('operator-review-observatory-link'),
-    ).toHaveAttribute(
-      'href',
-      '/observatory/operator-lineage?customer=CUST-THEO&review=12',
     )
   })
 

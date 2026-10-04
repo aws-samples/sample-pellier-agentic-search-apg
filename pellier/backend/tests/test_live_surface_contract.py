@@ -7,38 +7,12 @@ fixtures or locally fabricated persona data.
 
 from __future__ import annotations
 
-import asyncio
 import pathlib
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 FRONTEND = ROOT / "pellier" / "frontend" / "src"
 BACKEND = ROOT / "pellier" / "backend"
-
-
-def test_observatory_data_hook_is_api_only() -> None:
-    body = (FRONTEND / "observatory" / "hooks" / "useObservatoryData.ts").read_text()
-
-    assert "const apiEndpoints" in body
-    assert "fixtureImporters" not in body
-    assert "allowFixtureFallback" not in body
-
-
-def test_agent_registry_reports_each_specialists_balanced_model() -> None:
-    """The topology must expose the factory's real default, not a legacy alias."""
-    from config import settings
-    from routes.observatory import list_agents
-
-    agents = asyncio.run(list_agents())
-    models = {agent["name"]: agent["model"] for agent in agents}
-
-    assert models == {
-        "Search Agent": settings.BEDROCK_OPUS_MODEL,
-        "Personalization Agent": settings.BEDROCK_OPUS_MODEL,
-        "Pricing Agent": settings.BEDROCK_REPORTING_MODEL,
-        "Inventory Agent": settings.BEDROCK_REPORTING_MODEL,
-        "Customer Service Agent": settings.BEDROCK_OPUS_MODEL,
-    }
 
 
 def test_persona_runtime_has_no_file_or_process_memory_fallback() -> None:
@@ -106,34 +80,6 @@ def test_historical_theo_seed_retains_its_recorded_return_conversation() -> None
     assert "041_align_theo_pairing_preview.sql" in setup
     assert "040_resequence_theo_governed_turn.sql" in reset
     assert "041_align_theo_pairing_preview.sql" in reset
-
-
-def test_historical_anna_seed_retains_its_recorded_retrieval_previews() -> None:
-    seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    repair = (
-        ROOT / "scripts" / "migrations" / "042_align_anna_guided_previews.sql"
-    ).read_text()
-    setup = (ROOT / "scripts" / "setup" / "database-setup.sh").read_text()
-    reset = (ROOT / "scripts" / "setup" / "database-reset.sh").read_text()
-
-    retrieval_turn = (
-        "('anna', 2, 'Keep it under $100 and in stock. Show me the strongest two options.', "
-        "'required', 'exercise', '28')"
-    )
-    proof_turn = (
-        "('anna', 3, 'Which one should I choose? Compare the two options using their current prices and availability.', "
-        "'required', 'prove', NULL)"
-    )
-    assert retrieval_turn in seed
-    assert proof_turn in seed
-    assert "WHERE persona_id = 'anna'" in repair
-    assert "AND ordinal = 2" in repair
-    assert "AND ordinal = 3" in repair
-    assert "Build checkpoint · inventory proof" in (
-        FRONTEND / "observatory" / "surfaces" / "observe" / "ObservatoryCuratedTurns.tsx"
-    ).read_text()
-    assert "042_align_anna_guided_previews.sql" in setup
-    assert "042_align_anna_guided_previews.sql" in reset
 
 
 def test_storefront_persona_edits_are_durable_aurora_merchandising() -> None:
@@ -254,34 +200,3 @@ def test_voice_transcription_is_not_shipped_when_no_voice_control_exists() -> No
     assert "useVoiceSearch" not in hero
     assert not (BACKEND / "routes" / "transcribe.py").exists()
     assert not (FRONTEND / "hooks" / "useVoiceSearch.ts").exists()
-
-
-def test_observatory_never_substitutes_browser_or_hardcoded_data() -> None:
-    """A failed live read is visible; it is never simulated in the browser."""
-    # Personas are listed by the Storefront's chooser and concierge, both from the
-    # API. The Observatory Settings page that also listed them is retired, and must
-    # stay retired rather than return with a local fallback list.
-    assert not (FRONTEND / "observatory" / "surfaces" / "Settings.tsx").exists()
-    persona_lists = [
-        (FRONTEND / "components" / name).read_text()
-        for name in ("PersonaModal.tsx", "PersonaConcierge.tsx")
-    ]
-    tool_discovery = (
-        FRONTEND / "observatory" / "hooks" / "useToolDiscovery.ts"
-    ).read_text()
-    skills = (
-        FRONTEND / "observatory" / "surfaces" / "understand" / "Skills.tsx"
-    ).read_text()
-    session_chat = (
-        FRONTEND / "observatory" / "surfaces" / "observe" / "ChatTab.tsx"
-    ).read_text()
-
-    for persona_list in persona_lists:
-        assert "FALLBACK_PERSONAS" not in persona_list
-        assert "apiFetch('/api/observatory/personas')" in persona_list
-    assert "discoverToolsLocally" not in tool_discovery
-    assert "routeSkillsOffline" not in skills
-    assert "SHOWCASE_PRODUCTS" not in session_chat
-    assert "searchCatalog" not in session_chat
-    assert "ComposerBar" not in session_chat
-    assert "PERSONA_STRIP_META" not in session_chat

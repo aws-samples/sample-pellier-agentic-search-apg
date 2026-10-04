@@ -1,5 +1,5 @@
 /**
- * Footer tests — masthead, four live columns, disclaimer, legal strip.
+ * Footer tests — masthead, three live columns, disclaimer, legal strip.
  *
  * The original footer spec (five columns, newsletter form, Privacy/
  * Terms/Accessibility bottom strip) was frozen around placeholder links. The
@@ -35,16 +35,15 @@ function renderFooter() {
   )
 }
 
-describe('Footer — four live columns', () => {
-  it('renders exactly four column sections in order', () => {
+describe('Footer — three live columns', () => {
+  it('renders exactly three column sections in order', () => {
     renderFooter()
     const container = screen.getByTestId('footer-columns')
     const regions = within(container).getAllByRole('region', { hidden: true })
-    expect(regions).toHaveLength(4)
+    expect(regions).toHaveLength(3)
     expect(screen.getByTestId('footer-column-brand')).toBeInTheDocument()
     expect(screen.getByTestId('footer-column-explore')).toBeInTheDocument()
     expect(screen.getByTestId('footer-column-storyboard')).toBeInTheDocument()
-    expect(screen.getByTestId('footer-column-observatory')).toBeInTheDocument()
   })
 
   it('renders the brand column with the tagline from copy.ts', () => {
@@ -71,15 +70,6 @@ describe('Footer — four live columns', () => {
     const cta = within(col).getByTestId('footer-column-storyboard-cta')
     expect(cta).toHaveAttribute('href', '/storyboard')
     expect(cta).toHaveTextContent(FOOTER.STORYBOARD.CTA_LABEL)
-  })
-
-  it('renders Pellier Observatory column with italic blurb + "Open Pellier Observatory" CTA linking to /observatory', () => {
-    renderFooter()
-    const col = screen.getByTestId('footer-column-observatory')
-    expect(within(col).getByText(FOOTER.OBSERVATORY.COPY)).toBeInTheDocument()
-    const cta = within(col).getByTestId('footer-column-observatory-cta')
-    expect(cta).toHaveAttribute('href', '/observatory')
-    expect(cta).toHaveTextContent(FOOTER.OBSERVATORY.CTA_LABEL)
   })
 })
 

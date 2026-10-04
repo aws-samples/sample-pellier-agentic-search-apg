@@ -112,7 +112,7 @@ export default function PellierHero({
     let active = true
     const controller = new AbortController()
     setSuggestions([])
-    void apiFetch(`/api/observatory/scenarios?persona=${encodeURIComponent(persona.id)}`, {
+    void apiFetch(`/api/scenarios?persona=${encodeURIComponent(persona.id)}`, {
       signal: controller.signal,
     })
       .then(async response => {

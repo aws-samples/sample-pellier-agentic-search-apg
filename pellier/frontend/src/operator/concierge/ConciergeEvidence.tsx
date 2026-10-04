@@ -9,7 +9,6 @@
  */
 
 import React from 'react'
-import { Link } from 'react-router-dom'
 import ServiceIdentity from '../../shared/ServiceIdentity'
 
 import type { ConciergeEvidenceItem } from '../../services/operatorConcierge'
@@ -29,10 +28,9 @@ const ROLE_COPY: Record<string, string> = {
 
 interface Props {
   items: ConciergeEvidenceItem[]
-  customerId?: string
 }
 
-const ConciergeEvidence: React.FC<Props> = ({ items, customerId }) => {
+const ConciergeEvidence: React.FC<Props> = ({ items }) => {
   if (!items.length) return null
   const incomplete = items.some((i) => i.status !== 'verified')
 
@@ -57,9 +55,6 @@ const ConciergeEvidence: React.FC<Props> = ({ items, customerId }) => {
                 {item.recordId ? ` · ${item.recordId}` : ''}
               </span>
               {item.source ? <ServiceIdentity source={item.source} /> : null}
-              {item.kind === 'replacement_operation' && item.recordId && customerId ? (
-                <Link className="operator-client-chat-link" to={`/observatory/replacement?customer=${encodeURIComponent(customerId)}&replacement=${encodeURIComponent(item.recordId)}`}>Inspect recovery evidence</Link>
-              ) : null}
             </dd>
           </div>
         ))}

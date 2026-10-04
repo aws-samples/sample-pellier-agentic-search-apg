@@ -106,7 +106,7 @@ _PREFS_STORE: Dict[str, Dict[str, Any]] = {}
 
 # Module-level SDK import status. The Observatory memory route constructs a
 # fresh ``AgentCoreMemory`` on every request (see
-# ``routes/observatory_observatory.py::_load_live_semantic``), so a per-instance
+# the memory read path), so a per-instance
 # cache for the SDK handle is useless — every new instance would retry the
 # import and log "bedrock-agentcore not installed" again. Caching the
 # success/failure at module level means the warning fires once per process.

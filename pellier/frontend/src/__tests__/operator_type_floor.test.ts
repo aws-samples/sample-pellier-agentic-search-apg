@@ -1,5 +1,5 @@
 /**
- * The Observatory and the Operator desk never render text below 11px.
+ * The Operator desk never renders text below 11px.
  *
  * WORKSHOP.md states this to co-speakers as a shipped property of the surface,
  * and until this test existed nothing enforced it. Half the Observatory had
@@ -42,11 +42,8 @@ const SRC = resolve(HERE, '..')
 // empty list for a missing file and a scan root that matches nothing passes
 // forever.
 const SCAN_ROOTS = [
-  join(SRC, 'observatory'),
   join(SRC, 'operator'),
   join(SRC, 'shared'),
-  join(SRC, 'styles', 'turn-receipt.css'),
-  join(SRC, 'components', 'TurnReceipt.tsx'),
 ]
 
 const SCAN_EXTENSIONS = new Set(['.css', '.ts', '.tsx'])
@@ -133,7 +130,7 @@ function findViolations(): Violation[] {
   return violations
 }
 
-describe('Observatory and Operator type floor', () => {
+describe('Operator type floor', () => {
   it('renders no text below 11px', () => {
     const violations = findViolations()
     const report = violations
@@ -176,12 +173,7 @@ describe('Observatory and Operator type floor', () => {
     // each, so an empty result means "clean", never "looked nowhere".
     const scanned = SCAN_ROOTS.flatMap(walk).map((f) => relative(SRC, f))
     expect(scanned.length).toBeGreaterThan(50)
-    expect(scanned).toContain(join('observatory', 'styles', 'base.css'))
     expect(scanned).toContain(join('operator', 'styles', 'operator.css'))
-    // The dual-surface receipt: shipped on the Observatory, authored outside
-    // both directories.
-    expect(scanned).toContain(join('styles', 'turn-receipt.css'))
-    expect(scanned).toContain(join('components', 'TurnReceipt.tsx'))
     // The shared primitives both surfaces render.
     expect(scanned).toContain(join('shared', 'DataTable.tsx'))
     expect(scanned).toContain(join('shared', 'StateBadge.tsx'))

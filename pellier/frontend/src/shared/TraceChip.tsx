@@ -10,25 +10,16 @@
  *
  * Visual: warm tint + 1px accent border, mono label at 11px with slight
  * tracking for readable dot-syntax. Optional `duration` renders a faint
- * right-aligned mono timestamp ("· 2.1s ago"). Optional `linkToObservatory`
- * wraps the chip in an anchor that deep-links to the Observatory route that
- * explains this concept (the "how this works" handoff).
+ * right-aligned mono timestamp ("· 2.1s ago").
  */
 import React from 'react'
 import { lookupVocab } from './agentVocabulary'
-import { routePath } from '../utils/assetPath'
 
 export interface TraceChipProps {
   /** Tool name, dot-separated. e.g. "memory.recall", "inventory.live". */
   tool: string
   /** Optional trailing duration string ("2.1s ago", "12s ago"). */
   duration?: string
-  /**
-   * When true, wraps the chip in an anchor tag pointing to the
-   * Observatory route that explains this tool. Lets shoppers click
-   * any trace and land on the developer-facing explainer for it.
-   */
-  linkToObservatory?: boolean
   /** Visual variant. `solid` is the default technical treatment;
    *  `ghost` is a softer fill suitable for dark surfaces, and
    *  `provenance` is the shopper-facing Pellier label treatment. */
@@ -41,20 +32,9 @@ export interface TraceChipProps {
   compact?: boolean
 }
 
-function withPellierTraceContext(path: string, tool: string): string {
-  const [pathAndSearch, hash] = path.split('#')
-  const separator = pathAndSearch.includes('?') ? '&' : '?'
-  const params = new URLSearchParams({
-    from: 'pellier',
-    trace: tool,
-  })
-  return `${pathAndSearch}${separator}${params.toString()}${hash ? `#${hash}` : ''}`
-}
-
 export const TraceChip: React.FC<TraceChipProps> = ({
   tool,
   duration,
-  linkToObservatory = false,
   variant = 'solid',
   labelMode = 'tool',
   compact = false,
@@ -99,7 +79,7 @@ export const TraceChip: React.FC<TraceChipProps> = ({
       : compact ? '4px 8px' : '5px 10px',
     whiteSpace: 'nowrap',
     textDecoration: 'none',
-    cursor: linkToObservatory ? 'pointer' : 'default',
+    cursor: 'default',
     transition: 'background 0.15s, border-color 0.15s',
   }
 
@@ -126,41 +106,6 @@ export const TraceChip: React.FC<TraceChipProps> = ({
       ) : null}
     </>
   )
-
-  if (linkToObservatory) {
-    return (
-      <a
-        href={routePath(withPellierTraceContext(vocab.observatoryPath, tool))}
-        title={`${vocab.label}: ${vocab.description}`}
-        data-testid={`trace-chip-${tool}`}
-        style={baseStyle}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background =
-            isProvenance
-              ? `color-mix(in srgb, ${accent} 12%, var(--cream-warm))`
-              : 'color-mix(in srgb, var(--accent) 14%, var(--cream-warm))'
-          e.currentTarget.style.borderColor =
-            isProvenance
-              ? `color-mix(in srgb, ${accent} 32%, transparent)`
-              : 'color-mix(in srgb, var(--accent) 38%, transparent)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background =
-            isProvenance
-              ? `color-mix(in srgb, ${accent} 7%, var(--cream-warm))`
-              : variant === 'ghost'
-              ? 'color-mix(in srgb, var(--accent) 5%, transparent)'
-              : 'color-mix(in srgb, var(--accent) 9%, var(--cream-warm))'
-          e.currentTarget.style.borderColor =
-            isProvenance
-              ? `color-mix(in srgb, ${accent} 18%, transparent)`
-              : 'color-mix(in srgb, var(--accent) 22%, transparent)'
-        }}
-      >
-        {content}
-      </a>
-    )
-  }
 
   return (
     <span

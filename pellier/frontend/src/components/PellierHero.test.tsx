@@ -79,10 +79,10 @@ vi.mock('../contexts/UIContext', () => ({
 
 function liveFetch(input: RequestInfo | URL): Promise<Response> {
   const url = String(input)
-  if (url.startsWith('/api/observatory/personas')) {
+  if (url.startsWith('/api/personas')) {
     return Promise.resolve(new Response(JSON.stringify(PROFILES), { status: 200 }))
   }
-  if (url.startsWith('/api/observatory/scenarios')) {
+  if (url.startsWith('/api/scenarios')) {
     return Promise.resolve(
       new Response(
         JSON.stringify({

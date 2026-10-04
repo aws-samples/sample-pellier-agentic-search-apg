@@ -79,7 +79,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
         credentials: 'include',
         signal: controller.signal,
       }),
-      apiFetch(`/api/observatory/scenarios?persona=${encodeURIComponent(profileId)}`, {
+      apiFetch(`/api/scenarios?persona=${encodeURIComponent(profileId)}`, {
         signal: controller.signal,
       }),
     ])

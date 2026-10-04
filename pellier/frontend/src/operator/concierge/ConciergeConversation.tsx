@@ -7,7 +7,6 @@
  */
 
 import React from 'react'
-import { Link } from 'react-router-dom'
 import ServiceIdentity from '../../shared/ServiceIdentity'
 
 import ConciergeInvestigation from './ConciergeInvestigation'
@@ -185,7 +184,7 @@ const ConciergeConversation: React.FC<Props> = ({
             />
           ) : null}
           {artifact.evidence?.length ? (
-            <ConciergeEvidence items={artifact.evidence} customerId={customerId} />
+            <ConciergeEvidence items={artifact.evidence} />
           ) : null}
           {artifact.sources?.length ? (
             <section className="operator-concierge-sources"
@@ -200,18 +199,6 @@ const ConciergeConversation: React.FC<Props> = ({
                 ))}
               </ul>
             </section>
-          ) : null}
-          {customerId && sessionId && message.turnId ? (
-            <div className="operator-concierge-evidence-link">
-              <Link
-                className="pellier-action-quiet"
-                to={`/observatory/operator-turn?${new URLSearchParams({
-                  customer: customerId, session: sessionId, turn: message.turnId,
-                })}`}
-              >
-                Inspect this turn in Observatory
-              </Link>
-            </div>
           ) : null}
         </li>
       )

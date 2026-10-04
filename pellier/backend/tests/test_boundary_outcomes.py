@@ -5,8 +5,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from services.governance_boundaries import assess, summarize
 from services import governed_execution as execution
@@ -269,20 +267,3 @@ def test_proof_environment_cannot_be_redirected_by_a_local_dotenv(monkeypatch, t
     assert os.environ["AGENTCORE_GATEWAY_URL"] == "https://intended.invalid/mcp"
     assert os.environ["PELLIER_PROOF_TEST_ONLY"] == "local"
     monkeypatch.delenv("PELLIER_PROOF_TEST_ONLY")
-
-
-def test_boundary_endpoint_requires_operator_and_failed_read_is_not_an_empty_run(monkeypatch):
-    from routes import governance, observatory
-    from services.auth import require_operator
-    app = FastAPI()
-    app.include_router(governance.router)
-    client = TestClient(app)
-    assert client.get("/api/observatory/governance/outcomes").status_code in (401, 403)
-    app.dependency_overrides[require_operator] = lambda: {"sub": "operator"}
-    async def failed_db():
-        raise RuntimeError("unavailable")
-    monkeypatch.setattr(observatory, "_live_db", failed_db)
-    response = client.get("/api/observatory/governance/outcomes")
-    assert response.status_code == 503
-    assert response.headers["cache-control"] == "no-store"
-    assert response.json() == {"detail": "boundary_evidence_unavailable"}
