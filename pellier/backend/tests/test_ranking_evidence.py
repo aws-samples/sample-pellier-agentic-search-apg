@@ -114,6 +114,18 @@ def test_filter_counts_shape_from_one_aggregate_row() -> None:
     assert len(seen) == 1, "one aggregate statement, never a second search"
 
 
+def test_the_panel_note_says_kept_counts_hard_limits_only() -> None:
+    from services.ranking_evidence import KEPT_NOTE
+
+    execution = _fixture_execution()
+    counts = {"kept": 64, "of": 100, "removed": {"budget": 31}}
+    with_counts = ranking_from_execution(execution, final_rows=execution.ordered, counts=counts)
+    assert with_counts["note"] == KEPT_NOTE
+    assert "hard limits only" in KEPT_NOTE
+    without = ranking_from_execution(execution, final_rows=execution.ordered, counts=None)
+    assert "note" not in without
+
+
 def test_no_limits_means_everything_is_kept() -> None:
     sql, params, reasons = filter_count_sql(build_plan("anything", {}, top_k=5))
     assert reasons == [] and params == [] and "count(*) AS kept" in sql

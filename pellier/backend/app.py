@@ -780,6 +780,34 @@ async def _persist_terminal_turn_receipt(
         return None
 
 
+# What a managed tool event carries for the Builder step alone. The step event
+# is the one place these travel in the stream; the tool_call event and the
+# execution envelope keep the execution facts.
+_BUILDER_STEP_FIELDS = frozenset({"requested_customer", "bound_customer", "finding", "ranking"})
+
+
+def _execution_tool_call(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+    """A managed tool event without the fields the Builder step shows."""
+    return {key: value for key, value in tool_call.items() if key not in _BUILDER_STEP_FIELDS}
+
+
+def _managed_skill_note(skills: List[Dict[str, Any]], skill_mode: str) -> Optional[str]:
+    """What the Router step says about skills on the managed rail.
+
+    The Runtime reports the skills its agent carried; the note never claims
+    more than that report. On-demand loading is an in-process choice.
+    """
+    notes: List[str] = []
+    if skill_mode == "on_demand":
+        notes.append("On-demand skill loading runs in the in-process app only")
+        notes.append(
+            "the Runtime loaded its fixed skills" if skills else "the Runtime reported no skills"
+        )
+    elif not skills:
+        notes.append("The Runtime reported no skills")
+    return "; ".join(notes) or None
+
+
 async def _managed_search_ranking(turn_id: str) -> Dict[str, Any]:
     """The Builder view's ranking for a managed search, from the turn's receipt.
 
@@ -1238,11 +1266,10 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     TurnSteps,
                     status_event,
                 )
-                from skills import skill_receipt
 
                 # The managed rail answers in one payload, so its steps arrive
-                # done. The Router step names the agent once; on-demand skill
-                # loading is an in-process choice, and the step says so.
+                # done. The Router step names the agent once and shows the
+                # skills the Runtime reported, which may be none.
                 yield f"data: {json.dumps(status_event(STATUS_UNDERSTANDING))}\n\n"
                 managed_steps = TurnSteps()
                 route_step = managed_steps.route(
@@ -1250,7 +1277,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     intent=managed_result.intent,
                     finding=f"Sent to the {managed_agent}" if managed_agent else "Routed",
                     model_id=managed_result.model,
-                    skills=skill_receipt(managed_result.intent, "fixed"),
+                    skills=managed_result.skills,
                     skill_mode="fixed",
                     memory=(
                         {
@@ -1262,14 +1289,12 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                         else None
                     ),
                     rail="gateway-mcp",
-                    note=(
-                        "On-demand skill loading runs in the in-process app only; "
-                        "the managed rail used the fixed skills"
-                        if request.skill_mode == "on_demand"
-                        else None
-                    ),
+                    note=_managed_skill_note(managed_result.skills, request.skill_mode),
                 )
                 yield f"data: {json.dumps(route_step, ensure_ascii=False)}\n\n"
+                execution_tool_calls = [
+                    _execution_tool_call(tool_call) for tool_call in managed_result.tool_calls
+                ]
                 for tool_call in managed_result.tool_calls:
                     if tool_call.get("tool") == "search_products":
                         tool_call = {
@@ -1281,7 +1306,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                         + json.dumps(
                             {
                                 "type": "tool_call",
-                                **tool_call,
+                                **_execution_tool_call(tool_call),
                                 # The browser stream uses completed/executing;
                                 # keep the managed success/error vocabulary in
                                 # the persisted execution envelope itself.
@@ -1358,7 +1383,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                                 if managed_agent
                                 else []
                             ),
-                            "tool_calls": managed_result.tool_calls,
+                            "tool_calls": execution_tool_calls,
                             "reasoning_steps": [],
                             "total_duration_ms": int(
                                 (time.perf_counter() - managed_started) * 1000

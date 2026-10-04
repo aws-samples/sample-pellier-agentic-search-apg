@@ -70,11 +70,27 @@ TOOL_SCHEMAS = {
             },
             {
                 "name": "browse_department",
-                "description": "The highest-rated products in one store department.",
+                "description": (
+                    "The highest-rated products in one store department, within "
+                    "the shopper's limits."
+                ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "department": {"type": "string"},
+                        "max_price": {"type": "number", "description": "Maximum price, a hard filter"},
+                        "in_stock_only": {
+                            "type": "boolean",
+                            "description": "Only products with units in stock, a hard filter",
+                        },
+                        "exclusions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "Tags or materials the shopper ruled out, such as "
+                                "candle or wool, a hard filter"
+                            ),
+                        },
                         "limit": {"type": "integer"},
                     },
                     "required": ["department"],

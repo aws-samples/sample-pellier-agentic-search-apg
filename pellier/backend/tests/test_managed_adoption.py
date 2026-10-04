@@ -59,6 +59,11 @@ def _seed_sources(repo: Path, renderer: ModuleType) -> None:
         target = repo / "pellier" / "backend" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(BACKEND / relative, target)
+    # The checked-in skills the bundle stages sit at the repository root.
+    for relative in renderer.RUNTIME_SKILL_FILES:
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(BACKEND.parents[1] / relative, target)
 
 
 def _scaffold(config_dir: Path, source: str = PINNED_STACK_CONSTRUCTION) -> Path:

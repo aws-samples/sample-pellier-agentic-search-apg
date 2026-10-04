@@ -174,6 +174,7 @@ if str(_BACKEND_DIR) not in sys.path:
 from services.build_fingerprint import (  # noqa: E402
     FINGERPRINT_ENV_VAR,
     RUNTIME_DEPENDENCY_FILES,
+    RUNTIME_SKILL_FILES,
     RUNTIME_SOURCE_FILES,
     compute_fingerprint,
 )
@@ -191,6 +192,9 @@ def _write_json(path: Path, payload: Any) -> None:
 def _render_runtime_source(root: Path, backend_dir: Path) -> tuple[Path, str]:
     """Stage the source files reachable from the managed entrypoint, and digest them.
 
+    The checked-in skills are staged inside the bundle's ``skills`` package,
+    because the bundle has no repository root for the loader to look beside.
+
     Returns the staged directory and the content fingerprint of what was staged.
     The fingerprint is injected as an environment variable on the runtime rather
     than written into a staged file, so it cannot alter the very bytes it
@@ -202,14 +206,15 @@ def _render_runtime_source(root: Path, backend_dir: Path) -> tuple[Path, str]:
 
     for relative in RUNTIME_DEPENDENCY_FILES:
         shutil.copy2(backend_dir / relative, runtime_dir / relative)
-    for relative in RUNTIME_SOURCE_FILES:
-        source = backend_dir / relative
-        destination = runtime_dir / relative
+    staged = [(backend_dir / relative, runtime_dir / relative) for relative in RUNTIME_SOURCE_FILES]
+    repo_root = backend_dir.parents[1]
+    staged += [(repo_root / relative, runtime_dir / relative) for relative in RUNTIME_SKILL_FILES]
+    for source, destination in staged:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
 
     # Digest the staged copy, not the working tree: this is the thing that ships.
-    return runtime_dir, compute_fingerprint(runtime_dir)
+    return runtime_dir, compute_fingerprint(runtime_dir, skills_root=runtime_dir)
 
 
 CUSTOMER_CLAIM = "custom:customer_id"

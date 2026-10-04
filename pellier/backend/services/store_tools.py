@@ -202,29 +202,62 @@ def _product(row: Dict[str, Any]) -> Dict[str, Any]:
 # browse_department
 # ---------------------------------------------------------------------------
 
-_BROWSE_SQL = """
+def _browse_sql(extra_clauses: Sequence[str] = ()) -> str:
+    """The department read, with a plan's hard predicates applied.
+
+    Parameters, in order: the department pattern, the predicate parameters,
+    and the row limit.
+    """
+    return f"""
     SELECT "productId", name, brand, color, price, rating, reviews,
            category, "imgUrl", badge, tags
       FROM pellier.product_catalog
      WHERE lower(category) LIKE %s ESCAPE '\\'
-       AND "imgUrl" IS NOT NULL
+       AND "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
      ORDER BY rating DESC, reviews DESC, "productId"
      LIMIT %s
 """
 
 
-def browse_department(run: Run, *, department: str, limit: int = 5) -> Dict[str, Any]:
-    """The highest-rated products in one store department."""
+def browse_department(
+    run: Run,
+    *,
+    department: str,
+    limit: int = 5,
+    extracted: Optional[Dict[str, Any]] = None,
+    max_price: Optional[float] = None,
+) -> Dict[str, Any]:
+    """The highest-rated products in one store department.
+
+    The shopper's limits are the same hard predicates a search applies: a
+    department browse must not show a sold-out piece or a candle to a shopper
+    who ruled them out. ``extracted`` is the structured reading of what the
+    shopper said (``in_stock_only``, ``exclusions``, ``price_max_usd``);
+    ``max_price`` is an explicit ceiling. The department itself is the
+    category, so a stated department requirement is not applied twice.
+
+    Args:
+        run: Statement runner for the calling rail.
+        department: Store department name, matched case-insensitively.
+        limit: Number of products to return.
+        extracted: The requirements reading, or ``None`` when none ran.
+        max_price: An explicit ceiling, a hard SQL predicate.
+    """
     name = " ".join(str(department or "").split())
     if not name:
         return {"status": "error", "message": "A department is required."}
-    rows = run(_BROWSE_SQL, (prepare_like_pattern(name), _clamp(limit, 5)))
+    reading = {**extracted, "required_categories": []} if extracted is not None else None
+    plan = build_plan(name, reading, price_max_usd=max_price, top_k=limit)
+    clauses, params = plan.compile_predicates(include_soft=False)
+    rows = run(_browse_sql(clauses), (prepare_like_pattern(name), *params, _clamp(limit, 5)))
     products = [_product(row) for row in rows]
     return {
         "status": "success",
         "department": name,
         "count": len(products),
         "products": products,
+        "hard_constraints_enforced": plan.hard.describe(),
+        "search_plan": plan.to_dict(),
     }
 
 

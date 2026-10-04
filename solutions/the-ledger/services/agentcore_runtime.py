@@ -89,6 +89,25 @@ class ManagedRuntimeResult:
     model: str = ""
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     orchestration: str = "dispatcher"
+    # The skills the Runtime says its agent carried; empty when it reported none.
+    skills: List[Dict[str, Any]] = field(default_factory=list)
+
+
+def _reported_skills(value: Any) -> List[Dict[str, Any]]:
+    """The skill receipts the Runtime reported, each with a name, path and load mode."""
+    if not isinstance(value, list):
+        return []
+    reported: List[Dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict) or not str(item.get("name") or "").strip():
+            continue
+        reported.append({
+            "name": str(item["name"]),
+            "display_name": str(item.get("display_name") or item["name"]),
+            "path": str(item.get("path") or ""),
+            "loaded": str(item.get("loaded") or "fixed"),
+        })
+    return reported
 
 
 def _store_latest_trace(session_id: str, trace: Dict[str, Any]) -> None:
@@ -569,6 +588,7 @@ async def run_agent_on_runtime_result(
                 else []
             ),
             orchestration="dispatcher",
+            skills=_reported_skills(parsed.get("skills")),
         )
     except ManagedRuntimeError:
         raise

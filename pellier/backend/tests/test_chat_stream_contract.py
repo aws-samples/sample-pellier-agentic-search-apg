@@ -163,8 +163,11 @@ def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -
 
     running, done = steps[1], steps[2]
     assert running["label"] == "Searching the catalog in Aurora" and running["tags"] == ["Aurora"]
-    assert done["finding"] == "2 under $100 and in stock, candles left out"
+    assert done["finding"] == "2 found under $100 and in stock, candles left out"
     assert done["builder"]["ranking"] == RANKING
+    assert done["builder"]["requirements"] == {
+        "applied": ["under $100", "in stock", "no candles"], "carried": [],
+    }
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["audit_id"] is None
 
@@ -198,7 +201,39 @@ def test_the_request_field_switches_the_skill_mode_and_defaults_to_fixed(service
     route = _of(on_demand, "step")[0]
     assert route["builder"]["skill_mode"] == "on_demand"
     assert route["builder"]["skills"] == []
+    assert route["tags"] == ["Router", "Skills (on demand)"]
     assert "opens the ones it needs" in route["builder"]["note"]
+
+
+def test_a_follow_up_search_says_which_limits_it_kept_from_earlier(service, monkeypatch) -> None:
+    """The finding and the Builder payload show carried limits plainly."""
+    agent = ScriptedAgent(
+        [
+            {
+                "tool": "search_products",
+                "input": {"query": "small kitchen"},
+                "result": SEARCH_RESULT,
+                "publish": [
+                    {"ranking": {**RANKING, "filters": {"kept": 64, "of": 100, "removed": {}}}},
+                    {"requirements": {"carried": ["budget", "stock", "exclusions"]}},
+                ],
+            }
+        ],
+        "The Stoneware Mugs, Set of 2 suit a small kitchen.",
+    )
+    events = _run(
+        service, agent, monkeypatch,
+        message="Which of those would you pick for a small kitchen?",
+        conversation_history=[
+            {"role": "user", "content": "a housewarming gift under $100, in stock, no candles"},
+            {"role": "assistant", "content": "Start with the mugs."},
+        ],
+    )
+    done = [step for step in _of(events, "step") if step["builder"]["tool"] == "search_products"][-1]
+    assert done["finding"] == (
+        "2 found from 64 that fit. Kept your limits from earlier: under $100, in stock, no candles"
+    )
+    assert done["builder"]["requirements"]["carried"] == ["under $100", "in stock", "no candles"]
 
 
 def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, monkeypatch) -> None:
@@ -226,6 +261,21 @@ def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, m
     assert [(skill["name"], skill["loaded"]) for skill in receipt["skills"]] == [
         ("the-gift-table", "on demand"), ("the-proof-counter", "on demand"),
     ]
+
+
+def test_a_skill_opened_twice_is_one_load_in_the_step_and_the_receipt(service, monkeypatch) -> None:
+    agent = ScriptedAgent(
+        [
+            {"tool": "skills", "input": {"skill_name": "the-gift-table"}, "result": "# The Gift Table"},
+            {"tool": "skills", "input": {"skill_name": "the-gift-table"}, "result": "# The Gift Table"},
+        ],
+        "A gift.",
+    )
+    events = _run(service, agent, monkeypatch, skill_mode="on_demand")
+    last = [step for step in _of(events, "step") if step["builder"]["tool"] == "skills"][-1]
+    assert last["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
+    receipt = _of(events, "complete")[0]["response"]["orchestration"]
+    assert [skill["name"] for skill in receipt["skills"]] == ["the-gift-table"]
 
 
 def test_a_turn_never_shows_more_than_four_steps(service, monkeypatch) -> None:

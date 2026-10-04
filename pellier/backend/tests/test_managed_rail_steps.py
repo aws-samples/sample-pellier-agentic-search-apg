@@ -1,4 +1,5 @@
-"""The managed rail speaks the same step contract and ignores the skill mode field."""
+"""The managed rail speaks the same step contract, ignores the skill mode field,
+and shows only the skills the Runtime reported."""
 
 from __future__ import annotations
 
@@ -22,33 +23,47 @@ def _events(body: str) -> List[Dict[str, Any]]:
     return events
 
 
+# What the Runtime reports it loaded. The app renders this; it asserts nothing.
+RUNTIME_SKILLS = [
+    {"name": "the-care-card", "display_name": "The Care Card",
+     "path": "skills/the-care-card/SKILL.md", "loaded": "fixed"},
+    {"name": "the-proof-counter", "display_name": "The Proof Counter",
+     "path": "skills/the-proof-counter/SKILL.md", "loaded": "fixed"},
+]
+
+
+def _support_result(skills: List[Dict[str, Any]]) -> ManagedRuntimeResult:
+    return ManagedRuntimeResult(
+        response="Your ticket about the chipped bowl is open.",
+        products=[],
+        rail="gateway-mcp",
+        intent="support",
+        specialist="support",
+        model="global.anthropic.claude-opus-5",
+        tool_calls=[
+            {
+                "id": "tool-1",
+                "tool": "get_tickets",
+                "status": "success",
+                "duration_ms": 90,
+                "input": {"limit": 5},
+                "result": {"product_count": 0, "status": "success", "count": 2},
+                "finding": "1 open ticket, 1 closed",
+                "customer_scope": "server",
+                "requested_other_customer": True,
+                "requested_customer": "CUST-JESSICA",
+                "bound_customer": "CUST-THEO",
+                "binding": "overwritten",
+            }
+        ],
+        skills=skills,
+    )
+
+
 @pytest.fixture
 def managed_app(monkeypatch: pytest.MonkeyPatch):
     async def _managed_runtime(**kwargs: Any) -> ManagedRuntimeResult:
-        return ManagedRuntimeResult(
-            response="Your ticket about the chipped bowl is open.",
-            products=[],
-            rail="gateway-mcp",
-            intent="support",
-            specialist="support",
-            model="global.anthropic.claude-opus-5",
-            tool_calls=[
-                {
-                    "id": "tool-1",
-                    "tool": "get_tickets",
-                    "status": "success",
-                    "duration_ms": 90,
-                    "input": {"limit": 5},
-                    "result": {"product_count": 0, "status": "success", "count": 2},
-                    "finding": "1 open ticket, 1 closed",
-                    "customer_scope": "server",
-                    "requested_other_customer": True,
-                    "requested_customer": "CUST-JESSICA",
-                    "bound_customer": "CUST-THEO",
-                    "binding": "overwritten",
-                }
-            ],
-        )
+        return _support_result(RUNTIME_SKILLS)
 
     class _Memory:
         def __init__(self, *, strict: bool = False) -> None:
@@ -111,8 +126,13 @@ def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: 
     route = steps[0]
     assert route["id"] == "route" and route["builder"]["rail"] == "gateway-mcp"
     assert route["builder"]["skill_mode"] == "fixed"
-    assert [skill["loaded"] for skill in route["builder"]["skills"]] == ["fixed", "fixed"]
-    assert "in-process app only" in route["builder"]["note"]
+    # Exactly what the Runtime reported, never a list the app assembled itself.
+    assert route["builder"]["skills"] == RUNTIME_SKILLS
+    assert "Skills" in route["tags"]
+    assert route["builder"]["note"] == (
+        "On-demand skill loading runs in the in-process app only; "
+        "the Runtime loaded its fixed skills"
+    )
 
     tickets = steps[1]
     assert tickets["id"] == "step-1" and tickets["status"] == "done"
@@ -128,8 +148,41 @@ def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: 
     shopper_view = {key: value for key, value in tickets.items() if key != "builder"}
     assert "CUST-" not in json.dumps(shopper_view)
 
+    # The Builder fields travel on the step alone: the tool_call event and the
+    # execution envelope carry the execution facts only.
+    tool_call = [event for event in events if event.get("type") == "tool_call"][0]
+    assert tool_call["tool"] == "get_tickets" and tool_call["status"] == "completed"
+    for field in ("requested_customer", "bound_customer", "finding", "ranking"):
+        assert field not in tool_call
     complete = [event for event in events if event.get("type") == "complete"][0]
     assert complete["response"]["rail"] == "gateway-mcp"
+    executed = complete["response"]["agent_execution"]["tool_calls"][0]
+    assert "requested_customer" not in executed and "finding" not in executed
+    assert executed["binding"] == "overwritten"
+
+
+def test_a_runtime_that_reports_no_skills_shows_none(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bundle without skill files reports none, and the Builder view says so."""
+    async def _bare_runtime(**kwargs: Any) -> ManagedRuntimeResult:
+        return _support_result([])
+
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _bare_runtime)
+    for skill_mode, note in (
+        ("fixed", "The Runtime reported no skills"),
+        ("on_demand", "On-demand skill loading runs in the in-process app only; "
+                      "the Runtime reported no skills"),
+    ):
+        body = managed_app.post(
+            "/api/chat/stream",
+            json={"message": "any news on my chipped bowl?", "conversation_history": [],
+                  "session_id": "sess-theo", "skill_mode": skill_mode},
+        ).text
+        route = [event for event in _events(body) if event.get("type") == "step"][0]
+        assert route["builder"]["skills"] == []
+        assert "Skills" not in route["tags"]
+        assert route["builder"]["note"] == note
 
 
 def test_a_managed_search_without_a_readable_receipt_says_ranking_is_unavailable(

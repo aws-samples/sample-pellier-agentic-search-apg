@@ -24,6 +24,13 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 TOP_ROWS = 8
 RRF_K_DEFAULT = 60
 
+# What "Kept" counts: the hard limits alone. The strict first pass also asks
+# for the soft preferences the shopper implied, so the pool can be smaller.
+KEPT_NOTE = (
+    "Kept counts the hard limits only; the first pass also asks for the "
+    "preferences the shopper implied, so the fused pool can be smaller"
+)
+
 # The brief's order for "how many each limit removed".
 _REASON_ORDER = ("budget", "stock", "exclusions", "department")
 
@@ -158,7 +165,7 @@ def ranking_from_execution(
             "before": before.get(pid),
             "after": index + 1,
         })
-    return {
+    payload: Dict[str, Any] = {
         "available": True,
         "rail": "in-process",
         "method": getattr(execution, "search_method", None),
@@ -172,6 +179,11 @@ def ranking_from_execution(
         "filters": counts,
         "rows": rows,
     }
+    if counts:
+        # The strict first pass also asks for the preferences the shopper
+        # implied, so the fused pool can be smaller than what the hard limits kept.
+        payload["note"] = KEPT_NOTE
+    return payload
 
 
 def _jsonb(value: Any, default: Any) -> Any:

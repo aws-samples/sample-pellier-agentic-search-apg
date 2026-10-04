@@ -129,10 +129,15 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
 
 
 def _browse_department(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
+    # The same requirement arguments as search_products: the Shopping agent
+    # passes the shopper's limits, including ones stated earlier in the
+    # conversation, and the plan compiles them into the same predicates.
     return store_tools.browse_department(
         run_store_sql,
         department=str(args.get("department") or ""),
         limit=_int(args.get("limit"), 5),
+        extracted=_requirements(args, ""),
+        max_price=_float(args.get("max_price")),
     )
 
 

@@ -189,6 +189,9 @@ try:
             "model": dispatcher.last_model_id,
             "gateway_tools": list(dispatcher.last_tool_names),
             "tool_calls": list(dispatcher.last_tool_events or []),
+            # The skills the routed agent's prompt carried, reported from the
+            # source. The app renders this list and asserts nothing of its own.
+            "skills": list(dispatcher.last_skills or []),
             "orchestration": "dispatcher",
             "build_fingerprint": _build_fingerprint,
         }

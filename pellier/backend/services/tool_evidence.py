@@ -33,6 +33,11 @@ def close_channel(token: contextvars.Token) -> None:
     _channel.reset(token)
 
 
+def is_open() -> bool:
+    """True inside a turn that collects evidence, so a tool can skip work nobody reads."""
+    return _channel.get() is not None
+
+
 def publish(tool: str, payload: Dict[str, Any]) -> None:
     """Record evidence for ``tool``; silently ignored when no turn is open."""
     channel = _channel.get()

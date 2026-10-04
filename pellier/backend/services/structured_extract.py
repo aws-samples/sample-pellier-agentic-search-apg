@@ -79,6 +79,12 @@ otherwise. Never drop an exclusion because it is not listed.
 should score against, with the structured constraints stripped out. \
 Never empty; if the whole query is structured, repeat the most \
 descriptive phrase verbatim.
+  - "lifted": list[str] — requirements from earlier in the chat that the \
+latest message explicitly releases: "budget" ("ignore my budget"), "stock" \
+("in stock or not"), "department", "all" ("show me anything"), or an \
+excluded TAGS or MATERIALS value the shopper now allows ("candles are fine \
+now" -> ["candle"]). Empty list otherwise. A limit the shopper simply did \
+not repeat is not lifted.
 
 Rules:
   - The query may start with what the shopper said earlier in the chat. Keep \
@@ -195,6 +201,7 @@ class StructuredExtractor:
             "in_stock_only": False,
             "exclusions": [],
             "unsupported_exclusions": [],
+            "lifted": [],
             "soft_signal": query.strip() if query else "",
             "extraction_status": status,
         }
@@ -222,9 +229,18 @@ class StructuredExtractor:
         # catches validation errors and marks this as extraction_failed.
         for name in (
             "categories", "required_categories", "tags", "exclusions", "unsupported_exclusions",
+            "lifted",
         ):
             if parsed.get(name) is not None and not isinstance(parsed[name], list):
                 raise ValueError(f"{name} must be a list")
+        # What the latest message releases: a limit kind, "all", or an excluded
+        # value now allowed. Anything else the model offers is ignored.
+        releasable = {"budget", "stock", "department", "all"} | set(KNOWN_TAGS) | set(KNOWN_MATERIALS)
+        lifted = [
+            value.strip().lower()
+            for value in parsed.get("lifted") or []
+            if isinstance(value, str) and value.strip().lower() in releasable
+        ]
         stock_raw = parsed.get("in_stock_only", False)
         if not isinstance(stock_raw, bool):
             raise ValueError("in_stock_only must be a boolean")
@@ -282,6 +298,7 @@ class StructuredExtractor:
             "exclusions": exclusions,
             # Kept, never dropped, so the answer can say what went unchecked.
             "unsupported_exclusions": unsupported,
+            "lifted": lifted,
             "soft_signal": soft_signal.strip(),
             "extraction_status": "parsed",
         }

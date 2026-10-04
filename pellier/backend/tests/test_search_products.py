@@ -160,7 +160,15 @@ class TestPipelineOrder:
         self, pipeline: _FakeDB, patch_embedding: MagicMock, patch_rerank: MagicMock,
         events: List[str],
     ) -> None:
-        result = _search(query="something beautiful", limit=3)
+        from services import tool_evidence
+
+        # A chat turn collects evidence; the Builder view's filter counts run
+        # only then, after the search, as one aggregate statement.
+        channel = tool_evidence.open_channel()
+        try:
+            result = _search(query="something beautiful", limit=3)
+        finally:
+            tool_evidence.close_channel(channel)
 
         assert result["status"] == "success"
         # Embed once, both hybrid branches, then rerank, then the receipt,
@@ -172,6 +180,14 @@ class TestPipelineOrder:
         assert rerank_kwargs["query"] == "something beautiful"
         # Five candidates -> five documents passed to rerank.
         assert len(rerank_kwargs["documents"]) == 5
+
+    def test_the_count_statement_runs_only_when_a_turn_collects_evidence(
+        self, pipeline: _FakeDB, events: List[str],
+    ) -> None:
+        """Outside a chat turn nothing reads the counts, so they are not taken."""
+        result = _search(query="something beautiful", limit=3)
+        assert result["status"] == "success"
+        assert events == ["embed", "vector", "fts", "rerank", "receipt"]
 
     def test_search_method_says_hybrid_plus_rerank_when_rerank_succeeds(
         self, pipeline: _FakeDB

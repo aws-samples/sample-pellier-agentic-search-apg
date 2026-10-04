@@ -21,6 +21,7 @@ if str(BACKEND) not in sys.path:
 
 from services.build_fingerprint import (  # noqa: E402
     RUNTIME_DEPENDENCY_FILES,
+    RUNTIME_SKILL_FILES,
     RUNTIME_SOURCE_FILES,
     compute_fingerprint,
     short_fingerprint,
@@ -28,53 +29,66 @@ from services.build_fingerprint import (  # noqa: E402
 
 
 def _stage(root: Path) -> Path:
-    """Write a minimal tree containing every file the digest covers."""
-    for relative in RUNTIME_SOURCE_FILES + RUNTIME_DEPENDENCY_FILES:
+    """Write a minimal tree containing every file the digest covers, bundle layout."""
+    for relative in RUNTIME_SOURCE_FILES + RUNTIME_DEPENDENCY_FILES + RUNTIME_SKILL_FILES:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"# {relative.as_posix()}\n", encoding="utf-8")
     return root
 
 
+def _digest(staged: Path) -> str:
+    return compute_fingerprint(staged, skills_root=staged)
+
+
 def test_fingerprint_is_stable_across_calls(tmp_path: Path) -> None:
     staged = _stage(tmp_path)
-    assert compute_fingerprint(staged) == compute_fingerprint(staged)
+    assert _digest(staged) == _digest(staged)
 
 
 def test_identical_trees_fingerprint_identically(tmp_path: Path) -> None:
     """Two byte-identical stagings must agree, or every comparison is noise."""
     first = _stage(tmp_path / "a")
     second = _stage(tmp_path / "b")
-    assert compute_fingerprint(first) == compute_fingerprint(second)
+    assert _digest(first) == _digest(second)
 
 
 def test_editing_a_packaged_file_changes_the_fingerprint(tmp_path: Path) -> None:
     staged = _stage(tmp_path)
-    before = compute_fingerprint(staged)
+    before = _digest(staged)
     target = staged / RUNTIME_SOURCE_FILES[0]
     target.write_text(target.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8")
-    assert compute_fingerprint(staged) != before
+    assert _digest(staged) != before
+
+
+def test_editing_a_skill_changes_the_fingerprint(tmp_path: Path) -> None:
+    """Skills are procedural memory the agent ships; a skill edit is a new build."""
+    staged = _stage(tmp_path)
+    before = _digest(staged)
+    skill = staged / RUNTIME_SKILL_FILES[0]
+    skill.write_text(skill.read_text(encoding="utf-8") + "\nSay thank you.\n", encoding="utf-8")
+    assert _digest(staged) != before
 
 
 def test_dependency_manifest_changes_the_fingerprint(tmp_path: Path) -> None:
     """A lockfile bump ships a materially different package."""
     staged = _stage(tmp_path)
-    before = compute_fingerprint(staged)
+    before = _digest(staged)
     lock = staged / Path("uv.lock")
     lock.write_text(lock.read_text(encoding="utf-8") + "# bumped\n", encoding="utf-8")
-    assert compute_fingerprint(staged) != before
+    assert _digest(staged) != before
 
 
 def test_renaming_a_file_changes_the_fingerprint(tmp_path: Path) -> None:
     """Path is hashed with content, so a move is not invisible."""
     staged = _stage(tmp_path)
-    before = compute_fingerprint(staged)
+    before = _digest(staged)
     moved = staged / "services" / "renamed_module.py"
     (staged / RUNTIME_SOURCE_FILES[-1]).rename(moved)
     # The digest now raises for the missing file, which is the louder failure
     # this module prefers; restore it as a different name and confirm drift.
     (staged / RUNTIME_SOURCE_FILES[-1]).write_text("# restored\n", encoding="utf-8")
-    assert compute_fingerprint(staged) != before
+    assert _digest(staged) != before
 
 
 def test_an_unpackaged_file_does_not_change_the_fingerprint(tmp_path: Path) -> None:
@@ -84,9 +98,9 @@ def test_an_unpackaged_file_does_not_change_the_fingerprint(tmp_path: Path) -> N
     fingerprint move would conclude their edit deployed when it did not.
     """
     staged = _stage(tmp_path)
-    before = compute_fingerprint(staged)
+    before = _digest(staged)
     (staged / "not_packaged.py").write_text("# ignored\n", encoding="utf-8")
-    assert compute_fingerprint(staged) == before
+    assert _digest(staged) == before
 
 
 def test_missing_packaged_file_raises_rather_than_digesting_a_subset(
@@ -96,13 +110,33 @@ def test_missing_packaged_file_raises_rather_than_digesting_a_subset(
     staged = _stage(tmp_path)
     (staged / RUNTIME_SOURCE_FILES[0]).unlink()
     with pytest.raises(FileNotFoundError) as excinfo:
-        compute_fingerprint(staged)
+        _digest(staged)
     assert RUNTIME_SOURCE_FILES[0].as_posix() in str(excinfo.value)
 
 
 def test_this_checkout_fingerprints(tmp_path: Path) -> None:
-    """The real backend tree must carry every file the renderer packages."""
+    """The real backend tree must carry every file the renderer packages.
+
+    With no ``skills_root`` the digest reads the checkout layout: the skills
+    beside ``pellier/`` at the repository root.
+    """
     assert compute_fingerprint(BACKEND)
+
+
+def test_the_skill_list_is_the_checked_in_set() -> None:
+    """Every ``skills/*/SKILL.md`` ships, and nothing ships that is not checked in."""
+    on_disk = sorted(
+        path.relative_to(BACKEND.parents[1]).as_posix()
+        for path in (BACKEND.parents[1] / "skills").glob("*/SKILL.md")
+    )
+    assert on_disk == sorted(path.as_posix() for path in RUNTIME_SKILL_FILES)
+
+
+def test_the_skill_package_ships_with_its_loader() -> None:
+    """The managed prompt is built from the registry, so the whole package is packaged."""
+    packaged = {path.as_posix() for path in RUNTIME_SOURCE_FILES}
+    for module in ("__init__", "assignments", "loader", "models", "registry"):
+        assert f"skills/{module}.py" in packaged
 
 
 def test_short_fingerprint_preserves_the_unknown_case() -> None:

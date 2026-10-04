@@ -67,14 +67,65 @@ def _search(count: int, *, price=None, stock=False, exclusions=()) -> dict:
     }
 
 
-def test_search_finding_reads_like_the_brief() -> None:
-    parsed = _search(9, price=100, stock=True, exclusions=("candle",))
-    assert finding_for("search_products", parsed) == "9 under $100 and in stock, candles left out"
+def test_search_finding_says_what_the_number_is() -> None:
+    parsed = _search(3, price=100, stock=True, exclusions=("candle",))
+    assert finding_for("search_products", parsed, kept=23) == (
+        "3 found from 23 that fit under $100 and in stock, candles left out"
+    )
+    # Without the filter counts (the managed rail) the found count still says so.
+    assert finding_for("search_products", parsed) == (
+        "3 found under $100 and in stock, candles left out"
+    )
 
 
 def test_search_finding_without_limits_and_when_empty() -> None:
     assert finding_for("search_products", _search(4)) == "4 found"
+    assert finding_for("search_products", _search(4), kept=64) == "4 found from 64 that fit"
     assert finding_for("search_products", _search(0, price=50)) == "Nothing matched under $50"
+
+
+def test_search_finding_names_the_limits_kept_from_earlier() -> None:
+    parsed = _search(3, price=100, stock=True, exclusions=("candle",))
+    carried = ("budget", "stock", "exclusions")
+    assert finding_for("search_products", parsed, kept=23, carried=carried) == (
+        "3 found from 23 that fit. Kept your limits from earlier: under $100, in stock, no candles"
+    )
+    # A new budget this turn, the rest carried.
+    assert finding_for("search_products", _search(2, price=80, stock=True, exclusions=("candle",)),
+                       kept=12, carried=("stock", "exclusions")) == (
+        "2 found from 12 that fit under $80. Kept your limits from earlier: in stock, no candles"
+    )
+    assert finding_for("search_products", _search(0, price=100), carried=("budget",)) == (
+        "Nothing matched. Kept your limits from earlier: under $100"
+    )
+
+
+def test_browse_finding_carries_the_limits_too() -> None:
+    parsed = {
+        "status": "success", "department": "Home", "count": 4,
+        "search_plan": {
+            "hard_constraints": {"price_max_usd": 100, "in_stock_only": True, "categories": []},
+            "exclusions": ["candle"],
+        },
+    }
+    assert finding_for("browse_department", parsed, carried=("budget", "stock", "exclusions")) == (
+        "4 in Home, by rating. Kept your limits from earlier: under $100, in stock, no candles"
+    )
+    assert finding_for("browse_department", parsed) == (
+        "4 in Home, by rating, under $100 and in stock, candles left out"
+    )
+
+
+def test_requirement_phrases_list_what_applied_and_what_was_kept() -> None:
+    plan = {
+        "hard_constraints": {"price_max_usd": 100, "in_stock_only": True, "categories": ["Home"]},
+        "exclusions": ["candle", "wool"],
+    }
+    assert turn_steps.requirement_phrases(plan, ["budget", "exclusions"]) == {
+        "applied": ["under $100", "in stock", "no candles or wools", "Home only"],
+        "carried": ["under $100", "no candles or wools"],
+    }
+    assert turn_steps.requirement_phrases({"hard_constraints": {}, "exclusions": []}) is None
 
 
 def test_stock_finding_reads_the_three_warehouses_in_order() -> None:
@@ -200,6 +251,29 @@ def test_skill_loads_fold_into_one_step_with_one_finding() -> None:
     assert [skill["name"] for skill in steps.loaded_skills] == ["the-gift-table", "the-proof-counter"]
 
 
+def test_a_skill_opened_twice_is_loaded_once() -> None:
+    names = {"the-gift-table": "The Gift Table"}
+    steps = TurnSteps(skill_names=names, skill_paths={"the-gift-table": "skills/the-gift-table/SKILL.md"})
+    steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "the-gift-table"})
+    again = steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "the-gift-table"})
+    assert [skill["name"] for skill in steps.loaded_skills] == ["the-gift-table"]
+    assert again["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
+    assert again["builder"]["skills"] == steps.loaded_skills
+
+
+def test_on_demand_mode_tags_the_router_step_before_any_load() -> None:
+    route = TurnSteps().route(
+        agent="Shopping agent", intent="shopping", finding="Sent to the Shopping agent",
+        model_id="m", skills=[], skill_mode="on_demand",
+    )
+    assert route["tags"] == ["Router", "Skills (on demand)"]
+    fixed = TurnSteps().route(
+        agent="Shopping agent", intent="shopping", finding="Sent to the Shopping agent",
+        model_id="m", skills=[], skill_mode="fixed",
+    )
+    assert fixed["tags"] == ["Router"]
+
+
 def test_a_refused_skill_load_is_a_failed_step() -> None:
     steps = TurnSteps(skill_names={"the-care-card": "The Care Card"})
     done = steps.finished(
@@ -215,13 +289,18 @@ def test_a_refused_skill_load_is_a_failed_step() -> None:
 def test_finished_step_carries_the_builder_payload_and_no_raw_result() -> None:
     steps = TurnSteps()
     result = json.dumps(_search(2, price=100))
-    evidence = {"receipt_id": 412, "ranking": {"available": True, "rows": []}}
+    evidence = {
+        "receipt_id": 412,
+        "ranking": {"available": True, "rows": [], "filters": {"kept": 64, "of": 100, "removed": {}}},
+        "requirements": {"carried": ["budget"]},
+    }
     done = steps.finished("search_products", result, duration_ms=184, audit_id=9031, evidence=evidence)
     assert done["status"] == "done"
-    assert done["finding"] == "2 under $100"
+    assert done["finding"] == "2 found from 64 that fit. Kept your limits from earlier: under $100"
     assert done["builder"]["audit_id"] == 9031
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["ranking"]["available"] is True
+    assert done["builder"]["requirements"] == {"applied": ["under $100"], "carried": ["under $100"]}
     assert done["builder"]["tool"] == "search_products"
     shopper_view = {key: value for key, value in done.items() if key != "builder"}
     assert "search_products" not in json.dumps(shopper_view)

@@ -66,6 +66,11 @@ def _seed_runtime_sources(repo: Path) -> None:
         destination = backend / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
+    # The checked-in skills sit beside pellier/ at the repository root.
+    for relative in renderer.RUNTIME_SKILL_FILES:
+        destination = repo / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO_ROOT / relative, destination)
 
 
 def _render(tmp_path: Path, *, include_policies: bool, runtime_arns=None) -> tuple[Path, dict[str, Any]]:
@@ -208,7 +213,9 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
     build_fingerprint = env.pop(renderer.FINGERPRINT_ENV_VAR)
     assert len(build_fingerprint) == 64
     assert set(build_fingerprint) <= set("0123456789abcdef")
-    assert build_fingerprint == renderer.compute_fingerprint(root / "runtime-src")
+    assert build_fingerprint == renderer.compute_fingerprint(
+        root / "runtime-src", skills_root=root / "runtime-src"
+    )
 
     assert env == {
         "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-5",
@@ -234,10 +241,51 @@ def test_runtime_bundle_contains_only_managed_import_graph(tmp_path: Path) -> No
         Path("pyproject.toml"),
         Path("uv.lock"),
         *renderer.RUNTIME_SOURCE_FILES,
+        *renderer.RUNTIME_SKILL_FILES,
     }
     assert Path("config.py") not in actual
     assert Path("services/specialist_models.py") in actual
+    # The skills ship inside the bundle's skills package, where the loader
+    # looks when there is no repository root beside it.
+    assert Path("skills/the-gift-table/SKILL.md") in actual
     assert not any("tests" in path.parts for path in actual)
+
+
+def test_the_staged_bundle_loads_its_own_skills_into_the_managed_prompt(tmp_path: Path) -> None:
+    """From the bundle alone, the managed Support agent carries its two skills."""
+    root, _ = _render(tmp_path, include_policies=False)
+    runtime_dir = root / "runtime-src"
+    env = os.environ.copy()
+    env.update({
+        "PELLIER_DISABLE_DOTENV": "1",
+        "AGENTCORE_GATEWAY_URL": "https://gateway.example.test/mcp",
+        "AGENT_MODEL_ID": "test-model",
+        "PYTHONPATH": str(runtime_dir),
+    })
+    env.pop("PELLIER_SKILLS_DIR", None)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json; from services.agentcore_gateway import _managed_specialist_spec; "
+                "_, prompt, _, skills = _managed_specialist_spec('support'); "
+                "print(json.dumps({'names': [s['name'] for s in skills], "
+                "'paths': [s['path'] for s in skills], "
+                "'in_prompt': 'The Care Card' in prompt}))"
+            ),
+        ],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    report = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert report["names"] == ["the-care-card", "the-proof-counter"]
+    assert report["paths"] == ["skills/the-care-card/SKILL.md", "skills/the-proof-counter/SKILL.md"]
+    assert report["in_prompt"] is True
 
 
 def test_runtime_bridges_cli_injected_discovery_names() -> None:

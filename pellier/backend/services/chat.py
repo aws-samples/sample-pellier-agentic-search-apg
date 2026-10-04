@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 import re
 
 from pellier_copy import GOVERNED_REVIEW_PENDING
-from services import evidence_spans, tool_evidence
+from services import active_requirements, evidence_spans, tool_evidence
 from services.chat_error_taxonomy import classify_chat_error
 from services.data_source import database_source_label
 from services.intent_router import classify_intent
@@ -1373,6 +1373,14 @@ class EnhancedChatService:
         turn_id_var.set(turn_id)
         # The search tools plan from what the shopper typed, not the agent's query.
         shopper_words_var.set(shopper_words(message, conversation_history))
+        # The limits the last search plan applied stay in force for this
+        # session's catalog tools until the shopper changes or releases them.
+        # The scope object is created here so every tool in the turn shares it.
+        active_requirements.bind_turn(
+            session_id=session_id,
+            message=message,
+            conversation_history=conversation_history,
+        )
         # Publish the verified principal for the deterministic tools, which
         # run in this context via asyncio.to_thread. Set unconditionally,
         # including to None: an anonymous turn must not inherit whatever the

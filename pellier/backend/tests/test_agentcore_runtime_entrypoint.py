@@ -63,6 +63,14 @@ class _Dispatcher:
         self.last_specialist = "recommendation"
         self.last_model_id = "global.anthropic.claude-opus-5"
         self.last_tool_names = ["search_products"]
+        self.last_skills = [
+            {
+                "name": "the-gift-table",
+                "display_name": "The Gift Table",
+                "path": "skills/the-gift-table/SKILL.md",
+                "loaded": "fixed",
+            }
+        ]
 
     def __call__(self, prompt: str) -> _Response:
         self.calls.append(prompt)
@@ -160,6 +168,9 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         "model": "global.anthropic.claude-opus-5",
         "gateway_tools": ["search_products"],
         "tool_calls": dispatcher.last_tool_events,
+        # The skills the agent's prompt carried, from the source: the app
+        # renders this list and never assembles one of its own.
+        "skills": dispatcher.last_skills,
         "orchestration": "dispatcher",
         # Echoed on every response so the caller can prove which revision
         # Runtime executed; empty here because the test process carries no

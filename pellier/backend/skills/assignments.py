@@ -20,13 +20,11 @@ from typing import Any, Dict, List, Optional, Sequence
 from strands.vended_plugins.skills import AgentSkills
 from strands.vended_plugins.skills import Skill as StrandsSkill
 
-from services.turn_steps import SKILL_LOAD_TOOL
+from services.turn_steps import SKILL_LOAD_TOOL, SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND
 
 from .loader import get_registry
 from .models import Skill
 
-SKILL_MODE_FIXED = "fixed"
-SKILL_MODE_ON_DEMAND = "on_demand"
 SKILL_MODES = (SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND)
 
 # Tools an agent carries that are not store tools and never reach the ledger.
@@ -50,9 +48,6 @@ _SKILL_DELIMITER = (
     "=======================================\n"
 )
 
-# pellier/backend/skills/assignments.py -> parents[3] is the repository root.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-
 
 def normalize_skill_mode(value: Any) -> str:
     """Coerce a request field to a known mode; the default stays fixed."""
@@ -61,9 +56,16 @@ def normalize_skill_mode(value: Any) -> str:
 
 
 def skill_path(skill: Skill) -> str:
-    """The checked-in path, relative to the repository root."""
+    """The checked-in path, ``skills/<name>/SKILL.md``, in a checkout or the bundle.
+
+    Relative to the directory that holds the ``skills`` folder: the repository
+    root in a checkout, the bundle on the managed Runtime. Never a developer's
+    absolute path.
+    """
     try:
-        return Path(skill.path).resolve().relative_to(_REPO_ROOT).as_posix()
+        return (
+            Path(skill.path).resolve().relative_to(get_registry().skills_dir.parent).as_posix()
+        )
     except ValueError:
         return f"skills/{skill.name}/SKILL.md"
 
@@ -97,14 +99,15 @@ def on_demand_plugin(agent_key: str) -> AgentSkills:
     The plugin lists names and descriptions in the system prompt before each
     invocation and registers the ``skills`` tool that returns one skill's
     instructions. A name outside the agent's set, or an unknown name, is
-    refused with the available names.
+    refused with the available names. The location it prints is the
+    checked-in path relative to the repository, never an absolute one.
     """
     sources = [
         StrandsSkill(
             name=skill.name,
             description=skill.description,
             instructions=skill.body,
-            path=Path(skill.path).resolve().parent,
+            path=Path(skill_path(skill)).parent,
         )
         for skill in skills_for(agent_key)
     ]
@@ -130,10 +133,13 @@ def skill_receipt(
         ]
     registry = get_registry()
     receipt: List[Dict[str, Any]] = []
+    seen: set[str] = set()
     for name in loaded_on_demand:
         skill = registry.get(name)
-        if skill is None:
+        # A skill opened twice was loaded once; the receipt says so once.
+        if skill is None or skill.name in seen:
             continue
+        seen.add(skill.name)
         receipt.append({
             "name": skill.name,
             "display_name": skill.display_name_resolved,

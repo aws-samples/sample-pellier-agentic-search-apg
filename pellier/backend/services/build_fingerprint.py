@@ -52,6 +52,7 @@ from pathlib import Path
 
 __all__ = [
     "RUNTIME_SOURCE_FILES",
+    "RUNTIME_SKILL_FILES",
     "FINGERPRINT_ENV_VAR",
     "compute_fingerprint",
     "deployed_fingerprint",
@@ -74,6 +75,24 @@ RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
     Path("services/runtime_env.py"),
     Path("services/specialist_models.py"),
     Path("services/turn_steps.py"),
+    Path("skills/__init__.py"),
+    Path("skills/assignments.py"),
+    Path("skills/loader.py"),
+    Path("skills/models.py"),
+    Path("skills/registry.py"),
+)
+
+# The checked-in skills the managed agents carry, relative to the repository
+# root. They are procedural memory, so the deployed agent is the same agent
+# only when it ships the same skills: the renderer stages them inside the
+# bundle's ``skills`` package, where the loader finds them, and a skill edit
+# changes the fingerprint Lab 3 checks.
+RUNTIME_SKILL_FILES: tuple[Path, ...] = (
+    Path("skills/the-care-card/SKILL.md"),
+    Path("skills/the-gift-table/SKILL.md"),
+    Path("skills/the-makers-shelf/SKILL.md"),
+    Path("skills/the-packing-list/SKILL.md"),
+    Path("skills/the-proof-counter/SKILL.md"),
 )
 
 # Dependency manifests are staged alongside the sources and change what the
@@ -91,8 +110,13 @@ FINGERPRINT_ENV_VAR = "PELLIER_BUILD_FINGERPRINT"
 _DISPLAY_LENGTH = 12
 
 
-def compute_fingerprint(backend_dir: Path | str) -> str:
-    """Digest the runtime sources under ``backend_dir``.
+def compute_fingerprint(backend_dir: Path | str, skills_root: Path | str | None = None) -> str:
+    """Digest the runtime sources under ``backend_dir`` and the skills under ``skills_root``.
+
+    ``skills_root`` is the directory that holds ``skills/<name>/SKILL.md``: the
+    repository root in a checkout, which is the default, and the bundle itself
+    once the renderer has staged the files beside the sources. Both layouts
+    hash the same relative keys, so a staged copy and a checkout agree.
 
     Returns a full hex SHA-256. Raises ``FileNotFoundError`` naming the first
     missing file rather than digesting a partial set: a fingerprint computed
@@ -101,19 +125,18 @@ def compute_fingerprint(backend_dir: Path | str) -> str:
     missing file here.
     """
     root = Path(backend_dir)
+    skills = Path(skills_root) if skills_root is not None else root.parents[1]
     digest = hashlib.sha256()
 
     # Sorted by POSIX relative path so the digest is independent of filesystem
     # iteration order, and the path is hashed alongside the bytes so that
     # renaming a file changes the fingerprint even when its content does not.
-    for relative in sorted(
-        RUNTIME_SOURCE_FILES + RUNTIME_DEPENDENCY_FILES,
-        key=lambda item: item.as_posix(),
-    ):
-        path = root / relative
+    located = [(relative, root / relative) for relative in RUNTIME_SOURCE_FILES + RUNTIME_DEPENDENCY_FILES]
+    located += [(relative, skills / relative) for relative in RUNTIME_SKILL_FILES]
+    for relative, path in sorted(located, key=lambda item: item[0].as_posix()):
         if not path.is_file():
             raise FileNotFoundError(
-                f"Runtime source {relative.as_posix()} is missing under {root}. "
+                f"Runtime source {relative.as_posix()} is missing under {path.parent}. "
                 "The fingerprint must cover every packaged file; digesting a "
                 "partial set would report a false mismatch."
             )

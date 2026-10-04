@@ -175,3 +175,42 @@ def test_the_managed_shopping_prompt_asks_for_the_requirements_as_arguments() ->
     for argument in ("max_price", "in_stock_only=true", "exclusions"):
         assert argument in shopping
     assert "in_stock_only" not in _managed_specialist_prompt("support")
+
+
+def test_browse_department_carries_the_same_requirement_arguments(
+    transport: _PredicateHonouringDataApi,
+) -> None:
+    """The fallback from a search to a department browse keeps the limits."""
+    result = lambda_tools.TOOLS["browse_department"](
+        {"department": "Home", "in_stock_only": True, "exclusions": ["candle"], "max_price": 100},
+        None,
+    )
+
+    assert [product["productId"] for product in result["products"]] == ["P-1"]
+    assert result["search_plan"]["hard_constraints"]["in_stock_only"] is True
+    assert result["search_plan"]["hard_constraints"]["price_max_usd"] == 100.0
+    assert result["search_plan"]["exclusions"] == ["candle"]
+    (sql, bound), = transport.branches
+    assert "quantity > 0" in sql and "price <= :p" in sql and "NOT (tags ?| :p" in sql
+    assert "lower(category) LIKE" in sql
+
+    # Without the arguments the browse is the plain department read.
+    transport.branches.clear()
+    plain = lambda_tools.TOOLS["browse_department"]({"department": "Home"}, None)
+    assert {product["productId"] for product in plain["products"]} == {"P-1", "P-2", "P-3", "P-4"}
+    assert "quantity > 0" not in transport.branches[0][0]
+
+
+def test_the_published_browse_schema_declares_the_requirement_arguments() -> None:
+    from gateway_tool_schemas import schema_for
+
+    browse = next(tool for tool in schema_for("store", workshop=True) if tool["name"] == "browse_department")
+    properties = browse["inputSchema"]["properties"]
+    assert properties["max_price"]["type"] == "number"
+    assert properties["in_stock_only"]["type"] == "boolean"
+    assert properties["exclusions"] == {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": properties["exclusions"]["description"],
+    }
+    assert browse["inputSchema"]["required"] == ["department"]

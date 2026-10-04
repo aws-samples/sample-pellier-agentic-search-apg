@@ -99,9 +99,15 @@ def _managed_specialist_prompt(
     *,
     turn_id: str = "",
     customer_id: str = "",
+    skills: Sequence[Any] = (),
 ) -> str:
-    """Return transport-neutral instructions for a Gateway-backed agent."""
+    """Return transport-neutral instructions for a Gateway-backed agent.
+
+    ``skills`` are the agent's fixed skills, appended to the prompt exactly as
+    the in-process agent carries them: the deployed agent is the same agent.
+    """
     from services.specialist_models import agent_name
+    from skills import inject_skills
 
     prompt = (
         f"You are Pellier's {agent_name(specialist)}. "
@@ -125,13 +131,14 @@ def _managed_specialist_prompt(
         )
     if specialist == "shopping":
         prompt += (
-            " Pass the shopper's requirements to search_products as arguments, "
-            "never as words in the query: a budget as max_price in dollars, a "
-            "request for what is available as in_stock_only=true, and anything "
-            "they ruled out as exclusions, a list of those words. The database "
-            "enforces them as filters."
+            " Pass the shopper's requirements to search_products and "
+            "browse_department as arguments, never as words in the query: a "
+            "budget as max_price in dollars, a request for what is available as "
+            "in_stock_only=true, and anything they ruled out as exclusions, a "
+            "list of those words, including limits the shopper stated earlier "
+            "in this conversation. The database enforces them as filters."
         )
-    return prompt
+    return inject_skills(prompt, skills)
 
 
 # Capability tiers over the nine published tools.
@@ -303,6 +310,18 @@ def _bind_server_tool_context(
     return bound
 
 
+# The only shape a customer id takes. A model string that does not match it is
+# never emitted as evidence; the verdict still records that another customer
+# was asked for.
+_CUSTOMER_ID_PATTERN = re.compile(r"^CUST-[A-Z0-9-]{1,40}$")
+
+
+def _requested_customer_id(value: Any) -> Optional[str]:
+    """The model's requested customer id when it has the ``CUST-`` shape, else None."""
+    candidate = str(value or "").strip().upper()
+    return candidate if _CUSTOMER_ID_PATTERN.fullmatch(candidate) else None
+
+
 def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any]:
     """Record who chose a call's customer, read before the server binds it.
 
@@ -323,7 +342,8 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
         scope = "model"
     else:
         return {}
-    other = bool(requested) and requested != customer_id
+    requested_id = _requested_customer_id(requested)
+    other = bool(requested) and requested_id != customer_id
     if scope == "server":
         binding = "overwritten" if other else ("matched" if requested else "bound")
         bound = customer_id or None
@@ -333,7 +353,7 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
     return {
         "customer_scope": scope,
         "requested_other_customer": other,
-        "requested_customer": str(requested) if requested else None,
+        "requested_customer": requested_id,
         "bound_customer": bound,
         "binding": binding,
     }
@@ -416,19 +436,29 @@ def _managed_specialist_spec(
     *,
     turn_id: str = "",
     customer_id: str = "",
-) -> tuple[str, str, tuple[str, ...]]:
-    """Return the routed agent's intent, prompt, and allowed logical tools."""
+) -> tuple[str, str, tuple[str, ...], list[Dict[str, Any]]]:
+    """Return the routed agent's intent, prompt, allowed logical tools and skills.
+
+    The skills are the fixed set the prompt was built with, as the receipt the
+    Runtime reports, so what the Builder view shows is what the prompt carried.
+    An older bundle with no skill files reports an empty list.
+    """
+    from skills import skill_receipt, skills_for
+
     if intent not in MANAGED_SPECIALIST_TOOLS:
         raise ValueError(f"The Router returned an unknown intent: {intent!r}")
 
+    skills = skills_for(intent)
     return (
         intent,
         _managed_specialist_prompt(
             intent,
             turn_id=turn_id,
             customer_id=customer_id,
+            skills=skills,
         ),
         MANAGED_SPECIALIST_TOOLS[intent],
+        skill_receipt(intent, "fixed") if skills else [],
     )
 
 
@@ -446,6 +476,8 @@ class ManagedGatewayDispatcher:
     last_tool_names: tuple[str, ...] = ()
     last_tool_events: list[Dict[str, Any]] | None = None
     last_products: list[dict[str, Any]] | None = None
+    # The skills the routed agent's prompt carried, as the Runtime reports them.
+    last_skills: list[Dict[str, Any]] | None = None
 
     def __call__(self, prompt: str) -> Any:
         from strands import Agent
@@ -460,7 +492,7 @@ class ManagedGatewayDispatcher:
         # change the current turn's deterministic intent.
         intent = classify_intent(self.routing_query or prompt)
         turn_id = str((self.trace_attributes or {}).get("turn.id") or "").strip()
-        specialist, system_prompt, allowed_tools = _managed_specialist_spec(
+        specialist, system_prompt, allowed_tools, skills = _managed_specialist_spec(
             intent,
             turn_id=turn_id,
             customer_id=self.customer_id,
@@ -619,6 +651,7 @@ class ManagedGatewayDispatcher:
             self.last_specialist = specialist
             self.last_model_id = model_id
             self.last_tool_names = selected_names
+            self.last_skills = skills
             response = agent(prompt)
             self.last_tool_events = tool_events
             self.last_products = select_products_for_reply(

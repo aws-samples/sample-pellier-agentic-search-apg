@@ -59,6 +59,9 @@ def test_the_receipt_records_how_each_skill_loaded() -> None:
     on_demand = skill_receipt("shopping", SKILL_MODE_ON_DEMAND, ["the-gift-table", "not-a-skill"])
     assert [(skill["name"], skill["loaded"]) for skill in on_demand] == [("the-gift-table", "on demand")]
     assert skill_receipt("shopping", SKILL_MODE_ON_DEMAND) == []
+    # Opened twice, loaded once.
+    twice = skill_receipt("shopping", SKILL_MODE_ON_DEMAND, ["the-gift-table", "the-gift-table"])
+    assert [skill["name"] for skill in twice] == ["the-gift-table"]
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +89,15 @@ def test_on_demand_prompt_lists_names_and_descriptions_only(shopping_on_demand) 
         assert skill.body.strip() not in prompt, f"{name} body leaked into the on-demand prompt"
     assert "<name>the-care-card</name>" not in prompt
     assert "skills" in shopping_on_demand.tool_names
+
+
+def test_on_demand_locations_are_repository_paths_never_a_developers_absolute_one(
+    shopping_on_demand,
+) -> None:
+    prompt = str(shopping_on_demand.system_prompt)
+    assert "<location>skills/the-gift-table/SKILL.md</location>" in prompt
+    assert "<location>/" not in prompt
+    assert "/Users/" not in prompt and "/home/" not in prompt
 
 
 def test_load_skill_returns_the_body_and_refuses_out_of_set_and_unknown_names(shopping_on_demand) -> None:

@@ -23,8 +23,8 @@ import re
 from typing import Any, Sequence
 
 from config import settings
-from services import store_tools, tool_evidence
-from services.ranking_evidence import filter_counts, ranking_from_execution
+from services import active_requirements, store_tools, tool_evidence
+from services.ranking_evidence import filter_counts, ranking_from_execution, ranking_unavailable
 
 # Global service references
 _db_service = None
@@ -297,24 +297,48 @@ def _search_evidence(payload: dict) -> None:
     """Shape what ``store_tools.search_products`` published for the Builder view.
 
     Runs the filter-count statement here, on the in-process rail only, and
-    carries the ranking beside the result the model reads.
+    carries the ranking beside the result the model reads. Nothing runs when
+    no turn is collecting evidence, and nothing here can fail the search: a
+    broken count or ranking is reported as unavailable, not raised.
     """
+    if not tool_evidence.is_open():
+        return
     execution = payload.get("execution")
-    counts = None
     try:
         counts = filter_counts(_run_sql, execution.plan)
+        ranking = ranking_from_execution(
+            execution,
+            final_rows=payload.get("final_rows") or [],
+            counts=counts,
+            rrf_k=int(payload.get("rrf_k") or 60),
+        )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
-        logger.warning("filter counts skipped: %s", exc)
-    ranking = ranking_from_execution(
-        execution,
-        final_rows=payload.get("final_rows") or [],
-        counts=counts,
-        rrf_k=int(payload.get("rrf_k") or 60),
-    )
+        logger.warning("search ranking evidence skipped: %s", exc)
+        ranking = ranking_unavailable("in-process", "The ranking detail could not be computed")
     tool_evidence.publish("search_products", {
         "ranking": ranking,
         "receipt_id": payload.get("receipt_id"),
     })
+
+
+def _turn_requirements(query: str) -> tuple[dict | None, list[str]]:
+    """The shopper's requirements for this turn, read once and laid over the active set.
+
+    Inside a chat turn the structured reading of the shopper's words runs
+    once and serves every catalog tool in the turn; the limits the last
+    search plan applied carry over unless the shopper changed or released
+    them. Outside a turn the reading stands alone.
+    """
+    return active_requirements.turn_requirements(lambda: _extract_query_structure(query))
+
+
+def _apply_plan(tool: str, payload: dict, carried: list[str]) -> None:
+    """Keep the plan that ran for the next turn, and say what it carried over."""
+    plan = payload.get("search_plan") if isinstance(payload, dict) else None
+    if not isinstance(plan, dict):
+        return
+    active_requirements.remember_plan(plan)
+    tool_evidence.publish(tool, {"requirements": {"carried": list(carried)}})
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +363,8 @@ def search_products(
 
     Args:
         query: Search words for what to find. The shopper's requirements (budget,
-            stock, what they refused) are read from what they typed in this chat.
+            stock, what they refused) are read from what they typed in this chat,
+            and limits they stated earlier in the conversation stay in force.
         max_price: Maximum price, a hard SQL filter (optional).
         min_rating: Minimum star rating, applied after reranking (default 0.0).
         category: A department the agent thinks fits. Recorded on the plan,
@@ -352,12 +377,13 @@ def search_products(
         from services.embeddings import EmbeddingService
         from services.rerank import get_rerank_service
 
-        return _reply(store_tools.search_products(
+        extracted, carried = _turn_requirements(query)
+        payload = store_tools.search_products(
             _run_sql,
             query=query,
             embed=EmbeddingService().embed_query,
             rerank=get_rerank_service().rerank,
-            extracted=_extract_query_structure(query),
+            extracted=extracted,
             max_price=max_price,
             min_rating=min_rating,
             category=category,
@@ -365,7 +391,9 @@ def search_products(
             config=_retrieval_config(),
             receipt=_receipt_context(),
             evidence=_search_evidence,
-        ))
+        )
+        _apply_plan("search_products", payload, carried)
+        return _reply(payload)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -374,6 +402,9 @@ def search_products(
 def browse_department(department: str, limit: int = 5) -> str:
     """Show the highest-rated products in one store department, such as Home or Kitchen and table.
 
+    The shopper's limits (budget, stock, what they refused), including ones
+    stated earlier in this conversation, apply here as they do to a search.
+
     Args:
         department: Store department name.
         limit: Number of products to return (default 5).
@@ -381,7 +412,14 @@ def browse_department(department: str, limit: int = 5) -> str:
     if not _db_service:
         return _DB_NOT_READY
     try:
-        return _reply(store_tools.browse_department(_run_sql, department=department, limit=limit))
+        extracted, carried = (
+            _turn_requirements("") if active_requirements.current_turn() else (None, [])
+        )
+        payload = store_tools.browse_department(
+            _run_sql, department=department, limit=limit, extracted=extracted
+        )
+        _apply_plan("browse_department", payload, carried)
+        return _reply(payload)
     except Exception as e:
         return json.dumps({"error": str(e)})
 

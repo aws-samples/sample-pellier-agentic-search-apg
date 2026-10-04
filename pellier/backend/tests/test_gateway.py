@@ -271,12 +271,57 @@ def test_an_unknown_intent_cannot_build_a_managed_agent() -> None:
 
 
 def test_the_managed_prompt_names_the_agent_and_binds_the_turn() -> None:
-    intent, prompt, tools = gateway._managed_specialist_spec(
+    intent, prompt, tools, skills = gateway._managed_specialist_spec(
         "support", turn_id="turn-" + ("d" * 32), customer_id="CUST-THEO",
     )
     assert intent == "support" and tools == gateway.SUPPORT_MANAGED_TOOLS
     assert "Support agent" in prompt
     assert "turn_id='turn-" in prompt and "CUST-THEO" in prompt
+
+
+def test_the_managed_agent_carries_the_same_fixed_skills_and_reports_them() -> None:
+    """The deployed agent is the same agent: its prompt carries the fixed skills,
+    and what it reports is what the prompt carried."""
+    from skills import get_registry
+
+    _, prompt, _, skills = gateway._managed_specialist_spec("support")
+    assert [skill["name"] for skill in skills] == ["the-care-card", "the-proof-counter"]
+    assert all(skill["loaded"] == "fixed" for skill in skills)
+    assert skills[0]["path"] == "skills/the-care-card/SKILL.md"
+    assert get_registry().get("the-care-card").body.strip() in prompt
+    assert get_registry().get("the-gift-table").body.strip() not in prompt
+
+
+def test_the_managed_report_is_empty_when_the_bundle_carries_no_skills(monkeypatch) -> None:
+    import skills as skills_package
+
+    monkeypatch.setattr(skills_package, "skills_for", lambda _agent: [])
+    _, prompt, _, skills = gateway._managed_specialist_spec("support")
+    assert skills == []
+    assert "SKILLS - loaded for this agent" not in prompt
+
+
+def test_the_managed_shopping_prompt_carries_limits_across_the_conversation() -> None:
+    _, prompt, _, _ = gateway._managed_specialist_spec("shopping")
+    assert "browse_department as arguments" in prompt
+    assert "including limits the shopper stated earlier in this conversation" in prompt
+
+
+def test_a_requested_customer_is_emitted_only_in_the_customer_id_shape() -> None:
+    """A model string that is not a customer id never becomes evidence."""
+    scope = gateway._customer_scope(
+        {"name": f"{TARGET}___get_orders", "input": {"customer_id": "jessica's account"}},
+        "CUST-THEO",
+    )
+    assert scope["requested_customer"] is None
+    assert scope["requested_other_customer"] is True
+    assert scope["binding"] == "overwritten"
+    lowercase = gateway._customer_scope(
+        {"name": f"{TARGET}___get_orders", "input": {"customer_id": "cust-theo"}},
+        "CUST-THEO",
+    )
+    assert lowercase["requested_customer"] == "CUST-THEO"
+    assert lowercase["binding"] == "matched"
 
 
 def test_gateway_tool_names_are_read_through_the_strands_tool_interface() -> None:

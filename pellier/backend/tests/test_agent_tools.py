@@ -101,6 +101,40 @@ def test_browse_department_shapes_rows_through_store_tools(monkeypatch: pytest.M
     assert run.calls[0][1] == ("%home%", 3)
 
 
+def test_search_evidence_is_skipped_outside_a_turn_and_never_fails_a_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from services import tool_evidence
+    from services.search_plan import build_plan
+
+    statements: List[str] = []
+
+    def _count_that_breaks(sql: str, _params: Any = ()) -> List[Dict[str, Any]]:
+        statements.append(sql)
+        raise RuntimeError("counts unavailable")
+
+    monkeypatch.setattr(agent_tools, "_run_sql", _count_that_breaks)
+    execution = SimpleNamespace(plan=build_plan("a gift", {"price_max_usd": 100}), candidates=[])
+    payload = {"execution": execution, "final_rows": [], "receipt_id": 7, "rrf_k": 60}
+
+    # No open channel: the count statement is not even attempted.
+    agent_tools._search_evidence(payload)
+    assert statements == []
+
+    # An open channel: the statement runs, fails, and the ranking says so.
+    channel = tool_evidence.open_channel()
+    try:
+        agent_tools._search_evidence(payload)
+        evidence = tool_evidence.take("search_products")
+    finally:
+        tool_evidence.close_channel(channel)
+    assert len(statements) == 1
+    assert evidence["ranking"]["available"] is False
+    assert evidence["receipt_id"] == 7
+
+
 def test_a_raised_exception_returns_the_error_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
     agent_tools._db_service = _SentinelDB()
 

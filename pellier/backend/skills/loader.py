@@ -18,12 +18,27 @@ from .registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
 
-# Default: /skills/ at the project root.
-# This file sits at pellier/backend/skills/loader.py — four parents up
-# lands on the repo root where /skills/ lives alongside /pellier/.
-_DEFAULT_SKILLS_DIR = Path(__file__).resolve().parents[3] / "skills"
+# This package: pellier/backend/skills in a checkout, or the bundle's own
+# ``skills`` directory on the managed Runtime.
+_PACKAGE_DIR = Path(__file__).resolve().parent
 
 _registry: Optional[SkillRegistry] = None
+
+
+def _default_skills_dir() -> Path:
+    """Where the ``*/SKILL.md`` files live for this layout.
+
+    In a checkout they sit beside ``pellier/`` at the repository root. The
+    Runtime bundle has no repository root, so the renderer stages them inside
+    this package, and the package directory is the fallback.
+    """
+    try:
+        checkout = _PACKAGE_DIR.parents[2] / "skills"
+    except IndexError:
+        return _PACKAGE_DIR
+    if any(checkout.glob("*/SKILL.md")):
+        return checkout
+    return _PACKAGE_DIR
 
 
 def load_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
@@ -39,7 +54,7 @@ def load_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
     """
     global _registry
 
-    resolved = (skills_dir or _env_skills_dir() or _DEFAULT_SKILLS_DIR).resolve()
+    resolved = (skills_dir or _env_skills_dir() or _default_skills_dir()).resolve()
 
     # Re-scan if the directory changed (mostly useful in tests).
     if _registry is not None and _registry.skills_dir == resolved:

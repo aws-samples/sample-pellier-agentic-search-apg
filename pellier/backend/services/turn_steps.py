@@ -24,6 +24,13 @@ ROUTE_STEP_ID = "route"
 SKILL_LOAD_TOOL = "skills"
 SKILL_STEP_ID = "skills"
 
+# How an agent gets its skills: carried in the prompt, or opened on demand.
+SKILL_MODE_FIXED = "fixed"
+SKILL_MODE_ON_DEMAND = "on_demand"
+
+# The kinds of limit a plan applies, in the order the findings name them.
+_LIMIT_KINDS = ("budget", "stock", "exclusions", "department")
+
 # One Router step plus three tool steps; anything beyond folds into the last.
 MAX_STEPS = 4
 
@@ -136,34 +143,83 @@ def _money(cents_or_dollars: Any, *, cents: bool = False) -> str:
     return f"${amount:g}" if amount == int(amount) else f"${amount:.2f}"
 
 
-def _search_finding(parsed: Dict[str, Any]) -> str:
-    count = _count(parsed.get("count"))
-    plan = parsed.get("search_plan") or {}
+def limit_phrases(plan: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """Each hard limit a plan applied, by kind, as the shopper would say it."""
+    plan = plan or {}
     hard = plan.get("hard_constraints") or {}
-    limits: List[str] = []
+    phrases: Dict[str, str] = {}
     price = hard.get("price_max_usd")
     if price is not None:
-        limits.append(f"under {_money(price)}")
+        phrases["budget"] = f"under {_money(price)}"
     if hard.get("in_stock_only"):
-        limits.append("in stock")
+        phrases["stock"] = "in stock"
     exclusions = [_plural(value) for value in (plan.get("exclusions") or []) if value]
+    if exclusions:
+        phrases["exclusions"] = "no " + " or ".join(exclusions)
+    categories = [str(value) for value in (hard.get("categories") or []) if value]
+    if categories:
+        phrases["department"] = " or ".join(categories) + " only"
+    return phrases
+
+
+def requirement_phrases(
+    plan: Optional[Dict[str, Any]], carried: Sequence[str] = ()
+) -> Optional[Dict[str, List[str]]]:
+    """The Builder view's requirement facts: every limit applied, and those kept from earlier."""
+    phrases = limit_phrases(plan)
+    if not phrases:
+        return None
+    return {
+        "applied": [phrases[kind] for kind in _LIMIT_KINDS if kind in phrases],
+        "carried": [phrases[kind] for kind in _LIMIT_KINDS if kind in phrases and kind in carried],
+    }
+
+
+def _limits_said_now(plan: Dict[str, Any], carried: Sequence[str]) -> tuple[List[str], str]:
+    """The limits this message stated, and the exclusions clause, for a finding's head."""
+    phrases = limit_phrases(plan)
+    stated = [phrases[kind] for kind in ("budget", "stock") if kind in phrases and kind not in carried]
+    left_out = ""
+    if "exclusions" in phrases and "exclusions" not in carried:
+        exclusions = [_plural(value) for value in (plan.get("exclusions") or []) if value]
+        left_out = ", " + " and ".join(exclusions) + " left out"
+    return stated, left_out
+
+
+def _carried_suffix(plan: Dict[str, Any], carried: Sequence[str]) -> str:
+    phrases = limit_phrases(plan)
+    kept = [phrases[kind] for kind in _LIMIT_KINDS if kind in phrases and kind in carried]
+    return ". Kept your limits from earlier: " + ", ".join(kept) if kept else ""
+
+
+def _search_finding(
+    parsed: Dict[str, Any], *, kept: Optional[int] = None, carried: Sequence[str] = ()
+) -> str:
+    """What a search found: how many it returned, how many fit, which limits applied."""
+    count = _count(parsed.get("count"))
+    plan = parsed.get("search_plan") or {}
+    stated, left_out = _limits_said_now(plan, carried)
     if count == 0:
-        head = "Nothing matched" + (" " + " and ".join(limits) if limits else "")
-    elif limits:
-        head = f"{count} " + " and ".join(limits)
+        head = "Nothing matched"
     else:
         head = f"{count} found"
-    if exclusions:
-        head += ", " + " and ".join(exclusions) + " left out"
-    return head
+        if kept is not None:
+            head += f" from {kept} that fit"
+    if stated:
+        head += " " + " and ".join(stated)
+    return head + left_out + _carried_suffix(plan, carried)
 
 
-def _browse_finding(parsed: Dict[str, Any]) -> str:
+def _browse_finding(parsed: Dict[str, Any], *, carried: Sequence[str] = ()) -> str:
     department = str(parsed.get("department") or "that department")
     count = _count(parsed.get("count"))
+    plan = parsed.get("search_plan") or {}
+    stated, left_out = _limits_said_now(plan, carried)
     if count == 0:
-        return f"Nothing in {department}"
-    return f"{count} in {department}, by rating"
+        head = f"Nothing in {department}" + (" " + " and ".join(stated) if stated else "")
+    else:
+        head = f"{count} in {department}, by rating" + (", " + " and ".join(stated) if stated else "")
+    return head + left_out + _carried_suffix(plan, carried)
 
 
 def _compare_finding(parsed: Dict[str, Any]) -> str:
@@ -261,15 +317,31 @@ def skill_finding(loaded: Sequence[Dict[str, str]], refused: Optional[str] = Non
     return f"Loaded {', '.join(names[:-1])} and {names[-1]} from skills/"
 
 
-def finding_for(tool: str, parsed: Dict[str, Any], tool_input: Optional[Dict[str, Any]] = None) -> str:
-    """One plain line computed from the actual result of ``tool``."""
+def finding_for(
+    tool: str,
+    parsed: Dict[str, Any],
+    tool_input: Optional[Dict[str, Any]] = None,
+    *,
+    kept: Optional[int] = None,
+    carried: Sequence[str] = (),
+) -> str:
+    """One plain line computed from the actual result of ``tool``.
+
+    Args:
+        tool: The store tool that ran.
+        parsed: Its result, as ``parse_result`` read it.
+        tool_input: Its arguments, for the templates that quote one.
+        kept: For a search, how many catalog rows fit the hard limits, when
+            the filter counts were taken.
+        carried: The limit kinds kept from earlier in the conversation.
+    """
     tool_input = tool_input or {}
     if result_failed(tool, parsed):
         return ERROR_FINDINGS.get(tool, _GENERIC_ERROR_FINDING)
     if tool == "search_products":
-        return _search_finding(parsed)
+        return _search_finding(parsed, kept=kept, carried=carried)
     if tool == "browse_department":
-        return _browse_finding(parsed)
+        return _browse_finding(parsed, carried=carried)
     if tool == "compare_products":
         return _compare_finding(parsed)
     if tool == "check_stock":
@@ -370,10 +442,12 @@ class TurnSteps:
         evidence = evidence or {}
         step_id = self.step_id(tool)
         parsed = parse_result(result_text)
+        carried = [str(kind) for kind in (evidence.get("requirements") or {}).get("carried") or []]
         if tool == SKILL_LOAD_TOOL:
             refused = skill_load_refused(result_text)
-            if refused is None:
-                name = str(tool_input.get("skill_name") or "")
+            name = str(tool_input.get("skill_name") or "")
+            # A skill opened twice was loaded once.
+            if refused is None and all(skill["name"] != name for skill in self.loaded_skills):
                 self.loaded_skills.append({
                     "name": name,
                     "display_name": self.skill_names.get(name, name),
@@ -382,7 +456,8 @@ class TurnSteps:
             finding = skill_finding(self.loaded_skills, refused)
             failed = refused is not None
         else:
-            finding = finding_for(tool, parsed, tool_input)
+            kept = ((evidence.get("ranking") or {}).get("filters") or {}).get("kept")
+            finding = finding_for(tool, parsed, tool_input, kept=kept, carried=carried)
             failed = result_failed(tool, parsed)
         builder: Dict[str, Any] = {
             "tool": tool,
@@ -392,6 +467,7 @@ class TurnSteps:
             "receipt_id": evidence.get("receipt_id"),
             "identity": evidence.get("identity"),
             "ranking": evidence.get("ranking"),
+            "requirements": requirement_phrases(parsed.get("search_plan"), carried),
         }
         if tool == SKILL_LOAD_TOOL:
             builder["skills"] = list(self.loaded_skills)
@@ -418,12 +494,18 @@ class TurnSteps:
         rail: str = "in-process",
         note: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """The Router's step, done the moment the intent is known."""
+        """The Router's step, done the moment the intent is known.
+
+        The Skills tag names what the agent starts with. On demand it starts
+        with the names only, and the tag says so before any load.
+        """
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
         if memory:
             tags.append("Memory")
         if skills:
             tags.append("Skills")
+        elif skill_mode == SKILL_MODE_ON_DEMAND:
+            tags.append("Skills (on demand)")
         self.labels[ROUTE_STEP_ID] = STATUS_UNDERSTANDING
         return {
             "type": "step",
@@ -485,6 +567,7 @@ class TurnSteps:
                 "receipt_id": None,
                 "identity": identity,
                 "ranking": tool_call.get("ranking"),
+                "requirements": None,
             },
         }
 
