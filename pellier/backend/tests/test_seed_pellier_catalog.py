@@ -98,3 +98,21 @@ def test_committed_cache_matches_the_catalog_text():
     seed = _seed()
     products = seed.load_catalog()
     assert seed.load_embeddings_cache(products, seed.EMBED_CACHE) == len(products)
+
+
+def test_seeder_materials_match_the_planner_vocabulary():
+    from services.structured_extract import KNOWN_MATERIALS
+
+    assert tuple(_seed().MATERIALS) == tuple(KNOWN_MATERIALS)
+
+
+def test_unknown_material_is_rejected(tmp_path):
+    import json
+
+    seed = _seed()
+    rows = json.loads(Path(seed.CATALOG_JSON).read_text())[:1]
+    rows[0]["materials"] = ["plastic"]
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(rows))
+    with pytest.raises(SystemExit, match=r"unknown materials \['plastic'\]"):
+        seed.load_catalog(str(path))

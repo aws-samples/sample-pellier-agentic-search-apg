@@ -68,6 +68,17 @@ KNOWN_TAGS: List[str] = [
     "timeless", "travel", "warm", "watch", "wellness",
 ]
 
+# Everything a product is made of, components and blends included. A material
+# exclusion ("no wool") is enforced against this list, because the merchandising
+# tags above name only a product's main material. Merino and cashmere products
+# also list wool; suede is leather; stoneware and terracotta are ceramic.
+KNOWN_MATERIALS: List[str] = [
+    "acetate", "beeswax", "brass", "canvas", "cashmere", "ceramic", "cotton", "foam",
+    "glass", "gold", "iron", "jute", "leather", "linen", "merino", "nylon", "paper",
+    "polyester", "rattan", "rubber", "seagrass", "silicone", "silk", "silver",
+    "soy wax", "steel", "stone", "straw", "wood", "wool",
+]
+
 
 _SYSTEM_PROMPT = """You extract structured retrieval filters from a boutique \
 shopper's query.

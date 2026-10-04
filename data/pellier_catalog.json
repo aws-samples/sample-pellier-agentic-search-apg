@@ -14,6 +14,9 @@
       "minimal",
       "neutral"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.9,
     "reviews": 127,
     "image": "fresh-olive-branch-vessel.png",
@@ -34,6 +37,9 @@
       "everyday",
       "minimal",
       "neutral"
+    ],
+    "materials": [
+      "linen"
     ],
     "rating": 4.8,
     "reviews": 312,
@@ -56,6 +62,11 @@
       "gift",
       "classic"
     ],
+    "materials": [
+      "brass",
+      "canvas",
+      "leather"
+    ],
     "rating": 4.9,
     "reviews": 89,
     "image": "fresh-nocturne-leather-weekender.png",
@@ -75,6 +86,10 @@
       "candle",
       "home",
       "warm"
+    ],
+    "materials": [
+      "glass",
+      "soy wax"
     ],
     "rating": 4.7,
     "reviews": 445,
@@ -98,6 +113,10 @@
       "gift",
       "classic"
     ],
+    "materials": [
+      "leather",
+      "steel"
+    ],
     "rating": 4.8,
     "reviews": 203,
     "image": "fresh-heritage-rectangular-watch.png",
@@ -110,13 +129,16 @@
     "brand": "Pellier",
     "color": "Pale gold",
     "price": 26,
-    "description": "Cold-pressed neroli oil in a small clear glass bottle with a dropper. A few drops on pulse points or in a warm bath give a light, fresh orange-blossom scent.",
+    "description": "Neroli oil in a small clear glass bottle with a dropper. The scent is light and fresh, like orange blossom.",
     "department": "Bath and body",
     "moment": "fresh",
     "tags": [
       "beauty",
       "apothecary",
       "wellness"
+    ],
+    "materials": [
+      "glass"
     ],
     "rating": 4.6,
     "reviews": 178,
@@ -138,6 +160,9 @@
       "neutral",
       "everyday"
     ],
+    "materials": [
+      "jute"
+    ],
     "rating": 4.5,
     "reviews": 92,
     "image": "fresh-solstice-woven-mat-set.png",
@@ -157,6 +182,9 @@
       "linen",
       "loungewear",
       "neutral"
+    ],
+    "materials": [
+      "linen"
     ],
     "rating": 4.7,
     "reviews": 156,
@@ -178,6 +206,9 @@
       "activewear",
       "everyday"
     ],
+    "materials": [
+      "foam"
+    ],
     "rating": 4.6,
     "reviews": 234,
     "image": "fresh-cloudform-studio-runner.png",
@@ -197,6 +228,10 @@
       "canvas",
       "everyday",
       "neutral"
+    ],
+    "materials": [
+      "canvas",
+      "leather"
     ],
     "rating": 4.5,
     "reviews": 310,
@@ -218,6 +253,9 @@
       "travel",
       "resort"
     ],
+    "materials": [
+      "linen"
+    ],
     "rating": 4.8,
     "reviews": 287,
     "image": "marco-linen-camp-shirt-indigo.png",
@@ -230,13 +268,17 @@
     "brand": "Pellier",
     "color": "Olive",
     "price": 36,
-    "description": "Waxed canvas dopp kit with brass YKK zipper. Water-resistant lining. Sized for a carry-on.",
+    "description": "Waxed canvas dopp kit with a brass zipper. Water-resistant lining. Sized for a carry-on.",
     "department": "Bags and travel",
     "moment": "marco",
     "tags": [
       "canvas",
       "travel",
       "minimal"
+    ],
+    "materials": [
+      "brass",
+      "canvas"
     ],
     "rating": 4.7,
     "reviews": 198,
@@ -260,6 +302,9 @@
       "everyday",
       "minimal"
     ],
+    "materials": [
+      "leather"
+    ],
     "rating": 4.9,
     "reviews": 342,
     "image": "marco-leather-card-wallet.png",
@@ -281,6 +326,9 @@
       "resort",
       "neutral"
     ],
+    "materials": [
+      "linen"
+    ],
     "rating": 4.7,
     "reviews": 225,
     "image": "marco-linen-drawstring-trousers.png",
@@ -300,6 +348,10 @@
       "footwear",
       "travel",
       "resort"
+    ],
+    "materials": [
+      "jute",
+      "leather"
     ],
     "rating": 4.6,
     "reviews": 167,
@@ -321,6 +373,10 @@
       "travel",
       "everyday"
     ],
+    "materials": [
+      "cotton",
+      "linen"
+    ],
     "rating": 4.7,
     "reviews": 143,
     "image": "marco-linen-overshirt-sage.png",
@@ -340,6 +396,11 @@
       "leather",
       "travel",
       "classic"
+    ],
+    "materials": [
+      "brass",
+      "canvas",
+      "leather"
     ],
     "rating": 4.9,
     "reviews": 76,
@@ -362,6 +423,10 @@
       "everyday",
       "minimal"
     ],
+    "materials": [
+      "cotton",
+      "linen"
+    ],
     "rating": 4.5,
     "reviews": 412,
     "image": "marco-cotton-linen-tee.png",
@@ -374,13 +439,16 @@
     "brand": "Pellier",
     "color": "Cream",
     "price": 54,
-    "description": "Woven straw panama with black grosgrain ribbon. UPF 50+. Rolls without creasing.",
+    "description": "Woven straw panama hat with a black grosgrain ribbon. Light and breathable, for sunny days at the beach, in the garden or on a city walk.",
     "department": "Accessories",
     "moment": "marco",
     "tags": [
       "accessories",
       "travel",
       "resort"
+    ],
+    "materials": [
+      "straw"
     ],
     "rating": 4.8,
     "reviews": 98,
@@ -394,13 +462,17 @@
     "brand": "Pellier",
     "color": "Charcoal, oat and olive",
     "price": 16,
-    "description": "Three-pack of merino wool crew socks in charcoal, oat, and olive. Temperature-regulating, odor-resistant.",
+    "description": "Three pairs of merino wool crew socks in charcoal, oat and olive. Temperature-regulating, odor-resistant.",
     "department": "Clothing",
     "moment": "marco",
     "tags": [
       "merino",
       "travel",
       "everyday"
+    ],
+    "materials": [
+      "merino",
+      "wool"
     ],
     "rating": 4.6,
     "reviews": 534,
@@ -422,6 +494,10 @@
       "gift",
       "home"
     ],
+    "materials": [
+      "beeswax",
+      "cotton"
+    ],
     "rating": 4.8,
     "reviews": 289,
     "image": "anna-beeswax-taper-candles.png",
@@ -430,17 +506,20 @@
   },
   {
     "id": 22,
-    "name": "Monogrammed Linen Napkins",
+    "name": "Linen Napkins, Set of 4",
     "brand": "Pellier",
     "color": "White",
     "price": 44,
-    "description": "Set of four linen napkins in soft white with optional monogram. Hemstitched edges, gift-boxed.",
+    "description": "Set of four soft white linen napkins with hemstitched edges. They arrive gift-boxed, ready to give.",
     "department": "Kitchen and table",
     "moment": "anna",
     "tags": [
       "linen",
       "gift",
       "home"
+    ],
+    "materials": [
+      "linen"
     ],
     "rating": 4.7,
     "reviews": 178,
@@ -463,6 +542,9 @@
       "home",
       "minimal"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.9,
     "reviews": 412,
     "image": "anna-ceramic-ring-dish.png",
@@ -482,6 +564,9 @@
       "accessories",
       "gift",
       "classic"
+    ],
+    "materials": [
+      "silk"
     ],
     "rating": 4.6,
     "reviews": 145,
@@ -503,6 +588,10 @@
       "home",
       "minimal"
     ],
+    "materials": [
+      "glass",
+      "rattan"
+    ],
     "rating": 4.7,
     "reviews": 367,
     "image": "anna-reed-diffuser.png",
@@ -522,6 +611,9 @@
       "gift",
       "beauty",
       "artisanal"
+    ],
+    "materials": [
+      "wood"
     ],
     "rating": 4.8,
     "reviews": 298,
@@ -543,6 +635,9 @@
       "gift",
       "home"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.6,
     "reviews": 223,
     "image": "anna-ceramic-bud-vase.png",
@@ -562,6 +657,10 @@
       "leather",
       "gift",
       "classic"
+    ],
+    "materials": [
+      "leather",
+      "paper"
     ],
     "rating": 4.9,
     "reviews": 187,
@@ -583,6 +682,9 @@
       "home",
       "classic"
     ],
+    "materials": [
+      "brass"
+    ],
     "rating": 4.7,
     "reviews": 156,
     "image": "anna-brass-photo-frame.png",
@@ -601,6 +703,10 @@
     "tags": [
       "gift",
       "minimal"
+    ],
+    "materials": [
+      "cotton",
+      "paper"
     ],
     "rating": 4.5,
     "reviews": 478,
@@ -621,6 +727,9 @@
       "ceramic",
       "slow",
       "home"
+    ],
+    "materials": [
+      "ceramic"
     ],
     "rating": 4.9,
     "reviews": 134,
@@ -643,6 +752,9 @@
       "home",
       "neutral"
     ],
+    "materials": [
+      "linen"
+    ],
     "rating": 4.8,
     "reviews": 201,
     "image": "theo-raw-linen-throw.png",
@@ -662,6 +774,9 @@
       "slow",
       "home",
       "earth"
+    ],
+    "materials": [
+      "wood"
     ],
     "rating": 4.7,
     "reviews": 312,
@@ -684,6 +799,9 @@
       "home",
       "earth"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.6,
     "reviews": 256,
     "image": "theo-terracotta-planter.png",
@@ -704,6 +822,9 @@
       "home",
       "minimal"
     ],
+    "materials": [
+      "brass"
+    ],
     "rating": 4.8,
     "reviews": 189,
     "image": "theo-brass-incense-holder.png",
@@ -723,6 +844,9 @@
       "ceramic",
       "slow",
       "home"
+    ],
+    "materials": [
+      "ceramic"
     ],
     "rating": 4.7,
     "reviews": 245,
@@ -745,6 +869,9 @@
       "home",
       "neutral"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.9,
     "reviews": 167,
     "image": "theo-wabi-sabi-bowl.png",
@@ -764,6 +891,9 @@
       "candle",
       "slow",
       "home"
+    ],
+    "materials": [
+      "beeswax"
     ],
     "rating": 4.6,
     "reviews": 334,
@@ -786,6 +916,9 @@
       "home",
       "neutral"
     ],
+    "materials": [
+      "linen"
+    ],
     "rating": 4.7,
     "reviews": 178,
     "image": "theo-linen-table-runner.png",
@@ -806,6 +939,7 @@
       "beauty",
       "minimal"
     ],
+    "materials": [],
     "rating": 4.5,
     "reviews": 412,
     "image": "theo-charcoal-soap-bar.png",
@@ -825,6 +959,9 @@
       "ceramic",
       "home",
       "sculptural"
+    ],
+    "materials": [
+      "ceramic"
     ],
     "rating": 4.7,
     "reviews": 156,
@@ -846,6 +983,9 @@
       "wellness",
       "everyday"
     ],
+    "materials": [
+      "cotton"
+    ],
     "rating": 4.6,
     "reviews": 289,
     "image": "house-sage-bath-robe.png",
@@ -865,6 +1005,9 @@
       "classic",
       "neutral",
       "minimal"
+    ],
+    "materials": [
+      "silk"
     ],
     "rating": 4.5,
     "reviews": 98,
@@ -886,6 +1029,10 @@
       "minimal",
       "earth"
     ],
+    "materials": [
+      "brass",
+      "stone"
+    ],
     "rating": 4.8,
     "reviews": 74,
     "image": "house-travertine-wall-clock.png",
@@ -905,6 +1052,9 @@
       "classic",
       "timeless",
       "neutral"
+    ],
+    "materials": [
+      "wool"
     ],
     "rating": 4.8,
     "reviews": 142,
@@ -926,6 +1076,10 @@
       "warm",
       "neutral"
     ],
+    "materials": [
+      "cashmere",
+      "wool"
+    ],
     "rating": 4.9,
     "reviews": 118,
     "image": "house-ivory-cashmere-throw.png",
@@ -938,13 +1092,16 @@
     "brand": "Pellier",
     "color": "Amber",
     "price": 110,
-    "description": "Eau de parfum of vetiver, dry cedar and a little smoked vanilla, in an amber glass bottle. Woody and calm, it stays close to the skin and lasts through the workday.",
+    "description": "Eau de parfum of vetiver, dry cedar and a little smoked vanilla, in an amber glass bottle. Woody and calm, it stays close to the skin.",
     "department": "Bath and body",
     "moment": "house",
     "tags": [
       "beauty",
       "earth",
       "warm"
+    ],
+    "materials": [
+      "glass"
     ],
     "rating": 4.7,
     "reviews": 231,
@@ -958,13 +1115,16 @@
     "brand": "Pellier",
     "color": "Brown",
     "price": 189,
-    "description": "Full-grain vegetable-tanned leather market tote with rolled handles and saddle stitching. Unlined, so it takes on a patina rather than wearing out.",
+    "description": "Market tote in full-grain vegetable-tanned leather, with an unlined interior, rolled handles and saddle stitching. The leather develops a patina with use.",
     "department": "Bags and travel",
     "moment": "house",
     "tags": [
       "leather",
       "everyday",
       "classic"
+    ],
+    "materials": [
+      "leather"
     ],
     "rating": 4.9,
     "reviews": 87,
@@ -978,13 +1138,16 @@
     "brand": "EcoThread",
     "color": "Flax",
     "price": 219,
-    "description": "Stonewashed linen bedding in flax: a duvet cover and two pillowcases. Breathable in summer, warm enough in winter, and finished without softening chemicals, so it gets softer with each wash.",
+    "description": "Stonewashed linen bedding in flax: a duvet cover and two pillowcases. Breathable in summer, warm enough in winter, and it gets softer with each wash.",
     "department": "Home",
     "moment": "house",
     "tags": [
       "linen",
       "home",
       "neutral"
+    ],
+    "materials": [
+      "linen"
     ],
     "rating": 4.6,
     "reviews": 204,
@@ -1006,6 +1169,10 @@
       "everyday",
       "neutral"
     ],
+    "materials": [
+      "merino",
+      "wool"
+    ],
     "rating": 4.7,
     "reviews": 276,
     "image": "house-oat-merino-crew.png",
@@ -1025,6 +1192,9 @@
       "classic",
       "timeless",
       "warm"
+    ],
+    "materials": [
+      "wool"
     ],
     "rating": 4.9,
     "reviews": 63,
@@ -1046,6 +1216,9 @@
       "neutral",
       "classic"
     ],
+    "materials": [
+      "silk"
+    ],
     "rating": 4.8,
     "reviews": 71,
     "image": "signature-silk-charmeuse-slip-dress.png",
@@ -1064,6 +1237,9 @@
     "tags": [
       "classic",
       "neutral"
+    ],
+    "materials": [
+      "wool"
     ],
     "rating": 4.7,
     "reviews": 109,
@@ -1085,6 +1261,9 @@
       "leather",
       "classic"
     ],
+    "materials": [
+      "leather"
+    ],
     "rating": 4.8,
     "reviews": 134,
     "image": "signature-suede-chelsea-boot.png",
@@ -1104,6 +1283,9 @@
       "beauty",
       "warm"
     ],
+    "materials": [
+      "glass"
+    ],
     "rating": 4.8,
     "reviews": 96,
     "image": "signature-fig-cedar-eau-de-parfum.png",
@@ -1116,13 +1298,16 @@
     "brand": "Pellier",
     "color": "Blush pink",
     "price": 64,
-    "description": "Body oil of rose absolute, squalane, and apricot kernel. Absorbs without residue; the scent fades to a clean sweetness.",
+    "description": "Body oil of rose absolute, squalane, and apricot kernel. The scent fades to a clean sweetness.",
     "department": "Bath and body",
     "moment": "signature",
     "tags": [
       "beauty",
       "apothecary",
       "wellness"
+    ],
+    "materials": [
+      "glass"
     ],
     "rating": 4.6,
     "reviews": 187,
@@ -1136,7 +1321,7 @@
     "brand": "Pellier",
     "color": "Oat",
     "price": 189,
-    "description": "Oversized wrap in an oat cashmere blend that doubles as an airplane blanket. Rolls to the size of a paperback and ties with a flat linen ribbon.",
+    "description": "Oversized wrap in an oat cashmere and wool blend that doubles as an airplane blanket. Rolls to the size of a paperback and ties with a flat linen ribbon.",
     "department": "Accessories",
     "moment": "signature",
     "tags": [
@@ -1144,6 +1329,11 @@
       "travel",
       "gift",
       "neutral"
+    ],
+    "materials": [
+      "cashmere",
+      "linen",
+      "wool"
     ],
     "rating": 4.9,
     "reviews": 112,
@@ -1165,6 +1355,10 @@
       "classic",
       "timeless"
     ],
+    "materials": [
+      "gold",
+      "silver"
+    ],
     "rating": 4.9,
     "reviews": 58,
     "image": "signature-signet-ring-brushed-gold.png",
@@ -1185,6 +1379,9 @@
       "neutral",
       "earth"
     ],
+    "materials": [
+      "wool"
+    ],
     "rating": 4.9,
     "reviews": 41,
     "image": "signature-hand-knotted-wool-rug.png",
@@ -1203,6 +1400,9 @@
     "tags": [
       "home",
       "classic"
+    ],
+    "materials": [
+      "glass"
     ],
     "rating": 4.7,
     "reviews": 88,
@@ -1226,6 +1426,10 @@
       "gift",
       "classic"
     ],
+    "materials": [
+      "canvas",
+      "steel"
+    ],
     "rating": 4.7,
     "reviews": 142,
     "image": "placeholder-product.png",
@@ -1245,6 +1449,9 @@
       "leather",
       "gift",
       "accessories"
+    ],
+    "materials": [
+      "leather"
     ],
     "rating": 4.8,
     "reviews": 96,
@@ -1266,6 +1473,9 @@
       "warm",
       "everyday"
     ],
+    "materials": [
+      "wool"
+    ],
     "rating": 4.6,
     "reviews": 211,
     "image": "placeholder-product.png",
@@ -1285,6 +1495,10 @@
       "accessories",
       "travel",
       "classic"
+    ],
+    "materials": [
+      "acetate",
+      "glass"
     ],
     "rating": 4.5,
     "reviews": 174,
@@ -1306,6 +1520,9 @@
       "slow",
       "home"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.8,
     "reviews": 268,
     "image": "placeholder-product.png",
@@ -1325,6 +1542,9 @@
       "slow",
       "home",
       "minimal"
+    ],
+    "materials": [
+      "glass"
     ],
     "rating": 4.6,
     "reviews": 133,
@@ -1346,6 +1566,10 @@
       "slow",
       "home"
     ],
+    "materials": [
+      "ceramic",
+      "wood"
+    ],
     "rating": 4.7,
     "reviews": 88,
     "image": "placeholder-product.png",
@@ -1366,6 +1590,9 @@
       "home",
       "classic"
     ],
+    "materials": [
+      "iron"
+    ],
     "rating": 4.9,
     "reviews": 187,
     "image": "placeholder-product.png",
@@ -1384,6 +1611,10 @@
     "tags": [
       "home",
       "everyday"
+    ],
+    "materials": [
+      "glass",
+      "steel"
     ],
     "rating": 4.5,
     "reviews": 152,
@@ -1405,6 +1636,9 @@
       "home",
       "everyday"
     ],
+    "materials": [
+      "linen"
+    ],
     "rating": 4.6,
     "reviews": 119,
     "image": "placeholder-product.png",
@@ -1424,6 +1658,9 @@
       "slow",
       "home",
       "earth"
+    ],
+    "materials": [
+      "wood"
     ],
     "rating": 4.7,
     "reviews": 104,
@@ -1445,6 +1682,9 @@
       "slow",
       "home"
     ],
+    "materials": [
+      "ceramic"
+    ],
     "rating": 4.6,
     "reviews": 77,
     "image": "placeholder-product.png",
@@ -1464,6 +1704,9 @@
       "gift",
       "everyday"
     ],
+    "materials": [
+      "paper"
+    ],
     "rating": 4.7,
     "reviews": 236,
     "image": "placeholder-product.png",
@@ -1482,6 +1725,9 @@
     "tags": [
       "gift",
       "classic"
+    ],
+    "materials": [
+      "brass"
     ],
     "rating": 4.5,
     "reviews": 64,
@@ -1503,6 +1749,9 @@
       "gift",
       "minimal"
     ],
+    "materials": [
+      "leather"
+    ],
     "rating": 4.6,
     "reviews": 58,
     "image": "placeholder-product.png",
@@ -1522,6 +1771,9 @@
       "gift",
       "minimal"
     ],
+    "materials": [
+      "paper"
+    ],
     "rating": 4.8,
     "reviews": 192,
     "image": "placeholder-product.png",
@@ -1540,6 +1792,9 @@
     "tags": [
       "gift",
       "earth"
+    ],
+    "materials": [
+      "paper"
     ],
     "rating": 4.4,
     "reviews": 143,
@@ -1561,6 +1816,10 @@
       "gift",
       "classic"
     ],
+    "materials": [
+      "linen",
+      "paper"
+    ],
     "rating": 4.7,
     "reviews": 71,
     "image": "placeholder-product.png",
@@ -1579,6 +1838,12 @@
     "tags": [
       "gift",
       "neutral"
+    ],
+    "materials": [
+      "ceramic",
+      "linen",
+      "paper",
+      "wood"
     ],
     "rating": 4.8,
     "reviews": 45,
@@ -1601,6 +1866,10 @@
       "home",
       "warm"
     ],
+    "materials": [
+      "glass",
+      "soy wax"
+    ],
     "rating": 4.7,
     "reviews": 318,
     "image": "placeholder-product.png",
@@ -1622,6 +1891,10 @@
       "home",
       "warm"
     ],
+    "materials": [
+      "ceramic",
+      "linen"
+    ],
     "rating": 4.5,
     "reviews": 92,
     "image": "placeholder-product.png",
@@ -1634,13 +1907,16 @@
     "brand": "EcoThread",
     "color": "Rust and oat",
     "price": 52,
-    "description": "Two square linen cushion covers, one in rust and one in oat, with zip closures. Pull them off to machine wash, and the linen softens with each wash.",
+    "description": "Two square linen cushion covers, one in rust and one in oat, with zip closures. Inserts are not included. Pull them off to machine wash, and the linen softens with each wash.",
     "department": "Home",
     "moment": "house",
     "tags": [
       "linen",
       "home",
       "warm"
+    ],
+    "materials": [
+      "linen"
     ],
     "rating": 4.6,
     "reviews": 127,
@@ -1663,6 +1939,9 @@
       "neutral",
       "everyday"
     ],
+    "materials": [
+      "seagrass"
+    ],
     "rating": 4.7,
     "reviews": 164,
     "image": "placeholder-product.png",
@@ -1682,6 +1961,9 @@
       "home",
       "gift",
       "warm"
+    ],
+    "materials": [
+      "wool"
     ],
     "rating": 4.8,
     "reviews": 83,
@@ -1703,6 +1985,10 @@
       "classic",
       "everyday"
     ],
+    "materials": [
+      "canvas",
+      "cotton"
+    ],
     "rating": 4.6,
     "reviews": 139,
     "image": "placeholder-product.png",
@@ -1722,6 +2008,9 @@
       "activewear",
       "loungewear",
       "everyday"
+    ],
+    "materials": [
+      "cotton"
     ],
     "rating": 4.5,
     "reviews": 302,
@@ -1743,6 +2032,10 @@
       "neutral",
       "classic"
     ],
+    "materials": [
+      "cotton",
+      "wood"
+    ],
     "rating": 4.6,
     "reviews": 118,
     "image": "placeholder-product.png",
@@ -1763,6 +2056,9 @@
       "classic",
       "neutral"
     ],
+    "materials": [
+      "cotton"
+    ],
     "rating": 4.4,
     "reviews": 256,
     "image": "placeholder-product.png",
@@ -1782,6 +2078,9 @@
       "travel",
       "everyday"
     ],
+    "materials": [
+      "nylon"
+    ],
     "rating": 4.5,
     "reviews": 97,
     "image": "placeholder-product.png",
@@ -1800,6 +2099,9 @@
     "tags": [
       "activewear",
       "everyday"
+    ],
+    "materials": [
+      "polyester"
     ],
     "rating": 4.3,
     "reviews": 184,
@@ -1821,6 +2123,11 @@
       "canvas",
       "everyday"
     ],
+    "materials": [
+      "canvas",
+      "cotton",
+      "rubber"
+    ],
     "rating": 4.6,
     "reviews": 341,
     "image": "placeholder-product.png",
@@ -1841,6 +2148,9 @@
       "leather",
       "classic"
     ],
+    "materials": [
+      "leather"
+    ],
     "rating": 4.7,
     "reviews": 66,
     "image": "placeholder-product.png",
@@ -1860,6 +2170,9 @@
       "footwear",
       "everyday"
     ],
+    "materials": [
+      "rubber"
+    ],
     "rating": 4.4,
     "reviews": 121,
     "image": "placeholder-product.png",
@@ -1878,6 +2191,9 @@
     "tags": [
       "travel",
       "minimal"
+    ],
+    "materials": [
+      "nylon"
     ],
     "rating": 4.7,
     "reviews": 229,
@@ -1899,6 +2215,10 @@
       "travel",
       "everyday"
     ],
+    "materials": [
+      "canvas",
+      "leather"
+    ],
     "rating": 4.5,
     "reviews": 112,
     "image": "placeholder-product.png",
@@ -1919,6 +2239,10 @@
       "travel",
       "everyday"
     ],
+    "materials": [
+      "canvas",
+      "leather"
+    ],
     "rating": 4.6,
     "reviews": 158,
     "image": "placeholder-product.png",
@@ -1931,12 +2255,15 @@
     "brand": "Pellier",
     "color": "Clear, sage, sand and blue",
     "price": 16,
-    "description": "Four squeezable silicone travel bottles in clear, sage, sand and blue, with a clear zip pouch. Sized for carry-on bags, with enough shampoo or lotion for a week away.",
+    "description": "Four squeezable silicone travel bottles in clear, sage, sand and blue, each holding 3 fl oz (about 90 ml), with a clear zip pouch. Sized for carry-on bags, with enough shampoo or lotion for a week away.",
     "department": "Bags and travel",
     "moment": "marco",
     "tags": [
       "travel",
       "minimal"
+    ],
+    "materials": [
+      "silicone"
     ],
     "rating": 4.2,
     "reviews": 263,
@@ -1957,6 +2284,9 @@
       "leather",
       "travel"
     ],
+    "materials": [
+      "leather"
+    ],
     "rating": 4.7,
     "reviews": 87,
     "image": "placeholder-product.png",
@@ -1976,6 +2306,9 @@
       "wellness",
       "everyday"
     ],
+    "materials": [
+      "cotton"
+    ],
     "rating": 4.6,
     "reviews": 175,
     "image": "placeholder-product.png",
@@ -1994,6 +2327,9 @@
     "tags": [
       "wellness",
       "everyday"
+    ],
+    "materials": [
+      "cotton"
     ],
     "rating": 4.5,
     "reviews": 146,

@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-from services.structured_extract import KNOWN_TAGS
+from services.structured_extract import KNOWN_MATERIALS, KNOWN_TAGS
 from tests.test_voice_banned_words import BANNED_WORDS
 
 REPO = Path(__file__).resolve().parents[3]
@@ -33,7 +33,7 @@ EXPECTED_CATALOG = {
     19: ('Straw Panama Hat', 'Accessories', 'marco', 'Pellier', 54.0, 24),
     20: ('Merino Travel Socks', 'Clothing', 'marco', 'Pellier', 16.0, 6),
     21: ('Beeswax Taper Candles', 'Home', 'anna', 'Pellier', 18.0, 24),
-    22: ('Monogrammed Linen Napkins', 'Kitchen and table', 'anna', 'Pellier', 44.0, 24),
+    22: ('Linen Napkins, Set of 4', 'Kitchen and table', 'anna', 'Pellier', 44.0, 24),
     23: ('Ceramic Ring Dish', 'Home', 'anna', 'Pellier', 14.0, 24),
     24: ('Botanical Print Scarf', 'Accessories', 'anna', 'Pellier', 48.0, 24),
     25: ('Reed Diffuser', 'Home', 'anna', 'Pellier', 36.0, 24),
@@ -121,11 +121,116 @@ RENAMED = {
     7: ('Jute Placemats, Set of 4', 'Jute Placemats, Set of 4'),
     8: ('Linen Lounge Set', 'Linen Lounge Set'),
     9: ('Everyday Runner', 'Everyday Runner'),
+    22: ('Monogrammed Linen Napkins', 'Linen Napkins, Set of 4'),
     42: ('Waffle Bath Robe, Sage', 'Waffle Bath Robe, Sage'),
     47: ('Vetiver Eau de Parfum', 'Vetiver Eau de Parfum'),
     48: ('Leather Market Tote', 'Leather Market Tote'),
     52: ('Silk Slip Dress', 'Silk Slip Dress'),
     59: ('Wool Rug', 'Wool Rug'),
+}
+# id: every material the product contains, components and blends included. Exclusions
+# check this list, so it must be complete for the materials the store vocabulary knows.
+EXPECTED_MATERIALS = {
+    1: ('ceramic',),
+    2: ('linen',),
+    3: ('brass', 'canvas', 'leather'),
+    4: ('glass', 'soy wax'),
+    5: ('leather', 'steel'),
+    6: ('glass',),
+    7: ('jute',),
+    8: ('linen',),
+    9: ('foam',),
+    10: ('canvas', 'leather'),
+    11: ('linen',),
+    12: ('brass', 'canvas'),
+    13: ('leather',),
+    14: ('linen',),
+    15: ('jute', 'leather'),
+    16: ('cotton', 'linen'),
+    17: ('brass', 'canvas', 'leather'),
+    18: ('cotton', 'linen'),
+    19: ('straw',),
+    20: ('merino', 'wool'),
+    21: ('beeswax', 'cotton'),
+    22: ('linen',),
+    23: ('ceramic',),
+    24: ('silk',),
+    25: ('glass', 'rattan'),
+    26: ('wood',),
+    27: ('ceramic',),
+    28: ('leather', 'paper'),
+    29: ('brass',),
+    30: ('cotton', 'paper'),
+    31: ('ceramic',),
+    32: ('linen',),
+    33: ('wood',),
+    34: ('ceramic',),
+    35: ('brass',),
+    36: ('ceramic',),
+    37: ('ceramic',),
+    38: ('beeswax',),
+    39: ('linen',),
+    40: (),
+    41: ('ceramic',),
+    42: ('cotton',),
+    43: ('silk',),
+    44: ('brass', 'stone'),
+    45: ('wool',),
+    46: ('cashmere', 'wool'),
+    47: ('glass',),
+    48: ('leather',),
+    49: ('linen',),
+    50: ('merino', 'wool'),
+    51: ('wool',),
+    52: ('silk',),
+    53: ('wool',),
+    54: ('leather',),
+    55: ('glass',),
+    56: ('glass',),
+    57: ('cashmere', 'linen', 'wool'),
+    58: ('gold', 'silver'),
+    59: ('wool',),
+    60: ('glass',),
+    61: ('canvas', 'steel'),
+    62: ('leather',),
+    63: ('wool',),
+    64: ('acetate', 'glass'),
+    65: ('ceramic',),
+    66: ('glass',),
+    67: ('ceramic', 'wood'),
+    68: ('iron',),
+    69: ('glass', 'steel'),
+    70: ('linen',),
+    71: ('wood',),
+    72: ('ceramic',),
+    73: ('paper',),
+    74: ('brass',),
+    75: ('leather',),
+    76: ('paper',),
+    77: ('paper',),
+    78: ('linen', 'paper'),
+    79: ('ceramic', 'linen', 'paper', 'wood'),
+    80: ('glass', 'soy wax'),
+    81: ('ceramic', 'linen'),
+    82: ('linen',),
+    83: ('seagrass',),
+    84: ('wool',),
+    85: ('canvas', 'cotton'),
+    86: ('cotton',),
+    87: ('cotton', 'wood'),
+    88: ('cotton',),
+    89: ('nylon',),
+    90: ('polyester',),
+    91: ('canvas', 'cotton', 'rubber'),
+    92: ('leather',),
+    93: ('rubber',),
+    94: ('nylon',),
+    95: ('canvas', 'leather'),
+    96: ('canvas', 'leather'),
+    97: ('silicone',),
+    98: ('leather',),
+    99: ('cotton',),
+    100: ('cotton',),
 }
 SEMANTIC_CANDIDATES = {31, 33, 36, 65, 66, 67}
 HOUSEWARMING = {79, 83, 84}
@@ -250,3 +355,64 @@ def test_nothing_in_source_mentions_archive_rows():
         cwd=REPO, capture_output=True, text=True,
     ).stdout.strip()
     assert hits == "", hits
+
+
+def test_materials_are_exactly_the_approved_composition():
+    catalog = _catalog()
+    assert {pid: tuple(sorted(p.materials)) for pid, p in catalog.items()} == EXPECTED_MATERIALS
+
+
+def test_materials_come_from_the_material_vocabulary():
+    for p in _catalog().values():
+        assert set(p.materials) <= set(KNOWN_MATERIALS), (p.productId, p.materials)
+
+
+def test_merino_and_cashmere_also_count_as_wool():
+    for p in _catalog().values():
+        if {"merino", "cashmere"} & set(p.materials):
+            assert "wool" in p.materials, p.productId
+
+
+# Words in the copy that name a material, and the material each one requires.
+MATERIAL_WORDS = {
+    r"\bleather\b|\bsuede\b": "leather", r"\blinen\b": "linen", r"\bwool\b|\bmerino\b": "wool",
+    r"\bcashmere\b": "cashmere", r"\bsilk\b": "silk", r"\bcotton\b": "cotton",
+    r"\bcanvas\b": "canvas", r"\bjute\b": "jute", r"\bbrass\b": "brass",
+    r"\bglass\b": "glass", r"\bstoneware\b|\bceramic\b|\bterracotta\b": "ceramic",
+    r"\bbeeswax\b": "beeswax", r"\bsoy\b": "soy wax", r"\bwood(en)?\b|\bwalnut\b": "wood",
+    r"\bsteel\b": "steel", r"\bsilver\b": "silver", r"\brubber\b": "rubber",
+    r"\bnylon\b": "nylon", r"\bpaper\b|\bkraft\b": "paper",
+}
+# Mentions that are not part of the product: the table it sits on, or a color name.
+NOT_THE_PRODUCT = {(7, "wood"), (24, "ceramic"), (77, "ceramic")}
+
+
+def test_every_material_named_in_the_copy_is_listed():
+    missing = []
+    for pid, p in _catalog().items():
+        text = f"{p.name} {p.description}".lower()
+        for pattern, material in MATERIAL_WORDS.items():
+            if re.search(pattern, text) and material not in p.materials:
+                if (pid, material) not in NOT_THE_PRODUCT:
+                    missing.append((pid, material))
+    assert missing == []
+
+
+def test_review_examples_list_their_components():
+    catalog = _catalog()
+    for pid in (10, 15, 95, 96):
+        assert "leather" in catalog[pid].materials and "leather" not in catalog[pid].tags, pid
+    assert {"linen", "ceramic", "wood"} <= set(catalog[79].materials)
+
+
+UNVERIFIED_PROMISES = (
+    "cold-pressed", "upf", "rolls without creasing", "lasts through", "softening chemicals",
+    "absorbs without residue", "monogram", "ykk",
+)
+
+
+def test_copy_makes_no_unverified_promises():
+    for p in _catalog().values():
+        text = f"{p.name} {p.description}".lower()
+        for phrase in UNVERIFIED_PROMISES:
+            assert phrase not in text, (p.productId, phrase)

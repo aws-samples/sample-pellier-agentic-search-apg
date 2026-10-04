@@ -97,7 +97,7 @@ export const SHOWCASE_PRODUCTS: PellierProduct[] = [
 
   // ─── ANNA (21-29) ───
   { id: 21, brand: 'Pellier', name: 'Beeswax Taper Candles', color: 'Ivory', price: 18, rating: 4.8, reviewCount: 289, category: 'Home', imageUrl: '/products/anna-beeswax-taper-candles.png', badge: 'BESTSELLER', tags: ['candle', 'home', 'gift', 'slow', 'artisanal'], reasoning: CHIPS[18] },
-  { id: 22, brand: 'Pellier', name: 'Monogrammed Linen Napkins', color: 'White', price: 44, rating: 4.7, reviewCount: 178, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins.png', tags: ['linen', 'home', 'gift', 'minimal', 'artisanal'], reasoning: CHIPS[19] },
+  { id: 22, brand: 'Pellier', name: 'Linen Napkins, Set of 4', color: 'White', price: 44, rating: 4.7, reviewCount: 178, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins.png', tags: ['linen', 'home', 'gift', 'minimal', 'artisanal'], reasoning: CHIPS[19] },
   { id: 23, brand: 'Pellier', name: 'Ceramic Ring Dish', color: 'Speckled Cream', price: 14, rating: 4.9, reviewCount: 412, category: 'Home', imageUrl: '/products/anna-ceramic-ring-dish.png', tags: ['ceramic', 'home', 'gift', 'artisanal', 'minimal'], reasoning: CHIPS[20] },
   { id: 24, brand: 'Pellier', name: 'Botanical Print Scarf', color: 'Sage', price: 48, rating: 4.6, reviewCount: 145, category: 'Accessories', imageUrl: '/products/anna-botanical-scarf.png', badge: 'EDITORS_PICK', tags: ['accessories', 'gift', 'classic', 'warm', 'earth'], reasoning: CHIPS[21] },
   { id: 25, brand: 'Pellier', name: 'Reed Diffuser', color: 'Black Glass', price: 36, rating: 4.7, reviewCount: 367, category: 'Home', imageUrl: '/products/anna-reed-diffuser.png', tags: ['home', 'gift', 'minimal', 'warm', 'slow'], reasoning: CHIPS[22] },

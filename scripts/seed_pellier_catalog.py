@@ -77,6 +77,12 @@ DEPARTMENTS = (
     "Home", "Kitchen and table", "Bath and body", "Stationery and gifts",
 )
 MOMENTS = ("fresh", "marco", "anna", "theo", "house", "signature")
+MATERIALS = (
+    "acetate", "beeswax", "brass", "canvas", "cashmere", "ceramic", "cotton", "foam",
+    "glass", "gold", "iron", "jute", "leather", "linen", "merino", "nylon", "paper",
+    "polyester", "rattan", "rubber", "seagrass", "silicone", "silk", "silver",
+    "soy wax", "steel", "stone", "straw", "wood", "wool",
+)
 
 
 @dataclass
@@ -89,6 +95,7 @@ class Product:
     description: str
     department: str
     tags: List[str]
+    materials: List[str]
     rating: float
     reviews: int
     imgPath: str  # relative to /products/ in the frontend
@@ -143,7 +150,8 @@ def load_catalog(path: str = CATALOG_JSON) -> List[Product]:
         Product(
             productId=r["id"], name=r["name"], brand=r["brand"], color=r["color"],
             price=float(r["price"]), description=r["description"],
-            department=r["department"], tags=list(r["tags"]), rating=float(r["rating"]),
+            department=r["department"], tags=list(r["tags"]),
+            materials=list(r["materials"]), rating=float(r["rating"]),
             reviews=int(r["reviews"]), imgPath=r["image"], quantity=int(r["quantity"]),
             persona=r["moment"], badge=r.get("badge"),
         )
@@ -154,6 +162,9 @@ def load_catalog(path: str = CATALOG_JSON) -> List[Product]:
             raise SystemExit(f"Product {p.productId}: unknown department {p.department!r}")
         if p.persona not in MOMENTS:
             raise SystemExit(f"Product {p.productId}: unknown moment {p.persona!r}")
+        unknown = sorted(set(p.materials) - set(MATERIALS))
+        if unknown:
+            raise SystemExit(f"Product {p.productId}: unknown materials {unknown}")
     return products
 
 
