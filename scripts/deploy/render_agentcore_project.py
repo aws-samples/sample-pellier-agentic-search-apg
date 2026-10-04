@@ -441,7 +441,6 @@ def render_project(
                 "runtimeVersion": "PYTHON_3_12",
                 "envVars": [
                     {"name": "AGENT_MODEL_ID", "value": model_id},
-                    {"name": "BEDROCK_ROUTER_MODEL", "value": model_id},
                     {
                         "name": "BEDROCK_OPUS_MODEL",
                         "value": runtime_opus_model,

@@ -40,6 +40,41 @@ for _var, _placeholder in (
 import pytest
 
 
+class TestReachedAws(AssertionError):
+    """A test tried to call AWS. Patch the boundary instead."""
+
+
+@pytest.fixture(autouse=True)
+def _no_aws_network(monkeypatch):
+    """Make any unpatched AWS call fail loudly.
+
+    Every boto3 service, including Bedrock and AgentCore, sends through
+    botocore's HTTP session; the managed Runtime data plane is invoked with
+    ``urllib`` against ``amazonaws.com``. Both are refused here so a future
+    test that drives an agent without a stand-in cannot quietly reach Bedrock
+    wherever credentials happen to exist.
+    """
+    import urllib.request
+
+    import botocore.httpsession
+
+    def _refuse_boto(self, request, *args, **kwargs):
+        raise TestReachedAws(
+            f"test reached AWS through botocore: {request.method} {request.url}"
+        )
+
+    real_urlopen = urllib.request.urlopen
+
+    def _refuse_aws_urlopen(url, *args, **kwargs):
+        target = getattr(url, "full_url", url)
+        if "amazonaws.com" in str(target):
+            raise TestReachedAws(f"test reached AWS through urllib: {target}")
+        return real_urlopen(url, *args, **kwargs)
+
+    monkeypatch.setattr(botocore.httpsession.URLLib3Session, "send", _refuse_boto)
+    monkeypatch.setattr(urllib.request, "urlopen", _refuse_aws_urlopen)
+
+
 @pytest.fixture(autouse=True)
 def _hermetic_structured_extractor(monkeypatch):
     """Keep the shopper search planner's live Sonnet call out of every test.

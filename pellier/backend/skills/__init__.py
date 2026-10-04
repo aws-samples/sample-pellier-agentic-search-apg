@@ -1,56 +1,50 @@
+"""Runtime skills: the procedural memory each agent carries.
+
+Skills are checked-in ``skills/*/SKILL.md`` files. The registry reads them
+once at boot; ``assignments`` says which agent carries which, injects them
+into a system prompt, and builds the optional on-demand loader. There is no
+model call anywhere in this package.
 """
-Skills — the third architectural layer alongside agents and tools.
 
-Skills are folders of domain expertise loaded conditionally into an
-agent's system prompt based on what the conversation needs. Agents
-are *who*, tools are *what*, skills are *how*.
-
-This package exposes:
-  - ``Skill`` / ``RouterDecision``: Pydantic models
-  - ``SkillRegistry``: in-memory store of skills loaded at boot
-  - ``get_registry()``: FastAPI-friendly accessor
-  - ``inject_skills()``: helper that composes a skill-augmented system prompt
-  - ``SkillRouter``: one-call LLM router
-
-The package is agent-agnostic — it does not import from any specific
-agent. Any agent can opt in by calling ``inject_skills(system_prompt)``
-with the currently-loaded skills for the turn.
-"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from .models import Skill, RouterDecision
-from .registry import SkillRegistry
-from .loader import get_registry, load_registry
-from .context import (
-    loaded_skills_var,
-    set_loaded_skills,
-    get_loaded_skills,
+from .assignments import (
+    AGENT_LOCAL_TOOLS,
+    FIXED_SKILLS,
+    SKILL_MODE_FIXED,
+    SKILL_MODE_ON_DEMAND,
+    SKILL_MODES,
+    available_skill_names,
     inject_skills,
+    normalize_skill_mode,
+    on_demand_plugin,
+    skill_display_names,
+    skill_path,
+    skill_paths,
+    skill_receipt,
+    skills_for,
 )
-
-if TYPE_CHECKING:
-    from .router import SkillRouter
-
-
-def __getattr__(name: str) -> Any:
-    """Load the model-backed router only when a caller requests it."""
-    if name == "SkillRouter":
-        from .router import SkillRouter
-
-        return SkillRouter
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+from .loader import get_registry, load_registry
+from .models import Skill
+from .registry import SkillRegistry
 
 __all__ = [
+    "AGENT_LOCAL_TOOLS",
+    "FIXED_SKILLS",
+    "SKILL_MODE_FIXED",
+    "SKILL_MODE_ON_DEMAND",
+    "SKILL_MODES",
     "Skill",
-    "RouterDecision",
     "SkillRegistry",
+    "available_skill_names",
     "get_registry",
-    "load_registry",
-    "loaded_skills_var",
-    "set_loaded_skills",
-    "get_loaded_skills",
     "inject_skills",
-    "SkillRouter",
+    "load_registry",
+    "normalize_skill_mode",
+    "on_demand_plugin",
+    "skill_display_names",
+    "skill_path",
+    "skill_paths",
+    "skill_receipt",
+    "skills_for",
 ]

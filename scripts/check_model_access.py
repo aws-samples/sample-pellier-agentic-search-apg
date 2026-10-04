@@ -325,7 +325,6 @@ def main():
         print(f"Routing/reporting + Runtime: \033[32m{sonnet_id}\033[0m.")
         if args.write_env:
             _upsert_env(args.write_env, "BEDROCK_SONNET_MODEL", sonnet_id)
-            _upsert_env(args.write_env, "BEDROCK_ROUTER_MODEL", sonnet_id)
             _upsert_env(args.write_env, "BEDROCK_REPORTING_MODEL", sonnet_id)
             _upsert_env(args.write_env, "AGENT_MODEL_ID", sonnet_id)
             print(f"  → wrote app and Runtime model IDs to {args.write_env}")

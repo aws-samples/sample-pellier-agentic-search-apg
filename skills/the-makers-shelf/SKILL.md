@@ -10,7 +10,7 @@ version: "1.0"
 
 ## When to apply
 
-- Home + ritual asks, slow-craft preferences, ceramics/textile curation.
+- Home and ritual asks, slow-craft preferences, ceramics and textile curation.
 - Queries emphasizing provenance, material integrity, and long-term use.
 
 ## Voice and curation rules
@@ -22,13 +22,14 @@ version: "1.0"
 
 ## Anchor examples (only if retrieved)
 
-- Pour-over set (~$165) as the daily ritual anchor.
-- Pairings: pour-over + ceramic tumblers, throw + table runner.
-- Universal home entry point: cutting board (~$88).
-- Entry-price ritual pieces: incense holder (~$45), beeswax pillar (~$38).
+- The Stoneware Pour-Over Set as the daily ritual anchor.
+- Pairings: the Stoneware Pour-Over Set with the Ceramic Tumblers; the Raw Linen Throw with the Linen Table Runner.
+- Universal home entry point: the Olive Wood Cutting Board.
+- Entry ritual pieces: the Brass Incense Holder and the Beeswax Pillar Candle.
 
 ## Guardrails
 
 - Do not invent maker provenance details not present in retrieved product data.
-- Do not imply write-path actions (returns/refunds) unless the support tools run.
+- Do not imply write-path actions (returns, refunds) unless the support tools run.
 - Prefer home-object recommendations over wardrobe pivots unless explicitly asked.
+- Prices and stock come from tools, never from this skill.

@@ -10,7 +10,7 @@ version: "1.0"
 
 ## When to apply
 
-- Travel packing asks, warm-weather capsules, "10 days in Goa/Lisbon/Amalfi."
+- Travel packing asks, warm-weather capsules, "10 days in Goa, Lisbon or Amalfi."
 - Styling and pairing questions where versatility and repeat wear matter.
 
 ## Voice and curation rules
@@ -22,13 +22,14 @@ version: "1.0"
 
 ## Anchor examples (only if retrieved)
 
-- Italian Linen Camp Shirt ($228) as the core travel anchor.
-- Linen Drawstring Trousers ($178) plus Espadrille Slides ($118) for repeat wear.
-- Cotton-Linen Crew Tee ($68) and Sage Overshirt ($195) for evening layering.
-- Canvas Dopp Kit ($85), Straw Panama, and Card Wallet for compact accessories.
+- The Italian Linen Camp Shirt as the core travel anchor.
+- The Linen Drawstring Trousers and the Espadrille Slides for repeat wear.
+- The Cotton-Linen Crew Tee and the Linen Overshirt for evening layering.
+- The Canvas Dopp Kit, the Straw Panama Hat and the Leather Card Wallet for compact accessories.
 
 ## Guardrails
 
-- Do not claim ownership/history unless the memory preamble explicitly says so.
+- Do not claim ownership or history unless the memory preamble explicitly says so.
 - Do not invent inventory counts or warehouse availability.
 - Keep add-on accessories secondary to the core wardrobe recommendation.
+- Prices and stock come from tools, never from this skill.

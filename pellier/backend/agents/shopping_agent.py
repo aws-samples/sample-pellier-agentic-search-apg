@@ -14,7 +14,7 @@ from services.agent_tools import (
     search_products,
 )
 from pellier_copy import SHOPPING_SYSTEM_PROMPT
-from skills import inject_skills
+from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
 from services.specialist_models import specialist_model
 
@@ -27,15 +27,19 @@ _CATALOG_TURN_POLICY = (
 )
 
 
-def build_shopping_agent(*, allow_handoff: bool = True) -> Agent:
+def build_shopping_agent(
+    *, allow_handoff: bool = True, skill_mode: str = SKILL_MODE_FIXED
+) -> Agent:
     """Return the configured Shopping agent.
 
-    Reads the persona preamble and loaded skills from their ContextVars at
-    construction time; both injections are no-ops when they are empty.
+    Reads the persona preamble from its ContextVar at construction time; the
+    injection is a no-op when it is empty.
 
     Args:
         allow_handoff: Grant ``ask_a_person``. The Router passes False for an
             ordinary catalog turn, so a small result never becomes a handoff.
+        skill_mode: ``fixed`` carries the agent's skills in the prompt;
+            ``on_demand`` lists their names and adds the loader tool instead.
     """
     tools = [search_products, browse_department, compare_products]
     prompt = SHOPPING_SYSTEM_PROMPT
@@ -44,6 +48,12 @@ def build_shopping_agent(*, allow_handoff: bool = True) -> Agent:
     else:
         prompt += _CATALOG_TURN_POLICY
 
+    plugins = None
+    if skill_mode == SKILL_MODE_ON_DEMAND:
+        plugins = [on_demand_plugin("shopping")]
+    else:
+        prompt = inject_skills(prompt, skills_for("shopping"))
+
     model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="shopping",
@@ -51,6 +61,7 @@ def build_shopping_agent(*, allow_handoff: bool = True) -> Agent:
             model_id=model_id,
             max_tokens=max_tokens,
         ),
-        system_prompt=inject_persona_preamble(inject_skills(prompt)),
+        system_prompt=inject_persona_preamble(prompt),
         tools=tools,
+        plugins=plugins,
     )

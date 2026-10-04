@@ -46,6 +46,10 @@ class _FakeDB:
             kind, rows = "receipt", [{"receipt_id": 1}]
         elif "to_tsquery" in sql:
             kind, rows = "fts", self.fts_rows
+        elif sql.startswith("SELECT count(*)"):
+            # The Builder view's filter counts: one aggregate after the
+            # search, never a second retrieval pass.
+            kind, rows = "counts", [{"total": 100, "kept": len(self.rows)}]
         else:
             kind, rows = "vector", self.rows
         self.events.append(kind)
@@ -159,8 +163,9 @@ class TestPipelineOrder:
         result = _search(query="something beautiful", limit=3)
 
         assert result["status"] == "success"
-        # Embed once, both hybrid branches, then rerank, then the receipt.
-        assert events == ["embed", "vector", "fts", "rerank", "receipt"]
+        # Embed once, both hybrid branches, then rerank, then the receipt,
+        # then the Builder view's filter counts. The search itself runs once.
+        assert events == ["embed", "vector", "fts", "rerank", "receipt", "counts"]
         assert patch_embedding.embed_query.call_count == 1
         assert patch_rerank.rerank.call_count == 1
         rerank_kwargs = patch_rerank.rerank.call_args.kwargs

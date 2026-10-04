@@ -216,7 +216,7 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
     for intent, agent in built.items():
         assert agent is sentinels[intent]
         factories[intent].assert_called_once()
-    factories["shopping"].assert_called_once_with(allow_handoff=False)
+    factories["shopping"].assert_called_once_with(allow_handoff=False, skill_mode="fixed")
 
 
 def test_only_the_stock_agent_can_ship_unbuilt(monkeypatch) -> None:

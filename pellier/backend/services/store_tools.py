@@ -1284,11 +1284,12 @@ def _write_search_receipt(
     merchandising: List[Dict[str, Any]],
     config: Dict[str, Any],
     receipt: Dict[str, Any],
-) -> None:
+) -> Optional[int]:
     """Persist the plan, per-stage ranks and the rows cited. Never raises.
 
     A receipt is evidence about a turn, not part of serving it: a lost receipt
     is a gap in evidence, a raised exception would be a gap in the product.
+    Returns the new ``receipt_id`` when the rail reports it.
     """
     try:
         built = build_receipt(
@@ -1314,9 +1315,17 @@ def _write_search_receipt(
             principal_sub=receipt.get("principal_sub"),
             rail=receipt.get("rail"),
         )
-        run(RECEIPT_INSERT_SQL, receipt_params(built))
+        rows = run(RECEIPT_INSERT_SQL, receipt_params(built))
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
         logger.warning("retrieval receipt write skipped: %s", exc)
+        return None
+    for row in rows or []:
+        if isinstance(row, dict) and row.get("receipt_id") is not None:
+            return _integer(row["receipt_id"])
+    return None
+
+
+EvidenceSink = Callable[[Dict[str, Any]], None]
 
 
 def search_products(
@@ -1332,6 +1341,7 @@ def search_products(
     limit: int = 5,
     config: Optional[Dict[str, Any]] = None,
     receipt: Optional[Dict[str, Any]] = None,
+    evidence: Optional[EvidenceSink] = None,
 ) -> Dict[str, Any]:
     """Planned hybrid search: the shopper's requirements as SQL, then rank.
 
@@ -1352,6 +1362,9 @@ def search_products(
         receipt: Turn context for the retrieval receipt (``turn_id``,
             ``session_id``, ``principal_sub``, ``rail``, model ids), or
             ``None`` to write none.
+        evidence: A sink for what the model must not read: the execution
+            with its per-arm ranks, the rows in final order and the receipt
+            id. ``None`` publishes nothing.
 
     Returns:
         The payload the agent reads. ``constraint_notice`` and
@@ -1408,8 +1421,9 @@ def search_products(
     if merchandising:
         payload["merchandising_rules_applied"] = merchandising
 
+    receipt_id = None
     if receipt is not None:
-        _write_search_receipt(
+        receipt_id = _write_search_receipt(
             run,
             query=query,
             execution=execution,
@@ -1418,4 +1432,11 @@ def search_products(
             config=knobs,
             receipt=receipt,
         )
+    if evidence is not None:
+        evidence({
+            "execution": execution,
+            "final_rows": ordered,
+            "receipt_id": receipt_id,
+            "rrf_k": int(knobs.get("rrf_k") or DEFAULT_RETRIEVAL_CONFIG["rrf_k"]),
+        })
     return payload

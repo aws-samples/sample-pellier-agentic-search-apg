@@ -10,7 +10,7 @@ from strands import Agent
 from strands.models import BedrockModel
 from config import settings
 from services.agent_tools import check_stock
-from skills import inject_skills
+from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
 
 
@@ -90,16 +90,27 @@ _STOCK_TOOLS = [check_stock]
 # === WORKSHOP - Stock agent - definition: END ===
 
 
-def build_stock_agent() -> Agent:
+def build_stock_agent(*, skill_mode: str = SKILL_MODE_FIXED) -> Agent:
     """Return the configured Stock agent.
 
-    Reads the persona preamble and loaded skills from their ContextVars at
-    construction time; both injections are no-ops when they are empty.
+    Reads the persona preamble from its ContextVar at construction time; the
+    injection is a no-op when it is empty.
+
+    Args:
+        skill_mode: ``fixed`` carries the agent's skills in the prompt;
+            ``on_demand`` lists their names and adds the loader tool instead.
     """
     if _STOCK_AGENT_STUBBED:
         raise RuntimeError(
             "Stock agent definition is still scaffolded for the governed workshop"
         )
+
+    prompt = _STOCK_SYSTEM_PROMPT_FOR_AGENT
+    plugins = None
+    if skill_mode == SKILL_MODE_ON_DEMAND:
+        plugins = [on_demand_plugin("stock")]
+    else:
+        prompt = inject_skills(prompt, skills_for("stock"))
 
     return Agent(
         name="stock",
@@ -107,8 +118,7 @@ def build_stock_agent() -> Agent:
             model_id=_STOCK_MODEL_ID,
             max_tokens=_STOCK_MAX_TOKENS,
         ),
-        system_prompt=inject_persona_preamble(
-            inject_skills(_STOCK_SYSTEM_PROMPT_FOR_AGENT)
-        ),
+        system_prompt=inject_persona_preamble(prompt),
         tools=_STOCK_TOOLS,
+        plugins=plugins,
     )

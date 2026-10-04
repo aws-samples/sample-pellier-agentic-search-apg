@@ -91,7 +91,6 @@ class Settings(BaseSettings):
     # Move config, .env.example, preflight, bootstrap and Studio pins together.
     BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5"
     BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-5"
-    BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-5"
     BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5"
 
     # max_tokens is a safety ceiling, not a target — billing and latency track
@@ -102,7 +101,6 @@ class Settings(BaseSettings):
     # Editorial: Search, Personalization, Customer Service. Reporting: Inventory, Pricing.
     AGENT_MAX_TOKENS_OPUS: int = 1200
     AGENT_MAX_TOKENS_SONNET: int = 2048      # richer reveals from the reporting pair
-    SKILL_ROUTER_MAX_TOKENS_SONNET: int = 640  # five-skill audit JSON
     ROUTER_MAX_TOKENS_SONNET: int = 1200    # tool route plus concise final handoff
     
     # ========================================

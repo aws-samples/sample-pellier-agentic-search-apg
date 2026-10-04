@@ -43,8 +43,6 @@ logger = logging.getLogger(__name__)
 from services.runtime_env import bridge_cli_injected_names
 
 os.environ.update(bridge_cli_injected_names(os.environ))
-if os.environ.get("AGENT_MODEL_ID") and not os.environ.get("BEDROCK_ROUTER_MODEL"):
-    os.environ["BEDROCK_ROUTER_MODEL"] = os.environ["AGENT_MODEL_ID"]
 
 # The content digest of the sources packaged into THIS deployment, injected by
 # scripts/deploy/render_agentcore_project.py. Echoed on every response so the

@@ -8,6 +8,8 @@ this field, so drift would break every citation link.
 
 from __future__ import annotations
 
+import re
+
 from services.agent_context import AgentContext
 
 
@@ -112,5 +114,9 @@ def test_the_person_handoff_reads_the_turn_id_from_context() -> None:
     handoff = tools[tools.index("def ask_a_person("):]
     next_tool = handoff.find("\n@tool")
     handoff = handoff if next_tool < 0 else handoff[:next_tool]
-    assert "from services.turn_identity import current_principal_sub, current_turn_id" in handoff
+    assert re.search(
+        r"from services\.turn_identity import \(\s*current_authorized_customer_id,"
+        r"\s*current_principal_sub,\s*current_turn_id,\s*\)",
+        handoff,
+    )
     assert "source_turn_id=current_turn_id()" in handoff

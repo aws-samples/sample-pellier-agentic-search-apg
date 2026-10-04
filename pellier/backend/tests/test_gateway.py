@@ -108,14 +108,38 @@ def test_server_context_overrides_model_identity_and_correlation() -> None:
     }
 
 
-def test_customer_scope_records_a_server_bound_customer_without_the_requested_id() -> None:
+def test_customer_scope_records_what_the_model_asked_for_and_what_the_server_bound() -> None:
+    """Theo signed in, the model asks for Jessica: the server overwrites, and says so."""
     scope = gateway._customer_scope(
         {"name": f"{TARGET}___get_orders", "input": {"customer_id": "CUST-JESSICA"}},
         "CUST-THEO",
     )
 
-    assert scope == {"customer_scope": "server", "requested_other_customer": True}
-    assert "CUST-JESSICA" not in json.dumps(scope)
+    assert scope == {
+        "customer_scope": "server",
+        "requested_other_customer": True,
+        "requested_customer": "CUST-JESSICA",
+        "bound_customer": "CUST-THEO",
+        "binding": "overwritten",
+    }
+
+
+def test_customer_scope_matched_and_bound_verdicts() -> None:
+    same = gateway._customer_scope(
+        {"name": f"{TARGET}___get_orders", "input": {"customer_id": "CUST-THEO"}},
+        "CUST-THEO",
+    )
+    none = gateway._customer_scope(
+        {"name": f"{TARGET}___get_orders", "input": {"limit": 5}},
+        "CUST-THEO",
+    )
+
+    assert (same["binding"], same["requested_customer"], same["bound_customer"]) == (
+        "matched", "CUST-THEO", "CUST-THEO",
+    )
+    assert (none["binding"], none["requested_customer"], none["bound_customer"]) == (
+        "bound", None, "CUST-THEO",
+    )
 
 
 def test_customer_scope_marks_an_unbound_tool_as_chosen_by_the_model(monkeypatch) -> None:
@@ -129,6 +153,9 @@ def test_customer_scope_marks_an_unbound_tool_as_chosen_by_the_model(monkeypatch
     assert gateway._customer_scope(call, "CUST-THEO") == {
         "customer_scope": "model",
         "requested_other_customer": False,
+        "requested_customer": "CUST-THEO",
+        "bound_customer": None,
+        "binding": "unbound",
     }
 
 
@@ -143,6 +170,9 @@ def test_customer_scope_follows_the_caller_bound_set(monkeypatch) -> None:
     assert gateway._customer_scope(call, "CUST-THEO") == {
         "customer_scope": "server",
         "requested_other_customer": True,
+        "requested_customer": "CUST-JESSICA",
+        "bound_customer": "CUST-THEO",
+        "binding": "overwritten",
     }
 
 
@@ -180,7 +210,13 @@ def test_the_handoff_is_bound_to_a_known_caller() -> None:
         {"name": f"{TARGET}___ask_a_person", "input": {"customer_id": "CUST-JESSICA"}},
         "CUST-THEO",
     )
-    assert scope == {"customer_scope": "server", "requested_other_customer": True}
+    assert scope == {
+        "customer_scope": "server",
+        "requested_other_customer": True,
+        "requested_customer": "CUST-JESSICA",
+        "bound_customer": "CUST-THEO",
+        "binding": "overwritten",
+    }
 
 
 def test_the_handoff_still_runs_for_an_unknown_caller() -> None:

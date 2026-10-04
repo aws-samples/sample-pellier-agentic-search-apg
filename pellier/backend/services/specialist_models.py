@@ -18,13 +18,11 @@ except ModuleNotFoundError:
 
         BEDROCK_OPUS_MODEL = (
             os.environ.get("BEDROCK_OPUS_MODEL")
-            or os.environ.get("AGENT_MODEL_ID")
-            or os.environ.get("BEDROCK_ROUTER_MODEL", "")
+            or os.environ.get("AGENT_MODEL_ID", "")
         )
         BEDROCK_REPORTING_MODEL = (
             os.environ.get("BEDROCK_REPORTING_MODEL")
             or os.environ.get("BEDROCK_SONNET_MODEL")
-            or os.environ.get("BEDROCK_ROUTER_MODEL")
             or os.environ.get("AGENT_MODEL_ID", "")
         )
         AGENT_MAX_TOKENS_OPUS = int(

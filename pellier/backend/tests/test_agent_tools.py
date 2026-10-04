@@ -183,3 +183,70 @@ def test_ask_a_person_opens_a_credit_review_for_the_verified_shopper(
     assert "give_store_credit" in sql
     assert json.loads(params[1]) == {"amount_cents": 4500, "customer_id": "CUST-JESSICA", "reason": "Two items went back."}
     assert params[-2:] == ("sub-jessica", "shopper")
+
+
+# ---------------------------------------------------------------------------
+# Identity evidence: the binding verdict comes from the binding code itself
+# ---------------------------------------------------------------------------
+
+
+def _identity_for(tool: str, *, authorized: str | None, customer_id: str = "", monkeypatch=None):
+    from services import tool_evidence
+
+    agent_tools._db_service = _SentinelDB()
+    monkeypatch.setattr(agent_tools, "_run_sql", _FakeRun({}))
+    token = authorized_customer_id_var.set(authorized)
+    channel = tool_evidence.open_channel()
+    try:
+        kwargs = {"customer_id": customer_id} if customer_id else {}
+        if tool == "ask_a_person":
+            kwargs["reason"] = "The shopper asked for a person."
+        parsed = _call(getattr(agent_tools, tool), **kwargs)
+        evidence = tool_evidence.take(tool)
+    finally:
+        tool_evidence.close_channel(channel)
+        authorized_customer_id_var.reset(token)
+    return parsed, evidence.get("identity")
+
+
+@pytest.mark.parametrize("tool", ["get_orders", "get_tickets"])
+def test_theo_asking_for_jessica_is_refused_and_recorded(tool: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    parsed, identity = _identity_for(tool, authorized="CUST-THEO", customer_id="CUST-JESSICA", monkeypatch=monkeypatch)
+    assert parsed["status"] == "customer_scope_mismatch"
+    assert identity == {
+        "requested_customer": "CUST-JESSICA",
+        "authorized_customer": "CUST-THEO",
+        "bound_customer": None,
+        "binding": "refused",
+    }
+
+
+def test_the_same_customer_is_matched_and_no_customer_is_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    _, matched = _identity_for("get_tickets", authorized="CUST-THEO", customer_id="CUST-THEO", monkeypatch=monkeypatch)
+    _, bound = _identity_for("get_tickets", authorized="CUST-THEO", monkeypatch=monkeypatch)
+    assert matched["binding"] == "matched" and matched["bound_customer"] == "CUST-THEO"
+    assert bound == {
+        "requested_customer": None,
+        "authorized_customer": "CUST-THEO",
+        "bound_customer": "CUST-THEO",
+        "binding": "bound",
+    }
+
+
+def test_an_unverified_shopper_is_refused_with_no_bound_customer(monkeypatch: pytest.MonkeyPatch) -> None:
+    parsed, identity = _identity_for("get_orders", authorized=None, customer_id="CUST-JESSICA", monkeypatch=monkeypatch)
+    assert parsed["status"] == "customer_scope_required"
+    assert identity["binding"] == "refused" and identity["authorized_customer"] is None
+
+
+def test_the_handoff_runs_unbound_when_the_binding_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    parsed, identity = _identity_for("ask_a_person", authorized="CUST-THEO", customer_id="CUST-JESSICA", monkeypatch=monkeypatch)
+    assert parsed["type"] == "escalation" and parsed["customer_id"] is None
+    assert identity == {
+        "requested_customer": "CUST-JESSICA",
+        "authorized_customer": "CUST-THEO",
+        "bound_customer": None,
+        "binding": "refused",
+    }
+    _, anonymous = _identity_for("ask_a_person", authorized=None, monkeypatch=monkeypatch)
+    assert anonymous["binding"] == "unbound"

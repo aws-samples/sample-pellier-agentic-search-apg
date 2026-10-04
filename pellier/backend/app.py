@@ -159,7 +159,7 @@ async def lifespan(app: FastAPI):
     # nothing said so. Say it at startup instead.
     _format = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").lower()
     if _format == "governed":
-        logger.info("✅ WORKSHOP_FORMAT=governed — governed writes are managed-rail only")
+        logger.info("✅ WORKSHOP_FORMAT=governed: governed writes are managed-rail only")
     else:
         logger.warning(
             "⚠️ WORKSHOP_FORMAT=%r, not 'governed'. The managed-rail boundary is OFF: "
@@ -780,6 +780,51 @@ async def _persist_terminal_turn_receipt(
         return None
 
 
+async def _managed_search_ranking(turn_id: str) -> Dict[str, Any]:
+    """The Builder view's ranking for a managed search, from the turn's receipt.
+
+    The Lambda writes a retrieval receipt keyed by the route-minted turn id.
+    When that row is readable here, its per-arm ranks and scores become the
+    payload; otherwise the payload says the detail is unavailable on this
+    rail rather than inventing it.
+    """
+    from services.ranking_evidence import ranking_from_receipt, ranking_unavailable
+
+    if db_service is None:
+        return ranking_unavailable("gateway-mcp", "No database connection to read the receipt")
+    try:
+        receipt = await db_service.fetch_one(
+            """
+            SELECT receipt_id, retrieval_config, candidate_product_ids, vector_ranks,
+                   lexical_ranks, rrf_scores, rerank_scores, citation_ids,
+                   citation_snapshots
+              FROM pellier.retrieval_receipts
+             WHERE turn_id = %s
+             ORDER BY receipt_id DESC
+             LIMIT 1
+            """,
+            turn_id,
+        )
+    except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
+        logger.warning("managed ranking receipt read failed: %s", exc)
+        return ranking_unavailable("gateway-mcp", "The retrieval receipt could not be read")
+    if not receipt:
+        return ranking_unavailable("gateway-mcp", "No retrieval receipt was written for this turn")
+    names: Dict[str, str] = {}
+    try:
+        ids = receipt.get("candidate_product_ids") or []
+        if isinstance(ids, str):
+            ids = json.loads(ids)
+        rows = await db_service.fetch_all(
+            'SELECT "productId", name FROM pellier.product_catalog WHERE "productId" = ANY(%s)',
+            [str(pid) for pid in ids],
+        )
+        names = {str(row["productId"]): str(row["name"]) for row in rows or []}
+    except Exception as exc:  # noqa: BLE001 - names are a convenience
+        logger.debug("managed ranking names skipped: %s", exc)
+    return ranking_from_receipt(dict(receipt), names=names)
+
+
 async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
     """Return bounded evidence that the verified profile exists in Aurora."""
     from services.data_source import database_source_label
@@ -1187,24 +1232,50 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                 managed_agent = AGENT_NAMES.get(
                     managed_result.intent, managed_result.specialist
                 )
-                if managed_agent:
-                    yield (
-                        "data: "
-                        + json.dumps(
-                            {
-                                "type": "agent_step",
-                                "agent": managed_agent,
-                                "action": (
-                                    f"Router routed {managed_result.intent or 'request'}"
-                                ),
-                                "status": "completed",
-                                "source": "Amazon Bedrock",
-                            },
-                            ensure_ascii=False,
-                        )
-                        + "\n\n"
-                    )
+                from services.turn_steps import (
+                    STATUS_UNDERSTANDING,
+                    STATUS_WRITING,
+                    TurnSteps,
+                    status_event,
+                )
+                from skills import skill_receipt
+
+                # The managed rail answers in one payload, so its steps arrive
+                # done. The Router step names the agent once; on-demand skill
+                # loading is an in-process choice, and the step says so.
+                yield f"data: {json.dumps(status_event(STATUS_UNDERSTANDING))}\n\n"
+                managed_steps = TurnSteps()
+                route_step = managed_steps.route(
+                    agent=managed_agent or "Router",
+                    intent=managed_result.intent,
+                    finding=f"Sent to the {managed_agent}" if managed_agent else "Routed",
+                    model_id=managed_result.model,
+                    skills=skill_receipt(managed_result.intent, "fixed"),
+                    skill_mode="fixed",
+                    memory=(
+                        {
+                            "facts": profile_receipt.get("facts_available", 0),
+                            "orders": profile_receipt.get("orders_available", 0),
+                            "source": profile_receipt.get("source"),
+                        }
+                        if profile_receipt.get("available")
+                        else None
+                    ),
+                    rail="gateway-mcp",
+                    note=(
+                        "On-demand skill loading runs in the in-process app only; "
+                        "the managed rail used the fixed skills"
+                        if request.skill_mode == "on_demand"
+                        else None
+                    ),
+                )
+                yield f"data: {json.dumps(route_step, ensure_ascii=False)}\n\n"
                 for tool_call in managed_result.tool_calls:
+                    if tool_call.get("tool") == "search_products":
+                        tool_call = {
+                            **tool_call,
+                            "ranking": await _managed_search_ranking(turn_id),
+                        }
                     yield (
                         "data: "
                         + json.dumps(
@@ -1224,6 +1295,12 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                         )
                         + "\n\n"
                     )
+                    yield (
+                        "data: "
+                        + json.dumps(managed_steps.managed(tool_call), ensure_ascii=False, default=str)
+                        + "\n\n"
+                    )
+                yield f"data: {json.dumps(status_event(STATUS_WRITING))}\n\n"
                 for product in managed_result.products:
                     yield (
                         "data: "
@@ -1359,11 +1436,13 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     guardrails_enabled=request.guardrails_enabled,
                     user=local_user or None,
                     turn_id=turn_id,
+                    skill_mode=request.skill_mode,
                 ):
                     if event.get("type") == "error":
-                        event = classify_chat_error(
-                            event.get("error") or event.get("message") or event.get("code")
-                        )
+                        if not event.get("code"):
+                            event = classify_chat_error(
+                                event.get("error") or event.get("message")
+                            )
                         await persist_terminal(
                             rail=rail_decision.rail,
                             terminal_status=(

@@ -153,6 +153,17 @@ def record_allow(
         _pending_audits[tool_use_id] = audit_id
 
 
+def pending_audit_id(tool_use_id: Optional[str]) -> Optional[int]:
+    """The audit row waiting on this tool call, for the turn's evidence line.
+
+    Read it before ``record_after`` pops the mapping.
+    """
+    if not tool_use_id:
+        return None
+    with _pending_lock:
+        return _pending_audits.get(tool_use_id)
+
+
 # -----------------------------------------------------------------
 # After: UPDATE the row with the tool's result + latency
 # -----------------------------------------------------------------

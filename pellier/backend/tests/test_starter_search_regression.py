@@ -42,6 +42,9 @@ class FakeDB:
         self.vector_calls = []
         self.fts_calls = []
         self.receipts = []
+        # The Builder view's filter counts: one aggregate after the search,
+        # never a second retrieval pass.
+        self.count_calls = []
 
     async def fetch_all(self, sql, *params):
         if sql == RECEIPT_INSERT_SQL:
@@ -50,6 +53,9 @@ class FakeDB:
         if "to_tsquery" in sql:
             self.fts_calls.append((sql, params))
             return []
+        if sql.startswith("SELECT count(*)"):
+            self.count_calls.append((sql, params))
+            return [{"total": len(self.rows), "kept": len(self.rows)}]
         self.vector_calls.append((sql, params))
         return list(self.rows)
 
@@ -191,6 +197,9 @@ def test_completed_task_1b_runs_normally_in_storefront(
             return [{"receipt_id": 1}]
         if "to_tsquery" in sql:
             return []
+        if sql.startswith("SELECT count(*)"):
+            db.count_calls.append((sql, params))
+            return [{"total": 100, "kept": 1}]
         db.vector_calls.append((sql, params))
         return [] if "tags ?& %s" in sql else [row(1)]
 

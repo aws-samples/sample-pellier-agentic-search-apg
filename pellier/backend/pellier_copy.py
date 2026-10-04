@@ -20,8 +20,8 @@ The companion scanner lives at tests/test_copy_compliance.py.
 
 # Announcement bar (Requirement 1.1.2) - rendered verbatim.
 ANNOUNCEMENT = (
-    "Free shipping on orders over $150 \u00b7 Returns within 30 days "
-    "\u00b7 Summer Edit No. 06 is now live"
+    "Free shipping on orders over $150. Returns within 30 days. "
+    "Summer Edit No. 06 is now live"
 )
 
 PAGE_TITLE = "Pellier Summer Edit"

@@ -12,11 +12,27 @@ from typing import List, Dict, Any, Optional
 import re
 
 from pellier_copy import GOVERNED_REVIEW_PENDING
-from services import evidence_spans
+from services import evidence_spans, tool_evidence
+from services.chat_error_taxonomy import classify_chat_error
 from services.data_source import database_source_label
 from services.intent_router import classify_intent
 from services.product_envelope import ProductExtractor, select_products_for_reply
-from services.specialist_models import ROUTER_NAME, agent_name, build_intent_signal, model_for_intent
+from services.specialist_models import agent_name, build_intent_signal, model_for_intent
+from services.turn_steps import (
+    STATUS_UNDERSTANDING,
+    STATUS_WRITING,
+    TurnSteps,
+    status_event,
+)
+from skills import (
+    AGENT_LOCAL_TOOLS,
+    SKILL_MODE_FIXED,
+    SKILL_MODE_ON_DEMAND,
+    normalize_skill_mode,
+    skill_display_names,
+    skill_paths,
+    skill_receipt,
+)
 
 
 def _completed_tool_event(tool_name: str, duration_ms: int) -> Dict[str, Any]:
@@ -78,36 +94,6 @@ _META_PHRASES = (
 # it as a whole-query word, not as a substring (which mis-classified
 # Anna's "help me pair a candle with something else" turn).
 _META_EXACT_WORDS = ("help",)
-_EXPLAIN_MATCH_PATTERN = re.compile(
-    r"^\s*why\s+is\s+(?P<product>.+?)\s+a\s+(?P<label>top match|strong match|related)\b.*$",
-    re.IGNORECASE,
-)
-
-
-def parse_explain_match_query(query: str) -> Optional[Dict[str, str]]:
-    """Parse "Why is X a related/top match/strong match" quick-action prompts."""
-    if not query:
-        return None
-    m = _EXPLAIN_MATCH_PATTERN.match(query.strip())
-    if not m:
-        return None
-    product = (m.group("product") or "").strip(" \"'")
-    label = (m.group("label") or "").strip().lower()
-    if not product:
-        return None
-    return {"product": product, "label": label}
-
-
-def _last_user_turn(conversation_history: Optional[List[Dict[str, str]]]) -> Optional[str]:
-    """Return the most recent user turn from history."""
-    if not conversation_history:
-        return None
-    for msg in reversed(conversation_history):
-        if (msg or {}).get("role") == "user":
-            content = (msg.get("content") or "").strip()
-            if content:
-                return content
-    return None
 
 
 def classify_triage(query: str) -> Optional[str]:
@@ -255,19 +241,28 @@ async def _append_pellier_stm_turn(
         logger.debug("STM append skipped: %s", exc)
 
 
-def _build_dispatcher_specialist(intent: str, allow_handoff: bool):
+def _build_dispatcher_specialist(
+    intent: str, allow_handoff: bool, skill_mode: str = SKILL_MODE_FIXED
+):
     """Construct the one agent the Router selected for this turn."""
     if intent == "stock":
         from agents.stock_agent import build_stock_agent
 
-        return build_stock_agent()
+        return build_stock_agent(skill_mode=skill_mode)
     if intent == "support":
         from agents.support_agent import build_support_agent
 
-        return build_support_agent()
+        return build_support_agent(skill_mode=skill_mode)
     from agents.shopping_agent import build_shopping_agent
 
-    return build_shopping_agent(allow_handoff=allow_handoff)
+    return build_shopping_agent(allow_handoff=allow_handoff, skill_mode=skill_mode)
+
+
+def _route_finding(agent: str, triage_bucket: Optional[str] = None) -> str:
+    """The Router step's one line; the agent's name appears here, once."""
+    if triage_bucket:
+        return "Answered by the Router, no agent needed"
+    return f"Sent to the {agent}"
 
 
 def _new_unique_products(existing: list, candidates: list) -> list:
@@ -651,7 +646,7 @@ def make_tool_audit_hooks(
         # the managed Gateway/Policy path, so the Lab 4 SQL proof works on
         # the default (anonymous) storefront turn with no token and no
         # Gateway.
-        if not (tool_use_id and tool_name):
+        if not (tool_use_id and tool_name) or tool_name in AGENT_LOCAL_TOOLS:
             return
         tool_t0[tool_use_id] = time.perf_counter()
         # Evidence spine, tool boundary. Strands' [otel] integration already
@@ -694,7 +689,8 @@ def make_tool_audit_hooks(
     def on_after_tool_audit(event: AfterToolCallEvent) -> None:
         tool_use = getattr(event, "tool_use", None) or {}
         tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
-        if not tool_use_id:
+        tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
+        if not tool_use_id or tool_name in AGENT_LOCAL_TOOLS:
             return
         result_str = _extract_tool_result_text(getattr(event, "result", None))
         t0 = tool_t0.pop(tool_use_id, None)
@@ -785,12 +781,14 @@ class EnhancedChatService:
         user: Optional[Dict[str, Any]] = None,
         turn_identity: Optional[Any] = None,
         persist_memory: bool = True,
+        skill_mode: str = SKILL_MODE_FIXED,
     ) -> Dict[str, Any]:
         """The non-streaming form of :meth:`chat_stream`: the same Router, one result.
 
         Collects the stream's final ``complete`` event, so both chat endpoints
-        run one routing path. ``turn_identity`` and ``persist_memory`` pass
-        through unchanged; see :meth:`chat_stream`.
+        run one routing path. ``turn_identity``, ``persist_memory`` and
+        ``skill_mode`` pass through unchanged; see :meth:`chat_stream`. A
+        failed turn reports its stable error code in ``error``.
         """
         from services.turn_identity import new_turn_id, turn_id_var
 
@@ -806,11 +804,12 @@ class EnhancedChatService:
             turn_id=turn_id_var.get() or new_turn_id(),
             turn_identity=turn_identity,
             persist_memory=persist_memory,
+            skill_mode=skill_mode,
         ):
             if event.get("type") == "complete" and isinstance(event.get("response"), dict):
                 final = event["response"]
             elif event.get("type") == "error":
-                error = str(event.get("error") or "chat_failed")
+                error = str(event.get("code") or event.get("error") or "chat_failed")
         if not final:
             return self._error_response(error or "The assistant returned no answer.")
         return {
@@ -1295,9 +1294,22 @@ class EnhancedChatService:
         turn_id: Optional[str] = None,
         turn_identity: Optional[Any] = None,
         persist_memory: bool = True,
+        skill_mode: str = SKILL_MODE_FIXED,
     ):
         """
         Async generator yielding SSE events with real-time agent streaming.
+
+        The shopper-visible contract is the ``status`` line and the ``step``
+        list: both come from real events (the intent signal, each tool's start
+        and end, the first text delta) and every step's ``finding`` is computed
+        by a fixed template in ``services.turn_steps``. ``step`` events carry
+        a ``builder`` payload with layer tags and evidence for the Builder
+        view, so it needs no extra request. Failures end the stream with a
+        stable ``code`` from ``services.chat_error_taxonomy``.
+
+        ``skill_mode`` is ``fixed`` (each agent carries its skills) or
+        ``on_demand`` (the agent sees names and opens skills with its local
+        loader). The managed rail ignores it.
 
         ``turn_id`` is minted by the route before the stream opens and is
         recorded on every ``tool_audit`` row this turn writes, so a receipt
@@ -1381,7 +1393,6 @@ class EnhancedChatService:
         timing: Dict[str, float] = {
             "fastpath": 0.0,
             "intent": 0.0,
-            "skill_router": 0.0,
             "orchestrator": 0.0,
             "specialist": 0.0,
             "tools": 0.0,
@@ -1407,15 +1418,18 @@ class EnhancedChatService:
         triage_bucket = classify_triage(message)
         timing["fastpath"] = (time.perf_counter() - fastpath_t0) * 1000
         if triage_bucket:
-            logger.info(f"🎯 Triage | {triage_bucket} | msg={message[:60]!r}")
+            logger.info(f"🎯 Router | {triage_bucket} | msg={message[:60]!r}")
             reply = _TRIAGE_REPLIES[triage_bucket]
-            yield {"type": "start", "content": "Routing your message..."}
-            yield {
-                "type": "agent_step",
-                "agent": "Triage",
-                "action": f"Classified as {triage_bucket} — skipping specialists",
-                "status": "completed",
-            }
+            yield status_event(STATUS_UNDERSTANDING)
+            yield TurnSteps().route(
+                agent="Router",
+                intent=triage_bucket,
+                finding=_route_finding("Router", triage_bucket),
+                model_id="",
+                skills=[],
+                skill_mode=normalize_skill_mode(skill_mode),
+            )
+            yield status_event(STATUS_WRITING)
             yield {"type": "content", "content": reply}
             context_manager_for_triage = None
             try:
@@ -1440,7 +1454,7 @@ class EnhancedChatService:
                     "orchestrator_enabled": False,
                     "agent_execution": {
                         "agent_steps": [
-                            {"agent": "Triage", "action": f"Classified as {triage_bucket}",
+                            {"agent": "Router", "action": f"Answered a {triage_bucket} directly",
                              "status": "completed", "timestamp": 0, "duration_ms": 0},
                         ],
                         "tool_calls": [],
@@ -1452,89 +1466,7 @@ class EnhancedChatService:
                         "total_duration_ms": 0,
                         "success_rate": 1.0,
                         "otel_enabled": False,
-                        "reason": "triage fast-path — orchestrator skipped",
-                    },
-                    "token_count": 0,
-                    "estimated_cost_usd": 0.0,
-                },
-            }
-            return
-
-        # "Why this match?" fast-path — explanation-only turn.
-        # Keep this scoped and deterministic: do not run retrieval tools,
-        # do not emit product cards, and ground the explanation in the
-        # user's prior request when available.
-        explain_req = parse_explain_match_query(message)
-        if explain_req:
-            product = explain_req["product"]
-            label = explain_req["label"]
-            prior_user_ask = _last_user_turn(conversation_history)
-            ask_context = (
-                f" for your request ({prior_user_ask})"
-                if prior_user_ask
-                else " for this request"
-            )
-            if label == "top match":
-                rationale = (
-                    f"{product} is a top match{ask_context} because it aligns with the main intent "
-                    "signals and constraint cues more directly than the rest of the set."
-                )
-            elif label == "strong match":
-                rationale = (
-                    f"{product} is a strong match{ask_context} because it fits the core intent, "
-                    "but one or two signals are slightly weaker than the lead result."
-                )
-            else:
-                rationale = (
-                    f"{product} is marked related{ask_context} because it shares partial intent signals, "
-                    "but it does not satisfy the primary constraints as tightly as the top matches."
-                )
-            reply = (
-                rationale
-                + " If you'd like, ask to keep results strictly on-brief and I’ll narrow to only top/strong matches."
-            )
-            logger.info("🎯 Explain-match fast-path | product=%r label=%s", product, label)
-            yield {"type": "start", "content": "Explaining match quality..."}
-            yield {
-                "type": "agent_step",
-                "agent": "Match Explainer",
-                "action": f"Explained why '{product}' is {label}",
-                "status": "completed",
-            }
-            yield {"type": "content", "content": reply}
-            yield {
-                "type": "complete",
-                "response": {
-                    "response": reply,
-                    "products": [],
-                    "suggestions": [
-                        "Show only top and strong matches",
-                        "Remove accessories and keep only linen apparel",
-                        "Refresh this set with stricter constraints",
-                    ],
-                    "success": True,
-                    "triage": "explain_match",
-                    "orchestrator_enabled": False,
-                    "agent_execution": {
-                        "agent_steps": [
-                            {
-                                "agent": "Match Explainer",
-                                "action": f"Explained why '{product}' is {label}",
-                                "status": "completed",
-                                "timestamp": 0,
-                                "duration_ms": 0,
-                            },
-                        ],
-                        "tool_calls": [],
-                        "reasoning_steps": [],
-                        "waterfall": [],
-                        "spans": [],
-                        "totalMs": 0,
-                        "specialistRoute": "fastpath:explain_match",
-                        "total_duration_ms": 0,
-                        "success_rate": 1.0,
-                        "otel_enabled": False,
-                        "reason": "explain-match fast-path — retrieval skipped",
+                        "reason": "Router fast path: no agent ran",
                     },
                     "token_count": 0,
                     "estimated_cost_usd": 0.0,
@@ -1576,7 +1508,7 @@ class EnhancedChatService:
             return
 
         if not self.strands_available:
-            yield {"type": "error", "error": "Strands SDK not available"}
+            yield classify_chat_error("Service unavailable: the Strands SDK is not installed")
             return
 
         # --- Setup ---
@@ -1772,44 +1704,36 @@ class EnhancedChatService:
         logger.info(f"🎯 Router | {intent} → {specialist_name}")
         yield build_intent_signal(intent)
 
-        # --- Skill router ---------------------------------------------------
-        # One LLM call to Sonnet 5 decides which skills to inject into the
-        # reasoning specialists' system prompts for this turn. Runs after
-        # intent classification so the triage fast-path (greetings, meta,
-        # thanks) short-circuits before reaching here.
-        #
-        # The ``skill_routing`` SSE event must fire BEFORE any text tokens
-        # so the Pellier UI can render the attribution line above the
-        # reply. Storefront reads ``loaded_skills``; Observatory renders the
-        # full decision in its live activation log.
-        skill_decision = None
-        skill_t0 = time.perf_counter()
-        try:
-            from skills import SkillRouter, get_registry
-            router = SkillRouter(get_registry())
-            skill_decision = router.route(message)
-            considered_names = [
-                item.get("name")
-                for item in (skill_decision.considered or [])
-                if isinstance(item, dict) and item.get("name")
-            ]
-            logger.info(
-                "🪡 Skills | loaded=%s | considered=%s | elapsed=%dms",
-                skill_decision.loaded_skills or "none",
-                considered_names or "none",
-                skill_decision.elapsed_ms,
-            )
-        except Exception as exc:
-            logger.warning("Skill router unavailable: %s", exc)
-        timing["skill_router"] = (time.perf_counter() - skill_t0) * 1000
-
-        # Emit the routing event immediately — before any text — so the
-        # Pellier attribution line is mounted above the streamed reply.
-        if skill_decision is not None:
-            yield {
-                "type": "skill_routing",
-                "routing": skill_decision.model_dump(),
+        # --- Skills: a fixed set per agent, no model call ---------------------
+        # The Router step is done the moment the intent is known. It names the
+        # agent once, and its Builder payload carries the skills the agent
+        # starts with (fixed) or the fact that it will open its own (on demand).
+        skill_mode = normalize_skill_mode(skill_mode)
+        steps = TurnSteps(skill_names=skill_display_names(), skill_paths=skill_paths())
+        memory_receipt = (
+            {
+                "facts": persona_fact_count,
+                "orders": persona_order_count,
+                "source": persona_memory_source,
             }
+            if customer_id and (persona_fact_count or persona_order_count)
+            else None
+        )
+        yield status_event(STATUS_UNDERSTANDING)
+        yield steps.route(
+            agent=specialist_name,
+            intent=intent,
+            finding=_route_finding(specialist_name),
+            model_id=model_for_intent(intent)[0],
+            skills=skill_receipt(intent, skill_mode),
+            skill_mode=skill_mode,
+            memory=memory_receipt,
+            note=(
+                "The agent sees its skills' names and opens the ones it needs"
+                if skill_mode == SKILL_MODE_ON_DEMAND
+                else None
+            ),
+        )
 
         # --- Queue-based streaming bridge ---
         loop = asyncio.get_running_loop()
@@ -1854,25 +1778,47 @@ class EnhancedChatService:
                 def on_before_tool(event: BeforeToolCallEvent):
                     tool_use = getattr(event, "tool_use", None) or {}
                     tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
+                    tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
                     # Audit INSERT happens before the SSE event, matching
                     # the ledger-then-surface ordering the proofs rely on.
                     audit_before(event)
                     if tool_name:
                         try:
                             asyncio.run_coroutine_threadsafe(
-                                queue.put({"_tool_start": tool_name}), loop
+                                queue.put({
+                                    "_tool_start": tool_name,
+                                    "_input": dict(tool_input) if isinstance(tool_input, dict) else {},
+                                }),
+                                loop,
                             ).result(timeout=5)
                         except Exception:
                             pass
 
                 def on_after_tool(event: AfterToolCallEvent):
+                    from services import tool_audit_writer
+
                     tool_use = getattr(event, "tool_use", None) or {}
                     tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
+                    tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+                    tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
                     result_str = _extract_tool_result_text(getattr(event, "result", None))
+                    # The audit row id is the evidence line's anchor; read it
+                    # before the UPDATE pops the pending mapping.
+                    audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
                     audit_after(event)
+                    # What the tool published beside its result: ranking,
+                    # receipt id, identity binding. Never read by the model.
+                    evidence = tool_evidence.take(tool_name)
                     try:
                         asyncio.run_coroutine_threadsafe(
-                            queue.put({"_tool_done": tool_name, "_result": result_str}), loop
+                            queue.put({
+                                "_tool_done": tool_name,
+                                "_result": result_str,
+                                "_input": dict(tool_input) if isinstance(tool_input, dict) else {},
+                                "_audit_id": audit_id,
+                                "_evidence": evidence,
+                            }),
+                            loop,
                         ).result(timeout=10)
                     except Exception:
                         pass
@@ -1893,16 +1839,6 @@ class EnhancedChatService:
             # row on the authenticated rail; both rails feed the same ledger.
 
 
-        # --- Yield initial SSE events ---
-        yield {"type": "start", "content": "Initializing agent..."}
-        yield {
-            "type": "agent_step",
-            "agent": ROUTER_NAME,
-            "action": "Analyzing query",
-            "status": "in_progress",
-            "source": "Amazon Bedrock",
-        }
-
         # --- Per-turn telemetry bookkeeping ---
         # tool_starts stashes wall-clock start of each active tool so the
         # AfterToolCall log line can report latency without relying on the
@@ -1920,46 +1856,10 @@ class EnhancedChatService:
         orchestrator_result = [None]
         orchestrator_error = [None]
 
-        # Set the ContextVar with the loaded skills before invoking the
-        # orchestrator. asyncio.to_thread (Python 3.9+) propagates context
-        # into the worker thread via copy_context(), so specialist agent
-        # factories reading via get_loaded_skills() will see these values.
-        # The token is reset via a finally block on the orchestrator wait
-        # (not here) so a mid-stream error can't leak skills to the next
-        # request.
-        skill_token = None
-        if skill_decision is not None and skill_decision.loaded_skills:
-            try:
-                from skills import set_loaded_skills, get_registry
-                loaded_objs = [
-                    get_registry().get(name)
-                    for name in skill_decision.loaded_skills
-                ]
-                loaded_objs = [s for s in loaded_objs if s is not None]
-                if loaded_objs:
-                    skill_token = set_loaded_skills(loaded_objs)
-            except Exception as exc:
-                logger.warning("Skill ContextVar set failed: %s", exc)
-
-        def _reset_skill_token() -> None:
-            """Idempotent reset — safe to call on any exit path."""
-            nonlocal skill_token
-            if skill_token is not None:
-                try:
-                    from skills import loaded_skills_var
-                    loaded_skills_var.reset(skill_token)
-                except Exception as exc:
-                    logger.warning("Skill ContextVar reset failed: %s", exc)
-                skill_token = None
-
         # --- Persona preamble ContextVar ------------------------------
-        # Mirrors the skill-loading pattern above. The orchestrator
-        # (Sonnet, dispatcher) paraphrases the user message when routing
-        # to a specialist, which frequently strips the PERSONA CONTEXT
-        # block from the ``query`` arg. Stashing the preamble in a
-        # ContextVar lets the specialist read it directly when building
-        # its system prompt, so the shopper's history is always visible
-        # even when Pattern I routing forwards only the short phrase.
+        # The agent reads the PERSONA CONTEXT block from a ContextVar when
+        # building its system prompt, so the shopper's history is visible
+        # even when only the short phrase reaches the model.
         persona_token = None
         if persona_preamble:
             try:
@@ -1984,10 +1884,10 @@ class EnhancedChatService:
         # time. Everything after this point treats ``orchestrator`` as a plain
         # Strands Agent.
         allow_handoff = _allows_human_handoff(message)
-        orchestrator = _build_dispatcher_specialist(intent, allow_handoff)
+        orchestrator = _build_dispatcher_specialist(intent, allow_handoff, skill_mode)
         orchestrator.trace_attributes = trace_attributes
         _attach_streaming_and_hooks(orchestrator)
-        logger.info(f"🎯 Router | {specialist_name} (intent={intent})")
+        logger.info(f"🎯 Router | {specialist_name} (intent={intent}, skills={skill_mode})")
 
         async def run_orchestrator():
             try:
@@ -1997,6 +1897,9 @@ class EnhancedChatService:
             finally:
                 await queue.put({"_done": True})
 
+        # The task copies this context, so the tools and the after-tool hook
+        # share one evidence channel for the turn.
+        evidence_channel = tool_evidence.open_channel()
         task = asyncio.create_task(run_orchestrator())
 
         # --- Process events from queue in real-time ---
@@ -2015,7 +1918,7 @@ class EnhancedChatService:
                 event = await asyncio.wait_for(queue.get(), timeout=120)
             except asyncio.TimeoutError:
                 timed_out = True
-                yield {"type": "error", "error": "Agent execution timed out"}
+                yield classify_chat_error("Agent execution timed out")
                 task.cancel()
                 break
 
@@ -2027,15 +1930,9 @@ class EnhancedChatService:
                 tool_name = event["_tool_start"]
                 tool_starts[tool_name] = time.time()
                 logger.info(f"🔧 tool_start | {tool_name}")
-                if tool_name != current_tool:
+                yield steps.running(tool_name, event.get("_input"))
+                if tool_name not in AGENT_LOCAL_TOOLS and tool_name != current_tool:
                     current_tool = tool_name
-                    yield {
-                        "type": "agent_step",
-                        "agent": specialist_name,
-                        "action": "Searching",
-                        "status": "in_progress",
-                        "source": "Amazon Bedrock",
-                    }
                     yield {"type": "tool_call", "tool": tool_name, "status": "executing"}
 
             # Tool completed (from AfterToolCallEvent hook) — buffer products for later
@@ -2065,21 +1962,24 @@ class EnhancedChatService:
                 tool_ms = int(
                     (time.time() - tool_starts.pop(tool_name, time.time())) * 1000
                 )
-                tool_trace.append(
-                    {"tool": tool_name, "ms": tool_ms, "results": result_count}
-                )
+                if tool_name not in AGENT_LOCAL_TOOLS:
+                    tool_trace.append(
+                        {"tool": tool_name, "ms": tool_ms, "results": result_count}
+                    )
                 logger.info(
                     f"✅ tool_done  | {tool_name:<30} | {tool_ms:>5}ms | results={result_count}"
                 )
 
-                yield {
-                    "type": "agent_step",
-                    "agent": specialist_name,
-                    "action": "Done",
-                    "status": "completed",
-                    "source": "Amazon Bedrock",
-                }
-                yield _completed_tool_event(tool_name, tool_ms)
+                yield steps.finished(
+                    tool_name,
+                    result_str,
+                    tool_input=event.get("_input"),
+                    duration_ms=tool_ms,
+                    audit_id=event.get("_audit_id"),
+                    evidence=event.get("_evidence"),
+                )
+                if tool_name not in AGENT_LOCAL_TOOLS:
+                    yield _completed_tool_event(tool_name, tool_ms)
                 # Reset streamed content — tells the frontend to clear
                 # the bubble so the agent's final text response starts
                 # fresh. Emitted for BOTH patterns.
@@ -2101,6 +2001,7 @@ class EnhancedChatService:
                 # Stream text tokens to the client in real time
                 if not ttft_mark:
                     ttft_mark.append(time.perf_counter())
+                    yield status_event(STATUS_WRITING)
                 yield {"type": "content_delta", "delta": event["_text"]}
 
         # --- Await orchestrator completion ---
@@ -2111,11 +2012,9 @@ class EnhancedChatService:
                 if not timed_out:
                     raise
         finally:
-            # Reset ContextVars as soon as the orchestrator is done —
-            # specialists can no longer run, so nothing else needs the
-            # loaded skills or persona preamble from here on. Safe on
-            # exception paths too.
-            _reset_skill_token()
+            # The agent can no longer run, so nothing else needs the persona
+            # preamble or the evidence channel. Safe on exception paths too.
+            tool_evidence.close_channel(evidence_channel)
             _reset_persona_token()
 
         if timed_out:
@@ -2126,7 +2025,8 @@ class EnhancedChatService:
             return
 
         if orchestrator_error[0]:
-            yield {"type": "error", "error": str(orchestrator_error[0])}
+            logger.warning("chat_stream agent failed: %s", orchestrator_error[0])
+            yield classify_chat_error(orchestrator_error[0])
             return
 
         # --- Parse and send final response ---
@@ -2409,6 +2309,10 @@ class EnhancedChatService:
             "intent": intent,
             "agent": specialist_name,
             "model_id": model_for_intent(intent)[0],
+            "skill_mode": skill_mode,
+            "skills": skill_receipt(
+                intent, skill_mode, [skill["name"] for skill in steps.loaded_skills]
+            ),
         }
 
         # AgentCore STM: mirror this turn for session continuity labs, unless the

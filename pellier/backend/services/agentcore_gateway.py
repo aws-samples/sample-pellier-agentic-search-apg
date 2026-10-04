@@ -320,7 +320,12 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
 
     A caller-bound tool's ``customer_id`` is overwritten by the server, so the
     executed call alone cannot show whether the server or the model chose it.
-    Only the verdict is kept, never the customer the model asked for.
+    The verdict travels on the tool event with the customer the model asked
+    for and the one the server bound, so the Builder view can show both.
+    ``binding`` on this rail is ``overwritten`` (the model named another
+    customer and the server replaced it), ``matched`` (it named the verified
+    one) or ``bound`` (it named none). This rail never refuses a mismatch; it
+    corrects it before the Gateway sees the call.
     """
     logical_name = _logical_gateway_tool_name(str(tool_use.get("name") or ""))
     requested = (tool_use.get("input") or {}).get("customer_id")
@@ -330,9 +335,19 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
         scope = "model"
     else:
         return {}
+    other = bool(requested) and requested != customer_id
+    if scope == "server":
+        binding = "overwritten" if other else ("matched" if requested else "bound")
+        bound = customer_id or None
+    else:
+        binding = "unbound"
+        bound = None
     return {
         "customer_scope": scope,
-        "requested_other_customer": bool(requested) and requested != customer_id,
+        "requested_other_customer": other,
+        "requested_customer": str(requested) if requested else None,
+        "bound_customer": bound,
+        "binding": binding,
     }
 
 
@@ -363,6 +378,19 @@ def _tool_result_values(result: Any) -> list[Any]:
         elif isinstance(block, str):
             values.append(block)
     return values
+
+
+def _finding_for(
+    tool_name: str, result: Any, tool_input: Dict[str, Any], status: str
+) -> str:
+    """One plain line from the full tool result, by the shared template."""
+    from services.turn_steps import ERROR_FINDINGS, finding_for, parse_result
+
+    if status == "error":
+        return ERROR_FINDINGS.get(tool_name, "This check did not complete")
+    for value in _tool_result_values(result):
+        return finding_for(tool_name, parse_result(value), tool_input)
+    return finding_for(tool_name, {}, tool_input)
 
 
 def _result_summary(result: Any, products: list[dict[str, Any]]) -> Dict[str, Any]:
@@ -571,14 +599,19 @@ class ManagedGatewayDispatcher:
                     if event.exception is not None
                     else str((event.result or {}).get("status") or "success")
                 )
+                safe_input = _safe_tool_input(tool_use)
                 tool_events.append(
                     {
                         "id": tool_use_id,
                         "tool": tool_name,
                         "status": status,
                         "duration_ms": duration_ms,
-                        "input": _safe_tool_input(tool_use),
+                        "input": safe_input,
                         "result": _result_summary(event.result, observed_products),
+                        # The same template the in-process rail uses, computed
+                        # here beside the Gateway from the full result the
+                        # Runtime never sends back.
+                        "finding": _finding_for(tool_name, event.result, safe_input, status),
                         **scope_by_id.pop(tool_use_id, {}),
                     }
                 )

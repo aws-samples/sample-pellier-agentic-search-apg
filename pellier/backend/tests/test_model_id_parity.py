@@ -27,7 +27,6 @@ PREFLIGHT = REPO / "scripts" / "check_model_access.py"
 MODEL_SETTINGS = (
     "BEDROCK_OPUS_MODEL",
     "BEDROCK_SONNET_MODEL",
-    "BEDROCK_ROUTER_MODEL",
     "BEDROCK_REPORTING_MODEL",
 )
 

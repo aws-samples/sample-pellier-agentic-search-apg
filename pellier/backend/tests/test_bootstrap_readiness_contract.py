@@ -73,7 +73,7 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
     )
     assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert "BEDROCK_CHAT_MODEL" not in values
-    assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert "BEDROCK_ROUTER_MODEL" not in values
     assert "BEDROCK_FAST_MODEL" not in values
     assert "CLAUDE_CODE_MODEL" not in values
     assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5"
@@ -1010,7 +1010,7 @@ def test_runtime_arn_is_recorded_before_smoke() -> None:
     record = source.index('result["runtime"] = {')
     smoke = source.index("runtime_smoke = _authenticated_runtime_smoke(")
     assert record < smoke
-    assert '{"name": "BEDROCK_ROUTER_MODEL", "value": model_id}' in renderer
+    assert "BEDROCK_ROUTER_MODEL" not in renderer
     assert 'os.environ.get("AGENT_MODEL_ID", "global.' not in source
 
 

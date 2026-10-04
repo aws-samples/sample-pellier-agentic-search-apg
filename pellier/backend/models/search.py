@@ -203,6 +203,16 @@ class ChatRequest(BaseModel):
         pattern=r"^CUST-[A-Z0-9-]{1,40}$",
         description="Persona customer id (e.g. 'CUST-MARCO'). None = anonymous.",
     )
+    skill_mode: str = Field(
+        default="fixed",
+        pattern=r"^(fixed|on_demand)$",
+        description=(
+            "How the agent gets its skills: 'fixed' carries them in the prompt; "
+            "'on_demand' lists their names and lets the agent open the ones it "
+            "needs. A Builder view choice, remembered per browser. The managed "
+            "rail always uses 'fixed'."
+        ),
+    )
 
 
 class ChatResponse(BaseModel):

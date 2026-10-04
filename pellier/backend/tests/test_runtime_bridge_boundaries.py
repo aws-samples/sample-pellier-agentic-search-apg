@@ -177,11 +177,9 @@ def test_chat_stream_honours_the_persist_memory_argument(
 ) -> None:
     """The shared stream's own guard, driven through a stubbed specialist, no model."""
     import services.chat as chat_module
-    from skills import SkillRouter
 
-    # Nothing here may reach Bedrock: the skill router is stubbed out and the
-    # specialist is a plain callable, which is all `chat_stream` asks of one.
-    monkeypatch.setattr(SkillRouter, "route", lambda self, message: None)
+    # Nothing here may reach Bedrock: the specialist is a plain callable, which
+    # is all `chat_stream` asks of one.
 
     class _Answer:
         def __str__(self) -> str:

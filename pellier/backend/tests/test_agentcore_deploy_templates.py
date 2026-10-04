@@ -214,7 +214,6 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
         "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-5",
         "BEDROCK_OPUS_MODEL": "global.anthropic.claude-sonnet-5",
         "BEDROCK_REPORTING_MODEL": "global.anthropic.claude-sonnet-5",
-        "BEDROCK_ROUTER_MODEL": "global.anthropic.claude-sonnet-5",
         "BEDROCK_SONNET_MODEL": "global.anthropic.claude-sonnet-5",
         "UNIFIED_TRACES_DESTINATION_ENABLED": "true",
     }
@@ -1463,7 +1462,7 @@ def test_managed_runtime_imports_without_database_configuration(
         {
             "PELLIER_DISABLE_DOTENV": "1",
             "AGENTCORE_GATEWAY_URL": "https://gateway.example.test/mcp",
-            "BEDROCK_ROUTER_MODEL": "test-model",
+            "AGENT_MODEL_ID": "test-model",
             "PYTHONPATH": str(runtime_dir),
         }
     )

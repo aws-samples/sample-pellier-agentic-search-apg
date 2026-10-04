@@ -283,7 +283,7 @@ def test_startup_warns_loudly_when_the_boundary_is_off() -> None:
     import pathlib
 
     app_source = pathlib.Path("app.py").read_text()
-    block = app_source.split("WORKSHOP_FORMAT=governed —")[1][:1200]
+    block = app_source.split("WORKSHOP_FORMAT=governed:")[1][:1200]
     assert "The managed-rail boundary is OFF" in block
     assert "the Operator executes a confirmed credit in process" in block
     assert "logger.warning(" in block

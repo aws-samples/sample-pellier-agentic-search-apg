@@ -23,7 +23,8 @@ import re
 from typing import Any, Sequence
 
 from config import settings
-from services import store_tools
+from services import store_tools, tool_evidence
+from services.ranking_evidence import filter_counts, ranking_from_execution
 
 # Global service references
 _db_service = None
@@ -208,20 +209,54 @@ def _infer_customer_id(customer_id: str = "", persona: str = "") -> str:
     return ""
 
 
+def _publish_binding(
+    tool: str,
+    *,
+    requested: str | None,
+    authorized: str | None,
+    bound: str | None,
+    binding: str,
+) -> None:
+    """Record who chose the customer, from the binding code itself.
+
+    ``binding`` on this rail is one of ``bound`` (the model named no customer),
+    ``matched`` (it named the verified one), ``refused`` (it named another
+    customer, or no shopper is verified, so the read did not run) and
+    ``unbound`` (a handoff that ran with no verified shopper). This rail never
+    overwrites: a mismatch is refused, not corrected.
+    """
+    if not tool:
+        return
+    tool_evidence.publish(tool, {
+        "identity": {
+            "requested_customer": requested or None,
+            "authorized_customer": authorized or None,
+            "bound_customer": bound or None,
+            "binding": binding,
+        }
+    })
+
+
 def _verified_read_customer_scope(
-    customer_id: str = "", persona: str = ""
+    customer_id: str = "", persona: str = "", *, tool: str = ""
 ) -> tuple[str | None, dict | None]:
     """Return the server-bound customer scope for a caller-bound tool.
 
     A customer id in model tool input is useful as a consistency check, never
     as the authority for whose records to read. Demo personas are
     intentionally not sufficient here: customer-specific facts need a verified
-    principal-to-customer mapping.
+    principal-to-customer mapping. The binding verdict is published as
+    evidence for ``tool`` whenever a turn is collecting it.
     """
     from services.turn_identity import current_authorized_customer_id
 
     authorized_customer = current_authorized_customer_id()
+    raw_requested = (customer_id or "").strip()
+    requested_customer = _infer_customer_id(customer_id, persona) if raw_requested else ""
     if not authorized_customer:
+        _publish_binding(
+            tool, requested=requested_customer, authorized=None, bound=None, binding="refused",
+        )
         return None, {
             "status": "customer_scope_required",
             "message": (
@@ -231,8 +266,14 @@ def _verified_read_customer_scope(
             "read_only": True,
         }
 
-    requested_customer = _infer_customer_id(customer_id, persona)
     if requested_customer and requested_customer.casefold() != authorized_customer.casefold():
+        _publish_binding(
+            tool,
+            requested=requested_customer,
+            authorized=authorized_customer,
+            bound=None,
+            binding="refused",
+        )
         return None, {
             "status": "customer_scope_mismatch",
             "message": (
@@ -242,7 +283,38 @@ def _verified_read_customer_scope(
             "read_only": True,
         }
 
+    _publish_binding(
+        tool,
+        requested=requested_customer,
+        authorized=authorized_customer,
+        bound=authorized_customer,
+        binding="matched" if requested_customer else "bound",
+    )
     return authorized_customer, None
+
+
+def _search_evidence(payload: dict) -> None:
+    """Shape what ``store_tools.search_products`` published for the Builder view.
+
+    Runs the filter-count statement here, on the in-process rail only, and
+    carries the ranking beside the result the model reads.
+    """
+    execution = payload.get("execution")
+    counts = None
+    try:
+        counts = filter_counts(_run_sql, execution.plan)
+    except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
+        logger.warning("filter counts skipped: %s", exc)
+    ranking = ranking_from_execution(
+        execution,
+        final_rows=payload.get("final_rows") or [],
+        counts=counts,
+        rrf_k=int(payload.get("rrf_k") or 60),
+    )
+    tool_evidence.publish("search_products", {
+        "ranking": ranking,
+        "receipt_id": payload.get("receipt_id"),
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +364,7 @@ def search_products(
             limit=limit,
             config=_retrieval_config(),
             receipt=_receipt_context(),
+            evidence=_search_evidence,
         ))
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -380,7 +453,7 @@ def get_orders(customer_id: str = "", limit: int = 10) -> str:
     """
     if not _db_service:
         return _DB_NOT_READY
-    customer, scope_error = _verified_read_customer_scope(customer_id)
+    customer, scope_error = _verified_read_customer_scope(customer_id, tool="get_orders")
     if scope_error:
         return json.dumps(scope_error)
     try:
@@ -417,7 +490,7 @@ def get_tickets(customer_id: str = "", limit: int = 5) -> str:
     """
     if not _db_service:
         return _DB_NOT_READY
-    customer, scope_error = _verified_read_customer_scope(customer_id)
+    customer, scope_error = _verified_read_customer_scope(customer_id, tool="get_tickets")
     if scope_error:
         return json.dumps(scope_error)
     try:
@@ -441,9 +514,26 @@ def ask_a_person(reason: str, store_credit_cents: int = 0, customer_id: str = ""
             0 when this is not a credit request.
         customer_id: Optional, checked against the verified shopper.
     """
-    from services.turn_identity import current_principal_sub, current_turn_id
+    from services.turn_identity import (
+        current_authorized_customer_id,
+        current_principal_sub,
+        current_turn_id,
+    )
 
+    # A handoff runs for anyone. A mismatch is refused and the handoff goes on
+    # unbound; with no verified shopper it is simply unbound.
     customer, _ = _verified_read_customer_scope(customer_id)
+    authorized = current_authorized_customer_id()
+    requested = _infer_customer_id(customer_id) if (customer_id or "").strip() else None
+    if customer:
+        binding = "matched" if requested else "bound"
+    elif requested and authorized:
+        binding = "refused"
+    else:
+        binding = "unbound"
+    _publish_binding(
+        "ask_a_person", requested=requested, authorized=authorized, bound=customer, binding=binding,
+    )
     principal_sub = current_principal_sub()
     try:
         return _reply(store_tools.ask_a_person(

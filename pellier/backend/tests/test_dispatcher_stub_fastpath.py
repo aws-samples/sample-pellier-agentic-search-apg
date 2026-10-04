@@ -6,18 +6,16 @@ import pytest
 
 from services import chat as chat_module
 from services.chat import EnhancedChatService
-from skills import SkillRouter
 from config import settings
 
 
 @pytest.mark.asyncio
-async def test_stock_stub_returns_before_skill_router_or_specialist(
+async def test_stock_stub_returns_before_any_specialist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def unexpected_call(*_args, **_kwargs):
         raise AssertionError("exercise-state dispatcher invoked Bedrock-backed work")
 
-    monkeypatch.setattr(SkillRouter, "route", unexpected_call)
     monkeypatch.setattr(
         chat_module,
         "_build_dispatcher_specialist",
@@ -39,7 +37,7 @@ async def test_stock_stub_returns_before_skill_router_or_specialist(
         )
     ]
 
-    assert not any(event["type"] == "skill_routing" for event in events)
+    assert not any(event["type"] == "step" for event in events)
     assert not any(
         event.get("source") == "Amazon Bedrock"
         for event in events

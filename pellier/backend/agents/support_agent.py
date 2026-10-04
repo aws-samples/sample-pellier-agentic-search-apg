@@ -15,7 +15,7 @@ from services.agent_tools import (
     get_return_policy,
     get_tickets,
 )
-from skills import inject_skills
+from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
 from services.specialist_models import specialist_model
 
@@ -59,12 +59,23 @@ _SUPPORT_SYSTEM_PROMPT = (
 )
 
 
-def build_support_agent() -> Agent:
+def build_support_agent(*, skill_mode: str = SKILL_MODE_FIXED) -> Agent:
     """Return the configured Support agent.
 
-    Reads the persona preamble and loaded skills from their ContextVars at
-    construction time; both injections are no-ops when they are empty.
+    Reads the persona preamble from its ContextVar at construction time; the
+    injection is a no-op when it is empty.
+
+    Args:
+        skill_mode: ``fixed`` carries the agent's skills in the prompt;
+            ``on_demand`` lists their names and adds the loader tool instead.
     """
+    prompt = _SUPPORT_SYSTEM_PROMPT
+    plugins = None
+    if skill_mode == SKILL_MODE_ON_DEMAND:
+        plugins = [on_demand_plugin("support")]
+    else:
+        prompt = inject_skills(prompt, skills_for("support"))
+
     model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="support",
@@ -72,8 +83,7 @@ def build_support_agent() -> Agent:
             model_id=model_id,
             max_tokens=max_tokens,
         ),
-        system_prompt=inject_persona_preamble(
-            inject_skills(_SUPPORT_SYSTEM_PROMPT)
-        ),
+        system_prompt=inject_persona_preamble(prompt),
         tools=[get_orders, get_return_policy, get_tickets, ask_a_person],
+        plugins=plugins,
     )
