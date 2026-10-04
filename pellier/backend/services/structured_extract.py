@@ -128,74 +128,6 @@ so "no candles" in the soft signal pulls candles up.
 """
 
 
-_UPDATE_SYSTEM_PROMPT = """You read one shopper message in an ongoing shopping \
-conversation for Pellier, a modern lifestyle store, and report how it changes \
-the shopper's requirements.
-
-You are given the CURRENT requirements and the MESSAGE. Return JSON with:
-  - "change": "keep" when the message adds, changes or lifts no requirement \
-("show me more", "what about the second one?"); "update" when it does; \
-"new_request" only when the shopper clearly starts shopping for something \
-else ("now something for my brother").
-  - "price_max_usd": number or null. A budget the message states or changes.
-  - "remove_budget": true only when the message lifts the budget.
-  - "in_stock_only": true or false only when the message says so; else null.
-  - "required_categories": list or null. CATEGORIES values the message limits \
-the request to by naming them ("only kitchen things", "show me shoes"). A \
-product word, a recipient or an occasion is not a department.
-  - "categories": CATEGORIES values that would likely fit. Recorded only.
-  - "preferences": list or null. TAGS the message says the shopper prefers.
-  - "add_exclusions": TAGS or MATERIALS values the message refuses. Use the \
-listed name: suede is leather, merino is wool, stoneware and terracotta are \
-ceramic.
-  - "unsupported_exclusions": refusals no TAGS or MATERIALS value names, each \
-in a few of the shopper's own words ("nothing scented", "no plastic").
-  - "remove_exclusions": CURRENT exclusions the message lifts ("candles are \
-fine now").
-  - "quotes": an object that maps each field you set, and "new_request" when \
-you return it, to the exact words in the MESSAGE that support it.
-
-Rules:
-  - Only the MESSAGE changes requirements. Never drop a CURRENT requirement \
-because the message does not repeat it.
-  - Leave a field null or empty when the message does not address it.
-  - Output JSON only. No prose. No markdown. No code fences.
-"""
-
-_UPDATE_LISTS = (
-    "required_categories", "categories", "preferences", "add_exclusions",
-    "unsupported_exclusions", "remove_exclusions",
-)
-
-
-def _build_update_prompt(message: str, current: Dict[str, Any]) -> str:
-    return (
-        "CATEGORIES: " + ", ".join(KNOWN_CATEGORIES) + "\n"
-        + "TAGS: " + ", ".join(KNOWN_TAGS) + "\n"
-        + "MATERIALS: " + ", ".join(KNOWN_MATERIALS) + "\n\n"
-        + "CURRENT: " + json.dumps(current) + "\n\n"
-        + f"MESSAGE: {message.strip()}\n\n"
-        + "JSON:"
-    )
-
-
-def _sanitize_update(parsed: Dict[str, Any]) -> Dict[str, Any]:
-    """Reject a malformed proposal outright; vocabulary is checked when applied."""
-    if not isinstance(parsed, dict):
-        raise ValueError("update must be an object")
-    if parsed.get("change") not in ("keep", "update", "new_request"):
-        raise ValueError("change must be keep, update or new_request")
-    for name in _UPDATE_LISTS:
-        if parsed.get(name) is not None and not isinstance(parsed[name], list):
-            raise ValueError(f"{name} must be a list")
-    for name in ("in_stock_only", "remove_budget"):
-        if parsed.get(name) is not None and not isinstance(parsed[name], bool):
-            raise ValueError(f"{name} must be a boolean")
-    if parsed.get("quotes") is not None and not isinstance(parsed["quotes"], dict):
-        raise ValueError("quotes must be an object")
-    return {**parsed, "extraction_status": "parsed"}
-
-
 def _split_exclusions(values: List[Any]) -> Tuple[List[str], List[str]]:
     """Sort stated exclusions into checkable values and unsupported phrases."""
     vocabulary = set(KNOWN_TAGS) | set(KNOWN_MATERIALS)
@@ -244,8 +176,29 @@ class StructuredExtractor:
         if not query or not query.strip():
             return self._empty(query)
 
+        body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 400,
+            "system": _SYSTEM_PROMPT,
+            "messages": [
+                {"role": "user", "content": _build_prompt(query.strip())},
+            ],
+        }
+
         try:
-            parsed = self._invoke_json(_SYSTEM_PROMPT, _build_prompt(query.strip()), 400)
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=json.dumps(body),
+                contentType="application/json",
+                accept="application/json",
+            )
+            payload = json.loads(response["body"].read())
+            text = "".join(
+                block.get("text", "")
+                for block in payload.get("content", [])
+                if block.get("type") == "text"
+            ).strip()
+            parsed = self._parse_json(text)
             return self._sanitize(parsed, fallback_query=query)
         except Exception as exc:
             logger.warning(
@@ -253,44 +206,6 @@ class StructuredExtractor:
                 exc,
             )
             return self._empty(query, status="extraction_failed")
-
-    def extract_update(self, message: str, current: Dict[str, Any]) -> Dict[str, Any]:
-        """Propose how one shopper message changes their current requirements.
-
-        ``services.shopping_requirements`` applies the proposal and keeps only
-        changes the message's own words support. Returns
-        ``{"extraction_status": "extraction_failed"}`` when the message cannot
-        be read, so the caller keeps every earlier requirement.
-        """
-        try:
-            parsed = self._invoke_json(
-                _UPDATE_SYSTEM_PROMPT, _build_update_prompt(message, current), 600
-            )
-            return _sanitize_update(parsed)
-        except Exception as exc:
-            logger.warning("requirements update extraction failed: %s", exc)
-            return {"extraction_status": "extraction_failed"}
-
-    def _invoke_json(self, system: str, prompt: str, max_tokens: int) -> Dict[str, Any]:
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "system": system,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        response = self.client.invoke_model(
-            modelId=self.model_id,
-            body=json.dumps(body),
-            contentType="application/json",
-            accept="application/json",
-        )
-        payload = json.loads(response["body"].read())
-        text = "".join(
-            block.get("text", "")
-            for block in payload.get("content", [])
-            if block.get("type") == "text"
-        ).strip()
-        return self._parse_json(text)
 
     # -----------------------------------------------------------------
     # Internal helpers

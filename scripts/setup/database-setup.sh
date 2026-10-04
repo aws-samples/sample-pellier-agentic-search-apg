@@ -98,8 +98,7 @@ for migration in \
   053_replacement_follow_up.sql \
   054_query_statistics.sql \
   055_governance_boundary_observations.sql \
-  056_align_required_lab_requests.sql \
-  057_shopping_requirements.sql
+  056_align_required_lab_requests.sql
 do
   apply "$migration"
 done

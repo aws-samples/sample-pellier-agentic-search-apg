@@ -73,8 +73,7 @@ for migration in \
   053_replacement_follow_up.sql \
   054_query_statistics.sql \
   055_governance_boundary_observations.sql \
-  056_align_required_lab_requests.sql \
-  057_shopping_requirements.sql
+  056_align_required_lab_requests.sql
 do
   apply "$migration"
 done
@@ -132,8 +131,6 @@ TRUNCATE TABLE
     -- Persona profiles and workshop scenarios are provisioned source data.
     -- Shopper sessions are runtime state and must not survive a reset.
     pellier.shopper_sessions,
-    -- What each shopper required (057) is per-session state, like the sessions.
-    pellier.shopping_requirements,
     pellier.tool_uses,
     -- Per-run evidence added by 048 and 049. Gateway Policy decision events are
     -- ingested per turn and a workshop run is minted per participant, so a fresh
