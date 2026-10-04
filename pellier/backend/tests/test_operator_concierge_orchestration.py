@@ -1139,3 +1139,27 @@ def test_model_prompt_carries_the_tier_label_not_the_stored_value(
     assert stored not in prompt.lower()
     standing = next(e for e in evidence if e.label == "Client standing")
     assert standing.to_payload()["data"]["membership"] == stored
+
+
+def test_the_graph_prompts_and_evidence_lines_carry_no_em_dash_or_middle_dot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both graph system prompts and the evidence text the Investigator reads."""
+    from services import operator_graph
+
+    async def get_client(*, client_id: str, db: Any) -> Dict[str, Any]:
+        return {"client": {"customerId": "CUST-X", "name": "X", "membership": "circle",
+                           "spend12mo": 3940.0}}
+
+    monkeypatch.setattr("routes.operator.get_client", get_client)
+    _record, _steps, evidence = asyncio.run(ORCH.load_client_evidence(object(), "CUST-X"))
+    texts = {
+        "investigator": operator_graph._INVESTIGATOR_PROMPT,
+        "evidence": ORCH._evidence_for_prompt(evidence),
+        **{f"planner:{kind}": operator_graph._planner_prompt(spec.contract)
+           for kind, spec in ORCH.WORKFLOWS.items()},
+    }
+    assert "Silver, $3,940.00 in 12-month spend" in texts["evidence"]
+    for name, text in texts.items():
+        for mark in ("—", "·"):
+            assert mark not in text, (name, mark)

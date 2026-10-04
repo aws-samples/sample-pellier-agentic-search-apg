@@ -47,6 +47,13 @@ ORDINARY_FOLLOW_UPS = (
     "which of those for a small kitchen?",
 )
 
+# A release phrase inside a negation keeps the limit it names.
+NEGATED_RELEASES = (
+    "don't ignore my budget",
+    "please do not drop the price limit",
+    "I would rather not include sold out items",
+)
+
 
 @pytest.fixture(autouse=True)
 def _clean_sessions():
@@ -114,7 +121,7 @@ def test_the_reset_floor_reads_only_explicit_named_releases() -> None:
         assert resets(message) == set(), message
 
 
-@pytest.mark.parametrize("message", ORDINARY_FOLLOW_UPS)
+@pytest.mark.parametrize("message", ORDINARY_FOLLOW_UPS + NEGATED_RELEASES)
 def test_an_ordinary_follow_up_keeps_every_limit(message: str) -> None:
     assert active_requirements.explicit_resets(message) == set()
     merged, carried = merge(NOTHING_STATED, before=ANNA, message=message)
@@ -122,6 +129,48 @@ def test_an_ordinary_follow_up_keeps_every_limit(message: str) -> None:
     assert merged["in_stock_only"] is True
     assert merged["exclusions"] == ["candle"]
     assert carried == ["budget", "stock", "exclusions"]
+
+
+def test_a_negation_blocks_only_the_release_it_sits_on() -> None:
+    resets = active_requirements.explicit_resets
+    assert resets("I would not say candles are fine now") == set()
+    assert resets("no, don't ignore my budget") == set()
+    # The negation belongs to the clause before the comma, not to the release.
+    assert resets("I'm not sure, ignore my budget") == {"budget"}
+    # The stock floor's own negation is the release, not a guard against it.
+    assert resets("it does not have to be in stock") == {"stock"}
+
+
+def test_a_follow_up_read_from_the_latest_message_alone_carries_the_rest() -> None:
+    """The extractor reads only the latest message, so a follow-up that states no
+    limit reads as nothing stated and every earlier limit is reported as carried;
+    "make it under $50" overrides the budget alone."""
+    remember("sess-anna", FIRST)
+    history = [{"role": "user", "content": "in stock, under $100, no candles"}]
+
+    token = active_requirements.bind_turn(
+        session_id="sess-anna", message="which of those for a small kitchen?", conversation_history=history,
+    )
+    try:
+        merged, carried = active_requirements.turn_requirements(lambda: dict(NOTHING_STATED))
+    finally:
+        active_requirements.reset_turn(token)
+    assert merged["price_max_usd"] == 100.0 and merged["in_stock_only"] is True
+    assert merged["exclusions"] == ["candle"]
+    assert carried == ["budget", "stock", "exclusions"]
+
+    token = active_requirements.bind_turn(
+        session_id="sess-anna", message="make it under $50", conversation_history=history,
+    )
+    try:
+        merged, carried = active_requirements.turn_requirements(
+            lambda: {**NOTHING_STATED, "price_max_usd": 50.0, "soft_signal": "gift"}
+        )
+    finally:
+        active_requirements.reset_turn(token)
+    assert merged["price_max_usd"] == 50.0 and merged["in_stock_only"] is True
+    assert merged["exclusions"] == ["candle"]
+    assert carried == ["stock", "exclusions"]
 
 
 def test_a_restated_value_reads_as_stated_not_carried() -> None:

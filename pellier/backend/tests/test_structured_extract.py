@@ -76,6 +76,7 @@ def test_a_reply_without_json_is_unreadable_not_truncated(monkeypatch) -> None:
     assert out["extraction_reason"] == "unreadable"
 
 
-def test_the_prompt_carries_no_em_dash() -> None:
-    assert "—" not in module._SYSTEM_PROMPT
-    assert "—" not in json.dumps(request_body("a gift"))
+def test_the_prompt_carries_no_em_dash_or_middle_dot() -> None:
+    for mark in ("—", "·"):
+        assert mark not in module._SYSTEM_PROMPT
+        assert mark not in json.dumps(request_body("a gift"), ensure_ascii=False)

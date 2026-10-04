@@ -92,19 +92,20 @@ otherwise. Never drop an exclusion because it is not listed.
 should score against, with the structured constraints stripped out. \
 Never empty; if the whole query is structured, repeat the most \
 descriptive phrase verbatim.
-  - "lifted" (list of strings): requirements from earlier in the chat that the \
-latest message explicitly releases: "budget" ("ignore my budget"), "stock" \
+  - "lifted" (list of strings): requirements from earlier in the chat that this \
+message explicitly releases: "budget" ("ignore my budget"), "stock" \
 ("in stock or not"), "department", "all" ("show me anything"), or an \
 excluded TAGS or MATERIALS value the shopper now allows ("candles are fine \
 now" -> ["candle"]). Empty list otherwise. A limit the shopper simply did \
 not repeat is not lifted, and neither is one a phrase merely resembles: \
 "show me anything else for the kitchen" and "any price range you would \
-suggest?" release nothing.
+suggest?" release nothing. A release inside a negation ("don't ignore my \
+budget") is not a release.
 
 Rules:
-  - The query may start with what the shopper said earlier in the chat. Keep \
-earlier requirements they have not changed, and follow the latest message \
-where it changes one ("candles are fine now").
+  - The query is the shopper's latest message only. The limits they stated \
+earlier in the chat are kept for them elsewhere: report what this message \
+states or releases, and never guess at an earlier one.
   - Never invent categories or tags outside the allowed lists.
   - Never echo the price ceiling into soft_signal.
   - A negative requirement is an exclusion, never a tag. "No candles" means \

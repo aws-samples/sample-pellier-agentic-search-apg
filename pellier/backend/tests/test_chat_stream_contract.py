@@ -387,3 +387,104 @@ def test_the_requirements_scope_is_released_with_the_evidence_channel(service, m
         assert seen["bound"] == ("sess-anna", None) and seen["channel"] is True
     assert outcome["after"] is None, "bind_turn's token is reset in the same finally as the channel"
     assert outcome["open"] is False
+
+
+def test_the_tools_read_the_shoppers_latest_message_only(service, monkeypatch) -> None:
+    """Earlier limits are carried server-side, so the reading never re-states them."""
+    from services.turn_identity import shopper_words_var
+
+    seen: Dict[str, Any] = {}
+
+    class _Agent(ScriptedAgent):
+        def __call__(self, prompt: str) -> _Answer:
+            seen["words"] = shopper_words_var.get()
+            return super().__call__(prompt)
+
+    history = [
+        {"role": "user", "content": "a housewarming gift under $100, in stock, no candles"},
+        {"role": "assistant", "content": "Start with the Stoneware Mugs, Set of 2 at $38."},
+    ]
+    _run(
+        service, _Agent(_anna_agent().calls, "The mugs."), monkeypatch,
+        message="which of those would you pick for a small kitchen?",
+        conversation_history=history, session_id="sess-anna",
+    )
+    assert seen["words"] == "which of those would you pick for a small kitchen?"
+
+
+# Anna, as ``scripts/migrations/003_persona_seed.sql`` seeds her.
+ANNA_FACTS = [
+    {"summary_text": "Past orders skew gift-shaped across varied price bands.", "ts_offset_days": -50},
+    {"summary_text": "Recent searches mention milestone occasions and ready-to-give packaging.",
+     "ts_offset_days": -20},
+    {"summary_text": "Responds well to pairings under a clear budget.", "ts_offset_days": -9},
+]
+ANNA_ORDERS = [
+    {"productId": "7", "name": "Jute Placemats, Set of 4", "brand": "Pellier", "color": "Natural",
+     "price": 40, "category": "Kitchen and table", "imgUrl": "/p.webp", "rating": 4.8, "reviews": 12,
+     "price_paid": 68.0, "placed_at": "2026-08-01"},
+    {"productId": "27", "name": "Ceramic Bud Vase", "brand": "NestWell", "color": "Oat",
+     "price": 24, "category": "Home", "imgUrl": "/p.webp", "rating": 4.7, "reviews": 9,
+     "price_paid": 22.0, "placed_at": "2026-07-14"},
+]
+
+
+class _SeededAnna:
+    """The three reads the preamble makes, answered from the seed."""
+
+    async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
+        if "customer_episodic_seed" in sql:
+            return list(ANNA_FACTS)
+        if "pellier.orders" in sql:
+            return list(ANNA_ORDERS)
+        return []
+
+    async def fetch_one(self, sql: str, *params: Any) -> Optional[Dict[str, Any]]:
+        return {"name": "Anna"} if "pellier.customers" in sql else None
+
+
+def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_dot(
+    service, monkeypatch,
+) -> None:
+    """The preamble is prepended to the message on every persona turn and appended to
+    each agent's system prompt, so it is a model prompt and follows the voice."""
+    from agents import stock_agent as stock_module
+    from agents.shopping_agent import build_shopping_agent
+    from agents.stock_agent import build_stock_agent
+    from agents.support_agent import build_support_agent
+    from services.persona_context import get_persona_preamble, persona_preamble_var
+
+    seen: Dict[str, Any] = {}
+
+    class _Agent(ScriptedAgent):
+        def __call__(self, prompt: str) -> _Answer:
+            seen["preamble"] = get_persona_preamble()
+            seen["prompt"] = prompt
+            return super().__call__(prompt)
+
+    service.db_service = _SeededAnna()
+    _run(
+        service, _Agent(_anna_agent().calls, "The placemats."), monkeypatch,
+        user={"customer_id": "CUST-ANNA"}, session_id="sess-anna",
+    )
+    preamble = seen["preamble"]
+    assert preamble.startswith("PERSONA CONTEXT: Anna (CUST-ANNA)\n")
+    assert "  - Responds well to pairings under a clear budget." in preamble
+    assert "  - Jute Placemats, Set of 4 (paid $68, Kitchen and table)" in preamble
+    assert seen["prompt"].startswith(preamble)
+
+    monkeypatch.setattr(stock_module, "_STOCK_AGENT_STUBBED", False)
+    token = persona_preamble_var.set(preamble)
+    try:
+        prompts = {
+            "shopping": build_shopping_agent().system_prompt,
+            "stock": build_stock_agent().system_prompt,
+            "support": build_support_agent().system_prompt,
+        }
+    finally:
+        persona_preamble_var.reset(token)
+    for name, prompt in prompts.items():
+        assert preamble.strip() in prompt, name
+        for mark in ("—", "·"):
+            assert mark not in preamble, mark
+            assert mark not in prompt, (name, mark)

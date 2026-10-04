@@ -1363,7 +1363,6 @@ class EnhancedChatService:
             authorized_customer_id_var,
             principal_sub_var,
             resolve_turn_identity,
-            shopper_words,
             shopper_words_var,
             turn_id_var,
         )
@@ -1377,8 +1376,10 @@ class EnhancedChatService:
             # the storefront merges into ``user``.
             customer_id = turn_identity.shopper_customer_id
         turn_id_var.set(turn_id)
-        # The search tools plan from what the shopper typed, not the agent's query.
-        shopper_words_var.set(shopper_words(message, conversation_history))
+        # The search tools plan from what the shopper typed this turn, not the
+        # agent's query. Only the latest message: the limits stated earlier are
+        # carried by ``active_requirements``, so a reading never re-states them.
+        shopper_words_var.set(message)
         # Publish the verified principal for the deterministic tools, which
         # run in this context via asyncio.to_thread. Set unconditionally,
         # including to None: an anonymous turn must not inherit whatever the
@@ -1640,7 +1641,7 @@ class EnhancedChatService:
                 persona_profile_available = bool(customer_row)
                 name = customer_row["name"] if customer_row else "the shopper"
                 if facts_rows or orders_rows:
-                    lines = [f"PERSONA CONTEXT — {name} ({customer_id})"]
+                    lines = [f"PERSONA CONTEXT: {name} ({customer_id})"]
                     if facts_rows:
                         lines.append("Known about them (LTM):")
                         for f in facts_rows:
@@ -1652,7 +1653,7 @@ class EnhancedChatService:
                                 f"  - {o['name']} (paid ${o['price_paid']:.0f}, {o['category']})"
                             )
                     lines.append(
-                        "Use this to tailor the reply — reference past purchases, "
+                        "Use this to tailor the reply: reference past purchases, "
                         "respect preferences, avoid asking for info you already know."
                     )
                     persona_preamble = "\n".join(lines) + "\n---\n"

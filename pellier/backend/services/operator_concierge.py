@@ -238,7 +238,7 @@ async def load_client_evidence(
     evidence.append(Evidence(
         kind="client", role=ROLE_FACT, status="verified", source=SOURCE_AURORA,
         label="Client standing", record_id=str(client.get("customerId") or ""),
-        detail=f"{_membership_label(client.get('membership'))} · "
+        detail=f"{_membership_label(client.get('membership'))}, "
                f"{_money(client.get('spend12mo', 0))} in 12-month spend",
         data={
             "membership": client.get("membership"),

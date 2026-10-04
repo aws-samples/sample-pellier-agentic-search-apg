@@ -19,7 +19,8 @@ latest message lifts (``lifted``). A deterministic floor reads only explicit
 phrases tied to a named limit ("ignore my budget", "drop the price limit",
 "in stock or not", "include sold out"), so those hold without a model. It
 never reads a generic phrase such as "show me anything else" or "any price
-range you would suggest?": those are ordinary follow-ups.
+range you would suggest?": those are ordinary follow-ups. A phrase inside a
+negation ("don't ignore my budget") releases nothing either.
 
 The store is process-local: one worker's memory, bounded, keyed by the
 verified principal and the session id together. A session whose principal
@@ -84,6 +85,18 @@ _RESET_PATTERNS: Tuple[Tuple[str, re.Pattern[str]], ...] = (
 # "Candles are fine now" releases one excluded value.
 _ALLOW_AGAIN = re.compile(r"\b([a-z][a-z -]{1,30}?) (?:are|is) (?:fine|ok|okay|allowed)(?: now| again)?\b", re.I)
 _VOCABULARY = frozenset(KNOWN_TAGS) | frozenset(KNOWN_MATERIALS)
+# A release phrase under one of these, in the same clause, is not a release:
+# "don't ignore my budget", "please do not drop the price limit".
+_CLAUSE_BREAK = re.compile(r"[.,;:!?]")
+_NEGATION_WORDS = frozenset({"not", "never"})
+_NEGATION_REACH = 3
+
+
+def _negated(text: str, start: int) -> bool:
+    """Whether a negation sits within a few words before ``start`` in its clause."""
+    clause = _CLAUSE_BREAK.split(text[:start])[-1]
+    words = [word.lower().strip("\"'()") for word in clause.split()[-_NEGATION_REACH:]]
+    return any(word in _NEGATION_WORDS or word.endswith("n't") for word in words)
 
 
 @dataclass(frozen=True)
@@ -194,9 +207,11 @@ def explicit_resets(message: str) -> set[str]:
     text = str(message or "")
     lifted: set[str] = set()
     for kind, pattern in _RESET_PATTERNS:
-        if pattern.search(text):
+        if any(not _negated(text, match.start()) for match in pattern.finditer(text)):
             lifted.add(kind)
     for match in _ALLOW_AGAIN.finditer(text):
+        if _negated(text, match.start()):
+            continue
         phrase = match.group(1).strip().lower()
         for candidate in (phrase, phrase[:-1] if phrase.endswith("s") else phrase):
             if candidate in _VOCABULARY:

@@ -116,10 +116,11 @@ def _extract_query_structure(query: str) -> dict:
     and a Sonnet invocation per search, and the only way a shopper's stated
     exclusions, stock requirement or implied budget reach SQL on this rail.
 
-    The planner reads what the shopper typed in this chat (set per turn in
+    The planner reads what the shopper typed this turn (set per turn in
     ``turn_identity.shopper_words_var``), not the agent's search words, so an
-    agent cannot drop "no candles" by shortening its query. Outside a chat
-    turn it reads ``query``.
+    agent cannot drop "no candles" by shortening its query. It reads the
+    latest message alone; ``active_requirements`` lays the limits from earlier
+    turns under the reading. Outside a chat turn it reads ``query``.
 
     Args:
         query: The agent's search words.

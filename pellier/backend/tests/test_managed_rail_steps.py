@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.parse
 import urllib.request
 from typing import Any, Dict, List
 
@@ -99,7 +100,17 @@ def test_the_bridge_parses_skills_and_stop_reason_from_the_raw_runtime_response(
         def __exit__(self, *exc: Any) -> bool:
             return False
 
-    monkeypatch.setattr(urllib.request, "urlopen", lambda request, timeout=None: _Response())
+    # The stand-in answers only the Runtime data plane in the ARN's region; any
+    # other host fails here, as the conftest guard would have failed it.
+    expected_host = "bedrock-agentcore.us-east-1.amazonaws.com"
+
+    def _runtime_data_plane(request: Any, timeout: Any = None) -> _Response:
+        host = urllib.parse.urlsplit(request.full_url).hostname
+        assert host == expected_host, f"bridge reached {host}, not {expected_host}"
+        return _Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", _runtime_data_plane)
+    monkeypatch.setattr(runtime_module.settings, "AWS_DEFAULT_REGION", "us-east-1", raising=False)
     monkeypatch.setattr(
         runtime_module.settings,
         "AGENTCORE_RUNTIME_ENDPOINT",

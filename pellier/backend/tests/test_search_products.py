@@ -572,20 +572,6 @@ class TestTheShoppersWordsDriveRequirements:
             assert "price <= %s" in sql
 
 
-def test_show_me_more_carries_the_earlier_requirement() -> None:
-    from services.turn_identity import shopper_words
-
-    history = [
-        {"role": "user", "content": "A gift under $100, no candles"},
-        {"role": "assistant", "content": "Here are five."},
-    ]
-    assert shopper_words("Show me more", history) == (
-        "Earlier the shopper said: A gift under $100, no candles\n"
-        "Now the shopper says: Show me more"
-    )
-    assert shopper_words("Hi", []) == "Hi"
-
-
 # ---------------------------------------------------------------------------
 # The @tool wrapper: what it decides, and what it hands the shared pipeline
 # ---------------------------------------------------------------------------
