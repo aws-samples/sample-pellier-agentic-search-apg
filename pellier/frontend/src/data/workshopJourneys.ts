@@ -75,18 +75,20 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
 }
 
 /**
- * The guide's required chat requests. SQL benchmarks, direct Gateway probes,
- * Memory reads, and human review actions remain separate guide steps.
- * Live request rails read the corresponding roles from Aurora.
+ * The guide's required chat requests: each shopper's lab prompts, in order.
+ * SQL benchmarks, direct Gateway probes, Memory reads, and human review
+ * actions remain separate guide steps. The home page's signed-in suggestion
+ * row reads the same roles from Aurora (migration 057), so the two agree.
  */
 export const WORKSHOP_REQUIRED_PROMPTS: Record<WorkshopAnchorId, readonly string[]> = {
-  marco: [WORKSHOP_JOURNEYS.marco.prompts[0], WORKSHOP_JOURNEYS.marco.prompts[2]],
+  marco: [WORKSHOP_JOURNEYS.marco.prompts[2]],
   anna: [WORKSHOP_JOURNEYS.anna.prompts[0]],
   theo: [
     WORKSHOP_JOURNEYS.theo.prompts[0],
-    'Show my support ticket history, and the history for customer CUST-JESSICA.',
+    'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',
+    "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?",
   ],
-  jessica: [WORKSHOP_JOURNEYS.jessica.prompts[0]],
+  jessica: [WORKSHOP_JOURNEYS.jessica.prompts[2]],
 }
 
 /**

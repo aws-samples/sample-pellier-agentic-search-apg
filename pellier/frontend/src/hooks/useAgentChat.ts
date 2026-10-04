@@ -22,7 +22,7 @@ import {
 import type { WorkshopMode } from '../contexts/LayoutContext'
 import { usePersona } from '../contexts/PersonaContext'
 import { readSkillMode } from '../components/turn/preferences'
-import { upsertStep, type TurnStatus, type TurnStep } from '../components/turn/turnTypes'
+import { upsertStep, type TurnPrincipal, type TurnStatus, type TurnStep } from '../components/turn/turnTypes'
 
 /**
  * Stylist handoff payload from the `ask_a_person` tool.
@@ -88,6 +88,8 @@ export interface AgentChatMessage {
   failure?: ChatFailure
   /** Stable per-turn id from the backend, used to deep-link evidence. */
   turnId?: string
+  /** Who the server verified for this turn, from `turn_start`. Builder evidence. */
+  principal?: TurnPrincipal
   /** Session this turn belongs to, as reported by the backend. */
   sessionId?: string
   /** Which rail actually served the turn. */
@@ -165,19 +167,34 @@ function mapProduct(p: any): ChatProduct {
 
 /**
  * What the conversation keeps in the browser. The identity binding on a
- * step is Builder evidence for the turn that ran it, not conversation state,
- * so it never lands in localStorage.
+ * step and the turn's verified principal are Builder evidence for the turn
+ * that ran them, not conversation state, so they never land in localStorage.
  */
 function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
   return messages.map(message => {
-    if (!message.steps?.some(step => step.builder?.identity)) return message
+    const bound = message.steps?.some(step => step.builder?.identity)
+    if (!bound && !message.principal) return message
+    const { principal: _principal, ...kept } = message
     return {
-      ...message,
-      steps: message.steps.map(step =>
-        step.builder?.identity ? { ...step, builder: { ...step.builder, identity: undefined } } : step,
-      ),
+      ...kept,
+      steps: bound
+        ? message.steps?.map(step =>
+          step.builder?.identity ? { ...step, builder: { ...step.builder, identity: undefined } } : step,
+        )
+        : message.steps,
     }
   })
+}
+
+function readPrincipal(value: unknown): TurnPrincipal | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const raw = value as Record<string, unknown>
+  const method = raw.signInMethod
+  return {
+    authenticated: raw.authenticated === true,
+    customerId: typeof raw.customerId === 'string' ? raw.customerId : null,
+    signInMethod: method === 'workshop' || method === 'cognito' ? method : null,
+  }
 }
 
 /** Earlier answers are history once a new turn opens: any still revealing shows in full. */
@@ -382,7 +399,10 @@ export function useAgentChat(
           data => {
             // The hook unmounted mid-stream (see the mount effect above).
             if (!activeRef.current) return
-            if (data.type === 'status') {
+            if (data.type === 'turn_start') {
+              const principal = readPrincipal(data.principal)
+              if (principal) updateLast(lastMsg => ({ ...lastMsg, principal }))
+            } else if (data.type === 'status') {
               if (typeof data.label !== 'string') return
               updateLast(lastMsg => ({
                 ...lastMsg,

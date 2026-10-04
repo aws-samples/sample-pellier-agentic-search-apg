@@ -1,18 +1,16 @@
 /**
- * StatusLines: three facts under the chat header, each from its own source.
+ * StatusLines: two facts under the chat header, each from its own source.
  *
- *   Scenario           the persona context (a workshop scenario, not a login)
- *   Verified identity  the Cognito session from the auth context
- *   Execution path     the rail reported by the last completed turn
+ *   Signed in as     the Cognito session from the auth context
+ *   Execution path   the rail reported by the last completed turn
  *
- * The rows are independent on purpose. A shopper can pick Marco without any
- * Cognito session, an operator can be signed in with no scenario chosen, and
- * neither says which rail will serve the next turn. Rendering the three side
- * by side is what stops one from being read as a proxy for another.
+ * There is no scenario row: choosing a shopper is a sign-in, so the shopper
+ * on screen is the one the server verified, and this line reports the
+ * verified session, never the choice. Neither line says which rail will serve
+ * the next turn; the second reports the one that served the last.
  */
 import { useOptionalAuth } from '../contexts/AuthContext'
-import { usePersona } from '../contexts/PersonaContext'
-import { SCENARIO, STATUS_LINES } from '../copy'
+import { STATUS_LINES } from '../copy'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
 
 interface StatusLinesProps {
@@ -34,7 +32,6 @@ function lastReportedRail(
 }
 
 export default function StatusLines({ messages }: StatusLinesProps) {
-  const { persona } = usePersona()
   const auth = useOptionalAuth()
   const identity =
     auth?.isAuthenticated && auth.user
@@ -45,11 +42,6 @@ export default function StatusLines({ messages }: StatusLinesProps) {
   const rail = lastReportedRail(messages)
 
   const rows: Array<{ label: string; value: string; known: boolean }> = [
-    {
-      label: STATUS_LINES.SCENARIO,
-      value: persona?.display_name ?? SCENARIO.NONE_SELECTED,
-      known: Boolean(persona),
-    },
     {
       label: STATUS_LINES.VERIFIED_IDENTITY,
       value: identity

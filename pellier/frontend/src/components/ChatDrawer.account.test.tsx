@@ -47,24 +47,24 @@ vi.mock('../hooks/useAgentChat', () => ({
 }))
 vi.mock('./PellierChatBody', () => ({ default: () => null }))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
-vi.mock('./WorkshopSignIn', () => ({ default: () => <div data-testid="workshop-sign-in" /> }))
 vi.mock('./StatusLines', () => ({ default: () => <dl data-testid="status-lines" /> }))
 
 import ChatDrawer from './ChatDrawer'
 
-describe('the account handoff in Ask Pellier', () => {
+describe('identity in the Ask Pellier panel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('mounts the one-click shopper sign-in in place of the sign-out, sign-in, scenario, verify sequence', () => {
+  it('offers no second way in: no sign-in chips, no scenario picker, no account step', () => {
     render(<ChatDrawer />)
-    expect(screen.getByTestId('workshop-sign-in')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Sign in for account requests' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Scenario & account details')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('workshop-sign-in')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /signed in as/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/scenario/i)).not.toBeInTheDocument()
   })
 
-  it('keeps the session facts beneath the chips', () => {
+  it('keeps the session facts under the header', () => {
     render(<ChatDrawer />)
     expect(screen.getByText('Session details')).toBeInTheDocument()
     expect(screen.getByTestId('status-lines')).toBeInTheDocument()

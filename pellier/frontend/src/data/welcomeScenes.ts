@@ -20,6 +20,11 @@ const scenes: Record<string, { image: string; alt: string; label: string }> = {
     alt: 'Charcoal stoneware beside natural linen, a beeswax candle, and olive branches',
     label: 'The everyday ritual',
   },
+  jessica: {
+    image: '/products/house-ivory-cashmere-throw-1122.webp',
+    alt: 'Folded ivory cashmere throw on a made bed in daylight',
+    label: 'The home edit',
+  },
 }
 
 export function welcomeScene(personaId: string) {

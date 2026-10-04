@@ -1,5 +1,5 @@
 /**
- * PersonaTransitionOverlay tests — shopper scenario transitions.
+ * PersonaTransitionOverlay tests: choosing a shopper (a real sign-in) and signing out.
  */
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -64,7 +64,7 @@ describe('PersonaTransitionOverlay', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('shows the selected scenario without claiming authentication', () => {
+  it('acknowledges the shopper the chooser signed in', () => {
     mockTransition = { id: 1, kind: 'sign-in', persona: marco() }
     render(<PersonaTransitionOverlay />)
     expect(screen.getByText(/Viewing Marco\./)).toBeInTheDocument()
@@ -72,13 +72,14 @@ describe('PersonaTransitionOverlay', () => {
       screen.getByText('Travel and utility, grounded in leather and linen.'),
     ).toBeInTheDocument()
     expect(screen.getByAltText('Marco Silva profile')).toBeInTheDocument()
-    expect(screen.getByText(/SCENARIO SELECTED/i)).toBeInTheDocument()
-    expect(screen.queryByText(/SIGNED IN/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/SIGNED IN/i)).toBeInTheDocument()
+    expect(screen.queryByText(/SCENARIO/i)).not.toBeInTheDocument()
   })
 
   it.each([
     ['anna', 'Anna', 'Gifting and ceremony, expressed in silk and glass.'],
     ['theo', 'Theo', 'Slow living through craft, stoneware, and natural materials.'],
+    ['jessica', 'Jessica', 'Home comforts, bath and soft light.'],
   ])('shows the %s-specific tagline on selection', (id, displayName, tagline) => {
     const persona: PersonaTransition['persona'] = {
       id,
@@ -98,7 +99,7 @@ describe('PersonaTransitionOverlay', () => {
     expect(screen.getByText(tagline)).toBeInTheDocument()
   })
 
-  it('shows the cleared scenario without a tagline', () => {
+  it('acknowledges the sign-out without a tagline', () => {
     mockTransition = { id: 2, kind: 'sign-out', persona: marco() }
     render(<PersonaTransitionOverlay />)
     expect(screen.getByText(/Leaving Marco\./)).toBeInTheDocument()
@@ -106,7 +107,7 @@ describe('PersonaTransitionOverlay', () => {
     expect(
       screen.queryByText('Travel and utility, grounded in leather and linen.'),
     ).not.toBeInTheDocument()
-    expect(screen.getByText(/SCENARIO CLEARED/i)).toBeInTheDocument()
+    expect(screen.getByText(/SIGNED OUT/i)).toBeInTheDocument()
   })
 
   it('auto-dismisses after 1100ms on sign-in', () => {

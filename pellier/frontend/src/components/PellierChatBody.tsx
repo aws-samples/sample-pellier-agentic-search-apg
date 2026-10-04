@@ -17,11 +17,11 @@ import type { CartItemOrigin } from '../contexts/CartContext'
 import ProductArtifactCard from './ProductArtifactCard'
 import StylistHandoffCard from './StylistHandoffCard'
 import ChatFailureCard from './ChatFailureCard'
-import { RevealedProse, StatusLine, StepList, sentenceEndAfter } from './turn'
+import { LayerTag, RevealedProse, StatusLine, StepList, principalLine, sentenceEndAfter } from './turn'
 import { imageSrc } from '../utils/assetPath'
 import { catalogTurnFollowUps } from '../utils/catalogFollowUps'
 import { nextJourneyPrompt } from '../data/workshopJourneys'
-import { SCENARIO } from '../copy'
+import { SHOPPER } from '../copy'
 import '../styles/pellier-chat.css'
 import '../styles/pellier-welcome.css'
 import '../styles/turn.css'
@@ -106,7 +106,7 @@ function PersonaCoverBanner({ persona }: { persona: PersonaSnapshot | null }) {
       <div className="ec-persona-cover-overlay">
         <div className="ec-persona-cover-eyebrow">
           <span className="ec-persona-cover-dot" />
-          {SCENARIO.active(persona.display_name)}
+          {SHOPPER.edit(persona.display_name)}
         </div>
       </div>
     </div>
@@ -258,6 +258,15 @@ function AgentMessage({
         <PellierMark size={18} />
         Pellier
       </div>
+
+      {/* Builder view: who the server verified for this turn, from the signed
+          token. The shopper chosen on screen never decides this line. */}
+      {builderView && message.principal ? (
+        <p className="tn-principal" data-testid="turn-principal">
+          <LayerTag>Identity</LayerTag>
+          <span className="tn-principal-text">{principalLine(message.principal)}</span>
+        </p>
+      ) : null}
 
       {/* Status and steps, from real stream events. The pulse stops when the
           turn completes or fails; the list folds once the answer has settled. */}

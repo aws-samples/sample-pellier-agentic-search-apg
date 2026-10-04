@@ -1,9 +1,9 @@
-"""Theo's required ticket request is written in three places; they must agree.
+"""Theo's required ticket request is written in two places; they must agree.
 
-Migration 056 seeds it for the live request rails, the frontend names it as a
-required prompt, and the Lab 3 proof card's fallback replays it through the
-AgentCore CLI. A wording change in one place would leave a participant running
-a request the other two do not recognise.
+Migration 057 seeds it for the live request rails and the home page's
+suggestion row, and the frontend names it as a required prompt. A wording
+change in one place would leave a participant running a request the other
+does not recognise.
 """
 
 from __future__ import annotations
@@ -12,17 +12,16 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-MIGRATION = REPO / "scripts/migrations/056_align_required_lab_requests.sql"
+MIGRATION = REPO / "scripts/migrations/057_shopper_sign_in_edits.sql"
 JOURNEYS = REPO / "pellier/frontend/src/data/workshopJourneys.ts"
-OBSERVATORY = REPO / "pellier/backend/routes/observatory.py"
 
 
 def _seeded_ticket_request() -> str:
     match = re.search(
-        r"SET prompt = '([^']+)',\s*journey_stage = 'exercise'",
+        r"SET prompt = '([^']+)',\s*preview_product_id = '37'",
         MIGRATION.read_text(encoding="utf-8"),
     )
-    assert match, "migration 056 no longer seeds Theo's required ticket request"
+    assert match, "migration 057 no longer seeds Theo's required ticket request"
     return match.group(1)
 
 

@@ -33,28 +33,66 @@ const LIVE_PERSONAS = [
     avatar_initial: 'T',
     stats: { visits: 8, orders: 4, last_seen_days: 14 },
   },
+  {
+    id: 'jessica',
+    display_name: 'Jessica',
+    role_tag: 'Home comforts, bath, soft light',
+    blurb: 'Live Aurora profile.',
+    avatar_color: '#5b4a3c',
+    avatar_initial: 'J',
+    stats: { visits: 5, orders: 5, last_seen_days: 6 },
+  },
 ]
 
-const switchPersona = vi.hoisted(() => vi.fn().mockResolvedValue(true))
+// What the profile read may also hold: the guest edit, and a staff name that
+// must never become a choice.
+const NOT_SHOPPERS = [
+  { ...LIVE_PERSONAS[0], id: 'fresh', display_name: 'Pellier guest' },
+  { ...LIVE_PERSONAS[0], id: 'nadia', display_name: 'Nadia' },
+]
+
+const state = vi.hoisted(() => ({
+  switchPersona: vi.fn().mockResolvedValue(true),
+  clearShopper: vi.fn(),
+  refresh: vi.fn(() => Promise.resolve()),
+  logout: vi.fn(),
+  workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
+  username: '',
+}))
+const switchPersona = state.switchPersona
 
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
     persona: null,
-    switchPersona,
-    signOut: vi.fn(),
+    switchPersona: state.switchPersona,
+    signOut: state.clearShopper,
     switching: false,
   }),
 }))
+vi.mock('../contexts/AuthContext', () => ({
+  useOptionalAuth: () => ({
+    isAuthenticated: Boolean(state.username),
+    user: state.username ? { sub: 's', email: 'e', username: state.username } : null,
+    refresh: state.refresh,
+    logout: state.logout,
+  }),
+}))
+vi.mock('../services/passwordAuth', async () => {
+  const actual = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+  return { ...actual, workshopSignIn: state.workshopSignIn }
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.clearAllMocks()
+  state.username = ''
 })
 
 function stubPersonaFetch() {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () =>
-      new Response(JSON.stringify(LIVE_PERSONAS), {
+      new Response(JSON.stringify([...NOT_SHOPPERS, ...LIVE_PERSONAS]), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -79,10 +117,10 @@ describe('PersonaModal keyboard and focus', () => {
     stubPersonaFetch()
     const user = userEvent.setup()
     render(<PersonaModal open onClose={vi.fn()} />)
-    await screen.findByTestId('persona-card-theo')
+    await screen.findByTestId('persona-card-jessica')
 
     const close = screen.getByTestId('persona-modal-close')
-    const last = screen.getByTestId('persona-card-theo')
+    const last = screen.getByTestId('persona-card-jessica')
 
     last.focus()
     await user.keyboard('{Tab}')
@@ -118,27 +156,36 @@ describe('PersonaModal keyboard and focus', () => {
 })
 
 describe('PersonaModal', () => {
-  it('titles itself as a scenario choice rather than a sign-in', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        new Response(JSON.stringify(LIVE_PERSONAS), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
-    )
-
+  it('offers the four shoppers, never staff, and says the choice is a sign-in', async () => {
+    stubPersonaFetch()
     render(<PersonaModal open onClose={vi.fn()} />)
 
-    expect(screen.getByRole('dialog')).toHaveAccessibleName('Choose a scenario')
-    await waitFor(() => {
-      expect(screen.getByTestId('persona-card-marco')).toBeInTheDocument()
-    })
-    expect(screen.queryByText(/sign in/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Choose a shopper')
+    await screen.findByTestId('persona-card-marco')
+    const cards = screen.getAllByRole('button').filter(b => b.dataset.persona)
+    expect(cards.map(card => card.dataset.persona)).toEqual(['marco', 'anna', 'theo', 'jessica'])
+    expect(screen.queryByTestId('persona-card-nadia')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('persona-card-fresh')).not.toBeInTheDocument()
+    expect(screen.getByText(
+      'Choosing a shopper signs you in with their demo account. Pellier trusts the signed token, not this choice.',
+    )).toBeInTheDocument()
   })
 
-  it('uses the shared Marco, Anna, and Theo headshots', async () => {
+  it('names the verified shopper and signs out back to the neutral store', async () => {
+    stubPersonaFetch()
+    state.username = 'theo'
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<PersonaModal open onClose={onClose} />)
+    await screen.findByTestId('persona-card-theo')
+    expect(screen.getByText('Theo', { selector: 'strong' })).toBeInTheDocument()
+    await user.click(screen.getByTestId('persona-sign-out'))
+    expect(state.clearShopper).toHaveBeenCalledOnce()
+    expect(state.logout).toHaveBeenCalledOnce()
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('uses the shared shopper headshots', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
@@ -169,15 +216,31 @@ describe('PersonaModal', () => {
   })
 })
 
-describe('PersonaModal switch recovery', () => {
-  it('stays open when the server cannot switch profiles, then closes on success', async () => {
+describe('PersonaModal choosing a shopper', () => {
+  it('signs the shopper in, re-reads the session, then selects their edit', async () => {
     stubPersonaFetch()
-    switchPersona.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<PersonaModal open onClose={onClose} />)
+    await user.click(await screen.findByTestId('persona-card-jessica'))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(state.workshopSignIn).toHaveBeenCalledWith('jessica', expect.any(AbortSignal))
+    expect(switchPersona).toHaveBeenCalledWith('jessica')
+    const order = [state.workshopSignIn, state.refresh, switchPersona].map(fn => fn.mock.invocationCallOrder[0])
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+  })
+
+  it('stays open and says so when the sign-in fails, then closes on success', async () => {
+    const { PasswordAuthError } = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+    stubPersonaFetch()
+    state.workshopSignIn.mockRejectedValueOnce(new PasswordAuthError('workshop_sign_in_unavailable'))
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(<PersonaModal open onClose={onClose} />)
     const profile = await screen.findByTestId('persona-card-marco')
     await user.click(profile)
+    expect(await screen.findByTestId('persona-modal-sign-in-error')).toHaveTextContent('workshop_sign_in_unavailable')
+    expect(switchPersona).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
     await user.click(profile)
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))

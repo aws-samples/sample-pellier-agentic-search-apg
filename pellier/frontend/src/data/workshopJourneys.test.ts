@@ -51,20 +51,25 @@ describe('four-lab workshop journey contract', () => {
 
   // Follow-up chips follow the current guide, without adding optional depth.
   describe('nextJourneyPrompt', () => {
-    it('takes Marco directly from context to the inventory checkpoint', () => {
-      const marco = WORKSHOP_JOURNEYS.marco.prompts
-      expect(nextJourneyPrompt(marco[0])).toBe(
-        marco[2],
-      )
-      expect(nextJourneyPrompt(marco[1])).toBeUndefined()
+    it("keeps each shopper's required prompts to their lab prompts", () => {
+      expect(WORKSHOP_REQUIRED_PROMPTS).toEqual({
+        marco: ['How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?'],
+        anna: ['A housewarming gift for someone who loves slow morning rituals.'],
+        theo: [
+          'Hand-thrown ceramics for a slower morning routine',
+          'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',
+          "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?",
+        ],
+        jessica: ['Please ask a person to look at a store credit for the two items I returned.'],
+      })
     })
 
-    it('offers Theo the caller-scope challenge and leaves Anna’s controlled proof separate', () => {
-      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.theo.prompts[0])).toBe(
-        'Show my support ticket history, and the history for customer CUST-JESSICA.',
-      )
+    it('takes Theo from his ticket to the household request, and Marco nowhere past stock', () => {
+      const theo = WORKSHOP_REQUIRED_PROMPTS.theo
+      expect(nextJourneyPrompt(theo[0])).toBe(theo[1])
+      expect(nextJourneyPrompt(theo[1])).toBe(theo[2])
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[0])).toBeUndefined()
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBeUndefined()
-      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.theo.prompts[1])).toBeUndefined()
     })
 
     it('ends each required chat sequence at the guide’s stopping point', () => {
@@ -75,8 +80,8 @@ describe('four-lab workshop journey contract', () => {
 
     it('ignores whitespace and casing, since the chip text is echoed back', () => {
       expect(
-        nextJourneyPrompt('  what linen do you   have for 10 days in Goa?  '),
-      ).toBe(WORKSHOP_JOURNEYS.marco.prompts[2])
+        nextJourneyPrompt('  hand-thrown CERAMICS for a   slower morning routine  '),
+      ).toBe(WORKSHOP_REQUIRED_PROMPTS.theo[1])
     })
 
     // A fuzzy match would let an ordinary shopper question that merely

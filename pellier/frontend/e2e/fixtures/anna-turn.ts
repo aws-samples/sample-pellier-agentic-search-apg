@@ -220,7 +220,10 @@ const ROUTE_BUILDER = {
 }
 
 export const ANNA_TURN_EVENTS: object[] = [
-  { type: 'turn_start', turn_id: 'turn-' + 'a'.repeat(32), session_id: 'session-shots' },
+  {
+    type: 'turn_start', turn_id: 'turn-' + 'a'.repeat(32), session_id: 'session-shots',
+    principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' },
+  },
   { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 3, orders_available: 5, available: true } },
   { type: 'intent_signal', intent: 'shopping', agent: 'Shopping agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5' },
   { type: 'status', label: 'Understanding your request' },
@@ -264,6 +267,15 @@ export const ANNA_TURN_EVENTS: object[] = [
 ]
 
 export const ANNA_FINDING = FINDING
+
+/** Anna's session, as `/api/auth/me` reports it after the chooser signed her in. */
+export const ANNA_ME = {
+  user_id: 'sub-anna',
+  email: 'anna@pellier.example.com',
+  given_name: 'anna',
+  username: 'anna',
+  sign_in_method: 'workshop',
+}
 
 export function sseBody(events: object[]): string {
   return events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')

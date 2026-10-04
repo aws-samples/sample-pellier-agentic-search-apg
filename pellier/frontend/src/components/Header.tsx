@@ -5,9 +5,10 @@
  * surface switch, the theme control and the Ask Pellier button. Persona and
  * bag controls preserve their existing interaction and identity boundaries.
  *
- * Visitors without a scenario see a "Select scenario" pill. Once a persona is
- * active, the same header pill opens the shared portrait-led PersonaModal.
- * Neither state is a Cognito sign-in.
+ * Signed-out visitors see a "Choose a shopper" pill. Once a shopper is signed
+ * in, the same pill shows them and opens the shared portrait-led PersonaModal
+ * to switch shopper or sign out. Choosing a shopper is a real sign-in with
+ * their demo account.
  *
  * Copy comes from `copy.ts`. Every color is a token. The row's ground,
  * hairline and stacking are `.pellier-storefront-header` in
@@ -19,7 +20,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
-import { NAV, SCENARIO } from '../copy'
+import { NAV, SHOPPER } from '../copy'
 import { Avatar } from '../design/primitives'
 import { getPersonaPhoto } from '../data/personaPhotos'
 import { IconButton } from '../design/primitives'
@@ -105,21 +106,21 @@ function SignedOutPersonaTrigger({
   open: boolean
   onOpen: () => void
 }) {
-  // The signed-out pill and the active-persona pill open the same three-card
-  // modal, which the header owns.
+  // The signed-out pill and the signed-in pill open the same shopper chooser,
+  // which the header owns.
   return (
     <button
       type="button"
       onClick={onOpen}
       data-testid="persona-pill"
       className="pellier-account-pill flex min-h-[44px] items-center gap-2 px-3.5 text-[13.5px]"
-      aria-label={SCENARIO.SELECT}
+      aria-label={SHOPPER.CHOOSE}
       aria-haspopup="dialog"
       aria-expanded={open}
     >
       <UserIcon className="w-4 h-4" aria-hidden />
-      <span className="hidden whitespace-nowrap sm:inline">{SCENARIO.SELECT}</span>
-      <span className="hidden whitespace-nowrap min-[360px]:inline sm:hidden">Scenario</span>
+      <span className="hidden whitespace-nowrap sm:inline">{SHOPPER.CHOOSE}</span>
+      <span className="hidden whitespace-nowrap min-[360px]:inline sm:hidden">Shopper</span>
     </button>
   )
 }

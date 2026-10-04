@@ -10,8 +10,8 @@ import { apiFetch } from '../services/apiBase'
  *
  * Ask Pellier docks beside all of this as a 440px panel (ChatDrawer).
  */
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import Header, { type NavItem } from '../components/Header'
 import PellierHero from '../components/PellierHero'
 import PellierApproach from '../components/PellierApproach'
@@ -27,6 +27,7 @@ import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 import {
   PERSONA_INTERESTS,
+  storefrontEditFor,
   weekendEditForPersona,
 } from '../data/personaCurations'
 import type { PellierProduct } from '../services/types'
@@ -54,25 +55,8 @@ export default function PellierPage() {
   const { prefsVersion } = useAuth()
   const { openModal, setChatSurface } = useUI()
   const { addToCart } = useCart()
-  const { persona, switchPersona } = usePersona()
+  const { persona } = usePersona()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const handledPersona = useRef<string | null>(null)
-
-  const requestedPersona = searchParams.get('persona')?.trim().toLowerCase() ?? ''
-
-  // A hero handoff is a real persona switch, not a decorative link. Consume
-  // the query once so refresh does not mint a second shopper session.
-  useEffect(() => {
-    if (!requestedPersona || handledPersona.current === requestedPersona) return
-    handledPersona.current = requestedPersona
-
-    const next = new URLSearchParams(searchParams)
-    next.delete('persona')
-    setSearchParams(next, { replace: true })
-
-    void switchPersona(requestedPersona)
-  }, [requestedPersona, searchParams, setSearchParams, switchPersona])
 
 
   const personaId = persona?.id ?? null
@@ -87,7 +71,7 @@ export default function PellierPage() {
   useEffect(() => {
     let active = true
     const controller = new AbortController()
-    const profile = personaId ?? 'fresh'
+    const profile = storefrontEditFor(personaId)
     setCatalogLoading(true)
     setCatalogError(null)
     setProducts([])

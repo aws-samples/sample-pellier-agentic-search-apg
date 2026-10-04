@@ -67,7 +67,7 @@ const GUARDED_FILES = [
   'design/primitives/IconButton.tsx',
   'pages/PellierPage.tsx',
   'pages/ProductDetailPage.tsx',
-  'components/WorkshopSignIn.tsx',
+  'components/PersonaModal.tsx',
   'components/StatusLines.tsx',
   'operator/styles/operator.css',
   'operator/shell/OperatorFrame.tsx',

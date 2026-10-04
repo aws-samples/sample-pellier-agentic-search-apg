@@ -15,7 +15,9 @@ secret on the server, and Cognito mints the same signed token a typed password
 would. There is no ambient identity and no faked claim. Staff never get a
 chip: a member of ``pellier-operators`` is refused here, because a one-click
 staff button would let anyone who opens the app approve store credits, and
-that is the action Lab 4 says only staff can take.
+that is the action Lab 4 says only staff can take. Choosing another shopper
+revokes the previous shopper's refresh token before the new cookies replace
+it, so a switch is a sign-out and a sign-in.
 """
 from __future__ import annotations
 
@@ -41,7 +43,7 @@ from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from routes.auth import (
     ACCESS_COOKIE_MAX_AGE, SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP,
     _build_state, _client_id, _safe_return_to, _set_just_signed_in_cookie,
-    _set_session_cookies, _verify_state,
+    _set_session_cookies, _verify_state, revoke_refresh_token,
 )
 
 router = APIRouter(prefix="/api/auth/password", tags=["auth"])
@@ -272,6 +274,9 @@ async def workshop_sign_in(
     if OPERATOR_GROUP in tuple(getattr(user, "groups", ()) or ()):
         logger.warning("Workshop sign-in refused: %s is in %s", username, OPERATOR_GROUP)
         raise HTTPException(403, "workshop_user_not_allowed")
+    # Switching shopper signs the previous one out: only once the new session
+    # is verified, so a refused or failed switch leaves the previous one intact.
+    await revoke_refresh_token(request)
     target = body.get("returnTo")
     return_to = _safe_return_to(target if isinstance(target, str) else None) or "/"
     response = _response({

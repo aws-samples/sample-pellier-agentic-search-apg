@@ -906,7 +906,9 @@ async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
 
 
 @app.post("/api/chat/stream")
-async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
+async def chat_stream(
+    request: ChatRequest, http_request: Request, user=Depends(get_current_user),
+):
     """
     Streaming chat endpoint with real-time agent events via SSE.
 
@@ -1063,6 +1065,13 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
             # The client persists it and uses it to deep-link the exact
             # turn's evidence in Observatory.
             turn_id = new_turn_id()
+            from routes.auth import SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP
+            from services.turn_identity import turn_principal
+
+            workshop_session = (
+                http_request.cookies.get(SIGN_IN_METHOD_COOKIE) == SIGN_IN_METHOD_WORKSHOP
+            )
+
             yield (
                 "data: "
                 + json.dumps(
@@ -1070,6 +1079,11 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                         "type": "turn_start",
                         "turn_id": turn_id,
                         "session_id": request.session_id,
+                        # The verified principal this turn runs as, for the
+                        # Builder view: from the token, never from the choice.
+                        "principal": turn_principal(
+                            turn_identity, workshop_session=workshop_session,
+                        ),
                     },
                     ensure_ascii=False,
                 )
@@ -2391,6 +2405,7 @@ async def _persona_rows(*, persona_id: str | None = None) -> list[dict[str, Any]
              WHEN 'marco' THEN 1
              WHEN 'anna' THEN 2
              WHEN 'theo' THEN 3
+             WHEN 'jessica' THEN 4
              ELSE 99
          END
         """,

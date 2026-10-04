@@ -27,7 +27,7 @@ interface LiveScenario {
   journeyRole?: 'required' | 'explore'
 }
 
-type StatementId = 'fresh' | 'marco' | 'anna' | 'theo'
+type StatementId = 'fresh' | 'marco' | 'anna' | 'theo' | 'jessica'
 
 /** The lede under each persona's statement. Aurora owns the scenarios below. */
 const PERSONA_LEDES: Record<StatementId, string> = {
@@ -35,6 +35,7 @@ const PERSONA_LEDES: Record<StatementId, string> = {
   marco: 'Travel-ready linen, leather, and natural fibers for a considered edit.',
   anna: 'Thoughtful gifts and warm home objects, considered within your budget.',
   theo: 'Quiet craft, ceramics, and lasting pieces for a slower home rhythm.',
+  jessica: 'Throws, towels and soft light for slow evenings at home.',
 }
 
 function statementIdFor(personaId: string): StatementId {

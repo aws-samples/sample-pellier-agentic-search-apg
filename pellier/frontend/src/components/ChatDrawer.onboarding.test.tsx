@@ -55,40 +55,23 @@ describe('Storefront conversation entry', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('retains a product question until a scenario is selected, then sends it exactly once', async () => {
+  it('opens signed out, in the neutral store, and sends a product question exactly once', async () => {
     const view = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this piece' }))
-    expect(await screen.findByTestId('persona-card-anna')).toBeInTheDocument()
-    expect(chat.sendMessage).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('persona-card-anna'))
-    await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('anna'))
-    view.rerender(<App />)
     expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
     expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith('Tell me about the Linen Shirt.')
-    expect(chat.clearChat.mock.invocationCallOrder[0]).toBeLessThan(chat.sendMessage.mock.invocationCallOrder[0])
+    // Asking is not choosing a shopper: no chooser, no edit selected.
+    expect(screen.queryByTestId('persona-modal')).not.toBeInTheDocument()
+    expect(switchPersona).not.toHaveBeenCalled()
     view.rerender(<App />)
     expect(chat.sendMessage).toHaveBeenCalledTimes(1)
   })
 
-  it('cancels the pending question when the chooser is dismissed', async () => {
-    const view = render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Ask about this piece' }))
-    await screen.findByTestId('persona-card-anna')
-    fireEvent.click(screen.getByTestId('persona-modal-close'))
-    persona = ANNA
-    view.rerender(<App />)
+  it('opens from the header Ask action without asking who is shopping', async () => {
+    render(<App />)
     fireEvent.click(screen.getByTestId('header-ask-pellier'))
     expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
-    expect(chat.sendMessage).not.toHaveBeenCalled()
-  })
-
-  it('continues from the header Ask action into the conversation after scenario selection', async () => {
-    const view = render(<App />)
-    fireEvent.click(screen.getByTestId('header-ask-pellier'))
-    fireEvent.click(await screen.findByTestId('persona-card-anna'))
-    await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('anna'))
-    view.rerender(<App />)
-    expect(await screen.findByRole('complementary', { name: 'Ask Pellier' })).toBeInTheDocument()
+    expect(screen.queryByTestId('persona-card-anna')).not.toBeInTheDocument()
     expect(chat.sendMessage).not.toHaveBeenCalled()
   })
 

@@ -12,7 +12,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { ANNA, ANNA_FINDING, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
+import { ANNA, ANNA_FINDING, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
 
 const SHOTS = process.env.ASK_PELLIER_SHOTS ?? 'test-results/ask-pellier'
 const PNG_1x1 = Buffer.from(
@@ -49,6 +49,8 @@ async function stubApi(page: Page) {
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sseBody(ANNA_TURN_EVENTS) })
     }
     if (path.endsWith('/api/health')) return route.fulfill(json({ status: 'ok' }))
+    // Anna was signed in by the shopper chooser: the server reports her session.
+    if (path.endsWith('/api/auth/me')) return route.fulfill(json(ANNA_ME))
     if (path.includes('/api/auth/')) return route.fulfill(json({ detail: 'not signed in' }, 401))
     if (path.endsWith('/api/personas')) return route.fulfill(json([ANNA]))
     if (path.endsWith('/api/persona/current')) return route.fulfill(json({ persona: ANNA }))
@@ -65,7 +67,7 @@ async function stubApi(page: Page) {
     }
     if (path.includes('/api/agent/session/')) return route.fulfill(json({ turns: [] }))
     if (path.endsWith('/api/storefront/catalog-stats')) return route.fulfill(json(CATALOG_STATS))
-    if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ detail: 'not signed in' }, 401))
+    if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ preferences: null }))
     return route.fulfill(json({}))
   })
 }
@@ -86,6 +88,7 @@ test.beforeEach(async ({ page }) => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
     localStorage.setItem('pellier-session-id', 'session-shots')
+    localStorage.setItem('pellier-auth-session', '1')
     localStorage.removeItem('pellier-drawer-storefront')
     localStorage.removeItem('pellier-builder-view')
   }, ANNA)
@@ -120,6 +123,8 @@ for (const width of [1440, 390]) {
     await expect(drawer.getByText('4 excluded')).toBeVisible()
     await expect(drawer.getByText('Full text 20')).toBeVisible()
     await expect(drawer.getByText('Vector 20')).toBeVisible()
+    // The verified principal for the turn, from the server, not the chooser.
+    await expect(drawer.getByTestId('turn-principal')).toHaveText('IdentityWorkshop sign-in, CUST-ANNA')
     // Frame the ranking rows, then let the step rows finish rising. The
     // floating "Latest reply" pill appears once the list is scrolled and
     // would cover the panel's note; it is not ranking evidence, so this

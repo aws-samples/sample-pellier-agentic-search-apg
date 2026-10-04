@@ -135,11 +135,6 @@ const ClientRecordPage: React.FC = () => {
             <h1 id="op-record-title" className="op-h1">{client.name}</h1>
             <p className="op-record-meta">
               <code>{client.customerId}</code>
-              {client.personaId ? (
-                <Link to={`/?persona=${encodeURIComponent(client.personaId)}`} className="op-link" data-testid="operator-storefront-handoff">
-                  Open the storefront as {client.name.split(' ')[0]}
-                </Link>
-              ) : null}
             </p>
           </div>
         </header>

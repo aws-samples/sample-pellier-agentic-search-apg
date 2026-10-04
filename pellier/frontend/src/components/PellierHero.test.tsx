@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PellierHero from './PellierHero'
 import { ASK_BAR } from '../copy'
@@ -7,6 +7,7 @@ import { SPOTLIGHT_SEEN_KEY } from './PellierSpotlight'
 const switchPersona = vi.fn()
 const openDrawerWithQuery = vi.fn()
 const openModal = vi.fn()
+const workshopSignIn = vi.hoisted(() => vi.fn())
 
 const PROFILES = [
   {
@@ -57,6 +58,30 @@ const PROFILES = [
     hero_subheadline: 'Live Theo profile.',
     stats: { visits: 1, orders: 1, last_seen_days: 1 },
   },
+  {
+    id: 'jessica',
+    display_name: 'Jessica',
+    role_tag: 'Home comforts, bath, soft light',
+    blurb: 'Live Jessica profile.',
+    avatar_color: '#000',
+    avatar_initial: 'J',
+    hero_image: '/products/house-ivory-cashmere-throw-1122.webp',
+    hero_alt: 'Jessica profile',
+    hero_subheadline: 'Live Jessica profile.',
+    stats: { visits: 1, orders: 5, last_seen_days: 6 },
+  },
+  {
+    id: 'nadia',
+    display_name: 'Nadia',
+    role_tag: 'Staff',
+    blurb: 'Not a shopper.',
+    avatar_color: '#000',
+    avatar_initial: 'N',
+    hero_image: '/assets/personas/nadia.png',
+    hero_alt: 'Nadia',
+    hero_subheadline: 'Not a shopper.',
+    stats: { visits: 0, orders: 0, last_seen_days: null },
+  },
 ]
 
 let persona: (typeof PROFILES)[number] | null = null
@@ -73,6 +98,11 @@ vi.mock('../contexts/PersonaContext', () => ({
 vi.mock('../contexts/UIContext', () => ({
   useUI: () => ({ openDrawerWithQuery, openModal }),
 }))
+
+vi.mock('../services/passwordAuth', async () => {
+  const actual = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+  return { ...actual, workshopSignIn }
+})
 
 function liveFetch(input: RequestInfo | URL): Promise<Response> {
   const url = String(input)
@@ -102,6 +132,8 @@ describe('PellierHero', () => {
   beforeEach(() => {
     persona = null
     switchPersona.mockReset()
+    workshopSignIn.mockReset()
+    workshopSignIn.mockResolvedValue({ status: 'signed_in' })
     openDrawerWithQuery.mockReset()
     openModal.mockReset()
     vi.stubGlobal('fetch', vi.fn(liveFetch))
@@ -115,12 +147,16 @@ describe('PellierHero', () => {
     window.sessionStorage.removeItem(SPOTLIGHT_SEEN_KEY)
   })
 
-  it('keeps profile selection in the hero without a duplicate edit rail', async () => {
+  it('shows the four customers to choose from, and never staff or the guest edit', async () => {
     render(<PellierHero />)
 
     expect(await screen.findByTestId('hero-profile-marco')).toBeInTheDocument()
-    expect(screen.getByTestId('hero-profile-anna')).toBeInTheDocument()
-    expect(screen.getByTestId('hero-profile-theo')).toBeInTheDocument()
+    const choices = within(screen.getByTestId('persona-concierge')).getAllByRole('button')
+    expect(choices.map((choice) => choice.dataset.testid)).toEqual([
+      'hero-profile-marco', 'hero-profile-anna', 'hero-profile-theo', 'hero-profile-jessica',
+    ])
+    expect(screen.queryByTestId('hero-profile-nadia')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('hero-profile-fresh')).not.toBeInTheDocument()
     expect(screen.getByText('Travel, utility, leather, linen')).toBeInTheDocument()
     expect(screen.getByText('Gifting, ceremony, silk, glass')).toBeInTheDocument()
     expect(
@@ -130,22 +166,36 @@ describe('PellierHero', () => {
     expect(screen.queryByTestId('pellier-hero-trust')).not.toBeInTheDocument()
   })
 
-  it('uses the existing persona transition from the hero', async () => {
+  it("choosing a shopper signs in with their demo account, then opens their edit", async () => {
     render(<PellierHero />)
 
-    fireEvent.click(await screen.findByTestId('hero-profile-anna'))
-    expect(switchPersona).toHaveBeenCalledWith('anna')
+    fireEvent.click(await screen.findByTestId('hero-profile-jessica'))
+    await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('jessica'))
+    expect(workshopSignIn).toHaveBeenCalledWith('jessica', expect.any(AbortSignal))
+    expect(workshopSignIn.mock.invocationCallOrder[0]).toBeLessThan(switchPersona.mock.invocationCallOrder[0])
   })
 
-  it('makes scenario selection the next action without a dead Ask button', async () => {
+  it('selects no edit when the sign-in fails, and says so', async () => {
+    const { PasswordAuthError } = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+    workshopSignIn.mockRejectedValueOnce(new PasswordAuthError('workshop_sign_in_unavailable'))
+    render(<PellierHero />)
+
+    fireEvent.click(await screen.findByTestId('hero-profile-theo'))
+    expect(await screen.findByTestId('persona-sign-in-error')).toHaveTextContent('workshop_sign_in_unavailable')
+    expect(switchPersona).not.toHaveBeenCalled()
+  })
+
+  it('says under the chooser that the choice is a sign-in and the token is what counts', async () => {
     render(<PellierHero />)
 
     expect(await screen.findByTestId('hero-profile-marco')).toBeEnabled()
-    expect(screen.queryByTestId('concierge-ask')).not.toBeInTheDocument()
     expect(screen.queryByText('Continue as guest')).not.toBeInTheDocument()
     expect(
-      screen.getByText('Select Marco, Anna, or Theo to explore their edit and ask Pellier for help.'),
+      screen.getByText('Choose Marco, Anna, Theo or Jessica to see their edit and ask Pellier as them.'),
     ).toBeInTheDocument()
+    expect(screen.getByTestId('persona-identity-boundary')).toHaveTextContent(
+      'Choosing a shopper signs you in with their demo account. Pellier trusts the signed token, not this choice.',
+    )
   })
 
   it('offers the profile chooser once the welcome tour has been seen', () => {
@@ -195,7 +245,7 @@ describe('PellierHero', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows the large ask bar with the store moments as chips, before a scenario is chosen', () => {
+  it('shows the large ask bar with the store moments as chips, before a shopper is chosen', () => {
     persona = null
     render(<PellierHero />)
 
@@ -218,7 +268,7 @@ describe('PellierHero', () => {
     expect(openDrawerWithQuery).toHaveBeenCalledWith('A linen shirt')
   })
 
-  it('opens the chooser first when a question is asked without a scenario', () => {
+  it('sends a question asked signed out straight to the docked panel', () => {
     persona = null
     render(<PellierHero />)
 

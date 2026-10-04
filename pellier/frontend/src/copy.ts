@@ -95,48 +95,24 @@ export const PELLIER_HERO_SIGNED_OUT = {
 } as const;
 
 /**
- * Concierge panel that sits beside the hero image.
- *
- * `PROFILES` descriptors are one line each, in the same voice as the
- * `blurb` field on `data/personas.ts`. The concierge action requires one of
- * these profiles because every guided request is ranked for that shopper.
+ * The home page's shopper chooser. Choosing a shopper signs in with that
+ * shopper's demo account and opens their edit; browsing without choosing
+ * stays signed out.
  */
 export const HERO_CONCIERGE = {
   EYEBROW: "Welcome to Pellier",
   TITLE: "Choose who enters Pellier.",
   HELPER:
-    "Select Marco, Anna, or Theo to explore their edit and ask Pellier for help.",
+    "Choose Marco, Anna, Theo or Jessica to see their edit and ask Pellier as them.",
   /**
-   * Persona is scenario, not identity. This distinction is the workshop's
-   * central lesson, so it is stated where the choice is made rather than left
-   * for a lab page to explain later.
-   *
-   * `/api/persona/switch` has no authentication dependency: it records a
-   * client-declared presentation choice. Governed actions authenticate through
-   * Cognito, and Cedar and Row-Level Security evaluate that verified principal
-   * — never this click. A participant who reads the selector as "I am now
-   * Theo" would draw exactly the wrong conclusion from a later DENY.
+   * Stated where the choice is made. The choice performs a real sign-in, and
+   * every governed check reads the signed token it produced, never this click.
+   * The Builder view shows that verified principal on every turn.
    */
   IDENTITY_BOUNDARY:
-    "Choosing Marco, Anna, or Theo changes the shopping scenario. It does not " +
-    "sign you in as that customer. Actions on an account use a separately " +
-    "verified sign-in.",
-  /**
-   * One line per profile, and each must match that persona's actual
-   * curation. The mockup carried generic luxury copy which contradicted the
-   * seeded profiles: Anna is the gift-giver, so a descriptor that never
-   * mentions giving teaches the wrong expectation before the floor reranks.
-   *
-   * Aligned with the existing authoritative sources:
-   *   role_tag           (Aurora)                Travel / gifting / slow-living materials
-   *   curatedHeadline    (personaCurations.ts)   Pieces that travel. / Gifts, thoughtfully matched. / Quiet pieces, lived-in.
-   *   weekend edit brow  (personaCurations.ts)   The Travel Edit / The Gift Edit / The Slow Edit
-   */
-  PROFILES: {
-    marco: "Travel, utility, leather, linen.",
-    anna: "Gifting, ceremony, silk, glass.",
-    theo: "Slow living, craft, stoneware, natural materials.",
-  },
+    "Choosing a shopper signs you in with their demo account. Pellier trusts the signed token, not this choice.",
+  SIGNING_IN: "Signing in",
+  FAILED: "That sign-in did not complete. Try again, or use the sign-in page.",
 } as const;
 
 /**
@@ -164,6 +140,10 @@ export const HERO_STATEMENT = {
   theo: {
     HEADLINE: "Quiet pieces, lived-in.",
     ACCENT: "lived-in",
+  },
+  jessica: {
+    HEADLINE: "Home comforts, made to last.",
+    ACCENT: "comforts",
   },
 } as const;
 
@@ -834,51 +814,36 @@ export const CHAT_TRUST = {
 } as const;
 
 /**
- * A persona is a workshop scenario, not a login. Cognito sign-in keeps its
- * own wording; these strings never claim that
- * choosing Marco authenticated anyone.
+ * Choosing a shopper is a sign-in with their demo account. A workshop
+ * convenience, not a production pattern: the server performs a real Cognito
+ * sign-in for the four demo shoppers only. Staff never appear here.
  */
-export const SCENARIO = {
-  SELECT: "Select scenario",
-  CHOOSE_TITLE: "Choose a scenario",
-  NONE_SELECTED: "None selected",
-  /**
-   * The banner over an open conversation. It reports the scenario already
-   * running, so it reads as a label; "Select scenario: Marco" is the control
-   * that starts one, and putting an imperative on a state banner asked the
-   * reader to do something they had already done.
-   */
-  active: (displayName: string): string => `Scenario: ${displayName}`,
+export const SHOPPER = {
+  CHOOSE: "Choose a shopper",
+  SIGN_OUT: "Sign out",
+  /** The banner over an open conversation: whose edit this is. */
+  edit: (displayName: string): string => `${displayName}'s edit`,
 } as const;
 
-/** The three status lines under the chat header, each from its own source. */
+/** The status lines under the chat header, each from its own source. */
 export const STATUS_LINES = {
-  SCENARIO: "Scenario",
-  VERIFIED_IDENTITY: "Verified identity",
+  VERIFIED_IDENTITY: "Signed in as",
   NOT_SIGNED_IN: "Not signed in",
   EXECUTION_PATH: "Execution path",
   EXECUTION_UNKNOWN: "Unknown until the first turn",
-  /** The session label when a chip signed the shopper in. */
+  /** The session label when the shopper chooser signed the shopper in. */
   WORKSHOP_SESSION: "Workshop sign-in (demo shoppers)",
 } as const;
 
 /**
- * The one-click shopper sign-in. A workshop convenience, not a production
- * pattern: each chip performs a real Cognito sign-in on the server with the
- * provisioned test credentials. Staff never get a chip.
+ * The verified principal a turn ran as, for the Builder view. From the
+ * server's `turn_start`, never from the shopper chosen on screen.
  */
-export const WORKSHOP_SIGN_IN = {
-  LABEL: "Signed in as",
-  SIGNING_IN: "Signing in",
-  SIGN_OUT: "Sign out",
-  NOTE: "Workshop sign-in (demo shoppers). Nadia signs in with her password on the Operator desk.",
-  FAILED: "That sign-in did not complete. Try again, or use the sign-in page.",
-  shoppers: [
-    { id: "anna", name: "Anna" },
-    { id: "marco", name: "Marco" },
-    { id: "theo", name: "Theo" },
-    { id: "jessica", name: "Jessica" },
-  ],
+export const TURN_PRINCIPAL = {
+  WORKSHOP: "Workshop sign-in",
+  SIGNED_IN: "Signed in",
+  NOT_SIGNED_IN: "Not signed in",
+  NO_CUSTOMER: "no customer account",
 } as const;
 
 export const ERROR_CODES = {

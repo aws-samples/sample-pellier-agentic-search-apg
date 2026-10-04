@@ -1,23 +1,22 @@
 import { apiFetch } from '../services/apiBase'
 /**
- * PersonaConcierge - the hero's profile surface.
+ * PersonaConcierge - the home page's shopper chooser.
  *
- * Wraps the persona selection that used to sit inline in PellierHero. The
- * behaviour is unchanged: selecting a profile calls `switchPersona`, which
- * mints a new session and reranks the floor. Nothing here invents
- * personalization the application does not already perform.
- *
- * The concierge requires one of the three workshop profiles. The action only
- * opens once a profile is active, so the UI cannot bypass the personalization
- * contract with a contradictory guest path.
+ * Shows the four customers: Marco, Anna, Theo and Jessica. Choosing one signs
+ * in with that shopper's demo account and opens their edit
+ * (`useShopperSignIn`). Browsing without choosing stays signed out, which is
+ * the neutral new-visitor store. Staff never appear here: the list keeps only
+ * the four demo shoppers, whatever the profile read returns.
  */
 import { useEffect, useState } from 'react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
 import { getPersonaPortrait } from '../data/personaPhotos'
+import { chooserShoppers, isWorkshopShopper, useShopperSignIn } from '../hooks/useShopperSignIn'
 import { HERO_CONCIERGE } from '../copy'
 
 export default function PersonaConcierge() {
-  const { persona, switchPersona, switching, switchError } = usePersona()
+  const { persona, switchError } = usePersona()
+  const { choose, busy, error: signInError } = useShopperSignIn()
   const [profiles, setProfiles] = useState<PersonaListItem[]>([])
   const [retryVersion, setRetryVersion] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -33,15 +32,11 @@ export default function PersonaConcierge() {
         if (!response.ok) throw new Error('We couldn’t load the profiles. Please try again.')
         return response.json() as Promise<PersonaListItem[]>
       })
-      .then((items) => { if (active) setProfiles(items.filter((item) => item.id !== 'fresh')) })
+      .then((items) => { if (active) setProfiles(chooserShoppers(items)) })
       .catch(() => { if (active) setError('We couldn’t load the profiles. Please try again.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [persona, retryVersion])
-
-  const selectProfile = async (profileId: string) => {
-    await switchPersona(profileId)
-  }
 
   if (persona) return null
 
@@ -58,7 +53,7 @@ export default function PersonaConcierge() {
       </div>
 
       {loading ? <p className="pellier-profile-loading" role="status">Finding your profiles…</p> : null}
-      <ul className="pellier-concierge-profiles" aria-busy={loading || switching}>
+      <ul className="pellier-concierge-profiles" aria-busy={loading || Boolean(busy)}>
         {profiles.map((profile) => {
           const portrait = getPersonaPortrait(profile.id)
           return (
@@ -68,8 +63,9 @@ export default function PersonaConcierge() {
                 className="pellier-profile"
                 data-testid={`hero-profile-${profile.id}`}
                 aria-pressed={false}
-                disabled={switching}
-                onClick={() => void selectProfile(profile.id)}
+                aria-busy={busy === profile.id || undefined}
+                disabled={Boolean(busy)}
+                onClick={() => { if (isWorkshopShopper(profile.id)) void choose(profile.id) }}
               >
                 <span
                   className="pellier-profile-portrait"
@@ -93,7 +89,7 @@ export default function PersonaConcierge() {
                   {profile.display_name}
                 </span>
                 <span className="pellier-profile-note">
-                  {profile.role_tag}
+                  {busy === profile.id ? HERO_CONCIERGE.SIGNING_IN : profile.role_tag}
                 </span>
               </button>
             </li>
@@ -106,10 +102,14 @@ export default function PersonaConcierge() {
           {error ? <button type="button" className="pellier-retry" onClick={() => setRetryVersion(v => v + 1)}>Try again</button> : null}
         </div>
       ) : null}
+      {signInError ? (
+        <div className="pellier-recovery" role="alert" data-testid="persona-sign-in-error">
+          <p>{HERO_CONCIERGE.FAILED} <code>{signInError}</code></p>
+        </div>
+      ) : null}
 
-      {/* Stated at the point of choice, not deferred to a lab page: a
-          participant who reads this selector as an identity assertion will
-          misread every later policy decision. */}
+      {/* Stated at the point of choice, not deferred to a lab page: the
+          choice is a sign-in, and the signed token is what Pellier trusts. */}
       <p
         data-testid="persona-identity-boundary"
         className="pellier-concierge-identity-note"

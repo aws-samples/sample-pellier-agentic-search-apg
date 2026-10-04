@@ -23,6 +23,7 @@ import Toast from './components/Toast'
 import PersonaTransitionOverlay from './components/PersonaTransitionOverlay'
 import PreferencesModal from './components/PreferencesModal'
 import ChatDrawer from './components/ChatDrawer'
+import { useNeutralWhenSignedOut } from './hooks/useShopperSignIn'
 import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
 import SurfaceNavigation from './components/SurfaceNavigation'
@@ -116,6 +117,12 @@ function ShopperChatSlot() {
   return <ChatDrawer />
 }
 
+/** Keeps the storefront neutral whenever the session is signed out. */
+function NeutralWhenSignedOut() {
+  useNeutralWhenSignedOut()
+  return null
+}
+
 function RouteLoading() {
   return (
     <main
@@ -206,6 +213,7 @@ function App() {
             <AuthModal />
             <PreferencesModal />
             <PersonaTransitionOverlay />
+            <NeutralWhenSignedOut />
             <CartPanelSlot />
             <ToastSlot />
               <BrowserRouter basename={routerBasename()}>

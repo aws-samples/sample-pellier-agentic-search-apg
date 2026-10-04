@@ -1,10 +1,10 @@
 /**
- * StatusLines: three rows, three sources.
+ * StatusLines: two rows, two sources.
  *
- * Scenario comes from the persona context, verified identity from the auth
- * context, and the execution path from the last completed turn's rail. None
- * of them may be inferred from another: choosing Marco is not a sign-in, and
- * a sign-in says nothing about which rail served the turn.
+ * The verified identity comes from the auth context and the execution path
+ * from the last completed turn's rail. Neither is inferred from the other, and
+ * neither from the shopper on screen: there is no scenario row, because
+ * choosing a shopper is a sign-in and this line reports what the server said.
  */
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,12 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
 
 const mocks = vi.hoisted(() => ({
-  persona: null as null | { id: string; display_name: string },
   auth: null as null | { isAuthenticated: boolean; user: { givenName?: string; email: string; username?: string; signInMethod?: 'workshop' | 'cognito' } | null },
-}))
-
-vi.mock('../contexts/PersonaContext', () => ({
-  usePersona: () => ({ persona: mocks.persona }),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -45,26 +40,17 @@ function turn(over: Partial<AgentChatMessage>): AgentChatMessage {
 
 describe('StatusLines', () => {
   beforeEach(() => {
-    mocks.persona = null
     mocks.auth = null
   })
 
-  it('names the empty state of each source without borrowing from another', () => {
+  it('names the empty state of each source, and has no scenario row', () => {
     render(<StatusLines messages={[]} />)
 
-    expect(within(row('Scenario')).getByText('None selected')).toBeInTheDocument()
-    expect(within(row('Verified identity')).getByText('Not signed in')).toBeInTheDocument()
+    expect(within(row('Signed in as')).getByText('Not signed in')).toBeInTheDocument()
     expect(
       within(row('Execution path')).getByText('Unknown until the first turn'),
     ).toBeInTheDocument()
-  })
-
-  it('reads the scenario from the persona context alone', () => {
-    mocks.persona = { id: 'marco', display_name: 'Marco Delgado' }
-    render(<StatusLines messages={[]} />)
-
-    expect(within(row('Scenario')).getByText('Marco Delgado')).toBeInTheDocument()
-    expect(within(row('Verified identity')).getByText('Not signed in')).toBeInTheDocument()
+    expect(screen.queryByText('Scenario')).not.toBeInTheDocument()
   })
 
   it('reads the verified identity from the Cognito session alone', () => {
@@ -74,8 +60,7 @@ describe('StatusLines', () => {
     }
     render(<StatusLines messages={[]} />)
 
-    expect(within(row('Verified identity')).getByText('marco')).toBeInTheDocument()
-    expect(within(row('Scenario')).getByText('None selected')).toBeInTheDocument()
+    expect(within(row('Signed in as')).getByText('marco')).toBeInTheDocument()
   })
 
   it('reads the execution path from the last completed turn', () => {
@@ -112,17 +97,15 @@ describe('StatusLines', () => {
 
 describe('the workshop sign-in label', () => {
   it('names the session as a demo-shopper sign-in only when the server said so', () => {
-    mocks.persona = { id: 'anna', display_name: 'Anna Lindqvist' }
     mocks.auth = { isAuthenticated: true, user: { email: 'anna@pellier.example.com', username: 'anna', signInMethod: 'workshop' } }
     render(<StatusLines messages={[]} />)
-    expect(row('Verified identity')).toHaveTextContent('anna, Workshop sign-in (demo shoppers)')
+    expect(row('Signed in as')).toHaveTextContent('anna, Workshop sign-in (demo shoppers)')
   })
 
   it('shows a plain identity for a typed or hosted sign-in', () => {
-    mocks.persona = null
     mocks.auth = { isAuthenticated: true, user: { email: 'nadia@pellier.example.com', username: 'nadia', signInMethod: 'cognito' } }
     render(<StatusLines messages={[]} />)
-    expect(row('Verified identity')).toHaveTextContent('nadia')
-    expect(row('Verified identity')).not.toHaveTextContent('Workshop sign-in')
+    expect(row('Signed in as')).toHaveTextContent('nadia')
+    expect(row('Signed in as')).not.toHaveTextContent('Workshop sign-in')
   })
 })

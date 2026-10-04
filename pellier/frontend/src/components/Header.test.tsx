@@ -6,8 +6,8 @@
  * Design goals:
  *  - renders four nav items (Shop, Stories, Ask Pellier, About)
  *  - shared lowercase Pellier wordmark above the storefront controls
- *  - signed-out visitors open the same three-card persona chooser as the pill
- *  - signed-in visitors open the shared portrait-led PersonaModal
+ *  - signed-out visitors open the shopper chooser, where choosing is a sign-in
+ *  - signed-in visitors open the same portrait-led PersonaModal to switch
  *  - bag icon with live count badge
  *  - sticky with backdrop-filter blur
  *
@@ -204,12 +204,12 @@ describe('Header — persona account control', () => {
     )
   })
 
-  it('invites a scenario choice, not a sign-in, when no persona is active', () => {
+  it('invites the visitor to choose a shopper when signed out', () => {
     mockPersona = null
     renderHeader()
     const pill = screen.getByTestId('persona-pill')
-    expect(pill).toHaveTextContent('Select scenario')
-    expect(pill).not.toHaveTextContent(/sign in/i)
+    expect(pill).toHaveTextContent('Choose a shopper')
+    expect(pill).not.toHaveTextContent(/scenario/i)
     expect(pill).toHaveClass('pellier-account-pill')
   })
 
@@ -245,7 +245,7 @@ describe('Header — persona account control', () => {
 
     expect(screen.getByTestId('persona-modal')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveAccessibleName(
-      'Choose a scenario',
+      'Choose a shopper',
     )
     expect(screen.queryByTestId('persona-dropdown')).not.toBeInTheDocument()
     await waitFor(() => {

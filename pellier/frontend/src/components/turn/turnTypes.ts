@@ -15,6 +15,15 @@ export interface TurnStatus {
 
 export type BindingVerdict = 'overwritten' | 'matched' | 'bound' | 'refused' | 'unbound'
 
+/** The verified principal a turn ran as, from the server's `turn_start`. */
+export interface TurnPrincipal {
+  authenticated: boolean
+  /** The customer the verified token maps to; null when signed out or staff. */
+  customerId: string | null
+  /** `workshop` when the shopper chooser's one-click sign-in set the session. */
+  signInMethod: 'workshop' | 'cognito' | null
+}
+
 /** Who chose a call's customer, from the binding code itself. */
 export interface IdentityBinding {
   binding: BindingVerdict

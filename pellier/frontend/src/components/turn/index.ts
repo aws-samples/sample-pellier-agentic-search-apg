@@ -5,7 +5,7 @@ export { default as StepList, foldSummary } from './StepList'
 export { default as RankingPanel } from './RankingPanel'
 export { default as RevealedProse } from './RevealedProse'
 export { default as BuilderViewSwitch } from './BuilderViewSwitch'
-export { evidenceLine, identitySentence } from './evidence'
+export { evidenceLine, identitySentence, principalLine } from './evidence'
 export { emphasisRanges, parseProse, sentenceEndAfter } from './prose'
 export type { EmphasisRange } from './prose'
 export {

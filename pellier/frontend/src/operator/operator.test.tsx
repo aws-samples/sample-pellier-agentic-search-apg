@@ -125,7 +125,9 @@ describe("Jessica's record", () => {
     expect(within(screen.getByTestId('operator-order-303')).getByTestId('status-tag')).toHaveTextContent('Delivered')
     expect(screen.getByTestId('operator-credits-none')).toHaveTextContent('No credit recorded.')
     expect(screen.getByTestId('operator-investigate')).toHaveTextContent('Investigate')
-    expect(screen.getByTestId('operator-storefront-handoff')).toHaveAttribute('href', '/?persona=jessica')
+    // No storefront handoff: choosing a shopper is a sign-in, and a link from
+    // the desk would sign Nadia out to make it.
+    expect(screen.queryByTestId('operator-storefront-handoff')).not.toBeInTheDocument()
   })
 
   it('shows her open chat request with no amount, then the review that answered it', async () => {

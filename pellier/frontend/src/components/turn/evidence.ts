@@ -2,7 +2,15 @@
  * The Builder view's mono evidence line, composed from structured fields the
  * backend emitted. Nothing here is parsed back out of prose.
  */
-import type { IdentityBinding, TurnStep } from './turnTypes'
+import { TURN_PRINCIPAL } from '../../copy'
+import type { IdentityBinding, TurnPrincipal, TurnStep } from './turnTypes'
+
+/** "Workshop sign-in, CUST-THEO": who the server verified for one turn. */
+export function principalLine(principal: TurnPrincipal): string {
+  if (!principal.authenticated) return TURN_PRINCIPAL.NOT_SIGNED_IN
+  const how = principal.signInMethod === 'workshop' ? TURN_PRINCIPAL.WORKSHOP : TURN_PRINCIPAL.SIGNED_IN
+  return `${how}, ${principal.customerId ?? TURN_PRINCIPAL.NO_CUSTOMER}`
+}
 
 export function identitySentence(identity: IdentityBinding): string {
   const { binding, requested_customer: requested, bound_customer: bound, authorized_customer: authorized } = identity

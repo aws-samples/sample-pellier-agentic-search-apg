@@ -17,6 +17,10 @@
  *
  * Mounts via ``createPortal(..., document.body)``. Reuses ``useAgentChat``
  * for state, streaming, and persistence. Operator does not mount it.
+ *
+ * It opens for anyone. Signed out, it is the neutral new-visitor store; a
+ * shopper chosen on the home page or in the header is signed in with their
+ * demo account, and the session details say who the server verified.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -41,9 +45,7 @@ import {
 import PellierChatBody from './PellierChatBody'
 import PellierMark from './PellierMark'
 import PellierWelcome from './PellierWelcome'
-import PersonaModal from './PersonaModal'
 import StatusLines from './StatusLines'
-import WorkshopSignIn from './WorkshopSignIn'
 import { BuilderViewSwitch, useBuilderView, useSkillMode } from './turn'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
@@ -88,7 +90,7 @@ export default function ChatDrawer() {
   const { addToCart, cartOpen } = useCart()
   const { persona } = usePersona()
 
-  const isOpen = activeModal === 'drawer' && Boolean(persona) && !cartOpen
+  const isOpen = activeModal === 'drawer' && !cartOpen
   const reducedMotion = useReducedMotion()
   const [isMac, setIsMac] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -201,12 +203,11 @@ export default function ChatDrawer() {
     openerRef.current = null
   }, [isOpen, cartOpen])
 
-  // Keep a product question pending while the shopper chooses a scenario.
-  // Run after the persona reset above so it cannot erase the seeded turn.
-  // Closing the chooser cancels the question instead of replaying it later.
-  // A pending query adds to the active thread. Storefront suggestions are
-  // follow-on shopping questions, so clearing the conversation here silently
-  // discarded the shopper's context.
+  // A question from the home bar opens the panel and is sent once. Run after
+  // the persona reset above so it cannot erase the seeded turn. A pending
+  // query adds to the active thread: storefront suggestions are follow-on
+  // shopping questions, so clearing the conversation here silently discarded
+  // the shopper's context.
   const hasConsumedRef = useRef(false)
   useEffect(() => {
     if (!isOpen) {
@@ -292,10 +293,6 @@ export default function ChatDrawer() {
     input.style.height = `${Math.min(input.scrollHeight, 104)}px`
   }, [inputValue, isOpen])
 
-  if (!persona) {
-    return <PersonaModal open={activeModal === 'drawer' && !cartOpen} onClose={closeModal} closeOnSelect={false} />
-  }
-
   return createPortal(
     <>
     <AnimatePresence>
@@ -350,9 +347,8 @@ export default function ChatDrawer() {
             </button>
           </div>
 
-          {/* One click signs a demo shopper in for real; the facts beneath say
-              what that produced: the scenario, the verified identity, the rail. */}
-          <WorkshopSignIn />
+          {/* Who the server verified and which rail served the last turn. The
+              shopper is chosen on the home page or in the header, never here. */}
           <details className="cd-session-details">
             <summary>Session details <ChevronDown size={14} aria-hidden="true" /></summary>
             <StatusLines messages={messages} />

@@ -142,6 +142,11 @@ FKs.
     fallback proof stays a separate execution, and Theo tests caller scope.
     Extra pairing, comparison, and return conversations are optional. The
     forward migration preserves participant-authored prompt variations.
+57. **`057_shopper_sign_in_edits.sql`** gives Jessica, the fourth shopper the
+    home page signs in, a profile, the ranked Home comforts edit and her
+    store credit request, and makes each shopper's required prompts exactly
+    their lab prompts: Anna's housewarming gift, Marco's stock question,
+    Theo's chipped bowl and household request, Jessica's credit request.
 
 The replacement path also needs its Gateway target, Cedar policy, and worker.
 Follow `scripts/deploy/REPLACEMENT_RECOVERY.md` for that activation order.
@@ -213,7 +218,8 @@ for migration in \
     053_replacement_follow_up.sql \
     054_query_statistics.sql \
     055_governance_boundary_observations.sql \
-    056_align_required_lab_requests.sql
+    056_align_required_lab_requests.sql \
+    057_shopper_sign_in_edits.sql
 do
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" \
         -U "$DB_USER" -d "$DB_NAME" \

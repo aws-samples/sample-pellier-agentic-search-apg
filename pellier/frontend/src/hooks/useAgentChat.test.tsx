@@ -359,6 +359,44 @@ describe('useAgentChat — the step contract', () => {
     expect(result.current.messages.at(-1)?.steps?.[0]?.builder?.identity?.requested_customer).toBe('CUST-JESSICA')
   })
 
+  it('carries the verified principal from turn_start, and never persists it', async () => {
+    const { result } = renderHook(() => useAgentChat({ persistKey: 'k' }), { wrapper })
+    act(() => {
+      void result.current.sendMessage('what is happening with my ticket?')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({
+        type: 'turn_start', turn_id: 'turn-1', session_id: 's',
+        principal: { authenticated: true, customerId: 'CUST-THEO', signInMethod: 'workshop' },
+      })
+      capturedOnUpdate!({ type: 'status', label: 'Reading your tickets' })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.principal).toEqual({
+      authenticated: true, customerId: 'CUST-THEO', signInMethod: 'workshop',
+    }))
+    await waitFor(() => expect(localStorage.getItem('k')).toContain('what is happening with my ticket?'), { timeout: 2000 })
+    expect(localStorage.getItem('k')).not.toContain('CUST-THEO')
+    expect(localStorage.getItem('k')).not.toContain('"principal"')
+  })
+
+  it('reads a signed-out turn_start as no principal, and an unknown method as none', async () => {
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+    act(() => {
+      void result.current.sendMessage('a linen shirt')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({
+        type: 'turn_start', turn_id: 'turn-2',
+        principal: { authenticated: false, customerId: null, signInMethod: 'magic' },
+      })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.principal).toEqual({
+      authenticated: false, customerId: null, signInMethod: null,
+    }))
+  })
+
   it('marks the turn it opened as live and strips the flag from history', async () => {
     localStorage.setItem('k', JSON.stringify([
       { role: 'assistant', content: 'old', timestamp: new Date().toISOString(), agentStatus: 'complete', live: true },

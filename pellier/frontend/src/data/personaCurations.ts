@@ -101,6 +101,18 @@ export const PERSONA_INTERESTS: Record<string, PersonaInterests> = {
     curatedEyebrow: 'Curated for Theo',
     curatedHeadline: 'Quiet pieces, lived-in.',
   },
+  jessica: {
+    // Home comforts: throws, towels and soft light for evenings at home.
+    tagWeights: {
+      home: 10,
+      warm: 8,
+      wellness: 8,
+      linen: 7,
+      neutral: 6,
+      minimal: 5,
+    },
+    curatedHeadline: 'Home comforts, made to last.',
+  },
   fresh: {
     // Canonical editorial ordering — no persona lean. Equal weights
     // are a no-op against the sort comparator, so the products render
@@ -481,12 +493,32 @@ export const PERSONA_WEEKEND_EDIT: Record<string, WeekendEditContent> = {
     subheadline:
       'Hand-thrown ceramic, washed linen, stoneware that rewards slowness. The morning table, made intentional.',
   },
+  jessica: {
+    eyebrow: 'The Home Edit',
+    headline: 'Soft at home,\nall evening.',
+    subheadline:
+      'Throws, towels and soft light for the hours at home. Warm materials that wash well and stay soft.',
+  },
   fresh: {
     eyebrow: 'Weekend Edit',
     headline: 'Weekend,\nre:defined.',
     subheadline:
       'Pieces that move with you from morning markets to golden-hour terraces. Linen, leather, ceramic: the weekend wardrobe, considered.',
   },
+}
+
+/**
+ * The Aurora grouping each shopper's storefront edit reads. Marco, Anna and
+ * Theo own a grouping named after them; Jessica's edit is the ranked Home
+ * comforts moment (`house`, migration 057). Signed out is the neutral edit.
+ */
+const STOREFRONT_EDITS: Record<string, string> = {
+  jessica: 'house',
+}
+
+export function storefrontEditFor(personaId: string | null | undefined): string {
+  if (!personaId) return 'fresh'
+  return STOREFRONT_EDITS[personaId] ?? personaId
 }
 
 export function weekendEditForPersona(

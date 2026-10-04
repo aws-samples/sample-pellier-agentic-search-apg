@@ -11,6 +11,7 @@ import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { PellierProduct } from '../services/types'
 import { imageSrc } from '../utils/assetPath'
 import { welcomeScene } from '../data/welcomeScenes'
+import { storefrontEditFor } from '../data/personaCurations'
 import '../styles/pellier-welcome.css'
 
 interface PellierWelcomeProps {
@@ -75,7 +76,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
     const timeout = window.setTimeout(() => controller.abort(new Error('Edit request timed out')), 20000)
 
     void Promise.all([
-      apiFetch(`/api/products?persona=${encodeURIComponent(profileId)}`, {
+      apiFetch(`/api/products?persona=${encodeURIComponent(storefrontEditFor(profileId))}`, {
         credentials: 'include',
         signal: controller.signal,
       }),

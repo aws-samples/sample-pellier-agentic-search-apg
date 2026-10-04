@@ -62,7 +62,7 @@ jobs:
         run: |
           npx playwright test \
             e2e/workshop-smoke.spec.ts \
-            e2e/persona-modal.spec.ts \
+            e2e/shopper-sign-in.spec.ts \
             e2e/govern-reference.spec.ts \
             e2e/resolution-trace.spec.ts \
             e2e/workbench-live.spec.ts \

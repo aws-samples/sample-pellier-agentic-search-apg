@@ -359,7 +359,7 @@
   margin: 0;
   padding: 0;
   gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   list-style: none;
 }
 
@@ -583,17 +583,35 @@
   .pellier-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
+/* Four shoppers in two rows of two where four across would crowd them. */
+@media (max-width: 760px) and (min-width: 561px) {
   .pellier-concierge-profiles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Short laptop and projector screens: keep the whole chooser, including the
-   identity note, above the fold. The eyebrow is decorative; the title says it. */
-@media (max-height: 760px) and (min-width: 561px) {
+/* Short laptop and projector screens: keep the whole chooser, four portraits
+   and the identity note, above the fold. The eyebrow is decorative; the title
+   says it. */
+@media (max-height: 800px) and (min-width: 561px) {
   .pellier-concierge-heading .pellier-eyebrow {
     display: none;
+  }
+
+  .pellier-concierge {
+    gap: clamp(10px, 1.4vh, 24px);
+  }
+
+  .pellier-profile {
+    gap: 6px;
+    padding: 6px 10px 8px;
+  }
+
+  .pellier-profile-portrait {
+    width: clamp(64px, min(9vw, 10vh), 148px);
+    height: clamp(64px, min(9vw, 10vh), 148px);
   }
 
   .pellier-profile-name {

@@ -195,3 +195,42 @@ def test_a_typed_password_sign_in_clears_the_workshop_marker(setup):
         json={"username": "nadia", "password": "typed"},
     )
     assert client.cookies.get("signin_method") is None
+
+
+@pytest.fixture
+def revocations(monkeypatch):
+    """Every refresh token the server asked Cognito to revoke, with no network call."""
+    revoked: list[str] = []
+    monkeypatch.setattr(settings, "COGNITO_DOMAIN", "pellier-test.auth.example.com")
+    monkeypatch.setattr(
+        auth_module.requests, "post",
+        lambda _url, data=None, **_kwargs: revoked.append(data["token"]) or SimpleNamespace(status_code=200),
+    )
+    return revoked
+
+
+def test_switching_shopper_signs_the_previous_one_out(setup, revocations):
+    """Choosing Anna while Theo is signed in revokes Theo's session, then signs Anna in."""
+    client, _cognito, _secrets, validator = setup
+    validator.validate_jwt.return_value = _verified("theo")
+    post(client, {"username": "theo"})
+    assert revocations == []
+    client.cookies.set("refresh_token", "theos-refresh-token", domain="pellier.test")
+
+    validator.validate_jwt.return_value = _verified("anna")
+    response = post(client, {"username": "anna"})
+
+    assert response.status_code == 200 and response.json()["username"] == "anna"
+    assert revocations == ["theos-refresh-token"]
+    cookies = response.headers.get_list("set-cookie")
+    assert any(value.startswith("refresh_token=refresh") for value in cookies)
+
+
+def test_a_refused_switch_leaves_the_previous_shopper_signed_in(setup, revocations):
+    client, _cognito, _secrets, validator = setup
+    client.cookies.set("refresh_token", "theos-refresh-token", domain="pellier.test")
+    validator.validate_jwt.return_value = _verified("anna", groups=("pellier-operators",))
+
+    assert post(client, {"username": "anna"}).status_code == 403
+    assert post(client, {"username": "nadia"}).status_code == 403
+    assert revocations == []

@@ -193,6 +193,27 @@ class TurnIdentity:
         }
 
 
+def turn_principal(identity: TurnIdentity, *, workshop_session: bool) -> Dict[str, Any]:
+    """The verified principal one turn runs as, for the Builder view.
+
+    Read from the turn's resolved identity, never from the storefront's
+    shopper choice: an anonymous turn has no customer here even when a
+    shopper's edit is on screen.
+
+    Args:
+        identity: The turn's resolved identities.
+        workshop_session: True when the server's own cookie says the
+            one-click shopper sign-in established this session.
+    """
+    if not identity.authenticated:
+        return {"authenticated": False, "customerId": None, "signInMethod": None}
+    return {
+        "authenticated": True,
+        "customerId": identity.shopper_customer_id,
+        "signInMethod": "workshop" if workshop_session else "cognito",
+    }
+
+
 def resolve_turn_identity(
     *,
     user: Optional[Dict[str, Any]] = None,

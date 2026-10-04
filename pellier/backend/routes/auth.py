@@ -735,32 +735,39 @@ async def me(
     )
 
 
+async def revoke_refresh_token(request: Request) -> None:
+    """Best-effort revoke of the session's refresh token at Cognito.
+
+    Used when a session ends: on sign-out, and when the workshop sign-in
+    replaces one shopper with another. Network failures never block the
+    caller, which replaces or clears the cookies regardless.
+    """
+    raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    refresh_token = unquote(raw_refresh_token) if raw_refresh_token else None
+    if not (refresh_token and settings.COGNITO_DOMAIN and settings.COGNITO_CLIENT_ID):
+        return
+    try:
+        body = {
+            "token": refresh_token,
+            "client_id": _client_id(),
+        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        basic = _basic_auth_header()
+        if basic:
+            headers.update(basic)
+        await asyncio.to_thread(
+            requests.post, _revoke_url(), data=body, headers=headers, timeout=5
+        )
+    except requests.RequestException as exc:
+        logger.warning(
+            "Cognito revoke call failed: %s", exc.__class__.__name__
+        )
+
+
 @router.post("/logout")
 async def logout(request: Request) -> Response:
     """Clear the session cookies and revoke the refresh token (Req 3.1.4)."""
-    raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
-    refresh_token = unquote(raw_refresh_token) if raw_refresh_token else None
-
-    # Best-effort revoke. Network failures here must not block the user
-    # from clearing their local session — cookies are cleared unconditionally.
-    if refresh_token and settings.COGNITO_DOMAIN and settings.COGNITO_CLIENT_ID:
-        try:
-            body = {
-                "token": refresh_token,
-                "client_id": _client_id(),
-            }
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            basic = _basic_auth_header()
-            if basic:
-                headers.update(basic)
-            await asyncio.to_thread(
-                requests.post, _revoke_url(), data=body, headers=headers, timeout=5
-            )
-        except requests.RequestException as exc:
-            logger.warning(
-                "Cognito revoke call failed: %s", exc.__class__.__name__
-            )
-
+    await revoke_refresh_token(request)
     response = JSONResponse(status_code=200, content={"ok": True})
     _clear_session_cookies(response)
     return response

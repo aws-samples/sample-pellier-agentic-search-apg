@@ -12,7 +12,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { ANNA, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
+import { ANNA, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
 
 const SHOTS = process.env.THEME_SHOTS ?? 'test-results/theme'
 const PNG_1x1 = Buffer.from(
@@ -61,6 +61,8 @@ async function stubApi(page: Page) {
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sseBody(ANNA_TURN_EVENTS) })
     }
     if (path.endsWith('/api/health')) return route.fulfill(json({ status: 'ok' }))
+    // Anna was signed in by the shopper chooser: the server reports her session.
+    if (path.endsWith('/api/auth/me')) return route.fulfill(json(ANNA_ME))
     if (path.includes('/api/auth/')) return route.fulfill(json({ detail: 'not signed in' }, 401))
     if (path.endsWith('/api/personas')) return route.fulfill(json([ANNA]))
     if (path.endsWith('/api/persona/current')) return route.fulfill(json({ persona: ANNA }))
@@ -78,7 +80,7 @@ async function stubApi(page: Page) {
     }
     if (path.includes('/api/agent/session/')) return route.fulfill(json({ turns: [] }))
     if (path.endsWith('/api/storefront/catalog-stats')) return route.fulfill(json(CATALOG_STATS))
-    if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ detail: 'not signed in' }, 401))
+    if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ preferences: null }))
     return route.fulfill(json({}))
   })
 }
@@ -88,6 +90,7 @@ test.beforeEach(async ({ page }) => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
     localStorage.setItem('pellier-session-id', 'session-shots')
+    localStorage.setItem('pellier-auth-session', '1')
     localStorage.removeItem('pellier-drawer-storefront')
     localStorage.removeItem('pellier-builder-view')
     localStorage.removeItem('pellier-theme')

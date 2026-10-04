@@ -1,11 +1,10 @@
 /**
- * PersonaTransitionOverlay — full-screen acknowledgement for scenario
- * selection and clearing.
+ * PersonaTransitionOverlay: full-screen acknowledgement for choosing a
+ * shopper and signing out.
  *
- * Reads PersonaContext.lastTransition. A ``sign-in`` transition means the
- * shopper scenario changed; it does not establish a security principal.
- * ``sign-out`` clears that scenario. The internal names remain for context
- * compatibility, while the visible copy keeps scenario and identity separate.
+ * Reads PersonaContext.lastTransition. A ``sign-in`` transition follows the
+ * shopper chooser's real sign-in with that shopper's demo account, after the
+ * server verified it; ``sign-out`` returns to the neutral store.
  *
  * Auto-dismisses after 1100ms (sign-in) / 800ms (sign-out). Click
  * anywhere on the overlay to dismiss early. Press Escape to dismiss
@@ -31,6 +30,7 @@ const WELCOME_TAGLINES: Record<string, string> = {
   marco: 'Travel and utility, grounded in leather and linen.',
   anna: 'Gifting and ceremony, expressed in silk and glass.',
   theo: 'Slow living through craft, stoneware, and natural materials.',
+  jessica: 'Home comforts, bath and soft light.',
   fresh: 'The floor is yours. Tell Pellier what catches your eye.',
 }
 
@@ -167,8 +167,8 @@ export default function PersonaTransitionOverlay() {
               >
                 <span aria-hidden>●</span>&nbsp;&nbsp;
                 {lastTransition.kind === 'sign-in'
-                  ? 'Scenario selected'
-                  : 'Scenario cleared'}
+                  ? 'Signed in'
+                  : 'Signed out'}
                 &nbsp;&nbsp;<span aria-hidden>●</span>
               </div>
 
