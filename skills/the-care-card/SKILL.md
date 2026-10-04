@@ -24,7 +24,7 @@ version: "1.0"
 
 - Run `get_orders` before discussing what the shopper bought, and `get_tickets` before answering a service question.
 - Run `get_return_policy` before policy claims.
-- Use `ask_a_person` when the automated path is closed or a human judgment call is required. A store credit request passes its amount so a person can review it.
+- Use `ask_a_person` when the automated path is closed or a human judgment call is required. A store credit request names no amount: a person reviews the case and works out any credit from the records.
 
 ## Guardrails
 

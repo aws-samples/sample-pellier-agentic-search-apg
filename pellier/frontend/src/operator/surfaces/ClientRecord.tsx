@@ -23,6 +23,7 @@ import { useInvestigation } from '../hooks/useInvestigation'
 import { useReview } from '../hooks/useReview'
 import InvestigationSteps from '../investigation/InvestigationSteps'
 import { shortDate } from './ClientBook'
+import { requestOutcome } from './ReviewQueue'
 
 function ticketTone(status: string): 'good' | 'blocked' | 'pending' {
   if (status === 'open' || status === 'pending') return 'pending'
@@ -120,7 +121,7 @@ const ClientRecordPage: React.FC = () => {
     return <OperatorState level={1} data-testid="operator-record-loading" eyebrow="Client record" headline="Reading the record" busy />
   }
 
-  const { client, orders, tickets, credits } = record
+  const { client, orders, tickets, credits, requests } = record
   const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'pending')
   const items = orders.filter(o => o.returned).map(o => o.productName)
 
@@ -160,6 +161,23 @@ const ClientRecordPage: React.FC = () => {
               <p className="op-ticket-note">{ticket.lastNote}</p>
             </div>
           ))}
+          {requests.map(request => {
+            const outcome = requestOutcome(request)
+            return (
+              <div key={request.requestId} className="op-ticket" data-status={request.status} data-testid="operator-credit-request">
+                <div className="op-ticket-head">
+                  <span className="op-row-name">Asked in chat</span>
+                  <StatusTag tone={outcome.tone}>{outcome.word}</StatusTag>
+                  {shortDate(request.requestedAt) ? <span className="op-row-sub">{shortDate(request.requestedAt)}</span> : null}
+                </div>
+                <p className="op-ticket-subject">Store credit request, no amount</p>
+                {request.issue ? <p className="op-ticket-note">{request.issue}</p> : null}
+                {request.answeredByReviewId ? (
+                  <Link to={`/operator/reviews/${request.answeredByReviewId}`} className="op-link">Open the review that answered it</Link>
+                ) : null}
+              </div>
+            )
+          })}
         </section>
 
         <section className="op-card" data-testid="operator-orders" aria-labelledby="op-orders-title">

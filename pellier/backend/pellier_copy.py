@@ -59,17 +59,18 @@ MEMORY_READ_WARNING = (
     "Review the result before relying on earlier turns."
 )
 
-# What the shopper is told when a request is waiting for a person.
+# What the shopper is told when a store credit request is waiting for a person.
 #
-# When the shopper asks for store credit, ask_a_person opens a review and the
-# answer must say a person confirms it before anything changes. Left to the model,
-# that second clause was measurably dropped (2026-08-27), and a shopper told only
-# that a request was "prepared" reasonably believes it is done. So the backend owns
-# the sentence: what happened, what did not, and who acts next, as the error
-# taxonomy in VOICE.md requires.
-GOVERNED_REVIEW_PENDING = (
-    "Your request is prepared and waiting for a Pellier specialist to confirm it. "
-    "Nothing about your order has changed yet."
+# When the shopper asks for store credit, ask_a_person opens a request with no
+# amount, and the answer must say a person reviews it before anything changes.
+# Left to the model, that second clause was measurably dropped (2026-08-27), and a
+# shopper told only that a request was "prepared" reasonably believes it is done.
+# So the backend owns the sentence: what happened, what did not, and who acts next,
+# as the error taxonomy in VOICE.md requires. It names no amount, because the
+# request has none: a person works the credit out from the records.
+CREDIT_REQUEST_PENDING = (
+    "A person at Pellier will review the store credit you asked about. "
+    "Nothing on your account has changed yet."
 )
 
 # The 8 rotating intents (Requirement 1.3.1, storefront.md "The 8 rotating intents").

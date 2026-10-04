@@ -170,17 +170,17 @@ def test_policy_browse_compare_and_handoff_findings() -> None:
         "product_2": {"name": "Ceramic Tumblers", "price": 34},
     }
     assert finding_for("compare_products", compare) == "Wabi-Sabi Bowl $24 vs Ceramic Tumblers $34"
-    handoff = {"type": "escalation", "status": "handed_off", "credit_request": "review_opened"}
-    assert finding_for("ask_a_person", handoff, {"store_credit_cents": 9200}) == (
-        "A $92 credit request is waiting for a person"
-    )
+    handoff = {"type": "escalation", "status": "handed_off", "credit_request_status": "request_opened"}
+    assert finding_for("ask_a_person", handoff) == "A store credit request is waiting for a person"
     assert finding_for("ask_a_person", {"type": "escalation", "status": "handed_off"}) == (
         "Handed to a person at Pellier"
     )
-    approved = {"type": "escalation", "status": "handed_off", "credit_request": "already_approved"}
-    assert finding_for("ask_a_person", approved, {"store_credit_cents": 9200}) == (
-        "A person already approved this $92 credit"
+    standing = {"type": "escalation", "status": "handed_off", "credit_request_status": "already_requested"}
+    assert finding_for("ask_a_person", standing) == (
+        "A store credit request was already waiting for a person"
     )
+    for outcome in (handoff, standing):
+        assert "$" not in finding_for("ask_a_person", outcome), "a request names no amount"
 
 
 @pytest.mark.parametrize(
@@ -207,9 +207,10 @@ def test_prose_results_parse_to_text() -> None:
 def test_layer_tags_follow_the_tool_and_the_outcome() -> None:
     assert layer_tags("get_tickets", {}) == ["Aurora", "Identity"]
     assert layer_tags("search_products", {}) == ["Aurora"]
-    assert layer_tags("ask_a_person", {"credit_request": "review_opened"}) == ["Identity", "Approval"]
-    approved = {"credit_request": "already_approved"}
-    assert layer_tags("ask_a_person", approved) == ["Identity", "Approval"]
+    assert layer_tags("ask_a_person", {"credit_request_status": "request_opened"}) == ["Identity", "Approval"]
+    standing = {"credit_request_status": "already_requested"}
+    assert layer_tags("ask_a_person", standing) == ["Identity", "Approval"]
+    assert layer_tags("ask_a_person", {"credit_request_status": "sign_in_required"}) == ["Identity"]
     assert layer_tags(SKILL_LOAD_TOOL, {}) == ["Skills"]
 
 

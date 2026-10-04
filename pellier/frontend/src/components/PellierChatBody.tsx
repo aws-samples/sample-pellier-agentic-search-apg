@@ -296,14 +296,14 @@ function AgentMessage({
       {/* Stylist handoff card: the answer is the handoff, so no product grid. */}
       {message.escalation && revealFinished && <StylistHandoffCard handoff={message.escalation} />}
 
-      {/* Prepared, not carried out. The backend supplies the wording so no
+      {/* Requested, not carried out. The backend supplies the wording so no
           paraphrase can lose the guarantee. */}
       {message.reviewPending && revealFinished && (
         <div className="ec-review-pending" data-testid="pellier-review-pending" role="status">
           <p>{message.reviewPending.message}</p>
-          {message.reviewPending.reviewId ? (
-            <Link to={`/operator/reviews/${message.reviewPending.reviewId}`}>
-              Open prepared request in Operator
+          {message.reviewPending.customerId ? (
+            <Link to={`/operator/clients/${encodeURIComponent(message.reviewPending.customerId)}`}>
+              Open the request in Operator
             </Link>
           ) : null}
         </div>

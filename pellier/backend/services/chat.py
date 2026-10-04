@@ -11,8 +11,8 @@ import os
 from typing import List, Dict, Any, Optional
 import re
 
-from pellier_copy import GOVERNED_REVIEW_PENDING
-from services import active_requirements, evidence_spans, tool_evidence
+from pellier_copy import CREDIT_REQUEST_PENDING
+from services import active_requirements, evidence_spans, store_tools, tool_evidence
 from services.chat_error_taxonomy import classify_chat_error
 from services.data_source import database_source_label
 from services.intent_router import classify_intent
@@ -506,6 +506,33 @@ def _scan_for_escalation(result_str: str) -> Optional[Dict[str, Any]]:
     if isinstance(data, dict) and data.get("type") == "escalation":
         return data
     return None
+
+
+def credit_request_notice(escalation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The ``review_pending`` event for a store credit request a person will review.
+
+    Its own event carries the backend's sentence rather than the model's, so
+    the shopper is told a person reviews the credit even when the prose forgets
+    to say so. Only an open request earns it: a handoff that recorded no
+    request, or needs a sign-in first, must not tell the shopper a person is
+    reviewing anything.
+    """
+    status = escalation.get("credit_request_status")
+    if status not in (store_tools.REQUEST_OPENED, store_tools.ALREADY_REQUESTED):
+        return None
+    request_id = escalation.get("request_id")
+    customer_id = escalation.get("customer_id")
+    if not request_id or not customer_id:
+        return None
+    return {
+        "type": "review_pending",
+        "reviewPending": {
+            "tool": store_tools.CREDIT_REQUEST,
+            "requestId": int(request_id),
+            "customerId": str(customer_id),
+            "message": CREDIT_REQUEST_PENDING,
+        },
+    }
 
 
 def _allows_human_handoff(message: str) -> bool:
@@ -2143,18 +2170,9 @@ class EnhancedChatService:
             parsed["products"] = []
             logger.info("🤝 Products suppressed — handoff to a person in turn")
             yield {"type": "escalation", "escalation": escalation_payload}
-            # A credit request opened a review. Its own event carries the
-            # backend's sentence rather than the model's, so the shopper is told
-            # a person confirms it even when the prose forgets to say so.
-            if escalation_payload.get("review_id"):
-                yield {
-                    "type": "review_pending",
-                    "reviewPending": {
-                        "tool": "give_store_credit",
-                        "reviewId": int(escalation_payload["review_id"]),
-                        "message": GOVERNED_REVIEW_PENDING,
-                    },
-                }
+            notice = credit_request_notice(escalation_payload)
+            if notice is not None:
+                yield notice
 
         # Now send buffered products (collected from tool hooks during execution)
         if products_buffered:

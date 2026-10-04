@@ -34,11 +34,6 @@ def test_only_a_received_return_marks_an_order_returned(status: Any, returned: b
     assert order["returnStatus"] == (status or None)
 
 
-def test_a_return_request_is_not_evidence_of_receipt() -> None:
-    """The vocabulary is two words, and neither is a request."""
-    assert store_tools.RETURNED_STATUSES == frozenset({"approved", "refunded"})
-
-
 def test_every_surface_reads_return_state_through_one_join() -> None:
     """The record, get_orders and the Planner cannot disagree about "returned"."""
     from services import operator_graph
@@ -47,13 +42,7 @@ def test_every_surface_reads_return_state_through_one_join() -> None:
         assert store_tools.RETURN_STATUS_JOIN in sql
 
 
-def test_the_clients_list_reads_open_requests_and_the_last_order_and_no_tiers() -> None:
-    sql = " ".join(OP._CLIENTS_SELECT.split())
-    assert "t.status IN ('open', 'pending')" in sql
-    assert "ORDER BY o.placed_at DESC, o.id DESC LIMIT 1" in sql
-    assert "ORDER BY open_requests DESC, c.name ASC" in sql
-    for tier in ("membership", "tier", "spend"):
-        assert tier not in sql.lower(), tier
+def test_a_client_row_carries_open_requests_and_the_last_order() -> None:
     client = OP._client_row({
         "customer_id": "CUST-JESSICA", "name": "Jessica Nakamura", "open_requests": 1,
         "open_request": "Two items went back, no credit yet", "open_request_status": "open",

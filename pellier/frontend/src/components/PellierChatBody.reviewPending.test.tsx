@@ -17,14 +17,14 @@ import PellierChatBody from './PellierChatBody'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
 
 const NOTICE =
-  'Your request is prepared and waiting for a Pellier specialist to confirm it. ' +
-  'Nothing about your order has changed yet.'
+  'A person at Pellier will review the store credit you asked about. ' +
+  'Nothing on your account has changed yet.'
 
 function message(over: Partial<AgentChatMessage> = {}): AgentChatMessage {
   return {
     role: 'assistant',
     content:
-      'I found your Wabi-Sabi Bowl order and prepared the damaged-return request.',
+      'I passed your store credit request for the robe and the diffuser to a person at Pellier.',
     timestamp: new Date('2026-08-27T14:44:00Z'),
     agentStatus: 'complete',
     ...over,
@@ -49,16 +49,16 @@ function renderBody(messages: AgentChatMessage[]) {
 
 describe('the review-pending notice', () => {
   it('renders the backend sentence', () => {
-    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
     expect(notice.textContent).toBe(NOTICE)
   })
 
   it('says nothing changed, which the prose alone did not', () => {
-    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
-    expect(notice.textContent?.toLowerCase()).toContain('waiting')
-    expect(notice.textContent?.toLowerCase()).toContain('nothing about your order has changed')
+    expect(notice.textContent?.toLowerCase()).toContain('will review')
+    expect(notice.textContent?.toLowerCase()).toContain('nothing on your account has changed')
   })
 
   it('is absent when no mutation was refused', () => {
@@ -67,29 +67,29 @@ describe('the review-pending notice', () => {
   })
 
   it('never shows the shopper the internal tool name', () => {
-    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
     const notice = screen.getByTestId('pellier-review-pending')
-    expect(notice.textContent).not.toContain('give_store_credit')
+    expect(notice.textContent).not.toContain('store_credit_request')
   })
 
   it('announces itself to assistive technology without being an alert', () => {
     // A boundary working as designed is not an error, so `status` rather than `alert`.
-    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
     expect(screen.getByTestId('pellier-review-pending')).toHaveAttribute('role', 'status')
   })
 
   it('leaves the answer prose alone', () => {
     // The notice sits beside the answer; it does not rewrite or replace it.
-    renderBody([message({ reviewPending: { tool: 'give_store_credit', message: NOTICE } })])
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
     expect(
-      screen.getByText(/prepared the damaged-return request/),
+      screen.getByText(/passed your store credit request/),
     ).toBeTruthy()
   })
 
-  it('does not merchandise the product used to resolve the return', () => {
+  it('does not merchandise a product beside the request', () => {
     renderBody([
       message({
-        reviewPending: { tool: 'give_store_credit', message: NOTICE },
+        reviewPending: { tool: 'store_credit_request', message: NOTICE },
         products: [
           {
             id: 37,
@@ -108,19 +108,25 @@ describe('the review-pending notice', () => {
     expect(screen.queryByRole('button', { name: 'Add to bag' })).toBeNull()
   })
 
-  it('hands the prepared return to its exact Operator review', () => {
+  it('hands the request to the client record on the Operator desk', () => {
     renderBody([
       message({
         reviewPending: {
-          tool: 'give_store_credit',
+          tool: 'store_credit_request',
           message: NOTICE,
-          reviewId: 44,
+          requestId: 44,
+          customerId: 'CUST-JESSICA',
         },
       }),
     ])
 
     expect(
-      screen.getByRole('link', { name: /Open prepared request in Operator/i }),
-    ).toHaveAttribute('href', '/operator/reviews/44')
+      screen.getByRole('link', { name: /Open the request in Operator/i }),
+    ).toHaveAttribute('href', '/operator/clients/CUST-JESSICA')
+  })
+
+  it('names no amount', () => {
+    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
+    expect(screen.getByTestId('pellier-review-pending').textContent).not.toMatch(/\$|\d/)
   })
 })

@@ -3,7 +3,7 @@
   * ``GET  /clients``                      the clients: open requests, last order
   * ``GET  /clients/{id}``                 one record: ticket, orders, credits
   * ``POST /clients/{id}/investigate``     the Investigator, then the Planner (SSE)
-  * ``GET  /reviews``, ``GET /reviews/{id}``   the queue and the record
+  * ``GET  /reviews``, ``GET /reviews/{id}``   the queue (reviews and requests) and a review
   * ``POST /reviews/{id}/confirm|decline|execute``  the decision and the write
 
 Design notes
@@ -19,8 +19,10 @@ own it. There is no committed frontend copy of the clients, because UI state is
 not evidence.
 
 **One governed action, one execution path.** Giving a store credit calls
-``store_tools.give_store_credit``. It has no direct action endpoint. The
-Planner opens one review, a person confirms the exact review, and
+``store_tools.give_store_credit``. It has no direct action endpoint. A
+shopper's credit request carries no amount and is answered by an
+investigation, never approved. The Planner opens one review for the received
+returns no live review covers, a person confirms the exact review, and
 ``POST /reviews/{id}/execute`` runs the credit with the review's idempotency
 key, so a replay applies exactly once and produces the same durable evidence:
 one ``pellier.store_credits`` row and one ``pellier.tool_audit`` row. The tool
@@ -303,9 +305,10 @@ async def get_client(
 ) -> Dict[str, Any]:
     """One record: the ticket, the orders with their return state, the credits.
 
-    The five reads are independent, so they run concurrently. The client's
+    The six reads are independent, so they run concurrently. The client's
     credit reviews ride along so the record can say "waiting for approval"
-    after a refresh, with a link to the review.
+    after a refresh, with a link to the review, and so do the credit requests
+    the client opened in chat.
     """
     from services import operator_review as rv
 
@@ -315,6 +318,7 @@ async def get_client(
         _read_rows(db, _TICKETS_SELECT, client_id, label="tickets"),
         _read_rows(db, _CREDITS_SELECT, client_id, label="credits"),
         rv.list_reviews_for_customer(db, client_id),
+        rv.list_requests_for_customer(db, client_id),
         return_exceptions=True,
     )
     failure = next((o for o in outcomes if isinstance(o, Exception)), None)
@@ -327,7 +331,7 @@ async def get_client(
                 "be read. No absence claim was made."
             ),
         ) from failure
-    row, order_rows, ticket_rows, credit_rows, review_rows = outcomes
+    row, order_rows, ticket_rows, credit_rows, review_rows, request_rows = outcomes
     if not row:
         raise HTTPException(status_code=404, detail=f"Unknown client: {client_id}")
 
@@ -351,6 +355,8 @@ async def get_client(
         "tickets": tickets,
         "credits": credits,
         "reviews": [_review_payload(r, None) for r in (review_rows or [])],
+        # What the client asked for in chat: no amount, answered by Investigate.
+        "requests": [_request_payload(r) for r in (request_rows or [])],
         # Which database answered: the same build serves local PostgreSQL in
         # development and Aurora in the workshop.
         "dataSource": database_source_label(),
@@ -517,17 +523,51 @@ def _review_payload(
     }
 
 
+def _request_payload(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Shape one credit request for the desk. It has no amount by design.
+
+    A request is open until an investigation answers it; the answer names the
+    review the investigation opened or resolved to, if it proposed one.
+    """
+    from services import operator_review as rv
+
+    recommendation = rv.parse_json(row.get("recommendation")) or {}
+    answered_turn = recommendation.get("investigationTurnId") or None
+    answered_by = recommendation.get("answeredByReviewId")
+    customer_id = str(row.get("customer_id") or "")
+    return {
+        "requestId": int(row.get("review_id") or 0),
+        "customerId": customer_id,
+        "customerName": row.get("customer_name") or customer_id,
+        "slug": _client_slug(customer_id),
+        "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
+        "status": "answered" if answered_turn else "open",
+        "issue": row.get("issue") or "",
+        "answeredByReviewId": int(answered_by) if answered_by else None,
+        "investigationTurnId": answered_turn,
+        "sourceTurnId": row.get("source_turn_id"),
+        "requestedBySub": row.get("requested_by_sub") or None,
+        "requesterKind": str(row.get("requester_kind") or "unverified"),
+        "requestedAt": _iso(row.get("requested_at")),
+    }
+
+
 @router.get("/reviews")
 async def list_reviews(
     status: Optional[str] = None,
     db: Any = Depends(get_db_service),
 ) -> Dict[str, Any]:
-    """The review queue. Pending first, so the desk opens on what needs a person."""
+    """The queue: credit reviews, pending first, and the clients' credit requests.
+
+    A request is listed beside the reviews, not among them: it names no amount
+    and nobody approves it. A person answers it by investigating the case.
+    """
     from services import governed_execution as ge
     from services import operator_review as rv
 
     try:
         rows = await rv.list_reviews(db, status=status)
+        request_rows = await rv.list_requests(db)
     except Exception as exc:  # noqa: BLE001
         logger.error("Operator review queue query failed: %s", exc)
         raise HTTPException(
@@ -542,10 +582,13 @@ async def list_reviews(
         _review_payload(row, receipts.get(int(row.get("review_id") or 0)))
         for row in rows
     ]
+    requests = [_request_payload(row) for row in request_rows]
     return {
         "reviews": reviews,
+        "requests": requests,
         "total": len(reviews),
         "pendingCount": sum(1 for r in reviews if r["status"] == rv.STATUS_PENDING),
+        "openRequestCount": sum(1 for r in requests if r["status"] == "open"),
     }
 
 
@@ -584,7 +627,7 @@ async def get_review(
     except Exception as exc:  # noqa: BLE001
         logger.error("Operator review query failed for %s: %s", review_id, exc)
         raise HTTPException(status_code=503, detail="review_unavailable") from exc
-    if not row:
+    if not row or rv.is_request(row):
         raise HTTPException(status_code=404, detail=f"Unknown review: {review_id}")
 
     receipt = await ge.latest_receipt(db, review_id)
@@ -743,6 +786,8 @@ async def execute_review(
         raise HTTPException(status_code=503, detail="review_unavailable") from exc
     if not row:
         raise HTTPException(status_code=404, detail=f"Unknown review: {review_id}")
+    if rv.is_request(row):
+        raise HTTPException(status_code=409, detail="request_not_approvable")
 
     # Stale-view check before anything else, so a desk showing old terms never
     # starts an execution it would misreport.

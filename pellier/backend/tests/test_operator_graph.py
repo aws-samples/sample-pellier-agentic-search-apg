@@ -41,17 +41,30 @@ JESSICA_REASON = (
 class _Run:
     """Jessica's records, the live reviews, and every statement the graph issued."""
 
-    def __init__(self, orders: List[Dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        orders: List[Dict[str, Any]] | None = None,
+        credits: List[Dict[str, Any]] | None = None,
+    ) -> None:
         self.orders = [dict(o) for o in (orders if orders is not None else JESSICA_ORDERS)]
+        self.credits = [dict(c) for c in (credits or [])]
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
         self.reviews: List[Dict[str, Any]] = []
-        # (customer, action_hash) -> {"id", "status"}: the partial unique index.
+        # (customer, action_hash) -> the review row: the partial unique index.
         self.live: Dict[tuple[str, str], Dict[str, Any]] = {}
+        # The parameters of each UPDATE that answered the open credit requests.
+        self.answered: List[tuple[Any, ...]] = []
 
-    def approve(self, review_id: int) -> None:
+    def _decide(self, review_id: int, status: str) -> None:
         for review in self.live.values():
             if review["id"] == review_id:
-                review["status"] = "approved"
+                review["status"] = status
+
+    def approve(self, review_id: int) -> None:
+        self._decide(review_id, "approved")
+
+    def decline(self, review_id: int) -> None:
+        self._decide(review_id, "rejected")
 
     def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         self.calls.append((sql, tuple(params)))
@@ -68,18 +81,32 @@ class _Run:
             return [{"category_name": "Home", "return_window_days": 30,
                      "conditions": "Unused", "refund_method": "original payment"}]
         if "FROM pellier.store_credits" in sql:
-            return []
+            return [dict(c) for c in self.credits][: params[1]]
         if "INSERT INTO pellier.approvals" in sql:
             assert "WHERE status IN ('pending', 'approved')" in sql
             key = (params[0], params[6])
-            if key in self.live:
+            if key in self.live and self.live[key]["status"] in ("pending", "approved"):
                 return []
-            self.live[key] = {"id": 41 + len(self.live), "status": "pending"}
+            self.live[key] = {
+                "id": 41 + len(self.reviews), "status": "pending", "customer_id": params[0],
+                "args": params[1], "action_hash": params[6], "order_id": params[3],
+                "recommendation": params[5],
+            }
             self.reviews.append({"params": params})
-            return [dict(self.live[key])]
-        if "FROM pellier.approvals" in sql:
+            return [{"id": self.live[key]["id"], "status": "pending"}]
+        if "UPDATE pellier.approvals" in sql:
+            assert "tool = 'store_credit_request'" in sql
+            self.answered.append(tuple(params))
+            return []
+        if "FROM pellier.approvals" in sql and "action_hash = %s" in sql:
             review = self.live.get((params[0], params[1]))
-            return [dict(review)] if review else []
+            live = review and review["status"] in ("pending", "approved")
+            return [{"id": review["id"], "status": review["status"]}] if live else []
+        if "FROM pellier.approvals" in sql:
+            assert "status IN ('pending', 'approved')" in sql
+            rows = [dict(r) for r in self.live.values()
+                    if r["customer_id"] == params[0] and r["status"] in ("pending", "approved")]
+            return sorted(rows, key=lambda r: -r["id"])
         return []
 
 
@@ -209,7 +236,10 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch):
     _FakeBuilder.fail = False
     _FakeBuilder.latest = None
     _FakeAgent.scripts = {
-        GRAPH.INVESTIGATOR_NODE: [("get_tickets", {}), ("get_orders", {}), ("get_return_policy", {"department": "Home"})],
+        GRAPH.INVESTIGATOR_NODE: [
+            ("get_tickets", {}), ("get_orders", {}), ("get_store_credits", {}),
+            ("get_return_policy", {"department": "Home"}),
+        ],
         GRAPH.PLANNER_NODE: [("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back, no credit recorded."})],
     }
     _FakeAgent.outputs = {
@@ -241,7 +271,9 @@ def test_the_graph_has_two_ordered_nodes_and_bounded_tools(graph_runtime) -> Non
     assert builder.entry == GRAPH.INVESTIGATOR_NODE
     assert builder.max_executions == 2
     investigator, planner = (agent for agent, _ in builder.nodes)
-    assert sorted(investigator.tools) == ["get_orders", "get_return_policy", "get_tickets"]
+    assert sorted(investigator.tools) == [
+        "get_orders", "get_return_policy", "get_store_credits", "get_tickets",
+    ]
     assert sorted(planner.tools) == ["propose_store_credit"]
     assert investigator.kwargs["model"].kwargs["max_tokens"] == GRAPH._INVESTIGATOR_MAX_TOKENS
     assert "give_store_credit" not in investigator.tools and "give_store_credit" not in planner.tools
@@ -250,9 +282,31 @@ def test_the_graph_has_two_ordered_nodes_and_bounded_tools(graph_runtime) -> Non
 def test_the_investigator_reads_are_bound_to_the_case_customer(graph_runtime) -> None:
     run = _Run()
     _investigate(run, [])
+    reads = ("FROM pellier.orders o", "FROM pellier.support_tickets", "FROM pellier.store_credits")
+    seen = set()
     for sql, params in run.calls:
-        if "FROM pellier.orders o" in sql or "FROM pellier.support_tickets" in sql:
-            assert params[0] == "CUST-JESSICA", (sql, params)
+        for table in reads:
+            if table in sql:
+                seen.add(table)
+                assert params[0] == "CUST-JESSICA", (sql, params)
+    assert seen == set(reads)
+
+
+def test_the_investigator_reads_the_recorded_credits_bounded(graph_runtime) -> None:
+    """After payment, a re-investigation's own read says the credit is recorded."""
+    _FakeAgent.scripts[GRAPH.INVESTIGATOR_NODE] = [("get_store_credits", {"limit": 500})]
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    credit = {"amount_cents": 10000, "reason": JESSICA_REASON, "created_at": "2026-10-04T18:00:00"}
+    run = _Run(credits=[credit])
+    events: List[Dict[str, Any]] = []
+    _investigate(run, events)
+    (sql, params), = [(s, p) for s, p in run.calls if "FROM pellier.store_credits" in s]
+    assert params == ("CUST-JESSICA", GRAPH._MAX_CREDITS), "the model's limit is bounded"
+    done = [e for e in events if e["id"] == "get_store_credits" and e["status"] == "done"]
+    assert done[0]["finding"] == "1 store credit recorded, $100.00"
+    assert done[0]["label"] == "Reading Jessica's store credits"
+    assert "get_store_credits" in GRAPH._INVESTIGATOR_PROMPT
+    assert GRAPH.read_store_credits(_Run(), customer_id="CUST-JESSICA")["count"] == 0
 
 
 def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_records(
@@ -369,6 +423,50 @@ def test_an_approved_case_investigated_again_opens_no_second_review(graph_runtim
     )
 
 
+def test_a_later_returned_item_gets_a_review_of_its_own(graph_runtime) -> None:
+    """Credited items stay covered; a genuinely new return is proposed alone."""
+    run = _Run()
+    first = _investigate(run, [])
+    assert first.proposal is not None
+    run.approve(first.proposal.review_id)
+    run.orders[2]["return_status"] = "approved"
+
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": [301, 302, 303], "reason": "A third item came back."}),
+    ]
+    second = _investigate(run, [])
+    assert second.proposal is not None
+    assert second.proposal.review_id != first.proposal.review_id and len(run.reviews) == 2
+    assert second.proposal.order_ids == [303] and second.proposal.amount_cents == 5800
+    assert second.proposal.reason == (
+        "Store credit for 1 returned item: Stoneware Pour-Over Set (order 303)."
+    )
+
+
+def test_a_declined_review_releases_its_items(graph_runtime) -> None:
+    run = _Run()
+    first = _investigate(run, [])
+    assert first.proposal is not None
+    run.decline(first.proposal.review_id)
+    second = _investigate(run, [])
+    assert second.proposal is not None and second.proposal.review_id != first.proposal.review_id
+    assert second.proposal.order_ids == [301, 302] and second.proposal.amount_cents == 10000
+
+
+def test_an_investigation_answers_the_open_credit_requests(graph_runtime) -> None:
+    run = _Run()
+    result = _investigate(run, [])
+    assert result.proposal is not None
+    assert run.answered == [("turn-" + "a" * 32, result.proposal.review_id, "CUST-JESSICA")]
+
+
+def test_an_investigation_with_no_proposal_answers_them_with_no_review(graph_runtime) -> None:
+    run = _Run([{**o, "return_status": None} for o in JESSICA_ORDERS])
+    result = _investigate(run, [])
+    assert result.proposal is None
+    assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
+
+
 def test_the_graph_stops_after_one_proposal(graph_runtime) -> None:
     _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),
@@ -393,6 +491,7 @@ def test_the_steps_stream_in_order_with_template_findings(graph_runtime) -> None
     assert by_id["get_tickets"]["finding"] == "1 open ticket: Two items went back, no credit yet"
     assert by_id["get_orders"]["finding"] == "3 orders on file, $158.00 paid, 2 returned"
     assert by_id["get_return_policy"]["finding"] == "30-day returns for Home"
+    assert by_id["get_store_credits"]["finding"] == "No store credit recorded"
     assert by_id[GRAPH.INVESTIGATOR_NODE]["finding"] == "3 things the records show, 1 missing"
     assert by_id[GRAPH.PLANNER_NODE]["finding"] == "$100.00 credit proposed for 2 returned items, waiting for approval"
     assert by_id["get_orders"]["label"] == "Reading Jessica's orders"
@@ -436,7 +535,9 @@ def test_an_order_from_another_client_cannot_be_credited(graph_runtime) -> None:
 def test_a_graph_failure_is_a_failed_turn_with_no_proposal(graph_runtime) -> None:
     _FakeBuilder.fail = True
     events: List[Dict[str, Any]] = []
-    result = _investigate(_Run(), events)
+    run = _Run()
+    result = _investigate(run, events)
     assert result.status == "failed" and result.error == "RuntimeError"
     assert result.proposal is None
+    assert run.answered == [], "a failed investigation answers no request"
     assert [e["status"] for e in events[-2:]] == ["failed", "failed"]

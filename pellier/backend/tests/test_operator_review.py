@@ -90,10 +90,11 @@ class FakeReviewDb:
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
         if "FROM pellier.approvals a" in query and "a.customer_id = %s" in query:
-            return [dict(r) for r in self.rows if r["customer_id"] == params[0]]
+            return [dict(r) for r in self.rows
+                    if r["customer_id"] == params[0] and r["action"] == params[1]]
         if "FROM pellier.approvals a" in query:
-            status = params[0] if params else None
-            rows = [dict(r) for r in self.rows]
+            tool, status = params[0], params[1]
+            rows = [dict(r) for r in self.rows if r["action"] == tool]
             if status:
                 rows = [r for r in rows if r["status"] == status]
             rows.sort(key=lambda r: 0 if r["status"] == "pending" else 1)
@@ -185,6 +186,53 @@ def test_the_pending_review_appears_in_the_queue_first() -> None:
     assert body["reviews"][0]["humanState"] == "confirmation_required"
     assert body["reviews"][0]["amount"] == "100.00" and body["reviews"][0]["amountCents"] == 10000
     assert body["reviews"][0]["requesterKind"] == "operator"
+
+
+def _request(db: FakeReviewDb, **overrides: Any) -> Dict[str, Any]:
+    """Jessica's chat request for a store credit: no amount, no fingerprint."""
+    fields: Dict[str, Any] = {
+        "action": "store_credit_request", "args": {}, "action_hash": None, "order_id": None,
+        "recommendation": None, "issue": "Jessica asks for a store credit for two returns.",
+        "requested_by_sub": "sub-jessica", "requester_kind": "shopper",
+    }
+    return db.add_pending(**{**fields, **overrides})
+
+
+def test_the_queue_lists_a_credit_request_beside_the_reviews_with_no_amount() -> None:
+    db = FakeReviewDb()
+    pending = db.add_pending()
+    request = _request(db)
+    body = build_client(db).get("/api/operator/reviews").json()
+    assert [r["reviewId"] for r in body["reviews"]] == [pending["review_id"]]
+    assert body["total"] == 1 and body["pendingCount"] == 1 and body["openRequestCount"] == 1
+    (shown,) = body["requests"]
+    assert shown["requestId"] == request["review_id"] and shown["status"] == "open"
+    assert shown["requesterKind"] == "shopper" and shown["answeredByReviewId"] is None
+    assert not any("amount" in key.lower() for key in shown), shown
+
+
+def test_an_answered_request_names_the_review_that_answered_it() -> None:
+    db = FakeReviewDb()
+    _request(db, recommendation={"investigationTurnId": "turn-" + "c" * 32, "answeredByReviewId": 7})
+    body = build_client(db).get("/api/operator/reviews").json()
+    assert body["openRequestCount"] == 0
+    assert body["requests"][0]["status"] == "answered"
+    assert body["requests"][0]["answeredByReviewId"] == 7
+
+
+def test_a_credit_request_cannot_be_approved_declined_executed_or_opened_as_a_review() -> None:
+    db = FakeReviewDb()
+    request = _request(db)
+    client = build_client(db)
+    request_id = request["review_id"]
+    for decision, body in (("confirm", {"actionHash": "a" * 64}), ("decline", None)):
+        response = client.post(f"/api/operator/reviews/{request_id}/{decision}", json=body)
+        assert response.status_code == 409 and response.json()["detail"] == "request_not_approvable"
+    response = client.post(f"/api/operator/reviews/{request_id}/execute", json={})
+    assert response.status_code == 409 and response.json()["detail"] == "request_not_approvable"
+    assert client.get(f"/api/operator/reviews/{request_id}").status_code == 404
+    assert db._find(request_id)["status"] == "pending"
+    assert not any(s.strip().startswith("UPDATE") for s in db.statements)
 
 
 def test_the_queue_refuses_an_anonymous_read() -> None:

@@ -1169,7 +1169,9 @@ def test_an_approval_guard_refusal_is_not_an_aurora_verdict() -> None:
     aurora, note = ge.classify_aurora(refusal)
     assert aurora == ge.AURORA_NOT_REACHED
     assert "fingerprints" in note
-    assert ge.classify_evidence_for(ge.POLICY_NOT_EVALUATED, aurora, {}) == ge.EVIDENCE_NO_EXECUTION
+    assert ge.classify_evidence_for(ge.POLICY_NOT_EVALUATED, aurora, refusal) == (
+        ge.EVIDENCE_ATTEMPT_RECEIPT
+    )
 
 
 @pytest.mark.parametrize("policy", [ge.POLICY_NOT_EVALUATED, ge.POLICY_ALLOW])

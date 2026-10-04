@@ -51,12 +51,14 @@ export interface ChatFailure {
   referenceId?: string
 }
 
-/** A prepared mutation awaiting human confirmation, as the backend states it. */
+/** A store credit request waiting for a person, as the backend states it. */
 export interface ReviewPending {
-  /** The tool that was declined. Internal; not shown to the shopper. */
+  /** What was opened. Internal; not shown to the shopper. */
   tool: string
-  /** Durable review created for this exact prepared request. */
-  reviewId?: number
+  /** The durable request on the customer's case. */
+  requestId?: number
+  /** The customer whose record carries the request on the Operator desk. */
+  customerId?: string
   message: string
 }
 

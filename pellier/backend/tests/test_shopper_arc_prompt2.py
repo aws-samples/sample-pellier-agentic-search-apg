@@ -132,15 +132,15 @@ def _support_prompt() -> str:
 
 
 def test_theo_agent_hands_a_credit_request_to_a_person() -> None:
-    """The Support agent asks for a credit; a person decides it.
+    """The Support agent asks for a credit; a person works it out from the records.
 
-    The prompt names the handoff tool, the amount argument, and the fact that
-    nothing changes until a person confirms.
+    The prompt names the handoff tool and its request flag, forbids naming an
+    amount, and says nothing changes until a person reviews the case.
     """
     flat = _support_prompt()
     assert "ask_a_person" in flat
-    assert "store_credit_cents" in flat
-    assert "A person reviews every credit before anything changes" in flat
+    assert "set credit_request to true and never name or suggest an amount" in flat
+    assert "store_credit_cents" not in flat
     assert "nothing has changed yet" in flat
 
 
@@ -151,7 +151,7 @@ def test_theo_agent_may_not_claim_the_return_completed() -> None:
         "never say a refund, return or credit was made unless a tool result says so"
         in flat
     )
-    assert "do not promise a timeframe or an outcome" in flat
+    assert "Do not name an amount, a timeframe or an outcome" in flat
 
 
 def test_theo_boundary_does_not_leak_system_vocabulary_to_the_shopper() -> None:

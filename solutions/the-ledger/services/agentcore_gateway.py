@@ -161,8 +161,9 @@ GATEWAY_TOOL_TIERS: Dict[str, str] = {
     "get_tickets": TIER_READ,
     # Money movement, written only for a review a person approved.
     "give_store_credit": TIER_OPERATOR_MUTATION,
-    # A handoff. It changes no business data; a credit request opens a review
-    # for a person, which is workflow state, not a write the shopper owns.
+    # A handoff. It changes no business data; a credit request opens a request
+    # with no amount for a person, which is workflow state, not a write the
+    # shopper owns.
     "ask_a_person": TIER_ESCALATION,
 }
 
@@ -253,6 +254,7 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
     {
         "amount_cents",
         "category",
+        "credit_request",
         "customer_id",
         "department",
         "exclusions",
@@ -266,7 +268,6 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
         "product_query",
         "query",
         "reason",
-        "store_credit_cents",
         "turn_id",
     }
 )
@@ -399,17 +400,15 @@ def _tool_result_values(result: Any) -> list[Any]:
     return values
 
 
-def _finding_for(
-    tool_name: str, result: Any, tool_input: Dict[str, Any], status: str
-) -> str:
+def _finding_for(tool_name: str, result: Any, status: str) -> str:
     """One plain line from the full tool result, by the shared template."""
     from services.turn_steps import ERROR_FINDINGS, finding_for, parse_result
 
     if status == "error":
         return ERROR_FINDINGS.get(tool_name, "This check did not complete")
     for value in _tool_result_values(result):
-        return finding_for(tool_name, parse_result(value), tool_input)
-    return finding_for(tool_name, {}, tool_input)
+        return finding_for(tool_name, parse_result(value))
+    return finding_for(tool_name, {})
 
 
 def _result_summary(result: Any, products: list[dict[str, Any]]) -> Dict[str, Any]:
@@ -642,7 +641,7 @@ class ManagedGatewayDispatcher:
                         # The same template the in-process rail uses, computed
                         # here beside the Gateway from the full result the
                         # Runtime never sends back.
-                        "finding": _finding_for(tool_name, event.result, safe_input, status),
+                        "finding": _finding_for(tool_name, event.result, status),
                         **scope_by_id.pop(tool_use_id, {}),
                     }
                 )

@@ -11,8 +11,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  APPROVED_REVIEW, BOOK, EXECUTED_REVIEW, EXECUTE_RESULT, INVESTIGATION_EVENTS,
-  INVESTIGATION_TAIL, NADIA_ME, PENDING_REVIEW, RECORD, RECORDED_ONCE, detail, sse,
+  ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, EXECUTED_REVIEW, EXECUTE_RESULT, INVESTIGATION_EVENTS,
+  INVESTIGATION_TAIL, NADIA_ME, OPEN_REQUEST, PENDING_REVIEW, RECORD, RECORDED_ONCE, detail, sse,
 } from './fixtures/jessica-case'
 
 const SHOTS = process.env.OPERATOR_SHOTS ?? 'test-results/operator'
@@ -49,11 +49,19 @@ async function stubDesk(page: Page, desk: Desk, options: { streamDelayMs?: numbe
       }
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sse([...INVESTIGATION_EVENTS, ...INVESTIGATION_TAIL]) })
     }
+    // Jessica asked in chat for a store credit: one open request with no
+    // amount, answered by the investigation.
+    const request = desk.investigated ? ANSWERED_REQUEST : OPEN_REQUEST
     if (path.endsWith('/api/operator/clients/CUST-JESSICA')) {
-      return route.fulfill(json({ ...RECORD, reviews: desk.investigated ? [desk.review] : [] }))
+      return route.fulfill(json({ ...RECORD, reviews: desk.investigated ? [desk.review] : [], requests: [request] }))
     }
     if (path.endsWith('/api/operator/reviews')) {
-      return route.fulfill(json({ reviews: [desk.review], total: 1, pendingCount: desk.review.humanState === 'confirmation_required' ? 1 : 0 }))
+      const reviews = desk.investigated ? [desk.review] : []
+      return route.fulfill(json({
+        reviews, requests: [request], total: reviews.length,
+        pendingCount: reviews.filter(review => review.humanState === 'confirmation_required').length,
+        openRequestCount: desk.investigated ? 0 : 1,
+      }))
     }
     if (path.endsWith('/api/operator/reviews/41/confirm')) {
       desk.review = APPROVED_REVIEW
@@ -104,6 +112,8 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByTestId('operator-record')).toBeVisible()
       await expect(page.getByTestId('operator-order-301')).toContainText('Returned')
       await expect(page.getByTestId('operator-credits-none')).toBeVisible()
+      await expect(page.getByTestId('operator-credit-request')).toContainText('Open request')
+      await expect(page.getByTestId('operator-credit-request')).toContainText('no amount')
       await page.waitForTimeout(400)
       await page.screenshot({ path: shot('record'), fullPage: true })
 
@@ -113,6 +123,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByTestId('operator-brief')).toBeVisible()
       await expect(page.getByTestId('operator-proposed-credit')).toBeVisible()
       await expect(page.getByTestId('operator-proposed-credit')).toContainText('Waiting for Nadia')
+      await expect(page.getByTestId('operator-credit-request')).toContainText('Investigated')
       if (width < 760) await page.getByTestId('operator-investigation').scrollIntoViewIfNeeded()
       await page.waitForTimeout(500)
       await page.screenshot({ path: shot('investigation'), fullPage: true })

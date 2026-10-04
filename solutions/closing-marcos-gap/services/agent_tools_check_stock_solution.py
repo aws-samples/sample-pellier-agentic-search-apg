@@ -544,18 +544,17 @@ def get_tickets(customer_id: str = "", limit: int = 5) -> str:
 
 
 @tool
-def ask_a_person(reason: str, store_credit_cents: int = 0, customer_id: str = "") -> str:
+def ask_a_person(reason: str, credit_request: bool = False, customer_id: str = "") -> str:
     """Hand the conversation to a person at Pellier.
 
     Use it when the shopper asks for a person, when the request needs human
     judgment, or when the tools cannot responsibly answer. When the shopper asks
-    for store credit, pass the amount in store_credit_cents: a person reviews the
-    request before anything changes. Never use it for an ordinary catalog question.
+    for store credit, set credit_request: a person reviews the case and works
+    out any credit from the records. Never use it for an ordinary catalog question.
 
     Args:
         reason: One sentence on what is being handed over and why.
-        store_credit_cents: The store credit the shopper asked for, in cents;
-            0 when this is not a credit request.
+        credit_request: True when the shopper asked for store credit.
         customer_id: Optional, checked against the verified shopper.
     """
     from services.turn_identity import (
@@ -584,7 +583,7 @@ def ask_a_person(reason: str, store_credit_cents: int = 0, customer_id: str = ""
             _run_sql,
             reason=reason,
             customer_id=customer,
-            store_credit_cents=store_credit_cents,
+            credit_request=bool(credit_request),
             source_turn_id=current_turn_id(),
             requested_by_sub=principal_sub,
             requester_kind="shopper" if customer and principal_sub else "unverified",

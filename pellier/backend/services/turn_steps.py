@@ -133,13 +133,11 @@ def _count(value: Any) -> int:
         return 0
 
 
-def _money(cents_or_dollars: Any, *, cents: bool = False) -> str:
+def _money(dollars: Any) -> str:
     try:
-        amount = float(cents_or_dollars or 0)
+        amount = float(dollars or 0)
     except (TypeError, ValueError):
         amount = 0.0
-    if cents:
-        amount = amount / 100.0
     return f"${amount:g}" if amount == int(amount) else f"${amount:.2f}"
 
 
@@ -285,17 +283,14 @@ def _tickets_finding(parsed: Dict[str, Any]) -> str:
     return finding
 
 
-def _handoff_finding(parsed: Dict[str, Any], tool_input: Dict[str, Any]) -> str:
-    credit = parsed.get("credit_request")
-    amount = _money(tool_input.get("store_credit_cents"), cents=True)
-    if credit == "review_opened":
-        return f"A {amount} credit request is waiting for a person"
-    if credit == "already_approved":
-        return f"A person already approved this {amount} credit"
+def _handoff_finding(parsed: Dict[str, Any]) -> str:
+    credit = parsed.get("credit_request_status")
+    if credit == "request_opened":
+        return "A store credit request is waiting for a person"
+    if credit == "already_requested":
+        return "A store credit request was already waiting for a person"
     if credit == "sign_in_required":
         return "Sign in before a credit can be requested"
-    if credit == "over_ceiling":
-        return "That credit is above what a person can approve here"
     if credit == "not_recorded":
         return "Handed to a person; the credit request was not recorded"
     return "Handed to a person at Pellier"
@@ -322,7 +317,6 @@ def skill_finding(loaded: Sequence[Dict[str, str]], refused: Optional[str] = Non
 def finding_for(
     tool: str,
     parsed: Dict[str, Any],
-    tool_input: Optional[Dict[str, Any]] = None,
     *,
     kept: Optional[int] = None,
     carried: Sequence[str] = (),
@@ -332,12 +326,10 @@ def finding_for(
     Args:
         tool: The store tool that ran.
         parsed: Its result, as ``parse_result`` read it.
-        tool_input: Its arguments, for the templates that quote one.
         kept: For a search, how many catalog rows fit the hard limits, when
             the filter counts were taken.
         carried: The limit kinds kept from earlier in the conversation.
     """
-    tool_input = tool_input or {}
     if result_failed(tool, parsed):
         return ERROR_FINDINGS.get(tool, _GENERIC_ERROR_FINDING)
     if tool == "search_products":
@@ -355,7 +347,7 @@ def finding_for(
     if tool == "get_tickets":
         return _tickets_finding(parsed)
     if tool == "ask_a_person":
-        return _handoff_finding(parsed, tool_input)
+        return _handoff_finding(parsed)
     return "Done"
 
 
@@ -372,8 +364,8 @@ def skill_load_refused(result_text: Any) -> Optional[str]:
 def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
     """The layers that applied to this step, for the Builder view."""
     tags = list(LAYER_TAGS.get(tool, ()))
-    credit = parsed.get("credit_request")
-    if tool == "ask_a_person" and credit in ("review_opened", "already_approved"):
+    credit = parsed.get("credit_request_status")
+    if tool == "ask_a_person" and credit in ("request_opened", "already_requested"):
         tags.append("Approval")
     return tags
 
@@ -460,7 +452,7 @@ class TurnSteps:
             failed = refused is not None
         else:
             kept = ((evidence.get("ranking") or {}).get("filters") or {}).get("kept")
-            finding = finding_for(tool, parsed, tool_input, kept=kept, carried=carried)
+            finding = finding_for(tool, parsed, kept=kept, carried=carried)
             failed = result_failed(tool, parsed)
         builder: Dict[str, Any] = {
             "tool": tool,

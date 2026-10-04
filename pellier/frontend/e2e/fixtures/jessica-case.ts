@@ -48,6 +48,20 @@ export const RECORD = {
   }],
   credits: [],
   reviews: [] as unknown[],
+  requests: [] as unknown[],
+}
+
+/** Jessica's own chat request: no amount, and nothing for a person to approve. */
+export const OPEN_REQUEST = {
+  requestId: 40, customerId: 'CUST-JESSICA', customerName: 'Jessica Nakamura', slug: 'jessica', personaId: 'jessica',
+  status: 'open', issue: 'Jessica asks for a store credit for the robe and the diffuser she sent back.',
+  answeredByReviewId: null, investigationTurnId: null, sourceTurnId: 'turn-chat-1',
+  requestedBySub: 'sub-jessica', requesterKind: 'shopper', requestedAt: '2026-10-04T14:55:00Z',
+}
+
+/** The same request once Investigate answered it with review 41. */
+export const ANSWERED_REQUEST = {
+  ...OPEN_REQUEST, status: 'answered', answeredByReviewId: 41, investigationTurnId: 'turn-investigation-1',
 }
 
 const BASE_REVIEW = {
@@ -116,8 +130,10 @@ export const INVESTIGATION_EVENTS: Array<[string, unknown]> = [
   ['step', step('get_tickets', "Reading Jessica's tickets", 'done', { finding: '1 open ticket: Two items went back, no credit yet', builder: { tool: 'get_tickets', rail: 'in-process', duration_ms: 42, audit_id: 4048, agent: 'investigator' } })],
   ['step', step('get_orders', "Reading Jessica's orders", 'running')],
   ['step', step('get_orders', "Reading Jessica's orders", 'done', { finding: '5 orders on file, $395.00 paid', builder: { tool: 'get_orders', rail: 'in-process', duration_ms: 38, audit_id: 4049, agent: 'investigator' } })],
+  ['step', step('get_store_credits', "Reading Jessica's store credits", 'running')],
+  ['step', step('get_store_credits', "Reading Jessica's store credits", 'done', { finding: 'No store credit recorded', builder: { tool: 'get_store_credits', rail: 'in-process', duration_ms: 19, audit_id: 4050, agent: 'investigator' } })],
   ['step', step('get_return_policy', 'Reading the return policy', 'running')],
-  ['step', step('get_return_policy', 'Reading the return policy', 'done', { finding: '30-day returns for Home', builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4050, agent: 'investigator' } })],
+  ['step', step('get_return_policy', 'Reading the return policy', 'done', { finding: '30-day returns for Home', builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4051, agent: 'investigator' } })],
   ['step', step('investigator', 'Investigator reads the case', 'done', { finding: '3 things the records show, 1 missing', builder: { tool: null, rail: 'in-process', duration_ms: 4200, agent: 'investigator' } })],
   ['step', step('planner', 'Planner proposes a credit', 'running')],
 ]

@@ -77,6 +77,29 @@ export interface OperatorCredit {
   createdAt: string | null
 }
 
+/**
+ * A shopper's store credit request, opened in chat. It names no amount and
+ * nobody approves it: a person answers it by investigating the case, and the
+ * Planner's review is the only credit anyone approves.
+ */
+export interface OperatorCreditRequest {
+  requestId: number
+  customerId: string
+  customerName: string
+  slug: string
+  personaId: string | null
+  /** `open` until an investigation of this client answers it. */
+  status: 'open' | 'answered'
+  issue: string
+  /** The review the answering investigation opened or resolved to, if it proposed one. */
+  answeredByReviewId: number | null
+  investigationTurnId: string | null
+  sourceTurnId: string | null
+  requestedBySub: string | null
+  requesterKind: 'shopper' | 'operator' | 'unverified'
+  requestedAt: string | null
+}
+
 export interface OperatorClientRecord {
   dataSource?: string
   client: OperatorClientSummary
@@ -85,6 +108,8 @@ export interface OperatorClientRecord {
   credits: OperatorCredit[]
   /** This client's credit reviews, open first, so the record can say "waiting for approval". */
   reviews: OperatorReview[]
+  /** What the client asked for in chat, open first. */
+  requests: OperatorCreditRequest[]
 }
 
 /**
@@ -188,8 +213,11 @@ export interface OperatorReview {
 
 export interface OperatorReviewQueue {
   reviews: OperatorReview[]
+  /** Credit requests from chat, listed beside the reviews, never among them. */
+  requests: OperatorCreditRequest[]
   total: number
   pendingCount: number
+  openRequestCount: number
 }
 
 export interface OperatorReviewDetail {
@@ -242,15 +270,6 @@ export interface InvestigationAnswer {
     durationMs: number
   }
   error: string | null
-}
-
-export function requesterLine(review: Pick<OperatorReview, 'requesterKind' | 'requestedBySub'>): string {
-  if (review.requesterKind === 'operator') return 'Proposed by the Planner on the desk.'
-  if (review.requesterKind === 'shopper') return 'Asked for by the signed-in shopper.'
-  if (review.requestedBySub) {
-    return 'The requester was signed in, but ownership of this customer record was not verified.'
-  }
-  return 'No verified requester identity was saved with this request.'
 }
 
 export class OperatorApiError extends Error {

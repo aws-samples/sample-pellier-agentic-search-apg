@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer } from '../services/operator'
 import {
-  ANSWER, APPROVED_REVIEW, BOOK, DENIED_REVIEW, EXECUTED_REVIEW, NOTHING_WRITTEN,
-  PENDING_REVIEW, RECORD, RECORDED_ONCE, STEPS, WRITE_KEY, detail,
+  ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_REVIEW, EXECUTED_REVIEW, NOTHING_WRITTEN,
+  OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, STEPS, WRITE_KEY, detail,
 } from './fixtures'
 
 const api = vi.hoisted(() => ({
@@ -63,7 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   api.fetchClientBook.mockResolvedValue(BOOK)
   api.fetchClientRecord.mockResolvedValue(RECORD)
-  api.fetchReviewQueue.mockResolvedValue({ reviews: [PENDING_REVIEW], total: 1, pendingCount: 1 })
+  api.fetchReviewQueue.mockResolvedValue(QUEUE)
   api.fetchReview.mockResolvedValue(detail(PENDING_REVIEW))
   api.confirmReview.mockResolvedValue({ reviewId: 41, status: 'approved', humanState: 'confirmed', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: null, assurance: APPROVED_REVIEW.assurance })
   api.declineReview.mockResolvedValue({ reviewId: 41, status: 'rejected', humanState: 'declined', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: null, assurance: { human: 'DECLINED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' } })
@@ -128,6 +128,22 @@ describe("Jessica's record", () => {
     expect(screen.getByTestId('operator-storefront-handoff')).toHaveAttribute('href', '/?persona=jessica')
   })
 
+  it('shows her open chat request with no amount, then the review that answered it', async () => {
+    api.fetchClientRecord.mockResolvedValueOnce({ ...RECORD, requests: [OPEN_REQUEST] })
+    const { unmount } = renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    const open = await screen.findByTestId('operator-credit-request')
+    expect(within(open).getByTestId('status-tag')).toHaveTextContent('Open request')
+    expect(open).toHaveTextContent('Store credit request, no amount')
+    expect(open).not.toHaveTextContent('$')
+    unmount()
+
+    api.fetchClientRecord.mockResolvedValueOnce({ ...RECORD, requests: [ANSWERED_REQUEST] })
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    const answered = await screen.findByTestId('operator-credit-request')
+    expect(within(answered).getByTestId('status-tag')).toHaveTextContent('Investigated')
+    expect(within(answered).getByRole('link')).toHaveAttribute('href', '/operator/reviews/41')
+  })
+
   it('streams the Investigator and Planner steps, then shows the proposed credit waiting for approval', async () => {
     renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
     fireEvent.click(await screen.findByTestId('operator-investigate'))
@@ -136,11 +152,11 @@ describe("Jessica's record", () => {
     // The step list merged by id: one row per step, the last status wins.
     fireEvent.click(screen.getByTestId('turn-fold'))
     const steps = screen.getAllByTestId('turn-step')
-    expect(steps).toHaveLength(5)
-    expect(steps.map(s => s.getAttribute('data-status'))).toEqual(['done', 'done', 'done', 'done', 'done'])
+    expect(steps).toHaveLength(6)
+    expect(steps.map(s => s.getAttribute('data-status'))).toEqual(['done', 'done', 'done', 'done', 'done', 'done'])
     expect(steps[1]).toHaveTextContent("Reading Jessica's tickets")
     expect(steps[1]).toHaveTextContent('1 open ticket: Two items went back, no credit yet')
-    expect(steps[4]).toHaveTextContent('$100.00 credit proposed for 2 returned items, waiting for approval')
+    expect(steps[5]).toHaveTextContent('$100.00 credit proposed for 2 returned items, waiting for approval')
     expect(screen.getByTestId('turn-status')).toHaveTextContent('Waiting for approval')
     // The card for the review the Planner opened.
     await waitFor(() => expect(api.fetchReview).toHaveBeenCalledWith(41))
@@ -267,12 +283,25 @@ describe('the review record', () => {
 
 describe('the reviews list', () => {
   it('names where each credit stands', async () => {
-    api.fetchReviewQueue.mockResolvedValue({ reviews: [PENDING_REVIEW, EXECUTED_REVIEW, DENIED_REVIEW], total: 3, pendingCount: 1 })
+    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [PENDING_REVIEW, EXECUTED_REVIEW, DENIED_REVIEW], total: 3, pendingCount: 1 })
     renderAt('/operator/reviews', <ReviewList />)
     expect(await screen.findByTestId('operator-reviews')).toBeInTheDocument()
     const rows = screen.getAllByTestId('operator-review-41')
     expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for Nadia', 'Credited', 'DENY'])
     expect(screen.getByTestId('operator-reviews-count')).toHaveTextContent('1 waiting')
+  })
+
+  it("lists Jessica's chat request above the reviews: no amount, nothing to approve", async () => {
+    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, requests: [OPEN_REQUEST], openRequestCount: 1 })
+    renderAt('/operator/reviews', <ReviewList />)
+    const row = await screen.findByTestId('operator-request-40')
+    expect(row).toHaveAttribute('data-outcome', 'Open request')
+    expect(row).toHaveTextContent('Store credit request, no amount')
+    expect(row).not.toHaveTextContent('$')
+    expect(row).toHaveAttribute('href', '/operator/clients/CUST-JESSICA')
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('operator-requests-count')).toHaveTextContent('1 open')
+    expect(screen.getAllByTestId('operator-review-41')).toHaveLength(1)
   })
 
   it('never derives an outcome from the human decision alone', () => {

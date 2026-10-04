@@ -7,6 +7,7 @@ import type {
   InvestigationAnswer,
   OperatorBook,
   OperatorClientRecord,
+  OperatorCreditRequest,
   OperatorReview,
   OperatorReviewDetail,
   OperatorReviewQueue,
@@ -65,6 +66,19 @@ export const RECORD: OperatorClientRecord = {
   ],
   credits: [],
   reviews: [],
+  requests: [],
+}
+
+/** Jessica's own chat request: no amount, and nothing for a person to approve. */
+export const OPEN_REQUEST: OperatorCreditRequest = {
+  requestId: 40, customerId: 'CUST-JESSICA', customerName: 'Jessica Nakamura', slug: 'jessica', personaId: 'jessica',
+  status: 'open', issue: 'Jessica asks for a store credit for the robe and the diffuser she sent back.',
+  answeredByReviewId: null, investigationTurnId: null, sourceTurnId: 'turn-chat-1',
+  requestedBySub: 'sub-jessica', requesterKind: 'shopper', requestedAt: '2026-10-04T14:55:00Z',
+}
+
+export const ANSWERED_REQUEST: OperatorCreditRequest = {
+  ...OPEN_REQUEST, status: 'answered', answeredByReviewId: 41, investigationTurnId: 'turn-investigation-1',
 }
 
 export const PENDING_REVIEW: OperatorReview = {
@@ -128,13 +142,16 @@ export const NOTHING_WRITTEN = {
   idempotencyKey: WRITE_KEY, creditRows: 0, creditIds: [], amountCents: null, auditRows: 0, auditIds: [], readable: true,
 }
 
-export const QUEUE: OperatorReviewQueue = { reviews: [PENDING_REVIEW], total: 1, pendingCount: 1 }
+export const QUEUE: OperatorReviewQueue = {
+  reviews: [PENDING_REVIEW], requests: [], total: 1, pendingCount: 1, openRequestCount: 0,
+}
 
 export const STEPS: TurnStep[] = [
   { id: 'investigator', label: 'Investigator reads the case', status: 'running', tags: ['Investigator'], builder: { tool: null, rail: 'in-process', agent: 'investigator' } },
   { id: 'get_tickets', label: "Reading Jessica's tickets", status: 'done', finding: '1 open ticket: Two items went back, no credit yet', tags: ['Aurora'], builder: { tool: 'get_tickets', rail: 'in-process', duration_ms: 42, audit_id: 4048, agent: 'investigator' } },
   { id: 'get_orders', label: "Reading Jessica's orders", status: 'done', finding: '5 orders on file, $395.00 paid', tags: ['Aurora'], builder: { tool: 'get_orders', rail: 'in-process', duration_ms: 38, audit_id: 4049, agent: 'investigator' } },
-  { id: 'get_return_policy', label: 'Reading the return policy', status: 'done', finding: '30-day returns for Home', tags: ['Aurora'], builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4050, agent: 'investigator' } },
+  { id: 'get_store_credits', label: "Reading Jessica's store credits", status: 'done', finding: 'No store credit recorded', tags: ['Aurora'], builder: { tool: 'get_store_credits', rail: 'in-process', duration_ms: 19, audit_id: 4050, agent: 'investigator' } },
+  { id: 'get_return_policy', label: 'Reading the return policy', status: 'done', finding: '30-day returns for Home', tags: ['Aurora'], builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4051, agent: 'investigator' } },
   { id: 'investigator', label: 'Investigator reads the case', status: 'done', finding: '3 things the records show, 1 missing', tags: ['Investigator'], builder: { tool: null, rail: 'in-process', duration_ms: 4200, agent: 'investigator' } },
   { id: 'planner', label: 'Planner proposes a credit', status: 'running', tags: ['Planner', 'Approval'], builder: { tool: null, rail: 'in-process', agent: 'planner' } },
   { id: 'planner', label: 'Planner proposes a credit', status: 'done', finding: '$100.00 credit proposed for 2 returned items, waiting for approval', tags: ['Planner', 'Approval'], builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'planner' } },

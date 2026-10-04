@@ -176,15 +176,15 @@ TOOL_SCHEMAS = {
                 "name": "ask_a_person",
                 "description": (
                     "Hand the conversation to a person at Pellier. A store credit "
-                    "request opens a review for staff; nothing changes until a "
-                    "person approves."
+                    "request opens a request with no amount; a person reviews "
+                    "the case before any credit is proposed."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "reason": {"type": "string"},
                         "customer_id": {"type": "string"},
-                        "store_credit_cents": {"type": "integer"},
+                        "credit_request": {"type": "boolean"},
                     },
                     "required": ["reason"],
                 },

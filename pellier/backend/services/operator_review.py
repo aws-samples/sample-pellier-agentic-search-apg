@@ -1,9 +1,12 @@
 """The durable operator review: Pellier's handoff to a person.
 
-A credit proposal, from the shopper's ``ask_a_person`` or from the Operator's
-Planner, becomes one ``pellier.approvals`` row through
-``store_tools.open_credit_review``. This module reads those rows for the desk
-and records the human decision on them.
+The Operator's Planner opens a credit review, one ``pellier.approvals`` row,
+through ``store_tools.open_credit_review``; it is the only approvable credit.
+A shopper's ``ask_a_person`` opens a credit request instead
+(``store_tools.open_credit_request``): a row of its own kind with no amount and
+no action hash, which a person answers by investigating the case and can never
+approve. This module reads both for the desk and records the human decision on
+reviews.
 
 What a review owns, and what it must never own
 ----------------------------------------------
@@ -45,7 +48,8 @@ logger = logging.getLogger(__name__)
 
 # The proposed actions a review may carry. One governed mutation has a
 # human-review workflow; anything else has no review workflow behind it and
-# would be a review nobody can act on.
+# would be a review nobody can act on. A credit request is not one of them: it
+# names no amount, so there is nothing for a person to approve.
 REVIEWABLE_ACTIONS = ("give_store_credit",)
 
 # Workflow states, mirroring the CHECK constraint on pellier.approvals.
@@ -149,12 +153,21 @@ _REVIEW_COLUMNS = """
       LEFT JOIN pellier.customers c ON c.id = a.customer_id
 """
 
-_QUEUE_SELECT = _REVIEW_COLUMNS + """
+# What still needs a person first: a pending review, or a request no
+# investigation has answered yet. An answered request keeps its pending status,
+# because a request is never decided, so the order reads its answer as well.
+_WAITING_FIRST = """
+        CASE WHEN a.status = 'pending'
+              AND (a.tool = 'give_store_credit'
+                   OR a.recommendation->>'investigationTurnId' IS NULL) THEN 0
+             ELSE 1 END"""
+
+_QUEUE_SELECT = _REVIEW_COLUMNS + f"""
      -- Explicit casts: Postgres cannot infer a type for a bare placeholder used
      -- only in `IS NULL`, and raises IndeterminateDatatype before the query runs.
-     WHERE (%s::text IS NULL OR a.status = %s::text)
-     ORDER BY
-        CASE WHEN a.status = 'pending' THEN 0 ELSE 1 END,
+     WHERE a.tool = %s
+       AND (%s::text IS NULL OR a.status = %s::text)
+     ORDER BY{_WAITING_FIRST},
         a.requested_at DESC
      LIMIT %s
 """
@@ -163,11 +176,10 @@ _ONE_SELECT = _REVIEW_COLUMNS + """
      WHERE a.id = %s
 """
 
-_FOR_CUSTOMER_SELECT = _REVIEW_COLUMNS + """
+_FOR_CUSTOMER_SELECT = _REVIEW_COLUMNS + f"""
      WHERE a.customer_id = %s
-       AND a.tool = 'give_store_credit'
-     ORDER BY
-        CASE WHEN a.status = 'pending' THEN 0 ELSE 1 END,
+       AND a.tool = %s
+     ORDER BY{_WAITING_FIRST},
         a.requested_at DESC
      LIMIT %s
 """
@@ -186,8 +198,16 @@ def parse_json(value: Any) -> Any:
 async def list_reviews(
     db: Any, *, status: Optional[str] = None, limit: int = 50
 ) -> List[Dict[str, Any]]:
-    """The queue. Pending first, newest first within each group."""
-    rows = await db.fetch_all(_QUEUE_SELECT, status, status, int(limit))
+    """The credit reviews. Pending first, newest first within each group."""
+    rows = await db.fetch_all(_QUEUE_SELECT, "give_store_credit", status, status, int(limit))
+    return [dict(r) for r in (rows or [])]
+
+
+async def list_requests(db: Any, *, limit: int = 50) -> List[Dict[str, Any]]:
+    """The credit requests. Unanswered first, newest first within each group."""
+    from services.store_tools import CREDIT_REQUEST
+
+    rows = await db.fetch_all(_QUEUE_SELECT, CREDIT_REQUEST, None, None, int(limit))
     return [dict(r) for r in (rows or [])]
 
 
@@ -195,8 +215,27 @@ async def list_reviews_for_customer(
     db: Any, customer_id: str, *, limit: int = 5
 ) -> List[Dict[str, Any]]:
     """This customer's credit reviews, open ones first, for the client record."""
-    rows = await db.fetch_all(_FOR_CUSTOMER_SELECT, str(customer_id), int(limit))
+    rows = await db.fetch_all(
+        _FOR_CUSTOMER_SELECT, str(customer_id), "give_store_credit", int(limit),
+    )
     return [dict(r) for r in (rows or [])]
+
+
+async def list_requests_for_customer(
+    db: Any, customer_id: str, *, limit: int = 5
+) -> List[Dict[str, Any]]:
+    """This customer's credit requests, unanswered ones first, for the client record."""
+    from services.store_tools import CREDIT_REQUEST
+
+    rows = await db.fetch_all(_FOR_CUSTOMER_SELECT, str(customer_id), CREDIT_REQUEST, int(limit))
+    return [dict(r) for r in (rows or [])]
+
+
+def is_request(review: Mapping[str, Any]) -> bool:
+    """True for a shopper's credit request, which no person can approve."""
+    from services.store_tools import CREDIT_REQUEST
+
+    return str(review.get("action") or "") == CREDIT_REQUEST
 
 
 async def get_review(db: Any, review_id: int) -> Optional[Dict[str, Any]]:
@@ -250,6 +289,10 @@ async def decide_review(
     review = await get_review(db, review_id)
     if not review:
         raise ReviewError("review_not_found", 404)
+    if str(review.get("action") or "") not in REVIEWABLE_ACTIONS:
+        # A credit request carries no amount and no fingerprint. It is answered
+        # by investigating the case, never approved or declined.
+        raise ReviewError("request_not_approvable", 409)
     if review["status"] != STATUS_PENDING:
         raise ReviewError("review_already_decided", 409)
 

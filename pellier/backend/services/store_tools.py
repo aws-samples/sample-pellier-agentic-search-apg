@@ -31,7 +31,7 @@ modules it plans and proves searches with, so the Lambda can package it.
 | get_return_policy   | Support          | return window and care for a department   |
 | get_tickets         | Support          | the signed-in customer's support tickets  |
 | give_store_credit   | Operator only    | one store credit per idempotency key      |
-| ask_a_person        | Shopping, Support| a handoff; a credit request opens a review|
+| ask_a_person        | Shopping, Support| a handoff; a credit ask opens a request   |
 """
 
 from __future__ import annotations
@@ -697,13 +697,13 @@ def give_store_credit(
 
 
 # ---------------------------------------------------------------------------
-# ask_a_person
+# Credit reviews: what a person approves
 # ---------------------------------------------------------------------------
 
-# A credit request becomes a pending review for staff: the same row shape the
-# Operator review queue reads, keyed so a repeated ask resolves to one card.
-# This is the one place a credit review is opened, for the shopper's
-# ``ask_a_person`` and for the Operator's Planner alike.
+# A credit review is the only approvable credit, and the Operator's Planner is
+# the only path that opens one, through ``open_credit_review``. Its amount and
+# reason are computed from the client's received returns, so the same returned
+# items always fingerprint the same credit.
 #
 # The conflict target is migration 020's partial unique index: one LIVE review
 # per exact credit, where live means pending or approved. A pending twin would
@@ -742,13 +742,10 @@ class CreditReview:
     Attributes:
         id: The ``pellier.approvals`` row.
         status: ``pending`` or ``approved``; a declined review is never live.
-        opened: True when this call inserted the row, False when it resolved
-            to a review that already stood.
     """
 
     id: int
     status: str
-    opened: bool
 
 
 def open_credit_review(
@@ -784,10 +781,7 @@ def open_credit_review(
     """
     material = {"customer_id": customer_id, "amount_cents": int(amount_cents), "reason": reason}
     action_hash = write_request_hash("give_store_credit", **material)
-    proposed = recommendation or {
-        "primaryAction": "give_store_credit",
-        "rationale": "Requested by the client in conversation.",
-    }
+    proposed = recommendation or {"primaryAction": "give_store_credit"}
     kind = requester_kind if requester_kind in REQUESTER_KINDS else "unverified"
     rows = run(
         _CREDIT_REVIEW_SQL,
@@ -803,7 +797,6 @@ def open_credit_review(
             kind,
         ),
     )
-    opened = bool(rows)
     if not rows:
         rows = run(_LIVE_CREDIT_REVIEW_SQL, (customer_id, action_hash))
     if not rows:
@@ -811,8 +804,141 @@ def open_credit_review(
     return CreditReview(
         id=_integer(rows[0].get("id")),
         status=str(rows[0].get("status") or "pending"),
-        opened=opened,
     )
+
+
+# ---------------------------------------------------------------------------
+# Credit requests: what a shopper asks for
+# ---------------------------------------------------------------------------
+
+# A shopper's credit request is an open request on the customer's case, not a
+# review. It is a pellier.approvals row of its own kind, with no amount and no
+# action hash, so it fingerprints nothing and no credit can bind to it: the
+# approval guard, the live-review index and the desk's decision all read
+# ``give_store_credit`` rows only. A person answers it by investigating the
+# case, and the Planner's records-built proposal is the credit they approve.
+#
+# A request stays open until an investigation of that customer answers it.
+# Answering records the investigation's turn, and the review it produced when
+# there was one, in the request's ``recommendation``: workflow state, never an
+# amount. A request is never decided, so its status stays ``pending``.
+CREDIT_REQUEST = "store_credit_request"
+
+_OPEN_REQUEST_FILTER = """
+       customer_id = %s
+   AND tool = 'store_credit_request'
+   AND status = 'pending'
+   AND recommendation->>'investigationTurnId' IS NULL"""
+
+# One open request per customer: a repeated ask while one is open resolves to it.
+_OPEN_CREDIT_REQUEST_SQL = f"""
+    INSERT INTO pellier.approvals
+        (customer_id, tool, args, status, source_turn_id, issue,
+         requested_by_sub, requester_kind)
+    SELECT %s, 'store_credit_request', '{{}}'::jsonb, 'pending', %s, %s, %s, %s
+     WHERE NOT EXISTS (SELECT 1 FROM pellier.approvals WHERE{_OPEN_REQUEST_FILTER})
+    RETURNING id
+"""
+
+_STANDING_CREDIT_REQUEST_SQL = f"""
+    SELECT id FROM pellier.approvals
+     WHERE{_OPEN_REQUEST_FILTER}
+     ORDER BY id DESC
+     LIMIT 1
+"""
+
+_ANSWER_CREDIT_REQUESTS_SQL = f"""
+    UPDATE pellier.approvals
+       SET recommendation = COALESCE(recommendation, '{{}}'::jsonb)
+           || jsonb_build_object('investigationTurnId', %s::text,
+                                 'answeredByReviewId', %s::bigint)
+     WHERE{_OPEN_REQUEST_FILTER}
+    RETURNING id
+"""
+
+REQUEST_OPENED = "request_opened"
+ALREADY_REQUESTED = "already_requested"
+
+
+@dataclass(frozen=True)
+class CreditRequest:
+    """The customer's open credit request.
+
+    Attributes:
+        id: The ``pellier.approvals`` row.
+        status: ``request_opened`` when this call opened it,
+            ``already_requested`` when an open request already stood.
+    """
+
+    id: int
+    status: str
+
+
+def open_credit_request(
+    run: Run,
+    *,
+    customer_id: str,
+    reason: str,
+    source_turn_id: Optional[str],
+    requested_by_sub: Optional[str],
+    requester_kind: str,
+) -> Optional[CreditRequest]:
+    """Open the customer's credit request, or resolve to the one already open.
+
+    Args:
+        run: Statement runner for the calling rail.
+        customer_id: The caller-bound customer.
+        reason: What the shopper asked, shown to staff on the request.
+        source_turn_id: The shopper turn that asked.
+        requested_by_sub: Verified subject that asked, when there is one.
+        requester_kind: ``shopper`` for a verified caller, else ``unverified``.
+
+    Returns:
+        The open request, or None when no row could be written or found.
+    """
+    kind = requester_kind if requester_kind in ("shopper", "unverified") else "unverified"
+    rows = run(
+        _OPEN_CREDIT_REQUEST_SQL,
+        (customer_id, source_turn_id, reason, (requested_by_sub or "").strip() or None, kind,
+         customer_id),
+    )
+    if rows:
+        return CreditRequest(id=_integer(rows[0].get("id")), status=REQUEST_OPENED)
+    rows = run(_STANDING_CREDIT_REQUEST_SQL, (customer_id,))
+    if not rows:
+        return None
+    return CreditRequest(id=_integer(rows[0].get("id")), status=ALREADY_REQUESTED)
+
+
+def answer_credit_requests(
+    run: Run,
+    *,
+    customer_id: str,
+    investigation_turn_id: str,
+    review_id: Optional[int],
+) -> List[int]:
+    """Mark the customer's open credit requests answered by an investigation.
+
+    Args:
+        run: Statement runner for the calling rail.
+        customer_id: The customer the investigation read.
+        investigation_turn_id: The investigation's turn id.
+        review_id: The credit review the investigation opened or resolved
+            to, or None when it proposed no credit.
+
+    Returns:
+        The ids of the requests it answered.
+    """
+    rows = run(
+        _ANSWER_CREDIT_REQUESTS_SQL,
+        (investigation_turn_id, review_id, customer_id),
+    )
+    return [_integer(row.get("id")) for row in rows]
+
+
+# ---------------------------------------------------------------------------
+# ask_a_person
+# ---------------------------------------------------------------------------
 
 
 def ask_a_person(
@@ -820,7 +946,7 @@ def ask_a_person(
     *,
     reason: str,
     customer_id: Optional[str] = None,
-    store_credit_cents: Any = 0,
+    credit_request: bool = False,
     source_turn_id: Optional[str] = None,
     requested_by_sub: Optional[str] = None,
     requester_kind: str = "unverified",
@@ -828,16 +954,17 @@ def ask_a_person(
     """Hand the conversation to a person at Pellier.
 
     The handoff changes no business data. When the shopper asks for store
-    credit, it also opens one pending review for staff to decide; the credit
-    itself is written only by ``give_store_credit`` after a person approves.
+    credit, it also opens one credit request on the customer's case. The
+    request carries no amount and cannot be approved: a person investigates
+    the case, and only the Planner's proposal, computed from the received
+    returns, is a credit anyone approves.
 
     Args:
         run: Statement runner for the calling rail.
         reason: One sentence on what is being handed over and why.
         customer_id: The caller-bound customer, or ``None`` when unknown.
-        store_credit_cents: The credit the shopper asked for, in cents; zero
-            when the handoff is not a credit request.
-        source_turn_id: The shopper turn that asked, for the review record.
+        credit_request: True when the shopper asked for store credit.
+        source_turn_id: The shopper turn that asked, for the request record.
         requested_by_sub: Verified subject that asked, when the rail has one.
         requester_kind: ``shopper`` for a verified caller, else ``unverified``.
     """
@@ -861,37 +988,29 @@ def ask_a_person(
         ],
     }
 
-    cents = _integer(store_credit_cents)
-    if cents <= 0:
+    if not credit_request:
         return payload
     if customer is None:
-        payload["credit_request"] = "sign_in_required"
-        return payload
-    if cents > MAX_CREDIT_CENTS:
-        payload["credit_request"] = "over_ceiling"
+        payload["credit_request_status"] = "sign_in_required"
         return payload
 
     try:
-        review = open_credit_review(
+        request = open_credit_request(
             run,
             customer_id=customer,
-            amount_cents=cents,
             reason=clean_reason,
             source_turn_id=source_turn_id,
             requested_by_sub=requested_by_sub,
-            requester_kind=requester_kind if requester_kind in ("shopper", "unverified") else "unverified",
+            requester_kind=requester_kind,
         )
-    except Exception as exc:  # noqa: BLE001 - the handoff stands without the review
-        logger.warning("credit review not opened for %s: %s", customer, exc)
-        review = None
-    if review is None:
-        payload["credit_request"] = "not_recorded"
+    except Exception as exc:  # noqa: BLE001 - the handoff stands without the request
+        logger.warning("credit request not opened for %s: %s", customer, exc)
+        request = None
+    if request is None:
+        payload["credit_request_status"] = "not_recorded"
         return payload
-    # A repeat of a credit a person already approved resolves to that review
-    # rather than opening a second one, so the handoff says which it found.
-    pending = review.status == "pending"
-    payload["credit_request"] = "review_opened" if pending else "already_approved"
-    payload["review_id"] = review.id
+    payload["credit_request_status"] = request.status
+    payload["request_id"] = request.id
     return payload
 
 

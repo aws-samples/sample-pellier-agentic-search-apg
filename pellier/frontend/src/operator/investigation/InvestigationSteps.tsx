@@ -54,8 +54,9 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
 
       {phase === 'idle' ? (
         <p className="op-note">
-          The Investigator reads the orders, the ticket and the return policy with the store tools.
-          The Planner proposes one store credit and opens one review. Then it stops.
+          The Investigator reads the orders, the tickets, the store credits and the return policy.
+          The Planner proposes one store credit for the returns no review covers yet, and opens one
+          review. Then it stops.
         </p>
       ) : null}
 

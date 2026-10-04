@@ -197,10 +197,10 @@ def test_ask_a_person_hands_off_without_a_write() -> None:
     finally:
         authorized_customer_id_var.reset(token)
     assert parsed["type"] == "escalation" and parsed["status"] == "handed_off"
-    assert "credit_request" not in parsed
+    assert "credit_request_status" not in parsed
 
 
-def test_ask_a_person_opens_a_credit_review_for_the_verified_shopper(
+def test_ask_a_person_opens_a_credit_request_for_the_verified_shopper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     agent_tools._db_service = _SentinelDB()
@@ -208,15 +208,14 @@ def test_ask_a_person_opens_a_credit_review_for_the_verified_shopper(
     monkeypatch.setattr(agent_tools, "_run_sql", run)
     tokens = (authorized_customer_id_var.set("CUST-JESSICA"), principal_sub_var.set("sub-jessica"))
     try:
-        parsed = _call(agent_tools.ask_a_person, reason="Two items went back.", store_credit_cents=4500)
+        parsed = _call(agent_tools.ask_a_person, reason="Two items went back.", credit_request=True)
     finally:
         authorized_customer_id_var.reset(tokens[0])
         principal_sub_var.reset(tokens[1])
-    assert parsed["credit_request"] == "review_opened" and parsed["review_id"] == 41
+    assert parsed["credit_request_status"] == "request_opened" and parsed["request_id"] == 41
     sql, params = run.calls[0]
-    assert "give_store_credit" in sql
-    assert json.loads(params[1]) == {"amount_cents": 4500, "customer_id": "CUST-JESSICA", "reason": "Two items went back."}
-    assert params[-2:] == ("sub-jessica", "shopper")
+    assert "'store_credit_request'" in sql and "give_store_credit" not in sql
+    assert params[0] == "CUST-JESSICA" and params[3:5] == ("sub-jessica", "shopper")
 
 
 # ---------------------------------------------------------------------------

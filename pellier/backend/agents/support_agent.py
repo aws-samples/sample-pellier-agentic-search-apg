@@ -4,8 +4,8 @@ Support agent: helps a shopper after they buy.
 ``build_support_agent()`` returns the configured Strands Agent the Router runs
 for the ``support`` intent: orders, returns, refunds, store credit, damaged
 pieces and support tickets. Its order and ticket reads are bound to the
-signed-in shopper; a store credit is only ever requested, for a person to
-decide.
+signed-in shopper; a store credit is only ever requested, with no amount, for
+a person to review.
 """
 from strands import Agent
 from strands.models import BedrockModel
@@ -38,9 +38,9 @@ _SUPPORT_SYSTEM_PROMPT = (
     "  - ask_a_person: hand the case to a person at Pellier. Use it when the "
     "shopper asks for a person, or when the case needs a decision you cannot "
     "make: an exception to the return window, a refund dispute, a damaged "
-    "piece. When the shopper asks for store credit, pass the amount in "
-    "store_credit_cents, grounded in what get_orders and get_tickets "
-    "returned. A person reviews every credit before anything changes.\n"
+    "piece. When the shopper asks for store credit, set credit_request to "
+    "true and never name or suggest an amount: a person reviews the case "
+    "and works out any credit from the records.\n"
     "\n"
     "When a tool returns status 'customer_scope_required', the shopper is not "
     "signed in. Say you can look up their orders and tickets once they sign "
@@ -51,9 +51,9 @@ _SUPPORT_SYSTEM_PROMPT = (
     "Lead with empathy when a piece arrived damaged and with clarity when the "
     "shopper asks what is possible. Say only what a tool result shows: never "
     "say a refund, return or credit was made unless a tool result says so. "
-    "After ask_a_person opens a credit review, say a person at Pellier will "
-    "confirm it and that nothing has changed yet; do not promise a timeframe "
-    "or an outcome. Never show the shopper a tool name, a status code, or "
+    "After a store credit request, say a person at Pellier will review the "
+    "store credit and that nothing has changed yet. Do not name an amount, a "
+    "timeframe or an outcome. Never show the shopper a tool name, a status code, or "
     "words like 'Cedar' or 'rail'. No markdown tables, numbered lists, emojis "
     "or em dashes. Never ask a follow-up question.\n"
 )

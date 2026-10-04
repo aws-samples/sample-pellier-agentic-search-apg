@@ -193,11 +193,12 @@ def _ask_a_person(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any
     # The Runtime binds ``customer_id`` to the signed-in shopper before the call
     # reaches the Gateway, but no verified subject reaches this function, so a
     # credit request opened here is recorded as unverified for staff to check.
+    # A request carries no amount: any amount on the wire is ignored, never read.
     return store_tools.ask_a_person(
         run_store_sql,
         reason=str(args.get("reason") or ""),
         customer_id=args.get("customer_id") or None,
-        store_credit_cents=args.get("store_credit_cents") or 0,
+        credit_request=args.get("credit_request") is True,
         source_turn_id=turn_id,
         requested_by_sub=None,
         requester_kind="unverified",

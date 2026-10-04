@@ -1,15 +1,17 @@
 /**
- * The reviews: every proposed credit waiting on a person, and the decided ones.
+ * The reviews: every proposed credit waiting on a person, and the decided ones,
+ * with the clients' store credit requests listed above them.
  *
  * The desk's rail when a review is open. Each row names the client, the
  * amount and one word for where the credit stands. The word carries the
- * meaning; the tag's color repeats it.
+ * meaning; the tag's color repeats it. A request has no amount and no
+ * decision: its row leads to the client record, where Investigate answers it.
  */
 import React from 'react'
-import { NavLink, useParams } from 'react-router-dom'
+import { Link, NavLink, useParams } from 'react-router-dom'
 import { StatusTag, type TagTone } from '../../components/turn'
 import { useReviewQueue } from '../hooks/useReviewQueue'
-import type { OperatorReview } from '../../services/operator'
+import type { OperatorCreditRequest, OperatorReview } from '../../services/operator'
 import ClientAvatar from '../components/ClientAvatar'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
@@ -58,6 +60,37 @@ const ReviewRow: React.FC<{ review: OperatorReview; selected: boolean }> = ({ re
   )
 }
 
+/** What a request's tag says: open until an investigation answers it. */
+export function requestOutcome(request: OperatorCreditRequest): ReviewOutcome {
+  return request.status === 'open'
+    ? { tone: 'pending', word: 'Open request', pulse: false }
+    : { tone: 'good', word: 'Investigated', pulse: false }
+}
+
+const RequestRow: React.FC<{ request: OperatorCreditRequest }> = ({ request }) => {
+  const outcome = requestOutcome(request)
+  return (
+    <li>
+      <Link
+        to={`/operator/clients/${encodeURIComponent(request.customerId)}`}
+        className="op-row"
+        data-testid={`operator-request-${request.requestId}`}
+        data-outcome={outcome.word}
+      >
+        <ClientAvatar customerId={request.customerId} name={request.customerName} personaId={request.personaId} />
+        <span className="op-row-body">
+          <span className="op-row-head">
+            <span className="op-row-name">{request.customerName}</span>
+            <StatusTag tone={outcome.tone} pulse={outcome.pulse}>{outcome.word}</StatusTag>
+          </span>
+          <span className="op-row-line">Store credit request, no amount</span>
+          {request.issue ? <span className="op-row-sub">{request.issue}</span> : null}
+        </span>
+      </Link>
+    </li>
+  )
+}
+
 /** The list, as the desk's rail. */
 export const ReviewList: React.FC = () => {
   const { queue, error, refresh } = useReviewQueue()
@@ -92,9 +125,22 @@ export const ReviewList: React.FC = () => {
           {queue.pendingCount === 1 ? '1 waiting' : `${queue.pendingCount} waiting`}
         </span>
       </div>
+      {queue.requests.length > 0 ? (
+        <div className="op-list-group" data-testid="operator-requests">
+          <div className="op-list-head">
+            <h3 className="op-h3">Requests</h3>
+            <span className="op-list-count" data-testid="operator-requests-count">
+              {`${queue.openRequestCount} open`}
+            </span>
+          </div>
+          <ul aria-label="Store credit requests">
+            {queue.requests.map(request => <RequestRow key={request.requestId} request={request} />)}
+          </ul>
+        </div>
+      ) : null}
       {queue.total === 0 ? (
         <p className="op-note" data-testid="operator-reviews-empty">
-          Nothing is waiting. A credit the Planner proposes, or a shopper asks a person for, appears here.
+          No credit to approve. A credit the Planner proposes appears here.
         </p>
       ) : (
         <ul>
