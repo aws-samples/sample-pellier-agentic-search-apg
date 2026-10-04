@@ -1259,6 +1259,7 @@ def _persist_hybrid_receipt(
             "search_method": execution.search_method,
             "relaxation_steps": execution.relaxation_steps,
             "attempts": execution.attempts,
+            "relaxation_unavailable": execution.relaxation_unavailable,
         },
         latency_breakdown=execution.latency_breakdown(),
     )
@@ -1275,7 +1276,9 @@ def search_products_hybrid(
     """Hybrid pgvector + Postgres FTS + Cohere Rerank v3.5. Anna's Personalization Agent uses this.
 
     If the result has constraint_notice, tell the shopper what it says and never
-    present the results as meeting a requirement it names.
+    present the results as meeting a requirement it names. If search_notice is
+    present, explain that alternatives have not been checked. An empty result
+    then means this attempt found nothing, not that the store has no eligible items.
 
     Runs the shared search executor (``services.planned_hybrid_retrieval``):
       1. A typed plan compiles the price ceiling and any explicit category
@@ -1326,6 +1329,7 @@ def search_products_hybrid(
                 embed=EmbeddingService().embed_query,
                 rerank=get_rerank_service().rerank,
                 config=retrieval_config,
+                return_strict_on_unavailable=True,
             )
         )
 
@@ -1349,7 +1353,16 @@ def search_products_hybrid(
             "hard_constraints_enforced": execution.plan.hard.describe(),
             "constraints_applied_before_rerank": True,
             "search_plan": execution.plan.to_dict(),
+            "relaxation_unavailable": execution.relaxation_unavailable,
         }
+        if execution.relaxation_unavailable:
+            payload["search_notice"] = (
+                "These are the matches from the first attempt. "
+                "Alternatives with fewer preferences have not been checked."
+                if products else
+                "No matches were returned on the first attempt. "
+                "Alternatives with fewer preferences have not been checked."
+            )
         notice = execution.plan.constraint_notice()
         if notice:
             payload["constraint_notice"] = notice

@@ -75,6 +75,10 @@ CATEGORY_FROM_SHOPPER = "shopper"
 CATEGORY_FROM_SELECTION = "selection"
 
 
+class PreferenceRelaxationUnavailable(ValueError):
+    """The starter cannot widen preferences until Task 1B is implemented."""
+
+
 @dataclass(frozen=True)
 class HardConstraints:
     """Constraints that must hold for a candidate to be valid at all.
@@ -277,7 +281,7 @@ class SearchPlan:
         # Task 1B: construct the next attempt from this validated request.
         # An unfinished fallback refuses to run; it must never broaden access.
         if relaxations:
-            raise ValueError("Complete Task 1B before relaxing a preference")
+            raise PreferenceRelaxationUnavailable("Complete Task 1B before relaxing a preference")
         return replace(self, relaxations=[])
         # === WORKSHOP - Search plan - preserve requirements: END ===
 

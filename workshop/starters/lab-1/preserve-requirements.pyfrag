@@ -2,5 +2,5 @@
         # Task 1B: construct the next attempt from this validated request.
         # An unfinished fallback refuses to run; it must never broaden access.
         if relaxations:
-            raise ValueError("Complete Task 1B before relaxing a preference")
+            raise PreferenceRelaxationUnavailable("Complete Task 1B before relaxing a preference")
         return replace(self, relaxations=[])

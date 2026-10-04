@@ -48,7 +48,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from config import settings
-from services.search_plan import STRATEGY_HYBRID, STRATEGY_VECTOR
+from services.search_plan import PreferenceRelaxationUnavailable, STRATEGY_HYBRID, STRATEGY_VECTOR
 
 # The canonical Lab 1 query. The eval harness pins the same entry;
 # ``tests/test_search_micro_eval.py`` keeps the two aligned.
@@ -233,6 +233,9 @@ class SearchExecution:
             required, the relaxation steps behind it, and how many eligible
             rows it found. A widened answer can show the narrower attempt
             came up empty.
+        relaxation_unavailable: The starter could not check alternatives. Only
+            the initial pass ran; an empty result does not prove that no
+            products meet the hard requirements.
     """
 
     plan: Any
@@ -245,6 +248,7 @@ class SearchExecution:
     relaxation_steps: List[str] = field(default_factory=list)
     search_method: str = SEARCH_METHOD_HYBRID_RERANK
     attempts: List[Dict[str, Any]] = field(default_factory=list)
+    relaxation_unavailable: bool = False
 
     @property
     def rerank_pool(self) -> List[Dict[str, Any]]:
@@ -584,6 +588,7 @@ async def execute_search_plan(
     rerank: RerankFn,
     config: Dict[str, Any],
     relax: bool = True,
+    return_strict_on_unavailable: bool = False,
 ) -> SearchExecution:
     """Run a typed plan through the shared retrieval pipeline.
 
@@ -606,6 +611,10 @@ async def execute_search_plan(
         relax: When True and the strict pass returns fewer than ``limit``
             rows, walk the plan's relaxation ladder. Each applied step is
             recorded in ``relaxation_steps``. Hard constraints never widen.
+        return_strict_on_unavailable: Storefront may keep an honest initial
+            result when the starter has not implemented preference widening.
+            Mark that limitation explicitly. Comparisons and exercise checks
+            keep the default refusal; unrelated errors always propagate.
 
     Returns:
         A :class:`SearchExecution` describing the pass that produced the
@@ -644,7 +653,16 @@ async def execute_search_plan(
     # fallback isolated from earlier requests that already satisfy the plan.
     execution = await run_rung(plan)
     if relax and len(execution.returned) < limit:
-        for rung in plan.relaxation_ladder()[1:]:
+        try:
+            remaining_rungs = plan.relaxation_ladder()[1:]
+        except PreferenceRelaxationUnavailable:
+            if not return_strict_on_unavailable:
+                raise
+            # Keep the validated first pass. Do not build a substitute ladder,
+            # drop any predicate, or claim that a broader search found nothing.
+            execution.relaxation_unavailable = True
+            remaining_rungs = []
+        for rung in remaining_rungs:
             if len(execution.returned) >= limit:
                 break
             execution = await run_rung(rung)
