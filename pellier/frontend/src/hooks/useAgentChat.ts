@@ -159,6 +159,23 @@ function mapProduct(p: any): ChatProduct {
   }
 }
 
+/**
+ * What the conversation keeps in the browser. The identity binding on a
+ * step is Builder evidence for the turn that ran it, not conversation state,
+ * so it never lands in localStorage.
+ */
+function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
+  return messages.map(message => {
+    if (!message.steps?.some(step => step.builder?.identity)) return message
+    return {
+      ...message,
+      steps: message.steps.map(step =>
+        step.builder?.identity ? { ...step, builder: { ...step.builder, identity: undefined } } : step,
+      ),
+    }
+  })
+}
+
 function loadPersistedMessages(
   persistKey: string | undefined,
   fallback: AgentChatMessage[],
@@ -263,7 +280,7 @@ export function useAgentChat(
     if (!persistKey) return
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(persistKey, JSON.stringify(messages))
+        localStorage.setItem(persistKey, JSON.stringify(forStorage(messages)))
       } catch {
         // quota exceeded: ignore
       }

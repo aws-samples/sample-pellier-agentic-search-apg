@@ -6,7 +6,8 @@ export { default as RankingPanel } from './RankingPanel'
 export { default as RevealedProse } from './RevealedProse'
 export { default as BuilderViewSwitch } from './BuilderViewSwitch'
 export { evidenceLine, identitySentence } from './evidence'
-export { parseProse, sentenceEndAfter } from './prose'
+export { emphasisRanges, parseProse, sentenceEndAfter } from './prose'
+export type { EmphasisRange } from './prose'
 export {
   readBuilderView,
   readSkillMode,

@@ -338,6 +338,27 @@ describe('useAgentChat — the step contract', () => {
     })
   })
 
+  it('never persists a step identity binding with the conversation', async () => {
+    const { result } = renderHook(() => useAgentChat({ persistKey: 'k' }), { wrapper })
+    act(() => {
+      void result.current.sendMessage('any news on my chipped bowl?')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({
+        type: 'step', id: 'step-1', label: 'Reading your tickets', status: 'done', finding: '1 open ticket', tags: ['Aurora', 'Identity'],
+        builder: { tool: 'get_tickets', audit_id: 9032, identity: { binding: 'overwritten', requested_customer: 'CUST-JESSICA', bound_customer: 'CUST-THEO', authorized_customer: 'CUST-THEO' } },
+      })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.steps?.[0]?.builder?.identity?.binding).toBe('overwritten'))
+    await waitFor(() => expect(localStorage.getItem('k')).toContain('"audit_id":9032'), { timeout: 2000 })
+    const stored = localStorage.getItem('k') ?? ''
+    expect(stored).not.toContain('CUST-')
+    expect(stored).not.toContain('"identity"')
+    // The live view keeps the evidence for this session.
+    expect(result.current.messages.at(-1)?.steps?.[0]?.builder?.identity?.requested_customer).toBe('CUST-JESSICA')
+  })
+
   it('marks the turn it opened as live and strips the flag from history', async () => {
     localStorage.setItem('k', JSON.stringify([
       { role: 'assistant', content: 'old', timestamp: new Date().toISOString(), agentStatus: 'complete', live: true },

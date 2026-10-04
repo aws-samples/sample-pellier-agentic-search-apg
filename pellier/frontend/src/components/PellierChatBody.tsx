@@ -8,7 +8,7 @@
  * character, then the product cards after the sentence that names them.
  * With the Builder view on, each step adds its layer tags and evidence.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
@@ -77,24 +77,6 @@ function productsForRenderedProse(products: Products, content: string): Products
     .sort((a, b) => (a.mentionIndex !== b.mentionIndex ? a.mentionIndex - b.mentionIndex : a.index - b.index))
     .map((item) => item.product)
     .slice(0, 3)
-}
-
-/** Bold the product names and prices the answer carries. */
-function emphasizeProductMentionsAndPrices(content: string, products: Products): string {
-  const names = Array.from(
-    new Set(products.map((product) => product.name?.trim()).filter((name): name is string => !!name)),
-  ).sort((a, b) => b.length - a.length)
-  if (names.length === 0) return content
-  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return content
-    .split(/(```[\s\S]*?```|\*\*.*?\*\*)/g)
-    .map((segment) => {
-      if (segment.startsWith('```') || segment.startsWith('**')) return segment
-      return names
-        .reduce((text, name) => text.replace(new RegExp(`(${escape(name)})`, 'gi'), '**$1**'), segment)
-        .replace(/(\$\d+(?:,\d{3})*(?:\.\d{2})?)/g, '**$1**')
-    })
-    .join('')
 }
 
 /**
@@ -248,8 +230,12 @@ function AgentMessage({
   const orderedProducts = message.products ? productsForRenderedProse(message.products, message.content) : []
   const recommendedProducts = orderedProducts.filter((product) => product.ownership !== 'owned')
   const ownedProducts = orderedProducts.filter((product) => product.ownership === 'owned')
-  const displayContent =
-    orderedProducts.length > 0 ? emphasizeProductMentionsAndPrices(message.content, orderedProducts) : message.content
+  // Names and prices are emphasized as rendering over the revealed text. The
+  // reveal paces the raw answer, so cards landing mid-reveal never rewind it.
+  // Keyed on the names themselves, so a re-sorted list with the same names
+  // keeps the same ranges.
+  const emphasisKey = orderedProducts.map((product) => product.name).filter(Boolean).join('\u0000')
+  const emphasis = useMemo(() => (emphasisKey ? emphasisKey.split('\u0000') : []), [emphasisKey])
   // A card appears once the sentence that names it has been revealed.
   const visibleProducts = recommendedProducts.filter((product) => {
     if (revealFinished) return true
@@ -297,10 +283,11 @@ function AgentMessage({
       {message.content && (
         <div className="ec-msg-body">
           <RevealedProse
-            text={displayContent}
+            text={message.content}
             done={streamDone}
             instant={instant}
             flush={message.stopped}
+            emphasis={emphasis}
             onProgress={onProgress}
           />
         </div>

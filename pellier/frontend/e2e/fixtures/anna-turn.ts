@@ -6,6 +6,25 @@
  * line, the Router step, the search step with its server-computed finding
  * and Builder payload, the text deltas, the products and the completion.
  * Used by the screenshot harness in place of a live backend.
+ *
+ * The numbers come from the repository's own catalog (`data/pellier_catalog.json`,
+ * seeded into `pellier.product_catalog`) and the real pipeline's shapes, run
+ * against a local Postgres on 2026-10-04 with Anna's plan (under $100, in
+ * stock, no candles):
+ *
+ * - The filter counts are the real aggregate: 31 of 100 are over $100, one of
+ *   the rest is sold out (Housewarming Gift Box), four are candles; 64 fit.
+ * - The full-text arm is the real `ts_rank_cd` order for
+ *   "housewarming | gift | slow | mornings" under those predicates.
+ * - The vector arm used a stand-in query vector (the normalized mean of the
+ *   catalog's own "slow" shelf embeddings) rather than a Bedrock embedding;
+ *   its ranks and similarities are the real cosine order for that vector.
+ * - `before` is the real RRF order of the fused 30-row pool, `rrf_score` is
+ *   `1/(60 + rank)` summed over the arms, and `after` is a rerank order the
+ *   harness fixes so the captures are stable.
+ *
+ * Every product named is in stock, under $100, carries no candle tag, and
+ * shows its own photo.
  */
 
 export const ANNA = {
@@ -25,16 +44,40 @@ export const ANNA = {
 export const ANNA_QUESTION =
   'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.'
 
+function availability(productId: string) {
+  return {
+    productId,
+    status: 'reconciled_in_stock',
+    availableQuantity: 24,
+    scope: 'catalog',
+    locations: [],
+    source: 'warehouse_inventory',
+    observedAt: '2026-10-04T14:40:00+00:00',
+    catalogCacheQuantity: 24,
+    catalogLedgerQuantity: 24,
+    aggregateCacheStale: false,
+    disagreements: [],
+    authority: 'warehouse_inventory',
+  }
+}
+
+// The three cards the answer names, in the shape `chat.py` emits: catalog
+// fields from `_format_products`, availability from `_attach_inventory_evidence`.
 const PRODUCTS = [
-  { id: 65, productId: '65', name: 'Stoneware Mugs, Set of 2', brand: 'Pellier', price: 38, category: 'Kitchen and table', image: '/products/anna-ceramic-bud-vase-480.webp', rating: 4.7, reviews: 212, quantity: 9, inStock: true, availability: { status: 'reconciled_in_stock', availableQuantity: 9 } },
-  { id: 22, productId: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', price: 44, category: 'Kitchen and table', image: '/products/anna-monogrammed-napkins-480.webp', rating: 4.8, reviews: 148, quantity: 4, inStock: true, availability: { status: 'reconciled_in_stock', availableQuantity: 4 } },
-  { id: 27, productId: '27', name: 'Ceramic Bud Vase', brand: 'Pellier', price: 22, category: 'Home', image: '/products/anna-ceramic-bud-vase-480.webp', rating: 4.6, reviews: 96, quantity: 0, inStock: false, availability: { status: 'reconciled_out_of_stock', availableQuantity: 0 } },
+  { id: '31', name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, rating: 4.9, reviews: 134, category: 'Kitchen and table', image: '/products/theo-stoneware-pour-over.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('31') },
+  { id: '36', name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, rating: 4.7, reviews: 245, category: 'Kitchen and table', image: '/products/theo-ceramic-tumblers.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('36') },
+  { id: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, rating: 4.7, reviews: 178, category: 'Kitchen and table', image: '/products/anna-monogrammed-napkins.webp', badge: null, tags: ['linen', 'gift', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('22') },
 ]
 
 const ANSWER =
-  'For a slow-morning housewarming, start with the Stoneware Mugs, Set of 2 at $38, in a speckled oat glaze with room for a big first coffee. ' +
-  'Add the Linen Napkins, Set of 4 at $44 if they like to host; they arrive gift-boxed. ' +
-  'The Ceramic Bud Vase at $22 is the small one, though it is sold out just now.'
+  'For slow mornings, start with the Stoneware Pour-Over Set at $58: a stoneware dripper and carafe in ash gray that brews two cups by hand, so breakfast can take its time. ' +
+  'Add the Ceramic Tumblers at $34, a hand-thrown pair in speckled charcoal for juice at breakfast. ' +
+  'If they like to host, the Linen Napkins, Set of 4 at $44 arrive gift-boxed and ready to give. ' +
+  'All three are in stock and under $100.'
+
+const FINDING = '5 found from 64 that fit under $100 and in stock, candles left out'
+
+const rrf = (fts: number | null, vec: number | null) => (fts ? 1 / (60 + fts) : 0) + (vec ? 1 / (60 + vec) : 0)
 
 const RANKING = {
   available: true,
@@ -42,19 +85,22 @@ const RANKING = {
   method: 'hybrid+rerank',
   rrf_k: 60,
   rerank_pool: 15,
-  arms: { full_text: 12, vector: 20, fused: 23 },
-  filters: { kept: 23, of: 100, removed: { budget: 61, stock: 9, exclusions: 4, department: 0 } },
+  arms: { full_text: 20, vector: 20, fused: 30 },
+  filters: { kept: 64, of: 100, removed: { budget: 31, stock: 1, exclusions: 4 } },
   rows: [
-    { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 3, vec_rank: 1, similarity: 0.61, rrf_score: 1 / 63 + 1 / 61, rerank_score: 0.84, before: 1, after: 1 },
-    { product_id: '22', name: 'Linen Napkins, Set of 4', fts_rank: 1, vec_rank: 5, similarity: 0.52, rrf_score: 1 / 61 + 1 / 65, rerank_score: 0.72, before: 2, after: 2 },
-    { product_id: '27', name: 'Ceramic Bud Vase', fts_rank: null, vec_rank: 2, similarity: 0.58, rrf_score: 1 / 62, rerank_score: 0.4, before: 5, after: 3 },
-    { product_id: '36', name: 'Ceramic Tumblers', fts_rank: 6, vec_rank: 3, similarity: 0.57, rrf_score: 1 / 66 + 1 / 63, rerank_score: 0.38, before: 3, after: 4 },
-    { product_id: '72', name: 'Espresso Cups, Set of 4', fts_rank: 2, vec_rank: 8, similarity: 0.49, rrf_score: 1 / 62 + 1 / 68, rerank_score: 0.35, before: 4, after: 5 },
-    { product_id: '31', name: 'Stoneware Pour-Over Set', fts_rank: 4, vec_rank: 4, similarity: 0.55, rrf_score: 1 / 64 + 1 / 64, rerank_score: 0.31, before: 6, after: 6 },
-    { product_id: '66', name: 'Glass Carafe', fts_rank: 9, vec_rank: 6, similarity: 0.5, rrf_score: 1 / 69 + 1 / 66, rerank_score: 0.22, before: 7, after: 7 },
-    { product_id: '39', name: 'Linen Table Runner', fts_rank: 5, vec_rank: null, similarity: null, rrf_score: 1 / 65, rerank_score: 0.18, before: 8, after: 8 },
+    { product_id: '31', name: 'Stoneware Pour-Over Set', fts_rank: null, vec_rank: 1, similarity: 0.773, rrf_score: rrf(null, 1), rerank_score: 0.91, before: 9, after: 1 },
+    { product_id: '36', name: 'Ceramic Tumblers', fts_rank: 17, vec_rank: 2, similarity: 0.768, rrf_score: rrf(17, 2), rerank_score: 0.84, before: 2, after: 2 },
+    { product_id: '22', name: 'Linen Napkins, Set of 4', fts_rank: 12, vec_rank: 18, similarity: 0.58, rrf_score: rrf(12, 18), rerank_score: 0.72, before: 6, after: 3 },
+    { product_id: '37', name: 'Wabi-Sabi Bowl', fts_rank: 13, vec_rank: 4, similarity: 0.717, rrf_score: rrf(13, 4), rerank_score: 0.66, before: 1, after: 4 },
+    { product_id: '33', name: 'Olive Wood Cutting Board', fts_rank: 14, vec_rank: 10, similarity: 0.645, rrf_score: rrf(14, 10), rerank_score: 0.58, before: 5, after: 5 },
+    { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 20, vec_rank: 3, similarity: 0.763, rrf_score: rrf(20, 3), rerank_score: 0.47, before: 4, after: 6 },
+    { product_id: '34', name: 'Terracotta Planter', fts_rank: 15, vec_rank: 5, similarity: 0.698, rrf_score: rrf(15, 5), rerank_score: 0.39, before: 3, after: 7 },
+    { product_id: '39', name: 'Linen Table Runner', fts_rank: 18, vec_rank: 13, similarity: 0.606, rrf_score: rrf(18, 13), rerank_score: 0.31, before: 7, after: 8 },
   ],
+  note: 'Kept counts the hard limits only; the first pass also asks for the preferences the shopper implied, so the fused pool can be smaller',
 }
+
+const REQUIREMENTS = { applied: ['under $100', 'in stock', 'no candles'], carried: [] }
 
 const SKILLS = [
   { name: 'the-gift-table', display_name: 'The Gift Table', path: 'skills/the-gift-table/SKILL.md', loaded: 'fixed' },
@@ -80,11 +126,11 @@ export const ANNA_TURN_EVENTS: object[] = [
   { type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running', tags: ['Aurora'], builder: { tool: 'search_products' } },
   { type: 'tool_call', tool: 'search_products', status: 'executing' },
   {
-    type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', finding: '3 under $100 and in stock, candles left out',
+    type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', finding: FINDING,
     tags: ['Aurora'],
-    builder: { tool: 'search_products', rail: 'in-process', duration_ms: 184, audit_id: 9031, receipt_id: 412, identity: null, ranking: RANKING },
+    builder: { tool: 'search_products', rail: 'in-process', duration_ms: 731, audit_id: 9031, receipt_id: 6, identity: null, ranking: RANKING, requirements: REQUIREMENTS },
   },
-  { type: 'tool_call', tool: 'search_products', status: 'completed', duration_ms: 184 },
+  { type: 'tool_call', tool: 'search_products', status: 'completed', duration_ms: 731 },
   { type: 'content_reset' },
   { type: 'status', label: 'Writing your answer' },
   ...deltas(ANSWER),
@@ -104,6 +150,8 @@ export const ANNA_TURN_EVENTS: object[] = [
     },
   },
 ]
+
+export const ANNA_FINDING = FINDING
 
 export function sseBody(events: object[]): string {
   return events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')

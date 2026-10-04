@@ -55,6 +55,13 @@ export interface RankingPayload {
   receipt_id?: number | null
 }
 
+/** The limits a catalog tool applied, as the shopper would say them. */
+export interface StepRequirements {
+  applied: string[]
+  /** The limits kept from earlier in the conversation. */
+  carried: string[]
+}
+
 export interface LoadedSkill {
   name: string
   display_name: string
@@ -70,6 +77,7 @@ export interface StepBuilder {
   receipt_id?: number | null
   identity?: IdentityBinding | null
   ranking?: RankingPayload | null
+  requirements?: StepRequirements | null
   intent?: string
   agent?: string
   model_id?: string

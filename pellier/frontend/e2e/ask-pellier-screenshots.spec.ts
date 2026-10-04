@@ -12,7 +12,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { ANNA, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
+import { ANNA, ANNA_FINDING, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
 
 const SHOTS = process.env.ASK_PELLIER_SHOTS ?? 'test-results/ask-pellier'
 const PNG_1x1 = Buffer.from(
@@ -20,11 +20,12 @@ const PNG_1x1 = Buffer.from(
   'base64',
 )
 
-// The storefront's own product shape (`PellierProduct`), for the hero and grid.
+// The storefront's own product shape (`PellierProduct`), for the hero and
+// grid: the same three catalog rows the turn names, with their own photos.
 const PRODUCTS = [
-  { id: 65, name: 'Stoneware Mugs, Set of 2', brand: 'Pellier', color: 'Oat', price: 38, category: 'Kitchen and table', imageUrl: '/products/anna-ceramic-bud-vase-480.webp', rating: 4.7, reviewCount: 212, tags: ['ceramic', 'home'] },
-  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'Ivory', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins-480.webp', rating: 4.8, reviewCount: 148, tags: ['linen', 'gift'] },
-  { id: 27, name: 'Ceramic Bud Vase', brand: 'Pellier', color: 'Sand', price: 22, category: 'Home', imageUrl: '/products/anna-ceramic-bud-vase-480.webp', rating: 4.6, reviewCount: 96, tags: ['ceramic', 'home'] },
+  { id: 31, name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, category: 'Kitchen and table', imageUrl: '/products/theo-stoneware-pour-over.webp', rating: 4.9, reviewCount: 134, tags: ['ceramic', 'slow', 'home'] },
+  { id: 36, name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, category: 'Kitchen and table', imageUrl: '/products/theo-ceramic-tumblers.webp', rating: 4.7, reviewCount: 245, tags: ['ceramic', 'slow', 'home'] },
+  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'] },
 ]
 const CATALOG_STATS = {
   product_count: 100,
@@ -57,7 +58,7 @@ async function stubApi(page: Page) {
       return route.fulfill(json({
         scenarios: [
           { id: 1, ordinal: 1, prompt: ANNA_QUESTION, journeyRole: 'required' },
-          { id: 2, ordinal: 2, prompt: 'Help me pair the mugs with something else under $50.', journeyRole: 'required' },
+          { id: 2, ordinal: 2, prompt: 'Which of those would you pick for a small kitchen?', journeyRole: 'required' },
           { id: 3, ordinal: 3, prompt: 'Which of these would you gift-wrap?', journeyRole: 'required' },
         ],
       }))
@@ -99,20 +100,26 @@ for (const width of [1440, 390]) {
 
     // Mid-turn: the status line is writing and the steps carry their findings.
     await expect(drawer.getByTestId('turn-status')).toHaveText(/Writing your answer/)
-    await expect(drawer.getByText('3 under $100 and in stock, candles left out')).toBeVisible()
+    await expect(drawer.getByText(ANNA_FINDING)).toBeVisible()
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-writing.png`) })
 
     // After the reveal: the steps fold, the cards sit after the prose.
     await expect(drawer.getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })
-    await expect(drawer.getByText('Stoneware Mugs, Set of 2').first()).toBeVisible()
+    await expect(drawer.getByText('Stoneware Pour-Over Set').first()).toBeVisible()
+    // No sold-out or over-budget card on Anna's turn.
+    await expect(drawer.getByText('Sold out')).toHaveCount(0)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-answered.png`) })
 
     // Builder view on: layer tags, the evidence line and how it ranked.
     await drawer.getByRole('switch', { name: 'Builder view' }).click()
     await drawer.getByTestId('turn-fold').click()
     await expect(drawer.getByTestId('ranking-panel')).toBeVisible()
-    await expect(drawer.getByText('Kept 23 of 100')).toBeVisible()
-    // Let the step rows finish rising before the capture.
+    await expect(drawer.getByText('Kept 64 of 100')).toBeVisible()
+    await expect(drawer.getByText('31 over budget')).toBeVisible()
+    await expect(drawer.getByText('1 sold out')).toBeVisible()
+    await expect(drawer.getByText('4 excluded')).toBeVisible()
+    // Frame the ranking rows, then let the step rows finish rising.
+    await drawer.getByTestId('ranking-panel').scrollIntoViewIfNeeded()
     await page.waitForTimeout(400)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-builder.png`) })
     await expect(page.evaluate(() => localStorage.getItem('pellier-builder-view'))).resolves.toBe('on')

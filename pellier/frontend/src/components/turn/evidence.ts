@@ -8,7 +8,9 @@ export function identitySentence(identity: IdentityBinding): string {
   const { binding, requested_customer: requested, bound_customer: bound, authorized_customer: authorized } = identity
   switch (binding) {
     case 'overwritten':
-      return `model asked for ${requested}, server bound ${bound} (overwritten)`
+      // The managed rail emits a requested id only in the customer-id shape;
+      // anything else the model named is reported as another customer.
+      return `model asked for ${requested ?? 'another customer'}, server bound ${bound} (overwritten)`
     case 'matched':
     case 'bound':
       return `bound ${bound}`
@@ -41,6 +43,9 @@ export function evidenceLine(step: TurnStep): string {
     return parts.join('; ')
   }
   if (builder.identity) parts.push(identitySentence(builder.identity))
+  if (builder.requirements?.carried?.length) {
+    parts.push(`kept from earlier: ${builder.requirements.carried.join(', ')}`)
+  }
   if (builder.audit_id != null) parts.push(`audit row ${builder.audit_id}`)
   if (builder.receipt_id != null) parts.push(`receipt ${builder.receipt_id}`)
   if (builder.tool === 'skills' && builder.skills?.length) {

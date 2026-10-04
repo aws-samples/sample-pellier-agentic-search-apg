@@ -9,8 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import StatusLine from './StatusLine'
 import StatusTag from './StatusTag'
 import RevealedProse from './RevealedProse'
-import { identitySentence } from './evidence'
-import { parseProse, sentenceEndAfter } from './prose'
+import { evidenceLine, identitySentence } from './evidence'
+import { emphasisRanges, parseProse, sentenceEndAfter } from './prose'
 import {
   BUILDER_VIEW_KEY,
   SKILL_MODE_KEY,
@@ -84,6 +84,29 @@ describe('identitySentence', () => {
     expect(identitySentence({ binding: 'unbound', requested_customer: null, bound_customer: null, authorized_customer: null }))
       .toBe('no signed-in account, handoff ran unbound')
   })
+
+  it('names another customer when the managed rail withheld an id that was not one', () => {
+    expect(identitySentence({ binding: 'overwritten', requested_customer: null, bound_customer: 'CUST-THEO', authorized_customer: 'CUST-THEO' }))
+      .toBe('model asked for another customer, server bound CUST-THEO (overwritten)')
+  })
+})
+
+describe('evidenceLine', () => {
+  it('shows the limits kept from earlier in the conversation', () => {
+    const line = evidenceLine({
+      id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: ['Aurora'],
+      builder: {
+        tool: 'search_products', rail: 'in-process', audit_id: 9040, receipt_id: 6,
+        requirements: { applied: ['under $100', 'in stock', 'no candles'], carried: ['under $100', 'in stock', 'no candles'] },
+      },
+    })
+    expect(line).toBe('kept from earlier: under $100, in stock, no candles; audit row 9040; receipt 6; rail in-process')
+    const first = evidenceLine({
+      id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: ['Aurora'],
+      builder: { tool: 'search_products', requirements: { applied: ['under $100'], carried: [] } },
+    })
+    expect(first).not.toContain('kept from earlier')
+  })
 })
 
 describe('parseProse', () => {
@@ -106,6 +129,21 @@ describe('parseProse', () => {
     const text = 'Start with the Wabi-Sabi Bowl at $24. The Ceramic Tumblers pair well.'
     expect(text.slice(0, sentenceEndAfter(text, 'Wabi-Sabi Bowl'))).toBe('Start with the Wabi-Sabi Bowl at $24.')
     expect(sentenceEndAfter(text, 'Linen Throw')).toBe(-1)
+  })
+
+  it('emphasizes product names and prices as ranges over the source, never by editing it', () => {
+    const text = 'Start with the Wabi-Sabi Bowl at $24. The Ceramic Tumblers pair well.'
+    const ranges = emphasisRanges(text, ['Wabi-Sabi Bowl', 'Ceramic Tumblers'])
+    expect(ranges.map(range => text.slice(range.start, range.end))).toEqual(['Wabi-Sabi Bowl', '$24', 'Ceramic Tumblers'])
+    const [first] = parseProse(text, ranges)
+    expect(first.runs.map(run => [run.bold, run.text])).toEqual([
+      [false, 'Start with the '], [true, 'Wabi-Sabi Bowl'], [false, ' at '], [true, '$24'],
+      [false, '. The '], [true, 'Ceramic Tumblers'], [false, ' pair well.'],
+    ])
+    // A half-revealed name is bold from its first character, like an unclosed **.
+    const partial = parseProse(text.slice(0, 'Start with the Wabi-Sa'.length), ranges)
+    expect(partial[0].runs.at(-1)).toMatchObject({ bold: true, text: 'Wabi-Sa' })
+    expect(emphasisRanges(text, [])).toEqual([])
   })
 })
 
@@ -138,6 +176,31 @@ describe('RevealedProse', () => {
     expect(container.textContent).toBe('Start with the mugs.')
     expect(container.querySelectorAll('.tn-ch')).toHaveLength(0)
     expect(progress.at(-1)).toEqual(['Start with the mugs.'.length, true])
+  })
+
+  it('never shortens the revealed text when product names arrive mid-reveal', () => {
+    const text = 'Start with the Stoneware Mugs, Set of 2 at $38. They are in stock.'
+    const progress: number[] = []
+    const onProgress = (length: number) => progress.push(length)
+    const { container, rerender } = render(<RevealedProse text={text} done={false} onProgress={onProgress} />)
+    act(() => { vi.advanceTimersByTime(24 * 30) })
+    const revealedBefore = container.textContent ?? ''
+    expect(revealedBefore.length).toBeGreaterThan('Start with the Stoneware'.length)
+    expect(container.querySelector('strong')).toBeNull()
+
+    // The product events land: the names are now emphasized.
+    rerender(<RevealedProse text={text} done={false} emphasis={['Stoneware Mugs, Set of 2']} onProgress={onProgress} />)
+    const revealedAfter = container.textContent ?? ''
+    expect(revealedAfter.startsWith(revealedBefore)).toBe(true)
+    expect(revealedAfter.length).toBeGreaterThanOrEqual(revealedBefore.length)
+    expect(container.querySelector('strong')?.textContent).toBe('Stoneware Mugs, Set of 2'.slice(0, revealedAfter.length - 'Start with the '.length))
+    expect(Math.min(...progress.slice(progress.indexOf(revealedBefore.length)))).toBe(revealedBefore.length)
+
+    act(() => { vi.advanceTimersByTime(5000) })
+    rerender(<RevealedProse text={text} done emphasis={['Stoneware Mugs, Set of 2']} onProgress={onProgress} />)
+    act(() => { vi.advanceTimersByTime(1500) })
+    expect(container.textContent).toBe(text)
+    expect(Array.from(container.querySelectorAll('strong')).map(node => node.textContent)).toEqual(['Stoneware Mugs, Set of 2', '$38'])
   })
 
   it('shows a message from history at once', () => {

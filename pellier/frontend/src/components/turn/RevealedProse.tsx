@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { createRevealController, type RevealController } from '../../utils/reveal'
-import { parseProse, type ProseBlock } from './prose'
+import { emphasisRanges, parseProse, type ProseBlock } from './prose'
 
 export interface RevealedProseProps {
   /** The full text received so far. */
@@ -20,10 +20,18 @@ export interface RevealedProseProps {
   flush?: boolean
   /** A message from history: show it at once, never animate. */
   instant?: boolean
+  /**
+   * Product names to render bold, with their prices. Applied over the
+   * revealed text at render time, so names arriving mid-reveal never change
+   * the text the reveal is pacing.
+   */
+  emphasis?: readonly string[]
   /** Called with how much of `text` is on screen, and whether the reveal is over. */
   onProgress?: (revealedLength: number, finished: boolean) => void
   className?: string
 }
+
+const NO_EMPHASIS: readonly string[] = []
 
 interface Frame {
   revealed: string
@@ -67,6 +75,7 @@ export default function RevealedProse({
   done,
   flush = false,
   instant = false,
+  emphasis = NO_EMPHASIS,
   onProgress,
   className,
 }: RevealedProseProps) {
@@ -110,7 +119,10 @@ export default function RevealedProse({
     latest.current.onProgress?.(frame.revealed.length, frame.finished)
   }, [frame])
 
-  const blocks = useMemo(() => parseProse(frame.revealed), [frame.revealed])
+  // Ranges are in source coordinates over the full text; the revealed prefix
+  // shares them, so a half-revealed name is bold from its first character.
+  const ranges = useMemo(() => emphasisRanges(text, emphasis), [text, emphasis])
+  const blocks = useMemo(() => parseProse(frame.revealed, ranges), [frame.revealed, ranges])
   const live = !frame.finished
 
   return (
