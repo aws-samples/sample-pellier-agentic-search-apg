@@ -24,8 +24,17 @@ def test_every_order_has_an_explicit_amount(fresh_db):
 
 
 def test_repricing_never_rewrites_history(fresh_db):
-    before = fresh_db.psql("SELECT amount_paid_cents FROM pellier.orders WHERE customer_id='CUST-JESSICA' AND product_id='42'")
-    fresh_db.psql("""BEGIN; UPDATE pellier.product_catalog SET price = 99 WHERE "productId" = '42'; COMMIT;""")
-    after = fresh_db.psql("SELECT amount_paid_cents FROM pellier.orders WHERE customer_id='CUST-JESSICA' AND product_id='42'")
-    fresh_db.psql("""UPDATE pellier.product_catalog SET price = 64 WHERE "productId" = '42'""")
+    paid = "SELECT amount_paid_cents FROM pellier.orders WHERE customer_id='CUST-JESSICA' AND product_id='42'"
+    original_price = fresh_db.psql("""SELECT price FROM pellier.product_catalog WHERE "productId" = '42'""")
+    before = fresh_db.psql(paid)
+    try:
+        updated = fresh_db.psql(
+            """UPDATE pellier.product_catalog SET price = 99 WHERE "productId" = '42' RETURNING "productId" """
+        )
+        after = fresh_db.psql(paid)
+    finally:
+        fresh_db.psql(
+            f"""UPDATE pellier.product_catalog SET price = {original_price} WHERE "productId" = '42'"""
+        )
+    assert updated.splitlines() == ["42", "UPDATE 1"]
     assert before == after == "6400"

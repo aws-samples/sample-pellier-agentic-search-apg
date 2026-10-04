@@ -8,13 +8,13 @@ const require = createRequire(import.meta.url)
 // evidence. Every Operator mutation is intercepted and fails this test.
 const client = {
   customerId: 'CUST-JESSICA', slug: 'jessica', name: 'Jessica Nakamura', personaId: null,
-  membership: 'circle', spend12mo: 3940, orderCount: 1, orderValue: 325.36,
+  membership: 'circle', spend12mo: 3940, orderCount: 1, orderValue: 48,
   note: 'A return request for the Coral Lacquer Catchall.', openCase: 'Return request',
   openCaseStatus: 'pending', openTicketCount: 1, creditBalanceCents: 0,
 }
 const order = {
   orderId: 406, productId: '41', productName: 'Coral Lacquer Catchall', brand: 'Pellier',
-  price: 325.36, quantity: 1, placedAt: null, imageUrl: '/products/house-coral-lacquer-catchall.png',
+  pricePaid: 48, currentPrice: 48, quantity: 1, placedAt: null, imageUrl: '/products/house-coral-lacquer-catchall.png',
 }
 const review = {
   reviewId: 901, customerId: client.customerId, customerName: client.name, slug: client.slug,
@@ -27,7 +27,7 @@ const review = {
 }
 const proposal = {
   tool: 'initiate_return', reviewId: 901, state: 'review_required',
-  product: { name: order.productName, price: order.price }, order: { orderId: order.orderId },
+  product: { name: order.productName, price: order.currentPrice }, order: { orderId: order.orderId },
   material: { reason: 'not_as_described' }, executionCapability: { state: 'review_required' },
 }
 const messages = [

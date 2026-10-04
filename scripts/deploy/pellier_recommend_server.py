@@ -90,7 +90,8 @@ def get_customer_preferences(
     orders = _execute_sql(
         f"""
         SELECT o.product_id, pc.name, pc.brand, pc.category, pc.color,
-               pc.price, o.quantity, o.placed_at
+               pc.price, o.amount_paid_cents / 100.0 AS price_paid,
+               o.quantity, o.placed_at
           FROM {SCHEMA}.orders o
           JOIN {SCHEMA}.product_catalog pc
             ON pc."productId" = o.product_id

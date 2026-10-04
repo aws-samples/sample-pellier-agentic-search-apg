@@ -81,6 +81,8 @@ def test_get_customer_preferences_scopes_every_aurora_query_to_bound_customer(
         calls.append((sql, parameters or []))
         if "FROM pellier.customers" in sql:
             return [{"id": "CUST-MARCO", "name": "Marco"}]
+        if "FROM pellier.orders" in sql:
+            return [{"product_id": "42", "price": 64.0, "price_paid": 64.0}]
         return []
 
     monkeypatch.setattr(server, "_execute_sql", _execute)
@@ -88,6 +90,12 @@ def test_get_customer_preferences_scopes_every_aurora_query_to_bound_customer(
     result = server.get_customer_preferences(customer_id="cust-marco", limit=20)
 
     assert result["status"] == "success"
+    assert "o.amount_paid_cents / 100.0 AS price_paid" in calls[1][0]
+    assert result["recent_orders"][0]["price_paid"] == 64.0
+    assert "price" in result["recent_orders"][0]
+    in_process = (REPO_ROOT / "pellier/backend/services/agent_tools.py").read_text()
+    assert "o.amount_paid_cents / 100.0 AS price_paid" in in_process
+    assert '"price_paid": row.get("price_paid")' in in_process
     assert len(calls) == 3
     assert "WHERE id = :customer_id" in calls[0][0]
     assert "WHERE o.customer_id = :customer_id" in calls[1][0]
