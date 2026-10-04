@@ -91,6 +91,8 @@ class ManagedRuntimeResult:
     orchestration: str = "dispatcher"
     # The skills the Runtime says its agent carried; empty when it reported none.
     skills: List[Dict[str, Any]] = field(default_factory=list)
+    # How the agent's turn ended, as the Runtime reported it; empty when it did not.
+    stop_reason: str = ""
 
 
 def _reported_skills(value: Any) -> List[Dict[str, Any]]:
@@ -589,6 +591,7 @@ async def run_agent_on_runtime_result(
             ),
             orchestration="dispatcher",
             skills=_reported_skills(parsed.get("skills")),
+            stop_reason=str(parsed.get("stop_reason") or ""),
         )
     except ManagedRuntimeError:
         raise

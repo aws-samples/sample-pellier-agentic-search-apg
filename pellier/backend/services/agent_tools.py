@@ -333,11 +333,16 @@ def _turn_requirements(query: str) -> tuple[dict | None, list[str]]:
 
 
 def _apply_plan(tool: str, payload: dict, carried: list[str]) -> None:
-    """Keep the plan that ran for the next turn, and say what it carried over."""
+    """Once the tool ran, keep the shopper's limits for the next turn and say what carried over.
+
+    What is kept is the turn's reading of the shopper's words, not the plan:
+    an agent's ``max_price`` argument shaped this one plan and is never
+    remembered as the shopper's limit.
+    """
     plan = payload.get("search_plan") if isinstance(payload, dict) else None
     if not isinstance(plan, dict):
         return
-    active_requirements.remember_plan(plan)
+    active_requirements.remember_turn()
     tool_evidence.publish(tool, {"requirements": {"carried": list(carried)}})
 
 

@@ -192,6 +192,9 @@ try:
             # The skills the routed agent's prompt carried, reported from the
             # source. The app renders this list and asserts nothing of its own.
             "skills": list(dispatcher.last_skills or []),
+            # How the agent's turn ended, for the receipt. A truncated turn
+            # never reaches here; it is rejected above.
+            "stop_reason": stop_reason,
             "orchestration": "dispatcher",
             "build_fingerprint": _build_fingerprint,
         }

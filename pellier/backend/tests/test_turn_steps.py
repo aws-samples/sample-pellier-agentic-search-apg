@@ -322,6 +322,21 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
     assert route["label"] == STATUS_UNDERSTANDING
     assert route["tags"] == ["Router", "Memory", "Skills"]
     assert route["builder"]["agent"] == "Shopping agent"
+    assert route["builder"]["stop_reason"] is None
+
+
+def test_the_route_step_sent_again_carries_how_the_turn_ended() -> None:
+    steps = TurnSteps()
+    facts = {
+        "agent": "Shopping agent", "intent": "shopping", "finding": "Sent to the Shopping agent",
+        "model_id": "global.anthropic.claude-opus-5", "skills": [], "skill_mode": "fixed",
+    }
+    first = steps.route(**facts)
+    again = steps.route(**facts, stop_reason="max_tokens")
+    assert again["id"] == "route" and again["builder"]["stop_reason"] == "max_tokens"
+    shopper_view = {key: value for key, value in again.items() if key != "builder"}
+    assert shopper_view == {key: value for key, value in first.items() if key != "builder"}
+    assert "max_tokens" not in json.dumps(shopper_view)
 
 
 def test_managed_step_maps_identity_fields_from_the_runtime_event() -> None:

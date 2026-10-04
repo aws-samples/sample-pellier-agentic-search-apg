@@ -171,6 +171,8 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         # The skills the agent's prompt carried, from the source: the app
         # renders this list and never assembles one of its own.
         "skills": dispatcher.last_skills,
+        # How the agent's turn ended, for the receipt.
+        "stop_reason": "end_turn",
         "orchestration": "dispatcher",
         # Echoed on every response so the caller can prove which revision
         # Runtime executed; empty here because the test process carries no

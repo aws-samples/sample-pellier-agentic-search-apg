@@ -3,7 +3,9 @@ and shows only the skills the Runtime reported."""
 
 from __future__ import annotations
 
+import asyncio
 import json
+import urllib.request
 from typing import Any, Dict, List
 
 import pytest
@@ -57,7 +59,62 @@ def _support_result(skills: List[Dict[str, Any]]) -> ManagedRuntimeResult:
             }
         ],
         skills=skills,
+        stop_reason="end_turn",
     )
+
+
+# One raw Runtime response, as the entrypoint returns it over the data plane.
+RAW_RUNTIME_RESPONSE = {
+    "response": "Your ticket about the chipped bowl is open.",
+    "products": [],
+    "rail": "gateway-mcp",
+    "intent": "support",
+    "specialist": "support",
+    "model": "global.anthropic.claude-opus-5",
+    "gateway_tools": ["get_tickets", "get_orders"],
+    "tool_calls": [{"id": "tool-1", "tool": "get_tickets", "status": "success", "duration_ms": 90,
+                    "input": {"limit": 5}, "result": {"count": 2}, "finding": "1 open ticket, 1 closed"}],
+    # What the Runtime reports it carried, plus two entries the parser must drop.
+    "skills": [*RUNTIME_SKILLS, {"display_name": "No name"}, "not-a-receipt"],
+    "stop_reason": "end_turn",
+    "orchestration": "dispatcher",
+    "build_fingerprint": "abc123",
+}
+
+
+def test_the_bridge_parses_skills_and_stop_reason_from_the_raw_runtime_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The response goes through ``run_agent_on_runtime_result``, not a hand-built result."""
+
+    class _Response:
+        headers = {"x-amzn-requestid": "req-1"}
+
+        def read(self) -> bytes:
+            return json.dumps(RAW_RUNTIME_RESPONSE).encode("utf-8")
+
+        def __enter__(self) -> "_Response":
+            return self
+
+        def __exit__(self, *exc: Any) -> bool:
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda request, timeout=None: _Response())
+    monkeypatch.setattr(
+        runtime_module.settings,
+        "AGENTCORE_RUNTIME_ENDPOINT",
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier",
+        raising=False,
+    )
+    result = asyncio.run(runtime_module.run_agent_on_runtime_result(
+        message="any news on my chipped bowl?",
+        session_id="sess-theo",
+        user_id="principal-theo",
+        auth_token="jwt-theo",
+    ))
+    assert result.skills == RUNTIME_SKILLS
+    assert result.stop_reason == "end_turn"
+    assert result.tool_calls[0]["finding"] == "1 open ticket, 1 closed"
 
 
 @pytest.fixture
@@ -133,6 +190,7 @@ def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: 
         "On-demand skill loading runs in the in-process app only; "
         "the Runtime loaded its fixed skills"
     )
+    assert route["builder"]["stop_reason"] == "end_turn"
 
     tickets = steps[1]
     assert tickets["id"] == "step-1" and tickets["status"] == "done"
@@ -156,6 +214,7 @@ def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: 
         assert field not in tool_call
     complete = [event for event in events if event.get("type") == "complete"][0]
     assert complete["response"]["rail"] == "gateway-mcp"
+    assert complete["response"]["orchestration"]["stop_reason"] == "end_turn"
     executed = complete["response"]["agent_execution"]["tool_calls"][0]
     assert "requested_customer" not in executed and "finding" not in executed
     assert executed["binding"] == "overwritten"

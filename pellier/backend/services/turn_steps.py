@@ -493,11 +493,16 @@ class TurnSteps:
         memory: Optional[Dict[str, Any]] = None,
         rail: str = "in-process",
         note: Optional[str] = None,
+        stop_reason: Optional[str] = None,
     ) -> Dict[str, Any]:
         """The Router's step, done the moment the intent is known.
 
         The Skills tag names what the agent starts with. On demand it starts
         with the names only, and the tag says so before any load.
+
+        ``stop_reason`` is how the agent's turn ended, once it has: the same
+        step is sent again with it, so the Builder view can say when an
+        answer was cut short at ``max_tokens``.
         """
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
         if memory:
@@ -524,6 +529,7 @@ class TurnSteps:
                 "skill_mode": skill_mode,
                 "memory": memory,
                 "note": note,
+                "stop_reason": stop_reason,
             },
         }
 

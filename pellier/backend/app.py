@@ -1290,6 +1290,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     ),
                     rail="gateway-mcp",
                     note=_managed_skill_note(managed_result.skills, request.skill_mode),
+                    stop_reason=managed_result.stop_reason or None,
                 )
                 yield f"data: {json.dumps(route_step, ensure_ascii=False)}\n\n"
                 execution_tool_calls = [
@@ -1370,6 +1371,7 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                             "intent": managed_result.intent,
                             "agent": managed_agent,
                             "model_id": managed_result.model,
+                            "stop_reason": managed_result.stop_reason or None,
                         },
                         "agent_execution": {
                             "agent_steps": (

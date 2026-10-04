@@ -39,8 +39,10 @@ RANKING = {"available": True, "rail": "in-process", "rows": [{"product_id": "65"
 
 
 class _Answer:
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, stop_reason: Optional[str] = None) -> None:
         self.text = text
+        if stop_reason is not None:
+            self.stop_reason = stop_reason
 
     def __str__(self) -> str:
         return self.text
@@ -51,10 +53,18 @@ class ScriptedAgent:
 
     trace_attributes: Dict[str, Any] = {}
 
-    def __init__(self, calls: List[Dict[str, Any]], answer: str, *, fail: Optional[Exception] = None) -> None:
+    def __init__(
+        self,
+        calls: List[Dict[str, Any]],
+        answer: str,
+        *,
+        fail: Optional[Exception] = None,
+        stop_reason: Optional[str] = None,
+    ) -> None:
         self.calls = calls
         self.answer = answer
         self.fail = fail
+        self.stop_reason = stop_reason
         self.hooks: List[Any] = []
         self.callback_handler = None
 
@@ -80,7 +90,7 @@ class ScriptedAgent:
             self._fire(SimpleNamespace(tool_use=tool_use, result=result), "AfterToolCall")
         for piece in self.answer.split(" "):
             self.callback_handler(data=piece + " ")
-        return _Answer(self.answer)
+        return _Answer(self.answer, self.stop_reason)
 
 
 @pytest.fixture
@@ -326,3 +336,54 @@ def test_the_greeting_is_answered_by_the_router_in_the_same_contract(service, mo
     assert route["finding"] == "Answered by the Router, no agent needed"
     assert "Triage" not in json.dumps(events)
     assert events[-2]["type"] == "complete"
+
+
+def test_the_receipt_and_the_router_step_record_how_the_turn_ended(service, monkeypatch, caplog) -> None:
+    """Thinking and the answer share one budget; a turn that stops at max_tokens says so."""
+    agent = ScriptedAgent(_anna_agent().calls, "Start with the Stoneware Mugs, Set of 2 at", stop_reason="max_tokens")
+    with caplog.at_level("WARNING", logger="services.chat"):
+        events = _run(service, agent, monkeypatch)
+    routes = [step for step in _of(events, "step") if step["id"] == "route"]
+    assert routes[0]["builder"]["stop_reason"] is None
+    assert routes[-1]["builder"]["stop_reason"] == "max_tokens"
+    assert routes[-1]["finding"] == routes[0]["finding"]
+    assert _of(events, "complete")[0]["response"]["orchestration"]["stop_reason"] == "max_tokens"
+    assert "answer cut short at max_tokens" in caplog.text
+
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="services.chat"):
+        events = _run(service, ScriptedAgent(_anna_agent().calls, "Start with the mugs.", stop_reason="end_turn"), monkeypatch)
+    assert _of(events, "complete")[0]["response"]["orchestration"]["stop_reason"] == "end_turn"
+    assert [step for step in _of(events, "step") if step["id"] == "route"][-1]["builder"]["stop_reason"] == "end_turn"
+    assert "cut short" not in caplog.text
+
+
+@pytest.mark.parametrize("fail", [None, RuntimeError("ServiceUnavailableException: Bedrock is unavailable")])
+def test_the_requirements_scope_is_released_with_the_evidence_channel(service, monkeypatch, fail) -> None:
+    from services import active_requirements
+
+    seen: Dict[str, Any] = {}
+
+    class _Agent(ScriptedAgent):
+        def __call__(self, prompt: str) -> _Answer:
+            scope = active_requirements.current_turn()
+            seen["bound"] = (scope.session_id, scope.principal) if scope else None
+            seen["channel"] = tool_evidence.is_open()
+            return super().__call__(prompt)
+
+    agent = _Agent(_anna_agent().calls, "Start with the mugs.", fail=fail)
+    monkeypatch.setattr(chat_module, "_build_dispatcher_specialist", lambda *a, **k: agent)
+
+    async def collect() -> Dict[str, Any]:
+        events = [event async for event in service.chat_stream(
+            message="a housewarming gift under $100", turn_id=TURN, session_id="sess-anna",
+        )]
+        return {"events": events, "after": active_requirements.current_turn(), "open": tool_evidence.is_open()}
+
+    outcome = asyncio.run(collect())
+    kinds = [event["type"] for event in outcome["events"]]
+    assert ("complete" in kinds) is (fail is None) and ("error" in kinds) is (fail is not None)
+    if fail is None:
+        assert seen["bound"] == ("sess-anna", None) and seen["channel"] is True
+    assert outcome["after"] is None, "bind_turn's token is reset in the same finally as the channel"
+    assert outcome["open"] is False

@@ -265,6 +265,12 @@ def _route_finding(agent: str, triage_bucket: Optional[str] = None) -> str:
     return f"Sent to the {agent}"
 
 
+def _agent_stop_reason(result: Any) -> Optional[str]:
+    """How the agent's turn ended (``end_turn``, ``max_tokens``, ...), when the result says."""
+    value = getattr(result, "stop_reason", None)
+    return str(value) if value else None
+
+
 def _new_unique_products(existing: list, candidates: list) -> list:
     """Return candidates not already represented by product id or name."""
 
@@ -1373,14 +1379,6 @@ class EnhancedChatService:
         turn_id_var.set(turn_id)
         # The search tools plan from what the shopper typed, not the agent's query.
         shopper_words_var.set(shopper_words(message, conversation_history))
-        # The limits the last search plan applied stay in force for this
-        # session's catalog tools until the shopper changes or releases them.
-        # The scope object is created here so every tool in the turn shares it.
-        active_requirements.bind_turn(
-            session_id=session_id,
-            message=message,
-            conversation_history=conversation_history,
-        )
         # Publish the verified principal for the deterministic tools, which
         # run in this context via asyncio.to_thread. Set unconditionally,
         # including to None: an anonymous turn must not inherit whatever the
@@ -1728,20 +1726,23 @@ class EnhancedChatService:
             else None
         )
         yield status_event(STATUS_UNDERSTANDING)
-        yield steps.route(
-            agent=specialist_name,
-            intent=intent,
-            finding=_route_finding(specialist_name),
-            model_id=model_for_intent(intent)[0],
-            skills=skill_receipt(intent, skill_mode),
-            skill_mode=skill_mode,
-            memory=memory_receipt,
-            note=(
+        # Kept so the same step can be sent again, with how the turn ended,
+        # once the agent has answered.
+        route_facts: Dict[str, Any] = {
+            "agent": specialist_name,
+            "intent": intent,
+            "finding": _route_finding(specialist_name),
+            "model_id": model_for_intent(intent)[0],
+            "skills": skill_receipt(intent, skill_mode),
+            "skill_mode": skill_mode,
+            "memory": memory_receipt,
+            "note": (
                 "The agent sees its skills' names and opens the ones it needs"
                 if skill_mode == SKILL_MODE_ON_DEMAND
                 else None
             ),
-        )
+        }
+        yield steps.route(**route_facts)
 
         # --- Queue-based streaming bridge ---
         loop = asyncio.get_running_loop()
@@ -1905,8 +1906,16 @@ class EnhancedChatService:
             finally:
                 await queue.put({"_done": True})
 
-        # The task copies this context, so the tools and the after-tool hook
-        # share one evidence channel for the turn.
+        # The limits the shopper stated earlier stay in force for this
+        # session's catalog tools until the shopper changes or releases them.
+        # Bound here, beside the evidence channel, so the task copies both
+        # into the tools' context and the same ``finally`` releases both.
+        requirements_turn = active_requirements.bind_turn(
+            session_id=session_id,
+            principal=turn_identity.principal_sub,
+            message=message,
+            conversation_history=conversation_history,
+        )
         evidence_channel = tool_evidence.open_channel()
         task = asyncio.create_task(run_orchestrator())
 
@@ -2021,8 +2030,10 @@ class EnhancedChatService:
                     raise
         finally:
             # The agent can no longer run, so nothing else needs the persona
-            # preamble or the evidence channel. Safe on exception paths too.
+            # preamble, the evidence channel or the requirements scope. Safe
+            # on exception paths too.
             tool_evidence.close_channel(evidence_channel)
+            active_requirements.reset_turn(requirements_turn)
             _reset_persona_token()
 
         if timed_out:
@@ -2039,6 +2050,17 @@ class EnhancedChatService:
 
         # --- Parse and send final response ---
         response_text = str(orchestrator_result[0]) if orchestrator_result[0] else ""
+        # How the agent's turn ended. Thinking and the answer share one
+        # budget, so a long answer can stop at max_tokens; the receipt and
+        # the Builder view say so rather than passing a cut answer off as
+        # complete.
+        stop_reason = _agent_stop_reason(orchestrator_result[0])
+        if stop_reason == "max_tokens":
+            logger.warning(
+                "answer cut short at max_tokens | agent=%s | session=%s",
+                specialist_name,
+                session_id or "anon",
+            )
         parsed = await self._parse_agent_response(response_text, message, conversation_history, has_tool_products=bool(products_buffered))
         continuity_rewritten = False
         if _is_continuity_selection(message):
@@ -2090,7 +2112,7 @@ class EnhancedChatService:
         # A single generic line covers the case where Bedrock returns nothing.
         if not parsed["text"] and not products_buffered and not parsed["products"]:
             parsed["text"] = (
-                "I couldn't land on a clear answer — try rephrasing or narrowing the ask."
+                "I couldn't land on a clear answer. Try rephrasing or narrowing the ask."
             )
             logger.warning(
                 "chat_stream empty response | tools=%d", len(tool_trace),
@@ -2321,7 +2343,10 @@ class EnhancedChatService:
             "skills": skill_receipt(
                 intent, skill_mode, [skill["name"] for skill in steps.loaded_skills]
             ),
+            "stop_reason": stop_reason,
         }
+        if stop_reason:
+            yield steps.route(**route_facts, stop_reason=stop_reason)
 
         # AgentCore STM: mirror this turn for session continuity labs, unless the
         # caller owns the write (``/api/agent/chat`` persists its own pair and

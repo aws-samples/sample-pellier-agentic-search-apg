@@ -78,6 +78,24 @@ def test_every_published_input_field_is_safe_to_inspect() -> None:
     assert declared <= gateway._SAFE_TOOL_INPUT_FIELDS, declared - gateway._SAFE_TOOL_INPUT_FIELDS
 
 
+def test_the_managed_builder_input_keeps_list_arguments_such_as_exclusions() -> None:
+    """A browse or search step shows what the shopper ruled out, not only the scalars."""
+    safe = gateway._safe_tool_input({
+        "input": {
+            "query": "mugs",
+            "max_price": 100,
+            "in_stock_only": True,
+            "exclusions": ["candle", "wool"],
+            "undocumented": "dropped",
+        }
+    })
+    assert safe == {
+        "query": "mugs", "max_price": 100, "in_stock_only": True, "exclusions": ["candle", "wool"],
+    }
+    # Only lists of scalars travel; anything nested stays out of the trace.
+    assert gateway._safe_tool_input({"input": {"exclusions": [{"tag": "candle"}]}}) == {}
+
+
 @pytest.mark.parametrize(
     ("published", "logical"),
     [

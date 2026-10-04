@@ -359,17 +359,28 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
     }
 
 
+def _is_scalar(value: Any) -> bool:
+    return isinstance(value, (str, int, float, bool))
+
+
 def _safe_tool_input(tool_use: Dict[str, Any]) -> Dict[str, Any]:
-    """Return only documented scalar tool arguments for inspection."""
+    """Return only documented tool arguments for inspection: scalars, and lists of them.
+
+    ``exclusions`` is a list, so a browse or search step would otherwise show
+    its budget and stock limits but never what the shopper ruled out.
+    """
     raw = tool_use.get("input")
     if not isinstance(raw, dict):
         return {}
-    return {
-        key: value
-        for key, value in raw.items()
-        if key in _SAFE_TOOL_INPUT_FIELDS
-        and isinstance(value, (str, int, float, bool))
-    }
+    safe: Dict[str, Any] = {}
+    for key, value in raw.items():
+        if key not in _SAFE_TOOL_INPUT_FIELDS:
+            continue
+        if _is_scalar(value):
+            safe[key] = value
+        elif isinstance(value, list) and all(_is_scalar(item) for item in value):
+            safe[key] = list(value)
+    return safe
 
 
 def _tool_result_values(result: Any) -> list[Any]:
