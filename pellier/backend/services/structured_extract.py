@@ -116,6 +116,9 @@ Never empty; if the whole query is structured, repeat the most \
 descriptive phrase verbatim.
 
 Rules:
+  - The query may start with what the shopper said earlier in the chat. Keep \
+earlier requirements they have not changed, and follow the latest message \
+where it changes one ("candles are fine now").
   - Never invent categories or tags outside the allowed lists.
   - Never echo the price ceiling into soft_signal.
   - A negative requirement is an exclusion, never a tag. "No candles" means \

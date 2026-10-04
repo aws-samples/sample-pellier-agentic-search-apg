@@ -995,7 +995,12 @@ class EnhancedChatService:
     ) -> Dict[str, Any]:
         """Enhanced chat using Strands Orchestrator with specialized agents"""
         logger.info(f"🤖 Processing query with Strands Orchestrator")
-        
+        # turn_id_var was used below without an import, so this path raised
+        # NameError before any agent ran.
+        from services.turn_identity import shopper_words, shopper_words_var, turn_id_var
+
+        shopper_words_var.set(shopper_words(message, conversation_history))
+
         # Get context manager for token tracking
         from services.context_manager import get_context_manager
         context_manager = get_context_manager()
@@ -1725,6 +1730,8 @@ CURRENT REQUEST: {message}"""
             authorized_customer_id_var,
             principal_sub_var,
             resolve_turn_identity,
+            shopper_words,
+            shopper_words_var,
             turn_id_var,
         )
 
@@ -1732,6 +1739,8 @@ CURRENT REQUEST: {message}"""
             user=user, requested_customer_id=customer_id
         )
         turn_id_var.set(turn_id)
+        # The search tools plan from what the shopper typed, not the agent's query.
+        shopper_words_var.set(shopper_words(message, conversation_history))
         # Publish the verified principal for the deterministic tools, which
         # run in this context via asyncio.to_thread. Set unconditionally,
         # including to None: an anonymous turn must not inherit whatever the

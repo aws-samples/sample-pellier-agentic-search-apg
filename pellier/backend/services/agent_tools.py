@@ -95,19 +95,25 @@ def _extract_query_structure(query: str) -> dict | None:
     the flag off, only the caller's explicit price ceiling and category are
     enforced, and "no candles" depends on the model choosing what to show.
 
+    The planner reads what the shopper typed in this chat (set per turn in
+    ``turn_identity.shopper_words_var``), not the agent's search words, so an
+    agent cannot drop "no candles" by shortening its query. Outside a chat
+    turn it reads ``query``.
+
     Args:
-        query: The shopper's raw query.
+        query: The agent's search words.
 
     Returns:
-        The extractor's dict, or ``None`` when the flag is off or
-        extraction fails.
+        The extractor's dict, ``None`` when the flag is off, or an explicit
+        failure when extraction fails.
     """
     if not getattr(settings, "SEARCH_PLANNER_EXTRACT_ENABLED", False):
         return None
     try:
         from services.structured_extract import get_structured_extractor
+        from services.turn_identity import shopper_words_var
 
-        return get_structured_extractor().extract(query)
+        return get_structured_extractor().extract(shopper_words_var.get() or query)
     except Exception as exc:
         # A failed read is not an unconstrained request: the plan must say the
         # shopper's requirements went unread, never that there were none.
@@ -1042,8 +1048,8 @@ def search_products(
     as meeting a requirement it names.
 
     Args:
-        query: The shopper's request in their words, including what they do not
-            want ("no candles", "nothing in wool"); the planner turns those into checks.
+        query: Search words for what to find. The shopper's requirements (budget,
+            stock, what they refused) are read from what they typed in this chat.
         max_price: Maximum price filter (optional)
         min_rating: Minimum star rating (default: 0.0)
         category: A department the agent thinks fits. Recorded on the plan,
@@ -1292,8 +1298,8 @@ def search_products_hybrid(
     reranker scores coherence with the whole query.
 
     Args:
-        query: The shopper's request in their words, including what they do not
-            want ("no candles", "nothing in wool"); the planner turns those into checks.
+        query: Search words for what to find. The shopper's requirements (budget,
+            stock, what they refused) are read from what they typed in this chat.
         max_price: Maximum price filter (optional, a hard SQL predicate)
         min_rating: Minimum star rating (default: 0.0, applied post-rerank)
         category: A department the agent thinks fits. Recorded on the plan,

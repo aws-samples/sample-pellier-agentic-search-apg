@@ -606,3 +606,52 @@ class TestExtractionFailureIsExplicit:
         result = json.loads(agent_tools.search_products_hybrid(query="q"))
         assert result["search_plan"]["extraction_status"] == "not_run"
         assert "constraint_notice" not in result
+
+
+class TestTheShoppersWordsDriveRequirements:
+    """The agent picks search words; the planner reads what the shopper typed."""
+
+    def test_a_shortened_agent_query_cannot_drop_no_candles(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        patch_embedding: MagicMock,
+        patch_hybrid: MagicMock,
+        patch_rerank: MagicMock,
+    ) -> None:
+        import services.structured_extract as structured_extract
+        from services.turn_identity import shopper_words_var
+
+        read: List[str] = []
+
+        class _Extractor:
+            def extract(self, text: str) -> Dict[str, Any]:
+                read.append(text)
+                return {"exclusions": ["candle"], "price_max_usd": 100,
+                        "soft_signal": "gift", "extraction_status": "parsed"}
+
+        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True)
+        monkeypatch.setattr(structured_extract, "get_structured_extractor", _Extractor)
+        token = shopper_words_var.set("A gift under $100, no candles")
+        try:
+            agent_tools.search_products_hybrid(query="housewarming gifts")
+        finally:
+            shopper_words_var.reset(token)
+
+        assert read == ["A gift under $100, no candles"]
+        clauses = patch_hybrid.search_calls[-1]["hard_clauses"]
+        assert "NOT (tags ?| %s OR materials ?| %s)" in clauses
+        assert "price <= %s" in clauses
+
+
+def test_show_me_more_carries_the_earlier_requirement() -> None:
+    from services.turn_identity import shopper_words
+
+    history = [
+        {"role": "user", "content": "A gift under $100, no candles"},
+        {"role": "assistant", "content": "Here are five."},
+    ]
+    assert shopper_words("Show me more", history) == (
+        "Earlier the shopper said: A gift under $100, no candles\n"
+        "Now the shopper says: Show me more"
+    )
+    assert shopper_words("Hi", []) == "Hi"

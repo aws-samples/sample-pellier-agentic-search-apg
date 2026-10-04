@@ -88,6 +88,24 @@ def current_authorized_customer_id() -> Optional[str]:
 # signature would mean touching every tool for a property none of them act on.
 turn_id_var: ContextVar[Optional[str]] = ContextVar("turn_id_var", default=None)
 
+# What the shopper actually typed this turn, with their recent earlier messages.
+# The search tools plan from these words, never from the agent's rewritten
+# query, so an agent cannot drop "no candles" by shortening its search.
+shopper_words_var: ContextVar[Optional[str]] = ContextVar("shopper_words_var", default=None)
+
+
+def shopper_words(message: str, history: Any, *, earlier: int = 4) -> str:
+    """The shopper's message, preceded by their last few messages in this chat."""
+    said = [
+        str(item.get("content") or "").strip()
+        for item in (history or [])
+        if isinstance(item, dict) and item.get("role") == "user"
+    ]
+    said = [text for text in said if text][-earlier:]
+    if not said:
+        return message
+    return "Earlier the shopper said: " + " | ".join(said) + "\nNow the shopper says: " + message
+
 
 def current_turn_id() -> Optional[str]:
     """Return the correlation id for the executing turn, if any."""
