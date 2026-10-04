@@ -9,6 +9,12 @@ Rerank, live here too because this module owns the Bedrock clients.
 
 `deploy_lambda.py` packages this file into the function's zip next to
 `common/types.py` and `common/handler.py`.
+
+The transaction helpers (``begin_transaction``, ``execute_in_transaction``,
+``bind_runtime_principal``, ``commit_transaction``, ``rollback_transaction``)
+have no caller in this cut. Cut 4 binds the runtime role and the customer
+subject inside one Data API transaction so Row-Level Security holds on this
+rail; they stay here for that.
 """
 from __future__ import annotations
 
@@ -347,74 +353,6 @@ def write_tool_audit_independently(
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the write
         logger.error("independent tool_audit write failed for %s: %s", tool, exc)
-
-
-def write_tool_audit(
-    transaction_id: str,
-    *,
-    tool: str,
-    args: Dict[str, Any],
-    result: Dict[str, Any],
-    latency_ms: float,
-    session_id: str,
-) -> None:
-    """Write the Gateway audit row inside the mutation's own transaction.
-
-    On the in-process rail the FastAPI PolicyEnforcementHook writes this row.
-    Behind the Gateway the tool runs in the Lambda, so the Lambda writes it.
-    That is what makes the governed ALLOW proof queryable: every call that
-    reaches a Lambda was already ALLOWed by AgentCore Policy at the Gateway, and
-    a DENY never invokes the Lambda, so no row exists. The absence is the proof.
-
-    The mutation and its evidence row commit or roll back together. A successful
-    write without its audit row would violate the governed workshop contract,
-    which is why this takes a ``transaction_id`` rather than writing on its own.
-
-    ``session_id`` is the caller's to choose, and the two callers legitimately
-    differ. The Gateway-to-Lambda event is ``{name, arguments}`` only and
-    carries no session, so each surface keys on the most specific identity it
-    actually has:
-
-      * A customer-scoped tool passes ``gateway-<customer_id>``, since
-        ``customer_id`` is present in its arguments. Governed queries then
-        filter on ``args->>'customer_id'``.
-      * A call with no customer in its arguments passes a role handle
-        instead. Deriving ``gateway-<customer_id>`` there would write
-        ``gateway-unknown`` on every row.
-
-    Schema (scripts/migrations/002_workshop_telemetry.sql):
-    ``tool_audit(session_id, tool, caller, args JSONB, result JSONB, latency_ms)``
-
-    Args:
-        transaction_id: The mutation's transaction, from ``begin_transaction``.
-        tool: Tool name as published on the Gateway.
-        args: Arguments the tool received.
-        result: Result the tool produced.
-        latency_ms: Observed tool latency.
-        session_id: Queryable session handle. See the note above.
-    """
-    rds_client.execute_statement(
-        resourceArn=DB_CLUSTER_ARN,
-        secretArn=SECRET_ARN,
-        database=DATABASE,
-        transactionId=transaction_id,
-        sql=(
-            f"INSERT INTO {SCHEMA}.tool_audit "
-            "(session_id, tool, caller, args, result, latency_ms) "
-            "VALUES (:sid, :tool, :caller, :args::jsonb, :result::jsonb, :ms)"
-        ),
-        parameters=[
-            {"name": "sid", "value": {"stringValue": session_id}},
-            {"name": "tool", "value": {"stringValue": tool}},
-            {"name": "caller", "value": {"stringValue": "gateway"}},
-            {"name": "args", "value": {"stringValue": json.dumps(args, default=str)}},
-            {
-                "name": "result",
-                "value": {"stringValue": json.dumps(result, default=str)},
-            },
-            {"name": "ms", "value": {"longValue": int(latency_ms)}},
-        ],
-    )
 
 
 def query_embedding(text: str) -> List[float]:

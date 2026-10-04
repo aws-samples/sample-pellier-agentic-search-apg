@@ -348,7 +348,7 @@ def test_bedrock_model_ids_have_spec_defaults(
       - Cohere Embed v4 (us.cohere.embed-v4:0)
       - Cohere Rerank v3.5 (cohere.rerank-v3-5:0)
       - Claude Opus 5 (global.anthropic.claude-opus-5) for the
-        legacy BEDROCK_CHAT_MODEL alias and editorial-agent default
+        editorial-agent default
 
     Settings normally loads ``.env`` via SettingsConfigDict, which would
     override these defaults with whatever the deploy environment set
@@ -363,7 +363,6 @@ def test_bedrock_model_ids_have_spec_defaults(
         monkeypatch,
         "BEDROCK_EMBEDDING_MODEL",
         "BEDROCK_RERANK_MODEL",
-        "BEDROCK_CHAT_MODEL",
         "BEDROCK_OPUS_MODEL",
         "BEDROCK_SONNET_MODEL",
         "BEDROCK_ROUTER_MODEL",
@@ -378,7 +377,7 @@ def test_bedrock_model_ids_have_spec_defaults(
 
     assert s.BEDROCK_EMBEDDING_MODEL == "us.cohere.embed-v4:0"
     assert s.BEDROCK_RERANK_MODEL == "cohere.rerank-v3-5:0"
-    assert s.BEDROCK_CHAT_MODEL == "global.anthropic.claude-opus-5"
+    assert not hasattr(s, "BEDROCK_CHAT_MODEL")
     # Per-agent model mix should also default cleanly. Sonnet owns routing,
     # structured extraction, and reporting.
     assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5"
@@ -426,10 +425,3 @@ def test_missing_required_db_env_vars_raise_clear_validation_error(
     assert "DB_NAME" in message
     assert "DB_USER" in message
     assert "DB_PASSWORD" in message
-
-
-def test_the_shopper_search_planner_is_on_by_default() -> None:
-    """Off, a shopper's "no candles" never reaches SQL; tests pin it off themselves."""
-    from config import Settings
-
-    assert Settings.model_fields["SEARCH_PLANNER_EXTRACT_ENABLED"].default is True

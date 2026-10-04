@@ -317,7 +317,6 @@ def main():
     editorial_id = opus_id if opus_ok else sonnet_id
     if editorial_ok and args.write_env:
         _upsert_env(args.write_env, "BEDROCK_OPUS_MODEL", editorial_id)
-        _upsert_env(args.write_env, "BEDROCK_CHAT_MODEL", editorial_id)
         print(f"  → wrote BEDROCK_OPUS_MODEL={editorial_id} to {args.write_env}")
 
     # --- Sonnet role defaults: app routing/reporting + managed Runtime ---

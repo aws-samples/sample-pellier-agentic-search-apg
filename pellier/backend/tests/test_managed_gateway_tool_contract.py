@@ -149,7 +149,9 @@ def test_in_process_and_recovery_files_match_the_managed_contract() -> None:
                 for decorator in node.decorator_list
             )
         }
-        assert decorated == CANONICAL_TOOLS, path
+        # The Operator's write has no agent wrapper: `services.governed_execution`
+        # calls `store_tools.give_store_credit` directly.
+        assert decorated == CANONICAL_TOOLS - {"give_store_credit"}, path
 
 
 def test_the_store_tools_module_names_the_same_nine_tools() -> None:

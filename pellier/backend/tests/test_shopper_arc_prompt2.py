@@ -105,94 +105,24 @@ def test_anna_observed_ms_is_presented_as_an_observation() -> None:
 # THEO — ACT. The boundary, enforced by architecture.
 # ---------------------------------------------------------------------------
 
-def test_theo_shopper_rail_cannot_execute_the_credit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The governed format refuses the write in-process. Deterministically.
+def test_theo_shopper_rail_cannot_execute_the_credit() -> None:
+    """No shopper agent can reach the credit write. Structurally.
 
-    This is the load-bearing assertion of Prompt 2. If `give_store_credit` ever
-    became servable on the shopper rail, Pellier would complete a privileged
-    business mutation from a chat turn with no human confirmation and no Cedar
-    evaluation.
-
-    The gate is format-scoped on purpose: `requires_managed_rail` returns False
-    unless WORKSHOP_FORMAT is "governed". The builders format deliberately runs
-    the write in-process, so the format is set explicitly here rather than
-    inherited from the environment.
+    This is the load-bearing assertion of Prompt 2. The in-process wrapper for
+    `give_store_credit` does not exist, so no specialist can bind it and a chat
+    turn cannot complete a privileged business mutation without a person and a
+    Cedar evaluation. The Operator reaches the write only through
+    `services.governed_execution`, which selects the rail itself.
     """
-    from services import execution_rail
+    import inspect
 
-    monkeypatch.setattr(
-        execution_rail.settings, "WORKSHOP_FORMAT", "governed", raising=False
-    )
+    from agents import shopping_agent, stock_agent, support_agent
+    from services import agent_tools, governed_execution
 
-    assert execution_rail.requires_managed_rail("give_store_credit") is True
-    # A read must NOT be gated, or the shopper arc breaks for Marco and Anna.
-    assert execution_rail.requires_managed_rail("check_stock") is False
-    assert execution_rail.requires_managed_rail("search_products") is False
-    # The handoff writes only workflow state for a person to decide.
-    assert execution_rail.requires_managed_rail("ask_a_person") is False
-
-
-def test_the_boundary_is_scoped_to_the_governed_format() -> None:
-    """Stated as its own fact, because it decides where the arc applies.
-
-    On the builders format the shopper rail completes the write in-process.
-    Prompt 2's "stop at the boundary" behaviour is a governed-branch property,
-    not a universal one.
-    """
-    from services import execution_rail
-
-    original = getattr(execution_rail.settings, "WORKSHOP_FORMAT", "")
-    try:
-        execution_rail.settings.WORKSHOP_FORMAT = "builders"
-        assert execution_rail.requires_managed_rail("give_store_credit") is False
-    finally:
-        execution_rail.settings.WORKSHOP_FORMAT = original
-
-
-def test_theo_credit_tool_checks_the_rail_before_touching_the_database(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The guard must run first, not after a partial write.
-
-    Scope note, added in Prompt 3: `_db_service` is the handle every *business*
-    write goes through, and this asserts the refusal path never reaches it. A
-    credit request becomes a durable operator review through `ask_a_person`, which
-    is workflow state written through a separate path in
-    `services.operator_review`. That is deliberately not what this tripwire
-    guards, and `test_operator_review` asserts the separation from the other side.
-    """
-    import json
-
-    from services import agent_tools, execution_rail
-
-    monkeypatch.setattr(
-        execution_rail.settings, "WORKSHOP_FORMAT", "governed", raising=False
-    )
-
-    called: list[str] = []
-
-    class Tripwire:
-        def __getattr__(self, name: str):  # pragma: no cover - must not run
-            called.append(name)
-            raise AssertionError(
-                f"the database was touched ({name}) despite the managed-rail guard"
-            )
-
-    monkeypatch.setattr(agent_tools, "_db_service", Tripwire())
-
-    raw = agent_tools.give_store_credit._tool_func(
-        customer_id="CUST-THEO",
-        amount_cents=2500,
-        reason="probe",
-        idempotency_key="prompt2-boundary-probe",
-    )
-
-    envelope = json.loads(raw)
-    assert envelope["error"] == "managed_rail_required"
-    assert envelope["tool"] == "give_store_credit"
-    assert called == [], "no database attribute may be reached"
+    assert not hasattr(agent_tools, "give_store_credit")
+    for module in (shopping_agent, stock_agent, support_agent):
+        assert "give_store_credit" not in inspect.getsource(module), module.__name__
+    assert "store_tools.give_store_credit" in inspect.getsource(governed_execution)
 
 
 def _support_prompt() -> str:

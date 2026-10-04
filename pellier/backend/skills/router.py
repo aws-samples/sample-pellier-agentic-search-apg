@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 _ROUTER_MODEL_ID = settings.BEDROCK_ROUTER_MODEL
 
 
-_ROUTER_PROMPT_HEADER = """You are a skill router for an editorial boutique's AI agent.
+_ROUTER_PROMPT_HEADER = """You are a skill router for Pellier's AI agent.
 
 Given a user message and a library of available skills (each with a name and an activation description), decide which skills should be loaded for this turn.
 

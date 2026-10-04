@@ -1,7 +1,7 @@
 """Tests for the ``@tool`` wrappers in `services.agent_tools`.
 
 Each wrapper decides only what the in-process rail must decide (the bound
-customer, the governed-format guard) and hands the query to
+customer) and hands the query to
 ``services.store_tools`` through ``_run_sql``. These tests stub ``_run_sql``
 and run offline: no database, no Bedrock.
 """
@@ -58,8 +58,14 @@ def _wrappers() -> Dict[str, Any]:
     }
 
 
-def test_exactly_the_nine_store_tools_are_wrapped() -> None:
-    assert set(_wrappers()) == set(store_tools.TOOL_NAMES)
+def test_exactly_the_eight_agent_tools_are_wrapped() -> None:
+    """Every store tool an agent may call has one wrapper; the credit has none.
+
+    `give_store_credit` is the Operator's write and reaches `store_tools` only
+    through `services.governed_execution`, so no `@tool` exists for an agent to
+    bind.
+    """
+    assert set(_wrappers()) == set(store_tools.TOOL_NAMES) - {"give_store_credit"}
     for name, wrapper in _wrappers().items():
         assert wrapper.tool_name == name
 
@@ -147,42 +153,6 @@ def test_caller_bound_reads_bind_the_verified_customer_not_the_argument(
     assert mismatch["status"] == "customer_scope_mismatch"
     assert own["status"] == "success" and own["customer_id"] == "CUST-THEO"
     assert run.calls[-1][1][0] == "CUST-THEO"
-
-
-def test_give_store_credit_is_refused_on_the_in_process_rail_in_the_governed_format(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from config import settings
-
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
-    agent_tools._db_service = _SentinelDB()
-    run = _FakeRun({})
-    monkeypatch.setattr(agent_tools, "_run_sql", run)
-    parsed = _call(
-        agent_tools.give_store_credit,
-        customer_id="CUST-JESSICA", amount_cents=2500, reason="late delivery", idempotency_key="k-1",
-    )
-    assert parsed["error"] == "managed_rail_required" and parsed["tool"] == "give_store_credit"
-    assert run.calls == []
-
-
-def test_give_store_credit_runs_the_shared_write_in_the_builders_format(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from config import settings
-
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "builders", raising=False)
-    agent_tools._db_service = _SentinelDB()
-    run = _FakeRun({"apply_store_credit": [{"result": {"status": "success", "credit_id": 9}}]})
-    monkeypatch.setattr(agent_tools, "_run_sql", run)
-    parsed = _call(
-        agent_tools.give_store_credit,
-        customer_id="CUST-JESSICA", amount_cents=2500, reason="late delivery", idempotency_key="k-1",
-    )
-    assert parsed == {"status": "success", "credit_id": 9}
-    sql, params = run.calls[0]
-    assert "apply_store_credit" in sql and params[2:5] == ("CUST-JESSICA", 2500, "late delivery")
-    assert params[5] is None, "no verified staff subject reaches a tool call"
 
 
 def test_ask_a_person_hands_off_without_a_write() -> None:

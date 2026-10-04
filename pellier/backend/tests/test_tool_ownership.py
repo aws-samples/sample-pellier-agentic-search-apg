@@ -14,8 +14,10 @@ An unreachable tool is worse than a missing one: it reads as shipped, it carries
 security surface that still needs reviewing, and it costs the next team the same
 investigation this test now answers in one place.
 
-Writing the check surfaced a second one immediately: `give_store_credit` is bound to
-no agent. That one is correct and deliberate, and now says so.
+Writing the check surfaced a second one immediately: `give_store_credit` was bound
+to no agent. That one was deliberate, and its wrapper has since been deleted outright:
+the Operator reaches the write through `services.governed_execution`, so there is no
+`@tool` for an agent to bind and nothing left to waive.
 
 What this asserts
 -----------------
@@ -46,23 +48,14 @@ AGENTS_DIR = BACKEND / "agents"
 
 # Tools deliberately reachable by no specialist. Each entry is a decision with a reason,
 # not a waiver: removing the reason, or binding the tool, must break this test.
-UNBOUND_BY_DECISION: Dict[str, str] = {
-    "give_store_credit": (
-        "Operator-only. Its caller is the confirmed-review execution path, not an "
-        "agent: the Gateway publishes it for the operator desk under a permit "
-        "that requires the staff scope claim, no shopper permit names it, and the "
-        "managed dispatcher refuses to build a shopper agent that binds it. "
-        "Binding it to one would put the capability back inside the conversation "
-        "it was removed from."
-    ),
-}
+UNBOUND_BY_DECISION: Dict[str, str] = {}
 
-# The nine deterministic tools, and no others. Agents are plain Strands Agents over
-# these functions; none is wrapped as a tool itself.
+# The eight agent tools, and no others. `give_store_credit` is the ninth store tool
+# and has no wrapper here on purpose. Agents are plain Strands Agents over these
+# functions; none is wrapped as a tool itself.
 EXPECTED_TOOLS: Set[str] = {
     "search_products", "browse_department", "compare_products", "check_stock",
-    "get_orders", "get_return_policy", "get_tickets", "give_store_credit",
-    "ask_a_person",
+    "get_orders", "get_return_policy", "get_tickets", "ask_a_person",
 }
 
 
@@ -103,7 +96,8 @@ def test_the_scan_finds_the_tools_and_the_agents() -> None:
     """Guards the assertions below from passing on an empty scan."""
     tools = _decorated_tools(AGENT_TOOLS)
     bound = _bound_tools()
-    assert tools == EXPECTED_TOOLS, f"@tool functions differ from the nine: {sorted(tools ^ EXPECTED_TOOLS)}"
+    assert "give_store_credit" not in tools, "the Operator's write grew an agent wrapper"
+    assert tools == EXPECTED_TOOLS, f"@tool functions differ from the eight: {sorted(tools ^ EXPECTED_TOOLS)}"
     assert set(bound) == {"shopping_agent.py", "stock_agent.py", "support_agent.py"}
 
 

@@ -92,12 +92,12 @@ def test_no_bootstrap_branch_defaults_to_builders() -> None:
 
 
 def test_the_managed_rail_is_required_under_the_default() -> None:
-    """With nothing configured, a governed mutation must refuse the in-process rail."""
-    from services.execution_rail import requires_managed_rail
+    """With nothing configured, the Operator's write refuses the in-process rail."""
+    from services import governed_execution as ge
 
-    assert requires_managed_rail("give_store_credit") is True
-    # Reads still serve in process.
-    assert requires_managed_rail("check_stock") is False
+    selection = ge.select_rail(None)
+    assert selection.rail == ge.RAIL_REFUSED
+    assert "access_token" in selection.missing
 
 
 # ---------------------------------------------------------------------------

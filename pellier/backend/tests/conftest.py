@@ -28,20 +28,36 @@ if _backend_str not in sys.path:
 #    instead of running the suite. This replaces the DB_HOST=... prefix the
 #    backend CLAUDE.md used to prescribe.
 os.environ["PELLIER_DISABLE_DOTENV"] = "1"
-# 3. Keep the shopper search planner's live Sonnet call out of unit tests. The
-#    product default is on; tests that exercise extraction switch it on and
-#    stub the model.
 for _var, _placeholder in (
     ("DB_HOST", "localhost"),
     ("DB_NAME", "pellier_test"),
     ("DB_USER", "pellier_test"),
     ("DB_PASSWORD", "pellier_test"),
-    ("SEARCH_PLANNER_EXTRACT_ENABLED", "false"),
 ):
     os.environ.setdefault(_var, _placeholder)
 
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_structured_extractor(monkeypatch):
+    """Keep the shopper search planner's live Sonnet call out of every test.
+
+    Extraction always runs on the local rail; ``get_structured_extractor`` is
+    the boundary where Bedrock is reached. This stand-in reads no requirements
+    from the query, so a test that needs a reading installs its own extractor
+    on the same attribute.
+    """
+    import services.structured_extract as structured_extract
+
+    class _NoRequirements:
+        def extract(self, query: str) -> dict:
+            return structured_extract.StructuredExtractor._empty(query, status="parsed")
+
+    monkeypatch.setattr(
+        structured_extract, "get_structured_extractor", lambda: _NoRequirements()
+    )
 
 
 @pytest.fixture

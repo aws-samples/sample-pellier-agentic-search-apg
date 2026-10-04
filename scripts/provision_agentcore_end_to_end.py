@@ -2216,6 +2216,117 @@ def _wait_for_unified_trace(
     )
 
 
+def _policy_probe_id(suffix: str) -> str:
+    """One id for both halves of a proof, legal inside a Lambda turn id."""
+    return re.sub(r"[^A-Za-z0-9_-]", "-", f"{suffix or 'default'}-{int(time.time())}")
+
+
+def _live_policy_proof(
+    *,
+    repo: Path,
+    deploy_dir: Path,
+    env: dict[str, str],
+    probe_id: str,
+) -> dict[str, Any]:
+    """Prove the deployed Gateway enforces Cedar on the money tool, both ways.
+
+    Two real calls as Theo, a shopper, through ``gateway_policy_probe.py``:
+
+    * ``get_return_policy`` must be ALLOWed and leave exactly one
+      ``tool_audit`` row for its turn id. This is the positive control: the
+      DENY below cannot then be a broken Gateway, a 401 or a transport error.
+    * ``give_store_credit`` for a customer that does not exist must be a Cedar
+      DENY with zero ``tool_audit``, ``write_operations`` and ``store_credits``
+      rows for its idempotency key. The supplied baseline has no shopper permit
+      for the tool; if Cedar failed open, the call would execute and those rows
+      would expose it without crediting a real account.
+
+    Only the supplied baseline is probed. The participant's forbid and the
+    $100 rule belong to Lab 4's checker.
+    """
+    helper = deploy_dir / "gateway_policy_probe.py"
+    turn_id = f"turn-readiness-{probe_id}"
+    idempotency_key = f"readiness-{probe_id}"
+    probes: dict[str, tuple[str, dict[str, Any], list[str]]] = {
+        "allow": ("get_return_policy", {"department": "Home"}, ["--turn-id", turn_id]),
+        "deny": (
+            "give_store_credit",
+            {
+                "customer_id": "CUST-READINESS-PROBE",
+                "amount_cents": 100,
+                "reason": "readiness probe",
+                "idempotency_key": idempotency_key,
+            },
+            [],
+        ),
+    }
+    proofs: dict[str, Any] = {}
+    for expected, (tool, arguments, extra) in probes.items():
+        proc = _run(
+            [
+                sys.executable,
+                str(helper),
+                "--user",
+                "theo",
+                "--tool",
+                tool,
+                "--arguments",
+                json.dumps(arguments),
+                *extra,
+            ],
+            cwd=repo,
+            env=env,
+        )
+        payload = json.loads(proc.stdout)
+        _check_policy_proof(expected, payload)
+        proofs[expected] = payload
+    return proofs
+
+
+def _check_policy_proof(expected: str, payload: dict[str, Any]) -> None:
+    """Fail provisioning unless one probe produced exactly its expected evidence."""
+    call = f"{payload.get('principal')} -> {payload.get('action')}"
+    evidence = payload.get("evidence") if isinstance(payload.get("evidence"), dict) else {}
+    observed = (
+        f"outcome={payload.get('outcome')!r}, cedar_denial={payload.get('cedar_denial')!r}, "
+        f"error_type={payload.get('error_type')!r}, "
+        f"error={str(payload.get('error') or '')[:300]!r}, "
+        f"evidence={json.dumps(evidence, sort_keys=True)}"
+    )
+    if expected == "allow":
+        turn_id = payload.get("turn_id")
+        if payload.get("outcome") != "allow":
+            raise RuntimeError(
+                f"Policy ALLOW probe ({call}) expected a successful tool result with one "
+                f"tool_audit row for turn {turn_id!r}; observed {observed}"
+            )
+        if evidence.get("tool_audit_rows") != 1 or not isinstance(
+            evidence.get("tool_audit_row"), dict
+        ):
+            raise RuntimeError(
+                f"Policy ALLOW probe ({call}) returned a result but did not leave exactly "
+                f"one tool_audit row for turn {turn_id!r}; observed {observed}"
+            )
+        return
+    key = payload.get("idempotency_key")
+    if payload.get("outcome") != "deny" or payload.get("cedar_denial") is not True:
+        raise RuntimeError(
+            f"Policy DENY probe ({call}) expected a Cedar policy denial for idempotency key "
+            f"{key!r}; observed {observed}. A 401, a validation failure or a transport error "
+            "is not a policy decision, and an allow means Cedar did not block the money tool."
+        )
+    nonzero = {
+        name: evidence.get(name)
+        for name in ("tool_audit_rows", "write_operations_rows", "store_credits_rows")
+        if evidence.get(name) != 0
+    }
+    if nonzero:
+        raise RuntimeError(
+            f"Policy DENY probe ({call}) was denied but left rows for idempotency key "
+            f"{key!r}: {nonzero}; observed {observed}"
+        )
+
+
 def _existing_lambda_arns(
     *,
     region: str,
@@ -2924,6 +3035,28 @@ def main() -> int:
             == {"facts", "preferences", "summary", "episodic"}
         )
 
+        stage("live policy allow and deny")
+        proof_env = deploy_env.copy()
+        proof_env.update(
+            {
+                "AGENTCORE_GATEWAY_URL": gateway_url,
+                "COGNITO_POOL_ID": required["cognito_pool"],
+                "COGNITO_CLIENT_ID": required["cognito_client"],
+                "COGNITO_TEST_CREDENTIALS_SECRET_ARN": required["credentials_secret"],
+            }
+        )
+        if client_secret_arn:
+            proof_env["COGNITO_CLIENT_SECRET_ARN"] = client_secret_arn
+        policy_proof = _live_policy_proof(
+            repo=repo,
+            deploy_dir=deploy_dir,
+            env=proof_env,
+            probe_id=_policy_probe_id(identity.suffix),
+        )
+        result["verification"]["live_policy_allow"] = True
+        result["verification"]["live_policy_deny"] = True
+        result["verification"]["live_policy_proof"] = policy_proof
+
         stage("authenticated shopper Runtime")
         runtime_smoke = _authenticated_runtime_smoke(
             root=root,
@@ -2982,6 +3115,8 @@ def main() -> int:
             "gateway_tools_discovered",
             "memory_seeded",
             "memory_extraction_verified",
+            "live_policy_allow",
+            "live_policy_deny",
             "authenticated_runtime_invoke_smoke",
             "operator_runtime_build_fingerprint_match",
             "transaction_search_ready",

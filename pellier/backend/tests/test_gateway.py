@@ -154,8 +154,52 @@ def test_customer_scope_is_empty_for_a_tool_with_no_customer() -> None:
 
 def test_get_orders_is_bound_outside_the_lab_region() -> None:
     assert "get_orders" in gateway._CUSTOMER_SCOPED_TOOL_NAMES
-    assert "ask_a_person" in gateway._CUSTOMER_SCOPED_TOOL_NAMES
     assert gateway._CUSTOMER_SCOPED_TOOL_NAMES >= gateway.SUPPORT_CALLER_BOUND_TOOLS
+    # The handoff is bound when the caller is known and never refused.
+    assert "ask_a_person" not in gateway._CUSTOMER_SCOPED_TOOL_NAMES
+    assert gateway._CUSTOMER_BOUND_WHEN_KNOWN_TOOL_NAMES == frozenset({"ask_a_person"})
+
+
+def test_the_handoff_is_bound_to_a_known_caller() -> None:
+    bound = gateway._bind_server_tool_context(
+        {
+            "name": f"{TARGET}___ask_a_person",
+            "toolUseId": "call-4",
+            "input": {"reason": "I want a person.", "customer_id": "CUST-JESSICA"},
+        },
+        customer_id="CUST-THEO",
+        turn_id="turn-" + ("d" * 32),
+    )
+
+    assert bound["input"] == {
+        "reason": "I want a person.",
+        "customer_id": "CUST-THEO",
+        "turn_id": "turn-" + ("d" * 32),
+    }
+    scope = gateway._customer_scope(
+        {"name": f"{TARGET}___ask_a_person", "input": {"customer_id": "CUST-JESSICA"}},
+        "CUST-THEO",
+    )
+    assert scope == {"customer_scope": "server", "requested_other_customer": True}
+
+
+def test_the_handoff_still_runs_for_an_unknown_caller() -> None:
+    """Anyone may ask for a person; the model's customer is dropped, not trusted.
+
+    The local rail does the same: `store_tools.ask_a_person` completes the
+    handoff and withholds only the credit review when no customer is known.
+    """
+    bound = gateway._bind_server_tool_context(
+        {
+            "name": f"{TARGET}___ask_a_person",
+            "toolUseId": "call-5",
+            "input": {"reason": "I want a person.", "customer_id": "CUST-JESSICA"},
+        },
+        customer_id="",
+        turn_id="turn-" + ("e" * 32),
+    )
+
+    assert bound["input"] == {"reason": "I want a person.", "turn_id": "turn-" + ("e" * 32)}
 
 
 def test_customer_scoped_tool_requires_verified_customer_context() -> None:

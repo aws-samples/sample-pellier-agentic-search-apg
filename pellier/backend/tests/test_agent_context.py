@@ -110,6 +110,7 @@ def test_the_person_handoff_reads_the_turn_id_from_context() -> None:
 
     tools = pathlib.Path("services/agent_tools.py").read_text()
     handoff = tools[tools.index("def ask_a_person("):]
-    handoff = handoff[: handoff.index("\n@tool")]
+    next_tool = handoff.find("\n@tool")
+    handoff = handoff if next_tool < 0 else handoff[:next_tool]
     assert "from services.turn_identity import current_principal_sub, current_turn_id" in handoff
     assert "source_turn_id=current_turn_id()" in handoff

@@ -505,19 +505,18 @@ class TestExtractionFailureIsExplicit:
         def unavailable():
             raise RuntimeError("extractor unavailable")
 
-        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True)
         monkeypatch.setattr(structured_extract, "get_structured_extractor", unavailable)
         result = _search(query="a gift, no candles")
 
         assert result["search_plan"]["extraction_status"] == "extraction_failed"
         assert "could not be read" in result["constraint_notice"]
 
-    def test_the_planner_switched_off_is_not_a_failure(
-        self, monkeypatch: pytest.MonkeyPatch, pipeline: _FakeDB
+    def test_a_reading_with_no_requirements_is_not_a_failure(
+        self, pipeline: _FakeDB
     ) -> None:
-        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", False)
+        """The conftest extractor reads nothing; the plan says it was read, not skipped."""
         result = _search(query="q")
-        assert result["search_plan"]["extraction_status"] == "not_run"
+        assert result["search_plan"]["extraction_status"] == "parsed"
         assert "constraint_notice" not in result
 
 
@@ -538,7 +537,6 @@ class TestTheShoppersWordsDriveRequirements:
                 return {"exclusions": ["candle"], "price_max_usd": 100,
                         "soft_signal": "gift", "extraction_status": "parsed"}
 
-        monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True)
         monkeypatch.setattr(structured_extract, "get_structured_extractor", _Extractor)
         token = shopper_words_var.set("A gift under $100, no candles")
         try:

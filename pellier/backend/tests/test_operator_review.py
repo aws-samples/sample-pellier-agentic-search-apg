@@ -1074,19 +1074,6 @@ def _agent_tools_block(name: str) -> str:
     return tools.split(f"def {name}(", 1)[1].split("\n@tool", 1)[0]
 
 
-def test_the_credit_tool_is_refused_on_the_boundary_before_it_reaches_the_pool() -> None:
-    """The guard answers first, so a refused credit never touches the business pool.
-
-    `give_store_credit` is the one governed mutation. Its refusal path returns the
-    structured envelope before `_db_service`, the handle every business write goes
-    through, is consulted.
-    """
-    block = _agent_tools_block("give_store_credit")
-    assert '_managed_rail_required("give_store_credit")' in block
-    assert block.index("_managed_rail_required(") < block.index("_db_service")
-    assert "amount_cents" in block
-
-
 def test_the_shopper_handoff_reads_identity_from_the_turn_not_the_model() -> None:
     """The handoff that opens a review takes the turn and principal from context."""
     block = _agent_tools_block("ask_a_person")

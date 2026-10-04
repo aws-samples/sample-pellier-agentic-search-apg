@@ -72,17 +72,6 @@ GOVERNED_REVIEW_PENDING = (
     "Nothing about your order has changed yet."
 )
 
-# The sentence for a managed-rail refusal, when no review exists.
-#
-# `GOVERNED_REVIEW_PENDING` above is a governance GUARANTEE: it promises a person will
-# confirm, so it follows a review row and nothing else. This sentence promises nothing.
-# It states what happened and what did not, which is true of every refusal on this
-# rail, and it leaves the shopper somewhere to go.
-GOVERNED_ACTION_NOT_PERFORMED = (
-    "That is not something I can change from here. Nothing about your order has "
-    "changed. A Pellier specialist can take it further if you need it."
-)
-
 # The 8 rotating intents (Requirement 1.3.1, storefront.md "The 8 rotating intents").
 # Intent 2 carries a productOverride: the Featherweight Trail Runner at $168
 # with a 4.9 rating and an athletic running shoe image.

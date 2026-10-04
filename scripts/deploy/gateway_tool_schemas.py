@@ -49,6 +49,18 @@ TOOL_SCHEMAS = {
                     "properties": {
                         "query": {"type": "string", "description": "What to find"},
                         "max_price": {"type": "number", "description": "Maximum price, a hard filter"},
+                        "in_stock_only": {
+                            "type": "boolean",
+                            "description": "Only products with units in stock, a hard filter",
+                        },
+                        "exclusions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "Tags or materials the shopper ruled out, such as "
+                                "candle or wool, a hard filter"
+                            ),
+                        },
                         "min_rating": {"type": "number", "description": "Minimum star rating"},
                         "category": {"type": "string", "description": "A suggested department, recorded only"},
                         "limit": {"type": "integer", "description": "Max results"},

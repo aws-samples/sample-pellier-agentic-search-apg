@@ -242,7 +242,9 @@ def test_gateway_receipt_identity_is_bound_to_exact_cognito_token(
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.setenv("COGNITO_POOL_ID", "us-east-1_POOL")
     monkeypatch.setenv("COGNITO_CLIENT_ID", "client-123")
-    monkeypatch.setattr(module.boto3, "client", lambda *args, **kwargs: _Cognito())
+    # `gateway_client` imports boto3 inside the function so the receipt validator
+    # can load it without boto3; patch the client factory on boto3 itself.
+    monkeypatch.setattr("boto3.client", lambda *args, **kwargs: _Cognito())
 
     identity = module._verified_identity(token)
     assert identity["principal_id"] == "subject-123"
@@ -279,7 +281,9 @@ def test_gateway_receipt_identity_rejects_claim_mismatch(
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.setenv("COGNITO_POOL_ID", "us-east-1_POOL")
     monkeypatch.setenv("COGNITO_CLIENT_ID", "client-123")
-    monkeypatch.setattr(module.boto3, "client", lambda *args, **kwargs: _Cognito())
+    # `gateway_client` imports boto3 inside the function so the receipt validator
+    # can load it without boto3; patch the client factory on boto3 itself.
+    monkeypatch.setattr("boto3.client", lambda *args, **kwargs: _Cognito())
 
     with pytest.raises(RuntimeError, match="username"):
         module._verified_identity(token)
@@ -308,11 +312,15 @@ def test_store_lambda_writes_gateway_tool_audit() -> None:
     """The Lambda wires the audit; the shared transport performs it.
 
     The credit receipt is written OUTSIDE the business transaction, so an Aurora
-    refusal still leaves exactly one attempt receipt. Reads write a receipt only
-    when the Runtime passed a turn id.
+    refusal still leaves exactly one attempt receipt. An idempotent replay
+    writes none, so a retry keeps one credit and one receipt. Reads write a
+    receipt only when the Runtime passed a turn id.
     """
     source = STORE_LAMBDA.read_text()
-    assert 'if tool_name == "give_store_credit":' in source
+    assert (
+        'if tool_name == "give_store_credit" and not _is_idempotent_replay(result):'
+        in source
+    )
     assert "write_tool_audit_independently(" in source
     assert "audit_read_call(tool_name, arguments, result, started)" in source
     # Keyed on the real identity, which this tool's arguments carry.

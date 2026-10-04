@@ -10,9 +10,10 @@ nothing has changed yet. On 2026-08-27, against the live stack, a model said
 it had "prepared the request" and dropped the second sentence, and a shopper
 reading that reasonably concluded the action was done.
 
-So the handoff payload carries the review id, the chat surface emits the
-notice as its own ``review_pending`` event with the backend's sentence, and
-the in-process guard on ``give_store_credit`` promises nothing at all.
+So the handoff payload carries the review id and the chat surface emits the
+notice as its own ``review_pending`` event with the backend's sentence. No
+shopper agent binds ``give_store_credit``, so there is no in-process credit
+to refuse.
 """
 
 from __future__ import annotations
@@ -21,79 +22,30 @@ import inspect
 import json
 from typing import Any, Dict, List
 
-import pytest
-
-from pellier_copy import GOVERNED_ACTION_NOT_PERFORMED, GOVERNED_REVIEW_PENDING
+from pellier_copy import GOVERNED_REVIEW_PENDING
 from services import chat as CHAT
 from services import store_tools
-from services.agent_tools import _managed_rail_required
 
 
-@pytest.fixture
-def governed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin the flagship format for this module.
-
-    `conftest.py` deliberately runs with no `WORKSHOP_FORMAT`, so
-    `requires_managed_rail` returns False and there is no refusal to test.
-    """
-    from config import settings
-
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
-
-
-def test_the_refusal_envelope_carries_the_non_promising_sentence(governed: None) -> None:
-    """The guard runs before any review exists, so it cannot claim one."""
-    envelope = json.loads(_managed_rail_required("give_store_credit") or "{}")
-    assert envelope["message"] == GOVERNED_ACTION_NOT_PERFORMED
-    assert "review_id" not in envelope
-    assert "waiting" not in envelope["message"].lower()
-
-
-def test_every_managed_tool_gets_the_same_honest_default(governed: None) -> None:
-    from services.execution_rail import mutation_tools
-
-    assert mutation_tools() == frozenset({"give_store_credit"})
-    for tool in sorted(mutation_tools()):
-        envelope = json.loads(_managed_rail_required(tool) or "{}")
-        assert envelope["message"] == GOVERNED_ACTION_NOT_PERFORMED, tool
-
-
-def test_a_non_governed_format_produces_no_refusal_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The builders lineage serves the credit in process, so there is nothing to refuse."""
-    from config import settings
-
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "builders", raising=False)
-    assert _managed_rail_required("give_store_credit") is None
-
-
-def test_the_envelope_keeps_its_machine_fields(governed: None) -> None:
-    """`is_boundary_refusal` matches on `error`; the rail name makes it diagnosable."""
-    envelope = json.loads(_managed_rail_required("give_store_credit") or "{}")
-    assert envelope["error"] == "managed_rail_required"
-    assert envelope["tool"] == "give_store_credit"
-    assert envelope["required_rail"] == "gateway-mcp"
-
-    from services import operator_review as rv
-
-    assert rv.is_boundary_refusal(envelope) is True
-
-
-@pytest.mark.parametrize("tool", ["check_stock", "get_orders", "get_tickets", "ask_a_person"])
-def test_a_permitted_tool_gets_no_envelope(governed: None, tool: str) -> None:
-    assert _managed_rail_required(tool) is None
-
-
-def test_both_sentences_say_what_did_and_did_not_happen() -> None:
+def test_the_sentence_says_what_did_and_did_not_happen() -> None:
     """The refusal taxonomy in VOICE.md: what happened, what did not, who acts next."""
-    for text in (GOVERNED_REVIEW_PENDING, GOVERNED_ACTION_NOT_PERFORMED):
-        assert "nothing about your order has" in text.lower()
-        assert "pellier specialist" in text.lower()
-        assert "—" not in text
-        for internal in ("managed_rail", "gateway", "Cedar", "policy", "rail", "tool"):
-            assert internal.lower() not in text.lower(), internal
-    assert "waiting" in GOVERNED_REVIEW_PENDING.lower()
-    assert "waiting" not in GOVERNED_ACTION_NOT_PERFORMED.lower()
-    assert "prepared" not in GOVERNED_ACTION_NOT_PERFORMED.lower()
+    text = GOVERNED_REVIEW_PENDING
+    assert "nothing about your order has" in text.lower()
+    assert "pellier specialist" in text.lower()
+    assert "—" not in text
+    for internal in ("managed_rail", "gateway", "Cedar", "policy", "rail", "tool"):
+        assert internal.lower() not in text.lower(), internal
+    assert "waiting" in text.lower()
+
+
+def test_no_agent_can_reach_a_credit_write_in_process() -> None:
+    """The boundary is structural: the wrapper does not exist, so no agent binds it."""
+    from agents import shopping_agent, stock_agent, support_agent
+    from services import agent_tools
+
+    assert not hasattr(agent_tools, "give_store_credit")
+    for module in (shopping_agent, stock_agent, support_agent):
+        assert "give_store_credit" not in inspect.getsource(module), module.__name__
 
 
 # ---------------------------------------------------------------------------

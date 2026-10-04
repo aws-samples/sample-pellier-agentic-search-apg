@@ -18,6 +18,7 @@ DEPLOY_DIR = Path(__file__).resolve().parent / "deploy"
 if str(DEPLOY_DIR) not in sys.path:
     sys.path.insert(0, str(DEPLOY_DIR))
 
+from gateway_client import is_policy_denial_text  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
     discoverable_tools_for_claims,
     workshop_target_tools,
@@ -243,6 +244,8 @@ def validate_receipt(
         "verification.gateway_tools_discovered",
         "verification.memory_seeded",
         "verification.memory_extraction_verified",
+        "verification.live_policy_allow",
+        "verification.live_policy_deny",
         "verification.authenticated_runtime_invoke_smoke",
         "verification.runtime_build_fingerprint_match",
         "verification.operator_runtime_build_fingerprint_match",
@@ -580,6 +583,48 @@ def validate_receipt(
             "observability.unified_trace.runtime_arn must match runtime.runtime_arn"
         )
 
+    errors.extend(validate_live_policy_proof(payload))
+    return errors
+
+
+def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
+    """Check the two-call Cedar proof the provisioner recorded.
+
+    The ALLOW half must name the one ``tool_audit`` row its read left, so the
+    DENY half cannot be a broken Gateway. The DENY half must carry the
+    Gateway's Cedar denial shape, the probe's idempotency key, and zero rows in
+    every table the credit could have touched.
+    """
+    errors: list[str] = []
+    allow = _value(payload, "verification.live_policy_proof.allow")
+    if not isinstance(allow, dict) or allow.get("outcome") != "allow":
+        errors.append("verification.live_policy_proof.allow must prove ALLOW")
+    else:
+        evidence = allow.get("evidence") if isinstance(allow.get("evidence"), dict) else {}
+        row = evidence.get("tool_audit_row")
+        if not isinstance(row, dict) or not row.get("audit_id"):
+            errors.append("Policy ALLOW must name its tool_audit execution row")
+        if evidence.get("tool_audit_rows") != 1:
+            errors.append("Policy ALLOW must leave exactly one tool_audit row for its turn")
+
+    deny = _value(payload, "verification.live_policy_proof.deny")
+    if not isinstance(deny, dict) or deny.get("outcome") != "deny":
+        errors.append("verification.live_policy_proof.deny must prove DENY")
+        return errors
+    if deny.get("cedar_denial") is not True or not is_policy_denial_text(
+        str(deny.get("error") or "")
+    ):
+        errors.append(
+            "Policy DENY must be a Cedar policy denial, not an authentication, "
+            "validation or transport failure"
+        )
+    if not str(deny.get("idempotency_key") or "").strip():
+        errors.append("Policy DENY must record the probe idempotency key")
+    evidence = deny.get("evidence") if isinstance(deny.get("evidence"), dict) else {}
+    for name in ("tool_audit_rows", "write_operations_rows", "store_credits_rows"):
+        if evidence.get(name) != 0:
+            table = name.removesuffix("_rows")
+            errors.append(f"Policy DENY must show zero {table} rows for the probe key")
     return errors
 
 

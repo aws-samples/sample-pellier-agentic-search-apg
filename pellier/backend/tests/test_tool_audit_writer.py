@@ -270,33 +270,6 @@ def test_async_bridge_failure_is_visible_at_warning(
     assert "tool_audit _run_async: loop unavailable" in caplog.text
 
 
-def test_operator_audit_failure_is_visible_at_warning(
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    monkeypatch.setattr(
-        tool_audit_writer,
-        "_db_service",
-        MagicMock(execute_query=MagicMock()),
-    )
-
-    def _raise(_: Any) -> None:
-        raise RuntimeError("operator audit unavailable")
-
-    monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
-
-    with caplog.at_level(logging.WARNING, logger=tool_audit_writer.__name__):
-        tool_audit_writer.record_operator_mutation(
-            tool_name="give_store_credit",
-            caller="rest",
-            principal_sub="operator-1",
-            args={"customer_id": "CUST-JESSICA", "amount_cents": 2500},
-            result={"status": "success"},
-        )
-
-    assert "operator tool_audit INSERT failed: operator audit unavailable" in caplog.text
-
-
 class TestFillOnceAlignment:
     """Migration 047 makes tool_audit fill-once at the database boundary.
 

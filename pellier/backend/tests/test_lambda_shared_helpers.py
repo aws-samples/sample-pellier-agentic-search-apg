@@ -262,7 +262,7 @@ def test_parameters_are_omitted_when_absent_rather_than_sent_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_audit_writers_demand_an_explicit_session_handle() -> None:
+def test_the_audit_writer_demands_an_explicit_session_handle() -> None:
     """Callers key differently, so a default would silently mislabel.
 
     A credit keys on `gateway-<customer_id>`; a read keys on the route-minted turn
@@ -271,10 +271,10 @@ def test_the_audit_writers_demand_an_explicit_session_handle() -> None:
     import inspect
 
     dataapi = _dataapi()
-    for writer in (dataapi.write_tool_audit, dataapi.write_tool_audit_independently):
-        session = inspect.signature(writer).parameters["session_id"]
-        assert session.default is inspect.Parameter.empty, writer.__name__
-        assert session.kind is inspect.Parameter.KEYWORD_ONLY, writer.__name__
+    assert not hasattr(dataapi, "write_tool_audit"), "the in-transaction writer is gone"
+    session = inspect.signature(dataapi.write_tool_audit_independently).parameters["session_id"]
+    assert session.default is inspect.Parameter.empty
+    assert session.kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_the_lambda_keys_its_audit_rows_deliberately() -> None:
@@ -285,16 +285,6 @@ def test_the_lambda_keys_its_audit_rows_deliberately() -> None:
     handler = (DEPLOY / "common" / "handler.py").read_text()
     assert "session_id=turn_id" in handler
     assert 'startswith("turn-")' in handler
-
-
-def test_the_in_transaction_audit_row_binds_the_callers_transaction() -> None:
-    """A row that commits separately can outlive a rolled-back mutation."""
-    import inspect
-
-    source = inspect.getsource(_dataapi().write_tool_audit)
-
-    assert "transactionId=transaction_id" in source
-    assert "caller" in source and "gateway" in source
 
 
 def test_the_independent_audit_row_commits_in_its_own_transaction() -> None:

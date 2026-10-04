@@ -2,15 +2,17 @@
 The nine store tools Pellier's agents call, as Strands ``@tool`` wrappers.
 
 Each wrapper decides only what the in-process rail must decide: which customer
-the call is bound to, and whether the governed format lets it run here. The
-SQL and row shaping live once, in ``services.store_tools``, which the Gateway
-Lambda (``scripts/deploy/pellier_store_tools.py``) calls too. Every wrapper
-reaches it the same way: ``store_tools.<tool>(_run_sql, ...)``.
+the call is bound to. The SQL and row shaping live once, in
+``services.store_tools``, which the Gateway Lambda
+(``scripts/deploy/pellier_store_tools.py``) calls too. Every wrapper reaches it
+the same way: ``store_tools.<tool>(_run_sql, ...)``.
 
   Shopping agent  search_products, browse_department, compare_products, ask_a_person
   Stock agent     check_stock
   Support agent   get_orders, get_return_policy, get_tickets, ask_a_person
-  Operator only   give_store_credit
+
+``give_store_credit`` has no wrapper here: no agent binds it. The Operator
+executes an approved credit through ``services.governed_execution``.
 """
 from strands import tool
 import contextvars
@@ -106,15 +108,12 @@ def _reply(result: Any) -> str:
 _DB_NOT_READY = json.dumps({"error": "Database service not initialized"})
 
 
-def _extract_query_structure(query: str) -> dict | None:
-    """Ask the structured extractor for a proposed plan, or return None.
+def _extract_query_structure(query: str) -> dict:
+    """Ask the structured extractor for a proposed plan.
 
-    Gated behind ``SEARCH_PLANNER_EXTRACT_ENABLED`` (default on). It is a
-    second live Bedrock call on the shopper's critical path, roughly 1-3 s
-    and a Sonnet invocation per search, and it is the only way a shopper's
-    stated exclusions, stock requirement or implied budget reach SQL. With
-    the flag off, only the caller's explicit price ceiling and category are
-    enforced, and "no candles" depends on the model choosing what to show.
+    A second live Bedrock call on the shopper's critical path, roughly 1-3 s
+    and a Sonnet invocation per search, and the only way a shopper's stated
+    exclusions, stock requirement or implied budget reach SQL on this rail.
 
     The planner reads what the shopper typed in this chat (set per turn in
     ``turn_identity.shopper_words_var``), not the agent's search words, so an
@@ -125,11 +124,8 @@ def _extract_query_structure(query: str) -> dict | None:
         query: The agent's search words.
 
     Returns:
-        The extractor's dict, ``None`` when the flag is off, or an explicit
-        failure when extraction fails.
+        The extractor's dict, or an explicit failure when extraction fails.
     """
-    if not getattr(settings, "SEARCH_PLANNER_EXTRACT_ENABLED", False):
-        return None
     try:
         from services.structured_extract import get_structured_extractor
         from services.turn_identity import shopper_words_var
@@ -168,36 +164,6 @@ def _receipt_context() -> dict:
         "embedding_model": settings.BEDROCK_EMBEDDING_MODEL,
         "rerank_model": settings.BEDROCK_RERANK_MODEL,
     }
-
-
-def _managed_rail_required(tool_name: str) -> str | None:
-    """Reject local mutations in the governed workshop format.
-
-    Delegates the decision to ``services.execution_rail`` so the set of
-    mutation-capable tools lives in exactly one place. When that set and
-    this guard drift, a governed write silently becomes servable
-    in-process — the failure mode this guard exists to prevent.
-
-    Returns a JSON error envelope when the tool may not run on this rail,
-    or ``None`` when it may.
-    """
-    from pellier_copy import GOVERNED_ACTION_NOT_PERFORMED
-    from services.execution_rail import RAIL_GATEWAY_MCP, requires_managed_rail
-
-    if not requires_managed_rail(tool_name):
-        return None
-    return json.dumps(
-        {
-            # Machine fields: `is_boundary_refusal` matches on `error`, and the
-            # rail name is what makes the refusal diagnosable.
-            "error": "managed_rail_required",
-            "tool": tool_name,
-            "required_rail": RAIL_GATEWAY_MCP,
-            # True of every managed-rail refusal, and it promises nothing: it
-            # says only that the action was not performed here.
-            "message": GOVERNED_ACTION_NOT_PERFORMED,
-        }
-    )
 
 
 _PERSONA_CUSTOMER_IDS = {
@@ -399,7 +365,7 @@ def check_stock(product_query: str) -> str:
     # before any model runs; Marco's replayed turn is the live check.
     #
     # Note: tests/test_solutions_parity.py is a repo guard, NOT your wire
-    # check — it asserts this starter file still carries the stub, so it
+    # check: it asserts this starter file still carries the stub, so it
     # PASSES while stubbed and SKIPS once you wire it. Don't use it to
     # verify your edit.
     return json.dumps({
@@ -504,46 +470,4 @@ def ask_a_person(reason: str, store_credit_cents: int = 0, customer_id: str = ""
             requester_kind="shopper" if customer and principal_sub else "unverified",
         ))
     except Exception as e:
-        return json.dumps({"error": str(e)})
-
-
-# ---------------------------------------------------------------------------
-# Operator only
-# ---------------------------------------------------------------------------
-
-
-@tool
-def give_store_credit(
-    customer_id: str,
-    amount_cents: int,
-    reason: str,
-    idempotency_key: str,
-) -> str:
-    """Give a customer one store credit, up to $500.00, for a review a person approved.
-
-    Args:
-        customer_id: Customer receiving the credit, e.g. CUST-JESSICA.
-        amount_cents: Credit amount in integer cents. 2500 means $25.00.
-        reason: Why the credit is given. Required, and audited.
-        idempotency_key: The review's key for this one intended write.
-    """
-    governed_error = _managed_rail_required("give_store_credit")
-    if governed_error:
-        return governed_error
-    if not _db_service:
-        return _DB_NOT_READY
-    try:
-        # issued_by is None on this path: a tool call carries no verified staff
-        # token, and recording an attribution the agent supplied would be worse
-        # than recording none. The Operator executes a confirmed review with
-        # the verified operator subject instead.
-        return _reply(store_tools.give_store_credit(
-            _run_sql,
-            customer_id=customer_id,
-            amount_cents=amount_cents,
-            reason=reason,
-            idempotency_key=idempotency_key,
-        ))
-    except Exception as e:
-        logger.error("give_store_credit error: %s", e)
         return json.dumps({"error": str(e)})

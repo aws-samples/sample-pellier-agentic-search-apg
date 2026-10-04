@@ -1513,3 +1513,49 @@ def test_a_span_sourced_would_deny_is_still_reported_as_this_call() -> None:
     )
     assert "matched this call" in notes["policy"]
     assert "per-minute" not in notes["policy"]
+
+
+# ---------------------------------------------------------------------------
+# Retry of the unchanged request on the in-process rail
+# ---------------------------------------------------------------------------
+
+class _IdempotentDb(FakeDb):
+    """``apply_store_credit`` as Aurora behaves: one credit per key, then replay."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.credits: Dict[str, Dict[str, Any]] = {}
+
+    async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
+        if "apply_store_credit" not in query:
+            return await super().fetch_all(query, *params)
+        key = params[0]
+        if key in self.credits:
+            return [{"result": {**self.credits[key], "idempotent_replay": True}}]
+        self.credits[key] = {
+            "status": "success", "credit_id": len(self.credits) + 1, "idempotent_replay": False,
+        }
+        return [{"result": dict(self.credits[key])}]
+
+
+@pytest.mark.asyncio
+async def test_a_retry_on_the_in_process_rail_applies_the_credit_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The in-process rail keeps one credit per key and writes no audit row.
+
+    This rail has no ``tool_audit`` writer: its execution evidence is the
+    append-only receipt ``record_receipt`` stores per attempt. So the retry
+    contract here is one ``store_credits`` write and a replay that says so,
+    with nothing issued against ``pellier.tool_audit`` on either call.
+    """
+    db = _IdempotentDb()
+    first = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
+    second = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
+
+    assert first.idempotency_key == second.idempotency_key
+    assert len(db.credits) == 1, "the retry issued a second credit"
+    assert first.result["idempotent_replay"] is False
+    assert second.result["idempotent_replay"] is True
+    assert second.aurora == ge.AURORA_PERMITTED and "replayed" in second.notes["aurora"]
+    assert not [s for s in db.statements if "tool_audit" in s], "this rail writes no audit row"

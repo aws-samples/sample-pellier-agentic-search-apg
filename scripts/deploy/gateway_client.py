@@ -15,8 +15,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-import boto3
-
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -113,6 +111,8 @@ def _token_from_cognito(requested_user: str = "") -> str:
     if not pool_id or not client_id:
         raise SystemExit("Missing Cognito pool/client env vars.")
 
+    import boto3
+
     sm = boto3.client("secretsmanager", region_name=region)
     creds_raw = sm.get_secret_value(SecretId=creds_secret_arn).get("SecretString", "")
     creds = json.loads(creds_raw or "{}")
@@ -154,6 +154,33 @@ def _exception_summary(exc: BaseException) -> str:
     return str(exc)[:700]
 
 
+# Verbatim GA Gateway deny lead-in (box-verified 2026-06-12): "Tool call not
+# allowed due to policy enforcement [Policy evaluation denied due to
+# <policy>-...]". Matched explicitly so the deny still classifies even if the
+# bracketed detail is truncated. Deliberately NOT matched: generic
+# AccessDenied/Unauthorized/Forbidden. Those can describe IAM, JWT, or target
+# failures and must surface as outcome "error", never a fake Cedar DENY proof.
+POLICY_DENIAL_MARKERS = (
+    "authorizeactionexception",
+    "not allowed due to policy",
+    "policy enforcement",
+    "policy evaluation denied",
+)
+
+
+def is_policy_denial_text(text: str) -> bool:
+    """True only when ``text`` carries the Gateway's Cedar denial shape.
+
+    The one classifier the Lab 3 and Lab 4 probes, the provisioning proof and
+    the receipt validator share, so a 401 or a transport failure reads the
+    same everywhere: not a policy decision.
+    """
+    haystack = str(text or "").lower()
+    if "suppress" in haystack and ("output" in haystack or "response" in haystack):
+        return False
+    return any(marker in haystack for marker in POLICY_DENIAL_MARKERS)
+
+
 def _is_authorization_denial(exc: BaseException) -> bool:
     """Return True only for Gateway/Cedar authorization failures.
 
@@ -164,24 +191,7 @@ def _is_authorization_denial(exc: BaseException) -> bool:
     children = getattr(exc, "exceptions", None)
     if children:
         return any(_is_authorization_denial(child) for child in children)
-
-    haystack = f"{exc.__class__.__name__}: {exc}".lower()
-    if "suppress" in haystack and ("output" in haystack or "response" in haystack):
-        return False
-    denial_markers = (
-        "authorizeactionexception",
-        # Verbatim GA Gateway deny lead-in (box-verified 2026-06-12):
-        # "Tool call not allowed due to policy enforcement [Policy evaluation
-        # denied due to <policy>-...]". Matched explicitly so the deny still
-        # classifies even if the bracketed detail is truncated.
-        "not allowed due to policy",
-        "policy enforcement",
-        "policy evaluation denied",
-    )
-    # Deliberately NOT matched: generic AccessDenied/Unauthorized/Forbidden.
-    # Those can describe IAM, JWT, or target failures and must surface as
-    # outcome "error", never a fake Cedar DENY proof.
-    return any(marker in haystack for marker in denial_markers)
+    return is_policy_denial_text(f"{exc.__class__.__name__}: {exc}")
 
 
 def _decode_access_token_claims(token: str) -> dict[str, Any]:
@@ -204,6 +214,8 @@ def _verified_identity(token: str) -> dict[str, str]:
     client_id = os.environ.get("COGNITO_CLIENT_ID") or os.environ.get("COGNITO_CLIENT")
     if not pool_id or not client_id:
         raise RuntimeError("Missing Cognito pool/client env vars for receipt verification.")
+
+    import boto3
 
     cognito = boto3.client("cognito-idp", region_name=region)
     user = cognito.get_user(AccessToken=token)

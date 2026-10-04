@@ -392,35 +392,12 @@ def test_persist_receipt_is_a_noop_without_a_db() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Planner extraction flag on the shipped path
+# Planner extraction on the shipped path
 # ---------------------------------------------------------------------------
-def test_extractor_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A second Sonnet call per search is opt-in, not the default."""
-    import services.agent_tools as agent_tools
-    from config import settings
-
-    monkeypatch.setattr(
-        settings, "SEARCH_PLANNER_EXTRACT_ENABLED", False, raising=False
-    )
-
-    def _boom() -> Any:  # pragma: no cover - must never be reached
-        raise AssertionError("extractor should not be constructed when disabled")
-
-    import services.structured_extract as extract_module
-
-    monkeypatch.setattr(extract_module, "get_structured_extractor", _boom)
-
-    assert agent_tools._extract_query_structure("gift under $100") is None
-
-
-def test_extractor_runs_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_extractor_runs_on_every_search(monkeypatch: pytest.MonkeyPatch) -> None:
     import services.agent_tools as agent_tools
     import services.structured_extract as extract_module
     from config import settings
-
-    monkeypatch.setattr(
-        settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True, raising=False
-    )
 
     class _Extractor:
         def extract(self, query: str) -> Dict[str, Any]:
@@ -443,10 +420,6 @@ def test_extractor_failure_is_reported_as_failed(
     import services.agent_tools as agent_tools
     import services.structured_extract as extract_module
     from config import settings
-
-    monkeypatch.setattr(
-        settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True, raising=False
-    )
 
     class _Extractor:
         def extract(self, query: str) -> Dict[str, Any]:

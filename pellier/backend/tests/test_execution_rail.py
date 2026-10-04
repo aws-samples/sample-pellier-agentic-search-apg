@@ -29,7 +29,6 @@ from services.execution_rail import (
     REASON_NO_TOKEN,
     REASON_NOT_CONFIGURED,
     degraded_notice,
-    requires_managed_rail,
     resolve_rail,
 )
 
@@ -136,57 +135,6 @@ def test_decision_serializes_for_the_completion_payload(
 # ---------------------------------------------------------------------------
 # Mutation tools must not run off the managed rail in governed format
 # ---------------------------------------------------------------------------
-def test_mutation_tools_require_the_managed_rail_when_governed(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
-
-    assert requires_managed_rail("give_store_credit") is True
-    # ask_a_person mutates no business data (a handoff, and a credit request opens a
-    # review a person decides), so it stays available on degraded turns as the honest
-    # fallback when a mutation is refused.
-    assert requires_managed_rail("ask_a_person") is False
-
-
-def test_read_tools_never_require_the_managed_rail(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
-
-    for tool in ("search_products", "browse_department", "compare_products",
-                 "check_stock", "get_orders", "get_return_policy", "get_tickets"):
-        assert requires_managed_rail(tool) is False, tool
-
-
-def test_builders_format_allows_local_mutations(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The shorter builders session runs writes in-process by design."""
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "builders", raising=False)
-
-    assert requires_managed_rail("give_store_credit") is False
-
-
-def test_agent_tools_guard_uses_the_shared_rail_list(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The tool-level guard and the rail module must not drift apart."""
-    import services.agent_tools as agent_tools
-
-    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
-
-    blocked = agent_tools._managed_rail_required("give_store_credit")
-    allowed = agent_tools._managed_rail_required("search_products")
-
-    assert allowed is None
-    assert blocked is not None
-    import json
-
-    envelope: Dict[str, Any] = json.loads(blocked)
-    assert envelope["error"] == "managed_rail_required"
-    assert envelope["required_rail"] == "gateway-mcp"
-
-
 # ---------------------------------------------------------------------------
 # Degradation disclosure
 # ---------------------------------------------------------------------------
@@ -325,41 +273,21 @@ def test_fallback_list_matches_the_tier_map() -> None:
     assert _MUTATION_TOOLS_FALLBACK == frozenset(mutation_tool_names())
 
 
-def test_the_governed_boundary_fails_open_when_the_format_is_unset() -> None:
-    """The switch that silently disabled the flagship write boundary.
-
-    `requires_managed_rail` returns False for any format other than `governed`, and
-    `bootstrap-labs.sh` defaults the flag to `builders`. A local `.env` created without
-    the export left the shopper rail executing `give_store_credit` directly — no review,
-    no Cedar verdict, no `tool_audit` row — and nothing announced it.
-    """
-    import importlib
-
-    from config import settings
-    from services import execution_rail
-
-    original = settings.WORKSHOP_FORMAT
-    try:
-        settings.WORKSHOP_FORMAT = "builders"
-        importlib.reload(execution_rail)
-        assert execution_rail.requires_managed_rail("give_store_credit") is False, (
-            "the fail-open behaviour changed; update this test and the startup warning"
-        )
-        settings.WORKSHOP_FORMAT = "governed"
-        importlib.reload(execution_rail)
-        assert execution_rail.requires_managed_rail("give_store_credit") is True
-    finally:
-        settings.WORKSHOP_FORMAT = original
-        importlib.reload(execution_rail)
-
-
 def test_startup_warns_loudly_when_the_boundary_is_off() -> None:
-    """A silent fail-open is the thing that cost a live business mutation."""
+    """A silent fail-open is the thing that cost a live business mutation.
+
+    `WORKSHOP_FORMAT` now decides only the Operator's write rail
+    (`governed_execution.select_rail`); the warning says that, and nothing
+    about a shopper-rail credit, because no agent binds one.
+    """
     import pathlib
 
     app_source = pathlib.Path("app.py").read_text()
-    assert "The managed-rail boundary is OFF" in app_source
-    assert "logger.warning" in app_source.split("WORKSHOP_FORMAT=governed —")[0][-2000:]
+    block = app_source.split("WORKSHOP_FORMAT=governed —")[1][:1200]
+    assert "The managed-rail boundary is OFF" in block
+    assert "the Operator executes a confirmed credit in process" in block
+    assert "logger.warning(" in block
+    assert "requires_managed_rail" not in app_source
     # And the positive case is stated too, so a correct box confirms itself.
     assert "governed writes are managed-rail only" in app_source
 

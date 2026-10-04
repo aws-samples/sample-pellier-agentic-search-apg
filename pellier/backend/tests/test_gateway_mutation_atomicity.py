@@ -228,3 +228,77 @@ def test_a_failing_receipt_write_does_not_change_the_credit_result(
 
     assert not result.get("isError")
     assert '"credit_id": 7' in result["text"]
+
+
+class _IdempotentDataApi(_DataApi):
+    """``apply_store_credit`` as the database behaves: one credit per key.
+
+    The first call under a key records a credit and answers with
+    ``idempotent_replay: false``; every later call with the same key hands
+    back that first result with ``idempotent_replay: true`` and records
+    nothing, exactly as migration 019 does.
+    """
+
+    def __init__(self) -> None:
+        super().__init__({})
+        self.credits: dict[str, dict[str, Any]] = {}
+
+    def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
+        sql = kwargs.get("sql", "")
+        if "apply_store_credit" in sql:
+            self.statements.append(kwargs)
+            key = kwargs["parameters"][0]["value"]["stringValue"]
+            if key in self.credits:
+                result = {**self.credits[key], "idempotent_replay": True}
+            else:
+                self.credits[key] = {
+                    "status": "success",
+                    "credit_id": len(self.credits) + 1,
+                    "idempotent_replay": False,
+                }
+                result = self.credits[key]
+            return {
+                "columnMetadata": [{"name": "result"}],
+                "records": [[{"stringValue": __import__("json").dumps(result)}]],
+            }
+        return super().execute_statement(**kwargs)
+
+
+def test_a_retry_of_the_unchanged_request_keeps_one_credit_and_one_receipt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Lab 4 retry contract on the Gateway rail.
+
+    An approved credit and the operator's unchanged retry reach the Lambda with
+    the same deterministic key. Aurora applies the credit once and replays it
+    once; the Lambda must not turn that replay into a second attempt receipt.
+    """
+    module = _load_server("pellier_store_tools.py", "store_credit_retry")
+    client = _IdempotentDataApi()
+    monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+    first = module.lambda_handler(_credit_event(), None)
+    second = module.lambda_handler(_credit_event(), None)
+
+    assert not first.get("isError") and not second.get("isError")
+    assert '"idempotent_replay": false' in first["text"]
+    assert '"idempotent_replay": true' in second["text"]
+    assert len(client.credits) == 1, "the retry issued a second credit"
+    assert len(_audit_statements(client)) == 1, "the replay wrote a second receipt"
+
+
+def test_a_first_attempt_and_a_refusal_still_write_their_receipt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only a replay is exempt: the first write and a refused write stay evidenced."""
+    for envelope in (
+        {"status": "success", "credit_id": 7, "idempotent_replay": False},
+        {"status": "error", "message": "Customer CUST-NOBODY not found."},
+    ):
+        module = _load_server("pellier_store_tools.py", "store_credit_receipt_kept")
+        client = _DataApi(envelope)
+        monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+        module.lambda_handler(_credit_event(), None)
+
+        assert len(_audit_statements(client)) == 1, envelope

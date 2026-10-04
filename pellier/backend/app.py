@@ -149,25 +149,23 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Pellier API...")
 
-    # The governed lineage's write boundary is a CONFIG switch, and it fails open.
-    # `services.execution_rail.requires_managed_rail` returns False for any format
-    # other than `governed`, so with the flag unset every mutation-capable tool
-    # becomes servable in process: no review, no Cedar verdict, no `tool_audit` row.
-    #
-    # `bootstrap-labs.sh` writes this into `.env` from the environment and defaults to
-    # `builders`, which is right for the shorter lineage and silently wrong here. A
-    # local `.env` created without the export left this box serving governed writes
-    # straight from the shopper rail, and nothing said so until a return appeared in
-    # Aurora. Say it loudly at startup instead.
+    # `WORKSHOP_FORMAT` decides where the Operator executes a confirmed credit.
+    # `services.governed_execution.select_rail` refuses anything but the managed
+    # Gateway rail under AgentCore Policy when it is `governed`, and keeps the
+    # builders' in-process rail for any other value: no Cedar verdict and no
+    # Gateway receipt. No shopper agent binds `give_store_credit`, so a chat turn
+    # cannot move money on either setting. A local `.env` written without the
+    # export once left a box executing operator writes with no verdict, and
+    # nothing said so. Say it at startup instead.
     _format = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").lower()
     if _format == "governed":
         logger.info("✅ WORKSHOP_FORMAT=governed — governed writes are managed-rail only")
     else:
         logger.warning(
             "⚠️ WORKSHOP_FORMAT=%r, not 'governed'. The managed-rail boundary is OFF: "
-            "give_store_credit will execute in process with no human review, "
-            "no AgentCore Policy verdict and no tool_audit receipt. Set "
-            "WORKSHOP_FORMAT=governed for this lineage.",
+            "the Operator executes a confirmed credit in process with no AgentCore "
+            "Policy verdict and no Gateway receipt. Set WORKSHOP_FORMAT=governed "
+            "for this lineage.",
             _format or "<unset>",
         )
     

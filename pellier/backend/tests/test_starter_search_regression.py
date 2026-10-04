@@ -56,7 +56,6 @@ class FakeDB:
 
 @pytest.fixture
 def search_dependencies(monkeypatch):
-    monkeypatch.setattr(agent_tools.settings, "SEARCH_PLANNER_EXTRACT_ENABLED", True)
     db = FakeDB()
     monkeypatch.setattr(agent_tools, "_db_service", db)
     monkeypatch.setattr(agent_tools, "_run_async", asyncio.run)

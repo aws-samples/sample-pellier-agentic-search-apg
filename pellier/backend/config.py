@@ -94,10 +94,6 @@ class Settings(BaseSettings):
     BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-5"
     BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5"
 
-    # Legacy alias — kept for tests + scripts that still reference it.
-    # Prefer the role-specific Opus/Sonnet settings in agent factories.
-    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-5"
-
     # max_tokens is a safety ceiling, not a target — billing and latency track
     # tokens actually generated, so a higher cap costs nothing unless a reply
     # truly runs that long. Replies stay short because the system prompts ask
@@ -168,16 +164,6 @@ class Settings(BaseSettings):
     HYBRID_TOP_N: int = 30
     HYBRID_RRF_K: int = 60
 
-    # Typed query planning on the shipped Shopping agent search path.
-    #
-    # Both shopper search tools build a `SearchPlan` and push its hard
-    # predicates into SQL. This flag controls whether the model reads the
-    # shopper's request into that plan via `services.structured_extract`, a
-    # second Sonnet call that adds ~1-3 s to every storefront search. It is
-    # the only way stated exclusions ("no candles", "nothing in wool"), a stock
-    # requirement or an implied budget reach SQL, so it is on by default. Off,
-    # only the caller's explicit price ceiling and category are enforced.
-    SEARCH_PLANNER_EXTRACT_ENABLED: bool = True
     RERANK_MAX_DOCUMENTS: int = 30
     RERANK_CACHE_TTL_SEC: int = 120
     
@@ -506,7 +492,7 @@ if __name__ == "__main__":
     print(f"Database: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
     print(f"AWS Region: {settings.aws_region_resolved}")
     print(f"Embedding Model: {settings.BEDROCK_EMBEDDING_MODEL}")
-    print(f"Chat Model: {settings.BEDROCK_CHAT_MODEL}")
+    print(f"Editorial Model: {settings.BEDROCK_OPUS_MODEL}")
     print(f"API Version: {settings.API_VERSION}")
     print(f"Debug Mode: {settings.DEBUG}")
     print(f"Development Mode: {settings.DEVELOPMENT_MODE}")

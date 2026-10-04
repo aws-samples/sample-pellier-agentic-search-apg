@@ -216,12 +216,35 @@ def _valid_receipt() -> dict[str, Any]:
             "live_policy_proof": {
                 "allow": {
                     "outcome": "allow",
-                    "tool_audit_row_after_call": {"audit_id": 101},
+                    "principal": "theo",
+                    "tool": "get_return_policy",
+                    "action": "pellier-store-tools___get_return_policy",
+                    "turn_id": "turn-readiness-fixture-1",
+                    "cedar_denial": False,
+                    "tool_executed": True,
+                    "evidence": {
+                        "tool_audit_rows": 1,
+                        "tool_audit_row": {"audit_id": 101, "session_id": "turn-readiness-fixture-1"},
+                    },
                 },
                 "deny": {
                     "outcome": "deny",
+                    "principal": "theo",
+                    "tool": "give_store_credit",
+                    "action": "pellier-store-tools___give_store_credit",
+                    "idempotency_key": "readiness-fixture-1",
                     "cedar_denial": True,
-                    "tool_audit_row_after_call": None,
+                    "tool_executed": False,
+                    "error_type": "McpError",
+                    "error": (
+                        "McpError: Tool call not allowed due to policy enforcement "
+                        "[Policy evaluation denied due to baseline]"
+                    ),
+                    "evidence": {
+                        "tool_audit_rows": 0,
+                        "write_operations_rows": 0,
+                        "store_credits_rows": 0,
+                    },
                 },
             },
         },
@@ -591,3 +614,55 @@ def test_partial_episode_does_not_satisfy_provisioning_receipt():
     receipt = _valid_receipt()
     receipt["memory"]["seed"]["acceptance"]["strategies"]["episodic"]["records"][0]["episode"] = None
     assert any("episodic" in error for error in _load_validator().validate_receipt(receipt))
+
+
+# ---------------------------------------------------------------------------
+# The live Cedar proof
+# ---------------------------------------------------------------------------
+
+def _policy_errors(mutate) -> list[str]:
+    receipt = _valid_receipt()
+    mutate(receipt["verification"])
+    return _load_validator().validate_receipt(receipt)
+
+
+@pytest.mark.parametrize("half", ["allow", "deny"])
+def test_ready_receipt_requires_both_halves_of_the_live_policy_proof(half: str) -> None:
+    errors = _policy_errors(lambda v: v["live_policy_proof"].pop(half))
+    assert any(f"live_policy_proof.{half}" in error for error in errors)
+
+
+@pytest.mark.parametrize("flag", ["live_policy_allow", "live_policy_deny"])
+def test_ready_receipt_requires_the_live_policy_flags(flag: str) -> None:
+    errors = _policy_errors(lambda v: v.update({flag: False}))
+    assert any(flag in error for error in errors)
+
+
+@pytest.mark.parametrize("table", ["tool_audit", "write_operations", "store_credits"])
+def test_a_deny_that_left_rows_is_not_a_policy_proof(table: str) -> None:
+    errors = _policy_errors(
+        lambda v: v["live_policy_proof"]["deny"]["evidence"].update({f"{table}_rows": 1})
+    )
+    assert any(f"zero {table} rows" in error for error in errors)
+
+
+def test_an_allow_without_its_audit_row_is_not_a_policy_proof() -> None:
+    errors = _policy_errors(
+        lambda v: v["live_policy_proof"]["allow"]["evidence"].update(
+            {"tool_audit_rows": 0, "tool_audit_row": None}
+        )
+    )
+    assert any("name its tool_audit execution row" in error for error in errors)
+    assert any("exactly one tool_audit row" in error for error in errors)
+
+
+def test_a_401_shaped_deny_is_not_a_policy_proof() -> None:
+    errors = _policy_errors(
+        lambda v: v["live_policy_proof"]["deny"].update(
+            {"error_type": "HTTPStatusError", "error": "HTTPStatusError: 401 Unauthorized"}
+        )
+    )
+    assert any("not an authentication, validation or transport failure" in error for error in errors)
+
+    errors = _policy_errors(lambda v: v["live_policy_proof"]["deny"].update({"cedar_denial": False}))
+    assert any("Cedar policy denial" in error for error in errors)

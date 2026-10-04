@@ -346,3 +346,25 @@ def test_the_lambda_envelope_carries_the_search_result(
     payload = json.loads(response["content"][0]["text"])
     assert payload["status"] == "success"
     assert [product["productId"] for product in payload["products"]] == ["1"]
+
+
+def test_stock_and_exclusion_requirements_reach_the_plan_as_a_reading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The managed rail has no extractor; the explicit arguments are the reading."""
+    seen: Dict[str, Any] = {}
+    monkeypatch.setattr(
+        store_tools, "search_products", lambda run, **kwargs: seen.update(kwargs) or {}
+    )
+
+    lambda_tools.TOOLS["search_products"](
+        {"query": "a gift", "in_stock_only": "true", "exclusions": ["candle", "wool"]}, None
+    )
+    assert seen["extracted"] == {
+        "in_stock_only": True,
+        "exclusions": ["candle", "wool"],
+        "soft_signal": "a gift",
+    }
+
+    lambda_tools.TOOLS["search_products"]({"query": "a gift", "exclusions": "candle"}, None)
+    assert seen["extracted"] == {"in_stock_only": False, "exclusions": ["candle"], "soft_signal": "a gift"}

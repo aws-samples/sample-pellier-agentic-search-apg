@@ -48,7 +48,7 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
     module = _load_model_check()
     env_file = tmp_path / ".env"
     env_file.write_text(
-        "BEDROCK_OPUS_MODEL=stale\nBEDROCK_CHAT_MODEL=stale\n", encoding="utf-8"
+        "BEDROCK_OPUS_MODEL=stale\n", encoding="utf-8"
     )
 
     def fake_check(_client, _rerank_client, model):
@@ -72,7 +72,7 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
         if "=" in line
     )
     assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
-    assert values["BEDROCK_CHAT_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert "BEDROCK_CHAT_MODEL" not in values
     assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert "BEDROCK_FAST_MODEL" not in values
     assert "CLAUDE_CODE_MODEL" not in values
@@ -363,12 +363,35 @@ def _valid_managed_receipt() -> dict[str, object]:
             "live_policy_proof": {
                 "allow": {
                     "outcome": "allow",
-                    "tool_audit_row_after_call": {"audit_id": 1},
+                    "principal": "theo",
+                    "tool": "get_return_policy",
+                    "action": "pellier-store-tools___get_return_policy",
+                    "turn_id": "turn-readiness-fixture-1",
+                    "cedar_denial": False,
+                    "tool_executed": True,
+                    "evidence": {
+                        "tool_audit_rows": 1,
+                        "tool_audit_row": {"audit_id": 101, "session_id": "turn-readiness-fixture-1"},
+                    },
                 },
                 "deny": {
                     "outcome": "deny",
+                    "principal": "theo",
+                    "tool": "give_store_credit",
+                    "action": "pellier-store-tools___give_store_credit",
+                    "idempotency_key": "readiness-fixture-1",
                     "cedar_denial": True,
-                    "tool_audit_row_after_call": None,
+                    "tool_executed": False,
+                    "error_type": "McpError",
+                    "error": (
+                        "McpError: Tool call not allowed due to policy enforcement "
+                        "[Policy evaluation denied due to baseline]"
+                    ),
+                    "evidence": {
+                        "tool_audit_rows": 0,
+                        "write_operations_rows": 0,
+                        "store_credits_rows": 0,
+                    },
                 },
             },
             "authenticated_runtime_invoke_smoke": True,
@@ -1199,9 +1222,11 @@ def test_policy_attachment_is_a_provisioning_hard_gate() -> None:
     assert source.index(
         "policy_state = _require_state_resource("
     ) < source.index('result["status"] = "ready"')
-    assert "_live_policy_proof" not in source
-    assert "live_policy_allow" not in source
-    assert "live_policy_deny" not in source
+    assert "_live_policy_proof(" in source
+    assert '"live_policy_allow",' in source and '"live_policy_deny",' in source
+    assert source.index("stage(\"live policy allow and deny\")") < source.index(
+        "stage(\"authenticated shopper Runtime\")"
+    )
     assert "Gateway Policy mode is" in source
     assert "_discover_live_gateway_tools(" in source
     assert '"gateway_tools_discovered"' in source
@@ -2166,3 +2191,110 @@ def test_governed_health_gate_rejects_installed_but_unusable_query_statistics(tm
     assert proc.returncode == 1
     assert "installed but cannot collect queries" in proc.stdout
     assert "NOT READY" in proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# The live Cedar proof at provisioning time
+# ---------------------------------------------------------------------------
+
+def _probe_payload(expected: str, **overrides) -> dict:
+    proof = _valid_managed_receipt()["verification"]["live_policy_proof"][expected]
+    payload = json.loads(json.dumps(proof))
+    for key, value in overrides.items():
+        if key == "evidence":
+            payload["evidence"].update(value)
+        else:
+            payload[key] = value
+    return payload
+
+
+def _fake_probe_run(payloads: dict[str, dict], calls: list[list[str]]):
+    def run(cmd, cwd=None, env=None, **_):
+        calls.append([str(part) for part in cmd])
+        tool = cmd[cmd.index("--tool") + 1]
+        return SimpleNamespace(stdout=json.dumps(payloads[tool]), stderr="", returncode=0)
+
+    return run
+
+
+def test_live_policy_proof_probes_the_money_tool_as_a_shopper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    provisioner = _load_provisioner()
+    calls: list[list[str]] = []
+    monkeypatch.setattr(provisioner, "_run", _fake_probe_run(
+        {"get_return_policy": _probe_payload("allow"), "give_store_credit": _probe_payload("deny")},
+        calls,
+    ))
+
+    proofs = provisioner._live_policy_proof(
+        repo=tmp_path, deploy_dir=tmp_path / "deploy", env={}, probe_id="rc-1"
+    )
+
+    assert set(proofs) == {"allow", "deny"}
+    assert [call[1].endswith("gateway_policy_probe.py") for call in calls] == [True, True]
+    allow_cmd, deny_cmd = calls
+    assert allow_cmd[allow_cmd.index("--user") + 1] == "theo"
+    assert deny_cmd[deny_cmd.index("--user") + 1] == "theo"
+    assert allow_cmd[allow_cmd.index("--turn-id") + 1] == "turn-readiness-rc-1"
+    deny_args = json.loads(deny_cmd[deny_cmd.index("--arguments") + 1])
+    assert deny_args == {
+        "customer_id": "CUST-READINESS-PROBE",
+        "amount_cents": 100,
+        "reason": "readiness probe",
+        "idempotency_key": "readiness-rc-1",
+    }
+    assert "--turn-id" not in deny_cmd
+
+
+@pytest.mark.parametrize(
+    ("expected", "payload", "message"),
+    [
+        (
+            "deny",
+            lambda: _probe_payload("deny", evidence={"write_operations_rows": 1}),
+            "left rows for idempotency key",
+        ),
+        (
+            "deny",
+            lambda: _probe_payload("deny", evidence={"store_credits_rows": 1}),
+            "store_credits_rows",
+        ),
+        (
+            "allow",
+            lambda: _probe_payload("allow", evidence={"tool_audit_rows": 0, "tool_audit_row": None}),
+            "did not leave exactly one tool_audit row",
+        ),
+        (
+            "deny",
+            lambda: _probe_payload(
+                "deny", outcome="error", cedar_denial=False,
+                error_type="HTTPStatusError", error="HTTPStatusError: 401 Unauthorized",
+            ),
+            "not a policy decision",
+        ),
+        (
+            "deny",
+            lambda: _probe_payload(
+                "deny", outcome="allow", cedar_denial=False, error_type=None, error=None,
+                evidence={"tool_audit_rows": 1, "write_operations_rows": 1},
+            ),
+            "Cedar did not block the money tool",
+        ),
+    ],
+)
+def test_live_policy_proof_refuses_anything_but_the_expected_evidence(
+    expected: str, payload, message: str,
+) -> None:
+    provisioner = _load_provisioner()
+    with pytest.raises(RuntimeError) as exc_info:
+        provisioner._check_policy_proof(expected, payload())
+    assert message in str(exc_info.value)
+    assert "theo -> pellier-store-tools___" in str(exc_info.value)
+
+
+def test_policy_probe_id_is_legal_inside_a_lambda_turn_id() -> None:
+    provisioner = _load_provisioner()
+    probe_id = provisioner._policy_probe_id("rc/2026.10")
+    assert re.fullmatch(r"[A-Za-z0-9_-]+", probe_id)
+    assert re.fullmatch(r"turn-[A-Za-z0-9_-]{6,}", f"turn-readiness-{probe_id}")

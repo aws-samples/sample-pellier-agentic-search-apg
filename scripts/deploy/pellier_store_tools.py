@@ -14,8 +14,10 @@ inside the zip exactly as it does in the backend.
 
 Evidence contract:
 
-* ``give_store_credit`` always writes its own ``pellier.tool_audit`` row, in
-  its own transaction, so an attempt survives a rolled-back write.
+* ``give_store_credit`` writes its own ``pellier.tool_audit`` row for a first
+  attempt and for a refused one, in its own transaction, so an attempt
+  survives a rolled-back write. An idempotent replay writes none: Aurora
+  applied nothing, and the first row stays the one receipt for that key.
 * A read writes an audit row only when the Runtime passed a ``turn_id``, so an
   uncorrelated probe cannot pose as a shopper turn.
 * A Cedar DENY never invokes this function, so the absence of a row is the
@@ -74,6 +76,34 @@ def _float(value: Any) -> Optional[float]:
         return None
 
 
+def _bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
+
+def _requirements(args: Dict[str, Any], query: str) -> Optional[Dict[str, Any]]:
+    """The shopper's stock and exclusion requirements, as the plan reads them.
+
+    No structured extractor runs on this rail. The Shopping agent passes what
+    the shopper said as explicit ``in_stock_only`` and ``exclusions``
+    arguments, and ``build_plan`` compiles them into the same SQL predicates
+    an in-process extraction produces. With neither argument the plan carries
+    only the explicit price ceiling and says so in its extraction status.
+    """
+    in_stock_only = args.get("in_stock_only")
+    exclusions = args.get("exclusions")
+    if in_stock_only is None and exclusions is None:
+        return None
+    if isinstance(exclusions, str):
+        exclusions = [exclusions]
+    return {
+        "in_stock_only": _bool(in_stock_only),
+        "exclusions": [str(value) for value in exclusions] if isinstance(exclusions, list) else [],
+        "soft_signal": query,
+    }
+
+
 def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
     receipt = None
     if turn_id:
@@ -83,14 +113,13 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
             "embedding_model": EMBED_MODEL_ID,
             "rerank_model": RERANK_MODEL_ID,
         }
+    query = str(args.get("query") or "")
     return store_tools.search_products(
         run_store_sql,
-        query=str(args.get("query") or ""),
+        query=query,
         embed=query_embedding,
         rerank=rerank_documents,
-        # No structured extractor runs on this rail: the plan carries only the
-        # explicit arguments, and says so in its extraction status.
-        extracted=None,
+        extracted=_requirements(args, query),
         max_price=_float(args.get("max_price")),
         min_rating=_float(args.get("min_rating")) or 0.0,
         category=args.get("category") or None,
@@ -221,9 +250,12 @@ def lambda_handler(event: dict, context: Any) -> dict:
         result = {"error": "The requested action could not be completed."}
         failed = True
 
-    if tool_name == "give_store_credit":
+    if tool_name == "give_store_credit" and not _is_idempotent_replay(result):
         # The attempt is evidence even when Aurora refused it: the receipt
-        # commits on its own, so a rolled-back write still leaves its row.
+        # commits on its own, so a rolled-back write still leaves its row. A
+        # replay is not an attempt: ``apply_store_credit`` handed back the
+        # first result without touching ``store_credits``, so the retry of an
+        # unchanged request keeps one credit and one audit row.
         write_tool_audit_independently(
             tool=tool_name,
             args=dict(arguments),
@@ -231,6 +263,11 @@ def lambda_handler(event: dict, context: Any) -> dict:
             latency_ms=int((time.monotonic() - started) * 1000),
             session_id=f"gateway-{execution_arguments.get('customer_id') or 'unknown'}",
         )
-    elif not failed:
+    elif tool_name != "give_store_credit" and not failed:
         audit_read_call(tool_name, arguments, result, started)
     return _envelope(result, is_error=failed)
+
+
+def _is_idempotent_replay(result: Any) -> bool:
+    """True when ``apply_store_credit`` replayed an earlier write for this key."""
+    return isinstance(result, dict) and bool(result.get("idempotent_replay"))

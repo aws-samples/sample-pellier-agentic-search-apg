@@ -148,27 +148,12 @@ def resolve_rail(*, auth_token: Optional[str] = None) -> RailDecision:
     return RailDecision(rail=RAIL_RUNTIME, managed_requested=True)
 
 
-def requires_managed_rail(tool_name: str) -> bool:
-    """True when ``tool_name`` may only run on the managed rail.
-
-    Mutation-capable tools are governed: in the flagship format they must
-    travel through Gateway and managed Policy so the Cedar decision and
-    the ``tool_audit`` row line up. Read tools may serve in-process.
-
-    Args:
-        tool_name: The logical tool name, e.g. ``give_store_credit``.
-    """
-    if str(getattr(settings, "WORKSHOP_FORMAT", "")).lower() != "governed":
-        return False
-    return tool_name in mutation_tools()
-
-
 def mutation_tools() -> frozenset:
     """Return the mutation-capable tool names.
 
-    Derived from the Gateway's capability tiers so the fail-closed rule and
-    the published tier map cannot disagree — a tool promoted into a
-    mutation tier automatically becomes managed-rail-only, with no second
+    Derived from the Gateway's capability tiers so the degradation notice
+    and the published tier map cannot disagree: a tool promoted into a
+    mutation tier is reported as withheld on a degraded turn with no second
     list to remember. Falls back to the known mutation set if the gateway
     module is unavailable (it imports ``mcp``, which is optional).
     """

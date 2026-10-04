@@ -135,6 +135,14 @@ def _managed_specialist_prompt(
             "customer-scoped tool requires customer_id; do not infer or "
             "substitute another customer."
         )
+    if specialist == "shopping":
+        prompt += (
+            " Pass the shopper's requirements to search_products as arguments, "
+            "never as words in the query: a budget as max_price in dollars, a "
+            "request for what is available as in_stock_only=true, and anything "
+            "they ruled out as exclusions, a list of those words. The database "
+            "enforces them as filters."
+        )
     return prompt
 
 
@@ -252,7 +260,9 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
         "category",
         "customer_id",
         "department",
+        "exclusions",
         "idempotency_key",
+        "in_stock_only",
         "limit",
         "max_price",
         "min_rating",
@@ -266,13 +276,14 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
     }
 )
 # Tools whose `customer_id` the server binds to the verified caller before
-# execution. Lab 3A adds the support read the starter leaves unbound.
-_CUSTOMER_SCOPED_TOOL_NAMES = frozenset(
-    {
-        "get_orders",
-        "ask_a_person",
-    }
-) | SUPPORT_CALLER_BOUND_TOOLS
+# execution, and that cannot run without one. Lab 3A adds the support read the
+# starter leaves unbound.
+_CUSTOMER_SCOPED_TOOL_NAMES = frozenset({"get_orders"}) | SUPPORT_CALLER_BOUND_TOOLS
+# The handoff is bound to the caller when the caller is known and still runs
+# when nobody is signed in: anyone may ask for a person. The local rail does the
+# same (`store_tools.ask_a_person` completes the handoff and withholds only the
+# credit review), so a model-chosen customer is dropped rather than trusted.
+_CUSTOMER_BOUND_WHEN_KNOWN_TOOL_NAMES = frozenset({"ask_a_person"})
 
 
 def _bind_server_tool_context(
@@ -294,6 +305,11 @@ def _bind_server_tool_context(
                 f"{logical_name} requires verified Aurora customer context"
             )
         tool_input["customer_id"] = customer_id
+    elif logical_name in _CUSTOMER_BOUND_WHEN_KNOWN_TOOL_NAMES:
+        if customer_id:
+            tool_input["customer_id"] = customer_id
+        else:
+            tool_input.pop("customer_id", None)
 
     bound["input"] = tool_input
     return bound
@@ -308,7 +324,7 @@ def _customer_scope(tool_use: Dict[str, Any], customer_id: str) -> Dict[str, Any
     """
     logical_name = _logical_gateway_tool_name(str(tool_use.get("name") or ""))
     requested = (tool_use.get("input") or {}).get("customer_id")
-    if logical_name in _CUSTOMER_SCOPED_TOOL_NAMES:
+    if logical_name in _CUSTOMER_SCOPED_TOOL_NAMES | _CUSTOMER_BOUND_WHEN_KNOWN_TOOL_NAMES:
         scope = "server"
     elif requested:
         scope = "model"

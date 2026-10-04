@@ -128,7 +128,7 @@ ALLOWED_HISTORY = {
 }
 
 SKIP_DIRS = {
-    ".git", "node_modules", "__pycache__", "dist", "build", ".worktrees",
+    ".git", "node_modules", "__pycache__", "dist", "build", ".worktrees", ".superpowers",
     ".agentcore-project", ".pytest_cache", ".venv", ".mypy_cache", ".ruff_cache",
     # Gitignored audit output, whose subject IS the retired vocabulary. Scanning it
     # makes the report of a rename into evidence that the rename did not happen.
@@ -204,12 +204,17 @@ def test_no_retired_public_tool_name_survives() -> None:
 
 
 def test_every_canonical_tool_is_actually_defined() -> None:
-    """A frozen vocabulary that names a tool nobody implements is fiction."""
-    agent_tools = (
-        REPO / "pellier" / "backend" / "services" / "agent_tools.py"
+    """A frozen vocabulary that names a tool nobody implements is fiction.
+
+    The one implementation per tool lives in ``services/store_tools.py``; the
+    agent wrappers and the Gateway Lambda both call it. ``give_store_credit``
+    has no agent wrapper, so the shared module is the definition that counts.
+    """
+    store_tools = (
+        REPO / "pellier" / "backend" / "services" / "store_tools.py"
     ).read_text()
-    missing = [t for t in CANONICAL_TOOLS if f"def {t}(" not in agent_tools]
-    assert not missing, f"canonical tools with no in-process definition: {missing}"
+    missing = [t for t in CANONICAL_TOOLS if f"def {t}(" not in store_tools]
+    assert not missing, f"canonical tools with no shared implementation: {missing}"
 
 
 def test_gateway_publishes_the_canonical_names() -> None:

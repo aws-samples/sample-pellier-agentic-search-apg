@@ -736,7 +736,7 @@ class EnhancedChatService:
         """Initialize with Strands SDK for multi-agent orchestration"""
         from config import settings
         
-        self.model_id = settings.BEDROCK_CHAT_MODEL
+        self.model_id = settings.BEDROCK_OPUS_MODEL
         self.region = settings.aws_region_resolved
         self.bedrock = boto3.client('bedrock-runtime', region_name=self.region)
         self.db_service = db_service
