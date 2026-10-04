@@ -2,14 +2,12 @@ import { apiFetch } from '../services/apiBase'
 /**
  * PellierHero: the storefront's first viewport, direction A.
  *
- * The statement, then the large Ask Pellier bar with the store's moments as
- * chips, then the active scenario's guided prompts or the persona chooser.
- * The collection follows directly beneath.
- *
- * A question needs a scenario because the floor is ranked per persona. The
- * ask bar is always available: with no scenario active, submitting opens the
- * chooser first and the docked panel sends the question once one is chosen
- * (ChatDrawer keeps the pending query across that choice).
+ * The statement, then the large bar: agentic search, "Search or ask
+ * Pellier". Enter opens the docked panel with the question. Under the bar
+ * sits one row of suggestions at a time: the store's moments while signed
+ * out, and only the signed-in shopper's lab prompts, read from Aurora, once
+ * a shopper is chosen. Signed out, the shopper chooser follows. The
+ * collection follows directly beneath.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
@@ -149,43 +147,45 @@ export default function PellierHero() {
               <ArrowUp size={16} strokeWidth={2.2} aria-hidden="true" />
             </button>
           </div>
-          <div className="pellier-chips" data-testid="pellier-hero-moments" role="group" aria-label="Moments">
-            <span className="pellier-chip-label" aria-hidden="true">{ASK_BAR.TRY}</span>
-            {ASK_BAR.MOMENTS.map((moment) => (
-              <button
-                key={moment}
-                type="button"
-                className="pellier-chip"
-                onClick={() => submitQuery(moment)}
+          {/* One row of suggestions at a time: the shopper's own prompts once
+              one is signed in, the store's moments before. */}
+          {persona ? (
+            suggestions.length > 0 ? (
+              <div
+                className="pellier-chips"
+                data-testid="pellier-hero-pills"
+                role="group"
+                aria-label={ASK_BAR.promptsFor(persona.display_name)}
               >
-                {moment}
-              </button>
-            ))}
-          </div>
-        </form>
-
-        {persona && suggestions.length > 0 ? (
-          <div className="pellier-hero-suggestions">
-            <p className="pellier-hero-suggestions-label">A place to start for {persona.display_name}</p>
-            <div
-              data-testid="pellier-hero-pills"
-              className="pellier-hero-pills"
-              role="group"
-              aria-label="Suggested queries"
-            >
-              {suggestions.map(scenario => (
+                <span className="pellier-chip-label" aria-hidden="true">{ASK_BAR.TRY}</span>
+                {suggestions.map(scenario => (
+                  <button
+                    key={scenario.id}
+                    type="button"
+                    onClick={() => submitQuery(scenario.prompt)}
+                    className="pellier-prompt-pill"
+                  >
+                    {scenario.prompt}
+                  </button>
+                ))}
+              </div>
+            ) : null
+          ) : (
+            <div className="pellier-chips" data-testid="pellier-hero-moments" role="group" aria-label="Moments">
+              <span className="pellier-chip-label" aria-hidden="true">{ASK_BAR.TRY}</span>
+              {ASK_BAR.MOMENTS.map((moment) => (
                 <button
-                  key={scenario.id}
+                  key={moment}
                   type="button"
-                  onClick={() => submitQuery(scenario.prompt)}
-                  className="pellier-prompt-pill"
+                  className="pellier-chip"
+                  onClick={() => submitQuery(moment)}
                 >
-                  {scenario.prompt}
+                  {moment}
                 </button>
               ))}
             </div>
-          </div>
-        ) : null}
+          )}
+        </form>
 
         {!persona && spotlightSeen ? <PersonaConcierge /> : null}
       </div>

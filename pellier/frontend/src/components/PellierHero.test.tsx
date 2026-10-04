@@ -222,12 +222,41 @@ describe('PellierHero', () => {
     expect(screen.queryByTestId('hero-profile-marco')).not.toBeInTheDocument()
   })
 
-  it('submits an Aurora-backed guided request for a selected persona', async () => {
+  it("submits the signed-in shopper's own prompt from Aurora", async () => {
     persona = PROFILES[1]
     render(<PellierHero />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'A live Aurora scenario' }))
     expect(openDrawerWithQuery).toHaveBeenCalledWith('A live Aurora scenario')
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => String(url))).toContain('/api/scenarios?persona=anna')
+  })
+
+  it('shows one row of suggestions at a time, and swaps it as the shopper signs in and out', async () => {
+    persona = null
+    const view = render(<PellierHero />)
+    expect(screen.getByTestId('pellier-hero-moments')).toBeInTheDocument()
+    expect(screen.queryByTestId('pellier-hero-pills')).not.toBeInTheDocument()
+
+    persona = PROFILES[1]
+    view.rerender(<PellierHero />)
+    const prompts = await screen.findByTestId('pellier-hero-pills')
+    expect(within(prompts).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'A live Aurora scenario', 'A second live scenario', 'A third live scenario',
+    ])
+    expect(prompts).toHaveAccessibleName('Suggestions for Anna')
+    expect(screen.queryByTestId('pellier-hero-moments')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'For the trip' })).not.toBeInTheDocument()
+
+    persona = null
+    view.rerender(<PellierHero />)
+    expect(screen.getByTestId('pellier-hero-moments')).toBeInTheDocument()
+    expect(screen.queryByTestId('pellier-hero-pills')).not.toBeInTheDocument()
+  })
+
+  it('shows no moments while a shopper\'s prompts are still loading', () => {
+    persona = PROFILES[2]
+    render(<PellierHero />)
+    expect(screen.queryByTestId('pellier-hero-moments')).not.toBeInTheDocument()
   })
 
   it('shows only the three required workshop turns in the hero', async () => {
@@ -245,24 +274,27 @@ describe('PellierHero', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows the large ask bar with the store moments as chips, before a shopper is chosen', () => {
+  it('shows the search-or-ask bar with the store moments as chips, before a shopper is chosen', () => {
     persona = null
     render(<PellierHero />)
 
     const ask = screen.getByTestId('pellier-hero-search')
-    expect(ask).toHaveAttribute('placeholder', ASK_BAR.PLACEHOLDER)
+    expect(ask).toHaveAttribute('placeholder', 'Search or ask Pellier…')
+    expect(ask).toHaveAccessibleName('Search or ask Pellier')
     const moments = screen.getByTestId('pellier-hero-moments')
     expect(within(moments).getAllByRole('button').map((b) => b.textContent)).toEqual([...ASK_BAR.MOMENTS])
     expect(screen.queryByTestId('persona-hero-image')).not.toBeInTheDocument()
   })
 
   it('sends a moment chip and a typed question to the docked panel', () => {
-    persona = PROFILES[1]
-    render(<PellierHero />)
+    persona = null
+    const view = render(<PellierHero />)
 
     fireEvent.click(screen.getByRole('button', { name: 'For the trip' }))
     expect(openDrawerWithQuery).toHaveBeenCalledWith('For the trip')
 
+    persona = PROFILES[1]
+    view.rerender(<PellierHero />)
     fireEvent.change(screen.getByTestId('pellier-hero-search'), { target: { value: 'A linen shirt' } })
     fireEvent.click(screen.getByRole('button', { name: ASK_BAR.SEND }))
     expect(openDrawerWithQuery).toHaveBeenCalledWith('A linen shirt')

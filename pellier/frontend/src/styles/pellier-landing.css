@@ -291,27 +291,6 @@
   outline-offset: 2px;
 }
 
-.pellier-hero-suggestions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.pellier-hero-suggestions-label {
-  margin: 0;
-  color: var(--dl-muted);
-  font-family: var(--dl-font-sans);
-  font-size: 12px;
-}
-
-.pellier-hero-pills {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}
-
 /* -----------------------------------------------------------------------
  * The persona chooser, before a scenario is active.
  * ----------------------------------------------------------------------- */

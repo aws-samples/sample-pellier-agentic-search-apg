@@ -148,14 +148,16 @@ export const HERO_STATEMENT = {
 } as const;
 
 /**
- * The large Ask Pellier bar on the home page. The chips are the moments the
- * storefront shops by, named as the store names them in VOICE.md.
+ * The large bar on the home page: agentic search, where a search and a
+ * question are the same thing. The chips are the moments the storefront shops
+ * by, named as the store names them in VOICE.md, until a shopper is signed in.
  */
 export const ASK_BAR = {
-  LABEL: "Ask Pellier anything",
-  PLACEHOLDER: "Ask Pellier anything...",
+  LABEL: "Search or ask Pellier",
+  PLACEHOLDER: "Search or ask Pellier…",
   SEND: "Send",
   TRY: "Try",
+  promptsFor: (displayName: string): string => `Suggestions for ${displayName}`,
   MOMENTS: [
     "For the trip",
     "For the table and slow mornings",
