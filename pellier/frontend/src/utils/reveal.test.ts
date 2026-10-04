@@ -159,4 +159,70 @@ describe('the reveal controller', () => {
     vi.advanceTimersByTime(1000)
     expect(frames.length).toBe(count)
   })
+
+  // A hidden tab gets about one timer a second: the clock moves on while the
+  // 24 ms timer waits. The controller's own clock stands in for that here.
+  it('catches up by wall clock when a timer fires late', () => {
+    let clock = 0
+    const { controller, last } = harness({ now: () => clock })
+    controller.setTarget('x'.repeat(50))
+    vi.advanceTimersByTime(0)
+    expect(last().revealed.length).toBe(1)
+    clock = 600
+    expect(last().revealed.length).toBe(1)
+    vi.advanceTimersToNextTimer()
+    // One at 0 ms, then one every 24 ms: 25 more were due by 600 ms.
+    expect(last().revealed.length).toBe(26)
+  })
+
+  it('shows everything once the bound has passed by wall clock, however late the timer', () => {
+    let clock = 0
+    const { controller, last } = harness({ now: () => clock })
+    controller.setTarget('The reply. '.repeat(90))
+    vi.advanceTimersByTime(0)
+    controller.done()
+    expect(last().finished).toBe(false)
+    clock = 1600
+    vi.advanceTimersToNextTimer()
+    expect(last()).toEqual({ revealed: 'The reply. '.repeat(90), finished: true })
+  })
+
+  it('catches up at once when the tab becomes visible again', () => {
+    let clock = 0
+    let visibility: DocumentVisibilityState = 'visible'
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility })
+    try {
+      const { controller, last } = harness({ now: () => clock })
+      controller.setTarget('x'.repeat(50))
+      vi.advanceTimersByTime(0)
+      visibility = 'hidden'
+      document.dispatchEvent(new Event('visibilitychange'))
+      clock = 1000
+      expect(last().revealed.length).toBe(1)
+      visibility = 'visible'
+      document.dispatchEvent(new Event('visibilitychange'))
+      // No timer fired: the catch-up came from the visibility change alone.
+      expect(last().revealed.length).toBe(42)
+      controller.cancel()
+      clock = 2000
+      document.dispatchEvent(new Event('visibilitychange'))
+      expect(last().revealed.length).toBe(42)
+    } finally {
+      delete (document as unknown as Record<string, unknown>).visibilityState
+    }
+  })
+
+  it('banks no characters while idle between bursts', () => {
+    const { controller, last } = harness()
+    controller.setTarget('ab')
+    vi.advanceTimersByTime(24)
+    expect(last().revealed).toBe('ab')
+    // The stream stalls for a second, then the next burst arrives.
+    vi.advanceTimersByTime(1000)
+    controller.setTarget('abcdef')
+    vi.advanceTimersByTime(0)
+    expect(last().revealed).toBe('abc')
+    vi.advanceTimersByTime(24)
+    expect(last().revealed).toBe('abcd')
+  })
 })

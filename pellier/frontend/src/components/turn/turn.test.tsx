@@ -107,6 +107,19 @@ describe('evidenceLine', () => {
     })
     expect(first).not.toContain('kept from earlier')
   })
+
+  it('says when the answer was cut short, and nothing for a turn that ended normally', () => {
+    const route = (stop_reason: string | null) => ({
+      id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
+      builder: { tool: null, intent: 'shopping', model_id: 'global.anthropic.claude-opus-5', stop_reason },
+    })
+    expect(evidenceLine(route('max_tokens'))).toBe(
+      'intent shopping; model global.anthropic.claude-opus-5; answer cut short (max_tokens)',
+    )
+    expect(evidenceLine(route('end_turn'))).toBe('intent shopping; model global.anthropic.claude-opus-5')
+    expect(evidenceLine(route(null))).toBe('intent shopping; model global.anthropic.claude-opus-5')
+    expect(evidenceLine(route('guardrail_intervened'))).toContain('stop guardrail_intervened')
+  })
 })
 
 describe('parseProse', () => {
@@ -228,5 +241,17 @@ describe('RevealedProse', () => {
     expect(container.querySelectorAll('.tn-ch')).toHaveLength(1)
     act(() => { vi.advanceTimersByTime(1500) })
     expect(container.textContent).toBe('Start with the mugs.')
+  })
+
+  it('shows the full text at once when a revealing answer becomes history', () => {
+    const progress: Array<[number, boolean]> = []
+    const onProgress = (length: number, finished: boolean) => progress.push([length, finished])
+    const { container, rerender } = render(<RevealedProse text="Start with the mugs." done onProgress={onProgress} />)
+    act(() => { vi.advanceTimersByTime(24 * 3) })
+    expect(container.textContent).toBe('Star')
+    rerender(<RevealedProse text="Start with the mugs." done instant onProgress={onProgress} />)
+    expect(container.textContent).toBe('Start with the mugs.')
+    expect(container.querySelector('.tn-prose-live')).toBeNull()
+    expect(progress.at(-1)).toEqual(['Start with the mugs.'.length, true])
   })
 })

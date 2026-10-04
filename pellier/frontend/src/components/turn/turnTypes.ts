@@ -85,6 +85,8 @@ export interface StepBuilder {
   skill_mode?: string
   memory?: { facts: number; orders: number; source: string } | null
   note?: string | null
+  /** How the agent's turn ended (`end_turn`, `max_tokens`, ...), on the Router step once known. */
+  stop_reason?: string | null
 }
 
 export interface TurnStep {

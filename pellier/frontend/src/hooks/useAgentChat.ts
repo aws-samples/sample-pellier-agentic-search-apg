@@ -74,8 +74,10 @@ export interface AgentChatMessage {
   /** The shopper pressed stop; the text on screen is all there is. */
   stopped?: boolean
   /**
-   * Opened in this session, so its answer reveals as it arrives. Absent on a
-   * message loaded from storage or hydrated from Memory, which shows at once.
+   * Opened in this session, so its answer reveals as it arrives. False once
+   * a newer turn opens, so an answer still revealing shows in full before
+   * the next turn starts under it. Absent on a message loaded from storage
+   * or hydrated from Memory, which shows at once.
    */
   live?: boolean
   /** Stylist handoff payload when this turn fired ask_a_person. */
@@ -174,6 +176,13 @@ function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
       ),
     }
   })
+}
+
+/** Earlier answers are history once a new turn opens: any still revealing shows in full. */
+function settled(messages: AgentChatMessage[]): AgentChatMessage[] {
+  return messages.map(message =>
+    message.role === 'assistant' && message.live ? { ...message, live: false } : message,
+  )
 }
 
 function loadPersistedMessages(
@@ -322,9 +331,9 @@ export function useAgentChat(
       if (canReuseUserTurn) {
         const withoutFailure = historyBeforeUser.slice(0, -1)
         historyBeforeUser = withoutFailure.slice(0, -1)
-        setMessages(withoutFailure)
+        setMessages(settled(withoutFailure))
       } else {
-        setMessages(prev => [...prev, userMessage])
+        setMessages(prev => [...settled(prev), userMessage])
       }
       setInputValue('')
       setIsLoading(true)

@@ -371,6 +371,29 @@ describe('useAgentChat — the step contract', () => {
     await waitFor(() => expect(result.current.messages.at(-1)?.live).toBe(true))
   })
 
+  it('settles the earlier answer the moment a new turn opens', async () => {
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+    act(() => {
+      void result.current.sendMessage('a linen shirt')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      releaseStream?.({ response: 'Start with the Hadley linen shirt.', products: [], suggestions: [] })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.agentStatus).toBe('complete'))
+    expect(result.current.messages.at(-1)?.live).toBe(true)
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => {
+      void result.current.sendMessage('and trousers to go with it?')
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.live).toBe(true))
+    const earlier = result.current.messages.find(
+      message => message.role === 'assistant' && message.content.startsWith('Start with'),
+    )
+    expect(earlier?.live).toBe(false)
+  })
+
   it('stop keeps the text so far and records no failure', async () => {
     const { result } = renderHook(() => useAgentChat(), { wrapper })
     act(() => {

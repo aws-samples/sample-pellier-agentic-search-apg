@@ -8,20 +8,25 @@
  * Used by the screenshot harness in place of a live backend.
  *
  * The numbers come from the repository's own catalog (`data/pellier_catalog.json`,
- * seeded into `pellier.product_catalog`) and the real pipeline's shapes, run
+ * seeded into `pellier.product_catalog`) and the pipeline's own queries, run
  * against a local Postgres on 2026-10-04 with Anna's plan (under $100, in
- * stock, no candles):
+ * stock, no candles; `price <= 100 AND quantity > 0 AND NOT (tags ?| '{candle}'
+ * OR materials ?| '{candle}')`):
  *
  * - The filter counts are the real aggregate: 31 of 100 are over $100, one of
  *   the rest is sold out (Housewarming Gift Box), four are candles; 64 fit.
- * - The full-text arm is the real `ts_rank_cd` order for
- *   "housewarming | gift | slow | mornings" under those predicates.
- * - The vector arm used a stand-in query vector (the normalized mean of the
- *   catalog's own "slow" shelf embeddings) rather than a Bedrock embedding;
- *   its ranks and similarities are the real cosine order for that vector.
- * - `before` is the real RRF order of the fused 30-row pool, `rrf_score` is
- *   `1/(60 + rank)` summed over the arms, and `after` is a rerank order the
- *   harness fixes so the captures are stable.
+ * - `FULL_TEXT_ARM` is `store_tools.fts_branch_sql` as it ran: `ts_rank_cd`
+ *   order for `to_tsquery('english', 'housewarming | gift | slow | mornings')`
+ *   under those predicates, 20 rows. Equal scores keep the order Postgres
+ *   returned them in.
+ * - `VECTOR_ARM` is `store_tools.vector_branch_sql` with a stand-in query
+ *   vector, the mean of the catalog embeddings of the products tagged `slow`
+ *   (no Bedrock embedding was made); its ranks and cosine similarities are
+ *   the real order for that vector, 20 rows.
+ * - The fused pool, each row's ranks, `rrf_score` and `before` are derived
+ *   here by `rrfMerge`, a transcription of `store_tools.rrf_merge`, from
+ *   those two arms. Nothing below is typed by hand except the rerank order,
+ *   which the harness fixes so the captures are stable (no Cohere call).
  *
  * Every product named is in stock, under $100, carries no candle tag, and
  * shows its own photo.
@@ -77,28 +82,123 @@ const ANSWER =
 
 const FINDING = '5 found from 64 that fit under $100 and in stock, candles left out'
 
-const rrf = (fts: number | null, vec: number | null) => (fts ? 1 / (60 + fts) : 0) + (vec ? 1 / (60 + vec) : 0)
+export const RRF_K = 60
+export const RERANK_POOL = 15
+
+/** The full-text arm: product id and name, in `ts_rank_cd` order. */
+export const FULL_TEXT_ARM: ReadonlyArray<readonly [string, string]> = [
+  ['30', 'Gift Wrapping Kit'],
+  ['90', 'Morning Run Shorts'],
+  ['28', 'Leather Journal'],
+  ['78', 'Linen Photo Album'],
+  ['76', 'Greeting Card Set'],
+  ['77', 'Recycled Wrapping Paper'],
+  ['73', 'Dot-Grid Notebook Set'],
+  ['74', 'Brass Pen'],
+  ['75', 'Leather Desk Tray'],
+  ['83', 'Woven Storage Baskets'],
+  ['62', 'Leather Watch Roll'],
+  ['22', 'Linen Napkins, Set of 4'],
+  ['37', 'Wabi-Sabi Bowl'],
+  ['33', 'Olive Wood Cutting Board'],
+  ['34', 'Terracotta Planter'],
+  ['35', 'Brass Incense Holder'],
+  ['36', 'Ceramic Tumblers'],
+  ['39', 'Linen Table Runner'],
+  ['40', 'Charcoal Soap Bar'],
+  ['65', 'Stoneware Mugs, Set of 2'],
+]
+
+/** The vector arm: product id, name and cosine similarity, in distance order. */
+export const VECTOR_ARM: ReadonlyArray<readonly [string, string, number]> = [
+  ['31', 'Stoneware Pour-Over Set', 0.768],
+  ['36', 'Ceramic Tumblers', 0.764],
+  ['65', 'Stoneware Mugs, Set of 2', 0.757],
+  ['37', 'Wabi-Sabi Bowl', 0.716],
+  ['34', 'Terracotta Planter', 0.696],
+  ['67', 'Salt Cellar with Spoon', 0.696],
+  ['72', 'Espresso Cups, Set of 4', 0.681],
+  ['66', 'Glass Carafe', 0.652],
+  ['1', 'Tall Stoneware Vase', 0.648],
+  ['71', 'Wooden Salad Servers', 0.647],
+  ['33', 'Olive Wood Cutting Board', 0.642],
+  ['27', 'Ceramic Bud Vase', 0.634],
+  ['39', 'Linen Table Runner', 0.604],
+  ['35', 'Brass Incense Holder', 0.602],
+  ['23', 'Ceramic Ring Dish', 0.598],
+  ['7', 'Jute Placemats, Set of 4', 0.595],
+  ['41', 'Coral Lacquer Catchall', 0.591],
+  ['22', 'Linen Napkins, Set of 4', 0.585],
+  ['88', 'Everyday Chinos', 0.559],
+  ['26', 'Handmade Soap Set', 0.554],
+]
+
+export interface FusedRow {
+  product_id: string
+  name: string
+  fts_rank: number | null
+  vec_rank: number | null
+  similarity: number | null
+  rrf_score: number
+}
+
+/**
+ * `store_tools.rrf_merge`: sum `1 / (k + rank)` over both arms. Vector rows
+ * enter first and keep their similarity; the sort is stable, so an equal
+ * score keeps that order, as the pipeline's does.
+ */
+export function rrfMerge(
+  vectorArm: ReadonlyArray<readonly [string, string, number]>,
+  fullTextArm: ReadonlyArray<readonly [string, string]>,
+  k: number,
+): FusedRow[] {
+  const rows = new Map<string, FusedRow>()
+  vectorArm.forEach(([id, name, similarity], index) => {
+    rows.set(id, { product_id: id, name, fts_rank: null, vec_rank: index + 1, similarity, rrf_score: 1 / (k + index + 1) })
+  })
+  fullTextArm.forEach(([id, name], index) => {
+    const row = rows.get(id) ?? { product_id: id, name, fts_rank: null, vec_rank: null, similarity: null, rrf_score: 0 }
+    row.fts_rank = index + 1
+    row.rrf_score += 1 / (k + index + 1)
+    rows.set(id, row)
+  })
+  return Array.from(rows.values()).sort((a, b) => b.rrf_score - a.rrf_score)
+}
+
+/** The fused pool in RRF order; a row's position here is its `before`. */
+export const FUSED = rrfMerge(VECTOR_ARM, FULL_TEXT_ARM, RRF_K)
+
+/** The final order after rerank, fixed by hand for stable captures, with its scores. */
+export const RERANKED: ReadonlyArray<readonly [string, number]> = [
+  ['31', 0.91],
+  ['36', 0.84],
+  ['22', 0.72],
+  ['37', 0.66],
+  ['33', 0.58],
+  ['65', 0.47],
+  ['34', 0.39],
+  ['39', 0.31],
+]
+
+const RANKING_ROWS = RERANKED.map(([id, rerank_score], index) => {
+  const before = FUSED.findIndex(row => row.product_id === id) + 1
+  if (before === 0) throw new Error(`reranked product ${id} is not in the fused pool`)
+  return { ...FUSED[before - 1], rerank_score, before, after: index + 1 }
+})
 
 const RANKING = {
   available: true,
   rail: 'in-process',
   method: 'hybrid+rerank',
-  rrf_k: 60,
-  rerank_pool: 15,
-  arms: { full_text: 20, vector: 20, fused: 30 },
+  rrf_k: RRF_K,
+  rerank_pool: RERANK_POOL,
+  arms: { full_text: FULL_TEXT_ARM.length, vector: VECTOR_ARM.length, fused: FUSED.length },
   filters: { kept: 64, of: 100, removed: { budget: 31, stock: 1, exclusions: 4 } },
-  rows: [
-    { product_id: '31', name: 'Stoneware Pour-Over Set', fts_rank: null, vec_rank: 1, similarity: 0.773, rrf_score: rrf(null, 1), rerank_score: 0.91, before: 9, after: 1 },
-    { product_id: '36', name: 'Ceramic Tumblers', fts_rank: 17, vec_rank: 2, similarity: 0.768, rrf_score: rrf(17, 2), rerank_score: 0.84, before: 2, after: 2 },
-    { product_id: '22', name: 'Linen Napkins, Set of 4', fts_rank: 12, vec_rank: 18, similarity: 0.58, rrf_score: rrf(12, 18), rerank_score: 0.72, before: 6, after: 3 },
-    { product_id: '37', name: 'Wabi-Sabi Bowl', fts_rank: 13, vec_rank: 4, similarity: 0.717, rrf_score: rrf(13, 4), rerank_score: 0.66, before: 1, after: 4 },
-    { product_id: '33', name: 'Olive Wood Cutting Board', fts_rank: 14, vec_rank: 10, similarity: 0.645, rrf_score: rrf(14, 10), rerank_score: 0.58, before: 5, after: 5 },
-    { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 20, vec_rank: 3, similarity: 0.763, rrf_score: rrf(20, 3), rerank_score: 0.47, before: 4, after: 6 },
-    { product_id: '34', name: 'Terracotta Planter', fts_rank: 15, vec_rank: 5, similarity: 0.698, rrf_score: rrf(15, 5), rerank_score: 0.39, before: 3, after: 7 },
-    { product_id: '39', name: 'Linen Table Runner', fts_rank: 18, vec_rank: 13, similarity: 0.606, rrf_score: rrf(18, 13), rerank_score: 0.31, before: 7, after: 8 },
-  ],
+  rows: RANKING_ROWS,
   note: 'Kept counts the hard limits only; the first pass also asks for the preferences the shopper implied, so the fused pool can be smaller',
 }
+
+export const ANNA_RANKING = RANKING
 
 const REQUIREMENTS = { applied: ['under $100', 'in stock', 'no candles'], carried: [] }
 
@@ -113,6 +213,12 @@ function deltas(text: string): object[] {
   return text.split(/(?<=\s)/).map(piece => ({ type: 'content_delta', delta: piece }))
 }
 
+const ROUTE_BUILDER = {
+  tool: null, rail: 'in-process', intent: 'shopping', agent: 'Shopping agent',
+  model_id: 'global.anthropic.claude-opus-5', skills: SKILLS, skill_mode: 'fixed',
+  memory: { facts: 3, orders: 5, source: 'Aurora PostgreSQL' }, note: null,
+}
+
 export const ANNA_TURN_EVENTS: object[] = [
   { type: 'turn_start', turn_id: 'turn-' + 'a'.repeat(32), session_id: 'session-shots' },
   { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 3, orders_available: 5, available: true } },
@@ -121,7 +227,7 @@ export const ANNA_TURN_EVENTS: object[] = [
   {
     type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Shopping agent',
     tags: ['Router', 'Memory', 'Skills'],
-    builder: { tool: null, rail: 'in-process', intent: 'shopping', agent: 'Shopping agent', model_id: 'global.anthropic.claude-opus-5', skills: SKILLS, skill_mode: 'fixed', memory: { facts: 3, orders: 5, source: 'Aurora PostgreSQL' }, note: null },
+    builder: { ...ROUTE_BUILDER, stop_reason: null },
   },
   { type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running', tags: ['Aurora'], builder: { tool: 'search_products' } },
   { type: 'tool_call', tool: 'search_products', status: 'executing' },
@@ -135,6 +241,12 @@ export const ANNA_TURN_EVENTS: object[] = [
   { type: 'status', label: 'Writing your answer' },
   ...deltas(ANSWER),
   ...PRODUCTS.map((product, index) => ({ type: 'product', product, index, total: PRODUCTS.length })),
+  // The Router step again, with how the turn ended, as `chat.py` sends it.
+  {
+    type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Shopping agent',
+    tags: ['Router', 'Memory', 'Skills'],
+    builder: { ...ROUTE_BUILDER, stop_reason: 'end_turn' },
+  },
   {
     type: 'complete',
     response: {
@@ -146,7 +258,7 @@ export const ANNA_TURN_EVENTS: object[] = [
       turn_id: 'turn-' + 'a'.repeat(32),
       session_id: 'session-shots',
       railDecision: { rail: 'in-process', managedRequested: false, available: true, reason: null },
-      orchestration: { pattern: 'dispatcher', route: 'shopping', router: 'deterministic', intent: 'shopping', agent: 'Shopping agent', model_id: 'global.anthropic.claude-opus-5', skill_mode: 'fixed', skills: SKILLS },
+      orchestration: { pattern: 'dispatcher', route: 'shopping', router: 'deterministic', intent: 'shopping', agent: 'Shopping agent', model_id: 'global.anthropic.claude-opus-5', skill_mode: 'fixed', skills: SKILLS, stop_reason: 'end_turn' },
     },
   },
 ]

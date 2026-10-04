@@ -118,8 +118,14 @@ for (const width of [1440, 390]) {
     await expect(drawer.getByText('31 over budget')).toBeVisible()
     await expect(drawer.getByText('1 sold out')).toBeVisible()
     await expect(drawer.getByText('4 excluded')).toBeVisible()
-    // Frame the ranking rows, then let the step rows finish rising.
+    await expect(drawer.getByText('Full text 20')).toBeVisible()
+    await expect(drawer.getByText('Vector 20')).toBeVisible()
+    // Frame the ranking rows, then let the step rows finish rising. The
+    // floating "Latest reply" pill appears once the list is scrolled and
+    // would cover the panel's note; it is not ranking evidence, so this
+    // capture hides it.
     await drawer.getByTestId('ranking-panel').scrollIntoViewIfNeeded()
+    await page.addStyleTag({ content: '.cd-latest { visibility: hidden !important; }' })
     await page.waitForTimeout(400)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-builder.png`) })
     await expect(page.evaluate(() => localStorage.getItem('pellier-builder-view'))).resolves.toBe('on')

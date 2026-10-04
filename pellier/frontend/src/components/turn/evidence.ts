@@ -40,6 +40,10 @@ export function evidenceLine(step: TurnStep): string {
       parts.push('skills on demand')
     }
     if (builder.note) parts.push(builder.note)
+    // Thinking and the answer share one token budget; a turn that stopped at
+    // max_tokens is a cut answer, not a short one.
+    if (builder.stop_reason === 'max_tokens') parts.push('answer cut short (max_tokens)')
+    else if (builder.stop_reason && builder.stop_reason !== 'end_turn') parts.push(`stop ${builder.stop_reason}`)
     return parts.join('; ')
   }
   if (builder.identity) parts.push(identitySentence(builder.identity))
