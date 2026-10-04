@@ -1,18 +1,12 @@
 """Gateway preference tests.
 
 Scope:
-  * When ``AGENTCORE_GATEWAY_URL`` is unset, the chat stream code path
-    silently falls back to the in-process orchestrator.
-  * When the env var IS set and ``create_gateway_orchestrator``
-    returns an agent, that agent is used (and guardrails flag is
-    irrelevant to which path is chosen).
-  * The ``/api/agentcore/gateway/status`` response shape reflects
-    the configured/unconfigured state so the Observatory arch tabs can
-    read it.
+  * Without ``AGENTCORE_GATEWAY_URL`` or a caller token there is no managed
+    dispatcher, and the Gateway is never contacted.
+  * The Gateway transport forwards the caller's bearer token.
 
-We don't try to stand up a real MCP server here — the gateway module
-already has integration tests for that. This test is about the
-selection logic.
+We don't stand up a real MCP server here; this test covers selection and
+transport headers.
 """
 from __future__ import annotations
 
@@ -82,17 +76,6 @@ def test_gateway_client_cleanup_uses_strands_context_exit_contract():
     client.stop.assert_called_once_with(None, None, None)
 
 
-def test_chat_explicitly_cleans_up_gateway_tool_provider():
-    from pathlib import Path
-
-    source = (
-        Path(__file__).resolve().parents[1] / "services" / "chat.py"
-    ).read_text(encoding="utf-8")
-
-    assert "if gateway_used:" in source
-    assert "await asyncio.to_thread(orchestrator.cleanup)" in source
-
-
 def test_tokenless_gateway_discovery_skips_network():
     from services import agentcore_gateway
     from config import settings
@@ -107,26 +90,23 @@ def test_tokenless_gateway_discovery_skips_network():
     client_factory.assert_not_called()
 
 
-def test_gateway_status_unset_reports_in_process():
-    """With no AGENTCORE_GATEWAY_URL, the status endpoint says the
-    backend is using in-process imports."""
+def test_managed_dispatcher_is_absent_without_a_gateway_url():
+    """With no AGENTCORE_GATEWAY_URL there is no managed dispatcher."""
     from services import agentcore_gateway
     from config import settings
 
-    # ``settings.AGENTCORE_GATEWAY_URL`` is typically ``None`` or "".
-    # Force empty string via temp patch.
     with patch.object(settings, "AGENTCORE_GATEWAY_URL", ""):
-        assert agentcore_gateway.create_gateway_orchestrator() is None
+        assert agentcore_gateway.create_gateway_dispatcher(access_token="jwt") is None
 
 
-def test_tokenless_gateway_orchestrator_skips_network():
+def test_tokenless_managed_dispatcher_skips_network():
     """A CUSTOM_JWT Gateway is never contacted without caller identity."""
     from services import agentcore_gateway
     from config import settings
 
     with patch.object(settings, "AGENTCORE_GATEWAY_URL", "https://gw.example/mcp"), \
          patch("strands.tools.mcp.mcp_client.MCPClient") as client_factory:
-        result = agentcore_gateway.create_gateway_orchestrator()
+        result = agentcore_gateway.create_gateway_dispatcher()
 
     assert result is None
     client_factory.assert_not_called()
@@ -157,22 +137,3 @@ def test_gateway_headers_falls_back_to_api_key_when_no_token():
         headers = agentcore_gateway._gateway_headers(None)
     assert headers == {"x-api-key": "workshop"}
     assert "Authorization" not in headers
-
-
-def test_create_gateway_orchestrator_accepts_access_token():
-    """The factory accepts an access_token kwarg (passthrough) and still
-    returns the patched agent / None without raising."""
-    from services import agentcore_gateway
-    from config import settings
-
-    fake_agent = MagicMock(name="gateway-agent")
-    fake_client = MagicMock(name="mcp-client")
-
-    with patch.object(settings, "AGENTCORE_GATEWAY_URL", "https://gw.example/mcp"), \
-         patch("strands.tools.mcp.mcp_client.MCPClient", return_value=fake_client), \
-         patch("mcp.client.streamable_http.streamable_http_client"), \
-         patch("strands.Agent", return_value=fake_agent), \
-         patch("strands.models.BedrockModel"):
-        result = agentcore_gateway.create_gateway_orchestrator(access_token="theo-jwt-xyz")
-
-    assert result is fake_agent or result is None

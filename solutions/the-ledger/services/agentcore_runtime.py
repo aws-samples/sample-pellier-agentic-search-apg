@@ -20,9 +20,9 @@ Two public entry points:
         Bearer header (there is no ``bedrock-agentcore-runtime`` boto3
         client) and returns the response.
 
-The in-process path stays routed through ``agents.orchestrator`` and its
-``create_orchestrator`` so participants can watch the request move
-from local execution to managed runtime by flipping one env var.
+The in-process path runs the same Router the storefront uses, so
+participants can watch one request move from local execution to the managed
+runtime by flipping one env var.
 """
 
 from __future__ import annotations
@@ -38,7 +38,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from config import settings
-from services.conversation_context import build_conversation_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -325,43 +324,23 @@ async def _run_orchestrator_inprocess(
     *,
     turn_id: Optional[str] = None,
 ) -> str:
-    """Run the local Strands orchestrator in-process.
-
-    ``create_orchestrator`` builds a Strands :class:`Agent` whose
-    ``__call__`` is blocking, so the invocation is offloaded to a
-    worker thread to avoid stalling the event loop.
-    """
-    from agents.orchestrator import create_orchestrator
+    """Run the local Router in-process: the same dispatcher the storefront uses."""
+    import app as app_module
     from services.turn_identity import new_turn_id, turn_id_var
 
     turn_id = turn_id or new_turn_id()
     turn_id_var.set(turn_id)
 
-    orchestrator = create_orchestrator()
-    if orchestrator is None:
-        return (
-            "The orchestrator isn't wired up yet. Wire the orchestrator "
-            "to enable multi-agent routing."
-        )
-
-    # Attach trace attributes so the otel_trace_extractor (OTEL) can tag
-    # spans with session + user context from the same dispatcher the
-    # runtime path uses.
-    try:
-        orchestrator.trace_attributes = {
-            "session.id": session_id,
-            "pellier.turn_id": turn_id,
-            "user.id": user_id or "anonymous",
-            "runtime": "in-process",
-            "workshop": "pellier",
-        }
-    except Exception:  # pragma: no cover - defensive
-        pass
-
-    response = await asyncio.to_thread(
-        orchestrator,
-        build_conversation_prompt(message, history),
+    service = getattr(app_module, "chat_service", None)
+    if service is None:
+        return "The chat service is not running."
+    result = await service.chat(
+        message=message,
+        conversation_history=history,
+        session_id=session_id,
+        user={"sub": user_id} if user_id else None,
     )
+    response = result.get("response", "")
 
     # Read this turn's OpenTelemetry spans into the latest-trace slot
     # so the ``/inspector`` view can render this run's waterfall

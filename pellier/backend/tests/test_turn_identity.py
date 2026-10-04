@@ -178,13 +178,14 @@ def test_verified_customer_scope_is_turn_local() -> None:
     assert current_authorized_customer_id() is None
 
 
-def test_chat_binds_the_verified_customer_scope_on_both_paths() -> None:
+def test_chat_binds_the_verified_customer_scope_on_the_streamed_turn() -> None:
+    """``chat()`` delegates to ``chat_stream``, so one binding covers both."""
     from pathlib import Path
 
     chat_source = (
         Path(__file__).resolve().parents[1] / "services" / "chat.py"
     ).read_text()
-    assert chat_source.count("authorized_customer_id_var.set(") >= 2
+    assert chat_source.count("authorized_customer_id_var.set(") == 1
     assert (
         "turn_identity.shopper_customer_id if turn_identity.authenticated else None"
         in chat_source

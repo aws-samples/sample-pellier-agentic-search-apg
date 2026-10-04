@@ -5,16 +5,14 @@
          and format them for the ``/inspector`` view as
          ``{ spans, totalMs, specialistRoute }`` where every span has
          ``{ name, kind, startMs, durationMs, attributes }``.
-  Every orchestrator run SHALL produce at least one
+  Every in-process run SHALL produce at least one
          ``orchestrator`` span, one ``specialist`` span and one
          ``tool`` span extractable by ``otel_trace_extractor``.
 
-The orchestrator is exercised through the same stub pattern as
-``tests/test_orchestrator_routing.py``: Strands ``Agent`` and
-``BedrockModel`` are swapped for recorders, specialists are swapped for
-closures that emit OTEL spans themselves so the extractor sees the
-orchestrator → specialist → tool hand-off without any live Bedrock or
-DB round-trip.
+The in-process rail runs ``app.chat_service.chat``. Tests replace it with a
+stub that emits Strands-shaped spans for the bound session and turn, so the
+extractor sees the router → specialist → tool hand-off without any live
+Bedrock or DB round-trip.
 
 Runnable from the repo root per ``pytest.ini``:
 
@@ -78,156 +76,47 @@ def otel_spans(monkeypatch: pytest.MonkeyPatch) -> Iterable[InMemorySpanExporter
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator + specialist stubs (mirrors test_orchestrator_routing.py)
+# In-process chat stub
 # ---------------------------------------------------------------------------
 
 
-class _StubBedrockModel:
-    """Swap for ``BedrockModel``. Captures kwargs so the test can assert
-    the Sonnet 4.6 router model id is still wired."""
+class _SpanEmittingChatService:
+    """Stand-in for ``app.chat_service`` that emits one routed trace per turn."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        self.kwargs = kwargs
+    async def chat(self, *, message: str, session_id: str, **_: Any) -> dict[str, Any]:
+        from services.turn_identity import turn_id_var
 
-
-class _StubOrchestratorAgent:
-    """Swap for ``strands.Agent`` as used by ``create_orchestrator``.
-
-    On call it opens an ``invoke_agent orchestrator`` span tagged with
-    the orchestrator's trace_attributes, then invokes exactly one
-    specialist from its tools list (the recommendation agent is a safe
-    default — the test asserts kind-by-kind, not routing identity).
-    """
-
-    last_kwargs: dict[str, Any] = {}
-
-    def __init__(self, **kwargs: Any) -> None:
-        type(self).last_kwargs = kwargs
-        # Mirror Strands' ``Agent.trace_attributes`` so the dispatcher's
-        # ``orchestrator.trace_attributes = {...}`` assignment lands.
-        self.trace_attributes: dict[str, Any] = {}
-
-    def add_hook(self, _hook: Any) -> None:  # pragma: no cover - unused
-        pass
-
-    def __call__(self, query: str) -> str:
-        tracer = otel_trace.get_tracer("test-orchestrator")
-        with tracer.start_as_current_span("invoke_agent orchestrator") as span:
-            span.set_attribute("gen_ai.agent.name", "orchestrator")
-            for k, v in self.trace_attributes.items():
-                if isinstance(v, (str, int, float, bool)):
-                    span.set_attribute(k, v)
-            # Route to the recommendation specialist (the default) —
-            # the test does not assert routing identity, only that an
-            # orchestrator / specialist / tool span triple is present.
-            tools = type(self).last_kwargs.get("tools", [])
-            target_name = "recommendation"
-            for t in tools:
-                name = getattr(t, "tool_name", None) or getattr(
-                    getattr(t, "__wrapped__", t), "__name__", repr(t)
-                )
-                if name == target_name:
-                    inner = getattr(t, "__wrapped__", t)
-                    inner(query=query)
-                    break
-            return f"[stub-orchestrator] {query}"
+        _emit_session_trace(session_id, "recommendation", turn_id=turn_id_var.get())
+        return {"response": f"[stub] {message}"}
 
 
 @pytest.fixture
-def stubbed_specialists(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
-    """Replace each specialist @tool's wrapped callable with a closure
-    that emits an ``execute_tool {specialist}`` span containing a
-    nested ``invoke_agent {specialist}`` span (Strands' real shape)
-    and a child ``execute_tool search_products`` span so the extractor
-    sees a full orchestrator → specialist → tool trace.
-    """
-    import agents.orchestrator as orch
+def stubbed_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import types
 
-    calls: dict[str, list[str]] = {
-        "search": [],
-        "recommendation": [],
-        "pricing": [],
-        "inventory": [],
-        "support": [],
-    }
-
-    def _patch(tool_obj: Any, name: str) -> None:
-        def _recorder(query: str) -> str:
-            calls[name].append(query)
-            tracer = otel_trace.get_tracer(f"test-{name}")
-            # execute_tool span — Strands' DecoratedFunctionTool wraps
-            # each @tool specialist in this span when the orchestrator
-            # invokes it.
-            with tracer.start_as_current_span(f"execute_tool {name}") as tspan:
-                tspan.set_attribute("gen_ai.tool.name", name)
-                tspan.set_attribute("gen_ai.tool.call.id", f"call-{name}")
-                # Nested invoke_agent span — the specialist internally
-                # constructs its own Strands Agent (see
-                # personalization_agent.py).
-                with tracer.start_as_current_span(
-                    f"invoke_agent {name}"
-                ) as aspan:
-                    aspan.set_attribute("gen_ai.agent.name", name)
-                    # Leaf tool call — the specialist calls one of its
-                    # own tools (e.g. search_products, compare_products).
-                    with tracer.start_as_current_span(
-                        "execute_tool search_products"
-                    ) as leaf:
-                        leaf.set_attribute(
-                            "gen_ai.tool.name", "search_products"
-                        )
-                        leaf.set_attribute(
-                            "gen_ai.tool.call.id", "call-search-products"
-                        )
-            return f"[stub-{name}] ok"
-
-        monkeypatch.setattr(tool_obj, "__wrapped__", _recorder, raising=False)
-        monkeypatch.setattr(tool_obj, "_tool_func", _recorder, raising=False)
-
-    _patch(orch.search, "search")
-    _patch(orch.recommendation, "recommendation")
-    _patch(orch.pricing, "pricing")
-    _patch(orch.inventory, "inventory")
-    _patch(orch.support, "support")
-
-    return calls
-
-
-@pytest.fixture
-def stubbed_orchestrator(
-    monkeypatch: pytest.MonkeyPatch,
-    stubbed_specialists: dict[str, list[str]],
-):
-    """Return ``create_orchestrator`` with ``Agent`` and ``BedrockModel``
-    swapped for OTEL-emitting stubs."""
-    import agents.orchestrator as orch
-
-    monkeypatch.setattr(orch, "Agent", _StubOrchestratorAgent)
-    monkeypatch.setattr(orch, "BedrockModel", _StubBedrockModel)
-    return orch.create_orchestrator
+    monkeypatch.setitem(
+        sys.modules, "app", types.SimpleNamespace(chat_service=_SpanEmittingChatService())
+    )
 
 
 # ---------------------------------------------------------------------------
-# Requirement 5.4.1 — orchestrator run produces a three-kind trace
+# Requirement 5.4.1 — an in-process run produces a three-kind trace
 # ---------------------------------------------------------------------------
 
 
 def test_extract_trace_returns_orchestrator_specialist_and_tool_spans(
     otel_spans: InMemorySpanExporter,
-    stubbed_orchestrator,
-    stubbed_specialists,
+    stubbed_chat,
 ) -> None:
     """The extractor SHALL return at least one orchestrator span, one
-    specialist span, and one tool span for a single orchestrator run
+    specialist span, and one tool span for a single in-process run
     (Req 5.4.1)."""
     import asyncio
 
     import services.agentcore_runtime as rt
     from services.otel_trace_extractor import extract_trace
 
-    # Drive the run through the dispatcher the streaming path uses so
-    # trace_attributes are attached exactly the way the SSE handler
-    # does in production.
     asyncio.run(
         rt.run_agent(
             message="something for warm evenings out",
@@ -278,7 +167,7 @@ def test_extract_trace_returns_orchestrator_specialist_and_tool_spans(
             f"exceeds trace totalMs ({trace['totalMs']}ms)"
         )
 
-    # specialistRoute points at the specialist the orchestrator called.
+    # specialistRoute points at the specialist the router called.
     assert trace["specialistRoute"] == "recommendation", (
         f"specialistRoute SHALL name the routed specialist; got "
         f"{trace['specialistRoute']!r}"
@@ -561,12 +450,11 @@ def test_waterfall_filters_by_session_and_keeps_trace_children(
 
 def test_agentcore_runtime_reads_only_its_turn_without_draining_other_traces(
     otel_spans: InMemorySpanExporter,
-    stubbed_orchestrator,
-    stubbed_specialists,
+    stubbed_chat,
 ) -> None:
-    """The streaming path (``_run_orchestrator_inprocess``) SHALL push
-    the extracted trace into ``get_latest_trace()`` so the ``/inspector``
-    view can fetch it without a second round-trip to the extractor."""
+    """The in-process path (``_run_orchestrator_inprocess``) SHALL push only
+    the current turn's trace into ``get_latest_trace()`` and leave other
+    sessions' spans in the exporter."""
     import asyncio
 
     import services.agentcore_runtime as rt
@@ -596,8 +484,7 @@ def test_agentcore_runtime_reads_only_its_turn_without_draining_other_traces(
 def test_agentcore_runtime_keeps_latest_trace_by_session(
     monkeypatch: pytest.MonkeyPatch,
     otel_spans: InMemorySpanExporter,
-    stubbed_orchestrator,
-    stubbed_specialists,
+    stubbed_chat,
 ) -> None:
     """Concurrent or back-to-back sessions SHALL not overwrite the done
     event trace for an earlier session."""

@@ -35,7 +35,6 @@ Four rules, all enforced below.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -208,12 +207,8 @@ def test_protected_factory_names_are_not_renamed() -> None:
 
 def test_the_dispatcher_internal_keys_are_unchanged() -> None:
     """The routing keys are a lower-layer contract, not display text."""
-    if str(BACKEND) not in sys.path:
-        sys.path.insert(0, str(BACKEND))
-    from agents import graph_pattern
-
-    source = Path(graph_pattern.__file__).read_text()
+    source = (BACKEND / "services" / "chat.py").read_text()
     for key in CANONICAL_AGENTS:
         assert f'"{key}"' in source, (
-            f"internal routing key {key!r} disappeared from graph_pattern.py"
+            f"internal routing key {key!r} disappeared from the dispatcher in chat.py"
         )

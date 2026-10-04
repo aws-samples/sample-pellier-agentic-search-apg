@@ -33,7 +33,6 @@ async def test_inventory_stub_returns_before_skill_router_or_specialist(
                 "Is the Hadley shirt at the Brooklyn warehouse, "
                 "and can it still ship in time?"
             ),
-            pattern="dispatcher",
             turn_id="turn-00000000000000000000000000000000",
             session_id="session-00000000000000000000000000000000",
             user={"sub": "shopper-sub", "customer_id": "CUST-MARCO"},

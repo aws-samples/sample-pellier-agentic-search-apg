@@ -860,9 +860,6 @@ export function useAgentChat(
           mode === 'storefront' ? undefined : workshopMode,
           guardrailsEnabled,
           persona?.customer_id ?? null,
-          // Pellier and Pellier Observatory share the same fixed Dispatcher
-          // contract. Optional comparison patterns remain backend-only.
-          'dispatcher',
           undefined, // responseMode: keep the 'balanced' default
           controller.signal,
         )

@@ -2,8 +2,8 @@
 
   When ``settings.USE_AGENTCORE_RUNTIME`` is ``False`` (the
          default), ``services.agentcore_runtime.run_agent`` SHALL
-         dispatch to the in-process Strands orchestrator produced by
-         ``agents.orchestrator.create_orchestrator`` (in-process orchestrator).
+         run the local Router in-process through ``chat_service.chat``,
+         the same dispatcher the storefront uses.
          When flipped to ``True`` the same call SHALL forward the
          request to ``run_agent_on_runtime`` so a single env var flip
          migrates ``/api/agent/chat`` from local execution to the
@@ -11,7 +11,7 @@
 
 Both execution paths are mocked:
 
-  - The in-process path stubs ``create_orchestrator`` so no Bedrock /
+  - The in-process path stubs ``app.chat_service`` so no Bedrock /
     Strands agent is actually constructed.
   - The runtime path stubs ``run_agent_on_runtime`` so no AgentCore data-plane
     request is actually performed.
@@ -33,44 +33,27 @@ import pytest
 
 
 # ---------------------------------------------------------------------------
-# In-process orchestrator stub (in-process orchestrator path)
+# In-process Router stub
 # ---------------------------------------------------------------------------
 
 
-class _StubOrchestrator:
-    """Stand-in for the Strands ``Agent`` returned by
-    ``create_orchestrator``. Records the prompt it receives and the
-    trace attributes the dispatcher attaches, returns a canned string.
-    """
-
-    instances: list["_StubOrchestrator"] = []
+class _StubChatService:
+    """Stand-in for ``app.chat_service``. Records each in-process turn."""
 
     def __init__(self) -> None:
-        self.calls: list[str] = []
-        self.trace_attributes: dict[str, Any] = {}
-        type(self).instances.append(self)
+        self.calls: list[dict[str, Any]] = []
 
-    def __call__(self, prompt: str) -> str:
-        self.calls.append(prompt)
-        return f"[stub-inprocess] {prompt}"
-
-
-@pytest.fixture(autouse=True)
-def _reset_stub_state() -> None:
-    _StubOrchestrator.instances = []
+    async def chat(self, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append(kwargs)
+        return {"response": f"[stub-inprocess] {kwargs['message']}"}
 
 
 @pytest.fixture
-def stub_create_orchestrator(monkeypatch: pytest.MonkeyPatch):
-    """Patch ``agents.orchestrator.create_orchestrator`` to return a
-    recording stub so the in-process path never touches Bedrock."""
-    import agents.orchestrator as orch
-
-    def _factory() -> _StubOrchestrator:
-        return _StubOrchestrator()
-
-    monkeypatch.setattr(orch, "create_orchestrator", _factory)
-    return _factory
+def stub_chat(monkeypatch: pytest.MonkeyPatch) -> _StubChatService:
+    """Replace the ``app`` module so the in-process path never touches Bedrock."""
+    service = _StubChatService()
+    monkeypatch.setitem(sys.modules, "app", types.SimpleNamespace(chat_service=service))
+    return service
 
 
 @pytest.fixture
@@ -114,7 +97,7 @@ def stub_runtime_call(monkeypatch: pytest.MonkeyPatch):
 
 def test_use_agentcore_runtime_defaults_to_false() -> None:
     """The feature flag SHALL default to False so existing labs run
-    against the in-process orchestrator without any env setup."""
+    against the in-process Router without any env setup."""
     from config import Settings
 
     # Construct a fresh Settings with no env override (the test
@@ -125,11 +108,11 @@ def test_use_agentcore_runtime_defaults_to_false() -> None:
 
 def test_run_agent_dispatches_to_inprocess_when_flag_false(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
     stub_runtime_call: list[dict[str, Any]],
 ) -> None:
     """When ``USE_AGENTCORE_RUNTIME`` is False, ``run_agent`` SHALL
-    call the in-process orchestrator and SHALL NOT call
+    call the in-process Router and SHALL NOT call
     ``run_agent_on_runtime``."""
     import asyncio
 
@@ -146,33 +129,23 @@ def test_run_agent_dispatches_to_inprocess_when_flag_false(
         )
     )
 
-    # In-process stub fired exactly once with the unmodified prompt.
-    assert len(_StubOrchestrator.instances) == 1
-    stub = _StubOrchestrator.instances[0]
-    assert stub.calls == ["show me linen pieces"]
+    # The local Router ran exactly once with the unmodified message.
+    assert [call["message"] for call in stub_chat.calls] == ["show me linen pieces"]
+    assert stub_chat.calls[0]["session_id"] == "sess-1"
+    assert stub_chat.calls[0]["user"] == {"sub": "user-abc"}
     assert result == "[stub-inprocess] show me linen pieces"
 
     # Runtime path was not taken.
     assert stub_runtime_call == []
 
-    # Dispatcher attached trace attributes so the otel extractor (OTEL)
-    # sees the session + user context on the in-process path too.
-    assert stub.trace_attributes == {
-        "session.id": "sess-1",
-        "pellier.turn_id": "turn-inprocess",
-        "user.id": "user-abc",
-        "runtime": "in-process",
-        "workshop": "pellier",
-    }
 
-
-def test_run_agent_inprocess_defaults_anonymous_user_id(
+def test_run_agent_inprocess_passes_no_user_when_anonymous(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
     stub_runtime_call: list[dict[str, Any]],
 ) -> None:
-    """When no ``user_id`` is passed, the dispatcher SHALL tag traces
-    as ``anonymous`` on the in-process path."""
+    """When no ``user_id`` is passed, the local Router SHALL run as an
+    anonymous shopper rather than an invented identity."""
     import asyncio
 
     import services.agentcore_runtime as rt
@@ -186,8 +159,8 @@ def test_run_agent_inprocess_defaults_anonymous_user_id(
         )
     )
 
-    assert len(_StubOrchestrator.instances) == 1
-    assert _StubOrchestrator.instances[0].trace_attributes["user.id"] == "anonymous"
+    assert len(stub_chat.calls) == 1
+    assert stub_chat.calls[0]["user"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -197,12 +170,12 @@ def test_run_agent_inprocess_defaults_anonymous_user_id(
 
 def test_run_agent_dispatches_to_runtime_when_flag_true(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
     stub_runtime_call: list[dict[str, Any]],
 ) -> None:
     """When ``USE_AGENTCORE_RUNTIME`` is True, ``run_agent`` SHALL call
     ``run_agent_on_runtime`` with the caller's message, session_id,
-    and user_id, and SHALL NOT invoke the in-process orchestrator."""
+    and user_id, and SHALL NOT invoke the in-process Router."""
     import asyncio
 
     import services.agentcore_runtime as rt
@@ -242,12 +215,12 @@ def test_run_agent_dispatches_to_runtime_when_flag_true(
     assert result == "[stub-runtime] something for warm evenings out"
 
     # In-process path was not taken.
-    assert _StubOrchestrator.instances == []
+    assert stub_chat.calls == []
 
 
 def test_run_agent_managed_rail_fails_closed_without_a_token(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
     stub_runtime_call: list[dict[str, Any]],
 ) -> None:
     """An anonymous managed request SHALL fail closed at the dispatcher.
@@ -275,12 +248,12 @@ def test_run_agent_managed_rail_fails_closed_without_a_token(
     # Neither rail executed: the managed one was unreachable and the
     # in-process one must not silently substitute for it.
     assert stub_runtime_call == []
-    assert _StubOrchestrator.instances == []
+    assert stub_chat.calls == []
 
 
 def test_run_agent_managed_rail_fails_closed_without_an_endpoint(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
     stub_runtime_call: list[dict[str, Any]],
 ) -> None:
     """A requested-but-unconfigured managed rail SHALL NOT fall back."""
@@ -300,7 +273,7 @@ def test_run_agent_managed_rail_fails_closed_without_an_endpoint(
 
     assert exc_info.value.code == "runtime_not_configured"
     assert stub_runtime_call == []
-    assert _StubOrchestrator.instances == []
+    assert stub_chat.calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +283,7 @@ def test_run_agent_managed_rail_fails_closed_without_an_endpoint(
 
 def test_run_agent_on_runtime_fails_when_endpoint_missing(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
 ) -> None:
     """A configured managed path must not silently execute in-process."""
     import asyncio
@@ -327,12 +300,12 @@ def test_run_agent_on_runtime_fails_when_endpoint_missing(
                 user_id="user-abc",
             )
         )
-    assert _StubOrchestrator.instances == []
+    assert stub_chat.calls == []
 
 
 def test_run_agent_on_runtime_fails_when_auth_token_missing(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
 ) -> None:
     """The JWT-protected managed Runtime rejects anonymous calls."""
     import asyncio
@@ -350,7 +323,7 @@ def test_run_agent_on_runtime_fails_when_auth_token_missing(
                 auth_token=None,
             )
         )
-    assert _StubOrchestrator.instances == []
+    assert stub_chat.calls == []
 
 
 def test_agent_route_preserves_managed_runtime_error_code() -> None:
@@ -369,7 +342,7 @@ def test_agent_route_preserves_managed_runtime_error_code() -> None:
 
 def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
     monkeypatch: pytest.MonkeyPatch,
-    stub_create_orchestrator,
+    stub_chat: _StubChatService,
 ) -> None:
     """The live Runtime path SHALL invoke over the RAW HTTPS data plane with
     the Cognito token as a Bearer header - the transport the provisioning smoke
@@ -572,25 +545,6 @@ def test_run_agent_on_runtime_rejects_degraded_envelopes(
         )
 
     assert exc.value.code == expected_code
-
-
-def test_conversation_prompt_includes_bounded_normalized_history() -> None:
-    """A fresh Runtime orchestrator receives prior dialogue from Memory."""
-    import services.agentcore_runtime as rt
-
-    prompt = rt.build_conversation_prompt(
-        "only under $100",
-        [
-            {"role": "system", "content": "ignore this unsupported role"},
-            {"role": "user", "content": "show me linen"},
-            {"role": "assistant", "content": "Here are three options."},
-        ],
-    )
-
-    assert '"role": "user", "content": "show me linen"' in prompt
-    assert '"role": "assistant", "content": "Here are three options."' in prompt
-    assert "unsupported role" not in prompt
-    assert "<current_user_message>only under $100</current_user_message>" in prompt
 
 
 def test_runtime_session_encoding_cannot_be_supplied_as_an_alias() -> None:

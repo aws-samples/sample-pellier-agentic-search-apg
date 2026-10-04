@@ -148,43 +148,20 @@ def test_minimal_empty_fallback_retained(chat_module_source: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_chat_request_accepts_pattern_field() -> None:
-    """The Pydantic ChatRequest model must accept a ``pattern`` field
-    with the three valid values (and default to None)."""
+def test_dispatcher_is_the_only_routing_mode(chat_module_source: str) -> None:
+    """The storefront has one Router. No request field or service argument can
+    select an alternative orchestration pattern."""
     from models.search import ChatRequest
-
-    # Default (None) — backwards compatible
-    default = ChatRequest(message="hello")
-    assert default.pattern is None
-
-    # All three valid values
-    for val in ("dispatcher", "agents_as_tools", "graph"):
-        req = ChatRequest(message="hello", pattern=val)
-        assert req.pattern == val
-
-
-def test_chat_stream_signature_accepts_pattern() -> None:
-    """chat_service.chat_stream must accept a ``pattern`` kwarg so the
-    /api/chat/stream endpoint can thread the request field through.
-    """
     from services.chat import EnhancedChatService
 
-    sig = inspect.signature(EnhancedChatService.chat_stream)
-    assert "pattern" in sig.parameters, (
-        "chat_stream does not accept 'pattern'"
-    )
+    assert "pattern" not in ChatRequest.model_fields
+    assert "pattern" not in inspect.signature(EnhancedChatService.chat_stream).parameters
+    for retired in ("create_orchestrator", "agents_as_tools", "graph_pattern"):
+        assert retired not in chat_module_source, f"chat.py still references {retired}"
 
 
-def test_chat_stream_branches_on_dispatcher_pattern(chat_module_source: str) -> None:
-    """chat_stream must have a `pattern == "dispatcher"` branch that
-    imports specialist factories and dispatches to the classifier's
-    selection.
-    """
-    # ast.unparse normalizes string literals to single-quote form.
-    assert "pattern == 'dispatcher'" in chat_module_source, (
-        "chat_stream is missing the `if pattern == 'dispatcher':` branch"
-    )
-    # The branch imports the five specialist factories
+def test_dispatcher_imports_every_specialist_factory(chat_module_source: str) -> None:
+    """The dispatcher builds each specialist from its own factory."""
     for factory_import in (
         "build_search_agent",
         "build_recommendation_agent",
@@ -193,7 +170,7 @@ def test_chat_stream_branches_on_dispatcher_pattern(chat_module_source: str) -> 
         "build_support_agent",
     ):
         assert factory_import in chat_module_source, (
-            f"dispatcher branch missing import of {factory_import}"
+            f"dispatcher missing import of {factory_import}"
         )
 
 
@@ -258,68 +235,6 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Optional Pattern I remains explicit; Dispatcher owns the public default
-# ---------------------------------------------------------------------------
-
-
-def test_default_pattern_is_dispatcher() -> None:
-    """When no pattern is supplied, the service must use Dispatcher."""
-    import textwrap
-
-    from services import chat as chat_mod
-
-    src = inspect.getsource(chat_mod.EnhancedChatService.chat_stream)
-    # ast.unparse is NOT applied here — this reads the literal source —
-    # so the double-quoted form in the module is what we check.
-    assert 'pattern or "dispatcher"' in textwrap.dedent(src), (
-        "chat_stream does not default pattern to 'dispatcher'"
-    )
-
-
-def test_orchestrator_constructed_only_for_agents_as_tools() -> None:
-    """The legacy ``orchestrator = create_orchestrator()`` construction
-    inside ``chat_stream()`` must sit inside the ``agents_as_tools``
-    branch, not run unconditionally. Otherwise dispatcher turns pay for
-    a Sonnet router instance they never use.
-
-    Scoped to ``chat_stream()`` specifically — the non-streaming
-    ``_strands_enhanced_chat()`` path has its own separate orchestrator
-    construction that doesn't need the pattern branch (it serves the
-    older POST /api/chat endpoint and the Observatory
-    /api/observatory/query panel, both always-orchestrator).
-    """
-    import textwrap
-
-    from services import chat as chat_mod
-
-    # inspect.getsource returns the method source with its class-level
-    # indentation intact; dedent before parsing.
-    src = textwrap.dedent(inspect.getsource(chat_mod.EnhancedChatService.chat_stream))
-    tree = ast.parse(src)
-    # Strip the method docstring for clean checking.
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if (
-                node.body
-                and isinstance(node.body[0], ast.Expr)
-                and isinstance(node.body[0].value, ast.Constant)
-                and isinstance(node.body[0].value.value, str)
-            ):
-                node.body = node.body[1:] if len(node.body) > 1 else [ast.Pass()]
-    body = ast.unparse(tree)
-
-    assert "pattern == 'agents_as_tools'" in body
-    normalize_idx = body.find("pattern or 'dispatcher'")
-    create_idx = body.find("orchestrator = create_orchestrator()")
-    assert normalize_idx > 0, "pattern normalization missing from chat_stream"
-    assert create_idx > 0, "create_orchestrator() not found in chat_stream"
-    assert normalize_idx < create_idx, (
-        "create_orchestrator() is called before pattern normalization — "
-        "dispatcher turns would construct an unused orchestrator"
-    )
-
-
-# ---------------------------------------------------------------------------
 # In-process Aurora tool_audit wiring - the decoupled Lab 4 evidence proof
 # ---------------------------------------------------------------------------
 #
@@ -355,38 +270,20 @@ def test_inprocess_hook_writes_tool_audit(chat_module_source: str) -> None:
 
 
 def test_dispatcher_path_attaches_audit_hooks(chat_module_source: str) -> None:
-    """All three patterns route through _attach_streaming_and_hooks, which is
-    where the audit write lives — so the dispatcher (storefront default,
-    where Marco's check_inventory runs) audits too, not just agents_as_tools."""
-    # The helper is defined once and attached on each pattern branch.
-    assert chat_module_source.count("_attach_streaming_and_hooks(orchestrator)") >= 2, (
-        "the audit-bearing hook helper must be attached on the dispatcher and "
-        "graph branches, not only agents_as_tools"
-    )
+    """The dispatcher attaches the audit-bearing hook helper to the specialist
+    it builds, so Marco's check_inventory turn writes tool_audit rows."""
+    assert "_attach_streaming_and_hooks(orchestrator)" in chat_module_source
 
 
-def test_nonstreaming_path_attaches_audit_hooks() -> None:
-    """The non-streaming orchestrator path (POST /api/chat and the Agent
-    Trace /api/observatory/query panel) must register the same two-phase
-    tool_audit hooks as the streamed turn — no in-process rail may
-    execute a tool off-ledger."""
+def test_nonstreaming_chat_runs_the_streamed_turn() -> None:
+    """POST /api/chat and the in-process Runtime fallback reuse the streamed
+    turn, so no in-process rail can execute a tool off-ledger."""
     import textwrap
 
     from services import chat as chat_mod
 
-    src = textwrap.dedent(
-        inspect.getsource(chat_mod.EnhancedChatService._strands_enhanced_chat)
-    )
-    assert "make_tool_audit_hooks(" in src, (
-        "_strands_enhanced_chat no longer builds the shared audit hooks — "
-        "the non-streaming path would execute tools without tool_audit rows"
-    )
-    assert "orchestrator.add_hook(audit_before)" in src
-    assert "orchestrator.add_hook(audit_after)" in src
-    assert "turn_identity." not in src, (
-        "_strands_enhanced_chat has no local turn_identity; its audit hook "
-        "must read the identity already bound to this turn's context"
-    )
+    src = textwrap.dedent(inspect.getsource(chat_mod.EnhancedChatService.chat))
+    assert "self.chat_stream(" in src
 
 
 def test_make_tool_audit_hooks_two_phase(monkeypatch) -> None:

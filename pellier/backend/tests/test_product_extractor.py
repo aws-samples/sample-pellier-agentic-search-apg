@@ -8,10 +8,7 @@ from services import inventory_evidence
 from services.chat import (
     EnhancedChatService,
     ProductExtractor,
-    _is_incomplete_router_preface,
-    _mentions_returned_product,
     _new_unique_products,
-    _specialist_prose,
 )
 
 
@@ -89,39 +86,6 @@ def test_deduplicates_forwarded_batch_against_existing_and_itself():
         {"id": "16", "name": "Linen Overshirt"},
         {"name": "Cotton-Linen Crew Tee"},
     ]
-
-
-def test_extracts_specialist_prose_without_forwarded_product_payload():
-    result = (
-        "Lead with the Italian Linen Camp Shirt at $228."
-        "\n\n```json\n"
-        f"{json.dumps([PRODUCT])}"
-        "\n```"
-    )
-
-    assert _specialist_prose(result) == (
-        "Lead with the Italian Linen Camp Shirt at $228."
-    )
-
-
-def test_only_short_trailing_colon_copy_is_an_incomplete_router_preface():
-    assert _is_incomplete_router_preface(
-        "Here's a resort edit built around your linen wardrobe:"
-    )
-    assert not _is_incomplete_router_preface(
-        "Lead with the Italian Linen Camp Shirt, then add the overshirt."
-    )
-    assert not _is_incomplete_router_preface("")
-
-
-def test_detects_product_grounding_by_returned_name():
-    products = [{"name": "Italian Linen Camp Shirt"}, {"name": ""}]
-
-    assert _mentions_returned_product(
-        "Lead with the Italian Linen Camp Shirt.",
-        products,
-    )
-    assert not _mentions_returned_product("Here are some great options!", products)
 
 
 @pytest.mark.asyncio

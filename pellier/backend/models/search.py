@@ -211,16 +211,6 @@ class ChatRequest(BaseModel):
             "Routing remains on the configured Sonnet router."
         ),
     )
-    pattern: Optional[str] = Field(
-        default=None,
-        description=(
-            "Agent orchestration pattern for this turn. "
-            "'dispatcher' — Storefront production path; direct specialist invocation. "
-            "'agents_as_tools' — optional comparison; Sonnet orchestrator + @tool specialists. "
-            "'graph' — optional comparison; Strands GraphBuilder with conditional edges. "
-            "None defaults to 'dispatcher'."
-        ),
-    )
 
 
 class RestockRequest(BaseModel):

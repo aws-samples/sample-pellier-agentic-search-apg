@@ -1254,13 +1254,11 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     # ---- Specialist agents that aren't Inventory Agent ----
     # Personalization Agent handles recommendation turns (search_products_hybrid, get_related_products).
     # Customer Service Agent handles returns/care (get_return_policy, initiate_return,
-    # escalate_to_human). Orchestrator is the dispatcher that routes between them.
+    # escalate_to_human).
     copy_solution "solutions/closing-marcos-gap/agents/personalization_agent.py" \
                   "pellier/backend/agents/personalization_agent.py" "Personalization Agent"
     copy_solution "solutions/closing-marcos-gap/agents/customer_service_agent.py" \
                   "pellier/backend/agents/customer_service_agent.py" "Customer Service Agent"
-    copy_solution "solutions/closing-marcos-gap/agents/orchestrator.py" \
-                  "pellier/backend/agents/orchestrator.py" "Orchestrator"
 
     # ---- agent_tools.py builders variant ----
     # Wires restock_inventory + get_low_stock (everything Inventory Agent-adjacent

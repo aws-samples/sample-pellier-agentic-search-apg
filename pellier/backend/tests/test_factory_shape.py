@@ -1,10 +1,8 @@
 """Factory-shape contract test.
 
-The three-pattern model (Storefront dispatcher, Observatory Agents-as-Tools,
-Observatory Graph) depends on every specialist exposing a uniform factory
-function alongside its ``@tool``-decorated version. This test enforces
-that contract so future changes to ``agents/`` get flagged before they
-ship.
+The dispatcher builds every specialist from a uniform factory function.
+This test enforces that contract so future changes to ``agents/`` get
+flagged before they ship.
 
 Scope, per specialist (search, recommendation, pricing, inventory, support):
   1. ``build_<name>_agent()`` exists and returns a real Strands Agent
@@ -12,14 +10,11 @@ Scope, per specialist (search, recommendation, pricing, inventory, support):
   3. Anonymous build leaves the ``<persona-preamble>`` wrapper OFF
   4. Setting the persona_preamble_var ContextVar injects the wrapper
   5. The ``@tool``-decorated wrapper still exposes Strands tool metadata
-     so the Pattern I orchestrator keeps discovering it
 
 Also enforces:
   - ``EXA_API_KEY`` is gone from ``config.settings`` (removed in
     the three-pattern refactor alongside the Exa MCP integration)
   - ``customer_support_agent`` has no residual Exa references
-  - ``create_orchestrator()`` still exposes all five @tool specialists
-    (Pattern I byte-compatibility gate)
 """
 from __future__ import annotations
 
@@ -195,37 +190,6 @@ def test_pairing_prompt_requires_a_named_verified_source() -> None:
     """The model must not invent a numeric source ID for pairings."""
     assert "source_product_name" in _SEARCH_SYSTEM_PROMPT
     assert "Never invent or guess a product_id" in _SEARCH_SYSTEM_PROMPT
-
-
-# ---------------------------------------------------------------------------
-# Pattern I byte-compatibility gate
-# ---------------------------------------------------------------------------
-
-
-def test_orchestrator_exposes_all_five_specialists() -> None:
-    """create_orchestrator() must still wire all five @tool specialists
-    so Pattern I (Observatory Agents-as-Tools) keeps working."""
-    from agents.orchestrator import create_orchestrator
-
-    orch = create_orchestrator()
-    assert isinstance(orch, Agent)
-    tools = _tool_names(orch)
-    expected = {"search", "recommendation", "pricing", "inventory", "support"}
-    assert expected.issubset(tools), (
-        f"orchestrator missing specialist tools {expected - tools}; got {sorted(tools)}"
-    )
-
-
-def test_guarded_orchestrator_appends_guardrails() -> None:
-    """create_guarded_orchestrator() must add guardrails copy to the
-    orchestrator's system prompt."""
-    from agents.orchestrator import create_guarded_orchestrator
-
-    guarded = create_guarded_orchestrator()
-    assert isinstance(guarded, Agent)
-    assert "GUARDRAILS" in (guarded.system_prompt or ""), (
-        "guarded orchestrator did not append GUARDRAILS suffix"
-    )
 
 
 # ---------------------------------------------------------------------------

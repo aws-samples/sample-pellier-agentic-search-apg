@@ -532,34 +532,6 @@ def _reconcile_continuity_followup(
     return response_text, eligible[:3], False
 
 
-def _specialist_prose(result_str: str) -> str:
-    """Return shopper-facing prose from an Agents-as-Tools result."""
-    if not isinstance(result_str, str):
-        return ""
-    return re.sub(
-        r"\n*```json\s*.*?\s*```",
-        "",
-        result_str,
-        flags=re.DOTALL | re.IGNORECASE,
-    ).strip()
-
-
-def _is_incomplete_router_preface(response_text: str) -> bool:
-    """Identify the short trailing-colon preface Sonnet can emit post-tool."""
-    text = response_text.strip()
-    return bool(text) and text.endswith(":") and len(text.split()) <= 24
-
-
-def _mentions_returned_product(response_text: str, products: list) -> bool:
-    """Return whether prose names at least one product in the live envelope."""
-    normalized = response_text.casefold()
-    return any(
-        isinstance(product, dict)
-        and (name := str(product.get("name") or "").strip())
-        and name.casefold() in normalized
-        for product in products
-    )
-
 
 def _scan_for_escalation(result_str: str) -> Optional[Dict[str, Any]]:
     """Return the first ``{"type": "escalation", ...}`` envelope in ``result_str``.
@@ -916,255 +888,40 @@ class EnhancedChatService:
         guardrails_enabled: bool = False,
         user: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
+        """The non-streaming form of :meth:`chat_stream`: the same Router, one result.
+
+        Collects the stream's final ``complete`` event, so both chat endpoints
+        run one routing path.
         """
-        Enhanced chat that returns structured product data
+        from services.turn_identity import new_turn_id, turn_id_var
 
-        Routes based on workshop_mode:
-        - 'legacy'/'search': Chat disabled
-        - 'agentic'/None: Full multi-agent orchestrator
-        - 'production': Full orchestrator + AgentCore services
-        """
-        # Every turn carries the one correlation identifier, on this path too.
-        #
-        # This route previously left `turn_id_var` unset, so anything a tool
-        # correlated by turn came out anonymous here: a governed-boundary refusal
-        # produced an operator review with no source turn, which also disabled
-        # the "one open review per turn and action" index and let a replayed
-        # request open a second card. Minted from the same function the streamed
-        # route uses rather than a second format.
-        from services.turn_identity import (
-            authorized_customer_id_var,
-            new_turn_id,
-            principal_sub_var,
-            resolve_turn_identity,
-            turn_id_var,
-        )
-
-        if not turn_id_var.get():
-            turn_id_var.set(new_turn_id())
-        requested_customer_id = (
-            user.get("customer_id")
-            if isinstance(user, dict) and isinstance(user.get("customer_id"), str)
-            else None
-        )
-        turn_identity = resolve_turn_identity(
-            user=user, requested_customer_id=requested_customer_id
-        )
-        principal_sub_var.set(turn_identity.principal_sub)
-        authorized_customer_id_var.set(
-            turn_identity.shopper_customer_id if turn_identity.authenticated else None
-        )
-
-        try:
-            # Workshop mode routing
-            if workshop_mode in ("legacy", "search"):
-                return {
-                    "response": "Chat is not available in this workshop mode. Switch to the agentic or production mode to unlock the governed assistant.",
-                    "products": [],
-                    "suggestions": [],
-                    "tool_calls": [],
-                    "success": True,
-                    "context_tracking": False,
-                    "orchestrator_enabled": False,
-                    "model": self.model_id
-                }
-
-            logger.info(f"💬 Enhanced chat processing: '{message[:60]}...' (mode={workshop_mode or 'agentic'}, user={user.get('sub', 'anonymous') if user else 'anonymous'})")
-
-            # Require Strands
-            if not self.strands_available:
-                raise RuntimeError(
-                    "Strands SDK not available. Install with: "
-                    "pip install strands-agents strands-agents-tools"
-                )
-
-            return await self._strands_enhanced_chat(message, conversation_history, session_id, guardrails_enabled, user=user)
-            
-        except Exception as e:
-            logger.error(f"❌ Chat failed: {e}", exc_info=True)
-            return self._error_response(str(e))
-    
-    async def _strands_enhanced_chat(
-        self,
-        message: str,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-        session_id: Optional[str] = None,
-        guardrails_enabled: bool = False,
-        user: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Enhanced chat using Strands Orchestrator with specialized agents"""
-        logger.info(f"🤖 Processing query with Strands Orchestrator")
-        # turn_id_var was used below without an import, so this path raised
-        # NameError before any agent ran.
-        from services.turn_identity import shopper_words, shopper_words_var, turn_id_var
-
-        shopper_words_var.set(shopper_words(message, conversation_history))
-
-        # Get context manager for token tracking
-        from services.context_manager import get_context_manager
-        context_manager = get_context_manager()
-        
-        # Track user message
-        context_manager.add_message("user", message)
-        
-        try:
-            # Import orchestrator
-            from agents.orchestrator import create_orchestrator, create_guarded_orchestrator
-
-            # Create orchestrator — use guarded variant when guardrails enabled
-            logger.info(f"🎯 Creating agent orchestrator (guardrails={'ON' if guardrails_enabled else 'OFF'})...")
-            if guardrails_enabled:
-                orchestrator = create_guarded_orchestrator()
-            else:
-                orchestrator = create_orchestrator()
-
-            # Defensive guard: orchestrator factory returned None (missing
-            # dependency or misconfigured model). Should not happen in a
-            # provisioned environment — surfaces a clear message if it does.
-            if orchestrator is None:
-                return self._error_response(
-                    "🔧 The AI agent orchestrator isn't available. "
-                    "Check the backend logs (/tmp/pellier/uvicorn.log)."
-                )
-
-            # Add OpenTelemetry trace attributes.
-            #
-            # The shopper's message is deliberately NOT here. It used to ride
-            # out as `user.query`, which put customer text into broadly
-            # readable telemetry — verified leaking into the aws/spans log
-            # group. A turn is locatable from session.id and pellier.turn_id;
-            # the question itself belongs in the session record, not on a
-            # span. Nothing read this attribute.
-            orchestrator.trace_attributes = {
-                "session.id": session_id or "anonymous",
-                "pellier.turn_id": turn_id_var.get() or "",
-                "session.user": user.get("sub", "anonymous") if user else "anonymous",
-                "workshop": "pellier",
-                "service": "pellier"
-            }
-            
-            logger.info(f"🔍 Orchestrator created with OTEL tracing")
-            
-            # Two-phase Aurora tool_audit hooks. This path is reachable via
-            # POST /api/chat, which may not execute a tool off-ledger. Same shared
-            # factory as the streamed storefront turn, so the "every
-            # executed tool call is audited" claim holds on every rail.
-            try:
-                audit_before, audit_after = make_tool_audit_hooks(
-                    session_id=session_id,
-                )
-                orchestrator.add_hook(audit_before)
-                orchestrator.add_hook(audit_after)
-            except (ImportError, AttributeError) as exc:
-                logger.warning(f"Strands hooks not available for non-streaming audit: {exc}")
-
-            # Build conversation context
-            conversation_context = ""
-            if conversation_history:
-                recent_history = conversation_history[-16:]
-                for msg in recent_history:
-                    role = msg.get('role', 'user')
-                    content = msg.get('content', '')
-                    if len(content) > 300:
-                        content = content[:300] + "..."
-                    conversation_context += f"{role.upper()}: {content}\n\n"
-            
-            # Prepare message for orchestrator
-            full_message = message
-            if conversation_context:
-                full_message = f"""CONVERSATION HISTORY:
-{conversation_context}
----
-CURRENT REQUEST: {message}"""
-
-            # Deterministic intent classification. The previous
-            # ``[ROUTING DIRECTIVE: call the X tool]`` prefix injection
-            # was deleted in the three-pattern refactor — see
-            # ``chat_stream()`` for context.
-            intent = classify_intent(message)
-            intent_hint = {
-                "pricing": "pricing",
-                "inventory": "inventory",
-                "customer_support": "support",
-                "search": "search",
-                "recommendation": "recommendation",
-            }[intent]
-            logger.info(f"🎯 Intent: {intent} → {intent_hint}")
-            
-            # Invoke orchestrator with timing
-            import time
-            start_time = time.time()
-            
-            logger.info(f"🔄 Invoking orchestrator with query: {message[:100]}...")
-            import asyncio
-            response = await asyncio.to_thread(orchestrator, full_message)
-            # Strands AgentResult.__str__() extracts text from the last
-            # message's content blocks. When the orchestrator's final cycle
-            # is a tool_use (specialist returned but orchestrator didn't
-            # generate a follow-up text), str() is empty. Fall back to
-            # extracting text from tool_result content blocks.
-            response_text = str(response).strip()
-            if not response_text:
-                try:
-                    content = response.message.get("content", [])
-                    for block in content:
-                        if isinstance(block, dict) and "toolResult" in block:
-                            tr = block["toolResult"].get("content", [])
-                            for item in tr:
-                                if isinstance(item, dict) and "text" in item:
-                                    response_text = item["text"]
-                                    break
-                        if response_text:
-                            break
-                except Exception:
-                    pass
-            
-            # Track assistant response in context manager
-            context_manager.add_message("assistant", response_text)
-            
-            logger.info(f"✅ Orchestrator completed with agent chain")
-            logger.info(f"📝 Final response length: {len(response_text)} chars")
-            
-            # Extract agent execution from OpenTelemetry traces. When
-            # OTEL isn't wired correctly the payload carries
-            # otel_enabled=False + reason; the frontend renders a banner
-            # instead of synthesizing fake spans (see Bug 3 audit note).
-            from services.otel_trace_extractor import extract_agent_execution_from_otel
-
-            agent_execution = extract_agent_execution_from_otel(
-                session_id=session_id, turn_id=turn_id_var.get()
-            )
-
-            if agent_execution.get("otel_enabled") and agent_execution.get("trace_id"):
-                logger.info(f"✨ OpenTelemetry trace_id: {agent_execution['trace_id']}")
-            elif not agent_execution.get("otel_enabled"):
-                logger.error(
-                    f"📊 OTEL telemetry unavailable — reason: "
-                    f"{agent_execution.get('reason', 'unknown')}"
-                )
-            
-            # Extract structured data from response
-            parsed = await self._parse_agent_response(response_text, message, conversation_history)
-            await self._attach_inventory_evidence(parsed["products"])
-            
-            result = {
-                "response": parsed["text"],
-                "products": parsed["products"],
-                "suggestions": parsed["suggestions"],
-                "success": True,
-                "context_tracking": True,
-                "orchestrator_enabled": True,
-                "agent_execution": agent_execution,
-                "model": self.model_id
-            }
-            
-            logger.info(f"📦 Agent execution: {len(agent_execution['agent_steps'])} steps, {len(agent_execution['tool_calls'])} tool calls | OTEL: {agent_execution.get('otel_enabled', False)}")
-            logger.info(f"✅ Response generated ({agent_execution['total_duration_ms']}ms)")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Orchestrator execution failed: {e}", exc_info=True)
-            raise RuntimeError(f"Agent execution failed: {str(e)}")
+        final: Dict[str, Any] = {}
+        error: Optional[str] = None
+        async for event in self.chat_stream(
+            message=message,
+            conversation_history=conversation_history,
+            session_id=session_id,
+            workshop_mode=workshop_mode,
+            guardrails_enabled=guardrails_enabled,
+            user=user,
+            turn_id=turn_id_var.get() or new_turn_id(),
+        ):
+            if event.get("type") == "complete" and isinstance(event.get("response"), dict):
+                final = event["response"]
+            elif event.get("type") == "error":
+                error = str(event.get("error") or "chat_failed")
+        if not final:
+            return self._error_response(error or "The assistant returned no answer.")
+        return {
+            "response": final.get("response", ""),
+            "products": final.get("products", []),
+            "suggestions": final.get("suggestions", []),
+            "agent_execution": final.get("agent_execution"),
+            "model": final.get("model") or self.model_id,
+            "success": bool(final.get("success", True)),
+            "token_count": final.get("token_count"),
+            "estimated_cost_usd": final.get("estimated_cost_usd"),
+        }
     
     async def _parse_agent_response(self, response_text: str, query: str = "", conversation_history: Optional[List[Dict[str, str]]] = None, has_tool_products: bool = False) -> Dict[str, Any]:
         """
@@ -1661,7 +1418,6 @@ CURRENT REQUEST: {message}"""
         workshop_mode: Optional[str] = None,
         guardrails_enabled: bool = False,
         user: Optional[Dict[str, Any]] = None,
-        pattern: Optional[str] = None,
         turn_id: Optional[str] = None,
         response_mode: str = "balanced",
     ):
@@ -1678,33 +1434,14 @@ CURRENT REQUEST: {message}"""
         async SSE generator. Hooks capture tool results so products are
         sent the moment a tool completes, not after the full chain finishes.
 
-        The ``pattern`` parameter selects the orchestration model:
-          - ``'dispatcher'`` — Storefront production path. Deterministic
-            classifier picks one specialist; that specialist runs
-            directly via its factory. One LLM call per turn. Voice
-            preserved (no paraphrase cycle).
-          - ``'agents_as_tools'`` — optional comparison path. Sonnet
-            orchestrator + five ``@tool`` specialists. Two LLM calls per turn.
-          - ``'graph'`` — optional comparison path. Real Strands
-            ``GraphBuilder`` DAG: deterministic router node + 5 specialist
-            nodes; conditional edges route the turn to exactly one specialist.
-            Exposed through ``GraphAgentAdapter`` so the downstream
-            streaming/hook pipeline treats it identically to a single Agent.
-          - ``None`` → ``'dispatcher'``. All public Pellier surfaces use the
-            same default routing contract.
+        Routing is the dispatcher: a deterministic classifier picks one
+        specialist, which runs directly. One model call per turn.
         """
         import asyncio
         import time
         from services.response_mode import normalize_response_mode
 
         response_mode = normalize_response_mode(response_mode)
-
-        pattern = (pattern or "dispatcher").lower()
-        if pattern not in ("dispatcher", "agents_as_tools", "graph"):
-            logger.warning(
-                "Unknown pattern %r; falling back to dispatcher", pattern
-            )
-            pattern = "dispatcher"
 
         # Resolve the effective customer_id for this turn. Personas
         # stash their customer_id in user["customer_id"] from the
@@ -1940,106 +1677,45 @@ CURRENT REQUEST: {message}"""
         }[intent]
         timing["intent"] = (time.perf_counter() - intent_t0) * 1000
 
-        if pattern == "dispatcher":
-            unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
-            if unbuilt_intent is not None:
-                logger.info("🎯 Intent: %s → %s", intent, intent_hint)
-                from services.response_mode import build_intent_signal
+        unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
+        if unbuilt_intent is not None:
+            logger.info("🎯 Intent: %s → %s", intent, intent_hint)
+            from services.response_mode import build_intent_signal
 
-                yield build_intent_signal(intent, response_mode)
-                stub_name = self._tool_to_agent_name(intent_hint)
-                logger.info(
-                    "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
-                    "reporting an explicit workshop build requirement",
-                    stub_name,
-                    intent_hint,
-                )
-                yield {"type": "start", "content": "Checking workshop build state..."}
-                for event in _dispatcher_build_required_events(
-                    unbuilt_intent,
-                    stub_name,
-                ):
-                    yield event
-                return
+            yield build_intent_signal(intent, response_mode)
+            stub_name = self._tool_to_agent_name(intent_hint)
+            logger.info(
+                "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
+                "reporting an explicit workshop build requirement",
+                stub_name,
+                intent_hint,
+            )
+            yield {"type": "start", "content": "Checking workshop build state..."}
+            for event in _dispatcher_build_required_events(
+                unbuilt_intent,
+                stub_name,
+            ):
+                yield event
+            return
 
         if not self.strands_available:
             yield {"type": "error", "error": "Strands SDK not available"}
             return
 
-        # --- Setup (mirrors _strands_enhanced_chat) ---
+        # --- Setup ---
         from services.context_manager import get_context_manager
         context_manager = get_context_manager()
         context_manager.add_message("user", message)
-
-        from agents.orchestrator import create_orchestrator, create_guarded_orchestrator
 
         # Session setup can read or create remote AgentCore Memory records.
         # Defer it until after deterministic exercise-state detection below:
         # an unbuilt specialist has no agent turn whose context needs loading.
 
-        # Agent construction — Pattern I (Agents-as-Tools) builds the
-        # orchestrator here. Pattern III (Dispatcher) defers construction
-        # until after persona + skill ContextVars are set below, so the
-        # specialist factory picks them up at build time.
-        #
-        # Gateway preference: when ``settings.AGENTCORE_GATEWAY_URL`` is
-        # set, we use the MCP-discovered tool path instead of importing
-        # @tool symbols directly. This is the production shape — tools
-        # live in the Gateway, the orchestrator pulls them at runtime.
-        # When the Gateway URL is unset (local dev, Workshop Studio
-        # before the managed Gateway path is provisioned), we fall back to the in-process
-        # orchestrator silently. Guardrails flag is respected on the
-        # fallback path; gateway path honors guardrails via its own
-        # prompt extensions (future work).
+        # The specialist is built below, once persona and skill ContextVars are
+        # live, so its factory picks them up. ``orchestrator`` names it for the
+        # streaming and hook pipeline.
         orchestrator = None
-        gateway_used = False
-        if pattern == "agents_as_tools":
-            from config import settings as _settings
-            # JWT passthrough: the caller's raw Cognito access token (captured
-            # by get_current_user) is forwarded to the Gateway so MCP tool
-            # calls carry the user's identity. Anonymous/Fresh turns have no
-            # token, so the gateway factory returns None and we fall back to
-            # the in-process orchestrator (the Gateway panel renders "skipped").
-            _user_token = (user or {}).get("access_token") if isinstance(user, dict) else None
-            if getattr(_settings, "AGENTCORE_GATEWAY_URL", None) and _user_token:
-                try:
-                    from services.agentcore_gateway import create_gateway_orchestrator
-                    orchestrator = create_gateway_orchestrator(access_token=_user_token)
-                    if orchestrator is not None:
-                        gateway_used = True
-                        logger.info("🛰️ Gateway orchestrator | tools via MCP discovery | JWT passthrough")
-                except Exception as exc:
-                    logger.warning("Gateway orchestrator failed; falling back to in-proc: %s", exc)
-                    orchestrator = None
 
-            if orchestrator is None:
-                if guardrails_enabled:
-                    orchestrator = create_guarded_orchestrator()
-                else:
-                    orchestrator = create_orchestrator()
-
-            # Defensive guard: orchestrator factory returned None (missing
-            # dependency or misconfigured model). Should not happen in a
-            # provisioned environment — surfaces a clear message if it does.
-            if orchestrator is None:
-                yield {
-                    "type": "error",
-                    "error": "🔧 The AI agent orchestrator isn't available. "
-                             "Check the backend logs (/tmp/pellier/uvicorn.log)."
-                }
-                return
-        # For dispatcher/graph, ``orchestrator`` is bound later once
-        # ContextVars are live. We reuse the ``orchestrator`` name so the
-        # existing streaming/hook pipeline treats specialist or graph
-        # invocations identically — every code path downstream expects
-        # something with ``callback_handler``, ``add_hook``,
-        # ``trace_attributes``, and a callable signature. For graph,
-        # the GraphAdapter satisfies that interface while running a
-        # real Strands ``Graph`` internally.
-
-        # Trace attributes are applied once ``orchestrator`` is bound.
-        # For ``agents_as_tools`` that's here; for ``dispatcher`` that's
-        # after the specialist factory call below.
         # The shopper's message is deliberately absent — see the matching
         # note on the non-streaming path. `session.user` stays: an identity
         # is correlation, not payload.
@@ -2049,11 +1725,8 @@ CURRENT REQUEST: {message}"""
             "session.user": user.get("sub", "anonymous") if user else "anonymous",
             "workshop": "pellier",
             "service": "pellier",
-            "pattern": pattern,
+            "pattern": "dispatcher",
         }
-
-        if orchestrator is not None:
-            orchestrator.trace_attributes = trace_attributes
 
         # Build conversation context
         conversation_context = ""
@@ -2343,12 +2016,6 @@ CURRENT REQUEST: {message}"""
             # Gateway/Policy path provisioned. The Gateway Lambda writes its own
             # row on the authenticated rail; both rails feed the same ledger.
 
-        # For Pattern I (``agents_as_tools``) the orchestrator is
-        # already constructed at this point; attach the streaming and
-        # hooks to it now. Pattern III attaches after the specialist is
-        # built below (once persona + skill ContextVars are live).
-        if orchestrator is not None:
-            _attach_streaming_and_hooks(orchestrator)
 
         # --- Yield initial SSE events ---
         yield {"type": "start", "content": "Initializing agent..."}
@@ -2510,60 +2177,48 @@ CURRENT REQUEST: {message}"""
         # ``trace_attributes``. A real
         # Strands ``Graph`` with a Sonnet router + 5 specialist nodes
         # runs under the hood.
-        if pattern == "graph":
-            try:
-                from agents.graph_pattern import build_graph_orchestrator
-                orchestrator = build_graph_orchestrator()
-                orchestrator.trace_attributes = trace_attributes
-                _attach_streaming_and_hooks(orchestrator)
-                logger.info("🔀 Graph | router + 5 specialists via GraphBuilder")
-            except Exception as exc:
-                logger.exception("Graph pattern failed to build; falling back to dispatcher: %s", exc)
-                pattern = "dispatcher"  # fall through to dispatcher branch
-
         # Pattern III (Dispatcher) builds the specialist here — AFTER
         # the persona + skill ContextVars are live, so the factory
         # picks them up at construction time. The specialist replaces
         # the orchestrator for the downstream streaming pipeline;
         # everything after this point treats ``orchestrator`` as a
         # plain Strands Agent regardless of pattern.
-        if pattern == "dispatcher":
-            # --- Workshop stub detection ---
-            #
-            # The normal dispatcher path returns above. Keep this guard for a
-            # graph build that fails and deliberately falls back to dispatcher
-            # after SkillRouter has already run.
-            unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
-            if unbuilt_intent is not None:
-                stub_name = self._tool_to_agent_name(intent_hint)
-                logger.info(
-                    "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
-                    "reporting an explicit workshop build requirement",
-                    stub_name,
-                    intent_hint,
-                )
-                for event in _dispatcher_build_required_events(
-                    unbuilt_intent,
-                    stub_name,
-                ):
-                    yield event
-                _reset_skill_token()
-                _reset_persona_token()
-                _reset_response_mode_token()
-                _reset_product_collector_token()
-                return
-
-            allow_handoff = _allows_human_handoff(message)
-            orchestrator = _build_dispatcher_specialist(
-                intent_hint,
-                allow_handoff,
-            )
-            orchestrator.trace_attributes = trace_attributes
-            _attach_streaming_and_hooks(orchestrator)
-            specialist_name = self._tool_to_agent_name(intent_hint)
+        # --- Workshop stub detection ---
+        #
+        # The normal dispatcher path returns above. Keep this guard for a
+        # graph build that fails and deliberately falls back to dispatcher
+        # after SkillRouter has already run.
+        unbuilt_intent = _unbuilt_dispatcher_specialist(intent_hint)
+        if unbuilt_intent is not None:
+            stub_name = self._tool_to_agent_name(intent_hint)
             logger.info(
-                f"🎯 Dispatcher | specialist={specialist_name} (intent={intent_hint})"
+                "🎯 Dispatcher | specialist=%s (intent=%s) is STUBBED — "
+                "reporting an explicit workshop build requirement",
+                stub_name,
+                intent_hint,
             )
+            for event in _dispatcher_build_required_events(
+                unbuilt_intent,
+                stub_name,
+            ):
+                yield event
+            _reset_skill_token()
+            _reset_persona_token()
+            _reset_response_mode_token()
+            _reset_product_collector_token()
+            return
+
+        allow_handoff = _allows_human_handoff(message)
+        orchestrator = _build_dispatcher_specialist(
+            intent_hint,
+            allow_handoff,
+        )
+        orchestrator.trace_attributes = trace_attributes
+        _attach_streaming_and_hooks(orchestrator)
+        specialist_name = self._tool_to_agent_name(intent_hint)
+        logger.info(
+            f"🎯 Dispatcher | specialist={specialist_name} (intent={intent_hint})"
+        )
 
         async def run_orchestrator():
             try:
@@ -2571,14 +2226,6 @@ CURRENT REQUEST: {message}"""
             except Exception as e:
                 orchestrator_error[0] = e
             finally:
-                if gateway_used:
-                    try:
-                        await asyncio.to_thread(orchestrator.cleanup)
-                    except Exception as exc:
-                        logger.warning(
-                            "Gateway orchestrator cleanup failed: %s",
-                            exc.__class__.__name__,
-                        )
                 await queue.put({"_done": True})
 
         task = asyncio.create_task(run_orchestrator())
@@ -2681,16 +2328,6 @@ CURRENT REQUEST: {message}"""
                     if refusal is not None:
                         review_pending_payload = refusal
                 if result_str:
-                    if pattern == "agents_as_tools" and tool_name in {
-                        "search",
-                        "recommendation",
-                        "pricing",
-                        "inventory",
-                        "support",
-                    }:
-                        candidate_reply = _specialist_prose(result_str)
-                        if candidate_reply:
-                            specialist_reply = candidate_reply
                     raw_products = ProductExtractor.extract(result_str)
                     if raw_products:
                         result_count = len(raw_products)
@@ -2790,51 +2427,11 @@ CURRENT REQUEST: {message}"""
                     len(new_products),
                 )
 
-        # --- Inject past-order product cards for retrospective queries ---
-        #
-        # Disabled in the three-pattern refactor. The blunt "top 3 by
-        # placed_at" injection often showed cards that didn't match the
-        # specialist's prose (the specialist highlights specific orders
-        # from the LTM preamble; the injection grabbed the most recent
-        # regardless). The specialist can call search_products if it
-        # wants to surface product cards; for retrospective queries
-        # answered from the preamble, the prose is the answer.
-        #
-        # Kept as a comment block so the pattern is recoverable if a
-        # future iteration wants smarter card injection (e.g., extract
-        # product names from the specialist's prose and match them
-        # against persona_orders_for_cards).
-
         # --- Parse and send final response ---
         if forwarded_specialist_replies:
             specialist_reply = forwarded_specialist_replies[-1]
         response_text = str(orchestrator_result[0]) if orchestrator_result[0] else ""
         parsed = await self._parse_agent_response(response_text, message, conversation_history, has_tool_products=bool(products_buffered))
-        if (
-            pattern == "agents_as_tools"
-            and products_buffered
-            and specialist_reply
-            and (
-                _is_incomplete_router_preface(parsed["text"])
-                or (
-                    not _mentions_returned_product(
-                        parsed["text"],
-                        products_buffered,
-                    )
-                    and _mentions_returned_product(
-                        specialist_reply,
-                        products_buffered,
-                    )
-                )
-            )
-        ):
-            logger.warning(
-                "Pattern I router reply was incomplete or ungrounded; "
-                "using the completed specialist reply"
-            )
-            response_text = specialist_reply
-            parsed["text"] = specialist_reply
-
         continuity_rewritten = False
         if _is_continuity_selection(message):
             product_pool = products_buffered or parsed["products"]
@@ -2882,21 +2479,13 @@ CURRENT REQUEST: {message}"""
             products_buffered = selected_products
         context_manager.add_message("assistant", parsed["text"])
 
-        # Minimal empty-response fallback. The aggressive recovery
-        # ladder (specialist-over-orchestrator promotion and the
-        # pre/post content_reset buffer walk) was deleted in the
-        # three-pattern refactor — it existed to compensate for Pattern I
-        # paraphrase, but the Dispatcher has no paraphrase
-        # cycle and the Graph mode routes deterministically. A single
-        # generic line covers the pathological case where Bedrock
-        # itself returns nothing at all.
+        # A single generic line covers the case where Bedrock returns nothing.
         if not parsed["text"] and not products_buffered and not parsed["products"]:
             parsed["text"] = (
                 "I couldn't land on a clear answer — try rephrasing or narrowing the ask."
             )
             logger.warning(
-                "chat_stream empty response | pattern=%s tools=%d",
-                pattern, len(tool_trace),
+                "chat_stream empty response | tools=%d", len(tool_trace),
             )
 
         # Send clean text content FIRST (before product cards).
@@ -2910,11 +2499,6 @@ CURRENT REQUEST: {message}"""
         # remaining text is short. Skip the ``content`` event when
         # deltas already streamed; the frontend's ``content_delta``
         # handler already built the reply in the bubble.
-        #
-        # For Pattern I (agents_as_tools), the content event is still
-        # useful because the orchestrator's final cycle may produce a
-        # different summary than what was streamed during the
-        # specialist's tool invocation.
         has_streamed_deltas = bool(ttft_mark)
         if parsed["text"] and (not has_streamed_deltas or continuity_rewritten):
             if has_streamed_deltas and continuity_rewritten:
@@ -3103,7 +2687,7 @@ CURRENT REQUEST: {message}"""
                 ttft_ms=ttft_ms,
                 total_ms=turn_total_ms,
                 tool_trace=tool_trace,
-                pattern=pattern,
+                pattern="dispatcher",
             )
         except Exception as _exc:
             logger.debug("performance_log.record_turn failed: %s", _exc)
@@ -3151,13 +2735,9 @@ CURRENT REQUEST: {message}"""
                 intent_hint,
             )
         orchestration_receipt = {
-            "pattern": pattern,
+            "pattern": "dispatcher",
             "route": specialist_route,
-            "router": (
-                "model"
-                if pattern == "agents_as_tools"
-                else "deterministic"
-            ),
+            "router": "deterministic",
         }
 
         # AgentCore STM — mirror this turn for session continuity labs.
@@ -3180,7 +2760,7 @@ CURRENT REQUEST: {message}"""
                     "agent_execution": agent_execution,
                     "model": self.model_id,
                     "response_mode": response_mode,
-                    "rail": "gateway-mcp" if gateway_used else "in-process",
+                    "rail": "in-process",
                     "orchestration": orchestration_receipt,
                     "token_count": token_count,
                     "estimated_cost_usd": estimated_cost,
@@ -3197,7 +2777,7 @@ CURRENT REQUEST: {message}"""
                     "suggestions": parsed["suggestions"],
                     "success": True,
                     "response_mode": response_mode,
-                    "rail": "gateway-mcp" if gateway_used else "in-process",
+                    "rail": "in-process",
                     "orchestration": orchestration_receipt,
                 }
             }

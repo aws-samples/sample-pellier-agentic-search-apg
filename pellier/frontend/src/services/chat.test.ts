@@ -91,17 +91,17 @@ describe('chat service auth transport', () => {
       undefined,
       true,
       'CUST-ANNA',
-      'dispatcher',
       'fast',
     )
 
     const [, init] = fetchMock.mock.calls[0]
-    expect(JSON.parse(init.body as string)).toMatchObject({
+    const body = JSON.parse(init.body as string)
+    expect(body).toMatchObject({
       guardrails_enabled: true,
       customer_id: 'CUST-ANNA',
-      pattern: 'dispatcher',
       response_mode: 'fast',
     })
+    expect(body).not.toHaveProperty('pattern')
   })
 
   it('keeps prior rendered product identity in multi-turn requests', async () => {

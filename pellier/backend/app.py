@@ -23,9 +23,6 @@ from fastapi.staticfiles import StaticFiles
 from config import settings
 from pellier_copy import MEMORY_WRITE_WARNING
 from models.search import (
-    SearchRequest,
-    SearchResponse,
-    SearchResult,
     HealthResponse,
     ChatRequest,
     ChatResponse,
@@ -34,19 +31,13 @@ from models.search import (
     PerfQuantizationRequest,
     RestockRequest,
 )
-from models.product import ProductWithScore
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
-from services.planned_hybrid_retrieval import (
-    MICRO_EVAL_POOL_SIZES_MAX,
-    MICRO_EVAL_REPETITIONS_DEFAULT,
-    MICRO_EVAL_REPETITIONS_MAX,
-)
+from services.planned_hybrid_retrieval import MICRO_EVAL_POOL_SIZES_MAX
 from services.embeddings import EmbeddingService
 from services.chat import ChatService
 from services.chat_error_taxonomy import classify_chat_error
-from datetime import datetime
-from services.sql_query_logger import init_query_logger, get_query_logger, QueryLog
+from services.sql_query_logger import init_query_logger, get_query_logger
 from services.index_performance import get_index_performance_service
 from services.vector_search import VectorSearch
 from services.cache import init_cache, get_cache
@@ -1554,7 +1545,6 @@ async def chat_stream(request: ChatRequest, user=Depends(get_current_user)):
                     workshop_mode=request.workshop_mode,
                     guardrails_enabled=request.guardrails_enabled,
                     user=local_user or None,
-                    pattern=request.pattern,
                     turn_id=turn_id,
                     response_mode=request.response_mode,
                 ):

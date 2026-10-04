@@ -324,10 +324,6 @@ export interface ChatResponse {
 }
 
 export type ResponseMode = 'balanced' | 'editorial' | 'fast'
-export type OrchestrationPattern =
-  | 'dispatcher'
-  | 'agents_as_tools'
-  | 'graph'
 
 /**
  * Send a chat message with streaming support
@@ -339,7 +335,6 @@ export async function sendChatMessageStreaming(
   workshopMode?: string,
   guardrailsEnabled?: boolean,
   customerId?: string | null,
-  pattern?: OrchestrationPattern | null,
   responseMode: ResponseMode = 'balanced',
   /**
    * Caller-owned cancellation, e.g. a component unmounting mid-stream.
@@ -383,7 +378,6 @@ export async function sendChatMessageStreaming(
         workshop_mode: workshopMode || null,
         guardrails_enabled: guardrailsEnabled || false,
         customer_id: customerId ?? null,
-        pattern: pattern ?? null,
         response_mode: responseMode,
       }),
     })

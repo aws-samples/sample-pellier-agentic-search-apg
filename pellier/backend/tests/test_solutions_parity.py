@@ -130,8 +130,6 @@ _AUTO_APPLIED_IDENTICAL = [
      _SOLUTIONS / "closing-marcos-gap" / "agents" / "personalization_agent.py"),
     ("customer_service_agent", _BACKEND / "agents" / "customer_service_agent.py",
      _SOLUTIONS / "closing-marcos-gap" / "agents" / "customer_service_agent.py"),
-    ("orchestrator", _BACKEND / "agents" / "orchestrator.py",
-     _SOLUTIONS / "closing-marcos-gap" / "agents" / "orchestrator.py"),
     ("agentcore_runtime", _BACKEND / "services" / "agentcore_runtime.py",
      _SOLUTIONS / "the-ledger" / "services" / "agentcore_runtime.py"),
     ("agentcore_memory", _BACKEND / "services" / "agentcore_memory.py",
