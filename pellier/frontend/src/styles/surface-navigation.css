@@ -48,6 +48,12 @@
   color: var(--pellier-copper);
 }
 
+/* On an ink-filled surface the dot takes the other theme's copper, which
+   reads on the black button in light and on the ivory one in dark. */
+.pellier-mark .pellier-brand-dot {
+  color: var(--dl-accent-on-ink);
+}
+
 .pellier-brand-footer {
   font-size: 36px;
 }
@@ -149,6 +155,14 @@
   background: var(--dl-ink-2);
 }
 
+/* The dot and its pulse sit on the ink button, so they take the other
+   theme's copper: 3:1 or better on the button and on its hover ground in
+   both themes (token_contrast.test.ts). */
+.pellier-ask-button .tn-dot,
+.pellier-ask-button .tn-dot::after {
+  background: var(--dl-accent-on-ink);
+}
+
 /* The copper dot pulses only while a turn runs. */
 .pellier-ask-button .tn-dot::after {
   animation: none;
@@ -158,15 +172,25 @@
   animation: tn-pulse 1.6s ease-out infinite;
 }
 
-/* The local storefront row sits directly beneath the shared bar. */
+/* The local storefront row (Shop, Stories, About, the scenario pill and the
+   bag) sticks directly beneath the shared bar. Its ground, hairline and
+   stacking live here, not in utilities: it is opaque on the page ground,
+   above the page content and below the shared bar (z 55) and the docked
+   panel (z 51), so nothing scrolls over it. */
 .pellier-storefront-header {
+  position: sticky;
   top: var(--pellier-chrome-height);
+  z-index: 40;
+  width: 100%;
+  border-bottom: 1px solid var(--dl-line);
+  background: var(--dl-bg);
 }
 
+/* The wordmark keeps its 31px at every width; on a 390px phone it still
+   clears the theme control and the Ask Pellier button on one line. */
 @media (max-width: 760px) {
   :root { --pellier-nav-font-size: 13px; }
   .pellier-surface-bar { gap: 12px; padding-inline: 16px; }
-  .pellier-brand { font-size: 28px; letter-spacing: -1.4px; }
   .pellier-surface-link { padding-inline: 12px; }
 }
 

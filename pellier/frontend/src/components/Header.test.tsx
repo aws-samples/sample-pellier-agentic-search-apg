@@ -322,12 +322,22 @@ describe('Header — Bag badge', () => {
 })
 
 describe('Header — sticky row', () => {
-  it('renders a solid sticky row on the page ground with a hairline beneath', () => {
+  it('owns its ground, hairline and stacking in the stylesheet, not in utilities', () => {
     renderHeader()
     const header = screen.getByTestId('sticky-header')
-    expect(header.className).toContain('sticky')
-    expect(header.className).toContain('bg-page')
-    expect(header.className).toContain('border-line')
+    expect(header.className).toBe('pellier-storefront-header')
     expect(header.getAttribute('style')).toBeNull()
+
+    // Opaque on the page ground, the hairline beneath, above the page
+    // content and below the shared bar (55) and the docked panel (51).
+    const css = readFileSync('src/styles/surface-navigation.css', 'utf8')
+    const start = css.indexOf('.pellier-storefront-header {')
+    expect(start).toBeGreaterThan(-1)
+    const rule = css.slice(start, css.indexOf('}', start))
+    expect(rule).toContain('position: sticky')
+    expect(rule).toContain('top: var(--pellier-chrome-height)')
+    expect(rule).toContain('z-index: 40')
+    expect(rule).toContain('background: var(--dl-bg)')
+    expect(rule).toContain('border-bottom: 1px solid var(--dl-line)')
   })
 })

@@ -133,7 +133,7 @@ export default function AuthModal() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        background: 'rgba(45, 24, 16, 0.45)',
+        background: 'var(--dl-scrim)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
@@ -151,8 +151,7 @@ export default function AuthModal() {
           background: c.bg,
           borderRadius: 24,
           padding: '32px 32px 20px 32px',
-          boxShadow:
-            '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
+          boxShadow: 'var(--dl-sh-deep)',
           fontFamily: 'var(--sans)',
           color: c.ink,
         }}
@@ -171,7 +170,7 @@ export default function AuthModal() {
               borderRadius: '50%',
               background: c.ink,
               color: c.bg,
-              fontFamily: 'var(--serif)',
+              fontFamily: 'var(--dl-font-display)',
               fontSize: 26,
               lineHeight: 1,
             }}

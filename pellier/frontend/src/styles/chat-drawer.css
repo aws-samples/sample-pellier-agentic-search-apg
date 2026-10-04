@@ -63,7 +63,7 @@
   color: var(--dl-ink);
   font-family: var(--dl-font-heading);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
 }
@@ -84,6 +84,8 @@
   border-radius: var(--dl-r-pill);
   background: var(--dl-paper-2);
 }
+/* The initial sits on the persona's seeded color (a brown in every seed), so
+   it takes the ivory that reads over a photograph in both themes. */
 .cd-persona-av {
   display: flex;
   width: 16px;
@@ -91,7 +93,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--dl-on-ink);
+  color: var(--dl-on-photo);
   font-size: 10px;
   font-weight: 500;
 }

@@ -457,7 +457,7 @@
 
 .pellier-gridhead .pellier-statement {
   font-size: var(--text-card);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: var(--dl-track-tight);
 }
 

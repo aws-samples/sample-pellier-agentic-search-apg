@@ -251,6 +251,28 @@ export default function ChatDrawer() {
     return () => observer.disconnect()
   }, [isOpen, turnCount, scrollToLatest])
 
+  // The "Latest reply" pill shows only while the newest reply is scrolled
+  // out of view, so it never sits over the reply it points to; reading part
+  // of a long newest reply, or an unfolded Builder view beneath it, keeps
+  // the pill away.
+  const messageCount = messages.length
+  useEffect(() => {
+    if (!isOpen || typeof IntersectionObserver === 'undefined') return
+    const body = bodyRef.current
+    const replies = contentRef.current?.querySelectorAll<HTMLElement>('.ec-msg-agent')
+    const newest = replies?.[replies.length - 1]
+    if (!body || !newest) {
+      setShowLatest(false)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowLatest(!entry.isIntersecting),
+      { root: body },
+    )
+    observer.observe(newest)
+    return () => observer.disconnect()
+  }, [isOpen, messageCount])
+
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !isLoading) {
@@ -344,9 +366,7 @@ export default function ChatDrawer() {
           <div className="cd-body" ref={bodyRef} onScroll={() => {
             const body = bodyRef.current
             if (!body) return
-            const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80
-            followLatestRef.current = atBottom
-            setShowLatest(!atBottom)
+            followLatestRef.current = body.scrollHeight - body.scrollTop - body.clientHeight < 80
           }}>
             <div className="cd-messages" ref={contentRef}>
             {!hasUserMessages && (

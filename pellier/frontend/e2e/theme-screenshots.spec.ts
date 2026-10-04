@@ -1,8 +1,9 @@
 /**
  * Both themes on the direction A surfaces, against the real app with
  * recorded fixtures: Home, the collection, a product page and an Anna turn
- * with the Builder view on, at 1440px and 390px. The theme comes from the
- * system preference with no stored choice, which also proves the default.
+ * with the Builder view on, at 1440px and 390px, plus the first-visit
+ * overlay. The theme comes from the system preference with no stored
+ * choice, which also proves the default.
  *
  *   npx vite --port 5199 &
  *   E2E_BASE_URL=http://localhost:5199 THEME_SHOTS=/path/to/dir \
@@ -141,4 +142,18 @@ for (const theme of ['light', 'dark'] as const) {
       await drawer.screenshot({ path: shot('ask-pellier-panel') })
     })
   }
+
+  test(`${theme} theme: the first-visit overlay`, async ({ page }) => {
+    // A new session: the overlay has not been seen yet.
+    await page.addInitScript(() => sessionStorage.removeItem('pellier-storefront-spotlight-seen'))
+    await page.emulateMedia({ colorScheme: theme })
+    await page.setViewportSize({ width: 1440, height: 960 })
+    await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+    const dialog = page.getByRole('dialog', { name: 'Begin with the edit.' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Continue' })).toBeVisible()
+    await page.waitForTimeout(700)
+    await page.screenshot({ path: join(SHOTS, `spotlight-${theme}-1440.png`) })
+  })
 }

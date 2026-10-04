@@ -9,7 +9,9 @@
  * active, the same header pill opens the shared portrait-led PersonaModal.
  * Neither state is a Cognito sign-in.
  *
- * Copy comes from `copy.ts`. Every color is a token.
+ * Copy comes from `copy.ts`. Every color is a token. The row's ground,
+ * hairline and stacking are `.pellier-storefront-header` in
+ * surface-navigation.css, so the sticky row never depends on a utility.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -235,7 +237,7 @@ export default function Header({
       ref={headerRef}
       role="banner"
       data-testid="sticky-header"
-      className="pellier-storefront-header sticky z-40 w-full border-b border-line bg-page"
+      className="pellier-storefront-header"
     >
       <nav
         aria-label="Primary"

@@ -23,13 +23,6 @@ hr { border: 0; border-top: 1px solid var(--dl-line); margin: var(--dl-s-6) 0; }
 .dl-serif    { font-family: var(--dl-font-serif); }
 .dl-mono     { font-family: var(--dl-font-mono); }
 
-.dl-display  { font-family: var(--dl-font-serif); font-size: var(--dl-fs-display); line-height: var(--dl-lh-tight); font-weight: 500; letter-spacing: var(--dl-track-tight); margin: .2em 0 .3em; }
-.dl-display em { font-style: italic; color: var(--dl-accent); }
-
-.dl-h1 { font-family: var(--dl-font-serif); font-size: var(--dl-fs-h1); line-height: var(--dl-lh-snug); font-weight: 500; margin: 0 0 .4em; }
-.dl-h2 { font-family: var(--dl-font-serif); font-size: var(--dl-fs-h2); line-height: var(--dl-lh-snug); font-weight: 500; margin: 0 0 .4em; }
-.dl-h3 { font-family: var(--dl-font-serif); font-size: var(--dl-fs-h3); line-height: var(--dl-lh-snug); font-weight: 500; margin: 0 0 .3em; }
-
 .dl-lead { font-size: var(--dl-fs-lead); color: var(--dl-muted); max-width: 60ch; line-height: var(--dl-lh-body); }
 
 .dl-eyebrow {
@@ -68,8 +61,6 @@ hr { border: 0; border-top: 1px solid var(--dl-line); margin: var(--dl-s-6) 0; }
   display: flex; align-items: center; justify-content: space-between;
   background: var(--dl-bg);
 }
-.dl-brand { font-family: var(--dl-font-serif); font-size: 22px; letter-spacing: .02em; }
-.dl-brand b { font-weight: 600; }
 
 .dl-nav-tabs { display: flex; gap: 6px; }
 .dl-nav-tabs .dl-tab {

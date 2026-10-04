@@ -6,8 +6,10 @@
     <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <!-- The browser chrome follows the theme choice, not the system scheme.
+         The two grounds are the page tokens (--dl-bg light and dark); the
+         inline script below and src/theme/theme.ts pick one. -->
+    <meta name="theme-color" content="#ffffff" data-light="#ffffff" data-dark="#000000" />
     <title>Pellier | Your Personal Shopping Concierge</title>
     <meta
       name="description"
@@ -19,7 +21,8 @@
          corporate networks that block fonts.gstatic.com. -->
     <!-- The theme before first paint. Mirrors src/theme/theme.ts: the stored
          choice under `pellier-theme` ('light' or 'dark'), otherwise the system
-         preference. Storage may be absent or throw, so it is wrapped. -->
+         preference. Storage may be absent or throw, so it is wrapped. The
+         theme-color meta takes the matching ground. -->
     <script id="pellier-theme-script">
       (function () {
         var choice = null;
@@ -30,6 +33,9 @@
           choice = dark ? 'dark' : 'light';
         }
         document.documentElement.setAttribute('data-theme', choice);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        var ground = meta && meta.getAttribute('data-' + choice);
+        if (ground) meta.setAttribute('content', ground);
       })();
     </script>
   </head>

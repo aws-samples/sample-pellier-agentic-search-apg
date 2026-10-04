@@ -18,9 +18,10 @@ const sizeClasses: Record<NonNullable<AvatarProps['size']>, string> = {
 /**
  * Avatar primitive — circular monogram with configurable background color.
  *
- * Displays a single character centered inside a circular container.
- * Font: Fraunces, italic, font-medium.
- * Default bgColor: espresso, text: cream-50.
+ * Displays a single character centered inside a circular container, in
+ * Instrument Sans 500. Without a color the monogram is the ink with on-ink
+ * text; a seeded persona color (a brown in every seed) takes the ivory that
+ * reads over a photograph, which holds in both themes.
  */
 export const Avatar: React.FC<AvatarProps> = ({
   initial,
@@ -46,7 +47,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       className={[
         'inline-flex items-center justify-center rounded-full font-sans font-medium select-none',
         sizeClasses[size],
-        !bgColor ? 'bg-ink text-on-ink' : 'text-on-ink',
+        !bgColor ? 'bg-ink text-on-ink' : 'text-on-photo',
       ].join(' ')}
       style={bgColor ? { backgroundColor: bgColor } : undefined}
       aria-hidden="true"

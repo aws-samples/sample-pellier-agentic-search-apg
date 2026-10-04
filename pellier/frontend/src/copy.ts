@@ -13,7 +13,7 @@
 
 // Announcement bar (Requirement 1.1.2) - rendered verbatim.
 export const ANNOUNCEMENT =
-  "Complimentary shipping over $150 · Returns within 30 days · Resort Edit No. 06 is now live";
+  "Complimentary shipping over $150. Returns within 30 days. Resort Edit No. 06 is now live";
 
 export interface LiveFloorFinding {
   /** Uppercase sans label that leads the copy. */
@@ -468,7 +468,7 @@ export const reasoningMatched = (
   attr1: string,
   attr2: string,
   attr3: string,
-): string => `Matched on: ${attr1} \u00b7 ${attr2} \u00b7 ${attr3}`;
+): string => `Matched on: ${attr1}, ${attr2}, ${attr3}`;
 
 export interface PricingReasoning {
   lead: string;

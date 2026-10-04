@@ -116,8 +116,6 @@ export default function PellierHero() {
     >
       <div className="pellier-hero-inner">
         <div className="pellier-hero-copy">
-          <span className="pellier-eyebrow">Pellier</span>
-
           <h1
             data-testid="pellier-hero-headline"
             className="pellier-statement"

@@ -55,7 +55,6 @@
   --dl-warn:         #9a5b0b;
   --dl-err:          #a12a2a;
   --dl-err-soft:     #fbe6e4;
-  --dl-info:         #1e40af;
 
   /* ---------- Status tags (signature element 4), AA pairs ---------- */
   --dl-tag-good-ink:    #2f6b1a;
@@ -154,7 +153,6 @@
   --dl-warn:         #e4b16b;
   --dl-err:          #f19a92;
   --dl-err-soft:     #2b1110;
-  --dl-info:         #9db9ff;
 
   --dl-tag-good-ink:    #a5d38a;
   --dl-tag-good-bg:     #14240e;

@@ -30,8 +30,7 @@
  *      re-fetch /api/products?personalized=true - the grid re-sort and
  *      parallax re-fire that closes the full sign-in -> prefs -> grid loop.
  *   3. Close the modal (UIContext singleton).
- *   4. The curated banner flash (AuthStateBand) is triggered automatically
- *      because `preferences` is now non-null.
+ *   4. `preferences` is now non-null for every consumer of AuthContext.
  *
  * "Skip for now" closes the modal without posting anything. The user can
  * re-open the modal from the Account menu or the curated banner's
@@ -113,7 +112,7 @@ const SWATCH_GRADIENTS: Record<string, string> = {
   'cream-warm-to-cream':
     'linear-gradient(135deg, var(--cream-warm) 0%, var(--cream) 100%)',
   'ink-to-near-black':
-    'linear-gradient(135deg, var(--dl-ink) 0%, color-mix(in srgb, var(--dl-ink) 65%, #000) 100%)',
+    'linear-gradient(135deg, var(--dl-ink) 0%, var(--dl-ink-2) 100%)',
 }
 
 // Index helpers — the GROUPS array in copy.ts is a four-entry tuple in a
@@ -334,9 +333,8 @@ export default function PreferencesModal() {
   }
 
   const handleSkip = () => {
-    // No POST, just dismiss. Preferences stay null; AuthStateBand renders
-    // nothing and the sign-in -> prefs loop can be restarted from the
-    // Account menu.
+    // No POST, just dismiss. Preferences stay null and the sign-in -> prefs
+    // loop can be restarted from the Account menu.
     closeModal()
   }
 
@@ -364,7 +362,7 @@ export default function PreferencesModal() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        background: 'rgba(45, 24, 16, 0.45)',
+        background: 'var(--dl-scrim)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
@@ -384,8 +382,7 @@ export default function PreferencesModal() {
           background: c.bg,
           borderRadius: 24,
           padding: '32px 32px 20px 32px',
-          boxShadow:
-            '0 24px 60px rgba(45, 24, 16, 0.32), 0 4px 12px rgba(45, 24, 16, 0.2)',
+          boxShadow: 'var(--dl-sh-deep)',
           fontFamily: 'var(--sans)',
           color: c.ink,
         }}

@@ -3,10 +3,12 @@
  *
  * The choice persists per browser under `pellier-theme`. The resolved theme
  * is written to `data-theme` on `<html>`, which daylight-tokens.css switches
- * on. The inline script in `index.html` performs the same resolution before
- * first paint so the page never flashes the wrong theme; keep the two in
- * step. Storage can be absent or throw (private mode, blocked site data), so
- * every access is wrapped and the control still works without it.
+ * on, and the `theme-color` meta takes the matching page ground so the
+ * browser chrome follows the choice rather than the system scheme. The
+ * inline script in `index.html` performs the same resolution before first
+ * paint so the page never flashes the wrong theme; keep the two in step.
+ * Storage can be absent or throw (private mode, blocked site data), so every
+ * access is wrapped and the control still works without it.
  */
 import { useCallback, useSyncExternalStore } from 'react'
 
@@ -51,6 +53,9 @@ export function resolveTheme(choice: ThemeChoice): ResolvedTheme {
 
 export function applyTheme(resolved: ResolvedTheme): void {
   document.documentElement.setAttribute('data-theme', resolved)
+  const meta = document.querySelector('meta[name="theme-color"]')
+  const ground = meta?.getAttribute(`data-${resolved}`)
+  if (meta && ground) meta.setAttribute('content', ground)
 }
 
 let currentChoice: ThemeChoice | null = null
@@ -67,10 +72,7 @@ function watchSystem(): void {
   if (typeof media.addEventListener !== 'function') return
   watchingSystem = true
   media.addEventListener('change', () => {
-    if (getChoice() === 'system') {
-      applyTheme(systemTheme())
-      notify()
-    }
+    if (getChoice() === 'system') applyTheme(systemTheme())
   })
 }
 
@@ -100,12 +102,16 @@ export function resetThemeForTests(): void {
   listeners.clear()
 }
 
+/**
+ * The shopper's choice and its setter. The store holds the choice only; the
+ * theme it resolves to lives on `<html>` (`data-theme`), which a system
+ * change updates without a re-render.
+ */
 export function useTheme(): {
   choice: ThemeChoice
-  resolved: ResolvedTheme
   setChoice: (choice: ThemeChoice) => void
 } {
   const choice = useSyncExternalStore(subscribe, getChoice, () => 'system' as ThemeChoice)
   const set = useCallback((next: ThemeChoice) => setChoice(next), [])
-  return { choice, resolved: resolveTheme(choice), setChoice: set }
+  return { choice, setChoice: set }
 }

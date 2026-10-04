@@ -76,10 +76,9 @@ describe('ReasoningChip — matched style (Req 1.7.3)', () => {
 
     const chip = screen.getByTestId('reasoning-chip')
     expect(chip).toHaveAttribute('data-style', 'matched')
-    // The middle dot (U+00B7) joins the three attributes.
-    expect(chip.textContent).toBe(
-      'Matched on: earth \u00b7 warm \u00b7 everyday',
-    )
+    // A comma-separated list: VOICE.md allows no middle dots as separators.
+    expect(chip.textContent).toBe('Matched on: earth, warm, everyday')
+    expect(chip.textContent).not.toContain('\u00b7')
     // No B mark on the matched style — it is the engineer-voice chip.
     expect(within(chip).queryByTestId('reasoning-chip-pmark')).toBeNull()
   })

@@ -53,8 +53,7 @@ interface AuthContextType {
   /**
    * Saved preferences from AgentCore Memory, fetched via
    * `/api/user/preferences`. `null` means either unauthenticated or no
-   * preferences saved yet. AuthStateBand (Task 4.4) uses the null branch
-   * to trigger the preferences onboarding modal.
+   * preferences saved yet; PreferencesModal is the onboarding for that case.
    */
   preferences: Preferences | null
   /**

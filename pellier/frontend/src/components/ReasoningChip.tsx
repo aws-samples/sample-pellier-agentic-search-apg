@@ -8,7 +8,7 @@
  *   - `picked`  — `Picked because {reason}` in the storefront UI face with a
  *                 shared Pellier p. mark prefix (Req 1.7.2).
  *
- *   - `matched` — `Matched on: {attr1} · {attr2} · {attr3}` in the
+ *   - `matched` — `Matched on: {attr1}, {attr2}, {attr3}` in the
  *                 10px monospace footnote voice so it reads as a
  *                 quiet engineer-facing breadcrumb (Req 1.7.3). Copy
  *                 authoring lives in `copy.reasoningMatched`.

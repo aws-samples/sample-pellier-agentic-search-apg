@@ -23,6 +23,17 @@ function stubMatchMedia(dark: boolean) {
   })) as unknown as typeof window.matchMedia
 }
 
+/* The theme-color meta as index.html declares it, with a ground per theme. */
+function mountThemeColorMeta(): HTMLMetaElement {
+  const meta = document.createElement('meta')
+  meta.setAttribute('name', 'theme-color')
+  meta.setAttribute('content', 'unset')
+  meta.setAttribute('data-light', 'ground-light')
+  meta.setAttribute('data-dark', 'ground-dark')
+  document.head.appendChild(meta)
+  return meta
+}
+
 describe('ThemeControl', () => {
   beforeEach(() => {
     resetThemeForTests()
@@ -33,6 +44,20 @@ describe('ThemeControl', () => {
     vi.unstubAllGlobals()
     resetThemeForTests()
     document.documentElement.removeAttribute('data-theme')
+    document.head.querySelector('meta[name="theme-color"]')?.remove()
+  })
+
+  it('moves the browser chrome to the chosen ground', () => {
+    stubMatchMedia(false)
+    const meta = mountThemeColorMeta()
+    render(<ThemeControl />)
+    expect(meta.getAttribute('content')).toBe('ground-light')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dark theme' }))
+    expect(meta.getAttribute('content')).toBe('ground-dark')
+
+    fireEvent.click(screen.getByRole('button', { name: 'System theme' }))
+    expect(meta.getAttribute('content')).toBe('ground-light')
   })
 
   it('defaults to the system preference and applies it to <html>', () => {

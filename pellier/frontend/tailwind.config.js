@@ -46,6 +46,13 @@ export default {
         'warn': withAlpha('--dl-warn'),
         'scrim': 'var(--dl-scrim)',
       },
+      // Tailwind's preflight paints every border in its own gray-200 unless
+      // a color utility says otherwise; on black that is a near-white rule.
+      // The default border is the hairline token, so a bare `border-b` and
+      // the preflight itself follow the theme.
+      borderColor: {
+        DEFAULT: 'var(--dl-line)',
+      },
       boxShadow: {
         // Soft and low; the ask field is the one surface with a resting shadow.
         'ask': 'var(--dl-sh-ask)',
