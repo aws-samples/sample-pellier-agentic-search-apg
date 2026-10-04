@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -231,24 +232,41 @@ def generate_embeddings(products: List[Product], region: str) -> None:
 # EMBEDDINGS CACHE (precomputed vectors, committed to the repo)
 # =========================================================================
 
+def _text_digest(product: Product) -> str:
+    """Fingerprint of the exact text a product's vector was generated from."""
+    return hashlib.sha256(product.search_text.encode("utf-8")).hexdigest()
+
+
 def write_embeddings_cache(products: List[Product], path: str) -> None:
-    """Persist generated embeddings keyed by productId, for later --from-cache."""
+    """Persist generated embeddings keyed by productId, stamped with each text's digest."""
     cache = {
         str(p.productId): p.embedding
         for p in products
         if p.embedding and len(p.embedding) == EMBED_DIM
     }
+    digests = {str(p.productId): _text_digest(p) for p in products if str(p.productId) in cache}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         json.dump(
-            {"model": "us.cohere.embed-v4:0", "dim": EMBED_DIM, "embeddings": cache},
+            {
+                "model": "us.cohere.embed-v4:0",
+                "dim": EMBED_DIM,
+                "text_sha256": digests,
+                "embeddings": cache,
+            },
             f,
         )
     logger.info("Wrote %d cached embeddings to %s", len(cache), path)
 
 
 def load_embeddings_cache(products: List[Product], path: str) -> int:
-    """Attach precomputed embeddings from the committed cache. Returns count applied."""
+    """Attach precomputed embeddings from the committed cache. Returns count applied.
+
+    Raises:
+        SystemExit: a product has no cached vector, or its text changed since
+            its vector was generated. Either would seed a row that semantic
+            search cannot place correctly.
+    """
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"Embeddings cache not found at {path}. Generate it once with "
@@ -275,22 +293,25 @@ def load_embeddings_cache(products: List[Product], path: str) -> int:
         )
 
     cache = payload.get("embeddings", {})
-    applied = 0
-    missing: List[int] = []
-    for p in products:
-        vec = cache.get(str(p.productId))
-        if vec and len(vec) == EMBED_DIM:
-            p.embedding = vec
-            applied += 1
-        else:
-            missing.append(p.productId)
+    digests = payload.get("text_sha256", {})
+    missing = [
+        p.productId for p in products
+        if len(cache.get(str(p.productId)) or []) != EMBED_DIM
+    ]
     if missing:
-        logger.warning(
-            "Cache missing/invalid embeddings for %d products: %s",
-            len(missing), missing,
+        raise SystemExit(
+            f"Embeddings cache has no cached vector for products {missing}: "
+            "regenerate with --csv-only"
         )
-    logger.info("Applied %d/%d cached embeddings from %s", applied, len(products), path)
-    return applied
+    changed = [p.productId for p in products if digests.get(str(p.productId)) != _text_digest(p)]
+    if changed:
+        raise SystemExit(
+            f"Embeddings cache text changed for products {changed}: regenerate with --csv-only"
+        )
+    for p in products:
+        p.embedding = cache[str(p.productId)]
+    logger.info("Applied %d cached embeddings from %s", len(products), path)
+    return len(products)
 
 
 # =========================================================================
@@ -439,25 +460,38 @@ def print_summary(products: List[Product]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Seed Pellier catalog with embeddings")
-    parser.add_argument("--csv-only", action="store_true", help="Write CSV + embeddings cache only, no DB connection")
-    parser.add_argument("--from-cache", action="store_true", help="Seed using committed embeddings cache (no Bedrock calls) — preferred for workshops")
-    parser.add_argument("--skip-embeddings", action="store_true", help="Skip Cohere embedding generation (zero vectors)")
-    parser.add_argument("--region", default=os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION", "us-east-1"), help="AWS region")
+    parser.add_argument(
+        "--csv-only", action="store_true",
+        help="Write CSV + embeddings cache only, no DB connection",
+    )
+    parser.add_argument(
+        "--from-cache", action="store_true",
+        help="Seed using committed embeddings cache (no Bedrock calls) — preferred for workshops",
+    )
+    parser.add_argument(
+        "--skip-embeddings", action="store_true",
+        help="Skip Cohere embedding generation (zero vectors)",
+    )
+    parser.add_argument(
+        "--region",
+        default=os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION", "us-east-1"),
+        help="AWS region",
+    )
     args = parser.parse_args()
 
     products = load_catalog()
 
     if args.from_cache:
         # Workshop fast path: deterministic SQL load from precomputed vectors.
-        applied = load_embeddings_cache(products, EMBED_CACHE)
-        if applied < len(products):
-            logger.warning(
-                "Only %d/%d products have cached embeddings — the rest seed "
-                "with zero vectors and will not surface in semantic search.",
-                applied, len(products),
-            )
+        load_embeddings_cache(products, EMBED_CACHE)
     elif not args.skip_embeddings:
         generate_embeddings(products, args.region)
+        failed = [p.productId for p in products if not p.embedding]
+        if failed:
+            raise SystemExit(
+                f"Bedrock returned no embedding for products {failed}; "
+                "the cache was not written. Check model access in the region and rerun."
+            )
         # Refresh the committed cache whenever we regenerate, so the next
         # --from-cache run stays in sync with the live model output.
         write_embeddings_cache(products, EMBED_CACHE)

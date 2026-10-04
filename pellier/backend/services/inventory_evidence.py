@@ -52,18 +52,20 @@ The five states
 
 ``observed_in_stock`` / ``observed_out_of_stock``
     Per-warehouse rows exist but NO ledger movement does, so there is a cache
-    reading and nothing to reconcile it against. ``authority="cache"``.
+    reading and nothing to reconcile it against. ``authority="cache"``. On a
+    fresh seed this is products 43 and 79, whose warehouse rows are all zero.
 
 ``availability_not_verified``
-    No per-location evidence at all - the case for most catalog rows - or the
-    read failed. ``available_quantity`` is None, so a caller cannot render a number
-    that was never established.
+    No per-location evidence at all, or the read failed. A fresh seed gives every
+    product three warehouse rows, so this is a failure or post-seed state.
+    ``available_quantity`` is None, so a caller cannot render a number that was
+    never established.
 
 The aggregate cache is reported separately and is never the basis of an availability
 claim. Where it disagrees with ``catalog_balance`` the discrepancy is carried on
-``aggregate_cache_stale`` rather than resolved: measured 2026-08-27, products 11, 21
-and 31 sit at the seed constant 50 while the ledger says 39, 41 and 49. That is real
-drift in live data, and hiding it would be the one thing this module exists to prevent.
+``aggregate_cache_stale`` rather than resolved. Migration 006 refuses a seed whose
+aggregate differs from its warehouse rows, so drift appears only after writes, and
+hiding it would be the one thing this module exists to prevent.
 
 Every surface that mentions availability — narrative sentence, recommendation
 rationale, product card, action eligibility — reads the SAME object returned here.
@@ -160,7 +162,7 @@ SELECT t.product_id,
 #
 # Two predicates, both required. `product_catalog.quantity > 0` — what the shopper
 # planner compiles for `in_stock_only` — is deliberately NOT used: it is the
-# aggregate cache, it carries a seed constant for most rows, and letting it
+# aggregate cache, which writes can leave behind the ledger, and letting it
 # satisfy an explicit "in stock" request would make the phrase mean nothing.
 #
 # Correlates on `product_catalog."productId"`, so it composes with any query whose
@@ -208,7 +210,7 @@ class InventoryEvidence:
     # availability claim. Named so no caller mistakes it for one.
     catalog_cache_quantity: Optional[int] = None
     # The ledger's own catalog-level balance, and whether the aggregate cache has
-    # fallen behind it. Real in live data for products 11, 21 and 31.
+    # fallen behind it.
     catalog_ledger_quantity: Optional[int] = None
     aggregate_cache_stale: bool = False
     # Per-warehouse rows where cache and ledger disagree. Retained, never resolved.

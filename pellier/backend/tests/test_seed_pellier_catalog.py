@@ -3,6 +3,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[3]
 
 
@@ -37,6 +39,13 @@ def test_search_text_carries_no_shopper_persona_sentence():
         assert "client book" not in text and "investment piece" not in text
 
 
+def test_search_text_names_department_and_tags():
+    seed = _seed()
+    for p in seed.load_catalog():
+        assert f"Category: {p.department}." in p.search_text
+        assert f"Tags: {', '.join(p.tags)}." in p.search_text
+
+
 def test_every_department_is_one_of_the_eight():
     seed = _seed()
     assert len(seed.DEPARTMENTS) == 8
@@ -49,3 +58,43 @@ def test_database_dsn_honors_configured_port(monkeypatch):
                        "DB_USER": "u", "DB_PASSWORD": "p"}.items():
         monkeypatch.setenv(key, value)
     assert "port=6543" in seed._database_dsn()
+
+
+def _embedded(seed, count):
+    products = seed.load_catalog()[:count]
+    for p in products:
+        p.embedding = [0.1] * seed.EMBED_DIM
+    return products
+
+
+def test_cache_rejects_vectors_for_changed_text(tmp_path):
+    seed = _seed()
+    cache = tmp_path / "cache.json"
+    seed.write_embeddings_cache(_embedded(seed, 2), str(cache))
+    fresh = seed.load_catalog()[:2]
+    fresh[0].description += " Changed."
+    with pytest.raises(SystemExit, match=r"text changed for products \[1\]"):
+        seed.load_embeddings_cache(fresh, str(cache))
+
+
+def test_cache_rejects_a_product_without_a_vector(tmp_path):
+    seed = _seed()
+    cache = tmp_path / "cache.json"
+    seed.write_embeddings_cache(_embedded(seed, 2), str(cache))
+    with pytest.raises(SystemExit, match=r"no cached vector for products \[3\]"):
+        seed.load_embeddings_cache(seed.load_catalog()[:3], str(cache))
+
+
+def test_cache_round_trips_unchanged_text(tmp_path):
+    seed = _seed()
+    cache = tmp_path / "cache.json"
+    seed.write_embeddings_cache(_embedded(seed, 2), str(cache))
+    fresh = seed.load_catalog()[:2]
+    assert seed.load_embeddings_cache(fresh, str(cache)) == 2
+    assert all(len(p.embedding) == seed.EMBED_DIM for p in fresh)
+
+
+def test_committed_cache_matches_the_catalog_text():
+    seed = _seed()
+    products = seed.load_catalog()
+    assert seed.load_embeddings_cache(products, seed.EMBED_CACHE) == len(products)

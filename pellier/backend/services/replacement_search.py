@@ -60,8 +60,8 @@ candidate was never in the pool. "Please stay under $100" in a prompt is not
 enforcement.
 
 **"In stock" means reconciled against the ledger.** The shopper planner compiles
-``in_stock_only`` to ``quantity > 0`` on the aggregate cache, which holds a seed
-constant for most catalog rows. This module refuses that predicate and uses
+``in_stock_only`` to ``quantity > 0`` on the aggregate cache, which writes can
+leave behind the ledger. This module refuses that predicate and uses
 ``inventory_evidence.RECONCILED_AVAILABLE_SQL`` instead, so the phrase means
 something. Where no reconciled candidate exists, the answer says so rather than
 quietly widening to a cache reading.

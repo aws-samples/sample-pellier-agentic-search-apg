@@ -285,8 +285,8 @@ def test_the_aggregate_cache_can_never_satisfy_an_in_stock_request() -> None:
     """The load-bearing test for this workflow.
 
     `SearchPlan.compile_predicates` renders `in_stock_only` as a bare `quantity > 0`
-    on `product_catalog.quantity` — the aggregate cache, which carries a seed constant
-    for most rows. If that predicate ever reappears here, "in stock" stops
+    on `product_catalog.quantity` — the aggregate cache, which writes can leave
+    behind the ledger. If that predicate ever reappears here, "in stock" stops
     meaning anything.
     """
     plan = _plan("find an in-stock replacement", {"in_stock_only": True})
@@ -374,13 +374,13 @@ async def test_a_disagreement_is_preserved_rather_than_resolved() -> None:
 
 @pytest.mark.asyncio
 async def test_no_ledger_evidence_is_neither_in_stock_nor_out_of_stock() -> None:
-    """Most catalog rows are in this state. Both wrong answers are tempting."""
+    """No warehouse or ledger rows, as after a failed read. Both wrong answers are tempting."""
     db = FakeDb(inventory=[
         _inventory_row("41", has_ledger=False, locations=None, aggregate_cache=50),
     ])
     ev = await INV.resolve_inventory(db, "41")
     assert ev.status == INV.NOT_VERIFIED
-    assert ev.available_quantity is None, "a seed constant became a stock number"
+    assert ev.available_quantity is None, "a cache value became a stock number"
     assert ev.status != INV.OBSERVED_OUT_OF_STOCK, "missing evidence became zero stock"
     assert ev.supports_availability_claim is False
     # The aggregate column is reported, and labelled as a cache.
